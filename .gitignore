@@ -1,0 +1,10 @@
+node_modules
+dist
+build
+.next
+.env.local
+.env
+.DS_Store
+data/strm/*
+!data/strm/.gitkeep
+

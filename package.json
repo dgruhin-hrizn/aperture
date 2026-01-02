@@ -1,0 +1,11 @@
+{
+  "name": "aperture",
+  "private": true,
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "db:migrate": "node scripts/migrate.mjs"
+  }
+}
+
