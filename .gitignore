@@ -1,10 +1,54 @@
-node_modules
-dist
-build
-.next
-.env.local
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Environment files
 .env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.cursor/
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Test coverage
+coverage/
+
+# Temporary files
+tmp/
+temp/
+.cache/
+
+# Docker
+.docker/
+postgres-data/
+
+# Data directories (keep structure, ignore contents)
 data/strm/*
 !data/strm/.gitkeep
 
+# Turbo
+.turbo/
+
+# Playwright
+playwright-report/
+test-results/

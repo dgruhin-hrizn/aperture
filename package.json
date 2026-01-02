@@ -2,10 +2,41 @@
   "name": "aperture",
   "private": true,
   "packageManager": "pnpm@10.0.0",
+  "type": "module",
   "scripts": {
+    "menu": "node scripts/dev.mjs",
+    "dev": "node scripts/dev-start.mjs",
+    "dev:raw": "concurrently -n api,web -c blue,green \"pnpm --filter @aperture/api dev\" \"pnpm --filter @aperture/web dev\"",
+    "dev:api": "pnpm --filter @aperture/api dev",
+    "dev:web": "pnpm --filter @aperture/web dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:status": "node scripts/migrate.mjs --status",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
-    "db:migrate": "node scripts/migrate.mjs"
+    "docker:logs": "docker compose logs -f",
+    "docker:restart": "docker compose restart app",
+    "docker:rebuild": "docker compose up -d --build app",
+    "docker:db": "docker compose up -d db",
+    "docker:psql": "docker compose exec db psql -U app -d aperture",
+    "clean": "pnpm -r exec rm -rf dist node_modules && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/node": "^22.10.2",
+    "concurrently": "^9.1.0",
+    "dotenv": "^16.4.7",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.16",
+    "pg": "^8.13.1",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.1"
   }
 }
-

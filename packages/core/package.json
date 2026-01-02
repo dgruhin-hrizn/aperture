@@ -1,0 +1,59 @@
+{
+  "name": "@aperture/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./config": {
+      "import": "./dist/config/index.js",
+      "types": "./dist/config/index.d.ts"
+    },
+    "./db": {
+      "import": "./dist/db/index.js",
+      "types": "./dist/db/index.d.ts"
+    },
+    "./media": {
+      "import": "./dist/media/index.js",
+      "types": "./dist/media/index.d.ts"
+    },
+    "./recommender": {
+      "import": "./dist/recommender/index.js",
+      "types": "./dist/recommender/index.d.ts"
+    },
+    "./strm": {
+      "import": "./dist/strm/index.js",
+      "types": "./dist/strm/index.d.ts"
+    },
+    "./channels": {
+      "import": "./dist/channels/index.js",
+      "types": "./dist/channels/index.d.ts"
+    },
+    "./jobs": {
+      "import": "./dist/jobs/index.js",
+      "types": "./dist/jobs/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "openai": "^4.77.0",
+    "pg": "^8.13.1",
+    "pino": "^9.5.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.11.10",
+    "pino-pretty": "^13.0.0"
+  }
+}
+

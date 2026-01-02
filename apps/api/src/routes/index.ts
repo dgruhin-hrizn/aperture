@@ -1,0 +1,42 @@
+import type { FastifyPluginAsync } from 'fastify'
+import healthRoutes from './health.js'
+import apiRoutes from './api.js'
+import authRoutes from './auth.js'
+import usersRoutes from './users.js'
+import moviesRoutes from './movies.js'
+import recommendationsRoutes from './recommendations.js'
+import channelsRoutes from './channels.js'
+import jobsRoutes from './jobs.js'
+import settingsRoutes from './settings.js'
+
+const routes: FastifyPluginAsync = async (fastify) => {
+  // Register health check routes
+  await fastify.register(healthRoutes)
+
+  // Register API routes
+  await fastify.register(apiRoutes)
+
+  // Register auth routes
+  await fastify.register(authRoutes)
+
+  // Register users routes
+  await fastify.register(usersRoutes)
+
+  // Register movies routes
+  await fastify.register(moviesRoutes)
+
+  // Register recommendations routes
+  await fastify.register(recommendationsRoutes)
+
+  // Register channels routes
+  await fastify.register(channelsRoutes)
+
+  // Register jobs routes
+  await fastify.register(jobsRoutes)
+
+  // Register settings routes
+  await fastify.register(settingsRoutes)
+}
+
+export default routes
+
