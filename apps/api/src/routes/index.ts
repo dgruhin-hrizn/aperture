@@ -2,10 +2,10 @@ import type { FastifyPluginAsync } from 'fastify'
 import healthRoutes from './health.js'
 import apiRoutes from './api.js'
 import authRoutes from './auth.js'
-import usersRoutes from './users.js'
+import usersRoutes from './users/index.js'
 import moviesRoutes from './movies.js'
 import recommendationsRoutes from './recommendations.js'
-import channelsRoutes from './channels.js'
+import channelsRoutes from './channels/index.js'
 import jobsRoutes from './jobs.js'
 import settingsRoutes from './settings.js'
 
@@ -39,4 +39,3 @@ const routes: FastifyPluginAsync = async (fastify) => {
 }
 
 export default routes
-

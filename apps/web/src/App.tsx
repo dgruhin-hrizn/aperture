@@ -10,14 +10,14 @@ import { HomePage } from './pages/Home'
 import { MyRecommendationsPage } from './pages/MyRecommendations'
 import { MyWatchHistoryPage } from './pages/MyWatchHistory'
 import { MoviesPage } from './pages/Movies'
-import { MovieDetailPage } from './pages/MovieDetail'
-import { PlaylistsPage } from './pages/Playlists'
+import { MovieDetailPage } from './pages/movie-detail'
+import { PlaylistsPage } from './pages/playlists'
 // Admin pages
 import { AdminDashboard } from './pages/admin'
 import { UsersPage } from './pages/Users'
 import { UserDetailPage } from './pages/UserDetail'
 import { JobsPage } from './pages/Jobs'
-import { SettingsPage } from './pages/Settings'
+import { SettingsPage } from './pages/settings'
 import { Box, CircularProgress } from '@mui/material'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
