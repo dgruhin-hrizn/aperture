@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify'
 import {
-  getMediaServerProvider,
+  createMediaServerProvider,
   getLibraryConfigs,
   setLibraryEnabled,
   syncLibraryConfigsFromProvider,
@@ -13,7 +13,12 @@ import {
   getEmbeddingModel,
   setEmbeddingModel,
   EMBEDDING_MODELS,
+  getMediaServerConfig,
+  setMediaServerConfig,
+  testMediaServerConnection,
+  getMediaServerTypes,
   type EmbeddingModel,
+  type MediaServerType,
 } from '@aperture/core'
 import { requireAdmin } from '../plugins/auth.js'
 
@@ -28,17 +33,18 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * Note: Does not require admin - all authenticated users can use play buttons
    */
   fastify.get('/api/settings/media-server', async (_request, reply) => {
-    const baseUrl = process.env.MEDIA_SERVER_BASE_URL || ''
-    const serverType = process.env.MEDIA_SERVER_TYPE || 'emby'
-    const apiKey = process.env.MEDIA_SERVER_API_KEY || ''
+    const config = await getMediaServerConfig()
+    const baseUrl = config.baseUrl || ''
+    const serverType = config.type || 'emby'
+    const apiKey = config.apiKey || ''
 
     let serverId = ''
     let serverName = ''
 
     // Try to get server ID for deep linking
-    if (baseUrl && apiKey) {
+    if (baseUrl && apiKey && config.type) {
       try {
-        const provider = getMediaServerProvider()
+        const provider = createMediaServerProvider(config.type, baseUrl)
         if ('getServerInfo' in provider) {
           const info = await (
             provider as { getServerInfo: (key: string) => Promise<{ id: string; name: string }> }
@@ -56,8 +62,144 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       type: serverType,
       serverId,
       serverName,
-      webClientUrl: `${baseUrl}/web/index.html`,
+      webClientUrl: baseUrl ? `${baseUrl}/web/index.html` : '',
+      isConfigured: config.isConfigured,
     })
+  })
+
+  // =========================================================================
+  // Media Server Configuration (Admin)
+  // =========================================================================
+
+  /**
+   * GET /api/settings/media-server/config
+   * Get media server configuration (admin only)
+   */
+  fastify.get(
+    '/api/settings/media-server/config',
+    { preHandler: requireAdmin },
+    async (_request, reply) => {
+      try {
+        const config = await getMediaServerConfig()
+        const serverTypes = getMediaServerTypes()
+
+        return reply.send({
+          config: {
+            type: config.type,
+            baseUrl: config.baseUrl,
+            // Don't expose the full API key, just indicate if it's set
+            hasApiKey: !!config.apiKey,
+            isConfigured: config.isConfigured,
+          },
+          serverTypes,
+        })
+      } catch (err) {
+        fastify.log.error({ err }, 'Failed to get media server config')
+        return reply.status(500).send({ error: 'Failed to get media server configuration' })
+      }
+    }
+  )
+
+  /**
+   * PATCH /api/settings/media-server/config
+   * Update media server configuration
+   */
+  fastify.patch<{
+    Body: {
+      type?: MediaServerType
+      baseUrl?: string
+      apiKey?: string
+    }
+  }>('/api/settings/media-server/config', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const { type, baseUrl, apiKey } = request.body
+
+      // Validate server type
+      if (type !== undefined) {
+        const validTypes = getMediaServerTypes().map(
+          (t: { id: MediaServerType; name: string }) => t.id
+        )
+        if (!validTypes.includes(type)) {
+          return reply.status(400).send({
+            error: `Invalid server type. Valid options: ${validTypes.join(', ')}`,
+          })
+        }
+      }
+
+      // Validate base URL format
+      if (baseUrl !== undefined && baseUrl !== '') {
+        try {
+          new URL(baseUrl)
+        } catch {
+          return reply.status(400).send({ error: 'Invalid base URL format' })
+        }
+      }
+
+      const config = await setMediaServerConfig({ type, baseUrl, apiKey })
+
+      return reply.send({
+        config: {
+          type: config.type,
+          baseUrl: config.baseUrl,
+          hasApiKey: !!config.apiKey,
+          isConfigured: config.isConfigured,
+        },
+        message: 'Media server configuration updated',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to update media server config')
+      return reply.status(500).send({ error: 'Failed to update media server configuration' })
+    }
+  })
+
+  /**
+   * POST /api/settings/media-server/test
+   * Test media server connection with provided or saved credentials
+   */
+  fastify.post<{
+    Body: {
+      type?: MediaServerType
+      baseUrl?: string
+      apiKey?: string
+      useSavedCredentials?: boolean
+    }
+  }>('/api/settings/media-server/test', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const { type, baseUrl, apiKey, useSavedCredentials } = request.body
+
+      let testType = type
+      let testBaseUrl = baseUrl
+      let testApiKey = apiKey
+
+      // If using saved credentials, fetch from database
+      if (useSavedCredentials) {
+        const savedConfig = await getMediaServerConfig()
+        testType = type || (savedConfig.type as MediaServerType) || undefined
+        testBaseUrl = baseUrl || savedConfig.baseUrl || undefined
+        testApiKey = apiKey || savedConfig.apiKey || undefined
+      }
+
+      // Validate required fields
+      if (!testType || !testBaseUrl || !testApiKey) {
+        return reply.status(400).send({ error: 'type, baseUrl, and apiKey are required' })
+      }
+
+      // Validate server type
+      const validTypes = getMediaServerTypes().map((t) => t.id)
+      if (!validTypes.includes(testType)) {
+        return reply.status(400).send({
+          error: `Invalid server type. Valid options: ${validTypes.join(', ')}`,
+        })
+      }
+
+      // Test connection
+      const result = await testMediaServerConnection({ type: testType, baseUrl: testBaseUrl, apiKey: testApiKey })
+
+      return reply.send(result)
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to test media server connection')
+      return reply.status(500).send({ error: 'Failed to test connection' })
+    }
   })
 
   // =========================================================================
@@ -70,14 +212,14 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get('/api/genres', async (_request, reply) => {
     try {
-      const apiKey = process.env.MEDIA_SERVER_API_KEY
+      const config = await getMediaServerConfig()
 
-      if (!apiKey) {
-        return reply.status(500).send({ error: 'MEDIA_SERVER_API_KEY not configured' })
+      if (!config.isConfigured || !config.apiKey || !config.type) {
+        return reply.status(500).send({ error: 'Media server not configured' })
       }
 
-      const provider = getMediaServerProvider()
-      const genres = await provider.getGenres(apiKey)
+      const provider = createMediaServerProvider(config.type, config.baseUrl || '')
+      const genres = await provider.getGenres(config.apiKey)
 
       return reply.send({ genres })
     } catch (err) {
@@ -114,14 +256,14 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     { preHandler: requireAdmin },
     async (request, reply) => {
       try {
-        const apiKey = process.env.MEDIA_SERVER_API_KEY
+        const config = await getMediaServerConfig()
 
-        if (!apiKey) {
-          return reply.status(500).send({ error: 'MEDIA_SERVER_API_KEY not configured' })
+        if (!config.isConfigured || !config.apiKey || !config.type) {
+          return reply.status(500).send({ error: 'Media server not configured' })
         }
 
-        const provider = getMediaServerProvider()
-        const movieLibraries = await provider.getMovieLibraries(apiKey)
+        const provider = createMediaServerProvider(config.type, config.baseUrl || '')
+        const movieLibraries = await provider.getMovieLibraries(config.apiKey)
 
         // Sync to database
         const result = await syncLibraryConfigsFromProvider(
@@ -185,14 +327,14 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     { preHandler: requireAdmin },
     async (request, reply) => {
       try {
-        const apiKey = process.env.MEDIA_SERVER_API_KEY
+        const config = await getMediaServerConfig()
 
-        if (!apiKey) {
-          return reply.status(500).send({ error: 'MEDIA_SERVER_API_KEY not configured' })
+        if (!config.isConfigured || !config.apiKey || !config.type) {
+          return reply.status(500).send({ error: 'Media server not configured' })
         }
 
-        const provider = getMediaServerProvider()
-        const movieLibraries = await provider.getMovieLibraries(apiKey)
+        const provider = createMediaServerProvider(config.type, config.baseUrl || '')
+        const movieLibraries = await provider.getMovieLibraries(config.apiKey)
 
         return reply.send({ libraries: movieLibraries })
       } catch (err) {

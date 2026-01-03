@@ -1,5 +1,14 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
-import type { Job, JobProgress } from '../types'
+import type { Job, JobProgress, ScheduleType } from '../types'
+
+export interface UpdateJobConfigParams {
+  scheduleType: ScheduleType
+  scheduleHour: number | null
+  scheduleMinute: number | null
+  scheduleDayOfWeek: number | null
+  scheduleIntervalHours: number | null
+  isEnabled: boolean
+}
 
 export interface UseJobsDataReturn {
   jobs: Job[]
@@ -13,6 +22,7 @@ export interface UseJobsDataReturn {
   runningCount: number
   handleRunJob: (jobName: string) => Promise<void>
   handleCancelJob: (jobName: string) => Promise<void>
+  handleUpdateConfig: (jobName: string, config: UpdateJobConfigParams) => Promise<void>
   toggleLogs: (jobName: string) => void
   setCancelDialogJob: (jobName: string | null) => void
 }
@@ -191,6 +201,25 @@ export function useJobsData(): UseJobsDataReturn {
     })
   }
 
+  const handleUpdateConfig = async (jobName: string, config: UpdateJobConfigParams) => {
+    const response = await fetch(`/api/jobs/${jobName}/config`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(config),
+    })
+
+    if (!response.ok) {
+      const data = await response.json()
+      throw new Error(data.error || 'Failed to update job configuration')
+    }
+
+    // Refresh jobs to get updated schedule
+    await fetchJobs()
+  }
+
   const runningCount = jobs.filter((j) => j.status === 'running').length
 
   return {
@@ -205,6 +234,7 @@ export function useJobsData(): UseJobsDataReturn {
     runningCount,
     handleRunJob,
     handleCancelJob,
+    handleUpdateConfig,
     toggleLogs,
     setCancelDialogJob,
   }

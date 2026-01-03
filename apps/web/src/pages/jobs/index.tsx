@@ -1,8 +1,8 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Box, Typography, Chip, Alert, Stack } from '@mui/material'
 import { useJobsData } from './hooks'
 import { JOB_CATEGORIES } from './constants'
-import { JobCard, CancelDialog, LoadingSkeleton } from './components'
+import { JobCard, JobConfigDialog, CancelDialog, LoadingSkeleton } from './components'
 
 export function JobsPage() {
   const {
@@ -17,9 +17,13 @@ export function JobsPage() {
     runningCount,
     handleRunJob,
     handleCancelJob,
+    handleUpdateConfig,
     toggleLogs,
     setCancelDialogJob,
   } = useJobsData()
+
+  const [configDialogJob, setConfigDialogJob] = useState<string | null>(null)
+  const configJob = jobs.find((j) => j.name === configDialogJob)
 
   if (loading) {
     return <LoadingSkeleton />
@@ -102,6 +106,7 @@ export function JobsPage() {
                     onRun={() => handleRunJob(job.name)}
                     onCancel={() => setCancelDialogJob(job.name)}
                     onToggleLogs={() => toggleLogs(job.name)}
+                    onConfigClick={() => setConfigDialogJob(job.name)}
                     logsContainerRef={(el) => {
                       if (el) logsContainerRefs.current.set(job.name, el)
                     }}
@@ -118,6 +123,15 @@ export function JobsPage() {
         jobName={cancelDialogJob}
         onClose={() => setCancelDialogJob(null)}
         onConfirm={() => cancelDialogJob && handleCancelJob(cancelDialogJob)}
+      />
+
+      {/* Job Configuration Dialog */}
+      <JobConfigDialog
+        open={!!configDialogJob}
+        onClose={() => setConfigDialogJob(null)}
+        jobName={configDialogJob || ''}
+        currentSchedule={configJob?.schedule}
+        onSave={(config) => handleUpdateConfig(configDialogJob!, config)}
       />
     </Box>
   )

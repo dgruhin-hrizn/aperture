@@ -15,7 +15,13 @@ import {
   cancelJob,
   purgeMovieDatabase,
   getMovieDatabaseStats,
+  getJobConfig,
+  getAllJobConfigs,
+  setJobConfig,
+  formatSchedule,
+  getValidJobNames,
   type JobProgress,
+  type ScheduleType,
 } from '@aperture/core'
 import { randomUUID } from 'crypto'
 
@@ -69,25 +75,45 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
 const jobsRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * GET /api/jobs
-   * List all jobs with their status
+   * List all jobs with their status and schedule config
    */
   fastify.get('/api/jobs', { preHandler: requireAdmin }, async (_request, reply) => {
-    const jobs = jobDefinitions.map((def) => {
-      const activeJobId = activeJobs.get(def.name)
-      const progress = activeJobId ? getJobProgress(activeJobId) : null
+    // Get all job configs from database
+    const jobConfigs = await getAllJobConfigs()
+    const configMap = new Map(jobConfigs.map((c) => [c.jobName, c]))
 
-      return {
-        ...def,
-        status: progress?.status === 'running' ? 'running' : 'idle',
-        currentJobId: activeJobId,
-        progress: progress ? {
-          overallProgress: progress.overallProgress,
-          currentStep: progress.currentStep,
-          itemsProcessed: progress.itemsProcessed,
-          itemsTotal: progress.itemsTotal,
-        } : null,
-      }
-    })
+    const jobs = await Promise.all(
+      jobDefinitions.map(async (def) => {
+        const activeJobId = activeJobs.get(def.name)
+        const progress = activeJobId ? getJobProgress(activeJobId) : null
+        const config = configMap.get(def.name) || (await getJobConfig(def.name))
+
+        return {
+          ...def,
+          status: progress?.status === 'running' ? 'running' : 'idle',
+          currentJobId: activeJobId,
+          progress: progress
+            ? {
+                overallProgress: progress.overallProgress,
+                currentStep: progress.currentStep,
+                itemsProcessed: progress.itemsProcessed,
+                itemsTotal: progress.itemsTotal,
+              }
+            : null,
+          schedule: config
+            ? {
+                type: config.scheduleType,
+                hour: config.scheduleHour,
+                minute: config.scheduleMinute,
+                dayOfWeek: config.scheduleDayOfWeek,
+                intervalHours: config.scheduleIntervalHours,
+                isEnabled: config.isEnabled,
+                formatted: formatSchedule(config),
+              }
+            : null,
+        }
+      })
+    )
 
     return reply.send({ jobs })
   })
@@ -173,6 +199,122 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
         jobId: activeJobId,
         status: 'cancelled',
       })
+    }
+  )
+
+  /**
+   * GET /api/jobs/:name/config
+   * Get job schedule configuration
+   */
+  fastify.get<{ Params: { name: string } }>(
+    '/api/jobs/:name/config',
+    { preHandler: requireAdmin },
+    async (request, reply) => {
+      const { name } = request.params
+
+      if (!getValidJobNames().includes(name)) {
+        return reply.status(404).send({ error: 'Job not found' })
+      }
+
+      const config = await getJobConfig(name)
+      if (!config) {
+        return reply.status(404).send({ error: 'Job config not found' })
+      }
+
+      return reply.send({
+        config: {
+          jobName: config.jobName,
+          scheduleType: config.scheduleType,
+          scheduleHour: config.scheduleHour,
+          scheduleMinute: config.scheduleMinute,
+          scheduleDayOfWeek: config.scheduleDayOfWeek,
+          scheduleIntervalHours: config.scheduleIntervalHours,
+          isEnabled: config.isEnabled,
+          formatted: formatSchedule(config),
+        },
+      })
+    }
+  )
+
+  /**
+   * PATCH /api/jobs/:name/config
+   * Update job schedule configuration
+   */
+  fastify.patch<{
+    Params: { name: string }
+    Body: {
+      scheduleType?: ScheduleType
+      scheduleHour?: number | null
+      scheduleMinute?: number | null
+      scheduleDayOfWeek?: number | null
+      scheduleIntervalHours?: number | null
+      isEnabled?: boolean
+    }
+  }>(
+    '/api/jobs/:name/config',
+    { preHandler: requireAdmin },
+    async (request, reply) => {
+      const { name } = request.params
+      const updates = request.body
+
+      if (!getValidJobNames().includes(name)) {
+        return reply.status(404).send({ error: 'Job not found' })
+      }
+
+      // Validate schedule type
+      if (updates.scheduleType && !['daily', 'weekly', 'interval', 'manual'].includes(updates.scheduleType)) {
+        return reply.status(400).send({ error: 'Invalid schedule type. Must be: daily, weekly, interval, or manual' })
+      }
+
+      // Validate hour (0-23)
+      if (updates.scheduleHour !== undefined && updates.scheduleHour !== null) {
+        if (updates.scheduleHour < 0 || updates.scheduleHour > 23) {
+          return reply.status(400).send({ error: 'Hour must be between 0 and 23' })
+        }
+      }
+
+      // Validate minute (0-59)
+      if (updates.scheduleMinute !== undefined && updates.scheduleMinute !== null) {
+        if (updates.scheduleMinute < 0 || updates.scheduleMinute > 59) {
+          return reply.status(400).send({ error: 'Minute must be between 0 and 59' })
+        }
+      }
+
+      // Validate day of week (0-6)
+      if (updates.scheduleDayOfWeek !== undefined && updates.scheduleDayOfWeek !== null) {
+        if (updates.scheduleDayOfWeek < 0 || updates.scheduleDayOfWeek > 6) {
+          return reply.status(400).send({ error: 'Day of week must be between 0 (Sunday) and 6 (Saturday)' })
+        }
+      }
+
+      // Validate interval hours
+      if (updates.scheduleIntervalHours !== undefined && updates.scheduleIntervalHours !== null) {
+        if (![1, 2, 3, 4, 6, 8, 12].includes(updates.scheduleIntervalHours)) {
+          return reply.status(400).send({ error: 'Interval hours must be one of: 1, 2, 3, 4, 6, 8, 12' })
+        }
+      }
+
+      try {
+        const config = await setJobConfig(name, updates)
+        logger.info({ job: name, config: updates }, 'Job config updated')
+
+        return reply.send({
+          config: {
+            jobName: config.jobName,
+            scheduleType: config.scheduleType,
+            scheduleHour: config.scheduleHour,
+            scheduleMinute: config.scheduleMinute,
+            scheduleDayOfWeek: config.scheduleDayOfWeek,
+            scheduleIntervalHours: config.scheduleIntervalHours,
+            isEnabled: config.isEnabled,
+            formatted: formatSchedule(config),
+          },
+          message: 'Job configuration updated',
+        })
+      } catch (err) {
+        logger.error({ err, job: name }, 'Failed to update job config')
+        return reply.status(500).send({ error: 'Failed to update job configuration' })
+      }
     }
   )
 

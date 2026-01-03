@@ -1,9 +1,10 @@
 import React from 'react'
-import { Box, Button, Collapse, Stack, Typography } from '@mui/material'
+import { Box, Button, Collapse, IconButton, Stack, Tooltip, Typography } from '@mui/material'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
 import ScheduleIcon from '@mui/icons-material/Schedule'
-import { JOB_ICONS, JOB_COLORS, formatJobName, formatCron } from '../constants'
+import SettingsIcon from '@mui/icons-material/Settings'
+import { JOB_ICONS, JOB_COLORS, formatJobName } from '../constants'
 import { JobProgressSection } from './JobProgressSection'
 import { JobResult } from './JobResult'
 import type { Job, JobProgress } from '../types'
@@ -16,6 +17,7 @@ interface JobCardProps {
   onRun: () => void
   onCancel: () => void
   onToggleLogs: () => void
+  onConfigClick: () => void
   logsContainerRef: (el: HTMLDivElement | null) => void
 }
 
@@ -27,6 +29,7 @@ export function JobCard({
   onRun,
   onCancel,
   onToggleLogs,
+  onConfigClick,
   logsContainerRef,
 }: JobCardProps) {
   const isRunning = job.status === 'running' || progress?.status === 'running'
@@ -105,13 +108,25 @@ export function JobCard({
             <Stack direction="row" alignItems="center" spacing={0.5}>
               <ScheduleIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
               <Typography variant="caption" color="text.disabled">
-                {formatCron(job.cron)}
+                {job.schedule?.formatted || 'Not configured'}
               </Typography>
             </Stack>
           </Box>
 
-          {/* Action Button */}
-          <Box>
+          {/* Config + Action Buttons */}
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <Tooltip title="Configure schedule">
+              <IconButton
+                size="small"
+                onClick={onConfigClick}
+                sx={{
+                  color: 'text.secondary',
+                  '&:hover': { bgcolor: 'action.hover' },
+                }}
+              >
+                <SettingsIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
             {isRunning ? (
               <Button
                 variant="outlined"
@@ -150,7 +165,7 @@ export function JobCard({
                 Run
               </Button>
             )}
-          </Box>
+          </Stack>
         </Stack>
       </Box>
 

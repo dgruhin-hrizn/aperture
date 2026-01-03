@@ -5,6 +5,18 @@ export interface LogEntry {
   data?: Record<string, unknown>
 }
 
+export type ScheduleType = 'daily' | 'weekly' | 'interval' | 'manual'
+
+export interface JobSchedule {
+  type: ScheduleType
+  hour: number | null
+  minute: number | null
+  dayOfWeek: number | null
+  intervalHours: number | null
+  isEnabled: boolean
+  formatted: string
+}
+
 export interface JobProgress {
   jobId: string
   jobName: string
@@ -36,6 +48,7 @@ export interface Job {
     itemsProcessed: number
     itemsTotal: number
   }
+  schedule?: JobSchedule | null
 }
 
 export interface JobCategory {

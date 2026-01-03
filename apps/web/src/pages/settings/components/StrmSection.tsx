@@ -1,27 +1,242 @@
-import { Box, Typography, Card, CardContent, Alert } from '@mui/material'
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Stack,
+  Divider,
+  Paper,
+} from '@mui/material'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import FolderIcon from '@mui/icons-material/Folder'
+import StorageIcon from '@mui/icons-material/Storage'
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline'
+
+function CodeBlock({ children }: { children: string }) {
+  return (
+    <Paper
+      sx={{
+        p: 2,
+        bgcolor: 'grey.900',
+        borderRadius: 1,
+        overflow: 'auto',
+        '& pre': {
+          m: 0,
+          fontFamily: 'monospace',
+          fontSize: '0.85rem',
+          lineHeight: 1.6,
+          color: 'grey.100',
+        },
+      }}
+    >
+      <pre>{children}</pre>
+    </Paper>
+  )
+}
 
 export function StrmSection() {
   return (
     <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
       <CardContent>
-        <Typography variant="h6" mb={3}>
+        <Typography variant="h6" mb={2}>
           STRM Libraries
         </Typography>
-
-        <Alert severity="info" sx={{ mb: 3 }}>
-          STRM configuration is managed via environment variables in <code>.env.local</code>.
-        </Alert>
-
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          Configuration options:
+        
+        <Typography variant="body2" color="text.secondary" mb={3}>
+          Aperture creates personalized recommendation libraries for each user as STRM files. 
+          Your media server reads these STRM files to display AI-curated movie collections.
         </Typography>
-        <Box component="ul" sx={{ m: 0, pl: 2, color: 'text.secondary' }}>
-          <li><code>AI_LIBRARY_NAME_PREFIX</code> - Library name prefix (default: "AI Picks - ")</li>
-          <li><code>AI_LIBRARY_PATH_PREFIX</code> - Path prefix (default: /strm/aperture/)</li>
-          <li><code>MEDIA_SERVER_STRM_ROOT</code> - STRM root directory (default: /strm)</li>
-        </Box>
+
+        <Stack spacing={2}>
+          {/* What are STRM Files */}
+          <Accordion defaultExpanded>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <HelpOutlineIcon color="primary" fontSize="small" />
+                <Typography fontWeight={500}>What are STRM files?</Typography>
+              </Stack>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Typography variant="body2" color="text.secondary" paragraph>
+                STRM files are simple text files that contain a URL to media content. When your media 
+                server (Emby/Jellyfin) scans a library containing STRM files, it reads the URL inside 
+                each file and uses it to stream the actual media.
+              </Typography>
+              <Typography variant="body2" color="text.secondary" paragraph>
+                Aperture uses STRM files to create <strong>virtual libraries</strong> of your 
+                AI-recommended movies. The STRM files point back to your existing media files, 
+                so no additional storage is required.
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Each user gets their own personalized library (e.g., "AI Picks - John") containing 
+                STRM files for their recommended movies.
+              </Typography>
+            </AccordionDetails>
+          </Accordion>
+
+          {/* Docker Setup */}
+          <Accordion>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <StorageIcon color="primary" fontSize="small" />
+                <Typography fontWeight={500}>Docker Compose Setup</Typography>
+              </Stack>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Typography variant="body2" color="text.secondary" paragraph>
+                For STRM files to work, both Aperture and your media server need access to the 
+                same directory. Here's how to set up the volume mounts:
+              </Typography>
+              
+              <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+                1. Create a shared STRM directory
+              </Typography>
+              <CodeBlock>{`# On your host machine
+mkdir -p /path/to/strm/aperture`}</CodeBlock>
+
+              <Typography variant="subtitle2" gutterBottom sx={{ mt: 3 }}>
+                2. Mount the directory in both containers
+              </Typography>
+              <CodeBlock>{`# docker-compose.yml
+
+services:
+  aperture:
+    image: aperture
+    volumes:
+      # STRM output directory - Aperture writes here
+      - /path/to/strm:/strm
+
+  emby:  # or jellyfin
+    image: emby/embyserver
+    volumes:
+      # Your existing media library
+      - /path/to/media:/mnt/media:ro
+      # STRM directory - must be the same as Aperture's
+      - /path/to/strm:/strm:ro`}</CodeBlock>
+
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                <strong>Important:</strong> The STRM path must be identical inside both containers. 
+                If Aperture writes to <code>/strm/aperture/user/movie.strm</code>, your media 
+                server must see the file at the same path.
+              </Typography>
+            </AccordionDetails>
+          </Accordion>
+
+          {/* Unraid Setup */}
+          <Accordion>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <FolderIcon color="primary" fontSize="small" />
+                <Typography fontWeight={500}>Unraid Setup</Typography>
+              </Stack>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Typography variant="body2" color="text.secondary" paragraph>
+                On Unraid, you'll typically use a share for your STRM files. Here's the recommended setup:
+              </Typography>
+
+              <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+                1. Create a share for STRM files
+              </Typography>
+              <Typography variant="body2" color="text.secondary" paragraph>
+                In the Unraid web UI, create a new share called <code>strm</code> (or use an existing data share).
+                This will be accessible at <code>/mnt/user/strm</code>.
+              </Typography>
+
+              <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+                2. Configure Aperture container path
+              </Typography>
+              <Typography variant="body2" color="text.secondary" paragraph>
+                In the Aperture Docker template:
+              </Typography>
+              <CodeBlock>{`Container Path: /strm
+Host Path: /mnt/user/strm`}</CodeBlock>
+
+              <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+                3. Configure Emby/Jellyfin container path
+              </Typography>
+              <Typography variant="body2" color="text.secondary" paragraph>
+                In your media server Docker template, add the same path mapping:
+              </Typography>
+              <CodeBlock>{`Container Path: /strm
+Host Path: /mnt/user/strm
+Access Mode: Read Only`}</CodeBlock>
+
+              <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+                4. Add the library in your media server
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                After running the "Sync STRM" job in Aperture, add a new Movies library in 
+                Emby/Jellyfin pointing to <code>/strm/aperture/[username]</code>. Aperture will 
+                automatically create the folder structure for each user.
+              </Typography>
+            </AccordionDetails>
+          </Accordion>
+
+          {/* Troubleshooting */}
+          <Accordion>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <HelpOutlineIcon color="warning" fontSize="small" />
+                <Typography fontWeight={500}>Troubleshooting</Typography>
+              </Stack>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Stack spacing={2}>
+                <Box>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Library not showing in media server
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    • Verify the STRM path is the same in both containers<br />
+                    • Check that the "Sync STRM" job has run successfully<br />
+                    • Ensure the media server has read permissions on the STRM directory<br />
+                    • Rescan the library in your media server
+                  </Typography>
+                </Box>
+
+                <Divider />
+
+                <Box>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Movies not playing from STRM library
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    • STRM files contain URLs to your original media files<br />
+                    • Verify your media files are accessible to the media server<br />
+                    • Check that the URLs in STRM files match your media server's internal paths<br />
+                    • Try playing a movie directly from your main library to confirm streaming works
+                  </Typography>
+                </Box>
+
+                <Divider />
+
+                <Box>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Permission denied errors
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    • Aperture needs write access to the STRM directory<br />
+                    • On Linux/Unraid, ensure the container user (usually UID 1000) has write permissions<br />
+                    • You may need to <code>chown -R 1000:1000 /path/to/strm</code>
+                  </Typography>
+                </Box>
+              </Stack>
+            </AccordionDetails>
+          </Accordion>
+
+          {/* Current Configuration */}
+          <Box sx={{ pt: 2, borderTop: 1, borderColor: 'divider' }}>
+            <Typography variant="caption" color="text.secondary">
+              Configuration is set via environment variables: <code>AI_LIBRARY_NAME_PREFIX</code>, 
+              <code>AI_LIBRARY_PATH_PREFIX</code>, and <code>MEDIA_SERVER_STRM_ROOT</code>
+            </Typography>
+          </Box>
+        </Stack>
       </CardContent>
     </Card>
   )
 }
-

@@ -102,6 +102,18 @@ export {
   type LogEntry,
 } from './jobs/index.js'
 
+// Job Config
+export {
+  getJobConfig,
+  getAllJobConfigs,
+  setJobConfig,
+  scheduleToCron,
+  formatSchedule,
+  getValidJobNames,
+  type JobConfig,
+  type ScheduleType,
+} from './jobs/index.js'
+
 // Library Config
 export {
   getLibraryConfigs,
@@ -151,7 +163,13 @@ export {
   getEmbeddingModel,
   setEmbeddingModel,
   EMBEDDING_MODELS,
+  getMediaServerConfig,
+  setMediaServerConfig,
+  testMediaServerConnection,
+  isMediaServerConfigured,
+  getMediaServerTypes,
   type SystemSetting,
   type EmbeddingModel,
+  type MediaServerConfig,
 } from './settings/systemSettings.js'
 

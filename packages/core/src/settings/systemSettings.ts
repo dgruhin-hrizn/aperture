@@ -143,3 +143,131 @@ function isValidEmbeddingModel(model: string): model is EmbeddingModel {
   return EMBEDDING_MODELS.some((m) => m.id === model)
 }
 
+// ============================================================================
+// Media Server Settings
+// ============================================================================
+
+export type MediaServerType = 'emby' | 'jellyfin'
+
+export interface MediaServerConfig {
+  type: MediaServerType | null
+  baseUrl: string | null
+  apiKey: string | null
+  isConfigured: boolean
+}
+
+const MEDIA_SERVER_TYPES: MediaServerType[] = ['emby', 'jellyfin']
+
+/**
+ * Get media server configuration from database
+ * Falls back to environment variables for backwards compatibility
+ */
+export async function getMediaServerConfig(): Promise<MediaServerConfig> {
+  // Try database first
+  const dbType = await getSystemSetting('media_server_type')
+  const dbBaseUrl = await getSystemSetting('media_server_base_url')
+  const dbApiKey = await getSystemSetting('media_server_api_key')
+
+  // If any DB settings exist, use them (even if partial)
+  if (dbType || dbBaseUrl || dbApiKey) {
+    return {
+      type: isValidMediaServerType(dbType) ? dbType : null,
+      baseUrl: dbBaseUrl || null,
+      apiKey: dbApiKey || null,
+      isConfigured: !!(dbType && dbBaseUrl && dbApiKey),
+    }
+  }
+
+  // Fall back to environment variables
+  const envType = process.env.MEDIA_SERVER_TYPE
+  const envBaseUrl = process.env.MEDIA_SERVER_BASE_URL
+  const envApiKey = process.env.MEDIA_SERVER_API_KEY
+
+  return {
+    type: isValidMediaServerType(envType) ? envType : null,
+    baseUrl: envBaseUrl || null,
+    apiKey: envApiKey || null,
+    isConfigured: !!(envType && envBaseUrl && envApiKey),
+  }
+}
+
+/**
+ * Set media server configuration
+ */
+export async function setMediaServerConfig(config: {
+  type?: MediaServerType
+  baseUrl?: string
+  apiKey?: string
+}): Promise<MediaServerConfig> {
+  if (config.type !== undefined) {
+    if (!isValidMediaServerType(config.type)) {
+      throw new Error(`Invalid media server type: ${config.type}. Valid options: ${MEDIA_SERVER_TYPES.join(', ')}`)
+    }
+    await setSystemSetting('media_server_type', config.type, 'Media server type: emby or jellyfin')
+  }
+
+  if (config.baseUrl !== undefined) {
+    await setSystemSetting('media_server_base_url', config.baseUrl, 'Media server base URL')
+  }
+
+  if (config.apiKey !== undefined) {
+    await setSystemSetting('media_server_api_key', config.apiKey, 'Media server API key')
+  }
+
+  logger.info('Media server config updated')
+  return getMediaServerConfig()
+}
+
+/**
+ * Test media server connection with given credentials
+ */
+export async function testMediaServerConnection(config: {
+  type: MediaServerType
+  baseUrl: string
+  apiKey: string
+}): Promise<{ success: boolean; serverName?: string; error?: string }> {
+  try {
+    // Import dynamically to avoid circular dependencies
+    const { createMediaServerProvider } = await import('../media/index.js')
+    const provider = createMediaServerProvider(config.type, config.baseUrl)
+
+    // Try to get server info as a connection test
+    if ('getServerInfo' in provider) {
+      const info = await (
+        provider as { getServerInfo: (key: string) => Promise<{ id: string; name: string }> }
+      ).getServerInfo(config.apiKey)
+      return { success: true, serverName: info.name }
+    }
+
+    // Fallback: try to get movie libraries
+    const libraries = await provider.getMovieLibraries(config.apiKey)
+    return { success: true, serverName: `${config.type} server (${libraries.length} libraries)` }
+  } catch (err) {
+    const error = err instanceof Error ? err.message : 'Unknown error'
+    logger.warn({ err, config: { type: config.type, baseUrl: config.baseUrl } }, 'Media server connection test failed')
+    return { success: false, error }
+  }
+}
+
+/**
+ * Check if media server is configured (either in DB or ENV)
+ */
+export async function isMediaServerConfigured(): Promise<boolean> {
+  const config = await getMediaServerConfig()
+  return config.isConfigured
+}
+
+function isValidMediaServerType(type: string | undefined | null): type is MediaServerType {
+  return type !== undefined && type !== null && MEDIA_SERVER_TYPES.includes(type as MediaServerType)
+}
+
+/**
+ * Get available media server types
+ */
+export function getMediaServerTypes(): { id: MediaServerType; name: string }[] {
+  return [
+    { id: 'emby', name: 'Emby' },
+    { id: 'jellyfin', name: 'Jellyfin' },
+  ]
+}
+

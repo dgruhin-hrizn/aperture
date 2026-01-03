@@ -1,4 +1,5 @@
 export { JobCard } from './JobCard'
+export { JobConfigDialog } from './JobConfigDialog'
 export { JobLogs } from './JobLogs'
 export { JobProgressSection } from './JobProgressSection'
 export { JobResult } from './JobResult'
