@@ -1,4 +1,4 @@
-import Fastify, { type FastifyInstance } from 'fastify'
+import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import cookie from '@fastify/cookie'
 import { createLogger } from './lib/logger.js'
@@ -11,7 +11,8 @@ export interface ServerOptions {
   logger?: boolean
 }
 
-export async function buildServer(options: ServerOptions = {}): Promise<FastifyInstance> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function buildServer(options: ServerOptions = {}): Promise<any> {
   const logger = createLogger('api')
 
   const fastify = Fastify({

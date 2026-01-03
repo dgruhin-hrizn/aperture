@@ -15,36 +15,70 @@ import {
   IconButton,
   Skeleton,
   Alert,
+  Button,
+  CircularProgress,
+  Tooltip,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Divider,
+  Snackbar,
 } from '@mui/material'
 import VisibilityIcon from '@mui/icons-material/Visibility'
+import PersonAddIcon from '@mui/icons-material/PersonAdd'
+import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import BlockIcon from '@mui/icons-material/Block'
+import RefreshIcon from '@mui/icons-material/Refresh'
+import MoreVertIcon from '@mui/icons-material/MoreVert'
+import HistoryIcon from '@mui/icons-material/History'
+import RecommendIcon from '@mui/icons-material/Recommend'
+import FolderIcon from '@mui/icons-material/Folder'
+import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 
-interface User {
-  id: string
-  username: string
-  display_name: string | null
-  provider: 'emby' | 'jellyfin'
-  is_admin: boolean
-  is_enabled: boolean
-  created_at: string
-  updated_at: string
+interface ProviderUser {
+  providerUserId: string
+  name: string
+  isAdmin: boolean
+  isDisabled: boolean
+  lastActivityDate?: string
+  apertureUserId: string | null
+  isImported: boolean
+  isEnabled: boolean
 }
 
 export function UsersPage() {
   const navigate = useNavigate()
-  const [users, setUsers] = useState<User[]>([])
+  const [providerUsers, setProviderUsers] = useState<ProviderUser[]>([])
+  const [provider, setProvider] = useState<string>('emby')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [updating, setUpdating] = useState<string | null>(null)
+  const [importing, setImporting] = useState<string | null>(null)
+  // Track running jobs per user (userId -> job type)
+  const [runningJobs, setRunningJobs] = useState<Map<string, string>>(new Map())
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  })
 
-  const fetchUsers = async () => {
+  // Menu state
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
+  const [menuUser, setMenuUser] = useState<ProviderUser | null>(null)
+
+  const fetchProviderUsers = async () => {
+    setLoading(true)
     try {
-      const response = await fetch('/api/users', { credentials: 'include' })
+      const response = await fetch('/api/users/provider', { credentials: 'include' })
       if (response.ok) {
         const data = await response.json()
-        setUsers(data.users)
+        setProviderUsers(data.users)
+        setProvider(data.provider)
         setError(null)
       } else {
-        setError('Failed to load users')
+        const errData = await response.json().catch(() => ({}))
+        setError(errData.error || 'Failed to load users from media server')
       }
     } catch {
       setError('Could not connect to server')
@@ -54,28 +88,104 @@ export function UsersPage() {
   }
 
   useEffect(() => {
-    fetchUsers()
+    fetchProviderUsers()
   }, [])
 
-  const handleToggleEnabled = async (userId: string, currentValue: boolean) => {
-    setUpdating(userId)
+  const handleImportUser = async (providerUserId: string, enableAfterImport: boolean = false) => {
+    setImporting(providerUserId)
     try {
-      const response = await fetch(`/api/users/${userId}`, {
-        method: 'PUT',
+      const response = await fetch('/api/users/import', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ isEnabled: !currentValue }),
+        body: JSON.stringify({ providerUserId, isEnabled: enableAfterImport }),
       })
 
       if (response.ok) {
-        setUsers((prev) =>
+        const data = await response.json()
+        setProviderUsers((prev) =>
           prev.map((user) =>
-            user.id === userId ? { ...user, is_enabled: !currentValue } : user
+            user.providerUserId === providerUserId
+              ? { ...user, isImported: true, apertureUserId: data.user.id, isEnabled: enableAfterImport }
+              : user
+          )
+        )
+        setSnackbar({ open: true, message: 'User imported successfully', severity: 'success' })
+      }
+    } finally {
+      setImporting(null)
+    }
+  }
+
+  const handleToggleEnabled = async (user: ProviderUser) => {
+    if (!user.apertureUserId) return
+
+    setUpdating(user.providerUserId)
+    try {
+      const response = await fetch(`/api/users/${user.apertureUserId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ isEnabled: !user.isEnabled }),
+      })
+
+      if (response.ok) {
+        setProviderUsers((prev) =>
+          prev.map((u) =>
+            u.providerUserId === user.providerUserId
+              ? { ...u, isEnabled: !user.isEnabled }
+              : u
           )
         )
       }
     } finally {
       setUpdating(null)
+    }
+  }
+
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, user: ProviderUser) => {
+    setMenuAnchor(event.currentTarget)
+    setMenuUser(user)
+  }
+
+  const handleMenuClose = () => {
+    setMenuAnchor(null)
+    setMenuUser(null)
+  }
+
+  const runUserJob = async (userId: string, jobType: 'sync-history' | 'generate-recommendations' | 'update-strm' | 'run-all', userName: string) => {
+    handleMenuClose()
+    
+    // Add this user to running jobs
+    setRunningJobs(prev => new Map(prev).set(userId, jobType))
+    
+    try {
+      const response = await fetch(`/api/users/${userId}/${jobType}`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+
+      if (response.ok) {
+        const jobNames: Record<string, string> = {
+          'sync-history': 'Watch history synced',
+          'generate-recommendations': 'Recommendations generated',
+          'update-strm': 'STRM files updated',
+          'run-all': 'Full pipeline complete',
+        }
+        setSnackbar({ open: true, message: `${userName}: ${jobNames[jobType]}`, severity: 'success' })
+      } else {
+        const errData = await response.json().catch(() => ({}))
+        setSnackbar({ open: true, message: `${userName}: ${errData.error || 'Job failed'}`, severity: 'error' })
+      }
+    } catch {
+      setSnackbar({ open: true, message: `${userName}: Failed to run job`, severity: 'error' })
+    } finally {
+      // Remove this user from running jobs
+      setRunningJobs(prev => {
+        const next = new Map(prev)
+        next.delete(userId)
+        return next
+      })
     }
   }
 
@@ -96,19 +206,45 @@ export function UsersPage() {
         <Typography variant="h4" fontWeight={700} mb={4}>
           Users
         </Typography>
-        <Alert severity="error">{error}</Alert>
+        <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+        <Button variant="outlined" onClick={fetchProviderUsers} startIcon={<RefreshIcon />}>
+          Retry
+        </Button>
       </Box>
     )
   }
 
+  // Sort: imported & enabled first, then imported, then non-imported
+  const sortedUsers = [...providerUsers].sort((a, b) => {
+    if (a.isEnabled && !b.isEnabled) return -1
+    if (!a.isEnabled && b.isEnabled) return 1
+    if (a.isImported && !b.isImported) return -1
+    if (!a.isImported && b.isImported) return 1
+    return a.name.localeCompare(b.name)
+  })
+
+  const isJobRunning = (userId: string) => runningJobs.has(userId)
+
   return (
     <Box>
-      <Typography variant="h4" fontWeight={700} mb={1}>
-        Users
-      </Typography>
-      <Typography variant="body1" color="text.secondary" mb={4}>
-        Manage users and enable AI recommendations
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 4 }}>
+        <Box>
+          <Typography variant="h4" fontWeight={700} mb={1}>
+            Users
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Manage {provider.charAt(0).toUpperCase() + provider.slice(1)} users and enable AI recommendations
+          </Typography>
+        </Box>
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={fetchProviderUsers}
+          startIcon={<RefreshIcon />}
+        >
+          Refresh
+        </Button>
+      </Box>
 
       <TableContainer
         component={Paper}
@@ -117,67 +253,134 @@ export function UsersPage() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Username</TableCell>
-              <TableCell>Provider</TableCell>
-              <TableCell>Role</TableCell>
+              <TableCell>User</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell align="center">Imported</TableCell>
               <TableCell align="center">AI Enabled</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {users.length === 0 ? (
+            {sortedUsers.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} align="center">
                   <Typography variant="body2" color="text.secondary" py={4}>
-                    No users found. Users will appear here after they log in.
+                    No users found on {provider} server.
                   </Typography>
                 </TableCell>
               </TableRow>
             ) : (
-              users.map((user) => (
-                <TableRow key={user.id} hover>
+              sortedUsers.map((user) => (
+                <TableRow 
+                  key={user.providerUserId} 
+                  hover
+                  sx={{ 
+                    opacity: user.isDisabled ? 0.5 : 1,
+                    backgroundColor: user.isEnabled ? 'rgba(82, 181, 75, 0.05)' : 'inherit'
+                  }}
+                >
                   <TableCell>
-                    <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Typography variant="body2" fontWeight={500}>
-                        {user.display_name || user.username}
+                        {user.name}
                       </Typography>
-                      {user.display_name && (
-                        <Typography variant="caption" color="text.secondary">
-                          @{user.username}
-                        </Typography>
+                      {user.isAdmin && (
+                        <Chip label="Admin" size="small" color="primary" />
                       )}
                     </Box>
                   </TableCell>
                   <TableCell>
-                    <Chip
-                      label={user.provider}
-                      size="small"
-                      variant="outlined"
-                      sx={{ textTransform: 'capitalize' }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {user.is_admin ? (
-                      <Chip label="Admin" size="small" color="primary" />
+                    {user.isDisabled ? (
+                      <Chip 
+                        icon={<BlockIcon />}
+                        label="Disabled in Emby" 
+                        size="small" 
+                        color="error" 
+                        variant="outlined"
+                      />
                     ) : (
-                      <Chip label="User" size="small" variant="outlined" />
+                      <Chip 
+                        label="Active" 
+                        size="small" 
+                        color="success" 
+                        variant="outlined"
+                      />
                     )}
                   </TableCell>
                   <TableCell align="center">
-                    <Switch
-                      checked={user.is_enabled}
-                      onChange={() => handleToggleEnabled(user.id, user.is_enabled)}
-                      disabled={updating === user.id}
-                      color="primary"
-                    />
+                    {user.isImported ? (
+                      <Tooltip title="User imported to Aperture">
+                        <CheckCircleIcon color="success" />
+                      </Tooltip>
+                    ) : (
+                      <Tooltip title="Not yet imported">
+                        <Typography variant="body2" color="text.secondary">—</Typography>
+                      </Tooltip>
+                    )}
+                  </TableCell>
+                  <TableCell align="center">
+                    {user.isImported ? (
+                      <Switch
+                        checked={user.isEnabled}
+                        onChange={() => handleToggleEnabled(user)}
+                        disabled={updating === user.providerUserId || user.isDisabled}
+                        color="primary"
+                      />
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">—</Typography>
+                    )}
                   </TableCell>
                   <TableCell align="right">
-                    <IconButton
-                      size="small"
-                      onClick={() => navigate(`/users/${user.id}`)}
-                    >
-                      <VisibilityIcon fontSize="small" />
-                    </IconButton>
+                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', alignItems: 'center' }}>
+                      {!user.isImported && (
+                        <Tooltip title="Import & Enable for AI Recommendations">
+                          <span>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              color="primary"
+                              disabled={importing === user.providerUserId || user.isDisabled}
+                              onClick={() => handleImportUser(user.providerUserId, true)}
+                              startIcon={
+                                importing === user.providerUserId ? (
+                                  <CircularProgress size={16} color="inherit" />
+                                ) : (
+                                  <PersonAddIcon />
+                                )
+                              }
+                            >
+                              Enable
+                            </Button>
+                          </span>
+                        </Tooltip>
+                      )}
+                      {user.isImported && user.apertureUserId && (
+                        <>
+                          {isJobRunning(user.apertureUserId) && (
+                            <CircularProgress size={20} sx={{ mr: 1 }} />
+                          )}
+                          <Tooltip title="View User Details">
+                            <IconButton
+                              size="small"
+                              onClick={() => navigate(`/users/${user.apertureUserId}`)}
+                            >
+                              <VisibilityIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          {user.isEnabled && (
+                            <Tooltip title="User Actions">
+                              <IconButton
+                                size="small"
+                                onClick={(e) => handleMenuOpen(e, user)}
+                                disabled={isJobRunning(user.apertureUserId)}
+                              >
+                                <MoreVertIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        </>
+                      )}
+                    </Box>
                   </TableCell>
                 </TableRow>
               ))
@@ -185,7 +388,60 @@ export function UsersPage() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* Actions Menu */}
+      <Menu
+        anchorEl={menuAnchor}
+        open={Boolean(menuAnchor)}
+        onClose={handleMenuClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <MenuItem 
+          onClick={() => menuUser?.apertureUserId && runUserJob(menuUser.apertureUserId, 'run-all', menuUser.name)}
+          sx={{ color: 'primary.main' }}
+        >
+          <ListItemIcon>
+            <PlayArrowIcon fontSize="small" color="primary" />
+          </ListItemIcon>
+          <ListItemText primary="Run Full Pipeline" secondary="Sync → Recommend → STRM" />
+        </MenuItem>
+        <Divider />
+        <MenuItem onClick={() => menuUser?.apertureUserId && runUserJob(menuUser.apertureUserId, 'sync-history', menuUser.name)}>
+          <ListItemIcon>
+            <HistoryIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Sync Watch History" />
+        </MenuItem>
+        <MenuItem onClick={() => menuUser?.apertureUserId && runUserJob(menuUser.apertureUserId, 'generate-recommendations', menuUser.name)}>
+          <ListItemIcon>
+            <RecommendIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Generate Recommendations" />
+        </MenuItem>
+        <MenuItem onClick={() => menuUser?.apertureUserId && runUserJob(menuUser.apertureUserId, 'update-strm', menuUser.name)}>
+          <ListItemIcon>
+            <FolderIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Update STRM Files" />
+        </MenuItem>
+      </Menu>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setSnackbar((s) => ({ ...s, open: false }))} 
+          severity={snackbar.severity}
+          variant="filled"
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   )
 }
-

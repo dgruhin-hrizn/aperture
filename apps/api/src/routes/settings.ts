@@ -10,6 +10,10 @@ import {
   getUserSettings,
   updateUserSettings,
   getDefaultLibraryNamePrefix,
+  getEmbeddingModel,
+  setEmbeddingModel,
+  EMBEDDING_MODELS,
+  type EmbeddingModel,
 } from '@aperture/core'
 import { requireAdmin } from '../plugins/auth.js'
 
@@ -334,6 +338,96 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     } catch (err) {
       fastify.log.error({ err }, 'Failed to update user settings')
       return reply.status(500).send({ error: 'Failed to update user settings' })
+    }
+  })
+
+  // =========================================================================
+  // Embedding Model Settings (Admin Only)
+  // =========================================================================
+
+  /**
+   * GET /api/settings/embedding-model
+   * Get current embedding model configuration with cost estimates
+   */
+  fastify.get(
+    '/api/settings/embedding-model',
+    { preHandler: requireAdmin },
+    async (_request, reply) => {
+      try {
+        const currentModel = await getEmbeddingModel()
+
+        // Get movie count for cost estimation (only from enabled libraries)
+        const { query, queryOne } = await import('@aperture/core')
+
+        // Check if any library configs exist
+        const configCheck = await queryOne<{ count: string }>('SELECT COUNT(*) FROM library_config')
+        const hasLibraryConfigs = configCheck && parseInt(configCheck.count, 10) > 0
+
+        const countResult = await query<{ count: string }>(
+          hasLibraryConfigs
+            ? `SELECT COUNT(*) as count FROM movies m
+               WHERE EXISTS (
+                 SELECT 1 FROM library_config lc
+                 WHERE lc.provider_library_id = m.provider_library_id
+                   AND lc.is_enabled = true
+               )`
+            : 'SELECT COUNT(*) as count FROM movies'
+        )
+        const movieCount = parseInt(countResult.rows[0]?.count || '0', 10)
+
+        // Get embedding count to show current state
+        const embeddingResult = await query<{ count: string; model: string }>(
+          'SELECT COUNT(*) as count, model FROM embeddings GROUP BY model'
+        )
+        const embeddingsByModel = embeddingResult.rows.reduce(
+          (acc, row) => {
+            acc[row.model] = parseInt(row.count, 10)
+            return acc
+          },
+          {} as Record<string, number>
+        )
+
+        return reply.send({
+          currentModel,
+          availableModels: EMBEDDING_MODELS,
+          movieCount,
+          embeddingsByModel,
+        })
+      } catch (err) {
+        fastify.log.error({ err }, 'Failed to get embedding model')
+        return reply.status(500).send({ error: 'Failed to get embedding model configuration' })
+      }
+    }
+  )
+
+  /**
+   * PATCH /api/settings/embedding-model
+   * Update embedding model
+   */
+  fastify.patch<{
+    Body: { model: string }
+  }>('/api/settings/embedding-model', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const { model } = request.body
+
+      // Validate model
+      const validModels = EMBEDDING_MODELS.map((m) => m.id)
+      if (!validModels.includes(model as EmbeddingModel)) {
+        return reply.status(400).send({
+          error: `Invalid model. Valid options: ${validModels.join(', ')}`,
+        })
+      }
+
+      await setEmbeddingModel(model as EmbeddingModel)
+
+      return reply.send({
+        model,
+        message:
+          'Embedding model updated. Delete existing embeddings and regenerate for the change to take effect.',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to update embedding model')
+      return reply.status(500).send({ error: 'Failed to update embedding model' })
     }
   })
 }

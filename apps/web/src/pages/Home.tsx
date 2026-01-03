@@ -22,6 +22,7 @@ import HistoryIcon from '@mui/icons-material/History'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import PsychologyIcon from '@mui/icons-material/Psychology'
 import RefreshIcon from '@mui/icons-material/Refresh'
+import Markdown from 'react-markdown'
 import { MoviePoster } from '@aperture/ui'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -424,20 +425,27 @@ export function HomePage() {
             </Box>
 
             {/* Synopsis */}
-            <Typography
-              variant="body1"
+            <Box
               sx={{
                 mb: 3,
-                lineHeight: 1.8,
-                color: 'text.primary',
-                fontStyle: 'italic',
                 pl: 2,
                 borderLeft: '3px solid',
                 borderColor: 'primary.main',
+                '& p': {
+                  margin: 0,
+                  mb: 1.5,
+                  lineHeight: 1.8,
+                  color: 'text.primary',
+                  '&:last-child': { mb: 0 },
+                },
+                '& strong': {
+                  color: 'primary.main',
+                  fontWeight: 600,
+                },
               }}
             >
-              "{tasteProfile.synopsis}"
-            </Typography>
+              <Markdown>{tasteProfile.synopsis}</Markdown>
+            </Box>
 
             {/* Top Genres */}
             {tasteProfile.stats.topGenres.length > 0 && (

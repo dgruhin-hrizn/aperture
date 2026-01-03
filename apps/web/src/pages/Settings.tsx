@@ -30,6 +30,7 @@ import SaveIcon from '@mui/icons-material/Save'
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
 import WarningIcon from '@mui/icons-material/Warning'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
+import PsychologyIcon from '@mui/icons-material/Psychology'
 import { useAuth } from '@/hooks/useAuth'
 
 interface LibraryConfig {
@@ -68,6 +69,21 @@ interface UserSettings {
   updatedAt: string
 }
 
+interface EmbeddingModelInfo {
+  id: string
+  name: string
+  description: string
+  dimensions: number
+  costPer1M: string
+}
+
+interface EmbeddingModelConfig {
+  currentModel: string
+  availableModels: EmbeddingModelInfo[]
+  movieCount: number
+  embeddingsByModel: Record<string, number>
+}
+
 const MAX_UNLIMITED = 999999999
 
 export function SettingsPage() {
@@ -103,6 +119,10 @@ export function SettingsPage() {
   const [userSettingsSuccess, setUserSettingsSuccess] = useState<string | null>(null)
   const [libraryNameInput, setLibraryNameInput] = useState<string>('')
 
+  // Embedding model state
+  const [embeddingConfig, setEmbeddingConfig] = useState<EmbeddingModelConfig | null>(null)
+  const [loadingEmbeddingModel, setLoadingEmbeddingModel] = useState(false)
+
   // Fetch configs on mount
   useEffect(() => {
     fetchLibraries()
@@ -110,8 +130,24 @@ export function SettingsPage() {
     if (user?.isAdmin) {
       fetchRecConfig()
       fetchPurgeStats()
+      fetchEmbeddingModel()
     }
   }, [user?.isAdmin])
+
+  const fetchEmbeddingModel = async () => {
+    setLoadingEmbeddingModel(true)
+    try {
+      const response = await fetch('/api/settings/embedding-model', { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        setEmbeddingConfig(data)
+      }
+    } catch {
+      // Silently fail - this is just status display
+    } finally {
+      setLoadingEmbeddingModel(false)
+    }
+  }
 
   const fetchPurgeStats = async () => {
     setLoadingPurgeStats(true)
@@ -788,28 +824,63 @@ export function SettingsPage() {
           </Card>
         </Grid>
 
-        {/* OpenAI Configuration */}
-        <Grid item xs={12} lg={6}>
-          <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
-            <CardContent>
-              <Typography variant="h6" mb={3}>
-                OpenAI
-              </Typography>
+        {/* AI Embeddings Status */}
+        {user?.isAdmin && (
+          <Grid item xs={12} lg={6}>
+            <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
+              <CardContent>
+                <Box display="flex" alignItems="center" gap={1} mb={2}>
+                  <PsychologyIcon color="primary" />
+                  <Typography variant="h6">AI Embeddings</Typography>
+                  <Chip label="text-embedding-3-large" size="small" color="success" />
+                </Box>
 
-              <Alert severity="info" sx={{ mb: 3 }}>
-                OpenAI configuration is managed via environment variables in <code>.env.local</code>.
-              </Alert>
+                <Typography variant="body2" color="text.secondary" mb={3}>
+                  Using OpenAI's best embedding model with 3,072 dimensions for highest quality 
+                  recommendations. Captures nuanced similarities in director styles, themes, and tone.
+                </Typography>
 
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                Required environment variables:
-              </Typography>
-              <Box component="ul" sx={{ m: 0, pl: 2, color: 'text.secondary' }}>
-                <li><code>OPENAI_API_KEY</code> - Your OpenAI API key</li>
-                <li><code>OPENAI_EMBED_MODEL</code> - Embedding model (default: text-embedding-3-small)</li>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
+                {loadingEmbeddingModel ? (
+                  <Box display="flex" justifyContent="center" py={4}>
+                    <CircularProgress />
+                  </Box>
+                ) : embeddingConfig ? (
+                  <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
+                    <Grid container spacing={2}>
+                      <Grid item xs={4}>
+                        <Typography variant="body2" color="text.secondary">Movies</Typography>
+                        <Typography variant="h6" fontWeight={600}>
+                          {embeddingConfig.movieCount.toLocaleString()}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={4}>
+                        <Typography variant="body2" color="text.secondary">Embeddings</Typography>
+                        <Typography variant="h6" fontWeight={600}>
+                          {Object.values(embeddingConfig.embeddingsByModel).reduce((a, b) => a + b, 0).toLocaleString()}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={4}>
+                        <Typography variant="body2" color="text.secondary">Est. Cost</Typography>
+                        <Typography variant="h6" fontWeight={600} color="success.main">
+                          {(() => {
+                            const tokensPerMovie = 300
+                            const totalTokens = embeddingConfig.movieCount * tokensPerMovie
+                            const cost = (totalTokens / 1_000_000) * 0.13
+                            return cost < 0.01 ? '<$0.01' : `$${cost.toFixed(2)}`
+                          })()}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </Box>
+                ) : (
+                  <Alert severity="warning">
+                    Could not load embedding status.
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
 
         {/* STRM Configuration */}
         <Grid item xs={12} lg={6}>

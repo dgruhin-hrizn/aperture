@@ -138,3 +138,15 @@ export {
   type UserSettings,
 } from './lib/userSettings.js'
 
+// System Settings
+export {
+  getSystemSetting,
+  setSystemSetting,
+  getAllSystemSettings,
+  getEmbeddingModel,
+  setEmbeddingModel,
+  EMBEDDING_MODELS,
+  type SystemSetting,
+  type EmbeddingModel,
+} from './settings/systemSettings.js'
+

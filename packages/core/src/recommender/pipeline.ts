@@ -2,12 +2,7 @@ import { createChildLogger } from '../lib/logger.js'
 import { query, queryOne, transaction } from '../lib/db.js'
 import { getRecommendationConfig } from '../lib/recommendationConfig.js'
 import { averageEmbeddings, getMovieEmbedding } from './embeddings.js'
-import {
-  generateExplanations,
-  storeExplanations,
-  MovieForExplanation,
-  WatchedMovieForExplanation,
-} from './explanations.js'
+import { generateExplanations, storeExplanations, MovieForExplanation } from './explanations.js'
 import {
   createJobProgress,
   updateJobProgress,
@@ -292,17 +287,8 @@ export async function generateRecommendationsForUser(
         ratingScore: s.ratingScore,
       }))
 
-      // Get watched movies with their details for context
-      const watchedDetails = await getWatchedMovieDetails(user.id)
-
-      // Get top genres for context
-      const topGenres = await getTopGenres(user.id)
-
-      const explanations = await generateExplanations(
-        moviesForExplanation,
-        watchedDetails,
-        topGenres
-      )
+      // Generate explanations using embedding-based evidence
+      const explanations = await generateExplanations(runId, user.id, moviesForExplanation)
       await storeExplanations(runId, explanations)
       logger.info({ runId, count: explanations.length }, '✅ AI explanations stored')
     } catch (explanationError) {
@@ -337,6 +323,10 @@ export async function generateRecommendationsForUser(
 }
 
 async function getWatchHistory(userId: string, limit: number): Promise<WatchedMovie[]> {
+  // Get ALL watch history up to limit, using a smarter ordering:
+  // - Favorites first (always include these)
+  // - Then by a combination of play count and recency
+  // This ensures we capture the full breadth of user's taste
   const result = await query<{
     movie_id: string
     last_played_at: Date | null
@@ -346,7 +336,10 @@ async function getWatchHistory(userId: string, limit: number): Promise<WatchedMo
     `SELECT movie_id, last_played_at, play_count, is_favorite
      FROM watch_history
      WHERE user_id = $1
-     ORDER BY last_played_at DESC NULLS LAST
+     ORDER BY 
+       is_favorite DESC,
+       play_count DESC,
+       last_played_at DESC NULLS LAST
      LIMIT $2`,
     [userId, limit]
   )
@@ -363,13 +356,28 @@ async function buildTasteProfile(watched: WatchedMovie[]): Promise<number[] | nu
   const embeddings: number[][] = []
   const weights: number[] = []
 
-  // Get movie ratings for additional weighting
+  // Get movie ratings and genres for additional context
   const movieIds = watched.map((w) => w.movieId)
-  const ratingResult = await query<{ id: string; community_rating: number | null }>(
-    `SELECT id, community_rating FROM movies WHERE id = ANY($1)`,
-    [movieIds]
+  const movieDataResult = await query<{
+    id: string
+    community_rating: number | null
+    genres: string[]
+  }>(`SELECT id, community_rating, genres FROM movies WHERE id = ANY($1)`, [movieIds])
+  const movieData = new Map(movieDataResult.rows.map((r) => [r.id, r]))
+
+  // Calculate stats for normalization
+  const maxPlayCount = Math.max(...watched.map((w) => w.playCount), 1)
+  const favoriteCount = watched.filter((w) => w.isFavorite).length
+  const totalMovies = watched.length
+
+  logger.debug(
+    {
+      totalMovies,
+      favoriteCount,
+      maxPlayCount,
+    },
+    'Building taste profile from watch history'
   )
-  const movieRatings = new Map(ratingResult.rows.map((r) => [r.id, r.community_rating]))
 
   for (let i = 0; i < watched.length; i++) {
     const movie = watched[i]
@@ -377,29 +385,34 @@ async function buildTasteProfile(watched: WatchedMovie[]): Promise<number[] | nu
     if (emb) {
       embeddings.push(emb)
 
-      // Multi-factor weighting for taste profile
+      // Balanced multi-factor weighting
+      // Goal: capture full breadth of taste without over-weighting any single factor
       let weight = 1.0
 
-      // 1. Recency weight (exponential decay, not just 1/n)
-      // More recent movies have higher influence, but older ones still matter
-      const recencyDecay = Math.exp(-i * 0.05) // Gradual decay
-      weight *= recencyDecay
+      // 1. Position weight - slight preference for movies that appear earlier
+      // (already sorted by favorites, play count, recency)
+      // Very gentle decay so we don't ignore movies at the end
+      const positionFactor = 1 - (i / totalMovies) * 0.3 // Range: 0.7 to 1.0
+      weight *= positionFactor
 
-      // 2. Play count weight - movies watched multiple times indicate strong preference
-      // Use log scale to prevent single movies from dominating
+      // 2. Play count - normalized logarithmic boost
+      // Prevents a single rewatched movie from dominating
       if (movie.playCount > 1) {
-        weight *= 1 + Math.log2(movie.playCount) * 0.3
+        const normalizedPlayCount = Math.log2(movie.playCount + 1) / Math.log2(maxPlayCount + 1)
+        weight *= 1 + normalizedPlayCount * 0.4 // Up to 40% boost for most rewatched
       }
 
-      // 3. Favorite boost - user explicitly marked as favorite
+      // 3. Favorite boost - meaningful but not overwhelming
+      // If user has many favorites, reduce individual favorite weight
       if (movie.isFavorite) {
-        weight *= 2.5
+        const favoriteBoost = favoriteCount > 20 ? 1.3 : favoriteCount > 10 ? 1.5 : 1.8
+        weight *= favoriteBoost
       }
 
-      // 4. Rating weight - highly-rated movies the user watched suggest preference
-      const rating = movieRatings.get(movie.movieId)
-      if (rating && rating >= 7.5) {
-        weight *= 1 + (rating - 7) * 0.1 // Boost for ratings 7.5+
+      // 4. Rating influence - slight boost for critically acclaimed choices
+      const data = movieData.get(movie.movieId)
+      if (data?.community_rating && data.community_rating >= 7.5) {
+        weight *= 1 + (data.community_rating - 7) * 0.05 // Max ~15% boost for 10-rated films
       }
 
       weights.push(weight)
@@ -410,16 +423,25 @@ async function buildTasteProfile(watched: WatchedMovie[]): Promise<number[] | nu
     return null
   }
 
+  // Normalize weights to prevent any single movie from having outsized influence
+  const totalWeight = weights.reduce((a, b) => a + b, 0)
+  const avgWeight = totalWeight / weights.length
+  const normalizedWeights = weights.map((w) => {
+    // Cap any weight at 3x the average to ensure diversity
+    return Math.min(w, avgWeight * 3)
+  })
+
   logger.debug(
     {
       embeddingCount: embeddings.length,
-      totalWeight: weights.reduce((a, b) => a + b, 0).toFixed(2),
-      topWeights: weights.slice(0, 5).map((w) => w.toFixed(2)),
+      totalWeight: totalWeight.toFixed(2),
+      avgWeight: avgWeight.toFixed(2),
+      topWeights: normalizedWeights.slice(0, 5).map((w) => w.toFixed(2)),
     },
-    'Building taste profile with weighted embeddings'
+    'Taste profile weights calculated'
   )
 
-  return averageEmbeddings(embeddings, weights)
+  return averageEmbeddings(embeddings, normalizedWeights)
 }
 
 async function storeTasteProfile(userId: string, embedding: number[]): Promise<void> {
@@ -427,7 +449,7 @@ async function storeTasteProfile(userId: string, embedding: number[]): Promise<v
 
   await query(
     `INSERT INTO user_preferences (user_id, taste_embedding, taste_embedding_updated_at)
-     VALUES ($1, $2::vector, NOW())
+     VALUES ($1, $2::halfvec, NOW())
      ON CONFLICT (user_id) DO UPDATE SET
        taste_embedding = EXCLUDED.taste_embedding,
        taste_embedding_updated_at = NOW()`,
@@ -461,7 +483,7 @@ async function getCandidates(
   }>(
     hasLibraryConfigs
       ? `SELECT m.id, m.title, m.year, m.genres, m.community_rating,
-                1 - (e.embedding <=> $1::vector) as similarity
+                1 - (e.embedding <=> $1::halfvec) as similarity
          FROM embeddings e
          JOIN movies m ON m.id = e.movie_id
          WHERE EXISTS (
@@ -469,13 +491,13 @@ async function getCandidates(
            WHERE lc.provider_library_id = m.provider_library_id 
            AND lc.is_enabled = true
          )
-         ORDER BY e.embedding <=> $1::vector
+         ORDER BY e.embedding <=> $1::halfvec
          LIMIT $2`
       : `SELECT m.id, m.title, m.year, m.genres, m.community_rating,
-                1 - (e.embedding <=> $1::vector) as similarity
+                1 - (e.embedding <=> $1::halfvec) as similarity
          FROM embeddings e
          JOIN movies m ON m.id = e.movie_id
-         ORDER BY e.embedding <=> $1::vector
+         ORDER BY e.embedding <=> $1::halfvec
          LIMIT $2`,
     [vectorStr, queryLimit]
   )
@@ -696,10 +718,10 @@ async function storeEvidence(
 
     // Find top 3 similar watched movies
     const evidence = await query<{ movie_id: string; similarity: number }>(
-      `SELECT e.movie_id, 1 - (e.embedding <=> $1::vector) as similarity
+      `SELECT e.movie_id, 1 - (e.embedding <=> $1::halfvec) as similarity
        FROM embeddings e
        WHERE e.movie_id = ANY($2)
-       ORDER BY e.embedding <=> $1::vector
+       ORDER BY e.embedding <=> $1::halfvec
        LIMIT 3`,
       [vectorStr, watched.map((w) => w.movieId)]
     )
@@ -1006,49 +1028,4 @@ async function getMovieOverviews(movieIds: string[]): Promise<Map<string, string
     }
   }
   return map
-}
-
-/**
- * Get watched movies with details for explanation context
- */
-async function getWatchedMovieDetails(userId: string): Promise<WatchedMovieForExplanation[]> {
-  const result = await query<{
-    title: string
-    year: number | null
-    genres: string[]
-    is_favorite: boolean
-  }>(
-    `SELECT m.title, m.year, m.genres, wh.is_favorite
-     FROM watch_history wh
-     JOIN movies m ON m.id = wh.movie_id
-     WHERE wh.user_id = $1
-     ORDER BY wh.last_played_at DESC NULLS LAST
-     LIMIT 30`,
-    [userId]
-  )
-
-  return result.rows.map((r) => ({
-    title: r.title,
-    year: r.year,
-    genres: r.genres || [],
-    isFavorite: r.is_favorite,
-  }))
-}
-
-/**
- * Get user's top genres
- */
-async function getTopGenres(userId: string): Promise<string[]> {
-  const result = await query<{ genre: string }>(
-    `SELECT unnest(m.genres) as genre, COUNT(*) as count
-     FROM watch_history wh
-     JOIN movies m ON m.id = wh.movie_id
-     WHERE wh.user_id = $1
-     GROUP BY unnest(m.genres)
-     ORDER BY count DESC
-     LIMIT 5`,
-    [userId]
-  )
-
-  return result.rows.map((r) => r.genre)
 }

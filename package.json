@@ -9,6 +9,7 @@
     "dev:raw": "concurrently -n api,web -c blue,green \"pnpm --filter @aperture/api dev\" \"pnpm --filter @aperture/web dev\"",
     "dev:api": "pnpm --filter @aperture/api dev",
     "dev:web": "pnpm --filter @aperture/web dev",
+    "kill": "pkill -f vite 2>/dev/null; pkill -f tsx 2>/dev/null; lsof -ti :3456 | xargs kill -9 2>/dev/null; lsof -ti :5173 | xargs kill -9 2>/dev/null; echo '✅ Killed vite and api processes'",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint .",

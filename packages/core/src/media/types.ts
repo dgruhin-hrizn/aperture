@@ -51,11 +51,15 @@ export interface Movie {
   id: string
   name: string
   originalTitle?: string
+  sortName?: string
   year?: number
+  premiereDate?: string
   genres: string[]
   overview?: string
+  tagline?: string
   communityRating?: number
   criticRating?: number
+  contentRating?: string // MPAA rating (PG-13, R, etc.)
   runtimeTicks?: number
   path?: string
   mediaSources?: MediaSource[]
@@ -64,6 +68,28 @@ export interface Movie {
   userData?: UserData
   /** The parent library ID this movie belongs to */
   parentId?: string
+  /** Production studios */
+  studios?: string[]
+  /** Director names */
+  directors?: string[]
+  /** Writer names */
+  writers?: string[]
+  /** Cast with name, role, and thumbnail */
+  actors?: Array<{ name: string; role?: string; thumb?: string }>
+  /** External IDs */
+  imdbId?: string
+  tmdbId?: string
+  /** User-defined tags */
+  tags?: string[]
+  /** Production countries */
+  productionCountries?: string[]
+  /** Awards text */
+  awards?: string
+  /** Video quality info */
+  videoResolution?: string
+  videoCodec?: string
+  audioCodec?: string
+  container?: string
 }
 
 export interface MediaSource {

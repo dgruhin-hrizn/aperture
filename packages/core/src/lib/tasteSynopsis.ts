@@ -108,23 +108,41 @@ export async function generateTasteSynopsis(userId: string): Promise<TasteSynops
   `, [userId])
   const favoriteDecade = decadeResults.rows[0]?.decade || null
 
-  // Get recent favorites or highly-rated watches
-  const recentFavorites = await query<RecentMovie>(`
+  // Get top favorites - ordered by play count and favorite status, not just recent
+  const topFavorites = await query<RecentMovie>(`
     SELECT m.title, m.year, m.genres, m.community_rating
     FROM watch_history wh
     JOIN movies m ON m.id = wh.movie_id
-    WHERE wh.user_id = $1 AND (wh.is_favorite = true OR m.community_rating >= 7)
-    ORDER BY wh.last_played_at DESC NULLS LAST
+    WHERE wh.user_id = $1 AND wh.is_favorite = true
+    ORDER BY wh.play_count DESC, wh.last_played_at DESC NULLS LAST
     LIMIT 10
   `, [userId])
 
-  // Get all recent watches for context
-  const recentWatches = await query<RecentMovie>(`
-    SELECT m.title, m.year, m.genres, m.community_rating
+  // Get most rewatched movies (high engagement indicates strong preference)
+  const mostRewatched = await query<RecentMovie & { play_count: number }>(`
+    SELECT m.title, m.year, m.genres, m.community_rating, wh.play_count
     FROM watch_history wh
     JOIN movies m ON m.id = wh.movie_id
-    WHERE wh.user_id = $1
-    ORDER BY wh.last_played_at DESC NULLS LAST
+    WHERE wh.user_id = $1 AND wh.play_count > 1
+    ORDER BY wh.play_count DESC
+    LIMIT 10
+  `, [userId])
+
+  // Get a diverse sample: mix of favorites, high play count, and some recent
+  // This ensures we capture the full breadth of taste
+  const diverseSample = await query<RecentMovie>(`
+    WITH ranked AS (
+      SELECT m.title, m.year, m.genres, m.community_rating,
+             wh.is_favorite, wh.play_count, wh.last_played_at,
+             ROW_NUMBER() OVER (PARTITION BY m.genres[1] ORDER BY wh.play_count DESC) as genre_rank
+      FROM watch_history wh
+      JOIN movies m ON m.id = wh.movie_id
+      WHERE wh.user_id = $1
+    )
+    SELECT title, year, genres, community_rating
+    FROM ranked
+    WHERE genre_rank <= 3
+    ORDER BY is_favorite DESC, play_count DESC
     LIMIT 20
   `, [userId])
 
@@ -135,8 +153,9 @@ export async function generateTasteSynopsis(userId: string): Promise<TasteSynops
     favoriteCount: Number(stats.favorite_count),
     topGenres,
     favoriteDecade,
-    recentFavorites: recentFavorites.rows,
-    recentWatches: recentWatches.rows,
+    topFavorites: topFavorites.rows,
+    mostRewatched: mostRewatched.rows,
+    diverseSample: diverseSample.rows,
   })
 
   // Generate synopsis with OpenAI
@@ -194,7 +213,7 @@ If they have eclectic taste, celebrate that. If they have focused preferences, d
       topGenres,
       avgRating: Number(stats.avg_rating || 0),
       favoriteDecade,
-      recentFavorites: recentFavorites.rows.map(m => m.title),
+      recentFavorites: topFavorites.rows.map(m => m.title),
     },
   }
 }
@@ -298,30 +317,46 @@ function buildSynopsisPrompt(data: {
   favoriteCount: number
   topGenres: string[]
   favoriteDecade: string | null
-  recentFavorites: RecentMovie[]
-  recentWatches: RecentMovie[]
+  topFavorites: RecentMovie[]
+  mostRewatched: (RecentMovie & { play_count?: number })[]
+  diverseSample: RecentMovie[]
 }): string {
   const lines = [
-    `User's Movie Watching Data:`,
+    `User's Complete Movie Watching Profile:`,
     `- Total movies watched: ${data.totalWatched}`,
-    `- Favorites marked: ${data.favoriteCount}`,
+    `- Movies marked as favorites: ${data.favoriteCount}`,
     `- Average rating of watched movies: ${data.avgRating.toFixed(1)}/10`,
-    `- Top genres: ${data.topGenres.join(', ') || 'Mixed'}`,
-    `- Most watched decade: ${data.favoriteDecade || 'Various'}`,
+    `- Top genres by watch count: ${data.topGenres.join(', ') || 'Diverse'}`,
+    `- Most watched decade: ${data.favoriteDecade || 'Various decades'}`,
     ``,
-    `Recent highly-rated or favorite movies:`,
   ]
 
-  for (const movie of data.recentFavorites.slice(0, 8)) {
+  if (data.topFavorites.length > 0) {
+    lines.push(`Movies they've marked as FAVORITES (these define their taste):`)
+    for (const movie of data.topFavorites.slice(0, 8)) {
+      lines.push(`- "${movie.title}" (${movie.year || 'N/A'}) - ${movie.genres?.join(', ') || 'Unknown genre'}`)
+    }
+    lines.push(``)
+  }
+
+  if (data.mostRewatched.length > 0) {
+    lines.push(`Most REWATCHED movies (high engagement = strong preference):`)
+    for (const movie of data.mostRewatched.slice(0, 6)) {
+      const playCount = movie.play_count ? ` [watched ${movie.play_count}x]` : ''
+      lines.push(`- "${movie.title}" (${movie.year || 'N/A'})${playCount} - ${movie.genres?.join(', ') || 'Unknown genre'}`)
+    }
+    lines.push(``)
+  }
+
+  lines.push(`Diverse sample across their watch history (represents full taste breadth):`)
+  for (const movie of data.diverseSample.slice(0, 12)) {
     lines.push(`- "${movie.title}" (${movie.year || 'N/A'}) - ${movie.genres?.join(', ') || 'Unknown genre'}`)
   }
 
-  lines.push(``, `Recent watches:`)
-  for (const movie of data.recentWatches.slice(0, 10)) {
-    lines.push(`- "${movie.title}" (${movie.year || 'N/A'}) - ${movie.genres?.join(', ') || 'Unknown genre'}`)
-  }
-
-  lines.push(``, `Write a personalized taste profile summary for this user.`)
+  lines.push(``)
+  lines.push(`Write a personalized taste profile that captures the FULL breadth of their preferences.`)
+  lines.push(`Don't over-emphasize any single movie or franchise - look for patterns across ALL the data.`)
+  lines.push(`Mention specific movies by name when they exemplify a pattern in their taste.`)
 
   return lines.join('\n')
 }

@@ -9,6 +9,7 @@ import {
   completeJob,
   failJob,
 } from '../jobs/progress.js'
+import { getEmbeddingModel, type EmbeddingModel } from '../settings/systemSettings.js'
 import { randomUUID } from 'crypto'
 
 const logger = createChildLogger('embeddings')
@@ -19,6 +20,15 @@ interface Movie {
   year: number | null
   genres: string[]
   overview: string | null
+  // Extended metadata for richer embeddings
+  tagline: string | null
+  directors: string[] | null
+  actors: Array<{ name: string; role?: string }> | null
+  studios: string[] | null
+  contentRating: string | null
+  tags: string[] | null
+  productionCountries: string[] | null
+  awards: string | null
 }
 
 interface EmbeddingResult {
@@ -42,45 +52,108 @@ function getOpenAIClient(): OpenAI {
 
 /**
  * Build canonical text for embedding a movie
+ *
+ * This creates a rich semantic representation that captures:
+ * - Core identity (title, year, genres)
+ * - Creative DNA (directors, studios, lead actors)
+ * - Thematic content (overview, tagline, tags)
+ * - Context (rating, country, awards)
+ *
+ * The text is structured to emphasize elements that affect similarity:
+ * movies with same directors/studios/actors should cluster together,
+ * as should movies with similar themes and tones.
  */
 export function buildCanonicalText(movie: Movie): string {
-  const parts: string[] = []
+  const sections: string[] = []
 
-  // Title and year
-  if (movie.year) {
-    parts.push(`${movie.title} (${movie.year})`)
-  } else {
-    parts.push(movie.title)
+  // === SECTION 1: Core Identity ===
+  // Title and year establish the movie's identity
+  const titleLine = movie.year ? `${movie.title} (${movie.year})` : movie.title
+  sections.push(titleLine)
+
+  // Tagline often captures the tone/theme brilliantly
+  if (movie.tagline) {
+    sections.push(`"${movie.tagline}"`)
   }
 
-  // Genres
+  // === SECTION 2: Classification ===
+  // Genres are primary classification
   if (movie.genres && movie.genres.length > 0) {
-    parts.push(`Genres: ${movie.genres.join(', ')}`)
+    sections.push(`Genres: ${movie.genres.join(', ')}`)
   }
 
-  // Overview (truncated if too long)
+  // Content rating indicates target audience and content type
+  if (movie.contentRating) {
+    sections.push(`Rated ${movie.contentRating}`)
+  }
+
+  // === SECTION 3: Creative DNA ===
+  // Directors have consistent styles (auteur theory)
+  if (movie.directors && movie.directors.length > 0) {
+    sections.push(`Directed by ${movie.directors.join(', ')}`)
+  }
+
+  // Studios have distinct styles (A24 vs Marvel vs Blumhouse)
+  if (movie.studios && movie.studios.length > 0) {
+    // Limit to top 2 studios to avoid noise
+    const topStudios = movie.studios.slice(0, 2)
+    sections.push(`Studio: ${topStudios.join(', ')}`)
+  }
+
+  // Lead actors (top 3) influence viewing choices significantly
+  if (movie.actors && movie.actors.length > 0) {
+    const leadActors = movie.actors.slice(0, 3).map((a) => a.name)
+    sections.push(`Starring ${leadActors.join(', ')}`)
+  }
+
+  // === SECTION 4: Thematic Content ===
+  // Overview is the primary semantic content - allow more text
   if (movie.overview) {
-    const maxOverviewLength = 500
+    // text-embedding-3-small handles 8191 tokens, so we can be generous
+    const maxOverviewLength = 1000
     const overview =
       movie.overview.length > maxOverviewLength
         ? movie.overview.substring(0, maxOverviewLength) + '...'
         : movie.overview
-    parts.push(overview)
+    sections.push(overview)
   }
 
-  return parts.join('. ')
+  // Tags capture thematic elements (e.g., "time travel", "heist", "dystopia")
+  if (movie.tags && movie.tags.length > 0) {
+    sections.push(`Themes: ${movie.tags.join(', ')}`)
+  }
+
+  // === SECTION 5: Context ===
+  // Production country affects style, language, cultural context
+  if (movie.productionCountries && movie.productionCountries.length > 0) {
+    const countries = movie.productionCountries.slice(0, 2)
+    sections.push(`From ${countries.join(', ')}`)
+  }
+
+  // Awards signal quality and recognition
+  if (movie.awards) {
+    // Truncate very long awards text
+    const awardsText =
+      movie.awards.length > 150 ? movie.awards.substring(0, 150) + '...' : movie.awards
+    sections.push(`Awards: ${awardsText}`)
+  }
+
+  return sections.join('. ')
 }
 
 /**
  * Generate embeddings for a batch of movies
  */
-export async function embedMovies(movies: Movie[]): Promise<EmbeddingResult[]> {
+export async function embedMovies(
+  movies: Movie[],
+  modelOverride?: EmbeddingModel
+): Promise<EmbeddingResult[]> {
   if (movies.length === 0) {
     return []
   }
 
   const client = getOpenAIClient()
-  const model = process.env.OPENAI_EMBED_MODEL || 'text-embedding-3-small'
+  const model = modelOverride || (await getEmbeddingModel())
 
   // Build canonical texts
   const textsWithIds = movies.map((movie) => ({
@@ -123,8 +196,11 @@ export async function embedMovies(movies: Movie[]): Promise<EmbeddingResult[]> {
 /**
  * Store embeddings in the database
  */
-export async function storeEmbeddings(embeddings: EmbeddingResult[]): Promise<void> {
-  const model = process.env.OPENAI_EMBED_MODEL || 'text-embedding-3-small'
+export async function storeEmbeddings(
+  embeddings: EmbeddingResult[],
+  modelOverride?: EmbeddingModel
+): Promise<void> {
+  const model = modelOverride || (await getEmbeddingModel())
 
   for (const emb of embeddings) {
     // Convert embedding array to PostgreSQL vector format
@@ -132,7 +208,7 @@ export async function storeEmbeddings(embeddings: EmbeddingResult[]): Promise<vo
 
     await query(
       `INSERT INTO embeddings (movie_id, model, embedding, canonical_text)
-       VALUES ($1, $2, $3::vector, $4)
+       VALUES ($1, $2, $3::halfvec, $4)
        ON CONFLICT (movie_id, model) DO UPDATE SET
          embedding = EXCLUDED.embedding,
          canonical_text = EXCLUDED.canonical_text`,
@@ -144,21 +220,73 @@ export async function storeEmbeddings(embeddings: EmbeddingResult[]): Promise<vo
 }
 
 /**
- * Get movies that don't have embeddings yet
+ * Get movies that don't have embeddings yet (with full metadata)
+ * Only includes movies from enabled libraries
  */
-export async function getMoviesWithoutEmbeddings(limit = 100): Promise<Movie[]> {
-  const model = process.env.OPENAI_EMBED_MODEL || 'text-embedding-3-small'
+export async function getMoviesWithoutEmbeddings(
+  limit = 100,
+  modelOverride?: EmbeddingModel
+): Promise<Movie[]> {
+  const model = modelOverride || (await getEmbeddingModel())
 
-  const result = await query<Movie>(
-    `SELECT m.id, m.title, m.year, m.genres, m.overview
-     FROM movies m
-     LEFT JOIN embeddings e ON e.movie_id = m.id AND e.model = $1
-     WHERE e.id IS NULL
-     LIMIT $2`,
+  // Check if any library configs exist
+  const configCheck = await queryOne<{ count: string }>('SELECT COUNT(*) FROM library_config')
+  const hasLibraryConfigs = configCheck && parseInt(configCheck.count, 10) > 0
+
+  const result = await query<{
+    id: string
+    title: string
+    year: number | null
+    genres: string[]
+    overview: string | null
+    tagline: string | null
+    directors: string[] | null
+    actors: string | null
+    studios: string[] | null
+    content_rating: string | null
+    tags: string[] | null
+    production_countries: string[] | null
+    awards: string | null
+  }>(
+    hasLibraryConfigs
+      ? `SELECT m.id, m.title, m.year, m.genres, m.overview,
+                m.tagline, m.directors, m.actors::text, m.studios,
+                m.content_rating, m.tags, m.production_countries, m.awards
+         FROM movies m
+         LEFT JOIN embeddings e ON e.movie_id = m.id AND e.model = $1
+         WHERE e.id IS NULL
+           AND EXISTS (
+             SELECT 1 FROM library_config lc
+             WHERE lc.provider_library_id = m.provider_library_id
+               AND lc.is_enabled = true
+           )
+         LIMIT $2`
+      : `SELECT m.id, m.title, m.year, m.genres, m.overview,
+                m.tagline, m.directors, m.actors::text, m.studios,
+                m.content_rating, m.tags, m.production_countries, m.awards
+         FROM movies m
+         LEFT JOIN embeddings e ON e.movie_id = m.id AND e.model = $1
+         WHERE e.id IS NULL
+         LIMIT $2`,
     [model, limit]
   )
 
-  return result.rows
+  // Map database rows to Movie interface
+  return result.rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    year: row.year,
+    genres: row.genres,
+    overview: row.overview,
+    tagline: row.tagline,
+    directors: row.directors,
+    actors: row.actors ? JSON.parse(row.actors) : null,
+    studios: row.studios,
+    contentRating: row.content_rating,
+    tags: row.tags,
+    productionCountries: row.production_countries,
+    awards: row.awards,
+  }))
 }
 
 export interface GenerateEmbeddingsResult {
@@ -181,7 +309,7 @@ export async function generateMissingEmbeddings(
     setJobStep(jobId, 0, 'Checking OpenAI configuration')
 
     const apiKey = process.env.OPENAI_API_KEY
-    const model = process.env.OPENAI_EMBED_MODEL || 'text-embedding-3-small'
+    const model = await getEmbeddingModel()
 
     if (!apiKey) {
       addLog(jobId, 'error', '❌ OPENAI_API_KEY is not configured!')
@@ -192,14 +320,28 @@ export async function generateMissingEmbeddings(
 
     addLog(jobId, 'info', `🤖 Using OpenAI model: ${model}`)
 
-    // Step 2: Count movies needing embeddings
+    // Step 2: Count movies needing embeddings (only from enabled libraries)
     setJobStep(jobId, 1, 'Counting movies without embeddings')
 
+    // Check if any library configs exist
+    const configCheck = await queryOne<{ count: string }>('SELECT COUNT(*) FROM library_config')
+    const hasLibraryConfigs = configCheck && parseInt(configCheck.count, 10) > 0
+
     const countResult = await query<{ count: string }>(
-      `SELECT COUNT(*) as count
-       FROM movies m
-       LEFT JOIN embeddings e ON e.movie_id = m.id AND e.model = $1
-       WHERE e.id IS NULL`,
+      hasLibraryConfigs
+        ? `SELECT COUNT(*) as count
+           FROM movies m
+           LEFT JOIN embeddings e ON e.movie_id = m.id AND e.model = $1
+           WHERE e.id IS NULL
+             AND EXISTS (
+               SELECT 1 FROM library_config lc
+               WHERE lc.provider_library_id = m.provider_library_id
+                 AND lc.is_enabled = true
+             )`
+        : `SELECT COUNT(*) as count
+           FROM movies m
+           LEFT JOIN embeddings e ON e.movie_id = m.id AND e.model = $1
+           WHERE e.id IS NULL`,
       [model]
     )
 
@@ -300,7 +442,7 @@ export async function generateMissingEmbeddings(
  * Get embedding for a specific movie
  */
 export async function getMovieEmbedding(movieId: string): Promise<number[] | null> {
-  const model = process.env.OPENAI_EMBED_MODEL || 'text-embedding-3-small'
+  const model = await getEmbeddingModel()
 
   const result = await queryOne<{ embedding: string }>(
     `SELECT embedding::text FROM embeddings WHERE movie_id = $1 AND model = $2`,

@@ -1,5 +1,6 @@
 import fs from 'fs/promises'
 import path from 'path'
+import sharp from 'sharp'
 import { createChildLogger } from '../lib/logger.js'
 import { query, queryOne } from '../lib/db.js'
 import { getMediaServerProvider } from '../media/index.js'
@@ -14,27 +15,190 @@ import {
 
 const logger = createChildLogger('strm-writer')
 
+// Emby green color
+const EMBY_GREEN = '#52B54B'
+// Aperture purple accent
+const APERTURE_PURPLE = '#8B5CF6'
+
+/**
+ * Create a ranked poster with badge overlays:
+ * - Top left: Emby green circle with white rank number
+ * - Top right: Black circle with purple progress ring and white percentage
+ * - Original poster dimensions preserved
+ */
+async function createRankedPoster(
+  posterBuffer: Buffer,
+  rank: number,
+  matchPercent: number
+): Promise<Buffer> {
+  // Get original poster dimensions
+  const metadata = await sharp(posterBuffer).metadata()
+  const width = metadata.width || 1000
+  const height = metadata.height || 1500
+
+  // Badge sizing - proportional to image size
+  const badgeRadius = Math.round(Math.min(width, height) * 0.08)
+  const padding = Math.round(badgeRadius * 0.5)
+  const fontSize = Math.round(badgeRadius * 0.9)
+  const percentFontSize = Math.round(badgeRadius * 0.7)
+  const ringStroke = Math.round(badgeRadius * 0.15)
+  
+  // Progress ring calculations
+  const ringRadius = badgeRadius - ringStroke / 2 - 2
+  const ringCircumference = 2 * Math.PI * ringRadius
+  const progressOffset = ringCircumference * (1 - matchPercent / 100)
+
+  // Create SVG overlay with both badges
+  const overlaySvg = `
+    <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <!-- Shadow filter for badges -->
+        <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="rgba(0,0,0,0.5)"/>
+        </filter>
+        
+        <!-- Glow for purple ring -->
+        <filter id="purpleGlow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+          <feMerge>
+            <feMergeNode in="coloredBlur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
+      
+      <!-- TOP LEFT: Rank badge (Emby green with white number) -->
+      <g transform="translate(${padding + badgeRadius}, ${padding + badgeRadius})" filter="url(#shadow)">
+        <!-- Green circle background -->
+        <circle 
+          cx="0" 
+          cy="0" 
+          r="${badgeRadius}" 
+          fill="${EMBY_GREEN}"
+        />
+        <!-- Rank number -->
+        <text 
+          x="0" 
+          y="${fontSize * 0.35}" 
+          font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" 
+          font-size="${fontSize}" 
+          font-weight="800" 
+          fill="white" 
+          text-anchor="middle"
+        >${rank}</text>
+      </g>
+      
+      <!-- TOP RIGHT: Match percentage badge (black with purple ring) -->
+      <g transform="translate(${width - padding - badgeRadius}, ${padding + badgeRadius})" filter="url(#shadow)">
+        <!-- Black circle background -->
+        <circle 
+          cx="0" 
+          cy="0" 
+          r="${badgeRadius}" 
+          fill="rgba(0,0,0,0.85)"
+        />
+        
+        <!-- Background ring (subtle) -->
+        <circle 
+          cx="0" 
+          cy="0" 
+          r="${ringRadius}" 
+          fill="none" 
+          stroke="rgba(255,255,255,0.15)" 
+          stroke-width="${ringStroke}"
+        />
+        
+        <!-- Progress ring (purple) -->
+        <circle 
+          cx="0" 
+          cy="0" 
+          r="${ringRadius}" 
+          fill="none" 
+          stroke="${APERTURE_PURPLE}" 
+          stroke-width="${ringStroke}"
+          stroke-linecap="round"
+          stroke-dasharray="${ringCircumference}"
+          stroke-dashoffset="${progressOffset}"
+          transform="rotate(-90)"
+          filter="url(#purpleGlow)"
+        />
+        
+        <!-- Percentage text -->
+        <text 
+          x="0" 
+          y="${percentFontSize * 0.35}" 
+          font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" 
+          font-size="${percentFontSize}" 
+          font-weight="700" 
+          fill="white" 
+          text-anchor="middle"
+        >${matchPercent}%</text>
+      </g>
+    </svg>
+  `
+
+  // Composite the overlay onto the original poster
+  const result = await sharp(posterBuffer)
+    .composite([
+      {
+        input: Buffer.from(overlaySvg),
+        top: 0,
+        left: 0,
+      },
+    ])
+    .jpeg({ quality: 92 })
+    .toBuffer()
+
+  return result
+}
+
+/**
+ * Image download task with optional ranking data for poster overlay
+ */
+interface ImageDownloadTask {
+  url: string
+  path: string
+  movieTitle: string
+  isPoster: boolean
+  rank?: number
+  matchScore?: number
+}
+
 /**
  * Download an image from URL and save it locally
+ * For posters, applies the ranked overlay with rank and match percentage
  */
-async function downloadImage(url: string, destPath: string): Promise<boolean> {
-  const filename = destPath.split('/').pop()
+async function downloadImage(task: ImageDownloadTask): Promise<boolean> {
+  const filename = task.path.split('/').pop()
   try {
-    logger.info({ url: url.substring(0, 80), filename }, '📥 Downloading image...')
+    logger.info({ url: task.url.substring(0, 80), filename, isPoster: task.isPoster }, '📥 Downloading image...')
     const startTime = Date.now()
-    const response = await fetch(url)
+    const response = await fetch(task.url)
     if (!response.ok) {
-      logger.warn({ url, status: response.status, filename }, '❌ Failed to download image')
+      logger.warn({ url: task.url, status: response.status, filename }, '❌ Failed to download image')
       return false
     }
-    const buffer = await response.arrayBuffer()
+    let buffer: Buffer = Buffer.from(await response.arrayBuffer())
+    
+    // Apply ranked overlay for poster images
+    if (task.isPoster && task.rank !== undefined && task.matchScore !== undefined) {
+      try {
+        logger.info({ filename, rank: task.rank, matchScore: task.matchScore }, '🎨 Applying ranked overlay...')
+        const overlayBuffer = await createRankedPoster(buffer, task.rank, task.matchScore)
+        buffer = Buffer.from(overlayBuffer)
+        logger.info({ filename, newSizeKB: Math.round(buffer.byteLength / 1024) }, '🎨 Overlay applied successfully')
+      } catch (overlayErr) {
+        logger.warn({ err: overlayErr, filename }, '⚠️ Failed to apply overlay, saving original')
+      }
+    }
+    
     const sizeKB = Math.round(buffer.byteLength / 1024)
-    await fs.writeFile(destPath, Buffer.from(buffer))
+    await fs.writeFile(task.path, buffer)
     const duration = Date.now() - startTime
     logger.info({ filename, sizeKB, durationMs: duration }, `✅ Image saved (${sizeKB}KB in ${duration}ms)`)
     return true
   } catch (err) {
-    logger.error({ err, url, filename }, '❌ Error downloading image')
+    logger.error({ err, url: task.url, filename }, '❌ Error downloading image')
     return false
   }
 }
@@ -43,19 +207,41 @@ interface Movie {
   id: string
   providerItemId: string
   title: string
+  originalTitle: string | null
+  sortTitle: string | null
   year: number | null
+  premiereDate: string | Date | null
   path: string | null
   mediaSources: Array<{ path: string }> | null
   // Metadata for NFO generation
   overview: string | null
+  tagline: string | null
   communityRating: number | null
   criticRating: number | null
+  contentRating: string | null // MPAA rating
   runtimeMinutes: number | null
   genres: string[] | null
   posterUrl: string | null
   backdropUrl: string | null
+  // Extended metadata
+  studios: string[] | null
+  directors: string[] | null
+  writers: string[] | null
+  actors: Array<{ name: string; role?: string; thumb?: string }> | null
+  imdbId: string | null
+  tmdbId: string | null
+  tags: string[] | null
+  productionCountries: string[] | null
+  awards: string | null
+  videoResolution: string | null
+  videoCodec: string | null
+  audioCodec: string | null
+  container: string | null
   // AI-generated explanation for why this movie was recommended
   aiExplanation: string | null
+  // Recommendation ranking data
+  rank: number
+  matchScore: number // 0-100 percentage
 }
 
 interface StrmConfig {
@@ -141,58 +327,179 @@ function escapeXml(text: string): string {
 
 /**
  * Generate NFO content for a movie
- * NFO files contain metadata that Emby can read when scanning the library
+ * NFO files contain comprehensive metadata that Emby can read when scanning the library
  * 
  * When downloadImages is true, images are saved locally and Emby auto-detects them.
- * When downloadImages is false, we include remote URLs in the NFO (Emby won't download
- * these automatically, but they serve as hints).
+ * When downloadImages is false, we include remote URLs in the NFO.
  * 
- * If an AI explanation is provided, it's appended to the plot.
+ * The plot contains AI explanation first (why Aperture picked it), then original overview.
+ * dateAdded is used to set the "Date Added" in Emby based on rank (Rank 1 = newest)
  */
-function generateNfoContent(movie: Movie, includeImageUrls: boolean): string {
+function generateNfoContent(movie: Movie, includeImageUrls: boolean, dateAdded?: Date): string {
   const lines: string[] = [
     '<?xml version="1.0" encoding="utf-8"?>',
     '<movie>',
     `  <title>${escapeXml(movie.title)}</title>`,
   ]
 
+  // Original title (if different from main title)
+  if (movie.originalTitle && movie.originalTitle !== movie.title) {
+    lines.push(`  <originaltitle>${escapeXml(movie.originalTitle)}</originaltitle>`)
+  }
+
+  // Sort title
+  if (movie.sortTitle) {
+    lines.push(`  <sorttitle>${escapeXml(movie.sortTitle)}</sorttitle>`)
+  }
+
+  // Year
   if (movie.year) {
     lines.push(`  <year>${movie.year}</year>`)
   }
 
-  // Build the plot - original overview + AI explanation if available
-  let plot = movie.overview || ''
+  // Build the plot - AI explanation first, then original overview
+  let plot = ''
   if (movie.aiExplanation) {
-    if (plot) {
-      plot += '\n\n🎯 Aperture selected this movie because: ' + movie.aiExplanation
-    } else {
-      plot = '🎯 Aperture selected this movie because: ' + movie.aiExplanation
+    plot = '🎯 Why Aperture picked this for you:\n' + movie.aiExplanation
+    if (movie.overview) {
+      plot += '\n\n📖 About this movie:\n' + movie.overview
     }
+  } else if (movie.overview) {
+    plot = movie.overview
   }
   if (plot) {
     lines.push(`  <plot>${escapeXml(plot)}</plot>`)
   }
 
-  if (movie.communityRating) {
-    lines.push(`  <rating>${movie.communityRating}</rating>`)
+  // Tagline
+  if (movie.tagline) {
+    lines.push(`  <tagline>${escapeXml(movie.tagline)}</tagline>`)
   }
 
-  if (movie.criticRating) {
-    lines.push(`  <criticrating>${movie.criticRating}</criticrating>`)
-  }
-
+  // Runtime
   if (movie.runtimeMinutes) {
     lines.push(`  <runtime>${movie.runtimeMinutes}</runtime>`)
   }
 
+  // MPAA/Content Rating
+  if (movie.contentRating) {
+    lines.push(`  <mpaa>${escapeXml(movie.contentRating)}</mpaa>`)
+  }
+
+  // Ratings
+  if (movie.communityRating) {
+    lines.push(`  <rating>${movie.communityRating}</rating>`)
+  }
+  if (movie.criticRating) {
+    lines.push(`  <criticrating>${movie.criticRating}</criticrating>`)
+  }
+
+  // Genres
   if (movie.genres && movie.genres.length > 0) {
     for (const genre of movie.genres) {
       lines.push(`  <genre>${escapeXml(genre)}</genre>`)
     }
   }
 
+  // Studios
+  if (movie.studios && movie.studios.length > 0) {
+    for (const studio of movie.studios) {
+      lines.push(`  <studio>${escapeXml(studio)}</studio>`)
+    }
+  }
+
+  // Directors
+  if (movie.directors && movie.directors.length > 0) {
+    for (const director of movie.directors) {
+      lines.push(`  <director>${escapeXml(director)}</director>`)
+    }
+  }
+
+  // Writers (credits)
+  if (movie.writers && movie.writers.length > 0) {
+    for (const writer of movie.writers) {
+      lines.push(`  <credits>${escapeXml(writer)}</credits>`)
+    }
+  }
+
+  // Actors
+  if (movie.actors && movie.actors.length > 0) {
+    for (const actor of movie.actors) {
+      lines.push(`  <actor>`)
+      lines.push(`    <name>${escapeXml(actor.name)}</name>`)
+      if (actor.role) {
+        lines.push(`    <role>${escapeXml(actor.role)}</role>`)
+      }
+      if (actor.thumb) {
+        lines.push(`    <thumb>${escapeXml(actor.thumb)}</thumb>`)
+      }
+      lines.push(`  </actor>`)
+    }
+  }
+
+  // Premiere date
+  if (movie.premiereDate) {
+    // Handle both Date objects and ISO strings from the database
+    const dateStr = movie.premiereDate instanceof Date 
+      ? movie.premiereDate.toISOString().split('T')[0]
+      : String(movie.premiereDate).split('T')[0]
+    lines.push(`  <premiered>${dateStr}</premiered>`)
+  }
+
+  // Production countries
+  if (movie.productionCountries && movie.productionCountries.length > 0) {
+    for (const country of movie.productionCountries) {
+      lines.push(`  <country>${escapeXml(country)}</country>`)
+    }
+  }
+
+  // Tags
+  if (movie.tags && movie.tags.length > 0) {
+    for (const tag of movie.tags) {
+      lines.push(`  <tag>${escapeXml(tag)}</tag>`)
+    }
+  }
+
+  // External IDs
+  if (movie.imdbId) {
+    lines.push(`  <uniqueid type="imdb">${escapeXml(movie.imdbId)}</uniqueid>`)
+  }
+  if (movie.tmdbId) {
+    lines.push(`  <uniqueid type="tmdb">${movie.tmdbId}</uniqueid>`)
+  }
+
+  // File info (for display purposes)
+  if (movie.videoResolution || movie.videoCodec || movie.audioCodec) {
+    lines.push(`  <fileinfo>`)
+    lines.push(`    <streamdetails>`)
+    if (movie.videoResolution || movie.videoCodec) {
+      lines.push(`      <video>`)
+      if (movie.videoCodec) {
+        lines.push(`        <codec>${escapeXml(movie.videoCodec)}</codec>`)
+      }
+      if (movie.videoResolution) {
+        const [width, height] = movie.videoResolution.split('x')
+        if (width) lines.push(`        <width>${width}</width>`)
+        if (height) lines.push(`        <height>${height}</height>`)
+      }
+      lines.push(`      </video>`)
+    }
+    if (movie.audioCodec) {
+      lines.push(`      <audio>`)
+      lines.push(`        <codec>${escapeXml(movie.audioCodec)}</codec>`)
+      lines.push(`      </audio>`)
+    }
+    lines.push(`    </streamdetails>`)
+    lines.push(`  </fileinfo>`)
+  }
+
+  // Set dateadded for Emby sorting by "Date Added" (Rank 1 = newest)
+  if (dateAdded) {
+    const formatted = dateAdded.toISOString().replace('T', ' ').substring(0, 19)
+    lines.push(`  <dateadded>${formatted}</dateadded>`)
+  }
+
   // Include remote image URLs in NFO when not downloading locally
-  // Note: Emby won't auto-download these, but they're useful metadata
   if (includeImageUrls) {
     if (movie.posterUrl) {
       lines.push(`  <thumb aspect="poster">${escapeXml(movie.posterUrl)}</thumb>`)
@@ -296,25 +603,50 @@ export async function writeStrmFilesForUser(
     movie_id: string
     provider_item_id: string
     title: string
+    original_title: string | null
+    sort_title: string | null
     year: number | null
+    premiere_date: string | Date | null
     path: string | null
     media_sources: string | null
     overview: string | null
+    tagline: string | null
     community_rating: string | null
     critic_rating: string | null
+    content_rating: string | null
     runtime_minutes: number | null
     genres: string[] | null
     poster_url: string | null
     backdrop_url: string | null
+    studios: string[] | null
+    directors: string[] | null
+    writers: string[] | null
+    actors: string | null
+    imdb_id: string | null
+    tmdb_id: string | null
+    tags: string[] | null
+    production_countries: string[] | null
+    awards: string | null
+    video_resolution: string | null
+    video_codec: string | null
+    audio_codec: string | null
+    container: string | null
     ai_explanation: string | null
+    rank: number
+    final_score: string | null
   }>(
-    `SELECT rc.movie_id, m.provider_item_id, m.title, m.year, m.path, m.media_sources::text,
-            m.overview, m.community_rating, m.critic_rating, m.runtime_minutes,
-            m.genres, m.poster_url, m.backdrop_url, rc.ai_explanation
+    `SELECT rc.movie_id, m.provider_item_id, m.title, m.original_title, m.sort_title,
+            m.year, m.premiere_date, m.path, m.media_sources::text,
+            m.overview, m.tagline, m.community_rating, m.critic_rating, m.content_rating,
+            m.runtime_minutes, m.genres, m.poster_url, m.backdrop_url,
+            m.studios, m.directors, m.writers, m.actors::text,
+            m.imdb_id, m.tmdb_id, m.tags, m.production_countries, m.awards,
+            m.video_resolution, m.video_codec, m.audio_codec, m.container,
+            rc.ai_explanation, rc.rank, rc.final_score
      FROM recommendation_candidates rc
      JOIN movies m ON m.id = rc.movie_id
      WHERE rc.run_id = $1 AND rc.is_selected = true
-     ORDER BY rc.rank`,
+     ORDER BY rc.rank DESC`,
     [latestRun.id]
   )
 
@@ -324,7 +656,12 @@ export async function writeStrmFilesForUser(
   // Collect all file write tasks and image downloads
   const expectedFiles = new Set<string>()
   const fileWriteTasks: FileWriteTask[] = []
-  const imageDownloads: { url: string; path: string; movieTitle: string }[] = []
+  const imageDownloads: ImageDownloadTask[] = []
+
+  // Calculate dateAdded timestamps based on rank (Rank 1 = newest)
+  // Use 1-minute intervals between ranks for clear separation in Emby
+  const now = Date.now()
+  const INTERVAL_MS = 60 * 1000 // 1 minute between each rank
 
   // Prepare all file tasks (fast - just builds strings in memory)
   for (let i = 0; i < recommendations.rows.length; i++) {
@@ -333,18 +670,41 @@ export async function writeStrmFilesForUser(
       id: rec.movie_id,
       providerItemId: rec.provider_item_id,
       title: rec.title,
+      originalTitle: rec.original_title,
+      sortTitle: rec.sort_title,
       year: rec.year,
+      premiereDate: rec.premiere_date,
       path: rec.path,
       mediaSources: rec.media_sources ? JSON.parse(rec.media_sources) : null,
       overview: rec.overview,
+      tagline: rec.tagline,
       communityRating: rec.community_rating ? parseFloat(rec.community_rating) : null,
       criticRating: rec.critic_rating ? parseFloat(rec.critic_rating) : null,
+      contentRating: rec.content_rating,
       runtimeMinutes: rec.runtime_minutes,
       genres: rec.genres,
       posterUrl: rec.poster_url,
       backdropUrl: rec.backdrop_url,
+      studios: rec.studios,
+      directors: rec.directors,
+      writers: rec.writers,
+      actors: rec.actors ? JSON.parse(rec.actors) : null,
+      imdbId: rec.imdb_id,
+      tmdbId: rec.tmdb_id,
+      tags: rec.tags,
+      productionCountries: rec.production_countries,
+      awards: rec.awards,
+      videoResolution: rec.video_resolution,
+      videoCodec: rec.video_codec,
+      audioCodec: rec.audio_codec,
+      container: rec.container,
       aiExplanation: rec.ai_explanation,
+      rank: rec.rank,
+      matchScore: rec.final_score ? Math.round(parseFloat(rec.final_score) * 100) : 0,
     }
+
+    // Calculate dateAdded: Rank 1 = now, Rank 2 = now - 1 min, etc.
+    const dateAdded = new Date(now - (rec.rank - 1) * INTERVAL_MS)
 
     // Prepare STRM file task
     const strmFilename = buildStrmFilename(movie)
@@ -357,10 +717,10 @@ export async function writeStrmFilesForUser(
       type: 'strm',
     })
 
-    // Prepare NFO file task
+    // Prepare NFO file task (with dateAdded for Emby sorting)
     const nfoFilename = buildNfoFilename(movie)
     expectedFiles.add(nfoFilename)
-    const nfoContent = generateNfoContent(movie, !config.downloadImages)
+    const nfoContent = generateNfoContent(movie, !config.downloadImages, dateAdded)
     fileWriteTasks.push({
       path: path.join(localPath, nfoFilename),
       content: nfoContent,
@@ -377,6 +737,9 @@ export async function writeStrmFilesForUser(
           url: movie.posterUrl, 
           path: path.join(localPath, posterFilename),
           movieTitle: movie.title,
+          isPoster: true,
+          rank: movie.rank,
+          matchScore: movie.matchScore,
         })
       }
       if (movie.backdropUrl) {
@@ -386,6 +749,7 @@ export async function writeStrmFilesForUser(
           url: movie.backdropUrl, 
           path: path.join(localPath, backdropFilename),
           movieTitle: movie.title,
+          isPoster: false,
         })
       }
     }
@@ -462,7 +826,7 @@ export async function writeStrmFilesForUser(
         count: batch.length 
       }, `📥 Downloading image batch ${batchNum}/${totalImageBatches}...`)
       
-      await Promise.all(batch.map(img => downloadImage(img.url, img.path)))
+      await Promise.all(batch.map(task => downloadImage(task)))
       logger.info({ batch: batchNum }, `✅ Image batch ${batchNum} complete`)
     }
     
@@ -539,7 +903,7 @@ export async function ensureUserLibrary(
   userId: string,
   providerUserId: string,
   displayName: string
-): Promise<{ libraryId: string; libraryGuid: string; created: boolean }> {
+): Promise<{ libraryId: string; libraryGuid: string; created: boolean; name: string }> {
   const config = getConfig()
   const provider = getMediaServerProvider()
   const apiKey = process.env.MEDIA_SERVER_API_KEY
@@ -593,7 +957,7 @@ export async function ensureUserLibrary(
       [userId, libraryName, libraryPath, existingLib.id, existingLib.guid]
     )
 
-    return { libraryId: existingLib.id, libraryGuid: existingLib.guid!, created: false }
+    return { libraryId: existingLib.id, libraryGuid: existingLib.guid!, created: false, name: libraryName }
   }
 
   // Library doesn't exist in media server - need to create it
@@ -624,7 +988,7 @@ export async function ensureUserLibrary(
 
   logger.info({ userId, libraryName, libraryId: result.libraryId, libraryGuid }, '✅ Virtual library created')
 
-  return { libraryId: result.libraryId, libraryGuid, created: true }
+  return { libraryId: result.libraryId, libraryGuid, created: true, name: libraryName }
 }
 
 /**

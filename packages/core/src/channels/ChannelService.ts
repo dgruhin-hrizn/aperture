@@ -102,11 +102,11 @@ export async function generateChannelRecommendations(
       similarity: number
     }>(
       `SELECT m.id, m.provider_item_id, m.title, m.year,
-              1 - (e.embedding <=> $${paramIndex}::vector) as similarity
+              1 - (e.embedding <=> $${paramIndex}::halfvec) as similarity
        FROM embeddings e
        JOIN movies m ON m.id = e.movie_id
        ${whereClause}
-       ORDER BY e.embedding <=> $${paramIndex}::vector
+       ORDER BY e.embedding <=> $${paramIndex}::halfvec
        LIMIT $${paramIndex + 1}`,
       [...params, limit + watchedIds.size]
     )
