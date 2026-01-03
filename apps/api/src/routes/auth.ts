@@ -94,7 +94,13 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
             updated_at = NOW()
            WHERE id = $5
            RETURNING id, username, display_name, provider, provider_user_id, is_admin, is_enabled`,
-          [authResult.userName, authResult.isAdmin, authResult.accessToken, providerUser.maxParentalRating ?? null, existingUser.id]
+          [
+            authResult.userName,
+            authResult.isAdmin,
+            authResult.accessToken,
+            providerUser.maxParentalRating ?? null,
+            existingUser.id,
+          ]
         )
         user = updated!
       } else {

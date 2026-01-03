@@ -476,12 +476,13 @@ async function getCandidates(
   const queryLimit = includeWatched ? limit : limit + watchedIds.size
 
   // Build parental rating filter clause
-  const parentalFilter = maxParentalRating !== null
-    ? ` AND (m.content_rating IS NULL OR COALESCE((
+  const parentalFilter =
+    maxParentalRating !== null
+      ? ` AND (m.content_rating IS NULL OR COALESCE((
           SELECT prv.rating_value FROM parental_rating_values prv 
           WHERE prv.rating_name = m.content_rating LIMIT 1
         ), 0) <= ${maxParentalRating})`
-    : ''
+      : ''
 
   // Use pgvector to find similar movies, filtered by enabled libraries and parental rating
   const result = await query<{
@@ -788,7 +789,12 @@ export async function generateRecommendationsForAllUsers(jobId?: string): Promis
     setJobStep(actualJobId, 0, 'Finding enabled users')
     addLog(actualJobId, 'info', '🔍 Finding enabled users...')
 
-    const result = await query<{ id: string; username: string; provider_user_id: string; max_parental_rating: number | null }>(
+    const result = await query<{
+      id: string
+      username: string
+      provider_user_id: string
+      max_parental_rating: number | null
+    }>(
       `SELECT id, username, provider_user_id, max_parental_rating FROM users WHERE is_enabled = true`
     )
 
@@ -947,7 +953,12 @@ export async function clearAndRebuildAllRecommendations(existingJobId?: string):
 
     // Step 3: Regenerate for all users
     setJobStep(jobId, 2, 'Regenerating recommendations')
-    const result = await query<{ id: string; username: string; provider_user_id: string; max_parental_rating: number | null }>(
+    const result = await query<{
+      id: string
+      username: string
+      provider_user_id: string
+      max_parental_rating: number | null
+    }>(
       `SELECT id, username, provider_user_id, max_parental_rating FROM users WHERE is_enabled = true`
     )
     const users = result.rows
@@ -997,10 +1008,14 @@ export async function regenerateUserRecommendations(userId: string): Promise<{
   count: number
 }> {
   // Get user info
-  const user = await queryOne<{ id: string; username: string; provider_user_id: string; max_parental_rating: number | null }>(
-    'SELECT id, username, provider_user_id, max_parental_rating FROM users WHERE id = $1',
-    [userId]
-  )
+  const user = await queryOne<{
+    id: string
+    username: string
+    provider_user_id: string
+    max_parental_rating: number | null
+  }>('SELECT id, username, provider_user_id, max_parental_rating FROM users WHERE id = $1', [
+    userId,
+  ])
 
   if (!user) {
     throw new Error('User not found')
