@@ -58,6 +58,8 @@ export interface ImageDownloadTask {
   isPoster: boolean
   rank?: number
   matchScore?: number
+  /** Mode for poster overlay: 'recommendation' (default) or 'top-picks' */
+  mode?: 'recommendation' | 'top-picks'
 }
 
 /**

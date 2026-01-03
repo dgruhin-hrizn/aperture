@@ -29,12 +29,23 @@ interface JobConfigRow {
 
 // Default schedules from ENV or hardcoded defaults
 const ENV_DEFAULTS: Record<string, { cron: string; scheduleType: ScheduleType; hour: number; minute: number }> = {
+  // Movie jobs
   'sync-movies': { cron: process.env.SYNC_CRON || '0 3 * * *', scheduleType: 'daily', hour: 3, minute: 0 },
   'sync-watch-history': { cron: process.env.SYNC_CRON || '0 3 * * *', scheduleType: 'daily', hour: 3, minute: 0 },
+  'full-sync-watch-history': { cron: '', scheduleType: 'manual', hour: 0, minute: 0 },
   'generate-embeddings': { cron: '', scheduleType: 'manual', hour: 0, minute: 0 },
   'generate-recommendations': { cron: process.env.RECS_CRON || '0 4 * * *', scheduleType: 'daily', hour: 4, minute: 0 },
   'rebuild-recommendations': { cron: '', scheduleType: 'manual', hour: 0, minute: 0 },
   'sync-strm': { cron: process.env.PERMS_CRON || '0 5 * * *', scheduleType: 'daily', hour: 5, minute: 0 },
+  // Series jobs
+  'sync-series': { cron: process.env.SYNC_CRON || '0 3 * * *', scheduleType: 'daily', hour: 3, minute: 0 },
+  'sync-series-watch-history': { cron: process.env.SYNC_CRON || '0 3 * * *', scheduleType: 'daily', hour: 3, minute: 0 },
+  'full-sync-series-watch-history': { cron: '', scheduleType: 'manual', hour: 0, minute: 0 },
+  'generate-series-embeddings': { cron: '', scheduleType: 'manual', hour: 0, minute: 0 },
+  'generate-series-recommendations': { cron: process.env.RECS_CRON || '0 4 * * *', scheduleType: 'daily', hour: 4, minute: 0 },
+  'sync-series-strm': { cron: process.env.PERMS_CRON || '0 5 * * *', scheduleType: 'daily', hour: 5, minute: 0 },
+  // Top Picks job
+  'refresh-top-picks': { cron: '0 6 * * *', scheduleType: 'daily', hour: 6, minute: 0 },
 }
 
 function rowToConfig(row: JobConfigRow): JobConfig {

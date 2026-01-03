@@ -1,3 +1,9 @@
+// Shared types and config
+export * from './types.js'
+export * from './config.js'
+export * from './storage.js'
+
+// Movie recommendation exports
 export {
   buildCanonicalText,
   embedMovies,
@@ -6,8 +12,24 @@ export {
   generateMissingEmbeddings,
   getMovieEmbedding,
   averageEmbeddings,
-} from './embeddings.js'
+} from './movies/embeddings.js'
 
+export {
+  generateRecommendationsForUser,
+  generateRecommendationsForAllUsers,
+  clearUserRecommendations,
+  clearAllRecommendations,
+  clearAndRebuildAllRecommendations,
+  regenerateUserRecommendations,
+} from './movies/pipeline.js'
+
+export {
+  syncMovies,
+  syncWatchHistoryForUser,
+  syncWatchHistoryForAllUsers,
+} from './movies/sync.js'
+
+// Series recommendation exports
 export {
   buildSeriesCanonicalText,
   buildEpisodeCanonicalText,
@@ -21,36 +43,21 @@ export {
   getSeriesEmbedding,
   getEpisodeEmbedding,
   getSeriesEpisodeEmbeddings,
-} from './embeddingsSeries.js'
-
-export {
-  generateRecommendationsForUser,
-  generateRecommendationsForAllUsers,
-  clearUserRecommendations,
-  clearAllRecommendations,
-  clearAndRebuildAllRecommendations,
-  regenerateUserRecommendations,
-} from './pipeline.js'
-
-export {
-  syncMovies,
-  syncWatchHistoryForUser,
-  syncWatchHistoryForAllUsers,
-} from './sync.js'
-
-export {
-  syncSeries,
-  syncSeriesWatchHistoryForUser,
-  syncSeriesWatchHistoryForAllUsers,
-} from './syncSeries.js'
+} from './series/embeddings.js'
 
 export {
   generateSeriesRecommendationsForUser,
   generateSeriesRecommendationsForAllUsers,
+  regenerateUserSeriesRecommendations,
   clearUserSeriesRecommendations,
   clearAllSeriesRecommendations,
   type SeriesUser,
   type SeriesCandidate,
   type SeriesPipelineConfig,
-} from './seriesPipeline.js'
+} from './series/pipeline.js'
 
+export {
+  syncSeries,
+  syncSeriesWatchHistoryForUser,
+  syncSeriesWatchHistoryForAllUsers,
+} from './series/sync.js'

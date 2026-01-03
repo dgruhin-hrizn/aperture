@@ -3,15 +3,19 @@ import { Box, Tabs, Tab, Paper } from '@mui/material'
 import FolderIcon from '@mui/icons-material/Folder'
 import PsychologyIcon from '@mui/icons-material/Psychology'
 import SettingsIcon from '@mui/icons-material/Settings'
+import SmartToyIcon from '@mui/icons-material/SmartToy'
+import TuneIcon from '@mui/icons-material/Tune'
+import PaymentsIcon from '@mui/icons-material/Payments'
 import { useSettingsData } from './hooks'
 import {
   LibraryConfigSection,
   RecommendationConfigSection,
-  EmbeddingsSection,
   DatabaseSection,
   MediaServerSection,
   StrmSection,
   CostEstimatorSection,
+  TextGenerationModelSection,
+  TopPicksSection,
 } from './components'
 
 interface TabPanelProps {
@@ -30,6 +34,7 @@ function TabPanel({ children, value, index }: TabPanelProps) {
 
 export function SettingsPage() {
   const [tabValue, setTabValue] = useState(0)
+  const [aiSubTab, setAiSubTab] = useState(0)
   const settings = useSettingsData(true) // Admin-only page now
 
   return (
@@ -65,20 +70,53 @@ export function SettingsPage() {
         <Box sx={{ p: 3 }}>
           {/* Libraries Tab */}
           <TabPanel value={tabValue} index={0}>
-            <LibraryConfigSection
-              libraries={settings.libraries}
-              loadingLibraries={settings.loadingLibraries}
-              syncingLibraries={settings.syncingLibraries}
-              libraryError={settings.libraryError}
-              updatingLibrary={settings.updatingLibrary}
-              onSync={settings.syncLibrariesFromServer}
-              onToggle={settings.toggleLibraryEnabled}
-            />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <LibraryConfigSection
+                libraries={settings.libraries}
+                loadingLibraries={settings.loadingLibraries}
+                syncingLibraries={settings.syncingLibraries}
+                libraryError={settings.libraryError}
+                updatingLibrary={settings.updatingLibrary}
+                onSync={settings.syncLibrariesFromServer}
+                onToggle={settings.toggleLibraryEnabled}
+              />
+              <TopPicksSection />
+            </Box>
           </TabPanel>
 
-          {/* AI Config Tab */}
+          {/* AI Config Tab with Sub-Tabs */}
           <TabPanel value={tabValue} index={1}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Box sx={{ mb: 3 }}>
+              <Tabs
+                value={aiSubTab}
+                onChange={(_, v) => setAiSubTab(v)}
+                sx={{
+                  minHeight: 40,
+                  '& .MuiTab-root': {
+                    minHeight: 40,
+                    textTransform: 'none',
+                    fontSize: '0.85rem',
+                    fontWeight: 500,
+                    py: 1,
+                  },
+                  '& .MuiTabs-indicator': {
+                    height: 2,
+                  },
+                }}
+              >
+                <Tab icon={<SmartToyIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Models" />
+                <Tab icon={<TuneIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Algorithm" />
+                <Tab icon={<PaymentsIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Costs" />
+              </Tabs>
+            </Box>
+
+            {/* Models Sub-Tab */}
+            <TabPanel value={aiSubTab} index={0}>
+              <TextGenerationModelSection />
+            </TabPanel>
+
+            {/* Algorithm Sub-Tab */}
+            <TabPanel value={aiSubTab} index={1}>
               <RecommendationConfigSection
                 recConfig={settings.recConfig}
                 loadingRecConfig={settings.loadingRecConfig}
@@ -87,23 +125,27 @@ export function SettingsPage() {
                 setRecConfigError={settings.setRecConfigError}
                 recConfigSuccess={settings.recConfigSuccess}
                 setRecConfigSuccess={settings.setRecConfigSuccess}
-                recConfigDirty={settings.recConfigDirty}
-                onSave={settings.saveRecConfig}
-                onReset={settings.resetRecConfig}
-                onUpdateField={settings.updateRecConfigField}
+                movieConfigDirty={settings.movieConfigDirty}
+                seriesConfigDirty={settings.seriesConfigDirty}
+                saveMovieConfig={settings.saveMovieConfig}
+                saveSeriesConfig={settings.saveSeriesConfig}
+                resetMovieConfig={settings.resetMovieConfig}
+                resetSeriesConfig={settings.resetSeriesConfig}
+                updateMovieConfigField={settings.updateMovieConfigField}
+                updateSeriesConfigField={settings.updateSeriesConfigField}
               />
-              
-              <EmbeddingsSection
-                embeddingConfig={settings.embeddingConfig}
-                loadingEmbeddingModel={settings.loadingEmbeddingModel}
-              />
+            </TabPanel>
 
+            {/* Costs Sub-Tab */}
+            <TabPanel value={aiSubTab} index={2}>
               <CostEstimatorSection
                 movieCount={settings.embeddingConfig?.movieCount ?? settings.purgeStats?.movies ?? 0}
+                seriesCount={settings.purgeStats?.series ?? 0}
+                episodeCount={settings.purgeStats?.episodes ?? 0}
                 enabledUserCount={1}
                 embeddingModel={settings.embeddingConfig?.currentModel ?? 'text-embedding-3-large'}
               />
-            </Box>
+            </TabPanel>
           </TabPanel>
 
           {/* System Tab */}

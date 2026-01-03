@@ -1,6 +1,6 @@
 import fs from 'fs/promises'
 import { createChildLogger } from '../lib/logger.js'
-import { createRankedPoster } from './poster.js'
+import { createRankedPoster, createTopPicksPoster } from './poster.js'
 import type { ImageDownloadTask } from './types.js'
 
 const logger = createChildLogger('strm-images')
@@ -21,13 +21,22 @@ export async function downloadImage(task: ImageDownloadTask): Promise<boolean> {
     }
     let buffer: Buffer = Buffer.from(await response.arrayBuffer())
     
-    // Apply ranked overlay for poster images
-    if (task.isPoster && task.rank !== undefined && task.matchScore !== undefined) {
+    // Apply overlay for poster images based on mode
+    if (task.isPoster && task.rank !== undefined) {
       try {
-        logger.info({ filename, rank: task.rank, matchScore: task.matchScore }, '🎨 Applying ranked overlay...')
-        const overlayBuffer = await createRankedPoster(buffer, task.rank, task.matchScore)
-        buffer = Buffer.from(overlayBuffer)
-        logger.info({ filename, newSizeKB: Math.round(buffer.byteLength / 1024) }, '🎨 Overlay applied successfully')
+        if (task.mode === 'top-picks') {
+          // Top Picks mode: rank-only badge in upper-right
+          logger.info({ filename, rank: task.rank, mode: 'top-picks' }, '🎨 Applying Top Picks overlay...')
+          const overlayBuffer = await createTopPicksPoster(buffer, task.rank)
+          buffer = Buffer.from(overlayBuffer)
+          logger.info({ filename, newSizeKB: Math.round(buffer.byteLength / 1024) }, '🎨 Top Picks overlay applied successfully')
+        } else if (task.matchScore !== undefined) {
+          // Recommendation mode: rank + match percentage badges
+          logger.info({ filename, rank: task.rank, matchScore: task.matchScore, mode: 'recommendation' }, '🎨 Applying ranked overlay...')
+          const overlayBuffer = await createRankedPoster(buffer, task.rank, task.matchScore)
+          buffer = Buffer.from(overlayBuffer)
+          logger.info({ filename, newSizeKB: Math.round(buffer.byteLength / 1024) }, '🎨 Overlay applied successfully')
+        }
       } catch (overlayErr) {
         logger.warn({ err: overlayErr, filename }, '⚠️ Failed to apply overlay, saving original')
       }

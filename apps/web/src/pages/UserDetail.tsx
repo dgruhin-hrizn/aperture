@@ -34,6 +34,8 @@ interface User {
   provider: 'emby' | 'jellyfin'
   is_admin: boolean
   is_enabled: boolean
+  movies_enabled: boolean
+  series_enabled: boolean
   created_at: string
 }
 
@@ -420,12 +422,15 @@ export function UserDetailPage() {
           {user.display_name || user.username}
         </Typography>
         {user.is_admin && <Chip label="Admin" size="small" color="primary" />}
-        <Chip
-          label={user.is_enabled ? 'AI Enabled' : 'AI Disabled'}
-          size="small"
-          color={user.is_enabled ? 'success' : 'default'}
-          variant={user.is_enabled ? 'filled' : 'outlined'}
-        />
+        {user.movies_enabled && (
+          <Chip label="Movies" size="small" color="success" variant="filled" />
+        )}
+        {user.series_enabled && (
+          <Chip label="Series" size="small" color="success" variant="filled" />
+        )}
+        {!user.movies_enabled && !user.series_enabled && (
+          <Chip label="AI Disabled" size="small" color="default" variant="outlined" />
+        )}
       </Box>
 
       <Typography variant="body2" color="text.secondary" mb={3}>

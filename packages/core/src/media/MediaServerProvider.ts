@@ -116,8 +116,9 @@ export interface MediaServerProvider {
   /**
    * Get a user's watch history for movies
    * Returns played items with watch data
+   * @param sinceDate - If provided, only return items played since this date (delta sync)
    */
-  getWatchHistory(apiKey: string, userId: string): Promise<WatchedItem[]>
+  getWatchHistory(apiKey: string, userId: string, sinceDate?: Date): Promise<WatchedItem[]>
 
   /**
    * Get movie by ID
@@ -163,8 +164,9 @@ export interface MediaServerProvider {
   /**
    * Get a user's watch history for TV series/episodes
    * Returns played episodes with watch data
+   * @param sinceDate - If provided, only return items played since this date (delta sync)
    */
-  getSeriesWatchHistory(apiKey: string, userId: string): Promise<WatchedEpisode[]>
+  getSeriesWatchHistory(apiKey: string, userId: string, sinceDate?: Date): Promise<WatchedEpisode[]>
 
   // =========================================================================
   // Playlists

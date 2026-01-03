@@ -10,31 +10,35 @@ import {
   failJob,
 } from '../jobs/progress.js'
 
-// Re-export all public functions
-export { writeStrmFilesForUser } from './writer.js'
-export { ensureUserLibrary, refreshUserLibrary, updateUserLibraryPermissions } from './library.js'
-export { writeSeriesStrmFilesForUser } from './seriesWriter.js'
+// Re-export all public functions (movies)
+export { writeStrmFilesForUser } from './movies/writer.js'
+export { ensureUserLibrary, refreshUserLibrary, updateUserLibraryPermissions } from './movies/library.js'
+export { generateNfoContent } from './movies/nfo.js'
+
+// Re-export all public functions (series)
+export { writeSeriesStrmFilesForUser } from './series/writer.js'
 export {
   ensureUserSeriesLibrary,
   refreshUserSeriesLibrary,
   updateUserSeriesLibraryPermissions,
-} from './seriesLibrary.js'
+} from './series/library.js'
+
+// Shared utilities
 export { createRankedPoster } from './poster.js'
-export { generateNfoContent } from './nfo.js'
 export { downloadImage } from './images.js'
 export { getConfig } from './config.js'
 export * from './types.js'
 export * from './filenames.js'
 
 // Import functions needed for processStrmForAllUsers
-import { writeStrmFilesForUser } from './writer.js'
-import { ensureUserLibrary, refreshUserLibrary, updateUserLibraryPermissions } from './library.js'
-import { writeSeriesStrmFilesForUser } from './seriesWriter.js'
+import { writeStrmFilesForUser } from './movies/writer.js'
+import { ensureUserLibrary, refreshUserLibrary, updateUserLibraryPermissions } from './movies/library.js'
+import { writeSeriesStrmFilesForUser } from './series/writer.js'
 import {
   ensureUserSeriesLibrary,
   refreshUserSeriesLibrary,
   updateUserSeriesLibraryPermissions,
-} from './seriesLibrary.js'
+} from './series/library.js'
 
 const logger = createChildLogger('strm-writer')
 

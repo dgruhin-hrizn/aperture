@@ -1,12 +1,31 @@
-import { EmbyProvider } from './EmbyProvider.js'
-import { JellyfinProvider } from './JellyfinProvider.js'
+import { EmbyProvider } from './emby/EmbyProvider.js'
+import { JellyfinProvider } from './jellyfin/JellyfinProvider.js'
 import type { MediaServerProvider } from './MediaServerProvider.js'
 import type { MediaServerType } from './types.js'
 
-export { EmbyProvider } from './EmbyProvider.js'
-export { JellyfinProvider } from './JellyfinProvider.js'
+// Export provider classes
+export { EmbyProvider } from './emby/EmbyProvider.js'
+export { EmbyProviderBase } from './emby/base.js'
+export { JellyfinProvider } from './jellyfin/JellyfinProvider.js'
+export { JellyfinProviderBase } from './jellyfin/base.js'
+
+// Export interface
 export type { MediaServerProvider } from './MediaServerProvider.js'
+
+// Export shared types
 export * from './types.js'
+
+// Export Emby types with namespace
+export * as EmbyTypes from './emby/types.js'
+export { mapEmbyItemToMovie, mapEmbyItemToSeries, mapEmbyItemToEpisode } from './emby/mappers.js'
+
+// Export Jellyfin types with namespace
+export * as JellyfinTypes from './jellyfin/types.js'
+export {
+  mapJellyfinItemToMovie,
+  mapJellyfinItemToSeries,
+  mapJellyfinItemToEpisode,
+} from './jellyfin/mappers.js'
 
 /**
  * Create a media server provider based on type
@@ -38,4 +57,3 @@ export function getMediaServerProvider(): MediaServerProvider {
 
   return createMediaServerProvider(type, baseUrl)
 }
-

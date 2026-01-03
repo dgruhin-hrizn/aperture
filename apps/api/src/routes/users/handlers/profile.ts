@@ -1,7 +1,12 @@
 import type { FastifyInstance } from 'fastify'
 import { query, queryOne } from '../../../lib/db.js'
 import { requireAuth, type SessionUser } from '../../../plugins/auth.js'
-import { getTasteSynopsis, generateTasteSynopsis } from '@aperture/core'
+import { 
+  getTasteSynopsis, 
+  generateTasteSynopsis,
+  getSeriesTasteSynopsis,
+  generateSeriesTasteSynopsis
+} from '@aperture/core'
 
 export function registerProfileHandlers(fastify: FastifyInstance) {
   /**
@@ -212,6 +217,62 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
       } catch (error) {
         fastify.log.error({ error, userId: id }, 'Failed to regenerate taste profile')
         return reply.status(500).send({ error: 'Failed to regenerate taste profile' })
+      }
+    }
+  )
+
+  // =========================================================================
+  // Series Taste Profile
+  // =========================================================================
+
+  /**
+   * GET /api/users/:id/series-taste-profile
+   * Get user's AI-generated series taste synopsis
+   */
+  fastify.get<{ Params: { id: string } }>(
+    '/api/users/:id/series-taste-profile',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { id } = request.params
+      const currentUser = request.user as SessionUser
+
+      // Users can only get their own taste profile unless admin
+      if (id !== currentUser.id && !currentUser.isAdmin) {
+        return reply.status(403).send({ error: 'Forbidden' })
+      }
+
+      try {
+        const profile = await getSeriesTasteSynopsis(id)
+        return reply.send(profile)
+      } catch (error) {
+        fastify.log.error({ error, userId: id }, 'Failed to get series taste profile')
+        return reply.status(500).send({ error: 'Failed to generate series taste profile' })
+      }
+    }
+  )
+
+  /**
+   * POST /api/users/:id/series-taste-profile/regenerate
+   * Force regenerate user's series taste synopsis
+   */
+  fastify.post<{ Params: { id: string } }>(
+    '/api/users/:id/series-taste-profile/regenerate',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { id } = request.params
+      const currentUser = request.user as SessionUser
+
+      // Users can only regenerate their own taste profile unless admin
+      if (id !== currentUser.id && !currentUser.isAdmin) {
+        return reply.status(403).send({ error: 'Forbidden' })
+      }
+
+      try {
+        const profile = await generateSeriesTasteSynopsis(id)
+        return reply.send(profile)
+      } catch (error) {
+        fastify.log.error({ error, userId: id }, 'Failed to regenerate series taste profile')
+        return reply.status(500).send({ error: 'Failed to regenerate series taste profile' })
       }
     }
   )

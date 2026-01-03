@@ -5,20 +5,29 @@ import {
   setLibraryEnabled,
   syncLibraryConfigsFromProvider,
   getRecommendationConfig,
-  updateRecommendationConfig,
-  resetRecommendationConfig,
+  updateMovieRecommendationConfig,
+  updateSeriesRecommendationConfig,
+  resetMovieRecommendationConfig,
+  resetSeriesRecommendationConfig,
   getUserSettings,
   updateUserSettings,
   getDefaultLibraryNamePrefix,
   getEmbeddingModel,
   setEmbeddingModel,
   EMBEDDING_MODELS,
+  getTextGenerationModel,
+  setTextGenerationModel,
+  TEXT_GENERATION_MODELS,
   getMediaServerConfig,
   setMediaServerConfig,
   testMediaServerConnection,
   getMediaServerTypes,
+  getJobConfig,
+  formatSchedule,
   type EmbeddingModel,
   type MediaServerType,
+  type TextGenerationModel,
+  type MediaTypeConfig,
 } from '@aperture/core'
 import { requireAdmin } from '../plugins/auth.js'
 
@@ -193,7 +202,11 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       // Test connection
-      const result = await testMediaServerConnection({ type: testType, baseUrl: testBaseUrl, apiKey: testApiKey })
+      const result = await testMediaServerConnection({
+        type: testType,
+        baseUrl: testBaseUrl,
+        apiKey: testApiKey,
+      })
 
       return reply.send(result)
     } catch (err) {
@@ -249,7 +262,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * POST /api/settings/libraries/sync
    * Sync library list from media server to database
-   * This fetches the current list of movie libraries and updates our config table
+   * This fetches both movie and TV show libraries and updates our config table
    */
   fastify.post(
     '/api/settings/libraries/sync',
@@ -263,11 +276,18 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         }
 
         const provider = createMediaServerProvider(config.type, config.baseUrl || '')
-        const movieLibraries = await provider.getMovieLibraries(config.apiKey)
+
+        // Fetch both movie and TV show libraries
+        const [movieLibraries, tvShowLibraries] = await Promise.all([
+          provider.getMovieLibraries(config.apiKey),
+          provider.getTvShowLibraries(config.apiKey),
+        ])
+
+        const allLibraries = [...movieLibraries, ...tvShowLibraries]
 
         // Sync to database
         const result = await syncLibraryConfigsFromProvider(
-          movieLibraries.map((lib) => ({
+          allLibraries.map((lib) => ({
             id: lib.id,
             name: lib.name,
             collectionType: lib.collectionType,
@@ -278,7 +298,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         const configs = await getLibraryConfigs()
 
         return reply.send({
-          message: `Synced ${result.added} new, ${result.updated} updated`,
+          message: `Synced ${result.added} new, ${result.updated} updated (${movieLibraries.length} movies, ${tvShowLibraries.length} TV shows)`,
           libraries: configs,
         })
       } catch (err) {
@@ -319,7 +339,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
 
   /**
    * GET /api/settings/libraries/available
-   * Get available movie libraries directly from media server
+   * Get available libraries directly from media server (movies and TV shows)
    * Useful for seeing what's available before syncing
    */
   fastify.get(
@@ -334,9 +354,18 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         }
 
         const provider = createMediaServerProvider(config.type, config.baseUrl || '')
-        const movieLibraries = await provider.getMovieLibraries(config.apiKey)
 
-        return reply.send({ libraries: movieLibraries })
+        // Fetch both movie and TV show libraries
+        const [movieLibraries, tvShowLibraries] = await Promise.all([
+          provider.getMovieLibraries(config.apiKey),
+          provider.getTvShowLibraries(config.apiKey),
+        ])
+
+        return reply.send({
+          libraries: [...movieLibraries, ...tvShowLibraries],
+          movieCount: movieLibraries.length,
+          tvShowCount: tvShowLibraries.length,
+        })
       } catch (err) {
         fastify.log.error({ err }, 'Failed to get available libraries')
         return reply
@@ -352,7 +381,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
 
   /**
    * GET /api/settings/recommendations
-   * Get current recommendation algorithm configuration
+   * Get current recommendation algorithm configuration (movies and series)
    */
   fastify.get(
     '/api/settings/recommendations',
@@ -368,74 +397,223 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     }
   )
 
+  // Helper function to validate config updates
+  function validateConfigUpdates(updates: Partial<MediaTypeConfig>): string | null {
+    const weights = [
+      'similarityWeight',
+      'noveltyWeight',
+      'ratingWeight',
+      'diversityWeight',
+    ] as const
+    for (const key of weights) {
+      if (updates[key] !== undefined) {
+        if (updates[key]! < 0 || updates[key]! > 1) {
+          return `${key} must be between 0 and 1`
+        }
+      }
+    }
+
+    const counts = ['maxCandidates', 'selectedCount', 'recentWatchLimit'] as const
+    for (const key of counts) {
+      if (updates[key] !== undefined) {
+        if (updates[key]! < 1) {
+          return `${key} must be at least 1`
+        }
+      }
+    }
+
+    return null
+  }
+
   /**
-   * PATCH /api/settings/recommendations
-   * Update recommendation algorithm configuration
+   * PATCH /api/settings/recommendations/movies
+   * Update movie recommendation algorithm configuration
    */
   fastify.patch<{
-    Body: {
-      maxCandidates?: number
-      selectedCount?: number
-      recentWatchLimit?: number
-      similarityWeight?: number
-      noveltyWeight?: number
-      ratingWeight?: number
-      diversityWeight?: number
-    }
-  }>('/api/settings/recommendations', { preHandler: requireAdmin }, async (request, reply) => {
-    try {
-      const updates = request.body
-
-      // Validate weights are between 0 and 1
-      const weights = [
-        'similarityWeight',
-        'noveltyWeight',
-        'ratingWeight',
-        'diversityWeight',
-      ] as const
-      for (const key of weights) {
-        if (updates[key] !== undefined) {
-          if (updates[key]! < 0 || updates[key]! > 1) {
-            return reply.status(400).send({ error: `${key} must be between 0 and 1` })
-          }
-        }
-      }
-
-      // Validate counts are positive
-      const counts = ['maxCandidates', 'selectedCount', 'recentWatchLimit'] as const
-      for (const key of counts) {
-        if (updates[key] !== undefined) {
-          if (updates[key]! < 1) {
-            return reply.status(400).send({ error: `${key} must be at least 1` })
-          }
-        }
-      }
-
-      const config = await updateRecommendationConfig(updates)
-      return reply.send({ config, message: 'Configuration updated successfully' })
-    } catch (err) {
-      fastify.log.error({ err }, 'Failed to update recommendation config')
-      return reply.status(500).send({ error: 'Failed to update recommendation configuration' })
-    }
-  })
-
-  /**
-   * POST /api/settings/recommendations/reset
-   * Reset recommendation configuration to defaults
-   */
-  fastify.post(
-    '/api/settings/recommendations/reset',
+    Body: Partial<MediaTypeConfig>
+  }>(
+    '/api/settings/recommendations/movies',
     { preHandler: requireAdmin },
     async (request, reply) => {
       try {
-        const config = await resetRecommendationConfig()
-        return reply.send({ config, message: 'Configuration reset to defaults' })
+        const updates = request.body
+        const validationError = validateConfigUpdates(updates)
+        if (validationError) {
+          return reply.status(400).send({ error: validationError })
+        }
+
+        const config = await updateMovieRecommendationConfig(updates)
+        return reply.send({ config, message: 'Movie configuration updated successfully' })
       } catch (err) {
-        fastify.log.error({ err }, 'Failed to reset recommendation config')
-        return reply.status(500).send({ error: 'Failed to reset recommendation configuration' })
+        fastify.log.error({ err }, 'Failed to update movie recommendation config')
+        return reply
+          .status(500)
+          .send({ error: 'Failed to update movie recommendation configuration' })
       }
     }
   )
+
+  /**
+   * PATCH /api/settings/recommendations/series
+   * Update series recommendation algorithm configuration
+   */
+  fastify.patch<{
+    Body: Partial<MediaTypeConfig>
+  }>(
+    '/api/settings/recommendations/series',
+    { preHandler: requireAdmin },
+    async (request, reply) => {
+      try {
+        const updates = request.body
+        const validationError = validateConfigUpdates(updates)
+        if (validationError) {
+          return reply.status(400).send({ error: validationError })
+        }
+
+        const config = await updateSeriesRecommendationConfig(updates)
+        return reply.send({ config, message: 'Series configuration updated successfully' })
+      } catch (err) {
+        fastify.log.error({ err }, 'Failed to update series recommendation config')
+        return reply
+          .status(500)
+          .send({ error: 'Failed to update series recommendation configuration' })
+      }
+    }
+  )
+
+  /**
+   * POST /api/settings/recommendations/movies/reset
+   * Reset movie recommendation configuration to defaults
+   */
+  fastify.post(
+    '/api/settings/recommendations/movies/reset',
+    { preHandler: requireAdmin },
+    async (request, reply) => {
+      try {
+        const config = await resetMovieRecommendationConfig()
+        return reply.send({ config, message: 'Movie configuration reset to defaults' })
+      } catch (err) {
+        fastify.log.error({ err }, 'Failed to reset movie recommendation config')
+        return reply
+          .status(500)
+          .send({ error: 'Failed to reset movie recommendation configuration' })
+      }
+    }
+  )
+
+  /**
+   * POST /api/settings/recommendations/series/reset
+   * Reset series recommendation configuration to defaults
+   */
+  fastify.post(
+    '/api/settings/recommendations/series/reset',
+    { preHandler: requireAdmin },
+    async (request, reply) => {
+      try {
+        const config = await resetSeriesRecommendationConfig()
+        return reply.send({ config, message: 'Series configuration reset to defaults' })
+      } catch (err) {
+        fastify.log.error({ err }, 'Failed to reset series recommendation config')
+        return reply
+          .status(500)
+          .send({ error: 'Failed to reset series recommendation configuration' })
+      }
+    }
+  )
+
+  // =========================================================================
+  // Cost Inputs (for cost estimator)
+  // =========================================================================
+
+  /**
+   * Helper function to calculate runs per week from job schedule
+   */
+  function calculateRunsPerWeek(scheduleType: string, intervalHours?: number | null): number {
+    switch (scheduleType) {
+      case 'daily':
+        return 7
+      case 'weekly':
+        return 1
+      case 'interval':
+        if (intervalHours && intervalHours > 0) {
+          return Math.round((24 * 7) / intervalHours)
+        }
+        return 7
+      case 'manual':
+        return 0
+      default:
+        return 1
+    }
+  }
+
+  /**
+   * GET /api/settings/cost-inputs
+   * Get all values needed for cost estimation with source information
+   */
+  fastify.get('/api/settings/cost-inputs', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      // Get recommendation config
+      const recConfig = await getRecommendationConfig()
+
+      // Get job schedules
+      const movieJobConfig = await getJobConfig('generate-recommendations')
+      const seriesJobConfig = await getJobConfig('generate-series-recommendations')
+
+      // Get enabled user counts
+      const { query } = await import('@aperture/core')
+      const enabledUsersResult = await query<{
+        movies_enabled_count: string
+        series_enabled_count: string
+      }>(`
+          SELECT 
+            COUNT(*) FILTER (WHERE movies_enabled = true) as movies_enabled_count,
+            COUNT(*) FILTER (WHERE series_enabled = true) as series_enabled_count
+          FROM users
+        `)
+      const moviesEnabledUsers = parseInt(
+        enabledUsersResult.rows[0]?.movies_enabled_count || '0',
+        10
+      )
+      const seriesEnabledUsers = parseInt(
+        enabledUsersResult.rows[0]?.series_enabled_count || '0',
+        10
+      )
+
+      // Calculate runs per week
+      const movieRunsPerWeek = movieJobConfig
+        ? calculateRunsPerWeek(movieJobConfig.scheduleType, movieJobConfig.scheduleIntervalHours)
+        : 7
+      const seriesRunsPerWeek = seriesJobConfig
+        ? calculateRunsPerWeek(seriesJobConfig.scheduleType, seriesJobConfig.scheduleIntervalHours)
+        : 7
+
+      return reply.send({
+        movie: {
+          selectedCount: recConfig.movie.selectedCount,
+          runsPerWeek: movieRunsPerWeek,
+          schedule: movieJobConfig ? formatSchedule(movieJobConfig) : 'Daily at 4:00 AM',
+          enabledUsers: moviesEnabledUsers,
+          source: {
+            selectedCount: 'Settings > AI Config > Algorithm > Movies > Recs Per User',
+            schedule: 'Jobs > generate-recommendations',
+          },
+        },
+        series: {
+          selectedCount: recConfig.series.selectedCount,
+          runsPerWeek: seriesRunsPerWeek,
+          schedule: seriesJobConfig ? formatSchedule(seriesJobConfig) : 'Daily at 4:00 AM',
+          enabledUsers: seriesEnabledUsers,
+          source: {
+            selectedCount: 'Settings > AI Config > Algorithm > Series > Recs Per User',
+            schedule: 'Jobs > generate-series-recommendations',
+          },
+        },
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get cost inputs')
+      return reply.status(500).send({ error: 'Failed to get cost estimation inputs' })
+    }
+  })
 
   // =========================================================================
   // User Settings (per-user preferences)
@@ -598,6 +776,204 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(500).send({ error: 'Failed to update embedding model' })
     }
   })
+
+  // =========================================================================
+  // Text Generation Model Settings (Admin Only)
+  // =========================================================================
+
+  /**
+   * GET /api/settings/text-generation-model
+   * Get current text generation model configuration with cost estimates
+   */
+  fastify.get(
+    '/api/settings/text-generation-model',
+    { preHandler: requireAdmin },
+    async (_request, reply) => {
+      try {
+        const currentModel = await getTextGenerationModel()
+
+        // Get counts for cost estimation
+        const { query } = await import('@aperture/core')
+
+        // Get enabled users count for movie and series
+        const enabledUsersResult = await query<{
+          movies_enabled_count: string
+          series_enabled_count: string
+        }>(`
+          SELECT 
+            COUNT(*) FILTER (WHERE movies_enabled = true) as movies_enabled_count,
+            COUNT(*) FILTER (WHERE series_enabled = true) as series_enabled_count
+          FROM users
+        `)
+        const moviesEnabledUsers = parseInt(
+          enabledUsersResult.rows[0]?.movies_enabled_count || '0',
+          10
+        )
+        const seriesEnabledUsers = parseInt(
+          enabledUsersResult.rows[0]?.series_enabled_count || '0',
+          10
+        )
+
+        // Get movie/series counts from enabled libraries
+        const movieCountResult = await query<{ count: string }>(`
+          SELECT COUNT(*) as count FROM movies m
+          WHERE EXISTS (
+            SELECT 1 FROM library_config lc
+            WHERE lc.provider_library_id = m.provider_library_id
+              AND lc.is_enabled = true
+          )
+        `)
+        const movieCount = parseInt(movieCountResult.rows[0]?.count || '0', 10)
+
+        const seriesCountResult = await query<{ count: string }>(`
+          SELECT COUNT(*) as count FROM series s
+          WHERE EXISTS (
+            SELECT 1 FROM library_config lc
+            WHERE lc.provider_library_id = s.provider_library_id
+              AND lc.is_enabled = true
+          )
+        `)
+        const seriesCount = parseInt(seriesCountResult.rows[0]?.count || '0', 10)
+
+        return reply.send({
+          currentModel,
+          availableModels: TEXT_GENERATION_MODELS,
+          stats: {
+            moviesEnabledUsers,
+            seriesEnabledUsers,
+            movieCount,
+            seriesCount,
+          },
+        })
+      } catch (err) {
+        fastify.log.error({ err }, 'Failed to get text generation model')
+        return reply
+          .status(500)
+          .send({ error: 'Failed to get text generation model configuration' })
+      }
+    }
+  )
+
+  /**
+   * PATCH /api/settings/text-generation-model
+   * Update text generation model
+   */
+  fastify.patch<{
+    Body: { model: string }
+  }>(
+    '/api/settings/text-generation-model',
+    { preHandler: requireAdmin },
+    async (request, reply) => {
+      try {
+        const { model } = request.body
+
+        // Validate model
+        const validModels = TEXT_GENERATION_MODELS.map((m) => m.id)
+        if (!validModels.includes(model as TextGenerationModel)) {
+          return reply.status(400).send({
+            error: `Invalid model. Valid options: ${validModels.join(', ')}`,
+          })
+        }
+
+        await setTextGenerationModel(model as TextGenerationModel)
+
+        return reply.send({
+          model,
+          message:
+            'Text generation model updated. Future recommendation runs will use the new model.',
+        })
+      } catch (err) {
+        fastify.log.error({ err }, 'Failed to update text generation model')
+        return reply.status(500).send({ error: 'Failed to update text generation model' })
+      }
+    }
+  )
+
+  // =========================================================================
+  // Top Picks Configuration (Admin Only)
+  // =========================================================================
+
+  /**
+   * GET /api/settings/top-picks
+   * Get current Top Picks configuration
+   */
+  fastify.get('/api/settings/top-picks', { preHandler: requireAdmin }, async (_request, reply) => {
+    try {
+      const { getTopPicksConfig } = await import('@aperture/core')
+      const config = await getTopPicksConfig()
+      return reply.send(config)
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get Top Picks config')
+      return reply.status(500).send({ error: 'Failed to get Top Picks configuration' })
+    }
+  })
+
+  /**
+   * PATCH /api/settings/top-picks
+   * Update Top Picks configuration
+   */
+  fastify.patch<{
+    Body: {
+      isEnabled?: boolean
+      timeWindowDays?: number
+      moviesCount?: number
+      seriesCount?: number
+      uniqueViewersWeight?: number
+      playCountWeight?: number
+      completionWeight?: number
+      refreshCron?: string
+    }
+  }>('/api/settings/top-picks', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const { updateTopPicksConfig } = await import('@aperture/core')
+      const config = await updateTopPicksConfig(request.body)
+      return reply.send(config)
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to update Top Picks config')
+      return reply.status(500).send({ error: 'Failed to update Top Picks configuration' })
+    }
+  })
+
+  /**
+   * POST /api/settings/top-picks/reset
+   * Reset Top Picks configuration to defaults
+   */
+  fastify.post(
+    '/api/settings/top-picks/reset',
+    { preHandler: requireAdmin },
+    async (_request, reply) => {
+      try {
+        const { resetTopPicksConfig } = await import('@aperture/core')
+        const config = await resetTopPicksConfig()
+        return reply.send(config)
+      } catch (err) {
+        fastify.log.error({ err }, 'Failed to reset Top Picks config')
+        return reply.status(500).send({ error: 'Failed to reset Top Picks configuration' })
+      }
+    }
+  )
+
+  /**
+   * POST /api/settings/top-picks/refresh
+   * Trigger a manual refresh of Top Picks
+   */
+  fastify.post(
+    '/api/settings/top-picks/refresh',
+    { preHandler: requireAdmin },
+    async (_request, reply) => {
+      try {
+        const { refreshTopPicks } = await import('@aperture/core')
+        const result = await refreshTopPicks()
+        return reply.send({
+          success: true,
+          ...result,
+        })
+      } catch (err) {
+        fastify.log.error({ err }, 'Failed to refresh Top Picks')
+        return reply.status(500).send({ error: 'Failed to refresh Top Picks' })
+      }
+    }
+  )
 }
 
 export default settingsRoutes

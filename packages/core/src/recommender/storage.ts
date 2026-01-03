@@ -1,11 +1,12 @@
 import { query, queryOne, transaction } from '../lib/db.js'
-import { getMovieEmbedding } from './embeddings.js'
+import { getMovieEmbedding } from './movies/embeddings.js'
 import type { Candidate, WatchedMovie } from './types.js'
 
 export async function storeCandidates(
   runId: string,
   allCandidates: Candidate[],
-  selected: Candidate[]
+  selected: Candidate[],
+  selectedRanks?: Map<string, number>
 ): Promise<void> {
   const selectedIds = new Set(selected.map((s) => s.movieId))
 
@@ -14,15 +15,19 @@ export async function storeCandidates(
 
   for (let i = 0; i < toStore.length; i++) {
     const c = toStore[i]
+    const isSelected = selectedIds.has(c.movieId)
+    const selectedRank = isSelected && selectedRanks ? selectedRanks.get(c.movieId) : null
+
     await query(
       `INSERT INTO recommendation_candidates
-       (run_id, movie_id, rank, is_selected, final_score, similarity_score, novelty_score, rating_score, diversity_score, score_breakdown)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+       (run_id, movie_id, rank, is_selected, selected_rank, final_score, similarity_score, novelty_score, rating_score, diversity_score, score_breakdown)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [
         runId,
         c.movieId,
         i + 1,
-        selectedIds.has(c.movieId),
+        isSelected,
+        selectedRank,
         c.finalScore,
         c.similarity,
         c.novelty,

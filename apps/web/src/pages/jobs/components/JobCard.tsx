@@ -1,13 +1,53 @@
 import React from 'react'
-import { Box, Button, Collapse, IconButton, Stack, Tooltip, Typography } from '@mui/material'
+import { Box, Button, Collapse, IconButton, Stack, Tooltip, Typography, Chip } from '@mui/material'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
 import ScheduleIcon from '@mui/icons-material/Schedule'
 import SettingsIcon from '@mui/icons-material/Settings'
+import HistoryIcon from '@mui/icons-material/History'
+import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import ErrorIcon from '@mui/icons-material/Error'
+import CancelIcon from '@mui/icons-material/Cancel'
 import { JOB_ICONS, JOB_COLORS, formatJobName } from '../constants'
 import { JobProgressSection } from './JobProgressSection'
 import { JobResult } from './JobResult'
 import type { Job, JobProgress } from '../types'
+
+// Helper to format relative time
+function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffSec = Math.floor(diffMs / 1000)
+  const diffMin = Math.floor(diffSec / 60)
+  const diffHour = Math.floor(diffMin / 60)
+  const diffDay = Math.floor(diffHour / 24)
+
+  if (diffDay > 7) {
+    return date.toLocaleDateString()
+  } else if (diffDay > 0) {
+    return `${diffDay}d ago`
+  } else if (diffHour > 0) {
+    return `${diffHour}h ago`
+  } else if (diffMin > 0) {
+    return `${diffMin}m ago`
+  } else {
+    return 'Just now'
+  }
+}
+
+// Helper to format duration
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`
+  const sec = Math.floor(ms / 1000)
+  if (sec < 60) return `${sec}s`
+  const min = Math.floor(sec / 60)
+  const remainingSec = sec % 60
+  if (min < 60) return `${min}m ${remainingSec}s`
+  const hr = Math.floor(min / 60)
+  const remainingMin = min % 60
+  return `${hr}h ${remainingMin}m`
+}
 
 interface JobCardProps {
   job: Job
@@ -18,6 +58,7 @@ interface JobCardProps {
   onCancel: () => void
   onToggleLogs: () => void
   onConfigClick: () => void
+  onHistoryClick: () => void
   logsContainerRef: (el: HTMLDivElement | null) => void
 }
 
@@ -30,6 +71,7 @@ export function JobCard({
   onCancel,
   onToggleLogs,
   onConfigClick,
+  onHistoryClick,
   logsContainerRef,
 }: JobCardProps) {
   const isRunning = job.status === 'running' || progress?.status === 'running'
@@ -40,6 +82,25 @@ export function JobCard({
     (progress.status === 'completed' ||
       progress.status === 'failed' ||
       progress.status === 'cancelled')
+
+  // Last run status icons and colors
+  const getLastRunInfo = () => {
+    if (!job.lastRun) return null
+    const { status, startedAt, durationMs, itemsProcessed, itemsTotal, errorMessage } = job.lastRun
+    return {
+      status,
+      time: formatRelativeTime(startedAt),
+      duration: formatDuration(durationMs),
+      items: itemsTotal > 0 ? `${itemsProcessed}/${itemsTotal}` : undefined,
+      error: errorMessage,
+      icon: status === 'completed' ? <CheckCircleIcon sx={{ fontSize: 14 }} /> :
+            status === 'failed' ? <ErrorIcon sx={{ fontSize: 14 }} /> :
+            <CancelIcon sx={{ fontSize: 14 }} />,
+      color: status === 'completed' ? 'success' : status === 'failed' ? 'error' : 'warning',
+    }
+  }
+
+  const lastRunInfo = getLastRunInfo()
 
   return (
     <Box
@@ -105,16 +166,50 @@ export function JobCard({
             <Typography variant="body2" color="text.secondary" mb={1}>
               {job.description}
             </Typography>
-            <Stack direction="row" alignItems="center" spacing={0.5}>
-              <ScheduleIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
-              <Typography variant="caption" color="text.disabled">
-                {job.schedule?.formatted || 'Not configured'}
-              </Typography>
+            <Stack direction="row" alignItems="center" spacing={2} flexWrap="wrap">
+              <Stack direction="row" alignItems="center" spacing={0.5}>
+                <ScheduleIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+                <Typography variant="caption" color="text.disabled">
+                  {job.schedule?.formatted || 'Not configured'}
+                </Typography>
+              </Stack>
+              {lastRunInfo && !isRunning && (
+                <Tooltip title={lastRunInfo.error ? `Error: ${lastRunInfo.error}` : `Duration: ${lastRunInfo.duration}${lastRunInfo.items ? ` • Items: ${lastRunInfo.items}` : ''}`}>
+                  <Chip
+                    size="small"
+                    icon={lastRunInfo.icon}
+                    label={`Last run: ${lastRunInfo.time}`}
+                    color={lastRunInfo.color as 'success' | 'error' | 'warning'}
+                    variant="outlined"
+                    onClick={onHistoryClick}
+                    sx={{
+                      height: 22,
+                      fontSize: '0.7rem',
+                      cursor: 'pointer',
+                      '& .MuiChip-icon': {
+                        fontSize: 14,
+                      },
+                    }}
+                  />
+                </Tooltip>
+              )}
             </Stack>
           </Box>
 
           {/* Config + Action Buttons */}
           <Stack direction="row" spacing={0.5} alignItems="center">
+            <Tooltip title="View run history">
+              <IconButton
+                size="small"
+                onClick={onHistoryClick}
+                sx={{
+                  color: 'text.secondary',
+                  '&:hover': { bgcolor: 'action.hover' },
+                }}
+              >
+                <HistoryIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
             <Tooltip title="Configure schedule">
               <IconButton
                 size="small"

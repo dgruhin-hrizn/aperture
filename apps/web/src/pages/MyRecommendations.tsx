@@ -17,6 +17,8 @@ import {
   FormControlLabel,
   Switch,
   Tooltip,
+  Tabs,
+  Tab,
 } from '@mui/material'
 import GridViewIcon from '@mui/icons-material/GridView'
 import ViewListIcon from '@mui/icons-material/ViewList'
@@ -24,10 +26,12 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
+import MovieIcon from '@mui/icons-material/Movie'
+import TvIcon from '@mui/icons-material/Tv'
 import { MoviePoster } from '@aperture/ui'
 import { useAuth } from '@/hooks/useAuth'
 
-interface Recommendation {
+interface MovieRecommendation {
   movie_id: string
   rank: number
   final_score: number
@@ -46,23 +50,54 @@ interface Recommendation {
   }
 }
 
-interface RecommendationsResponse {
-  recommendations: Recommendation[]
-  run?: {
+interface SeriesRecommendation {
+  series_id: string
+  rank: number
+  final_score: number
+  similarity_score: number
+  novelty_score: number
+  rating_score: number
+  diversity_score: number
+  series: {
     id: string
-    created_at: string
-    total_candidates: number
-    selected_count: number
+    title: string
+    year: number | null
+    poster_url: string | null
+    genres: string[]
+    overview: string | null
+    community_rating: number | null
   }
 }
+
+interface RunInfo {
+  id: string
+  created_at: string
+  total_candidates: number
+  selected_count: number
+}
+
+type MediaType = 'movies' | 'series'
 
 export function MyRecommendationsPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
-  const [runInfo, setRunInfo] = useState<RecommendationsResponse['run'] | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  
+  // Tab state
+  const [mediaType, setMediaType] = useState<MediaType>('movies')
+  
+  // Movie recommendations state
+  const [movieRecommendations, setMovieRecommendations] = useState<MovieRecommendation[]>([])
+  const [movieRunInfo, setMovieRunInfo] = useState<RunInfo | null>(null)
+  const [movieLoading, setMovieLoading] = useState(true)
+  const [movieError, setMovieError] = useState<string | null>(null)
+  
+  // Series recommendations state
+  const [seriesRecommendations, setSeriesRecommendations] = useState<SeriesRecommendation[]>([])
+  const [seriesRunInfo, setSeriesRunInfo] = useState<RunInfo | null>(null)
+  const [seriesLoading, setSeriesLoading] = useState(true)
+  const [seriesError, setSeriesError] = useState<string | null>(null)
+  
+  // Shared state
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [regenerating, setRegenerating] = useState(false)
   const [regenerateMessage, setRegenerateMessage] = useState<string | null>(null)
@@ -100,8 +135,9 @@ export function MyRecommendationsPage() {
       })
 
       if (response.ok) {
+        const mediaLabel = mediaType === 'movies' ? 'movies' : 'series'
         setRegenerateMessage(
-          `✓ Preference saved. ${checked ? 'Recommendations will include watched movies.' : 'Recommendations will exclude watched movies.'} Click Regenerate to apply.`
+          `✓ Preference saved. ${checked ? `Recommendations will include watched ${mediaLabel}.` : `Recommendations will exclude watched ${mediaLabel}.`} Click Regenerate to apply.`
         )
       } else {
         setIncludeWatched(!checked) // Revert
@@ -115,28 +151,49 @@ export function MyRecommendationsPage() {
     }
   }
 
-  const fetchRecommendations = async () => {
+  const fetchMovieRecommendations = async () => {
     if (!user) return
 
     try {
       const response = await fetch(`/api/recommendations/${user.id}`, { credentials: 'include' })
       if (response.ok) {
-        const data: RecommendationsResponse = await response.json()
-        setRecommendations(data.recommendations || [])
-        setRunInfo(data.run)
-        setError(null)
+        const data = await response.json()
+        setMovieRecommendations(data.recommendations || [])
+        setMovieRunInfo(data.run)
+        setMovieError(null)
       } else {
-        setError('Failed to load recommendations')
+        setMovieError('Failed to load movie recommendations')
       }
-    } catch (err) {
-      setError('Could not connect to server')
+    } catch {
+      setMovieError('Could not connect to server')
     } finally {
-      setLoading(false)
+      setMovieLoading(false)
+    }
+  }
+
+  const fetchSeriesRecommendations = async () => {
+    if (!user) return
+
+    try {
+      const response = await fetch(`/api/recommendations/${user.id}/series`, { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        setSeriesRecommendations(data.recommendations || [])
+        setSeriesRunInfo(data.run)
+        setSeriesError(null)
+      } else {
+        setSeriesError('Failed to load series recommendations')
+      }
+    } catch {
+      setSeriesError('Could not connect to server')
+    } finally {
+      setSeriesLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchRecommendations()
+    fetchMovieRecommendations()
+    fetchSeriesRecommendations()
     fetchPreferences()
   }, [user])
 
@@ -146,28 +203,44 @@ export function MyRecommendationsPage() {
     setRegenerating(true)
     setRegenerateMessage(null)
 
+    const endpoint = mediaType === 'movies'
+      ? `/api/recommendations/${user.id}/regenerate`
+      : `/api/recommendations/${user.id}/series/regenerate`
+
     try {
-      const response = await fetch(`/api/recommendations/${user.id}/regenerate`, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         credentials: 'include',
       })
 
       if (response.ok) {
         const data = await response.json()
-        setRegenerateMessage(`✓ Generated ${data.count} new recommendations!`)
+        const label = mediaType === 'movies' ? 'movie' : 'series'
+        setRegenerateMessage(`✓ Generated ${data.count} new ${label} recommendations!`)
         // Refresh the recommendations list
-        setLoading(true)
-        await fetchRecommendations()
+        if (mediaType === 'movies') {
+          setMovieLoading(true)
+          await fetchMovieRecommendations()
+        } else {
+          setSeriesLoading(true)
+          await fetchSeriesRecommendations()
+        }
       } else {
         const errorData = await response.json()
         setRegenerateMessage(`✗ ${errorData.error || 'Failed to regenerate'}`)
       }
-    } catch (err) {
+    } catch {
       setRegenerateMessage('✗ Could not connect to server')
     } finally {
       setRegenerating(false)
     }
   }
+
+  // Get current state based on tab
+  const recommendations = mediaType === 'movies' ? movieRecommendations : seriesRecommendations
+  const runInfo = mediaType === 'movies' ? movieRunInfo : seriesRunInfo
+  const loading = mediaType === 'movies' ? movieLoading : seriesLoading
+  const error = mediaType === 'movies' ? movieError : seriesError
 
   const ScoreBar = ({ label, value, color }: { label: string; value: number; color: string }) => (
     <Box mb={1}>
@@ -195,37 +268,41 @@ export function MyRecommendationsPage() {
     </Box>
   )
 
-  if (loading) {
-    return (
-      <Box>
-        <Skeleton variant="text" width={300} height={48} sx={{ mb: 1 }} />
-        <Skeleton variant="text" width={200} height={24} sx={{ mb: 4 }} />
-        <Grid container spacing={2}>
-          {[...Array(12)].map((_, i) => (
-            <Grid item key={i}>
-              <Skeleton variant="rectangular" width={154} height={231} sx={{ borderRadius: 1 }} />
-            </Grid>
-          ))}
-        </Grid>
-      </Box>
-    )
+  // Helper function to get item properties based on media type
+  const getItemProps = (rec: MovieRecommendation | SeriesRecommendation) => {
+    if (mediaType === 'movies' && 'movie' in rec) {
+      const movieRec = rec as MovieRecommendation
+      return {
+        id: movieRec.movie_id,
+        item: movieRec.movie,
+        navigateTo: `/movies/${movieRec.movie_id}`,
+      }
+    } else {
+      const seriesRec = rec as SeriesRecommendation
+      return {
+        id: seriesRec.series_id,
+        item: seriesRec.series,
+        navigateTo: `/series/${seriesRec.series_id}`,
+      }
+    }
   }
 
-  if (error) {
-    return (
-      <Box>
-        <Typography variant="h4" fontWeight={700} mb={4}>
-          My Recommendations
-        </Typography>
-        <Alert severity="error">{error}</Alert>
-      </Box>
-    )
-  }
+  const LoadingSkeleton = () => (
+    <Box>
+      <Grid container spacing={2}>
+        {[...Array(12)].map((_, i) => (
+          <Grid item key={i}>
+            <Skeleton variant="rectangular" width={154} height={231} sx={{ borderRadius: 1 }} />
+          </Grid>
+        ))}
+      </Grid>
+    </Box>
+  )
 
   return (
     <Box>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={4}>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
         <Box>
           <Box display="flex" alignItems="center" gap={2} mb={1}>
             <AutoAwesomeIcon sx={{ color: 'primary.main', fontSize: 32 }} />
@@ -234,24 +311,16 @@ export function MyRecommendationsPage() {
             </Typography>
           </Box>
           <Typography variant="body1" color="text.secondary">
-            AI-powered movie picks personalized for your taste
+            AI-powered picks personalized for your taste
           </Typography>
-          {runInfo && runInfo.created_at && (
-            <Typography variant="caption" color="text.secondary" display="block" mt={1}>
-              Last updated: {new Date(runInfo.created_at).toLocaleString()}
-              {runInfo.selected_count != null && runInfo.total_candidates != null && (
-                <> • {runInfo.selected_count} picks from {runInfo.total_candidates.toLocaleString()} candidates</>
-              )}
-            </Typography>
-          )}
         </Box>
 
         <Box display="flex" alignItems="center" gap={2}>
           <Tooltip
             title={
               includeWatched
-                ? 'Recommendations may include movies you\'ve already watched'
-                : 'Recommendations will only show movies you haven\'t watched'
+                ? `Recommendations may include ${mediaType === 'movies' ? 'movies' : 'series'} you've already watched`
+                : `Recommendations will only show ${mediaType === 'movies' ? 'movies' : 'series'} you haven't watched`
             }
           >
             <FormControlLabel
@@ -294,11 +363,80 @@ export function MyRecommendationsPage() {
               <GridViewIcon fontSize="small" />
             </ToggleButton>
             <ToggleButton value="list">
-            <ViewListIcon fontSize="small" />
-          </ToggleButton>
-        </ToggleButtonGroup>
+              <ViewListIcon fontSize="small" />
+            </ToggleButton>
+          </ToggleButtonGroup>
         </Box>
       </Box>
+
+      {/* Tabs */}
+      <Tabs
+        value={mediaType}
+        onChange={(_, v) => {
+          setMediaType(v)
+          setRegenerateMessage(null)
+        }}
+        sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}
+      >
+        <Tab
+          value="movies"
+          icon={<MovieIcon />}
+          iconPosition="start"
+          label={
+            <Box display="flex" alignItems="center" gap={1}>
+              <span>Movies</span>
+              {movieRecommendations.length > 0 && (
+                <Chip
+                  label={movieRecommendations.length}
+                  size="small"
+                  sx={{
+                    height: 20,
+                    minWidth: 20,
+                    bgcolor: 'primary.main',
+                    color: 'white',
+                    fontSize: '0.75rem',
+                    '& .MuiChip-label': { px: 0.75 },
+                  }}
+                />
+              )}
+            </Box>
+          }
+        />
+        <Tab
+          value="series"
+          icon={<TvIcon />}
+          iconPosition="start"
+          label={
+            <Box display="flex" alignItems="center" gap={1}>
+              <span>TV Series</span>
+              {seriesRecommendations.length > 0 && (
+                <Chip
+                  label={seriesRecommendations.length}
+                  size="small"
+                  sx={{
+                    height: 20,
+                    minWidth: 20,
+                    bgcolor: 'secondary.main',
+                    color: 'white',
+                    fontSize: '0.75rem',
+                    '& .MuiChip-label': { px: 0.75 },
+                  }}
+                />
+              )}
+            </Box>
+          }
+        />
+      </Tabs>
+
+      {/* Run Info */}
+      {runInfo && runInfo.created_at && (
+        <Typography variant="caption" color="text.secondary" display="block" mb={2}>
+          Last updated: {new Date(runInfo.created_at).toLocaleString()}
+          {runInfo.selected_count != null && runInfo.total_candidates != null && (
+            <> • {runInfo.selected_count} picks from {runInfo.total_candidates.toLocaleString()} candidates</>
+          )}
+        </Typography>
+      )}
 
       {/* Regenerate message */}
       {regenerateMessage && (
@@ -311,131 +449,147 @@ export function MyRecommendationsPage() {
         </Alert>
       )}
 
-      {recommendations.length === 0 ? (
+      {/* Error */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      {/* Loading */}
+      {loading ? (
+        <LoadingSkeleton />
+      ) : recommendations.length === 0 ? (
         <Alert severity="info" sx={{ borderRadius: 2 }}>
-          No recommendations generated yet. Your personalized picks will appear here once an admin runs the recommendation job.
+          No {mediaType === 'movies' ? 'movie' : 'series'} recommendations generated yet. Your personalized picks will appear here once an admin runs the recommendation job.
         </Alert>
       ) : viewMode === 'grid' ? (
         <Grid container spacing={2}>
-          {recommendations.map((rec, index) => (
-            <Grid item key={rec.movie_id}>
-              <Box position="relative">
-                <MoviePoster
-                  title={rec.movie.title}
-                  year={rec.movie.year}
-                  posterUrl={rec.movie.poster_url}
-                  genres={rec.movie.genres}
-                  rating={rec.movie.community_rating}
-                  overview={rec.movie.overview}
-                  score={rec.final_score}
-                  showScore
-                  hideRating
-                  size="medium"
-                  onClick={() => navigate(`/movies/${rec.movie_id}`)}
-                />
-                <Chip
-                  label={`#${index + 1}`}
-                  size="small"
-                  sx={{
-                    position: 'absolute',
-                    top: 8,
-                    left: 8,
-                    backgroundColor: 'primary.main',
-                    color: 'white',
-                    fontWeight: 700,
-                    fontSize: '0.75rem',
-                  }}
-                />
-              </Box>
-            </Grid>
-          ))}
+          {recommendations.map((rec, index) => {
+            const { id, item, navigateTo } = getItemProps(rec)
+            return (
+              <Grid item key={id}>
+                <Box position="relative">
+                  <MoviePoster
+                    title={item.title}
+                    year={item.year}
+                    posterUrl={item.poster_url}
+                    genres={item.genres}
+                    rating={item.community_rating}
+                    overview={item.overview}
+                    score={rec.final_score}
+                    showScore
+                    hideRating
+                    size="medium"
+                    onClick={() => navigate(navigateTo)}
+                  />
+                  <Chip
+                    label={`#${index + 1}`}
+                    size="small"
+                    sx={{
+                      position: 'absolute',
+                      top: 8,
+                      left: 8,
+                      backgroundColor: mediaType === 'movies' ? 'primary.main' : 'secondary.main',
+                      color: 'white',
+                      fontWeight: 700,
+                      fontSize: '0.75rem',
+                    }}
+                  />
+                </Box>
+              </Grid>
+            )
+          })}
         </Grid>
       ) : (
         <Box display="flex" flexDirection="column" gap={2}>
-          {recommendations.map((rec, index) => (
-            <Card
-              key={rec.movie_id}
-              sx={{
-                backgroundColor: 'background.paper',
-                borderRadius: 2,
-                cursor: 'pointer',
-                transition: 'transform 0.2s, box-shadow 0.2s',
-                '&:hover': {
-                  transform: 'translateY(-2px)',
-                  boxShadow: 4,
-                },
-              }}
-              onClick={() => navigate(`/movies/${rec.movie_id}`)}
-            >
-              <CardContent sx={{ display: 'flex', gap: 3, p: 2 }}>
-                {/* Rank */}
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 48,
-                    height: 48,
-                    borderRadius: '50%',
-                    backgroundColor: 'primary.main',
-                    color: 'white',
-                    fontWeight: 700,
-                    fontSize: '1.25rem',
-                    flexShrink: 0,
-                  }}
-                >
-                  {index + 1}
-                </Box>
-
-                {/* Poster */}
-                <Box
-                  component="img"
-                  src={rec.movie.poster_url || undefined}
-                  alt={rec.movie.title}
-                  sx={{
-                    width: 80,
-                    height: 120,
-                    objectFit: 'cover',
-                    borderRadius: 1,
-                    backgroundColor: 'grey.800',
-                    flexShrink: 0,
-                  }}
-                />
-
-                {/* Info */}
-                <Box flex={1} minWidth={0}>
-                  <Typography variant="h6" fontWeight={600} noWrap>
-                    {rec.movie.title}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" mb={1}>
-                    {rec.movie.year} • {rec.movie.genres?.slice(0, 3).join(', ')}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
+          {recommendations.map((rec, index) => {
+            const { id, item, navigateTo } = getItemProps(rec)
+            return (
+              <Card
+                key={id}
+                sx={{
+                  backgroundColor: 'background.paper',
+                  borderRadius: 2,
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: 4,
+                  },
+                }}
+                onClick={() => navigate(navigateTo)}
+              >
+                <CardContent sx={{ display: 'flex', gap: 3, p: 2 }}>
+                  {/* Rank */}
+                  <Box
                     sx={{
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 48,
+                      height: 48,
+                      borderRadius: '50%',
+                      backgroundColor: mediaType === 'movies' ? 'primary.main' : 'secondary.main',
+                      color: 'white',
+                      fontWeight: 700,
+                      fontSize: '1.25rem',
+                      flexShrink: 0,
                     }}
                   >
-                    {rec.movie.overview || 'No description available.'}
-                  </Typography>
-                </Box>
+                    {index + 1}
+                  </Box>
 
-                {/* Score Breakdown */}
-                <Box width={200} flexShrink={0}>
-                  <Typography variant="subtitle2" fontWeight={600} mb={1}>
-                    Match Score: {(rec.final_score * 100).toFixed(0)}%
-                  </Typography>
-                  <ScoreBar label="Similarity" value={rec.similarity_score} color="#6366f1" />
-                  <ScoreBar label="Novelty" value={rec.novelty_score} color="#10b981" />
-                  <ScoreBar label="Rating" value={rec.rating_score} color="#f59e0b" />
-                </Box>
-              </CardContent>
-            </Card>
-          ))}
+                  {/* Poster */}
+                  <Box
+                    component="img"
+                    src={item.poster_url || undefined}
+                    alt={item.title}
+                    sx={{
+                      width: 80,
+                      height: 120,
+                      objectFit: 'cover',
+                      borderRadius: 1,
+                      backgroundColor: 'grey.800',
+                      flexShrink: 0,
+                    }}
+                  />
+
+                  {/* Info */}
+                  <Box flex={1} minWidth={0}>
+                    <Typography variant="h6" fontWeight={600} noWrap>
+                      {item.title}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" mb={1}>
+                      {item.year} • {item.genres?.slice(0, 3).join(', ')}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {item.overview || 'No description available.'}
+                    </Typography>
+                  </Box>
+
+                  {/* Score Breakdown */}
+                  <Box width={200} flexShrink={0}>
+                    <Typography variant="subtitle2" fontWeight={600} mb={1}>
+                      Match Score: {(rec.final_score * 100).toFixed(0)}%
+                    </Typography>
+                    <ScoreBar label="Similarity" value={rec.similarity_score} color="#6366f1" />
+                    <ScoreBar label="Novelty" value={rec.novelty_score} color="#10b981" />
+                    <ScoreBar label="Rating" value={rec.rating_score} color="#f59e0b" />
+                  </Box>
+                </CardContent>
+              </Card>
+            )
+          })}
         </Box>
       )}
     </Box>

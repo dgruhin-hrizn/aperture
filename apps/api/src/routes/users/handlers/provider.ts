@@ -24,12 +24,17 @@ export function registerProviderHandlers(fastify: FastifyInstance) {
         const providerUsers = await provider.getUsers(apiKey)
 
         // Get existing users from our DB to check import status
-        const existingResult = await query<{ provider_user_id: string; id: string; is_enabled: boolean }>(
-          `SELECT provider_user_id, id, is_enabled FROM users WHERE provider = $1`,
+        const existingResult = await query<{ provider_user_id: string; id: string; is_enabled: boolean; movies_enabled: boolean; series_enabled: boolean }>(
+          `SELECT provider_user_id, id, is_enabled, movies_enabled, series_enabled FROM users WHERE provider = $1`,
           [provider.type]
         )
         const existingMap = new Map(
-          existingResult.rows.map((row) => [row.provider_user_id, { id: row.id, isEnabled: row.is_enabled }])
+          existingResult.rows.map((row) => [row.provider_user_id, { 
+            id: row.id, 
+            isEnabled: row.is_enabled,
+            moviesEnabled: row.movies_enabled,
+            seriesEnabled: row.series_enabled,
+          }])
         )
 
         // Combine provider users with import status
@@ -45,6 +50,8 @@ export function registerProviderHandlers(fastify: FastifyInstance) {
             apertureUserId: existing?.id || null,
             isImported: !!existing,
             isEnabled: existing?.isEnabled || false,
+            moviesEnabled: existing?.moviesEnabled || false,
+            seriesEnabled: existing?.seriesEnabled || false,
           }
         })
 
@@ -63,11 +70,15 @@ export function registerProviderHandlers(fastify: FastifyInstance) {
    * POST /api/users/import
    * Import a user from the media server into Aperture
    */
-  fastify.post<{ Body: { providerUserId: string; isEnabled?: boolean } }>(
+  fastify.post<{ Body: { providerUserId: string; isEnabled?: boolean; moviesEnabled?: boolean; seriesEnabled?: boolean } }>(
     '/api/users/import',
     { preHandler: requireAdmin },
     async (request, reply) => {
-      const { providerUserId, isEnabled = false } = request.body
+      const { providerUserId, isEnabled = false, moviesEnabled, seriesEnabled } = request.body
+
+      // Default movies to enabled if isEnabled is true (backwards compatibility)
+      const enableMovies = moviesEnabled ?? isEnabled
+      const enableSeries = seriesEnabled ?? false
 
       if (!providerUserId) {
         return reply.status(400).send({ error: 'providerUserId is required' })
@@ -99,10 +110,10 @@ export function registerProviderHandlers(fastify: FastifyInstance) {
 
         // Insert user into our database
         const newUser = await queryOne<UserRow>(
-          `INSERT INTO users (username, display_name, provider, provider_user_id, is_admin, is_enabled, max_parental_rating)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
-           RETURNING id, username, display_name, provider, provider_user_id, is_admin, is_enabled, max_parental_rating, created_at, updated_at`,
-          [providerUser.name, providerUser.name, provider.type, providerUserId, providerUser.isAdmin, isEnabled, providerUser.maxParentalRating ?? null]
+          `INSERT INTO users (username, display_name, provider, provider_user_id, is_admin, is_enabled, movies_enabled, series_enabled, max_parental_rating)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           RETURNING id, username, display_name, provider, provider_user_id, is_admin, is_enabled, movies_enabled, series_enabled, max_parental_rating, created_at, updated_at`,
+          [providerUser.name, providerUser.name, provider.type, providerUserId, providerUser.isAdmin, enableMovies || enableSeries, enableMovies, enableSeries, providerUser.maxParentalRating ?? null]
         )
 
         fastify.log.info({ userId: newUser?.id, providerUserId, name: providerUser.name }, 'User imported from media server')

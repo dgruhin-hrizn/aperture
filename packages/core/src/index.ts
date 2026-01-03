@@ -86,6 +86,7 @@ export {
   // Series recommendations
   generateSeriesRecommendationsForUser,
   generateSeriesRecommendationsForAllUsers,
+  regenerateUserSeriesRecommendations,
   clearUserSeriesRecommendations,
   clearAllSeriesRecommendations,
   type SeriesUser,
@@ -135,8 +136,11 @@ export {
   subscribeToJob,
   subscribeToAllJobs,
   withProgress,
+  getJobRunHistory,
+  getLastJobRuns,
   type JobProgress,
   type LogEntry,
+  type JobRunRecord,
 } from './jobs/index.js'
 
 // Job Config
@@ -166,9 +170,17 @@ export {
 // Recommendation Config
 export {
   getRecommendationConfig,
+  getMovieRecommendationConfig,
+  getSeriesRecommendationConfig,
   updateRecommendationConfig,
+  updateMovieRecommendationConfig,
+  updateSeriesRecommendationConfig,
   resetRecommendationConfig,
+  resetMovieRecommendationConfig,
+  resetSeriesRecommendationConfig,
   type RecommendationConfig,
+  type MediaTypeConfig,
+  type LegacyRecommendationConfig,
 } from './lib/recommendationConfig.js'
 
 // Database Purge
@@ -208,6 +220,9 @@ export {
   getEmbeddingModel,
   setEmbeddingModel,
   EMBEDDING_MODELS,
+  getTextGenerationModel,
+  setTextGenerationModel,
+  TEXT_GENERATION_MODELS,
   getMediaServerConfig,
   setMediaServerConfig,
   testMediaServerConnection,
@@ -215,6 +230,29 @@ export {
   getMediaServerTypes,
   type SystemSetting,
   type EmbeddingModel,
+  type TextGenerationModel,
+  type TextGenerationModelInfo,
   type MediaServerConfig,
 } from './settings/systemSettings.js'
+
+// Top Picks
+export {
+  getTopPicksConfig,
+  updateTopPicksConfig,
+  updateTopPicksLastRefreshed,
+  resetTopPicksConfig,
+  getTopMovies,
+  getTopSeries,
+  getTopPicks,
+  writeTopPicksMovies,
+  writeTopPicksSeries,
+  writeAllTopPicks,
+  grantTopPicksAccessToAllUsers,
+  getTopPicksLibraries,
+  refreshTopPicks,
+  type TopPicksConfig,
+  type PopularMovie,
+  type PopularSeries,
+  type RefreshTopPicksResult,
+} from './topPicks/index.js'
 

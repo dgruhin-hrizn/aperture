@@ -35,6 +35,8 @@ import HistoryIcon from '@mui/icons-material/History'
 import RecommendIcon from '@mui/icons-material/Recommend'
 import FolderIcon from '@mui/icons-material/Folder'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
+import MovieIcon from '@mui/icons-material/Movie'
+import TvIcon from '@mui/icons-material/Tv'
 
 interface ProviderUser {
   providerUserId: string
@@ -45,6 +47,8 @@ interface ProviderUser {
   apertureUserId: string | null
   isImported: boolean
   isEnabled: boolean
+  moviesEnabled: boolean
+  seriesEnabled: boolean
 }
 
 export function UsersPage() {
@@ -117,23 +121,51 @@ export function UsersPage() {
     }
   }
 
-  const handleToggleEnabled = async (user: ProviderUser) => {
+  const handleToggleMovies = async (user: ProviderUser) => {
     if (!user.apertureUserId) return
 
     setUpdating(user.providerUserId)
     try {
+      const newValue = !user.moviesEnabled
       const response = await fetch(`/api/users/${user.apertureUserId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ isEnabled: !user.isEnabled }),
+        body: JSON.stringify({ moviesEnabled: newValue }),
       })
 
       if (response.ok) {
         setProviderUsers((prev) =>
           prev.map((u) =>
             u.providerUserId === user.providerUserId
-              ? { ...u, isEnabled: !user.isEnabled }
+              ? { ...u, moviesEnabled: newValue, isEnabled: newValue || u.seriesEnabled }
+              : u
+          )
+        )
+      }
+    } finally {
+      setUpdating(null)
+    }
+  }
+
+  const handleToggleSeries = async (user: ProviderUser) => {
+    if (!user.apertureUserId) return
+
+    setUpdating(user.providerUserId)
+    try {
+      const newValue = !user.seriesEnabled
+      const response = await fetch(`/api/users/${user.apertureUserId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ seriesEnabled: newValue }),
+      })
+
+      if (response.ok) {
+        setProviderUsers((prev) =>
+          prev.map((u) =>
+            u.providerUserId === user.providerUserId
+              ? { ...u, seriesEnabled: newValue, isEnabled: u.moviesEnabled || newValue }
               : u
           )
         )
@@ -245,14 +277,25 @@ export function UsersPage() {
               <TableCell>User</TableCell>
               <TableCell>Status</TableCell>
               <TableCell align="center">Imported</TableCell>
-              <TableCell align="center">AI Enabled</TableCell>
+              <TableCell align="center">
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                  <MovieIcon fontSize="small" />
+                  Movies
+                </Box>
+              </TableCell>
+              <TableCell align="center">
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                  <TvIcon fontSize="small" />
+                  Series
+                </Box>
+              </TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {sortedUsers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} align="center">
+                <TableCell colSpan={6} align="center">
                   <Typography variant="body2" color="text.secondary" py={4}>
                     No users found on {provider} server.
                   </Typography>
@@ -310,10 +353,24 @@ export function UsersPage() {
                   <TableCell align="center">
                     {user.isImported ? (
                       <Switch
-                        checked={user.isEnabled}
-                        onChange={() => handleToggleEnabled(user)}
+                        checked={user.moviesEnabled}
+                        onChange={() => handleToggleMovies(user)}
                         disabled={updating === user.providerUserId || user.isDisabled}
                         color="primary"
+                        size="small"
+                      />
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">—</Typography>
+                    )}
+                  </TableCell>
+                  <TableCell align="center">
+                    {user.isImported ? (
+                      <Switch
+                        checked={user.seriesEnabled}
+                        onChange={() => handleToggleSeries(user)}
+                        disabled={updating === user.providerUserId || user.isDisabled}
+                        color="primary"
+                        size="small"
                       />
                     ) : (
                       <Typography variant="body2" color="text.secondary">—</Typography>

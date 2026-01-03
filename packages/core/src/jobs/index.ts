@@ -12,8 +12,11 @@ export {
   subscribeToJob,
   subscribeToAllJobs,
   withProgress,
+  getJobRunHistory,
+  getLastJobRuns,
   type JobProgress,
   type LogEntry,
+  type JobRunRecord,
 } from './progress.js'
 
 export {

@@ -8,7 +8,7 @@ export interface LibraryConfig {
   updatedAt: string
 }
 
-export interface RecommendationConfig {
+export interface MediaTypeConfig {
   maxCandidates: number
   selectedCount: number
   recentWatchLimit: number
@@ -16,11 +16,18 @@ export interface RecommendationConfig {
   noveltyWeight: number
   ratingWeight: number
   diversityWeight: number
+}
+
+export interface RecommendationConfig {
+  movie: MediaTypeConfig
+  series: MediaTypeConfig
   updatedAt: string
 }
 
 export interface PurgeStats {
   movies: number
+  series: number
+  episodes: number
   embeddings: number
   watchHistory: number
   recommendations: number

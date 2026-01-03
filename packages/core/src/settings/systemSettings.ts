@@ -271,3 +271,84 @@ export function getMediaServerTypes(): { id: MediaServerType; name: string }[] {
   ]
 }
 
+// ============================================================================
+// Text Generation Model Setting (for recommendations, taste synopses, etc.)
+// ============================================================================
+
+export type TextGenerationModel = 'gpt-4o-mini' | 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-4.1-mini'
+
+export interface TextGenerationModelInfo {
+  id: TextGenerationModel
+  name: string
+  description: string
+  inputCostPerMillion: number
+  outputCostPerMillion: number
+  contextWindow: string
+}
+
+export const TEXT_GENERATION_MODELS: TextGenerationModelInfo[] = [
+  {
+    id: 'gpt-4o-mini',
+    name: 'GPT-4o Mini (Recommended)',
+    description: 'Best balance of quality and cost. Good for most use cases.',
+    inputCostPerMillion: 0.15,
+    outputCostPerMillion: 0.60,
+    contextWindow: '128K',
+  },
+  {
+    id: 'gpt-5-nano',
+    name: 'GPT-5 Nano (Budget)',
+    description: 'Fastest and cheapest. Good for simple tasks.',
+    inputCostPerMillion: 0.05,
+    outputCostPerMillion: 0.40,
+    contextWindow: '400K',
+  },
+  {
+    id: 'gpt-5-mini',
+    name: 'GPT-5 Mini (Premium)',
+    description: 'Latest model, best quality. Higher output costs.',
+    inputCostPerMillion: 0.25,
+    outputCostPerMillion: 2.00,
+    contextWindow: '400K',
+  },
+  {
+    id: 'gpt-4.1-mini',
+    name: 'GPT-4.1 Mini',
+    description: 'Previous generation mini model.',
+    inputCostPerMillion: 0.40,
+    outputCostPerMillion: 1.60,
+    contextWindow: '128K',
+  },
+]
+
+/**
+ * Get the configured text generation model
+ * Falls back to default (gpt-4o-mini for best cost/quality balance)
+ */
+export async function getTextGenerationModel(): Promise<TextGenerationModel> {
+  const dbValue = await getSystemSetting('text_generation_model')
+  if (dbValue && isValidTextGenerationModel(dbValue)) {
+    return dbValue
+  }
+  // Default to gpt-4o-mini for best balance of quality and cost
+  return 'gpt-4o-mini'
+}
+
+/**
+ * Set the text generation model
+ */
+export async function setTextGenerationModel(model: TextGenerationModel): Promise<void> {
+  if (!isValidTextGenerationModel(model)) {
+    throw new Error(`Invalid text generation model: ${model}`)
+  }
+  await setSystemSetting(
+    'text_generation_model',
+    model,
+    'OpenAI model for text generation (recommendations, taste synopses). Options: gpt-4o-mini, gpt-5-nano, gpt-5-mini, gpt-4.1-mini'
+  )
+}
+
+function isValidTextGenerationModel(model: string): model is TextGenerationModel {
+  return TEXT_GENERATION_MODELS.some((m) => m.id === model)
+}
+

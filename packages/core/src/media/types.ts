@@ -209,5 +209,6 @@ export interface PlaylistCreateResult {
 
 export interface LibraryCreateResult {
   libraryId: string
+  alreadyExists?: boolean
 }
 

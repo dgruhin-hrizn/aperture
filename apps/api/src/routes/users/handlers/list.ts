@@ -13,7 +13,7 @@ export function registerListHandlers(fastify: FastifyInstance) {
     { preHandler: requireAdmin },
     async (_request, reply) => {
       const result = await query<UserRow>(
-        `SELECT id, username, display_name, provider, provider_user_id, is_admin, is_enabled, created_at, updated_at
+        `SELECT id, username, display_name, provider, provider_user_id, is_admin, is_enabled, movies_enabled, series_enabled, created_at, updated_at
          FROM users
          ORDER BY username ASC`
       )
@@ -42,7 +42,7 @@ export function registerListHandlers(fastify: FastifyInstance) {
       }
 
       const user = await queryOne<UserRow>(
-        `SELECT id, username, display_name, provider, provider_user_id, is_admin, is_enabled, created_at, updated_at
+        `SELECT id, username, display_name, provider, provider_user_id, is_admin, is_enabled, movies_enabled, series_enabled, created_at, updated_at
          FROM users WHERE id = $1`,
         [id]
       )
@@ -64,7 +64,7 @@ export function registerListHandlers(fastify: FastifyInstance) {
     { preHandler: requireAdmin },
     async (request, reply) => {
       const { id } = request.params
-      const { displayName, isEnabled } = request.body
+      const { displayName, isEnabled, moviesEnabled, seriesEnabled } = request.body
 
       // Build update query dynamically
       const updates: string[] = []
@@ -81,6 +81,29 @@ export function registerListHandlers(fastify: FastifyInstance) {
         values.push(isEnabled)
       }
 
+      if (moviesEnabled !== undefined) {
+        updates.push(`movies_enabled = $${paramIndex++}`)
+        values.push(moviesEnabled)
+        // Also update is_enabled for backwards compatibility
+        if (moviesEnabled || seriesEnabled) {
+          updates.push(`is_enabled = true`)
+        }
+      }
+
+      if (seriesEnabled !== undefined) {
+        updates.push(`series_enabled = $${paramIndex++}`)
+        values.push(seriesEnabled)
+        // Also update is_enabled for backwards compatibility
+        if (moviesEnabled || seriesEnabled) {
+          updates.push(`is_enabled = true`)
+        }
+      }
+
+      // If both movies and series are disabled, disable overall is_enabled
+      if (moviesEnabled === false && seriesEnabled === false) {
+        updates.push(`is_enabled = false`)
+      }
+
       if (updates.length === 0) {
         return reply.status(400).send({ error: 'No fields to update' } as never)
       }
@@ -89,7 +112,7 @@ export function registerListHandlers(fastify: FastifyInstance) {
       const user = await queryOne<UserRow>(
         `UPDATE users SET ${updates.join(', ')}, updated_at = NOW()
          WHERE id = $${paramIndex}
-         RETURNING id, username, display_name, provider, provider_user_id, is_admin, is_enabled, created_at, updated_at`,
+         RETURNING id, username, display_name, provider, provider_user_id, is_admin, is_enabled, movies_enabled, series_enabled, created_at, updated_at`,
         values
       )
 

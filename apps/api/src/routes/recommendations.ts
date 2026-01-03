@@ -1,9 +1,11 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { query, queryOne } from '../lib/db.js'
 import { requireAuth, type SessionUser } from '../plugins/auth.js'
-import { regenerateUserRecommendations } from '@aperture/core'
+import { regenerateUserRecommendations, regenerateUserSeriesRecommendations } from '@aperture/core'
 
-interface RecommendationCandidate {
+type MediaType = 'movie' | 'series'
+
+interface MovieRecommendationCandidate {
   id: string
   movie_id: string
   rank: number
@@ -15,6 +17,28 @@ interface RecommendationCandidate {
   diversity_score: number | null
   score_breakdown: Record<string, unknown>
   movie: {
+    id: string
+    title: string
+    year: number | null
+    poster_url: string | null
+    genres: string[]
+    community_rating: number | null
+    overview: string | null
+  }
+}
+
+interface SeriesRecommendationCandidate {
+  id: string
+  series_id: string
+  rank: number
+  is_selected: boolean
+  final_score: number
+  similarity_score: number | null
+  novelty_score: number | null
+  rating_score: number | null
+  diversity_score: number | null
+  score_breakdown: Record<string, unknown>
+  series: {
     id: string
     title: string
     year: number | null
@@ -41,7 +65,7 @@ interface RecommendationRun {
 const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * GET /api/recommendations/:userId
-   * Get user's latest recommendations
+   * Get user's latest movie recommendations
    */
   fastify.get<{ Params: { userId: string }; Querystring: { runId?: string } }>(
     '/api/recommendations/:userId',
@@ -56,7 +80,7 @@ const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(403).send({ error: 'Forbidden' })
       }
 
-      // Get the run (either specific or latest)
+      // Get the run (either specific or latest movie run)
       let run: RecommendationRun | null
 
       if (runId) {
@@ -67,7 +91,7 @@ const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
       } else {
         run = await queryOne<RecommendationRun>(
           `SELECT * FROM recommendation_runs
-           WHERE user_id = $1 AND status = 'completed'
+           WHERE user_id = $1 AND status = 'completed' AND media_type = 'movie'
            ORDER BY created_at DESC
            LIMIT 1`,
           [userId]
@@ -83,7 +107,7 @@ const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       // Get selected candidates with movie info - only from enabled libraries
-      const candidates = await query<RecommendationCandidate>(
+      const candidates = await query<MovieRecommendationCandidate>(
         `SELECT rc.*,
                 json_build_object(
                   'id', m.id,
@@ -99,15 +123,96 @@ const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
          LEFT JOIN library_config lc ON lc.provider_library_id = m.provider_library_id
          WHERE rc.run_id = $1 
            AND rc.is_selected = true
+           AND rc.movie_id IS NOT NULL
            AND (
              -- Include if no library configs exist (no filtering)
-             NOT EXISTS (SELECT 1 FROM library_config)
+             NOT EXISTS (SELECT 1 FROM library_config WHERE collection_type = 'movies')
              -- Or if movie's library is enabled
              OR lc.is_enabled = true
              -- Or if movie has no library assigned (legacy data)
              OR m.provider_library_id IS NULL
            )
-         ORDER BY rc.rank ASC`,
+         ORDER BY rc.selected_rank ASC NULLS LAST`,
+        [run.id]
+      )
+
+      return reply.send({
+        run,
+        recommendations: candidates.rows,
+      })
+    }
+  )
+
+  /**
+   * GET /api/recommendations/:userId/series
+   * Get user's latest series recommendations
+   */
+  fastify.get<{ Params: { userId: string }; Querystring: { runId?: string } }>(
+    '/api/recommendations/:userId/series',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { userId } = request.params
+      const { runId } = request.query
+      const currentUser = request.user as SessionUser
+
+      // Allow access to own recommendations or admin
+      if (userId !== currentUser.id && !currentUser.isAdmin) {
+        return reply.status(403).send({ error: 'Forbidden' })
+      }
+
+      // Get the run (either specific or latest series run)
+      let run: RecommendationRun | null
+
+      if (runId) {
+        run = await queryOne<RecommendationRun>(
+          `SELECT * FROM recommendation_runs WHERE id = $1 AND user_id = $2`,
+          [runId, userId]
+        )
+      } else {
+        run = await queryOne<RecommendationRun>(
+          `SELECT * FROM recommendation_runs
+           WHERE user_id = $1 AND status = 'completed' AND media_type = 'series'
+           ORDER BY created_at DESC
+           LIMIT 1`,
+          [userId]
+        )
+      }
+
+      if (!run) {
+        return reply.send({
+          run: null,
+          recommendations: [],
+          message: 'No series recommendations found',
+        })
+      }
+
+      // Get selected candidates with series info - only from enabled libraries
+      const candidates = await query<SeriesRecommendationCandidate>(
+        `SELECT rc.*,
+                json_build_object(
+                  'id', s.id,
+                  'title', s.title,
+                  'year', s.year,
+                  'poster_url', s.poster_url,
+                  'genres', s.genres,
+                  'community_rating', s.community_rating,
+                  'overview', s.overview
+                ) as series
+         FROM recommendation_candidates rc
+         JOIN series s ON s.id = rc.series_id
+         LEFT JOIN library_config lc ON lc.provider_library_id = s.provider_library_id
+         WHERE rc.run_id = $1 
+           AND rc.is_selected = true
+           AND rc.series_id IS NOT NULL
+           AND (
+             -- Include if no library configs exist (no filtering)
+             NOT EXISTS (SELECT 1 FROM library_config WHERE collection_type = 'tvshows')
+             -- Or if series' library is enabled
+             OR lc.is_enabled = true
+             -- Or if series has no library assigned (legacy data)
+             OR s.provider_library_id IS NULL
+           )
+         ORDER BY rc.selected_rank ASC`,
         [run.id]
       )
 
@@ -198,7 +303,7 @@ const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
 
   /**
    * POST /api/recommendations/:userId/regenerate
-   * Regenerate recommendations for a user (user can regenerate their own)
+   * Regenerate movie recommendations for a user (user can regenerate their own)
    */
   fastify.post<{ Params: { userId: string } }>(
     '/api/recommendations/:userId/regenerate',
@@ -222,6 +327,37 @@ const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
       } catch (err) {
         const error = err instanceof Error ? err.message : 'Unknown error'
         fastify.log.error({ err, userId }, 'Failed to regenerate recommendations')
+        return reply.status(500).send({ error: `Failed to regenerate: ${error}` })
+      }
+    }
+  )
+
+  /**
+   * POST /api/recommendations/:userId/series/regenerate
+   * Regenerate series recommendations for a user (user can regenerate their own)
+   */
+  fastify.post<{ Params: { userId: string } }>(
+    '/api/recommendations/:userId/series/regenerate',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { userId } = request.params
+      const currentUser = request.user as SessionUser
+
+      // Users can only regenerate their own recommendations
+      if (userId !== currentUser.id && !currentUser.isAdmin) {
+        return reply.status(403).send({ error: 'Forbidden' })
+      }
+
+      try {
+        const result = await regenerateUserSeriesRecommendations(userId)
+        return reply.send({
+          message: 'Series recommendations regenerated successfully',
+          runId: result.runId,
+          count: result.count,
+        })
+      } catch (err) {
+        const error = err instanceof Error ? err.message : 'Unknown error'
+        fastify.log.error({ err, userId }, 'Failed to regenerate series recommendations')
         return reply.status(500).send({ error: `Failed to regenerate: ${error}` })
       }
     }

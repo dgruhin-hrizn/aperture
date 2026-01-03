@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type {
   LibraryConfig,
   RecommendationConfig,
+  MediaTypeConfig,
   PurgeStats,
   UserSettings,
   EmbeddingModelConfig,
@@ -20,7 +21,8 @@ export function useSettingsData(isAdmin: boolean) {
   const [savingRecConfig, setSavingRecConfig] = useState(false)
   const [recConfigError, setRecConfigError] = useState<string | null>(null)
   const [recConfigSuccess, setRecConfigSuccess] = useState<string | null>(null)
-  const [recConfigDirty, setRecConfigDirty] = useState(false)
+  const [movieConfigDirty, setMovieConfigDirty] = useState(false)
+  const [seriesConfigDirty, setSeriesConfigDirty] = useState(false)
 
   // Purge state
   const [purgeStats, setPurgeStats] = useState<PurgeStats | null>(null)
@@ -170,7 +172,8 @@ export function useSettingsData(isAdmin: boolean) {
       if (response.ok) {
         const data = await response.json()
         setRecConfig(data.config)
-        setRecConfigDirty(false)
+        setMovieConfigDirty(false)
+        setSeriesConfigDirty(false)
       } else {
         const err = await response.json()
         setRecConfigError(err.error || 'Failed to load recommendation config')
@@ -182,35 +185,27 @@ export function useSettingsData(isAdmin: boolean) {
     }
   }
 
-  const saveRecConfig = async () => {
+  const saveMovieConfig = async () => {
     if (!recConfig) return
     setSavingRecConfig(true)
     setRecConfigError(null)
     setRecConfigSuccess(null)
     try {
-      const response = await fetch('/api/settings/recommendations', {
+      const response = await fetch('/api/settings/recommendations/movies', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          maxCandidates: recConfig.maxCandidates,
-          selectedCount: recConfig.selectedCount,
-          recentWatchLimit: recConfig.recentWatchLimit,
-          similarityWeight: recConfig.similarityWeight,
-          noveltyWeight: recConfig.noveltyWeight,
-          ratingWeight: recConfig.ratingWeight,
-          diversityWeight: recConfig.diversityWeight,
-        }),
+        body: JSON.stringify(recConfig.movie),
       })
       if (response.ok) {
         const data = await response.json()
         setRecConfig(data.config)
-        setRecConfigDirty(false)
-        setRecConfigSuccess('Configuration saved! Changes apply to next recommendation run.')
+        setMovieConfigDirty(false)
+        setRecConfigSuccess('Movie configuration saved!')
         setTimeout(() => setRecConfigSuccess(null), 5000)
       } else {
         const err = await response.json()
-        setRecConfigError(err.error || 'Failed to save configuration')
+        setRecConfigError(err.error || 'Failed to save movie configuration')
       }
     } catch {
       setRecConfigError('Could not connect to server')
@@ -219,24 +214,53 @@ export function useSettingsData(isAdmin: boolean) {
     }
   }
 
-  const resetRecConfig = async () => {
+  const saveSeriesConfig = async () => {
+    if (!recConfig) return
     setSavingRecConfig(true)
     setRecConfigError(null)
     setRecConfigSuccess(null)
     try {
-      const response = await fetch('/api/settings/recommendations/reset', {
+      const response = await fetch('/api/settings/recommendations/series', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(recConfig.series),
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setRecConfig(data.config)
+        setSeriesConfigDirty(false)
+        setRecConfigSuccess('Series configuration saved!')
+        setTimeout(() => setRecConfigSuccess(null), 5000)
+      } else {
+        const err = await response.json()
+        setRecConfigError(err.error || 'Failed to save series configuration')
+      }
+    } catch {
+      setRecConfigError('Could not connect to server')
+    } finally {
+      setSavingRecConfig(false)
+    }
+  }
+
+  const resetMovieConfig = async () => {
+    setSavingRecConfig(true)
+    setRecConfigError(null)
+    setRecConfigSuccess(null)
+    try {
+      const response = await fetch('/api/settings/recommendations/movies/reset', {
         method: 'POST',
         credentials: 'include',
       })
       if (response.ok) {
         const data = await response.json()
         setRecConfig(data.config)
-        setRecConfigDirty(false)
-        setRecConfigSuccess('Configuration reset to defaults!')
+        setMovieConfigDirty(false)
+        setRecConfigSuccess('Movie configuration reset to defaults!')
         setTimeout(() => setRecConfigSuccess(null), 5000)
       } else {
         const err = await response.json()
-        setRecConfigError(err.error || 'Failed to reset configuration')
+        setRecConfigError(err.error || 'Failed to reset movie configuration')
       }
     } catch {
       setRecConfigError('Could not connect to server')
@@ -245,13 +269,54 @@ export function useSettingsData(isAdmin: boolean) {
     }
   }
 
-  const updateRecConfigField = <K extends keyof RecommendationConfig>(
+  const resetSeriesConfig = async () => {
+    setSavingRecConfig(true)
+    setRecConfigError(null)
+    setRecConfigSuccess(null)
+    try {
+      const response = await fetch('/api/settings/recommendations/series/reset', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setRecConfig(data.config)
+        setSeriesConfigDirty(false)
+        setRecConfigSuccess('Series configuration reset to defaults!')
+        setTimeout(() => setRecConfigSuccess(null), 5000)
+      } else {
+        const err = await response.json()
+        setRecConfigError(err.error || 'Failed to reset series configuration')
+      }
+    } catch {
+      setRecConfigError('Could not connect to server')
+    } finally {
+      setSavingRecConfig(false)
+    }
+  }
+
+  const updateMovieConfigField = <K extends keyof MediaTypeConfig>(
     field: K,
-    value: RecommendationConfig[K]
+    value: MediaTypeConfig[K]
   ) => {
     if (!recConfig) return
-    setRecConfig({ ...recConfig, [field]: value })
-    setRecConfigDirty(true)
+    setRecConfig({
+      ...recConfig,
+      movie: { ...recConfig.movie, [field]: value },
+    })
+    setMovieConfigDirty(true)
+  }
+
+  const updateSeriesConfigField = <K extends keyof MediaTypeConfig>(
+    field: K,
+    value: MediaTypeConfig[K]
+  ) => {
+    if (!recConfig) return
+    setRecConfig({
+      ...recConfig,
+      series: { ...recConfig.series, [field]: value },
+    })
+    setSeriesConfigDirty(true)
   }
 
   const fetchLibraries = async () => {
@@ -341,10 +406,14 @@ export function useSettingsData(isAdmin: boolean) {
     setRecConfigError,
     recConfigSuccess,
     setRecConfigSuccess,
-    recConfigDirty,
-    saveRecConfig,
-    resetRecConfig,
-    updateRecConfigField,
+    movieConfigDirty,
+    seriesConfigDirty,
+    saveMovieConfig,
+    saveSeriesConfig,
+    resetMovieConfig,
+    resetSeriesConfig,
+    updateMovieConfigField,
+    updateSeriesConfigField,
 
     // Purge state
     purgeStats,
@@ -376,4 +445,3 @@ export function useSettingsData(isAdmin: boolean) {
     loadingEmbeddingModel,
   }
 }
-

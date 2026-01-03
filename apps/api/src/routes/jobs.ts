@@ -13,6 +13,8 @@ import {
   syncSeriesWatchHistoryForAllUsers,
   generateSeriesRecommendationsForAllUsers,
   processSeriesStrmForAllUsers,
+  // Top Picks
+  refreshTopPicks,
   // Common
   createChildLogger,
   getJobProgress,
@@ -27,6 +29,8 @@ import {
   setJobConfig,
   formatSchedule,
   getValidJobNames,
+  getJobRunHistory,
+  getLastJobRuns,
   type JobProgress,
   type ScheduleType,
 } from '@aperture/core'
@@ -60,8 +64,13 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
   },
   {
     name: 'sync-watch-history',
-    description: 'Sync movie watch history for all users',
+    description: 'Sync movie watch history for all users (delta - only new plays)',
     cron: process.env.SYNC_CRON || '0 3 * * *',
+  },
+  {
+    name: 'full-sync-watch-history',
+    description: 'Full resync of movie watch history for all users',
+    cron: null,
   },
   {
     name: 'generate-recommendations',
@@ -91,8 +100,13 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
   },
   {
     name: 'sync-series-watch-history',
-    description: 'Sync TV series watch history for all users',
+    description: 'Sync TV series watch history for all users (delta - only new plays)',
     cron: process.env.SYNC_CRON || '0 3 * * *',
+  },
+  {
+    name: 'full-sync-series-watch-history',
+    description: 'Full resync of TV series watch history for all users',
+    cron: null,
   },
   {
     name: 'generate-series-recommendations',
@@ -103,6 +117,12 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
     name: 'sync-series-strm',
     description: 'Create TV series STRM files and user libraries',
     cron: process.env.PERMS_CRON || '0 5 * * *',
+  },
+  // === Top Picks Job ===
+  {
+    name: 'refresh-top-picks',
+    description: 'Refresh global Top Picks libraries based on popularity',
+    cron: '0 6 * * *',
   },
 ]
 
@@ -116,11 +136,15 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
     const jobConfigs = await getAllJobConfigs()
     const configMap = new Map(jobConfigs.map((c) => [c.jobName, c]))
 
+    // Get last runs for all jobs
+    const lastRunsMap = await getLastJobRuns()
+
     const jobs = await Promise.all(
       jobDefinitions.map(async (def) => {
         const activeJobId = activeJobs.get(def.name)
         const progress = activeJobId ? getJobProgress(activeJobId) : null
         const config = configMap.get(def.name) || (await getJobConfig(def.name))
+        const lastRun = lastRunsMap.get(def.name)
 
         return {
           ...def,
@@ -143,6 +167,18 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
                 intervalHours: config.scheduleIntervalHours,
                 isEnabled: config.isEnabled,
                 formatted: formatSchedule(config),
+              }
+            : null,
+          lastRun: lastRun
+            ? {
+                id: lastRun.id,
+                status: lastRun.status,
+                startedAt: lastRun.started_at,
+                completedAt: lastRun.completed_at,
+                durationMs: lastRun.duration_ms,
+                itemsProcessed: lastRun.items_processed,
+                itemsTotal: lastRun.items_total,
+                errorMessage: lastRun.error_message,
               }
             : null,
         }
@@ -493,6 +529,59 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   // =========================================================================
+  // Job History Routes
+  // =========================================================================
+
+  /**
+   * GET /api/jobs/history
+   * Get job run history for all jobs
+   */
+  fastify.get<{ Querystring: { limit?: string } }>(
+    '/api/jobs/history',
+    { preHandler: requireAdmin },
+    async (request, reply) => {
+      const limit = request.query.limit ? parseInt(request.query.limit, 10) : 50
+      const history = await getJobRunHistory(undefined, limit)
+      return reply.send({ history })
+    }
+  )
+
+  /**
+   * GET /api/jobs/:name/history
+   * Get job run history for a specific job
+   */
+  fastify.get<{ Params: { name: string }; Querystring: { limit?: string } }>(
+    '/api/jobs/:name/history',
+    { preHandler: requireAdmin },
+    async (request, reply) => {
+      const { name } = request.params
+      const limit = request.query.limit ? parseInt(request.query.limit, 10) : 50
+
+      const jobDef = jobDefinitions.find((j) => j.name === name)
+      if (!jobDef) {
+        return reply.status(404).send({ error: 'Job not found' })
+      }
+
+      const history = await getJobRunHistory(name, limit)
+      return reply.send({ history })
+    }
+  )
+
+  /**
+   * GET /api/jobs/last-runs
+   * Get the last run for each job type
+   */
+  fastify.get('/api/jobs/last-runs', { preHandler: requireAdmin }, async (_request, reply) => {
+    const lastRuns = await getLastJobRuns()
+    // Convert Map to object for JSON serialization
+    const lastRunsObj: Record<string, unknown> = {}
+    for (const [key, value] of lastRuns) {
+      lastRunsObj[key] = value
+    }
+    return reply.send({ lastRuns: lastRunsObj })
+  })
+
+  // =========================================================================
   // Database Purge Routes
   // =========================================================================
 
@@ -543,14 +632,25 @@ async function runJob(name: string, jobId: string): Promise<void> {
         break
       }
       case 'sync-watch-history': {
-        const result = await syncWatchHistoryForAllUsers(jobId)
+        const result = await syncWatchHistoryForAllUsers(jobId, false) // Delta sync
         logger.info({
           job: name,
           jobId,
           success: result.success,
           failed: result.failed,
           totalItems: result.totalItems,
-        }, `✅ Watch history sync complete`)
+        }, `✅ Watch history sync complete (delta)`)
+        break
+      }
+      case 'full-sync-watch-history': {
+        const result = await syncWatchHistoryForAllUsers(jobId, true) // Full sync
+        logger.info({
+          job: name,
+          jobId,
+          success: result.success,
+          failed: result.failed,
+          totalItems: result.totalItems,
+        }, `✅ Watch history sync complete (full resync)`)
         break
       }
       case 'generate-recommendations': {
@@ -609,14 +709,25 @@ async function runJob(name: string, jobId: string): Promise<void> {
         break
       }
       case 'sync-series-watch-history': {
-        const result = await syncSeriesWatchHistoryForAllUsers(jobId)
+        const result = await syncSeriesWatchHistoryForAllUsers(jobId, false) // Delta sync
         logger.info({
           job: name,
           jobId,
           success: result.success,
           failed: result.failed,
           totalItems: result.totalItems,
-        }, `✅ Series watch history sync complete`)
+        }, `✅ Series watch history sync complete (delta)`)
+        break
+      }
+      case 'full-sync-series-watch-history': {
+        const result = await syncSeriesWatchHistoryForAllUsers(jobId, true) // Full sync
+        logger.info({
+          job: name,
+          jobId,
+          success: result.success,
+          failed: result.failed,
+          totalItems: result.totalItems,
+        }, `✅ Series watch history sync complete (full resync)`)
         break
       }
       case 'generate-series-recommendations': {
@@ -637,6 +748,18 @@ async function runJob(name: string, jobId: string): Promise<void> {
           success: result.success,
           failed: result.failed,
         }, `✅ Series STRM processing complete`)
+        break
+      }
+      // === Top Picks Job ===
+      case 'refresh-top-picks': {
+        const result = await refreshTopPicks(jobId)
+        logger.info({
+          job: name,
+          jobId,
+          moviesCount: result.moviesCount,
+          seriesCount: result.seriesCount,
+          usersUpdated: result.usersUpdated,
+        }, `✅ Top Picks refresh complete`)
         break
       }
       default:

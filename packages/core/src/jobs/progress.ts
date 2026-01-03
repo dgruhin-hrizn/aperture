@@ -1,4 +1,5 @@
 import { createChildLogger } from '../lib/logger.js'
+import { query } from '../lib/db.js'
 import { EventEmitter } from 'events'
 
 const logger = createChildLogger('job-progress')
@@ -171,6 +172,11 @@ export function completeJob(jobId: string, result?: Record<string, unknown>): vo
 
   emitProgress(jobId, progress)
 
+  // Save to database
+  saveJobRun(progress).catch((err) => {
+    logger.error({ err, jobId }, 'Failed to save job run to database')
+  })
+
   // Keep completed jobs for 5 minutes for UI to fetch results
   setTimeout(() => {
     activeJobs.delete(jobId)
@@ -191,6 +197,11 @@ export function failJob(jobId: string, error: string): void {
   addLog(jobId, 'error', `❌ Job failed: ${error}`)
 
   emitProgress(jobId, progress)
+
+  // Save to database
+  saveJobRun(progress).catch((err) => {
+    logger.error({ err, jobId }, 'Failed to save job run to database')
+  })
 
   // Keep failed jobs for 10 minutes
   setTimeout(() => {
@@ -213,6 +224,11 @@ export function cancelJob(jobId: string): boolean {
   addLog(jobId, 'warn', `🛑 Job cancelled after ${(duration / 1000).toFixed(1)}s`)
 
   emitProgress(jobId, progress)
+
+  // Save to database
+  saveJobRun(progress).catch((err) => {
+    logger.error({ err, jobId }, 'Failed to save job run to database')
+  })
 
   // Keep cancelled jobs for 5 minutes
   setTimeout(() => {
@@ -294,5 +310,101 @@ export async function* withProgress<T>(
     yield { item, index: i }
     updateJobProgress(jobId, i + 1, total)
   }
+}
+
+// ===== Database persistence for job runs =====
+
+export interface JobRunRecord {
+  id: string
+  job_name: string
+  status: 'completed' | 'failed' | 'cancelled'
+  started_at: Date
+  completed_at: Date
+  duration_ms: number
+  items_processed: number
+  items_total: number
+  error_message: string | null
+  metadata: Record<string, unknown>
+  created_at: Date
+}
+
+/**
+ * Save a job run to the database
+ */
+async function saveJobRun(progress: JobProgress): Promise<void> {
+  const completedAt = progress.completedAt || new Date()
+  const durationMs = completedAt.getTime() - progress.startedAt.getTime()
+
+  // Insert into job_runs table
+  await query(
+    `INSERT INTO job_runs (job_name, status, started_at, completed_at, duration_ms, items_processed, items_total, error_message, metadata)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    [
+      progress.jobName,
+      progress.status,
+      progress.startedAt,
+      completedAt,
+      durationMs,
+      progress.itemsProcessed,
+      progress.itemsTotal,
+      progress.error || null,
+      JSON.stringify(progress.result || {}),
+    ]
+  )
+
+  // Update job_config with last run info
+  await query(
+    `UPDATE job_config
+     SET last_run_at = $1, last_run_status = $2, last_run_duration_ms = $3, updated_at = NOW()
+     WHERE job_name = $4`,
+    [completedAt, progress.status, durationMs, progress.jobName]
+  )
+
+  logger.info({ jobName: progress.jobName, status: progress.status, durationMs }, 'Job run saved to database')
+}
+
+/**
+ * Get job run history from database
+ */
+export async function getJobRunHistory(
+  jobName?: string,
+  limit = 50
+): Promise<JobRunRecord[]> {
+  let sql = `
+    SELECT id, job_name, status, started_at, completed_at, duration_ms, 
+           items_processed, items_total, error_message, metadata, created_at
+    FROM job_runs
+  `
+  const params: unknown[] = []
+
+  if (jobName) {
+    sql += ` WHERE job_name = $1`
+    params.push(jobName)
+  }
+
+  sql += ` ORDER BY started_at DESC LIMIT $${params.length + 1}`
+  params.push(limit)
+
+  const result = await query<JobRunRecord>(sql, params)
+  return result.rows
+}
+
+/**
+ * Get the last run for each job type
+ */
+export async function getLastJobRuns(): Promise<Map<string, JobRunRecord>> {
+  const result = await query<JobRunRecord>(`
+    SELECT DISTINCT ON (job_name) 
+           id, job_name, status, started_at, completed_at, duration_ms,
+           items_processed, items_total, error_message, metadata, created_at
+    FROM job_runs
+    ORDER BY job_name, started_at DESC
+  `)
+
+  const map = new Map<string, JobRunRecord>()
+  for (const row of result.rows) {
+    map.set(row.job_name, row)
+  }
+  return map
 }
 

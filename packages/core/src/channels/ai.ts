@@ -1,6 +1,7 @@
 import OpenAI from 'openai'
 import { createChildLogger } from '../lib/logger.js'
 import { query, queryOne } from '../lib/db.js'
+import { getTextGenerationModel } from '../settings/systemSettings.js'
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -102,8 +103,9 @@ export async function generateAIPreferences(
   }
 
   try {
+    const model = await getTextGenerationModel()
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model,
       messages: [
         {
           role: 'system',
@@ -160,8 +162,9 @@ export async function generateAIPlaylistName(
   }
 
   try {
+    const model = await getTextGenerationModel()
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model,
       messages: [
         {
           role: 'system',
@@ -227,8 +230,9 @@ export async function generateAIPlaylistDescription(
   const nameContext = playlistName ? `\nPLAYLIST NAME: "${playlistName}"` : ''
 
   try {
+    const model = await getTextGenerationModel()
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model,
       messages: [
         {
           role: 'system',

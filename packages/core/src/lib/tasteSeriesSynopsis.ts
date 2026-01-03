@@ -8,6 +8,7 @@
 import OpenAI from 'openai'
 import { query, queryOne } from './db.js'
 import { createChildLogger } from './logger.js'
+import { getTextGenerationModel } from '../settings/systemSettings.js'
 
 const logger = createChildLogger('taste-series-synopsis')
 
@@ -204,8 +205,9 @@ export async function generateSeriesTasteSynopsis(userId: string): Promise<Serie
   // Generate synopsis with OpenAI
   let synopsis: string
   try {
+    const model = await getTextGenerationModel()
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model,
       messages: [
         {
           role: 'system',

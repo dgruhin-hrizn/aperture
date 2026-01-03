@@ -74,13 +74,17 @@ export async function purgeMovieDatabase(): Promise<PurgeResult> {
  */
 export async function getMovieDatabaseStats(): Promise<{
   movies: number
+  series: number
+  episodes: number
   embeddings: number
   watchHistory: number
   recommendations: number
   userPreferences: number
 }> {
-  const [movies, embeddings, watchHistory, recommendations, userPreferences] = await Promise.all([
+  const [movies, series, episodes, embeddings, watchHistory, recommendations, userPreferences] = await Promise.all([
     query<{ count: string }>('SELECT COUNT(*) FROM movies'),
+    query<{ count: string }>('SELECT COUNT(*) FROM series'),
+    query<{ count: string }>('SELECT COUNT(*) FROM episodes'),
     query<{ count: string }>('SELECT COUNT(*) FROM embeddings'),
     query<{ count: string }>('SELECT COUNT(*) FROM watch_history'),
     query<{ count: string }>('SELECT COUNT(*) FROM recommendation_candidates'),
@@ -89,6 +93,8 @@ export async function getMovieDatabaseStats(): Promise<{
 
   return {
     movies: parseInt(movies.rows[0]?.count || '0', 10),
+    series: parseInt(series.rows[0]?.count || '0', 10),
+    episodes: parseInt(episodes.rows[0]?.count || '0', 10),
     embeddings: parseInt(embeddings.rows[0]?.count || '0', 10),
     watchHistory: parseInt(watchHistory.rows[0]?.count || '0', 10),
     recommendations: parseInt(recommendations.rows[0]?.count || '0', 10),

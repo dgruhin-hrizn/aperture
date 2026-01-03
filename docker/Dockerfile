@@ -53,9 +53,16 @@ RUN pnpm install --prod --frozen-lockfile
 FROM node:20-alpine AS runner
 WORKDIR /app
 
+# Install fontconfig for Sharp SVG text rendering (needed for poster overlays)
+RUN apk add --no-cache fontconfig
+
 # Add non-root user
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 aperture
+
+# Install custom fonts (Oswald Bold for Top Picks posters)
+COPY --chown=root:root packages/core/assets/fonts /usr/share/fonts/custom
+RUN fc-cache -fv
 
 # Copy production dependencies
 COPY --from=prod-deps --chown=aperture:nodejs /app/node_modules ./node_modules

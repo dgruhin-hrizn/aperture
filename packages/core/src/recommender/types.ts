@@ -3,6 +3,8 @@ export interface User {
   username: string
   providerUserId: string
   maxParentalRating?: number | null
+  moviesEnabled?: boolean
+  seriesEnabled?: boolean
 }
 
 export interface WatchedMovie {
@@ -14,6 +16,7 @@ export interface WatchedMovie {
 
 export interface Candidate {
   movieId: string
+  id: string // Alias for movieId - used by shared selection algorithm
   title: string
   year: number | null
   genres: string[]
@@ -22,6 +25,7 @@ export interface Candidate {
   novelty: number
   ratingScore: number
   diversityScore: number
+  diversityBoost: number // Used by shared selection algorithm
   finalScore: number
 }
 
