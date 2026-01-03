@@ -1,0 +1,2 @@
+export { useSettingsData } from './useSettingsData'
+

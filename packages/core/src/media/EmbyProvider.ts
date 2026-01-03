@@ -13,128 +13,20 @@ import type {
   PlaylistItem,
 } from './types.js'
 
+// Import Emby-specific types from modular files
+import type {
+  EmbyAuthResponse,
+  EmbyUser,
+  EmbyLibrary,
+  EmbyLibraryResponse,
+  EmbyItem,
+  EmbyItemsResponse,
+  EmbyActivityResponse,
+  EmbySystemInfo,
+} from './emby/types.js'
+import { mapEmbyItemToMovie } from './emby/mappers.js'
+
 const logger = createChildLogger('emby-provider')
-
-interface EmbyAuthResponse {
-  User: {
-    Id: string
-    Name: string
-    ServerId: string
-    Policy: {
-      IsAdministrator: boolean
-    }
-  }
-  AccessToken: string
-}
-
-interface EmbyUser {
-  Id: string
-  Name: string
-  ServerId: string
-  Policy: {
-    IsAdministrator: boolean
-    IsDisabled: boolean
-    EnableAllFolders?: boolean
-    EnabledFolders?: string[]
-    MaxParentalRating?: number
-  }
-  LastActivityDate?: string
-  PrimaryImageTag?: string
-}
-
-interface EmbyLibrary {
-  Id?: string
-  ItemId?: string
-  Guid?: string
-  Name: string
-  CollectionType: string
-  Path?: string
-  RefreshStatus?: string
-}
-
-interface EmbyLibraryResponse {
-  Items: EmbyLibrary[]
-}
-
-interface EmbyItem {
-  Id: string
-  Name: string
-  OriginalTitle?: string
-  SortName?: string
-  ProductionYear?: number
-  PremiereDate?: string
-  Genres?: string[]
-  Overview?: string
-  Tagline?: string
-  CommunityRating?: number
-  CriticRating?: number
-  OfficialRating?: string // MPAA rating (PG-13, R, etc.)
-  RunTimeTicks?: number
-  Path?: string
-  ParentId?: string
-  Studios?: Array<{ Name: string }>
-  People?: Array<{
-    Name: string
-    Role?: string
-    Type: string // Actor, Director, Writer, etc.
-    PrimaryImageTag?: string
-  }>
-  ProviderIds?: {
-    Imdb?: string
-    Tmdb?: string
-    [key: string]: string | undefined
-  }
-  Tags?: string[]
-  ProductionLocations?: string[]
-  Awards?: string
-  MediaSources?: Array<{
-    Id: string
-    Path: string
-    Container: string
-    Size?: number
-    Bitrate?: number
-    MediaStreams?: Array<{
-      Type: string // Video, Audio, Subtitle
-      Codec?: string
-      Width?: number
-      Height?: number
-      DisplayTitle?: string
-    }>
-  }>
-  ImageTags?: {
-    Primary?: string
-    Backdrop?: string
-  }
-  BackdropImageTags?: string[]
-  UserData?: {
-    PlayCount: number
-    IsFavorite: boolean
-    LastPlayedDate?: string
-    PlaybackPositionTicks?: number
-    Played: boolean
-  }
-}
-
-interface EmbyItemsResponse {
-  Items: EmbyItem[]
-  TotalRecordCount: number
-  StartIndex: number
-}
-
-interface EmbyActivityEntry {
-  Id: number
-  Name: string
-  Type: string
-  ItemId?: string
-  Date: string
-  UserId?: string
-  Severity: string
-}
-
-interface EmbyActivityResponse {
-  Items: EmbyActivityEntry[]
-  TotalRecordCount: number
-}
 
 export class EmbyProvider implements MediaServerProvider {
   readonly type = 'emby' as const
@@ -208,15 +100,7 @@ export class EmbyProvider implements MediaServerProvider {
    * Get system/server information including ServerId
    */
   async getServerInfo(apiKey: string): Promise<{ id: string; name: string; version: string }> {
-    interface SystemInfoResponse {
-      Id: string
-      ServerName: string
-      Version: string
-      LocalAddress: string
-      WanAddress?: string
-    }
-
-    const data = await this.fetch<SystemInfoResponse>('/System/Info', apiKey)
+    const data = await this.fetch<EmbySystemInfo>('/System/Info', apiKey)
     return {
       id: data.Id,
       name: data.ServerName,
@@ -492,7 +376,7 @@ export class EmbyProvider implements MediaServerProvider {
     }
 
     return {
-      items: response.Items.map((item) => this.mapMovie(item)),
+      items: response.Items.map((item) => mapEmbyItemToMovie(item, this.baseUrl)),
       totalRecordCount: response.TotalRecordCount,
       startIndex: response.StartIndex,
     }
@@ -736,84 +620,9 @@ export class EmbyProvider implements MediaServerProvider {
         `/Items/${movieId}?Fields=Overview,Genres,CommunityRating,CriticRating,Path,MediaSources`,
         apiKey
       )
-      return this.mapMovie(item)
+      return mapEmbyItemToMovie(item, this.baseUrl)
     } catch {
       return null
-    }
-  }
-
-  private mapMovie(item: EmbyItem): Movie {
-    // Extract people by type
-    const directors = item.People?.filter((p) => p.Type === 'Director').map((p) => p.Name) || []
-    const writers = item.People?.filter((p) => p.Type === 'Writer').map((p) => p.Name) || []
-    const actors =
-      item.People?.filter((p) => p.Type === 'Actor')
-        .slice(0, 20)
-        .map((p) => ({
-          name: p.Name,
-          role: p.Role,
-          thumb: p.PrimaryImageTag
-            ? `${this.baseUrl}/Items/${item.Id}/Images/Primary?tag=${p.PrimaryImageTag}`
-            : undefined,
-        })) || []
-
-    // Extract video/audio info from first media source
-    const primarySource = item.MediaSources?.[0]
-    const videoStream = primarySource?.MediaStreams?.find((s) => s.Type === 'Video')
-    const audioStream = primarySource?.MediaStreams?.find((s) => s.Type === 'Audio')
-
-    return {
-      id: item.Id,
-      name: item.Name,
-      originalTitle: item.OriginalTitle,
-      sortName: item.SortName,
-      year: item.ProductionYear,
-      premiereDate: item.PremiereDate,
-      genres: item.Genres || [],
-      overview: item.Overview,
-      tagline: item.Tagline,
-      communityRating: item.CommunityRating,
-      criticRating: item.CriticRating,
-      contentRating: item.OfficialRating,
-      runtimeTicks: item.RunTimeTicks,
-      path: item.Path,
-      mediaSources: item.MediaSources?.map((ms) => ({
-        id: ms.Id,
-        path: ms.Path,
-        container: ms.Container,
-        size: ms.Size,
-        bitrate: ms.Bitrate,
-      })),
-      posterImageTag: item.ImageTags?.Primary,
-      backdropImageTag: item.BackdropImageTags?.[0] || item.ImageTags?.Backdrop,
-      parentId: item.ParentId,
-      // New metadata fields
-      studios: item.Studios?.map((s) => s.Name) || [],
-      directors,
-      writers,
-      actors,
-      imdbId: item.ProviderIds?.Imdb,
-      tmdbId: item.ProviderIds?.Tmdb,
-      tags: item.Tags || [],
-      productionCountries: item.ProductionLocations || [],
-      awards: item.Awards,
-      // Video/audio quality
-      videoResolution:
-        videoStream?.Width && videoStream?.Height
-          ? `${videoStream.Width}x${videoStream.Height}`
-          : undefined,
-      videoCodec: videoStream?.Codec,
-      audioCodec: audioStream?.Codec,
-      container: primarySource?.Container,
-      userData: item.UserData
-        ? {
-            playCount: item.UserData.PlayCount,
-            isFavorite: item.UserData.IsFavorite,
-            lastPlayedDate: item.UserData.LastPlayedDate,
-            playbackPositionTicks: item.UserData.PlaybackPositionTicks,
-            played: item.UserData.Played,
-          }
-        : undefined,
     }
   }
 
