@@ -7,25 +7,18 @@ import {
   Card,
   CardContent,
   Skeleton,
-  Button,
   Alert,
   Chip,
   List,
   ListItem,
   ListItemIcon,
   ListItemText,
-  ListItemButton,
+  Button,
 } from '@mui/material'
 import { StatusCard } from '@aperture/ui'
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
-import PeopleIcon from '@mui/icons-material/People'
-import MovieIcon from '@mui/icons-material/Movie'
-import WorkIcon from '@mui/icons-material/Work'
-import SettingsIcon from '@mui/icons-material/Settings'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import WarningIcon from '@mui/icons-material/Warning'
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
-import { useAuth } from '@/hooks/useAuth'
+import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 
 interface HealthResponse {
   ok: boolean
@@ -46,7 +39,6 @@ interface Stats {
 
 export function AdminDashboard() {
   const navigate = useNavigate()
-  const { user } = useAuth()
   const [health, setHealth] = useState<HealthResponse | null>(null)
   const [healthLoading, setHealthLoading] = useState(true)
   const [healthError, setHealthError] = useState<string | null>(null)
@@ -113,12 +105,6 @@ export function AdminDashboard() {
     fetchStats()
   }, [])
 
-  const adminLinks = [
-    { text: 'Manage Users', icon: <PeopleIcon />, path: '/admin/users', description: 'Enable/disable AI recommendations for users' },
-    { text: 'Run Jobs', icon: <WorkIcon />, path: '/admin/jobs', description: 'Sync movies, generate embeddings and recommendations' },
-    { text: 'Settings', icon: <SettingsIcon />, path: '/admin/settings', description: 'Configure libraries and view system settings' },
-  ]
-
   const setupChecklist = [
     { label: 'Media server connected', done: health?.ok || false },
     { label: 'Database connected', done: health?.database?.connected || false },
@@ -130,17 +116,6 @@ export function AdminDashboard() {
 
   return (
     <Box>
-      {/* Header */}
-      <Box display="flex" alignItems="center" gap={2} mb={1}>
-        <AdminPanelSettingsIcon sx={{ color: 'primary.main', fontSize: 32 }} />
-        <Typography variant="h4" fontWeight={700}>
-          Admin Dashboard
-        </Typography>
-      </Box>
-      <Typography variant="body1" color="text.secondary" mb={4}>
-        System status and administration
-      </Typography>
-
       <Grid container spacing={3}>
         {/* System Status */}
         <Grid item xs={12} md={6} lg={4}>
@@ -224,49 +199,6 @@ export function AdminDashboard() {
           </Card>
         </Grid>
 
-        {/* Admin Links */}
-        <Grid item xs={12}>
-          <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
-            <CardContent>
-              <Typography variant="h6" mb={2}>
-                Administration
-              </Typography>
-
-              <Grid container spacing={2}>
-                {adminLinks.map((link) => (
-                  <Grid item xs={12} md={4} key={link.path}>
-                    <Card
-                      variant="outlined"
-                      sx={{
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        '&:hover': {
-                          borderColor: 'primary.main',
-                          transform: 'translateY(-2px)',
-                        },
-                      }}
-                      onClick={() => navigate(link.path)}
-                    >
-                      <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Box sx={{ color: 'primary.main' }}>{link.icon}</Box>
-                        <Box flex={1}>
-                          <Typography variant="subtitle1" fontWeight={600}>
-                            {link.text}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {link.description}
-                          </Typography>
-                        </Box>
-                        <ArrowForwardIcon sx={{ color: 'text.secondary' }} />
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-            </CardContent>
-          </Card>
-        </Grid>
-
         {/* Getting Started Guide */}
         {!allSetupDone && (
           <Grid item xs={12}>
@@ -276,18 +208,18 @@ export function AdminDashboard() {
                   Getting Started
                 </Typography>
 
-                <Box component="ol" sx={{ pl: 2, m: 0 }}>
+                <Box component="ol" sx={{ pl: 2, m: 0, mb: 3 }}>
                   <Typography component="li" variant="body2" mb={1}>
-                    Configure your media server connection in Settings
+                    Configure your media server connection in <strong>Settings → System</strong>
                   </Typography>
                   <Typography component="li" variant="body2" mb={1}>
-                    Select which libraries to sync in Settings → Library Configuration
+                    Select which libraries to sync in <strong>Settings → Libraries</strong>
                   </Typography>
                   <Typography component="li" variant="body2" mb={1}>
-                    Run the "Sync Movies" job to import your movie library
+                    Run the "Sync Movies" job in <strong>Jobs</strong> to import your movie library
                   </Typography>
                   <Typography component="li" variant="body2" mb={1}>
-                    Enable users who should receive AI recommendations
+                    Enable users who should receive AI recommendations in <strong>Users</strong>
                   </Typography>
                   <Typography component="li" variant="body2" mb={1}>
                     Run the "Generate Embeddings" job to create movie embeddings
@@ -296,6 +228,14 @@ export function AdminDashboard() {
                     Run the "Generate Recommendations" job to create personalized picks
                   </Typography>
                 </Box>
+
+                <Button
+                  variant="contained"
+                  startIcon={<PlayArrowIcon />}
+                  onClick={() => navigate('/admin/jobs')}
+                >
+                  Go to Jobs
+                </Button>
               </CardContent>
             </Card>
           </Grid>
@@ -317,4 +257,3 @@ function StatRow({ label, value }: { label: string; value: number }) {
     </Box>
   )
 }
-

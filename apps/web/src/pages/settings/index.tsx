@@ -1,34 +1,69 @@
-import { Box, Typography, Grid } from '@mui/material'
-import { useAuth } from '@/hooks/useAuth'
+import React, { useState } from 'react'
+import { Box, Tabs, Tab, Paper } from '@mui/material'
+import FolderIcon from '@mui/icons-material/Folder'
+import PsychologyIcon from '@mui/icons-material/Psychology'
+import SettingsIcon from '@mui/icons-material/Settings'
 import { useSettingsData } from './hooks'
 import {
   LibraryConfigSection,
   RecommendationConfigSection,
   EmbeddingsSection,
   DatabaseSection,
-  PersonalPreferencesSection,
-  ProfileSection,
   MediaServerSection,
   StrmSection,
 } from './components'
 
+interface TabPanelProps {
+  children?: React.ReactNode
+  index: number
+  value: number
+}
+
+function TabPanel({ children, value, index }: TabPanelProps) {
+  return (
+    <div role="tabpanel" hidden={value !== index}>
+      {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
+    </div>
+  )
+}
+
 export function SettingsPage() {
-  const { user } = useAuth()
-  const settings = useSettingsData(user?.isAdmin ?? false)
+  const [tabValue, setTabValue] = useState(0)
+  const settings = useSettingsData(true) // Admin-only page now
 
   return (
     <Box>
-      <Typography variant="h4" fontWeight={700} mb={1}>
-        Settings
-      </Typography>
-      <Typography variant="body1" color="text.secondary" mb={4}>
-        Configure Aperture
-      </Typography>
+      {/* Tabs */}
+      <Paper
+        sx={{
+          backgroundColor: 'background.paper',
+          borderRadius: 2,
+        }}
+        elevation={0}
+      >
+        <Tabs
+          value={tabValue}
+          onChange={(_, v) => setTabValue(v)}
+          sx={{
+            px: 2,
+            borderBottom: 1,
+            borderColor: 'divider',
+            '& .MuiTab-root': {
+              minHeight: 56,
+              textTransform: 'none',
+              fontSize: '0.9rem',
+              fontWeight: 500,
+            },
+          }}
+        >
+          <Tab icon={<FolderIcon />} iconPosition="start" label="Libraries" />
+          <Tab icon={<PsychologyIcon />} iconPosition="start" label="AI Config" />
+          <Tab icon={<SettingsIcon />} iconPosition="start" label="System" />
+        </Tabs>
 
-      <Grid container spacing={3}>
-        {/* Library Configuration - Full Width for prominence */}
-        {user?.isAdmin && (
-          <Grid item xs={12}>
+        <Box sx={{ p: 3 }}>
+          {/* Libraries Tab */}
+          <TabPanel value={tabValue} index={0}>
             <LibraryConfigSection
               libraries={settings.libraries}
               loadingLibraries={settings.loadingLibraries}
@@ -38,89 +73,56 @@ export function SettingsPage() {
               onSync={settings.syncLibrariesFromServer}
               onToggle={settings.toggleLibraryEnabled}
             />
-          </Grid>
-        )}
+          </TabPanel>
 
-        {/* Recommendation Algorithm Configuration */}
-        {user?.isAdmin && (
-          <Grid item xs={12}>
-            <RecommendationConfigSection
-              recConfig={settings.recConfig}
-              loadingRecConfig={settings.loadingRecConfig}
-              savingRecConfig={settings.savingRecConfig}
-              recConfigError={settings.recConfigError}
-              setRecConfigError={settings.setRecConfigError}
-              recConfigSuccess={settings.recConfigSuccess}
-              setRecConfigSuccess={settings.setRecConfigSuccess}
-              recConfigDirty={settings.recConfigDirty}
-              onSave={settings.saveRecConfig}
-              onReset={settings.resetRecConfig}
-              onUpdateField={settings.updateRecConfigField}
-            />
-          </Grid>
-        )}
+          {/* AI Config Tab */}
+          <TabPanel value={tabValue} index={1}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <RecommendationConfigSection
+                recConfig={settings.recConfig}
+                loadingRecConfig={settings.loadingRecConfig}
+                savingRecConfig={settings.savingRecConfig}
+                recConfigError={settings.recConfigError}
+                setRecConfigError={settings.setRecConfigError}
+                recConfigSuccess={settings.recConfigSuccess}
+                setRecConfigSuccess={settings.setRecConfigSuccess}
+                recConfigDirty={settings.recConfigDirty}
+                onSave={settings.saveRecConfig}
+                onReset={settings.resetRecConfig}
+                onUpdateField={settings.updateRecConfigField}
+              />
+              
+              <EmbeddingsSection
+                embeddingConfig={settings.embeddingConfig}
+                loadingEmbeddingModel={settings.loadingEmbeddingModel}
+              />
+            </Box>
+          </TabPanel>
 
-        {/* Media Server Configuration */}
-        <Grid item xs={12} lg={6}>
-          <MediaServerSection />
-        </Grid>
-
-        {/* AI Embeddings Status */}
-        {user?.isAdmin && (
-          <Grid item xs={12} lg={6}>
-            <EmbeddingsSection
-              embeddingConfig={settings.embeddingConfig}
-              loadingEmbeddingModel={settings.loadingEmbeddingModel}
-            />
-          </Grid>
-        )}
-
-        {/* STRM Configuration */}
-        <Grid item xs={12} lg={6}>
-          <StrmSection />
-        </Grid>
-
-        {/* Database Management - Admin Only */}
-        {user?.isAdmin && (
-          <Grid item xs={12} lg={6}>
-            <DatabaseSection
-              purgeStats={settings.purgeStats}
-              loadingPurgeStats={settings.loadingPurgeStats}
-              purging={settings.purging}
-              purgeError={settings.purgeError}
-              setPurgeError={settings.setPurgeError}
-              purgeSuccess={settings.purgeSuccess}
-              setPurgeSuccess={settings.setPurgeSuccess}
-              showPurgeConfirm={settings.showPurgeConfirm}
-              setShowPurgeConfirm={settings.setShowPurgeConfirm}
-              onPurge={settings.executePurge}
-            />
-          </Grid>
-        )}
-
-        {/* Personal Preferences - Library Name */}
-        <Grid item xs={12} lg={6}>
-          <PersonalPreferencesSection
-            user={user}
-            defaultLibraryPrefix={settings.defaultLibraryPrefix}
-            loadingUserSettings={settings.loadingUserSettings}
-            savingUserSettings={settings.savingUserSettings}
-            userSettingsError={settings.userSettingsError}
-            setUserSettingsError={settings.setUserSettingsError}
-            userSettingsSuccess={settings.userSettingsSuccess}
-            setUserSettingsSuccess={settings.setUserSettingsSuccess}
-            libraryNameInput={settings.libraryNameInput}
-            setLibraryNameInput={settings.setLibraryNameInput}
-            onSave={settings.saveUserSettings}
-          />
-        </Grid>
-
-        {/* Profile */}
-        <Grid item xs={12} lg={6}>
-          <ProfileSection user={user} />
-        </Grid>
-      </Grid>
+          {/* System Tab */}
+          <TabPanel value={tabValue} index={2}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
+                <MediaServerSection />
+                <StrmSection />
+              </Box>
+              
+              <DatabaseSection
+                purgeStats={settings.purgeStats}
+                loadingPurgeStats={settings.loadingPurgeStats}
+                purging={settings.purging}
+                purgeError={settings.purgeError}
+                setPurgeError={settings.setPurgeError}
+                purgeSuccess={settings.purgeSuccess}
+                setPurgeSuccess={settings.setPurgeSuccess}
+                showPurgeConfirm={settings.showPurgeConfirm}
+                setShowPurgeConfirm={settings.setShowPurgeConfirm}
+                onPurge={settings.executePurge}
+              />
+            </Box>
+          </TabPanel>
+        </Box>
+      </Paper>
     </Box>
   )
 }
-

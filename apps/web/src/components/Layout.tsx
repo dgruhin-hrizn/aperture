@@ -28,6 +28,7 @@ import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay'
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import LogoutIcon from '@mui/icons-material/Logout'
 import PersonIcon from '@mui/icons-material/Person'
+import SettingsIcon from '@mui/icons-material/Settings'
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline'
 import { useAuth } from '@/hooks/useAuth'
 import { WelcomeModal, useWelcomeModal } from './WelcomeModal'
@@ -255,6 +256,12 @@ export function Layout() {
                   </Typography>
                 </Box>
                 <Divider />
+                <MenuItem onClick={() => { handleUserMenuClose(); navigate('/settings'); }}>
+                  <ListItemIcon>
+                    <SettingsIcon fontSize="small" />
+                  </ListItemIcon>
+                  Settings
+                </MenuItem>
                 <MenuItem onClick={() => { handleUserMenuClose(); navigate('/history'); }}>
                   <ListItemIcon>
                     <PersonIcon fontSize="small" />

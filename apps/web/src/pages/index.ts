@@ -11,7 +11,7 @@ export { LoginPage } from './Login'
 export { AdminDashboard } from './admin'
 export { UsersPage } from './Users'
 export { UserDetailPage } from './UserDetail'
-export { JobsPage } from './Jobs'
+export { JobsPage } from './jobs'
 export { SettingsPage } from './settings'
 
 // Legacy - keeping for backwards compatibility

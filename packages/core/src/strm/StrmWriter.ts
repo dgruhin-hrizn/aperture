@@ -39,7 +39,7 @@ export async function processStrmForAllUsers(
   const actualJobId = jobId || crypto.randomUUID()
   
   // Initialize job progress
-  createJobProgress(actualJobId, 'update-permissions', 2)
+  createJobProgress(actualJobId, 'sync-strm', 2)
   
   try {
     setJobStep(actualJobId, 0, 'Finding enabled users')

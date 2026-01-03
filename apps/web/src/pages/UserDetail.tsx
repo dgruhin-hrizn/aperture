@@ -9,7 +9,6 @@ import {
   Grid,
   Skeleton,
   Alert,
-  Button,
   Chip,
   ToggleButton,
   ToggleButtonGroup,
@@ -22,11 +21,11 @@ import {
   TableHead,
   TableRow,
 } from '@mui/material'
-import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import GridViewIcon from '@mui/icons-material/GridView'
 import ViewListIcon from '@mui/icons-material/ViewList'
 import FavoriteIcon from '@mui/icons-material/Favorite'
 import { MoviePoster } from '@aperture/ui'
+import { Breadcrumbs } from '@/components/Breadcrumbs'
 
 interface User {
   id: string
@@ -394,9 +393,13 @@ export function UserDetailPage() {
   if (error || !user) {
     return (
       <Box>
-      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/admin/users')} sx={{ mb: 2 }}>
-        Back to Users
-      </Button>
+        <Breadcrumbs
+          items={[
+            { label: 'Admin', path: '/admin' },
+            { label: 'Users', path: '/admin/users' },
+            { label: 'User' },
+          ]}
+        />
         <Alert severity="error">{error || 'User not found'}</Alert>
       </Box>
     )
@@ -404,12 +407,16 @@ export function UserDetailPage() {
 
   return (
     <Box>
-      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/admin/users')} sx={{ mb: 2 }}>
-        Back to Users
-      </Button>
+      <Breadcrumbs
+        items={[
+          { label: 'Admin', path: '/admin' },
+          { label: 'Users', path: '/admin/users' },
+        ]}
+        currentLabel={user.display_name || user.username}
+      />
 
       <Box display="flex" alignItems="center" gap={2} mb={1}>
-        <Typography variant="h4" fontWeight={700}>
+        <Typography variant="h5" fontWeight={700}>
           {user.display_name || user.username}
         </Typography>
         {user.is_admin && <Chip label="Admin" size="small" color="primary" />}

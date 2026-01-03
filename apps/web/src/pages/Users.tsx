@@ -192,9 +192,6 @@ export function UsersPage() {
   if (loading) {
     return (
       <Box>
-        <Typography variant="h4" fontWeight={700} mb={4}>
-          Users
-        </Typography>
         <Skeleton variant="rectangular" height={400} />
       </Box>
     )
@@ -203,9 +200,6 @@ export function UsersPage() {
   if (error) {
     return (
       <Box>
-        <Typography variant="h4" fontWeight={700} mb={4}>
-          Users
-        </Typography>
         <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
         <Button variant="outlined" onClick={fetchProviderUsers} startIcon={<RefreshIcon />}>
           Retry
@@ -227,15 +221,10 @@ export function UsersPage() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 4 }}>
-        <Box>
-          <Typography variant="h4" fontWeight={700} mb={1}>
-            Users
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Manage {provider.charAt(0).toUpperCase() + provider.slice(1)} users and enable AI recommendations
-          </Typography>
-        </Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="body1" color="text.secondary">
+          Manage {provider.charAt(0).toUpperCase() + provider.slice(1)} users and enable AI recommendations
+        </Typography>
         <Button
           variant="outlined"
           size="small"
@@ -362,7 +351,7 @@ export function UsersPage() {
                           <Tooltip title="View User Details">
                             <IconButton
                               size="small"
-                              onClick={() => navigate(`/users/${user.apertureUserId}`)}
+                              onClick={() => navigate(`/admin/users/${user.apertureUserId}`)}
                             >
                               <VisibilityIcon fontSize="small" />
                             </IconButton>

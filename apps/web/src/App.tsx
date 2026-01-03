@@ -5,6 +5,7 @@ import CssBaseline from '@mui/material/CssBaseline'
 import { theme } from './theme'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import { Layout } from './components/Layout'
+import { AdminLayout } from './components/AdminLayout'
 import { LoginPage } from './pages/Login'
 import { HomePage } from './pages/Home'
 import { MyRecommendationsPage } from './pages/MyRecommendations'
@@ -12,11 +13,12 @@ import { MyWatchHistoryPage } from './pages/MyWatchHistory'
 import { MoviesPage } from './pages/Movies'
 import { MovieDetailPage } from './pages/movie-detail'
 import { PlaylistsPage } from './pages/playlists'
+import { UserSettingsPage } from './pages/UserSettings'
 // Admin pages
 import { AdminDashboard } from './pages/admin'
 import { UsersPage } from './pages/Users'
 import { UserDetailPage } from './pages/UserDetail'
-import { JobsPage } from './pages/Jobs'
+import { JobsPage } from './pages/jobs'
 import { SettingsPage } from './pages/settings'
 import { Box, CircularProgress } from '@mui/material'
 
@@ -92,48 +94,23 @@ function AppRoutes() {
         <Route path="movies" element={<MoviesPage />} />
         <Route path="movies/:id" element={<MovieDetailPage />} />
         <Route path="playlists" element={<PlaylistsPage />} />
+        <Route path="settings" element={<UserSettingsPage />} />
 
-        {/* Admin Routes */}
+        {/* Admin Routes - nested under AdminLayout */}
         <Route
           path="admin"
           element={
             <AdminRoute>
-              <AdminDashboard />
+              <AdminLayout />
             </AdminRoute>
           }
-        />
-        <Route
-          path="admin/users"
-          element={
-            <AdminRoute>
-              <UsersPage />
-            </AdminRoute>
-          }
-        />
-        <Route
-          path="admin/users/:id"
-          element={
-            <AdminRoute>
-              <UserDetailPage />
-            </AdminRoute>
-          }
-        />
-        <Route
-          path="admin/jobs"
-          element={
-            <AdminRoute>
-              <JobsPage />
-            </AdminRoute>
-          }
-        />
-        <Route
-          path="admin/settings"
-          element={
-            <AdminRoute>
-              <SettingsPage />
-            </AdminRoute>
-          }
-        />
+        >
+          <Route index element={<AdminDashboard />} />
+          <Route path="users" element={<UsersPage />} />
+          <Route path="users/:id" element={<UserDetailPage />} />
+          <Route path="jobs" element={<JobsPage />} />
+          <Route path="settings" element={<SettingsPage />} />
+        </Route>
       </Route>
     </Routes>
   )

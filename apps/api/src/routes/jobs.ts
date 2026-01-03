@@ -12,6 +12,7 @@ import {
   getAllJobProgress,
   subscribeToJob,
   subscribeToAllJobs,
+  cancelJob,
   purgeMovieDatabase,
   getMovieDatabaseStats,
   type JobProgress,
@@ -59,8 +60,8 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
     cron: null,
   },
   {
-    name: 'update-permissions',
-    description: 'Update STRM files and permissions',
+    name: 'sync-strm',
+    description: 'Create STRM files and user libraries',
     cron: process.env.PERMS_CRON || '0 5 * * *',
   },
 ]
@@ -133,6 +134,44 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
         message: `Job ${name} started`,
         jobId,
         status: 'running',
+      })
+    }
+  )
+
+  /**
+   * POST /api/jobs/:name/cancel
+   * Cancel a running job
+   */
+  fastify.post<{ Params: { name: string } }>(
+    '/api/jobs/:name/cancel',
+    { preHandler: requireAdmin },
+    async (request, reply) => {
+      const { name } = request.params
+
+      const jobDef = jobDefinitions.find((j) => j.name === name)
+      if (!jobDef) {
+        return reply.status(404).send({ error: 'Job not found' })
+      }
+
+      const activeJobId = activeJobs.get(name)
+      if (!activeJobId) {
+        return reply.status(400).send({ error: 'No active job to cancel' })
+      }
+
+      const cancelled = cancelJob(activeJobId)
+      if (!cancelled) {
+        return reply.status(400).send({ error: 'Job is not running or already finished' })
+      }
+
+      // Clear the active job reference
+      activeJobs.delete(name)
+
+      logger.info({ job: name, jobId: activeJobId }, `Job cancelled: ${name}`)
+
+      return reply.send({
+        message: `Job ${name} cancelled`,
+        jobId: activeJobId,
+        status: 'cancelled',
       })
     }
   )
@@ -236,8 +275,8 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
           return
         }
 
-        // Close connection when job completes
-        if (progress.status === 'completed' || progress.status === 'failed') {
+        // Close connection when job completes, fails, or is cancelled
+        if (progress.status === 'completed' || progress.status === 'failed' || progress.status === 'cancelled') {
           setTimeout(() => {
             clearInterval(heartbeat)
             unsubscribe()
@@ -359,7 +398,7 @@ async function runJob(name: string, jobId: string): Promise<void> {
         }, `✅ Recommendations rebuilt`)
         break
       }
-      case 'update-permissions': {
+      case 'sync-strm': {
         const result = await processStrmForAllUsers(jobId)
         logger.info({
           job: name,

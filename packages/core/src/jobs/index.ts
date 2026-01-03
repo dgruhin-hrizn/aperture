@@ -5,6 +5,8 @@ export {
   addLog,
   completeJob,
   failJob,
+  cancelJob,
+  isJobCancelled,
   getJobProgress,
   getAllJobProgress,
   subscribeToJob,

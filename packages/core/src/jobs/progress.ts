@@ -6,7 +6,7 @@ const logger = createChildLogger('job-progress')
 export interface JobProgress {
   jobId: string
   jobName: string
-  status: 'pending' | 'running' | 'completed' | 'failed'
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
   startedAt: Date
   completedAt?: Date
   currentStep: string
@@ -196,6 +196,39 @@ export function failJob(jobId: string, error: string): void {
   setTimeout(() => {
     activeJobs.delete(jobId)
   }, 10 * 60 * 1000)
+}
+
+/**
+ * Cancel a running job
+ */
+export function cancelJob(jobId: string): boolean {
+  const progress = activeJobs.get(jobId)
+  if (!progress) return false
+  if (progress.status !== 'running') return false
+
+  progress.status = 'cancelled'
+  progress.completedAt = new Date()
+
+  const duration = progress.completedAt.getTime() - progress.startedAt.getTime()
+  addLog(jobId, 'warn', `🛑 Job cancelled after ${(duration / 1000).toFixed(1)}s`)
+
+  emitProgress(jobId, progress)
+
+  // Keep cancelled jobs for 5 minutes
+  setTimeout(() => {
+    activeJobs.delete(jobId)
+  }, 5 * 60 * 1000)
+
+  return true
+}
+
+/**
+ * Check if a job has been cancelled
+ * Jobs can call this periodically to gracefully exit
+ */
+export function isJobCancelled(jobId: string): boolean {
+  const progress = activeJobs.get(jobId)
+  return progress?.status === 'cancelled'
 }
 
 /**
