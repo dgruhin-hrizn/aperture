@@ -429,7 +429,7 @@ export function UserDetailPage() {
         <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)} sx={{ px: 2, pt: 1 }}>
           <Tab label="Recommendations" />
           <Tab label="Watch History" />
-          <Tab label="Channels" />
+          <Tab label="Playlists" />
           <Tab label="Diagnostics" />
         </Tabs>
 
@@ -464,7 +464,7 @@ export function UserDetailPage() {
 
           <TabPanel value={tabValue} index={2}>
             <Typography color="text.secondary">
-              User channels will appear here.
+              User playlists will appear here.
             </Typography>
           </TabPanel>
 

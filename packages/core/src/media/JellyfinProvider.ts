@@ -10,6 +10,7 @@ import type {
   WatchedItem,
   PlaylistCreateResult,
   LibraryCreateResult,
+  PlaylistItem,
 } from './types.js'
 
 const logger = createChildLogger('jellyfin-provider')
@@ -461,6 +462,63 @@ export class JellyfinProvider implements MediaServerProvider {
 
   async deletePlaylist(apiKey: string, playlistId: string): Promise<void> {
     await this.fetch(`/Items/${playlistId}`, apiKey, { method: 'DELETE' })
+  }
+
+  async getPlaylistItems(apiKey: string, playlistId: string): Promise<PlaylistItem[]> {
+    const response = await this.fetch<{
+      Items: Array<{
+        Id: string
+        PlaylistItemId: string
+        Name: string
+        ProductionYear?: number
+        ImageTags?: { Primary?: string }
+        RunTimeTicks?: number
+      }>
+    }>(`/Playlists/${playlistId}/Items?Fields=ImageTags,ProductionYear,RunTimeTicks`, apiKey)
+
+    return response.Items.map((item) => ({
+      id: item.Id,
+      playlistItemId: item.PlaylistItemId,
+      title: item.Name,
+      year: item.ProductionYear || null,
+      posterUrl: item.ImageTags?.Primary
+        ? `${this.baseUrl}/Items/${item.Id}/Images/Primary?tag=${item.ImageTags.Primary}`
+        : null,
+      runtime: item.RunTimeTicks ? Math.round(item.RunTimeTicks / 600000000) : null,
+    }))
+  }
+
+  async removePlaylistItems(apiKey: string, playlistId: string, entryIds: string[]): Promise<void> {
+    if (entryIds.length === 0) return
+    await this.fetch(`/Playlists/${playlistId}/Items?EntryIds=${entryIds.join(',')}`, apiKey, {
+      method: 'DELETE',
+    })
+  }
+
+  async addPlaylistItems(apiKey: string, playlistId: string, itemIds: string[]): Promise<void> {
+    if (itemIds.length === 0) return
+    await this.fetch(`/Playlists/${playlistId}/Items?Ids=${itemIds.join(',')}`, apiKey, {
+      method: 'POST',
+    })
+  }
+
+  // =========================================================================
+  // Genres
+  // =========================================================================
+
+  async getGenres(apiKey: string): Promise<string[]> {
+    const params = new URLSearchParams({
+      IncludeItemTypes: 'Movie',
+      SortBy: 'SortName',
+      SortOrder: 'Ascending',
+    })
+
+    const response = await this.fetch<{ Items: Array<{ Name: string }> }>(
+      `/Genres?${params}`,
+      apiKey
+    )
+
+    return response.Items.map((item) => item.Name)
   }
 
   // =========================================================================

@@ -40,7 +40,7 @@ const userMenuItems = [
   { text: 'Recommendations', icon: <AutoAwesomeIcon />, path: '/recommendations' },
   { text: 'Watch History', icon: <HistoryIcon />, path: '/history' },
   { text: 'Browse Movies', icon: <MovieIcon />, path: '/movies' },
-  { text: 'Channels', icon: <PlaylistPlayIcon />, path: '/channels' },
+  { text: 'Playlists', icon: <PlaylistPlayIcon />, path: '/playlists' },
 ]
 
 // Admin navigation items (shown only to admins)

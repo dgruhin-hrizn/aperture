@@ -8,6 +8,7 @@ import type {
   WatchedItem,
   PlaylistCreateResult,
   LibraryCreateResult,
+  PlaylistItem,
 } from './types.js'
 
 /**
@@ -139,6 +140,31 @@ export interface MediaServerProvider {
    * Delete a playlist
    */
   deletePlaylist(apiKey: string, playlistId: string): Promise<void>
+
+  /**
+   * Get items in a playlist
+   */
+  getPlaylistItems(apiKey: string, playlistId: string): Promise<PlaylistItem[]>
+
+  /**
+   * Remove items from a playlist
+   */
+  removePlaylistItems(apiKey: string, playlistId: string, itemIds: string[]): Promise<void>
+
+  /**
+   * Add items to a playlist
+   */
+  addPlaylistItems(apiKey: string, playlistId: string, itemIds: string[]): Promise<void>
+
+  // =========================================================================
+  // Genres
+  // =========================================================================
+
+  /**
+   * Get all available genres from the media server
+   * Returns unique genre names sorted alphabetically
+   */
+  getGenres(apiKey: string): Promise<string[]>
 
   // =========================================================================
   // Utilities

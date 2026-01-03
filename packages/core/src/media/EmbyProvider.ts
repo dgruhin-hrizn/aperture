@@ -10,6 +10,7 @@ import type {
   WatchedItem,
   PlaylistCreateResult,
   LibraryCreateResult,
+  PlaylistItem,
 } from './types.js'
 
 const logger = createChildLogger('emby-provider')
@@ -146,11 +147,7 @@ export class EmbyProvider implements MediaServerProvider {
     return `MediaBrowser Client="${this.clientName}", Device="${this.deviceName}", DeviceId="${this.deviceId}", Version="${this.clientVersion}", Token="${apiKey}"`
   }
 
-  private async fetch<T>(
-    endpoint: string,
-    apiKey: string,
-    options: RequestInit = {}
-  ): Promise<T> {
+  private async fetch<T>(endpoint: string, apiKey: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`
     const headers: Record<string, string> = {
       'X-Emby-Authorization': this.getAuthHeader(apiKey),
@@ -169,10 +166,7 @@ export class EmbyProvider implements MediaServerProvider {
 
     if (!response.ok) {
       const text = await response.text()
-      logger.error(
-        { status: response.status, url, body: text, duration },
-        '❌ Emby API error'
-      )
+      logger.error({ status: response.status, url, body: text, duration }, '❌ Emby API error')
       throw new Error(`Emby API error: ${response.status} ${response.statusText}`)
     }
 
@@ -300,10 +294,7 @@ export class EmbyProvider implements MediaServerProvider {
 
   async getLibraries(apiKey: string): Promise<Library[]> {
     // Emby returns an array directly, not { Items: [...] }
-    const response = await this.fetch<EmbyLibrary[]>(
-      '/Library/VirtualFolders',
-      apiKey
-    )
+    const response = await this.fetch<EmbyLibrary[]>('/Library/VirtualFolders', apiKey)
 
     // Handle both array response and object with Items property
     const libraries = Array.isArray(response) ? response : (response as any).Items || []
@@ -396,10 +387,25 @@ export class EmbyProvider implements MediaServerProvider {
       Recursive: 'true',
       // Request comprehensive metadata from Emby
       Fields: [
-        'Overview', 'Genres', 'ProductionYear', 'CommunityRating', 'CriticRating',
-        'Path', 'MediaSources', 'OriginalTitle', 'ParentId', 'SortName',
-        'Tagline', 'OfficialRating', 'PremiereDate', 'Studios', 'People',
-        'ProviderIds', 'Tags', 'ProductionLocations', 'Awards'
+        'Overview',
+        'Genres',
+        'ProductionYear',
+        'CommunityRating',
+        'CriticRating',
+        'Path',
+        'MediaSources',
+        'OriginalTitle',
+        'ParentId',
+        'SortName',
+        'Tagline',
+        'OfficialRating',
+        'PremiereDate',
+        'Studios',
+        'People',
+        'ProviderIds',
+        'Tags',
+        'ProductionLocations',
+        'Awards',
       ].join(','),
       StartIndex: String(options.startIndex || 0),
       Limit: String(options.limit || 100),
@@ -458,7 +464,9 @@ export class EmbyProvider implements MediaServerProvider {
               OriginalTitle: firstItem.OriginalTitle,
               ProductionYear: firstItem.ProductionYear,
               Genres: firstItem.Genres,
-              Overview: firstItem.Overview?.substring(0, 100) + (firstItem.Overview && firstItem.Overview.length > 100 ? '...' : ''),
+              Overview:
+                firstItem.Overview?.substring(0, 100) +
+                (firstItem.Overview && firstItem.Overview.length > 100 ? '...' : ''),
               CommunityRating: firstItem.CommunityRating,
               CriticRating: firstItem.CriticRating,
               RunTimeTicks: firstItem.RunTimeTicks,
@@ -525,13 +533,16 @@ export class EmbyProvider implements MediaServerProvider {
       )
     })
 
-    logger.info({ userId, username, playbackEvents: userPlaybackEvents.length }, 'Found playback events in Activity Log')
+    logger.info(
+      { userId, username, playbackEvents: userPlaybackEvents.length },
+      'Found playback events in Activity Log'
+    )
 
     // Aggregate by ItemId to get play counts and last played dates
     const playbackMap = new Map<string, { count: number; lastPlayed: string }>()
     for (const event of userPlaybackEvents) {
       if (!event.ItemId) continue
-      
+
       const existing = playbackMap.get(event.ItemId)
       if (existing) {
         existing.count++
@@ -563,7 +574,7 @@ export class EmbyProvider implements MediaServerProvider {
 
     // Build watch history from Activity Log data
     const watchedItems: WatchedItem[] = []
-    
+
     for (const [movieId, data] of playbackMap) {
       watchedItems.push({
         movieId,
@@ -604,9 +615,9 @@ export class EmbyProvider implements MediaServerProvider {
    */
   private async getWatchHistoryFromItems(apiKey: string, userId: string): Promise<WatchedItem[]> {
     logger.info({ userId }, 'Fetching watch history from Items API with full UserData')
-    
+
     const itemsMap = new Map<string, WatchedItem>()
-    
+
     // Step 1: Fetch all PLAYED movies
     let startIndex = 0
     const pageSize = 500
@@ -622,7 +633,10 @@ export class EmbyProvider implements MediaServerProvider {
         Limit: String(pageSize),
       })
 
-      const response = await this.fetch<EmbyItemsResponse>(`/Users/${userId}/Items?${params}`, apiKey)
+      const response = await this.fetch<EmbyItemsResponse>(
+        `/Users/${userId}/Items?${params}`,
+        apiKey
+      )
 
       if (response.Items.length === 0) {
         break
@@ -655,7 +669,7 @@ export class EmbyProvider implements MediaServerProvider {
       IsFavorite: 'true',
       UserId: userId,
     })
-    
+
     const favoritesResponse = await this.fetch<EmbyItemsResponse>(
       `/Users/${userId}/Items?${favoritesParams}`,
       apiKey
@@ -680,13 +694,17 @@ export class EmbyProvider implements MediaServerProvider {
     }
 
     logger.debug(
-      { userId, totalFavorites: favoritesResponse.Items.length, addedUnwatchedFavorites: addedFavorites },
+      {
+        userId,
+        totalFavorites: favoritesResponse.Items.length,
+        addedUnwatchedFavorites: addedFavorites,
+      },
       'Processed favorites'
     )
 
     // Convert map to array and sort
     const allItems = Array.from(itemsMap.values())
-    
+
     // Sort by last played date (most recent first), then favorites without play date
     allItems.sort((a, b) => {
       if (!a.lastPlayedDate && !b.lastPlayedDate) return 0
@@ -716,18 +734,23 @@ export class EmbyProvider implements MediaServerProvider {
 
   private mapMovie(item: EmbyItem): Movie {
     // Extract people by type
-    const directors = item.People?.filter(p => p.Type === 'Director').map(p => p.Name) || []
-    const writers = item.People?.filter(p => p.Type === 'Writer').map(p => p.Name) || []
-    const actors = item.People?.filter(p => p.Type === 'Actor').slice(0, 20).map(p => ({
-      name: p.Name,
-      role: p.Role,
-      thumb: p.PrimaryImageTag ? `${this.baseUrl}/Items/${item.Id}/Images/Primary?tag=${p.PrimaryImageTag}` : undefined,
-    })) || []
+    const directors = item.People?.filter((p) => p.Type === 'Director').map((p) => p.Name) || []
+    const writers = item.People?.filter((p) => p.Type === 'Writer').map((p) => p.Name) || []
+    const actors =
+      item.People?.filter((p) => p.Type === 'Actor')
+        .slice(0, 20)
+        .map((p) => ({
+          name: p.Name,
+          role: p.Role,
+          thumb: p.PrimaryImageTag
+            ? `${this.baseUrl}/Items/${item.Id}/Images/Primary?tag=${p.PrimaryImageTag}`
+            : undefined,
+        })) || []
 
     // Extract video/audio info from first media source
     const primarySource = item.MediaSources?.[0]
-    const videoStream = primarySource?.MediaStreams?.find(s => s.Type === 'Video')
-    const audioStream = primarySource?.MediaStreams?.find(s => s.Type === 'Audio')
+    const videoStream = primarySource?.MediaStreams?.find((s) => s.Type === 'Video')
+    const audioStream = primarySource?.MediaStreams?.find((s) => s.Type === 'Audio')
 
     return {
       id: item.Id,
@@ -755,7 +778,7 @@ export class EmbyProvider implements MediaServerProvider {
       backdropImageTag: item.BackdropImageTags?.[0] || item.ImageTags?.Backdrop,
       parentId: item.ParentId,
       // New metadata fields
-      studios: item.Studios?.map(s => s.Name) || [],
+      studios: item.Studios?.map((s) => s.Name) || [],
       directors,
       writers,
       actors,
@@ -765,9 +788,10 @@ export class EmbyProvider implements MediaServerProvider {
       productionCountries: item.ProductionLocations || [],
       awards: item.Awards,
       // Video/audio quality
-      videoResolution: videoStream?.Width && videoStream?.Height 
-        ? `${videoStream.Width}x${videoStream.Height}` 
-        : undefined,
+      videoResolution:
+        videoStream?.Width && videoStream?.Height
+          ? `${videoStream.Width}x${videoStream.Height}`
+          : undefined,
       videoCodec: videoStream?.Codec,
       audioCodec: audioStream?.Codec,
       container: primarySource?.Container,
@@ -805,15 +829,24 @@ export class EmbyProvider implements MediaServerProvider {
     const playlist = existing.Items.find((p) => p.Name === name)
 
     if (playlist) {
-      // Clear existing items and add new ones
-      await this.fetch(`/Playlists/${playlist.Id}/Items`, apiKey, { method: 'DELETE' })
+      // Get existing items to delete them by entry ID
+      const existingItems = await this.fetch<{
+        Items: Array<{ PlaylistItemId: string }>
+      }>(`/Playlists/${playlist.Id}/Items`, apiKey)
 
+      // Remove all existing items if any
+      if (existingItems.Items && existingItems.Items.length > 0) {
+        const entryIds = existingItems.Items.map((item) => item.PlaylistItemId).join(',')
+        await this.fetch(`/Playlists/${playlist.Id}/Items?EntryIds=${entryIds}`, apiKey, {
+          method: 'DELETE',
+        })
+      }
+
+      // Add new items
       if (itemIds.length > 0) {
-        await this.fetch(
-          `/Playlists/${playlist.Id}/Items?Ids=${itemIds.join(',')}`,
-          apiKey,
-          { method: 'POST' }
-        )
+        await this.fetch(`/Playlists/${playlist.Id}/Items?Ids=${itemIds.join(',')}`, apiKey, {
+          method: 'POST',
+        })
       }
 
       return { playlistId: playlist.Id }
@@ -830,17 +863,72 @@ export class EmbyProvider implements MediaServerProvider {
       createParams.set('Ids', itemIds.join(','))
     }
 
-    const created = await this.fetch<{ Id: string }>(
-      `/Playlists?${createParams}`,
-      apiKey,
-      { method: 'POST' }
-    )
+    const created = await this.fetch<{ Id: string }>(`/Playlists?${createParams}`, apiKey, {
+      method: 'POST',
+    })
 
     return { playlistId: created.Id }
   }
 
   async deletePlaylist(apiKey: string, playlistId: string): Promise<void> {
     await this.fetch(`/Items/${playlistId}`, apiKey, { method: 'DELETE' })
+  }
+
+  async getPlaylistItems(apiKey: string, playlistId: string): Promise<PlaylistItem[]> {
+    const response = await this.fetch<{
+      Items: Array<{
+        Id: string
+        PlaylistItemId: string
+        Name: string
+        ProductionYear?: number
+        ImageTags?: { Primary?: string }
+        RunTimeTicks?: number
+      }>
+    }>(`/Playlists/${playlistId}/Items?Fields=ImageTags,ProductionYear,RunTimeTicks`, apiKey)
+
+    return response.Items.map((item) => ({
+      id: item.Id,
+      playlistItemId: item.PlaylistItemId,
+      title: item.Name,
+      year: item.ProductionYear || null,
+      posterUrl: item.ImageTags?.Primary
+        ? `${this.baseUrl}/Items/${item.Id}/Images/Primary?tag=${item.ImageTags.Primary}`
+        : null,
+      runtime: item.RunTimeTicks ? Math.round(item.RunTimeTicks / 600000000) : null,
+    }))
+  }
+
+  async removePlaylistItems(apiKey: string, playlistId: string, entryIds: string[]): Promise<void> {
+    if (entryIds.length === 0) return
+    await this.fetch(`/Playlists/${playlistId}/Items?EntryIds=${entryIds.join(',')}`, apiKey, {
+      method: 'DELETE',
+    })
+  }
+
+  async addPlaylistItems(apiKey: string, playlistId: string, itemIds: string[]): Promise<void> {
+    if (itemIds.length === 0) return
+    await this.fetch(`/Playlists/${playlistId}/Items?Ids=${itemIds.join(',')}`, apiKey, {
+      method: 'POST',
+    })
+  }
+
+  // =========================================================================
+  // Genres
+  // =========================================================================
+
+  async getGenres(apiKey: string): Promise<string[]> {
+    const params = new URLSearchParams({
+      IncludeItemTypes: 'Movie',
+      SortBy: 'SortName',
+      SortOrder: 'Ascending',
+    })
+
+    const response = await this.fetch<{ Items: Array<{ Name: string }> }>(
+      `/Genres?${params}`,
+      apiKey
+    )
+
+    return response.Items.map((item) => item.Name)
   }
 
   // =========================================================================
@@ -861,4 +949,3 @@ export class EmbyProvider implements MediaServerProvider {
     return `${this.baseUrl}/Videos/${itemId}/stream?api_key=${apiKey}`
   }
 }
-

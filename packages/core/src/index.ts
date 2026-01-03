@@ -78,6 +78,9 @@ export {
   createSharedPlaylist,
   processAllChannels,
   writeChannelStrm,
+  generateAIPreferences,
+  generateAIPlaylistName,
+  generateAIPlaylistDescription,
 } from './channels/index.js'
 
 // Job Progress

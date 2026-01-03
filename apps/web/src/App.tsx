@@ -11,7 +11,7 @@ import { MyRecommendationsPage } from './pages/MyRecommendations'
 import { MyWatchHistoryPage } from './pages/MyWatchHistory'
 import { MoviesPage } from './pages/Movies'
 import { MovieDetailPage } from './pages/MovieDetail'
-import { ChannelsPage } from './pages/Channels'
+import { PlaylistsPage } from './pages/Playlists'
 // Admin pages
 import { AdminDashboard } from './pages/admin'
 import { UsersPage } from './pages/Users'
@@ -91,7 +91,7 @@ function AppRoutes() {
         <Route path="history" element={<MyWatchHistoryPage />} />
         <Route path="movies" element={<MoviesPage />} />
         <Route path="movies/:id" element={<MovieDetailPage />} />
-        <Route path="channels" element={<ChannelsPage />} />
+        <Route path="playlists" element={<PlaylistsPage />} />
 
         {/* Admin Routes */}
         <Route

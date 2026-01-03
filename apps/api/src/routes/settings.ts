@@ -61,6 +61,32 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   // =========================================================================
+  // Genres
+  // =========================================================================
+
+  /**
+   * GET /api/genres
+   * Get all available movie genres from the media server
+   */
+  fastify.get('/api/genres', async (_request, reply) => {
+    try {
+      const apiKey = process.env.MEDIA_SERVER_API_KEY
+
+      if (!apiKey) {
+        return reply.status(500).send({ error: 'MEDIA_SERVER_API_KEY not configured' })
+      }
+
+      const provider = getMediaServerProvider()
+      const genres = await provider.getGenres(apiKey)
+
+      return reply.send({ genres })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to fetch genres from media server')
+      return reply.status(500).send({ error: 'Failed to fetch genres' })
+    }
+  })
+
+  // =========================================================================
   // Library Configuration
   // =========================================================================
 

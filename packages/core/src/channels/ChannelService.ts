@@ -1,9 +1,15 @@
 import fs from 'fs/promises'
 import path from 'path'
+import OpenAI from 'openai'
 import { createChildLogger } from '../lib/logger.js'
 import { query, queryOne } from '../lib/db.js'
 import { getMediaServerProvider } from '../media/index.js'
 import { getMovieEmbedding, averageEmbeddings } from '../recommender/embeddings.js'
+
+// Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+})
 
 const logger = createChildLogger('channels')
 
@@ -26,6 +32,40 @@ interface ChannelRecommendation {
   title: string
   year: number | null
   score: number
+}
+
+/**
+ * Weighted random sampling - picks items with probability proportional to their weight
+ */
+function weightedRandomSample<T extends { score: number }>(
+  items: T[],
+  count: number
+): T[] {
+  if (items.length <= count) return items
+
+  const selected: T[] = []
+  const remaining = [...items]
+
+  // Normalize scores to be positive weights (similarity scores are typically 0-1)
+  // Square the scores to give higher-scored items more weight while still allowing variety
+  const getWeight = (score: number) => Math.pow(Math.max(0.1, score), 2)
+
+  for (let i = 0; i < count && remaining.length > 0; i++) {
+    const totalWeight = remaining.reduce((sum, item) => sum + getWeight(item.score), 0)
+    let random = Math.random() * totalWeight
+
+    for (let j = 0; j < remaining.length; j++) {
+      random -= getWeight(remaining[j].score)
+      if (random <= 0) {
+        selected.push(remaining[j])
+        remaining.splice(j, 1)
+        break
+      }
+    }
+  }
+
+  // Sort selected by score descending for a nice order in the playlist
+  return selected.sort((a, b) => b.score - a.score)
 }
 
 /**
@@ -87,6 +127,9 @@ export async function generateChannelRecommendations(
     params.push(channel.genre_filters)
   }
 
+  // Fetch more candidates than needed (3x) to enable variety through weighted sampling
+  const poolSize = limit * 3
+
   let candidates: ChannelRecommendation[]
 
   if (tasteProfile) {
@@ -108,12 +151,12 @@ export async function generateChannelRecommendations(
        ${whereClause}
        ORDER BY e.embedding <=> $${paramIndex}::halfvec
        LIMIT $${paramIndex + 1}`,
-      [...params, limit + watchedIds.size]
+      [...params, poolSize + watchedIds.size]
     )
 
-    candidates = result.rows
+    const pool = result.rows
       .filter((r) => !watchedIds.has(r.id))
-      .slice(0, limit)
+      .slice(0, poolSize)
       .map((r) => ({
         movieId: r.id,
         providerItemId: r.provider_item_id,
@@ -121,6 +164,9 @@ export async function generateChannelRecommendations(
         year: r.year,
         score: r.similarity,
       }))
+
+    // Weighted random sampling for variety
+    candidates = weightedRandomSample(pool, limit)
   } else {
     // Fallback to rating-based ordering
     const result = await query<{
@@ -135,12 +181,12 @@ export async function generateChannelRecommendations(
        ${whereClause}
        ORDER BY m.community_rating DESC NULLS LAST
        LIMIT $${paramIndex}`,
-      [...params, limit + watchedIds.size]
+      [...params, poolSize + watchedIds.size]
     )
 
-    candidates = result.rows
+    const pool = result.rows
       .filter((r) => !watchedIds.has(r.id))
-      .slice(0, limit)
+      .slice(0, poolSize)
       .map((r) => ({
         movieId: r.id,
         providerItemId: r.provider_item_id,
@@ -148,7 +194,15 @@ export async function generateChannelRecommendations(
         year: r.year,
         score: r.community_rating ? r.community_rating / 10 : 0.5,
       }))
+
+    // Weighted random sampling for variety
+    candidates = weightedRandomSample(pool, limit)
   }
+
+  logger.info(
+    { channelId, candidateCount: candidates.length, topScores: candidates.slice(0, 3).map((c) => c.score.toFixed(3)) },
+    'Generated channel recommendations with variability'
+  )
 
   return candidates
 }
@@ -403,6 +457,266 @@ export async function writeChannelStrm(channelId: string): Promise<{
   return {
     written: recommendations.length,
     libraryPath,
+  }
+}
+
+/**
+ * Generate AI-powered text preferences for a channel based on:
+ * - User's taste profile/synopsis
+ * - Selected genres
+ * - Example movies
+ */
+export async function generateAIPreferences(
+  userId: string,
+  genres: string[],
+  exampleMovieIds: string[]
+): Promise<string> {
+  logger.info({ userId, genres, exampleMovieCount: exampleMovieIds.length }, 'Generating AI preferences')
+
+  // Get user's taste synopsis
+  const tasteProfile = await queryOne<{ taste_synopsis: string | null }>(
+    'SELECT taste_synopsis FROM user_preferences WHERE user_id = $1',
+    [userId]
+  )
+
+  // Get example movie details
+  let exampleMovies: Array<{ title: string; year: number | null; genres: string[]; overview: string | null }> = []
+  if (exampleMovieIds.length > 0) {
+    const moviesResult = await query<{
+      title: string
+      year: number | null
+      genres: string[]
+      overview: string | null
+    }>(
+      'SELECT title, year, genres, overview FROM movies WHERE id = ANY($1)',
+      [exampleMovieIds]
+    )
+    exampleMovies = moviesResult.rows
+  }
+
+  // Build context for AI
+  const contextParts: string[] = []
+
+  if (tasteProfile?.taste_synopsis) {
+    contextParts.push(`USER'S TASTE PROFILE:\n${tasteProfile.taste_synopsis}`)
+  }
+
+  if (genres.length > 0) {
+    contextParts.push(`SELECTED GENRES:\n${genres.join(', ')}`)
+  }
+
+  if (exampleMovies.length > 0) {
+    const movieList = exampleMovies
+      .map((m) => `- "${m.title}" (${m.year || 'N/A'}) - ${m.genres?.join(', ') || 'Unknown genres'}`)
+      .join('\n')
+    contextParts.push(`EXAMPLE MOVIES (defining the playlist's style):\n${movieList}`)
+  }
+
+  if (contextParts.length === 0) {
+    return 'Please select some genres or example movies to help generate preferences.'
+  }
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a movie curator helping create a custom playlist. Based on the user's taste profile, selected genres, and example movies, generate 2-3 short preference paragraphs that describe what kind of movies should be included in this playlist.
+
+Be specific and actionable. Reference the qualities, themes, and styles evident in the example movies. Consider what makes these movies work together as a collection.
+
+Focus on:
+- Tone and mood (e.g., "dark and atmospheric" vs "light-hearted and fun")
+- Storytelling style (e.g., "character-driven narratives" vs "plot-heavy thrillers")
+- Visual or stylistic preferences (e.g., "practical effects", "neon-lit aesthetics")
+- Thematic elements (e.g., "underdog stories", "moral ambiguity", "found family")
+- Era or time period preferences
+- What to avoid if implied by the examples
+
+Write in first person as if the user is describing what they want. Keep it concise but specific - each paragraph should be 1-2 sentences. Don't use bullet points.`,
+        },
+        {
+          role: 'user',
+          content: contextParts.join('\n\n'),
+        },
+      ],
+      temperature: 0.7,
+      max_tokens: 500,
+    })
+
+    const preferences = response.choices[0]?.message?.content
+    if (!preferences) {
+      throw new Error('No response from AI')
+    }
+
+    logger.info({ userId, preferencesLength: preferences.length }, 'AI preferences generated')
+    return preferences
+  } catch (error) {
+    logger.error({ error, userId }, 'Failed to generate AI preferences')
+    throw new Error('Failed to generate AI preferences. Please try again.')
+  }
+}
+
+/**
+ * Build context string from genres, example movies, and preferences
+ */
+async function buildPlaylistContext(
+  genres: string[],
+  exampleMovieIds: string[],
+  textPreferences?: string
+): Promise<string> {
+  const contextParts: string[] = []
+
+  if (genres.length > 0) {
+    contextParts.push(`GENRES: ${genres.join(', ')}`)
+  }
+
+  if (exampleMovieIds.length > 0) {
+    const moviesResult = await query<{
+      title: string
+      year: number | null
+      genres: string[]
+    }>(
+      'SELECT title, year, genres FROM movies WHERE id = ANY($1)',
+      [exampleMovieIds]
+    )
+    const movieList = moviesResult.rows
+      .map((m) => `"${m.title}" (${m.year || 'N/A'})`)
+      .join(', ')
+    contextParts.push(`EXAMPLE MOVIES: ${movieList}`)
+  }
+
+  if (textPreferences) {
+    contextParts.push(`PREFERENCES: ${textPreferences}`)
+  }
+
+  return contextParts.join('\n')
+}
+
+/**
+ * Generate an AI-powered playlist name
+ */
+export async function generateAIPlaylistName(
+  genres: string[],
+  exampleMovieIds: string[],
+  textPreferences?: string
+): Promise<string> {
+  logger.info({ genres, exampleMovieCount: exampleMovieIds.length }, 'Generating AI playlist name')
+
+  const context = await buildPlaylistContext(genres, exampleMovieIds, textPreferences)
+
+  if (!context) {
+    return 'My Playlist'
+  }
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a creative playlist naming expert. Generate a single catchy, memorable playlist name based on the provided context.
+
+Rules:
+- Keep it short (2-4 words max)
+- Be creative and evocative, not generic
+- Capture the mood/vibe of the movies
+- Can use alliteration, wordplay, or cultural references
+- Don't use generic words like "Collection", "Playlist", "Mix"
+- Don't include genre names directly unless cleverly incorporated
+
+Examples of good names:
+- "Neon Noir Nights" (cyberpunk/noir)
+- "Popcorn Apocalypse" (action/disaster)
+- "Cozy Crimes" (mystery/comfort)
+- "Starlight Escapes" (sci-fi/adventure)
+- "Midnight Mayhem" (horror/thriller)
+- "Retro Rewind" (80s movies)
+
+Return ONLY the playlist name, nothing else.`,
+        },
+        {
+          role: 'user',
+          content: context,
+        },
+      ],
+      temperature: 0.9,
+      max_tokens: 50,
+    })
+
+    const name = response.choices[0]?.message?.content?.trim()
+    if (!name) {
+      throw new Error('No response from AI')
+    }
+
+    // Remove quotes if AI added them
+    return name.replace(/^["']|["']$/g, '')
+  } catch (error) {
+    logger.error({ error }, 'Failed to generate AI playlist name')
+    throw new Error('Failed to generate playlist name. Please try again.')
+  }
+}
+
+/**
+ * Generate an AI-powered playlist description
+ */
+export async function generateAIPlaylistDescription(
+  genres: string[],
+  exampleMovieIds: string[],
+  textPreferences?: string,
+  playlistName?: string
+): Promise<string> {
+  logger.info({ genres, exampleMovieCount: exampleMovieIds.length, playlistName }, 'Generating AI playlist description')
+
+  const context = await buildPlaylistContext(genres, exampleMovieIds, textPreferences)
+
+  if (!context) {
+    return 'A curated collection of movies.'
+  }
+
+  const nameContext = playlistName ? `\nPLAYLIST NAME: "${playlistName}"` : ''
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a movie curator writing a brief playlist description. Write 1-2 sentences that capture what makes this playlist special.
+
+Rules:
+- Be concise and engaging
+- Highlight the mood, themes, or experience
+- Don't list genres directly - describe the feeling
+- If a playlist name is provided, the description should complement it
+- Write in third person (describe the playlist, not "you")
+
+Examples:
+- "A pulse-pounding journey through high-stakes heists and impossible escapes. Every film delivers edge-of-your-seat tension."
+- "Heartwarming tales of unlikely friendships and second chances. Perfect for when you need to believe in happy endings."
+- "Dark, atmospheric thrillers where nothing is as it seems. Prepare for twist endings and sleepless nights."
+
+Return ONLY the description, nothing else.`,
+        },
+        {
+          role: 'user',
+          content: context + nameContext,
+        },
+      ],
+      temperature: 0.8,
+      max_tokens: 150,
+    })
+
+    const description = response.choices[0]?.message?.content?.trim()
+    if (!description) {
+      throw new Error('No response from AI')
+    }
+
+    return description
+  } catch (error) {
+    logger.error({ error }, 'Failed to generate AI playlist description')
+    throw new Error('Failed to generate playlist description. Please try again.')
   }
 }
 

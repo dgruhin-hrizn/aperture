@@ -31,6 +31,15 @@ export interface Library {
   refreshStatus?: string
 }
 
+export interface PlaylistItem {
+  id: string
+  playlistItemId: string // The entry ID within the playlist (for removal)
+  title: string
+  year: number | null
+  posterUrl: string | null
+  runtime: number | null // in minutes
+}
+
 export interface PaginationOptions {
   startIndex?: number
   limit?: number
