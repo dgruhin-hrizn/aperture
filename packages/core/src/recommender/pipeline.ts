@@ -19,6 +19,7 @@ interface User {
   id: string
   username: string
   providerUserId: string
+  maxParentalRating?: number | null
 }
 
 interface WatchedMovie {
@@ -187,7 +188,8 @@ export async function generateRecommendationsForUser(
       tasteProfile,
       allWatchedIds,
       cfg.maxCandidates,
-      includeWatched
+      includeWatched,
+      user.maxParentalRating ?? null
     )
     logger.info(
       { userId: user.id, candidateCount: candidates.length },
@@ -461,7 +463,8 @@ async function getCandidates(
   tasteProfile: number[],
   watchedIds: Set<string>,
   limit: number,
-  includeWatched: boolean = false
+  includeWatched: boolean = false,
+  maxParentalRating: number | null = null
 ): Promise<Candidate[]> {
   const vectorStr = `[${tasteProfile.join(',')}]`
 
@@ -472,7 +475,15 @@ async function getCandidates(
   // Calculate query limit - if excluding watched, need more results to filter from
   const queryLimit = includeWatched ? limit : limit + watchedIds.size
 
-  // Use pgvector to find similar movies, filtered by enabled libraries
+  // Build parental rating filter clause
+  const parentalFilter = maxParentalRating !== null
+    ? ` AND (m.content_rating IS NULL OR COALESCE((
+          SELECT prv.rating_value FROM parental_rating_values prv 
+          WHERE prv.rating_name = m.content_rating LIMIT 1
+        ), 0) <= ${maxParentalRating})`
+    : ''
+
+  // Use pgvector to find similar movies, filtered by enabled libraries and parental rating
   const result = await query<{
     id: string
     title: string
@@ -490,13 +501,14 @@ async function getCandidates(
            SELECT 1 FROM library_config lc 
            WHERE lc.provider_library_id = m.provider_library_id 
            AND lc.is_enabled = true
-         )
+         )${parentalFilter}
          ORDER BY e.embedding <=> $1::halfvec
          LIMIT $2`
       : `SELECT m.id, m.title, m.year, m.genres, m.community_rating,
                 1 - (e.embedding <=> $1::halfvec) as similarity
          FROM embeddings e
          JOIN movies m ON m.id = e.movie_id
+         WHERE true${parentalFilter}
          ORDER BY e.embedding <=> $1::halfvec
          LIMIT $2`,
     [vectorStr, queryLimit]
@@ -776,8 +788,8 @@ export async function generateRecommendationsForAllUsers(jobId?: string): Promis
     setJobStep(actualJobId, 0, 'Finding enabled users')
     addLog(actualJobId, 'info', '🔍 Finding enabled users...')
 
-    const result = await query<{ id: string; username: string; provider_user_id: string }>(
-      `SELECT id, username, provider_user_id FROM users WHERE is_enabled = true`
+    const result = await query<{ id: string; username: string; provider_user_id: string; max_parental_rating: number | null }>(
+      `SELECT id, username, provider_user_id, max_parental_rating FROM users WHERE is_enabled = true`
     )
 
     const totalUsers = result.rows.length
@@ -804,6 +816,7 @@ export async function generateRecommendationsForAllUsers(jobId?: string): Promis
           id: user.id,
           username: user.username,
           providerUserId: user.provider_user_id,
+          maxParentalRating: user.max_parental_rating,
         })
 
         success++
@@ -934,8 +947,8 @@ export async function clearAndRebuildAllRecommendations(existingJobId?: string):
 
     // Step 3: Regenerate for all users
     setJobStep(jobId, 2, 'Regenerating recommendations')
-    const result = await query<{ id: string; username: string; provider_user_id: string }>(
-      `SELECT id, username, provider_user_id FROM users WHERE is_enabled = true`
+    const result = await query<{ id: string; username: string; provider_user_id: string; max_parental_rating: number | null }>(
+      `SELECT id, username, provider_user_id, max_parental_rating FROM users WHERE is_enabled = true`
     )
     const users = result.rows
     addLog(jobId, 'info', `👥 Regenerating for ${users.length} enabled user(s)`)
@@ -953,6 +966,7 @@ export async function clearAndRebuildAllRecommendations(existingJobId?: string):
           id: user.id,
           username: user.username,
           providerUserId: user.provider_user_id,
+          maxParentalRating: user.max_parental_rating,
         })
         success++
         addLog(jobId, 'info', `✅ Done: ${user.username}`)
@@ -983,8 +997,8 @@ export async function regenerateUserRecommendations(userId: string): Promise<{
   count: number
 }> {
   // Get user info
-  const user = await queryOne<{ id: string; username: string; provider_user_id: string }>(
-    'SELECT id, username, provider_user_id FROM users WHERE id = $1',
+  const user = await queryOne<{ id: string; username: string; provider_user_id: string; max_parental_rating: number | null }>(
+    'SELECT id, username, provider_user_id, max_parental_rating FROM users WHERE id = $1',
     [userId]
   )
 
@@ -1002,6 +1016,7 @@ export async function regenerateUserRecommendations(userId: string): Promise<{
     id: user.id,
     username: user.username,
     providerUserId: user.provider_user_id,
+    maxParentalRating: user.max_parental_rating,
   })
 
   return {

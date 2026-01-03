@@ -36,6 +36,7 @@ interface EmbyUser {
     IsDisabled: boolean
     EnableAllFolders?: boolean
     EnabledFolders?: string[]
+    MaxParentalRating?: number
   }
   LastActivityDate?: string
   PrimaryImageTag?: string
@@ -49,6 +50,10 @@ interface EmbyLibrary {
   CollectionType: string
   Path?: string
   RefreshStatus?: string
+}
+
+interface EmbyLibraryResponse {
+  Items: EmbyLibrary[]
 }
 
 interface EmbyItem {
@@ -271,6 +276,7 @@ export class EmbyProvider implements MediaServerProvider {
       isDisabled: user.Policy.IsDisabled,
       lastActivityDate: user.LastActivityDate,
       primaryImageTag: user.PrimaryImageTag,
+      maxParentalRating: user.Policy.MaxParentalRating,
     }))
   }
 
@@ -285,6 +291,7 @@ export class EmbyProvider implements MediaServerProvider {
       isDisabled: user.Policy.IsDisabled,
       lastActivityDate: user.LastActivityDate,
       primaryImageTag: user.PrimaryImageTag,
+      maxParentalRating: user.Policy.MaxParentalRating,
     }
   }
 
@@ -294,10 +301,13 @@ export class EmbyProvider implements MediaServerProvider {
 
   async getLibraries(apiKey: string): Promise<Library[]> {
     // Emby returns an array directly, not { Items: [...] }
-    const response = await this.fetch<EmbyLibrary[]>('/Library/VirtualFolders', apiKey)
+    const response = await this.fetch<EmbyLibrary[] | EmbyLibraryResponse>(
+      '/Library/VirtualFolders',
+      apiKey
+    )
 
     // Handle both array response and object with Items property
-    const libraries = Array.isArray(response) ? response : (response as any).Items || []
+    const libraries = Array.isArray(response) ? response : response.Items || []
 
     return libraries.map((lib: EmbyLibrary) => ({
       id: lib.ItemId || lib.Id || '',

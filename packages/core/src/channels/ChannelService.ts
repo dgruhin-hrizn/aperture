@@ -75,7 +75,7 @@ export async function generateChannelRecommendations(
   channelId: string,
   limit = 20
 ): Promise<ChannelRecommendation[]> {
-  // Get channel details
+  // Get channel details with owner's parental rating
   const channel = await queryOne<{
     id: string
     owner_id: string
@@ -83,13 +83,24 @@ export async function generateChannelRecommendations(
     genre_filters: string[]
     text_preferences: string | null
     example_movie_ids: string[]
-  }>('SELECT * FROM channels WHERE id = $1', [channelId])
+    max_parental_rating: number | null
+  }>(
+    `SELECT c.*, u.max_parental_rating 
+     FROM channels c
+     JOIN users u ON u.id = c.owner_id
+     WHERE c.id = $1`,
+    [channelId]
+  )
 
   if (!channel) {
     throw new Error(`Channel not found: ${channelId}`)
   }
 
-  logger.info({ channelId, name: channel.name }, 'Generating channel recommendations')
+  logger.info({ 
+    channelId, 
+    name: channel.name, 
+    maxParentalRating: channel.max_parental_rating 
+  }, 'Generating channel recommendations')
 
   // Build channel taste profile from example movies
   let tasteProfile: number[] | null = null
@@ -117,15 +128,26 @@ export async function generateChannelRecommendations(
   const watchedIds = new Set(watched.rows.map((r) => r.movie_id))
 
   // Build query for candidates
-  let whereClause = ''
+  const whereClauses: string[] = []
   const params: unknown[] = []
   let paramIndex = 1
 
   // Genre filter
   if (channel.genre_filters && channel.genre_filters.length > 0) {
-    whereClause = ` WHERE m.genres && $${paramIndex++}`
+    whereClauses.push(`m.genres && $${paramIndex++}`)
     params.push(channel.genre_filters)
   }
+
+  // Parental rating filter - filter movies based on user's max allowed rating
+  if (channel.max_parental_rating !== null) {
+    whereClauses.push(`(
+      m.content_rating IS NULL OR
+      COALESCE((SELECT prv.rating_value FROM parental_rating_values prv WHERE prv.rating_name = m.content_rating LIMIT 1), 0) <= $${paramIndex++}
+    )`)
+    params.push(channel.max_parental_rating)
+  }
+
+  const whereClause = whereClauses.length > 0 ? ` WHERE ${whereClauses.join(' AND ')}` : ''
 
   // Fetch more candidates than needed (3x) to enable variety through weighted sampling
   const poolSize = limit * 3

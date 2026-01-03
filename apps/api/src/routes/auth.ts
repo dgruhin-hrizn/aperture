@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { getMediaServerProvider, type AuthResult } from '@aperture/core'
-import { queryOne, query } from '../lib/db.js'
+import { queryOne } from '../lib/db.js'
 import {
   createSession,
   deleteSession,
@@ -66,6 +66,14 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(401).send({ error: 'Invalid username or password' } as never)
       }
 
+      // Fetch full user details to get parental rating settings
+      const apiKey = process.env.MEDIA_SERVER_API_KEY
+      if (!apiKey) {
+        fastify.log.error('Media server API key not configured')
+        return reply.status(500).send({ error: 'Media server not configured' } as never)
+      }
+      const providerUser = await provider.getUserById(apiKey, authResult.userId)
+
       // Upsert user in our database
       const existingUser = await queryOne<UserRow>(
         `SELECT id, username, display_name, provider, provider_user_id, is_admin, is_enabled
@@ -82,17 +90,18 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
             username = $1,
             is_admin = $2,
             provider_access_token = $3,
+            max_parental_rating = $4,
             updated_at = NOW()
-           WHERE id = $4
+           WHERE id = $5
            RETURNING id, username, display_name, provider, provider_user_id, is_admin, is_enabled`,
-          [authResult.userName, authResult.isAdmin, authResult.accessToken, existingUser.id]
+          [authResult.userName, authResult.isAdmin, authResult.accessToken, providerUser.maxParentalRating ?? null, existingUser.id]
         )
         user = updated!
       } else {
         // Create new user
         const created = await queryOne<UserRow>(
-          `INSERT INTO users (username, display_name, provider, provider_user_id, is_admin, provider_access_token)
-           VALUES ($1, $2, $3, $4, $5, $6)
+          `INSERT INTO users (username, display_name, provider, provider_user_id, is_admin, provider_access_token, max_parental_rating)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
            RETURNING id, username, display_name, provider, provider_user_id, is_admin, is_enabled`,
           [
             authResult.userName,
@@ -101,6 +110,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
             authResult.userId,
             authResult.isAdmin,
             authResult.accessToken,
+            providerUser.maxParentalRating ?? null,
           ]
         )
         user = created!

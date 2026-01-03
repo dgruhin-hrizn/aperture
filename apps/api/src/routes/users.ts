@@ -24,6 +24,7 @@ interface UserRow {
   provider_user_id: string
   is_admin: boolean
   is_enabled: boolean
+  max_parental_rating: number | null
   created_at: Date
   updated_at: Date
 }
@@ -446,10 +447,10 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
 
         // Insert user into our database
         const newUser = await queryOne<UserRow>(
-          `INSERT INTO users (username, display_name, provider, provider_user_id, is_admin, is_enabled)
-           VALUES ($1, $2, $3, $4, $5, $6)
-           RETURNING id, username, display_name, provider, provider_user_id, is_admin, is_enabled, created_at, updated_at`,
-          [providerUser.name, providerUser.name, provider.type, providerUserId, providerUser.isAdmin, isEnabled]
+          `INSERT INTO users (username, display_name, provider, provider_user_id, is_admin, is_enabled, max_parental_rating)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           RETURNING id, username, display_name, provider, provider_user_id, is_admin, is_enabled, max_parental_rating, created_at, updated_at`,
+          [providerUser.name, providerUser.name, provider.type, providerUserId, providerUser.isAdmin, isEnabled, providerUser.maxParentalRating ?? null]
         )
 
         fastify.log.info({ userId: newUser?.id, providerUserId, name: providerUser.name }, 'User imported from media server')
@@ -535,6 +536,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
           id,
           username: user.username,
           providerUserId: user.provider_user_id,
+          maxParentalRating: user.max_parental_rating,
         })
         logger.info({ userId: id, recommendations: result.recommendations.length }, 'Recommendations generated for user')
         return reply.send({ 
@@ -636,6 +638,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
           id,
           username: user.username,
           providerUserId: user.provider_user_id,
+          maxParentalRating: user.max_parental_rating,
         })
         logger.info({ userId: id, recommendations: recsResult.recommendations.length }, 'Recommendations generated')
 

@@ -36,6 +36,7 @@ interface JellyfinUser {
     IsDisabled: boolean
     EnableAllFolders?: boolean
     EnabledFolders?: string[]
+    MaxParentalRating?: number
   }
   LastActivityDate?: string
   PrimaryImageTag?: string
@@ -193,6 +194,7 @@ export class JellyfinProvider implements MediaServerProvider {
       isDisabled: user.Policy.IsDisabled,
       lastActivityDate: user.LastActivityDate,
       primaryImageTag: user.PrimaryImageTag,
+      maxParentalRating: user.Policy.MaxParentalRating,
     }))
   }
 
@@ -207,6 +209,7 @@ export class JellyfinProvider implements MediaServerProvider {
       isDisabled: user.Policy.IsDisabled,
       lastActivityDate: user.LastActivityDate,
       primaryImageTag: user.PrimaryImageTag,
+      maxParentalRating: user.Policy.MaxParentalRating,
     }
   }
 

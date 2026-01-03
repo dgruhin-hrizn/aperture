@@ -20,6 +20,7 @@ export interface MediaServerUser {
   isDisabled: boolean
   lastActivityDate?: string
   primaryImageTag?: string
+  maxParentalRating?: number // NULL means unrestricted
 }
 
 export interface Library {
