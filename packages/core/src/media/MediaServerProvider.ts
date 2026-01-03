@@ -5,7 +5,10 @@ import type {
   PaginationOptions,
   PaginatedResult,
   Movie,
+  Series,
+  Episode,
   WatchedItem,
+  WatchedEpisode,
   PlaylistCreateResult,
   LibraryCreateResult,
   PlaylistItem,
@@ -120,6 +123,48 @@ export interface MediaServerProvider {
    * Get movie by ID
    */
   getMovieById(apiKey: string, movieId: string): Promise<Movie | null>
+
+  // =========================================================================
+  // Items (TV Series)
+  // =========================================================================
+
+  /**
+   * Get only TV show libraries from the media server
+   * Convenience method that filters getLibraries() to 'tvshows' collection type
+   */
+  getTvShowLibraries(apiKey: string): Promise<Library[]>
+
+  /**
+   * Get all TV series from the media server
+   * Supports pagination for large libraries
+   */
+  getSeries(apiKey: string, options?: PaginationOptions): Promise<PaginatedResult<Series>>
+
+  /**
+   * Get series by ID
+   */
+  getSeriesById(apiKey: string, seriesId: string): Promise<Series | null>
+
+  /**
+   * Get all episodes from the media server
+   * Can optionally filter by series ID
+   * Supports pagination for large libraries
+   */
+  getEpisodes(
+    apiKey: string,
+    options?: PaginationOptions & { seriesId?: string }
+  ): Promise<PaginatedResult<Episode>>
+
+  /**
+   * Get episode by ID
+   */
+  getEpisodeById(apiKey: string, episodeId: string): Promise<Episode | null>
+
+  /**
+   * Get a user's watch history for TV series/episodes
+   * Returns played episodes with watch data
+   */
+  getSeriesWatchHistory(apiKey: string, userId: string): Promise<WatchedEpisode[]>
 
   // =========================================================================
   // Playlists

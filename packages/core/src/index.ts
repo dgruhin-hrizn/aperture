@@ -35,7 +35,10 @@ export {
   type PaginationOptions,
   type PaginatedResult,
   type Movie,
+  type Series,
+  type Episode,
   type WatchedItem,
+  type WatchedEpisode,
   type PlaylistCreateResult,
   type LibraryCreateResult,
   type MediaSource,
@@ -44,6 +47,7 @@ export {
 
 // Recommender
 export {
+  // Movie embeddings
   buildCanonicalText,
   embedMovies,
   storeEmbeddings,
@@ -51,15 +55,42 @@ export {
   generateMissingEmbeddings,
   getMovieEmbedding,
   averageEmbeddings,
+  // Series embeddings
+  buildSeriesCanonicalText,
+  buildEpisodeCanonicalText,
+  embedSeries,
+  embedEpisodes,
+  storeSeriesEmbeddings,
+  storeEpisodeEmbeddings,
+  getSeriesWithoutEmbeddings,
+  getEpisodesWithoutEmbeddings,
+  generateMissingSeriesEmbeddings,
+  getSeriesEmbedding,
+  getEpisodeEmbedding,
+  getSeriesEpisodeEmbeddings,
+  // Recommendations
   generateRecommendationsForUser,
   generateRecommendationsForAllUsers,
   clearUserRecommendations,
   clearAllRecommendations,
   clearAndRebuildAllRecommendations,
   regenerateUserRecommendations,
+  // Movie sync
   syncMovies,
   syncWatchHistoryForUser,
   syncWatchHistoryForAllUsers,
+  // Series sync
+  syncSeries,
+  syncSeriesWatchHistoryForUser,
+  syncSeriesWatchHistoryForAllUsers,
+  // Series recommendations
+  generateSeriesRecommendationsForUser,
+  generateSeriesRecommendationsForAllUsers,
+  clearUserSeriesRecommendations,
+  clearAllSeriesRecommendations,
+  type SeriesUser,
+  type SeriesCandidate,
+  type SeriesPipelineConfig,
 } from './recommender/index.js'
 
 // STRM Writer
@@ -69,6 +100,12 @@ export {
   refreshUserLibrary,
   updateUserLibraryPermissions,
   processStrmForAllUsers,
+  // Series STRM
+  writeSeriesStrmFilesForUser,
+  ensureUserSeriesLibrary,
+  refreshUserSeriesLibrary,
+  updateUserSeriesLibraryPermissions,
+  processSeriesStrmForAllUsers,
 } from './strm/index.js'
 
 // Channels
@@ -119,6 +156,7 @@ export {
   getLibraryConfigs,
   getEnabledLibraryConfigs,
   getEnabledLibraryIds,
+  getEnabledTvLibraryIds,
   upsertLibraryConfig,
   setLibraryEnabled,
   syncLibraryConfigsFromProvider,
@@ -146,6 +184,13 @@ export {
   getTasteSynopsis,
   type TasteSynopsis,
 } from './lib/tasteSynopsis.js'
+
+// Series Taste Synopsis
+export {
+  generateSeriesTasteSynopsis,
+  getSeriesTasteSynopsis,
+  type SeriesTasteSynopsis,
+} from './lib/tasteSeriesSynopsis.js'
 
 // User Settings
 export {

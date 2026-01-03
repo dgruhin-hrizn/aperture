@@ -46,23 +46,51 @@ export async function getEnabledLibraryConfigs(): Promise<LibraryConfig[]> {
 }
 
 /**
- * Get enabled library IDs for use in sync operations
+ * Get enabled library IDs for use in sync operations (movies only)
  * Returns null if no libraries are configured (meaning "use all")
  */
 export async function getEnabledLibraryIds(): Promise<string[] | null> {
   const result = await query<{ provider_library_id: string }>(
-    'SELECT provider_library_id FROM library_config WHERE is_enabled = true'
+    "SELECT provider_library_id FROM library_config WHERE is_enabled = true AND collection_type = 'movies'"
   )
 
   // If no libraries are configured, return null (use all libraries)
   if (result.rows.length === 0) {
-    // Check if there are ANY library configs
+    // Check if there are ANY movie library configs
     const totalCount = await queryOne<{ count: string }>(
-      'SELECT COUNT(*) FROM library_config'
+      "SELECT COUNT(*) FROM library_config WHERE collection_type = 'movies'"
     )
     
     if (!totalCount || parseInt(totalCount.count, 10) === 0) {
-      // No libraries configured at all - use all libraries
+      // No movie libraries configured at all - use all libraries
+      return null
+    }
+    
+    // Libraries exist but none are enabled - return empty array (sync nothing)
+    return []
+  }
+
+  return result.rows.map((r) => r.provider_library_id)
+}
+
+/**
+ * Get enabled TV library IDs for use in sync operations
+ * Returns null if no TV libraries are configured (meaning "use all")
+ */
+export async function getEnabledTvLibraryIds(): Promise<string[] | null> {
+  const result = await query<{ provider_library_id: string }>(
+    "SELECT provider_library_id FROM library_config WHERE is_enabled = true AND collection_type = 'tvshows'"
+  )
+
+  // If no libraries are configured, return null (use all TV libraries)
+  if (result.rows.length === 0) {
+    // Check if there are ANY TV library configs
+    const totalCount = await queryOne<{ count: string }>(
+      "SELECT COUNT(*) FROM library_config WHERE collection_type = 'tvshows'"
+    )
+    
+    if (!totalCount || parseInt(totalCount.count, 10) === 0) {
+      // No TV libraries configured at all - use all TV libraries
       return null
     }
     

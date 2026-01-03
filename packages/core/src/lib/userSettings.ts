@@ -12,6 +12,7 @@ const logger = createChildLogger('user-settings')
 export interface UserSettings {
   userId: string
   libraryName: string | null
+  seriesLibraryName: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -24,10 +25,11 @@ export async function getUserSettings(userId: string): Promise<UserSettings> {
   let settings = await queryOne<{
     user_id: string
     library_name: string | null
+    series_library_name: string | null
     created_at: Date
     updated_at: Date
   }>(
-    `SELECT user_id, library_name, created_at, updated_at
+    `SELECT user_id, library_name, series_library_name, created_at, updated_at
      FROM user_settings WHERE user_id = $1`,
     [userId]
   )
@@ -41,10 +43,11 @@ export async function getUserSettings(userId: string): Promise<UserSettings> {
     settings = await queryOne<{
       user_id: string
       library_name: string | null
+      series_library_name: string | null
       created_at: Date
       updated_at: Date
     }>(
-      `SELECT user_id, library_name, created_at, updated_at
+      `SELECT user_id, library_name, series_library_name, created_at, updated_at
        FROM user_settings WHERE user_id = $1`,
       [userId]
     )
@@ -55,6 +58,7 @@ export async function getUserSettings(userId: string): Promise<UserSettings> {
     return {
       userId,
       libraryName: null,
+      seriesLibraryName: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     }
@@ -63,6 +67,7 @@ export async function getUserSettings(userId: string): Promise<UserSettings> {
   return {
     userId: settings.user_id,
     libraryName: settings.library_name,
+    seriesLibraryName: settings.series_library_name,
     createdAt: settings.created_at,
     updatedAt: settings.updated_at,
   }
@@ -73,7 +78,7 @@ export async function getUserSettings(userId: string): Promise<UserSettings> {
  */
 export async function updateUserSettings(
   userId: string,
-  updates: { libraryName?: string | null }
+  updates: { libraryName?: string | null; seriesLibraryName?: string | null }
 ): Promise<UserSettings> {
   // Ensure settings row exists
   await query(
@@ -88,6 +93,14 @@ export async function updateUserSettings(
       [updates.libraryName || null, userId]
     )
     logger.info({ userId, libraryName: updates.libraryName }, 'Updated user library name')
+  }
+
+  if (updates.seriesLibraryName !== undefined) {
+    await query(
+      `UPDATE user_settings SET series_library_name = $1, updated_at = NOW() WHERE user_id = $2`,
+      [updates.seriesLibraryName || null, userId]
+    )
+    logger.info({ userId, seriesLibraryName: updates.seriesLibraryName }, 'Updated user series library name')
   }
 
   return getUserSettings(userId)

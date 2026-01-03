@@ -11,6 +11,7 @@ import {
   DatabaseSection,
   MediaServerSection,
   StrmSection,
+  CostEstimatorSection,
 } from './components'
 
 interface TabPanelProps {
@@ -95,6 +96,12 @@ export function SettingsPage() {
               <EmbeddingsSection
                 embeddingConfig={settings.embeddingConfig}
                 loadingEmbeddingModel={settings.loadingEmbeddingModel}
+              />
+
+              <CostEstimatorSection
+                movieCount={settings.embeddingConfig?.movieCount ?? settings.purgeStats?.movies ?? 0}
+                enabledUserCount={1}
+                embeddingModel={settings.embeddingConfig?.currentModel ?? 'text-embedding-3-large'}
               />
             </Box>
           </TabPanel>

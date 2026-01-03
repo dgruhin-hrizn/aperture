@@ -126,6 +126,83 @@ export interface WatchedItem {
   userRating?: number
 }
 
+export interface WatchedEpisode {
+  episodeId: string
+  seriesId: string
+  playCount: number
+  isFavorite: boolean
+  lastPlayedDate?: string
+  userRating?: number
+}
+
+export interface Series {
+  id: string
+  name: string
+  originalTitle?: string
+  sortName?: string
+  year?: number // First air year
+  endYear?: number // Last air year (null if ongoing)
+  premiereDate?: string
+  genres: string[]
+  overview?: string
+  tagline?: string
+  communityRating?: number
+  criticRating?: number
+  contentRating?: string // TV-MA, TV-14, etc.
+  status?: string // 'Continuing', 'Ended'
+  totalSeasons?: number
+  totalEpisodes?: number
+  airDays?: string[]
+  network?: string
+  posterImageTag?: string
+  backdropImageTag?: string
+  userData?: UserData
+  /** The parent library ID this series belongs to */
+  parentId?: string
+  /** Production studios */
+  studios?: string[]
+  /** Series creators/showrunners */
+  directors?: string[]
+  /** Writers */
+  writers?: string[]
+  /** Cast with name, role, and thumbnail */
+  actors?: Array<{ name: string; role?: string; thumb?: string }>
+  /** External IDs */
+  imdbId?: string
+  tmdbId?: string
+  tvdbId?: string
+  /** User-defined tags */
+  tags?: string[]
+  /** Production countries */
+  productionCountries?: string[]
+  /** Awards text */
+  awards?: string
+}
+
+export interface Episode {
+  id: string
+  seriesId: string
+  seriesName: string
+  seasonNumber: number
+  episodeNumber: number
+  name: string
+  overview?: string
+  premiereDate?: string
+  year?: number
+  runtimeTicks?: number
+  communityRating?: number
+  posterImageTag?: string
+  userData?: UserData
+  path?: string
+  mediaSources?: MediaSource[]
+  /** Episode director(s) */
+  directors?: string[]
+  /** Episode writer(s) */
+  writers?: string[]
+  /** Guest stars */
+  guestStars?: Array<{ name: string; role?: string; thumb?: string }>
+}
+
 export interface PlaylistCreateResult {
   playlistId: string
 }

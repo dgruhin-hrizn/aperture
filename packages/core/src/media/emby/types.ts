@@ -127,3 +127,91 @@ export interface EmbySystemInfo {
   WanAddress?: string
 }
 
+export interface EmbySeries {
+  Id: string
+  Name: string
+  OriginalTitle?: string
+  SortName?: string
+  ProductionYear?: number
+  EndDate?: string
+  PremiereDate?: string
+  Genres?: string[]
+  Overview?: string
+  Tagline?: string
+  CommunityRating?: number
+  CriticRating?: number
+  OfficialRating?: string
+  Status?: string // 'Continuing', 'Ended'
+  AirDays?: string[]
+  Studios?: Array<{ Name: string }>
+  People?: Array<{
+    Name: string
+    Role?: string
+    Type: string
+    PrimaryImageTag?: string
+  }>
+  ProviderIds?: {
+    Imdb?: string
+    Tmdb?: string
+    Tvdb?: string
+    [key: string]: string | undefined
+  }
+  Tags?: string[]
+  ProductionLocations?: string[]
+  Awards?: string
+  ParentId?: string
+  ImageTags?: {
+    Primary?: string
+    Backdrop?: string
+  }
+  BackdropImageTags?: string[]
+  UserData?: {
+    PlayCount: number
+    IsFavorite: boolean
+    LastPlayedDate?: string
+    Played: boolean
+  }
+  ChildCount?: number // Number of seasons
+  RecursiveItemCount?: number // Total episodes
+}
+
+export interface EmbyEpisode {
+  Id: string
+  Name: string
+  SeriesId: string
+  SeriesName: string
+  SeasonId?: string
+  SeasonName?: string
+  ParentIndexNumber: number // Season number
+  IndexNumber: number // Episode number
+  Overview?: string
+  PremiereDate?: string
+  ProductionYear?: number
+  CommunityRating?: number
+  RunTimeTicks?: number
+  Path?: string
+  MediaSources?: Array<{
+    Id: string
+    Path: string
+    Container: string
+    Size?: number
+    Bitrate?: number
+  }>
+  People?: Array<{
+    Name: string
+    Role?: string
+    Type: string
+    PrimaryImageTag?: string
+  }>
+  ImageTags?: {
+    Primary?: string
+  }
+  UserData?: {
+    PlayCount: number
+    IsFavorite: boolean
+    LastPlayedDate?: string
+    PlaybackPositionTicks?: number
+    Played: boolean
+  }
+}
+

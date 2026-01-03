@@ -7,6 +7,13 @@ import {
   generateRecommendationsForAllUsers,
   clearAndRebuildAllRecommendations,
   processStrmForAllUsers,
+  // Series imports
+  syncSeries,
+  generateMissingSeriesEmbeddings,
+  syncSeriesWatchHistoryForAllUsers,
+  generateSeriesRecommendationsForAllUsers,
+  processSeriesStrmForAllUsers,
+  // Common
   createChildLogger,
   getJobProgress,
   getAllJobProgress,
@@ -40,6 +47,7 @@ interface JobInfo {
 const activeJobs: Map<string, string> = new Map()
 
 const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
+  // === Movie Jobs ===
   {
     name: 'sync-movies',
     description: 'Sync movies from media server',
@@ -52,22 +60,48 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
   },
   {
     name: 'sync-watch-history',
-    description: 'Sync watch history for all users',
+    description: 'Sync movie watch history for all users',
     cron: process.env.SYNC_CRON || '0 3 * * *',
   },
   {
     name: 'generate-recommendations',
-    description: 'Generate AI recommendations for users',
+    description: 'Generate AI movie recommendations for users',
     cron: process.env.RECS_CRON || '0 4 * * *',
   },
   {
     name: 'rebuild-recommendations',
-    description: 'Clear all recommendations and rebuild from scratch',
+    description: 'Clear all movie recommendations and rebuild',
     cron: null,
   },
   {
     name: 'sync-strm',
-    description: 'Create STRM files and user libraries',
+    description: 'Create movie STRM files and user libraries',
+    cron: process.env.PERMS_CRON || '0 5 * * *',
+  },
+  // === Series Jobs ===
+  {
+    name: 'sync-series',
+    description: 'Sync TV series and episodes from media server',
+    cron: process.env.SYNC_CRON || '0 3 * * *',
+  },
+  {
+    name: 'generate-series-embeddings',
+    description: 'Generate AI embeddings for TV series and episodes',
+    cron: null,
+  },
+  {
+    name: 'sync-series-watch-history',
+    description: 'Sync TV series watch history for all users',
+    cron: process.env.SYNC_CRON || '0 3 * * *',
+  },
+  {
+    name: 'generate-series-recommendations',
+    description: 'Generate AI TV series recommendations for users',
+    cron: process.env.RECS_CRON || '0 4 * * *',
+  },
+  {
+    name: 'sync-series-strm',
+    description: 'Create TV series STRM files and user libraries',
     cron: process.env.PERMS_CRON || '0 5 * * *',
   },
 ]
@@ -548,6 +582,61 @@ async function runJob(name: string, jobId: string): Promise<void> {
           success: result.success,
           failed: result.failed,
         }, `✅ STRM processing complete`)
+        break
+      }
+      // === Series Jobs ===
+      case 'sync-series': {
+        const result = await syncSeries(jobId)
+        logger.info({
+          job: name,
+          jobId,
+          seriesAdded: result.seriesAdded,
+          seriesUpdated: result.seriesUpdated,
+          episodesAdded: result.episodesAdded,
+          episodesUpdated: result.episodesUpdated,
+        }, `✅ Series sync complete`)
+        break
+      }
+      case 'generate-series-embeddings': {
+        const result = await generateMissingSeriesEmbeddings(jobId)
+        logger.info({
+          job: name,
+          jobId,
+          seriesGenerated: result.seriesGenerated,
+          episodesGenerated: result.episodesGenerated,
+          failed: result.failed,
+        }, `✅ Series embeddings complete`)
+        break
+      }
+      case 'sync-series-watch-history': {
+        const result = await syncSeriesWatchHistoryForAllUsers(jobId)
+        logger.info({
+          job: name,
+          jobId,
+          success: result.success,
+          failed: result.failed,
+          totalItems: result.totalItems,
+        }, `✅ Series watch history sync complete`)
+        break
+      }
+      case 'generate-series-recommendations': {
+        const result = await generateSeriesRecommendationsForAllUsers(jobId)
+        logger.info({
+          job: name,
+          jobId,
+          success: result.success,
+          failed: result.failed,
+        }, `✅ Series recommendations complete`)
+        break
+      }
+      case 'sync-series-strm': {
+        const result = await processSeriesStrmForAllUsers(jobId)
+        logger.info({
+          job: name,
+          jobId,
+          success: result.success,
+          failed: result.failed,
+        }, `✅ Series STRM processing complete`)
         break
       }
       default:

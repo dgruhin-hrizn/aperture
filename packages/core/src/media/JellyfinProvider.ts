@@ -7,7 +7,10 @@ import type {
   PaginationOptions,
   PaginatedResult,
   Movie,
+  Series,
+  Episode,
   WatchedItem,
+  WatchedEpisode,
   PlaylistCreateResult,
   LibraryCreateResult,
   PlaylistItem,
@@ -362,6 +365,207 @@ export class JellyfinProvider implements MediaServerProvider {
       return this.mapMovie(item)
     } catch {
       return null
+    }
+  }
+
+  // =========================================================================
+  // Items (TV Series) - TODO: Full implementation
+  // =========================================================================
+
+  async getTvShowLibraries(apiKey: string): Promise<Library[]> {
+    const libraries = await this.getLibraries(apiKey)
+    return libraries.filter((lib) => lib.collectionType === 'tvshows')
+  }
+
+  async getSeries(
+    apiKey: string,
+    options: PaginationOptions = {}
+  ): Promise<PaginatedResult<Series>> {
+    const params = new URLSearchParams({
+      IncludeItemTypes: 'Series',
+      Recursive: 'true',
+      Fields: 'Overview,Genres,ProductionYear,CommunityRating,Studios,People,ProviderIds,Tags,Status',
+      StartIndex: String(options.startIndex || 0),
+      Limit: String(options.limit || 100),
+      SortBy: options.sortBy || 'SortName',
+      SortOrder: options.sortOrder || 'Ascending',
+    })
+
+    if (options.parentIds && options.parentIds.length > 0) {
+      params.set('ParentId', options.parentIds.join(','))
+    }
+
+    const response = await this.fetch<{ Items: any[]; TotalRecordCount: number; StartIndex: number }>(
+      `/Items?${params}`,
+      apiKey
+    )
+
+    return {
+      items: response.Items.map((item) => this.mapSeries(item)),
+      totalRecordCount: response.TotalRecordCount,
+      startIndex: response.StartIndex,
+    }
+  }
+
+  async getSeriesById(apiKey: string, seriesId: string): Promise<Series | null> {
+    try {
+      const item = await this.fetch<any>(
+        `/Items/${seriesId}?Fields=Overview,Genres,CommunityRating,Studios,People,ProviderIds,Tags,Status`,
+        apiKey
+      )
+      return this.mapSeries(item)
+    } catch {
+      return null
+    }
+  }
+
+  async getEpisodes(
+    apiKey: string,
+    options: PaginationOptions & { seriesId?: string } = {}
+  ): Promise<PaginatedResult<Episode>> {
+    const params = new URLSearchParams({
+      IncludeItemTypes: 'Episode',
+      Recursive: 'true',
+      Fields: 'Overview,ProductionYear,CommunityRating,Path,MediaSources,People,SeriesName',
+      StartIndex: String(options.startIndex || 0),
+      Limit: String(options.limit || 100),
+      SortBy: options.sortBy || 'SeriesSortName,SortName',
+      SortOrder: options.sortOrder || 'Ascending',
+    })
+
+    if (options.seriesId) {
+      params.set('SeriesId', options.seriesId)
+    }
+
+    if (options.parentIds && options.parentIds.length > 0) {
+      params.set('ParentId', options.parentIds.join(','))
+    }
+
+    const response = await this.fetch<{ Items: any[]; TotalRecordCount: number; StartIndex: number }>(
+      `/Items?${params}`,
+      apiKey
+    )
+
+    return {
+      items: response.Items.map((item) => this.mapEpisode(item)),
+      totalRecordCount: response.TotalRecordCount,
+      startIndex: response.StartIndex,
+    }
+  }
+
+  async getEpisodeById(apiKey: string, episodeId: string): Promise<Episode | null> {
+    try {
+      const item = await this.fetch<any>(
+        `/Items/${episodeId}?Fields=Overview,CommunityRating,Path,MediaSources,People,SeriesName`,
+        apiKey
+      )
+      return this.mapEpisode(item)
+    } catch {
+      return null
+    }
+  }
+
+  async getSeriesWatchHistory(apiKey: string, userId: string): Promise<WatchedEpisode[]> {
+    const params = new URLSearchParams({
+      IncludeItemTypes: 'Episode',
+      Recursive: 'true',
+      Fields: 'UserData,SeriesId',
+      IsPlayed: 'true',
+    })
+
+    const response = await this.fetch<{ Items: any[] }>(
+      `/Users/${userId}/Items?${params}`,
+      apiKey
+    )
+
+    return response.Items
+      .filter((item) => item.UserData?.Played)
+      .map((item) => ({
+        episodeId: item.Id,
+        seriesId: item.SeriesId,
+        playCount: item.UserData?.PlayCount || 0,
+        isFavorite: item.UserData?.IsFavorite || false,
+        lastPlayedDate: item.UserData?.LastPlayedDate,
+      }))
+  }
+
+  private mapSeries(item: any): Series {
+    const directors = item.People?.filter((p: any) => p.Type === 'Director' || p.Type === 'Creator').map((p: any) => p.Name) || []
+    const writers = item.People?.filter((p: any) => p.Type === 'Writer').map((p: any) => p.Name) || []
+    const actors = item.People?.filter((p: any) => p.Type === 'Actor').slice(0, 20).map((p: any) => ({
+      name: p.Name,
+      role: p.Role,
+      thumb: p.PrimaryImageTag ? `${this.baseUrl}/Items/${item.Id}/Images/Primary?tag=${p.PrimaryImageTag}` : undefined,
+    })) || []
+
+    return {
+      id: item.Id,
+      name: item.Name,
+      originalTitle: item.OriginalTitle,
+      sortName: item.SortName,
+      year: item.ProductionYear,
+      endYear: item.EndDate ? new Date(item.EndDate).getFullYear() : undefined,
+      premiereDate: item.PremiereDate,
+      genres: item.Genres || [],
+      overview: item.Overview,
+      tagline: item.Tagline,
+      communityRating: item.CommunityRating,
+      criticRating: item.CriticRating,
+      contentRating: item.OfficialRating,
+      status: item.Status,
+      totalSeasons: item.ChildCount,
+      totalEpisodes: item.RecursiveItemCount,
+      airDays: item.AirDays,
+      network: item.Studios?.[0]?.Name,
+      posterImageTag: item.ImageTags?.Primary,
+      backdropImageTag: item.BackdropImageTags?.[0] || item.ImageTags?.Backdrop,
+      parentId: item.ParentId,
+      studios: item.Studios?.map((s: any) => s.Name) || [],
+      directors,
+      writers,
+      actors,
+      imdbId: item.ProviderIds?.Imdb,
+      tmdbId: item.ProviderIds?.Tmdb,
+      tvdbId: item.ProviderIds?.Tvdb,
+      tags: item.Tags || [],
+      productionCountries: item.ProductionLocations || [],
+      awards: item.Awards,
+    }
+  }
+
+  private mapEpisode(item: any): Episode {
+    const directors = item.People?.filter((p: any) => p.Type === 'Director').map((p: any) => p.Name) || []
+    const writers = item.People?.filter((p: any) => p.Type === 'Writer').map((p: any) => p.Name) || []
+    const guestStars = item.People?.filter((p: any) => p.Type === 'GuestStar').slice(0, 10).map((p: any) => ({
+      name: p.Name,
+      role: p.Role,
+      thumb: p.PrimaryImageTag ? `${this.baseUrl}/Items/${item.Id}/Images/Primary?tag=${p.PrimaryImageTag}` : undefined,
+    })) || []
+
+    return {
+      id: item.Id,
+      seriesId: item.SeriesId,
+      seriesName: item.SeriesName,
+      seasonNumber: item.ParentIndexNumber,
+      episodeNumber: item.IndexNumber,
+      name: item.Name,
+      overview: item.Overview,
+      premiereDate: item.PremiereDate,
+      year: item.ProductionYear,
+      runtimeTicks: item.RunTimeTicks,
+      communityRating: item.CommunityRating,
+      posterImageTag: item.ImageTags?.Primary,
+      path: item.Path,
+      mediaSources: item.MediaSources?.map((ms: any) => ({
+        id: ms.Id,
+        path: ms.Path,
+        container: ms.Container,
+        size: ms.Size,
+        bitrate: ms.Bitrate,
+      })),
+      directors,
+      writers,
+      guestStars,
     }
   }
 

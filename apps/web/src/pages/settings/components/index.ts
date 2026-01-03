@@ -6,4 +6,5 @@ export { PersonalPreferencesSection } from './PersonalPreferencesSection'
 export { ProfileSection } from './ProfileSection'
 export { MediaServerSection } from './MediaServerSection'
 export { StrmSection } from './StrmSection'
+export { CostEstimatorSection } from './CostEstimatorSection'
 

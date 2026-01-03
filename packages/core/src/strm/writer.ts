@@ -29,7 +29,7 @@ async function writeFileWithRetry(filePath: string, content: string): Promise<vo
 export async function writeStrmFilesForUser(
   userId: string,
   providerUserId: string,
-  displayName: string
+  _displayName: string
 ): Promise<{ written: number; deleted: number; localPath: string; embyPath: string }> {
   const config = getConfig()
   const startTime = Date.now()
@@ -194,8 +194,8 @@ export async function writeStrmFilesForUser(
       if (movie.posterUrl) {
         const posterFilename = buildPosterFilename(movie)
         expectedFiles.add(posterFilename)
-        imageDownloads.push({ 
-          url: movie.posterUrl, 
+        imageDownloads.push({
+          url: movie.posterUrl,
           path: path.join(localPath, posterFilename),
           movieTitle: movie.title,
           isPoster: true,
@@ -206,8 +206,8 @@ export async function writeStrmFilesForUser(
       if (movie.backdropUrl) {
         const backdropFilename = buildBackdropFilename(movie)
         expectedFiles.add(backdropFilename)
-        imageDownloads.push({ 
-          url: movie.backdropUrl, 
+        imageDownloads.push({
+          url: movie.backdropUrl,
           path: path.join(localPath, backdropFilename),
           movieTitle: movie.title,
           isPoster: false,
@@ -219,83 +219,103 @@ export async function writeStrmFilesForUser(
   // Write STRM/NFO files in parallel batches (much faster over network mounts)
   const FILE_BATCH_SIZE = 20 // Write 20 files concurrently (10 movies worth)
   const totalFileBatches = Math.ceil(fileWriteTasks.length / FILE_BATCH_SIZE)
-  
-  logger.info({ 
-    totalFiles: fileWriteTasks.length, 
-    batchSize: FILE_BATCH_SIZE, 
-    totalBatches: totalFileBatches 
-  }, '📝 Writing STRM/NFO files in parallel batches...')
+
+  logger.info(
+    {
+      totalFiles: fileWriteTasks.length,
+      batchSize: FILE_BATCH_SIZE,
+      totalBatches: totalFileBatches,
+    },
+    '📝 Writing STRM/NFO files in parallel batches...'
+  )
 
   let filesWritten = 0
   for (let i = 0; i < fileWriteTasks.length; i += FILE_BATCH_SIZE) {
     const batchNum = Math.floor(i / FILE_BATCH_SIZE) + 1
     const batch = fileWriteTasks.slice(i, i + FILE_BATCH_SIZE)
-    
+
     // Get unique movies in this batch for logging
-    const movieTitles = [...new Set(batch.map(t => t.movie.title))].slice(0, 3)
-    const moreCount = [...new Set(batch.map(t => t.movie.title))].length - 3
-    const movieList = moreCount > 0 
-      ? `${movieTitles.join(', ')} +${moreCount} more`
-      : movieTitles.join(', ')
-    
-    logger.info({ 
-      batch: batchNum, 
-      of: totalFileBatches, 
-      files: batch.length,
-      movies: movieList,
-    }, `📝 Writing batch ${batchNum}/${totalFileBatches}...`)
-    
+    const movieTitles = [...new Set(batch.map((t) => t.movie.title))].slice(0, 3)
+    const moreCount = [...new Set(batch.map((t) => t.movie.title))].length - 3
+    const movieList =
+      moreCount > 0 ? `${movieTitles.join(', ')} +${moreCount} more` : movieTitles.join(', ')
+
+    logger.info(
+      {
+        batch: batchNum,
+        of: totalFileBatches,
+        files: batch.length,
+        movies: movieList,
+      },
+      `📝 Writing batch ${batchNum}/${totalFileBatches}...`
+    )
+
     const batchStart = Date.now()
-    await Promise.all(batch.map(task => writeFileWithRetry(task.path, task.content)))
+    await Promise.all(batch.map((task) => writeFileWithRetry(task.path, task.content)))
     const batchDuration = Date.now() - batchStart
-    
+
     filesWritten += batch.length
-    logger.info({ 
-      batch: batchNum, 
-      durationMs: batchDuration,
-      avgMs: Math.round(batchDuration / batch.length),
-    }, `✅ Batch ${batchNum} complete (${batchDuration}ms)`)
+    logger.info(
+      {
+        batch: batchNum,
+        durationMs: batchDuration,
+        avgMs: Math.round(batchDuration / batch.length),
+      },
+      `✅ Batch ${batchNum} complete (${batchDuration}ms)`
+    )
   }
 
   const fileWriteDuration = Date.now() - startTime
-  logger.info({ 
-    filesWritten, 
-    movies: totalMovies,
-    durationMs: fileWriteDuration,
-    avgPerFileMs: Math.round(fileWriteDuration / filesWritten),
-  }, '📝 All STRM/NFO files written')
+  logger.info(
+    {
+      filesWritten,
+      movies: totalMovies,
+      durationMs: fileWriteDuration,
+      avgPerFileMs: Math.round(fileWriteDuration / filesWritten),
+    },
+    '📝 All STRM/NFO files written'
+  )
 
   // Download images in parallel batches
   if (imageDownloads.length > 0) {
     const IMAGE_BATCH_SIZE = 10
     const totalImageBatches = Math.ceil(imageDownloads.length / IMAGE_BATCH_SIZE)
-    
-    logger.info({ 
-      total: imageDownloads.length, 
-      batchSize: IMAGE_BATCH_SIZE, 
-      totalBatches: totalImageBatches 
-    }, '📥 Starting image downloads...')
-    
+
+    logger.info(
+      {
+        total: imageDownloads.length,
+        batchSize: IMAGE_BATCH_SIZE,
+        totalBatches: totalImageBatches,
+      },
+      '📥 Starting image downloads...'
+    )
+
     const imageStartTime = Date.now()
     for (let i = 0; i < imageDownloads.length; i += IMAGE_BATCH_SIZE) {
       const batchNum = Math.floor(i / IMAGE_BATCH_SIZE) + 1
       const batch = imageDownloads.slice(i, i + IMAGE_BATCH_SIZE)
-      
-      logger.info({ 
-        batch: batchNum, 
-        of: totalImageBatches, 
-        count: batch.length 
-      }, `📥 Downloading image batch ${batchNum}/${totalImageBatches}...`)
-      
-      await Promise.all(batch.map(task => downloadImage(task)))
+
+      logger.info(
+        {
+          batch: batchNum,
+          of: totalImageBatches,
+          count: batch.length,
+        },
+        `📥 Downloading image batch ${batchNum}/${totalImageBatches}...`
+      )
+
+      await Promise.all(batch.map((task) => downloadImage(task)))
       logger.info({ batch: batchNum }, `✅ Image batch ${batchNum} complete`)
     }
-    
+
     const imageDuration = Date.now() - imageStartTime
-    logger.info({ 
-      downloaded: imageDownloads.length,
-      durationMs: imageDuration,
-    }, '✅ All images downloaded')
+    logger.info(
+      {
+        downloaded: imageDownloads.length,
+        durationMs: imageDuration,
+      },
+      '✅ All images downloaded'
+    )
   } else {
     logger.info('📷 Image downloads disabled or no URLs available')
   }
@@ -304,17 +324,18 @@ export async function writeStrmFilesForUser(
   let deleted = 0
   try {
     const existingFiles = await fs.readdir(localPath)
-    const filesToDelete = existingFiles.filter(file => {
-      const isRelevantFile = file.endsWith('.strm') || 
-                             file.endsWith('.nfo') || 
-                             file.endsWith('-poster.jpg') || 
-                             file.endsWith('-fanart.jpg')
+    const filesToDelete = existingFiles.filter((file) => {
+      const isRelevantFile =
+        file.endsWith('.strm') ||
+        file.endsWith('.nfo') ||
+        file.endsWith('-poster.jpg') ||
+        file.endsWith('-fanart.jpg')
       return isRelevantFile && !expectedFiles.has(file)
     })
-    
+
     if (filesToDelete.length > 0) {
       logger.info({ count: filesToDelete.length }, '🗑️ Cleaning up old files...')
-      await Promise.all(filesToDelete.map(file => fs.unlink(path.join(localPath, file))))
+      await Promise.all(filesToDelete.map((file) => fs.unlink(path.join(localPath, file))))
       deleted = filesToDelete.length
     }
   } catch {
@@ -322,14 +343,17 @@ export async function writeStrmFilesForUser(
   }
 
   const totalDuration = Date.now() - startTime
-  logger.info({ 
-    userId, 
-    written: totalMovies, 
-    deleted, 
-    totalDurationMs: totalDuration,
-    localPath, 
-    embyPath 
-  }, '✅ STRM generation complete')
+  logger.info(
+    {
+      userId,
+      written: totalMovies,
+      deleted,
+      totalDurationMs: totalDuration,
+      localPath,
+      embyPath,
+    },
+    '✅ STRM generation complete'
+  )
 
   return {
     written: totalMovies,
@@ -338,4 +362,3 @@ export async function writeStrmFilesForUser(
     embyPath,
   }
 }
-
