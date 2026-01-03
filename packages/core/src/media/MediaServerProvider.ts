@@ -77,13 +77,21 @@ export interface MediaServerProvider {
   ): Promise<LibraryCreateResult>
 
   /**
+   * Get user's current library access settings
+   */
+  getUserLibraryAccess(
+    apiKey: string,
+    userId: string
+  ): Promise<{ enableAllFolders: boolean; enabledFolders: string[] }>
+
+  /**
    * Update user's library access permissions
-   * Controls which libraries a user can see
+   * Controls which libraries a user can see (uses GUIDs)
    */
   updateUserLibraryAccess(
     apiKey: string,
     userId: string,
-    allowedLibraryIds: string[]
+    allowedLibraryGuids: string[]
   ): Promise<void>
 
   /**

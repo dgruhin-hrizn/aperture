@@ -130,3 +130,11 @@ export {
   type TasteSynopsis,
 } from './lib/tasteSynopsis.js'
 
+// User Settings
+export {
+  getUserSettings,
+  updateUserSettings,
+  getDefaultLibraryNamePrefix,
+  type UserSettings,
+} from './lib/userSettings.js'
+

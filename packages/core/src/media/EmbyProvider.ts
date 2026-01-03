@@ -33,6 +33,8 @@ interface EmbyUser {
   Policy: {
     IsAdministrator: boolean
     IsDisabled: boolean
+    EnableAllFolders?: boolean
+    EnabledFolders?: string[]
   }
   LastActivityDate?: string
   PrimaryImageTag?: string
@@ -41,6 +43,7 @@ interface EmbyUser {
 interface EmbyLibrary {
   Id?: string
   ItemId?: string
+  Guid?: string
   Name: string
   CollectionType: string
   Path?: string
@@ -281,6 +284,7 @@ export class EmbyProvider implements MediaServerProvider {
 
     return libraries.map((lib: EmbyLibrary) => ({
       id: lib.ItemId || lib.Id || '',
+      guid: lib.Guid || lib.ItemId || lib.Id || '', // GUID is used for user permissions
       name: lib.Name,
       collectionType: lib.CollectionType,
       path: lib.Path,
@@ -319,21 +323,32 @@ export class EmbyProvider implements MediaServerProvider {
     return { libraryId: created.id }
   }
 
+  async getUserLibraryAccess(
+    apiKey: string,
+    userId: string
+  ): Promise<{ enableAllFolders: boolean; enabledFolders: string[] }> {
+    const user = await this.fetch<EmbyUser>(`/Users/${userId}`, apiKey)
+    return {
+      enableAllFolders: user.Policy?.EnableAllFolders ?? true,
+      enabledFolders: user.Policy?.EnabledFolders ?? [],
+    }
+  }
+
   async updateUserLibraryAccess(
     apiKey: string,
     userId: string,
-    allowedLibraryIds: string[]
+    allowedLibraryGuids: string[]
   ): Promise<void> {
     // Get current user policy
     const user = await this.fetch<EmbyUser>(`/Users/${userId}`, apiKey)
 
-    // Update the policy with new library access
+    // Update the policy with new library access (using GUIDs)
     await this.fetch(`/Users/${userId}/Policy`, apiKey, {
       method: 'POST',
       body: JSON.stringify({
         ...user.Policy,
         EnableAllFolders: false,
-        EnabledFolders: allowedLibraryIds,
+        EnabledFolders: allowedLibraryGuids,
       }),
     })
   }

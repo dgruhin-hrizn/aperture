@@ -3,6 +3,12 @@ import { query, queryOne, transaction } from '../lib/db.js'
 import { getRecommendationConfig } from '../lib/recommendationConfig.js'
 import { averageEmbeddings, getMovieEmbedding } from './embeddings.js'
 import {
+  generateExplanations,
+  storeExplanations,
+  MovieForExplanation,
+  WatchedMovieForExplanation,
+} from './explanations.js'
+import {
   createJobProgress,
   updateJobProgress,
   setJobStep,
@@ -267,6 +273,45 @@ export async function generateRecommendationsForUser(
     logger.info({ runId }, '💾 Storing candidates and evidence...')
     await storeCandidates(runId, scoredCandidates, selected)
     await storeEvidence(runId, selected, watched)
+
+    // 7. Generate AI explanations for selected recommendations
+    logger.info({ runId }, '🤖 Generating AI explanations...')
+    try {
+      // Fetch overviews for selected movies
+      const movieOverviews = await getMovieOverviews(selected.map((s) => s.movieId))
+
+      // Prepare data for explanation generation
+      const moviesForExplanation: MovieForExplanation[] = selected.map((s) => ({
+        movieId: s.movieId,
+        title: s.title,
+        year: s.year,
+        genres: s.genres,
+        overview: movieOverviews.get(s.movieId) || null,
+        similarity: s.similarity,
+        novelty: s.novelty,
+        ratingScore: s.ratingScore,
+      }))
+
+      // Get watched movies with their details for context
+      const watchedDetails = await getWatchedMovieDetails(user.id)
+
+      // Get top genres for context
+      const topGenres = await getTopGenres(user.id)
+
+      const explanations = await generateExplanations(
+        moviesForExplanation,
+        watchedDetails,
+        topGenres
+      )
+      await storeExplanations(runId, explanations)
+      logger.info({ runId, count: explanations.length }, '✅ AI explanations stored')
+    } catch (explanationError) {
+      // Don't fail the whole run if explanations fail
+      logger.warn(
+        { runId, error: explanationError },
+        '⚠️ Failed to generate explanations, continuing without'
+      )
+    }
 
     const duration = Date.now() - startTime
     await finalizeRun(runId, scoredCandidates.length, selected.length, duration, 'completed')
@@ -941,4 +986,69 @@ export async function regenerateUserRecommendations(userId: string): Promise<{
     runId: result.runId,
     count: result.recommendations.length,
   }
+}
+
+/**
+ * Get movie overviews for a list of movie IDs
+ */
+async function getMovieOverviews(movieIds: string[]): Promise<Map<string, string>> {
+  if (movieIds.length === 0) return new Map()
+
+  const result = await query<{ id: string; overview: string | null }>(
+    `SELECT id, overview FROM movies WHERE id = ANY($1)`,
+    [movieIds]
+  )
+
+  const map = new Map<string, string>()
+  for (const row of result.rows) {
+    if (row.overview) {
+      map.set(row.id, row.overview)
+    }
+  }
+  return map
+}
+
+/**
+ * Get watched movies with details for explanation context
+ */
+async function getWatchedMovieDetails(userId: string): Promise<WatchedMovieForExplanation[]> {
+  const result = await query<{
+    title: string
+    year: number | null
+    genres: string[]
+    is_favorite: boolean
+  }>(
+    `SELECT m.title, m.year, m.genres, wh.is_favorite
+     FROM watch_history wh
+     JOIN movies m ON m.id = wh.movie_id
+     WHERE wh.user_id = $1
+     ORDER BY wh.last_played_at DESC NULLS LAST
+     LIMIT 30`,
+    [userId]
+  )
+
+  return result.rows.map((r) => ({
+    title: r.title,
+    year: r.year,
+    genres: r.genres || [],
+    isFavorite: r.is_favorite,
+  }))
+}
+
+/**
+ * Get user's top genres
+ */
+async function getTopGenres(userId: string): Promise<string[]> {
+  const result = await query<{ genre: string }>(
+    `SELECT unnest(m.genres) as genre, COUNT(*) as count
+     FROM watch_history wh
+     JOIN movies m ON m.id = wh.movie_id
+     WHERE wh.user_id = $1
+     GROUP BY unnest(m.genres)
+     ORDER BY count DESC
+     LIMIT 5`,
+    [userId]
+  )
+
+  return result.rows.map((r) => r.genre)
 }

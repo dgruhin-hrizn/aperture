@@ -24,6 +24,7 @@ export interface MediaServerUser {
 
 export interface Library {
   id: string
+  guid: string // Used for user permissions in Emby/Jellyfin
   name: string
   collectionType: string
   path?: string

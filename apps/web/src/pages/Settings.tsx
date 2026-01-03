@@ -29,6 +29,7 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import SaveIcon from '@mui/icons-material/Save'
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
 import WarningIcon from '@mui/icons-material/Warning'
+import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
 import { useAuth } from '@/hooks/useAuth'
 
 interface LibraryConfig {
@@ -60,6 +61,13 @@ interface PurgeStats {
   userPreferences: number
 }
 
+interface UserSettings {
+  userId: string
+  libraryName: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 const MAX_UNLIMITED = 999999999
 
 export function SettingsPage() {
@@ -86,9 +94,19 @@ export function SettingsPage() {
   const [purgeSuccess, setPurgeSuccess] = useState<string | null>(null)
   const [showPurgeConfirm, setShowPurgeConfirm] = useState(false)
 
+  // User settings state
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null)
+  const [defaultLibraryPrefix, setDefaultLibraryPrefix] = useState<string>('AI Picks - ')
+  const [loadingUserSettings, setLoadingUserSettings] = useState(false)
+  const [savingUserSettings, setSavingUserSettings] = useState(false)
+  const [userSettingsError, setUserSettingsError] = useState<string | null>(null)
+  const [userSettingsSuccess, setUserSettingsSuccess] = useState<string | null>(null)
+  const [libraryNameInput, setLibraryNameInput] = useState<string>('')
+
   // Fetch configs on mount
   useEffect(() => {
     fetchLibraries()
+    fetchUserSettings()
     if (user?.isAdmin) {
       fetchRecConfig()
       fetchPurgeStats()
@@ -107,6 +125,56 @@ export function SettingsPage() {
       // Silently fail - stats are optional
     } finally {
       setLoadingPurgeStats(false)
+    }
+  }
+
+  const fetchUserSettings = async () => {
+    setLoadingUserSettings(true)
+    setUserSettingsError(null)
+    try {
+      const response = await fetch('/api/settings/user', { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        setUserSettings(data.settings)
+        setDefaultLibraryPrefix(data.defaults?.libraryNamePrefix || 'AI Picks - ')
+        setLibraryNameInput(data.settings.libraryName || '')
+      } else {
+        const err = await response.json()
+        setUserSettingsError(err.error || 'Failed to load user settings')
+      }
+    } catch {
+      setUserSettingsError('Could not connect to server')
+    } finally {
+      setLoadingUserSettings(false)
+    }
+  }
+
+  const saveUserSettings = async () => {
+    setSavingUserSettings(true)
+    setUserSettingsError(null)
+    setUserSettingsSuccess(null)
+    try {
+      const response = await fetch('/api/settings/user', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          libraryName: libraryNameInput.trim() || null,
+        }),
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setUserSettings(data.settings)
+        setUserSettingsSuccess('Library name saved! It will be used for future library updates.')
+        setTimeout(() => setUserSettingsSuccess(null), 5000)
+      } else {
+        const err = await response.json()
+        setUserSettingsError(err.error || 'Failed to save settings')
+      }
+    } catch {
+      setUserSettingsError('Could not connect to server')
+    } finally {
+      setSavingUserSettings(false)
     }
   }
 
@@ -890,6 +958,92 @@ export function SettingsPage() {
             </Card>
           </Grid>
         )}
+
+        {/* Personal Preferences - Library Name */}
+        <Grid item xs={12} lg={6}>
+          <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
+            <CardContent>
+              <Box display="flex" alignItems="center" gap={1} mb={2}>
+                <VideoLibraryIcon color="primary" />
+                <Typography variant="h6">
+                  Personal Preferences
+                </Typography>
+              </Box>
+
+              <Typography variant="body2" color="text.secondary" mb={3}>
+                Customize your AI recommendations library name as it appears in your media server.
+              </Typography>
+
+              {userSettingsError && (
+                <Alert severity="error" sx={{ mb: 2 }} onClose={() => setUserSettingsError(null)}>
+                  {userSettingsError}
+                </Alert>
+              )}
+
+              {userSettingsSuccess && (
+                <Alert severity="success" sx={{ mb: 2 }} onClose={() => setUserSettingsSuccess(null)}>
+                  {userSettingsSuccess}
+                </Alert>
+              )}
+
+              {loadingUserSettings ? (
+                <Box display="flex" justifyContent="center" py={4}>
+                  <CircularProgress />
+                </Box>
+              ) : (
+                <>
+                  <FormControl fullWidth sx={{ mb: 2 }}>
+                    <Typography variant="body2" fontWeight={500} gutterBottom>
+                      Library Name
+                    </Typography>
+                    <TextField
+                      placeholder={`${defaultLibraryPrefix}${user?.displayName || user?.username || 'User'}`}
+                      value={libraryNameInput}
+                      onChange={(e) => setLibraryNameInput(e.target.value)}
+                      size="small"
+                      fullWidth
+                      inputProps={{ maxLength: 100 }}
+                      helperText={
+                        libraryNameInput
+                          ? `Your library will be named: "${libraryNameInput}"`
+                          : `Leave empty to use default: "${defaultLibraryPrefix}${user?.displayName || user?.username || 'User'}"`
+                      }
+                    />
+                  </FormControl>
+
+                  <Box display="flex" gap={1}>
+                    <Button
+                      variant="contained"
+                      startIcon={savingUserSettings ? <CircularProgress size={16} /> : <SaveIcon />}
+                      onClick={saveUserSettings}
+                      disabled={savingUserSettings}
+                      size="small"
+                    >
+                      {savingUserSettings ? 'Saving...' : 'Save'}
+                    </Button>
+                    {libraryNameInput && (
+                      <Button
+                        variant="outlined"
+                        onClick={() => setLibraryNameInput('')}
+                        disabled={savingUserSettings}
+                        size="small"
+                      >
+                        Reset to Default
+                      </Button>
+                    )}
+                  </Box>
+
+                  <Divider sx={{ my: 3 }} />
+
+                  <Typography variant="caption" color="text.secondary">
+                    💡 Changes will apply the next time the "Update Permissions" job runs or when recommendations are regenerated.
+                    If you already have a library with the old name, you may need to manually delete it from your media server.
+                  </Typography>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
 
         {/* Profile */}
         <Grid item xs={12} lg={6}>

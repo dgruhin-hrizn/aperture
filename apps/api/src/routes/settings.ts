@@ -7,6 +7,9 @@ import {
   getRecommendationConfig,
   updateRecommendationConfig,
   resetRecommendationConfig,
+  getUserSettings,
+  updateUserSettings,
+  getDefaultLibraryNamePrefix,
 } from '@aperture/core'
 import { requireAdmin } from '../plugins/auth.js'
 
@@ -261,6 +264,78 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       }
     }
   )
+
+  // =========================================================================
+  // User Settings (per-user preferences)
+  // =========================================================================
+
+  /**
+   * GET /api/settings/user
+   * Get current user's settings
+   */
+  fastify.get('/api/settings/user', async (request, reply) => {
+    try {
+      const userId = request.user?.id
+      if (!userId) {
+        return reply.status(401).send({ error: 'Not authenticated' })
+      }
+
+      const settings = await getUserSettings(userId)
+      const defaultPrefix = getDefaultLibraryNamePrefix()
+
+      return reply.send({
+        settings,
+        defaults: {
+          libraryNamePrefix: defaultPrefix,
+        },
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get user settings')
+      return reply.status(500).send({ error: 'Failed to get user settings' })
+    }
+  })
+
+  /**
+   * PATCH /api/settings/user
+   * Update current user's settings
+   */
+  fastify.patch<{
+    Body: {
+      libraryName?: string | null
+    }
+  }>('/api/settings/user', async (request, reply) => {
+    try {
+      const userId = request.user?.id
+      if (!userId) {
+        return reply.status(401).send({ error: 'Not authenticated' })
+      }
+
+      const { libraryName } = request.body
+
+      // Validate library name if provided
+      if (libraryName !== undefined && libraryName !== null) {
+        if (typeof libraryName !== 'string' || libraryName.length > 100) {
+          return reply
+            .status(400)
+            .send({ error: 'Library name must be a string under 100 characters' })
+        }
+        // Check for invalid characters (media server path-safe)
+        if (/[<>:"/\\|?*]/.test(libraryName)) {
+          return reply.status(400).send({ error: 'Library name contains invalid characters' })
+        }
+      }
+
+      const settings = await updateUserSettings(userId, { libraryName })
+
+      return reply.send({
+        settings,
+        message: 'Settings updated successfully',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to update user settings')
+      return reply.status(500).send({ error: 'Failed to update user settings' })
+    }
+  })
 }
 
 export default settingsRoutes
