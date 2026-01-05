@@ -98,7 +98,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U app -d aperture"]
+      test: ['CMD-SHELL', 'pg_isready -U app -d aperture']
       interval: 5s
       timeout: 5s
       retries: 5
@@ -113,7 +113,7 @@ services:
       DATABASE_URL: postgres://app:changeme-db-password@db:5432/aperture
       SESSION_SECRET: changeme-generate-random-32-char-string
       APP_BASE_URL: http://localhost:3456
-      RUN_MIGRATIONS_ON_START: "true"
+      RUN_MIGRATIONS_ON_START: 'true'
       # OpenAI - required for AI features
       OPENAI_API_KEY: sk-your-openai-api-key
       # Media Server - can also configure via Admin UI after startup
@@ -124,7 +124,7 @@ services:
       MEDIA_SERVER_STRM_ROOT: /strm
       AI_LIBRARY_PATH_PREFIX: /strm/aperture/
     ports:
-      - "3456:3456"
+      - '3456:3456'
     volumes:
       # Mount a directory for STRM files - must be accessible by your media server
       - ./strm:/strm
@@ -140,6 +140,7 @@ volumes:
 2. **Configure the environment variables**
 
 Edit the `docker-compose.yml` and update:
+
 - `SESSION_SECRET` — Generate a random string (at least 32 characters)
 - `OPENAI_API_KEY` — Your OpenAI API key
 - `APP_BASE_URL` — The URL where you'll access Aperture (e.g., `http://192.168.1.100:3456`)
@@ -227,42 +228,284 @@ This starts:
 - API server at http://localhost:3456
 - Web dev server at http://localhost:3457 (with proxy to API)
 
-## Getting Started
+## Admin Guide
 
-### Initial Setup
+### Initial Setup Walkthrough
 
-1. **Configure Media Server** (Admin > Settings > Media Server)
-   - Enter your Emby/Jellyfin URL and API key
-   - Test the connection
+After starting Aperture for the first time, log in with your **Emby/Jellyfin admin account** and follow these steps:
 
-2. **Select Libraries** (Admin > Settings > Libraries)
-   - Sync libraries from your media server
-   - Enable which movie and TV libraries to include
+#### Step 1: Configure Media Server Connection
 
-3. **Run Initial Sync** (Admin > Jobs)
-   - `sync-movies` — Import your movie library
-   - `sync-series` — Import your TV series library
-   - `generate-embeddings` — Create AI embeddings for movies
-   - `generate-series-embeddings` — Create AI embeddings for series
+Navigate to **Admin → Settings → Media Server**
 
-4. **Enable Users** (Admin > Users)
-   - Enable AI recommendations for users (separate toggles for movies/series)
+1. Select your server type (Emby or Jellyfin)
+2. Enter your media server URL (e.g., `http://192.168.1.100:8096`)
+3. Enter your admin API key
+   - **Emby**: Dashboard → API Keys → New API Key
+   - **Jellyfin**: Dashboard → API Keys → Add
+4. Click **Test Connection** to verify
+5. Save the configuration
 
-5. **Sync Watch History** (Admin > Jobs)
-   - `sync-watch-history` — Import movie viewing history
-   - `sync-series-watch-history` — Import series viewing history
+#### Step 2: Select Libraries to Sync
 
-6. **Generate Recommendations** (Admin > Jobs)
-   - `generate-recommendations` — Create personalized movie picks
-   - `generate-series-recommendations` — Create personalized series picks
-   - `sync-strm` / `sync-series-strm` — Create virtual libraries in media server
+Navigate to **Admin → Settings → Libraries**
 
-### Ongoing Operations
+1. Click **Sync Libraries** to fetch available libraries from your media server
+2. Toggle **ON** for each movie and TV library you want Aperture to analyze
+3. Libraries that are disabled won't be synced or included in recommendations
 
-Jobs can be scheduled to run automatically:
+#### Step 3: Run Initial Data Sync
 
-- **Daily/Weekly/Interval**: Configure schedule type per job
-- **Manual**: Trigger jobs on-demand from the admin panel
+Navigate to **Admin → Jobs**
+
+Run these jobs in order (wait for each to complete):
+
+1. **sync-movies** — Imports all movies from enabled libraries
+2. **sync-series** — Imports all TV series and episodes
+3. **generate-embeddings** — Creates AI embeddings for movies (requires OpenAI API key)
+4. **generate-series-embeddings** — Creates AI embeddings for series
+
+> **Note**: Embedding generation can take time for large libraries. Progress is shown in real-time.
+
+#### Step 4: Enable Users for AI Recommendations
+
+Navigate to **Admin → Users**
+
+1. You'll see all users from your media server
+2. For each user you want to receive recommendations:
+   - Toggle **Movies** to enable movie recommendations
+   - Toggle **Series** to enable TV series recommendations
+3. Users must have watch history for recommendations to work
+
+#### Step 5: Sync Watch History
+
+Navigate to **Admin → Jobs**
+
+1. Run **sync-watch-history** — Imports what movies users have watched
+2. Run **sync-series-watch-history** — Imports what episodes users have watched
+
+#### Step 6: Generate Recommendations
+
+Navigate to **Admin → Jobs**
+
+1. Run **generate-recommendations** — Creates personalized movie picks for all enabled users
+2. Run **generate-series-recommendations** — Creates personalized series picks
+3. Run **sync-strm** — Creates the virtual movie library in your media server
+4. Run **sync-series-strm** — Creates the virtual series library
+
+After this, users will see a new "AI Picks" library in their media server!
+
+### Managing Jobs
+
+#### Job Scheduling
+
+Each job can be scheduled to run automatically:
+
+1. Go to **Admin → Jobs**
+2. Click the **gear icon** on any job
+3. Choose a schedule type:
+   - **Daily** — Run at a specific time each day
+   - **Weekly** — Run on a specific day and time
+   - **Interval** — Run every N hours (1, 2, 3, 4, 6, 8, or 12)
+   - **Manual** — Only run when you trigger it
+
+**Recommended schedule:**
+- Sync jobs: Daily at 3 AM
+- Recommendation jobs: Daily at 4 AM
+- STRM jobs: Daily at 5 AM
+
+#### Monitoring Jobs
+
+- **Real-time progress**: Watch jobs as they run with live progress bars
+- **Job history**: View past runs, duration, and any errors
+- **Cancel**: Stop a running job if needed
+
+### Algorithm Tuning
+
+Navigate to **Admin → Settings → AI Config**
+
+Adjust these weights separately for movies and series:
+
+| Weight | Description | Default |
+|--------|-------------|---------|
+| **Similarity** | How closely recommendations match user taste | 0.5 |
+| **Novelty** | Preference for content outside user's usual genres | 0.3 |
+| **Rating** | Weight given to community ratings | 0.2 |
+| **Diversity** | Variety in the recommendation list | 0.3 |
+
+Other settings:
+- **Recommendations per user** — How many titles to recommend (default: 50)
+- **Recent watch limit** — How many recent watches to analyze for taste (default: 100)
+
+### Top Picks Configuration
+
+Navigate to **Admin → Settings → Top Picks**
+
+Top Picks are global popularity-based libraries visible to all users:
+
+1. **Enable/Disable** — Turn the feature on or off
+2. **Time Window** — How far back to look (e.g., 30 days)
+3. **Count** — How many movies/series to include
+4. **Weights** — Balance between unique viewers, play count, and completion rate
+5. Click **Refresh** to manually update Top Picks
+
+### Model Selection
+
+#### Embedding Model (Admin → Settings → Embedding Model)
+
+| Model | Quality | Cost | Best For |
+|-------|---------|------|----------|
+| text-embedding-3-small | Good | $0.02/1M tokens | Most users |
+| text-embedding-3-large | Best | $0.13/1M tokens | Premium quality |
+
+> **Warning**: Changing models requires regenerating all embeddings.
+
+#### Text Generation Model (Admin → Settings → Text Model)
+
+Used for taste profiles and recommendation explanations:
+
+| Model | Quality | Cost |
+|-------|---------|------|
+| GPT-4o Mini | Recommended | Low |
+| GPT-5 Nano | Budget | Lowest |
+| GPT-5 Mini | Premium | Higher |
+
+### Database Management
+
+Navigate to **Admin → Settings → Database**
+
+- **View Stats** — See counts of movies, series, embeddings, etc.
+- **Purge Movies** — Delete all movie data (requires confirmation)
+
+Use purge if you need to start fresh or switch media servers.
+
+---
+
+## User Guide
+
+### Logging In
+
+1. Open Aperture in your browser
+2. Enter your **Emby or Jellyfin username and password**
+3. Aperture authenticates against your media server — no separate account needed
+
+### Home Page
+
+Your home page shows:
+
+#### Quick Stats
+- **Movies Watched** — Total movies in your watch history
+- **Favorites** — Movies you've marked as favorites
+- **AI Recommendations** — Number of personalized picks available
+
+#### Taste Profiles
+
+Two AI-generated cards describe your viewing preferences:
+
+- **Movie Taste** — A natural language description of your film preferences
+- **TV Taste** — A description of your series preferences
+
+Click the **refresh button** to regenerate your profile with the latest watch data.
+
+#### Your Top Picks
+
+A carousel of AI-recommended movies based on your taste. Each poster shows:
+- **Match Score** — A percentage indicating how well it fits your preferences
+- Click any poster to see detailed insights
+
+#### Recently Watched
+
+Movies you've recently watched, with play counts and favorite indicators.
+
+### Understanding Recommendations
+
+Click on any recommended movie to see **why it was picked for you**:
+
+#### Match Score Breakdown
+
+- **Taste Match** — How similar this is to movies you've enjoyed
+- **Discovery** — How much it expands your horizons
+- **Quality** — Community and critic ratings
+- **Variety** — How it adds diversity to your recommendations
+
+#### Genre Analysis
+
+See which genres in this movie match your preferences and which are new territory.
+
+#### Evidence Trail
+
+View the specific movies from your watch history that influenced this recommendation. "Because you watched X, Y, and Z..."
+
+### Browsing Movies
+
+Navigate to **Movies** in the sidebar to browse your entire library:
+
+- **Search** — Find movies by title
+- **Filter by Genre** — Show only specific genres
+- **Similar Movies** — On any movie detail page, see AI-powered similar titles
+
+### Creating Channels
+
+Channels are custom collections you can create based on your own criteria.
+
+Navigate to **Playlists** in the sidebar:
+
+1. Click **Create Channel**
+2. Configure your channel:
+   - **Name** — Give it a descriptive name
+   - **Genre Filters** — Only include specific genres
+   - **Text Preferences** — Natural language description (e.g., "90s action movies", "heartwarming family films")
+   - **Example Movies** — Seed with movies that define the channel's taste
+3. Click **Generate with AI** to let Aperture populate the channel
+4. Optionally **sync to media server** to create a playlist in Emby/Jellyfin
+
+### Watch History
+
+Navigate to **History** to see everything you've watched:
+
+- Sort by **recent** or **most played**
+- See **play counts** and **last watched** dates
+- **Favorites** are highlighted with a heart icon
+
+### User Settings
+
+Navigate to **Settings** (user icon in sidebar):
+
+- **Custom Library Name** — Change your "AI Picks" library name (default: "AI Picks - YourUsername")
+
+### Virtual Libraries in Your Media Server
+
+Once recommendations are generated and STRM files are synced:
+
+1. Open your **Emby or Jellyfin** app
+2. Look for a new library called **"AI Picks - YourUsername"**
+3. This library contains your personalized recommendations
+4. Play directly from here — it streams from your actual media files
+
+The library updates automatically when new recommendations are generated.
+
+---
+
+## Ongoing Operations
+
+### Recommended Workflow
+
+For best results, schedule jobs to run automatically:
+
+| Time | Jobs |
+|------|------|
+| 3:00 AM | sync-movies, sync-series, sync-watch-history, sync-series-watch-history |
+| 4:00 AM | generate-recommendations, generate-series-recommendations |
+| 5:00 AM | sync-strm, sync-series-strm |
+| 6:00 AM | refresh-top-picks |
+
+This ensures users wake up to fresh recommendations based on yesterday's viewing.
+
+### When to Run Manual Jobs
+
+- **generate-embeddings** — After adding many new movies, or after changing embedding model
+- **full-sync-watch-history** — If watch history seems out of sync
+- **rebuild-recommendations** — After major algorithm changes
 
 ## Architecture
 
@@ -371,6 +614,7 @@ volumes:
 ```
 
 Environment variables:
+
 ```
 MEDIA_SERVER_STRM_ROOT=/strm
 AI_LIBRARY_PATH_PREFIX=/strm/aperture/
@@ -384,6 +628,7 @@ If Aperture runs on a different machine than your media server:
 2. Mount it on both the Aperture machine and media server machine
 
 Example:
+
 - **NAS share**: `/mnt/user/Media/VirtualLibraries`
 - **Aperture mount**: `/mnt/nas/VirtualLibraries` → `/strm` in container
 - **Media server mount**: `/media/VirtualLibraries` in its container
@@ -399,16 +644,19 @@ AI_LIBRARY_PATH_PREFIX=/media/VirtualLibraries/aperture/
 #### Streaming URLs vs Direct Paths
 
 By default, Aperture uses streaming URLs in STRM files:
+
 ```
 STRM_USE_STREAMING_URL=true
 ```
 
 This means STRM files contain URLs like:
+
 ```
 http://emby-server:8096/Videos/12345/stream?api_key=...
 ```
 
 If you prefer direct file paths (requires the media server to have direct access to your media files):
+
 ```
 STRM_USE_STREAMING_URL=false
 MEDIA_SERVER_LIBRARY_ROOT=/path/to/your/media
