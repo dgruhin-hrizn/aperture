@@ -10,17 +10,15 @@ import {
   getMediaServerConfig
 } from '@aperture/core'
 import {
-  markMovieUnplayed as embyMarkMovieUnplayed,
-  markEpisodeUnplayed as embyMarkEpisodeUnplayed,
-  markSeasonUnplayed as embyMarkSeasonUnplayed,
-  markSeriesUnplayed as embyMarkSeriesUnplayed
-} from '@aperture/core/media/emby'
-import {
-  markMovieUnplayed as jellyfinMarkMovieUnplayed,
-  markEpisodeUnplayed as jellyfinMarkEpisodeUnplayed,
-  markSeasonUnplayed as jellyfinMarkSeasonUnplayed,
-  markSeriesUnplayed as jellyfinMarkSeriesUnplayed
-} from '@aperture/core/media/jellyfin'
+  embyMarkMovieUnplayed,
+  embyMarkEpisodeUnplayed,
+  embyMarkSeasonUnplayed,
+  embyMarkSeriesUnplayed,
+  jellyfinMarkMovieUnplayed,
+  jellyfinMarkEpisodeUnplayed,
+  jellyfinMarkSeasonUnplayed,
+  jellyfinMarkSeriesUnplayed,
+} from '@aperture/core/media'
 
 export function registerProfileHandlers(fastify: FastifyInstance) {
   /**

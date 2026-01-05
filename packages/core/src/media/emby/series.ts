@@ -308,11 +308,9 @@ export async function markEpisodeUnplayed(
 ): Promise<void> {
   logger.info({ userId, episodeProviderId }, 'Marking episode as unplayed in Emby')
 
-  await provider.fetch(
-    `/Users/${userId}/PlayedItems/${episodeProviderId}`,
-    apiKey,
-    { method: 'DELETE' }
-  )
+  await provider.fetch(`/Users/${userId}/PlayedItems/${episodeProviderId}`, apiKey, {
+    method: 'DELETE',
+  })
 
   logger.info({ userId, episodeProviderId }, 'Episode marked as unplayed')
 }
@@ -345,18 +343,16 @@ export async function markSeasonUnplayed(
 
   // Filter to just the requested season and episodes that are played
   const seasonEpisodes = response.Items.filter(
-    ep => ep.ParentIndexNumber === seasonNumber && ep.UserData?.Played
+    (ep) => ep.ParentIndexNumber === seasonNumber && ep.UserData?.Played
   )
 
   // Mark each episode as unplayed
   let markedCount = 0
   for (const episode of seasonEpisodes) {
     try {
-      await provider.fetch(
-        `/Users/${userId}/PlayedItems/${episode.Id}`,
-        apiKey,
-        { method: 'DELETE' }
-      )
+      await provider.fetch(`/Users/${userId}/PlayedItems/${episode.Id}`, apiKey, {
+        method: 'DELETE',
+      })
       markedCount++
     } catch (err) {
       logger.warn({ episodeId: episode.Id, err }, 'Failed to mark episode as unplayed')
@@ -393,17 +389,15 @@ export async function markSeriesUnplayed(
   )
 
   // Filter to only played episodes
-  const playedEpisodes = response.Items.filter(ep => ep.UserData?.Played)
+  const playedEpisodes = response.Items.filter((ep) => ep.UserData?.Played)
 
   // Mark each episode as unplayed
   let markedCount = 0
   for (const episode of playedEpisodes) {
     try {
-      await provider.fetch(
-        `/Users/${userId}/PlayedItems/${episode.Id}`,
-        apiKey,
-        { method: 'DELETE' }
-      )
+      await provider.fetch(`/Users/${userId}/PlayedItems/${episode.Id}`, apiKey, {
+        method: 'DELETE',
+      })
       markedCount++
     } catch (err) {
       logger.warn({ episodeId: episode.Id, err }, 'Failed to mark episode as unplayed')
