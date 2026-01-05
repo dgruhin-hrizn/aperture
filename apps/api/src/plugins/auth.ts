@@ -11,6 +11,7 @@ export interface SessionUser {
   providerUserId: string
   isAdmin: boolean
   isEnabled: boolean
+  canManageWatchHistory: boolean
   avatarUrl: string | null
 }
 
@@ -35,6 +36,7 @@ interface UserRow {
   provider_user_id: string
   is_admin: boolean
   is_enabled: boolean
+  can_manage_watch_history: boolean
 }
 
 const SESSION_COOKIE_NAME = 'aperture_session'
@@ -81,7 +83,7 @@ async function getSessionUser(sessionId: string): Promise<SessionUser | null> {
 
   // Get user
   const user = await queryOne<UserRow>(
-    `SELECT id, username, display_name, provider, provider_user_id, is_admin, is_enabled
+    `SELECT id, username, display_name, provider, provider_user_id, is_admin, is_enabled, can_manage_watch_history
      FROM users WHERE id = $1`,
     [session.user_id]
   )
@@ -110,6 +112,7 @@ async function getSessionUser(sessionId: string): Promise<SessionUser | null> {
     providerUserId: user.provider_user_id,
     isAdmin: user.is_admin,
     isEnabled: user.is_enabled,
+    canManageWatchHistory: user.can_manage_watch_history,
     avatarUrl,
   }
 }

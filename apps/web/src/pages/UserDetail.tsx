@@ -44,6 +44,7 @@ interface User {
   is_enabled: boolean
   movies_enabled: boolean
   series_enabled: boolean
+  can_manage_watch_history: boolean
   created_at: string
 }
 
@@ -98,11 +99,13 @@ function TabPanel({ children, value, index }: TabPanelProps) {
 }
 
 // User Settings Tab Component (Admin only)
-function UserSettingsTab({ userId }: { userId: string }) {
+function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [savingWatchHistory, setSavingWatchHistory] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [canManageWatchHistory, setCanManageWatchHistory] = useState(user.can_manage_watch_history)
   const [settings, setSettings] = useState<{
     overrideAllowed: boolean
     enabled: boolean | null
@@ -157,6 +160,29 @@ function UserSettingsTab({ userId }: { userId: string }) {
     }
   }
 
+  const handleWatchHistoryToggle = async (enabled: boolean) => {
+    try {
+      setSavingWatchHistory(true)
+      setError(null)
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ canManageWatchHistory: enabled }),
+        credentials: 'include',
+      })
+      if (!response.ok) throw new Error('Failed to update permission')
+      setCanManageWatchHistory(enabled)
+      setSuccess('Watch history permission updated!')
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
+      // Revert the toggle on error
+      setCanManageWatchHistory(!enabled)
+    } finally {
+      setSavingWatchHistory(false)
+    }
+  }
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" py={4}>
@@ -183,6 +209,47 @@ function UserSettingsTab({ userId }: { userId: string }) {
           {success}
         </Alert>
       )}
+
+      {/* Watch History Management Permission */}
+      <Card variant="outlined" sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            Watch History Management
+          </Typography>
+          
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Allow this user to mark movies and series as unwatched. This will update both the media server (Emby/Jellyfin) and Aperture's database.
+          </Typography>
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={canManageWatchHistory}
+                onChange={(e) => handleWatchHistoryToggle(e.target.checked)}
+                disabled={savingWatchHistory}
+              />
+            }
+            label={
+              <Box>
+                <Typography variant="body1" fontWeight="medium">
+                  Allow Watch History Management
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  User can mark items as unwatched from their Watch History page and movie detail pages
+                </Typography>
+              </Box>
+            }
+            sx={{ alignItems: 'flex-start', ml: 0 }}
+          />
+
+          {savingWatchHistory && (
+            <Box display="flex" alignItems="center" gap={1} mt={2}>
+              <CircularProgress size={16} />
+              <Typography variant="caption" color="text.secondary">Saving...</Typography>
+            </Box>
+          )}
+        </CardContent>
+      </Card>
 
       <Card variant="outlined" sx={{ mb: 3 }}>
         <CardContent>
@@ -665,7 +732,7 @@ export function UserDetailPage() {
           </TabPanel>
 
           <TabPanel value={tabValue} index={4}>
-            <UserSettingsTab userId={user.id} />
+            <UserSettingsTab userId={user.id} user={user} />
           </TabPanel>
         </Box>
       </Paper>

@@ -8,6 +8,7 @@ interface User {
   providerUserId: string
   isAdmin: boolean
   isEnabled: boolean
+  canManageWatchHistory: boolean
   avatarUrl: string | null
 }
 

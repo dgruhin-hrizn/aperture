@@ -22,6 +22,15 @@ import {
   Tabs,
   Tab,
   LinearProgress,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Button,
+  Tooltip,
+  Snackbar,
 } from '@mui/material'
 import GridViewIcon from '@mui/icons-material/GridView'
 import ViewListIcon from '@mui/icons-material/ViewList'
@@ -30,6 +39,7 @@ import SearchIcon from '@mui/icons-material/Search'
 import HistoryIcon from '@mui/icons-material/History'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import { MoviePoster } from '@aperture/ui'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -91,6 +101,60 @@ export function MyWatchHistoryPage() {
   // Shared state
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Mark unwatched state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean
+    type: 'movie' | 'series'
+    id: string
+    title: string
+  } | null>(null)
+  const [markingUnwatched, setMarkingUnwatched] = useState(false)
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success'
+  })
+
+  // Check if user can manage watch history (admin or has permission)
+  const canManage = user?.isAdmin || user?.canManageWatchHistory
+
+  const handleMarkUnwatched = async () => {
+    if (!confirmDialog || !user) return
+
+    setMarkingUnwatched(true)
+    try {
+      const endpoint = confirmDialog.type === 'movie'
+        ? `/api/users/${user.id}/watch-history/movies/${confirmDialog.id}`
+        : `/api/users/${user.id}/watch-history/series/${confirmDialog.id}`
+
+      const response = await fetch(endpoint, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+
+      if (response.ok) {
+        // Remove from local state
+        if (confirmDialog.type === 'movie') {
+          setMovieHistory(prev => prev.filter(m => m.movie_id !== confirmDialog.id))
+          setMoviePagination(prev => ({ ...prev, total: prev.total - 1 }))
+        } else {
+          setSeriesHistory(prev => prev.filter(s => s.series_id !== confirmDialog.id))
+          setSeriesPagination(prev => ({ ...prev, total: prev.total - 1 }))
+        }
+        setSnackbar({ open: true, message: `"${confirmDialog.title}" marked as unwatched`, severity: 'success' })
+      } else {
+        const error = await response.json()
+        setSnackbar({ open: true, message: error.error || 'Failed to mark as unwatched', severity: 'error' })
+      }
+    } catch (err) {
+      console.error('Failed to mark as unwatched:', err)
+      setSnackbar({ open: true, message: 'Failed to mark as unwatched', severity: 'error' })
+    } finally {
+      setMarkingUnwatched(false)
+      setConfirmDialog(null)
+    }
+  }
 
   const fetchMovieHistory = useCallback(async (page: number, sort: string) => {
     if (!user) return
@@ -313,7 +377,14 @@ export function MyWatchHistoryPage() {
                 <Grid container spacing={2}>
                   {filteredMovies.map((item) => (
                     <Grid item key={item.movie_id}>
-                      <Box position="relative">
+                      <Box 
+                        position="relative"
+                        sx={{
+                          '&:hover .mark-unwatched-btn': {
+                            opacity: 1,
+                          }
+                        }}
+                      >
                         <MoviePoster
                           title={item.title}
                           year={item.year}
@@ -354,6 +425,38 @@ export function MyWatchHistoryPage() {
                             }}
                           />
                         )}
+                        {/* Mark Unwatched button */}
+                        {canManage && (
+                          <Tooltip title="Mark as unwatched">
+                            <IconButton
+                              className="mark-unwatched-btn"
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setConfirmDialog({
+                                  open: true,
+                                  type: 'movie',
+                                  id: item.movie_id,
+                                  title: item.title
+                                })
+                              }}
+                              sx={{
+                                position: 'absolute',
+                                top: 8,
+                                right: 8,
+                                backgroundColor: 'rgba(0,0,0,0.7)',
+                                color: 'white',
+                                opacity: 0,
+                                transition: 'opacity 0.2s',
+                                '&:hover': {
+                                  backgroundColor: 'error.main',
+                                },
+                              }}
+                            >
+                              <VisibilityOffIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
                       </Box>
                     </Grid>
                   ))}
@@ -370,6 +473,7 @@ export function MyWatchHistoryPage() {
                         <TableCell align="center">Plays</TableCell>
                         <TableCell align="center">Rating</TableCell>
                         <TableCell align="right">Last Watched</TableCell>
+                        {canManage && <TableCell align="center" width={50}></TableCell>}
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -429,6 +533,30 @@ export function MyWatchHistoryPage() {
                               {formatDate(item.last_played_at)}
                             </Typography>
                           </TableCell>
+                          {canManage && (
+                            <TableCell align="center">
+                              <Tooltip title="Mark as unwatched">
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setConfirmDialog({
+                                      open: true,
+                                      type: 'movie',
+                                      id: item.movie_id,
+                                      title: item.title
+                                    })
+                                  }}
+                                  sx={{
+                                    color: 'text.secondary',
+                                    '&:hover': { color: 'error.main' },
+                                  }}
+                                >
+                                  <VisibilityOffIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
@@ -470,7 +598,14 @@ export function MyWatchHistoryPage() {
                 <Grid container spacing={2}>
                   {filteredSeries.map((item) => (
                     <Grid item key={item.series_id}>
-                      <Box sx={{ width: 120 }}>
+                      <Box 
+                        sx={{ 
+                          width: 120,
+                          '&:hover .mark-unwatched-btn': {
+                            opacity: 1,
+                          }
+                        }}
+                      >
                         <Box position="relative">
                           <MoviePoster
                             title={item.title}
@@ -495,6 +630,38 @@ export function MyWatchHistoryPage() {
                                 filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))',
                               }}
                             />
+                          )}
+                          {/* Mark Unwatched button */}
+                          {canManage && (
+                            <Tooltip title="Mark all episodes as unwatched">
+                              <IconButton
+                                className="mark-unwatched-btn"
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setConfirmDialog({
+                                    open: true,
+                                    type: 'series',
+                                    id: item.series_id,
+                                    title: item.title
+                                  })
+                                }}
+                                sx={{
+                                  position: 'absolute',
+                                  top: 8,
+                                  left: 8,
+                                  backgroundColor: 'rgba(0,0,0,0.7)',
+                                  color: 'white',
+                                  opacity: 0,
+                                  transition: 'opacity 0.2s',
+                                  '&:hover': {
+                                    backgroundColor: 'error.main',
+                                  },
+                                }}
+                              >
+                                <VisibilityOffIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
                           )}
                         </Box>
                         {/* Episodes progress below poster */}
@@ -544,6 +711,7 @@ export function MyWatchHistoryPage() {
                         <TableCell align="center">Progress</TableCell>
                         <TableCell align="center">Rating</TableCell>
                         <TableCell align="right">Last Watched</TableCell>
+                        {canManage && <TableCell align="center" width={50}></TableCell>}
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -623,6 +791,30 @@ export function MyWatchHistoryPage() {
                               {formatDate(item.last_played_at)}
                             </Typography>
                           </TableCell>
+                          {canManage && (
+                            <TableCell align="center">
+                              <Tooltip title="Mark all episodes as unwatched">
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setConfirmDialog({
+                                      open: true,
+                                      type: 'series',
+                                      id: item.series_id,
+                                      title: item.title
+                                    })
+                                  }}
+                                  sx={{
+                                    color: 'text.secondary',
+                                    '&:hover': { color: 'error.main' },
+                                  }}
+                                >
+                                  <VisibilityOffIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
@@ -647,6 +839,48 @@ export function MyWatchHistoryPage() {
           )}
         </>
       )}
+
+      {/* Confirmation Dialog */}
+      <Dialog
+        open={!!confirmDialog?.open}
+        onClose={() => setConfirmDialog(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Mark as Unwatched?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {confirmDialog?.type === 'movie' 
+              ? `This will mark "${confirmDialog?.title}" as unwatched in your media server and remove it from your Aperture watch history.`
+              : `This will mark all episodes of "${confirmDialog?.title}" as unwatched in your media server and remove them from your Aperture watch history.`
+            }
+          </DialogContentText>
+          <DialogContentText sx={{ mt: 1, fontWeight: 500, color: 'warning.main' }}>
+            This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDialog(null)} disabled={markingUnwatched}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleMarkUnwatched} 
+            color="error" 
+            variant="contained"
+            disabled={markingUnwatched}
+          >
+            {markingUnwatched ? 'Marking...' : 'Mark Unwatched'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar for feedback */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+        message={snackbar.message}
+      />
     </Box>
   )
 }

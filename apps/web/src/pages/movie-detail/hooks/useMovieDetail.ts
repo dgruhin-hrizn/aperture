@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
-import type { Movie, SimilarMovie, RecommendationInsights, MediaServerInfo } from '../types'
+import { useEffect, useState, useCallback } from 'react'
+import type { Movie, SimilarMovie, RecommendationInsights, MediaServerInfo, WatchStatus } from '../types'
 
 export function useMovieDetail(id: string | undefined, userId: string | undefined) {
   const [movie, setMovie] = useState<Movie | null>(null)
   const [similar, setSimilar] = useState<SimilarMovie[]>([])
   const [insights, setInsights] = useState<RecommendationInsights | null>(null)
   const [mediaServer, setMediaServer] = useState<MediaServerInfo | null>(null)
+  const [watchStatus, setWatchStatus] = useState<WatchStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -39,15 +40,30 @@ export function useMovieDetail(id: string | undefined, userId: string | undefine
             setSimilar(similarData.similar || [])
           }
 
-          // Fetch recommendation insights if user is logged in
+          // Fetch recommendation insights and watch status if user is logged in
           if (userId) {
-            const insightsResponse = await fetch(
-              `/api/recommendations/${userId}/movie/${id}/insights`,
-              { credentials: 'include' }
-            )
+            const [insightsResponse, watchHistoryResponse] = await Promise.all([
+              fetch(`/api/recommendations/${userId}/movie/${id}/insights`, { credentials: 'include' }),
+              fetch(`/api/users/${userId}/watch-history?pageSize=1000&sortBy=title`, { credentials: 'include' }),
+            ])
+
             if (insightsResponse.ok) {
               const insightsData = await insightsResponse.json()
               setInsights(insightsData)
+            }
+
+            if (watchHistoryResponse.ok) {
+              const watchData = await watchHistoryResponse.json()
+              const watchedMovie = watchData.history?.find((h: { movie_id: string }) => h.movie_id === id)
+              if (watchedMovie) {
+                setWatchStatus({
+                  isWatched: true,
+                  playCount: watchedMovie.play_count || 1,
+                  lastWatched: watchedMovie.last_played_at,
+                })
+              } else {
+                setWatchStatus({ isWatched: false, playCount: 0, lastWatched: null })
+              }
             }
           }
         } else {
@@ -65,13 +81,19 @@ export function useMovieDetail(id: string | undefined, userId: string | undefine
     }
   }, [id, userId])
 
+  const clearWatchStatus = useCallback(() => {
+    setWatchStatus({ isWatched: false, playCount: 0, lastWatched: null })
+  }, [])
+
   return {
     movie,
     similar,
     insights,
     mediaServer,
+    watchStatus,
     loading,
     error,
+    clearWatchStatus,
   }
 }
 

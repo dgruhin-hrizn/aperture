@@ -290,3 +290,121 @@ export async function getSeriesWatchHistory(
   return allItems
 }
 
+/**
+ * Mark a single episode as unplayed/unwatched in Jellyfin
+ * This calls DELETE /Users/{UserId}/PlayedItems/{ItemId}
+ */
+export async function markEpisodeUnplayed(
+  provider: JellyfinProviderBase,
+  apiKey: string,
+  userId: string,
+  episodeProviderId: string
+): Promise<void> {
+  logger.info({ userId, episodeProviderId }, 'Marking episode as unplayed in Jellyfin')
+
+  await provider.fetch(
+    `/Users/${userId}/PlayedItems/${episodeProviderId}`,
+    apiKey,
+    { method: 'DELETE' }
+  )
+
+  logger.info({ userId, episodeProviderId }, 'Episode marked as unplayed')
+}
+
+/**
+ * Mark all episodes in a season as unplayed/unwatched in Jellyfin
+ */
+export async function markSeasonUnplayed(
+  provider: JellyfinProviderBase,
+  apiKey: string,
+  userId: string,
+  seriesProviderId: string,
+  seasonNumber: number
+): Promise<{ markedCount: number }> {
+  logger.info({ userId, seriesProviderId, seasonNumber }, 'Marking season as unplayed in Jellyfin')
+
+  // Get all episodes for this season
+  const params = new URLSearchParams({
+    ParentId: seriesProviderId,
+    IncludeItemTypes: 'Episode',
+    Recursive: 'true',
+    Fields: 'UserData',
+    UserId: userId,
+  })
+
+  const response = await provider.fetch<{ Items: JellyfinEpisode[]; TotalRecordCount: number }>(
+    `/Items?${params}`,
+    apiKey
+  )
+
+  // Filter to just the requested season and episodes that are played
+  const seasonEpisodes = response.Items.filter(
+    ep => ep.ParentIndexNumber === seasonNumber && ep.UserData?.Played
+  )
+
+  // Mark each episode as unplayed
+  let markedCount = 0
+  for (const episode of seasonEpisodes) {
+    try {
+      await provider.fetch(
+        `/Users/${userId}/PlayedItems/${episode.Id}`,
+        apiKey,
+        { method: 'DELETE' }
+      )
+      markedCount++
+    } catch (err) {
+      logger.warn({ episodeId: episode.Id, err }, 'Failed to mark episode as unplayed')
+    }
+  }
+
+  logger.info({ userId, seriesProviderId, seasonNumber, markedCount }, 'Season marked as unplayed')
+  return { markedCount }
+}
+
+/**
+ * Mark all episodes in a series as unplayed/unwatched in Jellyfin
+ */
+export async function markSeriesUnplayed(
+  provider: JellyfinProviderBase,
+  apiKey: string,
+  userId: string,
+  seriesProviderId: string
+): Promise<{ markedCount: number }> {
+  logger.info({ userId, seriesProviderId }, 'Marking entire series as unplayed in Jellyfin')
+
+  // Get all episodes for this series
+  const params = new URLSearchParams({
+    ParentId: seriesProviderId,
+    IncludeItemTypes: 'Episode',
+    Recursive: 'true',
+    Fields: 'UserData',
+    UserId: userId,
+  })
+
+  const response = await provider.fetch<{ Items: JellyfinEpisode[]; TotalRecordCount: number }>(
+    `/Items?${params}`,
+    apiKey
+  )
+
+  // Filter to only played episodes
+  const playedEpisodes = response.Items.filter(ep => ep.UserData?.Played)
+
+  // Mark each episode as unplayed
+  let markedCount = 0
+  for (const episode of playedEpisodes) {
+    try {
+      await provider.fetch(
+        `/Users/${userId}/PlayedItems/${episode.Id}`,
+        apiKey,
+        { method: 'DELETE' }
+      )
+      markedCount++
+    } catch (err) {
+      logger.warn({ episodeId: episode.Id, err }, 'Failed to mark episode as unplayed')
+    }
+  }
+
+  logger.info({ userId, seriesProviderId, markedCount }, 'Series marked as unplayed')
+  return { markedCount }
+}
+

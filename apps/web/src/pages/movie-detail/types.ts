@@ -12,6 +12,12 @@ export interface Movie {
   backdrop_url: string | null
 }
 
+export interface WatchStatus {
+  isWatched: boolean
+  playCount: number
+  lastWatched: string | null
+}
+
 export interface SimilarMovie {
   id: string
   title: string

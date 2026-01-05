@@ -387,3 +387,24 @@ export async function getWatchHistoryFromActivityLog(
   return watchedItems
 }
 
+/**
+ * Mark a movie as unplayed/unwatched in Emby
+ * This calls DELETE /Users/{UserId}/PlayedItems/{ItemId}
+ */
+export async function markMovieUnplayed(
+  provider: EmbyProviderBase,
+  apiKey: string,
+  userId: string,
+  movieProviderId: string
+): Promise<void> {
+  logger.info({ userId, movieProviderId }, 'Marking movie as unplayed in Emby')
+
+  await provider.fetch(
+    `/Users/${userId}/PlayedItems/${movieProviderId}`,
+    apiKey,
+    { method: 'DELETE' }
+  )
+
+  logger.info({ userId, movieProviderId }, 'Movie marked as unplayed')
+}
+

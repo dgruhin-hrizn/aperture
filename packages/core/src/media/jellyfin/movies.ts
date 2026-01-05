@@ -205,3 +205,24 @@ export async function getWatchHistory(
   return allItems
 }
 
+/**
+ * Mark a movie as unplayed/unwatched in Jellyfin
+ * This calls DELETE /Users/{UserId}/PlayedItems/{ItemId}
+ */
+export async function markMovieUnplayed(
+  provider: JellyfinProviderBase,
+  apiKey: string,
+  userId: string,
+  movieProviderId: string
+): Promise<void> {
+  logger.info({ userId, movieProviderId }, 'Marking movie as unplayed in Jellyfin')
+
+  await provider.fetch(
+    `/Users/${userId}/PlayedItems/${movieProviderId}`,
+    apiKey,
+    { method: 'DELETE' }
+  )
+
+  logger.info({ userId, movieProviderId }, 'Movie marked as unplayed')
+}
+

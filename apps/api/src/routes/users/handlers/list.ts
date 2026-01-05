@@ -13,7 +13,7 @@ export function registerListHandlers(fastify: FastifyInstance) {
     { preHandler: requireAdmin },
     async (_request, reply) => {
       const result = await query<UserRow>(
-        `SELECT id, username, display_name, provider, provider_user_id, is_admin, is_enabled, movies_enabled, series_enabled, created_at, updated_at
+        `SELECT id, username, display_name, provider, provider_user_id, is_admin, is_enabled, movies_enabled, series_enabled, can_manage_watch_history, created_at, updated_at
          FROM users
          ORDER BY username ASC`
       )
@@ -42,7 +42,7 @@ export function registerListHandlers(fastify: FastifyInstance) {
       }
 
       const user = await queryOne<UserRow>(
-        `SELECT id, username, display_name, provider, provider_user_id, is_admin, is_enabled, movies_enabled, series_enabled, created_at, updated_at
+        `SELECT id, username, display_name, provider, provider_user_id, is_admin, is_enabled, movies_enabled, series_enabled, can_manage_watch_history, created_at, updated_at
          FROM users WHERE id = $1`,
         [id]
       )
@@ -64,7 +64,7 @@ export function registerListHandlers(fastify: FastifyInstance) {
     { preHandler: requireAdmin },
     async (request, reply) => {
       const { id } = request.params
-      const { displayName, isEnabled, moviesEnabled, seriesEnabled } = request.body
+      const { displayName, isEnabled, moviesEnabled, seriesEnabled, canManageWatchHistory } = request.body
 
       // Build update query dynamically
       const updates: string[] = []
@@ -99,6 +99,11 @@ export function registerListHandlers(fastify: FastifyInstance) {
         }
       }
 
+      if (canManageWatchHistory !== undefined) {
+        updates.push(`can_manage_watch_history = $${paramIndex++}`)
+        values.push(canManageWatchHistory)
+      }
+
       // If both movies and series are disabled, disable overall is_enabled
       if (moviesEnabled === false && seriesEnabled === false) {
         updates.push(`is_enabled = false`)
@@ -112,7 +117,7 @@ export function registerListHandlers(fastify: FastifyInstance) {
       const user = await queryOne<UserRow>(
         `UPDATE users SET ${updates.join(', ')}, updated_at = NOW()
          WHERE id = $${paramIndex}
-         RETURNING id, username, display_name, provider, provider_user_id, is_admin, is_enabled, movies_enabled, series_enabled, created_at, updated_at`,
+         RETURNING id, username, display_name, provider, provider_user_id, is_admin, is_enabled, movies_enabled, series_enabled, can_manage_watch_history, created_at, updated_at`,
         values
       )
 

@@ -15,7 +15,7 @@ export function MovieDetailPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
 
-  const { movie, similar, insights, mediaServer, loading, error } = useMovieDetail(id, user?.id)
+  const { movie, similar, insights, mediaServer, watchStatus, loading, error, clearWatchStatus } = useMovieDetail(id, user?.id)
 
   if (loading) {
     return (
@@ -45,7 +45,14 @@ export function MovieDetailPage() {
       />
 
       {/* Hero Section */}
-      <MovieHero movie={movie} mediaServer={mediaServer} />
+      <MovieHero 
+        movie={movie} 
+        mediaServer={mediaServer} 
+        watchStatus={watchStatus}
+        canManageWatchHistory={user?.isAdmin || user?.canManageWatchHistory || false}
+        userId={user?.id}
+        onMarkedUnwatched={clearWatchStatus}
+      />
 
       {/* Main Content */}
       <Box sx={{ px: 3, mt: 4 }}>
