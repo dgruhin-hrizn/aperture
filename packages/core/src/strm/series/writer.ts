@@ -41,7 +41,7 @@ interface EpisodeInfo {
   episodeNumber: number
   title: string
   overview: string | null
-  premiereDate: string | null
+  premiereDate: string | Date | null
   year: number | null
   runtimeMinutes: number | null
   path: string | null
@@ -134,7 +134,10 @@ function generateEpisodeNfoContent(episode: EpisodeInfo, seriesTitle: string): s
   }
 
   if (episode.premiereDate) {
-    const dateStr = episode.premiereDate.split('T')[0]
+    // Handle both Date objects and ISO strings from the database
+    const dateStr = episode.premiereDate instanceof Date
+      ? episode.premiereDate.toISOString().split('T')[0]
+      : String(episode.premiereDate).split('T')[0]
     lines.push(`  <aired>${dateStr}</aired>`)
   }
 
