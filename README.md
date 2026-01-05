@@ -1,6 +1,13 @@
 # Aperture
 
+[![Docker Image](https://img.shields.io/badge/docker-ghcr.io%2Fdgruhin--hrizn%2Faperture-blue?logo=docker)](https://github.com/dgruhin-hrizn/aperture/pkgs/container/aperture)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 **Aperture** — AI-powered media recommendations for Emby & Jellyfin.
+
+```bash
+docker pull ghcr.io/dgruhin-hrizn/aperture:latest
+```
 
 Aperture creates personalized recommendation libraries for your media server users using OpenAI embeddings and pgvector similarity search. Recommendations appear as STRM-based virtual libraries in your media server's home screen, with support for both **movies** and **TV series**.
 
@@ -310,6 +317,7 @@ Each job can be scheduled to run automatically:
    - **Manual** — Only run when you trigger it
 
 **Recommended schedule:**
+
 - Sync jobs: Daily at 3 AM
 - Recommendation jobs: Daily at 4 AM
 - STRM jobs: Daily at 5 AM
@@ -326,14 +334,15 @@ Navigate to **Admin → Settings → AI Config**
 
 Adjust these weights separately for movies and series:
 
-| Weight | Description | Default |
-|--------|-------------|---------|
-| **Similarity** | How closely recommendations match user taste | 0.5 |
-| **Novelty** | Preference for content outside user's usual genres | 0.3 |
-| **Rating** | Weight given to community ratings | 0.2 |
-| **Diversity** | Variety in the recommendation list | 0.3 |
+| Weight         | Description                                        | Default |
+| -------------- | -------------------------------------------------- | ------- |
+| **Similarity** | How closely recommendations match user taste       | 0.5     |
+| **Novelty**    | Preference for content outside user's usual genres | 0.3     |
+| **Rating**     | Weight given to community ratings                  | 0.2     |
+| **Diversity**  | Variety in the recommendation list                 | 0.3     |
 
 Other settings:
+
 - **Recommendations per user** — How many titles to recommend (default: 50)
 - **Recent watch limit** — How many recent watches to analyze for taste (default: 100)
 
@@ -353,10 +362,10 @@ Top Picks are global popularity-based libraries visible to all users:
 
 #### Embedding Model (Admin → Settings → Embedding Model)
 
-| Model | Quality | Cost | Best For |
-|-------|---------|------|----------|
-| text-embedding-3-small | Good | $0.02/1M tokens | Most users |
-| text-embedding-3-large | Best | $0.13/1M tokens | Premium quality |
+| Model                  | Quality | Cost            | Best For        |
+| ---------------------- | ------- | --------------- | --------------- |
+| text-embedding-3-small | Good    | $0.02/1M tokens | Most users      |
+| text-embedding-3-large | Best    | $0.13/1M tokens | Premium quality |
 
 > **Warning**: Changing models requires regenerating all embeddings.
 
@@ -364,11 +373,11 @@ Top Picks are global popularity-based libraries visible to all users:
 
 Used for taste profiles and recommendation explanations:
 
-| Model | Quality | Cost |
-|-------|---------|------|
-| GPT-4o Mini | Recommended | Low |
-| GPT-5 Nano | Budget | Lowest |
-| GPT-5 Mini | Premium | Higher |
+| Model       | Quality     | Cost   |
+| ----------- | ----------- | ------ |
+| GPT-4o Mini | Recommended | Low    |
+| GPT-5 Nano  | Budget      | Lowest |
+| GPT-5 Mini  | Premium     | Higher |
 
 ### Database Management
 
@@ -394,6 +403,7 @@ Use purge if you need to start fresh or switch media servers.
 Your home page shows:
 
 #### Quick Stats
+
 - **Movies Watched** — Total movies in your watch history
 - **Favorites** — Movies you've marked as favorites
 - **AI Recommendations** — Number of personalized picks available
@@ -410,6 +420,7 @@ Click the **refresh button** to regenerate your profile with the latest watch da
 #### Your Top Picks
 
 A carousel of AI-recommended movies based on your taste. Each poster shows:
+
 - **Match Score** — A percentage indicating how well it fits your preferences
 - Click any poster to see detailed insights
 
@@ -492,12 +503,12 @@ The library updates automatically when new recommendations are generated.
 
 For best results, schedule jobs to run automatically:
 
-| Time | Jobs |
-|------|------|
+| Time    | Jobs                                                                    |
+| ------- | ----------------------------------------------------------------------- |
 | 3:00 AM | sync-movies, sync-series, sync-watch-history, sync-series-watch-history |
-| 4:00 AM | generate-recommendations, generate-series-recommendations |
-| 5:00 AM | sync-strm, sync-series-strm |
-| 6:00 AM | refresh-top-picks |
+| 4:00 AM | generate-recommendations, generate-series-recommendations               |
+| 5:00 AM | sync-strm, sync-series-strm                                             |
+| 6:00 AM | refresh-top-picks                                                       |
 
 This ensures users wake up to fresh recommendations based on yesterday's viewing.
 
