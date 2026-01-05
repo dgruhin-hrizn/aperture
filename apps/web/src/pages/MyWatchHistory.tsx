@@ -470,41 +470,45 @@ export function MyWatchHistoryPage() {
                 <Grid container spacing={2}>
                   {filteredSeries.map((item) => (
                     <Grid item key={item.series_id}>
-                      <Box position="relative">
-                        <MoviePoster
-                          title={item.title}
-                          year={item.year}
-                          posterUrl={item.poster_url}
-                          genres={item.genres}
-                          rating={item.community_rating}
-                          overview={item.overview}
-                          size="small"
-                          hideRating
-                          onClick={() => navigate(`/series/${item.series_id}`)}
-                        />
-                        {/* Episodes progress badge */}
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            bottom: 0,
-                            left: 0,
-                            right: 0,
-                            backgroundColor: 'rgba(0,0,0,0.85)',
-                            px: 1,
-                            py: 0.5,
-                            borderBottomLeftRadius: 4,
-                            borderBottomRightRadius: 4,
-                          }}
-                        >
-                          <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
-                            <Typography variant="caption" color="white" fontWeight={600}>
-                              {item.episodes_watched} / {item.total_episodes} episodes
+                      <Box sx={{ width: 120 }}>
+                        <Box position="relative">
+                          <MoviePoster
+                            title={item.title}
+                            year={item.year}
+                            posterUrl={item.poster_url}
+                            genres={item.genres}
+                            rating={item.community_rating}
+                            overview={item.overview}
+                            size="small"
+                            hideRating
+                            onClick={() => navigate(`/series/${item.series_id}`)}
+                          />
+                          {/* Favorite badge */}
+                          {item.is_favorite && (
+                            <FavoriteIcon
+                              sx={{
+                                position: 'absolute',
+                                top: 8,
+                                right: 8,
+                                color: 'error.main',
+                                fontSize: 20,
+                                filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))',
+                              }}
+                            />
+                          )}
+                        </Box>
+                        {/* Episodes progress below poster */}
+                        <Box sx={{ mt: 0.5 }}>
+                          <Box display="flex" alignItems="center" justifyContent="space-between">
+                            <Typography variant="caption" color="text.secondary" fontSize="0.7rem">
+                              {item.episodes_watched} / {item.total_episodes} eps
                             </Typography>
                             <Typography 
                               variant="caption" 
                               fontWeight={600}
+                              fontSize="0.7rem"
                               sx={{ 
-                                color: item.episodes_watched === item.total_episodes ? 'success.light' : 'grey.400' 
+                                color: item.episodes_watched === item.total_episodes ? 'success.main' : 'text.secondary' 
                               }}
                             >
                               {Math.round((item.episodes_watched / item.total_episodes) * 100)}%
@@ -516,26 +520,14 @@ export function MyWatchHistoryPage() {
                             sx={{
                               height: 3,
                               borderRadius: 1,
-                              backgroundColor: 'rgba(255,255,255,0.2)',
+                              mt: 0.5,
+                              backgroundColor: 'grey.800',
                               '& .MuiLinearProgress-bar': {
                                 backgroundColor: item.episodes_watched === item.total_episodes ? 'success.main' : 'primary.main',
                               },
                             }}
                           />
                         </Box>
-                        {/* Favorite badge */}
-                        {item.is_favorite && (
-                          <FavoriteIcon
-                            sx={{
-                              position: 'absolute',
-                              top: 8,
-                              right: 8,
-                              color: 'error.main',
-                              fontSize: 20,
-                              filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))',
-                            }}
-                          />
-                        )}
                       </Box>
                     </Grid>
                   ))}
