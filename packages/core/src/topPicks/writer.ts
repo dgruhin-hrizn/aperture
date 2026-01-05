@@ -37,40 +37,162 @@ function escapeXml(input: string): string {
 
 /**
  * Generate NFO content for a Top Picks movie
+ * Format matches Emby/Jellyfin movie.nfo specification
  */
 function generateTopPicksMovieNfo(movie: TopPicksMovie, dateAdded: Date): string {
   // Zero-pad rank for proper alphabetical sorting (01, 02, ... 10)
   const rankPrefix = String(movie.rank).padStart(2, '0')
   
   const lines = [
-    '<?xml version="1.0" encoding="utf-8"?>',
+    '<?xml version="1.0" encoding="utf-8" standalone="yes"?>',
     '<movie>',
-    `  <title>${escapeXml(movie.title)}</title>`,
-    `  <sorttitle>${rankPrefix} - ${escapeXml(movie.title)}</sorttitle>`,
   ]
 
+  // Plot with CDATA for special characters
+  if (movie.overview) {
+    lines.push(`  <plot><![CDATA[${movie.overview}]]></plot>`)
+  }
+
+  // Outline is the tagline (short summary), not a copy of plot
+  if (movie.tagline) {
+    lines.push(`  <outline><![CDATA[${movie.tagline}]]></outline>`)
+  }
+
+  lines.push(`  <lockdata>false</lockdata>`)
+  lines.push(`  <dateadded>${dateAdded.toISOString().slice(0, 19).replace('T', ' ')}</dateadded>`)
+  lines.push(`  <title>${escapeXml(movie.title)}</title>`)
+
+  // Original title
+  if (movie.originalTitle) {
+    lines.push(`  <originaltitle>${escapeXml(movie.originalTitle)}</originaltitle>`)
+  } else {
+    lines.push(`  <originaltitle>${escapeXml(movie.title)}</originaltitle>`)
+  }
+
+  // Actors with type
+  if (movie.actors?.length) {
+    for (const actor of movie.actors) {
+      lines.push(`  <actor>`)
+      lines.push(`    <name>${escapeXml(actor.name)}</name>`)
+      if (actor.role) {
+        lines.push(`    <role>${escapeXml(actor.role)}</role>`)
+      }
+      lines.push(`    <type>Actor</type>`)
+      if (actor.thumb) {
+        lines.push(`    <thumb>${escapeXml(actor.thumb)}</thumb>`)
+      }
+      lines.push(`  </actor>`)
+    }
+  }
+
+  // Directors
+  if (movie.directors?.length) {
+    for (const director of movie.directors) {
+      lines.push(`  <director>${escapeXml(director)}</director>`)
+    }
+  }
+
+  // Writers (both <writer> and <credits> elements)
+  if (movie.writers?.length) {
+    for (const writer of movie.writers) {
+      lines.push(`  <writer>${escapeXml(writer)}</writer>`)
+    }
+    for (const writer of movie.writers) {
+      lines.push(`  <credits>${escapeXml(writer)}</credits>`)
+    }
+  }
+
+  // Rating
+  if (movie.communityRating) {
+    lines.push(`  <rating>${movie.communityRating.toFixed(3)}</rating>`)
+  }
+  if (movie.criticRating) {
+    lines.push(`  <criticrating>${movie.criticRating}</criticrating>`)
+  }
+
+  // Year
   if (movie.year) {
     lines.push(`  <year>${movie.year}</year>`)
   }
 
-  if (movie.overview) {
-    lines.push(`  <plot>${escapeXml(movie.overview)}</plot>`)
+  // Sort title with rank prefix
+  lines.push(`  <sorttitle>${rankPrefix} - ${escapeXml(movie.title)}</sorttitle>`)
+
+  // Content rating (MPAA)
+  if (movie.contentRating) {
+    lines.push(`  <mpaa>${escapeXml(movie.contentRating)}</mpaa>`)
   }
 
+  // External IDs as separate elements
+  if (movie.imdbId) {
+    lines.push(`  <imdbid>${escapeXml(movie.imdbId)}</imdbid>`)
+  }
+  if (movie.tmdbId) {
+    lines.push(`  <tmdbid>${escapeXml(movie.tmdbId)}</tmdbid>`)
+  }
+
+  // Premiere/release date
+  if (movie.premiereDate) {
+    // Handle both Date objects and ISO strings
+    const dateStr = movie.premiereDate instanceof Date
+      ? movie.premiereDate.toISOString().split('T')[0]
+      : String(movie.premiereDate).split('T')[0]
+    lines.push(`  <premiered>${dateStr}</premiered>`)
+    lines.push(`  <releasedate>${dateStr}</releasedate>`)
+  }
+
+  // Runtime
+  if (movie.runtimeMinutes) {
+    lines.push(`  <runtime>${movie.runtimeMinutes}</runtime>`)
+  }
+
+  // Tagline
+  if (movie.tagline) {
+    lines.push(`  <tagline>${escapeXml(movie.tagline)}</tagline>`)
+  }
+
+  // Production countries
+  if (movie.productionCountries?.length) {
+    for (const country of movie.productionCountries) {
+      lines.push(`  <country>${escapeXml(country)}</country>`)
+    }
+  }
+
+  // Genres
   if (movie.genres?.length) {
     for (const genre of movie.genres) {
       lines.push(`  <genre>${escapeXml(genre)}</genre>`)
     }
   }
 
-  if (movie.communityRating) {
-    lines.push(`  <rating>${movie.communityRating.toFixed(1)}</rating>`)
+  // Studios
+  if (movie.studios?.length) {
+    for (const studio of movie.studios) {
+      lines.push(`  <studio>${escapeXml(studio)}</studio>`)
+    }
   }
 
-  // Date added for sort ordering (backup method)
-  lines.push(`  <dateadded>${dateAdded.toISOString().slice(0, 19).replace('T', ' ')}</dateadded>`)
+  // Add to Top Picks set/collection
+  lines.push(`  <set>`)
+  lines.push(`    <name>Top Picks - Movies</name>`)
+  lines.push(`  </set>`)
 
-  // Add Top Picks tag
+  // Unique IDs
+  if (movie.imdbId) {
+    lines.push(`  <uniqueid type="imdb">${escapeXml(movie.imdbId)}</uniqueid>`)
+  }
+  if (movie.tmdbId) {
+    lines.push(`  <uniqueid type="tmdb">${escapeXml(movie.tmdbId)}</uniqueid>`)
+  }
+
+  // Primary ID
+  if (movie.imdbId) {
+    lines.push(`  <id>${escapeXml(movie.imdbId)}</id>`)
+  } else if (movie.tmdbId) {
+    lines.push(`  <id>${escapeXml(movie.tmdbId)}</id>`)
+  }
+
+  // Tags
   lines.push(`  <tag>Top Picks</tag>`)
   lines.push(`  <tag>Rank ${movie.rank}</tag>`)
 
@@ -80,57 +202,131 @@ function generateTopPicksMovieNfo(movie: TopPicksMovie, dateAdded: Date): string
 
 /**
  * Generate NFO content for a Top Picks series
+ * Format matches Emby/Jellyfin tvshow.nfo specification
  */
 function generateTopPicksSeriesNfo(series: TopPicksSeries & {
-  contentRating?: string | null
-  status?: string | null
   totalSeasons?: number | null
   totalEpisodes?: number | null
+  endYear?: number | null
 }, dateAdded: Date): string {
   // Zero-pad rank for proper alphabetical sorting (01, 02, ... 10)
   const rankPrefix = String(series.rank).padStart(2, '0')
   
   const lines = [
-    '<?xml version="1.0" encoding="utf-8"?>',
+    '<?xml version="1.0" encoding="utf-8" standalone="yes"?>',
     '<tvshow>',
-    `  <title>${escapeXml(series.title)}</title>`,
-    `  <sorttitle>${rankPrefix} - ${escapeXml(series.title)}</sorttitle>`,
   ]
 
+  // Plot with CDATA for special characters
+  if (series.overview) {
+    lines.push(`  <plot><![CDATA[${series.overview}]]></plot>`)
+  }
+
+  lines.push(`  <lockdata>false</lockdata>`)
+  lines.push(`  <dateadded>${dateAdded.toISOString().slice(0, 19).replace('T', ' ')}</dateadded>`)
+  lines.push(`  <title>${escapeXml(series.title)}</title>`)
+
+  // Original title
+  if (series.originalTitle) {
+    lines.push(`  <originaltitle>${escapeXml(series.originalTitle)}</originaltitle>`)
+  } else {
+    lines.push(`  <originaltitle>${escapeXml(series.title)}</originaltitle>`)
+  }
+
+  // Actors with type
+  if (series.actors?.length) {
+    for (const actor of series.actors) {
+      lines.push(`  <actor>`)
+      lines.push(`    <name>${escapeXml(actor.name)}</name>`)
+      if (actor.role) {
+        lines.push(`    <role>${escapeXml(actor.role)}</role>`)
+      }
+      lines.push(`    <type>Actor</type>`)
+      if (actor.thumb) {
+        lines.push(`    <thumb>${escapeXml(actor.thumb)}</thumb>`)
+      }
+      lines.push(`  </actor>`)
+    }
+  }
+
+  // Rating
+  if (series.communityRating) {
+    lines.push(`  <rating>${series.communityRating.toFixed(1)}</rating>`)
+  }
+
+  // Year
   if (series.year) {
     lines.push(`  <year>${series.year}</year>`)
   }
 
-  if (series.overview) {
-    lines.push(`  <plot>${escapeXml(series.overview)}</plot>`)
+  // Sort title with rank prefix
+  lines.push(`  <sorttitle>${rankPrefix} - ${escapeXml(series.title)}</sorttitle>`)
+
+  // Content rating (MPAA/TV rating)
+  if (series.contentRating) {
+    lines.push(`  <mpaa>${escapeXml(series.contentRating)}</mpaa>`)
   }
 
+  // External IDs as both uniqueid and legacy elements
+  if (series.imdbId) {
+    lines.push(`  <imdb_id>${escapeXml(series.imdbId)}</imdb_id>`)
+  }
+  if (series.tmdbId) {
+    lines.push(`  <tmdbid>${escapeXml(series.tmdbId)}</tmdbid>`)
+  }
+
+  // Year range (premiered year is from series.year, end year from endYear)
+  if (series.year) {
+    lines.push(`  <premiered>${series.year}-01-01</premiered>`)
+  }
+
+  // End year (for ended series)
+  if (series.endYear) {
+    lines.push(`  <enddate>${series.endYear}-12-31</enddate>`)
+  }
+
+  // Genres
   if (series.genres?.length) {
     for (const genre of series.genres) {
       lines.push(`  <genre>${escapeXml(genre)}</genre>`)
     }
   }
 
-  if (series.communityRating) {
-    lines.push(`  <rating>${series.communityRating.toFixed(1)}</rating>`)
-  }
-
+  // Network/Studio
   if (series.network) {
     lines.push(`  <studio>${escapeXml(series.network)}</studio>`)
   }
-
-  if (series.contentRating) {
-    lines.push(`  <mpaa>${escapeXml(series.contentRating)}</mpaa>`)
+  if (series.studios?.length) {
+    for (const studio of series.studios) {
+      if (studio !== series.network) {
+        lines.push(`  <studio>${escapeXml(studio)}</studio>`)
+      }
+    }
   }
 
+  // Add to Top Picks set/collection
+  lines.push(`  <set>`)
+  lines.push(`    <name>Top Picks - Series</name>`)
+  lines.push(`  </set>`)
+
+  // Unique IDs
+  if (series.tvdbId) {
+    lines.push(`  <uniqueid type="tvdb" default="true">${escapeXml(series.tvdbId)}</uniqueid>`)
+    lines.push(`  <tvdbid>${escapeXml(series.tvdbId)}</tvdbid>`)
+  }
+  if (series.imdbId) {
+    lines.push(`  <uniqueid type="imdb">${escapeXml(series.imdbId)}</uniqueid>`)
+  }
+  if (series.tmdbId) {
+    lines.push(`  <uniqueid type="tmdb">${escapeXml(series.tmdbId)}</uniqueid>`)
+  }
+
+  // Status
   if (series.status) {
     lines.push(`  <status>${escapeXml(series.status)}</status>`)
   }
 
-  // Date added for sort ordering (backup method)
-  lines.push(`  <dateadded>${dateAdded.toISOString().slice(0, 19).replace('T', ' ')}</dateadded>`)
-
-  // Add Top Picks tag
+  // Tags
   lines.push(`  <tag>Top Picks</tag>`)
   lines.push(`  <tag>Rank ${series.rank}</tag>`)
 
@@ -141,21 +337,39 @@ function generateTopPicksSeriesNfo(series: TopPicksSeries & {
 interface TopPicksMovie {
   id: string
   title: string
+  originalTitle: string | null
   year: number | null
   providerItemId: string
   posterUrl: string | null
   backdropUrl: string | null
   overview: string | null
+  tagline: string | null
   genres: string[]
   communityRating: number | null
+  criticRating: number | null
+  contentRating: string | null
+  runtimeMinutes: number | null
+  premiereDate: Date | string | null
   path: string | null
   mediaSources?: Array<{ path: string }>
+  // Cast & Crew
+  studios: string[]
+  directors: string[]
+  writers: string[]
+  actors: Array<{ name: string; role?: string; thumb?: string }>
+  // Production info
+  productionCountries: string[]
+  // External IDs
+  imdbId: string | null
+  tmdbId: string | null
+  // Ranking
   rank: number
 }
 
 interface TopPicksSeries {
   id: string
   title: string
+  originalTitle: string | null
   year: number | null
   providerItemId: string
   posterUrl: string | null
@@ -163,7 +377,20 @@ interface TopPicksSeries {
   overview: string | null
   genres: string[]
   communityRating: number | null
+  criticRating: number | null
+  contentRating: string | null
   network: string | null
+  status: string | null
+  // Cast & Crew
+  studios: string[]
+  directors: string[]
+  writers: string[]
+  actors: Array<{ name: string; role?: string; thumb?: string }>
+  // External IDs
+  imdbId: string | null
+  tmdbId: string | null
+  tvdbId: string | null
+  // Ranking
   rank: number
 }
 
@@ -217,7 +444,7 @@ function getMovieStrmContent(movie: TopPicksMovie): string {
 }
 
 /**
- * Write STRM files for Top Picks Movies
+ * Write STRM files (or symlinks) for Top Picks Movies
  */
 export async function writeTopPicksMovies(
   movies: PopularMovie[]
@@ -225,44 +452,52 @@ export async function writeTopPicksMovies(
   const config = getConfig()
   const topPicksConfig = await getTopPicksConfig()
   const startTime = Date.now()
+  const useSymlinks = topPicksConfig.moviesUseSymlinks
 
   // Build paths for the global Top Picks Movies library
   const localPath = path.join(config.strmRoot, 'top-picks', 'movies')
   const embyPath = path.join(config.libraryPathPrefix, '..', 'top-picks', 'movies')
 
-  logger.info({ localPath, embyPath, count: movies.length }, '📁 Writing Top Picks Movies STRM files')
+  logger.info({ localPath, embyPath, count: movies.length, useSymlinks }, `📁 Writing Top Picks Movies ${useSymlinks ? 'symlinks' : 'STRM files'}`)
 
   // Ensure directory exists
   await fs.mkdir(localPath, { recursive: true })
 
-  // Clear existing files (fresh library each refresh)
-  const existingFiles = await fs.readdir(localPath).catch(() => [])
-  for (const file of existingFiles) {
-    await fs.unlink(path.join(localPath, file))
+  // Clear existing files/folders (fresh library each refresh)
+  const existingEntries = await fs.readdir(localPath).catch(() => [])
+  for (const entry of existingEntries) {
+    const entryPath = path.join(localPath, entry)
+    await fs.rm(entryPath, { recursive: true, force: true })
   }
 
   const now = Date.now()
   let written = 0
 
   for (const popular of movies) {
-    const movie: TopPicksMovie = {
-      id: popular.movieId,
-      title: popular.title,
-      year: popular.year,
-      providerItemId: popular.movieId, // Use movie ID as provider ID
-      posterUrl: popular.posterUrl,
-      backdropUrl: popular.backdropUrl,
-      overview: popular.overview,
-      genres: popular.genres,
-      communityRating: popular.communityRating,
-      path: popular.path,
-      rank: popular.rank,
-    }
-
-    // Need to get the provider_item_id from the database
+    // Get full movie metadata from the database
     const { queryOne } = await import('../lib/db.js')
-    const dbMovie = await queryOne<{ provider_item_id: string; path: string | null; media_sources: string | null }>(
-      'SELECT provider_item_id, path, media_sources FROM movies WHERE id = $1',
+    const dbMovie = await queryOne<{
+      provider_item_id: string
+      original_title: string | null
+      path: string | null
+      media_sources: string | null
+      tagline: string | null
+      content_rating: string | null
+      critic_rating: number | null
+      runtime_minutes: number | null
+      premiere_date: Date | string | null
+      studios: string[] | null
+      directors: string[] | null
+      writers: string[] | null
+      actors: string | null
+      production_countries: string[] | null
+      imdb_id: string | null
+      tmdb_id: string | null
+    }>(
+      `SELECT provider_item_id, original_title, path, media_sources,
+              tagline, content_rating, critic_rating, runtime_minutes, premiere_date,
+              studios, directors, writers, actors, production_countries, imdb_id, tmdb_id
+       FROM movies WHERE id = $1`,
       [popular.movieId]
     )
     
@@ -271,14 +506,60 @@ export async function writeTopPicksMovies(
       continue
     }
 
-    movie.providerItemId = dbMovie.provider_item_id
-    movie.path = dbMovie.path
+    // Parse fields - arrays come directly from Postgres, actors is JSONB
+    let mediaSources: Array<{ path: string }> | undefined
+    let actors: Array<{ name: string; role?: string; thumb?: string }> = []
+
     if (dbMovie.media_sources) {
-      try {
-        movie.mediaSources = JSON.parse(dbMovie.media_sources)
-      } catch {
-        // Ignore parse errors
-      }
+      try { 
+        mediaSources = typeof dbMovie.media_sources === 'string' 
+          ? JSON.parse(dbMovie.media_sources) 
+          : dbMovie.media_sources 
+      } catch { /* ignore */ }
+    }
+    if (dbMovie.actors) {
+      try { 
+        actors = typeof dbMovie.actors === 'string' 
+          ? JSON.parse(dbMovie.actors) 
+          : dbMovie.actors 
+      } catch { /* ignore */ }
+    }
+
+    // Arrays come directly from Postgres
+    const studios = dbMovie.studios || []
+    const directors = dbMovie.directors || []
+    const writers = dbMovie.writers || []
+    const productionCountries = dbMovie.production_countries || []
+
+    // Runtime is already in minutes
+    const runtimeMinutes = dbMovie.runtime_minutes
+
+    const movie: TopPicksMovie = {
+      id: popular.movieId,
+      title: popular.title,
+      originalTitle: dbMovie.original_title,
+      year: popular.year,
+      providerItemId: dbMovie.provider_item_id,
+      posterUrl: popular.posterUrl,
+      backdropUrl: popular.backdropUrl,
+      overview: popular.overview,
+      tagline: dbMovie.tagline,
+      genres: popular.genres,
+      communityRating: popular.communityRating,
+      criticRating: dbMovie.critic_rating,
+      contentRating: dbMovie.content_rating,
+      runtimeMinutes,
+      premiereDate: dbMovie.premiere_date,
+      path: dbMovie.path,
+      mediaSources,
+      studios,
+      directors,
+      writers,
+      actors,
+      productionCountries,
+      imdbId: dbMovie.imdb_id,
+      tmdbId: dbMovie.tmdb_id,
+      rank: popular.rank,
     }
 
     const baseFilename = buildTopPicksMovieFilename(movie)
@@ -286,38 +567,101 @@ export async function writeTopPicksMovies(
     // Calculate dateAdded for rank ordering
     const dateAdded = new Date(now - (movie.rank - 1) * INTERVAL_MS)
 
-    // Write STRM file
-    const strmPath = path.join(localPath, `${baseFilename}.strm`)
-    const strmContent = getMovieStrmContent(movie)
-    await fs.writeFile(strmPath, strmContent, 'utf-8')
+    if (useSymlinks) {
+      // SYMLINKS MODE: Create a folder per movie (like series)
+      // Structure: Movie Name (Year) [id]/Movie Name (Year) [id].mkv + movie.nfo + poster.jpg
+      const movieFolderPath = path.join(localPath, baseFilename)
+      await fs.mkdir(movieFolderPath, { recursive: true })
 
-    // Write NFO file
-    const nfoPath = path.join(localPath, `${baseFilename}.nfo`)
-    const nfoContent = generateTopPicksMovieNfo(movie, dateAdded)
-    await fs.writeFile(nfoPath, nfoContent, 'utf-8')
-
-    // Download poster with Top Picks badge
-    if (config.downloadImages && movie.posterUrl) {
-      const posterTask: ImageDownloadTask = {
-        url: movie.posterUrl,
-        path: path.join(localPath, `${baseFilename}-poster.jpg`),
-        movieTitle: movie.title,
-        isPoster: true,
-        rank: movie.rank,
-        mode: 'top-picks',
+      // Get original file path
+      let originalPath = movie.path
+      if (!originalPath && movie.mediaSources && movie.mediaSources.length > 0) {
+        originalPath = movie.mediaSources[0].path
       }
-      await downloadImage(posterTask)
-    }
-
-    // Download backdrop
-    if (config.downloadImages && movie.backdropUrl) {
-      const backdropTask: ImageDownloadTask = {
-        url: movie.backdropUrl,
-        path: path.join(localPath, `${baseFilename}-fanart.jpg`),
-        movieTitle: movie.title,
-        isPoster: false,
+      
+      if (originalPath) {
+        // Get the file extension from the original path
+        const ext = path.extname(originalPath)
+        const symlinkPath = path.join(movieFolderPath, `${baseFilename}${ext}`)
+        try {
+          await fs.symlink(originalPath, symlinkPath)
+          logger.debug({ movie: movie.title, originalPath }, 'Created movie symlink')
+        } catch (err) {
+          logger.debug({ err, movie: movie.title }, 'Failed to create movie symlink, falling back to STRM')
+          // Fallback to STRM if symlink fails
+          const strmPath = path.join(movieFolderPath, `${baseFilename}.strm`)
+          const strmContent = getMovieStrmContent(movie)
+          await fs.writeFile(strmPath, strmContent, 'utf-8')
+        }
+      } else {
+        logger.warn({ movie: movie.title }, 'No file path found for movie, using STRM')
+        const strmPath = path.join(movieFolderPath, `${baseFilename}.strm`)
+        const strmContent = getMovieStrmContent(movie)
+        await fs.writeFile(strmPath, strmContent, 'utf-8')
       }
-      await downloadImage(backdropTask)
+
+      // Write NFO file inside the movie folder (named after the movie)
+      const nfoPath = path.join(movieFolderPath, `${baseFilename}.nfo`)
+      const nfoContent = generateTopPicksMovieNfo(movie, dateAdded)
+      await fs.writeFile(nfoPath, nfoContent, 'utf-8')
+
+      // Download poster with Top Picks badge (poster.jpg in folder)
+      if (config.downloadImages && movie.posterUrl) {
+        const posterTask: ImageDownloadTask = {
+          url: movie.posterUrl,
+          path: path.join(movieFolderPath, 'poster.jpg'),
+          movieTitle: movie.title,
+          isPoster: true,
+          rank: movie.rank,
+          mode: 'top-picks',
+        }
+        await downloadImage(posterTask)
+      }
+
+      // Download backdrop (fanart.jpg in folder)
+      if (config.downloadImages && movie.backdropUrl) {
+        const backdropTask: ImageDownloadTask = {
+          url: movie.backdropUrl,
+          path: path.join(movieFolderPath, 'fanart.jpg'),
+          movieTitle: movie.title,
+          isPoster: false,
+        }
+        await downloadImage(backdropTask)
+      }
+    } else {
+      // STRM MODE: Flat file structure (original behavior)
+      const strmPath = path.join(localPath, `${baseFilename}.strm`)
+      const strmContent = getMovieStrmContent(movie)
+      await fs.writeFile(strmPath, strmContent, 'utf-8')
+
+      // Write NFO file
+      const nfoPath = path.join(localPath, `${baseFilename}.nfo`)
+      const nfoContent = generateTopPicksMovieNfo(movie, dateAdded)
+      await fs.writeFile(nfoPath, nfoContent, 'utf-8')
+
+      // Download poster with Top Picks badge
+      if (config.downloadImages && movie.posterUrl) {
+        const posterTask: ImageDownloadTask = {
+          url: movie.posterUrl,
+          path: path.join(localPath, `${baseFilename}-poster.jpg`),
+          movieTitle: movie.title,
+          isPoster: true,
+          rank: movie.rank,
+          mode: 'top-picks',
+        }
+        await downloadImage(posterTask)
+      }
+
+      // Download backdrop
+      if (config.downloadImages && movie.backdropUrl) {
+        const backdropTask: ImageDownloadTask = {
+          url: movie.backdropUrl,
+          path: path.join(localPath, `${baseFilename}-fanart.jpg`),
+          movieTitle: movie.title,
+          isPoster: false,
+        }
+        await downloadImage(backdropTask)
+      }
     }
 
     written++
@@ -330,7 +674,7 @@ export async function writeTopPicksMovies(
 }
 
 /**
- * Write STRM files for Top Picks Series
+ * Write STRM files (or symlinks) for Top Picks Series
  * Note: For series, we create a folder per series with show.nfo and poster.jpg
  */
 export async function writeTopPicksSeries(
@@ -339,12 +683,13 @@ export async function writeTopPicksSeries(
   const config = getConfig()
   const topPicksConfig = await getTopPicksConfig()
   const startTime = Date.now()
+  const useSymlinks = topPicksConfig.seriesUseSymlinks
 
   // Build paths for the global Top Picks Series library
   const localPath = path.join(config.strmRoot, 'top-picks', 'series')
   const embyPath = path.join(config.libraryPathPrefix, '..', 'top-picks', 'series')
 
-  logger.info({ localPath, embyPath, count: seriesList.length }, '📁 Writing Top Picks Series STRM files')
+  logger.info({ localPath, embyPath, count: seriesList.length, useSymlinks }, `📁 Writing Top Picks Series ${useSymlinks ? 'symlinks' : 'STRM files'}`)
 
   // Ensure directory exists
   await fs.mkdir(localPath, { recursive: true })
@@ -360,16 +705,30 @@ export async function writeTopPicksSeries(
   let written = 0
 
   for (const popular of seriesList) {
-    // Get the provider_item_id and first episode from the database
+    // Get full series metadata from the database
     const { queryOne } = await import('../lib/db.js')
     const dbSeries = await queryOne<{ 
       provider_item_id: string
+      original_title: string | null
       total_seasons: number | null
       total_episodes: number | null
       status: string | null
       content_rating: string | null
+      critic_rating: number | null
+      end_year: number | null
+      studios: string[] | null
+      directors: string[] | null
+      writers: string[] | null
+      actors: string | null
+      imdb_id: string | null
+      tmdb_id: string | null
+      tvdb_id: string | null
     }>(
-      'SELECT provider_item_id, total_seasons, total_episodes, status, content_rating FROM series WHERE id = $1',
+      `SELECT provider_item_id, original_title, total_seasons, total_episodes, 
+              status, content_rating, critic_rating, end_year,
+              studios, directors, writers, actors,
+              imdb_id, tmdb_id, tvdb_id
+       FROM series WHERE id = $1`,
       [popular.seriesId]
     )
     
@@ -377,6 +736,22 @@ export async function writeTopPicksSeries(
       logger.warn({ seriesId: popular.seriesId, title: popular.title }, 'Series not found in DB, skipping')
       continue
     }
+
+    // Parse fields - arrays come directly from Postgres, actors is JSONB
+    let actors: Array<{ name: string; role?: string; thumb?: string }> = []
+
+    if (dbSeries.actors) {
+      try { 
+        actors = typeof dbSeries.actors === 'string' 
+          ? JSON.parse(dbSeries.actors) 
+          : dbSeries.actors 
+      } catch { /* ignore */ }
+    }
+
+    // Arrays come directly from Postgres
+    const studios = dbSeries.studios || []
+    const directors = dbSeries.directors || []
+    const writers = dbSeries.writers || []
 
     // Get first episode to find the original series folder path
     const firstEpisode = await queryOne<{
@@ -423,6 +798,7 @@ export async function writeTopPicksSeries(
     const series: TopPicksSeries = {
       id: popular.seriesId,
       title: popular.title,
+      originalTitle: dbSeries.original_title,
       year: popular.year,
       providerItemId: dbSeries.provider_item_id,
       posterUrl: popular.posterUrl,
@@ -430,7 +806,17 @@ export async function writeTopPicksSeries(
       overview: popular.overview,
       genres: popular.genres,
       communityRating: popular.communityRating,
+      criticRating: dbSeries.critic_rating,
+      contentRating: dbSeries.content_rating,
       network: popular.network,
+      status: dbSeries.status,
+      studios,
+      directors,
+      writers,
+      actors,
+      imdbId: dbSeries.imdb_id,
+      tmdbId: dbSeries.tmdb_id,
+      tvdbId: dbSeries.tvdb_id,
       rank: popular.rank,
     }
 
@@ -442,15 +828,14 @@ export async function writeTopPicksSeries(
     // Calculate dateAdded for rank ordering
     const dateAdded = new Date(now - (series.rank - 1) * INTERVAL_MS)
 
-    // Write our custom tvshow.nfo (with rank sorting)
+    // Write our custom tvshow.nfo (with rank sorting and full cast/crew)
     const nfoPath = path.join(seriesPath, 'tvshow.nfo')
     const nfoContent = generateTopPicksSeriesNfo(
       {
         ...series,
-        contentRating: dbSeries.content_rating,
-        status: dbSeries.status,
         totalSeasons: dbSeries.total_seasons,
         totalEpisodes: dbSeries.total_episodes,
+        endYear: dbSeries.end_year,
       },
       dateAdded
     )
@@ -469,39 +854,120 @@ export async function writeTopPicksSeries(
       await downloadImage(posterTask)
     }
 
-    // Query all seasons for this series from the database
+    // Query all episodes for this series from the database
     const { query } = await import('../lib/db.js')
-    const seasons = await query<{ season_number: number; season_path: string }>(
-      `SELECT DISTINCT season_number, 
-              regexp_replace(path, '/[^/]+$', '') as season_path
-       FROM episodes 
-       WHERE series_id = $1 AND path IS NOT NULL
-       ORDER BY season_number`,
-      [popular.seriesId]
-    )
+    
+    if (useSymlinks) {
+      // SYMLINKS MODE: Create symlinks to season folders
+      const seasons = await query<{ season_number: number; season_path: string }>(
+        `SELECT DISTINCT season_number, 
+                regexp_replace(path, '/[^/]+$', '') as season_path
+         FROM episodes 
+         WHERE series_id = $1 AND path IS NOT NULL
+         ORDER BY season_number`,
+        [popular.seriesId]
+      )
 
-    // Create symlinks to each season folder
-    // Season folders contain their own poster.jpg which Emby should use
-    for (const season of seasons.rows) {
-      const seasonFolderName = `Season ${String(season.season_number).padStart(2, '0')}`
-      const symlinkPath = path.join(seriesPath, seasonFolderName)
-      const originalSeasonPath = season.season_path
-      
-      try {
-        await fs.symlink(originalSeasonPath, symlinkPath)
-        logger.debug({ seasonFolderName, originalSeasonPath }, 'Created season symlink')
-      } catch (err) {
-        // Symlink might already exist or other error
-        logger.debug({ err, seasonFolderName }, 'Failed to create season symlink')
+      // Create symlinks to each season folder
+      // Season folders contain their own poster.jpg which Emby should use
+      for (const season of seasons.rows) {
+        const seasonFolderName = `Season ${String(season.season_number).padStart(2, '0')}`
+        const symlinkPath = path.join(seriesPath, seasonFolderName)
+        const originalSeasonPath = season.season_path
+        
+        try {
+          await fs.symlink(originalSeasonPath, symlinkPath)
+          logger.debug({ seasonFolderName, originalSeasonPath }, 'Created season symlink')
+        } catch (err) {
+          // Symlink might already exist or other error
+          logger.debug({ err, seasonFolderName }, 'Failed to create season symlink')
+        }
       }
-    }
 
-    // Symlink fanart if we know the path
-    const fanartPath = path.join(originalSeriesFolder, 'fanart.jpg')
-    try {
-      await fs.symlink(fanartPath, path.join(seriesPath, 'fanart.jpg'))
-    } catch {
-      // Fanart symlink failed, that's okay - we can download it instead
+      // Symlink fanart if we know the path
+      const fanartPath = path.join(originalSeriesFolder, 'fanart.jpg')
+      try {
+        await fs.symlink(fanartPath, path.join(seriesPath, 'fanart.jpg'))
+      } catch {
+        // Fanart symlink failed, that's okay - we can download it instead
+        if (config.downloadImages && series.backdropUrl) {
+          const backdropTask: ImageDownloadTask = {
+            url: series.backdropUrl,
+            path: path.join(seriesPath, 'fanart.jpg'),
+            movieTitle: series.title,
+            isPoster: false,
+          }
+          await downloadImage(backdropTask)
+        }
+      }
+
+      logger.info({ 
+        title: series.title, 
+        rank: series.rank,
+        seasons: seasons.rows.length,
+        originalFolder: originalSeriesFolder,
+      }, '📺 Created Top Picks series with symlinks')
+    } else {
+      // STRM MODE: Create STRM files for each episode
+      const episodes = await query<{
+        season_number: number
+        episode_number: number
+        title: string
+        path: string | null
+        media_sources: string | null
+        provider_item_id: string
+      }>(
+        `SELECT season_number, episode_number, title, path, media_sources, provider_item_id
+         FROM episodes 
+         WHERE series_id = $1
+         ORDER BY season_number, episode_number`,
+        [popular.seriesId]
+      )
+
+      for (const episode of episodes.rows) {
+        const seasonFolder = `Season ${String(episode.season_number).padStart(2, '0')}`
+        const seasonPath = path.join(seriesPath, seasonFolder)
+        await fs.mkdir(seasonPath, { recursive: true })
+
+        // Build episode filename
+        const episodeNum = `S${String(episode.season_number).padStart(2, '0')}E${String(episode.episode_number).padStart(2, '0')}`
+        const episodeTitle = episode.title ? ` - ${sanitizeFilename(episode.title)}` : ''
+        const episodeFilename = `${sanitizeFilename(series.title)} ${episodeNum}${episodeTitle}`
+
+        // Get STRM content (streaming URL or file path)
+        let strmContent: string
+        if (config.useStreamingUrl) {
+          const provider = getMediaServerProvider()
+          const apiKey = process.env.MEDIA_SERVER_API_KEY || ''
+          strmContent = provider.getStreamUrl(apiKey, episode.provider_item_id)
+        } else {
+          // Try to get the actual file path
+          let episodePath = episode.path
+          if (!episodePath && episode.media_sources) {
+            try {
+              const sources = JSON.parse(episode.media_sources)
+              if (sources[0]?.path) {
+                episodePath = sources[0].path
+              }
+            } catch {
+              // Ignore parse errors
+            }
+          }
+          if (episodePath) {
+            strmContent = episodePath
+          } else {
+            // Fallback to streaming URL
+            const provider = getMediaServerProvider()
+            const apiKey = process.env.MEDIA_SERVER_API_KEY || ''
+            strmContent = provider.getStreamUrl(apiKey, episode.provider_item_id)
+          }
+        }
+
+        const strmPath = path.join(seasonPath, `${episodeFilename}.strm`)
+        await fs.writeFile(strmPath, strmContent, 'utf-8')
+      }
+
+      // Download fanart for STRM mode
       if (config.downloadImages && series.backdropUrl) {
         const backdropTask: ImageDownloadTask = {
           url: series.backdropUrl,
@@ -511,14 +977,13 @@ export async function writeTopPicksSeries(
         }
         await downloadImage(backdropTask)
       }
-    }
 
-    logger.info({ 
-      title: series.title, 
-      rank: series.rank,
-      seasons: seasons.rows.length,
-      originalFolder: originalSeriesFolder,
-    }, '📺 Created Top Picks series with symlinks')
+      logger.info({ 
+        title: series.title, 
+        rank: series.rank,
+        episodes: episodes.rows.length,
+      }, '📺 Created Top Picks series with STRM files')
+    }
 
     written++
   }

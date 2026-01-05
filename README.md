@@ -40,10 +40,13 @@ Aperture creates personalized recommendation libraries for your media server use
 
 ### Top Picks (Global)
 
-- **Popularity-Based Libraries**: Global "Top Picks" libraries showing trending content across all users
+- **Popularity-Based Content**: Global "Top Picks" showing trending content across all users
+- **Multiple Output Modes**: Create Libraries, Collections (Box Sets), and/or Playlists — use any combination
+- **Rank-Ordered Collections**: Collections and playlists maintain rank order (1, 2, 3...) so your #1 pick appears first
+- **Priority Sorting**: Top Picks libraries and collections automatically sort to the top of your media server
 - **Configurable Metrics**: Weight by unique viewers, play count, and completion rate
 - **Time Windows**: Configure how far back to look for popular content
-- **Separate Libraries**: Independent Top Picks libraries for movies and series
+- **Separate Configuration**: Independent settings for movies and series
 
 ### Channels (Custom Collections)
 
@@ -70,6 +73,8 @@ Aperture creates personalized recommendation libraries for your media server use
 - **User Management**: Enable/disable AI recommendations per user, separately for movies and series
 - **Algorithm Tuning**: Configure recommendation weights and parameters separately for movies and series
 - **Model Selection**: Choose between embedding models (small/large) and text generation models (GPT-4o-mini, GPT-5-nano, etc.)
+- **AI Explanation Toggle**: Enable/disable AI-generated "why this was picked" explanations globally, with per-user override capability
+- **Output Format Options**: Choose between STRM files or symlinks for virtual libraries
 - **Cost Estimator**: Built-in OpenAI API cost estimation based on your configuration
 - **Database Management**: Purge and reset functionality for media data
 
@@ -350,13 +355,65 @@ Other settings:
 
 Navigate to **Admin → Settings → Top Picks**
 
-Top Picks are global popularity-based libraries visible to all users:
+Top Picks shows globally popular content based on aggregated watch data across all users. The dedicated Top Picks tab provides comprehensive configuration:
 
-1. **Enable/Disable** — Turn the feature on or off
-2. **Time Window** — How far back to look (e.g., 30 days)
-3. **Count** — How many movies/series to include
-4. **Weights** — Balance between unique viewers, play count, and completion rate
-5. Click **Refresh** to manually update Top Picks
+#### Content Selection
+
+- **Enable/Disable** — Turn Top Picks on or off
+- **Time Window** — How far back to analyze (e.g., 30 days)
+- **Movies Count** — How many movies to include
+- **Series Count** — How many series to include
+- **Minimum Viewers** — Require at least N unique viewers for inclusion
+
+#### Popularity Algorithm
+
+Configure how popularity is calculated by weighting:
+
+- **Unique Viewers** — Different users who watched the content
+- **Play Count** — Total plays across all users
+- **Completion Rate** — How often users finish what they start
+
+#### Output Configuration
+
+Choose how Top Picks appear in your media server (independently for movies and series):
+
+| Output Type    | Description                                                   |
+| -------------- | ------------------------------------------------------------- |
+| **Library**    | Virtual folder with STRM/symlink files (traditional approach) |
+| **Collection** | Box Set in your media server (appears in Collections view)    |
+| **Playlist**   | Server playlist (appears in Playlists section)                |
+
+You can enable any combination — for example, create both a Library AND a Collection for movies.
+
+**Library File Type**: When using Libraries, you can choose between STRM files (default) or Symlinks for each content type independently:
+
+- **Movies**: Toggle between STRM files (flat structure) or symlinks (folder per movie with symlink to original file)
+- **Series**: Toggle between STRM files (per episode) or symlinks to season folders
+
+Both default to STRM files, which work in all network configurations. Use symlinks only if Aperture and your media server share the same filesystem paths.
+
+**Folder Structure with Symlinks**: When using symlinks for movies, each movie gets its own folder containing the symlinked video file, NFO metadata, poster, and fanart:
+
+```
+Top Picks - Movies/
+├── Inception (2010) [12345]/
+│   ├── Inception (2010) [12345].mkv  → symlink to original
+│   ├── Inception (2010) [12345].nfo
+│   ├── poster.jpg
+│   └── fanart.jpg
+```
+
+**Collection/Playlist Names**: Customize the display names (defaults: "Top Picks - Movies", "Top Picks - Series"). Collections are automatically sorted to appear at the top of your collections list.
+
+**Collections and Libraries Together**: You can enable both Library AND Collection modes. Collections will contain items from the Top Picks library (not your original library), so you won't see duplicates. The job automatically:
+
+1. Writes STRM/symlink files to the library
+2. Triggers a library scan and waits for completion
+3. Creates collections using the newly-scanned library items
+
+**Rank Ordering**: Items in collections have their sort names set to maintain rank order (e.g., "01 - Movie Title", "02 - Movie Title"). When viewing the collection sorted by name, items appear in popularity order.
+
+Click **Refresh Top Picks Now** to manually update.
 
 ### Model Selection
 
@@ -378,6 +435,33 @@ Used for taste profiles and recommendation explanations:
 | GPT-4o Mini | Recommended | Low    |
 | GPT-5 Nano  | Budget      | Lowest |
 | GPT-5 Mini  | Premium     | Higher |
+
+### AI Explanation Settings
+
+Navigate to **Admin → Settings → Output & AI**
+
+Control whether AI-generated explanations appear in recommendation NFO files:
+
+- **Global Toggle** — Enable/disable AI explanations for all users
+- **User Override Permission** — When enabled, admins can grant specific users the ability to toggle their own preference
+- **Per-User Settings** — On each user's detail page, admins can allow that user to override the global setting
+
+The AI explanation appears in the NFO plot field, explaining why each title was recommended ("Because you enjoyed dark thrillers like X and Y...").
+
+### Output Format Settings
+
+Configure how virtual libraries are created:
+
+| Format       | Description                                              | Use When                                  |
+| ------------ | -------------------------------------------------------- | ----------------------------------------- |
+| **STRM**     | Small text files containing streaming URLs or file paths | Default; works in all setups              |
+| **Symlinks** | Symbolic links pointing to original media files          | Shared filesystem; preserves full quality |
+
+**STRM files** are universally compatible and work even when Aperture runs on a different machine than your media server.
+
+**Symlinks** require that both Aperture and your media server can access the same filesystem paths. This is ideal for NAS setups where both containers mount the same media share.
+
+> **Note**: Top Picks has its own separate STRM/Symlinks toggles for Movies and Series in **Admin → Settings → Top Picks**. User recommendations output format is configured in **Admin → Settings → Output & AI**.
 
 ### Database Management
 
@@ -483,6 +567,7 @@ Navigate to **History** to see everything you've watched:
 Navigate to **Settings** (user icon in sidebar):
 
 - **Custom Library Name** — Change your "AI Picks" library name (default: "AI Picks - YourUsername")
+- **AI Explanation Preference** — If your admin has enabled this option for you, toggle whether AI explanations appear in your recommendation descriptions
 
 ### Virtual Libraries in Your Media Server
 
@@ -601,7 +686,8 @@ The Admin Settings page provides UI-based configuration for:
 - **AI Config**: Algorithm weights for movies and series separately
 - **Embedding Model**: Choose small (fast/cheap) or large (best quality)
 - **Text Generation Model**: Select GPT model for taste profiles and explanations
-- **Top Picks**: Configure global popularity libraries
+- **Top Picks**: Dedicated tab for global popularity content (output modes, algorithm tuning)
+- **Output & AI**: User recommendations output format (STRM vs symlinks), AI explanation toggles
 - **Cost Estimator**: Estimate OpenAI API costs based on your setup
 
 ### STRM Setup Guide
@@ -673,6 +759,22 @@ STRM_USE_STREAMING_URL=false
 MEDIA_SERVER_LIBRARY_ROOT=/path/to/your/media
 ```
 
+#### Using Symlinks Instead of STRM
+
+For setups where both Aperture and your media server share the same filesystem (common with NAS), you can use symlinks instead of STRM files. Symlinks preserve all metadata and allow the media server to treat files exactly as originals.
+
+**Requirements:**
+
+- Aperture must have write access to the STRM directory
+- Both containers must see the same paths for media files
+- The filesystem must support symlinks (most Linux filesystems do)
+
+Configure via **Admin → Settings → Output & AI → User Recommendations Output Format**.
+
+**Top Picks** also support symlinks, configured separately in **Admin → Settings → Top Picks → Output Configuration**.
+
+**Library Sorting**: Top Picks libraries and collections are automatically assigned sort titles that place them at the top of your library/collection lists (using `!!!!!!` prefix). This ensures your trending content is always easily accessible.
+
 ## Background Jobs
 
 ### Movie Jobs
@@ -703,6 +805,16 @@ MEDIA_SERVER_LIBRARY_ROOT=/path/to/your/media
 | Job                 | Description                        | Schedule      |
 | ------------------- | ---------------------------------- | ------------- |
 | `refresh-top-picks` | Refresh popularity-based libraries | Daily at 6 AM |
+
+The `refresh-top-picks` job:
+
+1. Calculates popularity scores based on recent watch history
+2. Writes STRM/symlink files to the Top Picks libraries
+3. Creates/updates virtual libraries in your media server
+4. Grants all users access to the libraries
+5. Triggers library refresh and waits for scan completion
+6. Creates collections and playlists (if enabled) using the scanned library items
+7. Sets rank-based sort names on collection items for proper ordering
 
 ### Job Scheduling Options
 
@@ -766,25 +878,31 @@ MEDIA_SERVER_LIBRARY_ROOT=/path/to/your/media
 
 ### Settings (Admin)
 
-| Endpoint                                     | Description                |
-| -------------------------------------------- | -------------------------- |
-| `GET /api/settings/media-server`             | Get media server info      |
-| `GET /api/settings/media-server/config`      | Get full config (Admin)    |
-| `PATCH /api/settings/media-server/config`    | Update config              |
-| `POST /api/settings/media-server/test`       | Test connection            |
-| `GET /api/settings/libraries`                | Get library configurations |
-| `POST /api/settings/libraries/sync`          | Sync from media server     |
-| `PATCH /api/settings/libraries/:id`          | Enable/disable library     |
-| `GET /api/settings/recommendations`          | Get algorithm config       |
-| `PATCH /api/settings/recommendations/movies` | Update movie config        |
-| `PATCH /api/settings/recommendations/series` | Update series config       |
-| `GET /api/settings/embedding-model`          | Get embedding model        |
-| `PATCH /api/settings/embedding-model`        | Set embedding model        |
-| `GET /api/settings/text-generation-model`    | Get text gen model         |
-| `PATCH /api/settings/text-generation-model`  | Set text gen model         |
-| `GET /api/settings/top-picks`                | Get Top Picks config       |
-| `PATCH /api/settings/top-picks`              | Update Top Picks config    |
-| `GET /api/settings/cost-inputs`              | Get cost estimation data   |
+| Endpoint                                      | Description                |
+| --------------------------------------------- | -------------------------- |
+| `GET /api/settings/media-server`              | Get media server info      |
+| `GET /api/settings/media-server/config`       | Get full config (Admin)    |
+| `PATCH /api/settings/media-server/config`     | Update config              |
+| `POST /api/settings/media-server/test`        | Test connection            |
+| `GET /api/settings/libraries`                 | Get library configurations |
+| `POST /api/settings/libraries/sync`           | Sync from media server     |
+| `PATCH /api/settings/libraries/:id`           | Enable/disable library     |
+| `GET /api/settings/recommendations`           | Get algorithm config       |
+| `PATCH /api/settings/recommendations/movies`  | Update movie config        |
+| `PATCH /api/settings/recommendations/series`  | Update series config       |
+| `GET /api/settings/embedding-model`           | Get embedding model        |
+| `PATCH /api/settings/embedding-model`         | Set embedding model        |
+| `GET /api/settings/text-generation-model`     | Get text gen model         |
+| `PATCH /api/settings/text-generation-model`   | Set text gen model         |
+| `GET /api/settings/top-picks`                 | Get Top Picks config       |
+| `PATCH /api/settings/top-picks`               | Update Top Picks config    |
+| `GET /api/settings/output-format`             | Get output format config   |
+| `PATCH /api/settings/output-format`           | Update output format       |
+| `GET /api/settings/ai-explanation`            | Get AI explanation config  |
+| `PATCH /api/settings/ai-explanation`          | Update AI explanation      |
+| `GET /api/settings/ai-explanation/user/:id`   | Get user override settings |
+| `PATCH /api/settings/ai-explanation/user/:id` | Update user override       |
+| `GET /api/settings/cost-inputs`               | Get cost estimation data   |
 
 ### Jobs (Admin)
 

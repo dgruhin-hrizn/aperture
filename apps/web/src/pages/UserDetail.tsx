@@ -20,7 +20,15 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Switch,
+  FormControlLabel,
+  Card,
+  CardContent,
+  Divider,
+  Button,
 } from '@mui/material'
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
+import SaveIcon from '@mui/icons-material/Save'
 import GridViewIcon from '@mui/icons-material/GridView'
 import ViewListIcon from '@mui/icons-material/ViewList'
 import FavoriteIcon from '@mui/icons-material/Favorite'
@@ -86,6 +94,175 @@ function TabPanel({ children, value, index }: TabPanelProps) {
     <div role="tabpanel" hidden={value !== index}>
       {value === index && <Box pt={3}>{children}</Box>}
     </div>
+  )
+}
+
+// User Settings Tab Component (Admin only)
+function UserSettingsTab({ userId }: { userId: string }) {
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [settings, setSettings] = useState<{
+    overrideAllowed: boolean
+    enabled: boolean | null
+    effectiveValue: boolean
+    globalConfig: { enabled: boolean; userOverrideAllowed: boolean }
+  } | null>(null)
+
+  const fetchSettings = useCallback(async () => {
+    try {
+      setLoading(true)
+      const response = await fetch(`/api/settings/ai-explanation/user/${userId}`, {
+        credentials: 'include',
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setSettings(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch user AI settings:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [userId])
+
+  useEffect(() => {
+    fetchSettings()
+  }, [fetchSettings])
+
+  const handleSave = async () => {
+    if (!settings) return
+    try {
+      setSaving(true)
+      setError(null)
+      const response = await fetch(`/api/settings/ai-explanation/user/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ overrideAllowed: settings.overrideAllowed }),
+        credentials: 'include',
+      })
+      if (!response.ok) throw new Error('Failed to save settings')
+      const data = await response.json()
+      setSettings({
+        ...settings,
+        effectiveValue: data.effectiveValue,
+      })
+      setSuccess('User settings saved!')
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" py={4}>
+        <CircularProgress />
+      </Box>
+    )
+  }
+
+  if (!settings) {
+    return (
+      <Alert severity="error">Failed to load user settings</Alert>
+    )
+  }
+
+  return (
+    <Box>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+      {success && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
+          {success}
+        </Alert>
+      )}
+
+      <Card variant="outlined" sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <AutoAwesomeIcon color="primary" />
+            AI Explanation Settings
+          </Typography>
+          
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Control whether this user can customize their AI explanation preferences.
+          </Typography>
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* Global Setting Status */}
+          <Box sx={{ mb: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              <strong>Global Setting:</strong> AI explanations are {settings.globalConfig.enabled ? 'enabled' : 'disabled'} by default
+              {settings.globalConfig.userOverrideAllowed 
+                ? ' (per-user overrides allowed)' 
+                : ' (per-user overrides disabled globally)'}
+            </Typography>
+          </Box>
+
+          {/* Override Permission Toggle */}
+          <FormControlLabel
+            control={
+              <Switch
+                checked={settings.overrideAllowed}
+                onChange={(e) => setSettings({ ...settings, overrideAllowed: e.target.checked })}
+                disabled={!settings.globalConfig.userOverrideAllowed}
+              />
+            }
+            label={
+              <Box>
+                <Typography variant="body1" fontWeight="medium">
+                  Allow This User to Override
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  When enabled, this user can toggle AI explanations on/off for their own recommendations
+                </Typography>
+              </Box>
+            }
+            sx={{ alignItems: 'flex-start', ml: 0, mb: 2 }}
+          />
+
+          {!settings.globalConfig.userOverrideAllowed && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Per-user overrides are disabled globally. Enable "Allow Per-User Overrides" in Settings → AI Config → Algorithm to grant users override permission.
+            </Alert>
+          )}
+
+          {/* Current Effective Value */}
+          <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 1, mb: 2 }}>
+            <Typography variant="body2">
+              <strong>Effective Value for This User:</strong>{' '}
+              {settings.effectiveValue ? 'AI explanations are INCLUDED' : 'AI explanations are EXCLUDED'}
+            </Typography>
+            {settings.overrideAllowed && settings.enabled !== null && (
+              <Typography variant="caption" color="text.secondary">
+                (User has chosen to {settings.enabled ? 'enable' : 'disable'} AI explanations)
+              </Typography>
+            )}
+          </Box>
+
+          <Divider sx={{ my: 2 }} />
+
+          <Box display="flex" justifyContent="flex-end">
+            <Button
+              variant="contained"
+              startIcon={saving ? <CircularProgress size={16} /> : <SaveIcon />}
+              onClick={handleSave}
+              disabled={saving || !settings.globalConfig.userOverrideAllowed}
+            >
+              {saving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
+    </Box>
   )
 }
 
@@ -443,6 +620,7 @@ export function UserDetailPage() {
           <Tab label="Watch History" />
           <Tab label="Playlists" />
           <Tab label="Diagnostics" />
+          <Tab label="Settings" />
         </Tabs>
 
         <Box p={3}>
@@ -484,6 +662,10 @@ export function UserDetailPage() {
             <Typography color="text.secondary">
               Recommendation diagnostics and score breakdowns will appear here.
             </Typography>
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={4}>
+            <UserSettingsTab userId={user.id} />
           </TabPanel>
         </Box>
       </Paper>

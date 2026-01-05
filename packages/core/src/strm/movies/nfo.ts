@@ -12,6 +12,15 @@ export function escapeXml(text: string): string {
     .replace(/'/g, '&apos;')
 }
 
+export interface NfoGenerateOptions {
+  /** Include remote image URLs in NFO (when images not downloaded locally) */
+  includeImageUrls: boolean
+  /** Date to set as "date added" (affects sorting by recency) */
+  dateAdded?: Date
+  /** Include AI explanation of why this was recommended (default: true) */
+  includeAiExplanation?: boolean
+}
+
 /**
  * Generate NFO content for a movie
  * NFO files contain comprehensive metadata that Emby can read when scanning the library
@@ -21,8 +30,30 @@ export function escapeXml(text: string): string {
  * 
  * The plot contains AI explanation first (why Aperture picked it), then original overview.
  * dateAdded is used to set the "Date Added" in Emby based on rank (Rank 1 = newest)
+ * 
+ * @param movie - Movie data
+ * @param includeImageUrls - Whether to include remote image URLs (for backward compatibility)
+ * @param dateAdded - Date to use as "date added" (for backward compatibility)
+ * @param options - Extended options (overrides includeImageUrls and dateAdded)
  */
-export function generateNfoContent(movie: Movie, includeImageUrls: boolean, dateAdded?: Date): string {
+export function generateNfoContent(
+  movie: Movie,
+  includeImageUrls: boolean | NfoGenerateOptions,
+  dateAdded?: Date
+): string {
+  // Handle both old signature (boolean, Date) and new signature (options object)
+  let options: NfoGenerateOptions
+  if (typeof includeImageUrls === 'boolean') {
+    options = {
+      includeImageUrls,
+      dateAdded,
+      includeAiExplanation: true, // Default to true for backward compatibility
+    }
+  } else {
+    options = includeImageUrls
+  }
+  
+  const { includeAiExplanation = true } = options
   const lines: string[] = [
     '<?xml version="1.0" encoding="utf-8"?>',
     '<movie>',
@@ -44,9 +75,9 @@ export function generateNfoContent(movie: Movie, includeImageUrls: boolean, date
     lines.push(`  <year>${movie.year}</year>`)
   }
 
-  // Build the plot - AI explanation first, then original overview
+  // Build the plot - AI explanation first (if enabled), then original overview
   let plot = ''
-  if (movie.aiExplanation) {
+  if (includeAiExplanation && movie.aiExplanation) {
     plot = '🎯 Why Aperture picked this for you:\n' + movie.aiExplanation
     if (movie.overview) {
       plot += '\n\n📖 About this movie:\n' + movie.overview
@@ -181,13 +212,13 @@ export function generateNfoContent(movie: Movie, includeImageUrls: boolean, date
   }
 
   // Set dateadded for Emby sorting by "Date Added" (Rank 1 = newest)
-  if (dateAdded) {
-    const formatted = dateAdded.toISOString().replace('T', ' ').substring(0, 19)
+  if (options.dateAdded) {
+    const formatted = options.dateAdded.toISOString().replace('T', ' ').substring(0, 19)
     lines.push(`  <dateadded>${formatted}</dateadded>`)
   }
 
   // Include remote image URLs in NFO when not downloading locally
-  if (includeImageUrls) {
+  if (options.includeImageUrls) {
     if (movie.posterUrl) {
       lines.push(`  <thumb aspect="poster">${escapeXml(movie.posterUrl)}</thumb>`)
     }

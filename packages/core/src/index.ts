@@ -40,6 +40,7 @@ export {
   type WatchedItem,
   type WatchedEpisode,
   type PlaylistCreateResult,
+  type CollectionCreateResult,
   type LibraryCreateResult,
   type MediaSource,
   type UserData,
@@ -209,7 +210,12 @@ export {
   getUserSettings,
   updateUserSettings,
   getDefaultLibraryNamePrefix,
+  getUserAiExplanationSettings,
+  setUserAiExplanationOverride,
+  setUserAiExplanationPreference,
+  getEffectiveAiExplanationSetting,
   type UserSettings,
+  type UserAiExplanationSettings,
 } from './lib/userSettings.js'
 
 // System Settings
@@ -228,11 +234,17 @@ export {
   testMediaServerConnection,
   isMediaServerConfigured,
   getMediaServerTypes,
+  getUserRecsOutputConfig,
+  setUserRecsOutputConfig,
+  getAiExplanationConfig,
+  setAiExplanationConfig,
   type SystemSetting,
   type EmbeddingModel,
   type TextGenerationModel,
   type TextGenerationModelInfo,
   type MediaServerConfig,
+  type UserRecsOutputConfig,
+  type AiExplanationConfig,
 } from './settings/systemSettings.js'
 
 // Top Picks

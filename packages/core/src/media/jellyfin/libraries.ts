@@ -54,7 +54,8 @@ export async function createVirtualLibrary(
   const existing = existingLibraries.find((lib) => lib.name === name)
   
   if (existing) {
-    // Library already exists, return its ID
+    // Library already exists - ensure it has the sort title set
+    await setLibrarySortTitle(provider, apiKey, existing.id, name)
     return { libraryId: existing.id, alreadyExists: true }
   }
 
@@ -73,7 +74,54 @@ export async function createVirtualLibrary(
     throw new Error(`Failed to find created library: ${name}`)
   }
 
+  // Set forced sort name so library appears at top
+  await setLibrarySortTitle(provider, apiKey, created.id, name)
+
   return { libraryId: created.id, alreadyExists: false }
+}
+
+/**
+ * Set the sort title for a library to force it to appear at the top
+ * @param provider - Jellyfin provider instance
+ * @param apiKey - API key for authentication
+ * @param libraryId - Library ID
+ * @param name - Display name of the library
+ */
+async function setLibrarySortTitle(
+  provider: JellyfinProviderBase,
+  apiKey: string,
+  libraryId: string,
+  name: string
+): Promise<void> {
+  // Prepend !!!!!! to sort title so library appears at top when sorted alphabetically
+  const sortTitle = `!!!!!!${name}`
+  
+  try {
+    // Fetch the full item data (required by Jellyfin API for updates)
+    const item = await provider.fetch<Record<string, unknown>>(
+      `/Items/${libraryId}`,
+      apiKey
+    )
+    
+    // Update the sort name and lock it to prevent automatic overwrites
+    item.ForcedSortName = sortTitle
+    
+    // Merge with existing locked fields if any
+    const existingLocked = Array.isArray(item.LockedFields) ? item.LockedFields : []
+    if (!existingLocked.includes('SortName')) {
+      item.LockedFields = [...existingLocked, 'SortName']
+    }
+    
+    // POST the full item back
+    await provider.fetch(`/Items/${libraryId}`, apiKey, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(item),
+    })
+  } catch {
+    // Non-fatal: library will still work, just won't sort to top
+    console.warn(`Failed to set sort title for library ${libraryId}`)
+  }
 }
 
 export async function getUserLibraryAccess(

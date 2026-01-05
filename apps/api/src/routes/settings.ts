@@ -24,6 +24,14 @@ import {
   getMediaServerTypes,
   getJobConfig,
   formatSchedule,
+  getUserRecsOutputConfig,
+  setUserRecsOutputConfig,
+  getAiExplanationConfig,
+  setAiExplanationConfig,
+  getUserAiExplanationSettings,
+  setUserAiExplanationOverride,
+  setUserAiExplanationPreference,
+  getEffectiveAiExplanationSetting,
   type EmbeddingModel,
   type MediaServerType,
   type TextGenerationModel,
@@ -922,6 +930,22 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       playCountWeight?: number
       completionWeight?: number
       refreshCron?: string
+      moviesLibraryName?: string
+      seriesLibraryName?: string
+      minUniqueViewers?: number
+      // Output format settings
+      useSymlinks?: boolean
+      // Movies output modes
+      moviesLibraryEnabled?: boolean
+      moviesCollectionEnabled?: boolean
+      moviesPlaylistEnabled?: boolean
+      // Series output modes
+      seriesLibraryEnabled?: boolean
+      seriesCollectionEnabled?: boolean
+      seriesPlaylistEnabled?: boolean
+      // Collection/Playlist names
+      moviesCollectionName?: string
+      seriesCollectionName?: string
     }
   }>('/api/settings/top-picks', { preHandler: requireAdmin }, async (request, reply) => {
     try {
@@ -974,6 +998,238 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       }
     }
   )
+
+  // =========================================================================
+  // Output Format Configuration (Admin Only)
+  // =========================================================================
+
+  /**
+   * GET /api/settings/output-format
+   * Get user recommendations output format configuration
+   */
+  fastify.get(
+    '/api/settings/output-format',
+    { preHandler: requireAdmin },
+    async (_request, reply) => {
+      try {
+        const config = await getUserRecsOutputConfig()
+        return reply.send(config)
+      } catch (err) {
+        fastify.log.error({ err }, 'Failed to get output format config')
+        return reply.status(500).send({ error: 'Failed to get output format configuration' })
+      }
+    }
+  )
+
+  /**
+   * PATCH /api/settings/output-format
+   * Update user recommendations output format configuration
+   */
+  fastify.patch<{
+    Body: {
+      useSymlinks?: boolean
+    }
+  }>('/api/settings/output-format', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const config = await setUserRecsOutputConfig(request.body)
+      return reply.send({
+        ...config,
+        message: 'Output format configuration updated',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to update output format config')
+      return reply.status(500).send({ error: 'Failed to update output format configuration' })
+    }
+  })
+
+  // =========================================================================
+  // AI Explanation Settings (Admin Only)
+  // =========================================================================
+
+  /**
+   * GET /api/settings/ai-explanation
+   * Get global AI explanation configuration
+   */
+  fastify.get(
+    '/api/settings/ai-explanation',
+    { preHandler: requireAdmin },
+    async (_request, reply) => {
+      try {
+        const config = await getAiExplanationConfig()
+        return reply.send(config)
+      } catch (err) {
+        fastify.log.error({ err }, 'Failed to get AI explanation config')
+        return reply.status(500).send({ error: 'Failed to get AI explanation configuration' })
+      }
+    }
+  )
+
+  /**
+   * PATCH /api/settings/ai-explanation
+   * Update global AI explanation configuration
+   */
+  fastify.patch<{
+    Body: {
+      enabled?: boolean
+      userOverrideAllowed?: boolean
+    }
+  }>('/api/settings/ai-explanation', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const config = await setAiExplanationConfig(request.body)
+      return reply.send({
+        ...config,
+        message: 'AI explanation configuration updated',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to update AI explanation config')
+      return reply.status(500).send({ error: 'Failed to update AI explanation configuration' })
+    }
+  })
+
+  /**
+   * GET /api/settings/ai-explanation/user/:userId
+   * Get a specific user's AI explanation settings (admin only)
+   */
+  fastify.get<{
+    Params: { userId: string }
+  }>(
+    '/api/settings/ai-explanation/user/:userId',
+    { preHandler: requireAdmin },
+    async (request, reply) => {
+      try {
+        const { userId } = request.params
+        const settings = await getUserAiExplanationSettings(userId)
+        const effective = await getEffectiveAiExplanationSetting(userId)
+        const globalConfig = await getAiExplanationConfig()
+
+        return reply.send({
+          ...settings,
+          effectiveValue: effective,
+          globalConfig,
+        })
+      } catch (err) {
+        fastify.log.error({ err }, 'Failed to get user AI explanation settings')
+        return reply.status(500).send({ error: 'Failed to get user AI explanation settings' })
+      }
+    }
+  )
+
+  /**
+   * PATCH /api/settings/ai-explanation/user/:userId
+   * Update a specific user's AI explanation override permission (admin only)
+   */
+  fastify.patch<{
+    Params: { userId: string }
+    Body: {
+      overrideAllowed: boolean
+    }
+  }>(
+    '/api/settings/ai-explanation/user/:userId',
+    { preHandler: requireAdmin },
+    async (request, reply) => {
+      try {
+        const { userId } = request.params
+        const { overrideAllowed } = request.body
+
+        if (typeof overrideAllowed !== 'boolean') {
+          return reply.status(400).send({ error: 'overrideAllowed must be a boolean' })
+        }
+
+        await setUserAiExplanationOverride(userId, overrideAllowed)
+        const settings = await getUserAiExplanationSettings(userId)
+        const effective = await getEffectiveAiExplanationSetting(userId)
+
+        return reply.send({
+          ...settings,
+          effectiveValue: effective,
+          message: `AI explanation override ${overrideAllowed ? 'enabled' : 'disabled'} for user`,
+        })
+      } catch (err) {
+        fastify.log.error({ err }, 'Failed to update user AI explanation settings')
+        return reply.status(500).send({ error: 'Failed to update user AI explanation settings' })
+      }
+    }
+  )
+
+  // =========================================================================
+  // User AI Explanation Preference (User Self-Service)
+  // =========================================================================
+
+  /**
+   * GET /api/settings/user/ai-explanation
+   * Get current user's AI explanation preference
+   */
+  fastify.get('/api/settings/user/ai-explanation', async (request, reply) => {
+    try {
+      const userId = request.user?.id
+      if (!userId) {
+        return reply.status(401).send({ error: 'Not authenticated' })
+      }
+
+      const settings = await getUserAiExplanationSettings(userId)
+      const effective = await getEffectiveAiExplanationSetting(userId)
+      const globalConfig = await getAiExplanationConfig()
+
+      return reply.send({
+        overrideAllowed: settings.overrideAllowed,
+        userPreference: settings.enabled,
+        effectiveValue: effective,
+        globalEnabled: globalConfig.enabled,
+        canOverride: globalConfig.userOverrideAllowed && settings.overrideAllowed,
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get user AI explanation preference')
+      return reply.status(500).send({ error: 'Failed to get AI explanation preference' })
+    }
+  })
+
+  /**
+   * PATCH /api/settings/user/ai-explanation
+   * Update current user's AI explanation preference (only if override is allowed)
+   */
+  fastify.patch<{
+    Body: {
+      enabled: boolean | null
+    }
+  }>('/api/settings/user/ai-explanation', async (request, reply) => {
+    try {
+      const userId = request.user?.id
+      if (!userId) {
+        return reply.status(401).send({ error: 'Not authenticated' })
+      }
+
+      const { enabled } = request.body
+
+      if (enabled !== null && typeof enabled !== 'boolean') {
+        return reply.status(400).send({ error: 'enabled must be a boolean or null' })
+      }
+
+      // Check if user is allowed to override
+      const settings = await getUserAiExplanationSettings(userId)
+      const globalConfig = await getAiExplanationConfig()
+
+      if (!globalConfig.userOverrideAllowed || !settings.overrideAllowed) {
+        return reply.status(403).send({
+          error: 'AI explanation override is not enabled for your account',
+        })
+      }
+
+      await setUserAiExplanationPreference(userId, enabled)
+      const effective = await getEffectiveAiExplanationSetting(userId)
+
+      return reply.send({
+        userPreference: enabled,
+        effectiveValue: effective,
+        message:
+          enabled === null
+            ? 'AI explanation preference reset to global default'
+            : `AI explanations ${enabled ? 'enabled' : 'disabled'}`,
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to update user AI explanation preference')
+      return reply.status(500).send({ error: 'Failed to update AI explanation preference' })
+    }
+  })
 }
 
 export default settingsRoutes

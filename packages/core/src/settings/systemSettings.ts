@@ -352,3 +352,78 @@ function isValidTextGenerationModel(model: string): model is TextGenerationModel
   return TEXT_GENERATION_MODELS.some((m) => m.id === model)
 }
 
+// ============================================================================
+// User Recommendations Output Format Settings
+// ============================================================================
+
+export interface UserRecsOutputConfig {
+  useSymlinks: boolean
+}
+
+/**
+ * Get user recommendations output format configuration
+ */
+export async function getUserRecsOutputConfig(): Promise<UserRecsOutputConfig> {
+  const useSymlinks = await getSystemSetting('user_recs_use_symlinks')
+  return {
+    useSymlinks: useSymlinks === 'true',
+  }
+}
+
+/**
+ * Set user recommendations output format
+ */
+export async function setUserRecsOutputConfig(config: Partial<UserRecsOutputConfig>): Promise<UserRecsOutputConfig> {
+  if (config.useSymlinks !== undefined) {
+    await setSystemSetting(
+      'user_recs_use_symlinks',
+      String(config.useSymlinks),
+      'Use symlinks instead of STRM files for user recommendations (requires shared filesystem paths)'
+    )
+  }
+  return getUserRecsOutputConfig()
+}
+
+// ============================================================================
+// AI Explanation Settings
+// ============================================================================
+
+export interface AiExplanationConfig {
+  enabled: boolean
+  userOverrideAllowed: boolean
+}
+
+/**
+ * Get global AI explanation configuration
+ */
+export async function getAiExplanationConfig(): Promise<AiExplanationConfig> {
+  const enabled = await getSystemSetting('ai_explanation_enabled')
+  const userOverrideAllowed = await getSystemSetting('ai_explanation_user_override_allowed')
+  
+  return {
+    enabled: enabled !== 'false', // Default to true
+    userOverrideAllowed: userOverrideAllowed === 'true', // Default to false
+  }
+}
+
+/**
+ * Set global AI explanation configuration
+ */
+export async function setAiExplanationConfig(config: Partial<AiExplanationConfig>): Promise<AiExplanationConfig> {
+  if (config.enabled !== undefined) {
+    await setSystemSetting(
+      'ai_explanation_enabled',
+      String(config.enabled),
+      'Include AI-generated explanation of why media was recommended in NFO plot field'
+    )
+  }
+  if (config.userOverrideAllowed !== undefined) {
+    await setSystemSetting(
+      'ai_explanation_user_override_allowed',
+      String(config.userOverrideAllowed),
+      'Allow administrators to grant individual users the ability to toggle AI explanations'
+    )
+  }
+  return getAiExplanationConfig()
+}
+

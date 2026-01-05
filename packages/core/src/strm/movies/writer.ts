@@ -12,6 +12,7 @@ import {
   buildBackdropFilename,
   getStrmContent,
 } from '../filenames.js'
+import { getEffectiveAiExplanationSetting } from '../../lib/userSettings.js'
 import type { Movie, FileWriteTask, ImageDownloadTask } from '../types.js'
 
 const logger = createChildLogger('strm-writer')
@@ -41,6 +42,10 @@ export async function writeStrmFilesForUser(
   const embyPath = path.join(config.libraryPathPrefix, providerUserId)
 
   logger.info({ userId, localPath, embyPath }, '📁 Starting STRM file generation')
+
+  // Check if AI explanation should be included for this user
+  const includeAiExplanation = await getEffectiveAiExplanationSetting(userId)
+  logger.info({ userId, includeAiExplanation }, '🎯 AI explanation setting resolved')
 
   // Ensure directory exists on local mount
   await fs.mkdir(localPath, { recursive: true })
@@ -181,7 +186,11 @@ export async function writeStrmFilesForUser(
     // Prepare NFO file task (with dateAdded for Emby sorting)
     const nfoFilename = buildNfoFilename(movie)
     expectedFiles.add(nfoFilename)
-    const nfoContent = generateNfoContent(movie, !config.downloadImages, dateAdded)
+    const nfoContent = generateNfoContent(movie, {
+      includeImageUrls: !config.downloadImages,
+      dateAdded,
+      includeAiExplanation,
+    })
     fileWriteTasks.push({
       path: path.join(localPath, nfoFilename),
       content: nfoContent,

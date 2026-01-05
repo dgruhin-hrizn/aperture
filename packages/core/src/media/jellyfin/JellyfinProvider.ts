@@ -18,6 +18,7 @@ import type {
   WatchedItem,
   WatchedEpisode,
   PlaylistCreateResult,
+  CollectionCreateResult,
   LibraryCreateResult,
   PlaylistItem,
 } from '../types.js'
@@ -44,6 +45,13 @@ import {
   addPlaylistItems,
   getGenres,
 } from './playlists.js'
+import {
+  createOrUpdateCollection,
+  deleteCollection,
+  getCollectionItems,
+  addCollectionItems,
+  removeCollectionItems,
+} from './collections.js'
 
 export class JellyfinProvider extends JellyfinProviderBase implements MediaServerProvider {
   // Authentication
@@ -177,6 +185,31 @@ export class JellyfinProvider extends JellyfinProviderBase implements MediaServe
   // Genres
   async getGenres(apiKey: string): Promise<string[]> {
     return getGenres(this, apiKey)
+  }
+
+  // Collections (Box Sets)
+  async createOrUpdateCollection(
+    apiKey: string,
+    name: string,
+    itemIds: string[]
+  ): Promise<CollectionCreateResult> {
+    return createOrUpdateCollection(this, apiKey, name, itemIds)
+  }
+
+  async deleteCollection(apiKey: string, collectionId: string): Promise<void> {
+    return deleteCollection(this, apiKey, collectionId)
+  }
+
+  async getCollectionItems(apiKey: string, collectionId: string): Promise<string[]> {
+    return getCollectionItems(this, apiKey, collectionId)
+  }
+
+  async addCollectionItems(apiKey: string, collectionId: string, itemIds: string[]): Promise<void> {
+    return addCollectionItems(this, apiKey, collectionId, itemIds)
+  }
+
+  async removeCollectionItems(apiKey: string, collectionId: string, itemIds: string[]): Promise<void> {
+    return removeCollectionItems(this, apiKey, collectionId, itemIds)
   }
 }
 

@@ -1,7 +1,10 @@
 /**
  * Top Picks Refresh Job
  * 
- * Calculates popularity scores and generates STRM libraries for Top Picks.
+ * Calculates popularity scores and generates outputs for Top Picks:
+ * - Libraries (STRM files or symlinks)
+ * - Collections (Box Sets)
+ * - Playlists
  */
 
 import { createChildLogger } from '../lib/logger.js'
@@ -9,7 +12,6 @@ import { randomUUID } from 'crypto'
 import {
   createJobProgress,
   setJobStep,
-  updateJobProgress,
   addLog,
   completeJob,
   failJob,
@@ -17,10 +19,20 @@ import {
 import { getTopPicksConfig, updateTopPicksLastRefreshed } from './config.js'
 import { getTopMovies, getTopSeries } from './popularity.js'
 import { writeTopPicksMovies, writeTopPicksSeries } from './writer.js'
+import { writeTopPicksCollectionsAndPlaylists } from './collectionWriter.js'
 import { grantTopPicksAccessToAllUsers, getTopPicksLibraries } from './permissions.js'
 import { getMediaServerProvider } from '../media/index.js'
 import { getConfig } from '../strm/config.js'
 import path from 'path'
+
+/**
+ * Minimal library info needed for collection creation
+ */
+interface LibraryInfo {
+  id: string
+  guid: string
+  name: string
+}
 
 const logger = createChildLogger('top-picks-job')
 
@@ -32,13 +44,48 @@ export interface RefreshTopPicksResult {
 }
 
 /**
+ * Wait for a library scan to complete by polling its status
+ * Returns true if scan completed, false if timed out
+ */
+async function waitForLibraryScan(
+  libraryId: string,
+  maxWaitMs: number = 60000,
+  pollIntervalMs: number = 2000
+): Promise<boolean> {
+  const provider = getMediaServerProvider()
+  const apiKey = process.env.MEDIA_SERVER_API_KEY
+  if (!apiKey) return false
+
+  const startTime = Date.now()
+  
+  while (Date.now() - startTime < maxWaitMs) {
+    try {
+      const libraries = await provider.getLibraries(apiKey)
+      const library = libraries.find(l => l.id === libraryId)
+      
+      if (library && (!library.refreshStatus || library.refreshStatus === 'Idle')) {
+        return true
+      }
+      
+      // Wait before polling again
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs))
+    } catch (err) {
+      logger.debug({ err }, 'Error checking library status')
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs))
+    }
+  }
+  
+  return false // Timed out
+}
+
+/**
  * Refresh Top Picks libraries
  */
 export async function refreshTopPicks(
   existingJobId?: string
 ): Promise<RefreshTopPicksResult> {
   const jobId = existingJobId || randomUUID()
-  createJobProgress(jobId, 'refresh-top-picks', 6)
+  createJobProgress(jobId, 'refresh-top-picks', 8)
 
   try {
     // Step 1: Check if Top Picks is enabled
@@ -53,6 +100,20 @@ export async function refreshTopPicks(
 
     addLog(jobId, 'info', `⚙️ Configuration loaded: ${config.timeWindowDays} day window, ${config.moviesCount} movies, ${config.seriesCount} series`)
     addLog(jobId, 'info', `📊 Weights: Viewers ${config.uniqueViewersWeight}, Plays ${config.playCountWeight}, Completion ${config.completionWeight}`)
+    
+    // Log output modes
+    const movieOutputs = []
+    if (config.moviesLibraryEnabled) movieOutputs.push('Library')
+    if (config.moviesCollectionEnabled) movieOutputs.push('Collection')
+    if (config.moviesPlaylistEnabled) movieOutputs.push('Playlist')
+    
+    const seriesOutputs = []
+    if (config.seriesLibraryEnabled) seriesOutputs.push('Library')
+    if (config.seriesCollectionEnabled) seriesOutputs.push('Collection')
+    if (config.seriesPlaylistEnabled) seriesOutputs.push('Playlist')
+    
+    addLog(jobId, 'info', `🎬 Movies outputs: ${movieOutputs.join(', ') || 'None'}`)
+    addLog(jobId, 'info', `📺 Series outputs: ${seriesOutputs.join(', ') || 'None'}`)
 
     // Step 2: Calculate top movies
     setJobStep(jobId, 1, 'Calculating top movies')
@@ -84,78 +145,98 @@ export async function refreshTopPicks(
       }
     }
 
-    // Step 4: Write STRM files for movies
-    setJobStep(jobId, 3, 'Writing movie STRM files')
-    addLog(jobId, 'info', '📁 Writing Top Picks Movies STRM files...')
-    const moviesResult = await writeTopPicksMovies(topMovies)
-    addLog(jobId, 'info', `✅ Written ${moviesResult.written} movie files to ${moviesResult.localPath}`)
-
-    // Step 5: Write STRM files for series
-    setJobStep(jobId, 4, 'Writing series STRM files')
-    addLog(jobId, 'info', '📁 Writing Top Picks Series STRM files...')
-    const seriesResult = await writeTopPicksSeries(topSeries)
-    addLog(jobId, 'info', `✅ Written ${seriesResult.written} series to ${seriesResult.localPath}`)
-
-    // Step 6: Create/refresh Emby libraries and grant access
-    setJobStep(jobId, 5, 'Managing library access')
+    // Step 4: Write STRM files for movies (if library enabled)
+    setJobStep(jobId, 3, 'Writing library files')
     
-    // Check if libraries exist, create if not
+    if (config.moviesLibraryEnabled) {
+      addLog(jobId, 'info', '📁 Writing Top Picks Movies library files...')
+      const moviesResult = await writeTopPicksMovies(topMovies)
+      addLog(jobId, 'info', `✅ Written ${moviesResult.written} movie files to ${moviesResult.localPath}`)
+    } else {
+      addLog(jobId, 'info', '⏭️ Skipping movies library (disabled)')
+    }
+
+    // Step 5: Write STRM files for series (if library enabled)
+    setJobStep(jobId, 4, 'Writing series library files')
+    
+    if (config.seriesLibraryEnabled) {
+      addLog(jobId, 'info', '📁 Writing Top Picks Series library files...')
+      const seriesResult = await writeTopPicksSeries(topSeries)
+      addLog(jobId, 'info', `✅ Written ${seriesResult.written} series to ${seriesResult.localPath}`)
+    } else {
+      addLog(jobId, 'info', '⏭️ Skipping series library (disabled)')
+    }
+
+    // Step 6: Manage library access and trigger refresh
+    setJobStep(jobId, 5, 'Managing libraries and triggering refresh')
+    
     const provider = getMediaServerProvider()
     const apiKey = process.env.MEDIA_SERVER_API_KEY
-    if (apiKey) {
+    
+    let moviesLib: LibraryInfo | null = null
+    let seriesLib: LibraryInfo | null = null
+    
+    if (apiKey && (config.moviesLibraryEnabled || config.seriesLibraryEnabled)) {
       const strmConfig = getConfig()
       
-      // Ensure Top Picks movies library exists
-      try {
-        const moviesLibPath = path.join(strmConfig.libraryPathPrefix, '..', 'top-picks', 'movies')
-        addLog(jobId, 'info', `🔧 Checking Movies library "${config.moviesLibraryName}"...`)
-        const moviesResult = await provider.createVirtualLibrary(
-          apiKey,
-          config.moviesLibraryName,
-          moviesLibPath,
-          'movies'
-        )
-        if (moviesResult.alreadyExists) {
-          addLog(jobId, 'info', `✅ Movies library "${config.moviesLibraryName}" already exists`)
-        } else {
-          addLog(jobId, 'info', `✅ Movies library "${config.moviesLibraryName}" created`)
+      // Ensure Top Picks movies library exists (if enabled)
+      if (config.moviesLibraryEnabled) {
+        try {
+          const moviesLibPath = path.join(strmConfig.libraryPathPrefix, '..', 'top-picks', 'movies')
+          addLog(jobId, 'info', `🔧 Checking Movies library "${config.moviesLibraryName}"...`)
+          const moviesResult = await provider.createVirtualLibrary(
+            apiKey,
+            config.moviesLibraryName,
+            moviesLibPath,
+            'movies'
+          )
+          if (moviesResult.alreadyExists) {
+            addLog(jobId, 'info', `✅ Movies library "${config.moviesLibraryName}" already exists`)
+          } else {
+            addLog(jobId, 'info', `✅ Movies library "${config.moviesLibraryName}" created`)
+          }
+        } catch (err) {
+          addLog(jobId, 'error', `❌ Failed to ensure Movies library: ${err instanceof Error ? err.message : 'Unknown error'}`)
         }
-      } catch (err) {
-        addLog(jobId, 'error', `❌ Failed to ensure Movies library: ${err instanceof Error ? err.message : 'Unknown error'}`)
       }
 
-      // Ensure Top Picks series library exists
-      try {
-        const seriesLibPath = path.join(strmConfig.libraryPathPrefix, '..', 'top-picks', 'series')
-        addLog(jobId, 'info', `🔧 Checking Series library "${config.seriesLibraryName}"...`)
-        const seriesResult = await provider.createVirtualLibrary(
-          apiKey,
-          config.seriesLibraryName,
-          seriesLibPath,
-          'tvshows'
-        )
-        if (seriesResult.alreadyExists) {
-          addLog(jobId, 'info', `✅ Series library "${config.seriesLibraryName}" already exists`)
-        } else {
-          addLog(jobId, 'info', `✅ Series library "${config.seriesLibraryName}" created`)
+      // Ensure Top Picks series library exists (if enabled)
+      if (config.seriesLibraryEnabled) {
+        try {
+          const seriesLibPath = path.join(strmConfig.libraryPathPrefix, '..', 'top-picks', 'series')
+          addLog(jobId, 'info', `🔧 Checking Series library "${config.seriesLibraryName}"...`)
+          const seriesResult = await provider.createVirtualLibrary(
+            apiKey,
+            config.seriesLibraryName,
+            seriesLibPath,
+            'tvshows'
+          )
+          if (seriesResult.alreadyExists) {
+            addLog(jobId, 'info', `✅ Series library "${config.seriesLibraryName}" already exists`)
+          } else {
+            addLog(jobId, 'info', `✅ Series library "${config.seriesLibraryName}" created`)
+          }
+        } catch (err) {
+          addLog(jobId, 'error', `❌ Failed to ensure Series library: ${err instanceof Error ? err.message : 'Unknown error'}`)
         }
-      } catch (err) {
-        addLog(jobId, 'error', `❌ Failed to ensure Series library: ${err instanceof Error ? err.message : 'Unknown error'}`)
       }
 
-      // Grant access to all users
-      addLog(jobId, 'info', '👥 Granting access to all users...')
+      // Get library references
       const topPicksLibs = await getTopPicksLibraries()
+      moviesLib = config.moviesLibraryEnabled ? topPicksLibs.movies : null
+      seriesLib = config.seriesLibraryEnabled ? topPicksLibs.series : null
       
-      if (!topPicksLibs.movies) {
-        addLog(jobId, 'warn', `⚠️ Movies library "${config.moviesLibraryName}" not found in Emby - permissions not set`)
+      if (!moviesLib && config.moviesLibraryEnabled) {
+        addLog(jobId, 'warn', `⚠️ Movies library "${config.moviesLibraryName}" not found in media server`)
       }
-      if (!topPicksLibs.series) {
-        addLog(jobId, 'warn', `⚠️ Series library "${config.seriesLibraryName}" not found in Emby - permissions not set`)
+      if (!seriesLib && config.seriesLibraryEnabled) {
+        addLog(jobId, 'warn', `⚠️ Series library "${config.seriesLibraryName}" not found in media server`)
       }
       
-      if (topPicksLibs.movies || topPicksLibs.series) {
-        const accessResult = await grantTopPicksAccessToAllUsers(topPicksLibs.movies, topPicksLibs.series)
+      // Grant access to all users
+      if (moviesLib || seriesLib) {
+        addLog(jobId, 'info', '👥 Granting access to all users...')
+        const accessResult = await grantTopPicksAccessToAllUsers(moviesLib, seriesLib)
         addLog(jobId, 'info', `✅ Permissions updated: ${accessResult.updated} users granted access`)
         if (accessResult.alreadyHadAccess > 0) {
           addLog(jobId, 'info', `   ℹ️ ${accessResult.alreadyHadAccess} users already had access`)
@@ -166,20 +247,91 @@ export async function refreshTopPicks(
         if (accessResult.failed > 0) {
           addLog(jobId, 'warn', `   ⚠️ ${accessResult.failed} users failed`)
         }
-      } else {
-        addLog(jobId, 'warn', '⚠️ No Top Picks libraries found - run Emby library scan first, then re-run this job')
       }
 
-      // Refresh libraries
+      // Trigger library refresh and wait for completion
       addLog(jobId, 'info', '🔄 Triggering library refresh...')
-      if (topPicksLibs.movies) {
-        await provider.refreshLibrary(apiKey, topPicksLibs.movies.id)
-        addLog(jobId, 'info', `🔄 Movies library refresh triggered`)
+      
+      if (moviesLib) {
+        await provider.refreshLibrary(apiKey, moviesLib.id)
+        addLog(jobId, 'info', `🔄 Movies library refresh triggered, waiting for scan...`)
       }
-      if (topPicksLibs.series) {
-        await provider.refreshLibrary(apiKey, topPicksLibs.series.id)
-        addLog(jobId, 'info', `🔄 Series library refresh triggered`)
+      if (seriesLib) {
+        await provider.refreshLibrary(apiKey, seriesLib.id)
+        addLog(jobId, 'info', `🔄 Series library refresh triggered, waiting for scan...`)
       }
+      
+      // Wait for scans to complete (need items to exist before creating collections)
+      const hasCollectionOrPlaylist = 
+        config.moviesCollectionEnabled || 
+        config.seriesCollectionEnabled || 
+        config.moviesPlaylistEnabled || 
+        config.seriesPlaylistEnabled
+      
+      if (hasCollectionOrPlaylist) {
+        setJobStep(jobId, 6, 'Waiting for library scan to complete')
+        
+        // Wait for scans (with timeout)
+        if (moviesLib) {
+          addLog(jobId, 'info', '⏳ Waiting for Movies library scan to complete...')
+          const moviesComplete = await waitForLibraryScan(moviesLib.id, 60000)
+          if (moviesComplete) {
+            addLog(jobId, 'info', '✅ Movies library scan complete')
+          } else {
+            addLog(jobId, 'warn', '⚠️ Movies library scan timed out, collections may be incomplete')
+          }
+        }
+        
+        if (seriesLib) {
+          addLog(jobId, 'info', '⏳ Waiting for Series library scan to complete...')
+          const seriesComplete = await waitForLibraryScan(seriesLib.id, 60000)
+          if (seriesComplete) {
+            addLog(jobId, 'info', '✅ Series library scan complete')
+          } else {
+            addLog(jobId, 'warn', '⚠️ Series library scan timed out, collections may be incomplete')
+          }
+        }
+      }
+    } else if (!apiKey) {
+      addLog(jobId, 'warn', '⚠️ MEDIA_SERVER_API_KEY not set - skipping library management')
+    } else {
+      addLog(jobId, 'info', '⏭️ Skipping library management (no libraries enabled)')
+    }
+
+    // Step 7: Create collections and playlists (AFTER library scan completes)
+    setJobStep(jobId, 6, 'Creating collections and playlists')
+    
+    const hasCollectionOrPlaylist = 
+      config.moviesCollectionEnabled || 
+      config.seriesCollectionEnabled || 
+      config.moviesPlaylistEnabled || 
+      config.seriesPlaylistEnabled
+    
+    if (hasCollectionOrPlaylist) {
+      addLog(jobId, 'info', '📦 Creating collections and playlists from Top Picks library items...')
+      
+      // Pass the library references so collections use items from Top Picks library
+      const cpResults = await writeTopPicksCollectionsAndPlaylists(
+        topMovies, 
+        topSeries,
+        moviesLib,
+        seriesLib
+      )
+      
+      if (cpResults.moviesCollection) {
+        addLog(jobId, 'info', `✅ Movies collection created with ${cpResults.moviesCollection.itemCount} items`)
+      }
+      if (cpResults.seriesCollection) {
+        addLog(jobId, 'info', `✅ Series collection created with ${cpResults.seriesCollection.itemCount} items`)
+      }
+      if (cpResults.moviesPlaylist) {
+        addLog(jobId, 'info', `✅ Movies playlist created with ${cpResults.moviesPlaylist.itemCount} items`)
+      }
+      if (cpResults.seriesPlaylist) {
+        addLog(jobId, 'info', `✅ Series playlist created with ${cpResults.seriesPlaylist.itemCount} items`)
+      }
+    } else {
+      addLog(jobId, 'info', '⏭️ Skipping collections and playlists (all disabled)')
     }
 
     // Update last refreshed timestamp
@@ -188,7 +340,7 @@ export async function refreshTopPicks(
     const result = {
       moviesCount: topMovies.length,
       seriesCount: topSeries.length,
-      usersUpdated: 0, // Will be updated from accessResult
+      usersUpdated: 0,
       jobId,
     }
 
@@ -203,4 +355,3 @@ export async function refreshTopPicks(
     throw err
   }
 }
-

@@ -10,6 +10,7 @@ import type {
   WatchedItem,
   WatchedEpisode,
   PlaylistCreateResult,
+  CollectionCreateResult,
   LibraryCreateResult,
   PlaylistItem,
 } from './types.js'
@@ -202,6 +203,41 @@ export interface MediaServerProvider {
    * Add items to a playlist
    */
   addPlaylistItems(apiKey: string, playlistId: string, itemIds: string[]): Promise<void>
+
+  // =========================================================================
+  // Collections (Box Sets)
+  // =========================================================================
+
+  /**
+   * Create or update a collection (Box Set)
+   * Collections group items within libraries and appear in the browse view
+   * Unlike playlists, collections are not ordered
+   */
+  createOrUpdateCollection(
+    apiKey: string,
+    name: string,
+    itemIds: string[]
+  ): Promise<CollectionCreateResult>
+
+  /**
+   * Delete a collection
+   */
+  deleteCollection(apiKey: string, collectionId: string): Promise<void>
+
+  /**
+   * Get items in a collection
+   */
+  getCollectionItems(apiKey: string, collectionId: string): Promise<string[]>
+
+  /**
+   * Add items to a collection
+   */
+  addCollectionItems(apiKey: string, collectionId: string, itemIds: string[]): Promise<void>
+
+  /**
+   * Remove items from a collection
+   */
+  removeCollectionItems(apiKey: string, collectionId: string, itemIds: string[]): Promise<void>
 
   // =========================================================================
   // Genres

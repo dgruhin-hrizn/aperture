@@ -14,11 +14,14 @@ import {
   FormControl,
   Divider,
   Avatar,
+  Switch,
+  FormControlLabel,
 } from '@mui/material'
 import SettingsIcon from '@mui/icons-material/Settings'
 import PersonIcon from '@mui/icons-material/Person'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
 import SaveIcon from '@mui/icons-material/Save'
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import { useAuth } from '@/hooks/useAuth'
 import { Breadcrumbs } from '@/components/Breadcrumbs'
 
@@ -36,8 +39,12 @@ function TabPanel({ children, value, index }: TabPanelProps) {
   )
 }
 
-interface UserSettingsState {
-  libraryName: string | null
+interface AiExplanationPreference {
+  overrideAllowed: boolean
+  userPreference: boolean | null
+  effectiveValue: boolean
+  globalEnabled: boolean
+  canOverride: boolean
 }
 
 export function UserSettingsPage() {
@@ -52,8 +59,16 @@ export function UserSettingsPage() {
   const [userSettingsSuccess, setUserSettingsSuccess] = useState<string | null>(null)
   const [libraryNameInput, setLibraryNameInput] = useState<string>('')
 
+  // AI explanation preference state
+  const [aiExplanationPref, setAiExplanationPref] = useState<AiExplanationPreference | null>(null)
+  const [loadingAiPref, setLoadingAiPref] = useState(false)
+  const [savingAiPref, setSavingAiPref] = useState(false)
+  const [aiPrefError, setAiPrefError] = useState<string | null>(null)
+  const [aiPrefSuccess, setAiPrefSuccess] = useState<string | null>(null)
+
   useEffect(() => {
     fetchUserSettings()
+    fetchAiExplanationPref()
   }, [])
 
   const fetchUserSettings = async () => {
@@ -100,6 +115,53 @@ export function UserSettingsPage() {
       setUserSettingsError('Could not connect to server')
     } finally {
       setSavingUserSettings(false)
+    }
+  }
+
+  const fetchAiExplanationPref = async () => {
+    setLoadingAiPref(true)
+    try {
+      const response = await fetch('/api/settings/user/ai-explanation', { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        setAiExplanationPref(data)
+      }
+    } catch {
+      // Silently fail - this is optional functionality
+    } finally {
+      setLoadingAiPref(false)
+    }
+  }
+
+  const saveAiExplanationPref = async (enabled: boolean | null) => {
+    if (!aiExplanationPref) return
+    setSavingAiPref(true)
+    setAiPrefError(null)
+    setAiPrefSuccess(null)
+    try {
+      const response = await fetch('/api/settings/user/ai-explanation', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ enabled }),
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setAiExplanationPref({
+          ...aiExplanationPref,
+          userPreference: data.userPreference,
+          effectiveValue: data.effectiveValue,
+        })
+        setAiPrefSuccess(data.message)
+        setTimeout(() => setAiPrefSuccess(null), 5000)
+      } else {
+        const err = await response.json()
+        setAiPrefError(err.error || 'Failed to save preference')
+      }
+    } catch {
+      setAiPrefError('Could not connect to server')
+    } finally {
+      setSavingAiPref(false)
     }
   }
 
@@ -296,6 +358,79 @@ export function UserSettingsPage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* AI Explanation Preference - only show if user can override */}
+            {aiExplanationPref?.canOverride && (
+              <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, maxWidth: 600, mt: 3 }}>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <AutoAwesomeIcon color="primary" />
+                    AI Explanation Preference
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" mb={3}>
+                    Choose whether to include AI-generated explanations in your recommendation descriptions.
+                  </Typography>
+
+                  {aiPrefError && (
+                    <Alert severity="error" sx={{ mb: 2 }} onClose={() => setAiPrefError(null)}>
+                      {aiPrefError}
+                    </Alert>
+                  )}
+
+                  {aiPrefSuccess && (
+                    <Alert severity="success" sx={{ mb: 2 }} onClose={() => setAiPrefSuccess(null)}>
+                      {aiPrefSuccess}
+                    </Alert>
+                  )}
+
+                  {loadingAiPref ? (
+                    <Box display="flex" justifyContent="center" py={4}>
+                      <CircularProgress />
+                    </Box>
+                  ) : (
+                    <>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={aiExplanationPref.userPreference ?? aiExplanationPref.globalEnabled}
+                            onChange={(e) => saveAiExplanationPref(e.target.checked)}
+                            disabled={savingAiPref}
+                          />
+                        }
+                        label={
+                          <Box>
+                            <Typography variant="body1" fontWeight="medium">
+                              Include AI Explanations
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              When enabled, each recommendation includes "Why Aperture picked this for you"
+                            </Typography>
+                          </Box>
+                        }
+                        sx={{ alignItems: 'flex-start', ml: 0, mb: 2 }}
+                      />
+
+                      {aiExplanationPref.userPreference !== null && (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => saveAiExplanationPref(null)}
+                          disabled={savingAiPref}
+                        >
+                          Reset to Default ({aiExplanationPref.globalEnabled ? 'Enabled' : 'Disabled'})
+                        </Button>
+                      )}
+
+                      <Divider sx={{ my: 3 }} />
+
+                      <Typography variant="caption" color="text.secondary">
+                        Changes will apply when your recommendations are next regenerated.
+                      </Typography>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </TabPanel>
         </Box>
       </Paper>

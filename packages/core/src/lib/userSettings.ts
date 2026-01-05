@@ -113,3 +113,96 @@ export function getDefaultLibraryNamePrefix(): string {
   return process.env.AI_LIBRARY_NAME_PREFIX || 'AI Picks - '
 }
 
+// ============================================================================
+// AI Explanation Settings (Per-User)
+// ============================================================================
+
+export interface UserAiExplanationSettings {
+  overrideAllowed: boolean
+  enabled: boolean | null // null means use global default
+}
+
+/**
+ * Get a user's AI explanation settings
+ */
+export async function getUserAiExplanationSettings(userId: string): Promise<UserAiExplanationSettings> {
+  const row = await queryOne<{
+    ai_explanation_override_allowed: boolean
+    ai_explanation_enabled: boolean | null
+  }>(
+    `SELECT ai_explanation_override_allowed, ai_explanation_enabled FROM users WHERE id = $1`,
+    [userId]
+  )
+
+  return {
+    overrideAllowed: row?.ai_explanation_override_allowed ?? false,
+    enabled: row?.ai_explanation_enabled ?? null,
+  }
+}
+
+/**
+ * Update a user's AI explanation settings (admin only - sets override_allowed)
+ */
+export async function setUserAiExplanationOverride(
+  userId: string,
+  overrideAllowed: boolean
+): Promise<void> {
+  await query(
+    `UPDATE users SET ai_explanation_override_allowed = $1, updated_at = NOW() WHERE id = $2`,
+    [overrideAllowed, userId]
+  )
+  logger.info({ userId, overrideAllowed }, 'Updated user AI explanation override setting')
+}
+
+/**
+ * Update a user's AI explanation preference (user choice, only works if override is allowed)
+ */
+export async function setUserAiExplanationPreference(
+  userId: string,
+  enabled: boolean | null
+): Promise<void> {
+  // First check if override is allowed for this user
+  const settings = await getUserAiExplanationSettings(userId)
+  if (!settings.overrideAllowed) {
+    throw new Error('AI explanation override not allowed for this user')
+  }
+
+  await query(
+    `UPDATE users SET ai_explanation_enabled = $1, updated_at = NOW() WHERE id = $2`,
+    [enabled, userId]
+  )
+  logger.info({ userId, enabled }, 'Updated user AI explanation preference')
+}
+
+/**
+ * Get effective AI explanation setting for a user
+ * Three-tier logic: Global default -> Admin grants override -> User chooses
+ */
+export async function getEffectiveAiExplanationSetting(userId: string): Promise<boolean> {
+  // Import here to avoid circular dependency
+  const { getAiExplanationConfig } = await import('../settings/systemSettings.js')
+  
+  // Get global config
+  const globalConfig = await getAiExplanationConfig()
+  
+  // If global override is not allowed, use global setting
+  if (!globalConfig.userOverrideAllowed) {
+    return globalConfig.enabled
+  }
+  
+  // Check if this user has override permission
+  const userSettings = await getUserAiExplanationSettings(userId)
+  
+  // If user doesn't have override permission, use global
+  if (!userSettings.overrideAllowed) {
+    return globalConfig.enabled
+  }
+  
+  // User has override permission - use their preference if set, otherwise global
+  if (userSettings.enabled !== null) {
+    return userSettings.enabled
+  }
+  
+  return globalConfig.enabled
+}
+

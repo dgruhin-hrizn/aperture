@@ -27,6 +27,20 @@ export interface TopPicksConfig {
   seriesLibraryName: string
   // Minimum viewers threshold
   minUniqueViewers: number
+  // Output format settings (separate for movies and series)
+  moviesUseSymlinks: boolean
+  seriesUseSymlinks: boolean
+  // Movies output modes
+  moviesLibraryEnabled: boolean
+  moviesCollectionEnabled: boolean
+  moviesPlaylistEnabled: boolean
+  // Series output modes
+  seriesLibraryEnabled: boolean
+  seriesCollectionEnabled: boolean
+  seriesPlaylistEnabled: boolean
+  // Collection/Playlist names
+  moviesCollectionName: string
+  seriesCollectionName: string
   // Timestamps
   createdAt: Date
   updatedAt: Date
@@ -46,6 +60,20 @@ interface TopPicksConfigRow {
   movies_library_name: string
   series_library_name: string
   min_unique_viewers: number
+  // Output format settings (separate for movies and series)
+  movies_use_symlinks: boolean
+  series_use_symlinks: boolean
+  // Movies output modes
+  movies_library_enabled: boolean
+  movies_collection_enabled: boolean
+  movies_playlist_enabled: boolean
+  // Series output modes
+  series_library_enabled: boolean
+  series_collection_enabled: boolean
+  series_playlist_enabled: boolean
+  // Collection/Playlist names
+  movies_collection_name: string
+  series_collection_name: string
   created_at: Date
   updated_at: Date
 }
@@ -73,6 +101,16 @@ export async function getTopPicksConfig(): Promise<TopPicksConfig> {
       moviesLibraryName: 'Top Picks - Movies',
       seriesLibraryName: 'Top Picks - Series',
       minUniqueViewers: 2,
+      moviesUseSymlinks: false,
+      seriesUseSymlinks: false,
+      moviesLibraryEnabled: true,
+      moviesCollectionEnabled: false,
+      moviesPlaylistEnabled: false,
+      seriesLibraryEnabled: true,
+      seriesCollectionEnabled: false,
+      seriesPlaylistEnabled: false,
+      moviesCollectionName: 'Top Picks - Movies',
+      seriesCollectionName: 'Top Picks - Series',
       createdAt: new Date(),
       updatedAt: new Date(),
     }
@@ -137,6 +175,46 @@ export async function updateTopPicksConfig(
     setClauses.push(`min_unique_viewers = $${paramIndex++}`)
     values.push(updates.minUniqueViewers)
   }
+  if (updates.moviesUseSymlinks !== undefined) {
+    setClauses.push(`movies_use_symlinks = $${paramIndex++}`)
+    values.push(updates.moviesUseSymlinks)
+  }
+  if (updates.seriesUseSymlinks !== undefined) {
+    setClauses.push(`series_use_symlinks = $${paramIndex++}`)
+    values.push(updates.seriesUseSymlinks)
+  }
+  if (updates.moviesLibraryEnabled !== undefined) {
+    setClauses.push(`movies_library_enabled = $${paramIndex++}`)
+    values.push(updates.moviesLibraryEnabled)
+  }
+  if (updates.moviesCollectionEnabled !== undefined) {
+    setClauses.push(`movies_collection_enabled = $${paramIndex++}`)
+    values.push(updates.moviesCollectionEnabled)
+  }
+  if (updates.moviesPlaylistEnabled !== undefined) {
+    setClauses.push(`movies_playlist_enabled = $${paramIndex++}`)
+    values.push(updates.moviesPlaylistEnabled)
+  }
+  if (updates.seriesLibraryEnabled !== undefined) {
+    setClauses.push(`series_library_enabled = $${paramIndex++}`)
+    values.push(updates.seriesLibraryEnabled)
+  }
+  if (updates.seriesCollectionEnabled !== undefined) {
+    setClauses.push(`series_collection_enabled = $${paramIndex++}`)
+    values.push(updates.seriesCollectionEnabled)
+  }
+  if (updates.seriesPlaylistEnabled !== undefined) {
+    setClauses.push(`series_playlist_enabled = $${paramIndex++}`)
+    values.push(updates.seriesPlaylistEnabled)
+  }
+  if (updates.moviesCollectionName !== undefined) {
+    setClauses.push(`movies_collection_name = $${paramIndex++}`)
+    values.push(updates.moviesCollectionName)
+  }
+  if (updates.seriesCollectionName !== undefined) {
+    setClauses.push(`series_collection_name = $${paramIndex++}`)
+    values.push(updates.seriesCollectionName)
+  }
 
   if (setClauses.length === 0) {
     return getTopPicksConfig()
@@ -191,6 +269,16 @@ export async function resetTopPicksConfig(): Promise<TopPicksConfig> {
       movies_library_name = 'Top Picks - Movies',
       series_library_name = 'Top Picks - Series',
       min_unique_viewers = 2,
+      movies_use_symlinks = false,
+      series_use_symlinks = false,
+      movies_library_enabled = true,
+      movies_collection_enabled = false,
+      movies_playlist_enabled = false,
+      series_library_enabled = true,
+      series_collection_enabled = false,
+      series_playlist_enabled = false,
+      movies_collection_name = 'Top Picks - Movies',
+      series_collection_name = 'Top Picks - Series',
       updated_at = NOW()
     WHERE id = 1
     RETURNING *
@@ -217,6 +305,16 @@ function mapRowToConfig(row: TopPicksConfigRow): TopPicksConfig {
     moviesLibraryName: row.movies_library_name,
     seriesLibraryName: row.series_library_name,
     minUniqueViewers: row.min_unique_viewers,
+    moviesUseSymlinks: row.movies_use_symlinks ?? false,
+    seriesUseSymlinks: row.series_use_symlinks ?? false,
+    moviesLibraryEnabled: row.movies_library_enabled,
+    moviesCollectionEnabled: row.movies_collection_enabled,
+    moviesPlaylistEnabled: row.movies_playlist_enabled,
+    seriesLibraryEnabled: row.series_library_enabled,
+    seriesCollectionEnabled: row.series_collection_enabled,
+    seriesPlaylistEnabled: row.series_playlist_enabled,
+    moviesCollectionName: row.movies_collection_name,
+    seriesCollectionName: row.series_collection_name,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }

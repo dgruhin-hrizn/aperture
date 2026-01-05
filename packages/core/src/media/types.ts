@@ -207,6 +207,10 @@ export interface PlaylistCreateResult {
   playlistId: string
 }
 
+export interface CollectionCreateResult {
+  collectionId: string
+}
+
 export interface LibraryCreateResult {
   libraryId: string
   alreadyExists?: boolean
