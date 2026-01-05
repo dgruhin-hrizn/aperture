@@ -266,10 +266,14 @@ export function MoviePoster({
         >
           {title}
         </Typography>
-        <Typography variant="caption" color="text.secondary">
+        <Typography variant="caption" color="text.secondary" display="block">
           {year || 'Unknown year'}
-          {genres && genres.length > 0 && ` • ${genres[0]}`}
         </Typography>
+        {genres && genres.length > 0 && (
+          <Typography variant="caption" color="text.secondary" noWrap>
+            {genres[0]}
+          </Typography>
+        )}
       </Box>
     </Box>
   )
