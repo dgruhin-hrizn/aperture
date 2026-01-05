@@ -1,55 +1,71 @@
 # Aperture
 
-**Aperture** — AI-powered movie recommendations for Emby & Jellyfin.
+**Aperture** — AI-powered media recommendations for Emby & Jellyfin.
 
-Aperture creates personalized recommendation libraries for your media server users using OpenAI embeddings and pgvector similarity search. Recommendations appear as STRM-based virtual libraries in your media server's home screen.
+Aperture creates personalized recommendation libraries for your media server users using OpenAI embeddings and pgvector similarity search. Recommendations appear as STRM-based virtual libraries in your media server's home screen, with support for both **movies** and **TV series**.
 
 ## Features
 
-### Core Features
-- **AI Recommendations**: Uses OpenAI embeddings to find movies similar to what each user has watched
-- **Per-User Libraries**: Creates dedicated "AI Picks" libraries for each enabled user
-- **Media Server Integration**: Supports both Emby and Jellyfin with deep linking
-- **Custom Channels**: Users can create genre-filtered channels that appear as playlists
-- **Dark UI**: Modern, Jellyseerr-inspired admin interface
+### AI Recommendations
+- **Personalized Libraries**: Creates dedicated "AI Picks" libraries for each user containing movies and TV series tailored to their taste
+- **OpenAI Embeddings**: Uses text-embedding-3-small/large to create semantic vectors for all your media
+- **pgvector Similarity**: Lightning-fast vector similarity search for finding related content
+- **Configurable Algorithm**: Tune weights for similarity, novelty, rating, and diversity
+
+### Media Support
+- **Movies**: Full movie library sync with metadata, ratings, and watch history
+- **TV Series**: Complete series and episode tracking with per-show recommendations
+- **Watch History**: Automatic sync of viewing history including play counts and favorites
 
 ### Personalization
-- **AI Taste Profile**: AI-generated natural language synopsis of each user's movie taste, displayed on the home screen
-- **Match Scores**: Personalized percentage scores on movie posters showing how well each film matches user preferences
-- **Recommendation Insights**: Detailed breakdown of why each movie was recommended, including:
-  - **Taste Match**: Similarity to movies you've enjoyed
+- **AI Taste Profiles**: Separate AI-generated natural language descriptions of each user's movie and TV taste
+- **Match Scores**: Personalized percentage scores on posters showing how well each title matches user preferences
+- **Recommendation Insights**: Detailed breakdown of why each title was recommended:
+  - **Taste Match**: Similarity to content you've enjoyed
   - **Discovery**: How it helps you explore new content
   - **Quality**: Community and critic ratings
   - **Variety**: Diversity in your recommendations
-- **Genre Analysis**: See which genres in a recommendation match your preferences
-- **Evidence Trail**: View the specific movies from your watch history that influenced each recommendation
+- **Genre Analysis**: See which genres match your preferences
+- **Evidence Trail**: View specific titles from your watch history that influenced each recommendation
+
+### Top Picks (Global)
+- **Popularity-Based Libraries**: Global "Top Picks" libraries showing trending content across all users
+- **Configurable Metrics**: Weight by unique viewers, play count, and completion rate
+- **Time Windows**: Configure how far back to look for popular content
+- **Separate Libraries**: Independent Top Picks libraries for movies and series
+
+### Channels (Custom Collections)
+- **User-Created Channels**: Build personalized collections with custom criteria
+- **Genre Filters**: Filter by specific genres
+- **Text Preferences**: Natural language preferences (e.g., "classic noir films", "heartwarming comedies")
+- **Example Titles**: Seed channels with example movies to define the taste
+- **AI Generation**: Let AI populate your channel based on your criteria
+- **Sharing**: Share channels with other users
+- **Playlist Sync**: Channels sync as playlists to your media server
+
+### Media Server Integration
+- **Emby & Jellyfin**: Full support for both platforms with deep linking
+- **STRM Libraries**: Virtual libraries using STRM files for seamless integration
+- **Per-User Permissions**: Each user only sees their own recommendation library
+- **Play Buttons**: One-click deep links to play content directly in your media server
+- **Library Selection**: Choose which source libraries to include in sync
 
 ### Admin Features
-- **Library Selection**: Choose which media server libraries to include in movie sync
-- **Recommendation Algorithm Tuning**: Configure weights for similarity, novelty, rating, and diversity
-- **Database Management**: Purge movie data and reset the system when needed
-- **Job Monitoring**: Real-time progress tracking for sync and recommendation jobs
-
-### User Experience
-- **Play on Emby/Jellyfin**: One-click deep links to play movies directly in your media server
-- **Similar Movies**: Vector-based similarity search shows related films on each movie page
-- **Welcome Modal**: Onboarding experience explaining how the AI recommendations work
-- **Watch History**: View and track your complete viewing history with play counts
-
-## Screenshots
-
-The home screen shows your personalized taste profile, top recommendations with match scores, and recently watched movies.
-
-Movie detail pages include full AI scoring breakdowns, genre analysis, and evidence from your watch history explaining why each movie was recommended.
+- **Web-Based Configuration**: Configure media server connection from the UI (no env vars required)
+- **Job Management**: Real-time progress tracking, scheduling, and history for all background jobs
+- **User Management**: Enable/disable AI recommendations per user, separately for movies and series
+- **Algorithm Tuning**: Configure recommendation weights and parameters separately for movies and series
+- **Model Selection**: Choose between embedding models (small/large) and text generation models (GPT-4o-mini, GPT-5-nano, etc.)
+- **Cost Estimator**: Built-in OpenAI API cost estimation based on your configuration
+- **Database Management**: Purge and reset functionality for media data
 
 ## Quick Start
 
 ### Prerequisites
 
 - Docker and Docker Compose
-- Node.js 20+ (for local development)
-- pnpm (`corepack enable && corepack prepare pnpm@latest --activate`)
-- An Emby or Jellyfin server
+- Node.js 20+ and pnpm (for local development)
+- An Emby or Jellyfin server with admin API key
 - OpenAI API key
 
 ### Docker Deployment
@@ -62,18 +78,18 @@ cd aperture
 cp env.local.example .env.local
 ```
 
-2. **Edit `.env.local`**
+2. **Edit `.env.local`** with required settings:
 
 ```bash
-# Required settings
+# Required
 SESSION_SECRET=your-random-secret-at-least-32-chars
 APP_BASE_URL=http://localhost:3456
 DATABASE_URL=postgres://app:app@db:5432/aperture
 
-# OpenAI
+# OpenAI (for AI features)
 OPENAI_API_KEY=sk-...
 
-# Media Server
+# Media Server (can also configure via Admin UI)
 MEDIA_SERVER_TYPE=emby  # or 'jellyfin'
 MEDIA_SERVER_BASE_URL=http://your-server:8096
 MEDIA_SERVER_API_KEY=your-api-key
@@ -82,50 +98,70 @@ MEDIA_SERVER_API_KEY=your-api-key
 3. **Start the stack**
 
 ```bash
-pnpm docker:up
+docker compose up -d
 ```
 
-4. **Open the app**
-
-Navigate to http://localhost:3456 and log in with your media server credentials.
+4. **Open the app** at http://localhost:3456 and log in with your media server credentials.
 
 ### Local Development
 
-1. **Install dependencies**
-
 ```bash
+# Install dependencies
 pnpm install
-```
 
-2. **Start the database**
-
-```bash
+# Start the database
 docker compose up -d db
-```
 
-3. **Configure environment**
-
-```bash
+# Configure environment
 cp env.local.example .env.local
-# Edit .env.local with your settings
-# Use DATABASE_URL=postgres://app:app@localhost:5432/aperture for local dev
-```
+# Edit .env.local - use DATABASE_URL=postgres://app:app@localhost:5432/aperture
 
-4. **Run migrations**
-
-```bash
+# Run migrations
 pnpm db:migrate
-```
 
-5. **Start dev servers**
-
-```bash
+# Start dev servers
 pnpm dev
 ```
 
 This starts:
 - API server at http://localhost:3456
 - Web dev server at http://localhost:3457 (with proxy to API)
+
+## Getting Started
+
+### Initial Setup
+
+1. **Configure Media Server** (Admin > Settings > Media Server)
+   - Enter your Emby/Jellyfin URL and API key
+   - Test the connection
+
+2. **Select Libraries** (Admin > Settings > Libraries)
+   - Sync libraries from your media server
+   - Enable which movie and TV libraries to include
+
+3. **Run Initial Sync** (Admin > Jobs)
+   - `sync-movies` — Import your movie library
+   - `sync-series` — Import your TV series library
+   - `generate-embeddings` — Create AI embeddings for movies
+   - `generate-series-embeddings` — Create AI embeddings for series
+
+4. **Enable Users** (Admin > Users)
+   - Enable AI recommendations for users (separate toggles for movies/series)
+
+5. **Sync Watch History** (Admin > Jobs)
+   - `sync-watch-history` — Import movie viewing history
+   - `sync-series-watch-history` — Import series viewing history
+
+6. **Generate Recommendations** (Admin > Jobs)
+   - `generate-recommendations` — Create personalized movie picks
+   - `generate-series-recommendations` — Create personalized series picks
+   - `sync-strm` / `sync-series-strm` — Create virtual libraries in media server
+
+### Ongoing Operations
+
+Jobs can be scheduled to run automatically:
+- **Daily/Weekly/Interval**: Configure schedule type per job
+- **Manual**: Trigger jobs on-demand from the admin panel
 
 ## Architecture
 
@@ -136,12 +172,15 @@ aperture/
 │   └── web/          # React + Vite + MUI frontend
 ├── packages/
 │   ├── core/         # Shared business logic
-│   │   ├── config/   # Environment validation
-│   │   ├── lib/      # Logger, DB pool, taste synopsis
-│   │   ├── media/    # Emby/Jellyfin providers
-│   │   ├── recommender/  # Embeddings & recommendation pipeline
-│   │   ├── strm/     # STRM file generation
-│   │   └── channels/ # Channel management
+│   │   ├── channels/    # Channel management & AI
+│   │   ├── media/       # Emby/Jellyfin providers
+│   │   ├── recommender/ # Embeddings & recommendation pipeline
+│   │   │   ├── movies/     # Movie-specific logic
+│   │   │   ├── series/     # Series-specific logic
+│   │   │   └── shared/     # Common scoring/selection
+│   │   ├── strm/        # STRM file generation
+│   │   ├── topPicks/    # Global popularity libraries
+│   │   └── settings/    # System configuration
 │   └── ui/           # Shared React components
 ├── db/migrations/    # SQL migration files
 └── docker/           # Dockerfile
@@ -149,166 +188,231 @@ aperture/
 
 ## Configuration
 
-All configuration is done via environment variables. See `env.local.example` for the full list.
+### Environment Variables
 
-### Core Settings
+All configuration can be done via environment variables or the Admin UI.
+
+#### Core Settings
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PORT` | API server port | `3456` |
-| `NODE_ENV` | Environment (development/production) | `development` |
-| `SESSION_SECRET` | Secret for session cookies (min 32 chars) | Required |
-| `APP_BASE_URL` | Public URL of the application | Required |
-| `DATABASE_URL` | PostgreSQL connection string | Required |
+| `NODE_ENV` | Environment mode | `development` |
+| `SESSION_SECRET` | Session cookie secret (min 32 chars) | **Required** |
+| `APP_BASE_URL` | Public URL of the application | **Required** |
+| `DATABASE_URL` | PostgreSQL connection string | **Required** |
 
-### OpenAI Settings
+#### OpenAI Settings
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `OPENAI_API_KEY` | OpenAI API key | Required for embeddings |
-| `OPENAI_EMBED_MODEL` | Embedding model to use | `text-embedding-3-small` |
+| `OPENAI_API_KEY` | OpenAI API key | Required for AI features |
+| `OPENAI_EMBED_MODEL` | Embedding model | `text-embedding-3-small` |
 
-### Media Server Settings
+#### Media Server Settings
+
+These can also be configured via Admin > Settings > Media Server.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `MEDIA_SERVER_TYPE` | `emby` or `jellyfin` | `emby` |
-| `MEDIA_SERVER_BASE_URL` | Media server URL | Required |
-| `MEDIA_SERVER_API_KEY` | Admin API key | Required for sync |
-| `MEDIA_SERVER_STRM_ROOT` | Container path for STRM files | `/strm` |
+| `MEDIA_SERVER_BASE_URL` | Media server URL | — |
+| `MEDIA_SERVER_API_KEY` | Admin API key | — |
 
-### Job Schedules (Cron)
+#### STRM Configuration
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `SYNC_CRON` | Movie and watch history sync | `0 3 * * *` (3 AM) |
-| `RECS_CRON` | Generate recommendations | `0 4 * * *` (4 AM) |
-| `PERMS_CRON` | Update library permissions | `0 5 * * *` (5 AM) |
+| `MEDIA_SERVER_STRM_ROOT` | Where Aperture writes STRM files | `/strm` |
+| `AI_LIBRARY_PATH_PREFIX` | Path prefix as seen by media server | `/strm/aperture/` |
+| `AI_LIBRARY_NAME_PREFIX` | Library name prefix | `AI Picks - ` |
+| `STRM_USE_STREAMING_URL` | Use streaming URLs in STRM files | `true` |
+| `MEDIA_SERVER_LIBRARY_ROOT` | Root path for direct file paths | `/mnt/media` |
 
-### Recommendation Algorithm (Admin UI)
+#### Job Schedules (Defaults)
 
-These settings are configured via the Admin Settings page in the UI:
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SYNC_CRON` | Media sync schedule | `0 3 * * *` (3 AM) |
+| `RECS_CRON` | Recommendation generation | `0 4 * * *` (4 AM) |
+| `PERMS_CRON` | STRM/permissions sync | `0 5 * * *` (5 AM) |
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| Max Candidates | Maximum movies to consider | 50,000 (unlimited) |
-| Selected Count | Number of recommendations per user | 50 |
-| Recent Watch Limit | Recent watches to analyze | 100 |
-| Similarity Weight | Weight for taste matching | 0.5 |
-| Novelty Weight | Weight for discovery/exploration | 0.3 |
-| Rating Weight | Weight for community ratings | 0.2 |
-| Diversity Weight | Weight for variety in results | 0.3 |
+### Admin UI Configuration
 
-## Usage
+The Admin Settings page provides UI-based configuration for:
 
-### Getting Started
+- **Media Server**: Connection details, test connection
+- **Libraries**: Enable/disable source libraries
+- **AI Config**: Algorithm weights for movies and series separately
+- **Embedding Model**: Choose small (fast/cheap) or large (best quality)
+- **Text Generation Model**: Select GPT model for taste profiles and explanations
+- **Top Picks**: Configure global popularity libraries
+- **Cost Estimator**: Estimate OpenAI API costs based on your setup
 
-1. Log in with your media server admin account
-2. Go to **Admin > Settings** and configure which libraries to sync
-3. Go to **Admin > Jobs** and run:
-   - `sync-movies` - Import your movie library
-   - `generate-embeddings` - Create AI embeddings (requires OpenAI)
-4. Go to **Admin > Users** and enable AI recommendations for users
-5. Run `sync-watch-history` to import viewing history
-6. Run `generate-recommendations` to create personalized picks
+## Background Jobs
 
-### Understanding Your Recommendations
+### Movie Jobs
 
-Each movie in your recommendations includes:
+| Job | Description | Schedule |
+|-----|-------------|----------|
+| `sync-movies` | Sync movies from media server | Configurable |
+| `generate-embeddings` | Generate AI embeddings | Manual |
+| `sync-watch-history` | Delta sync of watch history | Configurable |
+| `full-sync-watch-history` | Full resync of watch history | Manual |
+| `generate-recommendations` | Generate personalized picks | Configurable |
+| `rebuild-recommendations` | Clear and rebuild all recommendations | Manual |
+| `sync-strm` | Create STRM files and libraries | Configurable |
 
-- **Match Score**: A percentage showing how well the movie fits your taste (displayed on posters)
-- **Score Breakdown**: Detailed factors including taste match, discovery potential, quality, and variety
-- **Genre Analysis**: Which genres match your preferences
-- **Evidence**: Similar movies you've watched that influenced this recommendation
+### Series Jobs
 
-### STRM Libraries
+| Job | Description | Schedule |
+|-----|-------------|----------|
+| `sync-series` | Sync TV series and episodes | Configurable |
+| `generate-series-embeddings` | Generate AI embeddings | Manual |
+| `sync-series-watch-history` | Delta sync of watch history | Configurable |
+| `full-sync-series-watch-history` | Full resync of watch history | Manual |
+| `generate-series-recommendations` | Generate personalized picks | Configurable |
+| `sync-series-strm` | Create STRM files and libraries | Configurable |
 
-When recommendations are generated for an enabled user, Aperture:
+### Global Jobs
 
-1. Creates a virtual library in your media server named "AI Picks - {Username}"
-2. Writes STRM files pointing to the actual media files
-3. Restricts library visibility to just that user
+| Job | Description | Schedule |
+|-----|-------------|----------|
+| `refresh-top-picks` | Refresh popularity-based libraries | Daily at 6 AM |
 
-The user will see a new library on their home screen with their personalized recommendations.
+### Job Scheduling Options
 
-### Play on Emby/Jellyfin
+- **Daily**: Run at a specific time each day
+- **Weekly**: Run on a specific day and time
+- **Interval**: Run every N hours (1, 2, 3, 4, 6, 8, or 12)
+- **Manual**: Only run when triggered manually
 
-Click the "Play on Emby" (or Jellyfin) button on any movie detail page to open the movie directly in your media server's web interface, ready to play.
-
-### AI Taste Profile
-
-Your home screen displays an AI-generated synopsis describing your movie taste. This is generated by analyzing:
-
-- Your watch history and favorite genres
-- Preferred decades and eras
-- Types of movies you gravitate toward
-- Patterns in your viewing habits
-
-Click the refresh button to regenerate your profile with the latest data.
-
-### Custom Channels
-
-Users can create custom channels with:
-
-- **Genre Filters**: Only include specific genres
-- **Text Preferences**: Natural language preferences (e.g., "classic noir films")
-- **Example Movies**: Seed movies to define the channel's taste
-
-Channels appear as playlists in the media server and can be shared with other users.
-
-## API Endpoints
+## API Reference
 
 ### Authentication
 
-- `POST /api/auth/login` - Authenticate with media server credentials
-- `POST /api/auth/logout` - End session
-- `GET /api/auth/me` - Get current user
+| Endpoint | Description |
+|----------|-------------|
+| `POST /api/auth/login` | Authenticate with media server credentials |
+| `POST /api/auth/logout` | End session |
+| `GET /api/auth/me` | Get current user |
 
 ### Users
 
-- `GET /api/users` - List all users (Admin)
-- `GET /api/users/:id` - Get user details
-- `GET /api/users/:id/stats` - Get user statistics (watched, favorites, recommendations)
-- `GET /api/users/:id/watch-history` - Get user's watch history
-- `GET /api/users/:id/taste-profile` - Get AI-generated taste synopsis
-- `POST /api/users/:id/taste-profile/regenerate` - Regenerate taste synopsis
-- `PUT /api/users/:id` - Update user (enable/disable AI)
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/users` | List all users (Admin) |
+| `GET /api/users/:id` | Get user details |
+| `GET /api/users/:id/stats` | Get user statistics |
+| `GET /api/users/:id/watch-history` | Get movie watch history |
+| `GET /api/users/:id/taste-profile` | Get movie taste synopsis |
+| `POST /api/users/:id/taste-profile/regenerate` | Regenerate movie taste |
+| `GET /api/users/:id/series-taste-profile` | Get series taste synopsis |
+| `POST /api/users/:id/series-taste-profile/regenerate` | Regenerate series taste |
+| `PUT /api/users/:id` | Update user settings |
 
 ### Movies
 
-- `GET /api/movies` - List movies (paginated)
-- `GET /api/movies/:id` - Get movie details
-- `GET /api/movies/:id/similar` - Get similar movies (vector search)
-- `GET /api/movies/genres` - List all genres
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/movies` | List movies (paginated, filterable) |
+| `GET /api/movies/:id` | Get movie details |
+| `GET /api/movies/:id/similar` | Get similar movies (vector search) |
+| `GET /api/movies/genres` | List all genres |
 
 ### Recommendations
 
-- `GET /api/recommendations/:userId` - Get user's recommendations
-- `GET /api/recommendations/:userId/movie/:movieId/insights` - Get detailed recommendation insights
-- `GET /api/recommendations/:userId/history` - Get recommendation run history
-
-### Settings (Admin)
-
-- `GET /api/settings/media-server` - Get media server info for deep linking
-- `GET /api/settings/libraries` - Get library configurations
-- `POST /api/settings/libraries/sync` - Sync libraries from media server
-- `PUT /api/settings/libraries/:id` - Enable/disable a library
-- `GET /api/settings/recommendations` - Get recommendation algorithm config
-- `PATCH /api/settings/recommendations` - Update recommendation config
-- `POST /api/settings/recommendations/reset` - Reset to defaults
-- `DELETE /api/settings/database/purge` - Purge movie database
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/recommendations/:userId` | Get user's movie recommendations |
+| `GET /api/recommendations/:userId/movie/:movieId/insights` | Get recommendation insights |
+| `GET /api/recommendations/:userId/history` | Get recommendation run history |
 
 ### Channels
 
-- `GET /api/channels` - List user's channels
-- `POST /api/channels` - Create channel
-- `PUT /api/channels/:id` - Update channel
-- `DELETE /api/channels/:id` - Delete channel
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/channels` | List user's channels |
+| `POST /api/channels` | Create channel |
+| `GET /api/channels/:id` | Get channel details |
+| `PUT /api/channels/:id` | Update channel |
+| `DELETE /api/channels/:id` | Delete channel |
+| `POST /api/channels/:id/generate` | AI-generate channel content |
+| `POST /api/channels/:id/sync` | Sync to media server playlist |
+
+### Settings (Admin)
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/settings/media-server` | Get media server info |
+| `GET /api/settings/media-server/config` | Get full config (Admin) |
+| `PATCH /api/settings/media-server/config` | Update config |
+| `POST /api/settings/media-server/test` | Test connection |
+| `GET /api/settings/libraries` | Get library configurations |
+| `POST /api/settings/libraries/sync` | Sync from media server |
+| `PATCH /api/settings/libraries/:id` | Enable/disable library |
+| `GET /api/settings/recommendations` | Get algorithm config |
+| `PATCH /api/settings/recommendations/movies` | Update movie config |
+| `PATCH /api/settings/recommendations/series` | Update series config |
+| `GET /api/settings/embedding-model` | Get embedding model |
+| `PATCH /api/settings/embedding-model` | Set embedding model |
+| `GET /api/settings/text-generation-model` | Get text gen model |
+| `PATCH /api/settings/text-generation-model` | Set text gen model |
+| `GET /api/settings/top-picks` | Get Top Picks config |
+| `PATCH /api/settings/top-picks` | Update Top Picks config |
+| `GET /api/settings/cost-inputs` | Get cost estimation data |
 
 ### Jobs (Admin)
 
-- `GET /api/jobs` - List all jobs
-- `POST /api/jobs/:name/run` - Trigger a job
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/jobs` | List all jobs with status |
+| `POST /api/jobs/:name/run` | Trigger a job |
+| `POST /api/jobs/:name/cancel` | Cancel running job |
+| `GET /api/jobs/:name/config` | Get job schedule config |
+| `PATCH /api/jobs/:name/config` | Update job schedule |
+| `GET /api/jobs/:name/history` | Get job run history |
+| `GET /api/jobs/progress/stream/:jobId` | SSE stream for progress |
+
+### Database (Admin)
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/admin/purge/stats` | Get database statistics |
+| `POST /api/admin/purge/movies` | Purge all movie data |
+
+## How It Works
+
+### Recommendation Pipeline
+
+1. **Media Sync**: Imports movies/series from your media server libraries
+2. **Embedding Generation**: Creates high-dimensional vectors for each title using OpenAI
+3. **Watch History Sync**: Tracks what users have watched, favorited, and rated
+4. **Taste Profile**: Builds a vector representation of each user's preferences
+5. **Candidate Scoring**: Scores all unwatched content based on:
+   - Vector similarity to user's taste
+   - Novelty (exploring new content)
+   - Community ratings
+   - Diversity (avoiding repetitive recommendations)
+6. **Selection**: Picks the top N titles balancing all factors
+7. **Explanation Generation**: AI generates natural language explanations for each pick
+8. **STRM Generation**: Creates virtual library files for the media server
+
+### Vector Similarity
+
+Media is represented as high-dimensional vectors (1536 or 3072 dimensions) capturing semantic meaning — genres, themes, plot, mood, cast, etc. Similar content has vectors that point in similar directions, measured by cosine similarity.
+
+Your taste profile is the weighted average of vectors from content you've watched, with recent views and favorites weighted more heavily. Recommendations are titles whose vectors are close to your taste profile but that you haven't seen yet.
+
+### Top Picks Algorithm
+
+Global popularity is calculated by aggregating watch data across all users:
+
+- **Unique Viewers**: How many different users watched the title
+- **Play Count**: Total number of plays across all users
+- **Completion Rate**: How often users finish what they start
+
+Weights are configurable, and a time window limits how far back to look for trending content.
 
 ## Scripts
 
@@ -329,30 +433,8 @@ Channels appear as playlists in the media server and can be shared with other us
 
 - **Backend**: Fastify, TypeScript, PostgreSQL, pgvector
 - **Frontend**: React, Vite, MUI, React Router
-- **AI**: OpenAI Embeddings (text-embedding-3-small), GPT-4o-mini for taste profiles
+- **AI**: OpenAI Embeddings & GPT models
 - **Infrastructure**: Docker, pnpm workspaces
-
-## How It Works
-
-### Recommendation Pipeline
-
-1. **Movie Sync**: Imports movies from your media server libraries
-2. **Embedding Generation**: Creates 1536-dimensional vectors for each movie using OpenAI
-3. **Watch History Sync**: Tracks what users have watched and favorited
-4. **Taste Profile**: Builds a vector representation of each user's preferences
-5. **Candidate Scoring**: Scores all unwatched movies based on:
-   - Vector similarity to user's taste
-   - Novelty (exploring new content)
-   - Community ratings
-   - Diversity (avoiding repetitive recommendations)
-6. **Selection**: Picks the top N movies balancing all factors
-7. **STRM Generation**: Creates virtual library files for the media server
-
-### Vector Similarity
-
-Movies are represented as 1536-dimensional vectors capturing their semantic meaning (genres, themes, plot, mood, etc.). Similar movies have vectors that point in similar directions, measured by cosine similarity.
-
-Your taste profile is the average of vectors from movies you've watched, weighted by recency and ratings. Recommendations are movies whose vectors are close to your taste profile.
 
 ## License
 
