@@ -30,8 +30,12 @@ import LogoutIcon from '@mui/icons-material/Logout'
 import PersonIcon from '@mui/icons-material/Person'
 import SettingsIcon from '@mui/icons-material/Settings'
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline'
+import WhatshotIcon from '@mui/icons-material/Whatshot'
+import TvIcon from '@mui/icons-material/Tv'
+import InsightsIcon from '@mui/icons-material/Insights'
 import { useAuth } from '@/hooks/useAuth'
 import { WelcomeModal, useWelcomeModal } from './WelcomeModal'
+import { RunningJobsWidget } from './RunningJobsWidget'
 
 const DRAWER_WIDTH = 260
 
@@ -39,7 +43,10 @@ const DRAWER_WIDTH = 260
 const userMenuItems = [
   { text: 'Home', icon: <HomeIcon />, path: '/' },
   { text: 'Recommendations', icon: <AutoAwesomeIcon />, path: '/recommendations' },
+  { text: 'Top Movies', icon: <WhatshotIcon />, path: '/top-picks/movies' },
+  { text: 'Top Series', icon: <TvIcon />, path: '/top-picks/series' },
   { text: 'Watch History', icon: <HistoryIcon />, path: '/history' },
+  { text: 'Watch Stats', icon: <InsightsIcon />, path: '/stats' },
   { text: 'Browse Movies', icon: <MovieIcon />, path: '/movies' },
   { text: 'Playlists', icon: <PlaylistPlayIcon />, path: '/playlists' },
 ]
@@ -179,6 +186,7 @@ export function Layout() {
         <Box px={2} py={2} sx={{ borderTop: 1, borderColor: 'divider' }}>
           <Box display="flex" alignItems="center" gap={1.5}>
             <Avatar
+              src={user.avatarUrl || undefined}
               sx={{
                 width: 32,
                 height: 32,
@@ -225,11 +233,15 @@ export function Layout() {
 
           <Box sx={{ flexGrow: 1 }} />
 
+          {/* Running Jobs Widget (admin only) */}
+          <RunningJobsWidget />
+
           {/* User menu */}
           {user && (
             <>
               <IconButton onClick={handleUserMenuOpen} size="small">
                 <Avatar
+                  src={user.avatarUrl || undefined}
                   sx={{
                     width: 36,
                     height: 36,

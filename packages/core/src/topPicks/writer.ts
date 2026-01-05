@@ -486,7 +486,7 @@ export async function writeTopPicksMovies(
       critic_rating: number | null
       runtime_minutes: number | null
       premiere_date: Date | string | null
-      studios: string[] | null
+      studios: string | Array<{ id?: string; name: string }> | null
       directors: string[] | null
       writers: string[] | null
       actors: string | null
@@ -506,9 +506,10 @@ export async function writeTopPicksMovies(
       continue
     }
 
-    // Parse fields - arrays come directly from Postgres, actors is JSONB
+    // Parse fields - JSONB fields come as objects or strings depending on driver
     let mediaSources: Array<{ path: string }> | undefined
     let actors: Array<{ name: string; role?: string; thumb?: string }> = []
+    let studiosArray: Array<{ id?: string; name: string }> = []
 
     if (dbMovie.media_sources) {
       try { 
@@ -524,9 +525,16 @@ export async function writeTopPicksMovies(
           : dbMovie.actors 
       } catch { /* ignore */ }
     }
+    if (dbMovie.studios) {
+      try { 
+        studiosArray = typeof dbMovie.studios === 'string' 
+          ? JSON.parse(dbMovie.studios) 
+          : dbMovie.studios 
+      } catch { /* ignore */ }
+    }
 
-    // Arrays come directly from Postgres
-    const studios = dbMovie.studios || []
+    // Extract just the studio names for NFO compatibility
+    const studios = studiosArray.map(s => s.name)
     const directors = dbMovie.directors || []
     const writers = dbMovie.writers || []
     const productionCountries = dbMovie.production_countries || []
@@ -716,7 +724,7 @@ export async function writeTopPicksSeries(
       content_rating: string | null
       critic_rating: number | null
       end_year: number | null
-      studios: string[] | null
+      studios: string | Array<{ id?: string; name: string }> | null
       directors: string[] | null
       writers: string[] | null
       actors: string | null
@@ -737,8 +745,9 @@ export async function writeTopPicksSeries(
       continue
     }
 
-    // Parse fields - arrays come directly from Postgres, actors is JSONB
+    // Parse fields - JSONB fields come as objects or strings depending on driver
     let actors: Array<{ name: string; role?: string; thumb?: string }> = []
+    let studiosArray: Array<{ id?: string; name: string }> = []
 
     if (dbSeries.actors) {
       try { 
@@ -747,9 +756,16 @@ export async function writeTopPicksSeries(
           : dbSeries.actors 
       } catch { /* ignore */ }
     }
+    if (dbSeries.studios) {
+      try { 
+        studiosArray = typeof dbSeries.studios === 'string' 
+          ? JSON.parse(dbSeries.studios) 
+          : dbSeries.studios 
+      } catch { /* ignore */ }
+    }
 
-    // Arrays come directly from Postgres
-    const studios = dbSeries.studios || []
+    // Extract just the studio names for NFO compatibility
+    const studios = studiosArray.map(s => s.name)
     const directors = dbSeries.directors || []
     const writers = dbSeries.writers || []
 

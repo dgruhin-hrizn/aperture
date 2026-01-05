@@ -216,6 +216,7 @@ export function UserSettingsPage() {
               <CardContent>
                 <Box display="flex" alignItems="center" gap={3} mb={4}>
                   <Avatar
+                    src={user?.avatarUrl || undefined}
                     sx={{
                       width: 72,
                       height: 72,
@@ -230,7 +231,7 @@ export function UserSettingsPage() {
                       {user?.displayName || user?.username}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {user?.isAdmin ? 'Administrator' : 'User'}
+                      {user?.isAdmin ? 'Administrator' : 'User'} • {user?.provider ? user.provider.charAt(0).toUpperCase() + user.provider.slice(1) : ''}
                     </Typography>
                   </Box>
                 </Box>

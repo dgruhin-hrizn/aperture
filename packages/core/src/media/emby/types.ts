@@ -55,9 +55,10 @@ export interface EmbyItem {
   RunTimeTicks?: number
   Path?: string
   ParentId?: string
-  Studios?: Array<{ Name: string }>
+  Studios?: Array<{ Name: string; Id?: number | string }>
   People?: Array<{
     Name: string
+    Id?: string
     Role?: string
     Type: string // Actor, Director, Writer, etc.
     PrimaryImageTag?: string
@@ -143,9 +144,10 @@ export interface EmbySeries {
   OfficialRating?: string
   Status?: string // 'Continuing', 'Ended'
   AirDays?: string[]
-  Studios?: Array<{ Name: string }>
+  Studios?: Array<{ Name: string; Id?: number | string }>
   People?: Array<{
     Name: string
+    Id?: string
     Role?: string
     Type: string
     PrimaryImageTag?: string
@@ -199,6 +201,7 @@ export interface EmbyEpisode {
   }>
   People?: Array<{
     Name: string
+    Id?: string
     Role?: string
     Type: string
     PrimaryImageTag?: string

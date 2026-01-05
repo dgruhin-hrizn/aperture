@@ -14,6 +14,8 @@ import { MoviesPage } from './pages/Movies'
 import { MovieDetailPage } from './pages/movie-detail'
 import { PlaylistsPage } from './pages/playlists'
 import { UserSettingsPage } from './pages/UserSettings'
+import { TopPicksMoviesPage, TopPicksSeriesPage } from './pages/top-picks'
+import { WatchStatsPage } from './pages/WatchStats'
 // Admin pages
 import { AdminDashboard } from './pages/admin'
 import { UsersPage } from './pages/Users'
@@ -90,7 +92,10 @@ function AppRoutes() {
         {/* User Routes */}
         <Route index element={<HomePage />} />
         <Route path="recommendations" element={<MyRecommendationsPage />} />
+        <Route path="top-picks/movies" element={<TopPicksMoviesPage />} />
+        <Route path="top-picks/series" element={<TopPicksSeriesPage />} />
         <Route path="history" element={<MyWatchHistoryPage />} />
+        <Route path="stats" element={<WatchStatsPage />} />
         <Route path="movies" element={<MoviesPage />} />
         <Route path="movies/:id" element={<MovieDetailPage />} />
         <Route path="playlists" element={<PlaylistsPage />} />

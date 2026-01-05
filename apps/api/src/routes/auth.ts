@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { getMediaServerProvider, type AuthResult } from '@aperture/core'
+import { getMediaServerProvider, getMediaServerConfig, type AuthResult } from '@aperture/core'
 import { queryOne } from '../lib/db.js'
 import {
   createSession,
@@ -128,6 +128,17 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       // Set session cookie
       setSessionCookie(reply, sessionId)
 
+      // Get media server base URL for avatar
+      let avatarUrl: string | null = null
+      try {
+        const config = await getMediaServerConfig()
+        if (config.baseUrl && user.provider_user_id) {
+          avatarUrl = `${config.baseUrl}/Users/${user.provider_user_id}/Images/Primary`
+        }
+      } catch {
+        // Ignore - avatar URL is optional
+      }
+
       const sessionUser: SessionUser = {
         id: user.id,
         username: user.username,
@@ -136,6 +147,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         providerUserId: user.provider_user_id,
         isAdmin: user.is_admin,
         isEnabled: user.is_enabled,
+        avatarUrl,
       }
 
       return reply.send({ user: sessionUser })

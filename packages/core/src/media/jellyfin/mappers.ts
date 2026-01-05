@@ -17,9 +17,8 @@ export function mapJellyfinItemToMovie(item: JellyfinItem, baseUrl: string): Mov
       .map((p) => ({
         name: p.Name,
         role: p.Role,
-        thumb: p.PrimaryImageTag
-          ? `${baseUrl}/Items/${item.Id}/Images/Primary?tag=${p.PrimaryImageTag}`
-          : undefined,
+        // Use Persons endpoint for actor images
+        thumb: p.Name ? `${baseUrl}/Persons/${encodeURIComponent(p.Name)}/Images/Primary` : undefined,
       })) || []
 
   return {
@@ -47,7 +46,10 @@ export function mapJellyfinItemToMovie(item: JellyfinItem, baseUrl: string): Mov
     posterImageTag: item.ImageTags?.Primary,
     backdropImageTag: item.BackdropImageTags?.[0] || item.ImageTags?.Backdrop,
     parentId: item.ParentId,
-    studios: item.Studios?.map((s) => s.Name) || [],
+    studios: item.Studios?.map((s) => ({
+      id: s.Id?.toString(),
+      name: s.Name,
+    })) || [],
     directors,
     writers,
     actors,
@@ -80,9 +82,8 @@ export function mapJellyfinItemToSeries(item: JellyfinItem, baseUrl: string): Se
       .map((p) => ({
         name: p.Name,
         role: p.Role,
-        thumb: p.PrimaryImageTag
-          ? `${baseUrl}/Items/${item.Id}/Images/Primary?tag=${p.PrimaryImageTag}`
-          : undefined,
+        // Use Persons endpoint for actor images
+        thumb: p.Name ? `${baseUrl}/Persons/${encodeURIComponent(p.Name)}/Images/Primary` : undefined,
       })) || []
 
   return {
@@ -107,7 +108,10 @@ export function mapJellyfinItemToSeries(item: JellyfinItem, baseUrl: string): Se
     posterImageTag: item.ImageTags?.Primary,
     backdropImageTag: item.BackdropImageTags?.[0] || item.ImageTags?.Backdrop,
     parentId: item.ParentId,
-    studios: item.Studios?.map((s) => s.Name) || [],
+    studios: item.Studios?.map((s) => ({
+      id: s.Id?.toString(),
+      name: s.Name,
+    })) || [],
     directors,
     writers,
     actors,
@@ -139,9 +143,8 @@ export function mapJellyfinItemToEpisode(item: JellyfinEpisode, baseUrl: string)
       .map((p) => ({
         name: p.Name,
         role: p.Role,
-        thumb: p.PrimaryImageTag
-          ? `${baseUrl}/Items/${item.Id}/Images/Primary?tag=${p.PrimaryImageTag}`
-          : undefined,
+        // Use Persons endpoint for person images
+        thumb: p.Name ? `${baseUrl}/Persons/${encodeURIComponent(p.Name)}/Images/Primary` : undefined,
       })) || []
 
   return {

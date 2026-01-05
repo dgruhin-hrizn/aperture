@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify'
 import fp from 'fastify-plugin'
 import { query, queryOne } from '../lib/db.js'
+import { getMediaServerConfig } from '@aperture/core'
 
 export interface SessionUser {
   id: string
@@ -10,6 +11,7 @@ export interface SessionUser {
   providerUserId: string
   isAdmin: boolean
   isEnabled: boolean
+  avatarUrl: string | null
 }
 
 declare module 'fastify' {
@@ -89,6 +91,17 @@ async function getSessionUser(sessionId: string): Promise<SessionUser | null> {
     return null
   }
 
+  // Get media server base URL for avatar
+  let avatarUrl: string | null = null
+  try {
+    const config = await getMediaServerConfig()
+    if (config.baseUrl && user.provider_user_id) {
+      avatarUrl = `${config.baseUrl}/Users/${user.provider_user_id}/Images/Primary`
+    }
+  } catch {
+    // Ignore - avatar URL is optional
+  }
+
   return {
     id: user.id,
     username: user.username,
@@ -97,6 +110,7 @@ async function getSessionUser(sessionId: string): Promise<SessionUser | null> {
     providerUserId: user.provider_user_id,
     isAdmin: user.is_admin,
     isEnabled: user.is_enabled,
+    avatarUrl,
   }
 }
 

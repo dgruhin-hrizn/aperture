@@ -14,9 +14,8 @@ export function mapEmbyItemToMovie(item: EmbyItem, baseUrl: string): Movie {
       .map((p) => ({
         name: p.Name,
         role: p.Role,
-        thumb: p.PrimaryImageTag
-          ? `${baseUrl}/Items/${item.Id}/Images/Primary?tag=${p.PrimaryImageTag}`
-          : undefined,
+        // Use Persons endpoint for actor images
+        thumb: p.Name ? `${baseUrl}/Persons/${encodeURIComponent(p.Name)}/Images/Primary` : undefined,
       })) || []
 
   // Extract video/audio info from first media source
@@ -49,8 +48,11 @@ export function mapEmbyItemToMovie(item: EmbyItem, baseUrl: string): Movie {
     posterImageTag: item.ImageTags?.Primary,
     backdropImageTag: item.BackdropImageTags?.[0] || item.ImageTags?.Backdrop,
     parentId: item.ParentId,
-    // New metadata fields
-    studios: item.Studios?.map((s) => s.Name) || [],
+    // New metadata fields - include studio IDs for image lookups
+    studios: item.Studios?.map((s) => ({
+      id: s.Id?.toString(),
+      name: s.Name,
+    })) || [],
     directors,
     writers,
     actors,
@@ -92,9 +94,8 @@ export function mapEmbyItemToSeries(item: EmbySeries, baseUrl: string): Series {
       .map((p) => ({
         name: p.Name,
         role: p.Role,
-        thumb: p.PrimaryImageTag
-          ? `${baseUrl}/Items/${item.Id}/Images/Primary?tag=${p.PrimaryImageTag}`
-          : undefined,
+        // Use Persons endpoint for actor images
+        thumb: p.Name ? `${baseUrl}/Persons/${encodeURIComponent(p.Name)}/Images/Primary` : undefined,
       })) || []
 
   // Extract end year from EndDate if available
@@ -125,7 +126,10 @@ export function mapEmbyItemToSeries(item: EmbySeries, baseUrl: string): Series {
     posterImageTag: item.ImageTags?.Primary,
     backdropImageTag: item.BackdropImageTags?.[0] || item.ImageTags?.Backdrop,
     parentId: item.ParentId,
-    studios: item.Studios?.map((s) => s.Name) || [],
+    studios: item.Studios?.map((s) => ({
+      id: s.Id?.toString(),
+      name: s.Name,
+    })) || [],
     directors,
     writers,
     actors,
@@ -159,9 +163,8 @@ export function mapEmbyItemToEpisode(item: EmbyEpisode, baseUrl: string): Episod
       .map((p) => ({
         name: p.Name,
         role: p.Role,
-        thumb: p.PrimaryImageTag
-          ? `${baseUrl}/Items/${item.Id}/Images/Primary?tag=${p.PrimaryImageTag}`
-          : undefined,
+        // Use Persons endpoint for person images
+        thumb: p.Name ? `${baseUrl}/Persons/${encodeURIComponent(p.Name)}/Images/Primary` : undefined,
       })) || []
 
   return {

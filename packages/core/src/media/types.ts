@@ -78,8 +78,8 @@ export interface Movie {
   userData?: UserData
   /** The parent library ID this movie belongs to */
   parentId?: string
-  /** Production studios */
-  studios?: string[]
+  /** Production studios with IDs for image lookups */
+  studios?: Array<{ id?: string; name: string; imageTag?: string }>
   /** Director names */
   directors?: string[]
   /** Writer names */
@@ -159,8 +159,8 @@ export interface Series {
   userData?: UserData
   /** The parent library ID this series belongs to */
   parentId?: string
-  /** Production studios */
-  studios?: string[]
+  /** Production studios/networks with IDs for image lookups */
+  studios?: Array<{ id?: string; name: string; imageTag?: string }>
   /** Series creators/showrunners */
   directors?: string[]
   /** Writers */

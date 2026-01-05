@@ -38,6 +38,17 @@ Aperture creates personalized recommendation libraries for your media server use
 - **Genre Analysis**: See which genres match your preferences
 - **Evidence Trail**: View specific titles from your watch history that influenced each recommendation
 
+### Watch Stats Dashboard
+
+- **Comprehensive Analytics**: Visualize your watch history with interactive charts
+- **Genre Breakdown**: Donut chart showing your favorite genres
+- **Watch Timeline**: Monthly activity area chart
+- **Decades Distribution**: Bar chart of content by decade
+- **Ratings Distribution**: See which ratings you gravitate toward
+- **Top Actors & Directors**: Most-watched actors and directors with profile images from your media server
+- **Top Studios & Networks**: Most-watched studios (movies) and networks (series) with logos
+- **Movies vs Series**: Compare your movie and TV watching patterns
+
 ### Top Picks (Global)
 
 - **Popularity-Based Content**: Global "Top Picks" showing trending content across all users
@@ -70,6 +81,7 @@ Aperture creates personalized recommendation libraries for your media server use
 
 - **Web-Based Configuration**: Configure media server connection from the UI (no env vars required)
 - **Job Management**: Real-time progress tracking, scheduling, and history for all background jobs
+- **Running Jobs Widget**: Live progress indicator in the top bar showing active jobs with combined progress
 - **User Management**: Enable/disable AI recommendations per user, separately for movies and series
 - **Algorithm Tuning**: Configure recommendation weights and parameters separately for movies and series
 - **Model Selection**: Choose between embedding models (small/large) and text generation models (GPT-4o-mini, GPT-5-nano, etc.)
@@ -77,6 +89,12 @@ Aperture creates personalized recommendation libraries for your media server use
 - **Output Format Options**: Choose between STRM files or symlinks for virtual libraries
 - **Cost Estimator**: Built-in OpenAI API cost estimation based on your configuration
 - **Database Management**: Purge and reset functionality for media data
+
+### User Experience
+
+- **Media Server Avatars**: User profile images pulled directly from Emby/Jellyfin
+- **Top Movies & Series Pages**: Browse global trending content with rank badges and popularity metrics
+- **Responsive Design**: Full mobile support with collapsible sidebar
 
 ## Quick Start
 
@@ -512,6 +530,15 @@ A carousel of AI-recommended movies based on your taste. Each poster shows:
 
 Movies you've recently watched, with play counts and favorite indicators.
 
+### Top Movies & Top Series
+
+Navigate to **Top Movies** or **Top Series** in the sidebar to see global trending content:
+
+- **Rank Badges** — Gold (#1), Silver (#2), Bronze (#3) badges for top 3
+- **Popularity Metrics** — View count, unique viewers, and popularity scores
+- **Grid View** — Browse all trending content with posters
+- **Quick Actions** — One-click play buttons for each title
+
 ### Understanding Recommendations
 
 Click on any recommended movie to see **why it was picked for you**:
@@ -561,6 +588,20 @@ Navigate to **History** to see everything you've watched:
 - Sort by **recent** or **most played**
 - See **play counts** and **last watched** dates
 - **Favorites** are highlighted with a heart icon
+
+### Watch Stats
+
+Navigate to **Watch Stats** in the sidebar for detailed analytics:
+
+- **Summary Cards** — Total movies, episodes, watch time, and favorites
+- **Favorite Genres** — Interactive donut chart of your genre preferences
+- **Watch Timeline** — Monthly activity showing when you watch most
+- **Decades** — Bar chart showing which eras of content you prefer
+- **Ratings Distribution** — See which rating ranges you gravitate toward
+- **Top Actors** — Most-watched actors with profile thumbnails
+- **Top Directors** — Most-watched directors with profile thumbnails
+- **Top Studios** — Production studios you've watched most (movies)
+- **Top Networks** — TV networks you've watched most (series)
 
 ### User Settings
 
@@ -835,17 +876,25 @@ The `refresh-top-picks` job:
 
 ### Users
 
-| Endpoint                                              | Description               |
-| ----------------------------------------------------- | ------------------------- |
-| `GET /api/users`                                      | List all users (Admin)    |
-| `GET /api/users/:id`                                  | Get user details          |
-| `GET /api/users/:id/stats`                            | Get user statistics       |
-| `GET /api/users/:id/watch-history`                    | Get movie watch history   |
-| `GET /api/users/:id/taste-profile`                    | Get movie taste synopsis  |
-| `POST /api/users/:id/taste-profile/regenerate`        | Regenerate movie taste    |
-| `GET /api/users/:id/series-taste-profile`             | Get series taste synopsis |
-| `POST /api/users/:id/series-taste-profile/regenerate` | Regenerate series taste   |
-| `PUT /api/users/:id`                                  | Update user settings      |
+| Endpoint                                              | Description                      |
+| ----------------------------------------------------- | -------------------------------- |
+| `GET /api/users`                                      | List all users (Admin)           |
+| `GET /api/users/:id`                                  | Get user details                 |
+| `GET /api/users/:id/stats`                            | Get user statistics              |
+| `GET /api/users/:id/watch-history`                    | Get movie watch history          |
+| `GET /api/users/:id/watch-stats`                      | Get watch stats with breakdowns  |
+| `GET /api/users/:id/taste-profile`                    | Get movie taste synopsis         |
+| `POST /api/users/:id/taste-profile/regenerate`        | Regenerate movie taste           |
+| `GET /api/users/:id/series-taste-profile`             | Get series taste synopsis        |
+| `POST /api/users/:id/series-taste-profile/regenerate` | Regenerate series taste          |
+| `PUT /api/users/:id`                                  | Update user settings             |
+
+### Top Picks
+
+| Endpoint                 | Description                        |
+| ------------------------ | ---------------------------------- |
+| `GET /api/top-picks/movies` | Get top trending movies         |
+| `GET /api/top-picks/series` | Get top trending series         |
 
 ### Movies
 
@@ -909,6 +958,7 @@ The `refresh-top-picks` job:
 | Endpoint                               | Description               |
 | -------------------------------------- | ------------------------- |
 | `GET /api/jobs`                        | List all jobs with status |
+| `GET /api/jobs/active`                 | Get all running jobs      |
 | `POST /api/jobs/:name/run`             | Trigger a job             |
 | `POST /api/jobs/:name/cancel`          | Cancel running job        |
 | `GET /api/jobs/:name/config`           | Get job schedule config   |

@@ -59,9 +59,10 @@ export interface JellyfinItem {
   ChildCount?: number
   RecursiveItemCount?: number
   AirDays?: string[]
-  Studios?: Array<{ Name: string }>
+  Studios?: Array<{ Name: string; Id?: number | string }>
   People?: Array<{
     Name: string
+    Id?: string
     Role?: string
     Type: string
     PrimaryImageTag?: string

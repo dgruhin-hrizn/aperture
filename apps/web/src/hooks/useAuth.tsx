@@ -8,6 +8,7 @@ interface User {
   providerUserId: string
   isAdmin: boolean
   isEnabled: boolean
+  avatarUrl: string | null
 }
 
 interface AuthContextType {

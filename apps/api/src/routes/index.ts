@@ -8,6 +8,7 @@ import recommendationsRoutes from './recommendations.js'
 import channelsRoutes from './channels/index.js'
 import jobsRoutes from './jobs.js'
 import settingsRoutes from './settings.js'
+import topPicksRoutes from './top-picks.js'
 
 const routes: FastifyPluginAsync = async (fastify) => {
   // Register health check routes
@@ -36,6 +37,9 @@ const routes: FastifyPluginAsync = async (fastify) => {
 
   // Register settings routes
   await fastify.register(settingsRoutes)
+
+  // Register top picks routes
+  await fastify.register(topPicksRoutes)
 }
 
 export default routes
