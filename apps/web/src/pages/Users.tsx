@@ -37,6 +37,7 @@ import FolderIcon from '@mui/icons-material/Folder'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 
 interface ProviderUser {
   providerUserId: string
@@ -49,6 +50,12 @@ interface ProviderUser {
   isEnabled: boolean
   moviesEnabled: boolean
   seriesEnabled: boolean
+  aiOverrideAllowed: boolean
+}
+
+interface GlobalAiConfig {
+  enabled: boolean
+  userOverrideAllowed: boolean
 }
 
 export function UsersPage() {
@@ -70,6 +77,21 @@ export function UsersPage() {
   // Menu state
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
   const [menuUser, setMenuUser] = useState<ProviderUser | null>(null)
+  
+  // Global AI config (to know if per-user overrides are enabled globally)
+  const [globalAiConfig, setGlobalAiConfig] = useState<GlobalAiConfig | null>(null)
+
+  const fetchGlobalAiConfig = async () => {
+    try {
+      const response = await fetch('/api/settings/ai-explanation', { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        setGlobalAiConfig(data)
+      }
+    } catch {
+      // Silently fail
+    }
+  }
 
   const fetchProviderUsers = async () => {
     setLoading(true)
@@ -93,6 +115,7 @@ export function UsersPage() {
 
   useEffect(() => {
     fetchProviderUsers()
+    fetchGlobalAiConfig()
   }, [])
 
   const handleImportUser = async (providerUserId: string, enableAfterImport: boolean = false) => {
@@ -169,6 +192,40 @@ export function UsersPage() {
               : u
           )
         )
+      }
+    } finally {
+      setUpdating(null)
+    }
+  }
+
+  const handleToggleAiOverride = async (user: ProviderUser) => {
+    if (!user.apertureUserId) return
+
+    setUpdating(user.providerUserId)
+    try {
+      const newValue = !user.aiOverrideAllowed
+      const response = await fetch(`/api/settings/ai-explanation/user/${user.apertureUserId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ overrideAllowed: newValue }),
+      })
+
+      if (response.ok) {
+        setProviderUsers((prev) =>
+          prev.map((u) =>
+            u.providerUserId === user.providerUserId
+              ? { ...u, aiOverrideAllowed: newValue }
+              : u
+          )
+        )
+        setSnackbar({ 
+          open: true, 
+          message: newValue 
+            ? `${user.name} can now control their AI explanation preference` 
+            : `${user.name} will use the global AI explanation setting`,
+          severity: 'success' 
+        })
       }
     } finally {
       setUpdating(null)
@@ -289,13 +346,23 @@ export function UsersPage() {
                   Series
                 </Box>
               </TableCell>
+              {globalAiConfig?.userOverrideAllowed && (
+                <TableCell align="center">
+                  <Tooltip title="Allow user to control their AI explanation preference">
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                      <AutoAwesomeIcon fontSize="small" />
+                      AI Override
+                    </Box>
+                  </Tooltip>
+                </TableCell>
+              )}
               <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {sortedUsers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} align="center">
+                <TableCell colSpan={globalAiConfig?.userOverrideAllowed ? 7 : 6} align="center">
                   <Typography variant="body2" color="text.secondary" py={4}>
                     No users found on {provider} server.
                   </Typography>
@@ -376,6 +443,21 @@ export function UsersPage() {
                       <Typography variant="body2" color="text.secondary">—</Typography>
                     )}
                   </TableCell>
+                  {globalAiConfig?.userOverrideAllowed && (
+                    <TableCell align="center">
+                      {user.isImported ? (
+                        <Switch
+                          checked={user.aiOverrideAllowed}
+                          onChange={() => handleToggleAiOverride(user)}
+                          disabled={updating === user.providerUserId || user.isDisabled}
+                          color="secondary"
+                          size="small"
+                        />
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">—</Typography>
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell align="right">
                     <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', alignItems: 'center' }}>
                       {!user.isImported && (

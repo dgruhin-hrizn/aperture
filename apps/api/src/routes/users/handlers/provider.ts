@@ -24,8 +24,8 @@ export function registerProviderHandlers(fastify: FastifyInstance) {
         const providerUsers = await provider.getUsers(apiKey)
 
         // Get existing users from our DB to check import status
-        const existingResult = await query<{ provider_user_id: string; id: string; is_enabled: boolean; movies_enabled: boolean; series_enabled: boolean }>(
-          `SELECT provider_user_id, id, is_enabled, movies_enabled, series_enabled FROM users WHERE provider = $1`,
+        const existingResult = await query<{ provider_user_id: string; id: string; is_enabled: boolean; movies_enabled: boolean; series_enabled: boolean; ai_explanation_override_allowed: boolean }>(
+          `SELECT provider_user_id, id, is_enabled, movies_enabled, series_enabled, COALESCE(ai_explanation_override_allowed, false) as ai_explanation_override_allowed FROM users WHERE provider = $1`,
           [provider.type]
         )
         const existingMap = new Map(
@@ -34,6 +34,7 @@ export function registerProviderHandlers(fastify: FastifyInstance) {
             isEnabled: row.is_enabled,
             moviesEnabled: row.movies_enabled,
             seriesEnabled: row.series_enabled,
+            aiOverrideAllowed: row.ai_explanation_override_allowed,
           }])
         )
 
@@ -52,6 +53,7 @@ export function registerProviderHandlers(fastify: FastifyInstance) {
             isEnabled: existing?.isEnabled || false,
             moviesEnabled: existing?.moviesEnabled || false,
             seriesEnabled: existing?.seriesEnabled || false,
+            aiOverrideAllowed: existing?.aiOverrideAllowed || false,
           }
         })
 
