@@ -324,7 +324,7 @@ export function HomePage() {
                   />
                   {!isRec && (item as WatchHistoryItem).play_count > 1 && (
                     <Chip
-                      label={`${(item as WatchHistoryItem).play_count}x`}
+                      label={(item as WatchHistoryItem).play_count <= 5 ? `${(item as WatchHistoryItem).play_count}x` : 'Rewatched'}
                       size="small"
                       sx={{
                         position: 'absolute',

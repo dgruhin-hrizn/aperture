@@ -394,10 +394,10 @@ function WatchHistoryTab({ userId }: { userId: string }) {
                   size="small"
                   onClick={() => navigate(`/movies/${item.movie_id}`)}
                 />
-                {/* Play count badge */}
+                {/* Play count badge - cap display at 5x, show "Rewatched" for higher */}
                 {item.play_count > 1 && (
                   <Chip
-                    label={`${item.play_count}x`}
+                    label={item.play_count <= 5 ? `${item.play_count}x` : 'Rewatched'}
                     size="small"
                     sx={{
                       position: 'absolute',
@@ -479,7 +479,7 @@ function WatchHistoryTab({ userId }: { userId: string }) {
                   </TableCell>
                   <TableCell align="center">
                     <Chip 
-                      label={item.play_count} 
+                      label={item.play_count <= 5 ? item.play_count : '5+'} 
                       size="small" 
                       color={item.play_count > 3 ? 'primary' : 'default'}
                       variant={item.play_count > 1 ? 'filled' : 'outlined'}

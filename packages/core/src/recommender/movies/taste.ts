@@ -80,8 +80,11 @@ export async function buildTasteProfile(watched: WatchedMovie[]): Promise<number
 
       // 2. Play count - normalized logarithmic boost
       // Prevents a single rewatched movie from dominating
+      // Cap at 5 to avoid inflated counts from Emby's playback tracking skewing results
       if (movie.playCount > 1) {
-        const normalizedPlayCount = Math.log2(movie.playCount + 1) / Math.log2(maxPlayCount + 1)
+        const effectivePlayCount = Math.min(movie.playCount, 5)
+        const effectiveMaxPlayCount = Math.min(maxPlayCount, 5)
+        const normalizedPlayCount = Math.log2(effectivePlayCount + 1) / Math.log2(effectiveMaxPlayCount + 1)
         weight *= 1 + normalizedPlayCount * 0.4 // Up to 40% boost for most rewatched
       }
 

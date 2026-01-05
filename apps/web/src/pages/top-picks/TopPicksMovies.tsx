@@ -288,7 +288,7 @@ export function TopPicksMoviesPage() {
                   />
                   <Chip
                     icon={<PlayArrowIcon sx={{ fontSize: 16 }} />}
-                    label={`${movie.playCount} plays`}
+                    label={movie.playCount <= 10 ? `${movie.playCount} plays` : '10+ plays'}
                     size="small"
                     variant="outlined"
                   />

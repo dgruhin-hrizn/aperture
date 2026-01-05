@@ -324,10 +324,10 @@ export function MyWatchHistoryPage() {
                           size="small"
                           onClick={() => navigate(`/movies/${item.movie_id}`)}
                         />
-                        {/* Play count badge */}
+                        {/* Play count badge - cap display at 5x, show "Rewatched" for higher */}
                         {item.play_count > 1 && (
                           <Chip
-                            label={`${item.play_count}x`}
+                            label={item.play_count <= 5 ? `${item.play_count}x` : 'Rewatched'}
                             size="small"
                             sx={{
                               position: 'absolute',
@@ -409,7 +409,7 @@ export function MyWatchHistoryPage() {
                           </TableCell>
                           <TableCell align="center">
                             <Chip 
-                              label={item.play_count} 
+                              label={item.play_count <= 5 ? item.play_count : '5+'} 
                               size="small" 
                               color={item.play_count > 3 ? 'primary' : 'default'}
                               variant={item.play_count > 1 ? 'filled' : 'outlined'}
@@ -489,7 +489,7 @@ export function MyWatchHistoryPage() {
                             bottom: 0,
                             left: 0,
                             right: 0,
-                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            backgroundColor: 'rgba(0,0,0,0.85)',
                             px: 1,
                             py: 0.5,
                             borderBottomLeftRadius: 4,
@@ -498,13 +498,17 @@ export function MyWatchHistoryPage() {
                         >
                           <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
                             <Typography variant="caption" color="white" fontWeight={600}>
-                              {item.episodes_watched}/{item.total_episodes} eps
+                              {item.episodes_watched} / {item.total_episodes} episodes
                             </Typography>
-                            {item.total_plays > item.episodes_watched && (
-                              <Typography variant="caption" color="primary.light" fontWeight={600}>
-                                {item.total_plays} plays
-                              </Typography>
-                            )}
+                            <Typography 
+                              variant="caption" 
+                              fontWeight={600}
+                              sx={{ 
+                                color: item.episodes_watched === item.total_episodes ? 'success.light' : 'grey.400' 
+                              }}
+                            >
+                              {Math.round((item.episodes_watched / item.total_episodes) * 100)}%
+                            </Typography>
                           </Box>
                           <LinearProgress
                             variant="determinate"
@@ -546,7 +550,6 @@ export function MyWatchHistoryPage() {
                       <TableRow>
                         <TableCell>Series</TableCell>
                         <TableCell align="center">Progress</TableCell>
-                        <TableCell align="center">Plays</TableCell>
                         <TableCell align="center">Rating</TableCell>
                         <TableCell align="right">Last Watched</TableCell>
                       </TableRow>
@@ -587,10 +590,19 @@ export function MyWatchHistoryPage() {
                             </Box>
                           </TableCell>
                           <TableCell align="center">
-                            <Box sx={{ minWidth: 100 }}>
-                              <Typography variant="caption" color="text.secondary">
-                                {item.episodes_watched}/{item.total_episodes} episodes
-                              </Typography>
+                            <Box sx={{ minWidth: 120 }}>
+                              <Box display="flex" justifyContent="space-between" alignItems="center">
+                                <Typography variant="caption" color="text.secondary">
+                                  {item.episodes_watched} / {item.total_episodes}
+                                </Typography>
+                                <Chip
+                                  label={`${Math.round((item.episodes_watched / item.total_episodes) * 100)}%`}
+                                  size="small"
+                                  color={item.episodes_watched === item.total_episodes ? 'success' : 'default'}
+                                  variant={item.episodes_watched === item.total_episodes ? 'filled' : 'outlined'}
+                                  sx={{ height: 20, fontSize: '0.7rem' }}
+                                />
+                              </Box>
                               <LinearProgress
                                 variant="determinate"
                                 value={Math.min((item.episodes_watched / item.total_episodes) * 100, 100)}
@@ -604,14 +616,6 @@ export function MyWatchHistoryPage() {
                                 }}
                               />
                             </Box>
-                          </TableCell>
-                          <TableCell align="center">
-                            <Chip 
-                              label={item.total_plays} 
-                              size="small" 
-                              color={item.total_plays > 10 ? 'primary' : 'default'}
-                              variant={item.total_plays > 1 ? 'filled' : 'outlined'}
-                            />
                           </TableCell>
                           <TableCell align="center">
                             {item.community_rating ? (
