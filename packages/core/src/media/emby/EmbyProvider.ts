@@ -35,8 +35,17 @@ import {
   updateUserLibraryAccess,
   refreshLibrary,
 } from './libraries.js'
-import { getMovies, getMovieById, getWatchHistory } from './movies.js'
-import { getSeries, getSeriesById, getEpisodes, getEpisodeById, getSeriesWatchHistory } from './series.js'
+import { getMovies, getMovieById, getWatchHistory, markMovieUnplayed } from './movies.js'
+import {
+  getSeries,
+  getSeriesById,
+  getEpisodes,
+  getEpisodeById,
+  getSeriesWatchHistory,
+  markEpisodeUnplayed,
+  markSeasonUnplayed,
+  markSeriesUnplayed,
+} from './series.js'
 import {
   createOrUpdatePlaylist,
   deletePlaylist,
@@ -210,6 +219,32 @@ export class EmbyProvider extends EmbyProviderBase implements MediaServerProvide
 
   async removeCollectionItems(apiKey: string, collectionId: string, itemIds: string[]): Promise<void> {
     return removeCollectionItems(this, apiKey, collectionId, itemIds)
+  }
+
+  // Watch History Management
+  async markMovieUnplayed(apiKey: string, userId: string, movieId: string): Promise<void> {
+    return markMovieUnplayed(this, apiKey, userId, movieId)
+  }
+
+  async markEpisodeUnplayed(apiKey: string, userId: string, episodeId: string): Promise<void> {
+    return markEpisodeUnplayed(this, apiKey, userId, episodeId)
+  }
+
+  async markSeasonUnplayed(
+    apiKey: string,
+    userId: string,
+    seriesId: string,
+    seasonNumber: number
+  ): Promise<{ markedCount: number }> {
+    return markSeasonUnplayed(this, apiKey, userId, seriesId, seasonNumber)
+  }
+
+  async markSeriesUnplayed(
+    apiKey: string,
+    userId: string,
+    seriesId: string
+  ): Promise<{ markedCount: number }> {
+    return markSeriesUnplayed(this, apiKey, userId, seriesId)
   }
 }
 

@@ -1016,7 +1016,9 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.send(config)
       } catch (err) {
         fastify.log.error({ err }, 'Failed to get AI recs output format config')
-        return reply.status(500).send({ error: 'Failed to get AI recommendations output format configuration' })
+        return reply
+          .status(500)
+          .send({ error: 'Failed to get AI recommendations output format configuration' })
       }
     }
   )
@@ -1039,7 +1041,9 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       })
     } catch (err) {
       fastify.log.error({ err }, 'Failed to update AI recs output format config')
-      return reply.status(500).send({ error: 'Failed to update AI recommendations output format configuration' })
+      return reply
+        .status(500)
+        .send({ error: 'Failed to update AI recommendations output format configuration' })
     }
   })
 

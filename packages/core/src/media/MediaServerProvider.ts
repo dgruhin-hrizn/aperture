@@ -267,4 +267,39 @@ export interface MediaServerProvider {
    * Build streaming URL for an item
    */
   getStreamUrl(apiKey: string, itemId: string): string
+
+  // =========================================================================
+  // Watch History Management
+  // =========================================================================
+
+  /**
+   * Mark a movie as unwatched/unplayed
+   */
+  markMovieUnplayed(apiKey: string, userId: string, movieId: string): Promise<void>
+
+  /**
+   * Mark an episode as unwatched/unplayed
+   */
+  markEpisodeUnplayed(apiKey: string, userId: string, episodeId: string): Promise<void>
+
+  /**
+   * Mark all episodes in a season as unwatched/unplayed
+   * Returns the count of episodes marked
+   */
+  markSeasonUnplayed(
+    apiKey: string,
+    userId: string,
+    seriesId: string,
+    seasonNumber: number
+  ): Promise<{ markedCount: number }>
+
+  /**
+   * Mark all episodes in a series as unwatched/unplayed
+   * Returns the count of episodes marked
+   */
+  markSeriesUnplayed(
+    apiKey: string,
+    userId: string,
+    seriesId: string
+  ): Promise<{ markedCount: number }>
 }

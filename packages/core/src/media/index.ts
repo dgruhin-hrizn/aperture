@@ -19,16 +19,6 @@ export * from './types.js'
 export * as EmbyTypes from './emby/types.js'
 export { mapEmbyItemToMovie, mapEmbyItemToSeries, mapEmbyItemToEpisode } from './emby/mappers.js'
 
-// Export Emby mark unplayed functions
-export {
-  markMovieUnplayed as embyMarkMovieUnplayed,
-} from './emby/movies.js'
-export {
-  markEpisodeUnplayed as embyMarkEpisodeUnplayed,
-  markSeasonUnplayed as embyMarkSeasonUnplayed,
-  markSeriesUnplayed as embyMarkSeriesUnplayed,
-} from './emby/series.js'
-
 // Export Jellyfin types with namespace
 export * as JellyfinTypes from './jellyfin/types.js'
 export {
@@ -36,16 +26,6 @@ export {
   mapJellyfinItemToSeries,
   mapJellyfinItemToEpisode,
 } from './jellyfin/mappers.js'
-
-// Export Jellyfin mark unplayed functions
-export {
-  markMovieUnplayed as jellyfinMarkMovieUnplayed,
-} from './jellyfin/movies.js'
-export {
-  markEpisodeUnplayed as jellyfinMarkEpisodeUnplayed,
-  markSeasonUnplayed as jellyfinMarkSeasonUnplayed,
-  markSeriesUnplayed as jellyfinMarkSeriesUnplayed,
-} from './jellyfin/series.js'
 
 /**
  * Create a media server provider based on type

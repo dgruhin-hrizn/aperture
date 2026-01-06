@@ -9,16 +9,6 @@ import {
   getMediaServerProvider,
   getMediaServerConfig
 } from '@aperture/core'
-import {
-  embyMarkMovieUnplayed,
-  embyMarkEpisodeUnplayed,
-  embyMarkSeasonUnplayed,
-  embyMarkSeriesUnplayed,
-  jellyfinMarkMovieUnplayed,
-  jellyfinMarkEpisodeUnplayed,
-  jellyfinMarkSeasonUnplayed,
-  jellyfinMarkSeriesUnplayed,
-} from '@aperture/core/media'
 
 export function registerProfileHandlers(fastify: FastifyInstance) {
   /**
@@ -803,7 +793,6 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
         }
 
         // Mark as unplayed in media server
-        const config = await getMediaServerConfig()
         const provider = getMediaServerProvider()
         const apiKey = process.env.MEDIA_SERVER_API_KEY
 
@@ -811,11 +800,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
           return reply.status(500).send({ error: 'Media server API key not configured' })
         }
 
-        if (config.type === 'emby') {
-          await embyMarkMovieUnplayed(provider as unknown as Parameters<typeof embyMarkMovieUnplayed>[0], apiKey, user.provider_user_id, movie.provider_item_id)
-        } else {
-          await jellyfinMarkMovieUnplayed(provider as unknown as Parameters<typeof jellyfinMarkMovieUnplayed>[0], apiKey, user.provider_user_id, movie.provider_item_id)
-        }
+        await provider.markMovieUnplayed(apiKey, user.provider_user_id, movie.provider_item_id)
 
         // Remove from Aperture database
         await query(
@@ -870,7 +855,6 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
           return reply.status(400).send({ error: 'User has no media server association' })
         }
 
-        const config = await getMediaServerConfig()
         const provider = getMediaServerProvider()
         const apiKey = process.env.MEDIA_SERVER_API_KEY
 
@@ -878,11 +862,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
           return reply.status(500).send({ error: 'Media server API key not configured' })
         }
 
-        if (config.type === 'emby') {
-          await embyMarkEpisodeUnplayed(provider as unknown as Parameters<typeof embyMarkEpisodeUnplayed>[0], apiKey, user.provider_user_id, episode.provider_item_id)
-        } else {
-          await jellyfinMarkEpisodeUnplayed(provider as unknown as Parameters<typeof jellyfinMarkEpisodeUnplayed>[0], apiKey, user.provider_user_id, episode.provider_item_id)
-        }
+        await provider.markEpisodeUnplayed(apiKey, user.provider_user_id, episode.provider_item_id)
 
         await query(
           `DELETE FROM watch_history WHERE user_id = $1 AND episode_id = $2`,
@@ -936,7 +916,6 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
           return reply.status(400).send({ error: 'User has no media server association' })
         }
 
-        const config = await getMediaServerConfig()
         const provider = getMediaServerProvider()
         const apiKey = process.env.MEDIA_SERVER_API_KEY
 
@@ -944,14 +923,12 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
           return reply.status(500).send({ error: 'Media server API key not configured' })
         }
 
-        let markedCount = 0
-        if (config.type === 'emby') {
-          const result = await embyMarkSeasonUnplayed(provider as unknown as Parameters<typeof embyMarkSeasonUnplayed>[0], apiKey, user.provider_user_id, series.provider_item_id, parseInt(seasonNumber))
-          markedCount = result.markedCount
-        } else {
-          const result = await jellyfinMarkSeasonUnplayed(provider as unknown as Parameters<typeof jellyfinMarkSeasonUnplayed>[0], apiKey, user.provider_user_id, series.provider_item_id, parseInt(seasonNumber))
-          markedCount = result.markedCount
-        }
+        const { markedCount } = await provider.markSeasonUnplayed(
+          apiKey,
+          user.provider_user_id,
+          series.provider_item_id,
+          parseInt(seasonNumber)
+        )
 
         // Remove all episodes from this season from watch history
         await query(
@@ -1011,7 +988,6 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
           return reply.status(400).send({ error: 'User has no media server association' })
         }
 
-        const config = await getMediaServerConfig()
         const provider = getMediaServerProvider()
         const apiKey = process.env.MEDIA_SERVER_API_KEY
 
@@ -1019,14 +995,11 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
           return reply.status(500).send({ error: 'Media server API key not configured' })
         }
 
-        let markedCount = 0
-        if (config.type === 'emby') {
-          const result = await embyMarkSeriesUnplayed(provider as unknown as Parameters<typeof embyMarkSeriesUnplayed>[0], apiKey, user.provider_user_id, series.provider_item_id)
-          markedCount = result.markedCount
-        } else {
-          const result = await jellyfinMarkSeriesUnplayed(provider as unknown as Parameters<typeof jellyfinMarkSeriesUnplayed>[0], apiKey, user.provider_user_id, series.provider_item_id)
-          markedCount = result.markedCount
-        }
+        const { markedCount } = await provider.markSeriesUnplayed(
+          apiKey,
+          user.provider_user_id,
+          series.provider_item_id
+        )
 
         // Remove all episodes of this series from watch history
         await query(
