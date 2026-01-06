@@ -122,7 +122,11 @@ export function generateNfoContent(
   // Studios
   if (movie.studios && movie.studios.length > 0) {
     for (const studio of movie.studios) {
-      lines.push(`  <studio>${escapeXml(studio)}</studio>`)
+      // Handle both string[] (legacy) and object[] (new format with id/name/imageTag)
+      const studioName = typeof studio === 'string' ? studio : studio.name
+      if (studioName) {
+        lines.push(`  <studio>${escapeXml(studioName)}</studio>`)
+      }
     }
   }
 

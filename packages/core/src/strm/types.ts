@@ -19,7 +19,7 @@ export interface Movie {
   posterUrl: string | null
   backdropUrl: string | null
   // Extended metadata
-  studios: string[] | null
+  studios: Array<string | { id?: string; name: string; imageTag?: string }> | null
   directors: string[] | null
   writers: string[] | null
   actors: Array<{ name: string; role?: string; thumb?: string }> | null
