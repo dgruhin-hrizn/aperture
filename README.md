@@ -81,14 +81,18 @@ Aperture creates personalized recommendation libraries for your media server use
 
 - **Web-Based Configuration**: Configure media server connection from the UI (no env vars required)
 - **Job Management**: Real-time progress tracking, scheduling, and history for all background jobs
+- **Job History with Logs**: View logs from past job runs, not just while running
 - **Running Jobs Widget**: Live progress indicator in the top bar showing active jobs with combined progress
 - **User Management**: Enable/disable AI recommendations per user, separately for movies and series
+- **Watch History Management**: Admin-controlled option to let users mark items as unwatched
 - **Algorithm Tuning**: Configure recommendation weights and parameters separately for movies and series
 - **Model Selection**: Choose between embedding models (small/large) and text generation models (GPT-4o-mini, GPT-5-nano, etc.)
 - **AI Explanation Toggle**: Enable/disable AI-generated "why this was picked" explanations globally, with per-user override capability
-- **Output Format Options**: Choose between STRM files or symlinks for virtual libraries
+- **Output Format Options**: Choose between STRM files or symlinks for virtual libraries (separate settings for Movies and Series)
+- **Library Title Templates**: Configure default library names with merge tags like `{{username}}` and `{{type}}`
 - **Cost Estimator**: Built-in OpenAI API cost estimation based on your configuration
 - **Database Management**: Purge and reset functionality for media data
+- **Reorganized Settings**: Clean four-tab layout (Setup, AI Recommendations, Top Picks, System) with collapsible advanced sections
 
 ### User Experience
 
@@ -353,7 +357,7 @@ Each job can be scheduled to run automatically:
 
 ### Algorithm Tuning
 
-Navigate to **Admin → Settings → AI Config**
+Navigate to **Admin → Settings → AI Recommendations → Advanced Settings**
 
 Adjust these weights separately for movies and series:
 
@@ -456,7 +460,7 @@ Used for taste profiles and recommendation explanations:
 
 ### AI Explanation Settings
 
-Navigate to **Admin → Settings → Output & AI**
+Navigate to **Admin → Settings → AI Recommendations**
 
 Control whether AI-generated explanations appear in recommendation NFO files:
 
@@ -464,11 +468,32 @@ Control whether AI-generated explanations appear in recommendation NFO files:
 - **User Override Permission** — When enabled, admins can grant specific users the ability to toggle their own preference
 - **Per-User Settings** — On each user's detail page, admins can allow that user to override the global setting
 
-The AI explanation appears in the NFO plot field, explaining why each title was recommended ("Because you enjoyed dark thrillers like X and Y...").
+The AI explanation appears in the NFO plot field, explaining why each title was recommended ("Because you enjoyed dark thrillers like X and Y..."). This works for both movies and series.
+
+### Library Title Templates
+
+Navigate to **Admin → Settings → AI Recommendations**
+
+Configure default library names using merge tags:
+
+| Merge Tag | Description | Example Output |
+| --- | --- | --- |
+| `{{username}}` | User's display name | "John" |
+| `{{type}}` | Media type | "Movies" or "TV Series" |
+| `{{count}}` | Number of recommendations | "50" |
+| `{{date}}` | Date of last run | "2025-01-06" |
+
+**Example templates:**
+- `{{username}}'s AI Picks - {{type}}` → "John's AI Picks - Movies"
+- `AI Recommendations for {{username}}` → "AI Recommendations for John"
+
+Users can override these with custom names in their own settings.
 
 ### Output Format Settings
 
-Configure how virtual libraries are created:
+Navigate to **Admin → Settings → AI Recommendations**
+
+Configure how virtual libraries are created, separately for Movies and Series:
 
 | Format       | Description                                              | Use When                                  |
 | ------------ | -------------------------------------------------------- | ----------------------------------------- |
@@ -479,7 +504,23 @@ Configure how virtual libraries are created:
 
 **Symlinks** require that both Aperture and your media server can access the same filesystem paths. This is ideal for NAS setups where both containers mount the same media share.
 
-> **Note**: Top Picks has its own separate STRM/Symlinks toggles for Movies and Series in **Admin → Settings → Top Picks**. User recommendations output format is configured in **Admin → Settings → Output & AI**.
+**Default Settings:**
+- **Movies**: STRM files (default)
+- **Series**: Symlinks (default) — STRM files don't work well for TV series in some media server configurations
+
+> **Note**: Top Picks has its own separate STRM/Symlinks toggles in **Admin → Settings → Top Picks → Output Configuration**.
+
+### Watch History Management (Admin)
+
+Navigate to **Admin → Users → [User] → Settings**
+
+Control whether users can mark items as unwatched:
+
+- **Enable Watch History Management** — Toggle to allow this user to remove items from their watch history
+- When enabled, users see "Mark Unwatched" buttons on movies, episodes, seasons, and series
+- Changes sync to both Aperture's database and the media server
+
+This is useful for users who accidentally marked content as watched or need to clean up their history.
 
 ### Database Management
 
@@ -607,8 +648,22 @@ Navigate to **Watch Stats** in the sidebar for detailed analytics:
 
 Navigate to **Settings** (user icon in sidebar):
 
-- **Custom Library Name** — Change your "AI Picks" library name (default: "AI Picks - YourUsername")
+- **Movies Library Name** — Customize your AI recommendations movie library name
+- **Series Library Name** — Customize your AI recommendations series library name  
 - **AI Explanation Preference** — If your admin has enabled this option for you, toggle whether AI explanations appear in your recommendation descriptions
+
+Both library names are optional — leave empty to use the global default templates set by your admin.
+
+### Managing Watch History
+
+If your admin has enabled watch history management for your account:
+
+- **Mark Movies Unwatched** — On any movie detail page or in your watch history, click "Mark Unwatched" to remove it from your watch history (syncs to your media server)
+- **Mark Episodes Unwatched** — Remove individual episodes from your watch history
+- **Mark Seasons Unwatched** — Remove an entire season at once
+- **Mark Series Unwatched** — Remove all episodes of a series from your watch history
+
+This is useful if you've accidentally marked content as watched or want to "reset" your history for certain items. Changes sync to both Aperture and your media server.
 
 ### Virtual Libraries in Your Media Server
 
@@ -720,16 +775,29 @@ These can also be configured via Admin > Settings > Media Server.
 
 ### Admin UI Configuration
 
-The Admin Settings page provides UI-based configuration for:
+The Admin Settings page is organized into four tabs:
 
-- **Media Server**: Connection details, test connection
-- **Libraries**: Enable/disable source libraries
-- **AI Config**: Algorithm weights for movies and series separately
-- **Embedding Model**: Choose small (fast/cheap) or large (best quality)
-- **Text Generation Model**: Select GPT model for taste profiles and explanations
-- **Top Picks**: Dedicated tab for global popularity content (output modes, algorithm tuning)
-- **Output & AI**: User recommendations output format (STRM vs symlinks), AI explanation toggles
+#### Setup Tab
+- **Media Server**: Connection details and test connection
+- **Source Libraries**: Enable/disable libraries to include in sync
+- **Docker Setup Guide**: Documentation for STRM/symlink volume configuration
+
+#### AI Recommendations Tab
+- **Output Format**: STRM vs symlinks (separate for Movies and Series)
+- **Library Title Templates**: Default naming with merge tags
+- **AI Explanations**: Global toggle and user override settings
+- **Advanced Settings** (collapsed):
+  - AI Models: Embedding and text generation model selection
+  - Algorithm Weights: Tune similarity, novelty, rating, diversity
+
+#### Top Picks Tab
+- **Configuration**: Time window, counts, minimum viewers
+- **Scoring Algorithm**: Weight unique viewers, play count, completion
+- **Output Modes**: Library, Collection, and/or Playlist (per content type)
+
+#### System Tab
 - **Cost Estimator**: Estimate OpenAI API costs based on your setup
+- **Database Management**: View stats and purge data
 
 ### STRM Setup Guide
 
@@ -876,18 +944,23 @@ The `refresh-top-picks` job:
 
 ### Users
 
-| Endpoint                                              | Description                     |
-| ----------------------------------------------------- | ------------------------------- |
-| `GET /api/users`                                      | List all users (Admin)          |
-| `GET /api/users/:id`                                  | Get user details                |
-| `GET /api/users/:id/stats`                            | Get user statistics             |
-| `GET /api/users/:id/watch-history`                    | Get movie watch history         |
-| `GET /api/users/:id/watch-stats`                      | Get watch stats with breakdowns |
-| `GET /api/users/:id/taste-profile`                    | Get movie taste synopsis        |
-| `POST /api/users/:id/taste-profile/regenerate`        | Regenerate movie taste          |
-| `GET /api/users/:id/series-taste-profile`             | Get series taste synopsis       |
-| `POST /api/users/:id/series-taste-profile/regenerate` | Regenerate series taste         |
-| `PUT /api/users/:id`                                  | Update user settings            |
+| Endpoint                                                    | Description                        |
+| ----------------------------------------------------------- | ---------------------------------- |
+| `GET /api/users`                                            | List all users (Admin)             |
+| `GET /api/users/:id`                                        | Get user details                   |
+| `GET /api/users/:id/stats`                                  | Get user statistics                |
+| `GET /api/users/:id/watch-history`                          | Get movie watch history            |
+| `GET /api/users/:id/series-watch-history`                   | Get series watch history           |
+| `GET /api/users/:id/watch-stats`                            | Get watch stats with breakdowns    |
+| `GET /api/users/:id/taste-profile`                          | Get movie taste synopsis           |
+| `POST /api/users/:id/taste-profile/regenerate`              | Regenerate movie taste             |
+| `GET /api/users/:id/series-taste-profile`                   | Get series taste synopsis          |
+| `POST /api/users/:id/series-taste-profile/regenerate`       | Regenerate series taste            |
+| `PUT /api/users/:id`                                        | Update user settings               |
+| `DELETE /api/users/:id/watch-history/movies/:movieId`       | Mark movie as unwatched            |
+| `DELETE /api/users/:id/watch-history/episodes/:episodeId`   | Mark episode as unwatched          |
+| `DELETE /api/users/:id/watch-history/series/:id/seasons/:n` | Mark season as unwatched           |
+| `DELETE /api/users/:id/watch-history/series/:seriesId`      | Mark entire series as unwatched    |
 
 ### Top Picks
 
@@ -949,9 +1022,13 @@ The `refresh-top-picks` job:
 | `PATCH /api/settings/output-format`           | Update output format       |
 | `GET /api/settings/ai-explanation`            | Get AI explanation config  |
 | `PATCH /api/settings/ai-explanation`          | Update AI explanation      |
-| `GET /api/settings/ai-explanation/user/:id`   | Get user override settings |
-| `PATCH /api/settings/ai-explanation/user/:id` | Update user override       |
-| `GET /api/settings/cost-inputs`               | Get cost estimation data   |
+| `GET /api/settings/ai-explanation/user/:id`   | Get user override settings  |
+| `PATCH /api/settings/ai-explanation/user/:id` | Update user override        |
+| `GET /api/settings/library-titles`            | Get library title templates |
+| `PATCH /api/settings/library-titles`          | Update title templates      |
+| `GET /api/settings/ai-recs/output`            | Get AI recs output config   |
+| `PATCH /api/settings/ai-recs/output`          | Update AI recs output       |
+| `GET /api/settings/cost-inputs`               | Get cost estimation data    |
 
 ### Jobs (Admin)
 
