@@ -67,7 +67,7 @@ export async function ensureUserSeriesLibrary(
     name: string
   }>(
     `SELECT provider_library_id, provider_library_guid, name FROM strm_libraries
-     WHERE user_id = $1 AND library_type = 'series'`,
+     WHERE user_id = $1 AND media_type = 'series'`,
     [userId]
   )
 
@@ -75,7 +75,7 @@ export async function ensureUserSeriesLibrary(
   if (dbRecord && dbRecord.name !== libraryName) {
     logger.info({ userId, oldName: dbRecord.name, newName: libraryName }, 'Series library name changed, clearing old record')
     await query(
-      `DELETE FROM strm_libraries WHERE user_id = $1 AND library_type = 'series'`,
+      `DELETE FROM strm_libraries WHERE user_id = $1 AND media_type = 'series'`,
       [userId]
     )
   }
@@ -89,11 +89,11 @@ export async function ensureUserSeriesLibrary(
 
     // Ensure we have an up-to-date database record
     await query(
-      `DELETE FROM strm_libraries WHERE user_id = $1 AND library_type = 'series'`,
+      `DELETE FROM strm_libraries WHERE user_id = $1 AND media_type = 'series'`,
       [userId]
     )
     await query(
-      `INSERT INTO strm_libraries (user_id, name, path, provider_library_id, provider_library_guid, library_type)
+      `INSERT INTO strm_libraries (user_id, name, path, provider_library_id, provider_library_guid, media_type)
        VALUES ($1, $2, $3, $4, $5, 'series')`,
       [userId, libraryName, libraryPath, existingLib.id, existingLib.guid]
     )
@@ -112,7 +112,7 @@ export async function ensureUserSeriesLibrary(
   if (dbRecord) {
     logger.info({ userId }, 'Clearing stale database record (library was deleted from media server)')
     await query(
-      `DELETE FROM strm_libraries WHERE user_id = $1 AND library_type = 'series'`,
+      `DELETE FROM strm_libraries WHERE user_id = $1 AND media_type = 'series'`,
       [userId]
     )
   }
@@ -127,7 +127,7 @@ export async function ensureUserSeriesLibrary(
 
   // Store the mapping
   await query(
-    `INSERT INTO strm_libraries (user_id, name, path, provider_library_id, provider_library_guid, library_type)
+    `INSERT INTO strm_libraries (user_id, name, path, provider_library_id, provider_library_guid, media_type)
      VALUES ($1, $2, $3, $4, $5, 'series')`,
     [userId, libraryName, libraryPath, result.libraryId, libraryGuid]
   )
@@ -150,7 +150,7 @@ export async function refreshUserSeriesLibrary(userId: string): Promise<void> {
 
   const library = await queryOne<{ provider_library_id: string }>(
     `SELECT provider_library_id FROM strm_libraries
-     WHERE user_id = $1 AND library_type = 'series'`,
+     WHERE user_id = $1 AND media_type = 'series'`,
     [userId]
   )
 
@@ -180,7 +180,7 @@ export async function updateUserSeriesLibraryPermissions(
   // Get user's AI series library GUID
   const library = await queryOne<{ provider_library_guid: string }>(
     `SELECT provider_library_guid FROM strm_libraries
-     WHERE user_id = $1 AND library_type = 'series'`,
+     WHERE user_id = $1 AND media_type = 'series'`,
     [userId]
   )
 
