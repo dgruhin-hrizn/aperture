@@ -92,6 +92,42 @@ function generateEpisodeNfoContent(episode: EpisodeInfo, seriesTitle: string): s
 }
 
 /**
+ * Generate a placeholder "Specials" episode NFO with dateadded for Emby home row sorting.
+ * Emby sorts series by latest episode dateadded, so we create a fake Season 00/Episode 0
+ * with dateadded set by rank to control the order in "Latest" rows.
+ * 
+ * The date is set 100 years in the future to ensure these placeholders always appear
+ * as the "newest" episodes, preventing real episode air dates from interfering.
+ * Rank 1 = furthest in future, higher ranks = slightly earlier.
+ */
+function generateSortingPlaceholderNfo(seriesTitle: string, rank: number): string {
+  // Use current date but 100 years in the future
+  // Rank 1 = newest (furthest future), with 1-minute intervals per rank
+  const now = new Date()
+  const futureDate = new Date(now)
+  futureDate.setFullYear(futureDate.getFullYear() + 100)
+  // Subtract minutes based on rank so Rank 1 is newest
+  futureDate.setMinutes(futureDate.getMinutes() - (rank - 1))
+  
+  const dateAddedStr = futureDate.toISOString().replace('T', ' ').substring(0, 19)
+  
+  const lines = [
+    '<?xml version="1.0" encoding="utf-8"?>',
+    '<episodedetails>',
+    `  <title>Aperture Sorting Placeholder</title>`,
+    `  <showtitle>${escapeXml(seriesTitle)}</showtitle>`,
+    `  <season>0</season>`,
+    `  <episode>0</episode>`,
+    `  <plot>This is a hidden placeholder file created by Aperture to control the sort order in your media server's home screen. This series is ranked #${rank} in your personalized recommendations. You can safely ignore this "episode" - it contains no actual video content.</plot>`,
+    `  <dateadded>${dateAddedStr}</dateadded>`,
+    `  <runtime>0</runtime>`,
+    '</episodedetails>',
+  ]
+
+  return lines.join('\n')
+}
+
+/**
  * Write STRM files (or symlinks) for a user's series recommendations
  */
 export async function writeSeriesStrmFilesForUser(
@@ -306,6 +342,29 @@ export async function writeSeriesStrmFilesForUser(
         })
       }
     }
+
+    // Create Season 00 (Specials) folder with a sorting placeholder episode
+    // This tricks Emby into sorting series by our rank in the home "Latest" row
+    // because Emby uses the latest episode's dateadded for series sorting
+    const specialsFolderPath = path.join(seriesFolderPath, 'Season 00')
+    await fs.mkdir(specialsFolderPath, { recursive: true })
+    
+    const placeholderBasename = 'S00E00 - Aperture Sorting Placeholder'
+    
+    // Create NFO with dateadded set 100 years in future (by rank for sort order)
+    const placeholderNfoPath = path.join(specialsFolderPath, `${placeholderBasename}.nfo`)
+    const placeholderNfoContent = generateSortingPlaceholderNfo(series.title, series.rank)
+    await fs.writeFile(placeholderNfoPath, placeholderNfoContent, 'utf-8')
+    filesWritten++
+    
+    // Create a minimal STRM file so Emby recognizes the episode entry
+    // The content is a placeholder - the episode won't be playable but that's intentional
+    const placeholderStrmPath = path.join(specialsFolderPath, `${placeholderBasename}.strm`)
+    const placeholderStrmContent = '# Aperture sorting placeholder - not a real video\nabout:blank'
+    await fs.writeFile(placeholderStrmPath, placeholderStrmContent, 'utf-8')
+    filesWritten++
+    
+    logger.debug({ series: series.title, rank: series.rank, dateAdded }, '📅 Created sorting placeholder for home row ordering')
 
     if (useSymlinks) {
       // SYMLINKS MODE: Symlink entire season folders from original location
