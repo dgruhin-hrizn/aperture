@@ -1,8 +1,6 @@
 import {
   Box,
   Typography,
-  Card,
-  CardContent,
   Accordion,
   AccordionSummary,
   AccordionDetails,
@@ -39,18 +37,13 @@ function CodeBlock({ children }: { children: string }) {
 
 export function StrmSection() {
   return (
-    <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
-      <CardContent>
-        <Typography variant="h6" mb={2}>
-          STRM Libraries
-        </Typography>
-        
-        <Typography variant="body2" color="text.secondary" mb={3}>
-          Aperture creates personalized recommendation libraries for each user as STRM files. 
-          Your media server reads these STRM files to display AI-curated movie collections.
-        </Typography>
+    <Box>
+      <Typography variant="body2" color="text.secondary" mb={3}>
+        Aperture creates personalized recommendation libraries for each user as STRM files or symlinks. 
+        Your media server reads these to display AI-curated collections.
+      </Typography>
 
-        <Stack spacing={2}>
+      <Stack spacing={2}>
           {/* What are STRM Files */}
           <Accordion defaultExpanded>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -236,7 +229,6 @@ Access Mode: Read Only`}</CodeBlock>
             </Typography>
           </Box>
         </Stack>
-      </CardContent>
-    </Card>
+    </Box>
   )
 }
