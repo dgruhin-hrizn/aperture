@@ -476,14 +476,15 @@ Navigate to **Admin → Settings → AI Recommendations**
 
 Configure default library names using merge tags:
 
-| Merge Tag | Description | Example Output |
-| --- | --- | --- |
-| `{{username}}` | User's display name | "John" |
-| `{{type}}` | Media type | "Movies" or "TV Series" |
-| `{{count}}` | Number of recommendations | "50" |
-| `{{date}}` | Date of last run | "2025-01-06" |
+| Merge Tag      | Description               | Example Output          |
+| -------------- | ------------------------- | ----------------------- |
+| `{{username}}` | User's display name       | "John"                  |
+| `{{type}}`     | Media type                | "Movies" or "TV Series" |
+| `{{count}}`    | Number of recommendations | "50"                    |
+| `{{date}}`     | Date of last run          | "2025-01-06"            |
 
 **Example templates:**
+
 - `{{username}}'s AI Picks - {{type}}` → "John's AI Picks - Movies"
 - `AI Recommendations for {{username}}` → "AI Recommendations for John"
 
@@ -505,6 +506,7 @@ Configure how virtual libraries are created, separately for Movies and Series:
 **Symlinks** require that both Aperture and your media server can access the same filesystem paths. This is ideal for NAS setups where both containers mount the same media share.
 
 **Default Settings:**
+
 - **Movies**: STRM files (default)
 - **Series**: Symlinks (default) — STRM files don't work well for TV series in some media server configurations
 
@@ -649,7 +651,7 @@ Navigate to **Watch Stats** in the sidebar for detailed analytics:
 Navigate to **Settings** (user icon in sidebar):
 
 - **Movies Library Name** — Customize your AI recommendations movie library name
-- **Series Library Name** — Customize your AI recommendations series library name  
+- **Series Library Name** — Customize your AI recommendations series library name
 - **AI Explanation Preference** — If your admin has enabled this option for you, toggle whether AI explanations appear in your recommendation descriptions
 
 Both library names are optional — leave empty to use the global default templates set by your admin.
@@ -778,11 +780,13 @@ These can also be configured via Admin > Settings > Media Server.
 The Admin Settings page is organized into four tabs:
 
 #### Setup Tab
+
 - **Media Server**: Connection details and test connection
 - **Source Libraries**: Enable/disable libraries to include in sync
 - **Docker Setup Guide**: Documentation for STRM/symlink volume configuration
 
 #### AI Recommendations Tab
+
 - **Output Format**: STRM vs symlinks (separate for Movies and Series)
 - **Library Title Templates**: Default naming with merge tags
 - **AI Explanations**: Global toggle and user override settings
@@ -791,11 +795,13 @@ The Admin Settings page is organized into four tabs:
   - Algorithm Weights: Tune similarity, novelty, rating, diversity
 
 #### Top Picks Tab
+
 - **Configuration**: Time window, counts, minimum viewers
 - **Scoring Algorithm**: Weight unique viewers, play count, completion
 - **Output Modes**: Library, Collection, and/or Playlist (per content type)
 
 #### System Tab
+
 - **Cost Estimator**: Estimate OpenAI API costs based on your setup
 - **Database Management**: View stats and purge data
 
@@ -944,23 +950,23 @@ The `refresh-top-picks` job:
 
 ### Users
 
-| Endpoint                                                    | Description                        |
-| ----------------------------------------------------------- | ---------------------------------- |
-| `GET /api/users`                                            | List all users (Admin)             |
-| `GET /api/users/:id`                                        | Get user details                   |
-| `GET /api/users/:id/stats`                                  | Get user statistics                |
-| `GET /api/users/:id/watch-history`                          | Get movie watch history            |
-| `GET /api/users/:id/series-watch-history`                   | Get series watch history           |
-| `GET /api/users/:id/watch-stats`                            | Get watch stats with breakdowns    |
-| `GET /api/users/:id/taste-profile`                          | Get movie taste synopsis           |
-| `POST /api/users/:id/taste-profile/regenerate`              | Regenerate movie taste             |
-| `GET /api/users/:id/series-taste-profile`                   | Get series taste synopsis          |
-| `POST /api/users/:id/series-taste-profile/regenerate`       | Regenerate series taste            |
-| `PUT /api/users/:id`                                        | Update user settings               |
-| `DELETE /api/users/:id/watch-history/movies/:movieId`       | Mark movie as unwatched            |
-| `DELETE /api/users/:id/watch-history/episodes/:episodeId`   | Mark episode as unwatched          |
-| `DELETE /api/users/:id/watch-history/series/:id/seasons/:n` | Mark season as unwatched           |
-| `DELETE /api/users/:id/watch-history/series/:seriesId`      | Mark entire series as unwatched    |
+| Endpoint                                                    | Description                     |
+| ----------------------------------------------------------- | ------------------------------- |
+| `GET /api/users`                                            | List all users (Admin)          |
+| `GET /api/users/:id`                                        | Get user details                |
+| `GET /api/users/:id/stats`                                  | Get user statistics             |
+| `GET /api/users/:id/watch-history`                          | Get movie watch history         |
+| `GET /api/users/:id/series-watch-history`                   | Get series watch history        |
+| `GET /api/users/:id/watch-stats`                            | Get watch stats with breakdowns |
+| `GET /api/users/:id/taste-profile`                          | Get movie taste synopsis        |
+| `POST /api/users/:id/taste-profile/regenerate`              | Regenerate movie taste          |
+| `GET /api/users/:id/series-taste-profile`                   | Get series taste synopsis       |
+| `POST /api/users/:id/series-taste-profile/regenerate`       | Regenerate series taste         |
+| `PUT /api/users/:id`                                        | Update user settings            |
+| `DELETE /api/users/:id/watch-history/movies/:movieId`       | Mark movie as unwatched         |
+| `DELETE /api/users/:id/watch-history/episodes/:episodeId`   | Mark episode as unwatched       |
+| `DELETE /api/users/:id/watch-history/series/:id/seasons/:n` | Mark season as unwatched        |
+| `DELETE /api/users/:id/watch-history/series/:seriesId`      | Mark entire series as unwatched |
 
 ### Top Picks
 
@@ -1000,28 +1006,28 @@ The `refresh-top-picks` job:
 
 ### Settings (Admin)
 
-| Endpoint                                      | Description                |
-| --------------------------------------------- | -------------------------- |
-| `GET /api/settings/media-server`              | Get media server info      |
-| `GET /api/settings/media-server/config`       | Get full config (Admin)    |
-| `PATCH /api/settings/media-server/config`     | Update config              |
-| `POST /api/settings/media-server/test`        | Test connection            |
-| `GET /api/settings/libraries`                 | Get library configurations |
-| `POST /api/settings/libraries/sync`           | Sync from media server     |
-| `PATCH /api/settings/libraries/:id`           | Enable/disable library     |
-| `GET /api/settings/recommendations`           | Get algorithm config       |
-| `PATCH /api/settings/recommendations/movies`  | Update movie config        |
-| `PATCH /api/settings/recommendations/series`  | Update series config       |
-| `GET /api/settings/embedding-model`           | Get embedding model        |
-| `PATCH /api/settings/embedding-model`         | Set embedding model        |
-| `GET /api/settings/text-generation-model`     | Get text gen model         |
-| `PATCH /api/settings/text-generation-model`   | Set text gen model         |
-| `GET /api/settings/top-picks`                 | Get Top Picks config       |
-| `PATCH /api/settings/top-picks`               | Update Top Picks config    |
-| `GET /api/settings/output-format`             | Get output format config   |
-| `PATCH /api/settings/output-format`           | Update output format       |
-| `GET /api/settings/ai-explanation`            | Get AI explanation config  |
-| `PATCH /api/settings/ai-explanation`          | Update AI explanation      |
+| Endpoint                                      | Description                 |
+| --------------------------------------------- | --------------------------- |
+| `GET /api/settings/media-server`              | Get media server info       |
+| `GET /api/settings/media-server/config`       | Get full config (Admin)     |
+| `PATCH /api/settings/media-server/config`     | Update config               |
+| `POST /api/settings/media-server/test`        | Test connection             |
+| `GET /api/settings/libraries`                 | Get library configurations  |
+| `POST /api/settings/libraries/sync`           | Sync from media server      |
+| `PATCH /api/settings/libraries/:id`           | Enable/disable library      |
+| `GET /api/settings/recommendations`           | Get algorithm config        |
+| `PATCH /api/settings/recommendations/movies`  | Update movie config         |
+| `PATCH /api/settings/recommendations/series`  | Update series config        |
+| `GET /api/settings/embedding-model`           | Get embedding model         |
+| `PATCH /api/settings/embedding-model`         | Set embedding model         |
+| `GET /api/settings/text-generation-model`     | Get text gen model          |
+| `PATCH /api/settings/text-generation-model`   | Set text gen model          |
+| `GET /api/settings/top-picks`                 | Get Top Picks config        |
+| `PATCH /api/settings/top-picks`               | Update Top Picks config     |
+| `GET /api/settings/output-format`             | Get output format config    |
+| `PATCH /api/settings/output-format`           | Update output format        |
+| `GET /api/settings/ai-explanation`            | Get AI explanation config   |
+| `PATCH /api/settings/ai-explanation`          | Update AI explanation       |
 | `GET /api/settings/ai-explanation/user/:id`   | Get user override settings  |
 | `PATCH /api/settings/ai-explanation/user/:id` | Update user override        |
 | `GET /api/settings/library-titles`            | Get library title templates |
