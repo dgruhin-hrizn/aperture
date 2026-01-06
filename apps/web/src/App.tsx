@@ -7,7 +7,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth'
 import { Layout } from './components/Layout'
 import { AdminLayout } from './components/AdminLayout'
 import { LoginPage } from './pages/Login'
-import { HomePage } from './pages/Home'
+import { DashboardPage } from './pages/dashboard'
 import { MyRecommendationsPage } from './pages/MyRecommendations'
 import { MyWatchHistoryPage } from './pages/MyWatchHistory'
 import { MoviesPage } from './pages/Movies'
@@ -92,7 +92,7 @@ function AppRoutes() {
         }
       >
         {/* User Routes */}
-        <Route index element={<HomePage />} />
+        <Route index element={<DashboardPage />} />
         <Route path="recommendations" element={<MyRecommendationsPage />} />
         <Route path="top-picks/movies" element={<TopPicksMoviesPage />} />
         <Route path="top-picks/series" element={<TopPicksSeriesPage />} />

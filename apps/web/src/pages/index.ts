@@ -1,5 +1,5 @@
 // User pages
-export { HomePage } from './Home'
+export { DashboardPage } from './dashboard'
 export { MyRecommendationsPage } from './MyRecommendations'
 export { MyWatchHistoryPage } from './MyWatchHistory'
 export { MoviesPage } from './Movies'
@@ -17,4 +17,4 @@ export { JobsPage } from './jobs'
 export { SettingsPage } from './settings'
 
 // Legacy - keeping for backwards compatibility
-export { DashboardPage } from './Dashboard'
+export { HomePage } from './Home'

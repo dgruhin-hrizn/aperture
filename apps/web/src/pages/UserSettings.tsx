@@ -22,8 +22,10 @@ import PersonIcon from '@mui/icons-material/Person'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
 import SaveIcon from '@mui/icons-material/Save'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
+import PsychologyIcon from '@mui/icons-material/Psychology'
 import { useAuth } from '@/hooks/useAuth'
 import { Breadcrumbs } from '@/components/Breadcrumbs'
+import { TasteProfileSection } from './UserSettings/TasteProfileSection'
 
 interface TabPanelProps {
   children?: React.ReactNode
@@ -349,6 +351,7 @@ export function UserSettingsPage() {
           }}
         >
           <Tab icon={<PersonIcon />} iconPosition="start" label="Profile" />
+          <Tab icon={<PsychologyIcon />} iconPosition="start" label="Taste Profile" />
           <Tab icon={<VideoLibraryIcon />} iconPosition="start" label="Preferences" />
         </Tabs>
 
@@ -422,8 +425,13 @@ export function UserSettingsPage() {
             </Card>
           </TabPanel>
 
-          {/* Preferences Tab */}
+          {/* Taste Profile Tab */}
           <TabPanel value={tabValue} index={1}>
+            <TasteProfileSection />
+          </TabPanel>
+
+          {/* Preferences Tab */}
+          <TabPanel value={tabValue} index={2}>
             <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, maxWidth: 600 }}>
               <CardContent>
                 <Typography variant="h6" gutterBottom>

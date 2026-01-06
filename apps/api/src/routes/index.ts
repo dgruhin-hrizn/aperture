@@ -12,6 +12,7 @@ import jobsRoutes from './jobs.js'
 import settingsRoutes from './settings.js'
 import topPicksRoutes from './top-picks.js'
 import traktRoutes from './trakt.js'
+import dashboardRoutes from './dashboard.js'
 
 const routes: FastifyPluginAsync = async (fastify) => {
   // Register health check routes
@@ -52,6 +53,9 @@ const routes: FastifyPluginAsync = async (fastify) => {
 
   // Register Trakt routes
   await fastify.register(traktRoutes)
+
+  // Register dashboard routes
+  await fastify.register(dashboardRoutes)
 }
 
 export default routes
