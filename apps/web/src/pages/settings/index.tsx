@@ -19,6 +19,7 @@ import {
   TopPicksSection,
   AiExplanationSection,
   OutputFormatSection,
+  LibraryTitlesSection,
 } from './components'
 
 interface TabPanelProps {
@@ -165,7 +166,10 @@ export function SettingsPage() {
                 <StrmSection />
               </Box>
               
-              <OutputFormatSection />
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
+                <OutputFormatSection />
+                <LibraryTitlesSection />
+              </Box>
               
               <DatabaseSection
                 purgeStats={settings.purgeStats}
