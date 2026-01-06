@@ -820,26 +820,26 @@ Configure via **Admin → Settings → Output & AI → User Recommendations Outp
 
 ### Movie Jobs
 
-| Job                        | Description                           | Schedule     |
-| -------------------------- | ------------------------------------- | ------------ |
-| `sync-movies`              | Sync movies from media server         | Configurable |
-| `generate-embeddings`      | Generate AI embeddings                | Manual       |
-| `sync-watch-history`       | Delta sync of watch history           | Configurable |
-| `full-sync-watch-history`  | Full resync of watch history          | Manual       |
-| `generate-recommendations` | Generate personalized picks           | Configurable |
-| `rebuild-recommendations`  | Clear and rebuild all recommendations | Manual       |
-| `sync-movie-libraries`     | Create movie libraries (STRM/symlinks)| Configurable |
+| Job                        | Description                            | Schedule     |
+| -------------------------- | -------------------------------------- | ------------ |
+| `sync-movies`              | Sync movies from media server          | Configurable |
+| `generate-embeddings`      | Generate AI embeddings                 | Manual       |
+| `sync-watch-history`       | Delta sync of watch history            | Configurable |
+| `full-sync-watch-history`  | Full resync of watch history           | Manual       |
+| `generate-recommendations` | Generate personalized picks            | Configurable |
+| `rebuild-recommendations`  | Clear and rebuild all recommendations  | Manual       |
+| `sync-movie-libraries`     | Create movie libraries (STRM/symlinks) | Configurable |
 
 ### Series Jobs
 
-| Job                               | Description                     | Schedule     |
-| --------------------------------- | ------------------------------- | ------------ |
-| `sync-series`                     | Sync TV series and episodes     | Configurable |
-| `generate-series-embeddings`      | Generate AI embeddings          | Manual       |
-| `sync-series-watch-history`       | Delta sync of watch history     | Configurable |
-| `full-sync-series-watch-history`  | Full resync of watch history    | Manual       |
-| `generate-series-recommendations` | Generate personalized picks     | Configurable |
-| `sync-series-libraries`   | Create series libraries (STRM/symlinks)| Configurable |
+| Job                               | Description                             | Schedule     |
+| --------------------------------- | --------------------------------------- | ------------ |
+| `sync-series`                     | Sync TV series and episodes             | Configurable |
+| `generate-series-embeddings`      | Generate AI embeddings                  | Manual       |
+| `sync-series-watch-history`       | Delta sync of watch history             | Configurable |
+| `full-sync-series-watch-history`  | Full resync of watch history            | Manual       |
+| `generate-series-recommendations` | Generate personalized picks             | Configurable |
+| `sync-series-libraries`           | Create series libraries (STRM/symlinks) | Configurable |
 
 ### Global Jobs
 
@@ -876,25 +876,25 @@ The `refresh-top-picks` job:
 
 ### Users
 
-| Endpoint                                              | Description                      |
-| ----------------------------------------------------- | -------------------------------- |
-| `GET /api/users`                                      | List all users (Admin)           |
-| `GET /api/users/:id`                                  | Get user details                 |
-| `GET /api/users/:id/stats`                            | Get user statistics              |
-| `GET /api/users/:id/watch-history`                    | Get movie watch history          |
-| `GET /api/users/:id/watch-stats`                      | Get watch stats with breakdowns  |
-| `GET /api/users/:id/taste-profile`                    | Get movie taste synopsis         |
-| `POST /api/users/:id/taste-profile/regenerate`        | Regenerate movie taste           |
-| `GET /api/users/:id/series-taste-profile`             | Get series taste synopsis        |
-| `POST /api/users/:id/series-taste-profile/regenerate` | Regenerate series taste          |
-| `PUT /api/users/:id`                                  | Update user settings             |
+| Endpoint                                              | Description                     |
+| ----------------------------------------------------- | ------------------------------- |
+| `GET /api/users`                                      | List all users (Admin)          |
+| `GET /api/users/:id`                                  | Get user details                |
+| `GET /api/users/:id/stats`                            | Get user statistics             |
+| `GET /api/users/:id/watch-history`                    | Get movie watch history         |
+| `GET /api/users/:id/watch-stats`                      | Get watch stats with breakdowns |
+| `GET /api/users/:id/taste-profile`                    | Get movie taste synopsis        |
+| `POST /api/users/:id/taste-profile/regenerate`        | Regenerate movie taste          |
+| `GET /api/users/:id/series-taste-profile`             | Get series taste synopsis       |
+| `POST /api/users/:id/series-taste-profile/regenerate` | Regenerate series taste         |
+| `PUT /api/users/:id`                                  | Update user settings            |
 
 ### Top Picks
 
-| Endpoint                 | Description                        |
-| ------------------------ | ---------------------------------- |
-| `GET /api/top-picks/movies` | Get top trending movies         |
-| `GET /api/top-picks/series` | Get top trending series         |
+| Endpoint                    | Description             |
+| --------------------------- | ----------------------- |
+| `GET /api/top-picks/movies` | Get top trending movies |
+| `GET /api/top-picks/series` | Get top trending series |
 
 ### Movies
 
