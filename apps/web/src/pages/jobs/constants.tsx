@@ -27,7 +27,7 @@ export const MOVIE_JOB_CATEGORIES: JobCategory[] = [
     title: 'System',
     description: 'Movie library file management',
     color: '#6366f1',
-    jobs: ['sync-strm'],
+    jobs: ['sync-movie-libraries'],
   },
 ]
 
@@ -49,7 +49,7 @@ export const SERIES_JOB_CATEGORIES: JobCategory[] = [
     title: 'System',
     description: 'TV series library file management',
     color: '#4f46e5',
-    jobs: ['sync-series-strm'],
+    jobs: ['sync-series-libraries'],
   },
 ]
 
@@ -78,14 +78,14 @@ export const JOB_ICONS: Record<string, React.ReactNode> = {
   'full-sync-watch-history': <AutorenewIcon />,
   'generate-recommendations': <RecommendIcon />,
   'rebuild-recommendations': <AutorenewIcon />,
-  'sync-strm': <FolderIcon />,
+  'sync-movie-libraries': <FolderIcon />,
   // TV Series jobs
   'sync-series': <TvIcon />,
   'generate-series-embeddings': <PsychologyIcon />,
   'sync-series-watch-history': <HistoryIcon />,
   'full-sync-series-watch-history': <AutorenewIcon />,
   'generate-series-recommendations': <RecommendIcon />,
-  'sync-series-strm': <FolderIcon />,
+  'sync-series-libraries': <FolderIcon />,
   // Global jobs
   'refresh-top-picks': <TrendingUpIcon />,
 }
@@ -98,14 +98,14 @@ export const JOB_COLORS: Record<string, string> = {
   'full-sync-watch-history': '#dc2626',
   'generate-recommendations': '#22c55e',
   'rebuild-recommendations': '#8b5cf6',
-  'sync-strm': '#6366f1',
+  'sync-movie-libraries': '#6366f1',
   // TV Series jobs
   'sync-series': '#0891b2',
   'generate-series-embeddings': '#c026d3',
   'sync-series-watch-history': '#ea580c',
   'full-sync-series-watch-history': '#dc2626',
   'generate-series-recommendations': '#16a34a',
-  'sync-series-strm': '#4f46e5',
+  'sync-series-libraries': '#4f46e5',
   // Global jobs
   'refresh-top-picks': '#f59e0b',
 }

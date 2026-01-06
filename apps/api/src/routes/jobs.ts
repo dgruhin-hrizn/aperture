@@ -84,8 +84,8 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
     cron: null,
   },
   {
-    name: 'sync-strm',
-    description: 'Create movie STRM files and user libraries',
+    name: 'sync-movie-libraries',
+    description: 'Create AI recommendation movie libraries (STRM or symlinks)',
     cron: process.env.PERMS_CRON || '0 5 * * *',
   },
   // === Series Jobs ===
@@ -115,8 +115,8 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
     cron: process.env.RECS_CRON || '0 4 * * *',
   },
   {
-    name: 'sync-series-strm',
-    description: 'Create TV series STRM files and user libraries',
+    name: 'sync-series-libraries',
+    description: 'Create AI recommendation series libraries (STRM or symlinks)',
     cron: process.env.PERMS_CRON || '0 5 * * *',
   },
   // === Top Picks Job ===
@@ -675,14 +675,14 @@ async function runJob(name: string, jobId: string): Promise<void> {
         }, `✅ Recommendations rebuilt`)
         break
       }
-      case 'sync-strm': {
+      case 'sync-movie-libraries': {
         const result = await processStrmForAllUsers(jobId)
         logger.info({
           job: name,
           jobId,
           success: result.success,
           failed: result.failed,
-        }, `✅ STRM processing complete`)
+        }, `✅ Movie libraries sync complete`)
         break
       }
       // === Series Jobs ===
@@ -741,14 +741,14 @@ async function runJob(name: string, jobId: string): Promise<void> {
         }, `✅ Series recommendations complete`)
         break
       }
-      case 'sync-series-strm': {
+      case 'sync-series-libraries': {
         const result = await processSeriesStrmForAllUsers(jobId)
         logger.info({
           job: name,
           jobId,
           success: result.success,
           failed: result.failed,
-        }, `✅ Series STRM processing complete`)
+        }, `✅ Series libraries sync complete`)
         break
       }
       // === Top Picks Job ===

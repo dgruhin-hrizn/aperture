@@ -320,8 +320,8 @@ Navigate to **Admin → Jobs**
 
 1. Run **generate-recommendations** — Creates personalized movie picks for all enabled users
 2. Run **generate-series-recommendations** — Creates personalized series picks
-3. Run **sync-strm** — Creates the virtual movie library in your media server
-4. Run **sync-series-strm** — Creates the virtual series library
+3. Run **sync-movie-libraries** — Creates the virtual movie library in your media server
+4. Run **sync-series-libraries** — Creates the virtual series library
 
 After this, users will see a new "AI Picks" library in their media server!
 
@@ -633,7 +633,7 @@ For best results, schedule jobs to run automatically:
 | ------- | ----------------------------------------------------------------------- |
 | 3:00 AM | sync-movies, sync-series, sync-watch-history, sync-series-watch-history |
 | 4:00 AM | generate-recommendations, generate-series-recommendations               |
-| 5:00 AM | sync-strm, sync-series-strm                                             |
+| 5:00 AM | sync-movie-libraries, sync-series-libraries                             |
 | 6:00 AM | refresh-top-picks                                                       |
 
 This ensures users wake up to fresh recommendations based on yesterday's viewing.
@@ -828,7 +828,7 @@ Configure via **Admin → Settings → Output & AI → User Recommendations Outp
 | `full-sync-watch-history`  | Full resync of watch history          | Manual       |
 | `generate-recommendations` | Generate personalized picks           | Configurable |
 | `rebuild-recommendations`  | Clear and rebuild all recommendations | Manual       |
-| `sync-strm`                | Create STRM files and libraries       | Configurable |
+| `sync-movie-libraries`     | Create movie libraries (STRM/symlinks)| Configurable |
 
 ### Series Jobs
 
@@ -839,7 +839,7 @@ Configure via **Admin → Settings → Output & AI → User Recommendations Outp
 | `sync-series-watch-history`       | Delta sync of watch history     | Configurable |
 | `full-sync-series-watch-history`  | Full resync of watch history    | Manual       |
 | `generate-series-recommendations` | Generate personalized picks     | Configurable |
-| `sync-series-strm`                | Create STRM files and libraries | Configurable |
+| `sync-series-libraries`   | Create series libraries (STRM/symlinks)| Configurable |
 
 ### Global Jobs
 
