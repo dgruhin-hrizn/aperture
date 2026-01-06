@@ -22,6 +22,7 @@ import {
   subscribeToJob,
   subscribeToAllJobs,
   cancelJob,
+  failJob,
   purgeMovieDatabase,
   getMovieDatabaseStats,
   getJobConfig,
@@ -771,7 +772,12 @@ async function runJob(name: string, jobId: string): Promise<void> {
   } catch (err) {
     const error = err instanceof Error ? err.message : 'Unknown error'
     logger.error({ job: name, jobId, err }, `❌ Job failed: ${name}`)
+    // Record the failure in job progress tracking
+    failJob(jobId, error)
     throw err
+  } finally {
+    // Clear the active job reference
+    activeJobs.delete(name)
   }
 }
 

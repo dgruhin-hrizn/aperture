@@ -335,6 +335,12 @@ async function saveJobRun(progress: JobProgress): Promise<void> {
   const completedAt = progress.completedAt || new Date()
   const durationMs = completedAt.getTime() - progress.startedAt.getTime()
 
+  // Build metadata with result and logs
+  const metadata = {
+    ...progress.result,
+    logs: progress.logs.slice(-100), // Keep last 100 log entries
+  }
+
   // Insert into job_runs table
   await query(
     `INSERT INTO job_runs (job_name, status, started_at, completed_at, duration_ms, items_processed, items_total, error_message, metadata)
@@ -348,7 +354,7 @@ async function saveJobRun(progress: JobProgress): Promise<void> {
       progress.itemsProcessed,
       progress.itemsTotal,
       progress.error || null,
-      JSON.stringify(progress.result || {}),
+      JSON.stringify(metadata),
     ]
   )
 
