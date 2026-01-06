@@ -662,6 +662,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.patch<{
     Body: {
       libraryName?: string | null
+      seriesLibraryName?: string | null
     }
   }>('/api/settings/user', async (request, reply) => {
     try {
@@ -670,22 +671,31 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(401).send({ error: 'Not authenticated' })
       }
 
-      const { libraryName } = request.body
+      const { libraryName, seriesLibraryName } = request.body
 
-      // Validate library name if provided
-      if (libraryName !== undefined && libraryName !== null) {
-        if (typeof libraryName !== 'string' || libraryName.length > 100) {
-          return reply
-            .status(400)
-            .send({ error: 'Library name must be a string under 100 characters' })
+      // Validate library names if provided
+      const validateLibraryName = (name: unknown, label: string): string | null => {
+        if (name === undefined || name === null) return null
+        if (typeof name !== 'string' || name.length > 100) {
+          return `${label} must be a string under 100 characters`
         }
-        // Check for invalid characters (media server path-safe)
-        if (/[<>:"/\\|?*]/.test(libraryName)) {
-          return reply.status(400).send({ error: 'Library name contains invalid characters' })
+        if (/[<>:"/\\|?*]/.test(name)) {
+          return `${label} contains invalid characters`
         }
+        return null
       }
 
-      const settings = await updateUserSettings(userId, { libraryName })
+      const movieNameError = validateLibraryName(libraryName, 'Movies library name')
+      if (movieNameError) {
+        return reply.status(400).send({ error: movieNameError })
+      }
+
+      const seriesNameError = validateLibraryName(seriesLibraryName, 'Series library name')
+      if (seriesNameError) {
+        return reply.status(400).send({ error: seriesNameError })
+      }
+
+      const settings = await updateUserSettings(userId, { libraryName, seriesLibraryName })
 
       return reply.send({
         settings,

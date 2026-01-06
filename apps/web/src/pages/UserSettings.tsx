@@ -57,7 +57,8 @@ export function UserSettingsPage() {
   const [savingUserSettings, setSavingUserSettings] = useState(false)
   const [userSettingsError, setUserSettingsError] = useState<string | null>(null)
   const [userSettingsSuccess, setUserSettingsSuccess] = useState<string | null>(null)
-  const [libraryNameInput, setLibraryNameInput] = useState<string>('')
+  const [moviesLibraryName, setMoviesLibraryName] = useState<string>('')
+  const [seriesLibraryName, setSeriesLibraryName] = useState<string>('')
 
   // AI explanation preference state
   const [aiExplanationPref, setAiExplanationPref] = useState<AiExplanationPreference | null>(null)
@@ -79,7 +80,8 @@ export function UserSettingsPage() {
       if (response.ok) {
         const data = await response.json()
         setDefaultLibraryPrefix(data.defaults?.libraryNamePrefix || 'AI Picks - ')
-        setLibraryNameInput(data.settings?.libraryName || '')
+        setMoviesLibraryName(data.settings?.libraryName || '')
+        setSeriesLibraryName(data.settings?.seriesLibraryName || '')
       } else {
         const err = await response.json()
         setUserSettingsError(err.error || 'Failed to load user settings')
@@ -101,11 +103,12 @@ export function UserSettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          libraryName: libraryNameInput.trim() || null,
+          libraryName: moviesLibraryName.trim() || null,
+          seriesLibraryName: seriesLibraryName.trim() || null,
         }),
       })
       if (response.ok) {
-        setUserSettingsSuccess('Library name saved! It will be used for future library updates.')
+        setUserSettingsSuccess('Library names saved! They will be used for future library updates.')
         setTimeout(() => setUserSettingsSuccess(null), 5000)
       } else {
         const err = await response.json()
@@ -284,10 +287,10 @@ export function UserSettingsPage() {
             <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, maxWidth: 600 }}>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
-                  AI Library Name
+                  AI Library Names
                 </Typography>
                 <Typography variant="body2" color="text.secondary" mb={3}>
-                  Customize your AI recommendations library name as it appears in your media server.
+                  Customize how your AI recommendations libraries appear in your media server.
                 </Typography>
 
                 {userSettingsError && (
@@ -308,21 +311,40 @@ export function UserSettingsPage() {
                   </Box>
                 ) : (
                   <>
-                    <FormControl fullWidth sx={{ mb: 2 }}>
+                    <FormControl fullWidth sx={{ mb: 3 }}>
                       <Typography variant="body2" fontWeight={500} gutterBottom>
-                        Library Name
+                        Movies Library Name
                       </Typography>
                       <TextField
-                        placeholder={`${defaultLibraryPrefix}${user?.displayName || user?.username || 'User'}`}
-                        value={libraryNameInput}
-                        onChange={(e) => setLibraryNameInput(e.target.value)}
+                        placeholder={`${defaultLibraryPrefix}${user?.displayName || user?.username || 'User'} - Movies`}
+                        value={moviesLibraryName}
+                        onChange={(e) => setMoviesLibraryName(e.target.value)}
                         size="small"
                         fullWidth
                         inputProps={{ maxLength: 100 }}
                         helperText={
-                          libraryNameInput
-                            ? `Your library will be named: "${libraryNameInput}"`
-                            : `Leave empty to use default: "${defaultLibraryPrefix}${user?.displayName || user?.username || 'User'}"`
+                          moviesLibraryName
+                            ? `Your movies library will be named: "${moviesLibraryName}"`
+                            : 'Leave empty to use the global default template'
+                        }
+                      />
+                    </FormControl>
+
+                    <FormControl fullWidth sx={{ mb: 3 }}>
+                      <Typography variant="body2" fontWeight={500} gutterBottom>
+                        TV Series Library Name
+                      </Typography>
+                      <TextField
+                        placeholder={`${defaultLibraryPrefix}${user?.displayName || user?.username || 'User'} - TV Series`}
+                        value={seriesLibraryName}
+                        onChange={(e) => setSeriesLibraryName(e.target.value)}
+                        size="small"
+                        fullWidth
+                        inputProps={{ maxLength: 100 }}
+                        helperText={
+                          seriesLibraryName
+                            ? `Your series library will be named: "${seriesLibraryName}"`
+                            : 'Leave empty to use the global default template'
                         }
                       />
                     </FormControl>
@@ -337,14 +359,17 @@ export function UserSettingsPage() {
                       >
                         {savingUserSettings ? 'Saving...' : 'Save'}
                       </Button>
-                      {libraryNameInput && (
+                      {(moviesLibraryName || seriesLibraryName) && (
                         <Button
                           variant="outlined"
-                          onClick={() => setLibraryNameInput('')}
+                          onClick={() => {
+                            setMoviesLibraryName('')
+                            setSeriesLibraryName('')
+                          }}
                           disabled={savingUserSettings}
                           size="small"
                         >
-                          Reset to Default
+                          Reset to Defaults
                         </Button>
                       )}
                     </Box>
@@ -352,8 +377,8 @@ export function UserSettingsPage() {
                     <Divider sx={{ my: 3 }} />
 
                     <Typography variant="caption" color="text.secondary">
-                      Changes will apply the next time the "Update Permissions" job runs or when recommendations are regenerated.
-                      If you already have a library with the old name, you may need to manually delete it from your media server.
+                      Changes will apply the next time the library sync jobs run or when recommendations are regenerated.
+                      If you already have libraries with old names, you may need to manually delete them from your media server.
                     </Typography>
                   </>
                 )}
