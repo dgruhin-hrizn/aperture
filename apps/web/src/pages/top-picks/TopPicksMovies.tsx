@@ -17,7 +17,7 @@ import GridViewIcon from '@mui/icons-material/GridView'
 import ViewListIcon from '@mui/icons-material/ViewList'
 import PeopleIcon from '@mui/icons-material/People'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
-import { MoviePoster } from '@aperture/ui'
+import { MoviePoster, RankBadge, getRankStyle, getRankTextColor } from '@aperture/ui'
 import { useUserRatings } from '../../hooks/useUserRatings'
 
 interface PopularMovie {
@@ -83,13 +83,6 @@ export function TopPicksMoviesPage() {
 
     fetchTopMovies()
   }, [])
-
-  const getRankColor = (rank: number) => {
-    if (rank === 1) return '#FFD700' // Gold
-    if (rank === 2) return '#C0C0C0' // Silver
-    if (rank === 3) return '#CD7F32' // Bronze
-    return '#6366f1' // Primary
-  }
 
   if (loading) {
     return (
@@ -171,27 +164,7 @@ export function TopPicksMoviesPage() {
                   size="medium"
                   onClick={() => navigate(`/movies/${movie.movieId}`)}
                 />
-                {/* Rank badge */}
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    top: 8,
-                    left: 8,
-                    width: 32,
-                    height: 32,
-                    borderRadius: '50%',
-                    backgroundColor: getRankColor(movie.rank),
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 700,
-                    fontSize: '0.875rem',
-                    color: movie.rank <= 3 ? '#000' : '#fff',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                  }}
-                >
-                  {movie.rank}
-                </Box>
+                <RankBadge rank={movie.rank} size="large" />
                 {/* Viewers badge */}
                 <Chip
                   icon={<PeopleIcon sx={{ fontSize: 14 }} />}
@@ -231,23 +204,7 @@ export function TopPicksMoviesPage() {
             >
               <CardContent sx={{ display: 'flex', gap: 3, p: 2 }}>
                 {/* Rank */}
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 48,
-                    height: 48,
-                    borderRadius: '50%',
-                    backgroundColor: getRankColor(movie.rank),
-                    color: movie.rank <= 3 ? '#000' : '#fff',
-                    fontWeight: 700,
-                    fontSize: '1.25rem',
-                    flexShrink: 0,
-                  }}
-                >
-                  {movie.rank}
-                </Box>
+                <RankBadge rank={movie.rank} size="xlarge" absolute={false} />
 
                 {/* Poster */}
                 <Box

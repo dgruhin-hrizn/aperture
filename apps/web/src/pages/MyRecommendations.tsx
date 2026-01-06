@@ -28,7 +28,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
-import { MoviePoster } from '@aperture/ui'
+import { MoviePoster, RankBadge } from '@aperture/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { useUserRatings } from '@/hooks/useUserRatings'
 
@@ -499,19 +499,7 @@ export function MyRecommendationsPage() {
                     size="medium"
                     onClick={() => navigate(navigateTo)}
                   />
-                  <Chip
-                    label={`#${index + 1}`}
-                    size="small"
-                    sx={{
-                      position: 'absolute',
-                      top: 8,
-                      left: 8,
-                      backgroundColor: mediaType === 'movies' ? 'primary.main' : 'secondary.main',
-                      color: 'white',
-                      fontWeight: 700,
-                      fontSize: '0.75rem',
-                    }}
-                  />
+                  <RankBadge rank={index + 1} size="medium" />
                 </Box>
               </Grid>
             )
@@ -538,23 +526,7 @@ export function MyRecommendationsPage() {
               >
                 <CardContent sx={{ display: 'flex', gap: 3, p: 2 }}>
                   {/* Rank */}
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: 48,
-                      height: 48,
-                      borderRadius: '50%',
-                      backgroundColor: mediaType === 'movies' ? 'primary.main' : 'secondary.main',
-                      color: 'white',
-                      fontWeight: 700,
-                      fontSize: '1.25rem',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {index + 1}
-                  </Box>
+                  <RankBadge rank={index + 1} size="xlarge" absolute={false} />
 
                   {/* Poster */}
                   <Box

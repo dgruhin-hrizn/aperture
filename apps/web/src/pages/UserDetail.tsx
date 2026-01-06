@@ -458,7 +458,7 @@ function WatchHistoryTab({ userId }: { userId: string }) {
                   genres={item.genres}
                   rating={item.community_rating}
                   overview={item.overview}
-                  size="small"
+                  size="medium"
                   onClick={() => navigate(`/movies/${item.movie_id}`)}
                 />
                 {/* Play count badge - cap display at 5x, show "Rewatched" for higher */}

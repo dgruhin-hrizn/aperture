@@ -268,7 +268,7 @@ export function MyWatchHistoryPage() {
         <Grid container spacing={2}>
           {[...Array(12)].map((_, i) => (
             <Grid item key={i}>
-              <Skeleton variant="rectangular" width={140} height={210} sx={{ borderRadius: 1 }} />
+              <Skeleton variant="rectangular" width={160} height={240} sx={{ borderRadius: 1 }} />
             </Grid>
           ))}
         </Grid>
@@ -392,7 +392,7 @@ export function MyWatchHistoryPage() {
                           genres={item.genres}
                           rating={item.community_rating}
                           overview={item.overview}
-                          size="small"
+                          size="medium"
                           onClick={() => navigate(`/movies/${item.movie_id}`)}
                         />
                         {/* Play count badge - cap display at 5x, show "Rewatched" for higher */}
@@ -600,7 +600,6 @@ export function MyWatchHistoryPage() {
                     <Grid item key={item.series_id}>
                       <Box 
                         sx={{ 
-                          width: 120,
                           '&:hover .mark-unwatched-btn': {
                             opacity: 1,
                           }
@@ -614,7 +613,7 @@ export function MyWatchHistoryPage() {
                             genres={item.genres}
                             rating={item.community_rating}
                             overview={item.overview}
-                            size="small"
+                            size="medium"
                             hideRating
                             onClick={() => navigate(`/series/${item.series_id}`)}
                           />

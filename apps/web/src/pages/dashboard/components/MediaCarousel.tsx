@@ -3,7 +3,7 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MoviePoster } from '@aperture/ui'
+import { MoviePoster, RankBadge } from '@aperture/ui'
 import { useUserRatings } from '../../../hooks/useUserRatings'
 
 interface MediaItem {
@@ -26,43 +26,6 @@ interface MediaCarouselProps {
   showRank?: boolean
   emptyMessage?: string
   rows?: 1 | 2
-}
-
-function RankBadge({ rank }: { rank: number }) {
-  const colors: Record<number, { bg: string; border: string }> = {
-    1: { bg: 'linear-gradient(135deg, #ffd700 0%, #ffec8b 100%)', border: '#daa520' },
-    2: { bg: 'linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%)', border: '#a8a8a8' },
-    3: { bg: 'linear-gradient(135deg, #cd7f32 0%, #daa06d 100%)', border: '#8b4513' },
-  }
-  const style = colors[rank] || { bg: 'rgba(0,0,0,0.7)', border: 'transparent' }
-
-  return (
-    <Box
-      sx={{
-        position: 'absolute',
-        top: 8,
-        left: 8,
-        width: 28,
-        height: 28,
-        borderRadius: '50%',
-        background: style.bg,
-        border: `2px solid ${style.border}`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 3,
-        boxShadow: 2,
-      }}
-    >
-      <Typography
-        variant="caption"
-        fontWeight={800}
-        sx={{ color: rank <= 3 ? '#000' : '#fff', fontSize: '0.75rem' }}
-      >
-        {rank}
-      </Typography>
-    </Box>
-  )
 }
 
 export function MediaCarousel({

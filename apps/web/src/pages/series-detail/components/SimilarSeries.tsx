@@ -43,7 +43,7 @@ export function SimilarSeries({ similar }: SimilarSeriesProps) {
               genres={show.genres}
               userRating={getRating('series', show.id)}
               onRate={(rating) => handleRate(show.id, rating)}
-              size="small"
+              size="medium"
               onClick={() => navigate(`/series/${show.id}`)}
             />
           </Grid>

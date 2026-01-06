@@ -60,9 +60,12 @@ export function DashboardPage() {
         <MediaCarousel
           title="Your Movie Picks"
           subtitle="AI-powered movie recommendations"
-          items={(data?.recommendations || []).filter(item => item.type === 'movie')}
+          items={(data?.recommendations || [])
+            .filter(item => item.type === 'movie')
+            .map((item, index) => ({ ...item, rank: index + 1 }))}
           loading={loading}
           showScore
+          showRank
           emptyMessage="No movie recommendations yet. Watch some movies to get personalized picks!"
         />
       </Box>
@@ -72,9 +75,12 @@ export function DashboardPage() {
         <MediaCarousel
           title="Your Series Picks"
           subtitle="AI-powered series recommendations"
-          items={(data?.recommendations || []).filter(item => item.type === 'series')}
+          items={(data?.recommendations || [])
+            .filter(item => item.type === 'series')
+            .map((item, index) => ({ ...item, rank: index + 1 }))}
           loading={loading}
           showScore
+          showRank
           emptyMessage="No series recommendations yet. Watch some series to get personalized picks!"
         />
       </Box>
