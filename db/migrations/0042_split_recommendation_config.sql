@@ -35,3 +35,4 @@ COMMENT ON COLUMN recommendation_config.series_novelty_weight IS 'Series genre d
 COMMENT ON COLUMN recommendation_config.series_rating_weight IS 'Series community rating weight (0-1)';
 COMMENT ON COLUMN recommendation_config.series_diversity_weight IS 'Series result diversity weight (0-1)';
 
+

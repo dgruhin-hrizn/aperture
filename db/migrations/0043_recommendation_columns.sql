@@ -12,3 +12,4 @@ ALTER TABLE recommendation_runs ADD COLUMN completed_at TIMESTAMPTZ;
 COMMENT ON COLUMN recommendation_candidates.selected_rank IS 'Rank among selected candidates (1-based, NULL if not selected)';
 COMMENT ON COLUMN recommendation_runs.completed_at IS 'When the recommendation run finished';
 
+

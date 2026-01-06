@@ -38,3 +38,4 @@ COMMENT ON TABLE user_preferences IS 'User taste profiles and recommendation pre
 COMMENT ON COLUMN user_preferences.taste_embedding IS 'Computed embedding representing user taste';
 COMMENT ON COLUMN user_preferences.novelty_weight IS 'Weight for recommending outside usual genres (0-1)';
 
+

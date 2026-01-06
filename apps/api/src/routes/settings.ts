@@ -40,6 +40,7 @@ import {
   type MediaTypeConfig,
 } from '@aperture/core'
 import { requireAdmin } from '../plugins/auth.js'
+import { query, queryOne } from '../lib/db.js'
 
 const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   // =========================================================================
@@ -1284,6 +1285,73 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     } catch (err) {
       fastify.log.error({ err }, 'Failed to update user AI explanation preference')
       return reply.status(500).send({ error: 'Failed to update AI explanation preference' })
+    }
+  })
+
+  // =========================================================================
+  // User Dislike Behavior Preference
+  // =========================================================================
+
+  /**
+   * GET /api/settings/user/dislike-behavior
+   * Get current user's dislike behavior preference
+   */
+  fastify.get('/api/settings/user/dislike-behavior', async (request, reply) => {
+    try {
+      const userId = request.user?.id
+      if (!userId) {
+        return reply.status(401).send({ error: 'Not authenticated' })
+      }
+
+      const result = await queryOne<{ dislike_behavior: string }>(
+        `SELECT COALESCE(dislike_behavior, 'exclude') as dislike_behavior FROM user_preferences WHERE user_id = $1`,
+        [userId]
+      )
+
+      return reply.send({
+        dislikeBehavior: result?.dislike_behavior || 'exclude',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get dislike behavior preference')
+      return reply.status(500).send({ error: 'Failed to get dislike behavior preference' })
+    }
+  })
+
+  /**
+   * PATCH /api/settings/user/dislike-behavior
+   * Update current user's dislike behavior preference
+   */
+  fastify.patch<{
+    Body: {
+      dislikeBehavior: 'exclude' | 'penalize'
+    }
+  }>('/api/settings/user/dislike-behavior', async (request, reply) => {
+    try {
+      const userId = request.user?.id
+      if (!userId) {
+        return reply.status(401).send({ error: 'Not authenticated' })
+      }
+
+      const { dislikeBehavior } = request.body
+      if (!dislikeBehavior || !['exclude', 'penalize'].includes(dislikeBehavior)) {
+        return reply.status(400).send({ error: 'dislikeBehavior must be "exclude" or "penalize"' })
+      }
+
+      // Upsert the preference
+      await query(
+        `INSERT INTO user_preferences (user_id, dislike_behavior)
+         VALUES ($1, $2)
+         ON CONFLICT (user_id) DO UPDATE SET dislike_behavior = EXCLUDED.dislike_behavior`,
+        [userId, dislikeBehavior]
+      )
+
+      return reply.send({
+        dislikeBehavior,
+        message: 'Dislike behavior preference saved',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to update dislike behavior preference')
+      return reply.status(500).send({ error: 'Failed to update dislike behavior preference' })
     }
   })
 

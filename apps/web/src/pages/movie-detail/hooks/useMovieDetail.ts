@@ -7,6 +7,8 @@ export function useMovieDetail(id: string | undefined, userId: string | undefine
   const [insights, setInsights] = useState<RecommendationInsights | null>(null)
   const [mediaServer, setMediaServer] = useState<MediaServerInfo | null>(null)
   const [watchStatus, setWatchStatus] = useState<WatchStatus | null>(null)
+  const [userRating, setUserRating] = useState<number | null>(null)
+  const [ratingLoading, setRatingLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -40,11 +42,12 @@ export function useMovieDetail(id: string | undefined, userId: string | undefine
             setSimilar(similarData.similar || [])
           }
 
-          // Fetch recommendation insights and watch status if user is logged in
+          // Fetch recommendation insights, watch status, and user rating if user is logged in
           if (userId) {
-            const [insightsResponse, watchHistoryResponse] = await Promise.all([
+            const [insightsResponse, watchHistoryResponse, ratingResponse] = await Promise.all([
               fetch(`/api/recommendations/${userId}/movie/${id}/insights`, { credentials: 'include' }),
               fetch(`/api/users/${userId}/watch-history?pageSize=1000&sortBy=title`, { credentials: 'include' }),
+              fetch(`/api/ratings/movie/${id}`, { credentials: 'include' }),
             ])
 
             if (insightsResponse.ok) {
@@ -64,6 +67,11 @@ export function useMovieDetail(id: string | undefined, userId: string | undefine
               } else {
                 setWatchStatus({ isWatched: false, playCount: 0, lastWatched: null })
               }
+            }
+
+            if (ratingResponse.ok) {
+              const ratingData = await ratingResponse.json()
+              setUserRating(ratingData.rating)
             }
           }
         } else {
@@ -85,15 +93,51 @@ export function useMovieDetail(id: string | undefined, userId: string | undefine
     setWatchStatus({ isWatched: false, playCount: 0, lastWatched: null })
   }, [])
 
+  const updateRating = useCallback(async (rating: number | null) => {
+    if (!id) return
+    
+    setRatingLoading(true)
+    try {
+      if (rating === null) {
+        // Delete rating
+        const response = await fetch(`/api/ratings/movie/${id}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        })
+        if (response.ok) {
+          setUserRating(null)
+        }
+      } else {
+        // Set rating
+        const response = await fetch(`/api/ratings/movie/${id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ rating }),
+        })
+        if (response.ok) {
+          setUserRating(rating)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to update rating:', err)
+    } finally {
+      setRatingLoading(false)
+    }
+  }, [id])
+
   return {
     movie,
     similar,
     insights,
     mediaServer,
     watchStatus,
+    userRating,
+    ratingLoading,
     loading,
     error,
     clearWatchStatus,
+    updateRating,
   }
 }
 

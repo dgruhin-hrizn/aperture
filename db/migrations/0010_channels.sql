@@ -63,3 +63,4 @@ COMMENT ON COLUMN channels.text_preferences IS 'Natural language preferences for
 COMMENT ON COLUMN channels.is_pinned_row IS 'Whether to create a dedicated STRM library for this channel';
 COMMENT ON TABLE channel_shares IS 'Channels shared with other users';
 
+

@@ -42,3 +42,4 @@ COMMENT ON COLUMN top_picks_config.play_count_weight IS 'Weight for total play c
 COMMENT ON COLUMN top_picks_config.completion_weight IS 'Weight for completion rate in popularity score (0.00-1.00)';
 COMMENT ON COLUMN top_picks_config.min_unique_viewers IS 'Minimum number of unique viewers required to appear in Top Picks';
 
+

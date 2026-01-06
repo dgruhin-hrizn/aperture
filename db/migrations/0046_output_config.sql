@@ -78,3 +78,4 @@ COMMENT ON COLUMN users.ai_explanation_override_allowed IS 'Admin-controlled: wh
 COMMENT ON COLUMN users.ai_explanation_enabled IS 'User preference for AI explanations (NULL = use global default, only used if override_allowed is true)';
 
 
+

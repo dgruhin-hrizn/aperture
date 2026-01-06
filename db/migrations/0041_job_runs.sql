@@ -49,3 +49,4 @@ COMMENT ON COLUMN job_config.last_run_at IS 'Timestamp of the last job run';
 COMMENT ON COLUMN job_config.last_run_status IS 'Status of the last run: completed, failed, cancelled';
 COMMENT ON COLUMN job_config.last_run_duration_ms IS 'Duration of the last run in milliseconds';
 
+

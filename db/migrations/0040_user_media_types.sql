@@ -17,3 +17,4 @@ CREATE INDEX idx_users_series_enabled ON users(series_enabled) WHERE series_enab
 COMMENT ON COLUMN users.movies_enabled IS 'Whether user has AI movie recommendations enabled';
 COMMENT ON COLUMN users.series_enabled IS 'Whether user has AI series recommendations enabled';
 
+

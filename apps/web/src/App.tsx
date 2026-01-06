@@ -11,7 +11,9 @@ import { HomePage } from './pages/Home'
 import { MyRecommendationsPage } from './pages/MyRecommendations'
 import { MyWatchHistoryPage } from './pages/MyWatchHistory'
 import { MoviesPage } from './pages/Movies'
+import { SeriesPage } from './pages/Series'
 import { MovieDetailPage } from './pages/movie-detail'
+import { SeriesDetailPage } from './pages/series-detail'
 import { PlaylistsPage } from './pages/playlists'
 import { UserSettingsPage } from './pages/UserSettings'
 import { TopPicksMoviesPage, TopPicksSeriesPage } from './pages/top-picks'
@@ -98,6 +100,8 @@ function AppRoutes() {
         <Route path="stats" element={<WatchStatsPage />} />
         <Route path="movies" element={<MoviesPage />} />
         <Route path="movies/:id" element={<MovieDetailPage />} />
+        <Route path="series" element={<SeriesPage />} />
+        <Route path="series/:id" element={<SeriesDetailPage />} />
         <Route path="playlists" element={<PlaylistsPage />} />
         <Route path="settings" element={<UserSettingsPage />} />
 

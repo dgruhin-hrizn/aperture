@@ -1,15 +1,15 @@
 import { useState } from 'react'
 import { 
-  Box, Typography, Button, Chip, Paper, IconButton,
+  Box, Typography, Button, Chip, Paper,
   Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
   Tooltip, Snackbar
 } from '@mui/material'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StarIcon from '@mui/icons-material/Star'
-import StarBorderIcon from '@mui/icons-material/StarBorder'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import { HeartRating } from '@aperture/ui'
 import type { Movie, MediaServerInfo, WatchStatus } from '../types'
 import { formatRuntime } from '../hooks'
 
@@ -20,9 +20,12 @@ interface MovieHeroProps {
   canManageWatchHistory: boolean
   userId?: string
   onMarkedUnwatched?: () => void
+  userRating: number | null
+  ratingLoading: boolean
+  onRatingChange: (rating: number | null) => void
 }
 
-export function MovieHero({ movie, mediaServer, watchStatus, canManageWatchHistory, userId, onMarkedUnwatched }: MovieHeroProps) {
+export function MovieHero({ movie, mediaServer, watchStatus, canManageWatchHistory, userId, onMarkedUnwatched, userRating, ratingLoading, onRatingChange }: MovieHeroProps) {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [marking, setMarking] = useState(false)
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
@@ -166,16 +169,22 @@ export function MovieHero({ movie, mediaServer, watchStatus, canManageWatchHisto
           )}
         </Box>
 
+        {/* User Rating */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Your Rating
+          </Typography>
+          <HeartRating
+            value={userRating}
+            onChange={onRatingChange}
+            loading={ratingLoading}
+            size="medium"
+            showValue
+          />
+        </Box>
+
         {/* Action buttons */}
         <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-          <IconButton
-            sx={{
-              bgcolor: 'action.hover',
-              '&:hover': { bgcolor: 'action.selected' },
-            }}
-          >
-            <StarBorderIcon />
-          </IconButton>
           <Button
             variant="outlined"
             startIcon={<PlayArrowIcon />}

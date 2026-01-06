@@ -12,3 +12,4 @@ ALTER TABLE movies
 COMMENT ON COLUMN movies.community_rating IS 'Community rating (typically 0-10 scale)';
 COMMENT ON COLUMN movies.critic_rating IS 'Critic rating (typically 0-100 scale like Rotten Tomatoes)';
 
+

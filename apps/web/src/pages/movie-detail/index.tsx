@@ -15,7 +15,7 @@ export function MovieDetailPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
 
-  const { movie, similar, insights, mediaServer, watchStatus, loading, error, clearWatchStatus } = useMovieDetail(id, user?.id)
+  const { movie, similar, insights, mediaServer, watchStatus, userRating, ratingLoading, loading, error, clearWatchStatus, updateRating } = useMovieDetail(id, user?.id)
 
   if (loading) {
     return (
@@ -52,6 +52,9 @@ export function MovieDetailPage() {
         canManageWatchHistory={user?.isAdmin || user?.canManageWatchHistory || false}
         userId={user?.id}
         onMarkedUnwatched={clearWatchStatus}
+        userRating={userRating}
+        ratingLoading={ratingLoading}
+        onRatingChange={updateRating}
       />
 
       {/* Main Content */}

@@ -6,6 +6,28 @@ import type { WatchedMovie } from '../types.js'
 
 const logger = createChildLogger('recommender-taste')
 
+export interface UserRating {
+  movieId: string
+  rating: number
+}
+
+export async function getUserMovieRatings(userId: string): Promise<Map<string, number>> {
+  const result = await query<{ movie_id: string; rating: number }>(
+    `SELECT movie_id, rating FROM user_ratings WHERE user_id = $1 AND movie_id IS NOT NULL`,
+    [userId]
+  )
+  return new Map(result.rows.map((r) => [r.movie_id, r.rating]))
+}
+
+export async function getDislikedMovieIds(userId: string): Promise<Set<string>> {
+  // Get all movies rated 1-3 (disliked)
+  const result = await query<{ movie_id: string }>(
+    `SELECT movie_id FROM user_ratings WHERE user_id = $1 AND movie_id IS NOT NULL AND rating <= 3`,
+    [userId]
+  )
+  return new Set(result.rows.map((r) => r.movie_id))
+}
+
 export async function getWatchHistory(userId: string, limit: number): Promise<WatchedMovie[]> {
   // Get ALL watch history up to limit, using a smarter ordering:
   // - Favorites first (always include these)
@@ -36,7 +58,10 @@ export async function getWatchHistory(userId: string, limit: number): Promise<Wa
   }))
 }
 
-export async function buildTasteProfile(watched: WatchedMovie[]): Promise<number[] | null> {
+export async function buildTasteProfile(
+  watched: WatchedMovie[],
+  userRatings?: Map<string, number>
+): Promise<number[] | null> {
   const embeddings: number[][] = []
   const weights: number[] = []
 
@@ -53,12 +78,14 @@ export async function buildTasteProfile(watched: WatchedMovie[]): Promise<number
   const maxPlayCount = Math.max(...watched.map((w) => w.playCount), 1)
   const favoriteCount = watched.filter((w) => w.isFavorite).length
   const totalMovies = watched.length
+  const ratedCount = userRatings ? [...userRatings.values()].filter((r) => r >= 7).length : 0
 
   logger.debug(
     {
       totalMovies,
       favoriteCount,
       maxPlayCount,
+      ratedCount,
     },
     'Building taste profile from watch history'
   )
@@ -96,7 +123,25 @@ export async function buildTasteProfile(watched: WatchedMovie[]): Promise<number
         weight *= favoriteBoost
       }
 
-      // 4. Rating influence - slight boost for critically acclaimed choices
+      // 4. User rating boost - explicit user ratings are the strongest signal
+      const userRating = userRatings?.get(movie.movieId)
+      if (userRating !== undefined) {
+        if (userRating >= 7) {
+          // High ratings (7-10): significant boost
+          // Rating 7 = 1.4x, 8 = 1.6x, 9 = 1.8x, 10 = 2.0x
+          const ratingBoost = 1 + (userRating - 6) * 0.2
+          weight *= ratingBoost
+          logger.debug({ movieId: movie.movieId, userRating, ratingBoost }, 'Applied high rating boost')
+        } else if (userRating <= 3) {
+          // Low ratings (1-3): significantly reduce influence on taste profile
+          // This movie shouldn't shape recommendations much
+          weight *= 0.2
+          logger.debug({ movieId: movie.movieId, userRating }, 'Applied low rating penalty')
+        }
+        // Ratings 4-6 are neutral - no modification
+      }
+
+      // 5. Community rating influence - slight boost for critically acclaimed choices
       const data = movieData.get(movie.movieId)
       if (data?.community_rating && data.community_rating >= 7.5) {
         weight *= 1 + (data.community_rating - 7) * 0.05 // Max ~15% boost for 10-rated films

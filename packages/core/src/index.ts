@@ -271,3 +271,27 @@ export {
   type RefreshTopPicksResult,
 } from './topPicks/index.js'
 
+// Trakt Integration
+export {
+  getTraktConfig,
+  setTraktConfig,
+  getAuthorizationUrl,
+  exchangeCodeForTokens,
+  refreshTokens,
+  getTraktUser,
+  getTraktRatings,
+  storeUserTraktTokens,
+  getUserTraktTokens,
+  disconnectTrakt,
+  syncTraktRatings,
+  isTraktConfigured,
+  getUserTraktStatus,
+  pushRatingToTrakt,
+  removeRatingFromTrakt,
+  type TraktConfig,
+  type TraktTokens,
+  type TraktUser,
+  type TraktRating,
+  type TraktSyncResult,
+} from './trakt/index.js'
+

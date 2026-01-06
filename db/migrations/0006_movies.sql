@@ -50,3 +50,4 @@ COMMENT ON TABLE movies IS 'Movie metadata synced from media server';
 COMMENT ON COLUMN movies.provider_item_id IS 'Item ID in the media server (Emby/Jellyfin)';
 COMMENT ON COLUMN movies.media_sources IS 'Array of media source objects with file paths';
 
+

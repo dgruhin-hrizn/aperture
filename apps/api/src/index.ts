@@ -2,6 +2,7 @@ import { buildServer } from './server.js'
 import { validateEnv, getDatabaseUrl } from './config/env.js'
 import { runMigrations, getMigrationStatus } from '@aperture/core'
 import { closePool } from './lib/db.js'
+import { initializeScheduler, stopScheduler } from './lib/scheduler.js'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -65,6 +66,7 @@ async function main() {
     console.log(`\n${signal} received, shutting down gracefully...`)
 
     try {
+      stopScheduler()
       await server.close()
       await closePool()
       console.log('Server closed')
@@ -85,6 +87,15 @@ async function main() {
       host: '0.0.0.0',
     })
     console.log(`🚀 Aperture API server running at ${address}`)
+
+    // Initialize job scheduler after server is running
+    try {
+      await initializeScheduler()
+      console.log('📅 Job scheduler initialized')
+    } catch (err) {
+      console.error('⚠️ Failed to initialize scheduler:', err)
+      // Don't exit - scheduler failure shouldn't prevent server from running
+    }
   } catch (err) {
     server.log.error(err)
     process.exit(1)

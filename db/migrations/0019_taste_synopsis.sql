@@ -14,3 +14,4 @@ WHERE taste_synopsis IS NOT NULL;
 COMMENT ON COLUMN user_preferences.taste_synopsis IS 'AI-generated natural language summary of user movie taste';
 COMMENT ON COLUMN user_preferences.taste_synopsis_updated_at IS 'When the taste synopsis was last regenerated';
 
+

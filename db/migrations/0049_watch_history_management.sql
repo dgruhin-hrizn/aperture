@@ -7,3 +7,4 @@ ALTER TABLE users ADD COLUMN can_manage_watch_history BOOLEAN NOT NULL DEFAULT f
 
 COMMENT ON COLUMN users.can_manage_watch_history IS 'When true, user can mark items as unwatched (syncs to Emby and removes from Aperture)';
 
+

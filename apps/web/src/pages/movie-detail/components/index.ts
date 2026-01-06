@@ -4,3 +4,4 @@ export { MovieInsights } from './MovieInsights'
 export { MovieInfoCard } from './MovieInfoCard'
 export { SimilarMovies } from './SimilarMovies'
 
+

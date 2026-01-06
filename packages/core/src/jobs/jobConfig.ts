@@ -28,14 +28,14 @@ interface JobConfigRow {
 }
 
 // Default schedules from ENV or hardcoded defaults
-const ENV_DEFAULTS: Record<string, { cron: string; scheduleType: ScheduleType; hour: number; minute: number }> = {
+const ENV_DEFAULTS: Record<string, { cron: string; scheduleType: ScheduleType; hour: number; minute: number; intervalHours?: number }> = {
   // Movie jobs
   'sync-movies': { cron: process.env.SYNC_CRON || '0 3 * * *', scheduleType: 'daily', hour: 3, minute: 0 },
-  'sync-watch-history': { cron: process.env.SYNC_CRON || '0 3 * * *', scheduleType: 'daily', hour: 3, minute: 0 },
-  'full-sync-watch-history': { cron: '', scheduleType: 'manual', hour: 0, minute: 0 },
-  'generate-embeddings': { cron: '', scheduleType: 'manual', hour: 0, minute: 0 },
-  'generate-recommendations': { cron: process.env.RECS_CRON || '0 4 * * *', scheduleType: 'daily', hour: 4, minute: 0 },
-  'rebuild-recommendations': { cron: '', scheduleType: 'manual', hour: 0, minute: 0 },
+  'sync-movie-watch-history': { cron: process.env.SYNC_CRON || '0 3 * * *', scheduleType: 'daily', hour: 3, minute: 0 },
+  'full-sync-movie-watch-history': { cron: '', scheduleType: 'manual', hour: 0, minute: 0 },
+  'generate-movie-embeddings': { cron: '', scheduleType: 'manual', hour: 0, minute: 0 },
+  'generate-movie-recommendations': { cron: process.env.RECS_CRON || '0 4 * * *', scheduleType: 'daily', hour: 4, minute: 0 },
+  'rebuild-movie-recommendations': { cron: '', scheduleType: 'manual', hour: 0, minute: 0 },
   'sync-movie-libraries': { cron: process.env.PERMS_CRON || '0 5 * * *', scheduleType: 'daily', hour: 5, minute: 0 },
   // Series jobs
   'sync-series': { cron: process.env.SYNC_CRON || '0 3 * * *', scheduleType: 'daily', hour: 3, minute: 0 },
@@ -46,6 +46,8 @@ const ENV_DEFAULTS: Record<string, { cron: string; scheduleType: ScheduleType; h
   'sync-series-libraries': { cron: process.env.PERMS_CRON || '0 5 * * *', scheduleType: 'daily', hour: 5, minute: 0 },
   // Top Picks job
   'refresh-top-picks': { cron: '0 6 * * *', scheduleType: 'daily', hour: 6, minute: 0 },
+  // Trakt sync job
+  'sync-trakt-ratings': { cron: '0 */6 * * *', scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 6 },
 }
 
 function rowToConfig(row: JobConfigRow): JobConfig {
@@ -83,7 +85,7 @@ export async function getJobConfig(jobName: string): Promise<JobConfig | null> {
     // Parse cron to extract hour if available
     let hour = envDefault.hour
     let minute = envDefault.minute
-    if (envDefault.cron) {
+    if (envDefault.cron && envDefault.scheduleType !== 'interval') {
       const parts = envDefault.cron.split(' ')
       if (parts.length >= 2) {
         minute = parseInt(parts[0], 10) || 0
@@ -94,10 +96,10 @@ export async function getJobConfig(jobName: string): Promise<JobConfig | null> {
     return {
       jobName,
       scheduleType: envDefault.scheduleType,
-      scheduleHour: envDefault.scheduleType === 'manual' ? null : hour,
-      scheduleMinute: envDefault.scheduleType === 'manual' ? null : minute,
+      scheduleHour: envDefault.scheduleType === 'manual' || envDefault.scheduleType === 'interval' ? null : hour,
+      scheduleMinute: envDefault.scheduleType === 'manual' || envDefault.scheduleType === 'interval' ? null : minute,
       scheduleDayOfWeek: null,
-      scheduleIntervalHours: null,
+      scheduleIntervalHours: envDefault.intervalHours ?? null,
       isEnabled: true,
       updatedAt: new Date(),
     }

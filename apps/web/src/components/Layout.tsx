@@ -48,6 +48,7 @@ const userMenuItems = [
   { text: 'Watch History', icon: <HistoryIcon />, path: '/history' },
   { text: 'Watch Stats', icon: <InsightsIcon />, path: '/stats' },
   { text: 'Browse Movies', icon: <MovieIcon />, path: '/movies' },
+  { text: 'Browse Series', icon: <TvIcon />, path: '/series' },
   { text: 'Playlists', icon: <PlaylistPlayIcon />, path: '/playlists' },
 ]
 

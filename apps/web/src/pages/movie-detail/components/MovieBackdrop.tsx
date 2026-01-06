@@ -71,3 +71,4 @@ export function MovieBackdrop({ backdropUrl, title, onBack }: MovieBackdropProps
   )
 }
 
+

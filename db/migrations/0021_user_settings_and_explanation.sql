@@ -34,3 +34,4 @@ COMMENT ON TABLE user_settings IS 'Per-user settings and preferences';
 COMMENT ON COLUMN user_settings.library_name IS 'Custom name for the AI recommendations library in media server';
 COMMENT ON COLUMN recommendation_candidates.ai_explanation IS 'AI-generated explanation of why this movie was recommended';
 
+

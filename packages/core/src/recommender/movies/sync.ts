@@ -503,7 +503,7 @@ export async function syncWatchHistoryForAllUsers(
   fullSync: boolean = false
 ): Promise<SyncWatchHistoryResult> {
   const jobId = existingJobId || randomUUID()
-  createJobProgress(jobId, 'sync-watch-history', 3)
+  createJobProgress(jobId, 'sync-movie-watch-history', 3)
 
   try {
     const provider = getMediaServerProvider()

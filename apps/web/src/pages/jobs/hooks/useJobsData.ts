@@ -2,12 +2,12 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import type { Job, JobProgress, ScheduleType } from '../types'
 
 export interface UpdateJobConfigParams {
-  scheduleType: ScheduleType
-  scheduleHour: number | null
-  scheduleMinute: number | null
-  scheduleDayOfWeek: number | null
-  scheduleIntervalHours: number | null
-  isEnabled: boolean
+  scheduleType?: ScheduleType
+  scheduleHour?: number | null
+  scheduleMinute?: number | null
+  scheduleDayOfWeek?: number | null
+  scheduleIntervalHours?: number | null
+  isEnabled?: boolean
 }
 
 export interface UseJobsDataReturn {

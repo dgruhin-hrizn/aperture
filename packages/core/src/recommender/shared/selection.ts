@@ -241,3 +241,4 @@ export function applySimpleSelection<T extends SelectableCandidate>(
   return { selected, selectedRanks }
 }
 
+

@@ -13,6 +13,8 @@ export default defineConfig({
   },
   server: {
     port: 3457,
+    host: true,
+    allowedHosts: ['aperture.gru.digital'],
     proxy: {
       '/api': {
         target: 'http://localhost:3456',

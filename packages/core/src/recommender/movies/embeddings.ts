@@ -302,7 +302,7 @@ export async function generateMissingEmbeddings(
   existingJobId?: string
 ): Promise<GenerateEmbeddingsResult> {
   const jobId = existingJobId || randomUUID()
-  createJobProgress(jobId, 'generate-embeddings', 3)
+  createJobProgress(jobId, 'generate-movie-embeddings', 3)
 
   try {
     // Step 1: Check OpenAI configuration

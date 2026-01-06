@@ -77,3 +77,4 @@ COMMENT ON COLUMN series.end_year IS 'Last air year (NULL if series is ongoing)'
 COMMENT ON COLUMN series.status IS 'Series status: Continuing, Ended, etc.';
 COMMENT ON COLUMN series.network IS 'Primary network or streaming service';
 
+

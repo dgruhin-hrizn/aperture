@@ -142,3 +142,4 @@ export async function getGenres(provider: JellyfinProviderBase, apiKey: string):
   return response.Items.map((item) => item.Name)
 }
 
+

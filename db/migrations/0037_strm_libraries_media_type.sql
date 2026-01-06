@@ -8,3 +8,4 @@ CREATE INDEX idx_strm_libraries_media_type ON strm_libraries(user_id, media_type
 
 COMMENT ON COLUMN strm_libraries.media_type IS 'Type of library: movies or series';
 
+

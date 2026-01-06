@@ -18,7 +18,7 @@ import { randomUUID } from 'crypto'
 
 // Import from modular files
 import { loadConfig } from '../config.js'
-import { getWatchHistory, buildTasteProfile, storeTasteProfile } from './taste.js'
+import { getWatchHistory, buildTasteProfile, storeTasteProfile, getUserMovieRatings, getDislikedMovieIds } from './taste.js'
 import { getCandidates } from './candidates.js'
 import { scoreCandidates } from './scoring.js'
 import { applyDiversityAndSelect } from './selection.js'
@@ -37,7 +37,7 @@ export * from '../types.js'
 
 // Re-export functions for backwards compatibility
 export { loadConfig } from '../config.js'
-export { getWatchHistory, buildTasteProfile, storeTasteProfile } from './taste.js'
+export { getWatchHistory, buildTasteProfile, storeTasteProfile, getUserMovieRatings, getDislikedMovieIds } from './taste.js'
 export { getCandidates } from './candidates.js'
 export { scoreCandidates } from './scoring.js'
 export { applyDiversityAndSelect } from './selection.js'
@@ -73,22 +73,27 @@ export async function generateRecommendationsForUser(
 
   try {
     // 0. Get user's recommendation preferences
-    const userPrefs = await queryOne<{ include_watched: boolean }>(
-      `SELECT include_watched FROM user_preferences WHERE user_id = $1`,
+    const userPrefs = await queryOne<{ include_watched: boolean; dislike_behavior: string }>(
+      `SELECT include_watched, COALESCE(dislike_behavior, 'exclude') as dislike_behavior FROM user_preferences WHERE user_id = $1`,
       [user.id]
     )
     const includeWatched = userPrefs?.include_watched ?? false
+    const dislikeBehavior = userPrefs?.dislike_behavior ?? 'exclude'
     logger.info(
-      { userId: user.id, includeWatched },
-      `📋 User preference: include_watched=${includeWatched}`
+      { userId: user.id, includeWatched, dislikeBehavior },
+      `📋 User preferences: include_watched=${includeWatched}, dislike_behavior=${dislikeBehavior}`
     )
 
-    // 1. Get user's watch history
-    logger.info({ userId: user.id }, '📊 Fetching watch history...')
-    const watched = await getWatchHistory(user.id, cfg.recentWatchLimit)
+    // 1. Get user's watch history and ratings
+    logger.info({ userId: user.id }, '📊 Fetching watch history and ratings...')
+    const [watched, userRatings, dislikedIds] = await Promise.all([
+      getWatchHistory(user.id, cfg.recentWatchLimit),
+      getUserMovieRatings(user.id),
+      dislikeBehavior === 'exclude' ? getDislikedMovieIds(user.id) : Promise.resolve(new Set<string>()),
+    ])
     logger.info(
-      { userId: user.id, watchedCount: watched.length },
-      `Found ${watched.length} watched movies`
+      { userId: user.id, watchedCount: watched.length, ratingsCount: userRatings.size, dislikedCount: dislikedIds.size },
+      `Found ${watched.length} watched movies, ${userRatings.size} ratings, ${dislikedIds.size} disliked`
     )
 
     if (watched.length === 0) {
@@ -102,7 +107,7 @@ export async function generateRecommendationsForUser(
 
     // 2. Build taste profile (weighted average of watched movie embeddings)
     logger.info({ userId: user.id }, '🧠 Building taste profile from watch history...')
-    const tasteProfile = await buildTasteProfile(watched)
+    const tasteProfile = await buildTasteProfile(watched, userRatings.size > 0 ? userRatings : undefined)
 
     if (!tasteProfile) {
       logger.warn(
@@ -126,25 +131,29 @@ export async function generateRecommendationsForUser(
     )
 
     // Get ALL watched movie IDs for filtering (not just the ones used for taste profile)
-    let allWatchedIds: Set<string>
+    // Also exclude disliked movies if dislike_behavior is 'exclude'
+    let excludeIds: Set<string>
     if (includeWatched) {
-      // Don't need to load all watched IDs if we're including them anyway
-      allWatchedIds = new Set()
+      // Only exclude disliked movies (not watched ones)
+      excludeIds = new Set(dislikedIds)
     } else {
       const allWatchedResult = await query<{ movie_id: string }>(
         `SELECT movie_id FROM watch_history WHERE user_id = $1`,
         [user.id]
       )
-      allWatchedIds = new Set(allWatchedResult.rows.map((r) => r.movie_id))
+      excludeIds = new Set([
+        ...allWatchedResult.rows.map((r) => r.movie_id),
+        ...dislikedIds,
+      ])
       logger.info(
-        { userId: user.id, totalWatched: allWatchedIds.size },
-        `📋 Loaded ${allWatchedIds.size} watched movie IDs for filtering`
+        { userId: user.id, totalWatched: allWatchedResult.rows.length, excludeTotal: excludeIds.size },
+        `📋 Loaded ${allWatchedResult.rows.length} watched + ${dislikedIds.size} disliked = ${excludeIds.size} movies to exclude`
       )
     }
 
     const candidates = await getCandidates(
       tasteProfile,
-      allWatchedIds,
+      excludeIds,
       cfg.maxCandidates,
       includeWatched,
       user.maxParentalRating ?? null
@@ -293,7 +302,7 @@ export async function generateRecommendationsForAllUsers(jobId?: string): Promis
   const actualJobId = jobId || crypto.randomUUID()
 
   // Initialize job progress
-  createJobProgress(actualJobId, 'generate-recommendations', 2)
+  createJobProgress(actualJobId, 'generate-movie-recommendations', 2)
 
   try {
     setJobStep(actualJobId, 0, 'Finding enabled users')
@@ -393,7 +402,7 @@ export async function clearAndRebuildAllRecommendations(existingJobId?: string):
   jobId: string
 }> {
   const jobId = existingJobId || randomUUID()
-  createJobProgress(jobId, 'rebuild-recommendations', 3)
+  createJobProgress(jobId, 'rebuild-movie-recommendations', 3)
 
   try {
     // Step 1: Count existing

@@ -113,3 +113,4 @@ const topPicksRoutes: FastifyPluginAsync = async (fastify) => {
 
 export default topPicksRoutes
 
+

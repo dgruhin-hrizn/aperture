@@ -8,3 +8,4 @@ CREATE INDEX idx_recommendation_runs_media_type ON recommendation_runs(user_id, 
 
 COMMENT ON COLUMN recommendation_runs.media_type IS 'Type of recommendations: movie or series';
 
+

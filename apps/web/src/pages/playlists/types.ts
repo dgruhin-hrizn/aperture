@@ -41,3 +41,4 @@ export interface SnackbarState {
   message: string
   severity: 'success' | 'error'
 }
+

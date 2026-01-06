@@ -48,3 +48,4 @@ export default fp(staticPlugin, {
   dependencies: ['@fastify/cookie'],
 })
 
+

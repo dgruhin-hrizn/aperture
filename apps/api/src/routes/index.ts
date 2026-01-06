@@ -4,11 +4,14 @@ import apiRoutes from './api.js'
 import authRoutes from './auth.js'
 import usersRoutes from './users/index.js'
 import moviesRoutes from './movies.js'
+import seriesRoutes from './series.js'
+import ratingsRoutes from './ratings.js'
 import recommendationsRoutes from './recommendations.js'
 import channelsRoutes from './channels/index.js'
 import jobsRoutes from './jobs.js'
 import settingsRoutes from './settings.js'
 import topPicksRoutes from './top-picks.js'
+import traktRoutes from './trakt.js'
 
 const routes: FastifyPluginAsync = async (fastify) => {
   // Register health check routes
@@ -26,6 +29,12 @@ const routes: FastifyPluginAsync = async (fastify) => {
   // Register movies routes
   await fastify.register(moviesRoutes)
 
+  // Register series routes
+  await fastify.register(seriesRoutes)
+
+  // Register ratings routes
+  await fastify.register(ratingsRoutes)
+
   // Register recommendations routes
   await fastify.register(recommendationsRoutes)
 
@@ -40,6 +49,9 @@ const routes: FastifyPluginAsync = async (fastify) => {
 
   // Register top picks routes
   await fastify.register(topPicksRoutes)
+
+  // Register Trakt routes
+  await fastify.register(traktRoutes)
 }
 
 export default routes

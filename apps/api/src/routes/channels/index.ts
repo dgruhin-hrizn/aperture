@@ -16,3 +16,4 @@ const channelsRoutes: FastifyPluginAsync = async (fastify) => {
 
 export default channelsRoutes
 
+

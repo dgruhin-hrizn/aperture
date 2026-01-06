@@ -31,3 +31,4 @@ INSERT INTO system_settings (key, value, description) VALUES
   ('ai_library_series_title_template', '{{username}}''s AI Picks - TV Series', 'Default title template for AI series libraries. Supports: {{username}}, {{type}}, {{count}}, {{date}}')
 ON CONFLICT (key) DO NOTHING;
 
+

@@ -3,9 +3,10 @@ import { Box, Typography, Chip, Alert, Stack, Tabs, Tab } from '@mui/material'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
+import ScheduleIcon from '@mui/icons-material/Schedule'
 import { useJobsData } from './hooks'
 import { MOVIE_JOB_CATEGORIES, SERIES_JOB_CATEGORIES, GLOBAL_JOB_CATEGORIES } from './constants'
-import { JobCard, JobConfigDialog, JobHistoryDialog, CancelDialog, LoadingSkeleton } from './components'
+import { JobCard, JobConfigDialog, JobHistoryDialog, CancelDialog, LoadingSkeleton, ScheduleTable } from './components'
 import type { JobCategory } from './types'
 
 interface TabPanelProps {
@@ -257,6 +258,11 @@ export function JobsPage() {
             </Stack>
           }
         />
+        <Tab
+          icon={<ScheduleIcon />}
+          iconPosition="start"
+          label="Schedule"
+        />
       </Tabs>
 
       {/* Movies Tab */}
@@ -307,6 +313,27 @@ export function JobsPage() {
           onToggleLogs={toggleLogs}
           onConfigClick={setConfigDialogJob}
           onHistoryClick={setHistoryDialogJob}
+        />
+      </TabPanel>
+
+      {/* Schedule Tab */}
+      <TabPanel value={tabValue} index={3}>
+        <Box mb={3}>
+          <Typography variant="h6" fontWeight={600} gutterBottom>
+            Job Schedules
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Configure when each job runs automatically. Disabled jobs will only run when manually triggered.
+          </Typography>
+        </Box>
+        <ScheduleTable
+          jobs={jobs}
+          onConfigClick={setConfigDialogJob}
+          onHistoryClick={setHistoryDialogJob}
+          onRunJob={handleRunJob}
+          onToggleEnabled={(jobName, enabled) => {
+            handleUpdateConfig(jobName, { isEnabled: enabled })
+          }}
         />
       </TabPanel>
 

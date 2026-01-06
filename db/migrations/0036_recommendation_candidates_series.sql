@@ -19,3 +19,4 @@ CREATE INDEX idx_recommendation_candidates_series_id ON recommendation_candidate
 
 COMMENT ON COLUMN recommendation_candidates.series_id IS 'Reference to series (for TV recommendations)';
 
+

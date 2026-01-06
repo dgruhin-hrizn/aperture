@@ -8,3 +8,4 @@ ALTER TABLE recommendation_config
 COMMENT ON COLUMN recommendation_config.series_selected_count IS 'Number of series recommendations per user';
 COMMENT ON COLUMN recommendation_config.series_recent_watch_limit IS 'Number of watched episodes used to build series taste profile';
 
+

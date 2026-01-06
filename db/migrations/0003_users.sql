@@ -35,3 +35,4 @@ COMMENT ON COLUMN users.provider IS 'Media server type: emby or jellyfin';
 COMMENT ON COLUMN users.provider_user_id IS 'User ID in the media server';
 COMMENT ON COLUMN users.is_enabled IS 'Whether AI recommendations are enabled for this user';
 
+

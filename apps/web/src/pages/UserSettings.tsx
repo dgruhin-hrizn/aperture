@@ -67,9 +67,43 @@ export function UserSettingsPage() {
   const [aiPrefError, setAiPrefError] = useState<string | null>(null)
   const [aiPrefSuccess, setAiPrefSuccess] = useState<string | null>(null)
 
+  // Dislike behavior preference state
+  const [dislikeBehavior, setDislikeBehavior] = useState<'exclude' | 'penalize'>('exclude')
+  const [loadingDislikePref, setLoadingDislikePref] = useState(false)
+  const [savingDislikePref, setSavingDislikePref] = useState(false)
+  const [dislikePrefSuccess, setDislikePrefSuccess] = useState<string | null>(null)
+
+  // Trakt integration state
+  const [traktStatus, setTraktStatus] = useState<{
+    traktConfigured: boolean
+    connected: boolean
+    username: string | null
+    syncedAt: string | null
+  } | null>(null)
+  const [loadingTrakt, setLoadingTrakt] = useState(false)
+  const [syncingTrakt, setSyncingTrakt] = useState(false)
+  const [traktMessage, setTraktMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
   useEffect(() => {
     fetchUserSettings()
     fetchAiExplanationPref()
+    fetchDislikeBehavior()
+    fetchTraktStatus()
+    
+    // Check for Trakt callback params
+    const params = new URLSearchParams(window.location.hash.split('?')[1] || '')
+    if (params.get('trakt') === 'success') {
+      const username = params.get('username')
+      setTraktMessage({ type: 'success', text: `Successfully connected to Trakt as ${username}!` })
+      fetchTraktStatus()
+      // Clean URL
+      window.history.replaceState(null, '', window.location.pathname + '#/settings')
+    } else if (params.get('trakt') === 'error') {
+      const message = params.get('message') || 'Unknown error'
+      setTraktMessage({ type: 'error', text: `Failed to connect: ${message}` })
+      // Clean URL
+      window.history.replaceState(null, '', window.location.pathname + '#/settings')
+    }
   }, [])
 
   const fetchUserSettings = async () => {
@@ -165,6 +199,112 @@ export function UserSettingsPage() {
       setAiPrefError('Could not connect to server')
     } finally {
       setSavingAiPref(false)
+    }
+  }
+
+  const fetchDislikeBehavior = async () => {
+    setLoadingDislikePref(true)
+    try {
+      const response = await fetch('/api/settings/user/dislike-behavior', { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        setDislikeBehavior(data.dislikeBehavior || 'exclude')
+      }
+    } catch {
+      // Silently fail - use default
+    } finally {
+      setLoadingDislikePref(false)
+    }
+  }
+
+  const saveDislikeBehavior = async (behavior: 'exclude' | 'penalize') => {
+    setSavingDislikePref(true)
+    setDislikePrefSuccess(null)
+    try {
+      const response = await fetch('/api/settings/user/dislike-behavior', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ dislikeBehavior: behavior }),
+      })
+      if (response.ok) {
+        setDislikeBehavior(behavior)
+        setDislikePrefSuccess('Preference saved!')
+        setTimeout(() => setDislikePrefSuccess(null), 3000)
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setSavingDislikePref(false)
+    }
+  }
+
+  const fetchTraktStatus = async () => {
+    setLoadingTrakt(true)
+    try {
+      const response = await fetch('/api/trakt/status', { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        setTraktStatus(data)
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setLoadingTrakt(false)
+    }
+  }
+
+  const connectTrakt = async () => {
+    try {
+      const response = await fetch('/api/trakt/auth-url', { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        window.location.href = data.authUrl
+      } else {
+        const err = await response.json()
+        setTraktMessage({ type: 'error', text: err.error || 'Failed to start Trakt connection' })
+      }
+    } catch {
+      setTraktMessage({ type: 'error', text: 'Could not connect to server' })
+    }
+  }
+
+  const disconnectTrakt = async () => {
+    try {
+      const response = await fetch('/api/trakt/disconnect', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (response.ok) {
+        setTraktStatus(prev => prev ? { ...prev, connected: false, username: null, syncedAt: null } : null)
+        setTraktMessage({ type: 'success', text: 'Trakt disconnected successfully' })
+        setTimeout(() => setTraktMessage(null), 3000)
+      }
+    } catch {
+      setTraktMessage({ type: 'error', text: 'Failed to disconnect Trakt' })
+    }
+  }
+
+  const syncTraktRatings = async () => {
+    setSyncingTrakt(true)
+    setTraktMessage(null)
+    try {
+      const response = await fetch('/api/trakt/sync', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setTraktMessage({ type: 'success', text: data.message })
+        fetchTraktStatus()
+      } else {
+        const err = await response.json()
+        setTraktMessage({ type: 'error', text: err.error || 'Failed to sync ratings' })
+      }
+    } catch {
+      setTraktMessage({ type: 'error', text: 'Could not connect to server' })
+    } finally {
+      setSyncingTrakt(false)
     }
   }
 
@@ -454,6 +594,145 @@ export function UserSettingsPage() {
                       </Typography>
                     </>
                   )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Disliked Content Behavior */}
+            <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, maxWidth: 600, mt: 3 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Disliked Content Behavior
+                </Typography>
+                <Typography variant="body2" color="text.secondary" mb={3}>
+                  Choose how content you've rated 1-3 hearts should be handled in recommendations.
+                </Typography>
+
+                {dislikePrefSuccess && (
+                  <Alert severity="success" sx={{ mb: 2 }} onClose={() => setDislikePrefSuccess(null)}>
+                    {dislikePrefSuccess}
+                  </Alert>
+                )}
+
+                {loadingDislikePref ? (
+                  <Box display="flex" justifyContent="center" py={4}>
+                    <CircularProgress />
+                  </Box>
+                ) : (
+                  <>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={dislikeBehavior === 'exclude'}
+                          onChange={(e) => saveDislikeBehavior(e.target.checked ? 'exclude' : 'penalize')}
+                          disabled={savingDislikePref}
+                        />
+                      }
+                      label={
+                        <Box>
+                          <Typography variant="body1" fontWeight="medium">
+                            {dislikeBehavior === 'exclude' ? 'Exclude Disliked Content' : 'Penalize Disliked Content'}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {dislikeBehavior === 'exclude' 
+                              ? 'Content you dislike will never appear in recommendations'
+                              : 'Content you dislike will appear less often but may still show up occasionally'}
+                          </Typography>
+                        </Box>
+                      }
+                      sx={{ alignItems: 'flex-start', ml: 0 }}
+                    />
+
+                    <Divider sx={{ my: 3 }} />
+
+                    <Typography variant="caption" color="text.secondary">
+                      Rate content with 1-3 hearts to mark it as disliked. Changes will apply when your recommendations are next regenerated.
+                    </Typography>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Trakt Integration */}
+            {traktStatus?.traktConfigured && (
+              <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, maxWidth: 600, mt: 3 }}>
+                <CardContent>
+                  <Box display="flex" alignItems="center" gap={1} mb={1}>
+                    <Box
+                      component="img"
+                      src="https://trakt.tv/assets/logos/header@2x-913ef1f5f06e6bcbdf879e7eb8100a51d1fdea6605a0bb68e15ce3b0b21b0a50.png"
+                      alt="Trakt"
+                      sx={{ height: 24, filter: 'brightness(0) invert(1)' }}
+                    />
+                    <Typography variant="h6">
+                      Trakt Integration
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" mb={3}>
+                    Connect your Trakt account to sync your movie and TV show ratings.
+                  </Typography>
+
+                  {traktMessage && (
+                    <Alert severity={traktMessage.type} sx={{ mb: 2 }} onClose={() => setTraktMessage(null)}>
+                      {traktMessage.text}
+                    </Alert>
+                  )}
+
+                  {loadingTrakt ? (
+                    <Box display="flex" justifyContent="center" py={4}>
+                      <CircularProgress />
+                    </Box>
+                  ) : traktStatus.connected ? (
+                    <>
+                      <Box sx={{ bgcolor: 'action.hover', p: 2, borderRadius: 1, mb: 2 }}>
+                        <Typography variant="body2" fontWeight={500}>
+                          Connected as: {traktStatus.username}
+                        </Typography>
+                        {traktStatus.syncedAt && (
+                          <Typography variant="caption" color="text.secondary">
+                            Last synced: {new Date(traktStatus.syncedAt).toLocaleString()}
+                          </Typography>
+                        )}
+                      </Box>
+
+                      <Box display="flex" gap={1}>
+                        <Button
+                          variant="contained"
+                          onClick={syncTraktRatings}
+                          disabled={syncingTrakt}
+                          size="small"
+                        >
+                          {syncingTrakt ? <CircularProgress size={16} sx={{ mr: 1 }} /> : null}
+                          {syncingTrakt ? 'Syncing...' : 'Sync Ratings'}
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          onClick={disconnectTrakt}
+                          size="small"
+                        >
+                          Disconnect
+                        </Button>
+                      </Box>
+                    </>
+                  ) : (
+                    <Button
+                      variant="contained"
+                      onClick={connectTrakt}
+                      sx={{
+                        bgcolor: '#ed1c24',
+                        '&:hover': { bgcolor: '#c9171d' },
+                      }}
+                    >
+                      Connect to Trakt
+                    </Button>
+                  )}
+
+                  <Divider sx={{ my: 3 }} />
+
+                  <Typography variant="caption" color="text.secondary">
+                    Syncing imports your Trakt ratings (1-10) as heart ratings in Aperture. Higher-rated content will have more influence on your recommendations.
+                  </Typography>
                 </CardContent>
               </Card>
             )}

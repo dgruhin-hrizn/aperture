@@ -17,3 +17,4 @@ WHERE use_symlinks IS NOT NULL;
 -- Drop the old column (keeping it won't hurt but clean is better)
 -- Note: Not dropping in case of rollback needs - can be done in a future cleanup migration
 
+

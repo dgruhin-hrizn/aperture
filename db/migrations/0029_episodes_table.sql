@@ -59,3 +59,4 @@ COMMENT ON COLUMN episodes.season_number IS 'Season number (1-based)';
 COMMENT ON COLUMN episodes.episode_number IS 'Episode number within season (1-based)';
 COMMENT ON COLUMN episodes.guest_stars IS 'Guest stars with name, role, and thumbnail URL';
 
+

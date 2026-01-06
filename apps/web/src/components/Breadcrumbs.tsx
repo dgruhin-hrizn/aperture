@@ -29,6 +29,7 @@ const routeLabels: Record<string, string> = {
   'recommendations': 'Recommendations',
   'history': 'Watch History',
   'movies': 'Movies',
+  'series': 'TV Series',
   'playlists': 'Playlists',
 }
 
@@ -153,4 +154,5 @@ export function Breadcrumbs({ items, currentLabel }: BreadcrumbsProps) {
     </Box>
   )
 }
+
 

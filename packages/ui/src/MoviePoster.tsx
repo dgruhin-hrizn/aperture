@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Box, Typography, Paper, Chip, Skeleton, Tooltip } from '@mui/material'
 import Star from '@mui/icons-material/Star'
+import { HeartRating } from './HeartRating.js'
 
 const StarIcon = Star as unknown as React.ComponentType<{ fontSize?: string }>
 
@@ -9,6 +10,8 @@ export interface MoviePosterProps {
   year?: number | null
   posterUrl?: string | null
   rating?: number | null
+  /** User's personal rating (1-10) - shows compact heart badge */
+  userRating?: number | null
   /** Recommendation match score (0-1) - only shown when showScore is true */
   score?: number | null
   genres?: string[]
@@ -34,6 +37,7 @@ export function MoviePoster({
   year,
   posterUrl,
   rating,
+  userRating,
   score,
   genres,
   overview,
@@ -137,6 +141,20 @@ export function MoviePoster({
               zIndex: 2,
             }}
           />
+        )}
+
+        {/* User rating badge - bottom left */}
+        {userRating != null && (
+          <Box
+            sx={{
+              position: 'absolute',
+              bottom: 8,
+              left: 8,
+              zIndex: 2,
+            }}
+          >
+            <HeartRating value={userRating} compact size="small" readOnly />
+          </Box>
         )}
 
         {/* Custom children (for badges like play count, favorite icon, etc.) */}

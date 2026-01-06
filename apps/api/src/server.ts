@@ -30,7 +30,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<any> {
         return
       }
 
-      // In development, allow localhost origins
+      // In development, allow localhost origins and configured external domains
       if (process.env.NODE_ENV !== 'production') {
         const allowedOrigins = [
           'http://localhost:3456',
@@ -38,6 +38,11 @@ export async function buildServer(options: ServerOptions = {}): Promise<any> {
           'http://127.0.0.1:3456',
           'http://127.0.0.1:3457',
         ]
+        // Also allow APP_BASE_URL in development for external access
+        const appBaseUrl = process.env.APP_BASE_URL
+        if (appBaseUrl) {
+          allowedOrigins.push(appBaseUrl)
+        }
         if (allowedOrigins.includes(origin)) {
           cb(null, true)
           return

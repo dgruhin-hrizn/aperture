@@ -7,6 +7,7 @@ import RecommendIcon from '@mui/icons-material/Recommend'
 import FolderIcon from '@mui/icons-material/Folder'
 import AutorenewIcon from '@mui/icons-material/Autorenew'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
+import SyncIcon from '@mui/icons-material/Sync'
 import type { JobCategory } from './types'
 
 // Movie job categories
@@ -15,13 +16,13 @@ export const MOVIE_JOB_CATEGORIES: JobCategory[] = [
     title: 'Sync',
     description: 'Keep your movie library in sync',
     color: '#3b82f6',
-    jobs: ['sync-movies', 'sync-watch-history', 'full-sync-watch-history'],
+    jobs: ['sync-movies', 'sync-movie-watch-history', 'full-sync-movie-watch-history'],
   },
   {
     title: 'AI Processing',
     description: 'Machine learning tasks for movies',
     color: '#8b5cf6',
-    jobs: ['generate-embeddings', 'generate-recommendations', 'rebuild-recommendations'],
+    jobs: ['generate-movie-embeddings', 'generate-movie-recommendations', 'rebuild-movie-recommendations'],
   },
   {
     title: 'System',
@@ -61,6 +62,12 @@ export const GLOBAL_JOB_CATEGORIES: JobCategory[] = [
     color: '#f59e0b',
     jobs: ['refresh-top-picks'],
   },
+  {
+    title: 'Integrations',
+    description: 'External service synchronization',
+    color: '#ed1c24',
+    jobs: ['sync-trakt-ratings'],
+  },
 ]
 
 // Combined for backwards compatibility
@@ -73,11 +80,11 @@ export const JOB_CATEGORIES: JobCategory[] = [
 export const JOB_ICONS: Record<string, React.ReactNode> = {
   // Movie jobs
   'sync-movies': <MovieIcon />,
-  'generate-embeddings': <PsychologyIcon />,
-  'sync-watch-history': <HistoryIcon />,
-  'full-sync-watch-history': <AutorenewIcon />,
-  'generate-recommendations': <RecommendIcon />,
-  'rebuild-recommendations': <AutorenewIcon />,
+  'generate-movie-embeddings': <PsychologyIcon />,
+  'sync-movie-watch-history': <HistoryIcon />,
+  'full-sync-movie-watch-history': <AutorenewIcon />,
+  'generate-movie-recommendations': <RecommendIcon />,
+  'rebuild-movie-recommendations': <AutorenewIcon />,
   'sync-movie-libraries': <FolderIcon />,
   // TV Series jobs
   'sync-series': <TvIcon />,
@@ -88,16 +95,17 @@ export const JOB_ICONS: Record<string, React.ReactNode> = {
   'sync-series-libraries': <FolderIcon />,
   // Global jobs
   'refresh-top-picks': <TrendingUpIcon />,
+  'sync-trakt-ratings': <SyncIcon />,
 }
 
 export const JOB_COLORS: Record<string, string> = {
   // Movie jobs
   'sync-movies': '#3b82f6',
-  'generate-embeddings': '#a855f7',
-  'sync-watch-history': '#f59e0b',
-  'full-sync-watch-history': '#dc2626',
-  'generate-recommendations': '#22c55e',
-  'rebuild-recommendations': '#8b5cf6',
+  'generate-movie-embeddings': '#a855f7',
+  'sync-movie-watch-history': '#f59e0b',
+  'full-sync-movie-watch-history': '#dc2626',
+  'generate-movie-recommendations': '#22c55e',
+  'rebuild-movie-recommendations': '#8b5cf6',
   'sync-movie-libraries': '#6366f1',
   // TV Series jobs
   'sync-series': '#0891b2',
@@ -108,6 +116,7 @@ export const JOB_COLORS: Record<string, string> = {
   'sync-series-libraries': '#4f46e5',
   // Global jobs
   'refresh-top-picks': '#f59e0b',
+  'sync-trakt-ratings': '#ed1c24',
 }
 
 export function formatJobName(name: string): string {

@@ -26,3 +26,4 @@ ON CONFLICT (key) DO NOTHING;
 
 COMMENT ON TABLE system_settings IS 'System-wide configuration settings';
 
+

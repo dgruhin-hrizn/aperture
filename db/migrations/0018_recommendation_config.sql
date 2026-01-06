@@ -39,3 +39,4 @@ COMMENT ON COLUMN recommendation_config.novelty_weight IS 'How much to weight di
 COMMENT ON COLUMN recommendation_config.rating_weight IS 'How much to weight community ratings (0-1)';
 COMMENT ON COLUMN recommendation_config.diversity_weight IS 'How much to weight variety in results (0-1)';
 
+

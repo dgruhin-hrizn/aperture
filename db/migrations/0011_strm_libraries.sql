@@ -40,3 +40,4 @@ COMMENT ON TABLE strm_libraries IS 'Virtual STRM libraries created in the media 
 COMMENT ON COLUMN strm_libraries.path IS 'Filesystem path where STRM files are written';
 COMMENT ON COLUMN strm_libraries.provider_library_id IS 'Library ID in the media server';
 
+

@@ -79,3 +79,4 @@ COMMENT ON COLUMN recommendation_candidates.score_breakdown IS 'Detailed breakdo
 COMMENT ON TABLE recommendation_evidence IS 'Evidence explaining why each movie was recommended';
 COMMENT ON COLUMN recommendation_evidence.evidence_type IS 'Type of evidence: watched, favorite, etc.';
 
+

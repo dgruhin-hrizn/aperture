@@ -7,3 +7,4 @@ CREATE EXTENSION IF NOT EXISTS vector;
 -- pgcrypto for UUID generation
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+

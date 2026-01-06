@@ -36,6 +36,8 @@ import {
   type ScheduleType,
 } from '@aperture/core'
 import { randomUUID } from 'crypto'
+import { setJobExecutor, refreshJobSchedule, getSchedulerStatus } from '../lib/scheduler.js'
+import { syncAllTraktRatings } from './trakt.js'
 
 const logger = createChildLogger('jobs-api')
 
@@ -59,27 +61,27 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
     cron: process.env.SYNC_CRON || '0 3 * * *',
   },
   {
-    name: 'generate-embeddings',
+    name: 'generate-movie-embeddings',
     description: 'Generate AI embeddings for movies',
     cron: null,
   },
   {
-    name: 'sync-watch-history',
+    name: 'sync-movie-watch-history',
     description: 'Sync movie watch history for all users (delta - only new plays)',
     cron: process.env.SYNC_CRON || '0 3 * * *',
   },
   {
-    name: 'full-sync-watch-history',
+    name: 'full-sync-movie-watch-history',
     description: 'Full resync of movie watch history for all users',
     cron: null,
   },
   {
-    name: 'generate-recommendations',
+    name: 'generate-movie-recommendations',
     description: 'Generate AI movie recommendations for users',
     cron: process.env.RECS_CRON || '0 4 * * *',
   },
   {
-    name: 'rebuild-recommendations',
+    name: 'rebuild-movie-recommendations',
     description: 'Clear all movie recommendations and rebuild',
     cron: null,
   },
@@ -125,9 +127,43 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
     description: 'Refresh global Top Picks libraries based on popularity',
     cron: '0 6 * * *',
   },
+  // === Trakt Sync Job ===
+  {
+    name: 'sync-trakt-ratings',
+    description: 'Sync ratings from Trakt for all connected users',
+    cron: '0 */6 * * *', // Every 6 hours
+  },
 ]
 
 const jobsRoutes: FastifyPluginAsync = async (fastify) => {
+  // Set up the job executor for the scheduler
+  setJobExecutor(async (jobName: string) => {
+    const jobDef = jobDefinitions.find((j) => j.name === jobName)
+    if (!jobDef) {
+      throw new Error(`Unknown job: ${jobName}`)
+    }
+
+    // Check if job is already running
+    const existingJobId = activeJobs.get(jobName)
+    if (existingJobId) {
+      const progress = getJobProgress(existingJobId)
+      if (progress?.status === 'running') {
+        logger.info({ job: jobName }, 'Job already running, skipping scheduled run')
+        return
+      }
+    }
+
+    // Create new job ID and run
+    const jobId = randomUUID()
+    activeJobs.set(jobName, jobId)
+    
+    try {
+      await runJob(jobName, jobId)
+    } finally {
+      activeJobs.delete(jobName)
+    }
+  })
+
   /**
    * GET /api/jobs
    * List all jobs with their status and schedule config
@@ -369,6 +405,13 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
         const config = await setJobConfig(name, updates)
         logger.info({ job: name, config: updates }, 'Job config updated')
 
+        // Refresh the scheduler for this job
+        try {
+          await refreshJobSchedule(name)
+        } catch (schedErr) {
+          logger.error({ err: schedErr, job: name }, 'Failed to refresh job schedule')
+        }
+
         return reply.send({
           config: {
             jobName: config.jobName,
@@ -529,6 +572,15 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
     return reply.send({ jobs: allProgress })
   })
 
+  /**
+   * GET /api/jobs/scheduler/status
+   * Get scheduler status (which jobs are scheduled)
+   */
+  fastify.get('/api/jobs/scheduler/status', { preHandler: requireAdmin }, async (_request, reply) => {
+    const status = getSchedulerStatus()
+    return reply.send(status)
+  })
+
   // =========================================================================
   // Job History Routes
   // =========================================================================
@@ -622,17 +674,17 @@ async function runJob(name: string, jobId: string): Promise<void> {
         }, `✅ Movie sync complete`)
         break
       }
-      case 'generate-embeddings': {
+      case 'generate-movie-embeddings': {
         const result = await generateMissingEmbeddings(jobId)
         logger.info({
           job: name,
           jobId,
           generated: result.generated,
           failed: result.failed,
-        }, `✅ Embeddings complete`)
+        }, `✅ Movie embeddings complete`)
         break
       }
-      case 'sync-watch-history': {
+      case 'sync-movie-watch-history': {
         const result = await syncWatchHistoryForAllUsers(jobId, false) // Delta sync
         logger.info({
           job: name,
@@ -640,10 +692,10 @@ async function runJob(name: string, jobId: string): Promise<void> {
           success: result.success,
           failed: result.failed,
           totalItems: result.totalItems,
-        }, `✅ Watch history sync complete (delta)`)
+        }, `✅ Movie watch history sync complete (delta)`)
         break
       }
-      case 'full-sync-watch-history': {
+      case 'full-sync-movie-watch-history': {
         const result = await syncWatchHistoryForAllUsers(jobId, true) // Full sync
         logger.info({
           job: name,
@@ -651,20 +703,20 @@ async function runJob(name: string, jobId: string): Promise<void> {
           success: result.success,
           failed: result.failed,
           totalItems: result.totalItems,
-        }, `✅ Watch history sync complete (full resync)`)
+        }, `✅ Movie watch history sync complete (full resync)`)
         break
       }
-      case 'generate-recommendations': {
+      case 'generate-movie-recommendations': {
         const result = await generateRecommendationsForAllUsers(jobId)
         logger.info({
           job: name,
           jobId,
           success: result.success,
           failed: result.failed,
-        }, `✅ Recommendations complete`)
+        }, `✅ Movie recommendations complete`)
         break
       }
-      case 'rebuild-recommendations': {
+      case 'rebuild-movie-recommendations': {
         const result = await clearAndRebuildAllRecommendations(jobId)
         logger.info({
           job: name,
@@ -672,7 +724,7 @@ async function runJob(name: string, jobId: string): Promise<void> {
           cleared: result.cleared,
           success: result.success,
           failed: result.failed,
-        }, `✅ Recommendations rebuilt`)
+        }, `✅ Movie recommendations rebuilt`)
         break
       }
       case 'sync-movie-libraries': {
@@ -761,6 +813,18 @@ async function runJob(name: string, jobId: string): Promise<void> {
           seriesCount: result.seriesCount,
           usersUpdated: result.usersUpdated,
         }, `✅ Top Picks refresh complete`)
+        break
+      }
+      // === Trakt Sync Job ===
+      case 'sync-trakt-ratings': {
+        const result = await syncAllTraktRatings(jobId)
+        logger.info({
+          job: name,
+          jobId,
+          usersProcessed: result.usersProcessed,
+          ratingsImported: result.ratingsImported,
+          errors: result.errors,
+        }, `✅ Trakt ratings sync complete`)
         break
       }
       default:

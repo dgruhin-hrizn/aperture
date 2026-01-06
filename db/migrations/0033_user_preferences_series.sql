@@ -17,3 +17,4 @@ CREATE INDEX IF NOT EXISTS idx_user_preferences_series_synopsis_updated
 COMMENT ON COLUMN user_preferences.series_taste_embedding IS 'Computed embedding representing user TV series taste';
 COMMENT ON COLUMN user_preferences.series_taste_synopsis IS 'AI-generated natural language summary of user TV series taste';
 
+

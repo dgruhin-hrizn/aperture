@@ -28,6 +28,7 @@ import {
   AiExplanationSection,
   OutputFormatSection,
   LibraryTitlesSection,
+  TraktConfigSection,
 } from './components'
 
 interface TabPanelProps {
@@ -97,6 +98,9 @@ export function SettingsPage() {
                   onToggle={settings.toggleLibraryEnabled}
                 />
               </Box>
+
+              {/* Trakt Integration */}
+              <TraktConfigSection />
 
               {/* STRM/Symlink Documentation */}
               <Accordion

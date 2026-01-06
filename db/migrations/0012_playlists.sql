@@ -45,3 +45,4 @@ CREATE TRIGGER trigger_playlists_updated_at
 COMMENT ON TABLE playlists IS 'Playlists created in the media server for recommendations';
 COMMENT ON COLUMN playlists.playlist_type IS 'Type: recommendations, channel, or shared_channel';
 
+
