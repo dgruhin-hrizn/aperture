@@ -1,7 +1,7 @@
 /**
  * Series STRM Writer
  *
- * Writes STRM files for TV series recommendations, organizing them
+ * Writes STRM files (or symlinks) for TV series recommendations, organizing them
  * with proper season/episode folder structures for Emby/Jellyfin.
  */
 
@@ -10,6 +10,7 @@ import path from 'path'
 import { createChildLogger } from '../../lib/logger.js'
 import { query, queryOne } from '../../lib/db.js'
 import { getConfig } from '../config.js'
+import { getAiRecsOutputConfig } from '../../settings/systemSettings.js'
 import { getMediaServerProvider } from '../../media/index.js'
 
 const logger = createChildLogger('strm-series-writer')
@@ -160,7 +161,7 @@ function escapeXml(input: string): string {
 }
 
 /**
- * Write STRM files for a user's series recommendations
+ * Write STRM files (or symlinks) for a user's series recommendations
  */
 export async function writeSeriesStrmFilesForUser(
   userId: string,
@@ -168,6 +169,8 @@ export async function writeSeriesStrmFilesForUser(
   _displayName: string
 ): Promise<{ written: number; deleted: number; localPath: string; embyPath: string }> {
   const config = getConfig()
+  const outputConfig = await getAiRecsOutputConfig()
+  const useSymlinks = outputConfig.seriesUseSymlinks
   const provider = getMediaServerProvider()
   const apiKey = process.env.MEDIA_SERVER_API_KEY || ''
   const startTime = Date.now()
@@ -179,7 +182,7 @@ export async function writeSeriesStrmFilesForUser(
     providerUserId
   )
 
-  logger.info({ userId, localPath, embyPath }, '📺 Starting series STRM file generation')
+  logger.info({ userId, localPath, embyPath, useSymlinks }, `📺 Starting series ${useSymlinks ? 'symlink' : 'STRM'} file generation`)
 
   await fs.mkdir(localPath, { recursive: true })
 
@@ -269,84 +272,147 @@ export async function writeSeriesStrmFilesForUser(
     await fs.writeFile(seriesNfoPath, generateSeriesNfoContent(series), 'utf-8')
     filesWritten++
 
-    // Get episodes for this series
-    const episodes = await query<{
-      id: string
-      provider_item_id: string
-      season_number: number
-      episode_number: number
-      title: string
-      overview: string | null
-      premiere_date: string | null
-      year: number | null
-      runtime_minutes: number | null
-      path: string | null
-    }>(
-      `SELECT id, provider_item_id, season_number, episode_number, title,
-              overview, premiere_date, year, runtime_minutes, path
-       FROM episodes
-       WHERE series_id = $1
-       ORDER BY season_number, episode_number`,
-      [series.seriesId]
-    )
+    if (useSymlinks) {
+      // SYMLINKS MODE: Symlink entire season folders from original location
+      // Query for season paths (derive from episode paths)
+      const seasonPaths = await query<{ season_number: number; season_path: string }>(
+        `SELECT DISTINCT season_number, 
+                regexp_replace(path, '/[^/]+$', '') as season_path
+         FROM episodes 
+         WHERE series_id = $1 AND path IS NOT NULL
+         ORDER BY season_number`,
+        [series.seriesId]
+      )
 
-    // Group episodes by season
-    const seasons = new Map<number, typeof episodes.rows>()
-    for (const ep of episodes.rows) {
-      if (!seasons.has(ep.season_number)) {
-        seasons.set(ep.season_number, [])
+      // Try to get the original series folder for fanart
+      let originalSeriesFolder: string | null = null
+      if (seasonPaths.rows.length > 0) {
+        originalSeriesFolder = path.dirname(seasonPaths.rows[0].season_path)
       }
-      seasons.get(ep.season_number)!.push(ep)
-    }
 
-    // Process each season
-    for (const [seasonNum, seasonEpisodes] of seasons) {
-      const seasonFolderName = `Season ${String(seasonNum).padStart(2, '0')}`
-      const seasonFolderPath = path.join(seriesFolderPath, seasonFolderName)
+      // Create symlinks to each season folder
+      for (const season of seasonPaths.rows) {
+        const seasonFolderName = `Season ${String(season.season_number).padStart(2, '0')}`
+        const symlinkPath = path.join(seriesFolderPath, seasonFolderName)
+        const originalSeasonPath = season.season_path
 
-      await fs.mkdir(seasonFolderPath, { recursive: true })
-
-      // Process each episode
-      for (const ep of seasonEpisodes) {
-        const episode: EpisodeInfo = {
-          episodeId: ep.id,
-          providerItemId: ep.provider_item_id,
-          seasonNumber: ep.season_number,
-          episodeNumber: ep.episode_number,
-          title: ep.title,
-          overview: ep.overview,
-          premiereDate: ep.premiere_date,
-          year: ep.year,
-          runtimeMinutes: ep.runtime_minutes,
-          path: ep.path,
+        try {
+          // Remove existing symlink if present
+          try {
+            await fs.lstat(symlinkPath)
+            await fs.unlink(symlinkPath)
+          } catch {
+            // File doesn't exist, that's fine
+          }
+          await fs.symlink(originalSeasonPath, symlinkPath)
+          logger.debug({ seasonFolderName, originalSeasonPath }, 'Created season symlink')
+          filesWritten++
+        } catch (err) {
+          logger.warn({ err, seasonFolderName }, 'Failed to create season symlink')
         }
-
-        // Episode filename: SeriesName S01E01 Episode Title.strm
-        const episodeFilename = `${sanitizeForFilename(series.title)} S${String(episode.seasonNumber).padStart(2, '0')}E${String(episode.episodeNumber).padStart(2, '0')} ${sanitizeForFilename(episode.title)}`
-
-        // Write STRM file
-        const strmPath = path.join(seasonFolderPath, `${episodeFilename}.strm`)
-        // Try to use direct path first, fall back to streaming URL
-        let strmContent: string
-        if (episode.path && !config.useStreamingUrl) {
-          strmContent = episode.path
-        } else {
-          strmContent = provider.getStreamUrl(apiKey, episode.providerItemId)
-        }
-        await fs.writeFile(strmPath, strmContent, 'utf-8')
-        filesWritten++
-
-        // Write episode NFO
-        const nfoPath = path.join(seasonFolderPath, `${episodeFilename}.nfo`)
-        await fs.writeFile(nfoPath, generateEpisodeNfoContent(episode, series.title), 'utf-8')
-        filesWritten++
       }
-    }
 
-    logger.info(
-      { series: series.title, seasons: seasons.size, episodes: episodes.rows.length },
-      '✅ Series processed'
-    )
+      // Symlink fanart from original series folder
+      if (originalSeriesFolder) {
+        const fanartPath = path.join(originalSeriesFolder, 'fanart.jpg')
+        try {
+          const fanartSymlinkPath = path.join(seriesFolderPath, 'fanart.jpg')
+          try {
+            await fs.lstat(fanartSymlinkPath)
+            await fs.unlink(fanartSymlinkPath)
+          } catch {
+            // File doesn't exist, that's fine
+          }
+          await fs.symlink(fanartPath, fanartSymlinkPath)
+        } catch {
+          // Fanart symlink failed, that's okay
+        }
+      }
+
+      logger.info(
+        { series: series.title, seasons: seasonPaths.rows.length },
+        '🔗 Series symlinks created'
+      )
+    } else {
+      // STRM MODE: Create STRM files for each episode (original behavior)
+      const episodes = await query<{
+        id: string
+        provider_item_id: string
+        season_number: number
+        episode_number: number
+        title: string
+        overview: string | null
+        premiere_date: string | null
+        year: number | null
+        runtime_minutes: number | null
+        path: string | null
+      }>(
+        `SELECT id, provider_item_id, season_number, episode_number, title,
+                overview, premiere_date, year, runtime_minutes, path
+         FROM episodes
+         WHERE series_id = $1
+         ORDER BY season_number, episode_number`,
+        [series.seriesId]
+      )
+
+      // Group episodes by season
+      const seasons = new Map<number, typeof episodes.rows>()
+      for (const ep of episodes.rows) {
+        if (!seasons.has(ep.season_number)) {
+          seasons.set(ep.season_number, [])
+        }
+        seasons.get(ep.season_number)!.push(ep)
+      }
+
+      // Process each season
+      for (const [seasonNum, seasonEpisodes] of seasons) {
+        const seasonFolderName = `Season ${String(seasonNum).padStart(2, '0')}`
+        const seasonFolderPath = path.join(seriesFolderPath, seasonFolderName)
+
+        await fs.mkdir(seasonFolderPath, { recursive: true })
+
+        // Process each episode
+        for (const ep of seasonEpisodes) {
+          const episode: EpisodeInfo = {
+            episodeId: ep.id,
+            providerItemId: ep.provider_item_id,
+            seasonNumber: ep.season_number,
+            episodeNumber: ep.episode_number,
+            title: ep.title,
+            overview: ep.overview,
+            premiereDate: ep.premiere_date,
+            year: ep.year,
+            runtimeMinutes: ep.runtime_minutes,
+            path: ep.path,
+          }
+
+          // Episode filename: SeriesName S01E01 Episode Title.strm
+          const episodeFilename = `${sanitizeForFilename(series.title)} S${String(episode.seasonNumber).padStart(2, '0')}E${String(episode.episodeNumber).padStart(2, '0')} ${sanitizeForFilename(episode.title)}`
+
+          // Write STRM file
+          const strmPath = path.join(seasonFolderPath, `${episodeFilename}.strm`)
+          // Try to use direct path first, fall back to streaming URL
+          let strmContent: string
+          if (episode.path && !config.useStreamingUrl) {
+            strmContent = episode.path
+          } else {
+            strmContent = provider.getStreamUrl(apiKey, episode.providerItemId)
+          }
+          await fs.writeFile(strmPath, strmContent, 'utf-8')
+          filesWritten++
+
+          // Write episode NFO
+          const nfoPath = path.join(seasonFolderPath, `${episodeFilename}.nfo`)
+          await fs.writeFile(nfoPath, generateEpisodeNfoContent(episode, series.title), 'utf-8')
+          filesWritten++
+        }
+      }
+
+      logger.info(
+        { series: series.title, seasons: seasons.size, episodes: episodes.rows.length },
+        '✅ Series processed'
+      )
+    }
   }
 
   // Delete old series folders not in current recommendations
@@ -385,8 +451,9 @@ export async function writeSeriesStrmFilesForUser(
       durationMs: totalDuration,
       localPath,
       embyPath,
+      useSymlinks,
     },
-    '✅ Series STRM generation complete'
+    `✅ Series ${useSymlinks ? 'symlink' : 'STRM'} generation complete`
   )
 
   return {

@@ -353,35 +353,45 @@ function isValidTextGenerationModel(model: string): model is TextGenerationModel
 }
 
 // ============================================================================
-// User Recommendations Output Format Settings
+// AI Recommendations Output Format Settings
 // ============================================================================
 
-export interface UserRecsOutputConfig {
-  useSymlinks: boolean
+export interface AiRecsOutputConfig {
+  moviesUseSymlinks: boolean
+  seriesUseSymlinks: boolean
 }
 
 /**
- * Get user recommendations output format configuration
+ * Get AI recommendations output format configuration
  */
-export async function getUserRecsOutputConfig(): Promise<UserRecsOutputConfig> {
-  const useSymlinks = await getSystemSetting('user_recs_use_symlinks')
+export async function getAiRecsOutputConfig(): Promise<AiRecsOutputConfig> {
+  const movies = await getSystemSetting('ai_recs_movies_use_symlinks')
+  const series = await getSystemSetting('ai_recs_series_use_symlinks')
   return {
-    useSymlinks: useSymlinks === 'true',
+    moviesUseSymlinks: movies === 'true',
+    seriesUseSymlinks: series !== 'false', // Defaults to true for series
   }
 }
 
 /**
- * Set user recommendations output format
+ * Set AI recommendations output format
  */
-export async function setUserRecsOutputConfig(config: Partial<UserRecsOutputConfig>): Promise<UserRecsOutputConfig> {
-  if (config.useSymlinks !== undefined) {
+export async function setAiRecsOutputConfig(config: Partial<AiRecsOutputConfig>): Promise<AiRecsOutputConfig> {
+  if (config.moviesUseSymlinks !== undefined) {
     await setSystemSetting(
-      'user_recs_use_symlinks',
-      String(config.useSymlinks),
-      'Use symlinks instead of STRM files for user recommendations (requires shared filesystem paths)'
+      'ai_recs_movies_use_symlinks',
+      String(config.moviesUseSymlinks),
+      'Use symlinks instead of STRM files for AI Movies library'
     )
   }
-  return getUserRecsOutputConfig()
+  if (config.seriesUseSymlinks !== undefined) {
+    await setSystemSetting(
+      'ai_recs_series_use_symlinks',
+      String(config.seriesUseSymlinks),
+      'Use symlinks instead of STRM files for AI Series library'
+    )
+  }
+  return getAiRecsOutputConfig()
 }
 
 // ============================================================================

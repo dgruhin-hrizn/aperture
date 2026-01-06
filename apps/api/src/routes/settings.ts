@@ -24,8 +24,8 @@ import {
   getMediaServerTypes,
   getJobConfig,
   formatSchedule,
-  getUserRecsOutputConfig,
-  setUserRecsOutputConfig,
+  getAiRecsOutputConfig,
+  setAiRecsOutputConfig,
   getAiExplanationConfig,
   setAiExplanationConfig,
   getUserAiExplanationSettings,
@@ -1000,19 +1000,59 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   )
 
   // =========================================================================
-  // Output Format Configuration (Admin Only)
+  // AI Recommendations Output Format Configuration (Admin Only)
   // =========================================================================
 
   /**
-   * GET /api/settings/output-format
-   * Get user recommendations output format configuration
+   * GET /api/settings/ai-recs/output
+   * Get AI recommendations output format configuration
+   */
+  fastify.get(
+    '/api/settings/ai-recs/output',
+    { preHandler: requireAdmin },
+    async (_request, reply) => {
+      try {
+        const config = await getAiRecsOutputConfig()
+        return reply.send(config)
+      } catch (err) {
+        fastify.log.error({ err }, 'Failed to get AI recs output format config')
+        return reply.status(500).send({ error: 'Failed to get AI recommendations output format configuration' })
+      }
+    }
+  )
+
+  /**
+   * PATCH /api/settings/ai-recs/output
+   * Update AI recommendations output format configuration
+   */
+  fastify.patch<{
+    Body: {
+      moviesUseSymlinks?: boolean
+      seriesUseSymlinks?: boolean
+    }
+  }>('/api/settings/ai-recs/output', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const config = await setAiRecsOutputConfig(request.body)
+      return reply.send({
+        ...config,
+        message: 'AI recommendations output format configuration updated',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to update AI recs output format config')
+      return reply.status(500).send({ error: 'Failed to update AI recommendations output format configuration' })
+    }
+  })
+
+  /**
+   * GET /api/settings/output-format (deprecated - for backwards compatibility)
+   * Redirects to new endpoint structure
    */
   fastify.get(
     '/api/settings/output-format',
     { preHandler: requireAdmin },
     async (_request, reply) => {
       try {
-        const config = await getUserRecsOutputConfig()
+        const config = await getAiRecsOutputConfig()
         return reply.send(config)
       } catch (err) {
         fastify.log.error({ err }, 'Failed to get output format config')
@@ -1022,16 +1062,16 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   )
 
   /**
-   * PATCH /api/settings/output-format
-   * Update user recommendations output format configuration
+   * PATCH /api/settings/output-format (deprecated - for backwards compatibility)
    */
   fastify.patch<{
     Body: {
-      useSymlinks?: boolean
+      moviesUseSymlinks?: boolean
+      seriesUseSymlinks?: boolean
     }
   }>('/api/settings/output-format', { preHandler: requireAdmin }, async (request, reply) => {
     try {
-      const config = await setUserRecsOutputConfig(request.body)
+      const config = await setAiRecsOutputConfig(request.body)
       return reply.send({
         ...config,
         message: 'Output format configuration updated',

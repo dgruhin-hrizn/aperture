@@ -812,9 +812,9 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
         }
 
         if (config.type === 'emby') {
-          await embyMarkMovieUnplayed(provider, apiKey, user.provider_user_id, movie.provider_item_id)
+          await embyMarkMovieUnplayed(provider as unknown as Parameters<typeof embyMarkMovieUnplayed>[0], apiKey, user.provider_user_id, movie.provider_item_id)
         } else {
-          await jellyfinMarkMovieUnplayed(provider, apiKey, user.provider_user_id, movie.provider_item_id)
+          await jellyfinMarkMovieUnplayed(provider as unknown as Parameters<typeof jellyfinMarkMovieUnplayed>[0], apiKey, user.provider_user_id, movie.provider_item_id)
         }
 
         // Remove from Aperture database
@@ -879,9 +879,9 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
         }
 
         if (config.type === 'emby') {
-          await embyMarkEpisodeUnplayed(provider, apiKey, user.provider_user_id, episode.provider_item_id)
+          await embyMarkEpisodeUnplayed(provider as unknown as Parameters<typeof embyMarkEpisodeUnplayed>[0], apiKey, user.provider_user_id, episode.provider_item_id)
         } else {
-          await jellyfinMarkEpisodeUnplayed(provider, apiKey, user.provider_user_id, episode.provider_item_id)
+          await jellyfinMarkEpisodeUnplayed(provider as unknown as Parameters<typeof jellyfinMarkEpisodeUnplayed>[0], apiKey, user.provider_user_id, episode.provider_item_id)
         }
 
         await query(
@@ -946,10 +946,10 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
 
         let markedCount = 0
         if (config.type === 'emby') {
-          const result = await embyMarkSeasonUnplayed(provider, apiKey, user.provider_user_id, series.provider_item_id, parseInt(seasonNumber))
+          const result = await embyMarkSeasonUnplayed(provider as unknown as Parameters<typeof embyMarkSeasonUnplayed>[0], apiKey, user.provider_user_id, series.provider_item_id, parseInt(seasonNumber))
           markedCount = result.markedCount
         } else {
-          const result = await jellyfinMarkSeasonUnplayed(provider, apiKey, user.provider_user_id, series.provider_item_id, parseInt(seasonNumber))
+          const result = await jellyfinMarkSeasonUnplayed(provider as unknown as Parameters<typeof jellyfinMarkSeasonUnplayed>[0], apiKey, user.provider_user_id, series.provider_item_id, parseInt(seasonNumber))
           markedCount = result.markedCount
         }
 
@@ -1021,10 +1021,10 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
 
         let markedCount = 0
         if (config.type === 'emby') {
-          const result = await embyMarkSeriesUnplayed(provider, apiKey, user.provider_user_id, series.provider_item_id)
+          const result = await embyMarkSeriesUnplayed(provider as unknown as Parameters<typeof embyMarkSeriesUnplayed>[0], apiKey, user.provider_user_id, series.provider_item_id)
           markedCount = result.markedCount
         } else {
-          const result = await jellyfinMarkSeriesUnplayed(provider, apiKey, user.provider_user_id, series.provider_item_id)
+          const result = await jellyfinMarkSeriesUnplayed(provider as unknown as Parameters<typeof jellyfinMarkSeriesUnplayed>[0], apiKey, user.provider_user_id, series.provider_item_id)
           markedCount = result.markedCount
         }
 

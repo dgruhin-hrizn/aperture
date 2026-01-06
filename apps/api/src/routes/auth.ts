@@ -24,6 +24,7 @@ interface UserRow {
   is_admin: boolean
   is_enabled: boolean
   provider_access_token: string | null
+  can_manage_watch_history: boolean
 }
 
 interface LoginResponse {
@@ -76,7 +77,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Upsert user in our database
       const existingUser = await queryOne<UserRow>(
-        `SELECT id, username, display_name, provider, provider_user_id, is_admin, is_enabled
+        `SELECT id, username, display_name, provider, provider_user_id, is_admin, is_enabled, can_manage_watch_history
          FROM users WHERE provider = $1 AND provider_user_id = $2`,
         [provider.type, authResult.userId]
       )
@@ -93,7 +94,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
             max_parental_rating = $4,
             updated_at = NOW()
            WHERE id = $5
-           RETURNING id, username, display_name, provider, provider_user_id, is_admin, is_enabled`,
+           RETURNING id, username, display_name, provider, provider_user_id, is_admin, is_enabled, can_manage_watch_history`,
           [
             authResult.userName,
             authResult.isAdmin,
@@ -108,7 +109,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         const created = await queryOne<UserRow>(
           `INSERT INTO users (username, display_name, provider, provider_user_id, is_admin, provider_access_token, max_parental_rating)
            VALUES ($1, $2, $3, $4, $5, $6, $7)
-           RETURNING id, username, display_name, provider, provider_user_id, is_admin, is_enabled`,
+           RETURNING id, username, display_name, provider, provider_user_id, is_admin, is_enabled, can_manage_watch_history`,
           [
             authResult.userName,
             authResult.userName,
@@ -147,6 +148,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         providerUserId: user.provider_user_id,
         isAdmin: user.is_admin,
         isEnabled: user.is_enabled,
+        canManageWatchHistory: user.can_manage_watch_history ?? false,
         avatarUrl,
       }
 

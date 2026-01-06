@@ -234,8 +234,8 @@ export {
   testMediaServerConnection,
   isMediaServerConfigured,
   getMediaServerTypes,
-  getUserRecsOutputConfig,
-  setUserRecsOutputConfig,
+  getAiRecsOutputConfig,
+  setAiRecsOutputConfig,
   getAiExplanationConfig,
   setAiExplanationConfig,
   type SystemSetting,
@@ -243,7 +243,7 @@ export {
   type TextGenerationModel,
   type TextGenerationModelInfo,
   type MediaServerConfig,
-  type UserRecsOutputConfig,
+  type AiRecsOutputConfig,
   type AiExplanationConfig,
 } from './settings/systemSettings.js'
 
