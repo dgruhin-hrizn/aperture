@@ -1341,13 +1341,13 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       // Check for invalid characters in templates
       const invalidChars = /[<>:"/\\|?*]/
       if (moviesTemplate && invalidChars.test(moviesTemplate.replace(/\{\{[^}]+\}\}/g, ''))) {
-        return reply.status(400).send({ 
-          error: 'moviesTemplate contains invalid characters for file paths' 
+        return reply.status(400).send({
+          error: 'moviesTemplate contains invalid characters for file paths',
         })
       }
       if (seriesTemplate && invalidChars.test(seriesTemplate.replace(/\{\{[^}]+\}\}/g, ''))) {
-        return reply.status(400).send({ 
-          error: 'seriesTemplate contains invalid characters for file paths' 
+        return reply.status(400).send({
+          error: 'seriesTemplate contains invalid characters for file paths',
         })
       }
 
