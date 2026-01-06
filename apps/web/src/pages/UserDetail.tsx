@@ -363,7 +363,7 @@ function WatchHistoryTab({ userId }: { userId: string }) {
 
   useEffect(() => {
     fetchHistory(pagination.page, sortBy)
-  }, [fetchHistory, sortBy])
+  }, [fetchHistory, sortBy, pagination.page])
 
   const handlePageChange = (_: React.ChangeEvent<unknown>, page: number) => {
     fetchHistory(page, sortBy)
@@ -592,7 +592,6 @@ function WatchHistoryTab({ userId }: { userId: string }) {
 
 export function UserDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
   const [user, setUser] = useState<User | null>(null)
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [loading, setLoading] = useState(true)

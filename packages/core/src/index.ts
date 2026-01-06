@@ -295,3 +295,26 @@ export {
   type TraktSyncResult,
 } from './trakt/index.js'
 
+// Uploads
+export {
+  initUploads,
+  uploadImage,
+  getEffectiveImage,
+  getEntityImages,
+  deleteUserImage,
+  deleteDefaultImage,
+  getImageBuffer,
+  getAbsolutePath,
+  getUploadsDir,
+  RECOMMENDED_DIMENSIONS,
+  pushImageToMediaServer,
+  deleteImageFromMediaServer,
+  syncEntityImageToMediaServer,
+  syncAllEntityImagesToMediaServer,
+  type EntityType,
+  type MediaImage,
+  type UploadImageOptions,
+  type ImageDimensions,
+  type ImageSyncResult,
+} from './uploads/index.js'
+

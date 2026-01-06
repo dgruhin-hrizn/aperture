@@ -29,6 +29,7 @@ import {
   OutputFormatSection,
   LibraryTitlesSection,
   TraktConfigSection,
+  ImageManagementSection,
 } from './components'
 
 interface TabPanelProps {
@@ -101,6 +102,9 @@ export function SettingsPage() {
 
               {/* Trakt Integration */}
               <TraktConfigSection />
+
+              {/* Image Management */}
+              <ImageManagementSection />
 
               {/* STRM/Symlink Documentation */}
               <Accordion

@@ -916,13 +916,25 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
 
   /**
    * GET /api/settings/top-picks
-   * Get current Top Picks configuration
+   * Get current Top Picks configuration including library info
    */
   fastify.get('/api/settings/top-picks', { preHandler: requireAdmin }, async (_request, reply) => {
     try {
-      const { getTopPicksConfig } = await import('@aperture/core')
+      const { getTopPicksConfig, getTopPicksLibraries } = await import('@aperture/core')
       const config = await getTopPicksConfig()
-      return reply.send(config)
+
+      // Try to get library info (may fail if libraries don't exist yet)
+      let libraries: { movies: { id: string; guid: string; name: string } | null; series: { id: string; guid: string; name: string } | null } = { movies: null, series: null }
+      try {
+        libraries = await getTopPicksLibraries()
+      } catch {
+        // Libraries don't exist yet, that's fine
+      }
+
+      return reply.send({
+        ...config,
+        libraries,
+      })
     } catch (err) {
       fastify.log.error({ err }, 'Failed to get Top Picks config')
       return reply.status(500).send({ error: 'Failed to get Top Picks configuration' })
@@ -1427,6 +1439,61 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     } catch (err) {
       fastify.log.error({ err }, 'Failed to update library title config')
       return reply.status(500).send({ error: 'Failed to update library title configuration' })
+    }
+  })
+
+  // =========================================================================
+  // STRM Libraries (Aperture-created recommendation libraries)
+  // =========================================================================
+
+  /**
+   * GET /api/settings/strm-libraries
+   * Get all STRM libraries created by Aperture (user recommendation libraries)
+   */
+  fastify.get('/api/settings/strm-libraries', { preHandler: requireAdmin }, async (_request, reply) => {
+    try {
+      const result = await query<{
+        id: string
+        user_id: string | null
+        channel_id: string | null
+        name: string
+        path: string
+        provider_library_id: string | null
+        is_active: boolean
+        media_type: string
+        file_count: number | null
+        last_synced_at: Date | null
+        created_at: Date
+      }>(
+        `SELECT sl.id, sl.user_id, sl.channel_id, sl.name, sl.path, 
+                sl.provider_library_id, sl.is_active, sl.media_type,
+                sl.file_count, sl.last_synced_at, sl.created_at,
+                u.username as user_name, u.display_name as user_display_name
+         FROM strm_libraries sl
+         LEFT JOIN users u ON sl.user_id = u.id
+         WHERE sl.is_active = true
+         ORDER BY sl.created_at DESC`
+      )
+
+      const libraries = result.rows.map((row) => ({
+        id: row.id,
+        userId: row.user_id,
+        userName: row.user_id ? (row as unknown as { user_display_name: string | null; user_name: string }).user_display_name || (row as unknown as { user_name: string }).user_name : null,
+        channelId: row.channel_id,
+        name: row.name,
+        path: row.path,
+        providerLibraryId: row.provider_library_id,
+        isActive: row.is_active,
+        mediaType: row.media_type,
+        fileCount: row.file_count,
+        lastSyncedAt: row.last_synced_at,
+        createdAt: row.created_at,
+      }))
+
+      return reply.send({ libraries })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get STRM libraries')
+      return reply.status(500).send({ error: 'Failed to get STRM libraries' })
     }
   })
 }

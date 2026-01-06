@@ -52,3 +52,6 @@ data/strm/*
 # Playwright
 playwright-report/
 test-results/
+
+# User uploads
+apps/api/uploads/
