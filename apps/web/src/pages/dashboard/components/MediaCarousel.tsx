@@ -1,9 +1,10 @@
 import { Box, Typography, IconButton, Skeleton } from '@mui/material'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MoviePoster } from '@aperture/ui'
+import { useUserRatings } from '../../../hooks/useUserRatings'
 
 interface MediaItem {
   id: string
@@ -78,6 +79,18 @@ export function MediaCarousel({
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
   const navigate = useNavigate()
+  const { getRating, setRating } = useUserRatings()
+
+  const handleRate = useCallback(
+    async (type: 'movie' | 'series', id: string, rating: number | null) => {
+      try {
+        await setRating(type, id, rating)
+      } catch (err) {
+        console.error('Failed to rate:', err)
+      }
+    },
+    [setRating]
+  )
 
   const updateScrollButtons = () => {
     if (!scrollRef.current) return
@@ -218,6 +231,8 @@ export function MediaCarousel({
                         genres={topItem.genres}
                         score={showScore ? (topItem.matchScore ? topItem.matchScore / 100 : null) : undefined}
                         showScore={showScore && topItem.matchScore != null}
+                        userRating={getRating(topItem.type, topItem.id)}
+                        onRate={(rating) => handleRate(topItem.type, topItem.id, rating)}
                         onClick={() => handleItemClick(topItem)}
                         size="medium"
                       >
@@ -234,6 +249,8 @@ export function MediaCarousel({
                         genres={bottomItem.genres}
                         score={showScore ? (bottomItem.matchScore ? bottomItem.matchScore / 100 : null) : undefined}
                         showScore={showScore && bottomItem.matchScore != null}
+                        userRating={getRating(bottomItem.type, bottomItem.id)}
+                        onRate={(rating) => handleRate(bottomItem.type, bottomItem.id, rating)}
                         onClick={() => handleItemClick(bottomItem)}
                         size="medium"
                       >
@@ -259,6 +276,8 @@ export function MediaCarousel({
                 genres={item.genres}
                 score={showScore ? (item.matchScore ? item.matchScore / 100 : null) : undefined}
                 showScore={showScore && item.matchScore != null}
+                userRating={getRating(item.type, item.id)}
+                onRate={(rating) => handleRate(item.type, item.id, rating)}
                 onClick={() => handleItemClick(item)}
                 size="medium"
               >

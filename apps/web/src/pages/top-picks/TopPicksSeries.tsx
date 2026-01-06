@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Box,
   Typography,
@@ -17,6 +18,7 @@ import ViewListIcon from '@mui/icons-material/ViewList'
 import PeopleIcon from '@mui/icons-material/People'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import { MoviePoster } from '@aperture/ui'
+import { useUserRatings } from '../../hooks/useUserRatings'
 
 interface PopularSeries {
   seriesId: string
@@ -43,11 +45,24 @@ interface TopPicksConfig {
 }
 
 export function TopPicksSeriesPage() {
+  const navigate = useNavigate()
+  const { getRating, setRating } = useUserRatings()
   const [series, setSeries] = useState<PopularSeries[]>([])
   const [config, setConfig] = useState<TopPicksConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+
+  const handleRate = useCallback(
+    async (seriesId: string, rating: number | null) => {
+      try {
+        await setRating('series', seriesId, rating)
+      } catch (err) {
+        console.error('Failed to rate series:', err)
+      }
+    },
+    [setRating]
+  )
 
   useEffect(() => {
     const fetchTopSeries = async () => {
@@ -153,7 +168,10 @@ export function TopPicksSeriesPage() {
                   genres={show.genres}
                   rating={show.communityRating}
                   overview={show.overview}
+                  userRating={getRating('series', show.seriesId)}
+                  onRate={(rating) => handleRate(show.seriesId, rating)}
                   size="medium"
+                  onClick={() => navigate(`/series/${show.seriesId}`)}
                 />
                 {/* Rank badge */}
                 <Box

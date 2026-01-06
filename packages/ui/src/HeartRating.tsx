@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Box, Typography, Tooltip, IconButton } from '@mui/material'
+import React, { useState, useRef } from 'react'
+import { Box, Typography, Tooltip, IconButton, Popper, Paper, ClickAwayListener, Fade } from '@mui/material'
 import Favorite from '@mui/icons-material/Favorite'
 import FavoriteBorder from '@mui/icons-material/FavoriteBorder'
 
@@ -29,14 +29,37 @@ export interface HeartRatingProps {
   loading?: boolean
   /** Show the rating number next to hearts */
   showValue?: boolean
-  /** Max hearts to show (default 10) */
+  /** Max hearts to show in popper (default 10) */
   maxHearts?: number
+  /** Additional sx props */
+  sx?: object
 }
 
 const sizeConfig = {
-  small: { iconSize: 'small' as const, spacing: 0.25, fontSize: '0.75rem' },
-  medium: { iconSize: 'medium' as const, spacing: 0.5, fontSize: '0.875rem' },
-  large: { iconSize: 'large' as const, spacing: 0.75, fontSize: '1rem' },
+  small: { 
+    iconSize: 'small' as const, 
+    heartSize: 20,
+    popperHeartSize: 16,
+    spacing: 0.25, 
+    fontSize: '0.75rem',
+    popperPadding: 1,
+  },
+  medium: { 
+    iconSize: 'medium' as const, 
+    heartSize: 28,
+    popperHeartSize: 20,
+    spacing: 0.5, 
+    fontSize: '0.875rem',
+    popperPadding: 1.5,
+  },
+  large: { 
+    iconSize: 'large' as const, 
+    heartSize: 36,
+    popperHeartSize: 24,
+    spacing: 0.75, 
+    fontSize: '1rem',
+    popperPadding: 2,
+  },
 }
 
 const ratingLabels: Record<number, string> = {
@@ -52,6 +75,73 @@ const ratingLabels: Record<number, string> = {
   10: 'Perfect',
 }
 
+/**
+ * Single heart icon that fills up based on the rating percentage
+ */
+function FillableHeart({ 
+  fillPercent, 
+  size, 
+  onClick,
+  disabled,
+  interactive,
+}: { 
+  fillPercent: number
+  size: number
+  onClick?: () => void
+  disabled?: boolean
+  interactive?: boolean
+}) {
+  return (
+    <Box
+      onClick={interactive ? onClick : undefined}
+      sx={{
+        position: 'relative',
+        width: size,
+        height: size,
+        cursor: interactive && !disabled ? 'pointer' : 'default',
+        transition: 'transform 0.15s ease',
+        '&:hover': interactive && !disabled ? {
+          transform: 'scale(1.15)',
+        } : {},
+      }}
+    >
+      {/* Background empty heart */}
+      <EmptyHeart
+        sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: size,
+          height: size,
+          fontSize: size,
+          color: 'rgba(244, 63, 94, 0.25)',
+        }}
+      />
+      {/* Filled heart with clip-path for partial fill */}
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: size,
+          height: size,
+          clipPath: `inset(${100 - fillPercent}% 0 0 0)`,
+          transition: 'clip-path 0.3s ease',
+        }}
+      >
+        <FilledHeart
+          sx={{
+            width: size,
+            height: size,
+            fontSize: size,
+            color: '#f43f5e',
+          }}
+        />
+      </Box>
+    </Box>
+  )
+}
+
 export function HeartRating({
   value,
   onChange,
@@ -62,12 +152,15 @@ export function HeartRating({
   loading = false,
   showValue = false,
   maxHearts = 10,
+  sx = {},
 }: HeartRatingProps) {
+  const [popperOpen, setPopperOpen] = useState(false)
   const [hoverValue, setHoverValue] = useState<number | null>(null)
+  const anchorRef = useRef<HTMLDivElement>(null)
   const config = sizeConfig[size]
   
-  const displayValue = hoverValue ?? value
-  const isInteractive = !readOnly && !disabled && !loading && onChange
+  const isInteractive = !readOnly && !disabled && !loading && !!onChange
+  const fillPercent = value ? (value / maxHearts) * 100 : 0
 
   // Compact mode - just show a badge with filled hearts
   if (compact) {
@@ -84,6 +177,7 @@ export function HeartRating({
             borderRadius: 1,
             px: 0.75,
             py: 0.25,
+            ...sx,
           }}
         >
           <FilledHeart 
@@ -108,135 +202,178 @@ export function HeartRating({
     )
   }
 
-  const handleClick = (rating: number) => {
-    if (!isInteractive) return
+  const handleHeartClick = () => {
+    if (isInteractive) {
+      setPopperOpen(true)
+    }
+  }
+
+  const handleSelectRating = (rating: number) => {
+    if (!onChange) return
     // If clicking the same rating, clear it
     if (rating === value) {
       onChange(null)
     } else {
       onChange(rating)
     }
+    setPopperOpen(false)
+    setHoverValue(null)
+  }
+
+  const handleClickAway = () => {
+    setPopperOpen(false)
+    setHoverValue(null)
   }
 
   const handleMouseEnter = (rating: number) => {
-    if (isInteractive) {
-      setHoverValue(rating)
-    }
+    setHoverValue(rating)
   }
 
   const handleMouseLeave = () => {
     setHoverValue(null)
   }
 
+  const displayValue = hoverValue ?? value
+  const displayFillPercent = displayValue ? (displayValue / maxHearts) * 100 : fillPercent
+
   return (
-    <Box
-      sx={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: config.spacing,
-        opacity: disabled || loading ? 0.5 : 1,
-      }}
-      onMouseLeave={handleMouseLeave}
-    >
-      {/* Hearts */}
-      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-        {Array.from({ length: maxHearts }, (_, i) => {
-          const heartValue = i + 1
-          const isFilled = displayValue !== null && heartValue <= displayValue
-          const isHovered = hoverValue !== null && heartValue <= hoverValue
-          
-          const HeartIcon = isFilled ? FilledHeart : EmptyHeart
-          
-          const heartColor = isFilled 
-            ? isHovered 
-              ? '#fb7185' // rose-400
-              : '#f43f5e' // rose-500
-            : isHovered
-              ? '#fda4af' // rose-300
-              : 'rgba(244, 63, 94, 0.3)' // faded rose
-          
-          if (isInteractive) {
-            return (
-              <Tooltip 
-                key={heartValue} 
-                title={`${heartValue}/10 - ${ratingLabels[heartValue]}`}
-                arrow
-                placement="top"
-              >
-                <IconButton
-                  size="small"
-                  onClick={() => handleClick(heartValue)}
-                  onMouseEnter={() => handleMouseEnter(heartValue)}
-                  disabled={disabled || loading}
-                  sx={{
-                    p: size === 'small' ? 0.25 : 0.5,
-                    transition: 'transform 0.1s ease',
-                    '&:hover': {
-                      transform: 'scale(1.2)',
-                      backgroundColor: 'transparent',
-                    },
-                  }}
-                >
-                  <HeartIcon
-                    fontSize={config.iconSize}
-                    sx={{
-                      color: heartColor,
-                      transition: 'color 0.15s ease',
-                    }}
-                  />
-                </IconButton>
-              </Tooltip>
-            )
-          }
-          
-          return (
-            <Box
-              key={heartValue}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                p: size === 'small' ? 0.125 : 0.25,
-              }}
-            >
-              <HeartIcon
-                fontSize={config.iconSize}
+    <ClickAwayListener onClickAway={handleClickAway}>
+      <Box
+        ref={anchorRef}
+        sx={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: config.spacing,
+          opacity: disabled || loading ? 0.5 : 1,
+          ...sx,
+        }}
+      >
+        {/* Single fillable heart */}
+        <Box>
+          <FillableHeart
+            fillPercent={popperOpen ? displayFillPercent : fillPercent}
+            size={config.heartSize}
+            onClick={handleHeartClick}
+            disabled={disabled || loading}
+            interactive={isInteractive}
+          />
+        </Box>
+
+        {/* Value label */}
+        {showValue && (
+          <Typography
+            sx={{
+              fontSize: config.fontSize,
+              fontWeight: 600,
+              color: value ? '#f43f5e' : 'text.secondary',
+              minWidth: '2em',
+            }}
+          >
+            {value ? `${value}` : '—'}
+          </Typography>
+        )}
+
+        {/* Rating picker popper */}
+        <Popper
+          open={popperOpen}
+          anchorEl={anchorRef.current}
+          placement="bottom-start"
+          transition
+          sx={{ zIndex: 1300 }}
+        >
+          {({ TransitionProps }) => (
+            <Fade {...TransitionProps} timeout={200}>
+              <Paper
+                elevation={8}
                 sx={{
-                  color: heartColor,
+                  p: config.popperPadding,
+                  mt: 1,
+                  borderRadius: 2,
+                  backgroundColor: 'background.paper',
+                  border: '1px solid',
+                  borderColor: 'divider',
                 }}
-              />
-            </Box>
-          )
-        })}
+                onMouseLeave={handleMouseLeave}
+              >
+                {/* Hearts row */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                  {Array.from({ length: maxHearts }, (_, i) => {
+                    const heartValue = i + 1
+                    const isFilled = displayValue !== null && heartValue <= displayValue
+                    const isHovered = hoverValue !== null && heartValue <= hoverValue
+                    
+                    const HeartIcon = isFilled ? FilledHeart : EmptyHeart
+                    
+                    const heartColor = isFilled 
+                      ? isHovered 
+                        ? '#fb7185' // rose-400
+                        : '#f43f5e' // rose-500
+                      : isHovered
+                        ? '#fda4af' // rose-300
+                        : 'rgba(244, 63, 94, 0.3)' // faded rose
+
+                    return (
+                      <IconButton
+                        key={heartValue}
+                        size="small"
+                        onClick={() => handleSelectRating(heartValue)}
+                        onMouseEnter={() => handleMouseEnter(heartValue)}
+                        sx={{
+                          p: 0.5,
+                          transition: 'transform 0.1s ease',
+                          '&:hover': {
+                            transform: 'scale(1.2)',
+                            backgroundColor: 'transparent',
+                          },
+                        }}
+                      >
+                        <HeartIcon
+                          sx={{
+                            fontSize: config.popperHeartSize,
+                            color: heartColor,
+                            transition: 'color 0.15s ease',
+                          }}
+                        />
+                      </IconButton>
+                    )
+                  })}
+                </Box>
+
+                {/* Rating label */}
+                <Box sx={{ 
+                  mt: 1, 
+                  pt: 1, 
+                  borderTop: '1px solid', 
+                  borderColor: 'divider',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}>
+                  <Typography
+                    sx={{
+                      fontSize: config.fontSize,
+                      color: 'text.secondary',
+                    }}
+                  >
+                    {displayValue ? `${displayValue}/10` : 'Select rating'}
+                  </Typography>
+                  {displayValue && (
+                    <Typography
+                      sx={{
+                        fontSize: config.fontSize,
+                        fontWeight: 600,
+                        color: '#f43f5e',
+                      }}
+                    >
+                      {ratingLabels[displayValue]}
+                    </Typography>
+                  )}
+                </Box>
+              </Paper>
+            </Fade>
+          )}
+        </Popper>
       </Box>
-
-      {/* Value label */}
-      {showValue && (
-        <Typography
-          sx={{
-            fontSize: config.fontSize,
-            fontWeight: 600,
-            color: displayValue ? 'rose.500' : 'text.secondary',
-            minWidth: '2.5em',
-          }}
-        >
-          {displayValue ? `${displayValue}/10` : '—'}
-        </Typography>
-      )}
-
-      {/* Rating label on hover */}
-      {isInteractive && hoverValue && (
-        <Typography
-          sx={{
-            fontSize: config.fontSize,
-            color: 'text.secondary',
-            fontStyle: 'italic',
-            ml: 0.5,
-          }}
-        >
-          {ratingLabels[hoverValue]}
-        </Typography>
-      )}
-    </Box>
+    </ClickAwayListener>
   )
 }
-

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -16,6 +16,7 @@ import {
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import { MoviePoster } from '@aperture/ui'
+import { useUserRatings } from '../hooks/useUserRatings'
 
 interface Movie {
   id: string
@@ -29,6 +30,7 @@ interface Movie {
 
 export function MoviesPage() {
   const navigate = useNavigate()
+  const { getRating, setRating } = useUserRatings()
   const [movies, setMovies] = useState<Movie[]>([])
   const [genres, setGenres] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -38,6 +40,17 @@ export function MoviesPage() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const pageSize = 24
+
+  const handleRate = useCallback(
+    async (movieId: string, rating: number | null) => {
+      try {
+        await setRating('movie', movieId, rating)
+      } catch (err) {
+        console.error('Failed to rate movie:', err)
+      }
+    },
+    [setRating]
+  )
 
   useEffect(() => {
     const fetchGenres = async () => {
@@ -166,6 +179,8 @@ export function MoviesPage() {
                   rating={movie.community_rating}
                   genres={movie.genres}
                   overview={movie.overview}
+                  userRating={getRating('movie', movie.id)}
+                  onRate={(rating) => handleRate(movie.id, rating)}
                   size="medium"
                   onClick={() => navigate(`/movies/${movie.id}`)}
                 />

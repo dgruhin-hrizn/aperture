@@ -4,6 +4,7 @@ import { ThemeProvider } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
 import { theme } from './theme'
 import { AuthProvider, useAuth } from './hooks/useAuth'
+import { UserRatingsProvider } from './hooks/useUserRatings'
 import { Layout } from './components/Layout'
 import { AdminLayout } from './components/AdminLayout'
 import { LoginPage } from './pages/Login'
@@ -47,7 +48,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />
   }
 
-  return <>{children}</>
+  // Wrap with UserRatingsProvider so ratings are available everywhere
+  return <UserRatingsProvider>{children}</UserRatingsProvider>
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {

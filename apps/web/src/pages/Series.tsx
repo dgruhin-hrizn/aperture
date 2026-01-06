@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -16,6 +16,7 @@ import {
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import { MoviePoster } from '@aperture/ui'
+import { useUserRatings } from '../hooks/useUserRatings'
 
 interface Series {
   id: string
@@ -32,6 +33,7 @@ interface Series {
 
 export function SeriesPage() {
   const navigate = useNavigate()
+  const { getRating, setRating } = useUserRatings()
   const [series, setSeries] = useState<Series[]>([])
   const [genres, setGenres] = useState<string[]>([])
   const [networks, setNetworks] = useState<string[]>([])
@@ -43,6 +45,17 @@ export function SeriesPage() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const pageSize = 24
+
+  const handleRate = useCallback(
+    async (seriesId: string, rating: number | null) => {
+      try {
+        await setRating('series', seriesId, rating)
+      } catch (err) {
+        console.error('Failed to rate series:', err)
+      }
+    },
+    [setRating]
+  )
 
   useEffect(() => {
     const fetchFilters = async () => {
@@ -198,6 +211,8 @@ export function SeriesPage() {
                   rating={show.community_rating}
                   genres={show.genres}
                   overview={show.overview}
+                  userRating={getRating('series', show.id)}
+                  onRate={(rating) => handleRate(show.id, rating)}
                   size="medium"
                   onClick={() => navigate(`/series/${show.id}`)}
                 />

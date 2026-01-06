@@ -10,8 +10,10 @@ export interface MoviePosterProps {
   year?: number | null
   posterUrl?: string | null
   rating?: number | null
-  /** User's personal rating (1-10) - shows compact heart badge */
+  /** User's personal rating (1-10) */
   userRating?: number | null
+  /** Callback when user rates the content */
+  onRate?: (rating: number | null) => void
   /** Recommendation match score (0-1) - only shown when showScore is true */
   score?: number | null
   genres?: string[]
@@ -22,6 +24,8 @@ export interface MoviePosterProps {
   showScore?: boolean
   /** Hide the community rating badge */
   hideRating?: boolean
+  /** Hide the heart rating button (e.g., on detail pages where it's shown elsewhere) */
+  hideHeartRating?: boolean
   loading?: boolean
   children?: React.ReactNode
 }
@@ -38,6 +42,7 @@ export function MoviePoster({
   posterUrl,
   rating,
   userRating,
+  onRate,
   score,
   genres,
   overview,
@@ -45,6 +50,7 @@ export function MoviePoster({
   size = 'medium',
   showScore = false,
   hideRating = false,
+  hideHeartRating = false,
   loading = false,
   children,
 }: MoviePosterProps) {
@@ -143,17 +149,37 @@ export function MoviePoster({
           />
         )}
 
-        {/* User rating badge - bottom left */}
-        {userRating != null && (
+        {/* Heart rating button - bottom right */}
+        {!hideHeartRating && (
           <Box
+            onClick={(e) => {
+              // Stop propagation so clicking heart doesn't trigger poster onClick
+              e.stopPropagation()
+            }}
             sx={{
               position: 'absolute',
               bottom: 8,
-              left: 8,
-              zIndex: 2,
+              right: 8,
+              zIndex: 4,
+              backgroundColor: 'rgba(0, 0, 0, 0.6)',
+              borderRadius: '50%',
+              p: 0.5,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backdropFilter: 'blur(4px)',
+              transition: 'background-color 0.2s ease',
+              '&:hover': {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              },
             }}
           >
-            <HeartRating value={userRating} compact size="small" readOnly />
+            <HeartRating
+              value={userRating ?? null}
+              onChange={onRate}
+              size="small"
+              readOnly={!onRate}
+            />
           </Box>
         )}
 

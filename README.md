@@ -42,6 +42,8 @@ Aperture creates personalized recommendation libraries for your media server use
 ### Rating System
 
 - **10-Heart Ratings**: Rate content from 1-10 hearts (Trakt.tv compatible)
+- **Rate from Any Poster**: Click the heart icon on any poster to rate instantly
+- **Visual Fill Indicator**: Heart fills proportionally to show current rating
 - **Trakt.tv Sync**: Bidirectional sync of ratings with Trakt
 - **Smart Recommendations**: Ratings influence future recommendations
 

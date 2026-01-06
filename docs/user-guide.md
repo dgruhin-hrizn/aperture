@@ -10,35 +10,44 @@ This guide covers all the features available to Aperture users.
 
 ---
 
-## Home Page
+## Dashboard
 
-Your home page shows:
+Your dashboard shows a unified view of personalized and trending content:
 
-### Quick Stats
+### Quick Stats Bar
 
 - **Movies Watched** — Total movies in your watch history
-- **Favorites** — Movies you've marked as favorites
-- **AI Recommendations** — Number of personalized picks available
+- **Series Watched** — Total series you've started
+- **Ratings Given** — Number of items you've rated
+- **Total Watch Time** — Cumulative viewing time
 
-### Taste Profiles
+### Your Movie Picks
 
-Two AI-generated cards describe your viewing preferences:
-
-- **Movie Taste** — A natural language description of your film preferences
-- **TV Taste** — A description of your series preferences
-
-Click the **refresh button** to regenerate your profile with the latest watch data.
-
-### Your Top Picks
-
-A carousel of AI-recommended movies based on your taste. Each poster shows:
+A two-row carousel of AI-recommended movies based on your taste. Each poster shows:
 
 - **Match Score** — A percentage indicating how well it fits your preferences
+- **Heart Rating** — Click the heart to rate directly from the poster
 - Click any poster to see detailed insights
+
+### Your Series Picks
+
+A two-row carousel of AI-recommended TV series. Same features as movie picks.
+
+### Trending Movies
+
+A carousel of popular movies across all users, ranked by community activity.
+
+### Trending Series
+
+A carousel of popular TV series across all users.
 
 ### Recently Watched
 
-Movies you've recently watched, with play counts and favorite indicators.
+Content you've recently watched, showing time since watch and rewatch counts.
+
+### Recent Ratings
+
+Your most recent ratings with the heart fill indicator.
 
 ---
 
@@ -76,8 +85,10 @@ Navigate to **Top Movies** or **Top Series** in the sidebar to see global trendi
 
 Aperture uses a 10-heart rating system compatible with Trakt.tv:
 
-- Click on any movie or series poster to access the detail page
-- Use the **heart rating** to rate content from 1-10 hearts
+- **Rate from any poster** — Every movie and series poster displays a heart icon in the bottom-right corner
+- **Click the heart** — Opens a 10-heart picker to select your rating (1-10)
+- **Fill indicator** — The heart fills proportionally to show your current rating at a glance
+- **Rate from detail pages** — You can also rate from movie/series detail pages
 - Ratings influence your future recommendations:
   - **High ratings (7-10)** boost similar content
   - **Low ratings (1-3)** can exclude or penalize similar content (based on your preference)
@@ -159,12 +170,22 @@ Navigate to **Watch Stats** in the sidebar for detailed analytics:
 
 Navigate to **Settings** (user icon in sidebar):
 
+### Preferences Tab
+
 - **Movies Library Name** — Customize your AI recommendations movie library name
 - **Series Library Name** — Customize your AI recommendations series library name
 - **Disliked Content Behavior** — Choose how low-rated content affects recommendations
 - **AI Explanation Preference** — If your admin has enabled this option, toggle whether AI explanations appear in your recommendation descriptions
 
 Both library names are optional — leave empty to use the global default templates set by your admin.
+
+### Taste Profile Tab
+
+View your AI-generated taste profiles:
+
+- **Movie Taste** — A natural language description of your film preferences based on your watch history
+- **TV Taste** — A description of your series preferences
+- Click the **refresh button** to regenerate your profile with the latest watch data
 
 ---
 

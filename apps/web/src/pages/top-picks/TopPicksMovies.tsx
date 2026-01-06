@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -18,6 +18,7 @@ import ViewListIcon from '@mui/icons-material/ViewList'
 import PeopleIcon from '@mui/icons-material/People'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import { MoviePoster } from '@aperture/ui'
+import { useUserRatings } from '../../hooks/useUserRatings'
 
 interface PopularMovie {
   movieId: string
@@ -43,11 +44,23 @@ interface TopPicksConfig {
 
 export function TopPicksMoviesPage() {
   const navigate = useNavigate()
+  const { getRating, setRating } = useUserRatings()
   const [movies, setMovies] = useState<PopularMovie[]>([])
   const [config, setConfig] = useState<TopPicksConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+
+  const handleRate = useCallback(
+    async (movieId: string, rating: number | null) => {
+      try {
+        await setRating('movie', movieId, rating)
+      } catch (err) {
+        console.error('Failed to rate movie:', err)
+      }
+    },
+    [setRating]
+  )
 
   useEffect(() => {
     const fetchTopMovies = async () => {
@@ -153,6 +166,8 @@ export function TopPicksMoviesPage() {
                   genres={movie.genres}
                   rating={movie.communityRating}
                   overview={movie.overview}
+                  userRating={getRating('movie', movie.movieId)}
+                  onRate={(rating) => handleRate(movie.movieId, rating)}
                   size="medium"
                   onClick={() => navigate(`/movies/${movie.movieId}`)}
                 />

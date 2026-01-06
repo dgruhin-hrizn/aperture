@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -30,6 +30,7 @@ import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import { MoviePoster } from '@aperture/ui'
 import { useAuth } from '@/hooks/useAuth'
+import { useUserRatings } from '@/hooks/useUserRatings'
 
 interface MovieRecommendation {
   movie_id: string
@@ -81,9 +82,21 @@ type MediaType = 'movies' | 'series'
 export function MyRecommendationsPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { getRating, setRating } = useUserRatings()
   
   // Tab state
   const [mediaType, setMediaType] = useState<MediaType>('movies')
+
+  const handleRate = useCallback(
+    async (type: 'movie' | 'series', id: string, rating: number | null) => {
+      try {
+        await setRating(type, id, rating)
+      } catch (err) {
+        console.error('Failed to rate:', err)
+      }
+    },
+    [setRating]
+  )
   
   // Movie recommendations state
   const [movieRecommendations, setMovieRecommendations] = useState<MovieRecommendation[]>([])
@@ -467,6 +480,7 @@ export function MyRecommendationsPage() {
         <Grid container spacing={2}>
           {recommendations.map((rec, index) => {
             const { id, item, navigateTo } = getItemProps(rec)
+            const type = mediaType === 'movies' ? 'movie' : 'series'
             return (
               <Grid item key={id}>
                 <Box position="relative">
@@ -480,6 +494,8 @@ export function MyRecommendationsPage() {
                     score={rec.final_score}
                     showScore
                     hideRating
+                    userRating={getRating(type, id)}
+                    onRate={(rating) => handleRate(type, id, rating)}
                     size="medium"
                     onClick={() => navigate(navigateTo)}
                   />
