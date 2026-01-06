@@ -238,6 +238,8 @@ export {
   setAiRecsOutputConfig,
   getAiExplanationConfig,
   setAiExplanationConfig,
+  getLibraryTitleConfig,
+  setLibraryTitleConfig,
   type SystemSetting,
   type EmbeddingModel,
   type TextGenerationModel,
@@ -245,6 +247,7 @@ export {
   type MediaServerConfig,
   type AiRecsOutputConfig,
   type AiExplanationConfig,
+  type LibraryTitleConfig,
 } from './settings/systemSettings.js'
 
 // Top Picks

@@ -21,3 +21,5 @@ export {
   type SelectionResult,
 } from './selection.js'
 
+export { averageEmbeddings } from './embeddings.js'
+

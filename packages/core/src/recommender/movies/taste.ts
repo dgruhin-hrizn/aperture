@@ -1,6 +1,7 @@
 import { createChildLogger } from '../../lib/logger.js'
 import { query } from '../../lib/db.js'
-import { averageEmbeddings, getMovieEmbedding } from './embeddings.js'
+import { getMovieEmbedding } from './embeddings.js'
+import { averageEmbeddings } from '../shared/index.js'
 import type { WatchedMovie } from '../types.js'
 
 const logger = createChildLogger('recommender-taste')

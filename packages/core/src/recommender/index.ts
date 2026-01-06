@@ -3,6 +3,9 @@ export * from './types.js'
 export * from './config.js'
 export * from './storage.js'
 
+// Shared utilities (used by both movies and series)
+export { averageEmbeddings } from './shared/embeddings.js'
+
 // Movie recommendation exports
 export {
   buildCanonicalText,
@@ -11,7 +14,6 @@ export {
   getMoviesWithoutEmbeddings,
   generateMissingEmbeddings,
   getMovieEmbedding,
-  averageEmbeddings,
 } from './movies/embeddings.js'
 
 export {

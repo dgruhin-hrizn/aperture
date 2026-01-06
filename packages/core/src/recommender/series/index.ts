@@ -14,9 +14,6 @@ export {
   getSeriesEpisodeEmbeddings,
 } from './embeddings.js'
 
-// Re-export shared utility from movies
-export { averageEmbeddings } from '../movies/embeddings.js'
-
 export {
   generateSeriesRecommendationsForUser,
   generateSeriesRecommendationsForAllUsers,
@@ -27,6 +24,20 @@ export {
   type SeriesCandidate,
   type SeriesPipelineConfig,
 } from './pipeline.js'
+
+export {
+  storeSeriesEvidence,
+  getSeriesOverviews,
+  clearUserSeriesRecommendations as clearSeriesRecommendations,
+  finalizeSeriesRun,
+} from './storage.js'
+
+export {
+  generateSeriesExplanations,
+  storeSeriesExplanations,
+  type SeriesForExplanation,
+  type SeriesExplanationResult,
+} from './explanations.js'
 
 export {
   syncSeries,

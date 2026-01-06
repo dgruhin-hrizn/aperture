@@ -4,7 +4,7 @@ import { createChildLogger } from '../lib/logger.js'
 import { query, queryOne } from '../lib/db.js'
 import { getConfig } from './config.js'
 import { downloadImage } from './images.js'
-import { generateNfoContent } from './nfo.js'
+import { generateNfoContent } from './movies/nfo.js'
 import {
   buildStrmFilename,
   buildNfoFilename,

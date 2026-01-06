@@ -17,12 +17,18 @@ import {
 } from '../../jobs/progress.js'
 import { randomUUID } from 'crypto'
 import { getEmbeddingModel } from '../../settings/systemSettings.js'
-import { averageEmbeddings } from '../movies/embeddings.js'
+import { averageEmbeddings } from '../shared/index.js'
 import {
   calculateRatingScore,
   calculateNoveltyScore,
   applyDiversitySelection,
 } from '../shared/index.js'
+import { storeSeriesEvidence, getSeriesOverviews } from './storage.js'
+import {
+  generateSeriesExplanations,
+  storeSeriesExplanations,
+  type SeriesForExplanation,
+} from './explanations.js'
 
 const logger = createChildLogger('series-recommender')
 
@@ -588,6 +594,42 @@ export async function generateSeriesRecommendationsForUser(
     // 7. Store results
     logger.info({ runId }, '💾 Storing candidates...')
     await storeSeriesCandidates(runId, scoredCandidates, selected, selectedRanks)
+
+    // 8. Store evidence (similar watched series for each recommendation)
+    logger.info({ runId }, '📊 Storing recommendation evidence...')
+    await storeSeriesEvidence(runId, selected, watchedSeries)
+
+    // 9. Generate AI explanations for selected recommendations
+    logger.info({ runId }, '🤖 Generating AI explanations...')
+    try {
+      // Fetch overviews for selected series
+      const seriesOverviews = await getSeriesOverviews(selected.map((s) => s.seriesId))
+
+      // Prepare data for explanation generation
+      const seriesForExplanation: SeriesForExplanation[] = selected.map((s) => ({
+        seriesId: s.seriesId,
+        title: s.title,
+        year: s.year,
+        genres: s.genres,
+        overview: seriesOverviews.get(s.seriesId) || null,
+        network: s.network,
+        status: s.status,
+        similarity: s.similarity,
+        novelty: s.novelty,
+        ratingScore: s.ratingScore,
+      }))
+
+      // Generate explanations using embedding-based evidence
+      const explanations = await generateSeriesExplanations(runId, user.id, seriesForExplanation)
+      await storeSeriesExplanations(runId, explanations)
+      logger.info({ runId, count: explanations.length }, '✅ AI explanations stored')
+    } catch (explanationError) {
+      // Don't fail the whole run if explanations fail
+      logger.warn(
+        { runId, error: explanationError },
+        '⚠️ Failed to generate explanations, continuing without'
+      )
+    }
 
     const duration = Date.now() - startTime
     await finalizeSeriesRun(runId, scoredCandidates.length, selected.length, duration, 'completed')

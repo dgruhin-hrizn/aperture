@@ -10,29 +10,20 @@ import { createChildLogger } from '../../lib/logger.js'
 import { query, queryOne } from '../../lib/db.js'
 import { getMediaServerProvider } from '../../media/index.js'
 import { getConfig } from '../config.js'
+import { getEffectiveLibraryTitle } from '../../lib/userSettings.js'
 import type { StrmConfig } from '../types.js'
 
 const logger = createChildLogger('strm-series-library')
 
 /**
- * Get the custom series library name for a user, or fall back to default
+ * Get the custom series library name for a user, or fall back to default template
  */
 export async function getUserSeriesLibraryName(
   userId: string,
   displayName: string,
-  config: StrmConfig
+  _config: StrmConfig
 ): Promise<string> {
-  const settings = await queryOne<{ series_library_name: string | null }>(
-    `SELECT series_library_name FROM user_settings WHERE user_id = $1`,
-    [userId]
-  )
-
-  if (settings?.series_library_name) {
-    return settings.series_library_name
-  }
-
-  // Fall back to default with "TV" suffix
-  return `${config.libraryNamePrefix}${displayName} TV`
+  return getEffectiveLibraryTitle(userId, displayName, 'series')
 }
 
 /**

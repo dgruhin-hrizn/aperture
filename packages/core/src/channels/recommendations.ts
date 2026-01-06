@@ -1,6 +1,7 @@
 import { createChildLogger } from '../lib/logger.js'
 import { query, queryOne } from '../lib/db.js'
-import { getMovieEmbedding, averageEmbeddings } from '../recommender/movies/embeddings.js'
+import { getMovieEmbedding } from '../recommender/movies/embeddings.js'
+import { averageEmbeddings } from '../recommender/shared/embeddings.js'
 import type { ChannelRecommendation } from './types.js'
 import { weightedRandomSample } from './utils.js'
 

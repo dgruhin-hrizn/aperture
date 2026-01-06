@@ -6,7 +6,6 @@ export {
   getMoviesWithoutEmbeddings,
   generateMissingEmbeddings,
   getMovieEmbedding,
-  averageEmbeddings,
 } from './embeddings.js'
 
 export {

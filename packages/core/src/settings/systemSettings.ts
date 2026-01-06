@@ -437,3 +437,50 @@ export async function setAiExplanationConfig(config: Partial<AiExplanationConfig
   return getAiExplanationConfig()
 }
 
+// ============================================================================
+// Library Title Template Settings
+// ============================================================================
+
+export interface LibraryTitleConfig {
+  moviesTemplate: string
+  seriesTemplate: string
+}
+
+// Default templates if not configured
+const DEFAULT_MOVIES_TEMPLATE = "{{username}}'s AI Picks - Movies"
+const DEFAULT_SERIES_TEMPLATE = "{{username}}'s AI Picks - TV Series"
+
+/**
+ * Get library title template configuration
+ */
+export async function getLibraryTitleConfig(): Promise<LibraryTitleConfig> {
+  const moviesTemplate = await getSystemSetting('ai_library_movies_title_template')
+  const seriesTemplate = await getSystemSetting('ai_library_series_title_template')
+
+  return {
+    moviesTemplate: moviesTemplate || DEFAULT_MOVIES_TEMPLATE,
+    seriesTemplate: seriesTemplate || DEFAULT_SERIES_TEMPLATE,
+  }
+}
+
+/**
+ * Set library title template configuration
+ */
+export async function setLibraryTitleConfig(config: Partial<LibraryTitleConfig>): Promise<LibraryTitleConfig> {
+  if (config.moviesTemplate !== undefined) {
+    await setSystemSetting(
+      'ai_library_movies_title_template',
+      config.moviesTemplate,
+      'Default title template for AI movie libraries. Supports: {{username}}, {{type}}, {{count}}, {{date}}'
+    )
+  }
+  if (config.seriesTemplate !== undefined) {
+    await setSystemSetting(
+      'ai_library_series_title_template',
+      config.seriesTemplate,
+      'Default title template for AI series libraries. Supports: {{username}}, {{type}}, {{count}}, {{date}}'
+    )
+  }
+  return getLibraryTitleConfig()
+}
+

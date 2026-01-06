@@ -206,3 +206,77 @@ export async function getEffectiveAiExplanationSetting(userId: string): Promise<
   return globalConfig.enabled
 }
 
+// ============================================================================
+// Library Title Template Processing
+// ============================================================================
+
+export interface TitleTemplateContext {
+  username: string
+  type: 'Movies' | 'TV Series'
+  count?: number
+  date?: string
+}
+
+/**
+ * Process a library title template by replacing merge tags with actual values
+ * 
+ * Supported tags:
+ * - {{username}} - User's display name
+ * - {{type}} - Media type ('Movies' or 'TV Series')
+ * - {{count}} - Number of recommendations (optional)
+ * - {{date}} - Date of last recommendation run (optional)
+ */
+export function processLibraryTitle(template: string, context: TitleTemplateContext): string {
+  return template
+    .replace(/\{\{username\}\}/gi, context.username)
+    .replace(/\{\{type\}\}/gi, context.type)
+    .replace(/\{\{count\}\}/gi, context.count !== undefined ? String(context.count) : '')
+    .replace(/\{\{date\}\}/gi, context.date || '')
+    // Clean up any leftover empty segments (e.g., "Title -  " becomes "Title")
+    .replace(/\s+-\s*$/g, '')
+    .replace(/\s+\(\s*\)/g, '')
+    .trim()
+}
+
+/**
+ * Get the effective library title for a user
+ * 
+ * Priority:
+ * 1. User's custom library name (if set)
+ * 2. Global template with merge tags replaced
+ */
+export async function getEffectiveLibraryTitle(
+  userId: string,
+  displayName: string,
+  mediaType: 'movies' | 'series',
+  count?: number
+): Promise<string> {
+  // Check for user's custom library name
+  const settings = await getUserSettings(userId)
+  
+  if (mediaType === 'movies' && settings.libraryName) {
+    return settings.libraryName
+  }
+  
+  if (mediaType === 'series' && settings.seriesLibraryName) {
+    return settings.seriesLibraryName
+  }
+  
+  // Use global template
+  const { getLibraryTitleConfig } = await import('../settings/systemSettings.js')
+  const titleConfig = await getLibraryTitleConfig()
+  
+  const template = mediaType === 'movies' 
+    ? titleConfig.moviesTemplate 
+    : titleConfig.seriesTemplate
+  
+  const context: TitleTemplateContext = {
+    username: displayName,
+    type: mediaType === 'movies' ? 'Movies' : 'TV Series',
+    count,
+    date: new Date().toISOString().split('T')[0],
+  }
+  
+  return processLibraryTitle(template, context)
+}
+

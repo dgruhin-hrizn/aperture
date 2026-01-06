@@ -17,7 +17,7 @@ import {
 } from '../jobs/progress.js'
 import { randomUUID } from 'crypto'
 import { getEmbeddingModel } from '../settings/systemSettings.js'
-import { averageEmbeddings } from './embeddings.js'
+import { averageEmbeddings } from './shared/index.js'
 
 const logger = createChildLogger('series-recommender')
 

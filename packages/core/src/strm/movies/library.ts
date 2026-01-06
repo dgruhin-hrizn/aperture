@@ -3,26 +3,16 @@ import { createChildLogger } from '../../lib/logger.js'
 import { query, queryOne } from '../../lib/db.js'
 import { getMediaServerProvider } from '../../media/index.js'
 import { getConfig } from '../config.js'
+import { getEffectiveLibraryTitle } from '../../lib/userSettings.js'
 import type { StrmConfig } from '../types.js'
 
 const logger = createChildLogger('strm-library')
 
 /**
- * Get the custom library name for a user, or fall back to default
+ * Get the custom library name for a user, or fall back to default template
  */
-export async function getUserLibraryName(userId: string, displayName: string, config: StrmConfig): Promise<string> {
-  // Check for custom library name in user settings
-  const settings = await queryOne<{ library_name: string | null }>(
-    `SELECT library_name FROM user_settings WHERE user_id = $1`,
-    [userId]
-  )
-
-  if (settings?.library_name) {
-    return settings.library_name
-  }
-
-  // Fall back to default prefix + display name
-  return `${config.libraryNamePrefix}${displayName}`
+export async function getUserLibraryName(userId: string, displayName: string, _config: StrmConfig): Promise<string> {
+  return getEffectiveLibraryTitle(userId, displayName, 'movies')
 }
 
 /**

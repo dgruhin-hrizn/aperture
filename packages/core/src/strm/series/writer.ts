@@ -3,6 +3,7 @@
  *
  * Writes STRM files (or symlinks) for TV series recommendations, organizing them
  * with proper season/episode folder structures for Emby/Jellyfin.
+ * Includes comprehensive NFO generation and poster images with rank badges.
  */
 
 import fs from 'fs/promises'
@@ -12,28 +13,13 @@ import { query, queryOne } from '../../lib/db.js'
 import { getConfig } from '../config.js'
 import { getAiRecsOutputConfig } from '../../settings/systemSettings.js'
 import { getMediaServerProvider } from '../../media/index.js'
+import { downloadImage } from '../images.js'
+import { generateSeriesNfoContent } from './nfo.js'
+import { getEffectiveAiExplanationSetting } from '../../lib/userSettings.js'
+import type { Series, Actor, SeriesImageDownloadTask } from './types.js'
+import type { ImageDownloadTask } from '../types.js'
 
 const logger = createChildLogger('strm-series-writer')
-
-interface RecommendedSeries {
-  seriesId: string
-  providerItemId: string
-  title: string
-  originalTitle: string | null
-  year: number | null
-  overview: string | null
-  genres: string[] | null
-  contentRating: string | null
-  network: string | null
-  status: string | null
-  posterUrl: string | null
-  backdropUrl: string | null
-  imdbId: string | null
-  tmdbId: string | null
-  tvdbId: string | null
-  rank: number
-  finalScore: number | null
-}
 
 interface EpisodeInfo {
   episodeId: string
@@ -60,61 +46,15 @@ function sanitizeForFilename(input: string): string {
 }
 
 /**
- * Generate NFO content for a TV series
+ * Escape XML special characters
  */
-function generateSeriesNfoContent(series: RecommendedSeries): string {
-  const lines = [
-    '<?xml version="1.0" encoding="utf-8"?>',
-    '<tvshow>',
-    `  <title>${escapeXml(series.title)}</title>`,
-  ]
-
-  if (series.originalTitle) {
-    lines.push(`  <originaltitle>${escapeXml(series.originalTitle)}</originaltitle>`)
-  }
-
-  lines.push(`  <sorttitle>${escapeXml(series.title)}</sorttitle>`)
-
-  if (series.year) {
-    lines.push(`  <year>${series.year}</year>`)
-  }
-
-  if (series.overview) {
-    lines.push(`  <plot>${escapeXml(series.overview)}</plot>`)
-  }
-
-  if (series.genres) {
-    for (const genre of series.genres) {
-      lines.push(`  <genre>${escapeXml(genre)}</genre>`)
-    }
-  }
-
-  if (series.contentRating) {
-    lines.push(`  <mpaa>${escapeXml(series.contentRating)}</mpaa>`)
-  }
-
-  if (series.network) {
-    lines.push(`  <studio>${escapeXml(series.network)}</studio>`)
-  }
-
-  if (series.status) {
-    lines.push(`  <status>${escapeXml(series.status)}</status>`)
-  }
-
-  // External IDs
-  if (series.imdbId) {
-    lines.push(`  <uniqueid type="imdb">${escapeXml(series.imdbId)}</uniqueid>`)
-  }
-  if (series.tmdbId) {
-    lines.push(`  <uniqueid type="tmdb">${escapeXml(series.tmdbId)}</uniqueid>`)
-  }
-  if (series.tvdbId) {
-    lines.push(`  <uniqueid type="tvdb" default="true">${escapeXml(series.tvdbId)}</uniqueid>`)
-  }
-
-  lines.push('</tvshow>')
-
-  return lines.join('\n')
+function escapeXml(input: string): string {
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
 }
 
 /**
@@ -151,15 +91,6 @@ function generateEpisodeNfoContent(episode: EpisodeInfo, seriesTitle: string): s
   return lines.join('\n')
 }
 
-function escapeXml(input: string): string {
-  return input
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;')
-}
-
 /**
  * Write STRM files (or symlinks) for a user's series recommendations
  */
@@ -184,6 +115,10 @@ export async function writeSeriesStrmFilesForUser(
 
   logger.info({ userId, localPath, embyPath, useSymlinks }, `📺 Starting series ${useSymlinks ? 'symlink' : 'STRM'} file generation`)
 
+  // Check if AI explanation should be included for this user
+  const includeAiExplanation = await getEffectiveAiExplanationSetting(userId)
+  logger.info({ userId, includeAiExplanation }, '🎯 AI explanation setting resolved')
+
   await fs.mkdir(localPath, { recursive: true })
 
   // Get user's latest series recommendations
@@ -199,30 +134,54 @@ export async function writeSeriesStrmFilesForUser(
     return { written: 0, deleted: 0, localPath, embyPath }
   }
 
-  // Get selected series from the run
+  // Get selected series from the run with full metadata for NFO generation
   const recommendations = await query<{
     series_id: string
     provider_item_id: string
     title: string
     original_title: string | null
+    sort_title: string | null
     year: number | null
+    end_year: number | null
+    premiere_date: string | Date | null
     overview: string | null
-    genres: string[] | null
+    tagline: string | null
+    community_rating: string | null
+    critic_rating: string | null
     content_rating: string | null
-    network: string | null
-    status: string | null
+    runtime_minutes: number | null
+    genres: string[] | null
     poster_url: string | null
     backdrop_url: string | null
+    studios: string | null
+    directors: string[] | null
+    writers: string[] | null
+    actors: string | null
+    network: string | null
+    status: string | null
+    total_seasons: number | null
+    total_episodes: number | null
+    air_days: string[] | null
     imdb_id: string | null
     tmdb_id: string | null
     tvdb_id: string | null
+    tags: string[] | null
+    production_countries: string[] | null
+    awards: string | null
+    ai_explanation: string | null
     rank: number
     final_score: string | null
   }>(
-    `SELECT rc.series_id, s.provider_item_id, s.title, s.original_title,
-            s.year, s.overview, s.genres, s.content_rating, s.network, s.status,
-            s.poster_url, s.backdrop_url, s.imdb_id, s.tmdb_id, s.tvdb_id,
-            rc.selected_rank as rank, rc.final_score
+    `SELECT rc.series_id, s.provider_item_id, s.title, s.original_title, s.sort_title,
+            s.year, s.end_year, 
+            (SELECT MIN(premiere_date) FROM episodes WHERE series_id = s.id) as premiere_date,
+            s.overview, s.tagline, s.community_rating, s.critic_rating, s.content_rating,
+            (SELECT AVG(runtime_minutes) FROM episodes WHERE series_id = s.id) as runtime_minutes,
+            s.genres, s.poster_url, s.backdrop_url,
+            s.studios::text, s.directors, s.writers, s.actors::text,
+            s.network, s.status, s.total_seasons, s.total_episodes, s.air_days,
+            s.imdb_id, s.tmdb_id, s.tvdb_id, s.tags, s.production_countries, s.awards,
+            rc.ai_explanation, rc.selected_rank as rank, rc.final_score
      FROM recommendation_candidates rc
      JOIN series s ON s.id = rc.series_id
      WHERE rc.run_id = $1 AND rc.is_selected = true
@@ -234,29 +193,78 @@ export async function writeSeriesStrmFilesForUser(
   logger.info({ count: totalSeries }, '📺 Found series recommendations')
 
   const expectedFolders = new Set<string>()
+  const imageDownloads: ImageDownloadTask[] = []
   let filesWritten = 0
 
+  // Calculate dateAdded timestamps based on rank (Rank 1 = newest)
+  const now = Date.now()
+  const INTERVAL_MS = 60 * 1000 // 1 minute between each rank
+
   // Process each series
-  for (const rec of recommendations.rows) {
-    const series: RecommendedSeries = {
-      seriesId: rec.series_id,
+  for (let i = 0; i < recommendations.rows.length; i++) {
+    const rec = recommendations.rows[i]
+    
+    // Parse actors JSON
+    let actors: Actor[] | null = null
+    if (rec.actors) {
+      try {
+        actors = JSON.parse(rec.actors)
+      } catch {
+        actors = null
+      }
+    }
+
+    // Parse studios JSON
+    let studios: Array<string | { id?: string; name: string; imageTag?: string }> | null = null
+    if (rec.studios) {
+      try {
+        studios = JSON.parse(rec.studios)
+      } catch {
+        studios = null
+      }
+    }
+
+    const series: Series = {
+      id: rec.series_id,
       providerItemId: rec.provider_item_id,
       title: rec.title,
       originalTitle: rec.original_title,
+      sortTitle: rec.sort_title,
       year: rec.year,
+      endYear: rec.end_year,
+      premiereDate: rec.premiere_date,
       overview: rec.overview,
-      genres: rec.genres,
+      tagline: rec.tagline,
+      communityRating: rec.community_rating ? parseFloat(rec.community_rating) : null,
+      criticRating: rec.critic_rating ? parseFloat(rec.critic_rating) : null,
       contentRating: rec.content_rating,
-      network: rec.network,
-      status: rec.status,
+      runtimeMinutes: rec.runtime_minutes ? Math.round(rec.runtime_minutes) : null,
+      genres: rec.genres,
       posterUrl: rec.poster_url,
       backdropUrl: rec.backdrop_url,
+      studios,
+      directors: rec.directors,
+      writers: rec.writers,
+      actors,
+      network: rec.network,
+      status: rec.status,
+      totalSeasons: rec.total_seasons,
+      totalEpisodes: rec.total_episodes,
+      airDays: rec.air_days,
       imdbId: rec.imdb_id,
       tmdbId: rec.tmdb_id,
       tvdbId: rec.tvdb_id,
+      tvmazeId: null, // Not stored in our DB currently
+      tags: rec.tags,
+      productionCountries: rec.production_countries,
+      awards: rec.awards,
+      aiExplanation: rec.ai_explanation,
       rank: rec.rank,
-      finalScore: rec.final_score ? parseFloat(rec.final_score) : null,
+      matchScore: rec.final_score ? Math.round(parseFloat(rec.final_score) * 100) : 0,
     }
+
+    // Calculate dateAdded: Rank 1 = now, Rank 2 = now - 1 min, etc.
+    const dateAdded = new Date(now - (rec.rank - 1) * INTERVAL_MS)
 
     // Create series folder
     const seriesFolderName = series.year
@@ -267,28 +275,48 @@ export async function writeSeriesStrmFilesForUser(
 
     await fs.mkdir(seriesFolderPath, { recursive: true })
 
-    // Write series NFO (tvshow.nfo)
+    // Write series NFO (tvshow.nfo) with comprehensive metadata
     const seriesNfoPath = path.join(seriesFolderPath, 'tvshow.nfo')
-    await fs.writeFile(seriesNfoPath, generateSeriesNfoContent(series), 'utf-8')
+    const nfoContent = generateSeriesNfoContent(series, {
+      includeImageUrls: !config.downloadImages,
+      dateAdded,
+      includeAiExplanation,
+    })
+    await fs.writeFile(seriesNfoPath, nfoContent, 'utf-8')
     filesWritten++
+
+    // Queue images for download with rank badges
+    if (config.downloadImages) {
+      if (series.posterUrl) {
+        imageDownloads.push({
+          url: series.posterUrl,
+          path: path.join(seriesFolderPath, 'poster.jpg'),
+          movieTitle: series.title,
+          isPoster: true,
+          rank: series.rank,
+          matchScore: series.matchScore,
+        })
+      }
+      if (series.backdropUrl) {
+        imageDownloads.push({
+          url: series.backdropUrl,
+          path: path.join(seriesFolderPath, 'fanart.jpg'),
+          movieTitle: series.title,
+          isPoster: false,
+        })
+      }
+    }
 
     if (useSymlinks) {
       // SYMLINKS MODE: Symlink entire season folders from original location
-      // Query for season paths (derive from episode paths)
       const seasonPaths = await query<{ season_number: number; season_path: string }>(
         `SELECT DISTINCT season_number, 
                 regexp_replace(path, '/[^/]+$', '') as season_path
          FROM episodes 
          WHERE series_id = $1 AND path IS NOT NULL
          ORDER BY season_number`,
-        [series.seriesId]
+        [series.id]
       )
-
-      // Try to get the original series folder for fanart
-      let originalSeriesFolder: string | null = null
-      if (seasonPaths.rows.length > 0) {
-        originalSeriesFolder = path.dirname(seasonPaths.rows[0].season_path)
-      }
 
       // Create symlinks to each season folder
       for (const season of seasonPaths.rows) {
@@ -312,29 +340,12 @@ export async function writeSeriesStrmFilesForUser(
         }
       }
 
-      // Symlink fanart from original series folder
-      if (originalSeriesFolder) {
-        const fanartPath = path.join(originalSeriesFolder, 'fanart.jpg')
-        try {
-          const fanartSymlinkPath = path.join(seriesFolderPath, 'fanart.jpg')
-          try {
-            await fs.lstat(fanartSymlinkPath)
-            await fs.unlink(fanartSymlinkPath)
-          } catch {
-            // File doesn't exist, that's fine
-          }
-          await fs.symlink(fanartPath, fanartSymlinkPath)
-        } catch {
-          // Fanart symlink failed, that's okay
-        }
-      }
-
       logger.info(
         { series: series.title, seasons: seasonPaths.rows.length },
         '🔗 Series symlinks created'
       )
     } else {
-      // STRM MODE: Create STRM files for each episode (original behavior)
+      // STRM MODE: Create STRM files for each episode
       const episodes = await query<{
         id: string
         provider_item_id: string
@@ -352,7 +363,7 @@ export async function writeSeriesStrmFilesForUser(
          FROM episodes
          WHERE series_id = $1
          ORDER BY season_number, episode_number`,
-        [series.seriesId]
+        [series.id]
       )
 
       // Group episodes by season
@@ -391,7 +402,6 @@ export async function writeSeriesStrmFilesForUser(
 
           // Write STRM file
           const strmPath = path.join(seasonFolderPath, `${episodeFilename}.strm`)
-          // Try to use direct path first, fall back to streaming URL
           let strmContent: string
           if (episode.path && !config.useStreamingUrl) {
             strmContent = episode.path
@@ -413,6 +423,48 @@ export async function writeSeriesStrmFilesForUser(
         '✅ Series processed'
       )
     }
+  }
+
+  // Download images in parallel batches
+  if (imageDownloads.length > 0) {
+    const IMAGE_BATCH_SIZE = 10
+    const totalImageBatches = Math.ceil(imageDownloads.length / IMAGE_BATCH_SIZE)
+
+    logger.info(
+      {
+        total: imageDownloads.length,
+        batchSize: IMAGE_BATCH_SIZE,
+        totalBatches: totalImageBatches,
+      },
+      '📥 Starting series image downloads...'
+    )
+
+    const imageStartTime = Date.now()
+    for (let i = 0; i < imageDownloads.length; i += IMAGE_BATCH_SIZE) {
+      const batchNum = Math.floor(i / IMAGE_BATCH_SIZE) + 1
+      const batch = imageDownloads.slice(i, i + IMAGE_BATCH_SIZE)
+
+      logger.info(
+        {
+          batch: batchNum,
+          of: totalImageBatches,
+          count: batch.length,
+        },
+        `📥 Downloading image batch ${batchNum}/${totalImageBatches}...`
+      )
+
+      await Promise.all(batch.map((task) => downloadImage(task)))
+      logger.info({ batch: batchNum }, `✅ Image batch ${batchNum} complete`)
+    }
+
+    const imageDuration = Date.now() - imageStartTime
+    logger.info(
+      {
+        downloaded: imageDownloads.length,
+        durationMs: imageDuration,
+      },
+      '✅ All series images downloaded'
+    )
   }
 
   // Delete old series folders not in current recommendations
@@ -447,6 +499,7 @@ export async function writeSeriesStrmFilesForUser(
       userId,
       series: totalSeries,
       filesWritten,
+      imagesDownloaded: imageDownloads.length,
       deleted,
       durationMs: totalDuration,
       localPath,

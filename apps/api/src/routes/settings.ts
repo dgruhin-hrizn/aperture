@@ -32,6 +32,8 @@ import {
   setUserAiExplanationOverride,
   setUserAiExplanationPreference,
   getEffectiveAiExplanationSetting,
+  getLibraryTitleConfig,
+  setLibraryTitleConfig,
   type EmbeddingModel,
   type MediaServerType,
   type TextGenerationModel,
@@ -1272,6 +1274,81 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     } catch (err) {
       fastify.log.error({ err }, 'Failed to update user AI explanation preference')
       return reply.status(500).send({ error: 'Failed to update AI explanation preference' })
+    }
+  })
+
+  // =========================================================================
+  // Library Title Templates (Admin Only)
+  // =========================================================================
+
+  /**
+   * GET /api/settings/library-titles
+   * Get library title template configuration
+   */
+  fastify.get(
+    '/api/settings/library-titles',
+    { preHandler: requireAdmin },
+    async (_request, reply) => {
+      try {
+        const config = await getLibraryTitleConfig()
+        return reply.send({
+          ...config,
+          supportedMergeTags: [
+            { tag: '{{username}}', description: "User's display name" },
+            { tag: '{{type}}', description: 'Media type (Movies or TV Series)' },
+            { tag: '{{count}}', description: 'Number of recommendations (optional)' },
+            { tag: '{{date}}', description: 'Date of last recommendation run (optional)' },
+          ],
+        })
+      } catch (err) {
+        fastify.log.error({ err }, 'Failed to get library title config')
+        return reply.status(500).send({ error: 'Failed to get library title configuration' })
+      }
+    }
+  )
+
+  /**
+   * PATCH /api/settings/library-titles
+   * Update library title template configuration
+   */
+  fastify.patch<{
+    Body: {
+      moviesTemplate?: string
+      seriesTemplate?: string
+    }
+  }>('/api/settings/library-titles', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const { moviesTemplate, seriesTemplate } = request.body
+
+      // Validate templates
+      if (moviesTemplate !== undefined && typeof moviesTemplate !== 'string') {
+        return reply.status(400).send({ error: 'moviesTemplate must be a string' })
+      }
+      if (seriesTemplate !== undefined && typeof seriesTemplate !== 'string') {
+        return reply.status(400).send({ error: 'seriesTemplate must be a string' })
+      }
+
+      // Check for invalid characters in templates
+      const invalidChars = /[<>:"/\\|?*]/
+      if (moviesTemplate && invalidChars.test(moviesTemplate.replace(/\{\{[^}]+\}\}/g, ''))) {
+        return reply.status(400).send({ 
+          error: 'moviesTemplate contains invalid characters for file paths' 
+        })
+      }
+      if (seriesTemplate && invalidChars.test(seriesTemplate.replace(/\{\{[^}]+\}\}/g, ''))) {
+        return reply.status(400).send({ 
+          error: 'seriesTemplate contains invalid characters for file paths' 
+        })
+      }
+
+      const config = await setLibraryTitleConfig(request.body)
+      return reply.send({
+        ...config,
+        message: 'Library title templates updated',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to update library title config')
+      return reply.status(500).send({ error: 'Failed to update library title configuration' })
     }
   })
 }
