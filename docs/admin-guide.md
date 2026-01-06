@@ -277,6 +277,67 @@ Use purge if you need to start fresh or switch media servers.
 
 ---
 
+## Library Image Management
+
+Navigate to **Admin → Settings → Setup → Library Images**
+
+Customize the banner images for Aperture-created libraries (AI Recommendations and Top Picks).
+
+### Image Types
+
+| Library Type            | Description                              |
+| ----------------------- | ---------------------------------------- |
+| AI Recommendations Movies | Banner for all users' movie rec libraries |
+| AI Recommendations Series | Banner for all users' series rec libraries |
+| Top Picks Movies        | Banner for the Top Picks movies library  |
+| Top Picks Series        | Banner for the Top Picks series library  |
+
+### Image Specifications
+
+- **Aspect Ratio**: 16:9 (banner format)
+- **Recommended Size**: 1920×1080 pixels
+- **Format**: JPG or PNG
+
+### How It Works
+
+1. Upload a banner image for each library type
+2. Images are stored locally and synced to your media server
+3. When library sync jobs run, the banner is applied to the library
+4. All users' libraries of that type will use the same image
+
+### Importing from Emby/Jellyfin
+
+If you've already set a library image in your media server:
+
+1. Click **Import from Emby** on the library card
+2. The existing image will be downloaded and stored in Aperture
+3. Future syncs will use the Aperture-managed image
+
+---
+
+## Emby Home Row Sorting (Series)
+
+Aperture includes a workaround for Emby's series sorting limitation on home rows.
+
+### The Problem
+
+Emby sorts series on home rows (like "Latest") by the most recent episode's `dateadded`. This means your carefully ranked series recommendations appear in random order based on when episodes were added to your library.
+
+### The Solution
+
+Aperture creates a hidden "Season 00" in each recommended series with a placeholder episode. This placeholder has a `dateadded` set 100 years in the future, based on the series rank. Higher-ranked series get dates further in the future, ensuring they appear first.
+
+### Technical Details
+
+- A `Season 00` folder is created with a minimal NFO and STRM file
+- The placeholder is automatically marked as "watched" to prevent it appearing in "Continue Watching"
+- Aperture filters these placeholders from watch history sync
+- The NFO includes a clear comment explaining its purpose
+
+This feature is automatic and requires no configuration.
+
+---
+
 ## Recommended Workflow
 
 For best results, schedule jobs to run automatically:

@@ -1,5 +1,6 @@
 # Aperture
 
+[![Version](https://img.shields.io/badge/version-0.1.6-blue.svg)](https://github.com/dgruhin-hrizn/aperture/releases)
 [![Docker Image](https://img.shields.io/badge/docker-ghcr.io%2Fdgruhin--hrizn%2Faperture-blue?logo=docker)](https://github.com/dgruhin-hrizn/aperture/pkgs/container/aperture)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -66,6 +67,14 @@ Aperture creates personalized recommendation libraries for your media server use
 - **Popularity-Based Content**: Trending content across all users
 - **Multiple Output Modes**: Libraries, Collections, and/or Playlists
 - **Rank-Ordered**: Collections maintain popularity order
+- **Rank Badges**: Gold, silver, bronze badges for top 3 on posters
+
+### Library Image Management
+
+- **Custom Library Images**: Set custom banner images for AI recommendation libraries
+- **Global Defaults**: Admin-configured images apply to all users' libraries
+- **Emby/Jellyfin Sync**: Library images automatically sync to your media server
+- **16:9 Banners**: Optimized for media server home screen display
 
 ### Channels (Custom Collections)
 
@@ -77,8 +86,15 @@ Aperture creates personalized recommendation libraries for your media server use
 
 - **Web-Based Configuration**: No env vars required for setup
 - **Job Management**: Real-time progress, scheduling, and history
+- **Schedule Overview**: View all scheduled jobs in a dedicated table
 - **User Management**: Per-user recommendation settings
 - **Cost Estimator**: Built-in OpenAI API cost estimation
+
+### Poster Overlays
+
+- **Rank Badges**: Unified gold/silver/bronze styling across all views
+- **Heart Rating Overlay**: Rate directly from any poster with a single click
+- **Consistent Sizing**: Medium-sized posters throughout the app for visual consistency
 
 ---
 

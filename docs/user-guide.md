@@ -25,13 +25,13 @@ Your dashboard shows a unified view of personalized and trending content:
 
 A two-row carousel of AI-recommended movies based on your taste. Each poster shows:
 
-- **Match Score** — A percentage indicating how well it fits your preferences
+- **Rank Badge** — Gold (#1), Silver (#2), Bronze (#3) for top recommendations
 - **Heart Rating** — Click the heart to rate directly from the poster
 - Click any poster to see detailed insights
 
 ### Your Series Picks
 
-A two-row carousel of AI-recommended TV series. Same features as movie picks.
+A two-row carousel of AI-recommended TV series with the same ranking and rating features.
 
 ### Trending Movies
 
@@ -43,7 +43,10 @@ A carousel of popular TV series across all users.
 
 ### Recently Watched
 
-Content you've recently watched, showing time since watch and rewatch counts.
+Content you've recently watched with smart time formatting:
+- **"2d ago"** — Watched 2 days ago (first watch)
+- **"2d ago · 3x"** — Watched 2 days ago, 3 total plays
+- **"2d ago · Rewatched"** — Recently rewatched
 
 ### Recent Ratings
 
@@ -85,13 +88,23 @@ Navigate to **Top Movies** or **Top Series** in the sidebar to see global trendi
 
 Aperture uses a 10-heart rating system compatible with Trakt.tv:
 
-- **Rate from any poster** — Every movie and series poster displays a heart icon in the bottom-right corner
-- **Click the heart** — Opens a 10-heart picker to select your rating (1-10)
-- **Fill indicator** — The heart fills proportionally to show your current rating at a glance
-- **Rate from detail pages** — You can also rate from movie/series detail pages
-- Ratings influence your future recommendations:
-  - **High ratings (7-10)** boost similar content
-  - **Low ratings (1-3)** can exclude or penalize similar content (based on your preference)
+### Rating from Posters
+
+Every movie and series poster displays a heart icon in the bottom-right corner:
+
+1. **Click the heart** — A popper opens with 10 hearts to choose from
+2. **Select your rating** — Click any heart (1-10) to rate
+3. **Visual feedback** — The single heart fills proportionally to show your rating
+4. **Rate anywhere** — Works on dashboard, browse pages, recommendations, and more
+
+### Rating from Detail Pages
+
+On movie and series detail pages, you can also rate using the larger heart display.
+
+### How Ratings Affect Recommendations
+
+- **High ratings (7-10)** — Boost similar content in future recommendations
+- **Low ratings (1-3)** — Exclude or penalize similar content (configurable in settings)
 
 ### Disliked Content Behavior
 
