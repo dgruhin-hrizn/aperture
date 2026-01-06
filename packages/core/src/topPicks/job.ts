@@ -23,6 +23,7 @@ import { writeTopPicksCollectionsAndPlaylists } from './collectionWriter.js'
 import { grantTopPicksAccessToAllUsers, getTopPicksLibraries } from './permissions.js'
 import { getMediaServerProvider } from '../media/index.js'
 import { getConfig } from '../strm/config.js'
+import { syncLibraryTypeImage } from '../uploads/mediaServerSync.js'
 import path from 'path'
 
 /**
@@ -231,6 +232,20 @@ export async function refreshTopPicks(
       }
       if (!seriesLib && config.seriesLibraryEnabled) {
         addLog(jobId, 'warn', `⚠️ Series library "${config.seriesLibraryName}" not found in media server`)
+      }
+      
+      // Push global library images
+      if (moviesLib) {
+        const movieImgResult = await syncLibraryTypeImage('top-picks-movies', moviesLib.id)
+        if (movieImgResult.success && movieImgResult.itemId) {
+          addLog(jobId, 'info', '🖼️ Movies library image synced')
+        }
+      }
+      if (seriesLib) {
+        const seriesImgResult = await syncLibraryTypeImage('top-picks-series', seriesLib.id)
+        if (seriesImgResult.success && seriesImgResult.itemId) {
+          addLog(jobId, 'info', '🖼️ Series library image synced')
+        }
       }
       
       // Grant access to all users

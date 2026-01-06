@@ -121,6 +121,10 @@ function generateSortingPlaceholderNfo(seriesTitle: string, rank: number): strin
     `  <plot>This is a hidden placeholder file created by Aperture to control the sort order in your media server's home screen. This series is ranked #${rank} in your personalized recommendations. You can safely ignore this "episode" - it contains no actual video content.</plot>`,
     `  <dateadded>${dateAddedStr}</dateadded>`,
     `  <runtime>0</runtime>`,
+    // Mark as already watched so it doesn't appear in "Continue Watching" or unwatched lists
+    `  <playcount>1</playcount>`,
+    `  <lastplayed>${dateAddedStr}</lastplayed>`,
+    `  <watched>true</watched>`,
     '</episodedetails>',
   ]
 

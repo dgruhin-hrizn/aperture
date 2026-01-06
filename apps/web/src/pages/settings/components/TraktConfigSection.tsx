@@ -114,9 +114,9 @@ export function TraktConfigSection() {
         <Box display="flex" alignItems="center" gap={2} mb={2}>
           <Box
             component="img"
-            src="https://trakt.tv/assets/logos/header@2x-913ef1f5f06e6bcbdf879e7eb8100a51d1fdea6605a0bb68e15ce3b0b21b0a50.png"
+            src="/trakt.svg"
             alt="Trakt"
-            sx={{ height: 24, filter: 'brightness(0) invert(1)' }}
+            sx={{ width: 28, height: 28, filter: 'brightness(0) invert(1)' }}
           />
           <Typography variant="h6" fontWeight={600}>
             Trakt Integration

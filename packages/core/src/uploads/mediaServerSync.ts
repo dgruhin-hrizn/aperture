@@ -25,6 +25,7 @@ function getAuthHeader(apiKey: string): string {
 
 /**
  * Push an image to the media server
+ * Note: Emby expects base64-encoded image data, not raw binary
  */
 export async function pushImageToMediaServer(
   itemId: string,
@@ -46,7 +47,9 @@ export async function pushImageToMediaServer(
 
   try {
     // Emby/Jellyfin API: POST /Items/{itemId}/Images/{imageType}
+    // The body must be base64-encoded
     const url = `${provider.baseUrl}/Items/${itemId}/Images/${imageType}`
+    const base64Data = imageBuffer.toString('base64')
 
     const response = await fetch(url, {
       method: 'POST',
@@ -54,7 +57,7 @@ export async function pushImageToMediaServer(
         'X-Emby-Authorization': getAuthHeader(apiKey),
         'Content-Type': mimeType,
       },
-      body: imageBuffer,
+      body: base64Data,
     })
 
     if (!response.ok) {
@@ -190,5 +193,54 @@ export async function syncAllEntityImagesToMediaServer(
   }
 
   return results
+}
+
+/**
+ * Library type identifiers for global library images
+ */
+export type LibraryType = 'ai-recs-movies' | 'ai-recs-series' | 'top-picks-movies' | 'top-picks-series'
+
+/**
+ * Sync a global library type image to a specific media server library
+ * 
+ * This looks up the image stored under the library TYPE (e.g., 'ai-recs-movies')
+ * and pushes it to a specific library ID in the media server.
+ * 
+ * @param libraryType - The global library type (e.g., 'ai-recs-movies')
+ * @param providerLibraryId - The actual Emby/Jellyfin library ID to push the image to
+ */
+export async function syncLibraryTypeImage(
+  libraryType: LibraryType,
+  providerLibraryId: string
+): Promise<ImageSyncResult> {
+  // Look up the global image for this library type
+  const image = await getEffectiveImage('library', libraryType, 'Primary')
+
+  if (!image) {
+    logger.debug({ libraryType, providerLibraryId }, 'No global library image configured')
+    return {
+      success: true,
+      itemId: providerLibraryId,
+      imageType: 'Primary',
+    }
+  }
+
+  // Read the image file
+  const buffer = await getImageBuffer(image.filePath)
+
+  if (!buffer) {
+    logger.warn({ libraryType, providerLibraryId, filePath: image.filePath }, 'Library image file not found')
+    return {
+      success: false,
+      itemId: providerLibraryId,
+      imageType: 'Primary',
+      error: 'Image file not found',
+    }
+  }
+
+  logger.info({ libraryType, providerLibraryId }, 'Pushing global library image to media server')
+
+  // Push to the actual library in the media server
+  return pushImageToMediaServer(providerLibraryId, 'Primary', buffer, image.mimeType)
 }
 

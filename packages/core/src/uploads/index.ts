@@ -386,6 +386,8 @@ export {
   deleteImageFromMediaServer,
   syncEntityImageToMediaServer,
   syncAllEntityImagesToMediaServer,
+  syncLibraryTypeImage,
   type ImageSyncResult,
+  type LibraryType,
 } from './mediaServerSync.js'
 

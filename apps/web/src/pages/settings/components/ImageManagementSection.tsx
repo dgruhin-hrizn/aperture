@@ -5,201 +5,96 @@ import {
   Card,
   CardContent,
   Alert,
-  Tabs,
-  Tab,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
   CircularProgress,
   Chip,
   Button,
-  Tooltip,
+  Grid,
 } from '@mui/material'
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ImageIcon from '@mui/icons-material/Image'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
-import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay'
-import CollectionsIcon from '@mui/icons-material/Collections'
 import RefreshIcon from '@mui/icons-material/Refresh'
-import PersonIcon from '@mui/icons-material/Person'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
-import DownloadIcon from '@mui/icons-material/Download'
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import { ImageUpload } from '../../../components/ImageUpload'
 
-interface ApertureLibrary {
-  id: string
-  name: string
-  providerLibraryId: string
-  type: 'top-picks' | 'user-recommendations'
-  mediaType: 'movies' | 'series'
-  userId?: string
-  userName?: string
-}
+// The 4 global library types
+const LIBRARY_TYPES = [
+  {
+    id: 'ai-recs-movies',
+    name: 'AI Recommendations - Movies',
+    description: 'Image applied to all users\' AI movie recommendation libraries',
+    icon: AutoAwesomeIcon,
+    secondaryIcon: MovieIcon,
+  },
+  {
+    id: 'ai-recs-series',
+    name: 'AI Recommendations - Series',
+    description: 'Image applied to all users\' AI series recommendation libraries',
+    icon: AutoAwesomeIcon,
+    secondaryIcon: TvIcon,
+  },
+  {
+    id: 'top-picks-movies',
+    name: 'Top Picks - Movies',
+    description: 'Image for the global Top Picks movies library',
+    icon: TrendingUpIcon,
+    secondaryIcon: MovieIcon,
+  },
+  {
+    id: 'top-picks-series',
+    name: 'Top Picks - Series',
+    description: 'Image for the global Top Picks series library',
+    icon: TrendingUpIcon,
+    secondaryIcon: TvIcon,
+  },
+]
 
-interface LibraryImageInfo {
+interface LibraryTypeImageInfo {
   url?: string
   isDefault?: boolean
-  embyUrl?: string // URL to the image on Emby (fallback)
-}
-
-interface TabPanelProps {
-  children?: React.ReactNode
-  index: number
-  value: number
-}
-
-function TabPanel({ children, value, index }: TabPanelProps) {
-  return (
-    <div role="tabpanel" hidden={value !== index}>
-      {value === index && <Box pt={2}>{children}</Box>}
-    </div>
-  )
 }
 
 const RECOMMENDED_DIMENSIONS = {
-  library: {
-    Primary: { width: 1920, height: 1080 }, // 16:9 landscape banner
-  },
-  collection: {
-    Primary: { width: 400, height: 600 }, // 2:3 portrait poster
-  },
-  playlist: {
-    Primary: { width: 400, height: 600 }, // 2:3 portrait poster
-  },
+  width: 1920,
+  height: 1080, // 16:9 landscape banner
 }
 
 export function ImageManagementSection() {
-  const [tabValue, setTabValue] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [libraries, setLibraries] = useState<ApertureLibrary[]>([])
-  const [libraryImages, setLibraryImages] = useState<Record<string, LibraryImageInfo>>({})
+  const [images, setImages] = useState<Record<string, LibraryTypeImageInfo>>({})
   const [error, setError] = useState<string | null>(null)
   const [uploadingFor, setUploadingFor] = useState<string | null>(null)
 
-  // Fetch Aperture-created libraries
-  const fetchApertureLibraries = useCallback(async () => {
+  // Fetch images for all library types
+  const fetchImages = useCallback(async () => {
     setLoading(true)
     setError(null)
 
     try {
-      // Fetch strm_libraries and Top Picks config
-      const [strmRes, topPicksRes] = await Promise.all([
-        fetch('/api/settings/strm-libraries', { credentials: 'include' }),
-        fetch('/api/settings/top-picks', { credentials: 'include' }),
-      ])
-
-      const apertureLibs: ApertureLibrary[] = []
-
-      // Process STRM libraries (user recommendations)
-      if (strmRes.ok) {
-        const strmData = await strmRes.json()
-        if (strmData.libraries && Array.isArray(strmData.libraries)) {
-          for (const lib of strmData.libraries) {
-            if (lib.providerLibraryId) {
-              apertureLibs.push({
-                id: lib.id,
-                name: lib.name,
-                providerLibraryId: lib.providerLibraryId,
-                type: 'user-recommendations',
-                mediaType: lib.mediaType || 'movies',
-                userId: lib.userId,
-                userName: lib.userName,
-              })
-            }
-          }
-        }
-      }
-
-      // Process Top Picks libraries
-      if (topPicksRes.ok) {
-        const topPicksData = await topPicksRes.json()
-        if (topPicksData.libraries) {
-          const { movies, series } = topPicksData.libraries
-          if (movies && movies.id) {
-            apertureLibs.push({
-              id: `top-picks-movies`,
-              name: movies.name || 'Top Picks - Movies',
-              providerLibraryId: movies.id,
-              type: 'top-picks',
-              mediaType: 'movies',
-            })
-          }
-          if (series && series.id) {
-            apertureLibs.push({
-              id: `top-picks-series`,
-              name: series.name || 'Top Picks - Series',
-              providerLibraryId: series.id,
-              type: 'top-picks',
-              mediaType: 'series',
-            })
-          }
-        }
-      }
-
-      setLibraries(apertureLibs)
-
-      // Fetch Aperture images AND check Emby for existing images via backend
-      const imagePromises = apertureLibs.map(async (lib) => {
-        // Check if Emby has an image (via backend to avoid CORS issues)
-        let embyImageUrl: string | undefined
+      const imagePromises = LIBRARY_TYPES.map(async (libraryType) => {
         try {
-          const embyCheckRes = await fetch(
-            `/api/images/library/${lib.providerLibraryId}/emby-check?imageType=Primary`,
-            { credentials: 'include' }
-          )
-          if (embyCheckRes.ok) {
-            const embyData = await embyCheckRes.json()
-            if (embyData.hasImage) {
-              embyImageUrl = embyData.url
-            }
-          }
-        } catch {
-          // Emby check failed, continue without it
-        }
-
-        // Check if Aperture has a custom image
-        try {
-          const response = await fetch(`/api/images/library/${lib.providerLibraryId}?imageType=Primary`, {
+          const response = await fetch(`/api/images/library/${libraryType.id}?imageType=Primary`, {
             credentials: 'include',
           })
           if (response.ok) {
             const data = await response.json()
-            return { 
-              id: lib.providerLibraryId, 
-              url: data.url, 
-              isDefault: data.isDefault,
-              embyUrl: embyImageUrl
-            }
+            return { id: libraryType.id, url: data.url, isDefault: data.isDefault }
           }
-          return { 
-            id: lib.providerLibraryId, 
-            url: null, 
-            isDefault: false, 
-            embyUrl: embyImageUrl 
-          }
+          return { id: libraryType.id, url: null, isDefault: false }
         } catch {
-          return { 
-            id: lib.providerLibraryId, 
-            url: null, 
-            isDefault: false, 
-            embyUrl: embyImageUrl 
-          }
+          return { id: libraryType.id, url: null, isDefault: false }
         }
       })
 
       const results = await Promise.all(imagePromises)
-      const imageMap: Record<string, LibraryImageInfo> = {}
+      const imageMap: Record<string, LibraryTypeImageInfo> = {}
       results.forEach((r) => {
-        imageMap[r.id] = { 
-          url: r.url || undefined, 
-          isDefault: r.isDefault,
-          embyUrl: r.embyUrl
-        }
+        imageMap[r.id] = { url: r.url || undefined, isDefault: r.isDefault }
       })
-      setLibraryImages(imageMap)
+      setImages(imageMap)
     } catch (err) {
-      setError('Failed to load Aperture libraries')
+      setError('Failed to load library images')
       console.error(err)
     } finally {
       setLoading(false)
@@ -207,18 +102,18 @@ export function ImageManagementSection() {
   }, [])
 
   useEffect(() => {
-    fetchApertureLibraries()
-  }, [fetchApertureLibraries])
+    fetchImages()
+  }, [fetchImages])
 
-  const handleUpload = useCallback(async (entityType: string, entityId: string, file: File) => {
-    setUploadingFor(entityId)
+  const handleUpload = useCallback(async (libraryTypeId: string, file: File) => {
+    setUploadingFor(libraryTypeId)
     setError(null)
 
     try {
       const formData = new FormData()
       formData.append('file', file)
 
-      const response = await fetch(`/api/admin/images/${entityType}/${entityId}/default?imageType=Primary`, {
+      const response = await fetch(`/api/admin/images/library/${libraryTypeId}/default?imageType=Primary`, {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -230,9 +125,9 @@ export function ImageManagementSection() {
       }
 
       const data = await response.json()
-      setLibraryImages((prev) => ({
+      setImages((prev) => ({
         ...prev,
-        [entityId]: { url: data.url, isDefault: true },
+        [libraryTypeId]: { url: data.url, isDefault: true },
       }))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed')
@@ -242,12 +137,12 @@ export function ImageManagementSection() {
     }
   }, [])
 
-  const handleDelete = useCallback(async (entityType: string, entityId: string) => {
-    setUploadingFor(entityId)
+  const handleDelete = useCallback(async (libraryTypeId: string) => {
+    setUploadingFor(libraryTypeId)
     setError(null)
 
     try {
-      const response = await fetch(`/api/admin/images/${entityType}/${entityId}/default?imageType=Primary`, {
+      const response = await fetch(`/api/admin/images/library/${libraryTypeId}/default?imageType=Primary`, {
         method: 'DELETE',
         credentials: 'include',
       })
@@ -257,9 +152,9 @@ export function ImageManagementSection() {
         throw new Error(data.error || 'Delete failed')
       }
 
-      setLibraryImages((prev) => ({
+      setImages((prev) => ({
         ...prev,
-        [entityId]: { ...prev[entityId], url: undefined, isDefault: false },
+        [libraryTypeId]: { url: undefined, isDefault: false },
       }))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Delete failed')
@@ -269,153 +164,16 @@ export function ImageManagementSection() {
     }
   }, [])
 
-  // Import image from Emby
-  const handleImportFromEmby = useCallback(async (entityType: string, entityId: string) => {
-    setUploadingFor(entityId)
-    setError(null)
-
-    try {
-      const response = await fetch(`/api/admin/images/${entityType}/${entityId}/import-from-emby?imageType=Primary`, {
-        method: 'POST',
-        credentials: 'include',
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Import failed')
-      }
-
-      const data = await response.json()
-      setLibraryImages((prev) => ({
-        ...prev,
-        [entityId]: { ...prev[entityId], url: data.url, isDefault: true },
-      }))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Import failed')
-    } finally {
-      setUploadingFor(null)
-    }
-  }, [])
-
-  // Group libraries by type
-  const topPicksLibraries = libraries.filter((l) => l.type === 'top-picks')
-  const userRecommendationLibraries = libraries.filter((l) => l.type === 'user-recommendations')
-  const movieLibraries = userRecommendationLibraries.filter((l) => l.mediaType === 'movies')
-  const seriesLibraries = userRecommendationLibraries.filter((l) => l.mediaType === 'series')
-
-  const renderLibraryCard = (lib: ApertureLibrary) => {
-    const imageInfo = libraryImages[lib.providerLibraryId] || {}
-    const Icon = lib.mediaType === 'movies' ? MovieIcon : TvIcon
-    const TypeIcon = lib.type === 'top-picks' ? TrendingUpIcon : PersonIcon
-
-    // Determine which image to show: Aperture override > Emby original
-    const displayImageUrl = imageInfo.url || imageInfo.embyUrl
-    const hasApertureImage = !!imageInfo.url
-    const hasEmbyImage = !!imageInfo.embyUrl && !imageInfo.url
-
-    return (
-      <Accordion key={lib.id} sx={{ mb: 1, '&:before': { display: 'none' } }}>
-        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <TypeIcon fontSize="small" color="action" />
-              <Icon color="action" />
-            </Box>
-            <Typography fontWeight={500}>{lib.name}</Typography>
-            {lib.userName && (
-              <Chip size="small" label={lib.userName} variant="outlined" />
-            )}
-            {hasApertureImage && (
-              <Chip
-                size="small"
-                label="Custom Image"
-                color="success"
-                variant="outlined"
-              />
-            )}
-            {hasEmbyImage && (
-              <Chip
-                size="small"
-                label="Emby Image"
-                color="info"
-                variant="outlined"
-              />
-            )}
-          </Box>
-        </AccordionSummary>
-        <AccordionDetails>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {/* Library image preview - 16:9 landscape, max 400px wide */}
-            <Box sx={{ maxWidth: 400 }}>
-              <Typography variant="subtitle2" gutterBottom>
-                Library Image (16:9)
-              </Typography>
-              <ImageUpload
-                currentImageUrl={displayImageUrl}
-                isDefault={imageInfo.isDefault}
-                recommendedDimensions={RECOMMENDED_DIMENSIONS.library.Primary}
-                onUpload={(file) => handleUpload('library', lib.providerLibraryId, file)}
-                onDelete={hasApertureImage ? () => handleDelete('library', lib.providerLibraryId) : undefined}
-                loading={uploadingFor === lib.providerLibraryId}
-                height={225}
-                label="Drop library image (16:9 landscape)"
-                showDelete={hasApertureImage}
-              />
-              
-              {/* Import from Emby button - only show if Emby has an image but we don't have a local copy */}
-              {hasEmbyImage && (
-                <Tooltip title="Save a copy of the current Emby image to Aperture">
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<DownloadIcon />}
-                    onClick={() => handleImportFromEmby('library', lib.providerLibraryId)}
-                    disabled={uploadingFor === lib.providerLibraryId}
-                    sx={{ mt: 1 }}
-                  >
-                    Import from Emby
-                  </Button>
-                </Tooltip>
-              )}
-            </Box>
-            
-            <Box>
-              <Typography variant="body2" color="text.secondary">
-                {hasEmbyImage 
-                  ? 'This library has an image set in Emby. You can import it to Aperture or upload a new one.'
-                  : 'Upload a custom image for this Aperture-managed library. This image will be displayed in your media server.'
-                }
-              </Typography>
-              <Box sx={{ mt: 1, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <Typography variant="caption" color="text.secondary">
-                  Library ID: {lib.providerLibraryId}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Type: {lib.type === 'top-picks' ? 'Top Picks' : 'User Recommendations'}
-                </Typography>
-              </Box>
-              {hasApertureImage && (
-                <Typography variant="caption" color="success.main" display="block" sx={{ mt: 1 }}>
-                  ✓ Custom image saved in Aperture
-                </Typography>
-              )}
-            </Box>
-          </Box>
-        </AccordionDetails>
-      </Accordion>
-    )
-  }
-
   return (
     <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
       <CardContent>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
           <Box display="flex" alignItems="center" gap={2}>
             <ImageIcon color="primary" />
             <Box>
-              <Typography variant="h6">Image Management</Typography>
+              <Typography variant="h6">Library Images</Typography>
               <Typography variant="body2" color="text.secondary">
-                Set custom images for Aperture-created libraries
+                Set global images for Aperture library types. Images apply to all users' libraries of each type.
               </Typography>
             </Box>
           </Box>
@@ -423,7 +181,7 @@ export function ImageManagementSection() {
             variant="outlined"
             size="small"
             startIcon={loading ? <CircularProgress size={16} /> : <RefreshIcon />}
-            onClick={fetchApertureLibraries}
+            onClick={fetchImages}
             disabled={loading}
           >
             Refresh
@@ -440,90 +198,64 @@ export function ImageManagementSection() {
           <Box display="flex" justifyContent="center" py={4}>
             <CircularProgress />
           </Box>
-        ) : libraries.length === 0 ? (
-          <Alert severity="info">
-            No Aperture-managed libraries found. Libraries are created when you run Top Picks or generate user recommendations.
-          </Alert>
         ) : (
-          <>
-            <Tabs
-              value={tabValue}
-              onChange={(_, newValue) => setTabValue(newValue)}
-              sx={{ borderBottom: 1, borderColor: 'divider' }}
-            >
-              <Tab
-                icon={<TrendingUpIcon />}
-                iconPosition="start"
-                label={`Top Picks (${topPicksLibraries.length})`}
-              />
-              <Tab
-                icon={<PersonIcon />}
-                iconPosition="start"
-                label={`User Libraries (${userRecommendationLibraries.length})`}
-              />
-              <Tab
-                icon={<CollectionsIcon />}
-                iconPosition="start"
-                label="Collections"
-                disabled
-              />
-              <Tab
-                icon={<PlaylistPlayIcon />}
-                iconPosition="start"
-                label="Playlists"
-                disabled
-              />
-            </Tabs>
+          <Grid container spacing={3}>
+            {LIBRARY_TYPES.map((libraryType) => {
+              const imageInfo = images[libraryType.id] || {}
+              const Icon = libraryType.icon
+              const SecondaryIcon = libraryType.secondaryIcon
+              const hasImage = !!imageInfo.url
 
-            <TabPanel value={tabValue} index={0}>
-              {topPicksLibraries.length === 0 ? (
-                <Alert severity="info">
-                  No Top Picks libraries created yet. Enable and run Top Picks to create them.
-                </Alert>
-              ) : (
-                <Box>
-                  {topPicksLibraries.map(renderLibraryCard)}
-                </Box>
-              )}
-            </TabPanel>
+              return (
+                <Grid item xs={12} md={6} key={libraryType.id}>
+                  <Card variant="outlined" sx={{ height: '100%' }}>
+                    <CardContent>
+                      <Box display="flex" alignItems="center" gap={1} mb={2}>
+                        <Icon color="primary" fontSize="small" />
+                        <SecondaryIcon color="action" fontSize="small" />
+                        <Typography variant="subtitle1" fontWeight={600}>
+                          {libraryType.name}
+                        </Typography>
+                        {hasImage && (
+                          <Chip
+                            size="small"
+                            label="Set"
+                            color="success"
+                            variant="outlined"
+                            sx={{ ml: 'auto' }}
+                          />
+                        )}
+                      </Box>
 
-            <TabPanel value={tabValue} index={1}>
-              {userRecommendationLibraries.length === 0 ? (
-                <Alert severity="info">
-                  No user recommendation libraries created yet. Generate recommendations for users to create them.
-                </Alert>
-              ) : (
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>
-                    Movie Libraries ({movieLibraries.length})
-                  </Typography>
-                  {movieLibraries.map(renderLibraryCard)}
-                  
-                  {seriesLibraries.length > 0 && (
-                    <>
-                      <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 3, mb: 2 }}>
-                        Series Libraries ({seriesLibraries.length})
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        {libraryType.description}
                       </Typography>
-                      {seriesLibraries.map(renderLibraryCard)}
-                    </>
-                  )}
-                </Box>
-              )}
-            </TabPanel>
 
-            <TabPanel value={tabValue} index={2}>
-              <Alert severity="info">
-                Collection image management coming soon. Collections are created dynamically from Top Picks.
-              </Alert>
-            </TabPanel>
-
-            <TabPanel value={tabValue} index={3}>
-              <Alert severity="info">
-                Playlist image management coming soon. Playlists are created for user recommendations.
-              </Alert>
-            </TabPanel>
-          </>
+                      <Box sx={{ maxWidth: 400 }}>
+                        <ImageUpload
+                          currentImageUrl={imageInfo.url}
+                          isDefault={imageInfo.isDefault}
+                          recommendedDimensions={RECOMMENDED_DIMENSIONS}
+                          onUpload={(file) => handleUpload(libraryType.id, file)}
+                          onDelete={hasImage ? () => handleDelete(libraryType.id) : undefined}
+                          loading={uploadingFor === libraryType.id}
+                          height={225}
+                          label="Drop library image (16:9)"
+                          showDelete={hasImage}
+                        />
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              )
+            })}
+          </Grid>
         )}
+
+        <Alert severity="info" sx={{ mt: 3 }}>
+          Library images are pushed to your media server when you run "Sync Libraries" or generate recommendations.
+          Recommended size: 1920×1080 (16:9 landscape).
+        </Alert>
       </CardContent>
     </Card>
   )

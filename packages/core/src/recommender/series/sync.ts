@@ -350,6 +350,12 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
         for (const episode of result.items) {
           processedEpisodes++
           
+          // Skip Aperture sorting placeholder episodes (used for Emby home row sorting)
+          if (episode.name === 'Aperture Sorting Placeholder' || 
+              (episode.seasonNumber === 0 && episode.episodeNumber === 0 && episode.name?.includes('Aperture'))) {
+            continue
+          }
+          
           if (processedEpisodes % 100 === 0) {
             updateJobProgress(jobId, processedEpisodes, totalEpisodes, `S${episode.seasonNumber}E${episode.episodeNumber}`)
           }

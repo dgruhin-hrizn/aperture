@@ -311,10 +311,12 @@ export {
   deleteImageFromMediaServer,
   syncEntityImageToMediaServer,
   syncAllEntityImagesToMediaServer,
+  syncLibraryTypeImage,
   type EntityType,
   type MediaImage,
   type UploadImageOptions,
   type ImageDimensions,
   type ImageSyncResult,
+  type LibraryType,
 } from './uploads/index.js'
 

@@ -4,6 +4,7 @@ import { query, queryOne } from '../../lib/db.js'
 import { getMediaServerProvider } from '../../media/index.js'
 import { getConfig } from '../config.js'
 import { getEffectiveLibraryTitle } from '../../lib/userSettings.js'
+import { syncLibraryTypeImage } from '../../uploads/mediaServerSync.js'
 import type { StrmConfig } from '../types.js'
 
 const logger = createChildLogger('strm-library')
@@ -76,6 +77,9 @@ export async function ensureUserLibrary(
       [userId, libraryName, libraryPath, existingLib.id, existingLib.guid]
     )
 
+    // Push global library image to this library
+    await syncLibraryTypeImage('ai-recs-movies', existingLib.id)
+
     return { libraryId: existingLib.id, libraryGuid: existingLib.guid!, created: false, name: libraryName }
   }
 
@@ -104,6 +108,9 @@ export async function ensureUserLibrary(
      VALUES ($1, $2, $3, $4, $5)`,
     [userId, libraryName, libraryPath, result.libraryId, libraryGuid]
   )
+
+  // Push global library image to this library
+  await syncLibraryTypeImage('ai-recs-movies', result.libraryId)
 
   logger.info({ userId, libraryName, libraryId: result.libraryId, libraryGuid }, '✅ Virtual library created')
 
