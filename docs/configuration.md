@@ -307,3 +307,80 @@ Users can connect their Trakt accounts in **User Settings → Connect Trakt Acco
 - **Push**: When users rate content in Aperture, ratings are immediately pushed to Trakt
 - **Pull**: Trakt ratings sync to Aperture on a scheduled job (default: every 6 hours)
 - **Bidirectional**: Both directions are supported for seamless integration
+
+---
+
+## Reverse Proxy Setup
+
+Running Aperture behind a reverse proxy like **Nginx Proxy Manager**, **Traefik**, or **Caddy** is recommended for:
+
+- HTTPS/SSL termination
+- Custom domain access
+- Trakt OAuth callbacks (requires a public URL)
+
+### Nginx Proxy Manager
+
+1. **Add a new Proxy Host**:
+   - **Domain Names**: `aperture.yourdomain.com`
+   - **Scheme**: `http`
+   - **Forward Hostname/IP**: Your Aperture container name or IP (e.g., `aperture` or `192.168.1.100`)
+   - **Forward Port**: `3456`
+
+2. **SSL Tab**:
+   - Request a new SSL certificate or use an existing one
+   - Enable **Force SSL**
+
+3. **Advanced Tab** (optional but recommended):
+   ```nginx
+   proxy_set_header Host $host;
+   proxy_set_header X-Real-IP $remote_addr;
+   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+   proxy_set_header X-Forwarded-Proto $scheme;
+   
+   # WebSocket support (if needed in future)
+   proxy_http_version 1.1;
+   proxy_set_header Upgrade $http_upgrade;
+   proxy_set_header Connection "upgrade";
+   ```
+
+4. **Update Aperture's `APP_BASE_URL`**:
+   ```yaml
+   environment:
+     APP_BASE_URL: https://aperture.yourdomain.com
+   ```
+
+### Traefik
+
+```yaml
+services:
+  aperture:
+    image: ghcr.io/dgruhin-hrizn/aperture:latest
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.aperture.rule=Host(`aperture.yourdomain.com`)"
+      - "traefik.http.routers.aperture.entrypoints=websecure"
+      - "traefik.http.routers.aperture.tls.certresolver=letsencrypt"
+      - "traefik.http.services.aperture.loadbalancer.server.port=3456"
+    environment:
+      APP_BASE_URL: https://aperture.yourdomain.com
+```
+
+### Caddy
+
+```
+aperture.yourdomain.com {
+    reverse_proxy aperture:3456
+}
+```
+
+Then set `APP_BASE_URL=https://aperture.yourdomain.com` in Aperture.
+
+### Important Notes
+
+1. **APP_BASE_URL must match your public URL** — This is used for OAuth callbacks (Trakt) and cookie settings.
+
+2. **Session cookies** — In production (`NODE_ENV=production`), cookies are set with `secure: true`, requiring HTTPS.
+
+3. **Trakt OAuth** — The Redirect URI configured in your Trakt application must exactly match your `APP_BASE_URL` + `/api/trakt/callback`. Example: `https://aperture.yourdomain.com/api/trakt/callback`
+
+4. **Docker networking** — If using Docker, ensure your reverse proxy can reach the Aperture container (same Docker network or use host IP).
