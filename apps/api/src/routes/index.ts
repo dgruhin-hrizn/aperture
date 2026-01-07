@@ -14,7 +14,7 @@ import topPicksRoutes from './top-picks.js'
 import traktRoutes from './trakt.js'
 import dashboardRoutes from './dashboard.js'
 import imageRoutes from './images.js'
-import assistantRoutes from './assistant.js'
+import assistantRoutes from './assistant/index.js'
 
 const routes: FastifyPluginAsync = async (fastify) => {
   // Register health check routes
