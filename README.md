@@ -14,14 +14,14 @@ Aperture creates personalized recommendation libraries for your media server use
 
 ## Documentation
 
-| Guide                                  | Description                                                      |
-| -------------------------------------- | ---------------------------------------------------------------- |
-| [Admin Guide](docs/admin-guide.md)     | Setup walkthrough, job management, algorithm tuning              |
-| [User Guide](docs/user-guide.md)       | Features for end users, ratings, channels                        |
-| [Configuration](docs/configuration.md) | Environment variables, STRM setup, reverse proxy, Trakt          |
-| [API Reference](docs/api-reference.md) | Complete API endpoint documentation                              |
-| [Architecture](docs/architecture.md)   | Technical overview, recommendation pipeline, database schema     |
-| [Development](docs/development.md)     | Local dev setup, scripts, contribution guidelines                |
+| Guide                                  | Description                                                  |
+| -------------------------------------- | ------------------------------------------------------------ |
+| [Admin Guide](docs/admin-guide.md)     | Setup walkthrough, job management, algorithm tuning          |
+| [User Guide](docs/user-guide.md)       | Features for end users, ratings, channels                    |
+| [Configuration](docs/configuration.md) | Environment variables, STRM setup, reverse proxy, Trakt      |
+| [API Reference](docs/api-reference.md) | Complete API endpoint documentation                          |
+| [Architecture](docs/architecture.md)   | Technical overview, recommendation pipeline, database schema |
+| [Development](docs/development.md)     | Local dev setup, scripts, contribution guidelines            |
 
 ---
 

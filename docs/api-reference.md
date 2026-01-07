@@ -2,6 +2,23 @@
 
 Complete reference for all Aperture API endpoints.
 
+## Table of Contents
+
+- [Authentication](#authentication)
+- [Users](#users)
+- [Movies](#movies)
+- [Series](#series)
+- [Ratings](#ratings)
+- [Recommendations](#recommendations)
+- [Top Picks](#top-picks)
+- [Channels](#channels)
+- [Trakt Integration](#trakt-integration)
+- [Settings (Admin)](#settings-admin)
+- [Jobs (Admin)](#jobs-admin)
+- [Database (Admin)](#database-admin)
+
+---
+
 ## Authentication
 
 | Endpoint                | Description                                |

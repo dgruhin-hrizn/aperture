@@ -2,6 +2,35 @@
 
 This guide covers all configuration options for Aperture, including environment variables, STRM setup, and admin UI settings.
 
+## Table of Contents
+
+- [Environment Variables](#environment-variables)
+  - [Core Settings](#core-settings)
+  - [OpenAI Settings](#openai-settings)
+  - [Media Server Settings](#media-server-settings)
+  - [STRM Configuration](#strm-configuration)
+  - [Job Schedules](#job-schedules-defaults)
+  - [Trakt Integration](#trakt-integration)
+- [Admin UI Configuration](#admin-ui-configuration)
+  - [Setup Tab](#setup-tab)
+  - [AI Recommendations Tab](#ai-recommendations-tab)
+  - [Top Picks Tab](#top-picks-tab)
+  - [System Tab](#system-tab)
+- [STRM Setup Guide](#strm-setup-guide)
+  - [Same Machine Setup](#same-machine-setup)
+  - [Different Machines (NAS/Network Share)](#different-machines-nasnetwork-share)
+  - [Streaming URLs vs Direct Paths](#streaming-urls-vs-direct-paths)
+  - [Using Symlinks Instead of STRM](#using-symlinks-instead-of-strm)
+  - [Path Mapping for Symlinks](#path-mapping-for-symlinks)
+  - [Symlink Folder Structure](#symlink-folder-structure)
+- [Trakt Integration Setup](#trakt-integration-setup)
+- [Reverse Proxy Setup](#reverse-proxy-setup)
+  - [Nginx Proxy Manager](#nginx-proxy-manager)
+  - [Traefik](#traefik)
+  - [Caddy](#caddy)
+
+---
+
 ## Environment Variables
 
 All configuration can be done via environment variables or the Admin UI.
@@ -184,6 +213,7 @@ Configure via **Admin → Settings → Output & AI → User Recommendations Outp
 ### Path Mapping for Symlinks
 
 When using symlinks, Aperture needs to:
+
 1. **Read** your original media folders to find artwork and subtitles
 2. **Create symlinks** that your media server can follow
 
@@ -263,7 +293,7 @@ AI Picks - TV Series/
 
 **What gets symlinked automatically:**
 
-- All artwork files (banner.jpg, clearlogo.png, landscape.jpg, fanart*.jpg, etc.)
+- All artwork files (banner.jpg, clearlogo.png, landscape.jpg, fanart\*.jpg, etc.)
 - Subtitle files (.srt, .sub, .ass, etc.) — renamed to match video file
 - Season folders (for series)
 
@@ -331,12 +361,13 @@ Running Aperture behind a reverse proxy like **Nginx Proxy Manager**, **Traefik*
    - Enable **Force SSL**
 
 3. **Advanced Tab** (optional but recommended):
+
    ```nginx
    proxy_set_header Host $host;
    proxy_set_header X-Real-IP $remote_addr;
    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
    proxy_set_header X-Forwarded-Proto $scheme;
-   
+
    # WebSocket support (if needed in future)
    proxy_http_version 1.1;
    proxy_set_header Upgrade $http_upgrade;
@@ -356,11 +387,11 @@ services:
   aperture:
     image: ghcr.io/dgruhin-hrizn/aperture:latest
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.aperture.rule=Host(`aperture.yourdomain.com`)"
-      - "traefik.http.routers.aperture.entrypoints=websecure"
-      - "traefik.http.routers.aperture.tls.certresolver=letsencrypt"
-      - "traefik.http.services.aperture.loadbalancer.server.port=3456"
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.aperture.rule=Host(`aperture.yourdomain.com`)'
+      - 'traefik.http.routers.aperture.entrypoints=websecure'
+      - 'traefik.http.routers.aperture.tls.certresolver=letsencrypt'
+      - 'traefik.http.services.aperture.loadbalancer.server.port=3456'
     environment:
       APP_BASE_URL: https://aperture.yourdomain.com
 ```

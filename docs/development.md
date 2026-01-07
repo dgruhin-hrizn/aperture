@@ -2,6 +2,25 @@
 
 This guide covers local development setup, available scripts, and contribution guidelines.
 
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Local Development Setup](#local-development-setup)
+  - [Clone and Install](#1-clone-and-install)
+  - [Start the Database](#2-start-the-database)
+  - [Configure Environment](#3-configure-environment)
+  - [Run Migrations](#4-run-migrations)
+  - [Start Development Servers](#5-start-development-servers)
+- [Available Scripts](#available-scripts)
+- [Project Structure](#project-structure)
+- [Creating Migrations](#creating-migrations)
+- [Building for Production](#building-for-production)
+- [Docker Development](#docker-development)
+- [Testing with External Access](#testing-with-external-access)
+- [Code Style](#code-style)
+
+---
+
 ## Prerequisites
 
 - Node.js 20+

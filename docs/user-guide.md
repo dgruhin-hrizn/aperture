@@ -2,6 +2,42 @@
 
 This guide covers all the features available to Aperture users.
 
+## Table of Contents
+
+- [Logging In](#logging-in)
+- [Dashboard](#dashboard)
+  - [Quick Stats Bar](#quick-stats-bar)
+  - [Your Movie Picks](#your-movie-picks)
+  - [Your Series Picks](#your-series-picks)
+  - [Trending Movies](#trending-movies)
+  - [Trending Series](#trending-series)
+  - [Recently Watched](#recently-watched)
+  - [Recent Ratings](#recent-ratings)
+- [Browsing Content](#browsing-content)
+  - [Browse Movies](#browse-movies)
+  - [Browse TV Series](#browse-tv-series)
+  - [Top Movies & Top Series](#top-movies--top-series)
+- [Rating Content](#rating-content)
+  - [Rating from Posters](#rating-from-posters)
+  - [Rating from Detail Pages](#rating-from-detail-pages)
+  - [How Ratings Affect Recommendations](#how-ratings-affect-recommendations)
+  - [Disliked Content Behavior](#disliked-content-behavior)
+- [Understanding Recommendations](#understanding-recommendations)
+  - [Match Score Breakdown](#match-score-breakdown)
+  - [Genre Analysis](#genre-analysis)
+  - [Evidence Trail](#evidence-trail)
+- [Creating Channels](#creating-channels)
+- [Watch History](#watch-history)
+- [Watch Stats](#watch-stats)
+- [User Settings](#user-settings)
+  - [Preferences Tab](#preferences-tab)
+  - [Taste Profile Tab](#taste-profile-tab)
+- [Managing Watch History](#managing-watch-history)
+- [Trakt Integration](#trakt-integration)
+- [Virtual Libraries in Your Media Server](#virtual-libraries-in-your-media-server)
+
+---
+
 ## Logging In
 
 1. Open Aperture in your browser

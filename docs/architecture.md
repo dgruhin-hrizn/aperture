@@ -2,6 +2,24 @@
 
 Technical overview of Aperture's design, recommendation pipeline, and project structure.
 
+## Table of Contents
+
+- [Project Structure](#project-structure)
+- [Tech Stack](#tech-stack)
+- [How It Works](#how-it-works)
+  - [Recommendation Pipeline](#recommendation-pipeline)
+  - [Vector Similarity](#vector-similarity)
+  - [Rating System](#rating-system)
+  - [Top Picks Algorithm](#top-picks-algorithm)
+- [Background Jobs](#background-jobs)
+  - [Movie Jobs](#movie-jobs)
+  - [Series Jobs](#series-jobs)
+  - [Global Jobs](#global-jobs)
+  - [Job Scheduling](#job-scheduling)
+- [Database Schema](#database-schema)
+
+---
+
 ## Project Structure
 
 ```

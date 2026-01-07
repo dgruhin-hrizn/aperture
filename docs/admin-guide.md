@@ -2,6 +2,35 @@
 
 This guide covers initial setup, ongoing operations, and administrative configuration for Aperture.
 
+## Table of Contents
+
+- [Initial Setup Walkthrough](#initial-setup-walkthrough)
+  - [Step 1: Configure Media Server](#step-1-configure-media-server-connection)
+  - [Step 2: Select Libraries](#step-2-select-libraries-to-sync)
+  - [Step 3: Run Initial Sync](#step-3-run-initial-data-sync)
+  - [Step 4: Enable Users](#step-4-enable-users-for-ai-recommendations)
+  - [Step 5: Sync Watch History](#step-5-sync-watch-history)
+  - [Step 6: Generate Recommendations](#step-6-generate-recommendations)
+- [Managing Jobs](#managing-jobs)
+  - [Job Scheduling](#job-scheduling)
+  - [Monitoring Jobs](#monitoring-jobs)
+  - [When to Run Manual Jobs](#when-to-run-manual-jobs)
+- [Algorithm Tuning](#algorithm-tuning)
+- [Top Picks Configuration](#top-picks-configuration)
+- [Model Selection](#model-selection)
+  - [Embedding Model](#embedding-model)
+  - [Text Generation Model](#text-generation-model)
+- [AI Explanation Settings](#ai-explanation-settings)
+- [Library Title Templates](#library-title-templates)
+- [Output Format Settings](#output-format-settings)
+- [Watch History Management](#watch-history-management)
+- [Database Management](#database-management)
+- [Library Image Management](#library-image-management)
+- [Emby Home Row Sorting (Series)](#emby-home-row-sorting-series)
+- [Recommended Workflow](#recommended-workflow)
+
+---
+
 ## Initial Setup Walkthrough
 
 After starting Aperture for the first time, log in with your **Emby/Jellyfin admin account** and follow these steps:
