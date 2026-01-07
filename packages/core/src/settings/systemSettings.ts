@@ -380,17 +380,33 @@ export interface ChatAssistantModelInfo {
 
 export const CHAT_ASSISTANT_MODELS: ChatAssistantModelInfo[] = [
   {
+    id: 'gpt-4.1-nano',
+    name: 'GPT-4.1 Nano (Recommended)',
+    description: 'Fastest and cheapest. 1M context window.',
+    inputCostPerMillion: 0.1,
+    outputCostPerMillion: 0.4,
+    contextWindow: '1M',
+  },
+  {
+    id: 'gpt-4.1-mini',
+    name: 'GPT-4.1 Mini',
+    description: 'Fast and capable. 1M context window.',
+    inputCostPerMillion: 0.4,
+    outputCostPerMillion: 1.6,
+    contextWindow: '1M',
+  },
+  {
     id: 'gpt-5-mini',
-    name: 'GPT-5 Mini (Recommended)',
-    description: 'Latest GPT-5. Excellent reasoning, 400K context.',
+    name: 'GPT-5 Mini',
+    description: 'More detailed answers but slower due to thinking time.',
     inputCostPerMillion: 0.25,
     outputCostPerMillion: 2.0,
     contextWindow: '400K',
   },
   {
     id: 'gpt-5-nano',
-    name: 'GPT-5 Nano (Budget)',
-    description: 'Fastest GPT-5. Great for simple queries.',
+    name: 'GPT-5 Nano',
+    description: 'Expanded reasoning but slower due to thinking time.',
     inputCostPerMillion: 0.05,
     outputCostPerMillion: 0.4,
     contextWindow: '400K',
@@ -402,22 +418,6 @@ export const CHAT_ASSISTANT_MODELS: ChatAssistantModelInfo[] = [
     inputCostPerMillion: 1.1,
     outputCostPerMillion: 4.4,
     contextWindow: '200K',
-  },
-  {
-    id: 'gpt-4.1-mini',
-    name: 'GPT-4.1 Mini',
-    description: 'Fast and capable. 1M context window.',
-    inputCostPerMillion: 0.4,
-    outputCostPerMillion: 1.6,
-    contextWindow: '1M',
-  },
-  {
-    id: 'gpt-4.1-nano',
-    name: 'GPT-4.1 Nano',
-    description: 'Budget option. Good for simple queries.',
-    inputCostPerMillion: 0.1,
-    outputCostPerMillion: 0.4,
-    contextWindow: '1M',
   },
   {
     id: 'gpt-4.1',
@@ -447,14 +447,14 @@ export const CHAT_ASSISTANT_MODELS: ChatAssistantModelInfo[] = [
 
 /**
  * Get the configured chat assistant model
- * Falls back to default (gpt-5-mini - best balance of reasoning, speed, and cost)
+ * Falls back to default (gpt-4.1-nano - fastest and cheapest)
  */
 export async function getChatAssistantModel(): Promise<ChatAssistantModel> {
   const dbValue = await getSystemSetting('chat_assistant_model')
   if (dbValue && isValidChatAssistantModel(dbValue)) {
     return dbValue
   }
-  return 'gpt-5-mini'
+  return 'gpt-4.1-nano'
 }
 
 /**

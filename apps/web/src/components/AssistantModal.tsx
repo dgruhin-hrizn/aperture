@@ -476,8 +476,8 @@ export function AssistantModal() {
         fullScreen={fullscreen}
         PaperProps={{
           sx: {
-            height: fullscreen ? '100%' : '80vh',
-            maxHeight: fullscreen ? '100%' : 700,
+            height: fullscreen ? '100%' : '95vh',
+            maxHeight: fullscreen ? '100%' : '90vh',
             bgcolor: '#0f0f0f',
             backgroundImage: 'none',
             borderRadius: fullscreen ? 0 : 3,
