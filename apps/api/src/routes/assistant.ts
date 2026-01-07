@@ -122,7 +122,7 @@ function getOpenAIClient() {
 }
 
 // Build system prompt with user context
-async function buildSystemPrompt(userId: string): Promise<string> {
+async function buildSystemPrompt(userId: string, isAdmin: boolean): Promise<string> {
   // Get user's taste profiles
   const tasteProfile = await queryOne<TasteProfile>(
     `SELECT taste_synopsis, series_taste_synopsis FROM user_preferences WHERE user_id = $1`,
@@ -156,59 +156,100 @@ async function buildSystemPrompt(userId: string): Promise<string> {
           .join('\n')
       : 'No recent watches recorded.'
 
-  return `You are Aperture, an AI-powered movie and TV series recommendation assistant with FULL ACCESS to the user's media library database. You can answer ANY question about their library, watch history, ratings, and preferences.
+  const userRole = isAdmin ? 'ADMINISTRATOR' : 'USER'
+  const adminSection = isAdmin
+    ? `
+## Admin Capabilities (You are an admin!)
 
-## User's Taste Profile
+As an admin, you can help with:
+- **Job Management**: Explain how to run sync jobs, generate recommendations, create embeddings
+- **Algorithm Tuning**: Explain similarity, novelty, rating, and diversity weights
+- **User Management**: Explain how to enable/disable users for recommendations
+- **Top Picks Configuration**: Explain popularity algorithm, output types (library/collection/playlist)
+- **Model Selection**: Explain embedding models (text-embedding-3-small vs large) and text models
+- **STRM vs Symlinks**: Explain when to use each output format
+- **Library Images**: Explain how to upload custom 16:9 banners for libraries
 
-**Movie Preferences:**
-${movieTaste}
+When asked about admin tasks, provide step-by-step instructions referencing the Admin section in Settings.
+`
+    : ''
 
-**TV Series Preferences:**
-${seriesTaste}
+  return `You are Aperture, an AI-powered movie and TV series recommendation assistant integrated into a personal media server. You have FULL ACCESS to the user's complete media library database including movies, series, cast, crew, studios, watch history, ratings, and more.
+
+## Current User
+- **Role**: ${userRole}
+- **Movie Taste**: ${movieTaste}
+- **TV Taste**: ${seriesTaste}
 
 ## Recent Watches
 ${recentList}
+${adminSection}
+## What You Can Do
+
+### Content Discovery
+- **Search**: Find movies/series by title, genre, year, director, actor, studio
+- **Similar Content**: Use AI embeddings to find content like something the user mentions
+- **Browse People**: Search for actors, directors - show their filmography and images
+- **Studio Info**: Show studio details and their productions
+- **Recommendations**: Show personalized AI-generated picks
+
+### User Data
+- **Watch History**: What they've watched, play counts, when
+- **Ratings**: What they've rated and their scores
+- **Watch Stats**: Genre breakdowns, top actors/directors/studios
+
+### Actions
+- **Play Links**: Provide direct Emby/Jellyfin links to play content
+- **Content Details**: Full metadata including cast, crew, runtime, ratings
 
 ## CRITICAL TOOL USAGE RULES
 
-1. **ALWAYS use tools** - Never guess or make up information. Always query the database.
-2. **"Find something like X"** - Use findSimilarContent tool. It searches BOTH movies AND series automatically.
-3. **Questions about library size/counts** - Use getLibraryStats tool.
-4. **"What have I watched"** - Use getWatchHistory tool.
-5. **"What have I rated"** - Use getUserRatings tool.
-6. **Search by title** - Use searchContent tool (searches both movies AND series).
-7. **Browse by genre** - Use searchContent with genre parameter.
-8. **Find specific movie/show** - Use getContentDetails for full info with play link.
-9. **"Tell me about X" / "Everything about X"** - Use getContentDetails for comprehensive info.
-10. **"Can I watch X" / "Play X" / "Link to X"** - Use getContentDetails which includes Emby/Jellyfin play links.
+1. **ALWAYS use tools** - Never guess or make up information. Query the database.
+2. **Include images** - When showing content, include poster URLs. When showing people, include their thumbnail.
+3. **Include play links** - Always include Emby/Jellyfin play links when showing content.
+4. **Search smart** - findSimilarContent works for BOTH movies AND series automatically.
 
 ## Tool Selection Examples
 
-- "find something like Inception" → findSimilarContent(title: "Inception")
-- "how many movies do I have" → getLibraryStats()
-- "show me sci-fi movies" → searchContent(genre: "Science Fiction", type: "movies")
-- "what Christopher Nolan movies do I have" → searchContent(query: "Christopher Nolan", type: "movies")
-- "what have I been watching lately" → getWatchHistory()
-- "what did I rate highly" → getUserRatings()
-- "tell me about Inception" → getContentDetails(title: "Inception")
-- "play Nobody Wants This" → getContentDetails(title: "Nobody Wants This") - then provide the playLink
-- "what is the Emby ID for X" → getContentDetails(title: "X") - includes embyId/jellyfinId
+| User Says | Use Tool |
+|-----------|----------|
+| "find something like Inception" | findSimilarContent(title: "Inception") |
+| "how many movies do I have" | getLibraryStats() |
+| "show me sci-fi movies" | searchContent(genre: "Science Fiction") |
+| "movies with Tom Hanks" | searchPeople(name: "Tom Hanks") then show their movies |
+| "tell me about Inception" | getContentDetails(title: "Inception") |
+| "play Nobody Wants This" | getContentDetails → provide playLink |
+| "what studios do I watch most" | getTopStudios() |
+| "help me use Aperture" | getSystemHelp() |
 
-## Response Style
+## Response Formatting
 
-- Be warm, knowledgeable, and conversational
-- When providing content details, ALWAYS include the play link if available
-- Format play links as clickable markdown: [▶️ Play on Emby](link) or [▶️ Play on Jellyfin](link)
-- When recommending, briefly explain WHY it fits the user's taste
-- Format lists nicely with titles, years, ratings, and brief descriptions
-- If a search returns no results, suggest alternatives or ask for clarification
-- Use emoji sparingly for visual appeal 🎬
+### When showing content, use this format:
+**Title** (Year) ⭐ Rating/10
+![Poster](poster_url)
+Genre1, Genre2 | Runtime | Network/Studio
+> Brief overview...
+[▶️ Play on Emby](play_link)
 
-## Important
+### When showing people:
+**Name** (Actor/Director)
+![Photo](thumb_url)
+Known for: Movie1, Movie2, Movie3
+Appearances in your library: X movies, Y series
 
-- You have COMPLETE access to the library database - use it!
-- Never say "I don't have access to that information" - you DO have access via tools
-- If unsure what tool to use, use getLibraryStats for counts or searchContent for finding things`
+### When showing studios:
+**Studio Name**
+Productions in library: X movies, Y series
+Top titles: Movie1, Movie2
+
+## Important Rules
+
+- You have COMPLETE database access - never say "I don't have access"
+- ALWAYS include poster images when discussing content
+- ALWAYS include play links when available
+- Be warm, knowledgeable, and enthusiastic about media
+- If asked about something not in the library, be honest and suggest alternatives
+- Use emoji sparingly: 🎬 🎭 ⭐ 📺 ▶️`
 }
 
 const assistantRoutes: FastifyPluginAsync = async (fastify) => {
@@ -232,7 +273,7 @@ const assistantRoutes: FastifyPluginAsync = async (fastify) => {
       const openai = getOpenAIClient()
       const model = await getTextGenerationModel()
       const embeddingModel = await getEmbeddingModel()
-      const systemPrompt = await buildSystemPrompt(user.id)
+      const systemPrompt = await buildSystemPrompt(user.id, user.isAdmin)
 
       // Define tools for the assistant
       const tools = {
@@ -1057,9 +1098,7 @@ const assistantRoutes: FastifyPluginAsync = async (fastify) => {
           description:
             'Get comprehensive details about a specific movie or TV series including Emby/Jellyfin play link, all metadata, cast, and more. Use this for "tell me about X", "everything about X", "play X", "link to X", "what is the Emby ID for X" questions.',
           parameters: z.object({
-            title: z
-              .string()
-              .describe('The title of the movie or series to get details for'),
+            title: z.string().describe('The title of the movie or series to get details for'),
           }),
           execute: async ({ title }) => {
             // Get media server info for generating play links
@@ -1121,9 +1160,7 @@ const assistantRoutes: FastifyPluginAsync = async (fastify) => {
                 genres: movie.genres,
                 director: movie.director,
                 cast: movie.cast?.slice(0, 10), // Top 10 cast
-                runtime: movie.runtime
-                  ? `${runtimeHours}h ${runtimeMins}m`
-                  : null,
+                runtime: movie.runtime ? `${runtimeHours}h ${runtimeMins}m` : null,
                 communityRating: movie.community_rating,
                 criticRating: movie.critic_rating,
                 contentRating: movie.content_rating,
@@ -1223,6 +1260,458 @@ const assistantRoutes: FastifyPluginAsync = async (fastify) => {
 
             return {
               error: `"${title}" not found in your library. Try searching with searchContent tool to see available titles.`,
+            }
+          },
+        }),
+
+        // ============================================
+        // SEARCH PEOPLE - Actors, Directors, etc.
+        // ============================================
+        searchPeople: tool({
+          description:
+            'Search for actors, directors, or other people in your library. Returns their filmography with images. Use for "movies with Tom Hanks", "Christopher Nolan films", "who directed X".',
+          parameters: z.object({
+            name: z.string().describe('Name of the person to search for'),
+            role: z
+              .enum(['actor', 'director', 'writer', 'any'])
+              .optional()
+              .default('any')
+              .describe('Filter by role'),
+            limit: z.number().optional().default(10).describe('Max results'),
+          }),
+          execute: async ({ name, role = 'any', limit = 10 }) => {
+            const results: {
+              actors?: Array<{
+                name: string
+                thumb: string | null
+                movies: Array<{ title: string; year: number | null; role: string | null }>
+                series: Array<{ title: string; year: number | null; role: string | null }>
+              }>
+              directors?: Array<{
+                name: string
+                movies: Array<{ title: string; year: number | null }>
+                series: Array<{ title: string; year: number | null }>
+              }>
+              writers?: Array<{
+                name: string
+                movies: Array<{ title: string; year: number | null }>
+                series: Array<{ title: string; year: number | null }>
+              }>
+            } = {}
+
+            // Search actors
+            if (role === 'actor' || role === 'any') {
+              const actorMovies = await query<{
+                actor_name: string
+                actor_thumb: string | null
+                actor_role: string | null
+                title: string
+                year: number | null
+              }>(
+                `SELECT 
+                   actor->>'name' as actor_name,
+                   actor->>'thumb' as actor_thumb,
+                   actor->>'role' as actor_role,
+                   m.title,
+                   m.year
+                 FROM movies m,
+                 LATERAL jsonb_array_elements(m.actors) as actor
+                 WHERE actor->>'name' ILIKE $1
+                 ORDER BY m.year DESC NULLS LAST
+                 LIMIT $2`,
+                [`%${name}%`, limit * 5]
+              )
+
+              const actorSeries = await query<{
+                actor_name: string
+                actor_thumb: string | null
+                actor_role: string | null
+                title: string
+                year: number | null
+              }>(
+                `SELECT 
+                   actor->>'name' as actor_name,
+                   actor->>'thumb' as actor_thumb,
+                   actor->>'role' as actor_role,
+                   s.title,
+                   s.year
+                 FROM series s,
+                 LATERAL jsonb_array_elements(s.actors) as actor
+                 WHERE actor->>'name' ILIKE $1
+                 ORDER BY s.year DESC NULLS LAST
+                 LIMIT $2`,
+                [`%${name}%`, limit * 5]
+              )
+
+              // Group by actor name
+              const actorMap = new Map<
+                string,
+                {
+                  name: string
+                  thumb: string | null
+                  movies: Array<{ title: string; year: number | null; role: string | null }>
+                  series: Array<{ title: string; year: number | null; role: string | null }>
+                }
+              >()
+
+              for (const row of actorMovies.rows) {
+                const existing = actorMap.get(row.actor_name) || {
+                  name: row.actor_name,
+                  thumb: row.actor_thumb,
+                  movies: [],
+                  series: [],
+                }
+                existing.movies.push({
+                  title: row.title,
+                  year: row.year,
+                  role: row.actor_role,
+                })
+                actorMap.set(row.actor_name, existing)
+              }
+
+              for (const row of actorSeries.rows) {
+                const existing = actorMap.get(row.actor_name) || {
+                  name: row.actor_name,
+                  thumb: row.actor_thumb,
+                  movies: [],
+                  series: [],
+                }
+                existing.series.push({
+                  title: row.title,
+                  year: row.year,
+                  role: row.actor_role,
+                })
+                actorMap.set(row.actor_name, existing)
+              }
+
+              results.actors = Array.from(actorMap.values()).slice(0, limit)
+            }
+
+            // Search directors
+            if (role === 'director' || role === 'any') {
+              const directorMovies = await query<{ director: string; title: string; year: number | null }>(
+                `SELECT unnest(directors) as director, title, year
+                 FROM movies
+                 WHERE EXISTS (SELECT 1 FROM unnest(directors) d WHERE d ILIKE $1)
+                 ORDER BY year DESC NULLS LAST
+                 LIMIT $2`,
+                [`%${name}%`, limit * 5]
+              )
+
+              const directorSeries = await query<{ director: string; title: string; year: number | null }>(
+                `SELECT unnest(directors) as director, title, year
+                 FROM series
+                 WHERE EXISTS (SELECT 1 FROM unnest(directors) d WHERE d ILIKE $1)
+                 ORDER BY year DESC NULLS LAST
+                 LIMIT $2`,
+                [`%${name}%`, limit * 5]
+              )
+
+              const directorMap = new Map<
+                string,
+                {
+                  name: string
+                  movies: Array<{ title: string; year: number | null }>
+                  series: Array<{ title: string; year: number | null }>
+                }
+              >()
+
+              for (const row of directorMovies.rows) {
+                if (row.director.toLowerCase().includes(name.toLowerCase())) {
+                  const existing = directorMap.get(row.director) || {
+                    name: row.director,
+                    movies: [],
+                    series: [],
+                  }
+                  existing.movies.push({ title: row.title, year: row.year })
+                  directorMap.set(row.director, existing)
+                }
+              }
+
+              for (const row of directorSeries.rows) {
+                if (row.director.toLowerCase().includes(name.toLowerCase())) {
+                  const existing = directorMap.get(row.director) || {
+                    name: row.director,
+                    movies: [],
+                    series: [],
+                  }
+                  existing.series.push({ title: row.title, year: row.year })
+                  directorMap.set(row.director, existing)
+                }
+              }
+
+              results.directors = Array.from(directorMap.values()).slice(0, limit)
+            }
+
+            // Search writers
+            if (role === 'writer' || role === 'any') {
+              const writerMovies = await query<{ writer: string; title: string; year: number | null }>(
+                `SELECT unnest(writers) as writer, title, year
+                 FROM movies
+                 WHERE EXISTS (SELECT 1 FROM unnest(writers) w WHERE w ILIKE $1)
+                 ORDER BY year DESC NULLS LAST
+                 LIMIT $2`,
+                [`%${name}%`, limit * 5]
+              )
+
+              const writerMap = new Map<
+                string,
+                { name: string; movies: Array<{ title: string; year: number | null }>; series: never[] }
+              >()
+
+              for (const row of writerMovies.rows) {
+                if (row.writer.toLowerCase().includes(name.toLowerCase())) {
+                  const existing = writerMap.get(row.writer) || {
+                    name: row.writer,
+                    movies: [],
+                    series: [],
+                  }
+                  existing.movies.push({ title: row.title, year: row.year })
+                  writerMap.set(row.writer, existing)
+                }
+              }
+
+              results.writers = Array.from(writerMap.values()).slice(0, limit)
+            }
+
+            const totalFound =
+              (results.actors?.length || 0) +
+              (results.directors?.length || 0) +
+              (results.writers?.length || 0)
+
+            if (totalFound === 0) {
+              return { error: `No one named "${name}" found in your library.` }
+            }
+
+            return results
+          },
+        }),
+
+        // ============================================
+        // GET TOP STUDIOS - Most watched studios
+        // ============================================
+        getTopStudios: tool({
+          description:
+            'Get the user\'s most watched studios and networks. Use for "what studios do I watch", "favorite studios", "top networks".',
+          parameters: z.object({
+            type: z.enum(['movies', 'series', 'both']).optional().default('both'),
+            limit: z.number().optional().default(10),
+          }),
+          execute: async ({ type = 'both', limit = 10 }) => {
+            const results: {
+              studios?: Array<{ name: string; movieCount: number; topMovies: string[] }>
+              networks?: Array<{ name: string; seriesCount: number; topSeries: string[] }>
+            } = {}
+
+            if (type === 'movies' || type === 'both') {
+              // Get studios from watched movies
+              const studioData = await query<{ studio: string; count: string }>(
+                `SELECT unnest(m.studios) as studio, COUNT(DISTINCT m.id) as count
+                 FROM movies m
+                 JOIN watch_history wh ON wh.movie_id = m.id
+                 WHERE wh.user_id = $1
+                 GROUP BY studio
+                 ORDER BY count DESC
+                 LIMIT $2`,
+                [user.id, limit]
+              )
+
+              const studios: Array<{ name: string; movieCount: number; topMovies: string[] }> = []
+              for (const row of studioData.rows) {
+                // Get top movies for this studio
+                const topMovies = await query<{ title: string }>(
+                  `SELECT m.title
+                   FROM movies m
+                   JOIN watch_history wh ON wh.movie_id = m.id
+                   WHERE wh.user_id = $1 AND $2 = ANY(m.studios)
+                   ORDER BY m.community_rating DESC NULLS LAST
+                   LIMIT 3`,
+                  [user.id, row.studio]
+                )
+                studios.push({
+                  name: row.studio,
+                  movieCount: parseInt(row.count),
+                  topMovies: topMovies.rows.map((m) => m.title),
+                })
+              }
+              results.studios = studios
+            }
+
+            if (type === 'series' || type === 'both') {
+              // Get networks from watched series
+              const networkData = await query<{ network: string; count: string }>(
+                `SELECT s.network, COUNT(DISTINCT s.id) as count
+                 FROM series s
+                 JOIN seasons sea ON sea.series_id = s.id
+                 JOIN episodes e ON e.season_id = sea.id
+                 JOIN watch_history wh ON wh.episode_id = e.id
+                 WHERE wh.user_id = $1 AND s.network IS NOT NULL
+                 GROUP BY s.network
+                 ORDER BY count DESC
+                 LIMIT $2`,
+                [user.id, limit]
+              )
+
+              const networks: Array<{ name: string; seriesCount: number; topSeries: string[] }> = []
+              for (const row of networkData.rows) {
+                // Get top series for this network
+                const topSeries = await query<{ title: string }>(
+                  `SELECT DISTINCT s.title
+                   FROM series s
+                   JOIN seasons sea ON sea.series_id = s.id
+                   JOIN episodes e ON e.season_id = sea.id
+                   JOIN watch_history wh ON wh.episode_id = e.id
+                   WHERE wh.user_id = $1 AND s.network = $2
+                   ORDER BY s.community_rating DESC NULLS LAST
+                   LIMIT 3`,
+                  [user.id, row.network]
+                )
+                networks.push({
+                  name: row.network,
+                  seriesCount: parseInt(row.count),
+                  topSeries: topSeries.rows.map((s) => s.title),
+                })
+              }
+              results.networks = networks
+            }
+
+            return results
+          },
+        }),
+
+        // ============================================
+        // GET SYSTEM HELP - Documentation & How-to
+        // ============================================
+        getSystemHelp: tool({
+          description:
+            'Get help on how to use Aperture. Use for "how do I", "help", "what can I do", "how does X work". Returns relevant documentation.',
+          parameters: z.object({
+            topic: z
+              .string()
+              .optional()
+              .describe('Specific topic to get help on (e.g., "ratings", "recommendations", "jobs")'),
+          }),
+          execute: async ({ topic }) => {
+            // Return comprehensive help based on topic
+            const generalHelp = {
+              overview: `Aperture is an AI-powered recommendation system for your media server (Emby/Jellyfin).`,
+              capabilities: [
+                'AI-generated personalized movie and TV series recommendations',
+                '10-heart rating system (syncs with Trakt.tv)',
+                'Watch history tracking and analytics',
+                'Virtual "AI Picks" libraries in your media server',
+                'Top Picks showing globally popular content',
+                'Custom channels/playlists with AI generation',
+                'Detailed watch stats with genre/actor/director breakdowns',
+              ],
+              navigation: {
+                Dashboard: 'Your personalized home with recommendations, trending, and activity',
+                Movies: 'Browse your movie library with search and genre filters',
+                Series: 'Browse TV series with network filters',
+                'Top Movies/Series': 'See what\'s popular across all users',
+                History: 'Your complete watch history',
+                'Watch Stats': 'Analytics about your viewing habits',
+                Settings: 'Customize library names, rating behavior, taste profiles',
+              },
+            }
+
+            const topicHelp: Record<string, unknown> = {
+              ratings: {
+                title: 'Rating System',
+                description:
+                  'Aperture uses a 10-heart system compatible with Trakt.tv. Click the heart on any poster to rate.',
+                howTo: [
+                  'Click the heart icon in the bottom-right of any poster',
+                  'Select your rating (1-10 hearts) in the popup',
+                  'The heart fills proportionally to show your rating',
+                  'Ratings sync to Trakt.tv if connected',
+                ],
+                effects: {
+                  'High ratings (7-10)': 'Boost similar content in recommendations',
+                  'Low ratings (1-3)': 'Exclude or penalize similar content (configurable)',
+                },
+              },
+              recommendations: {
+                title: 'AI Recommendations',
+                description:
+                  'Aperture analyzes your watch history to generate personalized picks.',
+                factors: [
+                  'Content similarity via AI embeddings',
+                  'Genre preferences from your history',
+                  'Your ratings (likes boost, dislikes reduce)',
+                  'Balance of familiarity vs discovery',
+                ],
+                whereToFind: [
+                  'Dashboard: "Your Movie Picks" and "Your Series Picks" carousels',
+                  'My Recommendations page: Full list with match explanations',
+                  'Media Server: Look for your "AI Picks" library',
+                ],
+              },
+              trakt: {
+                title: 'Trakt Integration',
+                description: 'Connect Trakt.tv to sync ratings bidirectionally.',
+                howToConnect: [
+                  'Go to Settings',
+                  'Click "Connect Trakt Account"',
+                  'Authorize in the Trakt popup',
+                  'Ratings sync automatically',
+                ],
+              },
+              watchHistory: {
+                title: 'Watch History',
+                description:
+                  'Aperture tracks what you watch from your media server automatically.',
+                features: [
+                  'View all watched movies and episodes',
+                  'See play counts and last watched dates',
+                  'Mark items as unwatched (if enabled by admin)',
+                  'Filter by date range or type',
+                ],
+              },
+            }
+
+            if (topic) {
+              const normalizedTopic = topic.toLowerCase()
+              for (const [key, value] of Object.entries(topicHelp)) {
+                if (normalizedTopic.includes(key)) {
+                  return { topic: key, help: value, isAdmin: user.isAdmin }
+                }
+              }
+            }
+
+            // If admin, add admin help
+            const adminHelp = user.isAdmin
+              ? {
+                  adminCapabilities: [
+                    'Run sync jobs to import movies/series from media server',
+                    'Generate embeddings for AI similarity matching',
+                    'Configure recommendation algorithm weights',
+                    'Enable/disable users for recommendations',
+                    'Set up Top Picks with popularity thresholds',
+                    'Configure STRM vs Symlinks output format',
+                    'Manage library images for AI Picks libraries',
+                    'Schedule automated jobs (sync, recommendations, etc.)',
+                  ],
+                  jobs: {
+                    'sync-movies': 'Import movies from media server',
+                    'sync-series': 'Import TV series and episodes',
+                    'generate-movie-embeddings': 'Create AI embeddings for movies',
+                    'generate-series-embeddings': 'Create AI embeddings for series',
+                    'sync-movie-watch-history': 'Import user watch history for movies',
+                    'sync-series-watch-history': 'Import user watch history for series',
+                    'generate-movie-recommendations': 'Create personalized movie picks',
+                    'generate-series-recommendations': 'Create personalized series picks',
+                    'sync-movie-libraries': 'Create virtual movie library in media server',
+                    'sync-series-libraries': 'Create virtual series library in media server',
+                  },
+                }
+              : null
+
+            return {
+              generalHelp,
+              topicHelp: topic ? null : topicHelp,
+              adminHelp,
+              isAdmin: user.isAdmin,
             }
           },
         }),
