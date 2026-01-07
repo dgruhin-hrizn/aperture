@@ -42,8 +42,8 @@ These can also be configured via Admin > Settings > Media Server.
 | `AI_LIBRARY_NAME_PREFIX`    | Library name prefix                            | `AI Picks - `     |
 | `STRM_USE_STREAMING_URL`    | Use streaming URLs in STRM files               | `true`            |
 | `MEDIA_SERVER_LIBRARY_ROOT` | Root path for direct file paths                | `/mnt/media`      |
-| `MEDIA_SERVER_PATH_PREFIX`  | Path prefix as media server sees library files | `/mnt/`           |
-| `LOCAL_MEDIA_PATH_PREFIX`   | Local path prefix mapping for symlinks         | `/mnt/`           |
+| `MEDIA_SERVER_PATH_PREFIX`  | How your media server sees file paths          | `/mnt/`           |
+| `LOCAL_MEDIA_PATH_PREFIX`   | How Aperture sees the same files locally       | `/mnt/`           |
 
 ### Job Schedules (Defaults)
 
@@ -183,18 +183,37 @@ Configure via **Admin → Settings → Output & AI → User Recommendations Outp
 
 ### Path Mapping for Symlinks
 
-When using symlinks for series, Aperture symlinks artwork files (banner.jpg, clearlogo.png, season posters, etc.) from the original series folder. If your media server sees paths differently than Aperture's local filesystem, you need to configure path mapping.
+Aperture symlinks artwork files (banner.jpg, clearlogo.png, subtitles, etc.) from your original media folders. If your media server and Aperture see the same files at different paths, configure the mapping.
 
-**Example:** Your media server (Emby/Jellyfin) stores episode paths as `/mnt/Television/Show Name/...` but on the machine running Aperture, the actual path is `/Volumes/Media/Television/Show Name/...`.
+**How to find your paths:**
+1. In Emby/Jellyfin, look at any movie or episode's file path (under Media Info)
+2. On the machine running Aperture, find where that same file exists
+3. The different path prefix is what you configure
 
-Configure the mapping:
+#### Common Scenarios
 
+**Same machine (paths match):**
+```bash
+# No translation needed
+MEDIA_SERVER_PATH_PREFIX=/mnt/
+LOCAL_MEDIA_PATH_PREFIX=/mnt/
 ```
+
+**Aperture on Mac, Emby on Linux/Unraid (same NAS share):**
+```bash
+# Emby sees:     /mnt/TV/Breaking Bad/poster.jpg
+# Mac sees:      /Volumes/Media/TV/Breaking Bad/poster.jpg
 MEDIA_SERVER_PATH_PREFIX=/mnt/
 LOCAL_MEDIA_PATH_PREFIX=/Volumes/Media/
 ```
 
-This converts media server paths like `/mnt/Television/From/` to local paths `/Volumes/Media/Television/From/` so Aperture can read the original artwork files and create symlinks.
+**Both in Docker with different volume mounts:**
+```bash
+# Emby container:     /media/TV/...
+# Aperture container: /data/TV/...
+MEDIA_SERVER_PATH_PREFIX=/media/
+LOCAL_MEDIA_PATH_PREFIX=/data/
+```
 
 ### Symlink Folder Structure
 
