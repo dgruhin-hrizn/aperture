@@ -1,15 +1,19 @@
 /**
- * Chat streaming handler
+ * Chat streaming handler with AI SDK v5 + Tool UI
+ * https://www.tool-ui.com/docs/quick-start
  */
+import { Readable } from 'node:stream'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
-import { streamText } from 'ai'
+import { streamText, convertToModelMessages, type UIMessage } from 'ai'
+import { openai } from '@ai-sdk/openai'
 import { getEmbeddingModel, getChatAssistantModel } from '@aperture/core'
 import { requireAuth, type SessionUser } from '../../../plugins/auth.js'
-import { getOpenAIClient, getMediaServerInfo, buildSystemPrompt } from '../helpers/index.js'
+import { getMediaServerInfo, buildSystemPrompt } from '../helpers/index.js'
 import { createTools } from '../tools/index.js'
 
 interface ChatBody {
-  messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>
+  messages: UIMessage[]
+  system?: string
 }
 
 export function registerChatHandler(fastify: FastifyInstance) {
@@ -25,7 +29,6 @@ export function registerChatHandler(fastify: FastifyInstance) {
       }
 
       try {
-        const openai = getOpenAIClient()
         const model = await getChatAssistantModel()
         const embeddingModel = await getEmbeddingModel()
         const mediaServer = await getMediaServerInfo()
@@ -44,26 +47,28 @@ export function registerChatHandler(fastify: FastifyInstance) {
 
         fastify.log.info({ toolCount: Object.keys(tools).length, model }, 'Starting chat stream')
 
-        // Stream the response using AI SDK's built-in streaming
+        // Stream the response using AI SDK v5
         const result = streamText({
           model: openai(model),
           system: systemPrompt,
-          messages: messages.map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
+          messages: convertToModelMessages(messages),
           tools,
-          maxSteps: 10,
-          maxTokens: 16384, // Allow long, detailed responses
           toolChoice: 'auto',
         })
 
-        // Use the official AI SDK pattern for Fastify
-        // See: https://ai-sdk.dev/cookbook/api-servers/fastify
-        reply.header('X-Vercel-AI-Data-Stream', 'v1')
-        reply.header('Content-Type', 'text/plain; charset=utf-8')
+        // Get the UI Message Stream Response (Web Response)
+        const webResponse = result.toUIMessageStreamResponse()
 
-        return reply.send(result.toDataStream())
+        // Forward status + headers to Fastify
+        reply.status(webResponse.status)
+        webResponse.headers.forEach((value: string, key: string) => reply.header(key, value))
+
+        // Pipe the Web ReadableStream -> Node response
+        const nodeStream = Readable.fromWeb(
+          webResponse.body as Parameters<typeof Readable.fromWeb>[0]
+        )
+
+        return reply.send(nodeStream)
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error'
         const errorStack = err instanceof Error ? err.stack : undefined

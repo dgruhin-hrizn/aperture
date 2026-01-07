@@ -1,6 +1,7 @@
 /**
  * Helper functions for the AI Assistant
  */
-export { getOpenAIClient } from './openai.js'
 export { getMediaServerInfo, buildPlayLink } from './mediaServer.js'
-export { buildSystemPrompt } from './systemPrompt.js'
+
+// Re-export from new prompts module
+export { buildSystemPrompt, ASSISTANT_NAME } from '../prompts/index.js'

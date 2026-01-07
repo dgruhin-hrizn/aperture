@@ -1,34 +1,38 @@
 /**
- * Search and similarity tools
+ * Search and similarity tools with Tool UI output schemas
  */
 import { tool } from 'ai'
 import { z } from 'zod'
 import { query, queryOne } from '../../../lib/db.js'
 import { buildPlayLink } from '../helpers/mediaServer.js'
+import type { ContentItem } from '../schemas/index.js'
 import type { ToolContext, MovieResult, SeriesResult } from '../types.js'
 
-// Simplified result types for AI (no overview to avoid content filter)
-export interface MovieSearchResult {
-  id: string
-  title: string
-  year: number | null
-  genres: string[]
-  rating: number | null
-  posterUrl: string | null
-  detailLink: string
-  playLink: string | null
-}
+// Helper to format content item for Tool UI
+function formatContentItem(
+  item: MovieResult | SeriesResult,
+  type: 'movie' | 'series',
+  playLink: string | null,
+  rank?: number
+): ContentItem {
+  const genres = item.genres?.slice(0, 2).join(', ') || ''
+  const subtitle = [item.year, genres].filter(Boolean).join(' · ')
 
-export interface SeriesSearchResult {
-  id: string
-  title: string
-  year: number | null
-  genres: string[]
-  network?: string | null
-  rating: number | null
-  posterUrl: string | null
-  detailLink: string
-  playLink: string | null
+  return {
+    id: item.id,
+    type,
+    name: item.title,
+    subtitle,
+    image: item.poster_url,
+    rating: item.community_rating,
+    rank,
+    actions: [
+      { id: 'details', label: 'Details', href: `/${type}s/${item.id}`, variant: 'secondary' },
+      ...(playLink
+        ? [{ id: 'play', label: 'Play', href: playLink, variant: 'primary' as const }]
+        : []),
+    ],
+  }
 }
 
 export function createSearchTools(ctx: ToolContext) {
@@ -36,7 +40,7 @@ export function createSearchTools(ctx: ToolContext) {
     searchContent: tool({
       description:
         'Search for movies and/or TV series by title, genre, year, or other criteria. PRIMARY search tool.',
-      parameters: z.object({
+      inputSchema: z.object({
         query: z
           .string()
           .optional()
@@ -55,8 +59,8 @@ export function createSearchTools(ctx: ToolContext) {
         type = 'both',
         limit = 10,
       }) => {
-        const results: { movies?: MovieSearchResult[]; series?: SeriesSearchResult[] } = {}
-        const safeLimit = Math.min(limit, 20)
+        const items: ContentItem[] = []
+        const safeLimit = Math.min(limit ?? 10, 20)
 
         if (type === 'movies' || type === 'both') {
           let whereClause = ''
@@ -94,17 +98,11 @@ export function createSearchTools(ctx: ToolContext) {
              ORDER BY community_rating DESC NULLS LAST LIMIT $${paramIndex}`,
             params
           )
-          // Don't include overview to avoid content filter issues
-          results.movies = movieResult.rows.map((m) => ({
-            id: m.id,
-            title: m.title,
-            year: m.year,
-            genres: m.genres,
-            rating: m.community_rating,
-            posterUrl: m.poster_url,
-            detailLink: `/movies/${m.id}`,
-            playLink: buildPlayLink(ctx.mediaServer, m.provider_item_id, 'movie'),
-          }))
+
+          for (const m of movieResult.rows) {
+            const playLink = buildPlayLink(ctx.mediaServer, m.provider_item_id, 'movie')
+            items.push(formatContentItem(m, 'movie', playLink))
+          }
         }
 
         if (type === 'series' || type === 'both') {
@@ -143,74 +141,96 @@ export function createSearchTools(ctx: ToolContext) {
              ORDER BY community_rating DESC NULLS LAST LIMIT $${paramIndex}`,
             params
           )
-          // Don't include overview to avoid content filter issues
-          results.series = seriesResult.rows.map((s) => ({
-            id: s.id,
-            title: s.title,
-            year: s.year,
-            genres: s.genres,
-            network: s.network,
-            rating: s.community_rating,
-            posterUrl: s.poster_url,
-            detailLink: `/series/${s.id}`,
-            playLink: buildPlayLink(ctx.mediaServer, s.provider_item_id, 'series'),
-          }))
+
+          for (const s of seriesResult.rows) {
+            const playLink = buildPlayLink(ctx.mediaServer, s.provider_item_id, 'series')
+            items.push(formatContentItem(s, 'series', playLink))
+          }
         }
 
-        const totalFound = (results.movies?.length || 0) + (results.series?.length || 0)
-        if (totalFound === 0) {
-          return { message: 'No results found. Try a different search term or browse by genre.' }
+        if (items.length === 0) {
+          return {
+            id: `search-empty-${Date.now()}`,
+            items: [],
+            description: 'No results found. Try a different search term or browse by genre.',
+          }
         }
-        return results
+
+        // Build title
+        let title = 'Search Results'
+        if (searchQuery) title = `Results for "${searchQuery}"`
+        else if (genre)
+          title = `${genre} ${type === 'movies' ? 'Movies' : type === 'series' ? 'Series' : 'Content'}`
+
+        return {
+          id: `search-${Date.now()}`,
+          title,
+          items,
+        }
       },
     }),
 
     findSimilarContent: tool({
       description:
-        'Find movies and TV series similar to a given title using AI embeddings. Automatically searches both.',
-      parameters: z.object({
+        'Find movies and TV series similar to a given title using AI embeddings. Can optionally exclude content the user has already watched.',
+      inputSchema: z.object({
         title: z.string().describe('The title to find similar content for'),
+        excludeWatched: z
+          .boolean()
+          .optional()
+          .default(false)
+          .describe('If true, only return unwatched content'),
         limit: z.number().optional().default(5),
       }),
-      execute: async ({ title, limit = 5 }) => {
+      execute: async ({ title, excludeWatched = false, limit = 5 }) => {
         try {
-          const results: {
-            foundAs?: string
-            foundType?: string
-            foundId?: string
-            similarMovies?: Array<MovieSearchResult>
-            similarSeries?: Array<SeriesSearchResult>
-            error?: string
-          } = {}
+          const items: ContentItem[] = []
+          let foundTitle = ''
+          let foundType = ''
 
-          // Try to find as movie - prefer ones that have embeddings
+          // Try to find as movie - prefer exact/better matches, then ones with embeddings
           const movie = await queryOne<{ id: string; title: string }>(
             `SELECT m.id, m.title FROM movies m
              LEFT JOIN embeddings e ON e.movie_id = m.id AND e.model = $2
              WHERE m.title ILIKE $1
-             ORDER BY e.id IS NOT NULL DESC
+             ORDER BY 
+               CASE 
+                 WHEN LOWER(m.title) = LOWER($3) THEN 0
+                 WHEN LOWER(m.title) LIKE LOWER($4) THEN 1
+                 ELSE 2
+               END,
+               e.id IS NOT NULL DESC
              LIMIT 1`,
-            [`%${title}%`, ctx.embeddingModel]
+            [`%${title}%`, ctx.embeddingModel, title, `${title}%`]
           )
 
-          // Try to find as series - prefer ones that have embeddings
+          // Try to find as series - prefer exact/better matches, then ones with embeddings
           const series = await queryOne<{ id: string; title: string }>(
             `SELECT s.id, s.title FROM series s
              LEFT JOIN series_embeddings se ON se.series_id = s.id AND se.model = $2
              WHERE s.title ILIKE $1
-             ORDER BY se.id IS NOT NULL DESC
+             ORDER BY 
+               CASE 
+                 WHEN LOWER(s.title) = LOWER($3) THEN 0
+                 WHEN LOWER(s.title) LIKE LOWER($4) THEN 1
+                 ELSE 2
+               END,
+               se.id IS NOT NULL DESC
              LIMIT 1`,
-            [`%${title}%`, ctx.embeddingModel]
+            [`%${title}%`, ctx.embeddingModel, title, `${title}%`]
           )
 
           if (!movie && !series) {
-            return { error: `"${title}" not found in your library.` }
+            return {
+              id: `similar-error-${Date.now()}`,
+              items: [],
+              description: `"${title}" not found in your library.`,
+            }
           }
 
           if (movie) {
-            results.foundAs = movie.title
-            results.foundType = 'movie'
-            results.foundId = movie.id
+            foundTitle = movie.title
+            foundType = 'movie'
 
             const embedding = await queryOne<{ embedding: string }>(
               `SELECT embedding::text FROM embeddings WHERE movie_id = $1 AND model = $2`,
@@ -218,32 +238,33 @@ export function createSearchTools(ctx: ToolContext) {
             )
 
             if (embedding) {
+              // Build query with optional watched filter
+              const watchedFilter = excludeWatched
+                ? `AND m.id NOT IN (SELECT movie_id FROM watch_history WHERE user_id = $5 AND movie_id IS NOT NULL)`
+                : ''
+              const params = excludeWatched
+                ? [movie.id, ctx.embeddingModel, embedding.embedding, limit, ctx.userId]
+                : [movie.id, ctx.embeddingModel, embedding.embedding, limit]
+
               const similar = await query<MovieResult & { provider_item_id?: string }>(
                 `SELECT m.id, m.title, m.year, m.genres, m.community_rating, m.poster_url, m.provider_item_id
-               FROM embeddings e JOIN movies m ON m.id = e.movie_id
-               WHERE e.movie_id != $1 AND e.model = $2
-               ORDER BY e.embedding <=> $3::halfvec LIMIT $4`,
-                [movie.id, ctx.embeddingModel, embedding.embedding, limit]
+                 FROM embeddings e JOIN movies m ON m.id = e.movie_id
+                 WHERE e.movie_id != $1 AND e.model = $2 ${watchedFilter}
+                 ORDER BY e.embedding <=> $3::halfvec LIMIT $4`,
+                params
               )
-              // Don't include overview - let AI describe based on title/genres to avoid content filter
-              results.similarMovies = similar.rows.map((m) => ({
-                id: m.id,
-                title: m.title,
-                year: m.year,
-                genres: m.genres,
-                rating: m.community_rating,
-                posterUrl: m.poster_url,
-                detailLink: `/movies/${m.id}`,
-                playLink: buildPlayLink(ctx.mediaServer, m.provider_item_id, 'movie'),
-              }))
+
+              for (const m of similar.rows) {
+                const playLink = buildPlayLink(ctx.mediaServer, m.provider_item_id, 'movie')
+                items.push(formatContentItem(m, 'movie', playLink))
+              }
             }
           }
 
           if (series) {
-            if (!results.foundAs) {
-              results.foundAs = series.title
-              results.foundType = 'series'
-              results.foundId = series.id
+            if (!foundTitle) {
+              foundTitle = series.title
+              foundType = 'series'
             }
 
             const embedding = await queryOne<{ embedding: string }>(
@@ -252,33 +273,46 @@ export function createSearchTools(ctx: ToolContext) {
             )
 
             if (embedding) {
+              // Build query with optional watched filter (series is watched if any episode is watched)
+              const watchedFilter = excludeWatched
+                ? `AND s.id NOT IN (
+                    SELECT DISTINCT ep.series_id FROM watch_history wh
+                    JOIN episodes ep ON ep.id = wh.episode_id
+                    WHERE wh.user_id = $5
+                  )`
+                : ''
+              const params = excludeWatched
+                ? [series.id, ctx.embeddingModel, embedding.embedding, limit, ctx.userId]
+                : [series.id, ctx.embeddingModel, embedding.embedding, limit]
+
               const similar = await query<SeriesResult & { provider_item_id?: string }>(
                 `SELECT s.id, s.title, s.year, s.genres, s.network, s.community_rating, s.poster_url, s.provider_item_id
-               FROM series_embeddings se JOIN series s ON s.id = se.series_id
-               WHERE se.series_id != $1 AND se.model = $2
-               ORDER BY se.embedding <=> $3::halfvec LIMIT $4`,
-                [series.id, ctx.embeddingModel, embedding.embedding, limit]
+                 FROM series_embeddings se JOIN series s ON s.id = se.series_id
+                 WHERE se.series_id != $1 AND se.model = $2 ${watchedFilter}
+                 ORDER BY se.embedding <=> $3::halfvec LIMIT $4`,
+                params
               )
-              // Don't include overview - let AI describe based on title/genres to avoid content filter
-              results.similarSeries = similar.rows.map((s) => ({
-                id: s.id,
-                title: s.title,
-                year: s.year,
-                genres: s.genres,
-                network: s.network,
-                rating: s.community_rating,
-                posterUrl: s.poster_url,
-                detailLink: `/series/${s.id}`,
-                playLink: buildPlayLink(ctx.mediaServer, s.provider_item_id, 'series'),
-              }))
+
+              for (const s of similar.rows) {
+                const playLink = buildPlayLink(ctx.mediaServer, s.provider_item_id, 'series')
+                items.push(formatContentItem(s, 'series', playLink))
+              }
             }
           }
 
-          return results
+          const unwatchedNote = excludeWatched ? " that you haven't watched" : ''
+          return {
+            id: `similar-${Date.now()}`,
+            title: `Similar to "${foundTitle}"`,
+            description: `Found ${items.length} titles similar to this ${foundType}${unwatchedNote}`,
+            items,
+          }
         } catch (err) {
           console.error('[findSimilarContent] Error:', err)
           return {
-            error: `Failed to find similar content: ${err instanceof Error ? err.message : 'Unknown error'}`,
+            id: `similar-error-${Date.now()}`,
+            items: [],
+            description: `Failed to find similar content: ${err instanceof Error ? err.message : 'Unknown error'}`,
           }
         }
       },

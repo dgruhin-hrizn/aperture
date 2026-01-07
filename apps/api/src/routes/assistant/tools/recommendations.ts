@@ -1,40 +1,50 @@
 /**
- * Recommendation tools
+ * Recommendation tools with Tool UI output schemas
  */
 import { tool } from 'ai'
 import { z } from 'zod'
 import { query } from '../../../lib/db.js'
+import { buildPlayLink } from '../helpers/mediaServer.js'
+import type { ContentItem } from '../schemas/index.js'
 import type { ToolContext, MovieResult, SeriesResult } from '../types.js'
+
+// Helper to format content item for Tool UI
+function formatContentItem(
+  item: MovieResult | SeriesResult,
+  type: 'movie' | 'series',
+  playLink: string | null,
+  rank?: number
+): ContentItem {
+  const genres = item.genres?.slice(0, 2).join(', ') || ''
+  const subtitle = [item.year, genres].filter(Boolean).join(' · ')
+
+  return {
+    id: item.id,
+    type,
+    name: item.title,
+    subtitle,
+    image: item.poster_url,
+    rating: item.community_rating,
+    rank,
+    actions: [
+      { id: 'details', label: 'Details', href: `/${type}s/${item.id}`, variant: 'secondary' },
+      ...(playLink
+        ? [{ id: 'play', label: 'Play', href: playLink, variant: 'primary' as const }]
+        : []),
+    ],
+  }
+}
 
 export function createRecommendationTools(ctx: ToolContext) {
   return {
     getMyRecommendations: tool({
       description: "Get the user's current AI-generated personalized recommendations.",
-      parameters: z.object({
+      inputSchema: z.object({
         type: z.enum(['movies', 'series', 'both']).default('both'),
         limit: z.number().optional().default(10),
       }),
       execute: async ({ type, limit = 10 }) => {
-        const result: {
-          movies?: {
-            id: string
-            title: string
-            year: number | null
-            rank: number
-            genres: string[]
-            posterUrl: string | null
-            overview: string
-          }[]
-          series?: {
-            id: string
-            title: string
-            year: number | null
-            rank: number
-            genres: string[]
-            posterUrl: string | null
-            overview: string
-          }[]
-        } = {}
+        const items: ContentItem[] = []
 
         if (type === 'movies' || type === 'both') {
           const movieRecs = await query<{
@@ -43,10 +53,12 @@ export function createRecommendationTools(ctx: ToolContext) {
             year: number | null
             rank: number
             genres: string[]
-            overview: string | null
             poster_url: string | null
+            community_rating: number | null
+            provider_item_id: string | null
           }>(
-            `SELECT m.id, m.title, m.year, rc.selected_rank as rank, m.genres, m.overview, m.poster_url
+            `SELECT m.id, m.title, m.year, rc.selected_rank as rank, m.genres, m.poster_url, 
+             m.community_rating, m.provider_item_id
              FROM recommendation_candidates rc
              JOIN recommendation_runs rr ON rr.id = rc.run_id
              JOIN movies m ON m.id = rc.movie_id
@@ -55,15 +67,11 @@ export function createRecommendationTools(ctx: ToolContext) {
              ORDER BY rr.created_at DESC, rc.selected_rank ASC LIMIT $2`,
             [ctx.userId, limit]
           )
-          result.movies = movieRecs.rows.map((r) => ({
-            id: r.id,
-            title: r.title,
-            year: r.year,
-            rank: r.rank,
-            genres: r.genres,
-            posterUrl: r.poster_url,
-            overview: r.overview?.substring(0, 150) + '...',
-          }))
+
+          for (const r of movieRecs.rows) {
+            const playLink = buildPlayLink(ctx.mediaServer, r.provider_item_id, 'movie')
+            items.push(formatContentItem(r as unknown as MovieResult, 'movie', playLink, r.rank))
+          }
         }
 
         if (type === 'series' || type === 'both') {
@@ -73,10 +81,12 @@ export function createRecommendationTools(ctx: ToolContext) {
             year: number | null
             rank: number
             genres: string[]
-            overview: string | null
             poster_url: string | null
+            community_rating: number | null
+            provider_item_id: string | null
           }>(
-            `SELECT s.id, s.title, s.year, rc.selected_rank as rank, s.genres, s.overview, s.poster_url
+            `SELECT s.id, s.title, s.year, rc.selected_rank as rank, s.genres, s.poster_url,
+             s.community_rating, s.provider_item_id
              FROM recommendation_candidates rc
              JOIN recommendation_runs rr ON rr.id = rc.run_id
              JOIN series s ON s.id = rc.series_id
@@ -85,53 +95,40 @@ export function createRecommendationTools(ctx: ToolContext) {
              ORDER BY rr.created_at DESC, rc.selected_rank ASC LIMIT $2`,
             [ctx.userId, limit]
           )
-          result.series = seriesRecs.rows.map((r) => ({
-            id: r.id,
-            title: r.title,
-            year: r.year,
-            rank: r.rank,
-            genres: r.genres,
-            posterUrl: r.poster_url,
-            overview: r.overview?.substring(0, 150) + '...',
-          }))
+
+          for (const r of seriesRecs.rows) {
+            const playLink = buildPlayLink(ctx.mediaServer, r.provider_item_id, 'series')
+            items.push(formatContentItem(r as unknown as SeriesResult, 'series', playLink, r.rank))
+          }
         }
 
-        if (!result.movies?.length && !result.series?.length) {
-          return { message: 'No recommendations generated yet.' }
+        if (items.length === 0) {
+          return {
+            id: `recs-empty-${Date.now()}`,
+            items: [],
+            description:
+              'No recommendations generated yet. Ask an admin to run the recommendation job.',
+          }
         }
-        return result
+
+        return {
+          id: `recs-${Date.now()}`,
+          title: 'Your AI Recommendations',
+          description: `${items.length} personalized picks for you`,
+          items,
+        }
       },
     }),
 
     getTopRated: tool({
       description: 'Get the highest-rated content in the library.',
-      parameters: z.object({
+      inputSchema: z.object({
         type: z.enum(['movies', 'series', 'both']).default('both'),
-        genre: z.string().optional(),
+        genre: z.string().optional().describe('Filter by genre'),
         limit: z.number().optional().default(10),
       }),
       execute: async ({ type, genre, limit = 10 }) => {
-        const results: {
-          movies?: {
-            id: string
-            title: string
-            year: number | null
-            genres: string[]
-            rating: number | null
-            posterUrl: string | null
-            overview: string
-          }[]
-          series?: {
-            id: string
-            title: string
-            year: number | null
-            genres: string[]
-            network: string | null
-            rating: number | null
-            posterUrl: string | null
-            overview: string
-          }[]
-        } = {}
+        const items: ContentItem[] = []
 
         if (type === 'movies' || type === 'both') {
           let whereClause = 'WHERE community_rating IS NOT NULL'
@@ -145,21 +142,17 @@ export function createRecommendationTools(ctx: ToolContext) {
           }
           params.push(limit)
 
-          const movies = await query<MovieResult>(
-            `SELECT id, title, year, genres, overview, community_rating, poster_url
+          const movies = await query<MovieResult & { provider_item_id?: string }>(
+            `SELECT id, title, year, genres, community_rating, poster_url, provider_item_id
              FROM movies ${whereClause}
              ORDER BY community_rating DESC LIMIT $${paramIndex}`,
             params
           )
-          results.movies = movies.rows.map((m) => ({
-            id: m.id,
-            title: m.title,
-            year: m.year,
-            genres: m.genres,
-            rating: m.community_rating,
-            posterUrl: m.poster_url,
-            overview: m.overview?.substring(0, 150) + '...',
-          }))
+
+          for (const m of movies.rows) {
+            const playLink = buildPlayLink(ctx.mediaServer, m.provider_item_id, 'movie')
+            items.push(formatContentItem(m, 'movie', playLink))
+          }
         }
 
         if (type === 'series' || type === 'both') {
@@ -174,58 +167,38 @@ export function createRecommendationTools(ctx: ToolContext) {
           }
           params.push(limit)
 
-          const series = await query<SeriesResult>(
-            `SELECT id, title, year, genres, network, overview, community_rating, poster_url
+          const series = await query<SeriesResult & { provider_item_id?: string }>(
+            `SELECT id, title, year, genres, network, community_rating, poster_url, provider_item_id
              FROM series ${whereClause}
              ORDER BY community_rating DESC LIMIT $${paramIndex}`,
             params
           )
-          results.series = series.rows.map((s) => ({
-            id: s.id,
-            title: s.title,
-            year: s.year,
-            genres: s.genres,
-            network: s.network,
-            rating: s.community_rating,
-            posterUrl: s.poster_url,
-            overview: s.overview?.substring(0, 150) + '...',
-          }))
+
+          for (const s of series.rows) {
+            const playLink = buildPlayLink(ctx.mediaServer, s.provider_item_id, 'series')
+            items.push(formatContentItem(s, 'series', playLink))
+          }
         }
 
-        return results
+        const title = genre ? `Top Rated ${genre}` : 'Top Rated'
+        return {
+          id: `top-rated-${Date.now()}`,
+          title,
+          items,
+        }
       },
     }),
 
     getUnwatched: tool({
       description: 'Get content the user has NOT watched yet.',
-      parameters: z.object({
+      inputSchema: z.object({
         type: z.enum(['movies', 'series', 'both']).default('both'),
-        genre: z.string().optional(),
-        minRating: z.number().optional(),
+        genre: z.string().optional().describe('Filter by genre'),
+        minRating: z.number().optional().describe('Minimum community rating'),
         limit: z.number().optional().default(10),
       }),
       execute: async ({ type, genre, minRating, limit = 10 }) => {
-        const results: {
-          movies?: {
-            id: string
-            title: string
-            year: number | null
-            genres: string[]
-            rating: number | null
-            posterUrl: string | null
-            overview: string
-          }[]
-          series?: {
-            id: string
-            title: string
-            year: number | null
-            genres: string[]
-            network: string | null
-            rating: number | null
-            posterUrl: string | null
-            overview: string
-          }[]
-        } = {}
+        const items: ContentItem[] = []
 
         if (type === 'movies' || type === 'both') {
           let whereClause = `WHERE m.id NOT IN (
@@ -245,28 +218,24 @@ export function createRecommendationTools(ctx: ToolContext) {
           }
           params.push(limit)
 
-          const movies = await query<MovieResult>(
-            `SELECT m.id, m.title, m.year, m.genres, m.overview, m.community_rating, m.poster_url
+          const movies = await query<MovieResult & { provider_item_id?: string }>(
+            `SELECT m.id, m.title, m.year, m.genres, m.community_rating, m.poster_url, m.provider_item_id
              FROM movies m ${whereClause}
              ORDER BY m.community_rating DESC NULLS LAST LIMIT $${paramIndex}`,
             params
           )
-          results.movies = movies.rows.map((m) => ({
-            id: m.id,
-            title: m.title,
-            year: m.year,
-            genres: m.genres,
-            rating: m.community_rating,
-            posterUrl: m.poster_url,
-            overview: m.overview?.substring(0, 150) + '...',
-          }))
+
+          for (const m of movies.rows) {
+            const playLink = buildPlayLink(ctx.mediaServer, m.provider_item_id, 'movie')
+            items.push(formatContentItem(m, 'movie', playLink))
+          }
         }
 
         if (type === 'series' || type === 'both') {
           let whereClause = `WHERE s.id NOT IN (
-            SELECT DISTINCT sea.series_id FROM watch_history wh
-            JOIN episodes e ON e.id = wh.episode_id
-            JOIN seasons sea ON sea.id = e.season_id WHERE wh.user_id = $1)`
+            SELECT DISTINCT ep.series_id FROM watch_history wh
+            JOIN episodes ep ON ep.id = wh.episode_id
+            WHERE wh.user_id = $1)`
           const params: unknown[] = [ctx.userId]
           let paramIndex = 2
 
@@ -282,25 +251,25 @@ export function createRecommendationTools(ctx: ToolContext) {
           }
           params.push(limit)
 
-          const series = await query<SeriesResult>(
-            `SELECT s.id, s.title, s.year, s.genres, s.network, s.overview, s.community_rating, s.poster_url
+          const series = await query<SeriesResult & { provider_item_id?: string }>(
+            `SELECT s.id, s.title, s.year, s.genres, s.network, s.community_rating, s.poster_url, s.provider_item_id
              FROM series s ${whereClause}
              ORDER BY s.community_rating DESC NULLS LAST LIMIT $${paramIndex}`,
             params
           )
-          results.series = series.rows.map((s) => ({
-            id: s.id,
-            title: s.title,
-            year: s.year,
-            genres: s.genres,
-            network: s.network,
-            rating: s.community_rating,
-            posterUrl: s.poster_url,
-            overview: s.overview?.substring(0, 150) + '...',
-          }))
+
+          for (const s of series.rows) {
+            const playLink = buildPlayLink(ctx.mediaServer, s.provider_item_id, 'series')
+            items.push(formatContentItem(s, 'series', playLink))
+          }
         }
 
-        return results
+        return {
+          id: `unwatched-${Date.now()}`,
+          title: 'Unwatched Content',
+          description: `${items.length} titles you haven't watched yet`,
+          items,
+        }
       },
     }),
   }

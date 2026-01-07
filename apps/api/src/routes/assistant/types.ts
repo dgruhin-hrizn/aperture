@@ -70,6 +70,7 @@ export interface MessageRow {
   id: string
   role: string
   content: string
+  tool_invocations: unknown[] | null
   created_at: Date
 }
 

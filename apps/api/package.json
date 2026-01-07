@@ -12,13 +12,13 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^1.0.0",
+    "@ai-sdk/openai": "^2.0.0",
     "@aperture/core": "workspace:*",
     "@fastify/cookie": "^11.0.1",
     "@fastify/cors": "^10.0.1",
     "@fastify/multipart": "^9.3.0",
     "@fastify/static": "^8.0.3",
-    "ai": "^4.0.0",
+    "ai": "^5.0.0",
     "fastify": "^5.2.0",
     "fastify-plugin": "^5.0.1",
     "node-cron": "^3.0.3",

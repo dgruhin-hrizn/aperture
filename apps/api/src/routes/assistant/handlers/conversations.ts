@@ -72,7 +72,7 @@ export function registerConversationHandlers(fastify: FastifyInstance) {
         }
 
         const messages = await query<MessageRow>(
-          `SELECT id, role, content, created_at
+          `SELECT id, role, content, tool_invocations, created_at
            FROM assistant_messages
            WHERE conversation_id = $1
            ORDER BY created_at ASC`,
@@ -81,7 +81,10 @@ export function registerConversationHandlers(fastify: FastifyInstance) {
 
         return reply.send({
           conversation,
-          messages: messages.rows,
+          messages: messages.rows.map((m) => ({
+            ...m,
+            toolInvocations: m.tool_invocations || undefined,
+          })),
         })
       } catch (err) {
         request.log.error({ err }, 'Failed to fetch conversation')
@@ -149,7 +152,7 @@ export function registerConversationHandlers(fastify: FastifyInstance) {
    */
   fastify.post<{
     Params: { id: string }
-    Body: { messages: Array<{ role: string; content: string }> }
+    Body: { messages: Array<{ role: string; content: string; toolInvocations?: unknown[] }> }
   }>(
     '/api/assistant/conversations/:id/messages',
     { preHandler: requireAuth },
@@ -171,9 +174,9 @@ export function registerConversationHandlers(fastify: FastifyInstance) {
       // Insert messages
       for (const msg of messages) {
         await query(
-          `INSERT INTO assistant_messages (conversation_id, role, content)
-           VALUES ($1, $2, $3)`,
-          [id, msg.role, msg.content]
+          `INSERT INTO assistant_messages (conversation_id, role, content, tool_invocations)
+           VALUES ($1, $2, $3, $4)`,
+          [id, msg.role, msg.content, msg.toolInvocations ? JSON.stringify(msg.toolInvocations) : null]
         )
       }
 

@@ -1,5 +1,5 @@
 /**
- * System help tools
+ * System help tools with Tool UI output
  */
 import { tool } from 'ai'
 import { z } from 'zod'
@@ -9,7 +9,7 @@ export function createHelpTools(ctx: ToolContext) {
   return {
     getSystemHelp: tool({
       description: 'Get help on how to use Aperture.',
-      parameters: z.object({
+      inputSchema: z.object({
         topic: z.string().optional().describe('Specific topic (ratings, recommendations, jobs)'),
       }),
       execute: async ({ topic }) => {
@@ -90,7 +90,7 @@ export function createHelpTools(ctx: ToolContext) {
           const normalizedTopic = topic.toLowerCase()
           for (const [key, value] of Object.entries(topicHelp)) {
             if (normalizedTopic.includes(key)) {
-              return { topic: key, help: value, isAdmin: ctx.isAdmin }
+              return { id: `help-${key}`, topic: key, help: value, isAdmin: ctx.isAdmin }
             }
           }
         }
@@ -125,7 +125,7 @@ export function createHelpTools(ctx: ToolContext) {
             }
           : null
 
-        return { generalHelp, adminHelp, isAdmin: ctx.isAdmin }
+        return { id: `help-general-${Date.now()}`, generalHelp, adminHelp, isAdmin: ctx.isAdmin }
       },
     }),
   }

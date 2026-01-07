@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { 
   Dialog, 
   Fab, 
@@ -22,7 +22,9 @@ import FullscreenExitIcon from '@mui/icons-material/FullscreenExit'
 import AddIcon from '@mui/icons-material/Add'
 import ChatIcon from '@mui/icons-material/Chat'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
-import { useChat } from 'ai/react'
+import { AssistantRuntimeProvider, useThreadRuntime } from '@assistant-ui/react'
+import { useChatRuntime, AssistantChatTransport } from '@assistant-ui/react-ai-sdk'
+import type { UIMessage } from 'ai'
 import { Thread } from './assistant'
 
 interface Conversation {
@@ -32,6 +34,218 @@ interface Conversation {
   updated_at: string
 }
 
+// Message format from our backend
+interface BackendMessage {
+  id: string
+  role: string
+  content: string
+  tool_invocations?: Array<{
+    toolCallId: string
+    toolName: string
+    args: unknown
+    result?: unknown
+  }>
+  created_at: string
+}
+
+// Convert backend messages to UIMessage format
+// Using type assertions because the runtime format works with assistant-ui
+// even if TypeScript types don't align perfectly
+function convertToUIMessages(messages: BackendMessage[]): UIMessage[] {
+  return messages.map((msg) => {
+    // Build the content array (parts) - use 'any' to bypass strict type checking
+    // as the runtime structure is compatible with assistant-ui
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const content: any[] = []
+    // Also build toolInvocations array for AI SDK compatibility
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const toolInvocations: any[] = []
+    
+    // Add text part if there's content
+    if (msg.content) {
+      content.push({ type: 'text', text: msg.content })
+    }
+    
+    // Add tool-call parts from tool_invocations
+    if (msg.tool_invocations && msg.tool_invocations.length > 0) {
+      for (const invocation of msg.tool_invocations) {
+        // Add to content array (ThreadMessage format)
+        content.push({
+          type: 'tool-call',
+          toolCallId: invocation.toolCallId,
+          toolName: invocation.toolName,
+          args: invocation.args,
+          argsText: JSON.stringify(invocation.args),
+          isError: false,
+          result: invocation.result,
+        })
+        
+        // Also add to toolInvocations array (AI SDK format)
+        toolInvocations.push({
+          state: 'result',
+          toolCallId: invocation.toolCallId,
+          toolName: invocation.toolName,
+          args: invocation.args,
+          result: invocation.result,
+        })
+      }
+    }
+    
+    // Return message with multiple format properties for compatibility
+    return {
+      id: msg.id,
+      role: msg.role as 'user' | 'assistant' | 'system',
+      content,
+      parts: content,
+      ...(toolInvocations.length > 0 && { toolInvocations }),
+    } as unknown as UIMessage
+  })
+}
+
+// Chat thread area that gets remounted when conversation changes
+function ChatThreadArea({
+  conversationId,
+  initialMessages,
+  historicalMessages,
+  setSavingMessages,
+  fetchConversations,
+}: {
+  conversationId: string | null
+  initialMessages: UIMessage[]
+  historicalMessages: BackendMessage[]
+  setSavingMessages: (saving: boolean) => void
+  fetchConversations: () => Promise<void>
+}) {
+  // Memoize transport to prevent recreation on re-renders
+  const transport = useRef(new AssistantChatTransport({ 
+    api: '/api/assistant/chat',
+    credentials: 'include',
+  }))
+  
+  // Don't pass messages to runtime - it doesn't properly parse tool results
+  // Instead, we'll pass historical messages directly to Thread for manual rendering
+  const runtime = useChatRuntime({
+    transport: transport.current,
+  })
+  
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <MessageSaver
+        conversationId={conversationId}
+        initialMessageCount={initialMessages.length}
+        setSavingMessages={setSavingMessages}
+        fetchConversations={fetchConversations}
+      />
+      <Thread historicalMessages={historicalMessages} />
+    </AssistantRuntimeProvider>
+  )
+}
+
+// Component to handle message saving inside the runtime context
+function MessageSaver({
+  conversationId,
+  initialMessageCount,
+  setSavingMessages,
+  fetchConversations,
+}: {
+  conversationId: string | null
+  initialMessageCount: number
+  setSavingMessages: (saving: boolean) => void
+  fetchConversations: () => Promise<void>
+}) {
+  const threadRuntime = useThreadRuntime()
+  const savedCountRef = useRef(initialMessageCount)
+  const isSavingRef = useRef(false)
+  
+  // Reset saved count when initialMessageCount changes (new conversation loaded)
+  useEffect(() => {
+    savedCountRef.current = initialMessageCount
+  }, [initialMessageCount])
+  
+  useEffect(() => {
+    // Subscribe to thread state changes
+    const unsubscribe = threadRuntime.subscribe(() => {
+      const state = threadRuntime.getState()
+      
+      // Only save when not currently running (assistant has finished)
+      // and we have new messages to save
+      if (state.isRunning) return
+      if (isSavingRef.current) return
+      if (!conversationId) return
+      
+      const messages = state.messages
+      if (messages.length <= savedCountRef.current) return
+      
+      // Get messages that haven't been saved yet
+      const unsavedMessages = messages.slice(savedCountRef.current)
+      if (unsavedMessages.length === 0) return
+      
+      // Convert to backend format
+      // ThreadMessage uses 'content' as the parts array
+      const messagesToSave = unsavedMessages.map(msg => {
+        // Extract text content and tool invocations from message content (parts array)
+        let textContent = ''
+        const toolInvocations: Array<{ toolCallId: string; toolName: string; args: unknown; result?: unknown }> = []
+        
+        // Collect all parts from the content array
+        // Use 'any' type as ThreadMessage content types don't perfectly match
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const part of msg.content as any[]) {
+          if (part.type === 'text') {
+            textContent += part.text
+          } else if (part.type === 'tool-call') {
+            // In ThreadMessage, the result is embedded directly in the tool-call part
+            toolInvocations.push({
+              toolCallId: part.toolCallId,
+              toolName: part.toolName,
+              args: part.args,
+              result: part.result,
+            })
+          }
+        }
+        
+        return {
+          role: msg.role,
+          content: textContent,
+          ...(toolInvocations.length > 0 && { toolInvocations }),
+        }
+      })
+      
+      // Save to backend
+      isSavingRef.current = true
+      setSavingMessages(true)
+      
+      fetch(`/api/assistant/conversations/${conversationId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ messages: messagesToSave }),
+      })
+        .then((res) => {
+          if (!res.ok) {
+            return res.text().then(text => {
+              console.error('Failed to save messages:', text)
+            })
+          }
+          savedCountRef.current = messages.length
+          fetchConversations() // Refresh to update titles
+        })
+        .catch(err => {
+          console.error('Failed to save messages:', err)
+        })
+        .finally(() => {
+          isSavingRef.current = false
+          setSavingMessages(false)
+        })
+    })
+    
+    return () => unsubscribe()
+  }, [threadRuntime, conversationId, setSavingMessages, fetchConversations])
+  
+  return null
+}
+
+
 export function AssistantModal() {
   const [open, setOpen] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
@@ -39,15 +253,8 @@ export function AssistantModal() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [loadingConversations, setLoadingConversations] = useState(false)
   const [savingMessages, setSavingMessages] = useState(false)
-  
-  // Use the Vercel AI SDK's useChat with our custom endpoint
-  const { messages, input, handleSubmit, isLoading, setInput, append, setMessages, error } = useChat({
-    api: '/api/assistant/chat',
-    credentials: 'include',
-    onError: (err) => {
-      console.error('[useChat] Error:', err)
-    },
-  })
+  const [initialMessages, setInitialMessages] = useState<UIMessage[]>([])
+  const [historicalMessages, setHistoricalMessages] = useState<BackendMessage[]>([])
 
   // Fetch conversations when modal opens
   const fetchConversations = useCallback(async () => {
@@ -71,53 +278,36 @@ export function AssistantModal() {
     }
   }, [open, fetchConversations])
 
-  // Save messages when they change (debounced)
-  useEffect(() => {
-    if (!activeConversationId || messages.length === 0) return
-
-    const timeoutId = setTimeout(async () => {
-      setSavingMessages(true)
+  const handleOpen = async () => {
+    setOpen(true)
+    
+    // Auto-create a conversation if none exists
+    if (!activeConversationId) {
       try {
-        // Get existing messages from the conversation
-        const res = await fetch(`/api/assistant/conversations/${activeConversationId}`, { 
-          credentials: 'include' 
+        const res = await fetch('/api/assistant/conversations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({}),
         })
-        if (!res.ok) return
-
-        const data = await res.json()
-        const existingCount = data.messages?.length || 0
-        
-        // Only save new messages
-        const newMessages = messages.slice(existingCount).map(m => ({
-          role: m.role,
-          content: m.content,
-        }))
-
-        if (newMessages.length > 0) {
-          await fetch(`/api/assistant/conversations/${activeConversationId}/messages`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ messages: newMessages }),
-          })
-          // Refresh conversations to update titles/timestamps
-          fetchConversations()
+        if (res.ok) {
+          const data = await res.json()
+          setActiveConversationId(data.conversation.id)
         }
       } catch (err) {
-        console.error('Failed to save messages:', err)
-      } finally {
-        setSavingMessages(false)
+        console.error('Failed to auto-create conversation:', err)
       }
-    }, 1000) // Debounce 1 second
-
-    return () => clearTimeout(timeoutId)
-  }, [messages, activeConversationId, fetchConversations])
-
-  const handleOpen = () => setOpen(true)
+    }
+  }
   const handleClose = () => setOpen(false)
   const toggleFullscreen = () => setFullscreen(prev => !prev)
 
   const handleNewChat = async () => {
+    // Clear messages first to trigger remount with empty state
+    setInitialMessages([])
+    setHistoricalMessages([])
+    
+    // Create a new conversation in the backend
     try {
       const res = await fetch('/api/assistant/conversations', {
         method: 'POST',
@@ -127,9 +317,16 @@ export function AssistantModal() {
       })
       if (res.ok) {
         const data = await res.json()
-        setActiveConversationId(data.conversation.id)
-        setMessages([])
+        // Set to null first to force key change, then set new ID
+        setActiveConversationId(null)
+        // Use setTimeout to ensure React processes the null before setting new ID
+        setTimeout(() => {
+          setActiveConversationId(data.conversation.id)
+        }, 0)
         fetchConversations()
+      } else {
+        const text = await res.text()
+        console.error('Failed to create conversation:', text)
       }
     } catch (err) {
       console.error('Failed to create conversation:', err)
@@ -145,15 +342,14 @@ export function AssistantModal() {
       })
       if (res.ok) {
         const data = await res.json()
+        const backendMessages = data.messages || []
+        // Store raw backend messages for historical rendering
+        setHistoricalMessages(backendMessages)
+        // Convert backend messages to UIMessage format (for message count tracking)
+        const uiMessages = convertToUIMessages(backendMessages)
+        setInitialMessages(uiMessages)
+        // Setting the conversation ID after messages triggers remount with loaded messages
         setActiveConversationId(conversationId)
-        // Convert to useChat message format
-        setMessages(
-          data.messages.map((m: { id: string; role: string; content: string }) => ({
-            id: m.id,
-            role: m.role as 'user' | 'assistant',
-            content: m.content,
-          }))
-        )
       }
     } catch (err) {
       console.error('Failed to load conversation:', err)
@@ -170,61 +366,14 @@ export function AssistantModal() {
       if (res.ok) {
         setConversations(prev => prev.filter(c => c.id !== conversationId))
         if (activeConversationId === conversationId) {
+          setInitialMessages([])
+          setHistoricalMessages([])
           setActiveConversationId(null)
-          setMessages([])
         }
       }
     } catch (err) {
       console.error('Failed to delete conversation:', err)
     }
-  }
-
-  const handleSuggestionClick = async (suggestion: string) => {
-    // Create a new conversation if none exists
-    if (!activeConversationId) {
-      try {
-        const res = await fetch('/api/assistant/conversations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({}),
-        })
-        if (res.ok) {
-          const data = await res.json()
-          setActiveConversationId(data.conversation.id)
-          fetchConversations()
-        }
-      } catch (err) {
-        console.error('Failed to create conversation:', err)
-      }
-    }
-    append({ role: 'user', content: suggestion })
-  }
-
-  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    if (!input.trim()) return
-
-    // Create a new conversation if none exists
-    if (!activeConversationId) {
-      try {
-        const res = await fetch('/api/assistant/conversations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({}),
-        })
-        if (res.ok) {
-          const data = await res.json()
-          setActiveConversationId(data.conversation.id)
-          fetchConversations()
-        }
-      } catch (err) {
-        console.error('Failed to create conversation:', err)
-      }
-    }
-
-    handleSubmit(e)
   }
 
   const formatDate = (dateStr: string) => {
@@ -262,7 +411,7 @@ export function AssistantModal() {
         </Zoom>
       </Tooltip>
 
-      {/* Chat Dialog */}
+      {/* Chat Dialog - stable, doesn't remount on conversation switch */}
       <Dialog
         open={open}
         onClose={handleClose}
@@ -399,7 +548,7 @@ export function AssistantModal() {
           )}
 
           {/* Main Chat Area */}
-          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
             {/* Header */}
             <Box
               sx={{
@@ -453,15 +602,15 @@ export function AssistantModal() {
               </Box>
             </Box>
 
-            {/* Chat Content */}
+            {/* Chat Content - Only this part remounts on conversation switch */}
             <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              <Thread
-                messages={messages}
-                input={input}
-                isLoading={isLoading}
-                onInputChange={(value) => setInput(value)}
-                onSubmit={onSubmit}
-                onSuggestionClick={handleSuggestionClick}
+              <ChatThreadArea
+                key={activeConversationId || 'new'}
+                conversationId={activeConversationId}
+                initialMessages={initialMessages}
+                historicalMessages={historicalMessages}
+                setSavingMessages={setSavingMessages}
+                fetchConversations={fetchConversations}
               />
             </Box>
           </Box>

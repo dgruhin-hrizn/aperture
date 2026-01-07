@@ -1,12 +1,28 @@
-import { useRef, useEffect, FormEvent, KeyboardEvent } from 'react'
-import { Box, IconButton, Paper, Typography, Avatar, CircularProgress, TextField, Button } from '@mui/material'
+import { Box, Paper, Typography, Avatar, CircularProgress, TextField, IconButton, Button } from '@mui/material'
 import SendIcon from '@mui/icons-material/Send'
 import SmartToyIcon from '@mui/icons-material/SmartToy'
 import PersonIcon from '@mui/icons-material/Person'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import ReactMarkdown from 'react-markdown'
-import type { Message } from 'ai'
 import type { Components } from 'react-markdown'
+import {
+  ThreadPrimitive,
+  ComposerPrimitive,
+  MessagePrimitive,
+  useComposerRuntime,
+} from '@assistant-ui/react'
+import {
+  ContentCarousel,
+  ContentDetail,
+  PersonResult,
+  StatsDisplay,
+  StudiosDisplay,
+  type ContentCarouselData,
+  type ContentDetailData,
+  type PersonResultData,
+  type StatsData,
+  type StudiosData,
+} from './tool-ui'
 
 // Custom link renderer for markdown
 const MarkdownLink: Components['a'] = ({ href, children }) => {
@@ -51,185 +67,186 @@ const MarkdownLink: Components['a'] = ({ href, children }) => {
   )
 }
 
-// Helper to extract text content from a message
-function getMessageContent(message: Message): string {
-  // If content is a string, return it directly
-  if (typeof message.content === 'string') {
-    return message.content
-  }
+// Render tool result based on tool name
+function renderToolResult(toolName: string, result: unknown): React.ReactNode {
+  if (!result || typeof result !== 'object') return null
   
-  // If content is an array (multi-part message with tools), extract text parts
-  if (Array.isArray(message.content)) {
-    const parts = message.content as Array<{ type: string; text?: string }>
-    const text = parts
-      .filter(part => part.type === 'text' && part.text)
-      .map(part => part.text!)
-      .join('\n')
-    console.info('[getMessageContent] Extracted from array:', text)
-    return text
-  }
+  const data = result as Record<string, unknown>
   
-  console.warn('[getMessageContent] Unknown content format, returning empty')
-  return ''
+  // Check if result has an error
+  if ('error' in data && typeof data.error === 'string') {
+    return (
+      <Box sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2, my: 1 }}>
+        <Typography variant="body2" color="text.secondary">
+          {data.error}
+        </Typography>
+      </Box>
+    )
+  }
+
+  // Content carousel tools (search, similar, recommendations, history, ratings, unwatched, top rated)
+  if ('items' in data && Array.isArray(data.items)) {
+    return <ContentCarousel data={data as unknown as ContentCarouselData} />
+  }
+
+  // Content detail tool
+  if ('contentId' in data && 'actions' in data) {
+    return <ContentDetail data={data as unknown as ContentDetailData} />
+  }
+
+  // Person search results
+  if ('people' in data && Array.isArray(data.people)) {
+    return <PersonResult data={data as unknown as PersonResultData} />
+  }
+
+  // Library stats
+  if ('movieCount' in data && 'seriesCount' in data) {
+    return <StatsDisplay data={data as unknown as StatsData} />
+  }
+
+  // Studios/networks
+  if (('studios' in data && Array.isArray(data.studios)) || ('networks' in data && Array.isArray(data.networks))) {
+    return <StudiosDisplay data={data as unknown as StudiosData} />
+  }
+
+  // Fallback - don't render anything for unrecognized tool results
+  return null
 }
 
-interface ThreadProps {
-  messages: Message[]
-  input: string
-  isLoading: boolean
-  onInputChange: (value: string) => void
-  onSubmit: (e: FormEvent<HTMLFormElement>) => void
-  onSuggestionClick: (suggestion: string) => void
+// Tool UI component for rendering tool results
+function ToolUI({ toolName, result }: { toolName: string; result: unknown }) {
+  return <>{renderToolResult(toolName, result)}</>
 }
 
-// Custom styled Thread for Aperture's dark theme
-export function Thread({ messages, input, isLoading, onInputChange, onSubmit, onSuggestionClick }: ThreadProps) {
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      const form = e.currentTarget.closest('form')
-      if (form) {
-        form.requestSubmit()
-      }
-    }
-  }
-
+// User message component
+function UserMessage() {
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        bgcolor: '#0f0f0f',
-      }}
-    >
-      {/* Messages */}
-      <Box
-        sx={{
-          flex: 1,
-          overflowY: 'auto',
-          p: 2,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-        }}
-      >
-        {messages.length === 0 ? (
-          <ThreadWelcome onSuggestionClick={onSuggestionClick} />
-        ) : (
-          <>
-            {messages.map((message) => {
-              const content = getMessageContent(message)
-              // Skip empty messages (like tool-only messages)
-              if (!content) return null
-              return message.role === 'user' ? (
-                <UserMessage key={message.id} content={content} />
-              ) : (
-                <AssistantMessage key={message.id} content={content} />
-              )
-            })}
-            {isLoading && (
-              <Box sx={{ display: 'flex', gap: 1.5 }}>
-                <Avatar
-                  sx={{
-                    width: 36,
-                    height: 36,
-                    background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                  }}
-                >
-                  <SmartToyIcon fontSize="small" />
-                </Avatar>
+    <MessagePrimitive.Root>
+      <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'flex-end', py: 1.5 }}>
+        <Paper
+          sx={{
+            maxWidth: '80%',
+            p: 2,
+            bgcolor: '#6366f1',
+            borderRadius: 2,
+            borderTopRightRadius: 0,
+          }}
+        >
+          <Typography variant="body1" sx={{ color: '#fff' }}>
+            <MessagePrimitive.Content />
+          </Typography>
+        </Paper>
+        <Avatar sx={{ bgcolor: '#3a3a3a', width: 36, height: 36 }}>
+          <PersonIcon fontSize="small" />
+        </Avatar>
+      </Box>
+    </MessagePrimitive.Root>
+  )
+}
+
+// Assistant message component
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.Root>
+      <Box sx={{ display: 'flex', gap: 1.5, py: 1.5 }}>
+        <Avatar
+          sx={{
+            width: 36,
+            height: 36,
+            background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+            flexShrink: 0,
+          }}
+        >
+          <SmartToyIcon fontSize="small" />
+        </Avatar>
+        <Box sx={{ flex: 1, minWidth: 0, maxWidth: '100%', overflow: 'hidden' }}>
+          <MessagePrimitive.Content
+            components={{
+              Text: ({ text }) => (
                 <Paper
                   sx={{
-                    maxWidth: '80%',
+                    maxWidth: '90%',
                     p: 2,
                     bgcolor: '#1a1a1a',
                     borderRadius: 2,
                     borderTopLeftRadius: 0,
                   }}
                 >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
-                    <CircularProgress size={16} />
-                    <Typography variant="body2">Thinking...</Typography>
+                  <Box
+                    sx={{
+                      '& p': { my: 1.5 },
+                      '& p:first-of-type': { mt: 0 },
+                      '& p:last-of-type': { mb: 0 },
+                      '& ul, & ol': { pl: 2, my: 1.5 },
+                      '& li': { mb: 0.75 },
+                      '& strong': { color: '#818cf8' },
+                      '& code': {
+                        bgcolor: '#2a2a2a',
+                        px: 0.5,
+                        py: 0.25,
+                        borderRadius: 0.5,
+                        fontFamily: 'monospace',
+                      },
+                      '& img': {
+                        maxWidth: 120,
+                        height: 'auto',
+                        borderRadius: 1,
+                        display: 'block',
+                        my: 1.5,
+                      },
+                      '& hr': {
+                        border: 'none',
+                        borderTop: '1px solid #3a3a3a',
+                        my: 2.5,
+                      },
+                      '& blockquote': {
+                        borderLeft: '3px solid #6366f1',
+                        pl: 2,
+                        my: 1.5,
+                        color: '#a1a1aa',
+                        fontStyle: 'italic',
+                      },
+                      '& h1, & h2, & h3, & h4': {
+                        mt: 2,
+                        mb: 1,
+                        color: '#e4e4e7',
+                      },
+                    }}
+                  >
+                    <ReactMarkdown components={{ a: MarkdownLink }}>{text}</ReactMarkdown>
                   </Box>
                 </Paper>
-              </Box>
-            )}
-          </>
-        )}
-        <div ref={messagesEndRef} />
-      </Box>
-
-      {/* Composer */}
-      <Box sx={{ p: 2, borderTop: '1px solid #2a2a2a' }}>
-        <form onSubmit={onSubmit} style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
-          <TextField
-            fullWidth
-            multiline
-            maxRows={4}
-            placeholder="Ask me anything about movies or shows..."
-            value={input}
-            onChange={(e) => onInputChange(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isLoading}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                bgcolor: '#1a1a1a',
-                borderRadius: 3,
-                '& fieldset': {
-                  borderColor: '#2a2a2a',
-                },
-                '&:hover fieldset': {
-                  borderColor: '#3a3a3a',
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: '#6366f1',
-                },
-              },
-              '& .MuiInputBase-input': {
-                py: 1.5,
+              ),
+              tools: {
+                Fallback: ({ toolName, result }) => (
+                  <Box sx={{ maxWidth: '100%', overflow: 'hidden', mb: 2 }}>
+                    <ToolUI toolName={toolName} result={result} />
+                  </Box>
+                ),
               },
             }}
           />
-          <IconButton
-            type="submit"
-            disabled={isLoading || !input.trim()}
-            sx={{
-              bgcolor: '#6366f1',
-              color: '#fff',
-              width: 44,
-              height: 44,
-              '&:hover': {
-                bgcolor: '#4f46e5',
-              },
-              '&:disabled': {
-                bgcolor: '#3a3a3a',
-                color: '#666',
-              },
-            }}
-          >
-            <SendIcon />
-          </IconButton>
-        </form>
+        </Box>
       </Box>
-    </Box>
+    </MessagePrimitive.Root>
   )
 }
 
-function ThreadWelcome({ onSuggestionClick }: { onSuggestionClick: (suggestion: string) => void }) {
+// Thread welcome screen
+function ThreadWelcome() {
+  const composerRuntime = useComposerRuntime()
+  
   const suggestions = [
     'Find me something like Inception',
     'What sci-fi movies do you recommend?',
     'Show me my top picks',
     'What should I watch tonight?',
   ]
+
+  const handleSuggestionClick = (suggestion: string) => {
+    composerRuntime.setText(suggestion)
+    composerRuntime.send()
+  }
 
   return (
     <Box
@@ -265,7 +282,7 @@ function ThreadWelcome({ onSuggestionClick }: { onSuggestionClick: (suggestion: 
             key={suggestion}
             component="button"
             type="button"
-            onClick={() => onSuggestionClick(suggestion)}
+            onClick={() => handleSuggestionClick(suggestion)}
             sx={{
               px: 2,
               py: 1,
@@ -290,43 +307,10 @@ function ThreadWelcome({ onSuggestionClick }: { onSuggestionClick: (suggestion: 
   )
 }
 
-function UserMessage({ content }: { content: string }) {
+// Loading indicator
+function LoadingIndicator() {
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        gap: 1.5,
-        justifyContent: 'flex-end',
-      }}
-    >
-      <Paper
-        sx={{
-          maxWidth: '80%',
-          p: 2,
-          bgcolor: '#6366f1',
-          borderRadius: 2,
-          borderTopRightRadius: 0,
-        }}
-      >
-        <Typography variant="body1" sx={{ color: '#fff' }}>
-          {content}
-        </Typography>
-      </Paper>
-      <Avatar sx={{ bgcolor: '#3a3a3a', width: 36, height: 36 }}>
-        <PersonIcon fontSize="small" />
-      </Avatar>
-    </Box>
-  )
-}
-
-function AssistantMessage({ content }: { content: string }) {
-  return (
-    <Box
-      sx={{
-        display: 'flex',
-        gap: 1.5,
-      }}
-    >
+    <Box sx={{ display: 'flex', gap: 1.5, py: 1.5 }}>
       <Avatar
         sx={{
           width: 36,
@@ -345,51 +329,236 @@ function AssistantMessage({ content }: { content: string }) {
           borderTopLeftRadius: 0,
         }}
       >
-        <Box
-          sx={{
-            '& p': { my: 1.5 },
-            '& p:first-of-type': { mt: 0 },
-            '& p:last-of-type': { mb: 0 },
-            '& ul, & ol': { pl: 2, my: 1.5 },
-            '& li': { mb: 0.75 },
-            '& strong': { color: '#818cf8' },
-            '& code': {
-              bgcolor: '#2a2a2a',
-              px: 0.5,
-              py: 0.25,
-              borderRadius: 0.5,
-              fontFamily: 'monospace',
-            },
-            '& img': {
-              maxWidth: 120,
-              height: 'auto',
-              borderRadius: 1,
-              display: 'block',
-              my: 1.5,
-            },
-            '& hr': {
-              border: 'none',
-              borderTop: '1px solid #3a3a3a',
-              my: 2.5,
-            },
-            '& blockquote': {
-              borderLeft: '3px solid #6366f1',
-              pl: 2,
-              my: 1.5,
-              color: '#a1a1aa',
-              fontStyle: 'italic',
-            },
-            '& h1, & h2, & h3, & h4': {
-              mt: 2,
-              mb: 1,
-              color: '#e4e4e7',
-            },
-          }}
-        >
-          <ReactMarkdown components={{ a: MarkdownLink }}>{content}</ReactMarkdown>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
+          <CircularProgress size={16} />
+          <Typography variant="body2">Thinking...</Typography>
         </Box>
       </Paper>
     </Box>
   )
 }
 
+// Composer component
+function Composer() {
+  const composerRuntime = useComposerRuntime()
+  
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    composerRuntime.send()
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      composerRuntime.send()
+    }
+  }
+
+  return (
+    <ComposerPrimitive.Root>
+      <Box sx={{ p: 2, borderTop: '1px solid #2a2a2a' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+          <ComposerPrimitive.Input asChild>
+            <TextField
+              fullWidth
+              multiline
+              maxRows={4}
+              placeholder="Ask me anything about movies or shows..."
+              onKeyDown={handleKeyDown}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  bgcolor: '#1a1a1a',
+                  borderRadius: 3,
+                  '& fieldset': {
+                    borderColor: '#2a2a2a',
+                  },
+                  '&:hover fieldset': {
+                    borderColor: '#3a3a3a',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#6366f1',
+                  },
+                },
+                '& .MuiInputBase-input': {
+                  py: 1.5,
+                },
+              }}
+            />
+          </ComposerPrimitive.Input>
+          <ComposerPrimitive.Send asChild>
+            <IconButton
+              type="submit"
+              sx={{
+                bgcolor: '#6366f1',
+                color: '#fff',
+                width: 44,
+                height: 44,
+                '&:hover': {
+                  bgcolor: '#4f46e5',
+                },
+                '&:disabled': {
+                  bgcolor: '#3a3a3a',
+                  color: '#666',
+                },
+              }}
+            >
+              <SendIcon />
+            </IconButton>
+          </ComposerPrimitive.Send>
+        </form>
+      </Box>
+    </ComposerPrimitive.Root>
+  )
+}
+
+// Historical message type (from backend)
+interface HistoricalMessage {
+  id: string
+  role: string
+  content: string
+  tool_invocations?: Array<{
+    toolCallId: string
+    toolName: string
+    args: unknown
+    result?: unknown
+  }>
+}
+
+// Render a historical user message
+function HistoricalUserMessage({ message }: { message: HistoricalMessage }) {
+  return (
+    <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'flex-end', py: 1.5 }}>
+      <Paper
+        sx={{
+          maxWidth: '80%',
+          p: 2,
+          bgcolor: '#6366f1',
+          borderRadius: 2,
+          borderTopRightRadius: 0,
+        }}
+      >
+        <Typography variant="body1" sx={{ color: '#fff' }}>
+          {message.content}
+        </Typography>
+      </Paper>
+      <Avatar sx={{ bgcolor: '#3a3a3a', width: 36, height: 36 }}>
+        <PersonIcon fontSize="small" />
+      </Avatar>
+    </Box>
+  )
+}
+
+// Render a historical assistant message
+function HistoricalAssistantMessage({ message }: { message: HistoricalMessage }) {
+  return (
+    <Box sx={{ display: 'flex', gap: 1.5, py: 1.5 }}>
+      <Avatar
+        sx={{
+          width: 36,
+          height: 36,
+          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+          flexShrink: 0,
+        }}
+      >
+        <SmartToyIcon fontSize="small" />
+      </Avatar>
+      <Box sx={{ flex: 1, minWidth: 0, maxWidth: '100%', overflow: 'hidden' }}>
+        {/* Render text content */}
+        {message.content && (
+          <Paper
+            sx={{
+              maxWidth: '90%',
+              p: 2,
+              bgcolor: '#1a1a1a',
+              borderRadius: 2,
+              borderTopLeftRadius: 0,
+              mb: 2,
+            }}
+          >
+            <Box
+              sx={{
+                '& p': { my: 1.5 },
+                '& p:first-of-type': { mt: 0 },
+                '& p:last-of-type': { mb: 0 },
+              }}
+            >
+              <ReactMarkdown components={{ a: MarkdownLink }}>{message.content}</ReactMarkdown>
+            </Box>
+          </Paper>
+        )}
+        {/* Render tool results */}
+        {message.tool_invocations?.map((invocation) => (
+          <Box key={invocation.toolCallId} sx={{ maxWidth: '100%', overflow: 'hidden', mb: 2 }}>
+            <ToolUI toolName={invocation.toolName} result={invocation.result} />
+          </Box>
+        ))}
+      </Box>
+    </Box>
+  )
+}
+
+// Props for Thread component
+interface ThreadProps {
+  historicalMessages?: HistoricalMessage[]
+}
+
+// Main Thread component
+export function Thread({ historicalMessages = [] }: ThreadProps) {
+  const hasHistoricalMessages = historicalMessages.length > 0
+  
+  return (
+    <ThreadPrimitive.Root
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        backgroundColor: '#0f0f0f',
+        minWidth: 0,
+        overflow: 'hidden',
+      }}
+    >
+      {/* Messages */}
+      <ThreadPrimitive.Viewport
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          padding: 16,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+          minWidth: 0,
+        }}
+      >
+        {/* Show welcome only if no historical messages */}
+        {!hasHistoricalMessages && (
+          <ThreadPrimitive.Empty>
+            <ThreadWelcome />
+          </ThreadPrimitive.Empty>
+        )}
+
+        {/* Render historical messages manually */}
+        {historicalMessages.map((msg) => (
+          msg.role === 'user' 
+            ? <HistoricalUserMessage key={msg.id} message={msg} />
+            : <HistoricalAssistantMessage key={msg.id} message={msg} />
+        ))}
+
+        {/* Runtime handles new messages */}
+        <ThreadPrimitive.Messages
+          components={{
+            UserMessage,
+            AssistantMessage,
+          }}
+        />
+
+        <ThreadPrimitive.If running>
+          <LoadingIndicator />
+        </ThreadPrimitive.If>
+      </ThreadPrimitive.Viewport>
+
+      {/* Composer */}
+      <Composer />
+    </ThreadPrimitive.Root>
+  )
+}

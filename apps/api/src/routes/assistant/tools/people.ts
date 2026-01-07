@@ -1,5 +1,5 @@
 /**
- * People and studios tools
+ * People and studios tools with Tool UI output schemas
  */
 import { tool } from 'ai'
 import { z } from 'zod'
@@ -10,25 +10,24 @@ export function createPeopleTools(ctx: ToolContext) {
   return {
     searchPeople: tool({
       description: 'Search for actors, directors, or writers. Returns filmography with images.',
-      parameters: z.object({
+      inputSchema: z.object({
         name: z.string().describe('Name of the person'),
         role: z.enum(['actor', 'director', 'writer', 'any']).optional().default('any'),
         limit: z.number().optional().default(10),
       }),
       execute: async ({ name, role = 'any', limit = 10 }) => {
-        const results: {
-          actors?: Array<{
-            name: string
-            thumb: string | null
-            movies: Array<{ id: string; title: string; year: number | null; role: string | null }>
-            series: Array<{ id: string; title: string; year: number | null; role: string | null }>
+        const people: Array<{
+          name: string
+          role: 'actor' | 'director' | 'writer'
+          thumb: string | null
+          filmography: Array<{
+            id: string
+            type: 'movie' | 'series'
+            title: string
+            year: number | null
+            role: string | null
           }>
-          directors?: Array<{
-            name: string
-            movies: Array<{ id: string; title: string; year: number | null }>
-            series: Array<{ id: string; title: string; year: number | null }>
-          }>
-        } = {}
+        }> = []
 
         if (role === 'actor' || role === 'any') {
           const actorMovies = await query<{
@@ -44,7 +43,7 @@ export function createPeopleTools(ctx: ToolContext) {
              FROM movies m, LATERAL jsonb_array_elements(m.actors) as actor
              WHERE actor->>'name' ILIKE $1
              ORDER BY m.year DESC NULLS LAST LIMIT $2`,
-            [`%${name}%`, limit * 5]
+            [`%${name}%`, (limit ?? 10) * 5]
           )
 
           const actorSeries = await query<{
@@ -60,16 +59,22 @@ export function createPeopleTools(ctx: ToolContext) {
              FROM series s, LATERAL jsonb_array_elements(s.actors) as actor
              WHERE actor->>'name' ILIKE $1
              ORDER BY s.year DESC NULLS LAST LIMIT $2`,
-            [`%${name}%`, limit * 5]
+            [`%${name}%`, (limit ?? 10) * 5]
           )
 
+          // Group by actor name
           const actorMap = new Map<
             string,
             {
               name: string
               thumb: string | null
-              movies: Array<{ id: string; title: string; year: number | null; role: string | null }>
-              series: Array<{ id: string; title: string; year: number | null; role: string | null }>
+              filmography: Array<{
+                id: string
+                type: 'movie' | 'series'
+                title: string
+                year: number | null
+                role: string | null
+              }>
             }
           >()
 
@@ -77,11 +82,11 @@ export function createPeopleTools(ctx: ToolContext) {
             const existing = actorMap.get(row.actor_name) || {
               name: row.actor_name,
               thumb: row.actor_thumb,
-              movies: [],
-              series: [],
+              filmography: [],
             }
-            existing.movies.push({
+            existing.filmography.push({
               id: row.id,
+              type: 'movie',
               title: row.title,
               year: row.year,
               role: row.actor_role,
@@ -93,11 +98,11 @@ export function createPeopleTools(ctx: ToolContext) {
             const existing = actorMap.get(row.actor_name) || {
               name: row.actor_name,
               thumb: row.actor_thumb,
-              movies: [],
-              series: [],
+              filmography: [],
             }
-            existing.series.push({
+            existing.filmography.push({
               id: row.id,
+              type: 'series',
               title: row.title,
               year: row.year,
               role: row.actor_role,
@@ -105,7 +110,9 @@ export function createPeopleTools(ctx: ToolContext) {
             actorMap.set(row.actor_name, existing)
           }
 
-          results.actors = Array.from(actorMap.values()).slice(0, limit)
+          for (const [, value] of actorMap) {
+            people.push({ ...value, role: 'actor' })
+          }
         }
 
         if (role === 'director' || role === 'any') {
@@ -118,15 +125,20 @@ export function createPeopleTools(ctx: ToolContext) {
             `SELECT id, unnest(directors) as director, title, year FROM movies
              WHERE EXISTS (SELECT 1 FROM unnest(directors) d WHERE d ILIKE $1)
              ORDER BY year DESC NULLS LAST LIMIT $2`,
-            [`%${name}%`, limit * 5]
+            [`%${name}%`, (limit ?? 10) * 5]
           )
 
           const directorMap = new Map<
             string,
             {
               name: string
-              movies: Array<{ id: string; title: string; year: number | null }>
-              series: Array<{ id: string; title: string; year: number | null }>
+              filmography: Array<{
+                id: string
+                type: 'movie' | 'series'
+                title: string
+                year: number | null
+                role: string | null
+              }>
             }
           >()
 
@@ -134,44 +146,59 @@ export function createPeopleTools(ctx: ToolContext) {
             if (row.director.toLowerCase().includes(name.toLowerCase())) {
               const existing = directorMap.get(row.director) || {
                 name: row.director,
-                movies: [],
-                series: [],
+                filmography: [],
               }
-              existing.movies.push({ id: row.id, title: row.title, year: row.year })
+              existing.filmography.push({
+                id: row.id,
+                type: 'movie',
+                title: row.title,
+                year: row.year,
+                role: 'Director',
+              })
               directorMap.set(row.director, existing)
             }
           }
 
-          results.directors = Array.from(directorMap.values()).slice(0, limit)
+          for (const [, value] of directorMap) {
+            people.push({ ...value, role: 'director', thumb: null })
+          }
         }
 
-        const totalFound = (results.actors?.length || 0) + (results.directors?.length || 0)
-        if (totalFound === 0) {
-          return { error: `No one named "${name}" found in your library.` }
+        if (people.length === 0) {
+          return {
+            id: `people-empty-${Date.now()}`,
+            people: [],
+            error: `No one named "${name}" found in your library.`,
+          }
         }
-        return results
+
+        return {
+          id: `people-${Date.now()}`,
+          people: people.slice(0, limit),
+        }
       },
     }),
 
     getTopStudios: tool({
       description: "Get the user's most watched studios and networks.",
-      parameters: z.object({
+      inputSchema: z.object({
         type: z.enum(['movies', 'series', 'both']).optional().default('both'),
         limit: z.number().optional().default(10),
       }),
       execute: async ({ type = 'both', limit = 10 }) => {
-        const results: {
+        const result: {
+          id: string
           studios?: Array<{
             name: string
             movieCount: number
-            topMovies: Array<{ id: string; title: string }>
+            topTitles: Array<{ id: string; type: 'movie'; title: string }>
           }>
           networks?: Array<{
             name: string
             seriesCount: number
-            topSeries: Array<{ id: string; title: string }>
+            topTitles: Array<{ id: string; type: 'series'; title: string }>
           }>
-        } = {}
+        } = { id: `studios-${Date.now()}` }
 
         if (type === 'movies' || type === 'both') {
           const studioData = await query<{ studio: string; count: string }>(
@@ -185,8 +212,9 @@ export function createPeopleTools(ctx: ToolContext) {
           const studios: Array<{
             name: string
             movieCount: number
-            topMovies: Array<{ id: string; title: string }>
+            topTitles: Array<{ id: string; type: 'movie'; title: string }>
           }> = []
+
           for (const row of studioData.rows) {
             const topMovies = await query<{ id: string; title: string }>(
               `SELECT m.id, m.title FROM movies m JOIN watch_history wh ON wh.movie_id = m.id
@@ -197,17 +225,20 @@ export function createPeopleTools(ctx: ToolContext) {
             studios.push({
               name: row.studio,
               movieCount: parseInt(row.count),
-              topMovies: topMovies.rows.map((m) => ({ id: m.id, title: m.title })),
+              topTitles: topMovies.rows.map((m) => ({
+                id: m.id,
+                type: 'movie' as const,
+                title: m.title,
+              })),
             })
           }
-          results.studios = studios
+          result.studios = studios
         }
 
         if (type === 'series' || type === 'both') {
           const networkData = await query<{ network: string; count: string }>(
             `SELECT s.network, COUNT(DISTINCT s.id) as count
-             FROM series s JOIN seasons sea ON sea.series_id = s.id
-             JOIN episodes e ON e.season_id = sea.id
+             FROM series s JOIN episodes e ON e.series_id = s.id
              JOIN watch_history wh ON wh.episode_id = e.id
              WHERE wh.user_id = $1 AND s.network IS NOT NULL
              GROUP BY s.network ORDER BY count DESC LIMIT $2`,
@@ -217,13 +248,13 @@ export function createPeopleTools(ctx: ToolContext) {
           const networks: Array<{
             name: string
             seriesCount: number
-            topSeries: Array<{ id: string; title: string }>
+            topTitles: Array<{ id: string; type: 'series'; title: string }>
           }> = []
+
           for (const row of networkData.rows) {
             const topSeries = await query<{ id: string; title: string }>(
               `SELECT DISTINCT s.id, s.title FROM series s
-               JOIN seasons sea ON sea.series_id = s.id
-               JOIN episodes e ON e.season_id = sea.id
+               JOIN episodes e ON e.series_id = s.id
                JOIN watch_history wh ON wh.episode_id = e.id
                WHERE wh.user_id = $1 AND s.network = $2
                ORDER BY s.community_rating DESC NULLS LAST LIMIT 3`,
@@ -232,13 +263,17 @@ export function createPeopleTools(ctx: ToolContext) {
             networks.push({
               name: row.network,
               seriesCount: parseInt(row.count),
-              topSeries: topSeries.rows.map((s) => ({ id: s.id, title: s.title })),
+              topTitles: topSeries.rows.map((s) => ({
+                id: s.id,
+                type: 'series' as const,
+                title: s.title,
+              })),
             })
           }
-          results.networks = networks
+          result.networks = networks
         }
 
-        return results
+        return result
       },
     }),
   }

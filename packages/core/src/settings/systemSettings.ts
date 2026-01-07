@@ -286,7 +286,7 @@ export function getMediaServerTypes(): { id: MediaServerType; name: string }[] {
 // Text Generation Model Setting (for recommendations, taste synopses, etc.)
 // ============================================================================
 
-export type TextGenerationModel = 'gpt-4o-mini' | 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-4.1-mini'
+export type TextGenerationModel = 'gpt-4.1-mini' | 'gpt-4.1-nano' | 'gpt-4o-mini'
 
 export interface TextGenerationModelInfo {
   id: TextGenerationModel
@@ -299,50 +299,42 @@ export interface TextGenerationModelInfo {
 
 export const TEXT_GENERATION_MODELS: TextGenerationModelInfo[] = [
   {
-    id: 'gpt-4o-mini',
-    name: 'GPT-4o Mini (Recommended)',
-    description: 'Best balance of quality and cost. Good for most use cases.',
-    inputCostPerMillion: 0.15,
-    outputCostPerMillion: 0.6,
-    contextWindow: '128K',
-  },
-  {
-    id: 'gpt-5-nano',
-    name: 'GPT-5 Nano (Budget)',
-    description: 'Fastest and cheapest. Good for simple tasks.',
-    inputCostPerMillion: 0.05,
-    outputCostPerMillion: 0.4,
-    contextWindow: '400K',
-  },
-  {
-    id: 'gpt-5-mini',
-    name: 'GPT-5 Mini (Premium)',
-    description: 'Latest model, best quality. Higher output costs.',
-    inputCostPerMillion: 0.25,
-    outputCostPerMillion: 2.0,
-    contextWindow: '400K',
-  },
-  {
     id: 'gpt-4.1-mini',
-    name: 'GPT-4.1 Mini',
-    description: 'Previous generation mini model.',
+    name: 'GPT-4.1 Mini (Recommended)',
+    description: 'Fast and capable. 1M context window.',
     inputCostPerMillion: 0.4,
     outputCostPerMillion: 1.6,
+    contextWindow: '1M',
+  },
+  {
+    id: 'gpt-4.1-nano',
+    name: 'GPT-4.1 Nano (Budget)',
+    description: 'Fastest and cheapest. Good for simple tasks.',
+    inputCostPerMillion: 0.1,
+    outputCostPerMillion: 0.4,
+    contextWindow: '1M',
+  },
+  {
+    id: 'gpt-4o-mini',
+    name: 'GPT-4o Mini',
+    description: 'Previous generation. Good balance of quality and cost.',
+    inputCostPerMillion: 0.15,
+    outputCostPerMillion: 0.6,
     contextWindow: '128K',
   },
 ]
 
 /**
  * Get the configured text generation model
- * Falls back to default (gpt-4.1-mini for best cost/quality balance)
+ * Falls back to default (gpt-4.1-mini for best quality and 1M context)
  */
 export async function getTextGenerationModel(): Promise<TextGenerationModel> {
   const dbValue = await getSystemSetting('text_generation_model')
   if (dbValue && isValidTextGenerationModel(dbValue)) {
     return dbValue
   }
-  // Default to gpt-4o-mini for best balance of quality and cost
-  return 'gpt-4o-mini'
+  // Default to gpt-4.1-mini for best quality and 1M context
+  return 'gpt-4.1-mini'
 }
 
 /**
@@ -355,7 +347,7 @@ export async function setTextGenerationModel(model: TextGenerationModel): Promis
   await setSystemSetting(
     'text_generation_model',
     model,
-    'OpenAI model for text generation (recommendations, taste synopses). Options: gpt-4o-mini, gpt-5-nano, gpt-5-mini, gpt-4.1-mini'
+    'OpenAI model for text generation (recommendations, taste synopses). Options: gpt-4.1-mini, gpt-4.1-nano, gpt-4o-mini'
   )
 }
 
@@ -368,12 +360,13 @@ function isValidTextGenerationModel(model: string): model is TextGenerationModel
 // ============================================================================
 
 export type ChatAssistantModel =
+  | 'gpt-5-mini'
+  | 'gpt-5-nano'
   | 'gpt-4.1-mini'
   | 'gpt-4.1-nano'
   | 'gpt-4.1'
   | 'gpt-4o'
   | 'gpt-4o-mini'
-  | 'o1-mini'
   | 'o3-mini'
 
 export interface ChatAssistantModelInfo {
@@ -387,17 +380,41 @@ export interface ChatAssistantModelInfo {
 
 export const CHAT_ASSISTANT_MODELS: ChatAssistantModelInfo[] = [
   {
+    id: 'gpt-5-mini',
+    name: 'GPT-5 Mini (Recommended)',
+    description: 'Latest GPT-5. Excellent reasoning, 400K context.',
+    inputCostPerMillion: 0.25,
+    outputCostPerMillion: 2.0,
+    contextWindow: '400K',
+  },
+  {
+    id: 'gpt-5-nano',
+    name: 'GPT-5 Nano (Budget)',
+    description: 'Fastest GPT-5. Great for simple queries.',
+    inputCostPerMillion: 0.05,
+    outputCostPerMillion: 0.4,
+    contextWindow: '400K',
+  },
+  {
+    id: 'o3-mini',
+    name: 'o3 Mini (Reasoning)',
+    description: 'Latest reasoning model. Best for complex analysis.',
+    inputCostPerMillion: 1.1,
+    outputCostPerMillion: 4.4,
+    contextWindow: '200K',
+  },
+  {
     id: 'gpt-4.1-mini',
-    name: 'GPT-4.1 Mini (Recommended)',
-    description: 'Latest mini model. Fast, capable, 1M context window.',
+    name: 'GPT-4.1 Mini',
+    description: 'Fast and capable. 1M context window.',
     inputCostPerMillion: 0.4,
     outputCostPerMillion: 1.6,
     contextWindow: '1M',
   },
   {
     id: 'gpt-4.1-nano',
-    name: 'GPT-4.1 Nano (Budget)',
-    description: 'Fastest and cheapest. Good for simple queries.',
+    name: 'GPT-4.1 Nano',
+    description: 'Budget option. Good for simple queries.',
     inputCostPerMillion: 0.1,
     outputCostPerMillion: 0.4,
     contextWindow: '1M',
@@ -426,34 +443,18 @@ export const CHAT_ASSISTANT_MODELS: ChatAssistantModelInfo[] = [
     outputCostPerMillion: 0.6,
     contextWindow: '128K',
   },
-  {
-    id: 'o1-mini',
-    name: 'o1 Mini (Reasoning)',
-    description: 'Advanced reasoning for complex queries.',
-    inputCostPerMillion: 3,
-    outputCostPerMillion: 12,
-    contextWindow: '128K',
-  },
-  {
-    id: 'o3-mini',
-    name: 'o3 Mini (Latest Reasoning)',
-    description: 'Latest reasoning model. Best for complex analysis.',
-    inputCostPerMillion: 1.1,
-    outputCostPerMillion: 4.4,
-    contextWindow: '200K',
-  },
 ]
 
 /**
  * Get the configured chat assistant model
- * Falls back to default (gpt-4.1-mini - best balance of speed, cost, and capability)
+ * Falls back to default (gpt-5-mini - best balance of reasoning, speed, and cost)
  */
 export async function getChatAssistantModel(): Promise<ChatAssistantModel> {
   const dbValue = await getSystemSetting('chat_assistant_model')
   if (dbValue && isValidChatAssistantModel(dbValue)) {
     return dbValue
   }
-  return 'gpt-4.1-mini'
+  return 'gpt-5-mini'
 }
 
 /**
@@ -466,7 +467,7 @@ export async function setChatAssistantModel(model: ChatAssistantModel): Promise<
   await setSystemSetting(
     'chat_assistant_model',
     model,
-    'OpenAI model for the chat assistant. Options: gpt-4.1-mini, gpt-4.1-nano, gpt-4.1, gpt-4o, gpt-4o-mini, o1-mini, o3-mini'
+    'OpenAI model for the chat assistant. Options: gpt-5-mini, gpt-5-nano, o3-mini, gpt-4.1-mini, gpt-4.1-nano, gpt-4.1, gpt-4o, gpt-4o-mini'
   )
 }
 

@@ -1,21 +1,22 @@
 /**
- * Content details tool
+ * Content details tool with Tool UI output schema
  */
 import { tool } from 'ai'
 import { z } from 'zod'
 import { queryOne } from '../../../lib/db.js'
 import type { ToolContext } from '../types.js'
 import { buildPlayLink } from '../helpers/mediaServer.js'
+import type { ContentDetail } from '../schemas/index.js'
 
 export function createContentTools(ctx: ToolContext) {
   return {
     getContentDetails: tool({
       description:
         'Get comprehensive details about a specific movie or TV series including play link, cast, and more.',
-      parameters: z.object({
+      inputSchema: z.object({
         title: z.string().describe('The title to get details for'),
       }),
-      execute: async ({ title }) => {
+      execute: async ({ title }): Promise<ContentDetail | { id: string; error: string }> => {
         try {
           // Try movie first
           const movie = await queryOne<{
@@ -27,23 +28,23 @@ export function createContentTools(ctx: ToolContext) {
             community_rating: number | null
             poster_url: string | null
             provider_item_id: string | null
-            runtime: number | null
-            director: string | null
-            cast: string[] | null
+            runtime_minutes: number | null
+            directors: string[] | null
+            actors: Array<{ name: string; role?: string; thumb?: string }> | null
             tagline: string | null
             content_rating: string | null
             critic_rating: number | null
           }>(
             `SELECT id, title, year, genres, overview, community_rating, poster_url,
-           provider_item_id, runtime, director, cast, tagline, content_rating, critic_rating
+           provider_item_id, runtime_minutes, directors, actors, tagline, content_rating, critic_rating
            FROM movies WHERE title ILIKE $1 LIMIT 1`,
             [`%${title}%`]
           )
 
           if (movie) {
             const playLink = buildPlayLink(ctx.mediaServer, movie.provider_item_id, 'movie')
-            const runtimeHours = movie.runtime ? Math.floor(movie.runtime / 60) : 0
-            const runtimeMins = movie.runtime ? movie.runtime % 60 : 0
+            const runtimeHours = movie.runtime_minutes ? Math.floor(movie.runtime_minutes / 60) : 0
+            const runtimeMins = movie.runtime_minutes ? movie.runtime_minutes % 60 : 0
 
             const userRating = await queryOne<{ rating: number }>(
               `SELECT rating FROM user_ratings WHERE user_id = $1 AND movie_id = $2`,
@@ -55,29 +56,49 @@ export function createContentTools(ctx: ToolContext) {
               [ctx.userId, movie.id]
             )
 
+            const actions: Array<{
+              id: string
+              label: string
+              href: string
+              variant: 'default' | 'secondary' | 'primary'
+            }> = [
+              {
+                id: 'details',
+                label: 'View Details',
+                href: `/movies/${movie.id}`,
+                variant: 'secondary',
+              },
+            ]
+            if (playLink) {
+              actions.push({
+                id: 'play',
+                label: 'Play on Emby',
+                href: playLink,
+                variant: 'primary',
+              })
+            }
+
             return {
+              id: `detail-${movie.id}`,
               type: 'movie',
-              id: movie.id,
-              detailLink: `/movies/${movie.id}`,
-              embyId: movie.provider_item_id,
-              title: movie.title,
+              contentId: movie.id,
+              name: movie.title,
               year: movie.year,
               tagline: movie.tagline,
               overview: movie.overview,
               genres: movie.genres,
-              director: movie.director,
-              cast: movie.cast?.slice(0, 10),
-              runtime: movie.runtime ? `${runtimeHours}h ${runtimeMins}m` : null,
+              image: movie.poster_url,
+              runtime: movie.runtime_minutes ? `${runtimeHours}h ${runtimeMins}m` : null,
+              director: movie.directors?.join(', ') || null,
+              cast: movie.actors?.slice(0, 10).map((a) => a.name),
               communityRating: movie.community_rating,
               criticRating: movie.critic_rating,
               contentRating: movie.content_rating,
-              posterUrl: movie.poster_url,
-              playLink,
-              mediaServerType: ctx.mediaServer?.type || null,
               userRating: userRating?.rating || null,
               isWatched: !!watchStatus,
               playCount: watchStatus?.play_count || 0,
-              lastWatched: watchStatus?.last_played_at || null,
+              lastWatched: watchStatus?.last_played_at?.toISOString() || null,
+              actions,
             }
           }
 
@@ -107,9 +128,9 @@ export function createContentTools(ctx: ToolContext) {
             const playLink = buildPlayLink(ctx.mediaServer, series.provider_item_id, 'series')
 
             const counts = await queryOne<{ season_count: string; episode_count: string }>(
-              `SELECT COUNT(DISTINCT sea.id) as season_count, COUNT(e.id) as episode_count
-             FROM seasons sea LEFT JOIN episodes e ON e.season_id = sea.id
-             WHERE sea.series_id = $1`,
+              `SELECT COUNT(DISTINCT e.season_number) as season_count, COUNT(e.id) as episode_count
+             FROM episodes e
+             WHERE e.series_id = $1`,
               [series.id]
             )
 
@@ -121,28 +142,48 @@ export function createContentTools(ctx: ToolContext) {
             const watchStatus = await queryOne<{ episodes_watched: string }>(
               `SELECT COUNT(DISTINCT wh.episode_id) as episodes_watched
              FROM watch_history wh JOIN episodes e ON e.id = wh.episode_id
-             JOIN seasons sea ON sea.id = e.season_id
-             WHERE wh.user_id = $1 AND sea.series_id = $2`,
+             WHERE wh.user_id = $1 AND e.series_id = $2`,
               [ctx.userId, series.id]
             )
 
-            const yearDisplay = series.end_year
+            const yearRange = series.end_year
               ? `${series.year} – ${series.end_year}`
               : series.year
                 ? `${series.year} – Present`
                 : null
 
+            const actions: Array<{
+              id: string
+              label: string
+              href: string
+              variant: 'default' | 'secondary' | 'primary'
+            }> = [
+              {
+                id: 'details',
+                label: 'View Details',
+                href: `/series/${series.id}`,
+                variant: 'secondary',
+              },
+            ]
+            if (playLink) {
+              actions.push({
+                id: 'play',
+                label: 'Play on Emby',
+                href: playLink,
+                variant: 'primary',
+              })
+            }
+
             return {
+              id: `detail-${series.id}`,
               type: 'series',
-              id: series.id,
-              detailLink: `/series/${series.id}`,
-              embyId: series.provider_item_id,
-              title: series.title,
-              yearRange: yearDisplay,
-              startYear: series.year,
-              endYear: series.end_year,
+              contentId: series.id,
+              name: series.title,
+              year: series.year,
+              yearRange,
               overview: series.overview,
               genres: series.genres,
+              image: series.poster_url,
               network: series.network,
               status: series.status,
               seasonCount: parseInt(counts?.season_count || '0'),
@@ -150,18 +191,17 @@ export function createContentTools(ctx: ToolContext) {
               communityRating: series.community_rating,
               criticRating: series.critic_rating,
               contentRating: series.content_rating,
-              posterUrl: series.poster_url,
-              playLink,
-              mediaServerType: ctx.mediaServer?.type || null,
               userRating: userRating?.rating || null,
               episodesWatched: parseInt(watchStatus?.episodes_watched || '0'),
+              actions,
             }
           }
 
-          return { error: `"${title}" not found in your library.` }
+          return { id: `error-${Date.now()}`, error: `"${title}" not found in your library.` }
         } catch (err) {
           console.error('[getContentDetails] Error:', err)
           return {
+            id: `error-${Date.now()}`,
             error: `Failed to get content details: ${err instanceof Error ? err.message : 'Unknown error'}`,
           }
         }
