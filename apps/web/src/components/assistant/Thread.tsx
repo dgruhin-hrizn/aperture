@@ -17,6 +17,7 @@ import {
   PersonResult,
   StatsDisplay,
   StudiosDisplay,
+  getToolSkeleton,
   type ContentCarouselData,
   type ContentDetailData,
   type PersonResultData,
@@ -113,8 +114,12 @@ function renderToolResult(toolName: string, result: unknown): React.ReactNode {
   return null
 }
 
-// Tool UI component for rendering tool results
+// Tool UI component for rendering tool results (or skeleton while loading)
 function ToolUI({ toolName, result }: { toolName: string; result: unknown }) {
+  // Show skeleton if result is undefined (tool still running)
+  if (result === undefined) {
+    return <>{getToolSkeleton(toolName)}</>
+  }
   return <>{renderToolResult(toolName, result)}</>
 }
 
@@ -148,7 +153,17 @@ function UserMessage() {
 function AssistantMessage() {
   return (
     <MessagePrimitive.Root>
-      <Box sx={{ display: 'flex', gap: 1.5, py: 1.5 }}>
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          gap: 1.5, 
+          py: 1.5,
+          // Hide the entire row if content area is empty (no visible children)
+          '&:has(.assistant-content:empty)': {
+            display: 'none',
+          },
+        }}
+      >
         <Avatar
           sx={{
             width: 36,
@@ -159,64 +174,68 @@ function AssistantMessage() {
         >
           <SmartToyIcon fontSize="small" />
         </Avatar>
-        <Box sx={{ flex: 1, minWidth: 0, maxWidth: '100%', overflow: 'hidden' }}>
+        <Box className="assistant-content" sx={{ flex: 1, minWidth: 0, maxWidth: '100%', overflow: 'hidden' }}>
           <MessagePrimitive.Content
             components={{
-              Text: ({ text }) => (
-                <Paper
-                  sx={{
-                    maxWidth: '90%',
-                    p: 2,
-                    bgcolor: '#1a1a1a',
-                    borderRadius: 2,
-                    borderTopLeftRadius: 0,
-                  }}
-                >
-                  <Box
+              Text: ({ text }) => {
+                // Don't render empty text parts
+                if (!text || !text.trim()) return null
+                return (
+                  <Paper
                     sx={{
-                      '& p': { my: 1.5 },
-                      '& p:first-of-type': { mt: 0 },
-                      '& p:last-of-type': { mb: 0 },
-                      '& ul, & ol': { pl: 2, my: 1.5 },
-                      '& li': { mb: 0.75 },
-                      '& strong': { color: '#818cf8' },
-                      '& code': {
-                        bgcolor: '#2a2a2a',
-                        px: 0.5,
-                        py: 0.25,
-                        borderRadius: 0.5,
-                        fontFamily: 'monospace',
-                      },
-                      '& img': {
-                        maxWidth: 120,
-                        height: 'auto',
-                        borderRadius: 1,
-                        display: 'block',
-                        my: 1.5,
-                      },
-                      '& hr': {
-                        border: 'none',
-                        borderTop: '1px solid #3a3a3a',
-                        my: 2.5,
-                      },
-                      '& blockquote': {
-                        borderLeft: '3px solid #6366f1',
-                        pl: 2,
-                        my: 1.5,
-                        color: '#a1a1aa',
-                        fontStyle: 'italic',
-                      },
-                      '& h1, & h2, & h3, & h4': {
-                        mt: 2,
-                        mb: 1,
-                        color: '#e4e4e7',
-                      },
+                      maxWidth: '90%',
+                      p: 2,
+                      bgcolor: '#1a1a1a',
+                      borderRadius: 2,
+                      borderTopLeftRadius: 0,
                     }}
                   >
-                    <ReactMarkdown components={{ a: MarkdownLink }}>{text}</ReactMarkdown>
-                  </Box>
-                </Paper>
-              ),
+                    <Box
+                      sx={{
+                        '& p': { my: 1.5 },
+                        '& p:first-of-type': { mt: 0 },
+                        '& p:last-of-type': { mb: 0 },
+                        '& ul, & ol': { pl: 2, my: 1.5 },
+                        '& li': { mb: 0.75 },
+                        '& strong': { color: '#818cf8' },
+                        '& code': {
+                          bgcolor: '#2a2a2a',
+                          px: 0.5,
+                          py: 0.25,
+                          borderRadius: 0.5,
+                          fontFamily: 'monospace',
+                        },
+                        '& img': {
+                          maxWidth: 120,
+                          height: 'auto',
+                          borderRadius: 1,
+                          display: 'block',
+                          my: 1.5,
+                        },
+                        '& hr': {
+                          border: 'none',
+                          borderTop: '1px solid #3a3a3a',
+                          my: 2.5,
+                        },
+                        '& blockquote': {
+                          borderLeft: '3px solid #6366f1',
+                          pl: 2,
+                          my: 1.5,
+                          color: '#a1a1aa',
+                          fontStyle: 'italic',
+                        },
+                        '& h1, & h2, & h3, & h4': {
+                          mt: 2,
+                          mb: 1,
+                          color: '#e4e4e7',
+                        },
+                      }}
+                    >
+                      <ReactMarkdown components={{ a: MarkdownLink }}>{text}</ReactMarkdown>
+                    </Box>
+                  </Paper>
+                )
+              },
               tools: {
                 Fallback: ({ toolName, result }) => (
                   <Box sx={{ maxWidth: '100%', overflow: 'hidden', mb: 2 }}>
