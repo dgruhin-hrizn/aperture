@@ -16,6 +16,7 @@ import { getMediaServerProvider } from '../../media/index.js'
 import { downloadImage } from '../images.js'
 import { generateSeriesNfoContent } from './nfo.js'
 import { getEffectiveAiExplanationSetting } from '../../lib/userSettings.js'
+import { symlinkArtwork, SERIES_SKIP_FILES, getSeriesFolderFromSeasonPath, getSeriesFolderFromEpisodePath } from '../artwork.js'
 import type { Series, Actor, SeriesImageDownloadTask } from './types.js'
 import type { ImageDownloadTask } from '../types.js'
 
@@ -403,6 +404,20 @@ export async function writeSeriesStrmFilesForUser(
         }
       }
 
+      // Symlink all other files from original series folder (artwork, etc.)
+      if (seasonPaths.rows.length > 0) {
+        const mediaServerSeriesPath = getSeriesFolderFromSeasonPath(seasonPaths.rows[0].season_path)
+        const artworkCount = await symlinkArtwork({
+          mediaServerPath: mediaServerSeriesPath,
+          targetPath: seriesFolderPath,
+          skipFiles: SERIES_SKIP_FILES,
+          skipSeasonFolders: true,
+          mediaType: 'series',
+          title: series.title,
+        })
+        filesWritten += artworkCount
+      }
+
       logger.info(
         { series: series.title, seasons: seasonPaths.rows.length },
         '🔗 Series symlinks created'
@@ -479,6 +494,21 @@ export async function writeSeriesStrmFilesForUser(
           await fs.writeFile(nfoPath, generateEpisodeNfoContent(episode, series.title), 'utf-8')
           filesWritten++
         }
+      }
+
+      // Symlink artwork files from original series folder (even in STRM mode)
+      const firstEpisodeWithPath = episodes.rows.find(ep => ep.path)
+      if (firstEpisodeWithPath?.path) {
+        const mediaServerSeriesPath = getSeriesFolderFromEpisodePath(firstEpisodeWithPath.path)
+        const artworkCount = await symlinkArtwork({
+          mediaServerPath: mediaServerSeriesPath,
+          targetPath: seriesFolderPath,
+          skipFiles: SERIES_SKIP_FILES,
+          skipSeasonFolders: true,
+          mediaType: 'series',
+          title: series.title,
+        })
+        filesWritten += artworkCount
       }
 
       logger.info(

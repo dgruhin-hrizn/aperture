@@ -14,6 +14,7 @@ import {
   getStrmContent,
 } from '../filenames.js'
 import { getEffectiveAiExplanationSetting } from '../../lib/userSettings.js'
+import { symlinkArtwork, symlinkSubtitles, MOVIE_SKIP_FILES, getMovieFolderFromFilePath } from '../artwork.js'
 import type { Movie, FileWriteTask, ImageDownloadTask } from '../types.js'
 
 const logger = createChildLogger('strm-writer')
@@ -255,6 +256,29 @@ export async function writeStrmFilesForUser(
             isPoster: false,
           })
         }
+      }
+
+      // Symlink other artwork files from original movie folder
+      if (originalPath) {
+        const movieFolder = getMovieFolderFromFilePath(originalPath)
+        await symlinkArtwork({
+          mediaServerPath: movieFolder,
+          targetPath: movieFolderPath,
+          skipFiles: MOVIE_SKIP_FILES,
+          skipSeasonFolders: false,
+          mediaType: 'movie',
+          title: movie.title,
+        })
+
+        // Symlink subtitle files with proper naming to match our video file
+        const originalBasename = path.basename(originalPath, path.extname(originalPath))
+        await symlinkSubtitles({
+          mediaServerPath: movieFolder,
+          targetPath: movieFolderPath,
+          targetBasename: baseFilename,
+          originalBasename,
+          title: movie.title,
+        })
       }
     } else {
       // STRM MODE: Flat files (original behavior)

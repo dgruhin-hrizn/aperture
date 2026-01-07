@@ -35,13 +35,15 @@ These can also be configured via Admin > Settings > Media Server.
 
 ### STRM Configuration
 
-| Variable                    | Description                         | Default           |
-| --------------------------- | ----------------------------------- | ----------------- |
-| `MEDIA_SERVER_STRM_ROOT`    | Where Aperture writes STRM files    | `/strm`           |
-| `AI_LIBRARY_PATH_PREFIX`    | Path prefix as seen by media server | `/strm/aperture/` |
-| `AI_LIBRARY_NAME_PREFIX`    | Library name prefix                 | `AI Picks - `     |
-| `STRM_USE_STREAMING_URL`    | Use streaming URLs in STRM files    | `true`            |
-| `MEDIA_SERVER_LIBRARY_ROOT` | Root path for direct file paths     | `/mnt/media`      |
+| Variable                    | Description                                    | Default           |
+| --------------------------- | ---------------------------------------------- | ----------------- |
+| `MEDIA_SERVER_STRM_ROOT`    | Where Aperture writes STRM files               | `/strm`           |
+| `AI_LIBRARY_PATH_PREFIX`    | Path prefix as seen by media server            | `/strm/aperture/` |
+| `AI_LIBRARY_NAME_PREFIX`    | Library name prefix                            | `AI Picks - `     |
+| `STRM_USE_STREAMING_URL`    | Use streaming URLs in STRM files               | `true`            |
+| `MEDIA_SERVER_LIBRARY_ROOT` | Root path for direct file paths                | `/mnt/media`      |
+| `MEDIA_SERVER_PATH_PREFIX`  | Path prefix as media server sees library files | `/mnt/`           |
+| `LOCAL_MEDIA_PATH_PREFIX`   | Local path prefix mapping for symlinks         | `/mnt/`           |
 
 ### Job Schedules (Defaults)
 
@@ -53,11 +55,11 @@ These can also be configured via Admin > Settings > Media Server.
 
 ### Trakt Integration
 
-| Variable              | Description                      | Default |
-| --------------------- | -------------------------------- | ------- |
-| `TRAKT_CLIENT_ID`     | Trakt application client ID      | —       |
-| `TRAKT_CLIENT_SECRET` | Trakt application client secret  | —       |
-| `TRAKT_REDIRECT_URI`  | OAuth callback URL               | —       |
+| Variable              | Description                     | Default |
+| --------------------- | ------------------------------- | ------- |
+| `TRAKT_CLIENT_ID`     | Trakt application client ID     | —       |
+| `TRAKT_CLIENT_SECRET` | Trakt application client secret | —       |
+| `TRAKT_REDIRECT_URI`  | OAuth callback URL              | —       |
 
 ---
 
@@ -179,6 +181,21 @@ Configure via **Admin → Settings → Output & AI → User Recommendations Outp
 
 **Library Sorting**: Top Picks libraries and collections are automatically assigned sort titles that place them at the top of your library/collection lists (using `!!!!!!` prefix).
 
+### Path Mapping for Symlinks
+
+When using symlinks for series, Aperture symlinks artwork files (banner.jpg, clearlogo.png, season posters, etc.) from the original series folder. If your media server sees paths differently than Aperture's local filesystem, you need to configure path mapping.
+
+**Example:** Your media server (Emby/Jellyfin) stores episode paths as `/mnt/Television/Show Name/...` but on the machine running Aperture, the actual path is `/Volumes/Media/Television/Show Name/...`.
+
+Configure the mapping:
+
+```
+MEDIA_SERVER_PATH_PREFIX=/mnt/
+LOCAL_MEDIA_PATH_PREFIX=/Volumes/Media/
+```
+
+This converts media server paths like `/mnt/Television/From/` to local paths `/Volumes/Media/Television/From/` so Aperture can read the original artwork files and create symlinks.
+
 ### Symlink Folder Structure
 
 When using symlinks for movies, each movie gets its own folder:
@@ -191,6 +208,15 @@ Top Picks - Movies/
 │   ├── poster.jpg
 │   └── fanart.jpg
 ```
+
+For series, Aperture creates the folder with:
+
+- Custom `tvshow.nfo` (with AI explanation)
+- Custom `poster.jpg` (with rank badge overlay)
+- Custom `fanart.jpg` (downloaded)
+- `Season 00/` folder (sorting workaround for Emby home rows)
+- Symlinked season folders pointing to originals
+- Symlinked artwork files (banner.jpg, clearlogo.png, landscape.jpg, season posters, etc.)
 
 ---
 
@@ -226,4 +252,3 @@ Users can connect their Trakt accounts in **User Settings → Connect Trakt Acco
 - **Push**: When users rate content in Aperture, ratings are immediately pushed to Trakt
 - **Pull**: Trakt ratings sync to Aperture on a scheduled job (default: every 6 hours)
 - **Bidirectional**: Both directions are supported for seamless integration
-

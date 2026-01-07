@@ -1,6 +1,6 @@
 /**
  * Top Picks STRM Writer
- * 
+ *
  * Generates STRM files for Top Picks libraries (global, not per-user).
  * Uses the same patterns as the recommendation STRM writer but with
  * Top Picks-specific poster overlays and a single shared library.
@@ -14,6 +14,13 @@ import { downloadImage } from '../strm/images.js'
 import { sanitizeFilename } from '../strm/filenames.js'
 import { getMediaServerProvider } from '../media/index.js'
 import { getTopPicksConfig } from './config.js'
+import {
+  symlinkArtwork,
+  symlinkSubtitles,
+  SERIES_SKIP_FILES,
+  MOVIE_SKIP_FILES,
+  getMovieFolderFromFilePath,
+} from '../strm/artwork.js'
 import type { PopularMovie, PopularSeries } from './popularity.js'
 import type { ImageDownloadTask } from '../strm/types.js'
 
@@ -39,7 +46,7 @@ function escapeXml(input: string): string {
  * Generate a placeholder "Specials" episode NFO with dateadded for Emby home row sorting.
  * Emby sorts series by latest episode dateadded, so we create a fake Season 00/Episode 0
  * with dateadded set by rank to control the order in "Latest" rows.
- * 
+ *
  * The date is set 100 years in the future to ensure these placeholders always appear
  * as the "newest" episodes, preventing real episode air dates from interfering.
  * Rank 1 = furthest in future, higher ranks = slightly earlier.
@@ -52,9 +59,9 @@ function generateSortingPlaceholderNfo(seriesTitle: string, rank: number): strin
   futureDate.setFullYear(futureDate.getFullYear() + 100)
   // Subtract minutes based on rank so Rank 1 is newest
   futureDate.setMinutes(futureDate.getMinutes() - (rank - 1))
-  
+
   const dateAddedStr = futureDate.toISOString().replace('T', ' ').substring(0, 19)
-  
+
   const lines = [
     '<?xml version="1.0" encoding="utf-8"?>',
     '<episodedetails>',
@@ -82,11 +89,8 @@ function generateSortingPlaceholderNfo(seriesTitle: string, rank: number): strin
 function generateTopPicksMovieNfo(movie: TopPicksMovie, dateAdded: Date): string {
   // Zero-pad rank for proper alphabetical sorting (01, 02, ... 10)
   const rankPrefix = String(movie.rank).padStart(2, '0')
-  
-  const lines = [
-    '<?xml version="1.0" encoding="utf-8" standalone="yes"?>',
-    '<movie>',
-  ]
+
+  const lines = ['<?xml version="1.0" encoding="utf-8" standalone="yes"?>', '<movie>']
 
   // Plot with CDATA for special characters
   if (movie.overview) {
@@ -174,9 +178,10 @@ function generateTopPicksMovieNfo(movie: TopPicksMovie, dateAdded: Date): string
   // Premiere/release date
   if (movie.premiereDate) {
     // Handle both Date objects and ISO strings
-    const dateStr = movie.premiereDate instanceof Date
-      ? movie.premiereDate.toISOString().split('T')[0]
-      : String(movie.premiereDate).split('T')[0]
+    const dateStr =
+      movie.premiereDate instanceof Date
+        ? movie.premiereDate.toISOString().split('T')[0]
+        : String(movie.premiereDate).split('T')[0]
     lines.push(`  <premiered>${dateStr}</premiered>`)
     lines.push(`  <releasedate>${dateStr}</releasedate>`)
   }
@@ -244,18 +249,18 @@ function generateTopPicksMovieNfo(movie: TopPicksMovie, dateAdded: Date): string
  * Generate NFO content for a Top Picks series
  * Format matches Emby/Jellyfin tvshow.nfo specification
  */
-function generateTopPicksSeriesNfo(series: TopPicksSeries & {
-  totalSeasons?: number | null
-  totalEpisodes?: number | null
-  endYear?: number | null
-}, dateAdded: Date): string {
+function generateTopPicksSeriesNfo(
+  series: TopPicksSeries & {
+    totalSeasons?: number | null
+    totalEpisodes?: number | null
+    endYear?: number | null
+  },
+  dateAdded: Date
+): string {
   // Zero-pad rank for proper alphabetical sorting (01, 02, ... 10)
   const rankPrefix = String(series.rank).padStart(2, '0')
-  
-  const lines = [
-    '<?xml version="1.0" encoding="utf-8" standalone="yes"?>',
-    '<tvshow>',
-  ]
+
+  const lines = ['<?xml version="1.0" encoding="utf-8" standalone="yes"?>', '<tvshow>']
 
   // Plot with CDATA for special characters
   if (series.overview) {
@@ -457,7 +462,7 @@ function buildTopPicksSeriesFilename(series: TopPicksSeries): string {
  */
 function getMovieStrmContent(movie: TopPicksMovie): string {
   const config = getConfig()
-  
+
   // If streaming URL is preferred
   if (config.useStreamingUrl) {
     const provider = getMediaServerProvider()
@@ -498,7 +503,10 @@ export async function writeTopPicksMovies(
   const localPath = path.join(config.strmRoot, 'top-picks', 'movies')
   const embyPath = path.join(config.libraryPathPrefix, '..', 'top-picks', 'movies')
 
-  logger.info({ localPath, embyPath, count: movies.length, useSymlinks }, `📁 Writing Top Picks Movies ${useSymlinks ? 'symlinks' : 'STRM files'}`)
+  logger.info(
+    { localPath, embyPath, count: movies.length, useSymlinks },
+    `📁 Writing Top Picks Movies ${useSymlinks ? 'symlinks' : 'STRM files'}`
+  )
 
   // Ensure directory exists
   await fs.mkdir(localPath, { recursive: true })
@@ -540,9 +548,12 @@ export async function writeTopPicksMovies(
        FROM movies WHERE id = $1`,
       [popular.movieId]
     )
-    
+
     if (!dbMovie) {
-      logger.warn({ movieId: popular.movieId, title: popular.title }, 'Movie not found in DB, skipping')
+      logger.warn(
+        { movieId: popular.movieId, title: popular.title },
+        'Movie not found in DB, skipping'
+      )
       continue
     }
 
@@ -552,29 +563,33 @@ export async function writeTopPicksMovies(
     let studiosArray: Array<{ id?: string; name: string }> = []
 
     if (dbMovie.media_sources) {
-      try { 
-        mediaSources = typeof dbMovie.media_sources === 'string' 
-          ? JSON.parse(dbMovie.media_sources) 
-          : dbMovie.media_sources 
-      } catch { /* ignore */ }
+      try {
+        mediaSources =
+          typeof dbMovie.media_sources === 'string'
+            ? JSON.parse(dbMovie.media_sources)
+            : dbMovie.media_sources
+      } catch {
+        /* ignore */
+      }
     }
     if (dbMovie.actors) {
-      try { 
-        actors = typeof dbMovie.actors === 'string' 
-          ? JSON.parse(dbMovie.actors) 
-          : dbMovie.actors 
-      } catch { /* ignore */ }
+      try {
+        actors = typeof dbMovie.actors === 'string' ? JSON.parse(dbMovie.actors) : dbMovie.actors
+      } catch {
+        /* ignore */
+      }
     }
     if (dbMovie.studios) {
-      try { 
-        studiosArray = typeof dbMovie.studios === 'string' 
-          ? JSON.parse(dbMovie.studios) 
-          : dbMovie.studios 
-      } catch { /* ignore */ }
+      try {
+        studiosArray =
+          typeof dbMovie.studios === 'string' ? JSON.parse(dbMovie.studios) : dbMovie.studios
+      } catch {
+        /* ignore */
+      }
     }
 
     // Extract just the studio names for NFO compatibility
-    const studios = studiosArray.map(s => s.name)
+    const studios = studiosArray.map((s) => s.name)
     const directors = dbMovie.directors || []
     const writers = dbMovie.writers || []
     const productionCountries = dbMovie.production_countries || []
@@ -626,7 +641,7 @@ export async function writeTopPicksMovies(
       if (!originalPath && movie.mediaSources && movie.mediaSources.length > 0) {
         originalPath = movie.mediaSources[0].path
       }
-      
+
       if (originalPath) {
         // Get the file extension from the original path
         const ext = path.extname(originalPath)
@@ -635,7 +650,10 @@ export async function writeTopPicksMovies(
           await fs.symlink(originalPath, symlinkPath)
           logger.debug({ movie: movie.title, originalPath }, 'Created movie symlink')
         } catch (err) {
-          logger.debug({ err, movie: movie.title }, 'Failed to create movie symlink, falling back to STRM')
+          logger.debug(
+            { err, movie: movie.title },
+            'Failed to create movie symlink, falling back to STRM'
+          )
           // Fallback to STRM if symlink fails
           const strmPath = path.join(movieFolderPath, `${baseFilename}.strm`)
           const strmContent = getMovieStrmContent(movie)
@@ -675,6 +693,29 @@ export async function writeTopPicksMovies(
           isPoster: false,
         }
         await downloadImage(backdropTask)
+      }
+
+      // Symlink other artwork files from original movie folder
+      if (originalPath) {
+        const movieFolder = getMovieFolderFromFilePath(originalPath)
+        await symlinkArtwork({
+          mediaServerPath: movieFolder,
+          targetPath: movieFolderPath,
+          skipFiles: MOVIE_SKIP_FILES,
+          skipSeasonFolders: false,
+          mediaType: 'movie',
+          title: movie.title,
+        })
+
+        // Symlink subtitle files with proper naming to match our video file
+        const originalBasename = path.basename(originalPath, path.extname(originalPath))
+        await symlinkSubtitles({
+          mediaServerPath: movieFolder,
+          targetPath: movieFolderPath,
+          targetBasename: baseFilename,
+          originalBasename,
+          title: movie.title,
+        })
       }
     } else {
       // STRM MODE: Flat file structure (original behavior)
@@ -737,7 +778,10 @@ export async function writeTopPicksSeries(
   const localPath = path.join(config.strmRoot, 'top-picks', 'series')
   const embyPath = path.join(config.libraryPathPrefix, '..', 'top-picks', 'series')
 
-  logger.info({ localPath, embyPath, count: seriesList.length, useSymlinks }, `📁 Writing Top Picks Series ${useSymlinks ? 'symlinks' : 'STRM files'}`)
+  logger.info(
+    { localPath, embyPath, count: seriesList.length, useSymlinks },
+    `📁 Writing Top Picks Series ${useSymlinks ? 'symlinks' : 'STRM files'}`
+  )
 
   // Ensure directory exists
   await fs.mkdir(localPath, { recursive: true })
@@ -755,7 +799,7 @@ export async function writeTopPicksSeries(
   for (const popular of seriesList) {
     // Get full series metadata from the database
     const { queryOne } = await import('../lib/db.js')
-    const dbSeries = await queryOne<{ 
+    const dbSeries = await queryOne<{
       provider_item_id: string
       original_title: string | null
       total_seasons: number | null
@@ -779,9 +823,12 @@ export async function writeTopPicksSeries(
        FROM series WHERE id = $1`,
       [popular.seriesId]
     )
-    
+
     if (!dbSeries) {
-      logger.warn({ seriesId: popular.seriesId, title: popular.title }, 'Series not found in DB, skipping')
+      logger.warn(
+        { seriesId: popular.seriesId, title: popular.title },
+        'Series not found in DB, skipping'
+      )
       continue
     }
 
@@ -790,22 +837,23 @@ export async function writeTopPicksSeries(
     let studiosArray: Array<{ id?: string; name: string }> = []
 
     if (dbSeries.actors) {
-      try { 
-        actors = typeof dbSeries.actors === 'string' 
-          ? JSON.parse(dbSeries.actors) 
-          : dbSeries.actors 
-      } catch { /* ignore */ }
+      try {
+        actors = typeof dbSeries.actors === 'string' ? JSON.parse(dbSeries.actors) : dbSeries.actors
+      } catch {
+        /* ignore */
+      }
     }
     if (dbSeries.studios) {
-      try { 
-        studiosArray = typeof dbSeries.studios === 'string' 
-          ? JSON.parse(dbSeries.studios) 
-          : dbSeries.studios 
-      } catch { /* ignore */ }
+      try {
+        studiosArray =
+          typeof dbSeries.studios === 'string' ? JSON.parse(dbSeries.studios) : dbSeries.studios
+      } catch {
+        /* ignore */
+      }
     }
 
     // Extract just the studio names for NFO compatibility
-    const studios = studiosArray.map(s => s.name)
+    const studios = studiosArray.map((s) => s.name)
     const directors = dbSeries.directors || []
     const writers = dbSeries.writers || []
 
@@ -819,7 +867,10 @@ export async function writeTopPicksSeries(
     )
 
     if (!firstEpisode) {
-      logger.warn({ seriesId: popular.seriesId, title: popular.title }, 'No episodes found for series, skipping')
+      logger.warn(
+        { seriesId: popular.seriesId, title: popular.title },
+        'No episodes found for series, skipping'
+      )
       continue
     }
 
@@ -837,7 +888,10 @@ export async function writeTopPicksSeries(
     }
 
     if (!originalEpisodePath) {
-      logger.warn({ seriesId: popular.seriesId, title: popular.title }, 'No file path found for episode, skipping')
+      logger.warn(
+        { seriesId: popular.seriesId, title: popular.title },
+        'No file path found for episode, skipping'
+      )
       continue
     }
 
@@ -845,11 +899,14 @@ export async function writeTopPicksSeries(
     // These paths are from Emby's perspective (e.g., /mnt/TV Shows/...)
     // They won't exist locally but will work when Emby on Unraid follows the symlinks
     const originalSeriesFolder = path.dirname(path.dirname(originalEpisodePath))
-    
-    logger.info({ 
-      title: popular.title, 
-      originalSeriesFolder,
-    }, '📺 Creating symlinks to Emby path (may not resolve locally)')
+
+    logger.info(
+      {
+        title: popular.title,
+        originalSeriesFolder,
+      },
+      '📺 Creating symlinks to Emby path (may not resolve locally)'
+    )
 
     const series: TopPicksSeries = {
       id: popular.seriesId,
@@ -915,24 +972,27 @@ export async function writeTopPicksSeries(
     // because Emby uses the latest episode's dateadded for series sorting
     const specialsFolderPath = path.join(seriesPath, 'Season 00')
     await fs.mkdir(specialsFolderPath, { recursive: true })
-    
+
     const placeholderBasename = 'S00E00 - Aperture Sorting Placeholder'
-    
+
     // Create NFO with dateadded set 100 years in future (by rank for sort order)
     const placeholderNfoPath = path.join(specialsFolderPath, `${placeholderBasename}.nfo`)
     const placeholderNfoContent = generateSortingPlaceholderNfo(series.title, series.rank)
     await fs.writeFile(placeholderNfoPath, placeholderNfoContent, 'utf-8')
-    
+
     // Create a minimal STRM file so Emby recognizes the episode entry
     const placeholderStrmPath = path.join(specialsFolderPath, `${placeholderBasename}.strm`)
     const placeholderStrmContent = '# Aperture sorting placeholder - not a real video\nabout:blank'
     await fs.writeFile(placeholderStrmPath, placeholderStrmContent, 'utf-8')
-    
-    logger.debug({ series: series.title, rank: series.rank }, '📅 Created sorting placeholder for home row ordering')
+
+    logger.debug(
+      { series: series.title, rank: series.rank },
+      '📅 Created sorting placeholder for home row ordering'
+    )
 
     // Query all episodes for this series from the database
     const { query } = await import('../lib/db.js')
-    
+
     if (useSymlinks) {
       // SYMLINKS MODE: Create symlinks to season folders
       const seasons = await query<{ season_number: number; season_path: string }>(
@@ -950,7 +1010,7 @@ export async function writeTopPicksSeries(
         const seasonFolderName = `Season ${String(season.season_number).padStart(2, '0')}`
         const symlinkPath = path.join(seriesPath, seasonFolderName)
         const originalSeasonPath = season.season_path
-        
+
         try {
           await fs.symlink(originalSeasonPath, symlinkPath)
           logger.debug({ seasonFolderName, originalSeasonPath }, 'Created season symlink')
@@ -960,29 +1020,36 @@ export async function writeTopPicksSeries(
         }
       }
 
-      // Symlink fanart if we know the path
-      const fanartPath = path.join(originalSeriesFolder, 'fanart.jpg')
-      try {
-        await fs.symlink(fanartPath, path.join(seriesPath, 'fanart.jpg'))
-      } catch {
-        // Fanart symlink failed, that's okay - we can download it instead
-        if (config.downloadImages && series.backdropUrl) {
-          const backdropTask: ImageDownloadTask = {
-            url: series.backdropUrl,
-            path: path.join(seriesPath, 'fanart.jpg'),
-            movieTitle: series.title,
-            isPoster: false,
-          }
-          await downloadImage(backdropTask)
+      // Symlink all other artwork files from original series folder
+      const artworkCount = await symlinkArtwork({
+        mediaServerPath: originalSeriesFolder,
+        targetPath: seriesPath,
+        skipFiles: SERIES_SKIP_FILES,
+        skipSeasonFolders: true,
+        mediaType: 'series',
+        title: series.title,
+      })
+
+      // If no artwork was symlinked, try to download fanart
+      if (artworkCount === 0 && config.downloadImages && series.backdropUrl) {
+        const backdropTask: ImageDownloadTask = {
+          url: series.backdropUrl,
+          path: path.join(seriesPath, 'fanart.jpg'),
+          movieTitle: series.title,
+          isPoster: false,
         }
+        await downloadImage(backdropTask)
       }
 
-      logger.info({ 
-        title: series.title, 
-        rank: series.rank,
-        seasons: seasons.rows.length,
-        originalFolder: originalSeriesFolder,
-      }, '📺 Created Top Picks series with symlinks')
+      logger.info(
+        {
+          title: series.title,
+          rank: series.rank,
+          seasons: seasons.rows.length,
+          originalFolder: originalSeriesFolder,
+        },
+        '📺 Created Top Picks series with symlinks'
+      )
     } else {
       // STRM MODE: Create STRM files for each episode
       const episodes = await query<{
@@ -1043,8 +1110,18 @@ export async function writeTopPicksSeries(
         await fs.writeFile(strmPath, strmContent, 'utf-8')
       }
 
-      // Download fanart for STRM mode
-      if (config.downloadImages && series.backdropUrl) {
+      // Symlink artwork files from original series folder (even in STRM mode)
+      const artworkCount = await symlinkArtwork({
+        mediaServerPath: originalSeriesFolder,
+        targetPath: seriesPath,
+        skipFiles: SERIES_SKIP_FILES,
+        skipSeasonFolders: true,
+        mediaType: 'series',
+        title: series.title,
+      })
+
+      // If no artwork was symlinked, try to download fanart
+      if (artworkCount === 0 && config.downloadImages && series.backdropUrl) {
         const backdropTask: ImageDownloadTask = {
           url: series.backdropUrl,
           path: path.join(seriesPath, 'fanart.jpg'),
@@ -1054,11 +1131,14 @@ export async function writeTopPicksSeries(
         await downloadImage(backdropTask)
       }
 
-      logger.info({ 
-        title: series.title, 
-        rank: series.rank,
-        episodes: episodes.rows.length,
-      }, '📺 Created Top Picks series with STRM files')
+      logger.info(
+        {
+          title: series.title,
+          rank: series.rank,
+          episodes: episodes.rows.length,
+        },
+        '📺 Created Top Picks series with STRM files'
+      )
     }
 
     written++
@@ -1090,4 +1170,3 @@ export async function writeAllTopPicks(
     series: seriesResult,
   }
 }
-
