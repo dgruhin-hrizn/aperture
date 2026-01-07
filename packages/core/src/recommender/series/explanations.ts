@@ -106,10 +106,10 @@ async function getUserSeriesTasteContext(userId: string): Promise<UserSeriesTast
   // Get top genres by watch frequency from series watch history
   const genreResult = await query<{ genre: string }>(
     `SELECT unnest(s.genres) as genre, COUNT(*) as count
-     FROM episode_watch_history ewh
-     JOIN episodes e ON e.id = ewh.episode_id
+     FROM watch_history wh
+     JOIN episodes e ON e.id = wh.episode_id
      JOIN series s ON s.id = e.series_id
-     WHERE ewh.user_id = $1
+     WHERE wh.user_id = $1 AND wh.media_type = 'episode'
      GROUP BY genre
      ORDER BY count DESC
      LIMIT 8`,
@@ -124,20 +124,20 @@ async function getUserSeriesTasteContext(userId: string): Promise<UserSeriesTast
     network: string | null
   }>(
     `SELECT s.title, s.year, s.genres, s.network,
-            COUNT(ewh.id) as episodes_watched
-     FROM episode_watch_history ewh
-     JOIN episodes e ON e.id = ewh.episode_id
+            COUNT(wh.id) as episodes_watched
+     FROM watch_history wh
+     JOIN episodes e ON e.id = wh.episode_id
      JOIN series s ON s.id = e.series_id
-     WHERE ewh.user_id = $1
+     WHERE wh.user_id = $1 AND wh.media_type = 'episode'
      GROUP BY s.id, s.title, s.year, s.genres, s.network
-     ORDER BY episodes_watched DESC, MAX(ewh.last_played_at) DESC NULLS LAST
+     ORDER BY episodes_watched DESC, MAX(wh.last_played_at) DESC NULLS LAST
      LIMIT 15`,
     [userId]
   )
 
-  // Get taste synopsis if available
-  const synopsisResult = await query<{ taste_synopsis: string | null }>(
-    `SELECT taste_synopsis FROM user_preferences WHERE user_id = $1`,
+  // Get series taste synopsis if available
+  const synopsisResult = await query<{ series_taste_synopsis: string | null }>(
+    `SELECT series_taste_synopsis FROM user_preferences WHERE user_id = $1`,
     [userId]
   )
 
@@ -149,7 +149,7 @@ async function getUserSeriesTasteContext(userId: string): Promise<UserSeriesTast
       genres: r.genres || [],
       network: r.network,
     })),
-    tasteSynopsis: synopsisResult.rows[0]?.taste_synopsis || null,
+    tasteSynopsis: synopsisResult.rows[0]?.series_taste_synopsis || null,
   }
 }
 
