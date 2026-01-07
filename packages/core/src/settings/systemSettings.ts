@@ -87,7 +87,13 @@ export async function getAllSystemSettings(): Promise<SystemSetting[]> {
 
 export type EmbeddingModel = 'text-embedding-3-small' | 'text-embedding-3-large'
 
-export const EMBEDDING_MODELS: { id: EmbeddingModel; name: string; description: string; dimensions: number; costPer1M: string }[] = [
+export const EMBEDDING_MODELS: {
+  id: EmbeddingModel
+  name: string
+  description: string
+  dimensions: number
+  costPer1M: string
+}[] = [
   {
     id: 'text-embedding-3-small',
     name: 'Small (Recommended)',
@@ -201,7 +207,9 @@ export async function setMediaServerConfig(config: {
 }): Promise<MediaServerConfig> {
   if (config.type !== undefined) {
     if (!isValidMediaServerType(config.type)) {
-      throw new Error(`Invalid media server type: ${config.type}. Valid options: ${MEDIA_SERVER_TYPES.join(', ')}`)
+      throw new Error(
+        `Invalid media server type: ${config.type}. Valid options: ${MEDIA_SERVER_TYPES.join(', ')}`
+      )
     }
     await setSystemSetting('media_server_type', config.type, 'Media server type: emby or jellyfin')
   }
@@ -244,7 +252,10 @@ export async function testMediaServerConnection(config: {
     return { success: true, serverName: `${config.type} server (${libraries.length} libraries)` }
   } catch (err) {
     const error = err instanceof Error ? err.message : 'Unknown error'
-    logger.warn({ err, config: { type: config.type, baseUrl: config.baseUrl } }, 'Media server connection test failed')
+    logger.warn(
+      { err, config: { type: config.type, baseUrl: config.baseUrl } },
+      'Media server connection test failed'
+    )
     return { success: false, error }
   }
 }
@@ -292,7 +303,7 @@ export const TEXT_GENERATION_MODELS: TextGenerationModelInfo[] = [
     name: 'GPT-4o Mini (Recommended)',
     description: 'Best balance of quality and cost. Good for most use cases.',
     inputCostPerMillion: 0.15,
-    outputCostPerMillion: 0.60,
+    outputCostPerMillion: 0.6,
     contextWindow: '128K',
   },
   {
@@ -300,7 +311,7 @@ export const TEXT_GENERATION_MODELS: TextGenerationModelInfo[] = [
     name: 'GPT-5 Nano (Budget)',
     description: 'Fastest and cheapest. Good for simple tasks.',
     inputCostPerMillion: 0.05,
-    outputCostPerMillion: 0.40,
+    outputCostPerMillion: 0.4,
     contextWindow: '400K',
   },
   {
@@ -308,22 +319,22 @@ export const TEXT_GENERATION_MODELS: TextGenerationModelInfo[] = [
     name: 'GPT-5 Mini (Premium)',
     description: 'Latest model, best quality. Higher output costs.',
     inputCostPerMillion: 0.25,
-    outputCostPerMillion: 2.00,
+    outputCostPerMillion: 2.0,
     contextWindow: '400K',
   },
   {
     id: 'gpt-4.1-mini',
     name: 'GPT-4.1 Mini',
     description: 'Previous generation mini model.',
-    inputCostPerMillion: 0.40,
-    outputCostPerMillion: 1.60,
+    inputCostPerMillion: 0.4,
+    outputCostPerMillion: 1.6,
     contextWindow: '128K',
   },
 ]
 
 /**
  * Get the configured text generation model
- * Falls back to default (gpt-4o-mini for best cost/quality balance)
+ * Falls back to default (gpt-4.1-mini for best cost/quality balance)
  */
 export async function getTextGenerationModel(): Promise<TextGenerationModel> {
   const dbValue = await getSystemSetting('text_generation_model')
@@ -353,6 +364,117 @@ function isValidTextGenerationModel(model: string): model is TextGenerationModel
 }
 
 // ============================================================================
+// Chat Assistant Model Settings
+// ============================================================================
+
+export type ChatAssistantModel =
+  | 'gpt-4.1-mini'
+  | 'gpt-4.1-nano'
+  | 'gpt-4.1'
+  | 'gpt-4o'
+  | 'gpt-4o-mini'
+  | 'o1-mini'
+  | 'o3-mini'
+
+export interface ChatAssistantModelInfo {
+  id: ChatAssistantModel
+  name: string
+  description: string
+  inputCostPerMillion: number
+  outputCostPerMillion: number
+  contextWindow: string
+}
+
+export const CHAT_ASSISTANT_MODELS: ChatAssistantModelInfo[] = [
+  {
+    id: 'gpt-4.1-mini',
+    name: 'GPT-4.1 Mini (Recommended)',
+    description: 'Latest mini model. Fast, capable, 1M context window.',
+    inputCostPerMillion: 0.4,
+    outputCostPerMillion: 1.6,
+    contextWindow: '1M',
+  },
+  {
+    id: 'gpt-4.1-nano',
+    name: 'GPT-4.1 Nano (Budget)',
+    description: 'Fastest and cheapest. Good for simple queries.',
+    inputCostPerMillion: 0.1,
+    outputCostPerMillion: 0.4,
+    contextWindow: '1M',
+  },
+  {
+    id: 'gpt-4.1',
+    name: 'GPT-4.1 (Full)',
+    description: 'Full GPT-4.1 model. Best quality in the 4.1 family.',
+    inputCostPerMillion: 2.0,
+    outputCostPerMillion: 8.0,
+    contextWindow: '1M',
+  },
+  {
+    id: 'gpt-4o',
+    name: 'GPT-4o',
+    description: 'Multimodal model with vision capabilities.',
+    inputCostPerMillion: 2.5,
+    outputCostPerMillion: 10,
+    contextWindow: '128K',
+  },
+  {
+    id: 'gpt-4o-mini',
+    name: 'GPT-4o Mini',
+    description: 'Previous generation mini model.',
+    inputCostPerMillion: 0.15,
+    outputCostPerMillion: 0.6,
+    contextWindow: '128K',
+  },
+  {
+    id: 'o1-mini',
+    name: 'o1 Mini (Reasoning)',
+    description: 'Advanced reasoning for complex queries.',
+    inputCostPerMillion: 3,
+    outputCostPerMillion: 12,
+    contextWindow: '128K',
+  },
+  {
+    id: 'o3-mini',
+    name: 'o3 Mini (Latest Reasoning)',
+    description: 'Latest reasoning model. Best for complex analysis.',
+    inputCostPerMillion: 1.1,
+    outputCostPerMillion: 4.4,
+    contextWindow: '200K',
+  },
+]
+
+/**
+ * Get the configured chat assistant model
+ * Falls back to default (gpt-4.1-mini - best balance of speed, cost, and capability)
+ */
+export async function getChatAssistantModel(): Promise<ChatAssistantModel> {
+  const dbValue = await getSystemSetting('chat_assistant_model')
+  if (dbValue && isValidChatAssistantModel(dbValue)) {
+    return dbValue
+  }
+  return 'gpt-4.1-mini'
+}
+
+/**
+ * Set the chat assistant model
+ */
+export async function setChatAssistantModel(model: ChatAssistantModel): Promise<void> {
+  if (!isValidChatAssistantModel(model)) {
+    throw new Error(`Invalid chat assistant model: ${model}`)
+  }
+  await setSystemSetting(
+    'chat_assistant_model',
+    model,
+    'OpenAI model for the chat assistant. Options: gpt-4.1-mini, gpt-4.1-nano, gpt-4.1, gpt-4o, gpt-4o-mini, o1-mini, o3-mini'
+  )
+}
+
+function isValidChatAssistantModel(model: string): model is ChatAssistantModel {
+  return CHAT_ASSISTANT_MODELS.some((m) => m.id === model)
+}
+
+// ============================================================================
 // AI Recommendations Output Format Settings
 // ============================================================================
 
@@ -376,7 +498,9 @@ export async function getAiRecsOutputConfig(): Promise<AiRecsOutputConfig> {
 /**
  * Set AI recommendations output format
  */
-export async function setAiRecsOutputConfig(config: Partial<AiRecsOutputConfig>): Promise<AiRecsOutputConfig> {
+export async function setAiRecsOutputConfig(
+  config: Partial<AiRecsOutputConfig>
+): Promise<AiRecsOutputConfig> {
   if (config.moviesUseSymlinks !== undefined) {
     await setSystemSetting(
       'ai_recs_movies_use_symlinks',
@@ -409,7 +533,7 @@ export interface AiExplanationConfig {
 export async function getAiExplanationConfig(): Promise<AiExplanationConfig> {
   const enabled = await getSystemSetting('ai_explanation_enabled')
   const userOverrideAllowed = await getSystemSetting('ai_explanation_user_override_allowed')
-  
+
   return {
     enabled: enabled !== 'false', // Default to true
     userOverrideAllowed: userOverrideAllowed === 'true', // Default to false
@@ -419,7 +543,9 @@ export async function getAiExplanationConfig(): Promise<AiExplanationConfig> {
 /**
  * Set global AI explanation configuration
  */
-export async function setAiExplanationConfig(config: Partial<AiExplanationConfig>): Promise<AiExplanationConfig> {
+export async function setAiExplanationConfig(
+  config: Partial<AiExplanationConfig>
+): Promise<AiExplanationConfig> {
   if (config.enabled !== undefined) {
     await setSystemSetting(
       'ai_explanation_enabled',
@@ -466,7 +592,9 @@ export async function getLibraryTitleConfig(): Promise<LibraryTitleConfig> {
 /**
  * Set library title template configuration
  */
-export async function setLibraryTitleConfig(config: Partial<LibraryTitleConfig>): Promise<LibraryTitleConfig> {
+export async function setLibraryTitleConfig(
+  config: Partial<LibraryTitleConfig>
+): Promise<LibraryTitleConfig> {
   if (config.moviesTemplate !== undefined) {
     await setSystemSetting(
       'ai_library_movies_title_template',
@@ -483,4 +611,3 @@ export async function setLibraryTitleConfig(config: Partial<LibraryTitleConfig>)
   }
   return getLibraryTitleConfig()
 }
-

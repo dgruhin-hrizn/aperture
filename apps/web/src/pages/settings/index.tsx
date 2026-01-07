@@ -24,6 +24,7 @@ import {
   StrmSection,
   CostEstimatorSection,
   TextGenerationModelSection,
+  ChatAssistantModelSection,
   TopPicksSection,
   AiExplanationSection,
   OutputFormatSection,
@@ -158,6 +159,7 @@ export function SettingsPage() {
                 <AccordionDetails>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <TextGenerationModelSection />
+                    <ChatAssistantModelSection />
                     <RecommendationConfigSection
                       recConfig={settings.recConfig}
                       loadingRecConfig={settings.loadingRecConfig}

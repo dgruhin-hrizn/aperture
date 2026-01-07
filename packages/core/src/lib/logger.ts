@@ -1,7 +1,13 @@
 import pino, { type Logger, type LoggerOptions } from 'pino'
 
+// LOG_LEVEL env var takes precedence, otherwise 'info' in production, 'info' in development
+const getLogLevel = () => {
+  if (process.env.LOG_LEVEL) return process.env.LOG_LEVEL
+  return 'info'
+}
+
 const defaultOptions: LoggerOptions = {
-  level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+  level: getLogLevel(),
   transport:
     process.env.NODE_ENV === 'production'
       ? undefined

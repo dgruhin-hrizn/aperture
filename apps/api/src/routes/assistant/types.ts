@@ -43,6 +43,7 @@ export interface RecentWatch {
 }
 
 export interface RecommendationResult {
+  id: string
   title: string
   year: number | null
   rank: number
@@ -79,4 +80,3 @@ export interface ToolContext {
   embeddingModel: string
   mediaServer: MediaServerInfo | null
 }
-

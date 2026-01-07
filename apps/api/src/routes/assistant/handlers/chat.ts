@@ -3,7 +3,7 @@
  */
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { streamText } from 'ai'
-import { getEmbeddingModel } from '@aperture/core'
+import { getEmbeddingModel, getChatAssistantModel } from '@aperture/core'
 import { requireAuth, type SessionUser } from '../../../plugins/auth.js'
 import { getOpenAIClient, getMediaServerInfo, buildSystemPrompt } from '../helpers/index.js'
 import { createTools } from '../tools/index.js'
@@ -20,8 +20,13 @@ export function registerChatHandler(fastify: FastifyInstance) {
       const user = request.user as SessionUser
       const { messages } = request.body
 
+      if (!messages || !Array.isArray(messages)) {
+        return reply.status(400).send({ error: 'Messages array is required' })
+      }
+
       try {
         const openai = getOpenAIClient()
+        const model = await getChatAssistantModel()
         const embeddingModel = await getEmbeddingModel()
         const mediaServer = await getMediaServerInfo()
         const systemPrompt = await buildSystemPrompt(user.id, user.isAdmin)
@@ -37,9 +42,11 @@ export function registerChatHandler(fastify: FastifyInstance) {
         // Create tools with context
         const tools = createTools(toolContext)
 
-        // Stream the response
+        fastify.log.info({ toolCount: Object.keys(tools).length, model }, 'Starting chat stream')
+
+        // Stream the response using AI SDK's built-in streaming
         const result = streamText({
-          model: openai('gpt-4o'),
+          model: openai(model),
           system: systemPrompt,
           messages: messages.map((m) => ({
             role: m.role,
@@ -47,43 +54,16 @@ export function registerChatHandler(fastify: FastifyInstance) {
           })),
           tools,
           maxSteps: 10,
+          maxTokens: 16384, // Allow long, detailed responses
           toolChoice: 'auto',
         })
 
-        // Set up SSE response
-        reply.raw.writeHead(200, {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          Connection: 'keep-alive',
-        })
+        // Use the official AI SDK pattern for Fastify
+        // See: https://ai-sdk.dev/cookbook/api-servers/fastify
+        reply.header('X-Vercel-AI-Data-Stream', 'v1')
+        reply.header('Content-Type', 'text/plain; charset=utf-8')
 
-        // Stream the response
-        for await (const part of result.fullStream) {
-          if (part.type === 'text-delta') {
-            reply.raw.write(`data: ${JSON.stringify({ type: 'text', text: part.textDelta })}\n\n`)
-          } else if (part.type === 'tool-call') {
-            reply.raw.write(
-              `data: ${JSON.stringify({
-                type: 'tool-call',
-                toolName: part.toolName,
-                args: part.args,
-              })}\n\n`
-            )
-          } else if (part.type === 'tool-result') {
-            reply.raw.write(
-              `data: ${JSON.stringify({
-                type: 'tool-result',
-                toolName: part.toolName,
-                result: part.result,
-              })}\n\n`
-            )
-          } else if (part.type === 'finish') {
-            reply.raw.write(`data: ${JSON.stringify({ type: 'finish' })}\n\n`)
-          }
-        }
-
-        reply.raw.end()
-        return reply
+        return reply.send(result.toDataStream())
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error'
         const errorStack = err instanceof Error ? err.stack : undefined
@@ -102,4 +82,3 @@ export function registerChatHandler(fastify: FastifyInstance) {
     }
   )
 }
-

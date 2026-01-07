@@ -18,6 +18,9 @@ import {
   getTextGenerationModel,
   setTextGenerationModel,
   TEXT_GENERATION_MODELS,
+  getChatAssistantModel,
+  setChatAssistantModel,
+  CHAT_ASSISTANT_MODELS,
   getMediaServerConfig,
   setMediaServerConfig,
   testMediaServerConnection,
@@ -37,6 +40,7 @@ import {
   type EmbeddingModel,
   type MediaServerType,
   type TextGenerationModel,
+  type ChatAssistantModel,
   type MediaTypeConfig,
 } from '@aperture/core'
 import { requireAdmin } from '../plugins/auth.js'
@@ -911,6 +915,62 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   )
 
   // =========================================================================
+  // Chat Assistant Model Settings (Admin Only)
+  // =========================================================================
+
+  /**
+   * GET /api/settings/chat-assistant-model
+   * Get current chat assistant model configuration
+   */
+  fastify.get(
+    '/api/settings/chat-assistant-model',
+    { preHandler: requireAdmin },
+    async (_request, reply) => {
+      try {
+        const currentModel = await getChatAssistantModel()
+
+        return reply.send({
+          currentModel,
+          availableModels: CHAT_ASSISTANT_MODELS,
+        })
+      } catch (err) {
+        fastify.log.error({ err }, 'Failed to get chat assistant model config')
+        return reply.status(500).send({ error: 'Failed to get chat assistant model configuration' })
+      }
+    }
+  )
+
+  /**
+   * PATCH /api/settings/chat-assistant-model
+   * Update chat assistant model
+   */
+  fastify.patch<{
+    Body: { model: string }
+  }>('/api/settings/chat-assistant-model', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const { model } = request.body
+
+      // Validate model
+      const validModels = CHAT_ASSISTANT_MODELS.map((m) => m.id)
+      if (!validModels.includes(model as ChatAssistantModel)) {
+        return reply.status(400).send({
+          error: `Invalid model. Valid options: ${validModels.join(', ')}`,
+        })
+      }
+
+      await setChatAssistantModel(model as ChatAssistantModel)
+
+      return reply.send({
+        model,
+        message: 'Chat assistant model updated. Changes take effect immediately.',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to update chat assistant model')
+      return reply.status(500).send({ error: 'Failed to update chat assistant model' })
+    }
+  })
+
+  // =========================================================================
   // Top Picks Configuration (Admin Only)
   // =========================================================================
 
@@ -924,7 +984,10 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       const config = await getTopPicksConfig()
 
       // Try to get library info (may fail if libraries don't exist yet)
-      let libraries: { movies: { id: string; guid: string; name: string } | null; series: { id: string; guid: string; name: string } | null } = { movies: null, series: null }
+      let libraries: {
+        movies: { id: string; guid: string; name: string } | null
+        series: { id: string; guid: string; name: string } | null
+      } = { movies: null, series: null }
       try {
         libraries = await getTopPicksLibraries()
       } catch {
@@ -1450,22 +1513,25 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/settings/strm-libraries
    * Get all STRM libraries created by Aperture (user recommendation libraries)
    */
-  fastify.get('/api/settings/strm-libraries', { preHandler: requireAdmin }, async (_request, reply) => {
-    try {
-      const result = await query<{
-        id: string
-        user_id: string | null
-        channel_id: string | null
-        name: string
-        path: string
-        provider_library_id: string | null
-        is_active: boolean
-        media_type: string
-        file_count: number | null
-        last_synced_at: Date | null
-        created_at: Date
-      }>(
-        `SELECT sl.id, sl.user_id, sl.channel_id, sl.name, sl.path, 
+  fastify.get(
+    '/api/settings/strm-libraries',
+    { preHandler: requireAdmin },
+    async (_request, reply) => {
+      try {
+        const result = await query<{
+          id: string
+          user_id: string | null
+          channel_id: string | null
+          name: string
+          path: string
+          provider_library_id: string | null
+          is_active: boolean
+          media_type: string
+          file_count: number | null
+          last_synced_at: Date | null
+          created_at: Date
+        }>(
+          `SELECT sl.id, sl.user_id, sl.channel_id, sl.name, sl.path, 
                 sl.provider_library_id, sl.is_active, sl.media_type,
                 sl.file_count, sl.last_synced_at, sl.created_at,
                 u.username as user_name, u.display_name as user_display_name
@@ -1473,29 +1539,33 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
          LEFT JOIN users u ON sl.user_id = u.id
          WHERE sl.is_active = true
          ORDER BY sl.created_at DESC`
-      )
+        )
 
-      const libraries = result.rows.map((row) => ({
-        id: row.id,
-        userId: row.user_id,
-        userName: row.user_id ? (row as unknown as { user_display_name: string | null; user_name: string }).user_display_name || (row as unknown as { user_name: string }).user_name : null,
-        channelId: row.channel_id,
-        name: row.name,
-        path: row.path,
-        providerLibraryId: row.provider_library_id,
-        isActive: row.is_active,
-        mediaType: row.media_type,
-        fileCount: row.file_count,
-        lastSyncedAt: row.last_synced_at,
-        createdAt: row.created_at,
-      }))
+        const libraries = result.rows.map((row) => ({
+          id: row.id,
+          userId: row.user_id,
+          userName: row.user_id
+            ? (row as unknown as { user_display_name: string | null; user_name: string })
+                .user_display_name || (row as unknown as { user_name: string }).user_name
+            : null,
+          channelId: row.channel_id,
+          name: row.name,
+          path: row.path,
+          providerLibraryId: row.provider_library_id,
+          isActive: row.is_active,
+          mediaType: row.media_type,
+          fileCount: row.file_count,
+          lastSyncedAt: row.last_synced_at,
+          createdAt: row.created_at,
+        }))
 
-      return reply.send({ libraries })
-    } catch (err) {
-      fastify.log.error({ err }, 'Failed to get STRM libraries')
-      return reply.status(500).send({ error: 'Failed to get STRM libraries' })
+        return reply.send({ libraries })
+      } catch (err) {
+        fastify.log.error({ err }, 'Failed to get STRM libraries')
+        return reply.status(500).send({ error: 'Failed to get STRM libraries' })
+      }
     }
-  })
+  )
 }
 
 export default settingsRoutes

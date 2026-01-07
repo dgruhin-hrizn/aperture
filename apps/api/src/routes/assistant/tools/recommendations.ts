@@ -4,7 +4,7 @@
 import { tool } from 'ai'
 import { z } from 'zod'
 import { query } from '../../../lib/db.js'
-import type { ToolContext, MovieResult, SeriesResult, RecommendationResult } from '../types.js'
+import type { ToolContext, MovieResult, SeriesResult } from '../types.js'
 
 export function createRecommendationTools(ctx: ToolContext) {
   return {
@@ -15,11 +15,38 @@ export function createRecommendationTools(ctx: ToolContext) {
         limit: z.number().optional().default(10),
       }),
       execute: async ({ type, limit = 10 }) => {
-        const result: { movies?: RecommendationResult[]; series?: RecommendationResult[] } = {}
+        const result: {
+          movies?: {
+            id: string
+            title: string
+            year: number | null
+            rank: number
+            genres: string[]
+            posterUrl: string | null
+            overview: string
+          }[]
+          series?: {
+            id: string
+            title: string
+            year: number | null
+            rank: number
+            genres: string[]
+            posterUrl: string | null
+            overview: string
+          }[]
+        } = {}
 
         if (type === 'movies' || type === 'both') {
-          const movieRecs = await query<RecommendationResult>(
-            `SELECT m.title, m.year, rc.selected_rank as rank, m.genres, m.overview
+          const movieRecs = await query<{
+            id: string
+            title: string
+            year: number | null
+            rank: number
+            genres: string[]
+            overview: string | null
+            poster_url: string | null
+          }>(
+            `SELECT m.id, m.title, m.year, rc.selected_rank as rank, m.genres, m.overview, m.poster_url
              FROM recommendation_candidates rc
              JOIN recommendation_runs rr ON rr.id = rc.run_id
              JOIN movies m ON m.id = rc.movie_id
@@ -29,14 +56,27 @@ export function createRecommendationTools(ctx: ToolContext) {
             [ctx.userId, limit]
           )
           result.movies = movieRecs.rows.map((r) => ({
-            ...r,
+            id: r.id,
+            title: r.title,
+            year: r.year,
+            rank: r.rank,
+            genres: r.genres,
+            posterUrl: r.poster_url,
             overview: r.overview?.substring(0, 150) + '...',
           }))
         }
 
         if (type === 'series' || type === 'both') {
-          const seriesRecs = await query<RecommendationResult>(
-            `SELECT s.title, s.year, rc.selected_rank as rank, s.genres, s.overview
+          const seriesRecs = await query<{
+            id: string
+            title: string
+            year: number | null
+            rank: number
+            genres: string[]
+            overview: string | null
+            poster_url: string | null
+          }>(
+            `SELECT s.id, s.title, s.year, rc.selected_rank as rank, s.genres, s.overview, s.poster_url
              FROM recommendation_candidates rc
              JOIN recommendation_runs rr ON rr.id = rc.run_id
              JOIN series s ON s.id = rc.series_id
@@ -46,7 +86,12 @@ export function createRecommendationTools(ctx: ToolContext) {
             [ctx.userId, limit]
           )
           result.series = seriesRecs.rows.map((r) => ({
-            ...r,
+            id: r.id,
+            title: r.title,
+            year: r.year,
+            rank: r.rank,
+            genres: r.genres,
+            posterUrl: r.poster_url,
             overview: r.overview?.substring(0, 150) + '...',
           }))
         }
@@ -66,7 +111,27 @@ export function createRecommendationTools(ctx: ToolContext) {
         limit: z.number().optional().default(10),
       }),
       execute: async ({ type, genre, limit = 10 }) => {
-        const results: { movies?: MovieResult[]; series?: SeriesResult[] } = {}
+        const results: {
+          movies?: {
+            id: string
+            title: string
+            year: number | null
+            genres: string[]
+            rating: number | null
+            posterUrl: string | null
+            overview: string
+          }[]
+          series?: {
+            id: string
+            title: string
+            year: number | null
+            genres: string[]
+            network: string | null
+            rating: number | null
+            posterUrl: string | null
+            overview: string
+          }[]
+        } = {}
 
         if (type === 'movies' || type === 'both') {
           let whereClause = 'WHERE community_rating IS NOT NULL'
@@ -81,12 +146,20 @@ export function createRecommendationTools(ctx: ToolContext) {
           params.push(limit)
 
           const movies = await query<MovieResult>(
-            `SELECT id, title, year, genres, overview, community_rating
+            `SELECT id, title, year, genres, overview, community_rating, poster_url
              FROM movies ${whereClause}
              ORDER BY community_rating DESC LIMIT $${paramIndex}`,
             params
           )
-          results.movies = movies.rows
+          results.movies = movies.rows.map((m) => ({
+            id: m.id,
+            title: m.title,
+            year: m.year,
+            genres: m.genres,
+            rating: m.community_rating,
+            posterUrl: m.poster_url,
+            overview: m.overview?.substring(0, 150) + '...',
+          }))
         }
 
         if (type === 'series' || type === 'both') {
@@ -102,12 +175,21 @@ export function createRecommendationTools(ctx: ToolContext) {
           params.push(limit)
 
           const series = await query<SeriesResult>(
-            `SELECT id, title, year, genres, network, overview, community_rating
+            `SELECT id, title, year, genres, network, overview, community_rating, poster_url
              FROM series ${whereClause}
              ORDER BY community_rating DESC LIMIT $${paramIndex}`,
             params
           )
-          results.series = series.rows
+          results.series = series.rows.map((s) => ({
+            id: s.id,
+            title: s.title,
+            year: s.year,
+            genres: s.genres,
+            network: s.network,
+            rating: s.community_rating,
+            posterUrl: s.poster_url,
+            overview: s.overview?.substring(0, 150) + '...',
+          }))
         }
 
         return results
@@ -123,7 +205,27 @@ export function createRecommendationTools(ctx: ToolContext) {
         limit: z.number().optional().default(10),
       }),
       execute: async ({ type, genre, minRating, limit = 10 }) => {
-        const results: { movies?: MovieResult[]; series?: SeriesResult[] } = {}
+        const results: {
+          movies?: {
+            id: string
+            title: string
+            year: number | null
+            genres: string[]
+            rating: number | null
+            posterUrl: string | null
+            overview: string
+          }[]
+          series?: {
+            id: string
+            title: string
+            year: number | null
+            genres: string[]
+            network: string | null
+            rating: number | null
+            posterUrl: string | null
+            overview: string
+          }[]
+        } = {}
 
         if (type === 'movies' || type === 'both') {
           let whereClause = `WHERE m.id NOT IN (
@@ -144,13 +246,18 @@ export function createRecommendationTools(ctx: ToolContext) {
           params.push(limit)
 
           const movies = await query<MovieResult>(
-            `SELECT m.id, m.title, m.year, m.genres, m.overview, m.community_rating
+            `SELECT m.id, m.title, m.year, m.genres, m.overview, m.community_rating, m.poster_url
              FROM movies m ${whereClause}
              ORDER BY m.community_rating DESC NULLS LAST LIMIT $${paramIndex}`,
             params
           )
           results.movies = movies.rows.map((m) => ({
-            ...m,
+            id: m.id,
+            title: m.title,
+            year: m.year,
+            genres: m.genres,
+            rating: m.community_rating,
+            posterUrl: m.poster_url,
             overview: m.overview?.substring(0, 150) + '...',
           }))
         }
@@ -176,13 +283,19 @@ export function createRecommendationTools(ctx: ToolContext) {
           params.push(limit)
 
           const series = await query<SeriesResult>(
-            `SELECT s.id, s.title, s.year, s.genres, s.network, s.overview, s.community_rating
+            `SELECT s.id, s.title, s.year, s.genres, s.network, s.overview, s.community_rating, s.poster_url
              FROM series s ${whereClause}
              ORDER BY s.community_rating DESC NULLS LAST LIMIT $${paramIndex}`,
             params
           )
           results.series = series.rows.map((s) => ({
-            ...s,
+            id: s.id,
+            title: s.title,
+            year: s.year,
+            genres: s.genres,
+            network: s.network,
+            rating: s.community_rating,
+            posterUrl: s.poster_url,
             overview: s.overview?.substring(0, 150) + '...',
           }))
         }
@@ -192,4 +305,3 @@ export function createRecommendationTools(ctx: ToolContext) {
     }),
   }
 }
-

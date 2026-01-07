@@ -53,4 +53,3 @@ export function buildPlayLink(
 
   return `${mediaServer.baseUrl}/web/index.html${itemPath}`
 }
-

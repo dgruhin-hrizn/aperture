@@ -3,6 +3,11 @@
   "private": true,
   "packageManager": "pnpm@10.0.0",
   "type": "module",
+  "pnpm": {
+    "overrides": {
+      "zod": "^3.23.8"
+    }
+  },
   "scripts": {
     "menu": "node scripts/dev.mjs",
     "dev": "node scripts/dev-start.mjs",

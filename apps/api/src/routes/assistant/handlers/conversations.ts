@@ -56,32 +56,37 @@ export function registerConversationHandlers(fastify: FastifyInstance) {
     '/api/assistant/conversations/:id',
     { preHandler: requireAuth },
     async (request, reply) => {
-      const user = request.user as SessionUser
-      const { id } = request.params
+      try {
+        const user = request.user as SessionUser
+        const { id } = request.params
 
-      const conversation = await queryOne<ConversationRow>(
-        `SELECT id, title, created_at, updated_at
-         FROM assistant_conversations
-         WHERE id = $1 AND user_id = $2`,
-        [id, user.id]
-      )
+        const conversation = await queryOne<ConversationRow>(
+          `SELECT id, title, created_at, updated_at
+           FROM assistant_conversations
+           WHERE id = $1 AND user_id = $2`,
+          [id, user.id]
+        )
 
-      if (!conversation) {
-        return reply.status(404).send({ error: 'Conversation not found' })
+        if (!conversation) {
+          return reply.status(404).send({ error: 'Conversation not found' })
+        }
+
+        const messages = await query<MessageRow>(
+          `SELECT id, role, content, created_at
+           FROM assistant_messages
+           WHERE conversation_id = $1
+           ORDER BY created_at ASC`,
+          [id]
+        )
+
+        return reply.send({
+          conversation,
+          messages: messages.rows,
+        })
+      } catch (err) {
+        request.log.error({ err }, 'Failed to fetch conversation')
+        return reply.status(500).send({ error: 'Failed to fetch conversation' })
       }
-
-      const messages = await query<MessageRow>(
-        `SELECT id, role, content, created_at
-         FROM assistant_messages
-         WHERE conversation_id = $1
-         ORDER BY created_at ASC`,
-        [id]
-      )
-
-      return reply.send({
-        conversation,
-        messages: messages.rows,
-      })
     }
   )
 

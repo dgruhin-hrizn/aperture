@@ -3,7 +3,7 @@
  */
 import { tool } from 'ai'
 import { z } from 'zod'
-import { query, queryOne } from '../../../lib/db.js'
+import { query } from '../../../lib/db.js'
 import type { ToolContext } from '../types.js'
 
 export function createHistoryTools(ctx: ToolContext) {
@@ -17,14 +17,18 @@ export function createHistoryTools(ctx: ToolContext) {
       execute: async ({ type = 'both', limit = 20 }) => {
         const results: {
           movies?: Array<{
+            id: string
             title: string
             year: number | null
+            posterUrl: string | null
             lastWatched: Date
             playCount: number
           }>
           series?: Array<{
+            id: string
             title: string
             year: number | null
+            posterUrl: string | null
             episodesWatched: number
             lastWatched: Date
           }>
@@ -32,20 +36,24 @@ export function createHistoryTools(ctx: ToolContext) {
 
         if (type === 'movies' || type === 'both') {
           const movieHistory = await query<{
+            id: string
             title: string
             year: number | null
+            poster_url: string | null
             last_played_at: Date
             play_count: number
           }>(
-            `SELECT m.title, m.year, wh.last_played_at, wh.play_count
+            `SELECT m.id, m.title, m.year, m.poster_url, wh.last_played_at, wh.play_count
              FROM watch_history wh JOIN movies m ON m.id = wh.movie_id
              WHERE wh.user_id = $1 AND wh.movie_id IS NOT NULL
              ORDER BY wh.last_played_at DESC LIMIT $2`,
             [ctx.userId, limit]
           )
           results.movies = movieHistory.rows.map((m) => ({
+            id: m.id,
             title: m.title,
             year: m.year,
+            posterUrl: m.poster_url,
             lastWatched: m.last_played_at,
             playCount: m.play_count,
           }))
@@ -53,22 +61,26 @@ export function createHistoryTools(ctx: ToolContext) {
 
         if (type === 'series' || type === 'both') {
           const seriesHistory = await query<{
+            id: string
             title: string
             year: number | null
+            poster_url: string | null
             episodes_watched: string
             last_watched: Date
           }>(
-            `SELECT s.title, s.year, COUNT(DISTINCT wh.episode_id) as episodes_watched,
+            `SELECT s.id, s.title, s.year, s.poster_url, COUNT(DISTINCT wh.episode_id) as episodes_watched,
              MAX(wh.last_played_at) as last_watched
              FROM watch_history wh JOIN episodes e ON e.id = wh.episode_id
              JOIN seasons sea ON sea.id = e.season_id JOIN series s ON s.id = sea.series_id
              WHERE wh.user_id = $1 AND wh.episode_id IS NOT NULL
-             GROUP BY s.id, s.title, s.year ORDER BY last_watched DESC LIMIT $2`,
+             GROUP BY s.id, s.title, s.year, s.poster_url ORDER BY last_watched DESC LIMIT $2`,
             [ctx.userId, limit]
           )
           results.series = seriesHistory.rows.map((s) => ({
+            id: s.id,
             title: s.title,
             year: s.year,
+            posterUrl: s.poster_url,
             episodesWatched: parseInt(s.episodes_watched),
             lastWatched: s.last_watched,
           }))
@@ -101,12 +113,14 @@ export function createHistoryTools(ctx: ToolContext) {
         params.push(limit)
 
         const movieRatings = await query<{
+          id: string
           title: string
           year: number | null
+          poster_url: string | null
           rating: number
           rated_at: Date
         }>(
-          `SELECT m.title, m.year, ur.rating, ur.updated_at as rated_at
+          `SELECT m.id, m.title, m.year, m.poster_url, ur.rating, ur.updated_at as rated_at
            FROM user_ratings ur JOIN movies m ON m.id = ur.movie_id
            ${whereClause} AND ur.movie_id IS NOT NULL
            ORDER BY ur.rating DESC, ur.updated_at DESC LIMIT $${paramIndex}`,
@@ -114,12 +128,14 @@ export function createHistoryTools(ctx: ToolContext) {
         )
 
         const seriesRatings = await query<{
+          id: string
           title: string
           year: number | null
+          poster_url: string | null
           rating: number
           rated_at: Date
         }>(
-          `SELECT s.title, s.year, ur.rating, ur.updated_at as rated_at
+          `SELECT s.id, s.title, s.year, s.poster_url, ur.rating, ur.updated_at as rated_at
            FROM user_ratings ur JOIN series s ON s.id = ur.series_id
            ${whereClause} AND ur.series_id IS NOT NULL
            ORDER BY ur.rating DESC, ur.updated_at DESC LIMIT $${paramIndex}`,
@@ -128,14 +144,18 @@ export function createHistoryTools(ctx: ToolContext) {
 
         return {
           movies: movieRatings.rows.map((r) => ({
+            id: r.id,
             title: r.title,
             year: r.year,
+            posterUrl: r.poster_url,
             rating: r.rating,
             ratedAt: r.rated_at,
           })),
           series: seriesRatings.rows.map((r) => ({
+            id: r.id,
             title: r.title,
             year: r.year,
+            posterUrl: r.poster_url,
             rating: r.rating,
             ratedAt: r.rated_at,
           })),
@@ -144,4 +164,3 @@ export function createHistoryTools(ctx: ToolContext) {
     }),
   }
 }
-

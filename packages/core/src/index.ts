@@ -229,6 +229,9 @@ export {
   getTextGenerationModel,
   setTextGenerationModel,
   TEXT_GENERATION_MODELS,
+  getChatAssistantModel,
+  setChatAssistantModel,
+  CHAT_ASSISTANT_MODELS,
   getMediaServerConfig,
   setMediaServerConfig,
   testMediaServerConnection,
@@ -248,6 +251,8 @@ export {
   type AiRecsOutputConfig,
   type AiExplanationConfig,
   type LibraryTitleConfig,
+  type ChatAssistantModel,
+  type ChatAssistantModelInfo,
 } from './settings/systemSettings.js'
 
 // Top Picks

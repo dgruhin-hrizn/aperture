@@ -41,9 +41,12 @@ export function AssistantModal() {
   const [savingMessages, setSavingMessages] = useState(false)
   
   // Use the Vercel AI SDK's useChat with our custom endpoint
-  const { messages, input, handleSubmit, isLoading, setInput, append, setMessages } = useChat({
+  const { messages, input, handleSubmit, isLoading, setInput, append, setMessages, error } = useChat({
     api: '/api/assistant/chat',
     credentials: 'include',
+    onError: (err) => {
+      console.error('[useChat] Error:', err)
+    },
   })
 
   // Fetch conversations when modal opens

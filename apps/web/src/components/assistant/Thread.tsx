@@ -1,10 +1,77 @@
 import { useRef, useEffect, FormEvent, KeyboardEvent } from 'react'
-import { Box, IconButton, Paper, Typography, Avatar, CircularProgress, TextField } from '@mui/material'
+import { Box, IconButton, Paper, Typography, Avatar, CircularProgress, TextField, Button } from '@mui/material'
 import SendIcon from '@mui/icons-material/Send'
 import SmartToyIcon from '@mui/icons-material/SmartToy'
 import PersonIcon from '@mui/icons-material/Person'
+import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import ReactMarkdown from 'react-markdown'
 import type { Message } from 'ai'
+import type { Components } from 'react-markdown'
+
+// Custom link renderer for markdown
+const MarkdownLink: Components['a'] = ({ href, children }) => {
+  const text = String(children)
+  const isPlayLink = text.toLowerCase().includes('play') || text.includes('▶️')
+  
+  if (isPlayLink && href) {
+    return (
+      <Button
+        variant="contained"
+        size="small"
+        startIcon={<PlayArrowIcon />}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        sx={{
+          mt: 1,
+          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+          textTransform: 'none',
+          '&:hover': {
+            background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+          },
+        }}
+      >
+        Play on Emby
+      </Button>
+    )
+  }
+
+  return (
+    <a
+      href={href}
+      target={href?.startsWith('/') ? undefined : '_blank'}
+      rel={href?.startsWith('/') ? undefined : 'noopener noreferrer'}
+      style={{
+        color: '#818cf8',
+        textDecoration: 'none',
+      }}
+    >
+      {children}
+    </a>
+  )
+}
+
+// Helper to extract text content from a message
+function getMessageContent(message: Message): string {
+  // If content is a string, return it directly
+  if (typeof message.content === 'string') {
+    return message.content
+  }
+  
+  // If content is an array (multi-part message with tools), extract text parts
+  if (Array.isArray(message.content)) {
+    const parts = message.content as Array<{ type: string; text?: string }>
+    const text = parts
+      .filter(part => part.type === 'text' && part.text)
+      .map(part => part.text!)
+      .join('\n')
+    console.info('[getMessageContent] Extracted from array:', text)
+    return text
+  }
+  
+  console.warn('[getMessageContent] Unknown content format, returning empty')
+  return ''
+}
 
 interface ThreadProps {
   messages: Message[]
@@ -58,13 +125,16 @@ export function Thread({ messages, input, isLoading, onInputChange, onSubmit, on
           <ThreadWelcome onSuggestionClick={onSuggestionClick} />
         ) : (
           <>
-            {messages.map((message) =>
-              message.role === 'user' ? (
-                <UserMessage key={message.id} content={message.content} />
+            {messages.map((message) => {
+              const content = getMessageContent(message)
+              // Skip empty messages (like tool-only messages)
+              if (!content) return null
+              return message.role === 'user' ? (
+                <UserMessage key={message.id} content={content} />
               ) : (
-                <AssistantMessage key={message.id} content={message.content} />
+                <AssistantMessage key={message.id} content={content} />
               )
-            )}
+            })}
             {isLoading && (
               <Box sx={{ display: 'flex', gap: 1.5 }}>
                 <Avatar
@@ -277,11 +347,11 @@ function AssistantMessage({ content }: { content: string }) {
       >
         <Box
           sx={{
-            '& p': { my: 1 },
+            '& p': { my: 1.5 },
             '& p:first-of-type': { mt: 0 },
             '& p:last-of-type': { mb: 0 },
-            '& ul, & ol': { pl: 2, my: 1 },
-            '& li': { mb: 0.5 },
+            '& ul, & ol': { pl: 2, my: 1.5 },
+            '& li': { mb: 0.75 },
             '& strong': { color: '#818cf8' },
             '& code': {
               bgcolor: '#2a2a2a',
@@ -290,9 +360,33 @@ function AssistantMessage({ content }: { content: string }) {
               borderRadius: 0.5,
               fontFamily: 'monospace',
             },
+            '& img': {
+              maxWidth: 120,
+              height: 'auto',
+              borderRadius: 1,
+              display: 'block',
+              my: 1.5,
+            },
+            '& hr': {
+              border: 'none',
+              borderTop: '1px solid #3a3a3a',
+              my: 2.5,
+            },
+            '& blockquote': {
+              borderLeft: '3px solid #6366f1',
+              pl: 2,
+              my: 1.5,
+              color: '#a1a1aa',
+              fontStyle: 'italic',
+            },
+            '& h1, & h2, & h3, & h4': {
+              mt: 2,
+              mb: 1,
+              color: '#e4e4e7',
+            },
           }}
         >
-          <ReactMarkdown>{content}</ReactMarkdown>
+          <ReactMarkdown components={{ a: MarkdownLink }}>{content}</ReactMarkdown>
         </Box>
       </Paper>
     </Box>

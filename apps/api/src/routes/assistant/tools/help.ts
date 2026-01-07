@@ -130,4 +130,3 @@ export function createHelpTools(ctx: ToolContext) {
     }),
   }
 }
-

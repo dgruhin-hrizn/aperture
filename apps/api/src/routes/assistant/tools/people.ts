@@ -20,25 +20,26 @@ export function createPeopleTools(ctx: ToolContext) {
           actors?: Array<{
             name: string
             thumb: string | null
-            movies: Array<{ title: string; year: number | null; role: string | null }>
-            series: Array<{ title: string; year: number | null; role: string | null }>
+            movies: Array<{ id: string; title: string; year: number | null; role: string | null }>
+            series: Array<{ id: string; title: string; year: number | null; role: string | null }>
           }>
           directors?: Array<{
             name: string
-            movies: Array<{ title: string; year: number | null }>
-            series: Array<{ title: string; year: number | null }>
+            movies: Array<{ id: string; title: string; year: number | null }>
+            series: Array<{ id: string; title: string; year: number | null }>
           }>
         } = {}
 
         if (role === 'actor' || role === 'any') {
           const actorMovies = await query<{
+            id: string
             actor_name: string
             actor_thumb: string | null
             actor_role: string | null
             title: string
             year: number | null
           }>(
-            `SELECT actor->>'name' as actor_name, actor->>'thumb' as actor_thumb,
+            `SELECT m.id, actor->>'name' as actor_name, actor->>'thumb' as actor_thumb,
              actor->>'role' as actor_role, m.title, m.year
              FROM movies m, LATERAL jsonb_array_elements(m.actors) as actor
              WHERE actor->>'name' ILIKE $1
@@ -47,13 +48,14 @@ export function createPeopleTools(ctx: ToolContext) {
           )
 
           const actorSeries = await query<{
+            id: string
             actor_name: string
             actor_thumb: string | null
             actor_role: string | null
             title: string
             year: number | null
           }>(
-            `SELECT actor->>'name' as actor_name, actor->>'thumb' as actor_thumb,
+            `SELECT s.id, actor->>'name' as actor_name, actor->>'thumb' as actor_thumb,
              actor->>'role' as actor_role, s.title, s.year
              FROM series s, LATERAL jsonb_array_elements(s.actors) as actor
              WHERE actor->>'name' ILIKE $1
@@ -66,8 +68,8 @@ export function createPeopleTools(ctx: ToolContext) {
             {
               name: string
               thumb: string | null
-              movies: Array<{ title: string; year: number | null; role: string | null }>
-              series: Array<{ title: string; year: number | null; role: string | null }>
+              movies: Array<{ id: string; title: string; year: number | null; role: string | null }>
+              series: Array<{ id: string; title: string; year: number | null; role: string | null }>
             }
           >()
 
@@ -78,7 +80,12 @@ export function createPeopleTools(ctx: ToolContext) {
               movies: [],
               series: [],
             }
-            existing.movies.push({ title: row.title, year: row.year, role: row.actor_role })
+            existing.movies.push({
+              id: row.id,
+              title: row.title,
+              year: row.year,
+              role: row.actor_role,
+            })
             actorMap.set(row.actor_name, existing)
           }
 
@@ -89,7 +96,12 @@ export function createPeopleTools(ctx: ToolContext) {
               movies: [],
               series: [],
             }
-            existing.series.push({ title: row.title, year: row.year, role: row.actor_role })
+            existing.series.push({
+              id: row.id,
+              title: row.title,
+              year: row.year,
+              role: row.actor_role,
+            })
             actorMap.set(row.actor_name, existing)
           }
 
@@ -98,11 +110,12 @@ export function createPeopleTools(ctx: ToolContext) {
 
         if (role === 'director' || role === 'any') {
           const directorMovies = await query<{
+            id: string
             director: string
             title: string
             year: number | null
           }>(
-            `SELECT unnest(directors) as director, title, year FROM movies
+            `SELECT id, unnest(directors) as director, title, year FROM movies
              WHERE EXISTS (SELECT 1 FROM unnest(directors) d WHERE d ILIKE $1)
              ORDER BY year DESC NULLS LAST LIMIT $2`,
             [`%${name}%`, limit * 5]
@@ -112,8 +125,8 @@ export function createPeopleTools(ctx: ToolContext) {
             string,
             {
               name: string
-              movies: Array<{ title: string; year: number | null }>
-              series: Array<{ title: string; year: number | null }>
+              movies: Array<{ id: string; title: string; year: number | null }>
+              series: Array<{ id: string; title: string; year: number | null }>
             }
           >()
 
@@ -124,7 +137,7 @@ export function createPeopleTools(ctx: ToolContext) {
                 movies: [],
                 series: [],
               }
-              existing.movies.push({ title: row.title, year: row.year })
+              existing.movies.push({ id: row.id, title: row.title, year: row.year })
               directorMap.set(row.director, existing)
             }
           }
@@ -148,8 +161,16 @@ export function createPeopleTools(ctx: ToolContext) {
       }),
       execute: async ({ type = 'both', limit = 10 }) => {
         const results: {
-          studios?: Array<{ name: string; movieCount: number; topMovies: string[] }>
-          networks?: Array<{ name: string; seriesCount: number; topSeries: string[] }>
+          studios?: Array<{
+            name: string
+            movieCount: number
+            topMovies: Array<{ id: string; title: string }>
+          }>
+          networks?: Array<{
+            name: string
+            seriesCount: number
+            topSeries: Array<{ id: string; title: string }>
+          }>
         } = {}
 
         if (type === 'movies' || type === 'both') {
@@ -161,10 +182,14 @@ export function createPeopleTools(ctx: ToolContext) {
             [ctx.userId, limit]
           )
 
-          const studios: Array<{ name: string; movieCount: number; topMovies: string[] }> = []
+          const studios: Array<{
+            name: string
+            movieCount: number
+            topMovies: Array<{ id: string; title: string }>
+          }> = []
           for (const row of studioData.rows) {
-            const topMovies = await query<{ title: string }>(
-              `SELECT m.title FROM movies m JOIN watch_history wh ON wh.movie_id = m.id
+            const topMovies = await query<{ id: string; title: string }>(
+              `SELECT m.id, m.title FROM movies m JOIN watch_history wh ON wh.movie_id = m.id
                WHERE wh.user_id = $1 AND $2 = ANY(m.studios)
                ORDER BY m.community_rating DESC NULLS LAST LIMIT 3`,
               [ctx.userId, row.studio]
@@ -172,7 +197,7 @@ export function createPeopleTools(ctx: ToolContext) {
             studios.push({
               name: row.studio,
               movieCount: parseInt(row.count),
-              topMovies: topMovies.rows.map((m) => m.title),
+              topMovies: topMovies.rows.map((m) => ({ id: m.id, title: m.title })),
             })
           }
           results.studios = studios
@@ -189,10 +214,14 @@ export function createPeopleTools(ctx: ToolContext) {
             [ctx.userId, limit]
           )
 
-          const networks: Array<{ name: string; seriesCount: number; topSeries: string[] }> = []
+          const networks: Array<{
+            name: string
+            seriesCount: number
+            topSeries: Array<{ id: string; title: string }>
+          }> = []
           for (const row of networkData.rows) {
-            const topSeries = await query<{ title: string }>(
-              `SELECT DISTINCT s.title FROM series s
+            const topSeries = await query<{ id: string; title: string }>(
+              `SELECT DISTINCT s.id, s.title FROM series s
                JOIN seasons sea ON sea.series_id = s.id
                JOIN episodes e ON e.season_id = sea.id
                JOIN watch_history wh ON wh.episode_id = e.id
@@ -203,7 +232,7 @@ export function createPeopleTools(ctx: ToolContext) {
             networks.push({
               name: row.network,
               seriesCount: parseInt(row.count),
-              topSeries: topSeries.rows.map((s) => s.title),
+              topSeries: topSeries.rows.map((s) => ({ id: s.id, title: s.title })),
             })
           }
           results.networks = networks
@@ -214,4 +243,3 @@ export function createPeopleTools(ctx: ToolContext) {
     }),
   }
 }
-
