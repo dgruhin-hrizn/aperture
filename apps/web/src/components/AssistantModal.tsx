@@ -478,10 +478,12 @@ export function AssistantModal() {
           sx: {
             height: fullscreen ? '100%' : '95vh',
             maxHeight: fullscreen ? '100%' : '90vh',
-            bgcolor: '#0f0f0f',
+            bgcolor: 'rgba(15, 15, 15, 0.85)',
+            backdropFilter: 'blur(20px)',
             backgroundImage: 'none',
             borderRadius: fullscreen ? 0 : 3,
             overflow: 'hidden',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
           },
         }}
       >
@@ -491,10 +493,10 @@ export function AssistantModal() {
             <Box
               sx={{
                 width: 280,
-                borderRight: '1px solid #2a2a2a',
+                borderRight: '1px solid rgba(255, 255, 255, 0.1)',
                 display: 'flex',
                 flexDirection: 'column',
-                bgcolor: '#0a0a0a',
+                bgcolor: 'transparent',
               }}
             >
               {/* New Chat Button */}
@@ -508,14 +510,14 @@ export function AssistantModal() {
                     alignItems: 'center',
                     gap: 1,
                     p: 1.5,
-                    bgcolor: '#1a1a1a',
-                    border: '1px solid #2a2a2a',
+                    bgcolor: 'rgba(26, 26, 26, 0.6)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
                     borderRadius: 2,
                     color: '#f5f5f5',
                     cursor: 'pointer',
                     transition: 'all 0.2s',
                     '&:hover': {
-                      bgcolor: '#252525',
+                      bgcolor: 'rgba(37, 37, 37, 0.8)',
                       borderColor: '#6366f1',
                     },
                   }}
@@ -527,7 +529,7 @@ export function AssistantModal() {
                 </Box>
               </Box>
 
-              <Divider sx={{ borderColor: '#2a2a2a' }} />
+              <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.1)' }} />
 
               {/* Conversations List */}
               <Box sx={{ flex: 1, overflow: 'auto' }}>
@@ -584,7 +586,7 @@ export function AssistantModal() {
                                 fontSize: '0.875rem',
                               },
                               '& .MuiOutlinedInput-root': {
-                                bgcolor: '#1a1a1a',
+                                bgcolor: 'rgba(26, 26, 26, 0.6)',
                               },
                             }}
                           />
@@ -637,7 +639,7 @@ export function AssistantModal() {
 
               {/* Saving indicator */}
               {savingMessages && (
-                <Box sx={{ p: 1, borderTop: '1px solid #2a2a2a', display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ p: 1, borderTop: '1px solid rgba(255, 255, 255, 0.1)', display: 'flex', alignItems: 'center', gap: 1 }}>
                   <CircularProgress size={12} />
                   <Typography variant="caption" color="text.secondary">
                     Saving...
@@ -656,8 +658,8 @@ export function AssistantModal() {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 p: 2,
-                borderBottom: '1px solid #2a2a2a',
-                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%)',
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>

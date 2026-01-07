@@ -27,14 +27,10 @@ export function ContentCarousel({ data, onPlay }: ContentCarouselProps) {
     }
   }
 
+  // Don't render anything for empty results - the AI shouldn't be making
+  // redundant tool calls that return nothing
   if (data.items.length === 0) {
-    return (
-      <Box sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2 }}>
-        <Typography variant="body2" color="text.secondary">
-          {data.description || 'No results found.'}
-        </Typography>
-      </Box>
-    )
+    return null
   }
 
   return (

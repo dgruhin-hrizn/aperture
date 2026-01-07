@@ -27,7 +27,12 @@ function formatContentItem(
     rating: item.community_rating,
     rank,
     actions: [
-      { id: 'details', label: 'Details', href: `/${type}s/${item.id}`, variant: 'secondary' },
+      {
+        id: 'details',
+        label: 'Details',
+        href: `/${type === 'movie' ? 'movies' : 'series'}/${item.id}`,
+        variant: 'secondary',
+      },
       ...(playLink
         ? [{ id: 'play', label: 'Play', href: playLink, variant: 'primary' as const }]
         : []),
@@ -41,9 +46,9 @@ export function createRecommendationTools(ctx: ToolContext) {
       description: "Get the user's current AI-generated personalized recommendations.",
       inputSchema: z.object({
         type: z.enum(['movies', 'series', 'both']).default('both'),
-        limit: z.number().optional().default(10),
+        limit: z.number().optional().default(15).describe('Number of results (default 15, max 50)'),
       }),
-      execute: async ({ type, limit = 10 }) => {
+      execute: async ({ type, limit = 15 }) => {
         const items: ContentItem[] = []
 
         if (type === 'movies' || type === 'both') {
@@ -125,9 +130,9 @@ export function createRecommendationTools(ctx: ToolContext) {
       inputSchema: z.object({
         type: z.enum(['movies', 'series', 'both']).default('both'),
         genre: z.string().optional().describe('Filter by genre'),
-        limit: z.number().optional().default(10),
+        limit: z.number().optional().default(15).describe('Number of results (default 15, max 50)'),
       }),
-      execute: async ({ type, genre, limit = 10 }) => {
+      execute: async ({ type, genre, limit = 15 }) => {
         const items: ContentItem[] = []
 
         if (type === 'movies' || type === 'both') {
@@ -195,9 +200,9 @@ export function createRecommendationTools(ctx: ToolContext) {
         type: z.enum(['movies', 'series', 'both']).default('both'),
         genre: z.string().optional().describe('Filter by genre'),
         minRating: z.number().optional().describe('Minimum community rating'),
-        limit: z.number().optional().default(10),
+        limit: z.number().optional().default(15).describe('Number of results (default 15, max 50)'),
       }),
-      execute: async ({ type, genre, minRating, limit = 10 }) => {
+      execute: async ({ type, genre, minRating, limit = 15 }) => {
         const items: ContentItem[] = []
 
         if (type === 'movies' || type === 'both') {

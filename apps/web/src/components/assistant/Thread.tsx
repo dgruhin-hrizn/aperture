@@ -77,7 +77,7 @@ function renderToolResult(toolName: string, result: unknown): React.ReactNode {
   // Check if result has an error
   if ('error' in data && typeof data.error === 'string') {
     return (
-      <Box sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2, my: 1 }}>
+      <Box sx={{ p: 2, bgcolor: 'rgba(26, 26, 26, 0.7)', borderRadius: 2, my: 1 }}>
         <Typography variant="body2" color="text.secondary">
           {data.error}
         </Typography>
@@ -185,7 +185,7 @@ function AssistantMessage() {
                     sx={{
                       maxWidth: '90%',
                       p: 2,
-                      bgcolor: '#1a1a1a',
+                      bgcolor: 'rgba(26, 26, 26, 0.7)',
                       borderRadius: 2,
                       borderTopLeftRadius: 0,
                     }}
@@ -308,8 +308,8 @@ function ThreadWelcome({ suggestions }: { suggestions: string[] }) {
             sx={{
               px: 2,
               py: 1,
-              bgcolor: '#1a1a1a',
-              border: '1px solid #2a2a2a',
+              bgcolor: 'rgba(26, 26, 26, 0.7)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
               borderRadius: 2,
               cursor: 'pointer',
               transition: 'all 0.2s',
@@ -346,7 +346,7 @@ function LoadingIndicator() {
         sx={{
           maxWidth: '80%',
           p: 2,
-          bgcolor: '#1a1a1a',
+          bgcolor: 'rgba(26, 26, 26, 0.7)',
           borderRadius: 2,
           borderTopLeftRadius: 0,
         }}
@@ -378,7 +378,7 @@ function Composer() {
 
   return (
     <ComposerPrimitive.Root>
-      <Box sx={{ p: 2, borderTop: '1px solid #2a2a2a' }}>
+      <Box sx={{ p: 2, borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
         <form onSubmit={handleSubmit} style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
           <ComposerPrimitive.Input asChild>
             <TextField
@@ -389,7 +389,7 @@ function Composer() {
               onKeyDown={handleKeyDown}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  bgcolor: '#1a1a1a',
+                  bgcolor: 'rgba(26, 26, 26, 0.7)',
                   borderRadius: 3,
                   '& fieldset': {
                     borderColor: '#2a2a2a',
@@ -491,7 +491,7 @@ function HistoricalAssistantMessage({ message }: { message: HistoricalMessage })
             sx={{
               maxWidth: '90%',
               p: 2,
-              bgcolor: '#1a1a1a',
+              bgcolor: 'rgba(26, 26, 26, 0.7)',
               borderRadius: 2,
               borderTopLeftRadius: 0,
               mb: 2,
@@ -535,7 +535,7 @@ export function Thread({ historicalMessages = [], suggestions = [] }: ThreadProp
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        backgroundColor: '#0f0f0f',
+        backgroundColor: 'transparent',
         minWidth: 0,
         overflow: 'hidden',
       }}

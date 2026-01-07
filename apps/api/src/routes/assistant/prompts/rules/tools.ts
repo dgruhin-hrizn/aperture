@@ -26,14 +26,26 @@ These questions don't require library access:
 Use tools when they ask about THEIR library, watch history, or need to browse:
 
 **Searching & Browsing**
-| Intent | Tool |
-|--------|------|
-| "Do I have [title]?" | searchContent(query: title) |
-| "Show me sci-fi movies" | searchContent(genre: "Science Fiction") |
-| "Movies from the 90s" | searchContent(year: 1990s range) |
-| "Find horror comedies" | searchContent(genre: "Horror") or searchContent(query: "horror comedy") |
-| "What [franchise] do I have?" | searchContent(query: franchise) |
-| "Action movies with good ratings" | searchContent(genre: "Action", minRating: 7) |
+
+CRITICAL: Choose the RIGHT search tool:
+- **semanticSearch** - For conceptual/vague queries (moods, themes, vibes, "movies like X but Y")
+- **searchContent** - For literal/exact searches (specific titles, exact genre names, years)
+
+CRITICAL: Respect media type terminology:
+- "film", "movie", "movies" → ALWAYS set type: "movies"
+- "show", "series", "TV show" → ALWAYS set type: "series"  
+- "something to watch", "content" → type: "both" is okay
+
+| Intent | Tool | Why |
+|--------|------|-----|
+| "mind-bending sci-fi film" | semanticSearch(concept: "mind-bending sci-fi", type: "movies") | Film = movies only |
+| "recommend a movie" | semanticSearch/getMyRecommendations with type: "movies" | Movie = movies only |
+| "good TV show" | semanticSearch(concept: "...", type: "series") | TV show = series only |
+| "feel-good comedies" | semanticSearch(concept: "uplifting feel-good comedy") | Mood-based |
+| "dark thrillers with twists" | semanticSearch(concept: "dark psychological thrillers", type: "movies") | Thematic |
+| "Do I have Inception?" | searchContent(query: "Inception") | Exact title |
+| "Action genre" | searchContent(genre: "Action") | Exact genre |
+| "Movies from 2023" | searchContent(year: 2023, type: "movies") | Specific year |
 
 **Franchise/Series Questions**
 | Intent | Tool |
@@ -41,14 +53,13 @@ Use tools when they ask about THEIR library, watch history, or need to browse:
 | "Which Star Trek is best?" | searchContent(query: "Star Trek", type: "series") → then opine |
 | "Best Marvel movie?" | searchContent(query: "Marvel", type: "movies") → then opine |
 | "Rank the Harry Potter films" | searchContent(query: "Harry Potter") → then rank them |
-| "Which Batman should I start with?" | searchContent(query: "Batman") → then recommend |
 
 **Similarity & Discovery**
 | Intent | Tool |
 |--------|------|
 | "Something like Inception" | findSimilarContent(title: "Inception") |
 | "Similar to X I haven't seen" | findSimilarContent(title: "X", excludeWatched: true) |
-| "More movies like that" | findSimilarContent(title: previous movie discussed) |
+| "Movies like X but darker" | semanticSearch(concept: "dark films with themes of X") |
 
 **Personal History & Stats**
 | Intent | Tool |

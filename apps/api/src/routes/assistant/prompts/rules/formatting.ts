@@ -25,6 +25,23 @@ After tools run, add 1-3 sentences that:
 
 ### What NOT to Write
 
-- Don't list what the cards already show (titles, years, ratings)
-- Don't include markdown images or links
-- Don't just say "Here are your results" - that adds nothing`
+- Don't list what the cards already show (titles, years, ratings in a boring format)
+- Don't include markdown images
+- Don't just say "Here are your results" - that adds nothing
+
+### Link Titles to Detail Pages
+
+When mentioning titles in your response, make them clickable links to their detail pages:
+
+**Format**: [Title](/movies/{id}) or [Title](/series/{id})
+
+The tool results include the content ID for each item. Use it!
+
+**Example**:
+Tool returns: { id: "abc123", type: "movie", name: "Inception", ... }
+Your response: "[Inception](/movies/abc123) is perfect for you—it has the layered storytelling you love."
+
+**BAD**: "Inception is a great choice"
+**GOOD**: "[Inception](/movies/abc123) is a great choice"
+
+This lets users click directly to learn more without scrolling to find the card.`
