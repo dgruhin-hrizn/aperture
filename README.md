@@ -69,6 +69,13 @@ Aperture creates personalized recommendation libraries for your media server use
 - **Rank-Ordered**: Collections maintain popularity order
 - **Rank Badges**: Gold, silver, bronze badges for top 3 on posters
 
+### Symlinks & Artwork
+
+- **Full Artwork Preservation**: Symlinks banner.jpg, clearlogo.png, landscape.jpg, and more
+- **Smart Subtitle Handling**: Subtitles are symlinked and renamed to match video files
+- **Path Mapping**: Automatic translation between media server and local filesystem paths
+- **Custom NFOs**: Aperture generates NFOs with AI explanations while preserving original artwork
+
 ### Library Image Management
 
 - **Custom Library Images**: Set custom banner images for AI recommendation libraries

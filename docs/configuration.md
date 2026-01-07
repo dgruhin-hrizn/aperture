@@ -183,29 +183,34 @@ Configure via **Admin → Settings → Output & AI → User Recommendations Outp
 
 ### Path Mapping for Symlinks
 
-Aperture symlinks artwork files (banner.jpg, clearlogo.png, subtitles, etc.) from your original media folders. If your media server and Aperture see the same files at different paths, configure the mapping.
+When using symlinks, Aperture needs to:
+1. **Read** your original media folders to find artwork and subtitles
+2. **Create symlinks** that your media server can follow
 
-**How to find your paths:**
+If Aperture and your media server see the same files at different paths, configure the mapping so Aperture can find the files locally while creating symlinks with paths your media server understands.
 
-1. In Emby/Jellyfin, look at any movie or episode's file path (under Media Info)
+#### How to Find Your Paths
+
+1. In Emby/Jellyfin, go to any movie → Media Info → look at the **Path**
 2. On the machine running Aperture, find where that same file exists
-3. The different path prefix is what you configure
+3. The different prefix between these paths is what you configure
 
 #### Common Scenarios
 
-**Same machine (paths match):**
+**Same machine (no mapping needed):**
 
 ```bash
-# No translation needed
+# Emby sees:     /mnt/Movies/Inception/Inception.mkv
+# Aperture sees: /mnt/Movies/Inception/Inception.mkv
 MEDIA_SERVER_PATH_PREFIX=/mnt/
 LOCAL_MEDIA_PATH_PREFIX=/mnt/
 ```
 
-**Aperture on Mac, Emby on Linux/Unraid (same NAS share):**
+**Aperture on Mac, Emby on Linux/Unraid:**
 
 ```bash
-# Emby sees:     /mnt/TV/Breaking Bad/poster.jpg
-# Mac sees:      /Volumes/Media/TV/Breaking Bad/poster.jpg
+# Emby sees:     /mnt/Movies/Inception/Inception.mkv
+# Mac sees:      /Volumes/Media/Movies/Inception/Inception.mkv
 MEDIA_SERVER_PATH_PREFIX=/mnt/
 LOCAL_MEDIA_PATH_PREFIX=/Volumes/Media/
 ```
@@ -213,33 +218,60 @@ LOCAL_MEDIA_PATH_PREFIX=/Volumes/Media/
 **Both in Docker with different volume mounts:**
 
 ```bash
-# Emby container:     /media/TV/...
-# Aperture container: /data/TV/...
+# Emby container:     /media/Movies/Inception/...
+# Aperture container: /data/Movies/Inception/...
 MEDIA_SERVER_PATH_PREFIX=/media/
 LOCAL_MEDIA_PATH_PREFIX=/data/
 ```
+
+> **Note**: The symlinks Aperture creates will use the media server paths (so Emby can follow them), but Aperture needs the local paths to read the directory and find what files exist.
 
 ### Symlink Folder Structure
 
 When using symlinks for movies, each movie gets its own folder:
 
 ```
-Top Picks - Movies/
-├── Inception (2010) [12345]/
-│   ├── Inception (2010) [12345].mkv  → symlink to original
-│   ├── Inception (2010) [12345].nfo
-│   ├── poster.jpg
-│   └── fanart.jpg
+AI Picks - Movies/
+├── Inception (2010)/
+│   ├── Inception (2010).mkv           → symlink to original video
+│   ├── Inception (2010).nfo           ← custom (with AI explanation)
+│   ├── Inception (2010).en.srt        → symlink (renamed to match video)
+│   ├── Inception (2010).es.srt        → symlink (renamed to match video)
+│   ├── poster.jpg                     ← custom (with rank badge)
+│   ├── fanart.jpg                     ← downloaded
+│   ├── banner.jpg                     → symlink from original
+│   ├── clearlogo.png                  → symlink from original
+│   └── landscape.jpg                  → symlink from original
 ```
 
 For series, Aperture creates the folder with:
 
-- Custom `tvshow.nfo` (with AI explanation)
-- Custom `poster.jpg` (with rank badge overlay)
-- Custom `fanart.jpg` (downloaded)
-- `Season 00/` folder (sorting workaround for Emby home rows)
-- Symlinked season folders pointing to originals
-- Symlinked artwork files (banner.jpg, clearlogo.png, landscape.jpg, season posters, etc.)
+```
+AI Picks - TV Series/
+├── Breaking Bad (2008)/
+│   ├── tvshow.nfo                     ← custom (with AI explanation)
+│   ├── poster.jpg                     ← custom (with rank badge)
+│   ├── fanart.jpg                     → symlink from original
+│   ├── banner.jpg                     → symlink from original
+│   ├── clearlogo.png                  → symlink from original
+│   ├── landscape.jpg                  → symlink from original
+│   ├── season01-poster.jpg            → symlink from original
+│   ├── Season 00/                     ← sorting workaround folder
+│   ├── Season 01/                     → symlink to original season
+│   └── Season 02/                     → symlink to original season
+```
+
+**What gets symlinked automatically:**
+
+- All artwork files (banner.jpg, clearlogo.png, landscape.jpg, fanart*.jpg, etc.)
+- Subtitle files (.srt, .sub, .ass, etc.) — renamed to match video file
+- Season folders (for series)
+
+**What Aperture creates custom:**
+
+- NFO files (includes AI explanation when enabled)
+- poster.jpg (with rank badge overlay)
+- Season 00 folder (Emby home row sorting workaround)
 
 ---
 
