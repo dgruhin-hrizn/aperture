@@ -64,7 +64,7 @@ async function buildSystemPrompt(userId: string): Promise<string> {
     [userId]
   )
 
-  // Get recent watches (last 10)
+  // Get recent watches (last 10) - movies and episodes
   const recentWatches = await query<RecentWatch>(
     `SELECT 
        COALESCE(m.title, s.title) as title,
@@ -72,9 +72,10 @@ async function buildSystemPrompt(userId: string): Promise<string> {
        wh.media_type
      FROM watch_history wh
      LEFT JOIN movies m ON m.id = wh.movie_id
-     LEFT JOIN series s ON s.id = wh.series_id
+     LEFT JOIN episodes e ON e.id = wh.episode_id
+     LEFT JOIN series s ON s.id = e.series_id
      WHERE wh.user_id = $1
-     ORDER BY wh.last_watched_at DESC
+     ORDER BY wh.last_played_at DESC NULLS LAST
      LIMIT 10`,
     [userId]
   )
@@ -448,31 +449,36 @@ const assistantRoutes: FastifyPluginAsync = async (fastify) => {
           maxSteps: 5, // Allow multiple tool calls
         })
 
-        // Set headers for SSE
+        // Get the data stream response - this is compatible with the AI SDK's useChat
+        const response = result.toDataStreamResponse()
+        
+        // Set headers from the response
         reply.raw.writeHead(200, {
-          'Content-Type': 'text/event-stream',
+          'Content-Type': response.headers.get('Content-Type') || 'text/plain; charset=utf-8',
           'Cache-Control': 'no-cache',
           'Connection': 'keep-alive',
         })
 
-        // Stream the response
-        const stream = result.toDataStream()
-        const reader = stream.getReader()
-
-        try {
-          while (true) {
-            const { done, value } = await reader.read()
-            if (done) break
-            reply.raw.write(value)
+        // Stream the response body
+        if (response.body) {
+          const reader = response.body.getReader()
+          try {
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+              reply.raw.write(value)
+            }
+          } finally {
+            reader.releaseLock()
           }
-        } finally {
-          reader.releaseLock()
-          reply.raw.end()
         }
-
+        
+        reply.raw.end()
         return reply
       } catch (err) {
-        fastify.log.error({ err }, 'Assistant chat error')
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+        const errorStack = err instanceof Error ? err.stack : undefined
+        fastify.log.error({ err, errorMessage, errorStack }, 'Assistant chat error')
         
         // If headers already sent, we can't send a proper error response
         if (reply.raw.headersSent) {
@@ -482,9 +488,234 @@ const assistantRoutes: FastifyPluginAsync = async (fastify) => {
         
         return reply.status(500).send({ 
           error: 'Failed to process chat request',
-          message: err instanceof Error ? err.message : 'Unknown error',
+          message: errorMessage,
         })
       }
+    }
+  )
+
+  // ============================================
+  // Conversation Management Endpoints
+  // ============================================
+
+  interface ConversationRow {
+    id: string
+    title: string
+    created_at: Date
+    updated_at: Date
+  }
+
+  interface MessageRow {
+    id: string
+    role: string
+    content: string
+    created_at: Date
+  }
+
+  /**
+   * GET /api/assistant/conversations
+   * List user's conversations
+   */
+  fastify.get(
+    '/api/assistant/conversations',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const user = request.user as SessionUser
+
+      const conversations = await query<ConversationRow>(
+        `SELECT id, title, created_at, updated_at
+         FROM assistant_conversations
+         WHERE user_id = $1
+         ORDER BY updated_at DESC
+         LIMIT 50`,
+        [user.id]
+      )
+
+      return reply.send({ conversations: conversations.rows })
+    }
+  )
+
+  /**
+   * POST /api/assistant/conversations
+   * Create a new conversation
+   */
+  fastify.post<{
+    Body: { title?: string }
+  }>(
+    '/api/assistant/conversations',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const user = request.user as SessionUser
+      const { title = 'New Chat' } = request.body || {}
+
+      const conversation = await queryOne<ConversationRow>(
+        `INSERT INTO assistant_conversations (user_id, title)
+         VALUES ($1, $2)
+         RETURNING id, title, created_at, updated_at`,
+        [user.id, title]
+      )
+
+      return reply.status(201).send({ conversation })
+    }
+  )
+
+  /**
+   * GET /api/assistant/conversations/:id
+   * Get a conversation with its messages
+   */
+  fastify.get<{
+    Params: { id: string }
+  }>(
+    '/api/assistant/conversations/:id',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const user = request.user as SessionUser
+      const { id } = request.params
+
+      // Verify ownership
+      const conversation = await queryOne<ConversationRow>(
+        `SELECT id, title, created_at, updated_at
+         FROM assistant_conversations
+         WHERE id = $1 AND user_id = $2`,
+        [id, user.id]
+      )
+
+      if (!conversation) {
+        return reply.status(404).send({ error: 'Conversation not found' })
+      }
+
+      // Get messages
+      const messages = await query<MessageRow>(
+        `SELECT id, role, content, created_at
+         FROM assistant_messages
+         WHERE conversation_id = $1
+         ORDER BY created_at ASC`,
+        [id]
+      )
+
+      return reply.send({
+        conversation,
+        messages: messages.rows,
+      })
+    }
+  )
+
+  /**
+   * PATCH /api/assistant/conversations/:id
+   * Update conversation (title)
+   */
+  fastify.patch<{
+    Params: { id: string }
+    Body: { title: string }
+  }>(
+    '/api/assistant/conversations/:id',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const user = request.user as SessionUser
+      const { id } = request.params
+      const { title } = request.body
+
+      const conversation = await queryOne<ConversationRow>(
+        `UPDATE assistant_conversations
+         SET title = $1, updated_at = NOW()
+         WHERE id = $2 AND user_id = $3
+         RETURNING id, title, created_at, updated_at`,
+        [title, id, user.id]
+      )
+
+      if (!conversation) {
+        return reply.status(404).send({ error: 'Conversation not found' })
+      }
+
+      return reply.send({ conversation })
+    }
+  )
+
+  /**
+   * DELETE /api/assistant/conversations/:id
+   * Delete a conversation
+   */
+  fastify.delete<{
+    Params: { id: string }
+  }>(
+    '/api/assistant/conversations/:id',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const user = request.user as SessionUser
+      const { id } = request.params
+
+      const result = await query(
+        `DELETE FROM assistant_conversations
+         WHERE id = $1 AND user_id = $2`,
+        [id, user.id]
+      )
+
+      if (result.rowCount === 0) {
+        return reply.status(404).send({ error: 'Conversation not found' })
+      }
+
+      return reply.status(204).send()
+    }
+  )
+
+  /**
+   * POST /api/assistant/conversations/:id/messages
+   * Add messages to a conversation (for saving chat history)
+   */
+  fastify.post<{
+    Params: { id: string }
+    Body: { messages: Array<{ role: string; content: string }> }
+  }>(
+    '/api/assistant/conversations/:id/messages',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const user = request.user as SessionUser
+      const { id } = request.params
+      const { messages } = request.body
+
+      // Verify ownership
+      const conversation = await queryOne<{ id: string }>(
+        `SELECT id FROM assistant_conversations WHERE id = $1 AND user_id = $2`,
+        [id, user.id]
+      )
+
+      if (!conversation) {
+        return reply.status(404).send({ error: 'Conversation not found' })
+      }
+
+      // Insert messages
+      for (const msg of messages) {
+        await query(
+          `INSERT INTO assistant_messages (conversation_id, role, content)
+           VALUES ($1, $2, $3)`,
+          [id, msg.role, msg.content]
+        )
+      }
+
+      // Update conversation title from first user message if still "New Chat"
+      const existingConvo = await queryOne<{ title: string }>(
+        `SELECT title FROM assistant_conversations WHERE id = $1`,
+        [id]
+      )
+      
+      if (existingConvo?.title === 'New Chat') {
+        const firstUserMsg = messages.find(m => m.role === 'user')
+        if (firstUserMsg) {
+          const newTitle = firstUserMsg.content.substring(0, 50) + (firstUserMsg.content.length > 50 ? '...' : '')
+          await query(
+            `UPDATE assistant_conversations SET title = $1, updated_at = NOW() WHERE id = $2`,
+            [newTitle, id]
+          )
+        }
+      } else {
+        // Just update the timestamp
+        await query(
+          `UPDATE assistant_conversations SET updated_at = NOW() WHERE id = $1`,
+          [id]
+        )
+      }
+
+      return reply.status(201).send({ success: true })
     }
   )
 }
