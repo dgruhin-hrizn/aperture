@@ -48,6 +48,8 @@ const ENV_DEFAULTS: Record<string, { cron: string; scheduleType: ScheduleType; h
   'refresh-top-picks': { cron: '0 6 * * *', scheduleType: 'daily', hour: 6, minute: 0 },
   // Trakt sync job
   'sync-trakt-ratings': { cron: '0 */6 * * *', scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 6 },
+  // Assistant suggestions job (every hour)
+  'refresh-assistant-suggestions': { cron: '0 * * * *', scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 1 },
 }
 
 function rowToConfig(row: JobConfigRow): JobConfig {

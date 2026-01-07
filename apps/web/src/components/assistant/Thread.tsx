@@ -232,16 +232,19 @@ function AssistantMessage() {
   )
 }
 
+// Default suggestions (fallback)
+const DEFAULT_SUGGESTIONS = [
+  'What should I watch tonight?',
+  'Show me my top picks',
+  'Find me something like Inception',
+  'What sci-fi movies do you recommend?',
+]
+
 // Thread welcome screen
-function ThreadWelcome() {
+function ThreadWelcome({ suggestions }: { suggestions: string[] }) {
   const composerRuntime = useComposerRuntime()
   
-  const suggestions = [
-    'Find me something like Inception',
-    'What sci-fi movies do you recommend?',
-    'Show me my top picks',
-    'What should I watch tonight?',
-  ]
+  const displaySuggestions = suggestions.length > 0 ? suggestions : DEFAULT_SUGGESTIONS
 
   const handleSuggestionClick = (suggestion: string) => {
     composerRuntime.setText(suggestion)
@@ -277,7 +280,7 @@ function ThreadWelcome() {
         Your AI movie and TV recommendation assistant. Ask me to find something to watch, discover similar titles, or explore your personalized picks!
       </Typography>
       <Box sx={{ mt: 3, display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center' }}>
-        {suggestions.map((suggestion) => (
+        {displaySuggestions.map((suggestion) => (
           <Paper
             key={suggestion}
             component="button"
@@ -500,10 +503,11 @@ function HistoricalAssistantMessage({ message }: { message: HistoricalMessage })
 // Props for Thread component
 interface ThreadProps {
   historicalMessages?: HistoricalMessage[]
+  suggestions?: string[]
 }
 
 // Main Thread component
-export function Thread({ historicalMessages = [] }: ThreadProps) {
+export function Thread({ historicalMessages = [], suggestions = [] }: ThreadProps) {
   const hasHistoricalMessages = historicalMessages.length > 0
   
   return (
@@ -533,7 +537,7 @@ export function Thread({ historicalMessages = [] }: ThreadProps) {
         {/* Show welcome only if no historical messages */}
         {!hasHistoricalMessages && (
           <ThreadPrimitive.Empty>
-            <ThreadWelcome />
+            <ThreadWelcome suggestions={suggestions} />
           </ThreadPrimitive.Empty>
         )}
 

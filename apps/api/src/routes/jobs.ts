@@ -38,6 +38,7 @@ import {
 import { randomUUID } from 'crypto'
 import { setJobExecutor, refreshJobSchedule, getSchedulerStatus } from '../lib/scheduler.js'
 import { syncAllTraktRatings } from './trakt.js'
+import { refreshAssistantSuggestions } from './assistant/jobs/refreshSuggestions.js'
 
 const logger = createChildLogger('jobs-api')
 
@@ -132,6 +133,12 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
     name: 'sync-trakt-ratings',
     description: 'Sync ratings from Trakt for all connected users',
     cron: '0 */6 * * *', // Every 6 hours
+  },
+  // === Assistant Suggestions Job ===
+  {
+    name: 'refresh-assistant-suggestions',
+    description: 'Refresh personalized assistant suggestions for all users',
+    cron: '0 * * * *', // Every hour
   },
 ]
 
@@ -825,6 +832,17 @@ async function runJob(name: string, jobId: string): Promise<void> {
           ratingsImported: result.ratingsImported,
           errors: result.errors,
         }, `✅ Trakt ratings sync complete`)
+        break
+      }
+      // === Assistant Suggestions Job ===
+      case 'refresh-assistant-suggestions': {
+        const result = await refreshAssistantSuggestions(jobId)
+        logger.info({
+          job: name,
+          jobId,
+          usersProcessed: result.usersProcessed,
+          errors: result.errors,
+        }, `✅ Assistant suggestions refresh complete`)
         break
       }
       default:

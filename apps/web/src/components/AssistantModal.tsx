@@ -109,12 +109,14 @@ function ChatThreadArea({
   conversationId,
   initialMessages,
   historicalMessages,
+  suggestions,
   setSavingMessages,
   fetchConversations,
 }: {
   conversationId: string | null
   initialMessages: UIMessage[]
   historicalMessages: BackendMessage[]
+  suggestions: string[]
   setSavingMessages: (saving: boolean) => void
   fetchConversations: () => Promise<void>
 }) {
@@ -138,7 +140,7 @@ function ChatThreadArea({
         setSavingMessages={setSavingMessages}
         fetchConversations={fetchConversations}
       />
-      <Thread historicalMessages={historicalMessages} />
+      <Thread historicalMessages={historicalMessages} suggestions={suggestions} />
     </AssistantRuntimeProvider>
   )
 }
@@ -259,6 +261,20 @@ export function AssistantModal() {
   const [historicalMessages, setHistoricalMessages] = useState<BackendMessage[]>([])
   const [editingConversationId, setEditingConversationId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
+  const [suggestions, setSuggestions] = useState<string[]>([])
+
+  // Fetch personalized suggestions
+  const fetchSuggestions = useCallback(async () => {
+    try {
+      const res = await fetch('/api/assistant/suggestions', { credentials: 'include' })
+      if (res.ok) {
+        const data = await res.json()
+        setSuggestions(data.suggestions || [])
+      }
+    } catch {
+      // Silently fail - will use default suggestions
+    }
+  }, [])
 
   // Fetch conversations when modal opens
   const fetchConversations = useCallback(async () => {
@@ -279,8 +295,9 @@ export function AssistantModal() {
   useEffect(() => {
     if (open) {
       fetchConversations()
+      fetchSuggestions()
     }
-  }, [open, fetchConversations])
+  }, [open, fetchConversations, fetchSuggestions])
 
   const handleOpen = async () => {
     setOpen(true)
@@ -692,6 +709,7 @@ export function AssistantModal() {
                 conversationId={activeConversationId}
                 initialMessages={initialMessages}
                 historicalMessages={historicalMessages}
+                suggestions={suggestions}
                 setSavingMessages={setSavingMessages}
                 fetchConversations={fetchConversations}
               />
