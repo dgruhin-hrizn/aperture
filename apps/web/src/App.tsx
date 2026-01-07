@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth'
 import { UserRatingsProvider } from './hooks/useUserRatings'
 import { Layout } from './components/Layout'
 import { AdminLayout } from './components/AdminLayout'
+import { AssistantModal } from './components/AssistantModal'
 import { LoginPage } from './pages/Login'
 import { DashboardPage } from './pages/dashboard'
 import { MyRecommendationsPage } from './pages/MyRecommendations'
@@ -49,7 +50,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   // Wrap with UserRatingsProvider so ratings are available everywhere
-  return <UserRatingsProvider>{children}</UserRatingsProvider>
+  // Include AssistantModal for AI chat on all authenticated pages
+  return (
+    <UserRatingsProvider>
+      {children}
+      <AssistantModal />
+    </UserRatingsProvider>
+  )
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
