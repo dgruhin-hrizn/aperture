@@ -13,6 +13,7 @@ import {
   ListItemIcon,
   Divider,
   CircularProgress,
+  TextField,
 } from '@mui/material'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import SmartToyIcon from '@mui/icons-material/SmartToy'
@@ -22,6 +23,7 @@ import FullscreenExitIcon from '@mui/icons-material/FullscreenExit'
 import AddIcon from '@mui/icons-material/Add'
 import ChatIcon from '@mui/icons-material/Chat'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import EditIcon from '@mui/icons-material/Edit'
 import { AssistantRuntimeProvider, useThreadRuntime } from '@assistant-ui/react'
 import { useChatRuntime, AssistantChatTransport } from '@assistant-ui/react-ai-sdk'
 import type { UIMessage } from 'ai'
@@ -255,6 +257,8 @@ export function AssistantModal() {
   const [savingMessages, setSavingMessages] = useState(false)
   const [initialMessages, setInitialMessages] = useState<UIMessage[]>([])
   const [historicalMessages, setHistoricalMessages] = useState<BackendMessage[]>([])
+  const [editingConversationId, setEditingConversationId] = useState<string | null>(null)
+  const [editTitle, setEditTitle] = useState('')
 
   // Fetch conversations when modal opens
   const fetchConversations = useCallback(async () => {
@@ -376,6 +380,41 @@ export function AssistantModal() {
     }
   }
 
+  const handleStartRename = (conversationId: string, currentTitle: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setEditingConversationId(conversationId)
+    setEditTitle(currentTitle)
+  }
+
+  const handleCancelRename = () => {
+    setEditingConversationId(null)
+    setEditTitle('')
+  }
+
+  const handleSaveRename = async (conversationId: string) => {
+    if (!editTitle.trim()) {
+      handleCancelRename()
+      return
+    }
+    
+    try {
+      const res = await fetch(`/api/assistant/conversations/${conversationId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ title: editTitle.trim() }),
+      })
+      if (res.ok) {
+        setConversations(prev => 
+          prev.map(c => c.id === conversationId ? { ...c, title: editTitle.trim() } : c)
+        )
+      }
+    } catch (err) {
+      console.error('Failed to rename conversation:', err)
+    }
+    handleCancelRename()
+  }
+
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr)
     const now = new Date()
@@ -491,14 +530,14 @@ export function AssistantModal() {
                       <ListItemButton
                         key={convo.id}
                         selected={convo.id === activeConversationId}
-                        onClick={() => handleSelectConversation(convo.id)}
+                        onClick={() => editingConversationId !== convo.id && handleSelectConversation(convo.id)}
                         sx={{
                           borderRadius: 1,
                           mb: 0.5,
                           '&.Mui-selected': {
                             bgcolor: 'rgba(99, 102, 241, 0.15)',
                           },
-                          '&:hover .delete-btn': {
+                          '&:hover .action-btn': {
                             opacity: 1,
                           },
                         }}
@@ -506,29 +545,73 @@ export function AssistantModal() {
                         <ListItemIcon sx={{ minWidth: 36 }}>
                           <ChatIcon fontSize="small" sx={{ color: 'text.secondary' }} />
                         </ListItemIcon>
-                        <ListItemText
-                          primary={convo.title}
-                          secondary={formatDate(convo.updated_at)}
-                          primaryTypographyProps={{
-                            noWrap: true,
-                            variant: 'body2',
-                          }}
-                          secondaryTypographyProps={{
-                            variant: 'caption',
-                          }}
-                        />
-                        <IconButton
-                          className="delete-btn"
-                          size="small"
-                          onClick={(e) => handleDeleteConversation(convo.id, e)}
-                          sx={{
-                            opacity: 0,
-                            transition: 'opacity 0.2s',
-                            '&:hover': { color: 'error.main' },
-                          }}
-                        >
-                          <DeleteOutlineIcon fontSize="small" />
-                        </IconButton>
+                        {editingConversationId === convo.id ? (
+                          <TextField
+                            size="small"
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                handleSaveRename(convo.id)
+                              } else if (e.key === 'Escape') {
+                                handleCancelRename()
+                              }
+                            }}
+                            onBlur={() => handleSaveRename(convo.id)}
+                            autoFocus
+                            onClick={(e) => e.stopPropagation()}
+                            sx={{
+                              flex: 1,
+                              '& .MuiInputBase-input': {
+                                py: 0.5,
+                                fontSize: '0.875rem',
+                              },
+                              '& .MuiOutlinedInput-root': {
+                                bgcolor: '#1a1a1a',
+                              },
+                            }}
+                          />
+                        ) : (
+                          <ListItemText
+                            primary={convo.title}
+                            secondary={formatDate(convo.updated_at)}
+                            primaryTypographyProps={{
+                              noWrap: true,
+                              variant: 'body2',
+                            }}
+                            secondaryTypographyProps={{
+                              variant: 'caption',
+                            }}
+                          />
+                        )}
+                        {editingConversationId !== convo.id && (
+                          <>
+                            <IconButton
+                              className="action-btn"
+                              size="small"
+                              onClick={(e) => handleStartRename(convo.id, convo.title, e)}
+                              sx={{
+                                opacity: 0,
+                                transition: 'opacity 0.2s',
+                                '&:hover': { color: 'primary.main' },
+                              }}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              className="action-btn"
+                              size="small"
+                              onClick={(e) => handleDeleteConversation(convo.id, e)}
+                              sx={{
+                                opacity: 0,
+                                transition: 'opacity 0.2s',
+                                '&:hover': { color: 'error.main' },
+                              }}
+                            >
+                              <DeleteOutlineIcon fontSize="small" />
+                            </IconButton>
+                          </>
+                        )}
                       </ListItemButton>
                     ))}
                   </List>
