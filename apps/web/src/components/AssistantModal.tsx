@@ -292,33 +292,66 @@ export function AssistantModal() {
     }
   }, [])
 
+  // Initialize chat when modal opens - load most recent conversation or create new
   useEffect(() => {
-    if (open) {
-      fetchConversations()
-      fetchSuggestions()
-    }
-  }, [open, fetchConversations, fetchSuggestions])
-
-  const handleOpen = async () => {
-    setOpen(true)
+    if (!open) return
     
-    // Auto-create a conversation if none exists
-    if (!activeConversationId) {
+    const initializeChat = async () => {
       try {
-        const res = await fetch('/api/assistant/conversations', {
+        // Fetch all conversations
+        const res = await fetch('/api/assistant/conversations', { credentials: 'include' })
+        if (!res.ok) return
+        
+        const data = await res.json()
+        const convos: Conversation[] = data.conversations || []
+        setConversations(convos)
+        
+        // If we already have an active conversation, keep it
+        if (activeConversationId) {
+          fetchSuggestions()
+          return
+        }
+        
+        if (convos.length > 0) {
+          // Load most recent conversation
+          const mostRecent = convos[0]
+          const msgRes = await fetch(`/api/assistant/conversations/${mostRecent.id}`, {
+            credentials: 'include',
+          })
+          if (msgRes.ok) {
+            const msgData = await msgRes.json()
+            const backendMessages = msgData.messages || []
+            setHistoricalMessages(backendMessages)
+            setInitialMessages(convertToUIMessages(backendMessages))
+            setActiveConversationId(mostRecent.id)
+            fetchSuggestions()
+            return
+          }
+        }
+        
+        // No conversations exist - create new one
+        const createRes = await fetch('/api/assistant/conversations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({}),
         })
-        if (res.ok) {
-          const data = await res.json()
-          setActiveConversationId(data.conversation.id)
+        if (createRes.ok) {
+          const createData = await createRes.json()
+          setActiveConversationId(createData.conversation.id)
+          setConversations(prev => [createData.conversation, ...prev])
         }
+        fetchSuggestions()
       } catch (err) {
-        console.error('Failed to auto-create conversation:', err)
+        console.error('Failed to initialize chat:', err)
       }
     }
+    
+    initializeChat()
+  }, [open, activeConversationId, fetchSuggestions])
+
+  const handleOpen = () => {
+    setOpen(true)
   }
   const handleClose = () => setOpen(false)
   const toggleFullscreen = () => setFullscreen(prev => !prev)
@@ -342,7 +375,7 @@ export function AssistantModal() {
         setActiveConversationId(null)
         // Use setTimeout to ensure React processes the null before setting new ID
         setTimeout(() => {
-          setActiveConversationId(data.conversation.id)
+        setActiveConversationId(data.conversation.id)
         }, 0)
         fetchConversations()
       } else {
@@ -469,8 +502,8 @@ export function AssistantModal() {
 
       {/* Chat Dialog - stable, doesn't remount on conversation switch */}
       <Dialog
-        open={open}
-        onClose={handleClose}
+          open={open}
+          onClose={handleClose}
         maxWidth="lg"
         fullWidth
         fullScreen={fullscreen}
@@ -478,8 +511,8 @@ export function AssistantModal() {
           sx: {
             height: fullscreen ? '100%' : '95vh',
             maxHeight: fullscreen ? '100%' : '90vh',
-            bgcolor: 'rgba(15, 15, 15, 0.85)',
-            backdropFilter: 'blur(20px)',
+            bgcolor: 'rgba(15, 15, 15, 0.5)',
+            backdropFilter: 'blur(10px)',
             backgroundImage: 'none',
             borderRadius: fullscreen ? 0 : 3,
             overflow: 'hidden',
@@ -678,7 +711,7 @@ export function AssistantModal() {
                 </Box>
                 <Box>
                   <Typography variant="subtitle1" fontWeight={600}>
-                    Aperture Assistant
+                    Aperture Encore
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     AI-powered recommendations

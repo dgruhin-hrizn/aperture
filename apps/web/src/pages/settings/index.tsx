@@ -4,17 +4,18 @@ import {
   Tabs,
   Tab,
   Paper,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  Typography,
 } from '@mui/material'
 import BuildIcon from '@mui/icons-material/Build'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import SettingsIcon from '@mui/icons-material/Settings'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import SmartToyIcon from '@mui/icons-material/SmartToy'
 import TuneIcon from '@mui/icons-material/Tune'
+import OutputIcon from '@mui/icons-material/Output'
+import PsychologyIcon from '@mui/icons-material/Psychology'
+import StorageIcon from '@mui/icons-material/Storage'
+import ExtensionIcon from '@mui/icons-material/Extension'
+import MenuBookIcon from '@mui/icons-material/MenuBook'
 import { useSettingsData } from './hooks'
 import {
   LibraryConfigSection,
@@ -30,7 +31,7 @@ import {
   OutputFormatSection,
   LibraryTitlesSection,
   TraktConfigSection,
-  ImageManagementSection,
+  OpenAIConfigSection,
 } from './components'
 
 interface TabPanelProps {
@@ -49,7 +50,8 @@ function TabPanel({ children, value, index }: TabPanelProps) {
 
 export function SettingsPage() {
   const [tabValue, setTabValue] = useState(0)
-  const [advancedExpanded, setAdvancedExpanded] = useState(false)
+  const [setupSubTab, setSetupSubTab] = useState(0)
+  const [aiSubTab, setAiSubTab] = useState(0)
   const settings = useSettingsData(true) // Admin-only page now
 
   return (
@@ -80,107 +82,131 @@ export function SettingsPage() {
           <Tab icon={<BuildIcon />} iconPosition="start" label="Setup" />
           <Tab icon={<AutoAwesomeIcon />} iconPosition="start" label="AI Recommendations" />
           <Tab icon={<TrendingUpIcon />} iconPosition="start" label="Top Picks" />
+          <Tab icon={<SmartToyIcon />} iconPosition="start" label="Chat Bot" />
           <Tab icon={<SettingsIcon />} iconPosition="start" label="System" />
         </Tabs>
 
         <Box sx={{ p: 3 }}>
           {/* Setup Tab */}
           <TabPanel value={tabValue} index={0}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {/* Media Server & Libraries side by side */}
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
-                <MediaServerSection />
-                <LibraryConfigSection
-                  libraries={settings.libraries}
-                  loadingLibraries={settings.loadingLibraries}
-                  syncingLibraries={settings.syncingLibraries}
-                  libraryError={settings.libraryError}
-                  updatingLibrary={settings.updatingLibrary}
-                  onSync={settings.syncLibrariesFromServer}
-                  onToggle={settings.toggleLibraryEnabled}
-                />
+            {/* Sub-tabs for Setup */}
+            <Tabs
+              value={setupSubTab}
+              onChange={(_, v) => setSetupSubTab(v)}
+              variant="scrollable"
+              scrollButtons="auto"
+              sx={{
+                mb: 3,
+                borderBottom: 1,
+                borderColor: 'divider',
+                '& .MuiTab-root': {
+                  minHeight: 48,
+                  textTransform: 'none',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                },
+              }}
+            >
+              <Tab icon={<StorageIcon />} iconPosition="start" label="Media Server" />
+              <Tab icon={<ExtensionIcon />} iconPosition="start" label="Integrations" />
+              <Tab icon={<MenuBookIcon />} iconPosition="start" label="Docker Guide" />
+            </Tabs>
+
+            {/* Media Server Sub-tab */}
+            <TabPanel value={setupSubTab} index={0}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
+                  <MediaServerSection />
+                  <LibraryConfigSection
+                    libraries={settings.libraries}
+                    loadingLibraries={settings.loadingLibraries}
+                    syncingLibraries={settings.syncingLibraries}
+                    libraryError={settings.libraryError}
+                    updatingLibrary={settings.updatingLibrary}
+                    onSync={settings.syncLibrariesFromServer}
+                    onToggle={settings.toggleLibraryEnabled}
+                  />
+                </Box>
               </Box>
+            </TabPanel>
 
-              {/* Trakt Integration */}
-              <TraktConfigSection />
+            {/* Integrations Sub-tab */}
+            <TabPanel value={setupSubTab} index={1}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
+                  <OpenAIConfigSection />
+                  <TraktConfigSection />
+                </Box>
+              </Box>
+            </TabPanel>
 
-              {/* Image Management */}
-              <ImageManagementSection />
-
-              {/* STRM/Symlink Documentation */}
-              <Accordion
-                sx={{
-                  backgroundColor: 'background.paper',
-                  '&:before': { display: 'none' },
-                  boxShadow: 1,
-                }}
-              >
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                  <Typography variant="subtitle1" fontWeight={600}>
-                    Docker & Volume Setup Guide
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <StrmSection />
-                </AccordionDetails>
-              </Accordion>
-            </Box>
+            {/* Docker Guide Sub-tab */}
+            <TabPanel value={setupSubTab} index={2}>
+              <StrmSection />
+            </TabPanel>
           </TabPanel>
 
           {/* AI Recommendations Tab */}
           <TabPanel value={tabValue} index={1}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {/* Main Settings - Always Visible */}
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
+            {/* Sub-tabs for AI Recommendations */}
+            <Tabs
+              value={aiSubTab}
+              onChange={(_, v) => setAiSubTab(v)}
+              variant="scrollable"
+              scrollButtons="auto"
+              sx={{
+                mb: 3,
+                borderBottom: 1,
+                borderColor: 'divider',
+                '& .MuiTab-root': {
+                  minHeight: 48,
+                  textTransform: 'none',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                },
+              }}
+            >
+              <Tab icon={<OutputIcon />} iconPosition="start" label="Output" />
+              <Tab icon={<PsychologyIcon />} iconPosition="start" label="AI Features" />
+              <Tab icon={<TuneIcon />} iconPosition="start" label="Algorithm" />
+            </Tabs>
+
+            {/* Output Sub-tab */}
+            <TabPanel value={aiSubTab} index={0}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <OutputFormatSection />
                 <LibraryTitlesSection />
               </Box>
+            </TabPanel>
 
-              <AiExplanationSection />
+            {/* AI Features Sub-tab */}
+            <TabPanel value={aiSubTab} index={1}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <AiExplanationSection />
+                <TextGenerationModelSection />
+              </Box>
+            </TabPanel>
 
-              {/* Advanced Settings - Collapsed */}
-              <Accordion
-                expanded={advancedExpanded}
-                onChange={(_, expanded) => setAdvancedExpanded(expanded)}
-                sx={{
-                  backgroundColor: 'background.paper',
-                  '&:before': { display: 'none' },
-                  boxShadow: 1,
-                }}
-              >
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <TuneIcon sx={{ fontSize: 20, color: 'text.secondary' }} />
-                    <Typography variant="subtitle1" fontWeight={600}>
-                      Advanced Settings
-                    </Typography>
-                  </Box>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <TextGenerationModelSection />
-                    <ChatAssistantModelSection />
-                    <RecommendationConfigSection
-                      recConfig={settings.recConfig}
-                      loadingRecConfig={settings.loadingRecConfig}
-                      savingRecConfig={settings.savingRecConfig}
-                      recConfigError={settings.recConfigError}
-                      setRecConfigError={settings.setRecConfigError}
-                      recConfigSuccess={settings.recConfigSuccess}
-                      setRecConfigSuccess={settings.setRecConfigSuccess}
-                      movieConfigDirty={settings.movieConfigDirty}
-                      seriesConfigDirty={settings.seriesConfigDirty}
-                      saveMovieConfig={settings.saveMovieConfig}
-                      saveSeriesConfig={settings.saveSeriesConfig}
-                      resetMovieConfig={settings.resetMovieConfig}
-                      resetSeriesConfig={settings.resetSeriesConfig}
-                      updateMovieConfigField={settings.updateMovieConfigField}
-                      updateSeriesConfigField={settings.updateSeriesConfigField}
-                    />
-                  </Box>
-                </AccordionDetails>
-              </Accordion>
-            </Box>
+            {/* Algorithm Sub-tab */}
+            <TabPanel value={aiSubTab} index={2}>
+              <RecommendationConfigSection
+                recConfig={settings.recConfig}
+                loadingRecConfig={settings.loadingRecConfig}
+                savingRecConfig={settings.savingRecConfig}
+                recConfigError={settings.recConfigError}
+                setRecConfigError={settings.setRecConfigError}
+                recConfigSuccess={settings.recConfigSuccess}
+                setRecConfigSuccess={settings.setRecConfigSuccess}
+                movieConfigDirty={settings.movieConfigDirty}
+                seriesConfigDirty={settings.seriesConfigDirty}
+                saveMovieConfig={settings.saveMovieConfig}
+                saveSeriesConfig={settings.saveSeriesConfig}
+                resetMovieConfig={settings.resetMovieConfig}
+                resetSeriesConfig={settings.resetSeriesConfig}
+                updateMovieConfigField={settings.updateMovieConfigField}
+                updateSeriesConfigField={settings.updateSeriesConfigField}
+              />
+            </TabPanel>
           </TabPanel>
 
           {/* Top Picks Tab */}
@@ -188,8 +214,13 @@ export function SettingsPage() {
             <TopPicksSection />
           </TabPanel>
 
-          {/* System Tab */}
+          {/* Chat Bot Tab */}
           <TabPanel value={tabValue} index={3}>
+            <ChatAssistantModelSection />
+          </TabPanel>
+
+          {/* System Tab */}
+          <TabPanel value={tabValue} index={4}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {/* Cost Estimator */}
               <CostEstimatorSection

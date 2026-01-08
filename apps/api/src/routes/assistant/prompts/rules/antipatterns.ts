@@ -91,6 +91,13 @@ GOOD: Call ONE tool - either findSimilarContent OR semanticSearch
       → One carousel with the best results
       → Then explain why each pick is similar
 
+User: "I liked They Cloned Tyrone, what else is similar?"
+BAD: Call semanticSearch(...) AND searchContent("They Cloned Tyrone")
+     → Don't search for the title they already mentioned watching!
+     
+GOOD: Just call semanticSearch or findSimilarContent ONCE
+      → They already know they liked that movie
+
 The user asked for ONE thing. Give them ONE set of results.
 
 ### ❌ CRITICAL: Making Up Titles / Stopping Tool Use

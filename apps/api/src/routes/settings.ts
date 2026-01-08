@@ -37,6 +37,9 @@ import {
   getEffectiveAiExplanationSetting,
   getLibraryTitleConfig,
   setLibraryTitleConfig,
+  hasOpenAIApiKey,
+  setOpenAIApiKey,
+  testOpenAIConnection,
   type EmbeddingModel,
   type MediaServerType,
   type TextGenerationModel,
@@ -1563,6 +1566,80 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       } catch (err) {
         fastify.log.error({ err }, 'Failed to get STRM libraries')
         return reply.status(500).send({ error: 'Failed to get STRM libraries' })
+      }
+    }
+  )
+
+  // =========================================================================
+  // OpenAI API Key Settings (Admin Only)
+  // =========================================================================
+
+  /**
+   * GET /api/settings/openai
+   * Get OpenAI configuration status
+   */
+  fastify.get('/api/settings/openai', { preHandler: requireAdmin }, async (_request, reply) => {
+    try {
+      const hasKey = await hasOpenAIApiKey()
+      return reply.send({
+        hasApiKey: hasKey,
+        isConfigured: hasKey,
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get OpenAI config')
+      return reply.status(500).send({ error: 'Failed to get OpenAI configuration' })
+    }
+  })
+
+  /**
+   * PATCH /api/settings/openai
+   * Set OpenAI API key
+   */
+  fastify.patch<{
+    Body: { apiKey: string }
+  }>('/api/settings/openai', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const { apiKey } = request.body
+
+      if (!apiKey || typeof apiKey !== 'string') {
+        return reply.status(400).send({ error: 'API key is required' })
+      }
+
+      // Validate the key format (OpenAI keys start with sk-)
+      if (!apiKey.startsWith('sk-')) {
+        return reply
+          .status(400)
+          .send({ error: 'Invalid API key format. OpenAI keys start with sk-' })
+      }
+
+      // Save the key
+      await setOpenAIApiKey(apiKey)
+
+      return reply.send({
+        success: true,
+        hasApiKey: true,
+        isConfigured: true,
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to save OpenAI API key')
+      return reply.status(500).send({ error: 'Failed to save OpenAI API key' })
+    }
+  })
+
+  /**
+   * POST /api/settings/openai/test
+   * Test OpenAI API connection
+   */
+  fastify.post(
+    '/api/settings/openai/test',
+    { preHandler: requireAdmin },
+    async (_request, reply) => {
+      try {
+        const result = await testOpenAIConnection()
+        return reply.send(result)
+      } catch (err) {
+        fastify.log.error({ err }, 'Failed to test OpenAI connection')
+        return reply.status(500).send({ error: 'Failed to test OpenAI connection' })
       }
     }
   )

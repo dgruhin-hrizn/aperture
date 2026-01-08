@@ -18,23 +18,28 @@ async function generateSearchQuery(title: string, type: 'movie' | 'series'): Pro
     const { object } = await generateObject({
       model: openai('gpt-4.1-nano'),
       schema: z.object({
-        searchQuery: z.string().describe('A rich description for semantic search'),
+        searchQuery: z.string().describe('A specific description for semantic search'),
       }),
-      prompt: `You know about "${title}" (${type}). Write a semantic search query to find SIMILAR content.
+      prompt: `You know about "${title}" (${type}). Write a SPECIFIC semantic search query to find truly SIMILAR content.
 
-Describe what makes this ${type} unique:
-- Genre and tone (dark comedy, psychological thriller, etc.)
-- Themes and subject matter
-- Target audience (adult, family, etc.)
-- Style (slow-burn, action-packed, character-driven, etc.)
+Be SPECIFIC about:
+1. Core plot elements (what actually happens in the story)
+2. Specific themes (not just "drama" but "corporate conspiracy", "identity crisis", etc.)
+3. Tone combination (dark comedy + social satire, not just "comedy")
+4. Setting/world (dystopian suburb, underground lab, small town mystery, etc.)
+5. What makes it unique vs generic films
 
-DO NOT mention the title itself. Write 2-3 sentences describing the VIBE and THEMES.
+DO NOT be vague. DO NOT just list genres.
 
-Example for "Breaking Bad":
-"Adult prestige crime drama about moral descent and consequences. Slow-burn character study with dark humor. Themes of family, pride, and the American dream corrupted."
+WRONG (too vague): "Sci-fi comedy about experiments and dark themes."
+RIGHT (specific): "Government conspiracy involving human cloning in Black neighborhoods. Social satire blending blaxploitation homage with sci-fi mystery. Characters discover they're part of a sinister experiment."
 
-Now write for "${title}":`,
+WRONG: "Drama about family and relationships."
+RIGHT: "Multigenerational Korean immigrant family running a convenience store. Cultural identity clash, language barriers, and the American dream's cost."
+
+Now write a SPECIFIC search query for "${title}":`,
     })
+    console.log(`[generateSearchQuery] "${title}" → "${object.searchQuery}"`)
     return object.searchQuery
   } catch (err) {
     console.error('[generateSearchQuery] Error:', err)
@@ -78,69 +83,214 @@ export function createSearchTools(ctx: ToolContext) {
   return {
     searchContent: tool({
       description:
-        'Search for movies and/or TV series by EXACT title, specific genre, or year. Use for literal searches like "Inception", "Action movies from 2020", or "Sci-Fi genre". For conceptual/vague queries like "mind-bending movies" or "feel-good comedies", use semanticSearch instead.',
+        'Comprehensive search for movies and TV series with ALL available filters. Use for specific queries with known criteria. For conceptual/vague queries like "mind-bending movies", use semanticSearch instead.',
       inputSchema: z.object({
-        query: z.string().optional().describe('Exact title or keywords to match literally'),
+        // Text search
+        query: z.string().optional().describe('Title or keywords to match'),
+
+        // Basic filters
         genre: z
           .string()
           .optional()
-          .describe('Filter by exact genre name (e.g. "Science Fiction", "Action", "Comedy")'),
-        year: z.number().optional().describe('Filter by release year'),
+          .describe('Genre (e.g. "Action", "Comedy", "Drama", "Science Fiction", "Horror")'),
+        year: z.number().optional().describe('Exact release year'),
+        yearMin: z.number().optional().describe('Minimum release year (for ranges)'),
+        yearMax: z.number().optional().describe('Maximum release year (for ranges)'),
+
+        // Ratings
         minRating: z.number().optional().describe('Minimum community rating (0-10)'),
-        type: z.enum(['movies', 'series', 'both']).optional().default('both'),
-        limit: z
-          .number()
+        maxRating: z.number().optional().describe('Maximum community rating (0-10)'),
+        minCriticRating: z.number().optional().describe('Minimum critic rating (0-100)'),
+
+        // Content rating (MPAA/TV ratings)
+        contentRating: z
+          .string()
           .optional()
-          .default(15)
-          .describe('Number of results to return (default 15, max 50)'),
+          .describe(
+            'Content rating: G, PG, PG-13, R, NC-17, TV-Y, TV-Y7, TV-G, TV-PG, TV-14, TV-MA'
+          ),
+
+        // Runtime (movies)
+        minRuntime: z.number().optional().describe('Minimum runtime in minutes'),
+        maxRuntime: z.number().optional().describe('Maximum runtime in minutes'),
+
+        // People
+        director: z.string().optional().describe('Director name'),
+        actor: z.string().optional().describe('Actor name'),
+
+        // Production
+        studio: z.string().optional().describe('Studio or production company name'),
+        network: z.string().optional().describe('TV network (for series): HBO, Netflix, AMC, etc.'),
+
+        // Series-specific
+        status: z.enum(['Continuing', 'Ended']).optional().describe('Series status'),
+        minSeasons: z.number().optional().describe('Minimum number of seasons'),
+
+        // Tags
+        tag: z.string().optional().describe('Content tag (e.g. "superhero", "based on novel")'),
+
+        // Type and limit
+        type: z.enum(['movies', 'series', 'both']).optional().default('both'),
+        limit: z.number().optional().default(15).describe('Number of results (default 15, max 50)'),
+
+        // Sorting
+        sortBy: z
+          .enum(['rating', 'year', 'title', 'runtime', 'critic_rating'])
+          .optional()
+          .default('rating'),
+        sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
       }),
-      execute: async ({
-        query: searchQuery,
-        genre,
-        year,
-        minRating,
-        type = 'both',
-        limit = 15,
-      }) => {
+      execute: async (params) => {
+        const {
+          query: searchQuery,
+          genre,
+          year,
+          yearMin,
+          yearMax,
+          minRating,
+          maxRating,
+          minCriticRating,
+          contentRating,
+          minRuntime,
+          maxRuntime,
+          director,
+          actor,
+          studio,
+          network,
+          status,
+          minSeasons,
+          tag,
+          type = 'both',
+          limit = 15,
+          sortBy = 'rating',
+          sortOrder = 'desc',
+        } = params
+
         const items: ContentItem[] = []
-        const seenTitles = new Set<string>() // Deduplicate by title
+        const seenTitles = new Set<string>()
         const safeLimit = Math.min(limit ?? 15, 50)
 
-        if (type === 'movies' || type === 'both') {
-          let whereClause = ''
-          const params: unknown[] = []
-          let paramIndex = 1
+        // Helper to build WHERE clause
+        const buildWhere = (isMovie: boolean) => {
+          const conditions: string[] = []
+          const values: unknown[] = []
+          let idx = 1
 
           if (searchQuery) {
-            whereClause = `WHERE (title ILIKE $${paramIndex} OR overview ILIKE $${paramIndex})`
-            params.push(`%${searchQuery}%`)
-            paramIndex++
+            conditions.push(`(title ILIKE $${idx} OR overview ILIKE $${idx})`)
+            values.push(`%${searchQuery}%`)
+            idx++
           }
           if (genre) {
-            whereClause += whereClause ? ' AND ' : 'WHERE '
-            whereClause += `$${paramIndex} = ANY(genres)`
-            params.push(genre)
-            paramIndex++
+            conditions.push(`$${idx} = ANY(genres)`)
+            values.push(genre)
+            idx++
           }
           if (year) {
-            whereClause += whereClause ? ' AND ' : 'WHERE '
-            whereClause += `year = $${paramIndex}`
-            params.push(year)
-            paramIndex++
+            conditions.push(`year = $${idx}`)
+            values.push(year)
+            idx++
+          }
+          if (yearMin) {
+            conditions.push(`year >= $${idx}`)
+            values.push(yearMin)
+            idx++
+          }
+          if (yearMax) {
+            conditions.push(`year <= $${idx}`)
+            values.push(yearMax)
+            idx++
           }
           if (minRating) {
-            whereClause += whereClause ? ' AND ' : 'WHERE '
-            whereClause += `community_rating >= $${paramIndex}`
-            params.push(minRating)
-            paramIndex++
+            conditions.push(`community_rating >= $${idx}`)
+            values.push(minRating)
+            idx++
           }
-          params.push(safeLimit)
+          if (maxRating) {
+            conditions.push(`community_rating <= $${idx}`)
+            values.push(maxRating)
+            idx++
+          }
+          if (minCriticRating) {
+            conditions.push(`critic_rating >= $${idx}`)
+            values.push(minCriticRating)
+            idx++
+          }
+          if (contentRating) {
+            conditions.push(`content_rating ILIKE $${idx}`)
+            values.push(contentRating)
+            idx++
+          }
+          if (minRuntime && isMovie) {
+            conditions.push(`runtime_minutes >= $${idx}`)
+            values.push(minRuntime)
+            idx++
+          }
+          if (maxRuntime && isMovie) {
+            conditions.push(`runtime_minutes <= $${idx}`)
+            values.push(maxRuntime)
+            idx++
+          }
+          if (director) {
+            conditions.push(`$${idx} ILIKE ANY(directors)`)
+            values.push(`%${director}%`)
+            idx++
+          }
+          if (actor) {
+            conditions.push(`actors::text ILIKE $${idx}`)
+            values.push(`%${actor}%`)
+            idx++
+          }
+          if (studio) {
+            conditions.push(`studios::text ILIKE $${idx}`)
+            values.push(`%${studio}%`)
+            idx++
+          }
+          if (network && !isMovie) {
+            conditions.push(`network ILIKE $${idx}`)
+            values.push(`%${network}%`)
+            idx++
+          }
+          if (status && !isMovie) {
+            conditions.push(`status = $${idx}`)
+            values.push(status)
+            idx++
+          }
+          if (minSeasons && !isMovie) {
+            conditions.push(`total_seasons >= $${idx}`)
+            values.push(minSeasons)
+            idx++
+          }
+          if (tag) {
+            conditions.push(`$${idx} ILIKE ANY(tags)`)
+            values.push(`%${tag}%`)
+            idx++
+          }
 
+          values.push(safeLimit)
+          const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+          return { whereClause, values, limitIdx: idx }
+        }
+
+        // Sort column mapping
+        const sortColumn =
+          {
+            rating: 'community_rating',
+            year: 'year',
+            title: 'title',
+            runtime: 'runtime_minutes',
+            critic_rating: 'critic_rating',
+          }[sortBy] || 'community_rating'
+        const order = sortOrder === 'asc' ? 'ASC' : 'DESC'
+        const nullsOrder = sortOrder === 'asc' ? 'NULLS FIRST' : 'NULLS LAST'
+
+        if (type === 'movies' || type === 'both') {
+          const { whereClause, values, limitIdx } = buildWhere(true)
           const movieResult = await query<MovieResult & { provider_item_id?: string }>(
             `SELECT id, title, year, genres, community_rating, poster_url, provider_item_id
              FROM movies ${whereClause}
-             ORDER BY community_rating DESC NULLS LAST LIMIT $${paramIndex}`,
-            params
+             ORDER BY ${sortColumn} ${order} ${nullsOrder} LIMIT $${limitIdx}`,
+            values
           )
 
           for (const m of movieResult.rows) {
@@ -154,40 +304,12 @@ export function createSearchTools(ctx: ToolContext) {
         }
 
         if (type === 'series' || type === 'both') {
-          let whereClause = ''
-          const params: unknown[] = []
-          let paramIndex = 1
-
-          if (searchQuery) {
-            whereClause = `WHERE (title ILIKE $${paramIndex} OR overview ILIKE $${paramIndex})`
-            params.push(`%${searchQuery}%`)
-            paramIndex++
-          }
-          if (genre) {
-            whereClause += whereClause ? ' AND ' : 'WHERE '
-            whereClause += `$${paramIndex} = ANY(genres)`
-            params.push(genre)
-            paramIndex++
-          }
-          if (year) {
-            whereClause += whereClause ? ' AND ' : 'WHERE '
-            whereClause += `year = $${paramIndex}`
-            params.push(year)
-            paramIndex++
-          }
-          if (minRating) {
-            whereClause += whereClause ? ' AND ' : 'WHERE '
-            whereClause += `community_rating >= $${paramIndex}`
-            params.push(minRating)
-            paramIndex++
-          }
-          params.push(safeLimit)
-
+          const { whereClause, values, limitIdx } = buildWhere(false)
           const seriesResult = await query<SeriesResult & { provider_item_id?: string }>(
             `SELECT id, title, year, genres, network, community_rating, poster_url, provider_item_id
              FROM series ${whereClause}
-             ORDER BY community_rating DESC NULLS LAST LIMIT $${paramIndex}`,
-            params
+             ORDER BY ${sortColumn !== 'runtime_minutes' ? sortColumn : 'community_rating'} ${order} ${nullsOrder} LIMIT $${limitIdx}`,
+            values
           )
 
           for (const s of seriesResult.rows) {
@@ -204,7 +326,7 @@ export function createSearchTools(ctx: ToolContext) {
           return {
             id: `search-empty-${Date.now()}`,
             items: [],
-            description: 'No results found. Try a different search term or browse by genre.',
+            description: 'No results found. Try adjusting your filters.',
           }
         }
 
@@ -232,13 +354,17 @@ export function createSearchTools(ctx: ToolContext) {
             'The concept, theme, mood, or description to search for. Be descriptive - e.g. "psychological thrillers with unreliable narrators" or "uplifting sports underdog stories"'
           ),
         type: z.enum(['movies', 'series', 'both']).optional().default('both'),
+        excludeTitle: z
+          .string()
+          .optional()
+          .describe('Title to EXCLUDE from results (use when user says "I liked X, what else...")'),
         limit: z
           .number()
           .optional()
           .default(15)
           .describe('Number of results to return (default 15, max 50)'),
       }),
-      execute: async ({ concept, type = 'both', limit = 15 }) => {
+      execute: async ({ concept, type = 'both', excludeTitle, limit = 15 }) => {
         try {
           const safeLimit = Math.min(limit ?? 15, 50)
 
@@ -252,6 +378,9 @@ export function createSearchTools(ctx: ToolContext) {
           const items: ContentItem[] = []
           const seenTitles = new Set<string>() // Deduplicate by title
 
+          // If user mentioned a title they already watched, exclude it
+          const excludeLower = excludeTitle?.toLowerCase()
+
           if (type === 'movies' || type === 'both') {
             const movieResults = await query<
               MovieResult & { provider_item_id?: string; similarity: number }
@@ -263,16 +392,17 @@ export function createSearchTools(ctx: ToolContext) {
                WHERE e.model = $2
                ORDER BY e.embedding <=> $1::halfvec
                LIMIT $3`,
-              [embeddingStr, ctx.embeddingModel, safeLimit]
+              [embeddingStr, ctx.embeddingModel, safeLimit + 5] // Get extra to account for exclusion
             )
 
             for (const m of movieResults.rows) {
               const titleKey = m.title.toLowerCase()
-              if (!seenTitles.has(titleKey)) {
-                seenTitles.add(titleKey)
-                const playLink = buildPlayLink(ctx.mediaServer, m.provider_item_id, 'movie')
-                items.push(formatContentItem(m, 'movie', playLink))
-              }
+              // Skip if this is the excluded title or a duplicate
+              if (excludeLower && titleKey.includes(excludeLower)) continue
+              if (seenTitles.has(titleKey)) continue
+              seenTitles.add(titleKey)
+              const playLink = buildPlayLink(ctx.mediaServer, m.provider_item_id, 'movie')
+              items.push(formatContentItem(m, 'movie', playLink))
             }
           }
 
@@ -287,16 +417,17 @@ export function createSearchTools(ctx: ToolContext) {
                WHERE se.model = $2
                ORDER BY se.embedding <=> $1::halfvec
                LIMIT $3`,
-              [embeddingStr, ctx.embeddingModel, safeLimit]
+              [embeddingStr, ctx.embeddingModel, safeLimit + 5] // Get extra to account for exclusion
             )
 
             for (const s of seriesResults.rows) {
               const titleKey = s.title.toLowerCase()
-              if (!seenTitles.has(titleKey)) {
-                seenTitles.add(titleKey)
-                const playLink = buildPlayLink(ctx.mediaServer, s.provider_item_id, 'series')
-                items.push(formatContentItem(s, 'series', playLink))
-              }
+              // Skip if this is the excluded title or a duplicate
+              if (excludeLower && titleKey.includes(excludeLower)) continue
+              if (seenTitles.has(titleKey)) continue
+              seenTitles.add(titleKey)
+              const playLink = buildPlayLink(ctx.mediaServer, s.provider_item_id, 'series')
+              items.push(formatContentItem(s, 'series', playLink))
             }
           }
 

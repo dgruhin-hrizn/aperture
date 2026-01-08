@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   Box,
   Typography,
@@ -20,6 +20,7 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
+  Divider,
 } from '@mui/material'
 import SaveIcon from '@mui/icons-material/Save'
 import RefreshIcon from '@mui/icons-material/Refresh'
@@ -39,6 +40,8 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import SettingsIcon from '@mui/icons-material/Settings'
 import TuneIcon from '@mui/icons-material/Tune'
 import OutputIcon from '@mui/icons-material/Output'
+import ImageIcon from '@mui/icons-material/Image'
+import { ImageUpload } from '../../../components/ImageUpload'
 
 interface TopPicksConfig {
   isEnabled: boolean
@@ -69,6 +72,16 @@ interface TopPicksConfig {
   seriesCollectionName: string
 }
 
+interface LibraryImageInfo {
+  url?: string
+  isDefault?: boolean
+}
+
+const RECOMMENDED_DIMENSIONS = {
+  width: 1920,
+  height: 1080,
+}
+
 export function TopPicksSection() {
   const [config, setConfig] = useState<TopPicksConfig | null>(null)
   const [loading, setLoading] = useState(true)
@@ -77,10 +90,104 @@ export function TopPicksSection() {
   const [success, setSuccess] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
 
+  // Image state
+  const [images, setImages] = useState<Record<string, LibraryImageInfo>>({})
+  const [uploadingFor, setUploadingFor] = useState<string | null>(null)
+
+  // Fetch images
+  const fetchImages = useCallback(async () => {
+    try {
+      const libraryTypes = ['top-picks-movies', 'top-picks-series']
+      const imagePromises = libraryTypes.map(async (id) => {
+        try {
+          const response = await fetch(`/api/images/library/${id}?imageType=Primary`, {
+            credentials: 'include',
+          })
+          if (response.ok) {
+            const data = await response.json()
+            return { id, url: data.url, isDefault: data.isDefault }
+          }
+          return { id, url: null, isDefault: false }
+        } catch {
+          return { id, url: null, isDefault: false }
+        }
+      })
+
+      const results = await Promise.all(imagePromises)
+      const imageMap: Record<string, LibraryImageInfo> = {}
+      results.forEach((r) => {
+        imageMap[r.id] = { url: r.url || undefined, isDefault: r.isDefault }
+      })
+      setImages(imageMap)
+    } catch (err) {
+      console.error('Failed to load library images', err)
+    }
+  }, [])
+
+  const handleUpload = useCallback(async (libraryTypeId: string, file: File) => {
+    setUploadingFor(libraryTypeId)
+    setError(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch(`/api/admin/images/library/${libraryTypeId}/default?imageType=Primary`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Upload failed')
+      }
+
+      const data = await response.json()
+      setImages((prev) => ({
+        ...prev,
+        [libraryTypeId]: { url: data.url, isDefault: true },
+      }))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed')
+      throw err
+    } finally {
+      setUploadingFor(null)
+    }
+  }, [])
+
+  const handleDeleteImage = useCallback(async (libraryTypeId: string) => {
+    setUploadingFor(libraryTypeId)
+    setError(null)
+
+    try {
+      const response = await fetch(`/api/admin/images/library/${libraryTypeId}/default?imageType=Primary`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Delete failed')
+      }
+
+      setImages((prev) => ({
+        ...prev,
+        [libraryTypeId]: { url: undefined, isDefault: false },
+      }))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Delete failed')
+      throw err
+    } finally {
+      setUploadingFor(null)
+    }
+  }, [])
+
   // Fetch config on mount
   useEffect(() => {
     fetchConfig()
-  }, [])
+    fetchImages()
+  }, [fetchImages])
 
   const fetchConfig = async () => {
     try {
@@ -454,7 +561,33 @@ export function TopPicksSection() {
               <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                 <MovieIcon color="primary" />
                 Movies Output
+                {images['top-picks-movies']?.url && (
+                  <Chip size="small" label="Image Set" color="success" variant="outlined" sx={{ ml: 'auto' }} />
+                )}
               </Typography>
+
+              {/* Library Cover Image */}
+              <Box sx={{ mb: 3 }}>
+                <Box display="flex" alignItems="center" gap={1} mb={1}>
+                  <ImageIcon fontSize="small" color="action" />
+                  <Typography variant="body2" fontWeight={500}>Library Cover Image</Typography>
+                </Box>
+                <Box sx={{ maxWidth: 400 }}>
+                  <ImageUpload
+                    currentImageUrl={images['top-picks-movies']?.url}
+                    isDefault={images['top-picks-movies']?.isDefault}
+                    recommendedDimensions={RECOMMENDED_DIMENSIONS}
+                    onUpload={(file) => handleUpload('top-picks-movies', file)}
+                    onDelete={images['top-picks-movies']?.url ? () => handleDeleteImage('top-picks-movies') : undefined}
+                    loading={uploadingFor === 'top-picks-movies'}
+                    height={160}
+                    label="Drop image (16:9)"
+                    showDelete={!!images['top-picks-movies']?.url}
+                  />
+                </Box>
+              </Box>
+
+              <Divider sx={{ mb: 3 }} />
               
               <Grid container spacing={3}>
                 <Grid item xs={12} md={6}>
@@ -573,7 +706,33 @@ export function TopPicksSection() {
               <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                 <TvIcon color="primary" />
                 Series Output
+                {images['top-picks-series']?.url && (
+                  <Chip size="small" label="Image Set" color="success" variant="outlined" sx={{ ml: 'auto' }} />
+                )}
               </Typography>
+
+              {/* Library Cover Image */}
+              <Box sx={{ mb: 3 }}>
+                <Box display="flex" alignItems="center" gap={1} mb={1}>
+                  <ImageIcon fontSize="small" color="action" />
+                  <Typography variant="body2" fontWeight={500}>Library Cover Image</Typography>
+                </Box>
+                <Box sx={{ maxWidth: 400 }}>
+                  <ImageUpload
+                    currentImageUrl={images['top-picks-series']?.url}
+                    isDefault={images['top-picks-series']?.isDefault}
+                    recommendedDimensions={RECOMMENDED_DIMENSIONS}
+                    onUpload={(file) => handleUpload('top-picks-series', file)}
+                    onDelete={images['top-picks-series']?.url ? () => handleDeleteImage('top-picks-series') : undefined}
+                    loading={uploadingFor === 'top-picks-series'}
+                    height={160}
+                    label="Drop image (16:9)"
+                    showDelete={!!images['top-picks-series']?.url}
+                  />
+                </Box>
+              </Box>
+
+              <Divider sx={{ mb: 3 }} />
               
               <Grid container spacing={3}>
                 <Grid item xs={12} md={6}>

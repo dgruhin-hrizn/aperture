@@ -29,19 +29,22 @@ After tools run, add 1-3 sentences that:
 - Don't include markdown images
 - Don't just say "Here are your results" - that adds nothing
 
-### Link Titles to Detail Pages
+### Format Titles Properly
 
-When mentioning titles in your response, make them clickable links to their detail pages:
+Movie and TV titles should ALWAYS be **bold**. Optionally add a link if you have the ID.
 
-**Format**: [Title](/movies/{id}) or [Title](/series/{id})
+**Format options:**
+1. Bold only: **The 6th Day** 
+2. Bold + link: [**The 6th Day**](/movies/abc123)
 
-The tool results include the content ID for each item. Use it!
+**WRONG**: The 6th Day – not bold
+**WRONG**: [The 6th Day] – bare brackets, no link, not bold
+**RIGHT**: **The 6th Day** – bold, no link
+**RIGHT**: [**The 6th Day**](/movies/abc123) – bold with link
 
-**Example**:
-Tool returns: { id: "abc123", type: "movie", name: "Inception", ... }
-Your response: "[Inception](/movies/abc123) is perfect for you—it has the layered storytelling you love."
+**Examples:**
+- "**The 6th Day** is a great cloning movie with Schwarzenegger."
+- "[**Inception**](/movies/abc123) fits your taste perfectly."
+- "I recommend **Splice** and **Morgan** for body horror."
 
-**BAD**: "Inception is a great choice"
-**GOOD**: "[Inception](/movies/abc123) is a great choice"
-
-This lets users click directly to learn more without scrolling to find the card.`
+**NEVER use [Title] without a URL. Always bold titles.**`

@@ -189,6 +189,7 @@ export {
   purgeMovieDatabase,
   getMovieDatabaseStats,
   type PurgeResult,
+  type DatabaseStats,
 } from './lib/purge.js'
 
 // Taste Synopsis
@@ -243,6 +244,10 @@ export {
   setAiExplanationConfig,
   getLibraryTitleConfig,
   setLibraryTitleConfig,
+  getOpenAIApiKey,
+  setOpenAIApiKey,
+  hasOpenAIApiKey,
+  testOpenAIConnection,
   type SystemSetting,
   type EmbeddingModel,
   type TextGenerationModel,

@@ -612,3 +612,74 @@ export async function setLibraryTitleConfig(
   }
   return getLibraryTitleConfig()
 }
+
+// ============================================================================
+// OpenAI API Key Settings
+// ============================================================================
+
+/**
+ * Get OpenAI API key from database, falling back to environment variable
+ */
+export async function getOpenAIApiKey(): Promise<string | null> {
+  // First check database
+  const dbKey = await getSystemSetting('openai_api_key')
+  if (dbKey) {
+    return dbKey
+  }
+
+  // Fall back to environment variable
+  return process.env.OPENAI_API_KEY || null
+}
+
+/**
+ * Set OpenAI API key in database
+ */
+export async function setOpenAIApiKey(apiKey: string): Promise<void> {
+  await setSystemSetting(
+    'openai_api_key',
+    apiKey,
+    'OpenAI API key for AI features (embeddings, recommendations, chat assistant)'
+  )
+  logger.info('OpenAI API key updated')
+}
+
+/**
+ * Check if OpenAI API key is configured (either in DB or ENV)
+ */
+export async function hasOpenAIApiKey(): Promise<boolean> {
+  const key = await getOpenAIApiKey()
+  return !!key && key.length > 0
+}
+
+/**
+ * Test OpenAI API connection with the configured key
+ */
+export async function testOpenAIConnection(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const apiKey = await getOpenAIApiKey()
+    if (!apiKey) {
+      return { success: false, error: 'No API key configured' }
+    }
+
+    // Make a simple API call to test the key
+    const response = await fetch('https://api.openai.com/v1/models', {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+    })
+
+    if (response.ok) {
+      return { success: true }
+    } else {
+      const data = (await response.json().catch(() => ({}))) as { error?: { message?: string } }
+      return {
+        success: false,
+        error: data.error?.message || `API returned status ${response.status}`,
+      }
+    }
+  } catch (err) {
+    const error = err instanceof Error ? err.message : 'Unknown error'
+    logger.warn({ err }, 'OpenAI connection test failed')
+    return { success: false, error }
+  }
+}

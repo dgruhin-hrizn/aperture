@@ -25,13 +25,22 @@ export interface RecommendationConfig {
 }
 
 export interface PurgeStats {
+  // Content
   movies: number
   series: number
   episodes: number
-  embeddings: number
+  // AI Embeddings
+  movieEmbeddings: number
+  seriesEmbeddings: number
+  episodeEmbeddings: number
+  // User Data
   watchHistory: number
+  userRatings: number
   recommendations: number
   userPreferences: number
+  // Assistant
+  assistantConversations: number
+  assistantMessages: number
 }
 
 export interface UserSettings {
