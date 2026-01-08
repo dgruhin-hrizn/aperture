@@ -11,6 +11,10 @@ Technical overview of Aperture's design, recommendation pipeline, and project st
   - [Vector Similarity](#vector-similarity)
   - [Rating System](#rating-system)
   - [Top Picks Algorithm](#top-picks-algorithm)
+- [AI Assistant (Encore)](#ai-assistant-encore)
+  - [Architecture](#architecture)
+  - [Tools](#tools)
+  - [Conversation Persistence](#conversation-persistence)
 - [Background Jobs](#background-jobs)
   - [Movie Jobs](#movie-jobs)
   - [Series Jobs](#series-jobs)
@@ -26,7 +30,16 @@ Technical overview of Aperture's design, recommendation pipeline, and project st
 aperture/
 ├── apps/
 │   ├── api/          # Fastify API server
+│   │   └── src/routes/
+│   │       └── assistant/  # AI Assistant (Encore)
+│   │           ├── handlers/   # Chat, conversations, suggestions
+│   │           ├── prompts/    # Identity, context, rules
+│   │           ├── tools/      # Search, content, recommendations, etc.
+│   │           └── schemas/    # Tool UI output schemas
 │   └── web/          # React + Vite + MUI frontend
+│       └── src/components/
+│           ├── AssistantModal.tsx  # Main assistant UI
+│           └── assistant/          # Thread, messages, tool renderers
 ├── packages/
 │   ├── core/         # Shared business logic
 │   │   ├── channels/    # Channel management & AI
@@ -101,6 +114,70 @@ Weights are configurable, and a time window limits how far back to look for tren
 
 ---
 
+## AI Assistant (Encore)
+
+Encore is a conversational AI assistant that helps users discover content through natural language interaction.
+
+### Architecture
+
+The assistant is built using the AI SDK (Vercel) with OpenAI models:
+
+```
+apps/api/src/routes/assistant/
+├── handlers/
+│   ├── chat.ts           # Streaming chat endpoint
+│   ├── conversations.ts  # CRUD for conversation history
+│   └── suggestions.ts    # Personalized prompt suggestions
+├── prompts/
+│   ├── identity.ts       # Assistant persona definition
+│   ├── context/          # User and admin context builders
+│   └── rules/            # Behavior, formatting, antipattern rules
+├── tools/
+│   ├── search.ts         # searchContent, semanticSearch, findSimilarContent
+│   ├── content.ts        # getContentDetails
+│   ├── recommendations.ts # getMyRecommendations, getTopRated, getUnwatched
+│   ├── history.ts        # getWatchHistory, getUserRatings
+│   ├── library.ts        # getLibraryStats, getContentRankings, getAvailableGenres
+│   ├── people.ts         # searchPeople, getTopStudios
+│   └── help.ts           # getSystemHelp
+├── schemas/              # Tool UI output schemas (content cards, etc.)
+├── helpers/              # Media server URL building, OpenAI client
+└── jobs/
+    └── refreshSuggestions.ts  # Background job for personalized suggestions
+```
+
+**Frontend**: The assistant UI uses `@assistant-ui/react` with `@assistant-ui/react-ai-sdk` for streaming chat with tool result rendering.
+
+### Tools
+
+Tools are function calls the AI can make to retrieve data. Each tool returns structured data that the frontend renders as interactive cards:
+
+| Category | Tools |
+| -------- | ----- |
+| **Search** | `searchContent` (filter-based), `semanticSearch` (AI embeddings), `findSimilarContent` |
+| **Content** | `getContentDetails` with play links |
+| **Recommendations** | `getMyRecommendations`, `getTopRated`, `getUnwatched` |
+| **History** | `getWatchHistory`, `getUserRatings` |
+| **Library** | `getLibraryStats`, `getContentRankings`, `getAvailableGenres` |
+| **People** | `searchPeople` (actors/directors with filmography), `getTopStudios` |
+| **Help** | `getSystemHelp` |
+
+**Semantic Search**: Uses the same embedding model as recommendations. The AI generates a descriptive search query, embeds it, and finds similar content via pgvector.
+
+**Similar Content**: Uses an AI-powered approach where GPT generates a specific description of what makes a title unique, then embeds that description to find truly similar content.
+
+### Conversation Persistence
+
+Conversations are stored in PostgreSQL:
+
+- `assistant_conversations` — Conversation metadata (title, timestamps)
+- `assistant_messages` — Individual messages with role, content, and tool invocations
+- `assistant_suggestions` — Pre-generated personalized prompts per user
+
+Messages include serialized tool invocations so historical conversations display with their original results.
+
+---
+
 ## Background Jobs
 
 ### Movie Jobs
@@ -128,10 +205,11 @@ Weights are configurable, and a time window limits how far back to look for tren
 
 ### Global Jobs
 
-| Job                   | Description                        | Schedule      |
-| --------------------- | ---------------------------------- | ------------- |
-| `refresh-top-picks`   | Refresh popularity-based libraries | Daily at 6 AM |
-| `sync-trakt-ratings`  | Sync ratings from Trakt.tv         | Every 6 hours |
+| Job                          | Description                             | Schedule      |
+| ---------------------------- | --------------------------------------- | ------------- |
+| `refresh-top-picks`          | Refresh popularity-based libraries      | Daily at 6 AM |
+| `sync-trakt-ratings`         | Sync ratings from Trakt.tv              | Every 6 hours |
+| `refresh-assistant-suggestions` | Regenerate personalized chat prompts | Daily at 7 AM |
 
 ### Job Scheduling
 
@@ -164,4 +242,7 @@ Key tables:
 - `system_settings` — Global configuration
 - `job_runs` / `job_progress` — Job execution tracking
 - `job_config` — Job scheduling configuration
+- `assistant_conversations` — AI Assistant chat sessions
+- `assistant_messages` — Messages within conversations (with tool invocations)
+- `assistant_suggestions` — Personalized conversation starter prompts
 

@@ -12,6 +12,7 @@ Complete reference for all Aperture API endpoints.
 - [Recommendations](#recommendations)
 - [Top Picks](#top-picks)
 - [Channels](#channels)
+- [AI Assistant](#ai-assistant)
 - [Trakt Integration](#trakt-integration)
 - [Settings (Admin)](#settings-admin)
 - [Jobs (Admin)](#jobs-admin)
@@ -121,6 +122,61 @@ Complete reference for all Aperture API endpoints.
 
 ---
 
+## AI Assistant
+
+The AI Assistant (Encore) provides conversational recommendations and library exploration.
+
+### Chat
+
+| Endpoint                       | Description                           |
+| ------------------------------ | ------------------------------------- |
+| `POST /api/assistant/chat`     | Send a message and stream AI response |
+
+The chat endpoint accepts a JSON body with messages array and returns a streaming response (Server-Sent Events) with the AI's reply, including tool calls for content discovery.
+
+### Conversations
+
+| Endpoint                                        | Description                    |
+| ----------------------------------------------- | ------------------------------ |
+| `GET /api/assistant/conversations`              | List user's conversations      |
+| `POST /api/assistant/conversations`             | Create new conversation        |
+| `GET /api/assistant/conversations/:id`          | Get conversation with messages |
+| `PATCH /api/assistant/conversations/:id`        | Update conversation (rename)   |
+| `DELETE /api/assistant/conversations/:id`       | Delete conversation            |
+| `POST /api/assistant/conversations/:id/messages`| Save messages to conversation  |
+
+### Suggestions
+
+| Endpoint                        | Description                            |
+| ------------------------------- | -------------------------------------- |
+| `GET /api/assistant/suggestions`| Get personalized conversation starters |
+
+Suggestions are AI-generated prompts based on the user's watch history and preferences, refreshed periodically by a background job.
+
+### Available Tools
+
+The assistant has access to these tools for content discovery:
+
+| Tool                 | Description                                           |
+| -------------------- | ----------------------------------------------------- |
+| `searchContent`      | Filter-based search (genre, year, rating, actor, etc) |
+| `semanticSearch`     | AI-powered conceptual/thematic search                 |
+| `findSimilarContent` | Find movies/series similar to a given title           |
+| `getContentDetails`  | Get full details about a specific title               |
+| `getMyRecommendations`| Get user's AI-generated recommendations              |
+| `getTopRated`        | Get highest-rated content                             |
+| `getUnwatched`       | Get content user hasn't watched                       |
+| `getWatchHistory`    | Get user's watch history                              |
+| `getUserRatings`     | Get user's ratings                                    |
+| `getLibraryStats`    | Get library statistics                                |
+| `getContentRankings` | Get content leaderboards (longest, oldest, etc)       |
+| `getAvailableGenres` | List all genres with counts                           |
+| `searchPeople`       | Search actors/directors with filmography              |
+| `getTopStudios`      | Get user's most-watched studios/networks              |
+| `getSystemHelp`      | Get help on Aperture features                         |
+
+---
+
 ## Trakt Integration
 
 | Endpoint                   | Description                      |
@@ -167,6 +223,8 @@ Complete reference for all Aperture API endpoints.
 | `PATCH /api/settings/user/dislike-behavior`   | Update dislike behavior     |
 | `GET /api/settings/trakt`                     | Get Trakt configuration     |
 | `PATCH /api/settings/trakt`                   | Update Trakt configuration  |
+| `GET /api/settings/chat-assistant-model`      | Get chat assistant model    |
+| `PATCH /api/settings/chat-assistant-model`    | Set chat assistant model    |
 
 ---
 

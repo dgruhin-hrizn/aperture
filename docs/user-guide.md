@@ -5,6 +5,11 @@ This guide covers all the features available to Aperture users.
 ## Table of Contents
 
 - [Logging In](#logging-in)
+- [AI Assistant (Encore)](#ai-assistant-encore)
+  - [Opening the Assistant](#opening-the-assistant)
+  - [What You Can Ask](#what-you-can-ask)
+  - [Conversation History](#conversation-history)
+  - [Content Cards](#content-cards)
 - [Dashboard](#dashboard)
   - [Quick Stats Bar](#quick-stats-bar)
   - [Your Movie Picks](#your-movie-picks)
@@ -43,6 +48,92 @@ This guide covers all the features available to Aperture users.
 1. Open Aperture in your browser
 2. Enter your **Emby or Jellyfin username and password**
 3. Aperture authenticates against your media server — no separate account needed
+
+---
+
+## AI Assistant (Encore)
+
+Aperture includes **Encore**, an AI-powered conversational assistant that helps you discover content, get recommendations, and explore your library using natural language.
+
+### Opening the Assistant
+
+Click the **sparkle button** (✨) in the bottom-right corner of any page to open Encore. The assistant opens in a modal dialog where you can:
+
+- Type questions or requests
+- View content results as interactive cards
+- Expand to fullscreen for conversation history
+
+### What You Can Ask
+
+Encore understands natural language and can help with:
+
+**Recommendations & Discovery**
+
+- "What should I watch tonight?"
+- "Show me my AI recommendations"
+- "Find something like Inception"
+- "Suggest mind-bending sci-fi movies"
+- "What are the highest-rated comedies in my library?"
+
+**Similar Content**
+
+- "Movies similar to The Dark Knight"
+- "Shows like Breaking Bad"
+- "Find me something like Parasite but scarier"
+
+**Search & Browse**
+
+- "Show me 90s action movies"
+- "Find horror movies rated above 7"
+- "What Christopher Nolan movies do I have?"
+- "Search for movies with Tom Hanks"
+
+**Your Activity**
+
+- "What have I watched recently?"
+- "Show my ratings"
+- "What movies have I rated 10 hearts?"
+- "How many movies have I watched?"
+
+**Library Stats**
+
+- "How many movies are in my library?"
+- "What's the longest movie I have?"
+- "Which series has the most episodes?"
+- "What are my top genres?"
+
+**People & Studios**
+
+- "What movies does Margot Robbie appear in?"
+- "Show me Steven Spielberg's filmography"
+- "What studios have I watched the most?"
+
+**Help**
+
+- "How do recommendations work?"
+- "How do ratings affect my picks?"
+- "Help me understand Aperture"
+
+### Conversation History
+
+Click the **fullscreen button** to expand the assistant and reveal the conversation sidebar:
+
+- **Previous chats** — All your past conversations are saved
+- **New chat** — Start a fresh conversation anytime
+- **Rename** — Click the edit icon to rename a conversation
+- **Delete** — Remove old conversations you no longer need
+
+Conversations auto-title based on your first message.
+
+### Content Cards
+
+When Encore finds content for you, results appear as interactive cards with:
+
+- **Poster image** — Visual identification
+- **Title and year** — Basic info with genre tags
+- **Rating** — Community rating (if available)
+- **Rank badge** — Gold/Silver/Bronze for top recommendations
+- **Actions** — "Details" to view in Aperture, "Play" to open in your media server
 
 ---
 

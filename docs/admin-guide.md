@@ -20,6 +20,7 @@ This guide covers initial setup, ongoing operations, and administrative configur
 - [Model Selection](#model-selection)
   - [Embedding Model](#embedding-model)
   - [Text Generation Model](#text-generation-model)
+  - [Chat Assistant Model](#chat-assistant-model)
 - [AI Explanation Settings](#ai-explanation-settings)
 - [Library Title Templates](#library-title-templates)
 - [Output Format Settings](#output-format-settings)
@@ -220,6 +221,23 @@ Used for taste profiles and recommendation explanations:
 | GPT-4o Mini | Recommended | Low    |
 | GPT-5 Nano  | Budget      | Lowest |
 | GPT-5 Mini  | Premium     | Higher |
+
+### Chat Assistant Model
+
+Navigate to **Admin → Settings → AI Recommendations → Advanced Settings → Chat Assistant Model**
+
+The AI chat assistant (Encore) uses a separate model from text generation. More powerful models provide better conversational recommendations but cost more per interaction.
+
+| Model       | Quality      | Context Window | Best For           |
+| ----------- | ------------ | -------------- | ------------------ |
+| GPT-4.1 Nano | Budget      | 1M tokens      | Basic queries      |
+| GPT-4.1 Mini | Recommended | 1M tokens      | Most users         |
+| GPT-4.1      | Premium     | 1M tokens      | Complex requests   |
+
+**Cost Considerations**:
+- The assistant is used interactively, so costs depend on how often users chat
+- More powerful models understand nuanced requests better ("find me something like Parasite but less intense")
+- Changes take effect immediately for all users
 
 ---
 
