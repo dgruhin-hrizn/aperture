@@ -293,7 +293,7 @@ function ThreadWelcome({ suggestions }: { suggestions: string[] }) {
         <SmartToyIcon sx={{ fontSize: 36 }} />
       </Avatar>
       <Typography variant="h5" sx={{ mb: 1, fontWeight: 600 }}>
-        Hi! I'm Aperture
+        Hi! I'm Encore
       </Typography>
       <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 400 }}>
         Your AI movie and TV recommendation assistant. Ask me to find something to watch, discover similar titles, or explore your personalized picks!
