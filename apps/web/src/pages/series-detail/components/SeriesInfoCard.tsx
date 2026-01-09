@@ -1,4 +1,4 @@
-import { Box, Typography, Card, CardContent, Divider, Chip, Avatar, Stack } from '@mui/material'
+import { Box, Typography, Card, CardContent, Divider, Chip, Avatar, Stack, Tooltip, Paper } from '@mui/material'
 import PersonIcon from '@mui/icons-material/Person'
 import BusinessIcon from '@mui/icons-material/Business'
 import CreateIcon from '@mui/icons-material/Create'
@@ -6,18 +6,144 @@ import MovieFilterIcon from '@mui/icons-material/MovieFilter'
 import PublicIcon from '@mui/icons-material/Public'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import LinkIcon from '@mui/icons-material/Link'
+import LocalOfferIcon from '@mui/icons-material/LocalOffer'
 import type { Series } from '../types'
 
 interface SeriesInfoCardProps {
   series: Series
 }
 
-export function SeriesInfoCard({ series }: SeriesInfoCardProps) {
+// Rotten Tomatoes score badge component
+function RTScoreBadge({ score, type }: { score: number; type: 'critic' | 'audience' }) {
+  const isFresh = score >= 60
+  const icon = type === 'critic' ? '🍅' : '🍿'
+  const label = type === 'critic' ? 'Tomatometer' : 'Audience'
+  
   return (
-    <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
-      <CardContent>
-        {/* Overview */}
-        {series.overview && (
+    <Tooltip title={`${label}: ${score}%`}>
+      <Box sx={{ 
+        display: 'inline-flex', 
+        alignItems: 'center', 
+        gap: 0.5,
+        bgcolor: isFresh ? 'success.main' : 'error.main',
+        color: 'white',
+        px: 1,
+        py: 0.25,
+        borderRadius: 1,
+        fontSize: '0.75rem',
+        fontWeight: 600,
+      }}>
+        <span>{icon}</span>
+        <span>{score}%</span>
+      </Box>
+    </Tooltip>
+  )
+}
+
+// Metacritic score badge
+function MetacriticBadge({ score }: { score: number }) {
+  const getColor = () => {
+    if (score >= 75) return '#66cc33'
+    if (score >= 50) return '#ffcc33'
+    return '#ff0000'
+  }
+  
+  return (
+    <Tooltip title={`Metacritic: ${score}/100`}>
+      <Box sx={{ 
+        display: 'inline-flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        bgcolor: getColor(),
+        color: score >= 50 ? 'black' : 'white',
+        width: 28,
+        height: 28,
+        borderRadius: 0.5,
+        fontSize: '0.75rem',
+        fontWeight: 700,
+      }}>
+        {score}
+      </Box>
+    </Tooltip>
+  )
+}
+
+export function SeriesInfoCard({ series }: SeriesInfoCardProps) {
+  const hasRatings = series.rt_critic_score || series.rt_audience_score || series.metacritic_score
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {/* Critic Ratings Section */}
+      {hasRatings && (
+        <Paper sx={{ p: 2, borderRadius: 2, bgcolor: 'background.paper' }}>
+          <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+            Critic Ratings
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+            {series.rt_critic_score && (
+              <RTScoreBadge score={series.rt_critic_score} type="critic" />
+            )}
+            {series.rt_audience_score && (
+              <RTScoreBadge score={series.rt_audience_score} type="audience" />
+            )}
+            {series.metacritic_score && (
+              <MetacriticBadge score={series.metacritic_score} />
+            )}
+          </Box>
+          {series.rt_consensus && (
+            <Typography 
+              variant="caption" 
+              color="text.secondary" 
+              sx={{ display: 'block', mt: 1, fontStyle: 'italic' }}
+            >
+              "{series.rt_consensus}"
+            </Typography>
+          )}
+        </Paper>
+      )}
+
+      {/* Awards Section (from OMDb enrichment) */}
+      {series.awards_summary && (
+        <Paper sx={{ p: 2, borderRadius: 2, bgcolor: 'background.paper' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <EmojiEventsIcon sx={{ color: 'warning.main', fontSize: 20 }} />
+            <Typography variant="body2" fontWeight={500}>
+              {series.awards_summary}
+            </Typography>
+          </Box>
+        </Paper>
+      )}
+
+      {/* Keywords Section */}
+      {series.keywords && series.keywords.length > 0 && (
+        <Paper sx={{ p: 2, borderRadius: 2, bgcolor: 'background.paper' }}>
+          <Typography
+            variant="subtitle1"
+            fontWeight={600}
+            gutterBottom
+            sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+          >
+            <LocalOfferIcon fontSize="small" />
+            Keywords
+          </Typography>
+          <Stack direction="row" flexWrap="wrap" gap={0.5}>
+            {series.keywords.slice(0, 10).map((keyword) => (
+              <Chip 
+                key={keyword} 
+                label={keyword} 
+                size="small" 
+                variant="outlined"
+                sx={{ fontSize: '0.7rem' }}
+              />
+            ))}
+          </Stack>
+        </Paper>
+      )}
+
+      <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
+        <CardContent>
+          {/* Overview */}
+          {series.overview && (
           <>
             <Typography variant="h6" fontWeight={600} gutterBottom>
               Overview
@@ -225,6 +351,7 @@ export function SeriesInfoCard({ series }: SeriesInfoCardProps) {
         )}
       </CardContent>
     </Card>
+    </Box>
   )
 }
 

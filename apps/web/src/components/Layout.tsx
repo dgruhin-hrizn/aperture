@@ -33,18 +33,25 @@ import HelpOutlineIcon from '@mui/icons-material/HelpOutline'
 import WhatshotIcon from '@mui/icons-material/Whatshot'
 import TvIcon from '@mui/icons-material/Tv'
 import InsightsIcon from '@mui/icons-material/Insights'
+import SearchIcon from '@mui/icons-material/Search'
+import CollectionsIcon from '@mui/icons-material/Collections'
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import { useAuth } from '@/hooks/useAuth'
 import { WelcomeModal, useWelcomeModal } from './WelcomeModal'
 import { RunningJobsWidget } from './RunningJobsWidget'
+import { GlobalSearch } from './GlobalSearch'
 
 const DRAWER_WIDTH = 260
 
 // User-facing navigation items (shown to all users)
 const userMenuItems = [
   { text: 'Home', icon: <HomeIcon />, path: '/' },
+  { text: 'Search', icon: <SearchIcon />, path: '/search' },
   { text: 'Recommendations', icon: <AutoAwesomeIcon />, path: '/recommendations' },
   { text: 'Top Movies', icon: <WhatshotIcon />, path: '/top-picks/movies' },
   { text: 'Top Series', icon: <TvIcon />, path: '/top-picks/series' },
+  { text: 'Franchises', icon: <CollectionsIcon />, path: '/franchises' },
+  { text: 'Award Winners', icon: <EmojiEventsIcon />, path: '/awards' },
   { text: 'Watch History', icon: <HistoryIcon />, path: '/history' },
   { text: 'Watch Stats', icon: <InsightsIcon />, path: '/stats' },
   { text: 'Browse Movies', icon: <MovieIcon />, path: '/movies' },
@@ -231,6 +238,9 @@ export function Layout() {
           >
             <MenuIcon />
           </IconButton>
+
+          {/* Global Search */}
+          <GlobalSearch />
 
           <Box sx={{ flexGrow: 1 }} />
 

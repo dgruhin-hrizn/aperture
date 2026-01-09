@@ -13,6 +13,8 @@ import {
   Pagination,
   Skeleton,
   Alert,
+  Slider,
+  Chip,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import { MoviePoster } from '@aperture/ui'
@@ -42,6 +44,7 @@ export function SeriesPage() {
   const [search, setSearch] = useState('')
   const [genre, setGenre] = useState('')
   const [network, setNetwork] = useState('')
+  const [minRtScore, setMinRtScore] = useState<number>(0)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const pageSize = 24
@@ -90,6 +93,7 @@ export function SeriesPage() {
         if (search) params.set('search', search)
         if (genre) params.set('genre', genre)
         if (network) params.set('network', network)
+        if (minRtScore > 0) params.set('minRtScore', String(minRtScore))
 
         const response = await fetch(`/api/series?${params}`, { credentials: 'include' })
         if (response.ok) {
@@ -109,7 +113,7 @@ export function SeriesPage() {
 
     const debounce = setTimeout(fetchSeries, search ? 300 : 0)
     return () => clearTimeout(debounce)
-  }, [page, search, genre, network])
+  }, [page, search, genre, network, minRtScore])
 
   return (
     <Box>
@@ -121,7 +125,7 @@ export function SeriesPage() {
       </Typography>
 
       {/* Filters */}
-      <Box display="flex" gap={2} mb={4} flexWrap="wrap">
+      <Box display="flex" gap={2} mb={4} flexWrap="wrap" alignItems="center">
         <TextField
           placeholder="Search series..."
           value={search}
@@ -177,6 +181,51 @@ export function SeriesPage() {
             ))}
           </Select>
         </FormControl>
+
+        <Box sx={{ minWidth: 180, px: 1 }}>
+          <Typography variant="caption" color="text.secondary">
+            Min RT Score: {minRtScore > 0 ? `${minRtScore}%` : 'Any'}
+          </Typography>
+          <Slider
+            value={minRtScore}
+            onChange={(_, value) => {
+              setMinRtScore(value as number)
+              setPage(1)
+            }}
+            min={0}
+            max={100}
+            step={10}
+            size="small"
+            sx={{ mt: -0.5 }}
+          />
+        </Box>
+
+        {/* Active filters display */}
+        {(genre || network || minRtScore > 0) && (
+          <Box display="flex" gap={0.5} alignItems="center">
+            {genre && (
+              <Chip
+                label={genre}
+                size="small"
+                onDelete={() => { setGenre(''); setPage(1) }}
+              />
+            )}
+            {network && (
+              <Chip
+                label={network}
+                size="small"
+                onDelete={() => { setNetwork(''); setPage(1) }}
+              />
+            )}
+            {minRtScore > 0 && (
+              <Chip
+                label={`RT ${minRtScore}%+`}
+                size="small"
+                onDelete={() => { setMinRtScore(0); setPage(1) }}
+              />
+            )}
+          </Box>
+        )}
       </Box>
 
       {error && (
@@ -195,7 +244,7 @@ export function SeriesPage() {
         </Grid>
       ) : series.length === 0 ? (
         <Typography color="text.secondary">
-          {search || genre || network
+          {search || genre || network || minRtScore > 0
             ? 'No series match your filters.'
             : 'No series found. Run the series sync job to import your library.'}
         </Typography>

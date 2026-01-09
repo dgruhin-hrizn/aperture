@@ -248,6 +248,16 @@ export {
   setOpenAIApiKey,
   hasOpenAIApiKey,
   testOpenAIConnection,
+  // TMDb settings
+  getTMDbConfig,
+  getTMDbApiKey,
+  setTMDbConfig,
+  testTMDbConnection,
+  // OMDb settings
+  getOMDbConfig,
+  getOMDbApiKey,
+  setOMDbConfig,
+  testOMDbConnection,
   type SystemSetting,
   type EmbeddingModel,
   type TextGenerationModel,
@@ -258,6 +268,8 @@ export {
   type LibraryTitleConfig,
   type ChatAssistantModel,
   type ChatAssistantModelInfo,
+  type TMDbConfig,
+  type OMDbConfig,
 } from './settings/systemSettings.js'
 
 // Top Picks
@@ -329,4 +341,77 @@ export {
   type ImageSyncResult,
   type LibraryType,
 } from './uploads/index.js'
+
+// TMDb Integration
+export {
+  // Client utilities
+  tmdbRequest,
+  getImageUrl,
+  findMovieByImdbId,
+  findTVByImdbId,
+  findTVByTvdbId,
+  // Movie functions
+  getMovieDetails,
+  getMovieKeywords,
+  getMovieCredits,
+  getMovieEnrichmentData,
+  getMovieEnrichmentByImdbId,
+  getMovieEnrichmentByTmdbId,
+  // Series functions
+  getTVDetails,
+  getTVKeywords,
+  getSeriesEnrichmentData,
+  getSeriesEnrichmentByImdbId,
+  getSeriesEnrichmentByTmdbId,
+  getSeriesEnrichmentByTvdbId,
+  // Collection functions
+  getCollectionDetails,
+  getCollectionData,
+  getCollectionsData,
+  // Constants
+  TMDB_IMAGE_BASE_URL,
+  TMDB_API_BASE_URL,
+  // Types
+  type TMDbKeyword,
+  type TMDbGenre,
+  type TMDbCrewMember,
+  type TMDbCastMember,
+  type TMDbCollection,
+  type TMDbCollectionDetails,
+  type TMDbCollectionPart,
+  type TMDbMovieDetails,
+  type TMDbMovieKeywordsResponse,
+  type TMDbMovieCreditsResponse,
+  type TMDbTVDetails,
+  type TMDbTVKeywordsResponse,
+  type TMDbTVCreditsResponse,
+  type MovieEnrichmentData,
+  type SeriesEnrichmentData,
+  type CollectionData,
+  type TMDbImageSize,
+} from './tmdb/index.js'
+
+// OMDb Integration
+export {
+  // Client
+  omdbRequest,
+  // Ratings functions
+  extractRatingsData,
+  getRatingsData,
+  getRatingsDataBatch,
+  getOMDbData,
+  // Constants
+  OMDB_API_BASE_URL,
+  // Types
+  type OMDbRating,
+  type OMDbMovieResponse,
+  type RatingsData,
+} from './omdb/index.js'
+
+// Enrichment
+export {
+  enrichMetadata,
+  getEnrichmentStats,
+  clearEnrichmentData,
+} from './enrichment/index.js'
 

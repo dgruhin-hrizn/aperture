@@ -20,6 +20,9 @@ import { PlaylistsPage } from './pages/playlists'
 import { UserSettingsPage } from './pages/UserSettings'
 import { TopPicksMoviesPage, TopPicksSeriesPage } from './pages/top-picks'
 import { WatchStatsPage } from './pages/WatchStats'
+import { SearchPage } from './pages/Search'
+import { FranchisesPage } from './pages/Franchises'
+import { AwardsPage } from './pages/Awards'
 // Admin pages
 import { AdminDashboard } from './pages/admin'
 import { UsersPage } from './pages/Users'
@@ -112,6 +115,9 @@ function AppRoutes() {
         <Route path="series" element={<SeriesPage />} />
         <Route path="series/:id" element={<SeriesDetailPage />} />
         <Route path="playlists" element={<PlaylistsPage />} />
+        <Route path="search" element={<SearchPage />} />
+        <Route path="franchises" element={<FranchisesPage />} />
+        <Route path="awards" element={<AwardsPage />} />
         <Route path="settings" element={<UserSettingsPage />} />
 
         {/* Admin Routes - nested under AdminLayout */}

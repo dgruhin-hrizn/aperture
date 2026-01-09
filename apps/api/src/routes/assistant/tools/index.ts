@@ -11,6 +11,7 @@ import { createHistoryTools } from './history.js'
 import { createRecommendationTools } from './recommendations.js'
 import { createPeopleTools } from './people.js'
 import { createHelpTools } from './help.js'
+import { createDiscoveryTools } from './discovery.js'
 
 /**
  * Create all assistant tools with the given context
@@ -24,5 +25,6 @@ export function createTools(ctx: ToolContext) {
     ...createRecommendationTools(ctx),
     ...createPeopleTools(ctx),
     ...createHelpTools(ctx),
+    ...createDiscoveryTools(ctx),
   }
 }

@@ -683,3 +683,172 @@ export async function testOpenAIConnection(): Promise<{ success: boolean; error?
     return { success: false, error }
   }
 }
+
+// ============================================================================
+// TMDb API Settings
+// ============================================================================
+
+export interface TMDbConfig {
+  apiKey: string | null
+  enabled: boolean
+  hasApiKey: boolean
+}
+
+/**
+ * Get TMDb configuration
+ */
+export async function getTMDbConfig(): Promise<TMDbConfig> {
+  const apiKey = await getSystemSetting('tmdb_api_key')
+  const enabled = await getSystemSetting('tmdb_enabled')
+
+  return {
+    apiKey: apiKey || null,
+    enabled: enabled !== 'false' && !!apiKey, // Enabled by default if key exists
+    hasApiKey: !!apiKey,
+  }
+}
+
+/**
+ * Get TMDb API key
+ */
+export async function getTMDbApiKey(): Promise<string | null> {
+  return await getSystemSetting('tmdb_api_key')
+}
+
+/**
+ * Set TMDb configuration
+ */
+export async function setTMDbConfig(config: {
+  apiKey?: string
+  enabled?: boolean
+}): Promise<TMDbConfig> {
+  if (config.apiKey !== undefined) {
+    await setSystemSetting(
+      'tmdb_api_key',
+      config.apiKey,
+      'TMDb API key for keywords, collections, and crew data'
+    )
+  }
+  if (config.enabled !== undefined) {
+    await setSystemSetting('tmdb_enabled', String(config.enabled), 'Enable TMDb integration')
+  }
+  logger.info('TMDb config updated')
+  return getTMDbConfig()
+}
+
+/**
+ * Test TMDb API connection
+ */
+export async function testTMDbConnection(
+  apiKey?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const key = apiKey || (await getTMDbApiKey())
+    if (!key) {
+      return { success: false, error: 'No API key configured' }
+    }
+
+    // Test with a simple API call
+    const response = await fetch(`https://api.themoviedb.org/3/configuration?api_key=${key}`)
+
+    if (response.ok) {
+      return { success: true }
+    } else {
+      const data = (await response.json().catch(() => ({}))) as {
+        status_message?: string
+      }
+      return {
+        success: false,
+        error: data.status_message || `API returned status ${response.status}`,
+      }
+    }
+  } catch (err) {
+    const error = err instanceof Error ? err.message : 'Unknown error'
+    logger.warn({ err }, 'TMDb connection test failed')
+    return { success: false, error }
+  }
+}
+
+// ============================================================================
+// OMDb API Settings
+// ============================================================================
+
+export interface OMDbConfig {
+  apiKey: string | null
+  enabled: boolean
+  hasApiKey: boolean
+}
+
+/**
+ * Get OMDb configuration
+ */
+export async function getOMDbConfig(): Promise<OMDbConfig> {
+  const apiKey = await getSystemSetting('omdb_api_key')
+  const enabled = await getSystemSetting('omdb_enabled')
+
+  return {
+    apiKey: apiKey || null,
+    enabled: enabled !== 'false' && !!apiKey, // Enabled by default if key exists
+    hasApiKey: !!apiKey,
+  }
+}
+
+/**
+ * Get OMDb API key
+ */
+export async function getOMDbApiKey(): Promise<string | null> {
+  return await getSystemSetting('omdb_api_key')
+}
+
+/**
+ * Set OMDb configuration
+ */
+export async function setOMDbConfig(config: {
+  apiKey?: string
+  enabled?: boolean
+}): Promise<OMDbConfig> {
+  if (config.apiKey !== undefined) {
+    await setSystemSetting(
+      'omdb_api_key',
+      config.apiKey,
+      'OMDb API key for Rotten Tomatoes scores, Metacritic, and awards'
+    )
+  }
+  if (config.enabled !== undefined) {
+    await setSystemSetting('omdb_enabled', String(config.enabled), 'Enable OMDb integration')
+  }
+  logger.info('OMDb config updated')
+  return getOMDbConfig()
+}
+
+/**
+ * Test OMDb API connection
+ */
+export async function testOMDbConnection(
+  apiKey?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const key = apiKey || (await getOMDbApiKey())
+    if (!key) {
+      return { success: false, error: 'No API key configured' }
+    }
+
+    // Test with a simple API call (search for a known movie)
+    const response = await fetch(`https://www.omdbapi.com/?apikey=${key}&i=tt0111161`)
+
+    if (response.ok) {
+      const data = (await response.json()) as { Response?: string; Error?: string }
+      if (data.Response === 'True') {
+        return { success: true }
+      } else {
+        return { success: false, error: data.Error || 'Unknown error' }
+      }
+    } else {
+      return { success: false, error: `API returned status ${response.status}` }
+    }
+  } catch (err) {
+    const error = err instanceof Error ? err.message : 'Unknown error'
+    logger.warn({ err }, 'OMDb connection test failed')
+    return { success: false, error }
+  }
+}

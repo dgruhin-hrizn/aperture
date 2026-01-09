@@ -50,6 +50,8 @@ const ENV_DEFAULTS: Record<string, { cron: string; scheduleType: ScheduleType; h
   'sync-trakt-ratings': { cron: '0 */6 * * *', scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 6 },
   // Assistant suggestions job (every hour)
   'refresh-assistant-suggestions': { cron: '0 * * * *', scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 1 },
+  // Metadata enrichment job (manual by default, can be scheduled)
+  'enrich-metadata': { cron: '', scheduleType: 'manual', hour: 0, minute: 0 },
 }
 
 function rowToConfig(row: JobConfigRow): JobConfig {

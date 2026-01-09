@@ -40,6 +40,12 @@ import {
   hasOpenAIApiKey,
   setOpenAIApiKey,
   testOpenAIConnection,
+  getTMDbConfig,
+  setTMDbConfig,
+  testTMDbConnection,
+  getOMDbConfig,
+  setOMDbConfig,
+  testOMDbConnection,
   type EmbeddingModel,
   type MediaServerType,
   type TextGenerationModel,
@@ -1643,6 +1649,142 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       }
     }
   )
+
+  // =========================================================================
+  // TMDb API Settings (Admin Only)
+  // =========================================================================
+
+  /**
+   * GET /api/settings/tmdb
+   * Get TMDb configuration status
+   */
+  fastify.get('/api/settings/tmdb', { preHandler: requireAdmin }, async (_request, reply) => {
+    try {
+      const config = await getTMDbConfig()
+      return reply.send({
+        hasApiKey: config.hasApiKey,
+        enabled: config.enabled,
+        isConfigured: config.hasApiKey,
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get TMDb config')
+      return reply.status(500).send({ error: 'Failed to get TMDb configuration' })
+    }
+  })
+
+  /**
+   * PATCH /api/settings/tmdb
+   * Update TMDb configuration
+   */
+  fastify.patch<{
+    Body: { apiKey?: string; enabled?: boolean }
+  }>('/api/settings/tmdb', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const { apiKey, enabled } = request.body
+
+      // Validate the API key if provided
+      if (apiKey !== undefined && apiKey !== '' && typeof apiKey !== 'string') {
+        return reply.status(400).send({ error: 'Invalid API key format' })
+      }
+
+      const config = await setTMDbConfig({ apiKey, enabled })
+
+      return reply.send({
+        hasApiKey: config.hasApiKey,
+        enabled: config.enabled,
+        isConfigured: config.hasApiKey,
+        message: 'TMDb configuration updated',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to save TMDb config')
+      return reply.status(500).send({ error: 'Failed to save TMDb configuration' })
+    }
+  })
+
+  /**
+   * POST /api/settings/tmdb/test
+   * Test TMDb API connection
+   */
+  fastify.post<{
+    Body?: { apiKey?: string }
+  }>('/api/settings/tmdb/test', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const apiKey = request.body?.apiKey
+      const result = await testTMDbConnection(apiKey)
+      return reply.send(result)
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to test TMDb connection')
+      return reply.status(500).send({ error: 'Failed to test TMDb connection' })
+    }
+  })
+
+  // =========================================================================
+  // OMDb API Settings (Admin Only)
+  // =========================================================================
+
+  /**
+   * GET /api/settings/omdb
+   * Get OMDb configuration status
+   */
+  fastify.get('/api/settings/omdb', { preHandler: requireAdmin }, async (_request, reply) => {
+    try {
+      const config = await getOMDbConfig()
+      return reply.send({
+        hasApiKey: config.hasApiKey,
+        enabled: config.enabled,
+        isConfigured: config.hasApiKey,
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get OMDb config')
+      return reply.status(500).send({ error: 'Failed to get OMDb configuration' })
+    }
+  })
+
+  /**
+   * PATCH /api/settings/omdb
+   * Update OMDb configuration
+   */
+  fastify.patch<{
+    Body: { apiKey?: string; enabled?: boolean }
+  }>('/api/settings/omdb', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const { apiKey, enabled } = request.body
+
+      // Validate the API key if provided
+      if (apiKey !== undefined && apiKey !== '' && typeof apiKey !== 'string') {
+        return reply.status(400).send({ error: 'Invalid API key format' })
+      }
+
+      const config = await setOMDbConfig({ apiKey, enabled })
+
+      return reply.send({
+        hasApiKey: config.hasApiKey,
+        enabled: config.enabled,
+        isConfigured: config.hasApiKey,
+        message: 'OMDb configuration updated',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to save OMDb config')
+      return reply.status(500).send({ error: 'Failed to save OMDb configuration' })
+    }
+  })
+
+  /**
+   * POST /api/settings/omdb/test
+   * Test OMDb API connection
+   */
+  fastify.post<{
+    Body?: { apiKey?: string }
+  }>('/api/settings/omdb/test', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const apiKey = request.body?.apiKey
+      const result = await testOMDbConnection(apiKey)
+      return reply.send(result)
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to test OMDb connection')
+      return reply.status(500).send({ error: 'Failed to test OMDb connection' })
+    }
+  })
 }
 
 export default settingsRoutes

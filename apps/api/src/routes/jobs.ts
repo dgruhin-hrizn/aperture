@@ -15,6 +15,8 @@ import {
   processSeriesStrmForAllUsers,
   // Top Picks
   refreshTopPicks,
+  // Enrichment
+  enrichMetadata,
   // Common
   createChildLogger,
   getJobProgress,
@@ -139,6 +141,12 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
     name: 'refresh-assistant-suggestions',
     description: 'Refresh personalized assistant suggestions for all users',
     cron: '0 * * * *', // Every hour
+  },
+  // === Metadata Enrichment Job ===
+  {
+    name: 'enrich-metadata',
+    description: 'Enrich movies and series with TMDb keywords, collections, and OMDb ratings',
+    cron: null, // Manual by default
   },
 ]
 
@@ -843,6 +851,18 @@ async function runJob(name: string, jobId: string): Promise<void> {
           usersProcessed: result.usersProcessed,
           errors: result.errors,
         }, `✅ Assistant suggestions refresh complete`)
+        break
+      }
+      // === Metadata Enrichment Job ===
+      case 'enrich-metadata': {
+        const result = await enrichMetadata(jobId)
+        logger.info({
+          job: name,
+          jobId,
+          moviesEnriched: result.moviesEnriched,
+          seriesEnriched: result.seriesEnriched,
+          collectionsCreated: result.collectionsCreated,
+        }, `✅ Metadata enrichment complete`)
         break
       }
       default:

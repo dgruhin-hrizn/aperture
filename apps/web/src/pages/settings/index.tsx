@@ -32,6 +32,8 @@ import {
   LibraryTitlesSection,
   TraktConfigSection,
   OpenAIConfigSection,
+  TMDbConfigSection,
+  OMDbConfigSection,
 } from './components'
 
 interface TabPanelProps {
@@ -136,6 +138,8 @@ export function SettingsPage() {
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
                   <OpenAIConfigSection />
                   <TraktConfigSection />
+                  <TMDbConfigSection />
+                  <OMDbConfigSection />
                 </Box>
               </Box>
             </TabPanel>

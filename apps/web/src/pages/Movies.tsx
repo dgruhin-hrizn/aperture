@@ -13,6 +13,8 @@ import {
   Pagination,
   Skeleton,
   Alert,
+  Slider,
+  Chip,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import { MoviePoster } from '@aperture/ui'
@@ -28,15 +30,23 @@ interface Movie {
   community_rating: number | null
 }
 
+interface Collection {
+  name: string
+  count: number
+}
+
 export function MoviesPage() {
   const navigate = useNavigate()
   const { getRating, setRating } = useUserRatings()
   const [movies, setMovies] = useState<Movie[]>([])
   const [genres, setGenres] = useState<string[]>([])
+  const [collections, setCollections] = useState<Collection[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [genre, setGenre] = useState('')
+  const [collection, setCollection] = useState('')
+  const [minRtScore, setMinRtScore] = useState<number>(0)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const pageSize = 24
@@ -53,18 +63,25 @@ export function MoviesPage() {
   )
 
   useEffect(() => {
-    const fetchGenres = async () => {
+    const fetchFilters = async () => {
       try {
-        const response = await fetch('/api/movies/genres', { credentials: 'include' })
-        if (response.ok) {
-          const data = await response.json()
+        const [genresRes, collectionsRes] = await Promise.all([
+          fetch('/api/movies/genres', { credentials: 'include' }),
+          fetch('/api/movies/collections', { credentials: 'include' }),
+        ])
+        if (genresRes.ok) {
+          const data = await genresRes.json()
           setGenres(data.genres)
         }
+        if (collectionsRes.ok) {
+          const data = await collectionsRes.json()
+          setCollections(data.collections)
+        }
       } catch {
-        // Ignore genre fetch errors
+        // Ignore filter fetch errors
       }
     }
-    fetchGenres()
+    fetchFilters()
   }, [])
 
   useEffect(() => {
@@ -77,6 +94,8 @@ export function MoviesPage() {
         })
         if (search) params.set('search', search)
         if (genre) params.set('genre', genre)
+        if (collection) params.set('collection', collection)
+        if (minRtScore > 0) params.set('minRtScore', String(minRtScore))
 
         const response = await fetch(`/api/movies?${params}`, { credentials: 'include' })
         if (response.ok) {
@@ -96,7 +115,7 @@ export function MoviesPage() {
 
     const debounce = setTimeout(fetchMovies, search ? 300 : 0)
     return () => clearTimeout(debounce)
-  }, [page, search, genre])
+  }, [page, search, genre, collection, minRtScore])
 
   return (
     <Box>
@@ -108,7 +127,7 @@ export function MoviesPage() {
       </Typography>
 
       {/* Filters */}
-      <Box display="flex" gap={2} mb={4} flexWrap="wrap">
+      <Box display="flex" gap={2} mb={4} flexWrap="wrap" alignItems="center">
         <TextField
           placeholder="Search movies..."
           value={search}
@@ -145,6 +164,72 @@ export function MoviesPage() {
             ))}
           </Select>
         </FormControl>
+
+        {collections.length > 0 && (
+          <FormControl size="small" sx={{ minWidth: 180 }}>
+            <InputLabel>Franchise</InputLabel>
+            <Select
+              value={collection}
+              label="Franchise"
+              onChange={(e) => {
+                setCollection(e.target.value)
+                setPage(1)
+              }}
+            >
+              <MenuItem value="">All Franchises</MenuItem>
+              {collections.map((c) => (
+                <MenuItem key={c.name} value={c.name}>
+                  {c.name} ({c.count})
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
+
+        <Box sx={{ minWidth: 180, px: 1 }}>
+          <Typography variant="caption" color="text.secondary">
+            Min RT Score: {minRtScore > 0 ? `${minRtScore}%` : 'Any'}
+          </Typography>
+          <Slider
+            value={minRtScore}
+            onChange={(_, value) => {
+              setMinRtScore(value as number)
+              setPage(1)
+            }}
+            min={0}
+            max={100}
+            step={10}
+            size="small"
+            sx={{ mt: -0.5 }}
+          />
+        </Box>
+
+        {/* Active filters display */}
+        {(genre || collection || minRtScore > 0) && (
+          <Box display="flex" gap={0.5} alignItems="center">
+            {genre && (
+              <Chip
+                label={genre}
+                size="small"
+                onDelete={() => { setGenre(''); setPage(1) }}
+              />
+            )}
+            {collection && (
+              <Chip
+                label={collection}
+                size="small"
+                onDelete={() => { setCollection(''); setPage(1) }}
+              />
+            )}
+            {minRtScore > 0 && (
+              <Chip
+                label={`RT ${minRtScore}%+`}
+                size="small"
+                onDelete={() => { setMinRtScore(0); setPage(1) }}
+              />
+            )}
+          </Box>
+        )}
       </Box>
 
       {error && (
@@ -163,7 +248,7 @@ export function MoviesPage() {
         </Grid>
       ) : movies.length === 0 ? (
         <Typography color="text.secondary">
-          {search || genre
+          {search || genre || collection || minRtScore > 0
             ? 'No movies match your filters.'
             : 'No movies found. Run the movie sync job to import your library.'}
         </Typography>

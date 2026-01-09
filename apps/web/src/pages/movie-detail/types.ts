@@ -10,6 +10,22 @@ export interface Movie {
   runtime_minutes: number | null
   poster_url: string | null
   backdrop_url: string | null
+  // Crew
+  directors?: string[]
+  writers?: string[]
+  cinematographers?: string[]
+  composers?: string[]
+  editors?: string[]
+  // TMDb enrichment
+  keywords?: string[]
+  collection_id?: string | null
+  collection_name?: string | null
+  // OMDb enrichment
+  rt_critic_score?: number | null
+  rt_audience_score?: number | null
+  rt_consensus?: string | null
+  metacritic_score?: number | null
+  awards_summary?: string | null
 }
 
 export interface WatchStatus {

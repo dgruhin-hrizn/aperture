@@ -30,6 +30,14 @@ export interface Series {
   awards: string | null
   poster_url: string | null
   backdrop_url: string | null
+  // TMDb enrichment
+  keywords?: string[]
+  // OMDb enrichment
+  rt_critic_score?: number | null
+  rt_audience_score?: number | null
+  rt_consensus?: string | null
+  metacritic_score?: number | null
+  awards_summary?: string | null
 }
 
 export interface Episode {

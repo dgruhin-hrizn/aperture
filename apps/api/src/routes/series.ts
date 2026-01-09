@@ -36,6 +36,14 @@ interface SeriesDetailRow extends SeriesRow {
   air_days: string[]
   production_countries: string[]
   awards: string | null
+  // TMDb enrichment
+  keywords: string[] | null
+  // OMDb enrichment
+  rt_critic_score: number | null
+  rt_audience_score: number | null
+  rt_consensus: string | null
+  metacritic_score: number | null
+  awards_summary: string | null
 }
 
 interface SeriesListResponse {
@@ -58,6 +66,7 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
       genre?: string
       network?: string
       status?: string
+      minRtScore?: string
       showAll?: string
     }
     Reply: SeriesListResponse
@@ -65,7 +74,7 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
     const page = parseInt(request.query.page || '1', 10)
     const pageSize = Math.min(parseInt(request.query.pageSize || '50', 10), 100)
     const offset = (page - 1) * pageSize
-    const { search, genre, network, status, showAll } = request.query
+    const { search, genre, network, status, minRtScore, showAll } = request.query
 
     // Check if library configs exist
     const configCheck = await queryOne<{ count: string }>(
@@ -111,6 +120,15 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
       params.push(status)
     }
 
+    if (minRtScore) {
+      const rtScore = parseInt(minRtScore, 10)
+      if (rtScore > 0) {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `rt_critic_score >= $${paramIndex++}`
+        params.push(rtScore)
+      }
+    }
+
     // Get total count
     const countResult = await queryOne<{ count: string }>(
       `SELECT COUNT(*) as count FROM series${whereClause}`,
@@ -153,7 +171,8 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
                 community_rating, critic_rating, content_rating, status, total_seasons, total_episodes, 
                 network, tagline, studios, directors, writers, actors,
                 imdb_id, tmdb_id, tvdb_id, air_days, production_countries, awards,
-                poster_url, backdrop_url, created_at, updated_at
+                poster_url, backdrop_url, created_at, updated_at,
+                keywords, rt_critic_score, rt_audience_score, rt_consensus, metacritic_score, awards_summary
          FROM series WHERE id = $1`,
         [id]
       )
@@ -188,6 +207,25 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
     )
 
     return reply.send({ networks: result.rows.map((r) => r.network) })
+  })
+
+  /**
+   * GET /api/series/keywords
+   * Get all unique keywords (from TMDb enrichment)
+   */
+  fastify.get('/api/series/keywords', { preHandler: requireAuth }, async (_request, reply) => {
+    const result = await query<{ keyword: string; count: string }>(
+      `SELECT unnest(keywords) as keyword, COUNT(*) as count
+       FROM series WHERE keywords IS NOT NULL AND array_length(keywords, 1) > 0
+       GROUP BY unnest(keywords)
+       HAVING COUNT(*) > 1
+       ORDER BY COUNT(*) DESC
+       LIMIT 100`
+    )
+
+    return reply.send({ 
+      keywords: result.rows.map((r) => ({ name: r.keyword, count: parseInt(r.count, 10) })) 
+    })
   })
 
   /**
