@@ -4,13 +4,13 @@ This guide covers initial setup, ongoing operations, and administrative configur
 
 ## Table of Contents
 
-- [Initial Setup Walkthrough](#initial-setup-walkthrough)
-  - [Step 1: Configure Media Server](#step-1-configure-media-server-connection)
-  - [Step 2: Select Libraries](#step-2-select-libraries-to-sync)
-  - [Step 3: Run Initial Sync](#step-3-run-initial-data-sync)
-  - [Step 4: Enable Users](#step-4-enable-users-for-ai-recommendations)
-  - [Step 5: Sync Watch History](#step-5-sync-watch-history)
-  - [Step 6: Generate Recommendations](#step-6-generate-recommendations)
+- [First-Time Setup Wizard](#first-time-setup-wizard)
+- [Post-Setup Configuration](#post-setup-configuration)
+  - [Step 1: Select Libraries](#step-1-select-libraries-to-sync)
+  - [Step 2: Run Initial Sync](#step-2-run-initial-data-sync)
+  - [Step 3: Enable Users](#step-3-enable-users-for-ai-recommendations)
+  - [Step 4: Sync Watch History](#step-4-sync-watch-history)
+  - [Step 5: Generate Recommendations](#step-5-generate-recommendations)
 - [Managing Jobs](#managing-jobs)
   - [Job Scheduling](#job-scheduling)
   - [Monitoring Jobs](#monitoring-jobs)
@@ -32,23 +32,47 @@ This guide covers initial setup, ongoing operations, and administrative configur
 
 ---
 
-## Initial Setup Walkthrough
+## First-Time Setup Wizard
 
-After starting Aperture for the first time, log in with your **Emby/Jellyfin admin account** and follow these steps:
+When you first access Aperture, you'll be guided through a setup wizard:
 
-### Step 1: Configure Media Server Connection
+### Step 1: Welcome
 
-Navigate to **Admin → Settings → Media Server**
+The wizard introduces Aperture and explains the setup process.
+
+### Step 2: Media Server Connection
+
+Configure your Emby or Jellyfin server:
 
 1. Select your server type (Emby or Jellyfin)
 2. Enter your media server URL (e.g., `http://192.168.1.100:8096`)
-3. Enter your admin API key
+3. Enter your admin API key:
    - **Emby**: Dashboard → API Keys → New API Key
    - **Jellyfin**: Dashboard → API Keys → Add
 4. Click **Test Connection** to verify
 5. Save the configuration
 
-### Step 2: Select Libraries to Sync
+### Step 3: OpenAI Configuration (Optional)
+
+Configure your OpenAI API key for AI-powered recommendations:
+
+1. Enter your OpenAI API key (get one from [platform.openai.com](https://platform.openai.com))
+2. Click **Test Key** to verify
+3. Click **Save & Complete** or **Skip & Complete** to proceed
+
+> **Note**: You can always configure OpenAI later in Admin → Settings → AI.
+
+### Step 4: Complete
+
+Once setup is complete, you'll be redirected to the login page. Log in with your **Emby/Jellyfin admin account** to continue configuration.
+
+---
+
+## Post-Setup Configuration
+
+After completing the setup wizard and logging in, follow these steps to get recommendations working:
+
+### Step 1: Select Libraries to Sync
 
 Navigate to **Admin → Settings → Libraries**
 

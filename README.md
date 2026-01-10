@@ -91,7 +91,8 @@ Aperture creates personalized recommendation libraries for your media server use
 
 ### Admin Features
 
-- **Web-Based Configuration**: No env vars required for setup
+- **Setup Wizard**: Guided first-time configuration (no env vars required)
+- **Web-Based Configuration**: All settings configurable through the UI
 - **Job Management**: Real-time progress, scheduling, and history
 - **Schedule Overview**: View all scheduled jobs in a dedicated table
 - **User Management**: Per-user recommendation settings
@@ -111,7 +112,7 @@ Aperture creates personalized recommendation libraries for your media server use
 
 - Docker and Docker Compose
 - An Emby or Jellyfin server with admin API key
-- OpenAI API key
+- OpenAI API key (optional during initial setup)
 
 ### Using Pre-built Docker Image
 
@@ -124,7 +125,7 @@ services:
     container_name: aperture-db
     environment:
       POSTGRES_USER: app
-      POSTGRES_PASSWORD: changeme-db-password
+      POSTGRES_PASSWORD: app
       POSTGRES_DB: aperture
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -141,17 +142,14 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3456
-      DATABASE_URL: postgres://app:changeme-db-password@db:5432/aperture
-      SESSION_SECRET: changeme-generate-random-32-char-string
-      APP_BASE_URL: http://localhost:3456
+      DATABASE_URL: postgres://app:app@db:5432/aperture
       RUN_MIGRATIONS_ON_START: 'true'
-      OPENAI_API_KEY: sk-your-openai-api-key
-      MEDIA_SERVER_STRM_ROOT: /strm
-      AI_LIBRARY_PATH_PREFIX: /strm/aperture/
+      TZ: America/New_York
     ports:
       - '3456:3456'
     volumes:
-      - ./strm:/strm
+      - ./data/strm:/strm
+      - ./uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -161,21 +159,24 @@ volumes:
   pgdata:
 ```
 
-2. **Configure environment variables**
-   - `SESSION_SECRET` — Generate a random string (at least 32 characters)
-   - `OPENAI_API_KEY` — Your OpenAI API key
-   - `APP_BASE_URL` — The URL where you'll access Aperture
-   - Database passwords (change `changeme-db-password` in both places)
-
-3. **Start Aperture**
+2. **Start Aperture**
 
 ```bash
 docker compose up -d
 ```
 
-4. **Open the app** at http://localhost:3456 and log in with your Emby/Jellyfin credentials.
+3. **Complete the Setup Wizard**
 
-5. **Configure your media server** in Admin → Settings → Media Server.
+   Open http://localhost:3456 (or your server IP) and you'll be guided through:
+   - **Media Server**: Connect to your Emby or Jellyfin server
+   - **OpenAI**: Configure your API key (optional, can be added later)
+   - **Complete**: Finish setup and start using Aperture
+
+4. **Log in** with your Emby/Jellyfin admin credentials
+
+5. **Configure libraries** in Admin → Settings → Libraries
+
+> **Note**: All configuration (media server, OpenAI, etc.) can be done through the web UI after setup. No environment variables required for most settings!
 
 ### Updating
 

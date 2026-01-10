@@ -51,19 +51,19 @@ Aperture uses a **database-first** configuration approach. Most settings can be 
 
 ### Required Settings
 
-| Variable       | Description                  | Notes                                  |
-| -------------- | ---------------------------- | -------------------------------------- |
+| Variable       | Description                  | Notes                                       |
+| -------------- | ---------------------------- | ------------------------------------------- |
 | `DATABASE_URL` | PostgreSQL connection string | e.g., `postgres://app:app@db:5432/aperture` |
 
 ### Optional Settings
 
-| Variable         | Description                          | Default                    |
-| ---------------- | ------------------------------------ | -------------------------- |
-| `PORT`           | API server port                      | `3456`                     |
-| `NODE_ENV`       | Environment mode                     | `development`              |
+| Variable         | Description                          | Default                                         |
+| ---------------- | ------------------------------------ | ----------------------------------------------- |
+| `PORT`           | API server port                      | `3456`                                          |
+| `NODE_ENV`       | Environment mode                     | `development`                                   |
 | `SESSION_SECRET` | Session cookie secret (min 32 chars) | Auto-generated (set in production for clusters) |
-| `APP_BASE_URL`   | Public URL of the application        | `http://localhost:3456`    |
-| `TZ`             | Timezone                             | System default             |
+| `APP_BASE_URL`   | Public URL of the application        | `http://localhost:3456`                         |
+| `TZ`             | Timezone                             | System default                                  |
 
 ### UI-Configurable Settings
 
