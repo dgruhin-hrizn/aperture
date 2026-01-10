@@ -2,8 +2,8 @@ import type { FastifyPluginAsync } from 'fastify'
 import { query, queryOne } from '../lib/db.js'
 import { requireAuth } from '../plugins/auth.js'
 import { embed } from 'ai'
-import { openai } from '@ai-sdk/openai'
-import { getEmbeddingModel } from '@aperture/core'
+import { getEmbeddingModel, getOpenAIApiKey } from '@aperture/core'
+import { createOpenAI } from '@ai-sdk/openai'
 
 interface SearchResult {
   id: string
@@ -42,6 +42,14 @@ interface SearchResponse {
 async function getQueryEmbedding(queryText: string): Promise<number[] | null> {
   try {
     const model = await getEmbeddingModel()
+    const apiKey = await getOpenAIApiKey()
+    
+    if (!apiKey) {
+      // OpenAI not configured, skip semantic search
+      return null
+    }
+    
+    const openai = createOpenAI({ apiKey })
 
     const { embedding } = await embed({
       model: openai.embedding(model),

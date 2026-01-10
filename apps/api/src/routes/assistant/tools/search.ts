@@ -3,20 +3,24 @@
  */
 import { tool, embed, generateObject } from 'ai'
 import { z } from 'zod'
-import { openai } from '@ai-sdk/openai'
 import { query, queryOne } from '../../../lib/db.js'
 import { buildPlayLink } from '../helpers/mediaServer.js'
 import type { ContentItem } from '../schemas/index.js'
-import type { ToolContext, MovieResult, SeriesResult } from '../types.js'
+import type { ToolContext, MovieResult, SeriesResult, OpenAIProvider } from '../types.js'
 
 /**
  * AI-powered semantic search query generator
  * The AI knows what content is about - let it describe what to search for!
  */
-async function generateSearchQuery(title: string, type: 'movie' | 'series'): Promise<string> {
+async function generateSearchQuery(
+  title: string,
+  type: 'movie' | 'series',
+  openai: OpenAIProvider
+): Promise<string> {
   try {
     const { object } = await generateObject({
-      model: openai('gpt-4.1-nano'),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      model: openai('gpt-4.1-nano') as any,
       schema: z.object({
         searchQuery: z.string().describe('A specific description for semantic search'),
       }),
@@ -370,7 +374,8 @@ export function createSearchTools(ctx: ToolContext) {
 
           // Generate embedding for the search concept using AI SDK
           const { embedding: queryEmbedding } = await embed({
-            model: openai.embedding(ctx.embeddingModel),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            model: ctx.openai.embedding(ctx.embeddingModel) as any,
             value: concept,
           })
           const embeddingStr = `[${queryEmbedding.join(',')}]`
@@ -574,10 +579,11 @@ export function createSearchTools(ctx: ToolContext) {
 
             // AI-POWERED SEMANTIC SEARCH
             // The AI KNOWS what this movie is about - let it describe what to search for!
-            const searchQuery = await generateSearchQuery(movie.title, 'movie')
+            const searchQuery = await generateSearchQuery(movie.title, 'movie', ctx.openai)
 
             const { embedding: queryEmbedding } = await embed({
-              model: openai.embedding(ctx.embeddingModel),
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              model: ctx.openai.embedding(ctx.embeddingModel) as any,
               value: searchQuery,
             })
             const embeddingStr = `[${queryEmbedding.join(',')}]`
@@ -612,11 +618,12 @@ export function createSearchTools(ctx: ToolContext) {
             // - AI uses world knowledge, not just our DB's potentially wrong genre tags
             // - AI understands tone, themes, audience - not just surface features
 
-            const searchQuery = await generateSearchQuery(series.title, 'series')
+            const searchQuery = await generateSearchQuery(series.title, 'series', ctx.openai)
 
             // Generate embedding from AI's semantic description
             const { embedding: queryEmbedding } = await embed({
-              model: openai.embedding(ctx.embeddingModel),
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              model: ctx.openai.embedding(ctx.embeddingModel) as any,
               value: searchQuery,
             })
             const embeddingStr = `[${queryEmbedding.join(',')}]`

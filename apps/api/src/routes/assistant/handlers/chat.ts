@@ -9,10 +9,9 @@
 import { Readable } from 'node:stream'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { streamText, convertToModelMessages, stepCountIs, type UIMessage } from 'ai'
-import { openai } from '@ai-sdk/openai'
 import { getEmbeddingModel, getChatAssistantModel } from '@aperture/core'
 import { requireAuth, type SessionUser } from '../../../plugins/auth.js'
-import { getMediaServerInfo, buildSystemPrompt } from '../helpers/index.js'
+import { getMediaServerInfo, buildSystemPrompt, getOpenAIClient } from '../helpers/index.js'
 import { createTools } from '../tools/index.js'
 
 interface ChatBody {
@@ -111,6 +110,7 @@ export function registerChatHandler(fastify: FastifyInstance) {
         const embeddingModel = await getEmbeddingModel()
         const mediaServer = await getMediaServerInfo()
         const systemPrompt = await buildSystemPrompt(user.id, user.isAdmin)
+        const openai = await getOpenAIClient()
 
         // Create tool context
         const toolContext = {
@@ -118,6 +118,7 @@ export function registerChatHandler(fastify: FastifyInstance) {
           isAdmin: user.isAdmin,
           embeddingModel,
           mediaServer,
+          openai,
         }
 
         // Create tools with context

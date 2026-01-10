@@ -74,10 +74,18 @@ export interface MessageRow {
   created_at: Date
 }
 
+// OpenAI provider type from @ai-sdk/openai
+export interface OpenAIProvider {
+  (modelId: string, settings?: Record<string, unknown>): unknown
+  chat: (modelId: string, settings?: Record<string, unknown>) => unknown
+  embedding: (modelId: string, settings?: Record<string, unknown>) => unknown
+}
+
 // Tool context - passed to all tools
 export interface ToolContext {
   userId: string
   isAdmin: boolean
   embeddingModel: string
   mediaServer: MediaServerInfo | null
+  openai: OpenAIProvider
 }
