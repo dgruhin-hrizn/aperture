@@ -5,26 +5,12 @@
  * based on their watch history and preferences.
  */
 
-import OpenAI from 'openai'
 import { query, queryOne } from './db.js'
 import { createChildLogger } from './logger.js'
-import { getTextGenerationModel, getOpenAIApiKey } from '../settings/systemSettings.js'
+import { getOpenAIClient } from './openai.js'
+import { getTextGenerationModel } from '../settings/systemSettings.js'
 
 const logger = createChildLogger('taste-synopsis')
-
-// Lazy-initialized OpenAI client
-let openaiClient: OpenAI | null = null
-
-async function getOpenAIClient(): Promise<OpenAI> {
-  if (!openaiClient) {
-    const apiKey = await getOpenAIApiKey()
-    if (!apiKey) {
-      throw new Error('OpenAI API key is not configured. Please set it in Settings > AI.')
-    }
-    openaiClient = new OpenAI({ apiKey })
-  }
-  return openaiClient
-}
 
 export interface TasteSynopsis {
   synopsis: string

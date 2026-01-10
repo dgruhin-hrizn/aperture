@@ -1,5 +1,5 @@
-import OpenAI from 'openai'
 import { createChildLogger } from '../../lib/logger.js'
+import { getOpenAIClient } from '../../lib/openai.js'
 import { query, queryOne } from '../../lib/db.js'
 import {
   createJobProgress,
@@ -35,22 +35,6 @@ interface EmbeddingResult {
   movieId: string
   embedding: number[]
   canonicalText: string
-}
-
-let openaiClient: OpenAI | null = null
-let cachedApiKey: string | null = null
-
-async function getOpenAIClient(): Promise<OpenAI> {
-  const apiKey = await getOpenAIApiKey()
-  if (!apiKey) {
-    throw new Error('OpenAI API key is not configured')
-  }
-  // Recreate client if API key changed
-  if (!openaiClient || cachedApiKey !== apiKey) {
-    openaiClient = new OpenAI({ apiKey })
-    cachedApiKey = apiKey
-  }
-  return openaiClient
 }
 
 /**

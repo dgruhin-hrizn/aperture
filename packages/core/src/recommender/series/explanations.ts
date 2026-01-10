@@ -6,26 +6,12 @@
  * similar to each recommendation.
  */
 
-import OpenAI from 'openai'
 import { query } from '../../lib/db.js'
 import { createChildLogger } from '../../lib/logger.js'
-import { getTextGenerationModel, getOpenAIApiKey } from '../../settings/systemSettings.js'
+import { getOpenAIClient } from '../../lib/openai.js'
+import { getTextGenerationModel } from '../../settings/systemSettings.js'
 
 const logger = createChildLogger('series-explanations')
-
-// Lazy-initialized OpenAI client
-let openaiClient: OpenAI | null = null
-
-async function getOpenAIClient(): Promise<OpenAI> {
-  if (!openaiClient) {
-    const apiKey = await getOpenAIApiKey()
-    if (!apiKey) {
-      throw new Error('OpenAI API key is not configured. Please set it in Settings > AI.')
-    }
-    openaiClient = new OpenAI({ apiKey })
-  }
-  return openaiClient
-}
 
 export interface SeriesForExplanation {
   seriesId: string

@@ -273,6 +273,9 @@ export {
   type OMDbConfig,
 } from './settings/systemSettings.js'
 
+// OpenAI client (centralized, lazy-initialized)
+export { getOpenAIClient, isOpenAIConfigured, clearOpenAIClient } from './lib/openai.js'
+
 // Top Picks
 export {
   getTopPicksConfig,
