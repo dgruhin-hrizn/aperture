@@ -400,7 +400,7 @@ export function SetupPage() {
         <Button
           variant="contained"
           onClick={handleSaveOpenAI}
-          disabled={saving || (openaiKey && !openaiTestSuccess)}
+          disabled={saving || (!!openaiKey && !openaiTestSuccess)}
         >
           {saving ? (
             <CircularProgress size={20} />
