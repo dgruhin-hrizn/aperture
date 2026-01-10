@@ -677,6 +677,51 @@ export async function setAiExplanationConfig(
 }
 
 // ============================================================================
+// Watching Library Settings (Shows You Watch)
+// ============================================================================
+
+export interface WatchingLibraryConfig {
+  enabled: boolean
+  useSymlinks: boolean
+}
+
+/**
+ * Get watching library configuration
+ */
+export async function getWatchingLibraryConfig(): Promise<WatchingLibraryConfig> {
+  const enabled = await getSystemSetting('watching_library_enabled')
+  const useSymlinks = await getSystemSetting('watching_library_use_symlinks')
+
+  return {
+    enabled: enabled !== 'false', // Default to true
+    useSymlinks: useSymlinks !== 'false', // Default to true (symlinks recommended for series)
+  }
+}
+
+/**
+ * Set watching library configuration
+ */
+export async function setWatchingLibraryConfig(
+  config: Partial<WatchingLibraryConfig>
+): Promise<WatchingLibraryConfig> {
+  if (config.enabled !== undefined) {
+    await setSystemSetting(
+      'watching_library_enabled',
+      String(config.enabled),
+      'Enable "Shows You Watch" library feature'
+    )
+  }
+  if (config.useSymlinks !== undefined) {
+    await setSystemSetting(
+      'watching_library_use_symlinks',
+      String(config.useSymlinks),
+      'Use symlinks instead of STRM files for watching libraries'
+    )
+  }
+  return getWatchingLibraryConfig()
+}
+
+// ============================================================================
 // Library Title Template Settings
 // ============================================================================
 

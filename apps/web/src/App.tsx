@@ -4,6 +4,7 @@ import { ThemeProvider } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
 import { theme } from './theme'
 import { AuthProvider, useAuth } from './hooks/useAuth'
+import { WatchingProvider } from './hooks/useWatching'
 import { SetupProvider, useSetupStatus } from './hooks/useSetupStatus'
 import { UserRatingsProvider } from './hooks/useUserRatings'
 import { Layout } from './components/Layout'
@@ -24,7 +25,7 @@ import { TopPicksMoviesPage, TopPicksSeriesPage } from './pages/top-picks'
 import { WatchStatsPage } from './pages/WatchStats'
 import { SearchPage } from './pages/Search'
 import { FranchisesPage } from './pages/Franchises'
-import { AwardsPage } from './pages/Awards'
+import { WatchingPage } from './pages/watching'
 // Admin pages
 import { AdminDashboard } from './pages/admin'
 import { UsersPage } from './pages/Users'
@@ -79,12 +80,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />
   }
 
-  // Wrap with UserRatingsProvider so ratings are available everywhere
+  // Wrap with providers so state is available everywhere
   // Include AssistantModal for AI chat on all authenticated pages
   return (
     <UserRatingsProvider>
-      {children}
-      <AssistantModal />
+      <WatchingProvider>
+        {children}
+        <AssistantModal />
+      </WatchingProvider>
     </UserRatingsProvider>
   )
 }
@@ -152,7 +155,7 @@ function AppRoutes() {
         <Route path="playlists" element={<PlaylistsPage />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="franchises" element={<FranchisesPage />} />
-        <Route path="awards" element={<AwardsPage />} />
+        <Route path="watching" element={<WatchingPage />} />
         <Route path="settings" element={<UserSettingsPage />} />
 
         {/* Admin Routes - nested under AdminLayout */}

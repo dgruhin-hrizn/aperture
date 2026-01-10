@@ -791,7 +791,7 @@ export function useSetupWizard(): SetupWizardContext {
     // Poll for progress
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      const pRes = await fetch(`/api/jobs/progress/${jobId}`, { credentials: 'include' })
+      const pRes = await fetch(`/api/setup/jobs/progress/${jobId}`, { credentials: 'include' })
       const p = await pRes.json()
       if (!pRes.ok) {
         const errorMsg = p?.error || `Failed to fetch progress for ${job.name}`

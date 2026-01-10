@@ -108,7 +108,7 @@ export function TopPicksMoviesPage() {
           <Box display="flex" alignItems="center" gap={2} mb={1}>
             <WhatshotIcon sx={{ color: '#f97316', fontSize: 32 }} />
             <Typography variant="h4" fontWeight={700}>
-              Top Movies
+              Top Pick Movies
             </Typography>
           </Box>
           <Typography variant="body1" color="text.secondary">

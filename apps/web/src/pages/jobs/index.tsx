@@ -78,7 +78,7 @@ function JobCategoryList({
             {/* Job Cards Grid */}
             <Box
               display="grid"
-              gridTemplateColumns="repeat(auto-fill, minmax(360px, 1fr))"
+              gridTemplateColumns="repeat(auto-fill, minmax(500px, 1fr))"
               gap={2.5}
             >
               {categoryJobs.map((job) => (

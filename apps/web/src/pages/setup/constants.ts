@@ -6,6 +6,7 @@ export const DEFAULT_LIBRARY_IMAGES: Record<string, string> = {
   'ai-recs-series': '/AI_SERIES_PICKS.png',
   'top-picks-movies': '/TOP_10_MOVIES_THIS_WEEK.png',
   'top-picks-series': '/TOP_10_SERIES_THIS_WEEKpng.png',
+  'watching': '/Shows_You_Watch.png',
 }
 
 export const STEP_ORDER: Array<{ id: SetupStepId; label: string }> = [

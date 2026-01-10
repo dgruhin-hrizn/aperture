@@ -1,9 +1,13 @@
 import React, { useState } from 'react'
-import { Box, Typography, Paper, Chip, Skeleton, Tooltip } from '@mui/material'
+import { Box, Typography, Paper, Chip, Skeleton, Tooltip, IconButton } from '@mui/material'
 import Star from '@mui/icons-material/Star'
+import AddToQueue from '@mui/icons-material/AddToQueue'
+import PlaylistAddCheck from '@mui/icons-material/PlaylistAddCheck'
 import { HeartRating } from './HeartRating.js'
 
 const StarIcon = Star as unknown as React.ComponentType<{ fontSize?: string }>
+const AddToQueueIcon = AddToQueue as unknown as React.ComponentType<{ fontSize?: 'small' | 'medium' | 'large' }>
+const PlaylistAddCheckIcon = PlaylistAddCheck as unknown as React.ComponentType<{ fontSize?: 'small' | 'medium' | 'large' }>
 
 export interface MoviePosterProps {
   title: string
@@ -26,6 +30,12 @@ export interface MoviePosterProps {
   hideRating?: boolean
   /** Hide the heart rating button (e.g., on detail pages where it's shown elsewhere) */
   hideHeartRating?: boolean
+  /** Whether this series is in user's watching list */
+  isWatching?: boolean
+  /** Callback when user toggles watching status */
+  onWatchingToggle?: () => void
+  /** Hide the watching toggle button */
+  hideWatchingToggle?: boolean
   loading?: boolean
   children?: React.ReactNode
 }
@@ -51,6 +61,9 @@ export function MoviePoster({
   showScore = false,
   hideRating = false,
   hideHeartRating = false,
+  isWatching = false,
+  onWatchingToggle,
+  hideWatchingToggle = false,
   loading = false,
   children,
 }: MoviePosterProps) {
@@ -147,6 +160,35 @@ export function MoviePoster({
               zIndex: 2,
             }}
           />
+        )}
+
+        {/* Watching toggle button - bottom left */}
+        {!hideWatchingToggle && onWatchingToggle && (
+          <Tooltip title={isWatching ? 'Remove from watching list' : 'Add to watching list'} arrow>
+            <IconButton
+              onClick={(e) => {
+                e.stopPropagation()
+                onWatchingToggle()
+              }}
+              size="small"
+              sx={{
+                position: 'absolute',
+                bottom: 8,
+                left: 8,
+                zIndex: 4,
+                backgroundColor: isWatching ? 'rgba(99, 102, 241, 0.9)' : 'rgba(0, 0, 0, 0.6)',
+                color: 'white',
+                backdropFilter: 'blur(4px)',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  backgroundColor: isWatching ? 'rgba(99, 102, 241, 1)' : 'rgba(0, 0, 0, 0.8)',
+                  transform: 'scale(1.1)',
+                },
+              }}
+            >
+              {isWatching ? <PlaylistAddCheckIcon fontSize="small" /> : <AddToQueueIcon fontSize="small" />}
+            </IconButton>
+          </Tooltip>
         )}
 
         {/* Heart rating button - bottom right */}

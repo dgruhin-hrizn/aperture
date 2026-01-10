@@ -3,6 +3,8 @@
  * Pushes images to Emby/Jellyfin for libraries, collections, and playlists
  */
 
+import fs from 'fs/promises'
+import path from 'path'
 import { getMediaServerProvider } from '../media/index.js'
 import { getMediaServerApiKey } from '../settings/systemSettings.js'
 import { createChildLogger } from '../lib/logger.js'
@@ -199,13 +201,70 @@ export async function syncAllEntityImagesToMediaServer(
 /**
  * Library type identifiers for global library images
  */
-export type LibraryType = 'ai-recs-movies' | 'ai-recs-series' | 'top-picks-movies' | 'top-picks-series'
+export type LibraryType = 'ai-recs-movies' | 'ai-recs-series' | 'top-picks-movies' | 'top-picks-series' | 'watching'
+
+/**
+ * Bundled default library images (relative to web app public folder or data directory)
+ * These are used when no custom image has been uploaded
+ */
+const BUNDLED_LIBRARY_DEFAULTS: Record<LibraryType, string> = {
+  'ai-recs-movies': 'AI_MOVIE_PICKS.png',
+  'ai-recs-series': 'AI_SERIES_PICKS.png',
+  'top-picks-movies': 'TOP_10_MOVIES_THIS_WEEK.png',
+  'top-picks-series': 'TOP_10_SERIES_THIS_WEEKpng.png',
+  'watching': 'Shows_You_Watch.png',
+}
+
+/**
+ * Get possible paths for bundled default library images
+ */
+function getBundledImagePaths(filename: string): string[] {
+  // Check multiple possible locations for bundled defaults
+  const possiblePaths = [
+    // Data directory (production - copied during build/deploy)
+    path.join(process.env.DATA_DIR || '/data', 'library-defaults', filename),
+    // Web app public directory (development)
+    path.join(process.cwd(), 'apps/web/public', filename),
+    // Relative to workspace root
+    path.join(process.cwd(), '..', '..', 'apps/web/public', filename),
+    // Docker volume mount location
+    path.join('/app/apps/web/public', filename),
+  ]
+  return possiblePaths
+}
+
+/**
+ * Try to read a bundled default image
+ */
+async function getBundledDefaultImage(libraryType: LibraryType): Promise<{ buffer: Buffer; mimeType: string } | null> {
+  const filename = BUNDLED_LIBRARY_DEFAULTS[libraryType]
+  if (!filename) {
+    return null
+  }
+
+  const possiblePaths = getBundledImagePaths(filename)
+  
+  for (const imagePath of possiblePaths) {
+    try {
+      const buffer = await fs.readFile(imagePath)
+      const mimeType = filename.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg'
+      logger.debug({ libraryType, path: imagePath }, 'Found bundled default library image')
+      return { buffer, mimeType }
+    } catch {
+      // File doesn't exist at this path, try next
+    }
+  }
+
+  logger.debug({ libraryType, triedPaths: possiblePaths }, 'No bundled default library image found')
+  return null
+}
 
 /**
  * Sync a global library type image to a specific media server library
  * 
  * This looks up the image stored under the library TYPE (e.g., 'ai-recs-movies')
  * and pushes it to a specific library ID in the media server.
+ * Falls back to bundled default images if no custom image has been uploaded.
  * 
  * @param libraryType - The global library type (e.g., 'ai-recs-movies')
  * @param providerLibraryId - The actual Emby/Jellyfin library ID to push the image to
@@ -214,34 +273,35 @@ export async function syncLibraryTypeImage(
   libraryType: LibraryType,
   providerLibraryId: string
 ): Promise<ImageSyncResult> {
-  // Look up the global image for this library type
+  // First try: Look up custom image from database
   const image = await getEffectiveImage('library', libraryType, 'Primary')
 
-  if (!image) {
-    logger.debug({ libraryType, providerLibraryId }, 'No global library image configured')
-    return {
-      success: true,
-      itemId: providerLibraryId,
-      imageType: 'Primary',
+  if (image) {
+    // Custom image found in database - use it
+    const buffer = await getImageBuffer(image.filePath)
+
+    if (buffer) {
+      logger.info({ libraryType, providerLibraryId }, 'Pushing custom library image to media server')
+      return pushImageToMediaServer(providerLibraryId, 'Primary', buffer, image.mimeType)
     }
+
+    logger.warn({ libraryType, providerLibraryId, filePath: image.filePath }, 'Custom library image file not found, falling back to bundled default')
   }
 
-  // Read the image file
-  const buffer = await getImageBuffer(image.filePath)
+  // Second try: Fall back to bundled default image
+  const bundledDefault = await getBundledDefaultImage(libraryType)
 
-  if (!buffer) {
-    logger.warn({ libraryType, providerLibraryId, filePath: image.filePath }, 'Library image file not found')
-    return {
-      success: false,
-      itemId: providerLibraryId,
-      imageType: 'Primary',
-      error: 'Image file not found',
-    }
+  if (bundledDefault) {
+    logger.info({ libraryType, providerLibraryId }, 'Pushing bundled default library image to media server')
+    return pushImageToMediaServer(providerLibraryId, 'Primary', bundledDefault.buffer, bundledDefault.mimeType)
   }
 
-  logger.info({ libraryType, providerLibraryId }, 'Pushing global library image to media server')
-
-  // Push to the actual library in the media server
-  return pushImageToMediaServer(providerLibraryId, 'Primary', buffer, image.mimeType)
+  // No image available
+  logger.debug({ libraryType, providerLibraryId }, 'No library image available (custom or bundled)')
+  return {
+    success: true,
+    itemId: providerLibraryId,
+    imageType: 'Primary',
+  }
 }
 

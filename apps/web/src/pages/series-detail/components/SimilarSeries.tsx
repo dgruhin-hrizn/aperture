@@ -3,6 +3,7 @@ import { Box, Typography, Grid } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { MoviePoster } from '@aperture/ui'
 import { useUserRatings } from '../../../hooks/useUserRatings'
+import { useWatching } from '../../../hooks/useWatching'
 import type { SimilarSeries as SimilarSeriesType } from '../types'
 
 interface SimilarSeriesProps {
@@ -12,6 +13,7 @@ interface SimilarSeriesProps {
 export function SimilarSeries({ similar }: SimilarSeriesProps) {
   const navigate = useNavigate()
   const { getRating, setRating } = useUserRatings()
+  const { isWatching, toggleWatching } = useWatching()
 
   const handleRate = useCallback(
     async (seriesId: string, rating: number | null) => {
@@ -43,6 +45,8 @@ export function SimilarSeries({ similar }: SimilarSeriesProps) {
               genres={show.genres}
               userRating={getRating('series', show.id)}
               onRate={(rating) => handleRate(show.id, rating)}
+              isWatching={isWatching(show.id)}
+              onWatchingToggle={() => toggleWatching(show.id)}
               size="medium"
               onClick={() => navigate(`/series/${show.id}`)}
             />

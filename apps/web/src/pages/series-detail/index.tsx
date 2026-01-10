@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { Box, Typography, CircularProgress, Grid } from '@mui/material'
 import { useAuth } from '../../hooks/useAuth'
+import { useWatching } from '../../hooks/useWatching'
 import { useSeriesDetail } from './hooks'
 import {
   SeriesBackdrop,
@@ -14,6 +15,7 @@ export function SeriesDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { isWatching, toggleWatching } = useWatching()
 
   const {
     series,
@@ -59,6 +61,8 @@ export function SeriesDetailPage() {
         mediaServer={mediaServer}
         userRating={userRating}
         onRate={handleRate}
+        isWatching={id ? isWatching(id) : false}
+        onWatchingToggle={id ? () => toggleWatching(id) : undefined}
       />
 
       {/* Main Content */}

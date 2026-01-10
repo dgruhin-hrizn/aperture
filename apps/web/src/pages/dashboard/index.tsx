@@ -2,9 +2,11 @@ import { Box, Typography, Grid, Alert, Button } from '@mui/material'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import { useAuth } from '@/hooks/useAuth'
 import { useDashboardData } from './hooks'
+import { useWatchingData } from '../watching/hooks/useWatchingData'
 import {
   QuickStatsBar,
   MediaCarousel,
+  WatchingCarousel,
   RecentRatingsList,
   RecentWatchesList,
 } from './components'
@@ -12,6 +14,16 @@ import {
 export function DashboardPage() {
   const { user } = useAuth()
   const { data, loading, error, refetch } = useDashboardData()
+  const { series: watchingSeries, loading: watchingLoading } = useWatchingData()
+
+  // Filter watching series to only those with upcoming episodes, sorted by air date
+  const upcomingShows = watchingSeries
+    .filter((s) => s.upcomingEpisode)
+    .sort((a, b) => {
+      const dateA = new Date(a.upcomingEpisode!.airDate).getTime()
+      const dateB = new Date(b.upcomingEpisode!.airDate).getTime()
+      return dateA - dateB
+    })
 
   const greeting = getGreeting()
 
@@ -55,11 +67,11 @@ export function DashboardPage() {
         />
       </Box>
 
-      {/* Your Movie Picks */}
+      {/* Your AI Movie Recommendations */}
       <Box sx={{ mb: 4 }}>
         <MediaCarousel
-          title="Your Movie Picks"
-          subtitle="AI-powered movie recommendations"
+          title="Your AI Movie Recommendations"
+          subtitle="Personalized picks based on your taste"
           items={(data?.recommendations || [])
             .filter(item => item.type === 'movie')
             .map((item, index) => ({ ...item, rank: index + 1 }))}
@@ -70,11 +82,11 @@ export function DashboardPage() {
         />
       </Box>
 
-      {/* Your Series Picks */}
+      {/* Your AI Series Recommendations */}
       <Box sx={{ mb: 4 }}>
         <MediaCarousel
-          title="Your Series Picks"
-          subtitle="AI-powered series recommendations"
+          title="Your AI Series Recommendations"
+          subtitle="Personalized picks based on your taste"
           items={(data?.recommendations || [])
             .filter(item => item.type === 'series')
             .map((item, index) => ({ ...item, rank: index + 1 }))}
@@ -85,10 +97,23 @@ export function DashboardPage() {
         />
       </Box>
 
-      {/* Trending Movies */}
+      {/* Shows You Watch - Upcoming Episodes */}
+      {(watchingLoading || upcomingShows.length > 0) && (
+        <Box sx={{ mb: 4 }}>
+          <WatchingCarousel
+            title="Upcoming Episodes"
+            subtitle="From shows you watch"
+            items={upcomingShows}
+            loading={watchingLoading}
+            emptyMessage="No upcoming episodes"
+          />
+        </Box>
+      )}
+
+      {/* Top Pick Movies */}
       <Box sx={{ mb: 4 }}>
         <MediaCarousel
-          title="Trending Movies"
+          title="Top Pick Movies"
           subtitle="Popular movies across all users"
           items={(data?.topPicks || []).filter(item => item.type === 'movie')}
           loading={loading}
@@ -97,10 +122,10 @@ export function DashboardPage() {
         />
       </Box>
 
-      {/* Trending Series */}
+      {/* Top Pick Series */}
       <Box sx={{ mb: 4 }}>
         <MediaCarousel
-          title="Trending Series"
+          title="Top Pick Series"
           subtitle="Popular TV series across all users"
           items={(data?.topPicks || []).filter(item => item.type === 'series')}
           loading={loading}

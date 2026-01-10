@@ -45,6 +45,9 @@ import {
   setOpenAIApiKey,
   testOpenAIConnection,
   type MediaServerType,
+
+  // Job progress
+  getJobProgress,
 } from '@aperture/core'
 import { requireAdmin } from '../plugins/auth.js'
 import { query, queryOne } from '../lib/db.js'
@@ -865,6 +868,31 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
       })
 
       return reply.status(res.statusCode).send(res.json())
+    }
+  )
+
+  /**
+   * GET /api/setup/jobs/progress/:jobId
+   * Get job progress during initial setup (no auth required, only works if setup not complete)
+   */
+  fastify.get<{ Params: { jobId: string } }>(
+    '/api/setup/jobs/progress/:jobId',
+    async (request, reply) => {
+      const complete = await isSetupComplete()
+      if (complete) {
+        return reply.status(403).send({ 
+          error: 'Setup is already complete. Use admin job endpoints instead.' 
+        })
+      }
+
+      const { jobId } = request.params
+      const progress = getJobProgress(jobId)
+
+      if (!progress) {
+        return reply.status(404).send({ error: 'Job not found' })
+      }
+
+      return reply.send(progress)
     }
   )
 

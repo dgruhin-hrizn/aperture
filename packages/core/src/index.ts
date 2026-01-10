@@ -252,6 +252,8 @@ export {
   setAiRecsOutputConfig,
   getAiExplanationConfig,
   setAiExplanationConfig,
+  getWatchingLibraryConfig,
+  setWatchingLibraryConfig,
   getLibraryTitleConfig,
   setLibraryTitleConfig,
   getOpenAIApiKey,
@@ -275,6 +277,7 @@ export {
   type MediaServerConfig,
   type AiRecsOutputConfig,
   type AiExplanationConfig,
+  type WatchingLibraryConfig,
   type LibraryTitleConfig,
   type ChatAssistantModel,
   type ChatAssistantModelInfo,
@@ -305,6 +308,21 @@ export {
   type PopularSeries,
   type RefreshTopPicksResult,
 } from './topPicks/index.js'
+
+// Watching Libraries
+export {
+  getWatchingLibraryName,
+  ensureUserWatchingLibrary,
+  refreshUserWatchingLibrary,
+  updateUserWatchingLibraryPermissions,
+  getUserWatchingLibraryInfo,
+  writeWatchingSeriesForUser,
+  processWatchingForUser,
+  processWatchingLibrariesForAllUsers,
+  getUpcomingEpisodes,
+  getUpcomingEpisodeForSeries,
+  type UpcomingEpisode,
+} from './watching/index.js'
 
 // Trakt Integration
 export {

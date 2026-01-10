@@ -20,6 +20,9 @@ interface SeriesRow {
   backdrop_url: string | null
   created_at: Date
   updated_at: Date
+  // Enrichment fields for discovery pages
+  rt_critic_score: number | null
+  awards_summary: string | null
 }
 
 interface SeriesDetailRow extends SeriesRow {
@@ -68,13 +71,14 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
       status?: string
       minRtScore?: string
       showAll?: string
+      hasAwards?: string
     }
     Reply: SeriesListResponse
   }>('/api/series', { preHandler: requireAuth }, async (request, reply) => {
     const page = parseInt(request.query.page || '1', 10)
     const pageSize = Math.min(parseInt(request.query.pageSize || '50', 10), 100)
     const offset = (page - 1) * pageSize
-    const { search, genre, network, status, minRtScore, showAll } = request.query
+    const { search, genre, network, status, minRtScore, showAll, hasAwards } = request.query
 
     // Check if library configs exist
     const configCheck = await queryOne<{ count: string }>(
@@ -129,6 +133,11 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
       }
     }
 
+    if (hasAwards === 'true') {
+      whereClause += whereClause ? ' AND ' : ' WHERE '
+      whereClause += `awards_summary IS NOT NULL`
+    }
+
     // Get total count
     const countResult = await queryOne<{ count: string }>(
       `SELECT COUNT(*) as count FROM series${whereClause}`,
@@ -141,7 +150,8 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
     const result = await query<SeriesRow>(
       `SELECT id, provider_item_id, title, original_title, year, end_year, genres, overview,
               community_rating, status, total_seasons, total_episodes, network,
-              poster_url, backdrop_url, created_at, updated_at
+              poster_url, backdrop_url, created_at, updated_at,
+              rt_critic_score, awards_summary
        FROM series${whereClause}
        ORDER BY title ASC
        LIMIT $${paramIndex++} OFFSET $${paramIndex}`,

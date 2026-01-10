@@ -28,6 +28,7 @@ import ClearAllIcon from '@mui/icons-material/ClearAll'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import { MoviePoster } from '@aperture/ui'
 import { useUserRatings } from '../hooks/useUserRatings'
+import { useWatching } from '../hooks/useWatching'
 
 interface SearchResult {
   id: string
@@ -55,6 +56,7 @@ export function SearchPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const { getRating, setRating } = useUserRatings()
+  const { isWatching, toggleWatching } = useWatching()
 
   // Search state
   const [query, setQuery] = useState(searchParams.get('q') || '')
@@ -449,6 +451,9 @@ export function SearchPage() {
                   overview={result.overview}
                   userRating={getRating(result.type, result.id)}
                   onRate={(rating) => handleRate(result.id, result.type, rating)}
+                  isWatching={result.type === 'series' ? isWatching(result.id) : undefined}
+                  onWatchingToggle={result.type === 'series' ? () => toggleWatching(result.id) : undefined}
+                  hideWatchingToggle={result.type !== 'series'}
                   size="medium"
                   onClick={() => navigate(`/${result.type === 'movie' ? 'movies' : 'series'}/${result.id}`)}
                 />

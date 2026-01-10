@@ -35,7 +35,7 @@ import TvIcon from '@mui/icons-material/Tv'
 import InsightsIcon from '@mui/icons-material/Insights'
 import SearchIcon from '@mui/icons-material/Search'
 import CollectionsIcon from '@mui/icons-material/Collections'
-import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
+import AddToQueueIcon from '@mui/icons-material/AddToQueue'
 import { useAuth } from '@/hooks/useAuth'
 import { WelcomeModal, useWelcomeModal } from './WelcomeModal'
 import { RunningJobsWidget } from './RunningJobsWidget'
@@ -48,10 +48,10 @@ const userMenuItems = [
   { text: 'Home', icon: <HomeIcon />, path: '/' },
   { text: 'Search', icon: <SearchIcon />, path: '/search' },
   { text: 'Recommendations', icon: <AutoAwesomeIcon />, path: '/recommendations' },
-  { text: 'Top Movies', icon: <WhatshotIcon />, path: '/top-picks/movies' },
-  { text: 'Top Series', icon: <TvIcon />, path: '/top-picks/series' },
+  { text: "Shows You Watch", icon: <AddToQueueIcon />, path: '/watching' },
+  { text: 'Top Pick Movies', icon: <WhatshotIcon />, path: '/top-picks/movies' },
+  { text: 'Top Pick Series', icon: <TvIcon />, path: '/top-picks/series' },
   { text: 'Franchises', icon: <CollectionsIcon />, path: '/franchises' },
-  { text: 'Award Winners', icon: <EmojiEventsIcon />, path: '/awards' },
   { text: 'Watch History', icon: <HistoryIcon />, path: '/history' },
   { text: 'Watch Stats', icon: <InsightsIcon />, path: '/stats' },
   { text: 'Browse Movies', icon: <MovieIcon />, path: '/movies' },

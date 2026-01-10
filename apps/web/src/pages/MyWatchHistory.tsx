@@ -42,6 +42,7 @@ import TvIcon from '@mui/icons-material/Tv'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import { MoviePoster } from '@aperture/ui'
 import { useAuth } from '@/hooks/useAuth'
+import { useWatching } from '@/hooks/useWatching'
 
 interface MovieWatchHistoryItem {
   movie_id: string
@@ -84,6 +85,7 @@ interface WatchHistoryResponse<T> {
 export function MyWatchHistoryPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { isWatching, toggleWatching } = useWatching()
   const [tabValue, setTabValue] = useState(0) // 0 = Movies, 1 = Series
   
   // Movies state
@@ -615,6 +617,8 @@ export function MyWatchHistoryPage() {
                             overview={item.overview}
                             size="medium"
                             hideRating
+                            isWatching={isWatching(item.series_id)}
+                            onWatchingToggle={() => toggleWatching(item.series_id)}
                             onClick={() => navigate(`/series/${item.series_id}`)}
                           />
                           {/* Favorite badge */}

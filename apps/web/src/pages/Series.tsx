@@ -19,6 +19,7 @@ import {
 import SearchIcon from '@mui/icons-material/Search'
 import { MoviePoster } from '@aperture/ui'
 import { useUserRatings } from '../hooks/useUserRatings'
+import { useWatching } from '../hooks/useWatching'
 
 interface Series {
   id: string
@@ -36,6 +37,7 @@ interface Series {
 export function SeriesPage() {
   const navigate = useNavigate()
   const { getRating, setRating } = useUserRatings()
+  const { isWatching, toggleWatching } = useWatching()
   const [series, setSeries] = useState<Series[]>([])
   const [genres, setGenres] = useState<string[]>([])
   const [networks, setNetworks] = useState<string[]>([])
@@ -262,6 +264,8 @@ export function SeriesPage() {
                   overview={show.overview}
                   userRating={getRating('series', show.id)}
                   onRate={(rating) => handleRate(show.id, rating)}
+                  isWatching={isWatching(show.id)}
+                  onWatchingToggle={() => toggleWatching(show.id)}
                   size="medium"
                   onClick={() => navigate(`/series/${show.id}`)}
                 />

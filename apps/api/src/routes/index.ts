@@ -17,6 +17,7 @@ import dashboardRoutes from './dashboard.js'
 import imageRoutes from './images.js'
 import assistantRoutes from './assistant/index.js'
 import searchRoutes from './search.js'
+import watchingRoutes from './watching.js'
 
 const routes: FastifyPluginAsync = async (fastify) => {
   // Register health check routes
@@ -72,6 +73,9 @@ const routes: FastifyPluginAsync = async (fastify) => {
 
   // Register search routes
   await fastify.register(searchRoutes)
+
+  // Register watching routes
+  await fastify.register(watchingRoutes)
 }
 
 export default routes

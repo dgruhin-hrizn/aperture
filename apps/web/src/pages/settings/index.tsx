@@ -20,6 +20,7 @@ import BuildIcon from '@mui/icons-material/Build'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import SettingsIcon from '@mui/icons-material/Settings'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
+import AddToQueueIcon from '@mui/icons-material/AddToQueue'
 import SmartToyIcon from '@mui/icons-material/SmartToy'
 import TuneIcon from '@mui/icons-material/Tune'
 import OutputIcon from '@mui/icons-material/Output'
@@ -38,6 +39,7 @@ import {
   TextGenerationModelSection,
   ChatAssistantModelSection,
   TopPicksSection,
+  WatchingSection,
   AiExplanationSection,
   OutputFormatSection,
   LibraryTitlesSection,
@@ -282,6 +284,7 @@ export function SettingsPage() {
           <Tab icon={<BuildIcon />} iconPosition="start" label="Setup" />
           <Tab icon={<AutoAwesomeIcon />} iconPosition="start" label="AI Recommendations" />
           <Tab icon={<TrendingUpIcon />} iconPosition="start" label="Top Picks" />
+          <Tab icon={<AddToQueueIcon />} iconPosition="start" label="Shows You Watch" />
           <Tab icon={<SmartToyIcon />} iconPosition="start" label="Chat Bot" />
           <Tab icon={<SettingsIcon />} iconPosition="start" label="System" />
         </Tabs>
@@ -421,13 +424,18 @@ export function SettingsPage() {
             <TopPicksSection />
           </TabPanel>
 
-          {/* Chat Bot Tab */}
+          {/* Shows You Watch Tab */}
           <TabPanel value={tabValue} index={3}>
+            <WatchingSection />
+          </TabPanel>
+
+          {/* Chat Bot Tab */}
+          <TabPanel value={tabValue} index={4}>
             <ChatAssistantModelSection />
           </TabPanel>
 
           {/* System Tab */}
-          <TabPanel value={tabValue} index={4}>
+          <TabPanel value={tabValue} index={5}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {/* Cost Estimator */}
               <CostEstimatorSection

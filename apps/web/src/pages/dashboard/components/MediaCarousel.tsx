@@ -1,10 +1,9 @@
-import { Box, Typography, IconButton, Skeleton } from '@mui/material'
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
-import ChevronRightIcon from '@mui/icons-material/ChevronRight'
-import { useRef, useState, useEffect, useCallback } from 'react'
+import { useCallback } from 'react'
+import { Box } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
-import { MoviePoster, RankBadge } from '@aperture/ui'
+import { MoviePoster, RankBadge, BaseCarousel, CarouselItem } from '@aperture/ui'
 import { useUserRatings } from '../../../hooks/useUserRatings'
+import { useWatching } from '../../../hooks/useWatching'
 
 interface MediaItem {
   id: string
@@ -38,11 +37,9 @@ export function MediaCarousel({
   emptyMessage = 'No items to display',
   rows = 1,
 }: MediaCarouselProps) {
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const [canScrollLeft, setCanScrollLeft] = useState(false)
-  const [canScrollRight, setCanScrollRight] = useState(false)
   const navigate = useNavigate()
   const { getRating, setRating } = useUserRatings()
+  const { isWatching, toggleWatching } = useWatching()
 
   const handleRate = useCallback(
     async (type: 'movie' | 'series', id: string, rating: number | null) => {
@@ -55,202 +52,70 @@ export function MediaCarousel({
     [setRating]
   )
 
-  const updateScrollButtons = () => {
-    if (!scrollRef.current) return
-    const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current
-    setCanScrollLeft(scrollLeft > 0)
-    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10)
-  }
-
-  useEffect(() => {
-    updateScrollButtons()
-    window.addEventListener('resize', updateScrollButtons)
-    return () => window.removeEventListener('resize', updateScrollButtons)
-  }, [items])
-
-  const scroll = (direction: 'left' | 'right') => {
-    if (!scrollRef.current) return
-    const scrollAmount = direction === 'left' ? -400 : 400
-    scrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' })
-    setTimeout(updateScrollButtons, 300)
-  }
-
   const handleItemClick = (item: MediaItem) => {
     navigate(`/${item.type === 'movie' ? 'movies' : 'series'}/${item.id}`)
   }
 
-  if (loading) {
+  const renderPoster = (item: MediaItem) => (
+    <MoviePoster
+      title={item.title}
+      year={item.year}
+      posterUrl={item.posterUrl}
+      genres={item.genres}
+      score={showScore ? (item.matchScore ? item.matchScore / 100 : null) : undefined}
+      showScore={showScore && item.matchScore != null}
+      userRating={getRating(item.type, item.id)}
+      onRate={(rating) => handleRate(item.type, item.id, rating)}
+      isWatching={item.type === 'series' ? isWatching(item.id) : undefined}
+      onWatchingToggle={item.type === 'series' ? () => toggleWatching(item.id) : undefined}
+      hideWatchingToggle={item.type !== 'series'}
+      onClick={() => handleItemClick(item)}
+      size="medium"
+    >
+      {showRank && item.rank && <RankBadge rank={item.rank} />}
+    </MoviePoster>
+  )
+
+  if (rows === 2) {
+    // Two-row layout: split items into pairs for vertical stacking
     return (
-      <Box>
-        <Typography variant="h6" fontWeight={600} mb={2}>
-          {title}
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Box key={i}>
-              <Skeleton variant="rectangular" width={160} height={240} sx={{ borderRadius: 2 }} />
-              <Skeleton width="80%" sx={{ mt: 1 }} />
-              <Skeleton width="40%" />
-            </Box>
-          ))}
-        </Box>
-      </Box>
-    )
-  }
-
-  if (items.length === 0) {
-    return (
-      <Box>
-        <Typography variant="h6" fontWeight={600} mb={2}>
-          {title}
-        </Typography>
-        <Box
-          sx={{
-            py: 4,
-            textAlign: 'center',
-            backgroundColor: 'background.paper',
-            borderRadius: 2,
-            border: '1px dashed',
-            borderColor: 'divider',
-          }}
-        >
-          <Typography color="text.secondary">{emptyMessage}</Typography>
-        </Box>
-      </Box>
-    )
-  }
-
-  return (
-    <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-        <Box>
-          <Typography variant="h6" fontWeight={600}>
-            {title}
-          </Typography>
-          {subtitle && (
-            <Typography variant="caption" color="text.secondary">
-              {subtitle}
-            </Typography>
-          )}
-        </Box>
-        <Box sx={{ display: 'flex', gap: 0.5 }}>
-          <IconButton
-            size="small"
-            onClick={() => scroll('left')}
-            disabled={!canScrollLeft}
-            sx={{ opacity: canScrollLeft ? 1 : 0.3 }}
-          >
-            <ChevronLeftIcon />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => scroll('right')}
-            disabled={!canScrollRight}
-            sx={{ opacity: canScrollRight ? 1 : 0.3 }}
-          >
-            <ChevronRightIcon />
-          </IconButton>
-        </Box>
-      </Box>
-
-      <Box
-        ref={scrollRef}
-        onScroll={updateScrollButtons}
-        sx={{
-          display: 'flex',
-          flexDirection: rows === 2 ? 'column' : 'row',
-          gap: 2,
-          overflowX: 'auto',
-          scrollSnapType: 'x mandatory',
-          pb: 1,
-          scrollbarWidth: 'none', // Firefox
-          msOverflowStyle: 'none', // IE/Edge
-          '&::-webkit-scrollbar': { display: 'none' }, // Chrome/Safari
-        }}
+      <BaseCarousel
+        title={title}
+        subtitle={subtitle}
+        loading={loading}
+        emptyMessage={emptyMessage}
+        hasItems={items.length > 0}
       >
-        {rows === 2 ? (
-          // Two-row layout: split items into pairs for vertical stacking
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            {Array.from({ length: Math.ceil(items.length / 2) }).map((_, colIndex) => {
-              const topItem = items[colIndex * 2]
-              const bottomItem = items[colIndex * 2 + 1]
-              return (
-                <Box
-                  key={colIndex}
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 2,
-                    scrollSnapAlign: 'start',
-                    flexShrink: 0,
-                  }}
-                >
-                  {topItem && (
-                    <Box sx={{ position: 'relative' }}>
-                      <MoviePoster
-                        title={topItem.title}
-                        year={topItem.year}
-                        posterUrl={topItem.posterUrl}
-                        genres={topItem.genres}
-                        score={showScore ? (topItem.matchScore ? topItem.matchScore / 100 : null) : undefined}
-                        showScore={showScore && topItem.matchScore != null}
-                        userRating={getRating(topItem.type, topItem.id)}
-                        onRate={(rating) => handleRate(topItem.type, topItem.id, rating)}
-                        onClick={() => handleItemClick(topItem)}
-                        size="medium"
-                      >
-                        {showRank && topItem.rank && <RankBadge rank={topItem.rank} />}
-                      </MoviePoster>
-                    </Box>
-                  )}
-                  {bottomItem && (
-                    <Box sx={{ position: 'relative' }}>
-                      <MoviePoster
-                        title={bottomItem.title}
-                        year={bottomItem.year}
-                        posterUrl={bottomItem.posterUrl}
-                        genres={bottomItem.genres}
-                        score={showScore ? (bottomItem.matchScore ? bottomItem.matchScore / 100 : null) : undefined}
-                        showScore={showScore && bottomItem.matchScore != null}
-                        userRating={getRating(bottomItem.type, bottomItem.id)}
-                        onRate={(rating) => handleRate(bottomItem.type, bottomItem.id, rating)}
-                        onClick={() => handleItemClick(bottomItem)}
-                        size="medium"
-                      >
-                        {showRank && bottomItem.rank && <RankBadge rank={bottomItem.rank} />}
-                      </MoviePoster>
-                    </Box>
-                  )}
-                </Box>
-              )
-            })}
-          </Box>
-        ) : (
-          // Single-row layout
-          items.map((item) => (
-            <Box
-              key={`${item.type}-${item.id}`}
-              sx={{ scrollSnapAlign: 'start', flexShrink: 0, position: 'relative' }}
-            >
-              <MoviePoster
-                title={item.title}
-                year={item.year}
-                posterUrl={item.posterUrl}
-                genres={item.genres}
-                score={showScore ? (item.matchScore ? item.matchScore / 100 : null) : undefined}
-                showScore={showScore && item.matchScore != null}
-                userRating={getRating(item.type, item.id)}
-                onRate={(rating) => handleRate(item.type, item.id, rating)}
-                onClick={() => handleItemClick(item)}
-                size="medium"
-              >
-                {showRank && item.rank && <RankBadge rank={item.rank} />}
-              </MoviePoster>
-            </Box>
-          ))
-        )}
-      </Box>
-    </Box>
+        {Array.from({ length: Math.ceil(items.length / 2) }).map((_, colIndex) => {
+          const topItem = items[colIndex * 2]
+          const bottomItem = items[colIndex * 2 + 1]
+          return (
+            <CarouselItem key={colIndex}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {topItem && <Box sx={{ position: 'relative' }}>{renderPoster(topItem)}</Box>}
+                {bottomItem && <Box sx={{ position: 'relative' }}>{renderPoster(bottomItem)}</Box>}
+              </Box>
+            </CarouselItem>
+          )
+        })}
+      </BaseCarousel>
+    )
+  }
+
+  // Single-row layout
+  return (
+    <BaseCarousel
+      title={title}
+      subtitle={subtitle}
+      loading={loading}
+      emptyMessage={emptyMessage}
+      hasItems={items.length > 0}
+    >
+      {items.map((item) => (
+        <CarouselItem key={`${item.type}-${item.id}`}>
+          {renderPoster(item)}
+        </CarouselItem>
+      ))}
+    </BaseCarousel>
   )
 }
-

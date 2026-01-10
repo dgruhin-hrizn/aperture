@@ -19,6 +19,7 @@ import PeopleIcon from '@mui/icons-material/People'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import { MoviePoster, RankBadge } from '@aperture/ui'
 import { useUserRatings } from '../../hooks/useUserRatings'
+import { useWatching } from '../../hooks/useWatching'
 
 interface PopularSeries {
   seriesId: string
@@ -47,6 +48,7 @@ interface TopPicksConfig {
 export function TopPicksSeriesPage() {
   const navigate = useNavigate()
   const { getRating, setRating } = useUserRatings()
+  const { isWatching, toggleWatching } = useWatching()
   const [series, setSeries] = useState<PopularSeries[]>([])
   const [config, setConfig] = useState<TopPicksConfig | null>(null)
   const [loading, setLoading] = useState(true)
@@ -110,7 +112,7 @@ export function TopPicksSeriesPage() {
           <Box display="flex" alignItems="center" gap={2} mb={1}>
             <TvIcon sx={{ color: '#8b5cf6', fontSize: 32 }} />
             <Typography variant="h4" fontWeight={700}>
-              Top Series
+              Top Pick Series
             </Typography>
           </Box>
           <Typography variant="body1" color="text.secondary">
@@ -163,6 +165,8 @@ export function TopPicksSeriesPage() {
                   overview={show.overview}
                   userRating={getRating('series', show.seriesId)}
                   onRate={(rating) => handleRate(show.seriesId, rating)}
+                  isWatching={isWatching(show.seriesId)}
+                  onWatchingToggle={() => toggleWatching(show.seriesId)}
                   size="medium"
                   onClick={() => navigate(`/series/${show.seriesId}`)}
                 />

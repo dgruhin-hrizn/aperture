@@ -31,6 +31,8 @@ import {
   setAiRecsOutputConfig,
   getAiExplanationConfig,
   setAiExplanationConfig,
+  getWatchingLibraryConfig,
+  setWatchingLibraryConfig,
   getUserAiExplanationSettings,
   setUserAiExplanationOverride,
   setUserAiExplanationPreference,
@@ -1369,6 +1371,46 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     } catch (err) {
       fastify.log.error({ err }, 'Failed to update user AI explanation preference')
       return reply.status(500).send({ error: 'Failed to update AI explanation preference' })
+    }
+  })
+
+  // =========================================================================
+  // Watching Library Settings (Admin Only)
+  // =========================================================================
+
+  /**
+   * GET /api/settings/watching
+   * Get watching library configuration
+   */
+  fastify.get('/api/settings/watching', { preHandler: requireAdmin }, async (_request, reply) => {
+    try {
+      const config = await getWatchingLibraryConfig()
+      return reply.send(config)
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get watching library config')
+      return reply.status(500).send({ error: 'Failed to get watching library configuration' })
+    }
+  })
+
+  /**
+   * PATCH /api/settings/watching
+   * Update watching library configuration
+   */
+  fastify.patch<{
+    Body: {
+      enabled?: boolean
+      useSymlinks?: boolean
+    }
+  }>('/api/settings/watching', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const config = await setWatchingLibraryConfig(request.body)
+      return reply.send({
+        ...config,
+        message: 'Watching library configuration updated',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to update watching library config')
+      return reply.status(500).send({ error: 'Failed to update watching library configuration' })
     }
   })
 

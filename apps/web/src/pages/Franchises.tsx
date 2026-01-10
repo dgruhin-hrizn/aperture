@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -21,6 +21,7 @@ import {
   Select,
   MenuItem,
   Tooltip,
+  Skeleton,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
@@ -49,38 +50,112 @@ interface Franchise {
   progress: number
 }
 
+interface FranchiseStats {
+  totalFranchises: number
+  completedFranchises: number
+  totalMovies: number
+  watchedMovies: number
+}
+
 type SortOption = 'name' | 'total' | 'progress' | 'unwatched'
+
+const PAGE_SIZE = 20
 
 export function FranchisesPage() {
   const navigate = useNavigate()
   const { getRating, setRating } = useUserRatings()
   const [franchises, setFranchises] = useState<Franchise[]>([])
+  const [stats, setStats] = useState<FranchiseStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [expandedFranchises, setExpandedFranchises] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<SortOption>('total')
   const [showCompleted, setShowCompleted] = useState(true)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+  const [total, setTotal] = useState(0)
+  const loaderRef = useRef<HTMLDivElement>(null)
 
+  // Debounce search input
   useEffect(() => {
-    const fetchFranchises = async () => {
-      try {
-        const response = await fetch('/api/movies/franchises', { credentials: 'include' })
-        if (response.ok) {
-          const data = await response.json()
-          setFranchises(data.franchises)
-          setError(null)
-        } else {
-          setError('Failed to load franchises')
-        }
-      } catch {
-        setError('Could not connect to server')
-      } finally {
-        setLoading(false)
-      }
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setPage(1)
+    setFranchises([])
+    setHasMore(true)
+  }, [debouncedSearch, sortBy, showCompleted])
+
+  // Fetch franchises
+  const fetchFranchises = useCallback(async (pageNum: number, append: boolean = false) => {
+    if (pageNum === 1) {
+      setLoading(true)
+    } else {
+      setLoadingMore(true)
     }
-    fetchFranchises()
-  }, [])
+
+    try {
+      const params = new URLSearchParams({
+        page: pageNum.toString(),
+        pageSize: PAGE_SIZE.toString(),
+        sortBy,
+        showCompleted: showCompleted.toString(),
+      })
+      if (debouncedSearch) {
+        params.set('search', debouncedSearch)
+      }
+
+      const response = await fetch(`/api/movies/franchises?${params}`, { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        setFranchises(prev => append ? [...prev, ...data.franchises] : data.franchises)
+        setStats(data.stats)
+        setTotal(data.total)
+        setHasMore(pageNum * PAGE_SIZE < data.total)
+        setError(null)
+      } else {
+        setError('Failed to load franchises')
+      }
+    } catch {
+      setError('Could not connect to server')
+    } finally {
+      setLoading(false)
+      setLoadingMore(false)
+    }
+  }, [debouncedSearch, sortBy, showCompleted])
+
+  // Initial fetch and refetch on filter change
+  useEffect(() => {
+    fetchFranchises(1, false)
+  }, [fetchFranchises])
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
+          const nextPage = page + 1
+          setPage(nextPage)
+          fetchFranchises(nextPage, true)
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    if (loaderRef.current) {
+      observer.observe(loaderRef.current)
+    }
+
+    return () => observer.disconnect()
+  }, [hasMore, loading, loadingMore, page, fetchFranchises])
 
   const handleRate = useCallback(
     async (movieId: string, rating: number | null) => {
@@ -105,45 +180,18 @@ export function FranchisesPage() {
     })
   }
 
-  // Filter and sort franchises
-  const filteredFranchises = franchises
-    .filter((f) => {
-      if (search && !f.name.toLowerCase().includes(search.toLowerCase())) {
-        return false
-      }
-      if (!showCompleted && f.progress === 100) {
-        return false
-      }
-      return true
-    })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case 'name':
-          return a.name.localeCompare(b.name)
-        case 'total':
-          return b.totalMovies - a.totalMovies
-        case 'progress':
-          return b.progress - a.progress
-        case 'unwatched':
-          return (b.totalMovies - b.watchedMovies) - (a.totalMovies - a.watchedMovies)
-        default:
-          return 0
-      }
-    })
-
-  // Stats
-  const totalFranchises = franchises.length
-  const completedFranchises = franchises.filter((f) => f.progress === 100).length
-  const totalMovies = franchises.reduce((sum, f) => sum + f.totalMovies, 0)
-  const watchedMovies = franchises.reduce((sum, f) => sum + f.watchedMovies, 0)
-
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" py={8}>
-        <CircularProgress />
-      </Box>
-    )
-  }
+  const StatCard = ({ value, label, color }: { value: React.ReactNode; label: string; color?: string }) => (
+    <Card>
+      <CardContent sx={{ textAlign: 'center', py: 2 }}>
+        <Typography variant="h4" color={color} fontWeight={700}>
+          {value}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {label}
+        </Typography>
+      </CardContent>
+    </Card>
+  )
 
   return (
     <Box>
@@ -157,52 +205,30 @@ export function FranchisesPage() {
       {/* Stats Cards */}
       <Grid container spacing={2} mb={4}>
         <Grid item xs={6} sm={3}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center', py: 2 }}>
-              <Typography variant="h4" color="primary" fontWeight={700}>
-                {totalFranchises}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Franchises
-              </Typography>
-            </CardContent>
-          </Card>
+          <StatCard
+            value={stats ? stats.totalFranchises : <Skeleton width={40} sx={{ mx: 'auto' }} />}
+            label="Franchises"
+            color="primary"
+          />
         </Grid>
         <Grid item xs={6} sm={3}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center', py: 2 }}>
-              <Typography variant="h4" color="success.main" fontWeight={700}>
-                {completedFranchises}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Completed
-              </Typography>
-            </CardContent>
-          </Card>
+          <StatCard
+            value={stats ? stats.completedFranchises : <Skeleton width={40} sx={{ mx: 'auto' }} />}
+            label="Completed"
+            color="success.main"
+          />
         </Grid>
         <Grid item xs={6} sm={3}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center', py: 2 }}>
-              <Typography variant="h4" fontWeight={700}>
-                {totalMovies}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Total Movies
-              </Typography>
-            </CardContent>
-          </Card>
+          <StatCard
+            value={stats ? stats.totalMovies : <Skeleton width={40} sx={{ mx: 'auto' }} />}
+            label="Total Movies"
+          />
         </Grid>
         <Grid item xs={6} sm={3}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center', py: 2 }}>
-              <Typography variant="h4" fontWeight={700}>
-                {totalMovies > 0 ? Math.round((watchedMovies / totalMovies) * 100) : 0}%
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Overall Progress
-              </Typography>
-            </CardContent>
-          </Card>
+          <StatCard
+            value={stats ? `${stats.totalMovies > 0 ? Math.round((stats.watchedMovies / stats.totalMovies) * 100) : 0}%` : <Skeleton width={40} sx={{ mx: 'auto' }} />}
+            label="Overall Progress"
+          />
         </Grid>
       </Grid>
 
@@ -252,19 +278,45 @@ export function FranchisesPage() {
         </Alert>
       )}
 
-      {filteredFranchises.length === 0 ? (
+      {loading ? (
+        <Box display="flex" flexDirection="column" gap={2}>
+          {[...Array(5)].map((_, i) => (
+            <Card key={i}>
+              <CardContent sx={{ pb: 1 }}>
+                <Box display="flex" alignItems="center" gap={2}>
+                  <Box display="flex" gap={0.5}>
+                    {[...Array(4)].map((_, j) => (
+                      <Skeleton key={j} variant="rounded" width={40} height={60} />
+                    ))}
+                  </Box>
+                  <Box flex={1}>
+                    <Skeleton width="40%" height={32} />
+                    <Skeleton width="30%" height={20} sx={{ mt: 0.5 }} />
+                    <Skeleton height={6} sx={{ mt: 1, borderRadius: 3 }} />
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          ))}
+        </Box>
+      ) : franchises.length === 0 ? (
         <Box textAlign="center" py={8}>
           <MovieIcon sx={{ fontSize: 64, opacity: 0.2, mb: 2 }} />
           <Typography variant="h6" color="text.secondary">
-            {search ? 'No franchises match your search' : 'No franchises found'}
+            {debouncedSearch ? 'No franchises match your search' : 'No franchises found'}
           </Typography>
           <Typography variant="body2" color="text.disabled" mt={1}>
-            {!search && 'Run the metadata enrichment job to discover franchises in your library'}
+            {!debouncedSearch && 'Run the metadata enrichment job to discover franchises in your library'}
           </Typography>
         </Box>
       ) : (
         <Box display="flex" flexDirection="column" gap={2}>
-          {filteredFranchises.map((franchise) => (
+          {/* Results count */}
+          <Typography variant="body2" color="text.secondary">
+            Showing {franchises.length} of {total} franchises
+          </Typography>
+
+          {franchises.map((franchise) => (
             <Card key={franchise.name}>
               <CardContent sx={{ pb: 1 }}>
                 <Box
@@ -370,6 +422,16 @@ export function FranchisesPage() {
               </Collapse>
             </Card>
           ))}
+
+          {/* Infinite scroll loader */}
+          <Box ref={loaderRef} display="flex" justifyContent="center" py={2}>
+            {loadingMore && <CircularProgress size={32} />}
+            {!hasMore && franchises.length > 0 && (
+              <Typography variant="body2" color="text.secondary">
+                All franchises loaded
+              </Typography>
+            )}
+          </Box>
         </Box>
       )}
     </Box>

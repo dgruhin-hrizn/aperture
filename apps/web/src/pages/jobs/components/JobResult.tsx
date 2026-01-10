@@ -55,16 +55,39 @@ export function JobResult({ progress }: JobResultProps) {
       {/* Result Summary */}
       {progress.status === 'completed' && progress.result && (
         <Stack direction="row" spacing={3} mt={1.5} flexWrap="wrap">
-          {Object.entries(progress.result).map(([key, value]) => (
-            <Box key={key}>
-              <Typography variant="caption" color="text.disabled">
-                {key.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase())}
-              </Typography>
-              <Typography variant="body2" fontWeight={600}>
-                {typeof value === 'number' ? value.toLocaleString() : String(value)}
-              </Typography>
-            </Box>
-          ))}
+          {Object.entries(progress.result).map(([key, value]) => {
+            // Skip complex objects/arrays or format them specially
+            if (Array.isArray(value)) {
+              // For arrays like 'users', show count and names
+              const names = value
+                .map((item) => (typeof item === 'object' && item?.displayName) || null)
+                .filter(Boolean)
+              return (
+                <Box key={key}>
+                  <Typography variant="caption" color="text.disabled">
+                    {key.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase())}
+                  </Typography>
+                  <Typography variant="body2" fontWeight={600}>
+                    {names.length > 0 ? names.join(', ') : `${value.length} item(s)`}
+                  </Typography>
+                </Box>
+              )
+            }
+            if (typeof value === 'object' && value !== null) {
+              // Skip other complex objects
+              return null
+            }
+            return (
+              <Box key={key}>
+                <Typography variant="caption" color="text.disabled">
+                  {key.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase())}
+                </Typography>
+                <Typography variant="body2" fontWeight={600}>
+                  {typeof value === 'number' ? value.toLocaleString() : String(value)}
+                </Typography>
+              </Box>
+            )
+          })}
         </Stack>
       )}
     </Box>

@@ -31,6 +31,7 @@ import TvIcon from '@mui/icons-material/Tv'
 import { MoviePoster, RankBadge } from '@aperture/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { useUserRatings } from '@/hooks/useUserRatings'
+import { useWatching } from '@/hooks/useWatching'
 
 interface MovieRecommendation {
   movie_id: string
@@ -83,6 +84,7 @@ export function MyRecommendationsPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { getRating, setRating } = useUserRatings()
+  const { isWatching, toggleWatching } = useWatching()
   
   // Tab state
   const [mediaType, setMediaType] = useState<MediaType>('movies')
@@ -496,6 +498,9 @@ export function MyRecommendationsPage() {
                     hideRating
                     userRating={getRating(type, id)}
                     onRate={(rating) => handleRate(type, id, rating)}
+                    isWatching={type === 'series' ? isWatching(id) : undefined}
+                    onWatchingToggle={type === 'series' ? () => toggleWatching(id) : undefined}
+                    hideWatchingToggle={type !== 'series'}
                     size="medium"
                     onClick={() => navigate(navigateTo)}
                   />

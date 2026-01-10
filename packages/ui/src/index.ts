@@ -4,6 +4,14 @@ export { ScoreBreakdown, type ScoreBreakdownProps, type ScoreItem } from './Scor
 export { EvidenceList, type EvidenceListProps, type EvidenceItem } from './EvidenceList.js'
 export { HeartRating, type HeartRatingProps } from './HeartRating.js'
 
+// Carousel
+export {
+  BaseCarousel,
+  CarouselItem,
+  type CarouselProps,
+  type CarouselItemProps,
+} from './components/Carousel/index.js'
+
 // Poster overlays
 export {
   RankBadge,

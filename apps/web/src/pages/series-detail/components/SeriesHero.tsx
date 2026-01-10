@@ -1,8 +1,10 @@
-import { Box, Typography, Button, Chip, Paper } from '@mui/material'
+import { Box, Typography, Button, Chip, Paper, Tooltip } from '@mui/material'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StarIcon from '@mui/icons-material/Star'
 import TvIcon from '@mui/icons-material/Tv'
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
+import AddToQueueIcon from '@mui/icons-material/AddToQueue'
+import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck'
 import type { Series, MediaServerInfo } from '../types'
 import { HeartRating } from '@aperture/ui'
 
@@ -11,9 +13,11 @@ interface SeriesHeroProps {
   mediaServer: MediaServerInfo | null
   userRating: number | null
   onRate: (newRating: number) => void
+  isWatching?: boolean
+  onWatchingToggle?: () => void
 }
 
-export function SeriesHero({ series, mediaServer, userRating, onRate }: SeriesHeroProps) {
+export function SeriesHero({ series, mediaServer, userRating, onRate, isWatching, onWatchingToggle }: SeriesHeroProps) {
   const handlePlayOnMediaServer = () => {
     if (!mediaServer?.baseUrl || !series.provider_item_id) return
 
@@ -173,6 +177,23 @@ export function SeriesHero({ series, mediaServer, userRating, onRate }: SeriesHe
             value={userRating} 
             onChange={(rating) => onRate(rating ?? 0)} 
           />
+          {onWatchingToggle && (
+            <Tooltip title={isWatching ? 'Remove from watching list' : 'Add to watching list'}>
+              <Button
+                variant={isWatching ? 'contained' : 'outlined'}
+                startIcon={isWatching ? <PlaylistAddCheckIcon /> : <AddToQueueIcon />}
+                onClick={onWatchingToggle}
+                sx={{ 
+                  borderRadius: 2,
+                  ...(isWatching && {
+                    background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.9) 0%, rgba(139, 92, 246, 0.9) 100%)',
+                  }),
+                }}
+              >
+                {isWatching ? 'Watching' : 'Add to Watching'}
+              </Button>
+            </Tooltip>
+          )}
           <Button
             variant="outlined"
             startIcon={<PlayArrowIcon />}

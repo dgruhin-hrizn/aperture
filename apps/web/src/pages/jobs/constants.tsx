@@ -9,6 +9,7 @@ import AutorenewIcon from '@mui/icons-material/Autorenew'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import SyncIcon from '@mui/icons-material/Sync'
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
+import AddToQueueIcon from '@mui/icons-material/AddToQueue'
 import type { JobCategory } from './types'
 
 // Movie job categories
@@ -70,6 +71,12 @@ export const GLOBAL_JOB_CATEGORIES: JobCategory[] = [
     jobs: ['refresh-top-picks'],
   },
   {
+    title: 'User Libraries',
+    description: 'Per-user custom library management',
+    color: '#06b6d4',
+    jobs: ['sync-watching-libraries'],
+  },
+  {
     title: 'Integrations',
     description: 'External service synchronization',
     color: '#ed1c24',
@@ -103,6 +110,7 @@ export const JOB_ICONS: Record<string, React.ReactNode> = {
   // Global jobs
   'enrich-metadata': <AutoFixHighIcon />,
   'refresh-top-picks': <TrendingUpIcon />,
+  'sync-watching-libraries': <AddToQueueIcon />,
   'sync-trakt-ratings': <SyncIcon />,
 }
 
@@ -125,6 +133,7 @@ export const JOB_COLORS: Record<string, string> = {
   // Global jobs
   'enrich-metadata': '#10b981',
   'refresh-top-picks': '#f59e0b',
+  'sync-watching-libraries': '#06b6d4',
   'sync-trakt-ratings': '#ed1c24',
 }
 
