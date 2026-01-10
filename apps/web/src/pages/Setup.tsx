@@ -200,6 +200,7 @@ export function SetupPage() {
       const response = await fetch('/api/setup/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
       })
 
       const data = await response.json()
