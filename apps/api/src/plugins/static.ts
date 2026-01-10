@@ -30,7 +30,6 @@ const staticPlugin: FastifyPluginAsync = async (fastify) => {
   await fastify.register(fastifyStatic, {
     root: webDistPath,
     prefix: '/',
-    decorateReply: false,
   })
 
   // SPA fallback - serve index.html for non-API routes
