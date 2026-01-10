@@ -774,7 +774,8 @@ export function useSetupWizard(): SetupWizardContext {
     )
     setJobLogs((l) => [...l, `[${new Date().toLocaleTimeString()}] ▶ Starting: ${job.name}`])
 
-    const startRes = await fetch(`/api/jobs/${job.id}/run`, { method: 'POST', credentials: 'include' })
+    // Use setup-specific endpoint that doesn't require auth (only works before setup is complete)
+    const startRes = await fetch(`/api/setup/jobs/${job.id}/run`, { method: 'POST', credentials: 'include' })
     const startData = await startRes.json()
     if (!startRes.ok) {
       const errorMsg = startData?.error || `Failed to start ${job.name}`
@@ -882,11 +883,7 @@ export function useSetupWizard(): SetupWizardContext {
   }, [])
 
   const runInitialJobs = useCallback(async () => {
-    if (!user?.isAdmin) {
-      setError('You must be logged in as an admin to run jobs.')
-      return
-    }
-
+    // No auth required - setup endpoint only works before setup is complete
     // Initialize job progress
     setJobsProgress(
       INITIAL_JOBS.map((job) => ({
@@ -915,7 +912,7 @@ export function useSetupWizard(): SetupWizardContext {
       setRunningJobs(false)
       setCurrentJobIndex(-1)
     }
-  }, [user?.isAdmin, runJobAndWait, updateProgress, goToStep])
+  }, [runJobAndWait, updateProgress, goToStep])
 
   // Complete handler
   const handleCompleteSetup = useCallback(async () => {

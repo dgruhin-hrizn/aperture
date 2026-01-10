@@ -30,7 +30,6 @@ import {
   AutoAwesome as AutoAwesomeIcon,
   CloudSync as CloudSyncIcon,
 } from '@mui/icons-material'
-import { useAuth } from '@/hooks/useAuth'
 import type { SetupWizardContext, JobProgress } from '../types'
 
 interface InitialJobsStepProps {
@@ -154,7 +153,6 @@ function JobListItem({ job, isActive }: { job: JobProgress; isActive: boolean })
 
 export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
   const { error, runningJobs, jobLogs, jobsProgress, currentJobIndex, runInitialJobs, goToStep } = wizard
-  const { user } = useAuth()
   const [logModalOpen, setLogModalOpen] = useState(false)
   const logContainerRef = useRef<HTMLDivElement>(null)
 
@@ -226,12 +224,6 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
         </Alert>
       )}
 
-      {!user?.isAdmin && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          You must be logged in as an admin to run initialization jobs.
-        </Alert>
-      )}
-
       {/* Progress Summary */}
       {hasStarted && (
         <Box sx={{ mb: 3 }}>
@@ -284,7 +276,7 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
           <Button
             variant="contained"
             onClick={runInitialJobs}
-            disabled={runningJobs || !user?.isAdmin}
+            disabled={runningJobs}
             startIcon={runningJobs ? <CircularProgress size={20} color="inherit" /> : <RunningIcon />}
             size="large"
           >
@@ -303,7 +295,7 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
             variant="contained"
             color="warning"
             onClick={runInitialJobs}
-            disabled={runningJobs || !user?.isAdmin}
+            disabled={runningJobs}
             startIcon={<RunningIcon />}
           >
             Retry

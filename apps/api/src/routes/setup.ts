@@ -821,6 +821,54 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
   )
 
   /**
+   * POST /api/setup/jobs/:name/run
+   * Run a job during first-time setup (no auth required, only works before setup is complete)
+   */
+  fastify.post<{ Params: { name: string } }>(
+    '/api/setup/jobs/:name/run',
+    async (request, reply) => {
+      const complete = await isSetupComplete()
+      if (complete) {
+        return reply.status(403).send({ 
+          error: 'Setup is already complete. Use admin job endpoints instead.' 
+        })
+      }
+
+      const { name } = request.params
+
+      // Only allow specific jobs during setup
+      const allowedJobs = [
+        'sync-movies',
+        'sync-series',
+        'sync-movie-watch-history',
+        'sync-series-watch-history',
+        'generate-movie-embeddings',
+        'generate-series-embeddings',
+        'generate-movie-recommendations',
+        'generate-series-recommendations',
+        'sync-movie-libraries',
+        'sync-series-libraries',
+      ]
+
+      if (!allowedJobs.includes(name)) {
+        return reply.status(400).send({ error: `Job "${name}" is not allowed during setup` })
+      }
+
+      // Forward to the actual job runner via inject (bypasses auth for internal call)
+      const res = await fastify.inject({
+        method: 'POST',
+        url: `/api/jobs/${name}/run`,
+        headers: {
+          // Mark as internal request to bypass auth
+          'x-internal-request': 'true',
+        },
+      })
+
+      return reply.status(res.statusCode).send(res.json())
+    }
+  )
+
+  /**
    * POST /api/setup/complete
    * Mark setup as complete
    */

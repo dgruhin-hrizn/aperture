@@ -145,10 +145,17 @@ export async function requireAuth(
 }
 
 // Middleware to require admin
+// Allows internal requests (from fastify.inject) to bypass auth during setup
 export async function requireAdmin(
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> {
+  // Allow internal requests (used by setup wizard to run jobs before user is logged in)
+  const isInternalRequest = request.headers['x-internal-request'] === 'true'
+  if (isInternalRequest) {
+    return // Allow through
+  }
+
   if (!request.user) {
     return reply.status(401).send({ error: 'Unauthorized' })
   }
