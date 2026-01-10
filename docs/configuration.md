@@ -65,6 +65,8 @@ Aperture uses a **database-first** configuration approach. Most settings can be 
 | `APP_BASE_URL`   | Public URL of the application        | `http://localhost:3456`                         |
 | `TZ`             | Timezone                             | System default                                  |
 
+> **Important**: Set `APP_BASE_URL` to your server's actual IP/hostname when deploying to a server (e.g., `http://192.168.1.100:3456`). This is required for proper session handling and CORS.
+
 ### UI-Configurable Settings
 
 The following settings can be configured via environment variables **OR** the Admin UI. **UI settings take precedence** when configured.

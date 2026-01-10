@@ -116,7 +116,20 @@ Aperture creates personalized recommendation libraries for your media server use
 
 ### Using Pre-built Docker Image
 
-1. **Create docker-compose.yml**
+**Option 1: Use the production compose file (recommended)**
+
+```bash
+# Download the production compose file
+curl -O https://raw.githubusercontent.com/dgruhin-hrizn/aperture/main/docker-compose.prod.yml
+
+# Edit APP_BASE_URL to your server's IP
+# e.g., APP_BASE_URL: http://192.168.1.100:3456
+
+# Start Aperture
+docker compose -f docker-compose.prod.yml up -d
+```
+
+**Option 2: Create your own docker-compose.yml**
 
 ```yaml
 services:
@@ -145,6 +158,8 @@ services:
       DATABASE_URL: postgres://app:app@db:5432/aperture
       RUN_MIGRATIONS_ON_START: 'true'
       TZ: America/New_York
+      # Set this to your server's IP if accessing from other machines
+      APP_BASE_URL: http://192.168.1.100:3456
     ports:
       - '3456:3456'
     volumes:

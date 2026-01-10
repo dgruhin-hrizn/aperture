@@ -58,19 +58,23 @@ cp env.local.example .env.local
 Edit `.env.local` with your settings:
 
 ```bash
-# Required
-SESSION_SECRET=your-random-secret-at-least-32-chars
-APP_BASE_URL=http://localhost:3456
+# Required for local development
 DATABASE_URL=postgres://app:app@localhost:5432/aperture
 
-# OpenAI (for AI features)
+# Optional (have sensible defaults)
+SESSION_SECRET=your-random-secret-at-least-32-chars
+APP_BASE_URL=http://localhost:3456
+
+# OpenAI (optional - can configure via Setup Wizard or Admin UI)
 OPENAI_API_KEY=sk-your-openai-api-key
 
-# Media Server (can also configure via Admin UI)
+# Media Server (optional - can configure via Setup Wizard or Admin UI)
 MEDIA_SERVER_TYPE=emby  # or 'jellyfin'
 MEDIA_SERVER_BASE_URL=http://your-server:8096
 MEDIA_SERVER_API_KEY=your-api-key
 ```
+
+> **Note**: For local development, you can either set environment variables in `.env.local` or complete the Setup Wizard on first launch. The Setup Wizard saves settings to the database, which take precedence over environment variables.
 
 ### 4. Run Migrations
 
