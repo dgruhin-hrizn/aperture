@@ -87,6 +87,12 @@ export function useSetupWizard(): SetupWizardContext {
   const [serverApiKey, setServerApiKey] = useState('')
   const [serverName, setServerName] = useState('')
   const [showApiKey, setShowApiKey] = useState(false)
+  // Existing media server config (masked API key for display)
+  const [existingMediaServer, setExistingMediaServer] = useState<{
+    type: string
+    baseUrl: string
+    maskedApiKey: string
+  } | null>(null)
 
   // Libraries
   const [libraries, setLibraries] = useState<LibraryConfig[]>([])
@@ -209,6 +215,19 @@ export function useSetupWizard(): SetupWizardContext {
         if (data?.snapshot?.aiRecsOutput) setAiRecsOutput(data.snapshot.aiRecsOutput)
         if (data?.snapshot?.topPicks) setTopPicks((tp) => ({ ...tp, ...data.snapshot.topPicks }))
 
+        // Set existing media server config if configured
+        const ms = data?.snapshot?.mediaServer
+        if (ms?.isConfigured && ms.type && ms.baseUrl && ms.apiKey) {
+          setExistingMediaServer({
+            type: ms.type,
+            baseUrl: ms.baseUrl,
+            maskedApiKey: `${ms.apiKey.slice(0, 4)}...${ms.apiKey.slice(-4)}`,
+          })
+          setServerType(ms.type)
+          setServerUrl(ms.baseUrl)
+          setTestSuccess(true) // Already validated if it exists
+        }
+
         const completed = new Set<string>((data?.progress?.completedSteps ?? []) as string[])
         const firstIncompleteIdx = STEP_ORDER.findIndex((s) => !completed.has(s.id))
         setActiveStep(firstIncompleteIdx === -1 ? STEP_ORDER.length - 1 : firstIncompleteIdx)
@@ -302,6 +321,13 @@ export function useSetupWizard(): SetupWizardContext {
   }, [serverType, serverUrl, serverApiKey])
 
   const handleSaveMediaServer = useCallback(async () => {
+    // If using existing config and no new values entered, just continue
+    if (existingMediaServer && !serverApiKey) {
+      await updateProgress({ completedStep: 'mediaServer' })
+      goToStep('mediaLibraries')
+      return
+    }
+
     setSaving(true)
     setError('')
 
@@ -329,7 +355,7 @@ export function useSetupWizard(): SetupWizardContext {
     } finally {
       setSaving(false)
     }
-  }, [serverType, serverUrl, serverApiKey, updateProgress, goToStep])
+  }, [serverType, serverUrl, serverApiKey, existingMediaServer, updateProgress, goToStep])
 
   // Libraries handlers
   const loadLibraries = useCallback(async () => {
@@ -931,6 +957,7 @@ export function useSetupWizard(): SetupWizardContext {
     serverApiKey,
     serverName,
     showApiKey,
+    existingMediaServer,
     libraries,
     loadingLibraries,
     aiRecsOutput,

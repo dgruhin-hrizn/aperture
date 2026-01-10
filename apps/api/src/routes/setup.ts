@@ -134,7 +134,8 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
     // Snapshot (safe for first-run; excludes user list)
     const mediaServerConfig = await getMediaServerConfig()
     const hasOpenAI = await hasOpenAIApiKey()
-    const libraries = await getLibraryConfigs()
+    // Exclude Aperture-created libraries from selection
+    const libraries = await getLibraryConfigs(true)
     const aiRecsOutput = await getAiRecsOutputConfig()
     const topPicks = await getTopPicksConfig()
 
@@ -363,7 +364,8 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
       libs.map((l) => ({ id: l.id, name: l.name, collectionType: l.collectionType }))
     )
 
-    const configs = await getLibraryConfigs()
+    // Exclude Aperture-created libraries from selection
+    const configs = await getLibraryConfigs(true)
     return reply.send({ libraries: configs })
   })
 
@@ -390,7 +392,8 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
       results.push(updated)
     }
 
-    return reply.send({ success: true, libraries: await getLibraryConfigs() })
+    // Exclude Aperture-created libraries from response
+    return reply.send({ success: true, libraries: await getLibraryConfigs(true) })
   })
 
   /**
@@ -901,7 +904,8 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
     const progress = await getSetupProgress()
     const mediaServerConfig = await getMediaServerConfig()
     const hasOpenAI = await hasOpenAIApiKey()
-    const libraries = await getLibraryConfigs()
+    // Exclude Aperture-created libraries from selection
+    const libraries = await getLibraryConfigs(true)
     const aiRecsOutput = await getAiRecsOutputConfig()
     const topPicks = await getTopPicksConfig()
 

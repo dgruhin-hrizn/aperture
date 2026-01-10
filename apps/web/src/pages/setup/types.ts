@@ -10,6 +10,12 @@ export interface DiscoveredServer {
   type: 'emby' | 'jellyfin'
 }
 
+export interface ExistingMediaServer {
+  type: string
+  baseUrl: string
+  maskedApiKey: string
+}
+
 export type SetupStepId =
   | 'mediaServer'
   | 'mediaLibraries'
@@ -106,6 +112,7 @@ export interface SetupWizardState {
   serverApiKey: string
   serverName: string
   showApiKey: boolean
+  existingMediaServer: ExistingMediaServer | null
 
   // Libraries
   libraries: LibraryConfig[]

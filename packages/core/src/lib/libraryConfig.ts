@@ -25,12 +25,26 @@ interface LibraryConfigRow {
 
 /**
  * Get all library configurations
+ * Optionally exclude Aperture-created libraries (tracked in strm_libraries table)
  */
-export async function getLibraryConfigs(): Promise<LibraryConfig[]> {
-  const result = await query<LibraryConfigRow>(
-    'SELECT * FROM library_config ORDER BY name ASC'
-  )
-
+export async function getLibraryConfigs(excludeApertureLibraries = false): Promise<LibraryConfig[]> {
+  let sql = 'SELECT * FROM library_config'
+  
+  if (excludeApertureLibraries) {
+    // Exclude all Aperture-created libraries:
+    // 1. By provider_library_id (tracked in strm_libraries)
+    // 2. By name pattern (fallback for libraries created before ID tracking)
+    sql += ` WHERE provider_library_id NOT IN (
+        SELECT DISTINCT provider_library_id FROM strm_libraries WHERE provider_library_id IS NOT NULL
+      )
+      AND name NOT LIKE '%AI Picks%'
+      AND name NOT LIKE '%Top Picks%'
+      AND name NOT LIKE '%Aperture Picks%'`
+  }
+  
+  sql += ' ORDER BY name ASC'
+  
+  const result = await query<LibraryConfigRow>(sql)
   return result.rows.map(mapRowToConfig)
 }
 

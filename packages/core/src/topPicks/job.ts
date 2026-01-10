@@ -25,6 +25,7 @@ import { getMediaServerProvider } from '../media/index.js'
 import { getMediaServerApiKey } from '../settings/systemSettings.js'
 import { getConfig } from '../strm/config.js'
 import { syncLibraryTypeImage } from '../uploads/mediaServerSync.js'
+import { query } from '../lib/db.js'
 import path from 'path'
 
 /**
@@ -37,6 +38,39 @@ interface LibraryInfo {
 }
 
 const logger = createChildLogger('top-picks-job')
+
+/**
+ * Store a Top Picks library ID in strm_libraries for exclusion filtering
+ * Uses user_id = NULL to mark these as global/system libraries
+ */
+async function storeTopPicksLibrary(
+  libraryId: string,
+  name: string,
+  libPath: string,
+  mediaType: 'movies' | 'series'
+): Promise<void> {
+  // Check if this library is already stored
+  const existing = await query<{ id: string }>(
+    `SELECT id FROM strm_libraries WHERE provider_library_id = $1`,
+    [libraryId]
+  )
+
+  if (existing.rows.length > 0) {
+    // Update existing record
+    await query(
+      `UPDATE strm_libraries SET name = $1, path = $2, media_type = $3, updated_at = NOW()
+       WHERE provider_library_id = $4`,
+      [name, libPath, mediaType, libraryId]
+    )
+  } else {
+    // Insert new record
+    await query(
+      `INSERT INTO strm_libraries (user_id, name, path, provider_library_id, media_type)
+       VALUES (NULL, $1, $2, $3, $4)`,
+      [name, libPath, libraryId, mediaType]
+    )
+  }
+}
 
 export interface RefreshTopPicksResult {
   moviesCount: number
@@ -197,6 +231,9 @@ export async function refreshTopPicks(
           } else {
             addLog(jobId, 'info', `✅ Movies library "${config.moviesLibraryName}" created`)
           }
+          // Store the library ID in strm_libraries for exclusion filtering
+          // Use user_id = NULL for global Top Picks libraries
+          await storeTopPicksLibrary(moviesResult.libraryId, config.moviesLibraryName, moviesLibPath, 'movies')
         } catch (err) {
           addLog(jobId, 'error', `❌ Failed to ensure Movies library: ${err instanceof Error ? err.message : 'Unknown error'}`)
         }
@@ -218,6 +255,9 @@ export async function refreshTopPicks(
           } else {
             addLog(jobId, 'info', `✅ Series library "${config.seriesLibraryName}" created`)
           }
+          // Store the library ID in strm_libraries for exclusion filtering
+          // Use user_id = NULL for global Top Picks libraries
+          await storeTopPicksLibrary(seriesResult.libraryId, config.seriesLibraryName, seriesLibPath, 'series')
         } catch (err) {
           addLog(jobId, 'error', `❌ Failed to ensure Series library: ${err instanceof Error ? err.message : 'Unknown error'}`)
         }

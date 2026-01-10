@@ -1,4 +1,4 @@
-import { Box, Card, CardContent, Stepper, Step, StepLabel } from '@mui/material'
+import { Box, Card, CardContent, Stepper, Step, StepLabel, Typography } from '@mui/material'
 import { useSetupWizard } from './hooks/useSetupWizard'
 import { STEP_ORDER } from './constants'
 import {
@@ -11,6 +11,8 @@ import {
   InitialJobsStep,
   CompleteStep,
 } from './components'
+
+const APP_VERSION = '0.2.0'
 
 export function SetupPage() {
   const wizard = useSetupWizard()
@@ -49,8 +51,56 @@ export function SetupPage() {
         backgroundColor: 'background.default',
         backgroundImage: 'radial-gradient(circle at 50% 50%, #1a1a2e 0%, #0f0f0f 100%)',
         p: 2,
+        position: 'relative',
       }}
     >
+      {/* Persistent branding - top left */}
+      <Box
+        sx={{
+          position: 'fixed',
+          top: 24,
+          left: 24,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          zIndex: 10,
+        }}
+      >
+        <Box
+          component="img"
+          src="/aperture.svg"
+          alt="Aperture"
+          sx={{ width: 32, height: 32 }}
+        />
+        <Typography
+          sx={{
+            fontFamily: '"Open Sans", sans-serif',
+            fontWeight: 600,
+            fontSize: '1.25rem',
+            color: 'white',
+            letterSpacing: '-0.01em',
+          }}
+        >
+          Aperture
+        </Typography>
+      </Box>
+
+      {/* Version - bottom left */}
+      <Typography
+        variant="caption"
+        sx={{
+          position: 'fixed',
+          bottom: 16,
+          left: 24,
+          color: 'text.secondary',
+          opacity: 0.6,
+          fontFamily: 'monospace',
+          fontSize: '0.7rem',
+        }}
+      >
+        v{APP_VERSION}
+      </Typography>
+
       <Card
         sx={{
           width: '100%',

@@ -9,14 +9,14 @@ export const DEFAULT_LIBRARY_IMAGES: Record<string, string> = {
 }
 
 export const STEP_ORDER: Array<{ id: SetupStepId; label: string }> = [
-  { id: 'mediaServer', label: 'Media Server' },
+  { id: 'mediaServer', label: 'Connect' },
   { id: 'mediaLibraries', label: 'Libraries' },
-  { id: 'aiRecsLibraries', label: 'AI Recs Output + Images' },
+  { id: 'aiRecsLibraries', label: 'For You' },
   { id: 'users', label: 'Users' },
-  { id: 'topPicks', label: 'Top Picks' },
-  { id: 'openai', label: 'OpenAI API' },
-  { id: 'initialJobs', label: 'Run Initial Jobs' },
-  { id: 'complete', label: 'Finish' },
+  { id: 'topPicks', label: 'Top 10' },
+  { id: 'openai', label: 'AI' },
+  { id: 'initialJobs', label: 'Sync' },
+  { id: 'complete', label: 'Done' },
 ]
 
 export const DEFAULT_AI_RECS_OUTPUT = {
