@@ -4,10 +4,11 @@ This guide covers all configuration options for Aperture, including environment 
 
 ## Table of Contents
 
+- [First-Time Setup](#first-time-setup)
 - [Environment Variables](#environment-variables)
-  - [Core Settings](#core-settings)
-  - [OpenAI Settings](#openai-settings)
-  - [Media Server Settings](#media-server-settings)
+  - [Required Settings](#required-settings)
+  - [Optional Settings](#optional-settings)
+  - [UI-Configurable Settings](#ui-configurable-settings)
   - [STRM Configuration](#strm-configuration)
   - [Job Schedules](#job-schedules-defaults)
   - [Trakt Integration](#trakt-integration)
@@ -31,36 +32,59 @@ This guide covers all configuration options for Aperture, including environment 
 
 ---
 
+## First-Time Setup
+
+When you start Aperture for the first time (via Docker or otherwise), you'll be guided through a **Setup Wizard** that configures the essential settings:
+
+1. **Welcome** — Introduction to the setup process
+2. **Media Server** — Connect to your Emby or Jellyfin server (required)
+3. **OpenAI** — Configure your OpenAI API key (optional, can be added later)
+4. **Complete** — Finish setup and start using Aperture
+
+The setup wizard saves all configuration to the database, so you don't need to configure environment variables for most settings.
+
+---
+
 ## Environment Variables
 
-All configuration can be done via environment variables or the Admin UI.
+Aperture uses a **database-first** configuration approach. Most settings can be configured through the UI and are stored in the database. Environment variables serve as fallbacks or for settings that must be configured before the application starts.
 
-### Core Settings
+### Required Settings
 
-| Variable         | Description                          | Default       |
-| ---------------- | ------------------------------------ | ------------- |
-| `PORT`           | API server port                      | `3456`        |
-| `NODE_ENV`       | Environment mode                     | `development` |
-| `SESSION_SECRET` | Session cookie secret (min 32 chars) | **Required**  |
-| `APP_BASE_URL`   | Public URL of the application        | **Required**  |
-| `DATABASE_URL`   | PostgreSQL connection string         | **Required**  |
+| Variable       | Description                  | Notes                                  |
+| -------------- | ---------------------------- | -------------------------------------- |
+| `DATABASE_URL` | PostgreSQL connection string | e.g., `postgres://app:app@db:5432/aperture` |
 
-### OpenAI Settings
+### Optional Settings
 
-| Variable             | Description     | Default                  |
-| -------------------- | --------------- | ------------------------ |
-| `OPENAI_API_KEY`     | OpenAI API key  | Required for AI features |
-| `OPENAI_EMBED_MODEL` | Embedding model | `text-embedding-3-small` |
+| Variable         | Description                          | Default                    |
+| ---------------- | ------------------------------------ | -------------------------- |
+| `PORT`           | API server port                      | `3456`                     |
+| `NODE_ENV`       | Environment mode                     | `development`              |
+| `SESSION_SECRET` | Session cookie secret (min 32 chars) | Auto-generated (set in production for clusters) |
+| `APP_BASE_URL`   | Public URL of the application        | `http://localhost:3456`    |
+| `TZ`             | Timezone                             | System default             |
 
-### Media Server Settings
+### UI-Configurable Settings
 
-These can also be configured via Admin > Settings > Media Server.
+The following settings can be configured via environment variables **OR** the Admin UI. **UI settings take precedence** when configured.
+
+#### Media Server (Admin → Settings → Media Server)
 
 | Variable                | Description          | Default |
 | ----------------------- | -------------------- | ------- |
 | `MEDIA_SERVER_TYPE`     | `emby` or `jellyfin` | `emby`  |
 | `MEDIA_SERVER_BASE_URL` | Media server URL     | —       |
 | `MEDIA_SERVER_API_KEY`  | Admin API key        | —       |
+
+#### OpenAI (Admin → Settings → AI)
+
+| Variable             | Description     | Default                  |
+| -------------------- | --------------- | ------------------------ |
+| `OPENAI_API_KEY`     | OpenAI API key  | —                        |
+| `OPENAI_EMBED_MODEL` | Embedding model | `text-embedding-3-small` |
+
+> **Note**: For Docker deployments, you typically don't need to set these environment variables. Just complete the setup wizard and configure everything through the UI.
 
 ### STRM Configuration
 
