@@ -178,6 +178,86 @@ MEDIA_SERVER_STRM_ROOT=/strm
 AI_LIBRARY_PATH_PREFIX=/strm/aperture/
 ```
 
+### Unraid Setup
+
+Unraid is a popular platform for running Aperture alongside Emby/Jellyfin. Here's a complete setup guide:
+
+#### Quick Start (docker-compose.prod.yml)
+
+Use the production Docker Compose file designed for Unraid:
+
+```bash
+# Create a directory for Aperture
+mkdir -p /mnt/user/appdata/aperture
+cd /mnt/user/appdata/aperture
+
+# Download the production compose file
+curl -O https://raw.githubusercontent.com/dgruhin-hrizn/aperture/main/docker-compose.prod.yml
+
+# Edit and set your server IP
+nano docker-compose.prod.yml
+
+# Start the stack
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+#### Unraid with Symlinks
+
+To enable symlinks (for local playback without streaming URLs):
+
+**1. Create the virtual libraries directory:**
+
+```bash
+mkdir -p /mnt/user/Media/VirtualLibraries
+```
+
+**2. Configure Aperture's docker-compose.prod.yml:**
+
+```yaml
+services:
+  app:
+    image: ghcr.io/dgruhin-hrizn/aperture:latest
+    container_name: aperture
+    user: root # Required for write permissions on Unraid
+    environment:
+      APP_BASE_URL: http://YOUR_UNRAID_IP:3456
+      # ... other settings ...
+
+      # STRM Configuration
+      MEDIA_SERVER_STRM_ROOT: /strm
+      AI_LIBRARY_PATH_PREFIX: /mnt/VirtualLibraries/aperture/
+      MEDIA_SERVER_PATH_PREFIX: /mnt/
+      LOCAL_MEDIA_PATH_PREFIX: /media/
+      STRM_USE_STREAMING_URL: 'false'
+    volumes:
+      # Virtual libraries (where STRM files are written)
+      - /mnt/user/Media/VirtualLibraries:/strm
+      # Your media library (read-only, for symlinks)
+      - /mnt/user/Media:/media:ro
+      # Uploads
+      - /mnt/user/appdata/aperture/uploads:/app/uploads
+```
+
+**3. Add the virtual libraries folder to your Emby/Jellyfin container:**
+
+In Unraid's Docker UI, edit your Emby/Jellyfin container and add a new path:
+
+| Container Path          | Host Path                          | Access Mode |
+| ----------------------- | ---------------------------------- | ----------- |
+| `/mnt/VirtualLibraries` | `/mnt/user/Media/VirtualLibraries` | Read Only   |
+
+**4. Add libraries in Emby/Jellyfin:**
+
+After Aperture creates the STRM files, add new libraries pointing to:
+
+- `/mnt/VirtualLibraries/aperture/top-picks/movies` (Top Picks Movies)
+- `/mnt/VirtualLibraries/aperture/top-picks/series` (Top Picks Series)
+- User recommendation libraries will appear as `AI Picks - Username`
+
+#### Permission Note
+
+The `user: root` setting in docker-compose.prod.yml is **required** for Unraid because bind mounts inherit permissions from the host filesystem. Running as root ensures Aperture can write to the STRM directory without permission errors.
+
 ### Different Machines (NAS/Network Share)
 
 If Aperture runs on a different machine than your media server:

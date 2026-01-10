@@ -32,18 +32,45 @@ services:
   app:
     image: ghcr.io/dgruhin-hrizn/aperture:latest
     container_name: aperture
+    # Run as root to avoid permission issues with bind mounts on Unraid/NAS
     user: root
     environment:
       NODE_ENV: production
-      APP_BASE_URL: http://192.168.1.8:3456 # SET THIS TO YOUR SERVER IP AND PORT
+      # =========================================================================
+      # REQUIRED: Set this to your server's IP address
+      # =========================================================================
+      APP_BASE_URL: http://YOUR_SERVER_IP:3456
       PORT: 3456
       DATABASE_URL: postgres://app:app@db:5432/aperture
       RUN_MIGRATIONS_ON_START: 'true'
       # Timezone for scheduled jobs (IANA format)
       TZ: America/New_York
-      # -------------------------------------------------------------------------
+      # =========================================================================
+      # STRM / Virtual Library Configuration (for symlinks)
+      # =========================================================================
+      # Uncomment and configure these if you want to use STRM files with symlinks
+      # instead of streaming URLs. This enables local playback without transcoding.
+      #
+      # Where Aperture writes STRM files (path INSIDE this container)
+      # MEDIA_SERVER_STRM_ROOT: /strm
+      #
+      # What path your media server sees for the STRM folder
+      # (path INSIDE your Emby/Jellyfin container)
+      # AI_LIBRARY_PATH_PREFIX: /mnt/VirtualLibraries/aperture/
+      #
+      # For symlinks: How your media server sees your media paths
+      # (check Media Info in Emby/Jellyfin for any movie)
+      # MEDIA_SERVER_PATH_PREFIX: /mnt/
+      #
+      # For symlinks: How Aperture sees those SAME files
+      # (the /media mount defined in volumes below)
+      # LOCAL_MEDIA_PATH_PREFIX: /media/
+      #
+      # Use file paths (symlinks) instead of streaming URLs
+      # STRM_USE_STREAMING_URL: 'false'
+      # =========================================================================
       # Optional: Uncomment and set these for production use
-      # -------------------------------------------------------------------------
+      # =========================================================================
       # SESSION_SECRET: your-random-secret-at-least-32-chars
       # OPENAI_API_KEY: sk-your-key-here
     ports:
@@ -52,10 +79,19 @@ services:
       db:
         condition: service_healthy
     volumes:
-      # STRM files for virtual libraries (adjust path as needed)
+      # STRM files for virtual libraries
+      # Change the left side to your desired host path
+      # Example for Unraid: /mnt/user/Media/VirtualLibraries:/strm
       - ./data/strm:/strm
       # Uploaded images (library artwork, etc.)
       - ./uploads:/app/uploads
+      # =========================================================================
+      # OPTIONAL: Media library access (required for symlinks)
+      # =========================================================================
+      # If using symlinks (STRM_USE_STREAMING_URL=false), mount your media library
+      # as read-only so Aperture can create symlinks to artwork files.
+      # Example for Unraid: /mnt/user/Media:/media:ro
+      # - /path/to/your/media:/media:ro
     restart: unless-stopped
 
 volumes:

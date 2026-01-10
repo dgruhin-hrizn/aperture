@@ -52,7 +52,7 @@ interface RecommendationConfigRow {
 // Default values
 const MOVIE_DEFAULTS: MediaTypeConfig = {
   maxCandidates: 50000,
-  selectedCount: 50,
+  selectedCount: 12,
   recentWatchLimit: 50,
   similarityWeight: 0.4,
   noveltyWeight: 0.2,

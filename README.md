@@ -152,6 +152,7 @@ services:
   app:
     image: ghcr.io/dgruhin-hrizn/aperture:latest
     container_name: aperture
+    user: root # Required for Unraid/NAS bind mount permissions
     environment:
       NODE_ENV: production
       PORT: 3456
@@ -173,6 +174,8 @@ services:
 volumes:
   pgdata:
 ```
+
+> **Unraid Users**: See [Unraid Setup](docs/configuration.md#unraid-setup) for detailed instructions on configuring STRM files, symlinks, and path mappings for your setup.
 
 2. **Start Aperture**
 

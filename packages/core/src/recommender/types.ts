@@ -42,7 +42,7 @@ export interface PipelineConfig {
 // Fallback defaults (used only if DB fetch fails)
 export const FALLBACK_CONFIG: PipelineConfig = {
   maxCandidates: 50000,
-  selectedCount: 50,
+  selectedCount: 12,
   similarityWeight: 0.4,
   noveltyWeight: 0.2,
   ratingWeight: 0.2,
