@@ -27,9 +27,11 @@ const staticPlugin: FastifyPluginAsync = async (fastify) => {
   }
 
   // Register static file serving
+  // decorateReply: true enables reply.sendFile() for SPA fallback
   await fastify.register(fastifyStatic, {
     root: webDistPath,
     prefix: '/',
+    decorateReply: true,
   })
 
   // SPA fallback - serve index.html for non-API routes

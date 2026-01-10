@@ -44,7 +44,6 @@ services:
       # Optional: Uncomment and set these for production use
       # -------------------------------------------------------------------------
       # SESSION_SECRET: your-random-secret-at-least-32-chars
-      # APP_BASE_URL: http://your-server-ip:3456
       # OPENAI_API_KEY: sk-your-key-here
     ports:
       - '3456:3456'
