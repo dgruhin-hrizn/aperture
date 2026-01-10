@@ -181,12 +181,21 @@ export async function setLibraryEnabled(
  * but preserves existing enabled/disabled status
  */
 export async function syncLibraryConfigsFromProvider(
-  libraries: Array<{ id: string; name: string; collectionType: string }>
-): Promise<{ added: number; updated: number }> {
+  libraries: Array<{ id: string; name: string; collectionType: string | null }>
+): Promise<{ added: number; updated: number; skipped: number }> {
   let added = 0
   let updated = 0
+  let skipped = 0
 
   for (const lib of libraries) {
+    // Skip libraries without a collection type (e.g., "Intros", special Emby features)
+    // We only care about movies and tvshows libraries
+    if (!lib.collectionType) {
+      logger.debug({ libraryId: lib.id, name: lib.name }, 'Skipping library without collection type')
+      skipped++
+      continue
+    }
+
     const existing = await queryOne<LibraryConfigRow>(
       'SELECT * FROM library_config WHERE provider_library_id = $1',
       [lib.id]
@@ -212,8 +221,8 @@ export async function syncLibraryConfigsFromProvider(
     }
   }
 
-  logger.info({ added, updated }, 'Library configs synced from provider')
-  return { added, updated }
+  logger.info({ added, updated, skipped }, 'Library configs synced from provider')
+  return { added, updated, skipped }
 }
 
 function mapRowToConfig(row: LibraryConfigRow): LibraryConfig {
