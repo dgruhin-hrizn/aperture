@@ -16,6 +16,9 @@ export {
   findTVByTvdbId,
 } from './client.js'
 
+// Client types
+export type { ApiLogCallback } from './client.js'
+
 // Movie functions
 export {
   getMovieDetails,

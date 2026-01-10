@@ -55,14 +55,33 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
     if (enabledLibraryIds !== null && enabledLibraryIds.length === 0) {
       addLog(jobId, 'warn', '⚠️ No TV libraries enabled for sync!')
       addLog(jobId, 'info', '💡 Enable TV libraries in Settings → Library Configuration')
-      completeJob(jobId, { seriesAdded: 0, seriesUpdated: 0, episodesAdded: 0, episodesUpdated: 0, totalSeries: 0, totalEpisodes: 0 })
-      return { seriesAdded: 0, seriesUpdated: 0, episodesAdded: 0, episodesUpdated: 0, totalSeries: 0, totalEpisodes: 0, jobId }
+      completeJob(jobId, {
+        seriesAdded: 0,
+        seriesUpdated: 0,
+        episodesAdded: 0,
+        episodesUpdated: 0,
+        totalSeries: 0,
+        totalEpisodes: 0,
+      })
+      return {
+        seriesAdded: 0,
+        seriesUpdated: 0,
+        episodesAdded: 0,
+        episodesUpdated: 0,
+        totalSeries: 0,
+        totalEpisodes: 0,
+        jobId,
+      }
     }
 
     const librariesToSync = enabledLibraryIds ?? []
 
     if (librariesToSync.length > 0) {
-      addLog(jobId, 'info', `📚 Syncing from ${librariesToSync.length} selected TV library/libraries`)
+      addLog(
+        jobId,
+        'info',
+        `📚 Syncing from ${librariesToSync.length} selected TV library/libraries`
+      )
     } else {
       addLog(jobId, 'info', '📚 Syncing from ALL TV libraries (no filter configured)')
     }
@@ -94,8 +113,23 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
 
     if (totalSeries === 0) {
       addLog(jobId, 'warn', '⚠️ No series found in media server library!')
-      completeJob(jobId, { seriesAdded: 0, seriesUpdated: 0, episodesAdded: 0, episodesUpdated: 0, totalSeries: 0, totalEpisodes: 0 })
-      return { seriesAdded: 0, seriesUpdated: 0, episodesAdded: 0, episodesUpdated: 0, totalSeries: 0, totalEpisodes: 0, jobId }
+      completeJob(jobId, {
+        seriesAdded: 0,
+        seriesUpdated: 0,
+        episodesAdded: 0,
+        episodesUpdated: 0,
+        totalSeries: 0,
+        totalEpisodes: 0,
+      })
+      return {
+        seriesAdded: 0,
+        seriesUpdated: 0,
+        episodesAdded: 0,
+        episodesUpdated: 0,
+        totalSeries: 0,
+        totalEpisodes: 0,
+        jobId,
+      }
     }
 
     let seriesAdded = 0
@@ -125,7 +159,12 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
 
         for (const series of result.items) {
           processedSeries++
-          updateJobProgress(jobId, processedSeries, totalSeries, `${series.name} (${series.year || 'N/A'})`)
+          updateJobProgress(
+            jobId,
+            processedSeries,
+            totalSeries,
+            `${series.name} (${series.year || 'N/A'})`
+          )
 
           try {
             const existing = await queryOne<{ id: string }>(
@@ -351,15 +390,25 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
 
         for (const episode of result.items) {
           processedEpisodes++
-          
+
           // Skip Aperture sorting placeholder episodes (used for Emby home row sorting)
-          if (episode.name === 'Aperture Sorting Placeholder' || 
-              (episode.seasonNumber === 0 && episode.episodeNumber === 0 && episode.name?.includes('Aperture'))) {
+          if (
+            episode.name === 'Aperture Sorting Placeholder' ||
+            (episode.seasonNumber === 0 &&
+              episode.episodeNumber === 0 &&
+              episode.name?.includes('Aperture'))
+          ) {
             continue
           }
-          
+
           if (processedEpisodes % 100 === 0) {
-            updateJobProgress(jobId, processedEpisodes, totalEpisodes, `S${episode.seasonNumber}E${episode.episodeNumber}`)
+            const seasonEp = `S${String(episode.seasonNumber).padStart(2, '0')}E${String(episode.episodeNumber).padStart(2, '0')}`
+            updateJobProgress(
+              jobId,
+              processedEpisodes,
+              totalEpisodes,
+              `${episode.seriesName} ${seasonEp}`
+            )
           }
 
           try {
@@ -479,7 +528,6 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
               )
             }
           } catch (episodeErr) {
-            const episodeError = episodeErr instanceof Error ? episodeErr.message : 'Unknown error'
             logger.error({ err: episodeErr, episode: episode.name }, 'Failed to sync episode')
             // Continue with next episode
           }
@@ -549,10 +597,13 @@ export async function syncSeriesWatchHistoryForUser(
     'SELECT series_watch_history_synced_at FROM users WHERE id = $1',
     [userId]
   )
-  
+
   const sinceDate = fullSync ? undefined : userRecord?.series_watch_history_synced_at || undefined
 
-  logger.info({ userId, providerUserId, deltaSync: !!sinceDate, fullSync }, 'Syncing series watch history')
+  logger.info(
+    { userId, providerUserId, deltaSync: !!sinceDate, fullSync },
+    'Syncing series watch history'
+  )
 
   const watchedEpisodes = await provider.getSeriesWatchHistory(apiKey, providerUserId, sinceDate)
 
@@ -611,7 +662,10 @@ export async function syncSeriesWatchHistoryForUser(
           [userId, existingEpisodeId]
         )
         removed++
-        logger.debug({ userId, episodeId: existingEpisodeId }, 'Removed stale episode watch history entry')
+        logger.debug(
+          { userId, episodeId: existingEpisodeId },
+          'Removed stale episode watch history entry'
+        )
       }
     }
   }
@@ -619,7 +673,10 @@ export async function syncSeriesWatchHistoryForUser(
   // Update user's last sync timestamp
   await query('UPDATE users SET series_watch_history_synced_at = NOW() WHERE id = $1', [userId])
 
-  logger.info({ userId, synced, removed, deltaSync: !fullSync }, 'Series watch history sync completed')
+  logger.info(
+    { userId, synced, removed, deltaSync: !fullSync },
+    'Series watch history sync completed'
+  )
   return { synced, removed }
 }
 
@@ -647,7 +704,7 @@ export async function syncSeriesWatchHistoryForAllUsers(
     // Step 1: Fetch all users from media server and auto-import missing ones
     setJobStep(jobId, 0, 'Fetching users from media server')
     addLog(jobId, 'info', '📡 Fetching user list from media server...')
-    
+
     const providerUsers = await provider.getUsers(apiKey)
     addLog(jobId, 'info', `👥 Found ${providerUsers.length} user(s) on media server`)
 
@@ -655,7 +712,7 @@ export async function syncSeriesWatchHistoryForAllUsers(
     const existingUsers = await query<{ provider_user_id: string }>(
       'SELECT provider_user_id FROM users WHERE provider_user_id IS NOT NULL'
     )
-    const existingProviderIds = new Set(existingUsers.rows.map(u => u.provider_user_id))
+    const existingProviderIds = new Set(existingUsers.rows.map((u) => u.provider_user_id))
 
     // Import any missing users
     const msConfig = await getMediaServerConfig()
@@ -672,7 +729,7 @@ export async function syncSeriesWatchHistoryForAllUsers(
         addLog(jobId, 'info', `➕ Imported user: ${pu.name}`)
       }
     }
-    
+
     if (imported > 0) {
       addLog(jobId, 'info', `✅ Imported ${imported} new user(s) from media server`)
     }
@@ -708,7 +765,11 @@ export async function syncSeriesWatchHistoryForAllUsers(
 
       try {
         addLog(jobId, 'info', `🔄 Syncing series watch history for ${user.username}...`)
-        const syncResult = await syncSeriesWatchHistoryForUser(user.id, user.provider_user_id, fullSync)
+        const syncResult = await syncSeriesWatchHistoryForUser(
+          user.id,
+          user.provider_user_id,
+          fullSync
+        )
         totalItems += syncResult.synced
         success++
         const removedMsg = syncResult.removed > 0 ? `, ${syncResult.removed} removed` : ''
@@ -736,4 +797,3 @@ export async function syncSeriesWatchHistoryForAllUsers(
     throw err
   }
 }
-

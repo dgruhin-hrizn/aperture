@@ -1,0 +1,410 @@
+import { useState, useEffect, useRef } from 'react'
+import {
+  Box,
+  Button,
+  Typography,
+  Alert,
+  CircularProgress,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  LinearProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
+  Paper,
+  Chip,
+} from '@mui/material'
+import {
+  CheckCircle as CheckCircleIcon,
+  Error as ErrorIcon,
+  HourglassEmpty as PendingIcon,
+  PlayArrow as RunningIcon,
+  Terminal as TerminalIcon,
+  Close as CloseIcon,
+  Sync as SyncIcon,
+  Psychology as PsychologyIcon,
+  AutoAwesome as AutoAwesomeIcon,
+  CloudSync as CloudSyncIcon,
+} from '@mui/icons-material'
+import { useAuth } from '@/hooks/useAuth'
+import type { SetupWizardContext, JobProgress } from '../types'
+
+interface InitialJobsStepProps {
+  wizard: SetupWizardContext
+}
+
+function getJobIcon(jobId: string) {
+  if (jobId.includes('sync-movie') || jobId.includes('sync-series')) {
+    if (jobId.includes('watch-history')) return <SyncIcon fontSize="small" />
+    if (jobId.includes('libraries')) return <CloudSyncIcon fontSize="small" />
+    return <SyncIcon fontSize="small" />
+  }
+  if (jobId.includes('embedding')) return <PsychologyIcon fontSize="small" />
+  if (jobId.includes('recommendation')) return <AutoAwesomeIcon fontSize="small" />
+  return <SyncIcon fontSize="small" />
+}
+
+function JobStatusIcon({ status }: { status: JobProgress['status'] }) {
+  switch (status) {
+    case 'completed':
+      return <CheckCircleIcon color="success" />
+    case 'failed':
+      return <ErrorIcon color="error" />
+    case 'running':
+      return <CircularProgress size={24} />
+    default:
+      return <PendingIcon color="disabled" />
+  }
+}
+
+function JobListItem({ job, isActive }: { job: JobProgress; isActive: boolean }) {
+  // Format the count display
+  const countDisplay =
+    job.itemsTotal && job.itemsTotal > 0
+      ? `${job.itemsProcessed ?? 0} / ${job.itemsTotal}`
+      : null
+
+  return (
+    <ListItem
+      sx={{
+        py: 1.5,
+        px: 2,
+        backgroundColor: isActive ? 'action.selected' : 'transparent',
+        borderRadius: 1,
+        mb: 0.5,
+        border: '1px solid',
+        borderColor: isActive ? 'primary.main' : job.status === 'completed' ? 'success.main' : job.status === 'failed' ? 'error.main' : 'divider',
+        borderLeftWidth: 3,
+      }}
+    >
+      <ListItemIcon sx={{ minWidth: 40 }}>
+        <JobStatusIcon status={job.status} />
+      </ListItemIcon>
+      <ListItemText
+        primary={
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {getJobIcon(job.id)}
+            <Typography variant="body2" fontWeight={isActive ? 600 : 400}>
+              {job.name}
+            </Typography>
+            {countDisplay && job.status === 'running' && (
+              <Chip
+                label={countDisplay}
+                size="small"
+                color="primary"
+                variant="outlined"
+                sx={{ ml: 'auto', fontFamily: 'monospace', fontWeight: 600 }}
+              />
+            )}
+            {job.status === 'completed' && job.itemsTotal && job.itemsTotal > 0 && (
+              <Chip
+                label={`${job.itemsTotal} items`}
+                size="small"
+                color="success"
+                variant="outlined"
+                sx={{ ml: 'auto', fontFamily: 'monospace' }}
+              />
+            )}
+          </Box>
+        }
+        secondary={
+          <Box>
+            {job.status === 'running' ? (
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                  {job.currentStep || job.message || job.description}
+                </Typography>
+                {job.currentItem && (
+                  <Typography
+                    variant="caption"
+                    color="primary"
+                    sx={{ display: 'block', fontFamily: 'monospace', fontSize: '0.7rem', mt: 0.5 }}
+                  >
+                    → {job.currentItem.length > 60 ? `${job.currentItem.slice(0, 60)}...` : job.currentItem}
+                  </Typography>
+                )}
+              </Box>
+            ) : job.status === 'pending' ? (
+              <Typography variant="caption" color="text.secondary">
+                {job.description}
+              </Typography>
+            ) : null}
+            {job.status === 'running' && job.progress !== undefined && (
+              <LinearProgress
+                variant="determinate"
+                value={job.progress}
+                sx={{ mt: 1, height: 6, borderRadius: 3 }}
+              />
+            )}
+            {job.status === 'failed' && job.error && (
+              <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
+                Error: {job.error}
+              </Typography>
+            )}
+          </Box>
+        }
+      />
+    </ListItem>
+  )
+}
+
+export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
+  const { error, runningJobs, jobLogs, jobsProgress, currentJobIndex, runInitialJobs, goToStep } = wizard
+  const { user } = useAuth()
+  const [logModalOpen, setLogModalOpen] = useState(false)
+  const logContainerRef = useRef<HTMLDivElement>(null)
+
+  const completedCount = jobsProgress.filter((j) => j.status === 'completed').length
+  const totalCount = jobsProgress.length
+  const hasStarted = jobsProgress.length > 0
+  const allCompleted = hasStarted && completedCount === totalCount
+  const hasFailed = jobsProgress.some((j) => j.status === 'failed')
+
+  // Auto-scroll logs to bottom
+  useEffect(() => {
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight
+    }
+  }, [jobLogs])
+
+  // Calculate totals
+  const totalItemsProcessed = jobsProgress.reduce((sum, j) => sum + (j.itemsProcessed || 0), 0)
+  const totalItems = jobsProgress.reduce((sum, j) => sum + (j.itemsTotal || 0), 0)
+
+  return (
+    <Box>
+      <Typography variant="h6" gutterBottom>
+        Initialize Your Library
+      </Typography>
+      <Typography variant="body2" color="text.secondary" paragraph>
+        Aperture will now sync your media library, analyze content with AI, and generate personalized recommendations.
+        This process runs through several steps and may take a few minutes depending on your library size.
+      </Typography>
+
+      {!hasStarted && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <Typography variant="body2" fontWeight={500} gutterBottom>
+            What happens during initialization:
+          </Typography>
+          <Box component="ul" sx={{ mt: 1, mb: 0, pl: 2, '& li': { mb: 0.5 } }}>
+            <li>
+              <Typography variant="body2">
+                <strong>Sync Media</strong> — Import movie and TV series metadata from your media server
+              </Typography>
+            </li>
+            <li>
+              <Typography variant="body2">
+                <strong>Sync Watch History</strong> — Import viewing history to understand preferences
+              </Typography>
+            </li>
+            <li>
+              <Typography variant="body2">
+                <strong>Generate Embeddings</strong> — Create AI vectors to understand content themes (uses OpenAI)
+              </Typography>
+            </li>
+            <li>
+              <Typography variant="body2">
+                <strong>Generate Recommendations</strong> — Create personalized picks for each user
+              </Typography>
+            </li>
+            <li>
+              <Typography variant="body2">
+                <strong>Sync Libraries</strong> — Push recommendation libraries to your media server
+              </Typography>
+            </li>
+          </Box>
+        </Alert>
+      )}
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      {!user?.isAdmin && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          You must be logged in as an admin to run initialization jobs.
+        </Alert>
+      )}
+
+      {/* Progress Summary */}
+      {hasStarted && (
+        <Box sx={{ mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+            <Box>
+              <Typography variant="body2" fontWeight={500}>
+                Progress: {completedCount} of {totalCount} jobs
+              </Typography>
+              {totalItems > 0 && (
+                <Typography variant="caption" color="text.secondary">
+                  {totalItemsProcessed.toLocaleString()} / {totalItems.toLocaleString()} items processed
+                </Typography>
+              )}
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              {allCompleted && <Chip label="All Complete" color="success" size="small" icon={<CheckCircleIcon />} />}
+              {hasFailed && <Chip label="Failed" color="error" size="small" icon={<ErrorIcon />} />}
+              {runningJobs && !hasFailed && (
+                <Chip label="Running" color="primary" size="small" icon={<RunningIcon />} />
+              )}
+            </Box>
+          </Box>
+          <LinearProgress
+            variant="determinate"
+            value={(completedCount / totalCount) * 100}
+            sx={{ height: 8, borderRadius: 4 }}
+            color={hasFailed ? 'error' : allCompleted ? 'success' : 'primary'}
+          />
+        </Box>
+      )}
+
+      {/* Job List */}
+      {hasStarted && (
+        <Paper variant="outlined" sx={{ mb: 3, maxHeight: 400, overflow: 'auto' }}>
+          <List disablePadding sx={{ p: 1 }}>
+            {jobsProgress.map((job, index) => (
+              <JobListItem key={job.id} job={job} isActive={index === currentJobIndex} />
+            ))}
+          </List>
+        </Paper>
+      )}
+
+      {/* Action Buttons */}
+      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+        <Button variant="outlined" onClick={() => goToStep('openai')} disabled={runningJobs}>
+          Back
+        </Button>
+
+        {!hasStarted && (
+          <Button
+            variant="contained"
+            onClick={runInitialJobs}
+            disabled={runningJobs || !user?.isAdmin}
+            startIcon={runningJobs ? <CircularProgress size={20} color="inherit" /> : <RunningIcon />}
+            size="large"
+          >
+            Start Initialization
+          </Button>
+        )}
+
+        {hasStarted && !allCompleted && !hasFailed && (
+          <Button variant="contained" disabled startIcon={<CircularProgress size={20} color="inherit" />}>
+            Running... ({completedCount}/{totalCount})
+          </Button>
+        )}
+
+        {hasFailed && (
+          <Button
+            variant="contained"
+            color="warning"
+            onClick={runInitialJobs}
+            disabled={runningJobs || !user?.isAdmin}
+            startIcon={<RunningIcon />}
+          >
+            Retry
+          </Button>
+        )}
+
+        {hasStarted && (
+          <Button
+            variant="outlined"
+            onClick={() => setLogModalOpen(true)}
+            startIcon={<TerminalIcon />}
+            color={runningJobs ? 'primary' : 'inherit'}
+          >
+            View Logs {runningJobs && '(Live)'} ({jobLogs.length})
+          </Button>
+        )}
+
+        {allCompleted && (
+          <Button variant="contained" color="success" onClick={() => goToStep('complete')}>
+            Continue to Finish
+          </Button>
+        )}
+      </Box>
+
+      {/* Log Modal */}
+      <Dialog open={logModalOpen} onClose={() => setLogModalOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <TerminalIcon />
+            <Typography variant="h6">Live Job Logs</Typography>
+            <Chip label={`${jobLogs.length} entries`} size="small" variant="outlined" />
+          </Box>
+          <IconButton onClick={() => setLogModalOpen(false)} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers sx={{ p: 0 }}>
+          <Paper
+            ref={logContainerRef}
+            sx={{
+              p: 2,
+              backgroundColor: '#0d1117',
+              color: '#c9d1d9',
+              fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+              fontSize: '0.75rem',
+              lineHeight: 1.8,
+              height: 450,
+              overflow: 'auto',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              '&::-webkit-scrollbar': { width: 8 },
+              '&::-webkit-scrollbar-track': { background: '#161b22' },
+              '&::-webkit-scrollbar-thumb': { background: '#30363d', borderRadius: 4 },
+            }}
+          >
+            {jobLogs.length > 0 ? (
+              jobLogs.map((log, i) => {
+                // Determine color based on content
+                let color = '#c9d1d9' // default gray
+                if (log.includes('✗') || log.includes('ERROR') || log.includes('FAILED')) {
+                  color = '#f85149' // red
+                } else if (log.includes('✓') || log.includes('Completed') || log.includes('successfully')) {
+                  color = '#3fb950' // green
+                } else if (log.includes('▶') || log.includes('Starting')) {
+                  color = '#58a6ff' // blue
+                } else if (log.includes('⚠')) {
+                  color = '#d29922' // yellow/orange
+                } else if (log.includes('•')) {
+                  color = '#8b949e' // muted gray for info
+                } else if (log.includes('→')) {
+                  color = '#a5d6ff' // light blue for current item
+                }
+
+                return (
+                  <Box
+                    key={i}
+                    sx={{
+                      color,
+                      py: 0.25,
+                      borderBottom: '1px solid #21262d',
+                      '&:last-child': { borderBottom: 'none' },
+                    }}
+                  >
+                    {log}
+                  </Box>
+                )
+              })
+            ) : (
+              <Typography variant="body2" sx={{ color: '#484f58', fontStyle: 'italic' }}>
+                No logs yet. Start initialization to see live output.
+              </Typography>
+            )}
+          </Paper>
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: 'space-between', px: 2 }}>
+          <Typography variant="caption" color="text.secondary">
+            Logs auto-scroll to bottom • {runningJobs ? 'Streaming live...' : 'Complete'}
+          </Typography>
+          <Button onClick={() => setLogModalOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  )
+}

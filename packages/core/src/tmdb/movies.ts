@@ -3,7 +3,7 @@
  */
 
 import { createChildLogger } from '../lib/logger.js'
-import { tmdbRequest, findMovieByImdbId } from './client.js'
+import { tmdbRequest, findMovieByImdbId, type ApiLogCallback } from './client.js'
 import type {
   TMDbMovieDetails,
   TMDbMovieKeywordsResponse,
@@ -16,15 +16,24 @@ const logger = createChildLogger('tmdb:movies')
 /**
  * Get movie details from TMDb
  */
-export async function getMovieDetails(tmdbId: number): Promise<TMDbMovieDetails | null> {
-  return tmdbRequest<TMDbMovieDetails>(`/movie/${tmdbId}`)
+export async function getMovieDetails(
+  tmdbId: number,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<TMDbMovieDetails | null> {
+  return tmdbRequest<TMDbMovieDetails>(`/movie/${tmdbId}`, options)
 }
 
 /**
  * Get movie keywords from TMDb
  */
-export async function getMovieKeywords(tmdbId: number): Promise<string[]> {
-  const result = await tmdbRequest<TMDbMovieKeywordsResponse>(`/movie/${tmdbId}/keywords`)
+export async function getMovieKeywords(
+  tmdbId: number,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<string[]> {
+  const result = await tmdbRequest<TMDbMovieKeywordsResponse>(
+    `/movie/${tmdbId}/keywords`,
+    options
+  )
   if (!result?.keywords) return []
   return result.keywords.map((k) => k.name)
 }
@@ -32,8 +41,11 @@ export async function getMovieKeywords(tmdbId: number): Promise<string[]> {
 /**
  * Get movie credits (cast and crew) from TMDb
  */
-export async function getMovieCredits(tmdbId: number): Promise<TMDbMovieCreditsResponse | null> {
-  return tmdbRequest<TMDbMovieCreditsResponse>(`/movie/${tmdbId}/credits`)
+export async function getMovieCredits(
+  tmdbId: number,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<TMDbMovieCreditsResponse | null> {
+  return tmdbRequest<TMDbMovieCreditsResponse>(`/movie/${tmdbId}/credits`, options)
 }
 
 /**
@@ -52,12 +64,15 @@ function extractCrewByJob(credits: TMDbMovieCreditsResponse, jobs: string[]): st
  */
 export async function getMovieEnrichmentData(
   tmdbId: number | null,
-  imdbId: string | null
+  imdbId: string | null,
+  options: { onLog?: ApiLogCallback } = {}
 ): Promise<MovieEnrichmentData | null> {
+  const { onLog } = options
+  
   // If we don't have a TMDB ID, try to find one via IMDB ID
   let resolvedTmdbId = tmdbId
   if (!resolvedTmdbId && imdbId) {
-    resolvedTmdbId = await findMovieByImdbId(imdbId)
+    resolvedTmdbId = await findMovieByImdbId(imdbId, { onLog })
     if (!resolvedTmdbId) {
       logger.debug({ imdbId }, 'Could not find TMDb ID for IMDB ID')
       return null
@@ -70,9 +85,9 @@ export async function getMovieEnrichmentData(
 
   // Fetch all data in parallel
   const [details, keywords, credits] = await Promise.all([
-    getMovieDetails(resolvedTmdbId),
-    getMovieKeywords(resolvedTmdbId),
-    getMovieCredits(resolvedTmdbId),
+    getMovieDetails(resolvedTmdbId, { onLog }),
+    getMovieKeywords(resolvedTmdbId, { onLog }),
+    getMovieCredits(resolvedTmdbId, { onLog }),
   ])
 
   if (!details) {
@@ -98,15 +113,21 @@ export async function getMovieEnrichmentData(
 /**
  * Get movie enrichment data by IMDB ID
  */
-export async function getMovieEnrichmentByImdbId(imdbId: string): Promise<MovieEnrichmentData | null> {
-  return getMovieEnrichmentData(null, imdbId)
+export async function getMovieEnrichmentByImdbId(
+  imdbId: string,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<MovieEnrichmentData | null> {
+  return getMovieEnrichmentData(null, imdbId, options)
 }
 
 /**
  * Get movie enrichment data by TMDb ID
  */
-export async function getMovieEnrichmentByTmdbId(tmdbId: number): Promise<MovieEnrichmentData | null> {
-  return getMovieEnrichmentData(tmdbId, null)
+export async function getMovieEnrichmentByTmdbId(
+  tmdbId: number,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<MovieEnrichmentData | null> {
+  return getMovieEnrichmentData(tmdbId, null, options)
 }
 
 

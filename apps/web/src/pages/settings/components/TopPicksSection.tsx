@@ -42,6 +42,7 @@ import TuneIcon from '@mui/icons-material/Tune'
 import OutputIcon from '@mui/icons-material/Output'
 import ImageIcon from '@mui/icons-material/Image'
 import { ImageUpload } from '../../../components/ImageUpload'
+import { DEFAULT_LIBRARY_IMAGES } from '../../setup/constants'
 
 interface TopPicksConfig {
   isEnabled: boolean
@@ -90,11 +91,14 @@ export function TopPicksSection() {
   const [success, setSuccess] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
 
-  // Image state
-  const [images, setImages] = useState<Record<string, LibraryImageInfo>>({})
+  // Image state - initialize with bundled defaults
+  const [images, setImages] = useState<Record<string, LibraryImageInfo>>({
+    'top-picks-movies': { url: DEFAULT_LIBRARY_IMAGES['top-picks-movies'], isDefault: true },
+    'top-picks-series': { url: DEFAULT_LIBRARY_IMAGES['top-picks-series'], isDefault: true },
+  })
   const [uploadingFor, setUploadingFor] = useState<string | null>(null)
 
-  // Fetch images
+  // Fetch images - override defaults only if custom images exist
   const fetchImages = useCallback(async () => {
     try {
       const libraryTypes = ['top-picks-movies', 'top-picks-series']
@@ -105,18 +109,23 @@ export function TopPicksSection() {
           })
           if (response.ok) {
             const data = await response.json()
-            return { id, url: data.url, isDefault: data.isDefault }
+            // Only return custom URL if it exists, otherwise keep default
+            if (data.url) {
+              return { id, url: data.url, isDefault: false }
+            }
           }
-          return { id, url: null, isDefault: false }
+          // Fall back to bundled default
+          return { id, url: DEFAULT_LIBRARY_IMAGES[id], isDefault: true }
         } catch {
-          return { id, url: null, isDefault: false }
+          // Fall back to bundled default on error
+          return { id, url: DEFAULT_LIBRARY_IMAGES[id], isDefault: true }
         }
       })
 
       const results = await Promise.all(imagePromises)
       const imageMap: Record<string, LibraryImageInfo> = {}
       results.forEach((r) => {
-        imageMap[r.id] = { url: r.url || undefined, isDefault: r.isDefault }
+        imageMap[r.id] = { url: r.url, isDefault: r.isDefault }
       })
       setImages(imageMap)
     } catch (err) {
@@ -171,9 +180,10 @@ export function TopPicksSection() {
         throw new Error(data.error || 'Delete failed')
       }
 
+      // Revert to bundled default image
       setImages((prev) => ({
         ...prev,
-        [libraryTypeId]: { url: undefined, isDefault: false },
+        [libraryTypeId]: { url: DEFAULT_LIBRARY_IMAGES[libraryTypeId], isDefault: true },
       }))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Delete failed')

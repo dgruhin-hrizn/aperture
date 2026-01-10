@@ -10,7 +10,7 @@ import { Layout } from './components/Layout'
 import { AdminLayout } from './components/AdminLayout'
 import { AssistantModal } from './components/AssistantModal'
 import { LoginPage } from './pages/Login'
-import { SetupPage } from './pages/Setup'
+import { SetupPage } from './pages/setup'
 import { DashboardPage } from './pages/dashboard'
 import { MyRecommendationsPage } from './pages/MyRecommendations'
 import { MyWatchHistoryPage } from './pages/MyWatchHistory'
@@ -124,9 +124,7 @@ function AppRoutes() {
       <Route
         path="/login"
         element={
-          <SetupGuard>
-            <LoginPage />
-          </SetupGuard>
+          <LoginPage />
         }
       />
 

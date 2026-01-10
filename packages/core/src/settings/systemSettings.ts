@@ -82,6 +82,110 @@ export async function getAllSystemSettings(): Promise<SystemSetting[]> {
 }
 
 // ============================================================================
+// Setup Wizard Progress (Resumable Onboarding)
+// ============================================================================
+
+export type SetupStepId =
+  | 'mediaServer'
+  | 'mediaLibraries'
+  | 'aiRecsLibraries'
+  | 'users'
+  | 'topPicksEnable'
+  | 'topPicksOutput'
+  | 'openai'
+  | 'initialJobs'
+
+export interface SetupProgress {
+  completedSteps: SetupStepId[]
+  currentStep: SetupStepId | null
+  completedAt: Date | null
+  updatedAt: Date
+}
+
+async function ensureSetupProgressRow(): Promise<void> {
+  await query(`INSERT INTO setup_progress (id) VALUES (1) ON CONFLICT (id) DO NOTHING`)
+}
+
+export async function getSetupProgress(): Promise<SetupProgress> {
+  await ensureSetupProgressRow()
+
+  const row = await queryOne<{
+    completed_steps: unknown
+    current_step: string | null
+    completed_at: Date | null
+    updated_at: Date
+  }>(
+    `SELECT completed_steps, current_step, completed_at, updated_at
+     FROM setup_progress WHERE id = 1`
+  )
+
+  const completedSteps = Array.isArray((row?.completed_steps as unknown[] | undefined) ?? [])
+    ? ((row!.completed_steps as unknown[]) as string[])
+    : []
+
+  return {
+    completedSteps: completedSteps.filter(Boolean) as SetupStepId[],
+    currentStep: (row?.current_step as SetupStepId | null) ?? null,
+    completedAt: row?.completed_at ?? null,
+    updatedAt: row?.updated_at ?? new Date(),
+  }
+}
+
+export async function setSetupCurrentStep(step: SetupStepId | null): Promise<void> {
+  await ensureSetupProgressRow()
+  await query(`UPDATE setup_progress SET current_step = $1 WHERE id = 1`, [step])
+}
+
+export async function markSetupStepCompleted(step: SetupStepId): Promise<void> {
+  await ensureSetupProgressRow()
+  await query(
+    `UPDATE setup_progress
+     SET completed_steps =
+       CASE
+         WHEN completed_steps ? $1 THEN completed_steps
+         ELSE completed_steps || to_jsonb($1::text)
+       END,
+       current_step = $1
+     WHERE id = 1`,
+    [step]
+  )
+}
+
+export async function resetSetupProgress(): Promise<void> {
+  await ensureSetupProgressRow()
+  await query(
+    `UPDATE setup_progress
+     SET completed_steps = '[]'::jsonb,
+         current_step = NULL,
+         completed_at = NULL
+     WHERE id = 1`
+  )
+}
+
+/**
+ * Setup is considered complete if either:
+ * - legacy system setting `setup_complete` is true, OR
+ * - setup_progress.completed_at is set
+ */
+export async function isSetupComplete(): Promise<boolean> {
+  const legacy = await getSystemSetting('setup_complete')
+  if (legacy === 'true') return true
+
+  try {
+    const progress = await getSetupProgress()
+    return !!progress.completedAt
+  } catch {
+    return false
+  }
+}
+
+export async function markSetupComplete(): Promise<void> {
+  await ensureSetupProgressRow()
+  await query(`UPDATE setup_progress SET completed_at = NOW() WHERE id = 1`)
+  await setSystemSetting('setup_complete', 'true', 'Initial setup has been completed')
+}
+
+// ============================================================================
 // Embedding Model Setting
 // ============================================================================
 

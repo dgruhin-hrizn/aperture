@@ -5,6 +5,7 @@
 import { createChildLogger } from '../lib/logger.js'
 import { omdbRequest } from './client.js'
 import type { OMDbMovieResponse, RatingsData } from './types.js'
+import type { ApiLogCallback } from '../tmdb/client.js'
 
 const logger = createChildLogger('omdb:ratings')
 
@@ -69,8 +70,11 @@ export function extractRatingsData(data: OMDbMovieResponse): RatingsData {
 /**
  * Get ratings data for a movie/series by IMDB ID
  */
-export async function getRatingsData(imdbId: string): Promise<RatingsData | null> {
-  const data = await omdbRequest(imdbId)
+export async function getRatingsData(
+  imdbId: string,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<RatingsData | null> {
+  const data = await omdbRequest(imdbId, options)
   if (!data) {
     return null
   }
@@ -83,7 +87,8 @@ export async function getRatingsData(imdbId: string): Promise<RatingsData | null
  * Returns a map of IMDB ID -> RatingsData
  */
 export async function getRatingsDataBatch(
-  imdbIds: string[]
+  imdbIds: string[],
+  options: { onLog?: ApiLogCallback } = {}
 ): Promise<Map<string, RatingsData>> {
   const results = new Map<string, RatingsData>()
 
@@ -92,7 +97,7 @@ export async function getRatingsDataBatch(
   for (let i = 0; i < imdbIds.length; i += chunkSize) {
     const chunk = imdbIds.slice(i, i + chunkSize)
     const promises = chunk.map(async (imdbId) => {
-      const data = await getRatingsData(imdbId)
+      const data = await getRatingsData(imdbId, options)
       if (data) {
         results.set(imdbId, data)
       }
@@ -106,8 +111,11 @@ export async function getRatingsDataBatch(
 /**
  * Get full OMDb data for a movie/series by IMDB ID
  */
-export async function getOMDbData(imdbId: string): Promise<OMDbMovieResponse | null> {
-  return omdbRequest(imdbId)
+export async function getOMDbData(
+  imdbId: string,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<OMDbMovieResponse | null> {
+  return omdbRequest(imdbId, options)
 }
 
 

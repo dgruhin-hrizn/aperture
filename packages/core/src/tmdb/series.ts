@@ -3,7 +3,7 @@
  */
 
 import { createChildLogger } from '../lib/logger.js'
-import { tmdbRequest, findTVByImdbId, findTVByTvdbId } from './client.js'
+import { tmdbRequest, findTVByImdbId, findTVByTvdbId, type ApiLogCallback } from './client.js'
 import type {
   TMDbTVDetails,
   TMDbTVKeywordsResponse,
@@ -15,15 +15,24 @@ const logger = createChildLogger('tmdb:series')
 /**
  * Get TV series details from TMDb
  */
-export async function getTVDetails(tmdbId: number): Promise<TMDbTVDetails | null> {
-  return tmdbRequest<TMDbTVDetails>(`/tv/${tmdbId}`)
+export async function getTVDetails(
+  tmdbId: number,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<TMDbTVDetails | null> {
+  return tmdbRequest<TMDbTVDetails>(`/tv/${tmdbId}`, options)
 }
 
 /**
  * Get TV series keywords from TMDb
  */
-export async function getTVKeywords(tmdbId: number): Promise<string[]> {
-  const result = await tmdbRequest<TMDbTVKeywordsResponse>(`/tv/${tmdbId}/keywords`)
+export async function getTVKeywords(
+  tmdbId: number,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<string[]> {
+  const result = await tmdbRequest<TMDbTVKeywordsResponse>(
+    `/tv/${tmdbId}/keywords`,
+    options
+  )
   if (!result?.results) return []
   return result.results.map((k) => k.name)
 }
@@ -34,17 +43,20 @@ export async function getTVKeywords(tmdbId: number): Promise<string[]> {
 export async function getSeriesEnrichmentData(
   tmdbId: number | null,
   imdbId: string | null,
-  tvdbId: string | null
+  tvdbId: string | null,
+  options: { onLog?: ApiLogCallback } = {}
 ): Promise<SeriesEnrichmentData | null> {
+  const { onLog } = options
+  
   // If we don't have a TMDB ID, try to find one via external IDs
   let resolvedTmdbId = tmdbId
 
   if (!resolvedTmdbId && imdbId) {
-    resolvedTmdbId = await findTVByImdbId(imdbId)
+    resolvedTmdbId = await findTVByImdbId(imdbId, { onLog })
   }
 
   if (!resolvedTmdbId && tvdbId) {
-    resolvedTmdbId = await findTVByTvdbId(tvdbId)
+    resolvedTmdbId = await findTVByTvdbId(tvdbId, { onLog })
   }
 
   if (!resolvedTmdbId) {
@@ -53,7 +65,7 @@ export async function getSeriesEnrichmentData(
   }
 
   // Fetch keywords
-  const keywords = await getTVKeywords(resolvedTmdbId)
+  const keywords = await getTVKeywords(resolvedTmdbId, { onLog })
 
   return {
     keywords,
@@ -63,22 +75,31 @@ export async function getSeriesEnrichmentData(
 /**
  * Get series enrichment data by IMDB ID
  */
-export async function getSeriesEnrichmentByImdbId(imdbId: string): Promise<SeriesEnrichmentData | null> {
-  return getSeriesEnrichmentData(null, imdbId, null)
+export async function getSeriesEnrichmentByImdbId(
+  imdbId: string,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<SeriesEnrichmentData | null> {
+  return getSeriesEnrichmentData(null, imdbId, null, options)
 }
 
 /**
  * Get series enrichment data by TMDb ID
  */
-export async function getSeriesEnrichmentByTmdbId(tmdbId: number): Promise<SeriesEnrichmentData | null> {
-  return getSeriesEnrichmentData(tmdbId, null, null)
+export async function getSeriesEnrichmentByTmdbId(
+  tmdbId: number,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<SeriesEnrichmentData | null> {
+  return getSeriesEnrichmentData(tmdbId, null, null, options)
 }
 
 /**
  * Get series enrichment data by TVDB ID
  */
-export async function getSeriesEnrichmentByTvdbId(tvdbId: string): Promise<SeriesEnrichmentData | null> {
-  return getSeriesEnrichmentData(null, null, tvdbId)
+export async function getSeriesEnrichmentByTvdbId(
+  tvdbId: string,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<SeriesEnrichmentData | null> {
+  return getSeriesEnrichmentData(null, null, tvdbId, options)
 }
 
 

@@ -10,11 +10,28 @@ import { query, queryOne } from '../lib/db.js'
 import { createChildLogger } from '../lib/logger.js'
 import { createJobProgress, updateJobProgress, setJobStep, completeJob, failJob, isJobCancelled, addLog, type JobProgress } from '../jobs/progress.js'
 import { getTMDbConfig, getOMDbConfig } from '../settings/systemSettings.js'
-import { getMovieEnrichmentData, getCollectionData, type CollectionData } from '../tmdb/index.js'
+import { getMovieEnrichmentData, getCollectionData, type CollectionData, type ApiLogCallback } from '../tmdb/index.js'
 import { getSeriesEnrichmentData } from '../tmdb/series.js'
 import { getRatingsData } from '../omdb/ratings.js'
 
 const logger = createChildLogger('enrichment')
+
+/**
+ * Create a logging callback for API calls during enrichment
+ */
+function createApiLogger(jobId: string, itemTitle: string): ApiLogCallback {
+  return (service, endpoint, status, details) => {
+    const serviceLabel = service.toUpperCase()
+    const statusIcon = status === 'success' ? '✓' : status === 'not_found' ? '○' : '✗'
+    const detailsSuffix = details ? ` (${details})` : ''
+    
+    // Only log API calls for verbose debugging - we log per-item summaries instead
+    // But we do log errors and not_found for visibility
+    if (status === 'error') {
+      addLog(jobId, 'warn', `${serviceLabel} ${statusIcon} ${endpoint}${detailsSuffix}`)
+    }
+  }
+}
 
 // ============================================================================
 // Types
@@ -72,34 +89,60 @@ async function enrichMovie(
   movie: MovieToEnrich,
   tmdbEnabled: boolean,
   omdbEnabled: boolean,
-  collectionsToCreate: Map<number, CollectionData>
+  collectionsToCreate: Map<number, CollectionData>,
+  jobId: string
 ): Promise<boolean> {
+  const onLog = createApiLogger(jobId, movie.title)
   let tmdbData = null
   let omdbData = null
+  const apiResults: string[] = []
 
   // Fetch TMDb data (keywords, collection, crew)
   if (tmdbEnabled && (movie.tmdb_id || movie.imdb_id)) {
     try {
       const tmdbId = movie.tmdb_id ? parseInt(movie.tmdb_id, 10) : null
-      tmdbData = await getMovieEnrichmentData(tmdbId, movie.imdb_id)
+      tmdbData = await getMovieEnrichmentData(tmdbId, movie.imdb_id, { onLog })
+      if (tmdbData) {
+        const info: string[] = []
+        if (tmdbData.keywords?.length) info.push(`${tmdbData.keywords.length} keywords`)
+        if (tmdbData.collectionName) info.push(`collection: ${tmdbData.collectionName}`)
+        apiResults.push(`TMDb: ${info.length > 0 ? info.join(', ') : 'no data'}`)
+      } else {
+        apiResults.push('TMDb: not found')
+      }
     } catch (err) {
       logger.warn({ err, movieId: movie.id, title: movie.title }, 'Failed to fetch TMDb data')
+      apiResults.push('TMDb: error')
     }
   }
 
   // Fetch OMDb data (RT scores, Metacritic, awards)
   if (omdbEnabled && movie.imdb_id) {
     try {
-      omdbData = await getRatingsData(movie.imdb_id)
+      omdbData = await getRatingsData(movie.imdb_id, { onLog })
+      if (omdbData) {
+        const info: string[] = []
+        if (omdbData.rtCriticScore != null) info.push(`RT: ${omdbData.rtCriticScore}%`)
+        if (omdbData.metacriticScore != null) info.push(`MC: ${omdbData.metacriticScore}`)
+        apiResults.push(`OMDb: ${info.length > 0 ? info.join(', ') : 'no scores'}`)
+      } else {
+        apiResults.push('OMDb: not found')
+      }
     } catch (err) {
       logger.warn({ err, movieId: movie.id, title: movie.title }, 'Failed to fetch OMDb data')
+      apiResults.push('OMDb: error')
     }
+  }
+
+  // Log API results summary for this movie
+  if (apiResults.length > 0) {
+    addLog(jobId, 'info', `📽 ${movie.title}: ${apiResults.join(' | ')}`)
   }
 
   // If we got collection data, queue it for creation
   if (tmdbData?.collectionId && tmdbData?.collectionName) {
     if (!collectionsToCreate.has(tmdbData.collectionId)) {
-      const collectionData = await getCollectionData(tmdbData.collectionId)
+      const collectionData = await getCollectionData(tmdbData.collectionId, { onLog })
       if (collectionData) {
         collectionsToCreate.set(tmdbData.collectionId, collectionData)
       }
@@ -169,28 +212,53 @@ async function getSeriesNeedingEnrichment(limit: number = 100): Promise<SeriesTo
 async function enrichSeries(
   series: SeriesToEnrich,
   tmdbEnabled: boolean,
-  omdbEnabled: boolean
+  omdbEnabled: boolean,
+  jobId: string
 ): Promise<boolean> {
+  const onLog = createApiLogger(jobId, series.title)
   let tmdbData = null
   let omdbData = null
+  const apiResults: string[] = []
 
   // Fetch TMDb data (keywords)
   if (tmdbEnabled && (series.tmdb_id || series.imdb_id || series.tvdb_id)) {
     try {
       const tmdbId = series.tmdb_id ? parseInt(series.tmdb_id, 10) : null
-      tmdbData = await getSeriesEnrichmentData(tmdbId, series.imdb_id, series.tvdb_id)
+      tmdbData = await getSeriesEnrichmentData(tmdbId, series.imdb_id, series.tvdb_id, { onLog })
+      if (tmdbData) {
+        const info: string[] = []
+        if (tmdbData.keywords?.length) info.push(`${tmdbData.keywords.length} keywords`)
+        apiResults.push(`TMDb: ${info.length > 0 ? info.join(', ') : 'no data'}`)
+      } else {
+        apiResults.push('TMDb: not found')
+      }
     } catch (err) {
       logger.warn({ err, seriesId: series.id, title: series.title }, 'Failed to fetch TMDb data')
+      apiResults.push('TMDb: error')
     }
   }
 
   // Fetch OMDb data (RT scores, Metacritic, awards)
   if (omdbEnabled && series.imdb_id) {
     try {
-      omdbData = await getRatingsData(series.imdb_id)
+      omdbData = await getRatingsData(series.imdb_id, { onLog })
+      if (omdbData) {
+        const info: string[] = []
+        if (omdbData.rtCriticScore != null) info.push(`RT: ${omdbData.rtCriticScore}%`)
+        if (omdbData.metacriticScore != null) info.push(`MC: ${omdbData.metacriticScore}`)
+        apiResults.push(`OMDb: ${info.length > 0 ? info.join(', ') : 'no scores'}`)
+      } else {
+        apiResults.push('OMDb: not found')
+      }
     } catch (err) {
       logger.warn({ err, seriesId: series.id, title: series.title }, 'Failed to fetch OMDb data')
+      apiResults.push('OMDb: error')
     }
+  }
+
+  // Log API results summary for this series
+  if (apiResults.length > 0) {
+    addLog(jobId, 'info', `📺 ${series.title}: ${apiResults.join(' | ')}`)
   }
 
   // Update series in database
@@ -311,6 +379,12 @@ export async function enrichMetadata(jobId: string): Promise<EnrichmentProgress>
     }
 
     logger.info({ totalMovies, totalSeries, tmdbEnabled, omdbEnabled }, 'Starting metadata enrichment')
+    
+    // Log which metadata services are enabled
+    const enabledServices: string[] = []
+    if (tmdbEnabled) enabledServices.push('TMDb')
+    if (omdbEnabled) enabledServices.push('OMDb')
+    addLog(jobId, 'info', `Metadata services enabled: ${enabledServices.join(', ')}`)
     addLog(jobId, 'info', `Found ${totalMovies} movies and ${totalSeries} series to enrich`)
 
     const collectionsToCreate = new Map<number, CollectionData>()
@@ -334,7 +408,7 @@ export async function enrichMetadata(jobId: string): Promise<EnrichmentProgress>
         for (const movie of movies) {
           if (isJobCancelled(jobId)) break
 
-          const success = await enrichMovie(movie, tmdbEnabled, omdbEnabled, collectionsToCreate)
+          const success = await enrichMovie(movie, tmdbEnabled, omdbEnabled, collectionsToCreate, jobId)
           progress.moviesProcessed++
 
           if (success) {
@@ -370,7 +444,7 @@ export async function enrichMetadata(jobId: string): Promise<EnrichmentProgress>
         for (const series of seriesList) {
           if (isJobCancelled(jobId)) break
 
-          const success = await enrichSeries(series, tmdbEnabled, omdbEnabled)
+          const success = await enrichSeries(series, tmdbEnabled, omdbEnabled, jobId)
           progress.seriesProcessed++
 
           if (success) {

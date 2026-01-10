@@ -3,7 +3,7 @@
  */
 
 import { createChildLogger } from '../lib/logger.js'
-import { tmdbRequest, getImageUrl } from './client.js'
+import { tmdbRequest, getImageUrl, type ApiLogCallback } from './client.js'
 import type { TMDbCollectionDetails, CollectionData } from './types.js'
 
 const logger = createChildLogger('tmdb:collections')
@@ -11,15 +11,21 @@ const logger = createChildLogger('tmdb:collections')
 /**
  * Get collection details from TMDb
  */
-export async function getCollectionDetails(collectionId: number): Promise<TMDbCollectionDetails | null> {
-  return tmdbRequest<TMDbCollectionDetails>(`/collection/${collectionId}`)
+export async function getCollectionDetails(
+  collectionId: number,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<TMDbCollectionDetails | null> {
+  return tmdbRequest<TMDbCollectionDetails>(`/collection/${collectionId}`, options)
 }
 
 /**
  * Get collection data in our internal format
  */
-export async function getCollectionData(collectionId: number): Promise<CollectionData | null> {
-  const details = await getCollectionDetails(collectionId)
+export async function getCollectionData(
+  collectionId: number,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<CollectionData | null> {
+  const details = await getCollectionDetails(collectionId, options)
   if (!details) {
     logger.debug({ collectionId }, 'Could not fetch collection details from TMDb')
     return null
@@ -42,7 +48,10 @@ export async function getCollectionData(collectionId: number): Promise<Collectio
 /**
  * Get multiple collections in batch
  */
-export async function getCollectionsData(collectionIds: number[]): Promise<Map<number, CollectionData>> {
+export async function getCollectionsData(
+  collectionIds: number[],
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<Map<number, CollectionData>> {
   const results = new Map<number, CollectionData>()
 
   // Process in chunks to avoid overwhelming the API
@@ -50,7 +59,7 @@ export async function getCollectionsData(collectionIds: number[]): Promise<Map<n
   for (let i = 0; i < collectionIds.length; i += chunkSize) {
     const chunk = collectionIds.slice(i, i + chunkSize)
     const promises = chunk.map(async (id) => {
-      const data = await getCollectionData(id)
+      const data = await getCollectionData(id, options)
       if (data) {
         results.set(id, data)
       }

@@ -36,6 +36,12 @@ interface LibraryImageInfo {
   isDefault?: boolean
 }
 
+// Default library cover images (bundled with the app)
+const DEFAULT_LIBRARY_IMAGES: Record<string, string> = {
+  'ai-recs-movies': '/AI_MOVIE_PICKS.png',
+  'ai-recs-series': '/AI_SERIES_PICKS.png',
+}
+
 const RECOMMENDED_DIMENSIONS = {
   width: 1920,
   height: 1080,
@@ -49,8 +55,11 @@ export function LibraryTitlesSection() {
   const [success, setSuccess] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
 
-  // Image state
-  const [images, setImages] = useState<Record<string, LibraryImageInfo>>({})
+  // Image state - initialize with bundled defaults
+  const [images, setImages] = useState<Record<string, LibraryImageInfo>>({
+    'ai-recs-movies': { url: DEFAULT_LIBRARY_IMAGES['ai-recs-movies'], isDefault: true },
+    'ai-recs-series': { url: DEFAULT_LIBRARY_IMAGES['ai-recs-series'], isDefault: true },
+  })
   const [uploadingFor, setUploadingFor] = useState<string | null>(null)
 
   useEffect(() => {
@@ -83,11 +92,16 @@ export function LibraryTitlesSection() {
           })
           if (response.ok) {
             const data = await response.json()
-            return { id, url: data.url, isDefault: data.isDefault }
+            // If there's any uploaded image, use it (don't override with bundled defaults)
+            if (data.url) {
+              return { id, url: data.url, isDefault: false }
+            }
           }
-          return { id, url: null, isDefault: false }
+          // Only fall back to bundled default if no image exists at all
+          return { id, url: DEFAULT_LIBRARY_IMAGES[id], isDefault: true }
         } catch {
-          return { id, url: null, isDefault: false }
+          // Fall back to bundled default image on error
+          return { id, url: DEFAULT_LIBRARY_IMAGES[id], isDefault: true }
         }
       })
 
@@ -149,9 +163,10 @@ export function LibraryTitlesSection() {
         throw new Error(data.error || 'Delete failed')
       }
 
+      // Revert to bundled default image
       setImages((prev) => ({
         ...prev,
-        [libraryTypeId]: { url: undefined, isDefault: false },
+        [libraryTypeId]: { url: DEFAULT_LIBRARY_IMAGES[libraryTypeId], isDefault: true },
       }))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Delete failed')

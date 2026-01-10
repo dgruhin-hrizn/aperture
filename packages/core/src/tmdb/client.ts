@@ -18,6 +18,16 @@ const RETRY_DELAY_MS = 1000
 // Simple rate limiter
 let lastRequestTime = 0
 
+/**
+ * Callback type for logging API calls during enrichment jobs
+ */
+export type ApiLogCallback = (
+  service: 'tmdb' | 'omdb',
+  endpoint: string,
+  status: 'success' | 'error' | 'not_found',
+  details?: string
+) => void
+
 async function rateLimit(): Promise<void> {
   const now = Date.now()
   const timeSinceLastRequest = now - lastRequestTime
@@ -32,9 +42,11 @@ async function rateLimit(): Promise<void> {
  */
 export async function tmdbRequest<T>(
   endpoint: string,
-  options: { apiKey?: string } = {}
+  options: { apiKey?: string; onLog?: ApiLogCallback } = {}
 ): Promise<T | null> {
   const apiKey = options.apiKey || (await getTMDbApiKey())
+  const { onLog } = options
+  
   if (!apiKey) {
     logger.warn('TMDb API key not configured')
     return null
@@ -62,6 +74,7 @@ export async function tmdbRequest<T>(
 
       if (response.status === 404) {
         // Not found is not an error, just return null
+        onLog?.('tmdb', endpoint, 'not_found')
         return null
       }
 
@@ -71,13 +84,17 @@ export async function tmdbRequest<T>(
           { status: response.status, endpoint, error: errorText },
           'TMDb API request failed'
         )
+        onLog?.('tmdb', endpoint, 'error', `HTTP ${response.status}`)
         return null
       }
 
-      return (await response.json()) as T
+      const data = (await response.json()) as T
+      onLog?.('tmdb', endpoint, 'success')
+      return data
     } catch (err) {
       if (attempt === MAX_RETRIES) {
         logger.error({ err, endpoint }, 'TMDb API request failed after retries')
+        onLog?.('tmdb', endpoint, 'error', err instanceof Error ? err.message : 'Unknown error')
         return null
       }
       logger.warn({ err, attempt, endpoint }, 'TMDb API request failed, retrying...')
@@ -102,12 +119,18 @@ export function getImageUrl(
 /**
  * Search for a movie by IMDB ID
  */
-export async function findMovieByImdbId(imdbId: string): Promise<number | null> {
+export async function findMovieByImdbId(
+  imdbId: string,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<number | null> {
   interface FindResponse {
     movie_results?: { id: number }[]
   }
 
-  const result = await tmdbRequest<FindResponse>(`/find/${imdbId}?external_source=imdb_id`)
+  const result = await tmdbRequest<FindResponse>(
+    `/find/${imdbId}?external_source=imdb_id`,
+    options
+  )
   if (result && result.movie_results && result.movie_results.length > 0) {
     return result.movie_results[0].id
   }
@@ -117,12 +140,18 @@ export async function findMovieByImdbId(imdbId: string): Promise<number | null> 
 /**
  * Search for a TV show by IMDB ID
  */
-export async function findTVByImdbId(imdbId: string): Promise<number | null> {
+export async function findTVByImdbId(
+  imdbId: string,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<number | null> {
   interface FindResponse {
     tv_results?: { id: number }[]
   }
 
-  const result = await tmdbRequest<FindResponse>(`/find/${imdbId}?external_source=imdb_id`)
+  const result = await tmdbRequest<FindResponse>(
+    `/find/${imdbId}?external_source=imdb_id`,
+    options
+  )
   if (result && result.tv_results && result.tv_results.length > 0) {
     return result.tv_results[0].id
   }
@@ -132,12 +161,18 @@ export async function findTVByImdbId(imdbId: string): Promise<number | null> {
 /**
  * Search for a TV show by TVDB ID
  */
-export async function findTVByTvdbId(tvdbId: string): Promise<number | null> {
+export async function findTVByTvdbId(
+  tvdbId: string,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<number | null> {
   interface FindResponse {
     tv_results?: { id: number }[]
   }
 
-  const result = await tmdbRequest<FindResponse>(`/find/${tvdbId}?external_source=tvdb_id`)
+  const result = await tmdbRequest<FindResponse>(
+    `/find/${tvdbId}?external_source=tvdb_id`,
+    options
+  )
   if (result && result.tv_results && result.tv_results.length > 0) {
     return result.tv_results[0].id
   }

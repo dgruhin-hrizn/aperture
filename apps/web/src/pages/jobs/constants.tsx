@@ -8,6 +8,7 @@ import FolderIcon from '@mui/icons-material/Folder'
 import AutorenewIcon from '@mui/icons-material/Autorenew'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import SyncIcon from '@mui/icons-material/Sync'
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
 import type { JobCategory } from './types'
 
 // Movie job categories
@@ -57,6 +58,12 @@ export const SERIES_JOB_CATEGORIES: JobCategory[] = [
 // Global job categories (not specific to movies or series)
 export const GLOBAL_JOB_CATEGORIES: JobCategory[] = [
   {
+    title: 'Metadata Enrichment',
+    description: 'Enrich movies and series with TMDb and OMDb data',
+    color: '#10b981',
+    jobs: ['enrich-metadata'],
+  },
+  {
     title: 'Top Picks',
     description: 'Global popularity-based libraries',
     color: '#f59e0b',
@@ -94,6 +101,7 @@ export const JOB_ICONS: Record<string, React.ReactNode> = {
   'generate-series-recommendations': <RecommendIcon />,
   'sync-series-libraries': <FolderIcon />,
   // Global jobs
+  'enrich-metadata': <AutoFixHighIcon />,
   'refresh-top-picks': <TrendingUpIcon />,
   'sync-trakt-ratings': <SyncIcon />,
 }
@@ -115,6 +123,7 @@ export const JOB_COLORS: Record<string, string> = {
   'generate-series-recommendations': '#16a34a',
   'sync-series-libraries': '#4f46e5',
   // Global jobs
+  'enrich-metadata': '#10b981',
   'refresh-top-picks': '#f59e0b',
   'sync-trakt-ratings': '#ed1c24',
 }
