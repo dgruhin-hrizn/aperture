@@ -20,7 +20,7 @@ export function registerProviderHandlers(fastify: FastifyInstance) {
       }
 
       try {
-        const provider = getMediaServerProvider()
+        const provider = await getMediaServerProvider()
         const providerUsers = await provider.getUsers(apiKey)
 
         // Get existing users from our DB to check import status
@@ -92,7 +92,7 @@ export function registerProviderHandlers(fastify: FastifyInstance) {
       }
 
       try {
-        const provider = getMediaServerProvider()
+        const provider = await getMediaServerProvider()
         
         // Check if user already exists
         const existing = await queryOne<UserRow>(

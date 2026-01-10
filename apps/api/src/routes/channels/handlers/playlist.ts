@@ -85,7 +85,7 @@ export function registerPlaylistHandlers(fastify: FastifyInstance) {
       }
 
       try {
-        const provider = getMediaServerProvider()
+        const provider = await getMediaServerProvider()
         const items = await provider.getPlaylistItems(apiKey, channel.playlist_id)
         return reply.send({ items, playlistId: channel.playlist_id })
       } catch (err) {
@@ -126,7 +126,7 @@ export function registerPlaylistHandlers(fastify: FastifyInstance) {
       }
 
       try {
-        const provider = getMediaServerProvider()
+        const provider = await getMediaServerProvider()
         await provider.removePlaylistItems(apiKey, channel.playlist_id, [entryId])
         return reply.send({ success: true })
       } catch (err) {
@@ -172,7 +172,7 @@ export function registerPlaylistHandlers(fastify: FastifyInstance) {
       }
 
       try {
-        const provider = getMediaServerProvider()
+        const provider = await getMediaServerProvider()
         await provider.addPlaylistItems(apiKey, channel.playlist_id, itemIds)
         return reply.send({ success: true, addedCount: itemIds.length })
       } catch (err) {

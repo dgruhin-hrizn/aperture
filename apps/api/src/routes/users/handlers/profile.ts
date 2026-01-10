@@ -793,7 +793,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
         }
 
         // Mark as unplayed in media server
-        const provider = getMediaServerProvider()
+        const provider = await getMediaServerProvider()
         const apiKey = process.env.MEDIA_SERVER_API_KEY
 
         if (!apiKey) {
@@ -855,7 +855,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
           return reply.status(400).send({ error: 'User has no media server association' })
         }
 
-        const provider = getMediaServerProvider()
+        const provider = await getMediaServerProvider()
         const apiKey = process.env.MEDIA_SERVER_API_KEY
 
         if (!apiKey) {
@@ -916,7 +916,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
           return reply.status(400).send({ error: 'User has no media server association' })
         }
 
-        const provider = getMediaServerProvider()
+        const provider = await getMediaServerProvider()
         const apiKey = process.env.MEDIA_SERVER_API_KEY
 
         if (!apiKey) {
@@ -988,7 +988,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
           return reply.status(400).send({ error: 'User has no media server association' })
         }
 
-        const provider = getMediaServerProvider()
+        const provider = await getMediaServerProvider()
         const apiKey = process.env.MEDIA_SERVER_API_KEY
 
         if (!apiKey) {

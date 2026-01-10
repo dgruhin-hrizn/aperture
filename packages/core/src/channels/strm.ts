@@ -49,7 +49,7 @@ export async function writeChannelStrm(channelId: string): Promise<{
     const filePath = path.join(libraryPath, filename)
 
     // Get streaming URL
-    const provider = getMediaServerProvider()
+    const provider = await getMediaServerProvider()
     const apiKey = process.env.MEDIA_SERVER_API_KEY || ''
     const content = provider.getStreamUrl(apiKey, rec.providerItemId)
 

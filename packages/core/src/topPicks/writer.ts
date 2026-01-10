@@ -460,12 +460,12 @@ function buildTopPicksSeriesFilename(series: TopPicksSeries): string {
 /**
  * Get STRM content for a movie
  */
-function getMovieStrmContent(movie: TopPicksMovie): string {
+async function getMovieStrmContent(movie: TopPicksMovie): Promise<string> {
   const config = getConfig()
 
   // If streaming URL is preferred
   if (config.useStreamingUrl) {
-    const provider = getMediaServerProvider()
+    const provider = await getMediaServerProvider()
     const apiKey = process.env.MEDIA_SERVER_API_KEY || ''
     return provider.getStreamUrl(apiKey, movie.providerItemId)
   }
@@ -483,7 +483,7 @@ function getMovieStrmContent(movie: TopPicksMovie): string {
   }
 
   // Fallback to streaming URL
-  const provider = getMediaServerProvider()
+  const provider = await getMediaServerProvider()
   const apiKey = process.env.MEDIA_SERVER_API_KEY || ''
   return provider.getStreamUrl(apiKey, movie.providerItemId)
 }
@@ -656,13 +656,13 @@ export async function writeTopPicksMovies(
           )
           // Fallback to STRM if symlink fails
           const strmPath = path.join(movieFolderPath, `${baseFilename}.strm`)
-          const strmContent = getMovieStrmContent(movie)
+          const strmContent = await getMovieStrmContent(movie)
           await fs.writeFile(strmPath, strmContent, 'utf-8')
         }
       } else {
         logger.warn({ movie: movie.title }, 'No file path found for movie, using STRM')
         const strmPath = path.join(movieFolderPath, `${baseFilename}.strm`)
-        const strmContent = getMovieStrmContent(movie)
+        const strmContent = await getMovieStrmContent(movie)
         await fs.writeFile(strmPath, strmContent, 'utf-8')
       }
 
@@ -720,7 +720,7 @@ export async function writeTopPicksMovies(
     } else {
       // STRM MODE: Flat file structure (original behavior)
       const strmPath = path.join(localPath, `${baseFilename}.strm`)
-      const strmContent = getMovieStrmContent(movie)
+      const strmContent = await getMovieStrmContent(movie)
       await fs.writeFile(strmPath, strmContent, 'utf-8')
 
       // Write NFO file
@@ -1080,7 +1080,7 @@ export async function writeTopPicksSeries(
         // Get STRM content (streaming URL or file path)
         let strmContent: string
         if (config.useStreamingUrl) {
-          const provider = getMediaServerProvider()
+          const provider = await getMediaServerProvider()
           const apiKey = process.env.MEDIA_SERVER_API_KEY || ''
           strmContent = provider.getStreamUrl(apiKey, episode.provider_item_id)
         } else {
@@ -1100,7 +1100,7 @@ export async function writeTopPicksSeries(
             strmContent = episodePath
           } else {
             // Fallback to streaming URL
-            const provider = getMediaServerProvider()
+            const provider = await getMediaServerProvider()
             const apiKey = process.env.MEDIA_SERVER_API_KEY || ''
             strmContent = provider.getStreamUrl(apiKey, episode.provider_item_id)
           }

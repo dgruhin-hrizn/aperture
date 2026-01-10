@@ -33,7 +33,7 @@ export async function pushImageToMediaServer(
   imageBuffer: Buffer,
   mimeType: string
 ): Promise<ImageSyncResult> {
-  const provider = getMediaServerProvider()
+  const provider = await getMediaServerProvider()
   const apiKey = process.env.MEDIA_SERVER_API_KEY
 
   if (!apiKey) {
@@ -91,7 +91,7 @@ export async function deleteImageFromMediaServer(
   itemId: string,
   imageType: string
 ): Promise<ImageSyncResult> {
-  const provider = getMediaServerProvider()
+  const provider = await getMediaServerProvider()
   const apiKey = process.env.MEDIA_SERVER_API_KEY
 
   if (!apiKey) {

@@ -165,7 +165,7 @@ export async function writeSeriesStrmFilesForUser(
   _displayName: string
 ): Promise<{ written: number; deleted: number; localPath: string; embyPath: string }> {
   const config = getConfig()
-  const provider = getMediaServerProvider()
+  const provider = await getMediaServerProvider()
   const apiKey = process.env.MEDIA_SERVER_API_KEY || ''
   const startTime = Date.now()
 

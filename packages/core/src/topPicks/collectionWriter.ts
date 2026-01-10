@@ -48,7 +48,7 @@ async function getTopPicksLibraryMovieIds(
     return []
   }
 
-  const provider = getMediaServerProvider()
+  const provider = await getMediaServerProvider()
   const apiKey = process.env.MEDIA_SERVER_API_KEY
   if (!apiKey) return []
 
@@ -108,7 +108,7 @@ async function getTopPicksLibrarySeriesIds(
     return []
   }
 
-  const provider = getMediaServerProvider()
+  const provider = await getMediaServerProvider()
   const apiKey = process.env.MEDIA_SERVER_API_KEY
   if (!apiKey) return []
 
@@ -183,7 +183,7 @@ export async function writeTopPicksMoviesCollection(
     return null
   }
   
-  const provider = getMediaServerProvider()
+  const provider = await getMediaServerProvider()
   const apiKey = process.env.MEDIA_SERVER_API_KEY
   
   if (!apiKey) {
@@ -236,7 +236,7 @@ export async function writeTopPicksSeriesCollection(
     return null
   }
   
-  const provider = getMediaServerProvider()
+  const provider = await getMediaServerProvider()
   const apiKey = process.env.MEDIA_SERVER_API_KEY
   
   if (!apiKey) {
@@ -289,7 +289,7 @@ export async function writeTopPicksMoviesPlaylist(
     return null
   }
   
-  const provider = getMediaServerProvider()
+  const provider = await getMediaServerProvider()
   const apiKey = process.env.MEDIA_SERVER_API_KEY
   
   if (!apiKey) {
@@ -349,7 +349,7 @@ export async function writeTopPicksSeriesPlaylist(
     return null
   }
   
-  const provider = getMediaServerProvider()
+  const provider = await getMediaServerProvider()
   const apiKey = process.env.MEDIA_SERVER_API_KEY
   
   if (!apiKey) {

@@ -52,7 +52,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       // Get media server provider
       let provider
       try {
-        provider = getMediaServerProvider()
+        provider = await getMediaServerProvider()
       } catch (err) {
         fastify.log.error({ err }, 'Failed to get media server provider')
         return reply.status(500).send({ error: 'Media server not configured' } as never)
@@ -68,12 +68,12 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       // Fetch full user details to get parental rating settings
-      const apiKey = process.env.MEDIA_SERVER_API_KEY
-      if (!apiKey) {
+      const config = await getMediaServerConfig()
+      if (!config.apiKey) {
         fastify.log.error('Media server API key not configured')
         return reply.status(500).send({ error: 'Media server not configured' } as never)
       }
-      const providerUser = await provider.getUserById(apiKey, authResult.userId)
+      const providerUser = await provider.getUserById(config.apiKey, authResult.userId)
 
       // Upsert user in our database
       const existingUser = await queryOne<UserRow>(

@@ -218,13 +218,13 @@ export async function writeStrmFilesForUser(
           logger.debug({ err, movie: movie.title }, 'Failed to create movie symlink, falling back to STRM')
           // Fallback to STRM if symlink fails
           const strmPath = path.join(movieFolderPath, `${baseFilename}.strm`)
-          const strmContent = getStrmContent(movie, config)
+          const strmContent = await getStrmContent(movie, config)
           await fs.writeFile(strmPath, strmContent, 'utf-8')
         }
       } else {
         // No original path, must use STRM
         const strmPath = path.join(movieFolderPath, `${baseFilename}.strm`)
-        const strmContent = getStrmContent(movie, config)
+        const strmContent = await getStrmContent(movie, config)
         await fs.writeFile(strmPath, strmContent, 'utf-8')
       }
 
@@ -285,7 +285,7 @@ export async function writeStrmFilesForUser(
       // Prepare STRM file task
       const strmFilename = buildStrmFilename(movie)
       expectedFiles.add(strmFilename)
-      const strmContent = getStrmContent(movie, config)
+      const strmContent = await getStrmContent(movie, config)
       fileWriteTasks.push({
         path: path.join(localPath, strmFilename),
         content: strmContent,

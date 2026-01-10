@@ -53,7 +53,7 @@ async function waitForLibraryScan(
   maxWaitMs: number = 60000,
   pollIntervalMs: number = 2000
 ): Promise<boolean> {
-  const provider = getMediaServerProvider()
+  const provider = await getMediaServerProvider()
   const apiKey = process.env.MEDIA_SERVER_API_KEY
   if (!apiKey) return false
 
@@ -171,7 +171,7 @@ export async function refreshTopPicks(
     // Step 6: Manage library access and trigger refresh
     setJobStep(jobId, 5, 'Managing libraries and triggering refresh')
     
-    const provider = getMediaServerProvider()
+    const provider = await getMediaServerProvider()
     const apiKey = process.env.MEDIA_SERVER_API_KEY
     
     let moviesLib: LibraryInfo | null = null

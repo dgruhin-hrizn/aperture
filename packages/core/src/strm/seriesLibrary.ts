@@ -44,7 +44,7 @@ export async function ensureUserSeriesLibrary(
   displayName: string
 ): Promise<{ libraryId: string; libraryGuid: string; created: boolean; name: string }> {
   const config = getConfig()
-  const provider = getMediaServerProvider()
+  const provider = await getMediaServerProvider()
   const apiKey = process.env.MEDIA_SERVER_API_KEY
 
   if (!apiKey) {
@@ -141,7 +141,7 @@ export async function ensureUserSeriesLibrary(
  * Refresh a user's AI TV library in the media server
  */
 export async function refreshUserSeriesLibrary(userId: string): Promise<void> {
-  const provider = getMediaServerProvider()
+  const provider = await getMediaServerProvider()
   const apiKey = process.env.MEDIA_SERVER_API_KEY
 
   if (!apiKey) {
@@ -170,7 +170,7 @@ export async function updateUserSeriesLibraryPermissions(
   userId: string,
   providerUserId: string
 ): Promise<void> {
-  const provider = getMediaServerProvider()
+  const provider = await getMediaServerProvider()
   const apiKey = process.env.MEDIA_SERVER_API_KEY
 
   if (!apiKey) {

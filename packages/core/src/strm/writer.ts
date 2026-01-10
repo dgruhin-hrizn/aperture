@@ -170,7 +170,7 @@ export async function writeStrmFilesForUser(
     // Prepare STRM file task
     const strmFilename = buildStrmFilename(movie)
     expectedFiles.add(strmFilename)
-    const strmContent = getStrmContent(movie, config)
+    const strmContent = await getStrmContent(movie, config)
     fileWriteTasks.push({
       path: path.join(localPath, strmFilename),
       content: strmContent,

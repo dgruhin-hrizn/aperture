@@ -29,7 +29,7 @@ export async function syncMovies(existingJobId?: string): Promise<SyncMoviesResu
   createJobProgress(jobId, 'sync-movies', 3)
 
   try {
-    const provider = getMediaServerProvider()
+    const provider = await getMediaServerProvider()
     const apiKey = process.env.MEDIA_SERVER_API_KEY
 
     if (!apiKey) {
@@ -399,7 +399,7 @@ export async function syncWatchHistoryForUser(
   providerUserId: string,
   fullSync: boolean = false
 ): Promise<{ synced: number; removed: number }> {
-  const provider = getMediaServerProvider()
+  const provider = await getMediaServerProvider()
   const apiKey = process.env.MEDIA_SERVER_API_KEY
 
   if (!apiKey) {
@@ -506,7 +506,7 @@ export async function syncWatchHistoryForAllUsers(
   createJobProgress(jobId, 'sync-movie-watch-history', 3)
 
   try {
-    const provider = getMediaServerProvider()
+    const provider = await getMediaServerProvider()
     const apiKey = process.env.MEDIA_SERVER_API_KEY
 
     if (!apiKey) {

@@ -143,7 +143,7 @@ export async function writeSeriesStrmFilesForUser(
   const config = getConfig()
   const outputConfig = await getAiRecsOutputConfig()
   const useSymlinks = outputConfig.seriesUseSymlinks
-  const provider = getMediaServerProvider()
+  const provider = await getMediaServerProvider()
   const apiKey = process.env.MEDIA_SERVER_API_KEY || ''
   const startTime = Date.now()
 

@@ -2,6 +2,7 @@ import { EmbyProvider } from './emby/EmbyProvider.js'
 import { JellyfinProvider } from './jellyfin/JellyfinProvider.js'
 import type { MediaServerProvider } from './MediaServerProvider.js'
 import type { MediaServerType } from './types.js'
+import { getMediaServerConfig } from '../settings/systemSettings.js'
 
 // Export provider classes
 export { EmbyProvider } from './emby/EmbyProvider.js'
@@ -45,15 +46,14 @@ export function createMediaServerProvider(
 }
 
 /**
- * Get provider instance from environment configuration
+ * Get provider instance from database configuration (with env fallback)
  */
-export function getMediaServerProvider(): MediaServerProvider {
-  const type = (process.env.MEDIA_SERVER_TYPE || 'emby') as MediaServerType
-  const baseUrl = process.env.MEDIA_SERVER_BASE_URL
+export async function getMediaServerProvider(): Promise<MediaServerProvider> {
+  const config = await getMediaServerConfig()
 
-  if (!baseUrl) {
+  if (!config.type || !config.baseUrl) {
     throw new Error('Media server is not configured. Please configure it in Settings > Media Server.')
   }
 
-  return createMediaServerProvider(type, baseUrl)
+  return createMediaServerProvider(config.type, config.baseUrl)
 }

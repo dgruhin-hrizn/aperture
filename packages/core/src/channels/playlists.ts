@@ -9,7 +9,7 @@ const logger = createChildLogger('channels')
  * Update a channel's playlist in the media server
  */
 export async function updateChannelPlaylist(channelId: string): Promise<string> {
-  const provider = getMediaServerProvider()
+  const provider = await getMediaServerProvider()
   const apiKey = process.env.MEDIA_SERVER_API_KEY
 
   if (!apiKey) {
@@ -82,7 +82,7 @@ export async function createSharedPlaylist(
   channelId: string,
   sharedWithUserId: string
 ): Promise<string> {
-  const provider = getMediaServerProvider()
+  const provider = await getMediaServerProvider()
   const apiKey = process.env.MEDIA_SERVER_API_KEY
 
   if (!apiKey) {

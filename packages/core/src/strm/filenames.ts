@@ -53,10 +53,10 @@ export function buildBackdropFilename(movie: Movie): string {
 /**
  * Get the content to write inside the STRM file
  */
-export function getStrmContent(movie: Movie, config: StrmConfig): string {
+export async function getStrmContent(movie: Movie, config: StrmConfig): Promise<string> {
   // If streaming URL is preferred
   if (config.useStreamingUrl) {
-    const provider = getMediaServerProvider()
+    const provider = await getMediaServerProvider()
     const apiKey = process.env.MEDIA_SERVER_API_KEY || ''
     return provider.getStreamUrl(apiKey, movie.providerItemId)
   }
@@ -74,7 +74,7 @@ export function getStrmContent(movie: Movie, config: StrmConfig): string {
   }
 
   // Fallback to streaming URL
-  const provider = getMediaServerProvider()
+  const provider = await getMediaServerProvider()
   const apiKey = process.env.MEDIA_SERVER_API_KEY || ''
   return provider.getStreamUrl(apiKey, movie.providerItemId)
 }

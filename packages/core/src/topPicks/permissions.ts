@@ -24,7 +24,7 @@ export async function grantTopPicksAccessToAllUsers(
   moviesLibrary: LibraryInfo | null,
   seriesLibrary: LibraryInfo | null
 ): Promise<{ updated: number; failed: number; alreadyHadAccess: number; hasAllFolders: number }> {
-  const provider = getMediaServerProvider()
+  const provider = await getMediaServerProvider()
   const apiKey = process.env.MEDIA_SERVER_API_KEY
 
   if (!apiKey) {
@@ -108,7 +108,7 @@ export async function getTopPicksLibraries(): Promise<{
   movies: LibraryInfo | null
   series: LibraryInfo | null
 }> {
-  const provider = getMediaServerProvider()
+  const provider = await getMediaServerProvider()
   const apiKey = process.env.MEDIA_SERVER_API_KEY
 
   if (!apiKey) {
