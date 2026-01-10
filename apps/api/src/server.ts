@@ -62,12 +62,16 @@ export async function buildServer(options: ServerOptions = {}): Promise<any> {
   })
 
   // Register cookie support
+  // Only use secure cookies if APP_BASE_URL is HTTPS
+  const appBaseUrl = process.env.APP_BASE_URL || ''
+  const useSecureCookies = appBaseUrl.startsWith('https://')
+  
   await fastify.register(cookie, {
     secret: process.env.SESSION_SECRET || 'development-secret-change-me',
     parseOptions: {
       httpOnly: true,
       sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure: useSecureCookies,
       path: '/',
     },
   })

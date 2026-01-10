@@ -161,11 +161,14 @@ export async function requireAdmin(
 // Helper to set session cookie
 export function setSessionCookie(reply: FastifyReply, sessionId: string): void {
   const maxAge = SESSION_DURATION_DAYS * 24 * 60 * 60 // seconds
+  // Only use secure cookies if APP_BASE_URL is HTTPS
+  const appBaseUrl = process.env.APP_BASE_URL || ''
+  const useSecureCookies = appBaseUrl.startsWith('https://')
 
   reply.setCookie(SESSION_COOKIE_NAME, sessionId, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure: useSecureCookies,
     path: '/',
     maxAge,
   })
