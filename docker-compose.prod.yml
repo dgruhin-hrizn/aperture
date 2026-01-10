@@ -1,0 +1,62 @@
+# =============================================================================
+# Aperture - Production Docker Compose
+# =============================================================================
+# Use this for deployment on Unraid, servers, or any production environment.
+# This uses pre-built images from GitHub Container Registry.
+#
+# Quick start:
+#   docker-compose -f docker-compose.prod.yml up -d
+#
+# Update to latest version:
+#   docker-compose -f docker-compose.prod.yml pull
+#   docker-compose -f docker-compose.prod.yml up -d
+# =============================================================================
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: aperture-db
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: aperture
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d aperture"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  app:
+    image: ghcr.io/dgruhin-hrizn/aperture:latest
+    container_name: aperture
+    environment:
+      NODE_ENV: production
+      PORT: 3456
+      DATABASE_URL: postgres://app:app@db:5432/aperture
+      RUN_MIGRATIONS_ON_START: "true"
+      # Timezone for scheduled jobs (IANA format)
+      TZ: America/New_York
+      # -------------------------------------------------------------------------
+      # Optional: Uncomment and set these for production use
+      # -------------------------------------------------------------------------
+      # SESSION_SECRET: your-random-secret-at-least-32-chars
+      # APP_BASE_URL: http://your-server-ip:3456
+      # OPENAI_API_KEY: sk-your-key-here
+    ports:
+      - "3456:3456"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # STRM files for virtual libraries (adjust path as needed)
+      - ./data/strm:/strm
+      # Uploaded images (library artwork, etc.)
+      - ./uploads:/app/uploads
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+

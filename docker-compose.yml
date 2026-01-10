@@ -1,3 +1,10 @@
+# =============================================================================
+# Aperture - Development Docker Compose
+# =============================================================================
+# Use this for local development (builds from source).
+# For production/Unraid, use docker-compose.prod.yml instead.
+# =============================================================================
+
 services:
   db:
     image: pgvector/pgvector:pg16
@@ -6,11 +13,11 @@ services:
       POSTGRES_PASSWORD: app
       POSTGRES_DB: aperture
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U app -d aperture"]
+      test: ['CMD-SHELL', 'pg_isready -U app -d aperture']
       interval: 5s
       timeout: 5s
       retries: 5
@@ -23,7 +30,7 @@ services:
       NODE_ENV: production
       PORT: 3456
       DATABASE_URL: postgres://app:app@db:5432/aperture
-      RUN_MIGRATIONS_ON_START: "true"
+      RUN_MIGRATIONS_ON_START: 'true'
       # Timezone for scheduled jobs (default: America/New_York)
       TZ: America/New_York
       # Optional: Set these for production use
@@ -35,7 +42,7 @@ services:
       - path: .env.local
         required: false
     ports:
-      - "3456:3456"
+      - '3456:3456'
     depends_on:
       db:
         condition: service_healthy
