@@ -6,6 +6,7 @@
 
 import { createChildLogger } from '../lib/logger.js'
 import { getMediaServerProvider } from '../media/index.js'
+import { getMediaServerApiKey } from '../settings/systemSettings.js'
 import { getTopPicksConfig } from './config.js'
 
 const logger = createChildLogger('top-picks-permissions')
@@ -25,7 +26,7 @@ export async function grantTopPicksAccessToAllUsers(
   seriesLibrary: LibraryInfo | null
 ): Promise<{ updated: number; failed: number; alreadyHadAccess: number; hasAllFolders: number }> {
   const provider = await getMediaServerProvider()
-  const apiKey = process.env.MEDIA_SERVER_API_KEY
+  const apiKey = await getMediaServerApiKey()
 
   if (!apiKey) {
     throw new Error('MEDIA_SERVER_API_KEY environment variable is required')
@@ -109,7 +110,7 @@ export async function getTopPicksLibraries(): Promise<{
   series: LibraryInfo | null
 }> {
   const provider = await getMediaServerProvider()
-  const apiKey = process.env.MEDIA_SERVER_API_KEY
+  const apiKey = await getMediaServerApiKey()
 
   if (!apiKey) {
     throw new Error('MEDIA_SERVER_API_KEY environment variable is required')

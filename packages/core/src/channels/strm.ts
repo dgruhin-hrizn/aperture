@@ -3,6 +3,7 @@ import path from 'path'
 import { createChildLogger } from '../lib/logger.js'
 import { queryOne } from '../lib/db.js'
 import { getMediaServerProvider } from '../media/index.js'
+import { getMediaServerApiKey } from '../settings/systemSettings.js'
 import { generateChannelRecommendations } from './recommendations.js'
 
 const logger = createChildLogger('channels')
@@ -50,7 +51,7 @@ export async function writeChannelStrm(channelId: string): Promise<{
 
     // Get streaming URL
     const provider = await getMediaServerProvider()
-    const apiKey = process.env.MEDIA_SERVER_API_KEY || ''
+    const apiKey = await getMediaServerApiKey() || ''
     const content = provider.getStreamUrl(apiKey, rec.providerItemId)
 
     await fs.writeFile(filePath, content, 'utf-8')

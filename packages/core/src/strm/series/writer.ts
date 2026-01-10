@@ -13,6 +13,7 @@ import { query, queryOne } from '../../lib/db.js'
 import { getConfig } from '../config.js'
 import { getAiRecsOutputConfig } from '../../settings/systemSettings.js'
 import { getMediaServerProvider } from '../../media/index.js'
+import { getMediaServerApiKey } from '../../settings/systemSettings.js'
 import { downloadImage } from '../images.js'
 import { generateSeriesNfoContent } from './nfo.js'
 import { getEffectiveAiExplanationSetting } from '../../lib/userSettings.js'
@@ -144,7 +145,7 @@ export async function writeSeriesStrmFilesForUser(
   const outputConfig = await getAiRecsOutputConfig()
   const useSymlinks = outputConfig.seriesUseSymlinks
   const provider = await getMediaServerProvider()
-  const apiKey = process.env.MEDIA_SERVER_API_KEY || ''
+  const apiKey = await getMediaServerApiKey() || ''
   const startTime = Date.now()
 
   // Build paths for series library

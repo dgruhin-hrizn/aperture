@@ -1,6 +1,7 @@
 import { createChildLogger } from '../lib/logger.js'
 import { query, queryOne } from '../lib/db.js'
 import { getMediaServerProvider } from '../media/index.js'
+import { getMediaServerApiKey } from '../settings/systemSettings.js'
 import { generateChannelRecommendations } from './recommendations.js'
 
 const logger = createChildLogger('channels')
@@ -10,10 +11,10 @@ const logger = createChildLogger('channels')
  */
 export async function updateChannelPlaylist(channelId: string): Promise<string> {
   const provider = await getMediaServerProvider()
-  const apiKey = process.env.MEDIA_SERVER_API_KEY
+  const apiKey = await getMediaServerApiKey()
 
   if (!apiKey) {
-    throw new Error('MEDIA_SERVER_API_KEY is required')
+    throw new Error('Media server API key is not configured')
   }
 
   // Get channel details with owner info
@@ -83,10 +84,10 @@ export async function createSharedPlaylist(
   sharedWithUserId: string
 ): Promise<string> {
   const provider = await getMediaServerProvider()
-  const apiKey = process.env.MEDIA_SERVER_API_KEY
+  const apiKey = await getMediaServerApiKey()
 
   if (!apiKey) {
-    throw new Error('MEDIA_SERVER_API_KEY is required')
+    throw new Error('Media server API key is not configured')
   }
 
   // Get channel details

@@ -5,6 +5,7 @@ import {
   updateChannelPlaylist,
   generateChannelRecommendations,
   getMediaServerProvider,
+  getMediaServerApiKey,
 } from '@aperture/core'
 import type { ChannelRow } from '../types.js'
 
@@ -79,7 +80,7 @@ export function registerPlaylistHandlers(fastify: FastifyInstance) {
         return reply.send({ items: [], message: 'No playlist generated yet' })
       }
 
-      const apiKey = process.env.MEDIA_SERVER_API_KEY
+      const apiKey = await getMediaServerApiKey()
       if (!apiKey) {
         return reply.status(500).send({ error: 'Media server API key not configured' })
       }
@@ -120,7 +121,7 @@ export function registerPlaylistHandlers(fastify: FastifyInstance) {
         return reply.status(400).send({ error: 'No playlist exists for this channel' })
       }
 
-      const apiKey = process.env.MEDIA_SERVER_API_KEY
+      const apiKey = await getMediaServerApiKey()
       if (!apiKey) {
         return reply.status(500).send({ error: 'Media server API key not configured' })
       }
@@ -166,7 +167,7 @@ export function registerPlaylistHandlers(fastify: FastifyInstance) {
         return reply.status(400).send({ error: 'No items provided' })
       }
 
-      const apiKey = process.env.MEDIA_SERVER_API_KEY
+      const apiKey = await getMediaServerApiKey()
       if (!apiKey) {
         return reply.status(500).send({ error: 'Media server API key not configured' })
       }

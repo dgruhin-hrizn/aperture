@@ -11,6 +11,7 @@ import { createChildLogger } from '../lib/logger.js'
 import { query, queryOne } from '../lib/db.js'
 import { getConfig } from './config.js'
 import { getMediaServerProvider } from '../media/index.js'
+import { getMediaServerApiKey } from '../settings/systemSettings.js'
 
 const logger = createChildLogger('strm-series-writer')
 
@@ -166,7 +167,7 @@ export async function writeSeriesStrmFilesForUser(
 ): Promise<{ written: number; deleted: number; localPath: string; embyPath: string }> {
   const config = getConfig()
   const provider = await getMediaServerProvider()
-  const apiKey = process.env.MEDIA_SERVER_API_KEY || ''
+  const apiKey = await getMediaServerApiKey() || ''
   const startTime = Date.now()
 
   // Build paths for series library

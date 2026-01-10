@@ -268,6 +268,14 @@ export async function isMediaServerConfigured(): Promise<boolean> {
   return config.isConfigured
 }
 
+/**
+ * Get media server API key from database (with env fallback)
+ */
+export async function getMediaServerApiKey(): Promise<string | null> {
+  const config = await getMediaServerConfig()
+  return config.apiKey
+}
+
 function isValidMediaServerType(type: string | undefined | null): type is MediaServerType {
   return type !== undefined && type !== null && MEDIA_SERVER_TYPES.includes(type as MediaServerType)
 }

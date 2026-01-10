@@ -22,6 +22,7 @@ import { writeTopPicksMovies, writeTopPicksSeries } from './writer.js'
 import { writeTopPicksCollectionsAndPlaylists } from './collectionWriter.js'
 import { grantTopPicksAccessToAllUsers, getTopPicksLibraries } from './permissions.js'
 import { getMediaServerProvider } from '../media/index.js'
+import { getMediaServerApiKey } from '../settings/systemSettings.js'
 import { getConfig } from '../strm/config.js'
 import { syncLibraryTypeImage } from '../uploads/mediaServerSync.js'
 import path from 'path'
@@ -54,7 +55,7 @@ async function waitForLibraryScan(
   pollIntervalMs: number = 2000
 ): Promise<boolean> {
   const provider = await getMediaServerProvider()
-  const apiKey = process.env.MEDIA_SERVER_API_KEY
+  const apiKey = await getMediaServerApiKey()
   if (!apiKey) return false
 
   const startTime = Date.now()
@@ -172,7 +173,7 @@ export async function refreshTopPicks(
     setJobStep(jobId, 5, 'Managing libraries and triggering refresh')
     
     const provider = await getMediaServerProvider()
-    const apiKey = process.env.MEDIA_SERVER_API_KEY
+    const apiKey = await getMediaServerApiKey()
     
     let moviesLib: LibraryInfo | null = null
     let seriesLib: LibraryInfo | null = null

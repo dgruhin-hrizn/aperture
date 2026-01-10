@@ -9,7 +9,7 @@ import {
   completeJob,
   failJob,
 } from '../jobs/progress.js'
-import { getEmbeddingModel, type EmbeddingModel } from '../settings/systemSettings.js'
+import { getEmbeddingModel, getOpenAIApiKey, type EmbeddingModel } from '../settings/systemSettings.js'
 import { randomUUID } from 'crypto'
 
 const logger = createChildLogger('embeddings-series')
@@ -62,14 +62,17 @@ interface EpisodeEmbeddingResult {
 }
 
 let openaiClient: OpenAI | null = null
+let cachedApiKey: string | null = null
 
-function getOpenAIClient(): OpenAI {
-  if (!openaiClient) {
-    const apiKey = process.env.OPENAI_API_KEY
-    if (!apiKey) {
-      throw new Error('OPENAI_API_KEY environment variable is required')
-    }
+async function getOpenAIClient(): Promise<OpenAI> {
+  const apiKey = await getOpenAIApiKey()
+  if (!apiKey) {
+    throw new Error('OpenAI API key is not configured')
+  }
+  // Recreate client if API key changed
+  if (!openaiClient || cachedApiKey !== apiKey) {
     openaiClient = new OpenAI({ apiKey })
+    cachedApiKey = apiKey
   }
   return openaiClient
 }
@@ -253,7 +256,7 @@ export async function embedSeries(
     return []
   }
 
-  const client = getOpenAIClient()
+  const client = await getOpenAIClient()
   const model = modelOverride || (await getEmbeddingModel())
 
   // Build canonical texts
@@ -304,7 +307,7 @@ export async function embedEpisodes(
     return []
   }
 
-  const client = getOpenAIClient()
+  const client = await getOpenAIClient()
   const model = modelOverride || (await getEmbeddingModel())
 
   // Build canonical texts
@@ -545,7 +548,7 @@ export async function generateMissingSeriesEmbeddings(
     // Step 1: Check OpenAI configuration
     setJobStep(jobId, 0, 'Checking OpenAI configuration')
 
-    const apiKey = process.env.OPENAI_API_KEY
+    const apiKey = await getOpenAIApiKey()
     const model = await getEmbeddingModel()
 
     if (!apiKey) {

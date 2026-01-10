@@ -8,6 +8,7 @@
 
 import { createChildLogger } from '../lib/logger.js'
 import { getMediaServerProvider } from '../media/index.js'
+import { getMediaServerApiKey } from '../settings/systemSettings.js'
 import { getTopPicksConfig } from './config.js'
 import type { PopularMovie, PopularSeries } from './popularity.js'
 import { queryOne } from '../lib/db.js'
@@ -49,7 +50,7 @@ async function getTopPicksLibraryMovieIds(
   }
 
   const provider = await getMediaServerProvider()
-  const apiKey = process.env.MEDIA_SERVER_API_KEY
+  const apiKey = await getMediaServerApiKey()
   if (!apiKey) return []
 
   try {
@@ -109,7 +110,7 @@ async function getTopPicksLibrarySeriesIds(
   }
 
   const provider = await getMediaServerProvider()
-  const apiKey = process.env.MEDIA_SERVER_API_KEY
+  const apiKey = await getMediaServerApiKey()
   if (!apiKey) return []
 
   try {
@@ -184,7 +185,7 @@ export async function writeTopPicksMoviesCollection(
   }
   
   const provider = await getMediaServerProvider()
-  const apiKey = process.env.MEDIA_SERVER_API_KEY
+  const apiKey = await getMediaServerApiKey()
   
   if (!apiKey) {
     logger.error('MEDIA_SERVER_API_KEY not set')
@@ -237,7 +238,7 @@ export async function writeTopPicksSeriesCollection(
   }
   
   const provider = await getMediaServerProvider()
-  const apiKey = process.env.MEDIA_SERVER_API_KEY
+  const apiKey = await getMediaServerApiKey()
   
   if (!apiKey) {
     logger.error('MEDIA_SERVER_API_KEY not set')
@@ -290,7 +291,7 @@ export async function writeTopPicksMoviesPlaylist(
   }
   
   const provider = await getMediaServerProvider()
-  const apiKey = process.env.MEDIA_SERVER_API_KEY
+  const apiKey = await getMediaServerApiKey()
   
   if (!apiKey) {
     logger.error('MEDIA_SERVER_API_KEY not set')
@@ -350,7 +351,7 @@ export async function writeTopPicksSeriesPlaylist(
   }
   
   const provider = await getMediaServerProvider()
-  const apiKey = process.env.MEDIA_SERVER_API_KEY
+  const apiKey = await getMediaServerApiKey()
   
   if (!apiKey) {
     logger.error('MEDIA_SERVER_API_KEY not set')

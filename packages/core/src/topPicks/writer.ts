@@ -13,6 +13,7 @@ import { getConfig } from '../strm/config.js'
 import { downloadImage } from '../strm/images.js'
 import { sanitizeFilename } from '../strm/filenames.js'
 import { getMediaServerProvider } from '../media/index.js'
+import { getMediaServerApiKey } from '../settings/systemSettings.js'
 import { getTopPicksConfig } from './config.js'
 import {
   symlinkArtwork,
@@ -466,7 +467,7 @@ async function getMovieStrmContent(movie: TopPicksMovie): Promise<string> {
   // If streaming URL is preferred
   if (config.useStreamingUrl) {
     const provider = await getMediaServerProvider()
-    const apiKey = process.env.MEDIA_SERVER_API_KEY || ''
+    const apiKey = await getMediaServerApiKey() || ''
     return provider.getStreamUrl(apiKey, movie.providerItemId)
   }
 
@@ -484,7 +485,7 @@ async function getMovieStrmContent(movie: TopPicksMovie): Promise<string> {
 
   // Fallback to streaming URL
   const provider = await getMediaServerProvider()
-  const apiKey = process.env.MEDIA_SERVER_API_KEY || ''
+  const apiKey = await getMediaServerApiKey() || ''
   return provider.getStreamUrl(apiKey, movie.providerItemId)
 }
 
@@ -1081,7 +1082,7 @@ export async function writeTopPicksSeries(
         let strmContent: string
         if (config.useStreamingUrl) {
           const provider = await getMediaServerProvider()
-          const apiKey = process.env.MEDIA_SERVER_API_KEY || ''
+          const apiKey = await getMediaServerApiKey() || ''
           strmContent = provider.getStreamUrl(apiKey, episode.provider_item_id)
         } else {
           // Try to get the actual file path
@@ -1101,7 +1102,7 @@ export async function writeTopPicksSeries(
           } else {
             // Fallback to streaming URL
             const provider = await getMediaServerProvider()
-            const apiKey = process.env.MEDIA_SERVER_API_KEY || ''
+            const apiKey = await getMediaServerApiKey() || ''
             strmContent = provider.getStreamUrl(apiKey, episode.provider_item_id)
           }
         }

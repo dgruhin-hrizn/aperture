@@ -234,6 +234,7 @@ export {
   setChatAssistantModel,
   CHAT_ASSISTANT_MODELS,
   getMediaServerConfig,
+  getMediaServerApiKey,
   setMediaServerConfig,
   testMediaServerConnection,
   isMediaServerConfigured,

@@ -7,7 +7,8 @@ import {
   getSeriesTasteSynopsis,
   generateSeriesTasteSynopsis,
   getMediaServerProvider,
-  getMediaServerConfig
+  getMediaServerConfig,
+  getMediaServerApiKey
 } from '@aperture/core'
 
 export function registerProfileHandlers(fastify: FastifyInstance) {
@@ -794,7 +795,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
 
         // Mark as unplayed in media server
         const provider = await getMediaServerProvider()
-        const apiKey = process.env.MEDIA_SERVER_API_KEY
+        const apiKey = await getMediaServerApiKey()
 
         if (!apiKey) {
           return reply.status(500).send({ error: 'Media server API key not configured' })
@@ -856,7 +857,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
         }
 
         const provider = await getMediaServerProvider()
-        const apiKey = process.env.MEDIA_SERVER_API_KEY
+        const apiKey = await getMediaServerApiKey()
 
         if (!apiKey) {
           return reply.status(500).send({ error: 'Media server API key not configured' })
@@ -917,7 +918,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
         }
 
         const provider = await getMediaServerProvider()
-        const apiKey = process.env.MEDIA_SERVER_API_KEY
+        const apiKey = await getMediaServerApiKey()
 
         if (!apiKey) {
           return reply.status(500).send({ error: 'Media server API key not configured' })
@@ -989,7 +990,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
         }
 
         const provider = await getMediaServerProvider()
-        const apiKey = process.env.MEDIA_SERVER_API_KEY
+        const apiKey = await getMediaServerApiKey()
 
         if (!apiKey) {
           return reply.status(500).send({ error: 'Media server API key not configured' })

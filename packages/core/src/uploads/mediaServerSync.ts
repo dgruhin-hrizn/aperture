@@ -4,6 +4,7 @@
  */
 
 import { getMediaServerProvider } from '../media/index.js'
+import { getMediaServerApiKey } from '../settings/systemSettings.js'
 import { createChildLogger } from '../lib/logger.js'
 import { getEffectiveImage, getImageBuffer, type EntityType } from './index.js'
 
@@ -34,7 +35,7 @@ export async function pushImageToMediaServer(
   mimeType: string
 ): Promise<ImageSyncResult> {
   const provider = await getMediaServerProvider()
-  const apiKey = process.env.MEDIA_SERVER_API_KEY
+  const apiKey = await getMediaServerApiKey()
 
   if (!apiKey) {
     return {
@@ -92,7 +93,7 @@ export async function deleteImageFromMediaServer(
   imageType: string
 ): Promise<ImageSyncResult> {
   const provider = await getMediaServerProvider()
-  const apiKey = process.env.MEDIA_SERVER_API_KEY
+  const apiKey = await getMediaServerApiKey()
 
   if (!apiKey) {
     return {

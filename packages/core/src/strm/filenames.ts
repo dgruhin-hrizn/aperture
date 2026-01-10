@@ -1,5 +1,6 @@
 import type { Movie, StrmConfig } from './types.js'
 import { getMediaServerProvider } from '../media/index.js'
+import { getMediaServerApiKey } from '../settings/systemSettings.js'
 
 /**
  * Sanitize a filename for filesystem use
@@ -57,7 +58,7 @@ export async function getStrmContent(movie: Movie, config: StrmConfig): Promise<
   // If streaming URL is preferred
   if (config.useStreamingUrl) {
     const provider = await getMediaServerProvider()
-    const apiKey = process.env.MEDIA_SERVER_API_KEY || ''
+    const apiKey = (await getMediaServerApiKey()) || ''
     return provider.getStreamUrl(apiKey, movie.providerItemId)
   }
 
@@ -75,9 +76,6 @@ export async function getStrmContent(movie: Movie, config: StrmConfig): Promise<
 
   // Fallback to streaming URL
   const provider = await getMediaServerProvider()
-  const apiKey = process.env.MEDIA_SERVER_API_KEY || ''
+  const apiKey = (await getMediaServerApiKey()) || ''
   return provider.getStreamUrl(apiKey, movie.providerItemId)
 }
-
-
-

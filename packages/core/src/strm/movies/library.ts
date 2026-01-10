@@ -2,6 +2,7 @@ import path from 'path'
 import { createChildLogger } from '../../lib/logger.js'
 import { query, queryOne } from '../../lib/db.js'
 import { getMediaServerProvider } from '../../media/index.js'
+import { getMediaServerApiKey } from '../../settings/systemSettings.js'
 import { getConfig } from '../config.js'
 import { getEffectiveLibraryTitle } from '../../lib/userSettings.js'
 import { syncLibraryTypeImage } from '../../uploads/mediaServerSync.js'
@@ -26,7 +27,7 @@ export async function ensureUserLibrary(
 ): Promise<{ libraryId: string; libraryGuid: string; created: boolean; name: string }> {
   const config = getConfig()
   const provider = await getMediaServerProvider()
-  const apiKey = process.env.MEDIA_SERVER_API_KEY
+  const apiKey = await getMediaServerApiKey()
 
   if (!apiKey) {
     throw new Error('MEDIA_SERVER_API_KEY is required')
@@ -122,7 +123,7 @@ export async function ensureUserLibrary(
  */
 export async function refreshUserLibrary(userId: string): Promise<void> {
   const provider = await getMediaServerProvider()
-  const apiKey = process.env.MEDIA_SERVER_API_KEY
+  const apiKey = await getMediaServerApiKey()
 
   if (!apiKey) {
     throw new Error('MEDIA_SERVER_API_KEY is required')
@@ -152,7 +153,7 @@ export async function updateUserLibraryPermissions(
   providerUserId: string
 ): Promise<void> {
   const provider = await getMediaServerProvider()
-  const apiKey = process.env.MEDIA_SERVER_API_KEY
+  const apiKey = await getMediaServerApiKey()
 
   if (!apiKey) {
     throw new Error('MEDIA_SERVER_API_KEY is required')

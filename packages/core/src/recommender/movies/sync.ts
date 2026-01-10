@@ -2,6 +2,7 @@ import { createChildLogger } from '../../lib/logger.js'
 import { query, queryOne } from '../../lib/db.js'
 import { getEnabledLibraryIds } from '../../lib/libraryConfig.js'
 import { getMediaServerProvider } from '../../media/index.js'
+import { getMediaServerApiKey, getMediaServerConfig } from '../../settings/systemSettings.js'
 import {
   createJobProgress,
   setJobStep,
@@ -30,7 +31,7 @@ export async function syncMovies(existingJobId?: string): Promise<SyncMoviesResu
 
   try {
     const provider = await getMediaServerProvider()
-    const apiKey = process.env.MEDIA_SERVER_API_KEY
+    const apiKey = await getMediaServerApiKey()
 
     if (!apiKey) {
       throw new Error('MEDIA_SERVER_API_KEY environment variable is required')
@@ -38,8 +39,9 @@ export async function syncMovies(existingJobId?: string): Promise<SyncMoviesResu
 
     // Step 1: Connect to media server and check library config
     setJobStep(jobId, 0, 'Connecting to media server')
-    const serverType = process.env.MEDIA_SERVER_TYPE || 'emby'
-    const serverUrl = process.env.MEDIA_SERVER_BASE_URL || 'Not configured'
+    const config = await getMediaServerConfig()
+    const serverType = config.type || 'emby'
+    const serverUrl = config.baseUrl || 'Not configured'
 
     addLog(jobId, 'info', `🔌 Connecting to ${serverType.toUpperCase()} server...`)
     addLog(jobId, 'info', `📡 Server URL: ${serverUrl}`)
@@ -400,7 +402,7 @@ export async function syncWatchHistoryForUser(
   fullSync: boolean = false
 ): Promise<{ synced: number; removed: number }> {
   const provider = await getMediaServerProvider()
-  const apiKey = process.env.MEDIA_SERVER_API_KEY
+  const apiKey = await getMediaServerApiKey()
 
   if (!apiKey) {
     throw new Error('MEDIA_SERVER_API_KEY environment variable is required')
@@ -507,7 +509,7 @@ export async function syncWatchHistoryForAllUsers(
 
   try {
     const provider = await getMediaServerProvider()
-    const apiKey = process.env.MEDIA_SERVER_API_KEY
+    const apiKey = await getMediaServerApiKey()
 
     if (!apiKey) {
       throw new Error('MEDIA_SERVER_API_KEY environment variable is required')
@@ -527,7 +529,8 @@ export async function syncWatchHistoryForAllUsers(
     const existingProviderIds = new Set(existingUsers.rows.map(u => u.provider_user_id))
 
     // Import any missing users
-    const providerType = process.env.MEDIA_SERVER_TYPE || 'emby'
+    const msConfig = await getMediaServerConfig()
+    const providerType = msConfig.type || 'emby'
     let imported = 0
     for (const pu of providerUsers) {
       if (!existingProviderIds.has(pu.id)) {

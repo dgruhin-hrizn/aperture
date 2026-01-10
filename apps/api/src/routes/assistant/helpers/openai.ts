@@ -2,11 +2,12 @@
  * OpenAI client configuration
  */
 import { createOpenAI } from '@ai-sdk/openai'
+import { getOpenAIApiKey } from '@aperture/core'
 
-export function getOpenAIClient() {
-  const apiKey = process.env.OPENAI_API_KEY
+export async function getOpenAIClient() {
+  const apiKey = await getOpenAIApiKey()
   if (!apiKey) {
-    throw new Error('OPENAI_API_KEY is not set')
+    throw new Error('OpenAI API key is not configured')
   }
   return createOpenAI({ apiKey })
 }

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { query, queryOne } from '../../../lib/db.js'
 import { requireAdmin } from '../../../plugins/auth.js'
-import { getMediaServerProvider } from '@aperture/core'
+import { getMediaServerProvider, getMediaServerApiKey } from '@aperture/core'
 import type { UserRow } from '../types.js'
 
 export function registerProviderHandlers(fastify: FastifyInstance) {
@@ -14,7 +14,7 @@ export function registerProviderHandlers(fastify: FastifyInstance) {
     '/api/users/provider',
     { preHandler: requireAdmin },
     async (_request, reply) => {
-      const apiKey = process.env.MEDIA_SERVER_API_KEY
+      const apiKey = await getMediaServerApiKey()
       if (!apiKey) {
         return reply.status(500).send({ error: 'Media server API key not configured' })
       }
@@ -86,7 +86,7 @@ export function registerProviderHandlers(fastify: FastifyInstance) {
         return reply.status(400).send({ error: 'providerUserId is required' })
       }
 
-      const apiKey = process.env.MEDIA_SERVER_API_KEY
+      const apiKey = await getMediaServerApiKey()
       if (!apiKey) {
         return reply.status(500).send({ error: 'Media server API key not configured' })
       }
