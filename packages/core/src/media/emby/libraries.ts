@@ -150,14 +150,21 @@ export async function updateUserLibraryAccess(
   // Get current user policy
   const user = await provider.fetch<EmbyUser>(`/Users/${userId}`, apiKey)
 
+  // Cast to Record to access all dynamic fields - API may have more fields than our type
+  const currentPolicy = (user.Policy || {}) as Record<string, unknown>
+  
+  // Create updated policy preserving all existing fields except the ones we're changing
+  const updatedPolicy: Record<string, unknown> = {
+    ...currentPolicy,
+    // Override library access - the fields we're actually changing
+    EnableAllFolders: false,
+    EnabledFolders: allowedLibraryGuids,
+  }
+
   // Update the policy with new library access (using GUIDs)
   await provider.fetch(`/Users/${userId}/Policy`, apiKey, {
     method: 'POST',
-    body: JSON.stringify({
-      ...user.Policy,
-      EnableAllFolders: false,
-      EnabledFolders: allowedLibraryGuids,
-    }),
+    body: JSON.stringify(updatedPolicy),
   })
 }
 

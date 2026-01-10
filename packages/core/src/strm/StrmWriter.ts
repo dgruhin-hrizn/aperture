@@ -93,6 +93,14 @@ export async function processStrmForAllUsers(
         const strmResult = await writeStrmFilesForUser(user.id, user.provider_user_id, displayName)
         addLog(actualJobId, 'debug', `  📝 STRM files written: ${strmResult.written} files at ${strmResult.localPath}`)
 
+        // Skip library creation/permissions if no recommendations (prevents 400 errors)
+        if (strmResult.written === 0) {
+          addLog(actualJobId, 'info', `⏭️ Skipping library sync for ${displayName} (no recommendations yet)`)
+          success++
+          updateJobProgress(actualJobId, success + failed, totalUsers, `${success + failed}/${totalUsers} users`)
+          continue
+        }
+
         // Step 2: Now ensure the library exists in the media server (directory exists now)
         const libraryResult = await ensureUserLibrary(user.id, user.provider_user_id, displayName)
         if (libraryResult.created) {
@@ -188,6 +196,14 @@ export async function processSeriesStrmForAllUsers(
         // Step 1: Write STRM files
         const strmResult = await writeSeriesStrmFilesForUser(user.id, user.provider_user_id, displayName)
         addLog(actualJobId, 'debug', `  📝 Series STRM files written: ${strmResult.written} files at ${strmResult.localPath}`)
+
+        // Skip library creation/permissions if no recommendations (prevents 400 errors)
+        if (strmResult.written === 0) {
+          addLog(actualJobId, 'info', `⏭️ Skipping TV library sync for ${displayName} (no recommendations yet)`)
+          success++
+          updateJobProgress(actualJobId, success + failed, totalUsers, `${success + failed}/${totalUsers} users`)
+          continue
+        }
 
         // Step 2: Ensure the TV library exists in the media server
         const libraryResult = await ensureUserSeriesLibrary(user.id, user.provider_user_id, displayName)
