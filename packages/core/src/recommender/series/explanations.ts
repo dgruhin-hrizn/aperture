@@ -9,14 +9,23 @@
 import OpenAI from 'openai'
 import { query } from '../../lib/db.js'
 import { createChildLogger } from '../../lib/logger.js'
-import { getTextGenerationModel } from '../../settings/systemSettings.js'
+import { getTextGenerationModel, getOpenAIApiKey } from '../../settings/systemSettings.js'
 
 const logger = createChildLogger('series-explanations')
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+// Lazy-initialized OpenAI client
+let openaiClient: OpenAI | null = null
+
+async function getOpenAIClient(): Promise<OpenAI> {
+  if (!openaiClient) {
+    const apiKey = await getOpenAIApiKey()
+    if (!apiKey) {
+      throw new Error('OpenAI API key is not configured. Please set it in Settings > AI.')
+    }
+    openaiClient = new OpenAI({ apiKey })
+  }
+  return openaiClient
+}
 
 export interface SeriesForExplanation {
   seriesId: string
@@ -247,6 +256,7 @@ async function generateBatchSeriesExplanations(
 
   try {
     const model = await getTextGenerationModel()
+    const openai = await getOpenAIClient()
     const response = await openai.chat.completions.create({
       model,
       messages: [

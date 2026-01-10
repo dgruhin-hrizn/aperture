@@ -1,14 +1,23 @@
 import OpenAI from 'openai'
 import { createChildLogger } from '../lib/logger.js'
 import { query, queryOne } from '../lib/db.js'
-import { getTextGenerationModel } from '../settings/systemSettings.js'
-
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+import { getTextGenerationModel, getOpenAIApiKey } from '../settings/systemSettings.js'
 
 const logger = createChildLogger('channels')
+
+// Lazy-initialized OpenAI client
+let openaiClient: OpenAI | null = null
+
+async function getOpenAIClient(): Promise<OpenAI> {
+  if (!openaiClient) {
+    const apiKey = await getOpenAIApiKey()
+    if (!apiKey) {
+      throw new Error('OpenAI API key is not configured. Please set it in Settings > AI.')
+    }
+    openaiClient = new OpenAI({ apiKey })
+  }
+  return openaiClient
+}
 
 /**
  * Build context string from genres, example movies, and preferences
@@ -104,6 +113,7 @@ export async function generateAIPreferences(
 
   try {
     const model = await getTextGenerationModel()
+    const openai = await getOpenAIClient()
     const response = await openai.chat.completions.create({
       model,
       messages: [
@@ -163,6 +173,7 @@ export async function generateAIPlaylistName(
 
   try {
     const model = await getTextGenerationModel()
+    const openai = await getOpenAIClient()
     const response = await openai.chat.completions.create({
       model,
       messages: [
@@ -231,6 +242,7 @@ export async function generateAIPlaylistDescription(
 
   try {
     const model = await getTextGenerationModel()
+    const openai = await getOpenAIClient()
     const response = await openai.chat.completions.create({
       model,
       messages: [
