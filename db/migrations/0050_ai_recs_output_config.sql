@@ -18,3 +18,4 @@ UPDATE top_picks_config SET series_use_symlinks = true WHERE series_use_symlinks
 COMMENT ON TABLE system_settings IS 'System-wide configuration settings';
 
 
+

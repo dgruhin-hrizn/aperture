@@ -24,8 +24,14 @@ services:
       PORT: 3456
       DATABASE_URL: postgres://app:app@db:5432/aperture
       RUN_MIGRATIONS_ON_START: "true"
+      # Optional: Set these for production use
+      # SESSION_SECRET: your-random-secret-at-least-32-chars
+      # APP_BASE_URL: http://your-server-ip:3456
     env_file:
-      - .env.local
+      # Optional: Create .env.local for additional settings (OpenAI key, media server, etc.)
+      # The container will start without this file - you can configure via UI
+      - path: .env.local
+        required: false
     ports:
       - "3456:3456"
     depends_on:
@@ -33,6 +39,7 @@ services:
         condition: service_healthy
     volumes:
       - ./data/strm:/strm
+      - ./uploads:/app/uploads
     restart: unless-stopped
 
 volumes:

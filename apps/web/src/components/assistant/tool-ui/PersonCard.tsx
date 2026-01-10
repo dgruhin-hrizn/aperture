@@ -161,3 +161,4 @@ export function PersonResult({ data }: PersonResultProps) {
   )
 }
 
+

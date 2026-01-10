@@ -39,3 +39,4 @@ ON CONFLICT (rating_name) DO NOTHING;
 CREATE INDEX IF NOT EXISTS idx_parental_rating_values_name ON parental_rating_values(rating_name);
 
 
+

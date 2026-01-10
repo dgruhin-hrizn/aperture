@@ -18,3 +18,4 @@ COMMENT ON COLUMN user_preferences.series_taste_embedding IS 'Computed embedding
 COMMENT ON COLUMN user_preferences.series_taste_synopsis IS 'AI-generated natural language summary of user TV series taste';
 
 
+

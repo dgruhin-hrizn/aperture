@@ -15,3 +15,4 @@ COMMENT ON COLUMN user_preferences.taste_synopsis IS 'AI-generated natural langu
 COMMENT ON COLUMN user_preferences.taste_synopsis_updated_at IS 'When the taste synopsis was last regenerated';
 
 
+

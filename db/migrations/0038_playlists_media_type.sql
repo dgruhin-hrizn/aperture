@@ -9,3 +9,4 @@ CREATE INDEX idx_playlists_media_type ON playlists(user_id, media_type);
 COMMENT ON COLUMN playlists.media_type IS 'Type of playlist content: movies or series';
 
 
+

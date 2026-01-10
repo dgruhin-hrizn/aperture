@@ -50,3 +50,4 @@ COMMENT ON COLUMN job_config.last_run_status IS 'Status of the last run: complet
 COMMENT ON COLUMN job_config.last_run_duration_ms IS 'Duration of the last run in milliseconds';
 
 
+

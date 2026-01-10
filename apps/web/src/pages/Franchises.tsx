@@ -376,3 +376,4 @@ export function FranchisesPage() {
   )
 }
 
+

@@ -64,3 +64,4 @@ COMMENT ON COLUMN channels.is_pinned_row IS 'Whether to create a dedicated STRM 
 COMMENT ON TABLE channel_shares IS 'Channels shared with other users';
 
 
+

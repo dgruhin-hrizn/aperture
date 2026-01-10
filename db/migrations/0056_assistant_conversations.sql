@@ -28,3 +28,4 @@ COMMENT ON TABLE assistant_conversations IS 'Stores AI assistant chat conversati
 COMMENT ON TABLE assistant_messages IS 'Stores messages within assistant conversations';
 COMMENT ON COLUMN assistant_conversations.title IS 'Auto-generated title from first user message';
 
+

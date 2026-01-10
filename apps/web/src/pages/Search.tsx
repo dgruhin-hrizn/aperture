@@ -472,3 +472,4 @@ export function SearchPage() {
   )
 }
 
+

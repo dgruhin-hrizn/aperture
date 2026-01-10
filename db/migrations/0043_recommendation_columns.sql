@@ -13,3 +13,4 @@ COMMENT ON COLUMN recommendation_candidates.selected_rank IS 'Rank among selecte
 COMMENT ON COLUMN recommendation_runs.completed_at IS 'When the recommendation run finished';
 
 
+

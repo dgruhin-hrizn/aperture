@@ -38,3 +38,4 @@ COMMENT ON TABLE watch_history IS 'User watch history synced from media server';
 COMMENT ON COLUMN watch_history.play_count IS 'Number of times the user has played this movie';
 
 
+

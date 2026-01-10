@@ -3,6 +3,9 @@ import fp from 'fastify-plugin'
 import fastifyStatic from '@fastify/static'
 import path from 'path'
 import fs from 'fs'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const staticPlugin: FastifyPluginAsync = async (fastify) => {
   // Only serve static files in production
@@ -10,8 +13,10 @@ const staticPlugin: FastifyPluginAsync = async (fastify) => {
     return
   }
 
-  // Path to web dist folder (relative to apps/api)
-  const webDistPath = path.resolve(process.cwd(), '../web/dist')
+  // Path to web dist folder
+  // In Docker: __dirname is /app/apps/api/dist/plugins, so ../../web/dist resolves to /app/apps/web/dist
+  // In dev: __dirname is apps/api/src/plugins, so ../../web/dist resolves to apps/web/dist
+  const webDistPath = path.resolve(__dirname, '../../web/dist')
 
   // Check if dist folder exists
   if (!fs.existsSync(webDistPath)) {
@@ -47,5 +52,6 @@ export default fp(staticPlugin, {
   name: 'static',
   dependencies: ['@fastify/cookie'],
 })
+
 
 

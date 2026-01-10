@@ -60,3 +60,4 @@ ON CONFLICT (job_name) DO NOTHING;
 UPDATE job_config SET schedule_type = 'manual' WHERE job_name IN ('generate-embeddings', 'rebuild-recommendations');
 
 
+

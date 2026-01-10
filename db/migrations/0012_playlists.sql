@@ -46,3 +46,4 @@ COMMENT ON TABLE playlists IS 'Playlists created in the media server for recomme
 COMMENT ON COLUMN playlists.playlist_type IS 'Type: recommendations, channel, or shared_channel';
 
 
+

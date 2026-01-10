@@ -19,3 +19,4 @@ COMMENT ON TABLE sessions IS 'User authentication sessions';
 COMMENT ON COLUMN sessions.data IS 'Additional session metadata as JSON';
 
 
+

@@ -24,3 +24,4 @@ COMMENT ON COLUMN library_config.provider_library_id IS 'The library ID from Emb
 COMMENT ON COLUMN library_config.is_enabled IS 'Whether this library should be included in movie sync';
 
 
+

@@ -52,7 +52,7 @@ export function getMediaServerProvider(): MediaServerProvider {
   const baseUrl = process.env.MEDIA_SERVER_BASE_URL
 
   if (!baseUrl) {
-    throw new Error('MEDIA_SERVER_BASE_URL environment variable is required')
+    throw new Error('Media server is not configured. Please configure it in Settings > Media Server.')
   }
 
   return createMediaServerProvider(type, baseUrl)

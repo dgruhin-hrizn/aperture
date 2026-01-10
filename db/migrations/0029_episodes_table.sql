@@ -60,3 +60,4 @@ COMMENT ON COLUMN episodes.episode_number IS 'Episode number within season (1-ba
 COMMENT ON COLUMN episodes.guest_stars IS 'Guest stars with name, role, and thumbnail URL';
 
 
+

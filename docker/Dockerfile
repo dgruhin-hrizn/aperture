@@ -87,12 +87,16 @@ COPY --from=builder --chown=aperture:nodejs /app/db ./db
 COPY --from=builder --chown=aperture:nodejs /app/package.json ./
 COPY --from=builder --chown=aperture:nodejs /app/pnpm-workspace.yaml ./
 
+# Create uploads directory with proper ownership before switching user
+RUN mkdir -p /app/uploads && chown aperture:nodejs /app/uploads
+
 # Set user
 USER aperture
 
 # Environment
 ENV NODE_ENV=production
 ENV PORT=3456
+ENV DOCKER_ENV=true
 
 # Expose port
 EXPOSE 3456

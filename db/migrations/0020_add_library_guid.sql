@@ -8,3 +8,4 @@ ADD COLUMN provider_library_guid TEXT;
 COMMENT ON COLUMN strm_libraries.provider_library_guid IS 'Library GUID in media server (used for user permissions)';
 
 
+

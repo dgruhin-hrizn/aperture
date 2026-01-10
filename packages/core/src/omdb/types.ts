@@ -58,3 +58,4 @@ export interface RatingsData {
 
 export const OMDB_API_BASE_URL = 'https://www.omdbapi.com'
 
+

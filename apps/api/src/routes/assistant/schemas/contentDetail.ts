@@ -36,3 +36,4 @@ export const ContentDetailSchema = z.object({
 
 export type ContentDetail = z.infer<typeof ContentDetailSchema>
 
+

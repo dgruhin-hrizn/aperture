@@ -18,3 +18,4 @@ COMMENT ON COLUMN users.movies_enabled IS 'Whether user has AI movie recommendat
 COMMENT ON COLUMN users.series_enabled IS 'Whether user has AI series recommendations enabled';
 
 
+

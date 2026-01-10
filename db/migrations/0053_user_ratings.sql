@@ -57,3 +57,4 @@ COMMENT ON COLUMN user_ratings.rating IS 'User rating from 1 (hate) to 10 (love)
 COMMENT ON COLUMN user_ratings.source IS 'Where the rating came from: manual entry or synced from Trakt';
 COMMENT ON COLUMN user_preferences.dislike_behavior IS 'How to handle low-rated content: exclude from recommendations or penalize score';
 
+

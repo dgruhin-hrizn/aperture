@@ -40,3 +40,4 @@ COMMENT ON COLUMN recommendation_config.rating_weight IS 'How much to weight com
 COMMENT ON COLUMN recommendation_config.diversity_weight IS 'How much to weight variety in results (0-1)';
 
 
+

@@ -43,3 +43,4 @@ COMMENT ON COLUMN top_picks_config.completion_weight IS 'Weight for completion r
 COMMENT ON COLUMN top_picks_config.min_unique_viewers IS 'Minimum number of unique viewers required to appear in Top Picks';
 
 
+

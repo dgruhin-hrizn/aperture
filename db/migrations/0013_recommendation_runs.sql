@@ -80,3 +80,4 @@ COMMENT ON TABLE recommendation_evidence IS 'Evidence explaining why each movie 
 COMMENT ON COLUMN recommendation_evidence.evidence_type IS 'Type of evidence: watched, favorite, etc.';
 
 
+

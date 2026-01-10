@@ -71,3 +71,4 @@ export function SeriesBackdrop({ backdropUrl, title, onBack }: SeriesBackdropPro
   )
 }
 
+

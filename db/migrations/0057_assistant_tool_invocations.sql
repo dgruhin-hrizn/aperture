@@ -6,3 +6,4 @@ ADD COLUMN tool_invocations JSONB;
 
 COMMENT ON COLUMN assistant_messages.tool_invocations IS 'Stores AI tool invocations and results for rendering Tool UI components';
 
+

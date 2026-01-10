@@ -35,3 +35,4 @@ COMMENT ON COLUMN user_settings.library_name IS 'Custom name for the AI recommen
 COMMENT ON COLUMN recommendation_candidates.ai_explanation IS 'AI-generated explanation of why this movie was recommended';
 
 
+

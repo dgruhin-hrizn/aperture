@@ -19,3 +19,4 @@ CREATE TRIGGER trigger_users_updated_at
 COMMENT ON FUNCTION update_updated_at_column() IS 'Automatically updates updated_at column on row update';
 
 
+

@@ -36,3 +36,4 @@ COMMENT ON COLUMN recommendation_config.series_rating_weight IS 'Series communit
 COMMENT ON COLUMN recommendation_config.series_diversity_weight IS 'Series result diversity weight (0-1)';
 
 
+

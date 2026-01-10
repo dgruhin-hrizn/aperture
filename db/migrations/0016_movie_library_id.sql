@@ -9,3 +9,4 @@ CREATE INDEX IF NOT EXISTS idx_movies_provider_library_id ON movies(provider_lib
 COMMENT ON COLUMN movies.provider_library_id IS 'The library ID from Emby/Jellyfin that this movie belongs to';
 
 
+

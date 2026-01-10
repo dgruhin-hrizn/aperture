@@ -39,3 +39,4 @@ COMMENT ON COLUMN user_preferences.taste_embedding IS 'Computed embedding repres
 COMMENT ON COLUMN user_preferences.novelty_weight IS 'Weight for recommending outside usual genres (0-1)';
 
 
+

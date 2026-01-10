@@ -20,3 +20,4 @@ const apiRoutes: FastifyPluginAsync = async (fastify) => {
 export default apiRoutes
 
 
+

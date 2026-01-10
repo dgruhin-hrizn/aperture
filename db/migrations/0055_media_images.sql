@@ -65,3 +65,4 @@ COMMENT ON COLUMN media_images.image_type IS 'Emby/Jellyfin image type: Primary,
 COMMENT ON COLUMN media_images.is_default IS 'Admin-set default image (vs user override)';
 COMMENT ON COLUMN media_images.file_path IS 'Path to image file relative to uploads directory';
 
+

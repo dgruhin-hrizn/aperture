@@ -17,3 +17,4 @@ COMMENT ON COLUMN users.trakt_token_expires_at IS 'When the Trakt access token e
 COMMENT ON COLUMN users.trakt_username IS 'Connected Trakt account username';
 COMMENT ON COLUMN users.trakt_synced_at IS 'Last time ratings were synced from Trakt';
 
+

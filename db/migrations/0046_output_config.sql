@@ -79,3 +79,4 @@ COMMENT ON COLUMN users.ai_explanation_enabled IS 'User preference for AI explan
 
 
 
+

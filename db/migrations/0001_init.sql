@@ -12,3 +12,4 @@ CREATE TABLE IF NOT EXISTS aperture_migrations (
 COMMENT ON TABLE aperture_migrations IS 'Tracks applied database migrations';
 
 
+

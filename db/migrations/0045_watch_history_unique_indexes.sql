@@ -15,3 +15,4 @@ COMMENT ON INDEX idx_watch_history_user_movie_unique IS 'Ensures each user can o
 COMMENT ON INDEX idx_watch_history_user_episode_unique IS 'Ensures each user can only have one watch history entry per episode';
 
 
+

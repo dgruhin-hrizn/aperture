@@ -31,3 +31,4 @@ COMMENT ON COLUMN embeddings.model IS 'OpenAI embedding model used';
 COMMENT ON COLUMN embeddings.canonical_text IS 'The text that was embedded for this movie';
 
 
+

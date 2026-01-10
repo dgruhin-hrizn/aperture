@@ -61,3 +61,4 @@ export async function getCollectionsData(collectionIds: number[]): Promise<Map<n
   return results
 }
 
+

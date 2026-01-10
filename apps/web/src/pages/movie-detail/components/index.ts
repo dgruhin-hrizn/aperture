@@ -5,3 +5,4 @@ export { MovieInfoCard } from './MovieInfoCard'
 export { SimilarMovies } from './SimilarMovies'
 
 
+

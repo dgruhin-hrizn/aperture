@@ -34,3 +34,4 @@ COMMENT ON COLUMN watch_history.episode_id IS 'Reference to episode (for TV watc
 COMMENT ON COLUMN watch_history.media_type IS 'Type of media: movie or episode';
 
 
+
