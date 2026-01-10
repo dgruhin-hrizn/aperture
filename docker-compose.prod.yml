@@ -23,7 +23,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U app -d aperture"]
+      test: ['CMD-SHELL', 'pg_isready -U app -d aperture']
       interval: 5s
       timeout: 5s
       retries: 5
@@ -36,7 +36,7 @@ services:
       NODE_ENV: production
       PORT: 3456
       DATABASE_URL: postgres://app:app@db:5432/aperture
-      RUN_MIGRATIONS_ON_START: "true"
+      RUN_MIGRATIONS_ON_START: 'true'
       # Timezone for scheduled jobs (IANA format)
       TZ: America/New_York
       # -------------------------------------------------------------------------
@@ -46,7 +46,7 @@ services:
       # APP_BASE_URL: http://your-server-ip:3456
       # OPENAI_API_KEY: sk-your-key-here
     ports:
-      - "3456:3456"
+      - '3456:3456'
     depends_on:
       db:
         condition: service_healthy
@@ -59,4 +59,3 @@ services:
 
 volumes:
   pgdata:
-

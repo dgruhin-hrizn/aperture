@@ -14,9 +14,11 @@ const staticPlugin: FastifyPluginAsync = async (fastify) => {
   }
 
   // Path to web dist folder
-  // In Docker: __dirname is /app/apps/api/dist/plugins, so ../../web/dist resolves to /app/apps/web/dist
-  // In dev: __dirname is apps/api/src/plugins, so ../../web/dist resolves to apps/web/dist
-  const webDistPath = path.resolve(__dirname, '../../web/dist')
+  // In Docker: __dirname is /app/apps/api/dist/plugins
+  //   ../../../web/dist resolves to /app/apps/web/dist ✓
+  // In dev (compiled): __dirname is apps/api/dist/plugins
+  //   ../../../web/dist resolves to apps/web/dist ✓
+  const webDistPath = path.resolve(__dirname, '../../../web/dist')
 
   // Check if dist folder exists
   if (!fs.existsSync(webDistPath)) {
