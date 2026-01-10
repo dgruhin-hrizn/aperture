@@ -4,11 +4,13 @@ import { ThemeProvider } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
 import { theme } from './theme'
 import { AuthProvider, useAuth } from './hooks/useAuth'
+import { SetupProvider, useSetupStatus } from './hooks/useSetupStatus'
 import { UserRatingsProvider } from './hooks/useUserRatings'
 import { Layout } from './components/Layout'
 import { AdminLayout } from './components/AdminLayout'
 import { AssistantModal } from './components/AssistantModal'
 import { LoginPage } from './pages/Login'
+import { SetupPage } from './pages/Setup'
 import { DashboardPage } from './pages/dashboard'
 import { MyRecommendationsPage } from './pages/MyRecommendations'
 import { MyWatchHistoryPage } from './pages/MyWatchHistory'
@@ -30,6 +32,31 @@ import { UserDetailPage } from './pages/UserDetail'
 import { JobsPage } from './pages/jobs'
 import { SettingsPage } from './pages/settings'
 import { Box, CircularProgress } from '@mui/material'
+
+function SetupGuard({ children }: { children: React.ReactNode }) {
+  const { status, loading } = useSetupStatus()
+
+  if (loading) {
+    return (
+      <Box
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+        minHeight="100vh"
+        bgcolor="background.default"
+      >
+        <CircularProgress />
+      </Box>
+    )
+  }
+
+  // Redirect to setup if needed
+  if (status?.needsSetup) {
+    return <Navigate to="/setup" replace />
+  }
+
+  return <>{children}</>
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -93,14 +120,24 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
+      <Route path="/setup" element={<SetupPage />} />
+      <Route
+        path="/login"
+        element={
+          <SetupGuard>
+            <LoginPage />
+          </SetupGuard>
+        }
+      />
 
       <Route
         path="/"
         element={
-          <ProtectedRoute>
-            <Layout />
-          </ProtectedRoute>
+          <SetupGuard>
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          </SetupGuard>
         }
       >
         {/* User Routes */}
@@ -145,9 +182,11 @@ export default function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <BrowserRouter>
-        <AuthProvider>
-          <AppRoutes />
-        </AuthProvider>
+        <SetupProvider>
+          <AuthProvider>
+            <AppRoutes />
+          </AuthProvider>
+        </SetupProvider>
       </BrowserRouter>
     </ThemeProvider>
   )

@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify'
 import healthRoutes from './health.js'
+import setupRoutes from './setup.js'
 import apiRoutes from './api.js'
 import authRoutes from './auth.js'
 import usersRoutes from './users/index.js'
@@ -20,6 +21,9 @@ import searchRoutes from './search.js'
 const routes: FastifyPluginAsync = async (fastify) => {
   // Register health check routes
   await fastify.register(healthRoutes)
+
+  // Register setup routes (public - for first-run wizard)
+  await fastify.register(setupRoutes)
 
   // Register API routes
   await fastify.register(apiRoutes)
