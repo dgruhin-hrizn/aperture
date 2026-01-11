@@ -20,7 +20,6 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  Divider,
 } from '@mui/material'
 import {
   CheckCircle as CheckCircleIcon,
@@ -35,7 +34,6 @@ import {
   CloudSync as CloudSyncIcon,
   Warning as WarningIcon,
   SkipNext as SkipIcon,
-  Person as PersonIcon,
   ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material'
 import type { SetupWizardContext, JobProgress, UserLibraryResult } from '../types'
@@ -382,14 +380,19 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
               </li>
             </Box>
           </Alert>
-          <Alert severity="warning" sx={{ mb: 3 }} icon={false}>
-            <Typography variant="body2">
-              <strong>Heads up!</strong> This can take anywhere from a few minutes to 30+ minutes depending on the size
-              of your media libraries. Large collections with thousands of movies and episodes will take longer.
-              Now might be a good time to grab some popcorn and put on a movie while you wait! 🍿
-            </Typography>
-          </Alert>
         </>
+      )}
+
+      {/* Show timing warning before and during sync (hide after completion) */}
+      {!allCompleted && (
+        <Alert severity="warning" sx={{ mb: 3 }} icon={false}>
+          <Typography variant="body2">
+            <strong>Heads up!</strong> This can take anywhere from a few minutes to 30+ minutes depending on the size
+            of your media libraries. Large collections with thousands of movies and episodes will take longer.
+            {!hasStarted && ' Now might be a good time to grab some popcorn and put on a movie while you wait! 🍿'}
+            {hasStarted && ' Feel free to grab some popcorn and put on a movie while you wait! 🍿'}
+          </Typography>
+        </Alert>
       )}
 
       {error && (
