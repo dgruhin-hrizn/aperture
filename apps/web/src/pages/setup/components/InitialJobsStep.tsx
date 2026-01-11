@@ -42,6 +42,40 @@ interface InitialJobsStepProps {
   wizard: SetupWizardContext
 }
 
+// Amusing messages to cycle through while waiting (with movie references!)
+const WAITING_MESSAGES = [
+  "Now might be a good time to grab some popcorn and put on a movie! 🍿",
+  "Still here? The AI is working hard, we promise! 🤖",
+  "Seriously? You're still watching the progress bar? 👀",
+  "Pro tip: This is a great time to refill your coffee ☕",
+  "The robots are analyzing your exquisite taste in media... 🎬",
+  "Our AI is binge-watching your library metadata right now 📺",
+  "You know what pairs well with waiting? Snacks. Go get some snacks. 🍕",
+  "The AI is judging your movie collection... in the nicest way possible 🎭",
+  "The embeddings are embedding. The syncs are syncing. All is well. ✨",
+  // Movie quotes adapted for the context
+  "\"The metadata really ties the whole collection together, man.\" – The Dude 🎳",
+  "\"After all, tomorrow is another sync job.\" – Scarlett O'Hara 👗",
+  "\"Here's looking at you, progress bar.\" – Rick Blaine 🥃",
+  "\"You can't handle the embeddings!\" – Colonel Jessup ⚖️",
+  "\"I'll be back... when the sync is done.\" – The Terminator 🤖",
+  "\"Life is like a box of recommendations. You never know what you're gonna get.\" – Forrest Gump 🍫",
+  "\"May the embeddings be with you.\" – Obi-Wan Kenobi ⚔️",
+  "\"E.T. phone home... to check on the sync progress.\" – E.T. 👽",
+  "\"You're gonna need a bigger library.\" – Chief Brody 🦈",
+  "\"I see watched movies.\" – Cole Sear 👻",
+  "\"To infinity and beyond!\" ...is how long this might take for big libraries. – Buzz Lightyear 🚀",
+  "\"Why so serious? It's just a progress bar.\" – The Joker 🃏",
+  "\"I'm the king of the metadata!\" – Jack Dawson 🚢",
+  "\"Keep your friends close, but your watch history closer.\" – Michael Corleone 🎩",
+  "\"There's no place like a fully synced library.\" – Dorothy 🌈",
+  "\"Frankly my dear, I don't give a damn... how long this takes.\" – Rhett Butler 💨",
+  "\"You had me at 'Start Initialization'.\" – Jerry Maguire 💕",
+  "\"I feel the need... the need for speed!\" Same, progress bar. Same. – Maverick ✈️",
+  "\"Just keep syncing, just keep syncing...\" – Dory 🐟",
+  "\"It's alive! IT'S ALIVE!\" ...the sync job, we mean. – Dr. Frankenstein ⚡",
+]
+
 function getJobIcon(jobId: string) {
   if (jobId.includes('sync-movie') || jobId.includes('sync-series')) {
     if (jobId.includes('watch-history')) return <SyncIcon fontSize="small" />
@@ -317,6 +351,7 @@ function JobListItem({ job, isActive }: { job: JobProgress; isActive: boolean })
 export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
   const { error, runningJobs, jobLogs, jobsProgress, currentJobIndex, runInitialJobs, goToStep } = wizard
   const [logModalOpen, setLogModalOpen] = useState(false)
+  const [waitingMessageIndex, setWaitingMessageIndex] = useState(0)
   const logContainerRef = useRef<HTMLDivElement>(null)
 
   const completedCount = jobsProgress.filter((j) => j.status === 'completed').length
@@ -331,6 +366,24 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight
     }
   }, [jobLogs])
+
+  // Cycle through amusing waiting messages every 10 seconds while jobs are running
+  useEffect(() => {
+    if (!runningJobs || allCompleted) return
+
+    const interval = setInterval(() => {
+      setWaitingMessageIndex((prev) => {
+        // Pick a random different message
+        let next = Math.floor(Math.random() * WAITING_MESSAGES.length)
+        while (next === prev && WAITING_MESSAGES.length > 1) {
+          next = Math.floor(Math.random() * WAITING_MESSAGES.length)
+        }
+        return next
+      })
+    }, 10000)
+
+    return () => clearInterval(interval)
+  }, [runningJobs, allCompleted])
 
   // Calculate totals
   const totalItemsProcessed = jobsProgress.reduce((sum, j) => sum + (j.itemsProcessed || 0), 0)
@@ -389,8 +442,9 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
           <Typography variant="body2">
             <strong>Heads up!</strong> This can take anywhere from a few minutes to 30+ minutes depending on the size
             of your media libraries. Large collections with thousands of movies and episodes will take longer.
-            {!hasStarted && ' Now might be a good time to grab some popcorn and put on a movie while you wait! 🍿'}
-            {hasStarted && ' Feel free to grab some popcorn and put on a movie while you wait! 🍿'}
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic' }}>
+            {WAITING_MESSAGES[waitingMessageIndex]}
           </Typography>
         </Alert>
       )}
