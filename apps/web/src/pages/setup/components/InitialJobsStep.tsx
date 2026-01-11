@@ -397,9 +397,9 @@ function JobListItem({ job, isActive, canRerun, onRerun }: JobListItemProps) {
                 sx={{ ml: 'auto', mr: showRerunButton ? 4 : 0, fontFamily: 'monospace', fontWeight: 600 }}
               />
             )}
-            {job.status === 'completed' && typeof job.itemsTotal === 'number' && job.itemsTotal > 0 && (
+            {job.status === 'completed' && typeof job.itemsProcessed === 'number' && job.itemsProcessed > 0 && (
               <Chip
-                label={`${job.itemsTotal} items`}
+                label={`${job.itemsProcessed} items`}
                 size="small"
                 color="success"
                 variant="outlined"

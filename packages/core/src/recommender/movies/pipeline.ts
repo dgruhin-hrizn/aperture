@@ -297,6 +297,7 @@ export async function generateRecommendationsForUser(
 export async function generateRecommendationsForAllUsers(jobId?: string): Promise<{
   success: number
   failed: number
+  totalRecommendations: number
   jobId: string
 }> {
   const actualJobId = jobId || crypto.randomUUID()
@@ -314,15 +315,15 @@ export async function generateRecommendationsForAllUsers(jobId?: string): Promis
       provider_user_id: string
       max_parental_rating: number | null
     }>(
-      `SELECT id, username, provider_user_id, max_parental_rating FROM users WHERE is_enabled = true`
+      `SELECT id, username, provider_user_id, max_parental_rating FROM users WHERE is_enabled = true AND movies_enabled = true`
     )
 
     const totalUsers = result.rows.length
 
     if (totalUsers === 0) {
       addLog(actualJobId, 'warn', '⚠️ No enabled users found')
-      completeJob(actualJobId, { success: 0, failed: 0 })
-      return { success: 0, failed: 0, jobId: actualJobId }
+      completeJob(actualJobId, { success: 0, failed: 0, totalRecommendations: 0 })
+      return { success: 0, failed: 0, totalRecommendations: 0, jobId: actualJobId }
     }
 
     addLog(actualJobId, 'info', `👥 Found ${totalUsers} enabled user(s)`)
@@ -330,6 +331,7 @@ export async function generateRecommendationsForAllUsers(jobId?: string): Promis
 
     let success = 0
     let failed = 0
+    let totalRecommendations = 0
 
     for (let i = 0; i < result.rows.length; i++) {
       const user = result.rows[i]
@@ -345,6 +347,7 @@ export async function generateRecommendationsForAllUsers(jobId?: string): Promis
         })
 
         success++
+        totalRecommendations += recResult.recommendations.length
         addLog(
           actualJobId,
           'info',
@@ -352,9 +355,9 @@ export async function generateRecommendationsForAllUsers(jobId?: string): Promis
         )
         updateJobProgress(
           actualJobId,
-          success + failed,
-          totalUsers,
-          `${success + failed}/${totalUsers} users`
+          totalRecommendations,
+          undefined,
+          `${success}/${totalUsers} users (${totalRecommendations} recommendations)`
         )
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error'
@@ -363,23 +366,23 @@ export async function generateRecommendationsForAllUsers(jobId?: string): Promis
         failed++
         updateJobProgress(
           actualJobId,
-          success + failed,
-          totalUsers,
-          `${success + failed}/${totalUsers} users (${failed} failed)`
+          totalRecommendations,
+          undefined,
+          `${success}/${totalUsers} users (${failed} failed)`
         )
       }
     }
 
-    const finalResult = { success, failed, jobId: actualJobId }
+    const finalResult = { success, failed, totalRecommendations, jobId: actualJobId }
 
     if (failed > 0) {
       addLog(
         actualJobId,
         'warn',
-        `⚠️ Completed with ${failed} failure(s): ${success} succeeded, ${failed} failed`
+        `⚠️ Completed with ${failed} failure(s): ${success} succeeded, ${failed} failed, ${totalRecommendations} total recommendations`
       )
     } else {
-      addLog(actualJobId, 'info', `🎉 All ${success} user(s) processed successfully!`)
+      addLog(actualJobId, 'info', `🎉 All ${success} user(s) processed successfully! ${totalRecommendations} total recommendations`)
     }
 
     completeJob(actualJobId, finalResult)
