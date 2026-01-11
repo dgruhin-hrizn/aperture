@@ -197,32 +197,20 @@ export function Layout() {
         </>
       )}
 
-      {/* User info at bottom */}
-      {user && (
-        <Box px={2} py={2} sx={{ borderTop: 1, borderColor: 'divider' }}>
-          <Box display="flex" alignItems="center" gap={1.5}>
-            <Avatar
-              src={user.avatarUrl || undefined}
-              sx={{
-                width: 32,
-                height: 32,
-                bgcolor: 'primary.main',
-                fontSize: '0.875rem',
-              }}
-            >
-              {user.username[0].toUpperCase()}
-            </Avatar>
-            <Box flex={1} minWidth={0}>
-              <Typography variant="body2" fontWeight={500} noWrap>
-                {user.displayName || user.username}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {user.isAdmin ? 'Administrator' : 'User'}
-              </Typography>
-            </Box>
-          </Box>
-        </Box>
-      )}
+      {/* Version at bottom */}
+      <Box px={3} py={2} sx={{ borderTop: 1, borderColor: 'divider' }}>
+        <Typography
+          variant="caption"
+          sx={{
+            color: 'text.secondary',
+            opacity: 0.6,
+            fontFamily: 'monospace',
+            fontSize: '0.7rem',
+          }}
+        >
+          v0.2.6
+        </Typography>
+      </Box>
     </Box>
   )
 
