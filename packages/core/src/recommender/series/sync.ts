@@ -128,6 +128,8 @@ async function processSeriesBatch(
   let updated = 0
 
   // Bulk UPDATE existing series
+  // Note: Array columns (genres, air_days, directors, writers, tags, production_countries) are passed as JSONB
+  // and converted back to text[] in SQL to avoid unnest() flattening 2D arrays incorrectly
   if (toUpdate.length > 0) {
     try {
       const result = await query(
@@ -137,7 +139,7 @@ async function processSeriesBatch(
           sort_title = data.sort_title,
           year = data.year,
           end_year = data.end_year,
-          genres = data.genres,
+          genres = COALESCE(ARRAY(SELECT jsonb_array_elements_text(data.genres)), '{}'),
           overview = data.overview,
           tagline = data.tagline,
           community_rating = data.community_rating,
@@ -146,17 +148,17 @@ async function processSeriesBatch(
           status = data.status,
           total_seasons = data.total_seasons,
           total_episodes = data.total_episodes,
-          air_days = data.air_days,
+          air_days = COALESCE(ARRAY(SELECT jsonb_array_elements_text(data.air_days)), '{}'),
           network = data.network,
           studios = data.studios,
-          directors = data.directors,
-          writers = data.writers,
+          directors = COALESCE(ARRAY(SELECT jsonb_array_elements_text(data.directors)), '{}'),
+          writers = COALESCE(ARRAY(SELECT jsonb_array_elements_text(data.writers)), '{}'),
           actors = data.actors,
           imdb_id = data.imdb_id,
           tmdb_id = data.tmdb_id,
           tvdb_id = data.tvdb_id,
-          tags = data.tags,
-          production_countries = data.production_countries,
+          tags = COALESCE(ARRAY(SELECT jsonb_array_elements_text(data.tags)), '{}'),
+          production_countries = COALESCE(ARRAY(SELECT jsonb_array_elements_text(data.production_countries)), '{}'),
           awards = data.awards,
           poster_url = data.poster_url,
           backdrop_url = data.backdrop_url,
@@ -165,10 +167,10 @@ async function processSeriesBatch(
         FROM (
           SELECT * FROM unnest(
             $1::text[], $2::text[], $3::text[], $4::text[], $5::int[], $6::int[],
-            $7::text[][], $8::text[], $9::text[], $10::real[], $11::real[],
-            $12::text[], $13::text[], $14::int[], $15::int[], $16::text[][],
-            $17::text[], $18::jsonb[], $19::text[][], $20::text[][], $21::jsonb[],
-            $22::text[], $23::text[], $24::text[], $25::text[][], $26::text[][],
+            $7::jsonb[], $8::text[], $9::text[], $10::real[], $11::real[],
+            $12::text[], $13::text[], $14::int[], $15::int[], $16::jsonb[],
+            $17::text[], $18::jsonb[], $19::jsonb[], $20::jsonb[], $21::jsonb[],
+            $22::text[], $23::text[], $24::text[], $25::jsonb[], $26::jsonb[],
             $27::text[], $28::text[], $29::text[], $30::text[]
           ) AS t(
             provider_item_id, title, original_title, sort_title, year, end_year,
@@ -186,7 +188,7 @@ async function processSeriesBatch(
           toUpdate.map((ps) => ps.series.sortName || null),
           toUpdate.map((ps) => ps.series.year || null),
           toUpdate.map((ps) => ps.series.endYear || null),
-          toUpdate.map((ps) => ps.series.genres || []),
+          toUpdate.map((ps) => JSON.stringify(ps.series.genres || [])),
           toUpdate.map((ps) => ps.series.overview || null),
           toUpdate.map((ps) => ps.series.tagline || null),
           toUpdate.map((ps) => ps.series.communityRating || null),
@@ -195,17 +197,17 @@ async function processSeriesBatch(
           toUpdate.map((ps) => ps.series.status || null),
           toUpdate.map((ps) => ps.series.totalSeasons || null),
           toUpdate.map((ps) => ps.series.totalEpisodes || null),
-          toUpdate.map((ps) => ps.series.airDays || []),
+          toUpdate.map((ps) => JSON.stringify(ps.series.airDays || [])),
           toUpdate.map((ps) => ps.series.network || null),
           toUpdate.map((ps) => JSON.stringify(ps.series.studios || [])),
-          toUpdate.map((ps) => ps.series.directors || []),
-          toUpdate.map((ps) => ps.series.writers || []),
+          toUpdate.map((ps) => JSON.stringify(ps.series.directors || [])),
+          toUpdate.map((ps) => JSON.stringify(ps.series.writers || [])),
           toUpdate.map((ps) => JSON.stringify(ps.series.actors || [])),
           toUpdate.map((ps) => ps.series.imdbId || null),
           toUpdate.map((ps) => ps.series.tmdbId || null),
           toUpdate.map((ps) => ps.series.tvdbId || null),
-          toUpdate.map((ps) => ps.series.tags || []),
-          toUpdate.map((ps) => ps.series.productionCountries || []),
+          toUpdate.map((ps) => JSON.stringify(ps.series.tags || [])),
+          toUpdate.map((ps) => JSON.stringify(ps.series.productionCountries || [])),
           toUpdate.map((ps) => ps.series.awards || null),
           toUpdate.map((ps) => ps.posterUrl),
           toUpdate.map((ps) => ps.backdropUrl),
@@ -219,6 +221,8 @@ async function processSeriesBatch(
   }
 
   // Bulk INSERT new series
+  // Note: Array columns (genres, air_days, directors, writers, tags, production_countries) are passed as JSONB
+  // and converted back to text[] in SQL to avoid unnest() flattening 2D arrays incorrectly
   if (toInsert.length > 0) {
     try {
       const result = await query(
@@ -229,13 +233,32 @@ async function processSeriesBatch(
           directors, writers, actors, imdb_id, tmdb_id, tvdb_id, tags,
           production_countries, awards, poster_url, backdrop_url, provider_library_id
         )
-        SELECT * FROM unnest(
+        SELECT
+          t.provider_item_id, t.title, t.original_title, t.sort_title, t.year, t.end_year,
+          COALESCE(ARRAY(SELECT jsonb_array_elements_text(t.genres)), '{}'),
+          t.overview, t.tagline, t.community_rating, t.critic_rating, t.content_rating,
+          t.status, t.total_seasons, t.total_episodes,
+          COALESCE(ARRAY(SELECT jsonb_array_elements_text(t.air_days)), '{}'),
+          t.network, t.studios,
+          COALESCE(ARRAY(SELECT jsonb_array_elements_text(t.directors)), '{}'),
+          COALESCE(ARRAY(SELECT jsonb_array_elements_text(t.writers)), '{}'),
+          t.actors, t.imdb_id, t.tmdb_id, t.tvdb_id,
+          COALESCE(ARRAY(SELECT jsonb_array_elements_text(t.tags)), '{}'),
+          COALESCE(ARRAY(SELECT jsonb_array_elements_text(t.production_countries)), '{}'),
+          t.awards, t.poster_url, t.backdrop_url, t.provider_library_id
+        FROM unnest(
           $1::text[], $2::text[], $3::text[], $4::text[], $5::int[], $6::int[],
-          $7::text[][], $8::text[], $9::text[], $10::real[], $11::real[],
-          $12::text[], $13::text[], $14::int[], $15::int[], $16::text[][],
-          $17::text[], $18::jsonb[], $19::text[][], $20::text[][], $21::jsonb[],
-          $22::text[], $23::text[], $24::text[], $25::text[][], $26::text[][],
+          $7::jsonb[], $8::text[], $9::text[], $10::real[], $11::real[],
+          $12::text[], $13::text[], $14::int[], $15::int[], $16::jsonb[],
+          $17::text[], $18::jsonb[], $19::jsonb[], $20::jsonb[], $21::jsonb[],
+          $22::text[], $23::text[], $24::text[], $25::jsonb[], $26::jsonb[],
           $27::text[], $28::text[], $29::text[], $30::text[]
+        ) AS t(
+          provider_item_id, title, original_title, sort_title, year, end_year,
+          genres, overview, tagline, community_rating, critic_rating, content_rating,
+          status, total_seasons, total_episodes, air_days, network, studios,
+          directors, writers, actors, imdb_id, tmdb_id, tvdb_id, tags,
+          production_countries, awards, poster_url, backdrop_url, provider_library_id
         )
         ON CONFLICT (provider_item_id) DO NOTHING`,
         [
@@ -245,7 +268,7 @@ async function processSeriesBatch(
           toInsert.map((ps) => ps.series.sortName || null),
           toInsert.map((ps) => ps.series.year || null),
           toInsert.map((ps) => ps.series.endYear || null),
-          toInsert.map((ps) => ps.series.genres || []),
+          toInsert.map((ps) => JSON.stringify(ps.series.genres || [])),
           toInsert.map((ps) => ps.series.overview || null),
           toInsert.map((ps) => ps.series.tagline || null),
           toInsert.map((ps) => ps.series.communityRating || null),
@@ -254,17 +277,17 @@ async function processSeriesBatch(
           toInsert.map((ps) => ps.series.status || null),
           toInsert.map((ps) => ps.series.totalSeasons || null),
           toInsert.map((ps) => ps.series.totalEpisodes || null),
-          toInsert.map((ps) => ps.series.airDays || []),
+          toInsert.map((ps) => JSON.stringify(ps.series.airDays || [])),
           toInsert.map((ps) => ps.series.network || null),
           toInsert.map((ps) => JSON.stringify(ps.series.studios || [])),
-          toInsert.map((ps) => ps.series.directors || []),
-          toInsert.map((ps) => ps.series.writers || []),
+          toInsert.map((ps) => JSON.stringify(ps.series.directors || [])),
+          toInsert.map((ps) => JSON.stringify(ps.series.writers || [])),
           toInsert.map((ps) => JSON.stringify(ps.series.actors || [])),
           toInsert.map((ps) => ps.series.imdbId || null),
           toInsert.map((ps) => ps.series.tmdbId || null),
           toInsert.map((ps) => ps.series.tvdbId || null),
-          toInsert.map((ps) => ps.series.tags || []),
-          toInsert.map((ps) => ps.series.productionCountries || []),
+          toInsert.map((ps) => JSON.stringify(ps.series.tags || [])),
+          toInsert.map((ps) => JSON.stringify(ps.series.productionCountries || [])),
           toInsert.map((ps) => ps.series.awards || null),
           toInsert.map((ps) => ps.posterUrl),
           toInsert.map((ps) => ps.backdropUrl),
@@ -308,6 +331,8 @@ async function processEpisodeBatch(
   let updated = 0
 
   // Bulk UPDATE existing episodes
+  // Note: Array columns (directors, writers) are passed as JSONB
+  // and converted back to text[] in SQL to avoid unnest() flattening 2D arrays incorrectly
   if (toUpdate.length > 0) {
     try {
       const result = await query(
@@ -321,8 +346,8 @@ async function processEpisodeBatch(
           year = data.year,
           runtime_minutes = data.runtime_minutes,
           community_rating = data.community_rating,
-          directors = data.directors,
-          writers = data.writers,
+          directors = COALESCE(ARRAY(SELECT jsonb_array_elements_text(data.directors)), '{}'),
+          writers = COALESCE(ARRAY(SELECT jsonb_array_elements_text(data.writers)), '{}'),
           guest_stars = data.guest_stars,
           path = data.path,
           media_sources = data.media_sources,
@@ -332,7 +357,7 @@ async function processEpisodeBatch(
           SELECT * FROM unnest(
             $1::text[], $2::uuid[], $3::int[], $4::int[], $5::text[],
             $6::text[], $7::date[], $8::int[], $9::int[], $10::real[],
-            $11::text[][], $12::text[][], $13::jsonb[], $14::text[], $15::jsonb[], $16::text[]
+            $11::jsonb[], $12::jsonb[], $13::jsonb[], $14::text[], $15::jsonb[], $16::text[]
           ) AS t(
             provider_item_id, series_id, season_number, episode_number, title,
             overview, premiere_date, year, runtime_minutes, community_rating,
@@ -353,8 +378,8 @@ async function processEpisodeBatch(
           toUpdate.map((pe) => pe.episode.year || null),
           toUpdate.map((pe) => pe.runtimeMinutes),
           toUpdate.map((pe) => pe.episode.communityRating || null),
-          toUpdate.map((pe) => pe.episode.directors || []),
-          toUpdate.map((pe) => pe.episode.writers || []),
+          toUpdate.map((pe) => JSON.stringify(pe.episode.directors || [])),
+          toUpdate.map((pe) => JSON.stringify(pe.episode.writers || [])),
           toUpdate.map((pe) => JSON.stringify(pe.episode.guestStars || [])),
           toUpdate.map((pe) => pe.episode.path || null),
           toUpdate.map((pe) => JSON.stringify(pe.episode.mediaSources || [])),
@@ -368,6 +393,8 @@ async function processEpisodeBatch(
   }
 
   // Bulk INSERT new episodes with UPSERT
+  // Note: Array columns (directors, writers) are passed as JSONB
+  // and converted back to text[] in SQL to avoid unnest() flattening 2D arrays incorrectly
   if (toInsert.length > 0) {
     try {
       const result = await query(
@@ -376,10 +403,20 @@ async function processEpisodeBatch(
           overview, premiere_date, year, runtime_minutes, community_rating,
           directors, writers, guest_stars, path, media_sources, poster_url
         )
-        SELECT * FROM unnest(
+        SELECT
+          t.provider_item_id, t.series_id, t.season_number, t.episode_number, t.title,
+          t.overview, t.premiere_date, t.year, t.runtime_minutes, t.community_rating,
+          COALESCE(ARRAY(SELECT jsonb_array_elements_text(t.directors)), '{}'),
+          COALESCE(ARRAY(SELECT jsonb_array_elements_text(t.writers)), '{}'),
+          t.guest_stars, t.path, t.media_sources, t.poster_url
+        FROM unnest(
           $1::text[], $2::uuid[], $3::int[], $4::int[], $5::text[],
           $6::text[], $7::date[], $8::int[], $9::int[], $10::real[],
-          $11::text[][], $12::text[][], $13::jsonb[], $14::text[], $15::jsonb[], $16::text[]
+          $11::jsonb[], $12::jsonb[], $13::jsonb[], $14::text[], $15::jsonb[], $16::text[]
+        ) AS t(
+          provider_item_id, series_id, season_number, episode_number, title,
+          overview, premiere_date, year, runtime_minutes, community_rating,
+          directors, writers, guest_stars, path, media_sources, poster_url
         )
         ON CONFLICT (series_id, season_number, episode_number) DO UPDATE SET
           provider_item_id = EXCLUDED.provider_item_id,
@@ -409,8 +446,8 @@ async function processEpisodeBatch(
           toInsert.map((pe) => pe.episode.year || null),
           toInsert.map((pe) => pe.runtimeMinutes),
           toInsert.map((pe) => pe.episode.communityRating || null),
-          toInsert.map((pe) => pe.episode.directors || []),
-          toInsert.map((pe) => pe.episode.writers || []),
+          toInsert.map((pe) => JSON.stringify(pe.episode.directors || [])),
+          toInsert.map((pe) => JSON.stringify(pe.episode.writers || [])),
           toInsert.map((pe) => JSON.stringify(pe.episode.guestStars || [])),
           toInsert.map((pe) => pe.episode.path || null),
           toInsert.map((pe) => JSON.stringify(pe.episode.mediaSources || [])),

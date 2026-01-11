@@ -141,6 +141,8 @@ async function processMovieBatch(
   let updated = 0
 
   // Bulk UPDATE existing movies using unnest
+  // Note: Array columns (genres, directors, writers, tags, production_countries) are passed as JSONB
+  // and converted back to text[] in SQL to avoid unnest() flattening 2D arrays incorrectly
   if (toUpdate.length > 0) {
     try {
       const result = await query(
@@ -148,7 +150,7 @@ async function processMovieBatch(
           title = data.title,
           original_title = data.original_title,
           year = data.year,
-          genres = data.genres,
+          genres = COALESCE(ARRAY(SELECT jsonb_array_elements_text(data.genres)), '{}'),
           overview = data.overview,
           community_rating = data.community_rating,
           critic_rating = data.critic_rating,
@@ -162,14 +164,14 @@ async function processMovieBatch(
           content_rating = data.content_rating,
           premiere_date = data.premiere_date,
           studios = data.studios,
-          directors = data.directors,
-          writers = data.writers,
+          directors = COALESCE(ARRAY(SELECT jsonb_array_elements_text(data.directors)), '{}'),
+          writers = COALESCE(ARRAY(SELECT jsonb_array_elements_text(data.writers)), '{}'),
           actors = data.actors,
           imdb_id = data.imdb_id,
           tmdb_id = data.tmdb_id,
-          tags = data.tags,
+          tags = COALESCE(ARRAY(SELECT jsonb_array_elements_text(data.tags)), '{}'),
           sort_title = data.sort_title,
-          production_countries = data.production_countries,
+          production_countries = COALESCE(ARRAY(SELECT jsonb_array_elements_text(data.production_countries)), '{}'),
           awards = data.awards,
           video_resolution = data.video_resolution,
           video_codec = data.video_codec,
@@ -178,12 +180,12 @@ async function processMovieBatch(
           updated_at = NOW()
         FROM (
           SELECT * FROM unnest(
-            $1::text[], $2::text[], $3::text[], $4::int[], $5::text[][],
+            $1::text[], $2::text[], $3::text[], $4::int[], $5::jsonb[],
             $6::text[], $7::real[], $8::real[], $9::int[], $10::text[],
             $11::jsonb[], $12::text[], $13::text[], $14::text[], $15::text[],
-            $16::text[], $17::date[], $18::jsonb[], $19::text[][], $20::text[][],
-            $21::jsonb[], $22::text[], $23::text[], $24::text[][], $25::text[],
-            $26::text[][], $27::text[], $28::text[], $29::text[], $30::text[], $31::text[]
+            $16::text[], $17::date[], $18::jsonb[], $19::jsonb[], $20::jsonb[],
+            $21::jsonb[], $22::text[], $23::text[], $24::jsonb[], $25::text[],
+            $26::jsonb[], $27::text[], $28::text[], $29::text[], $30::text[], $31::text[]
           ) AS t(
             provider_item_id, title, original_title, year, genres, overview,
             community_rating, critic_rating, runtime_minutes, path, media_sources,
@@ -199,7 +201,7 @@ async function processMovieBatch(
           toUpdate.map((pm) => pm.movie.name),
           toUpdate.map((pm) => pm.movie.originalTitle || null),
           toUpdate.map((pm) => pm.movie.year || null),
-          toUpdate.map((pm) => pm.movie.genres || []),
+          toUpdate.map((pm) => JSON.stringify(pm.movie.genres || [])),
           toUpdate.map((pm) => pm.movie.overview || null),
           toUpdate.map((pm) => pm.movie.communityRating || null),
           toUpdate.map((pm) => pm.movie.criticRating || null),
@@ -215,14 +217,14 @@ async function processMovieBatch(
             pm.movie.premiereDate ? pm.movie.premiereDate.split('T')[0] : null
           ),
           toUpdate.map((pm) => JSON.stringify(pm.movie.studios || [])),
-          toUpdate.map((pm) => pm.movie.directors || []),
-          toUpdate.map((pm) => pm.movie.writers || []),
+          toUpdate.map((pm) => JSON.stringify(pm.movie.directors || [])),
+          toUpdate.map((pm) => JSON.stringify(pm.movie.writers || [])),
           toUpdate.map((pm) => JSON.stringify(pm.movie.actors || [])),
           toUpdate.map((pm) => pm.movie.imdbId || null),
           toUpdate.map((pm) => pm.movie.tmdbId || null),
-          toUpdate.map((pm) => pm.movie.tags || []),
+          toUpdate.map((pm) => JSON.stringify(pm.movie.tags || [])),
           toUpdate.map((pm) => pm.movie.sortName || null),
-          toUpdate.map((pm) => pm.movie.productionCountries || []),
+          toUpdate.map((pm) => JSON.stringify(pm.movie.productionCountries || [])),
           toUpdate.map((pm) => pm.movie.awards || null),
           toUpdate.map((pm) => pm.movie.videoResolution || null),
           toUpdate.map((pm) => pm.movie.videoCodec || null),
@@ -240,6 +242,8 @@ async function processMovieBatch(
   }
 
   // Bulk INSERT new movies using unnest
+  // Note: Array columns (genres, directors, writers, tags, production_countries) are passed as JSONB
+  // and converted back to text[] in SQL to avoid unnest() flattening 2D arrays incorrectly
   if (toInsert.length > 0) {
     try {
       const result = await query(
@@ -251,13 +255,33 @@ async function processMovieBatch(
           tags, sort_title, production_countries, awards, video_resolution,
           video_codec, audio_codec, container
         )
-        SELECT * FROM unnest(
-          $1::text[], $2::text[], $3::text[], $4::int[], $5::text[][],
+        SELECT
+          t.provider_item_id, t.title, t.original_title, t.year,
+          COALESCE(ARRAY(SELECT jsonb_array_elements_text(t.genres)), '{}'),
+          t.overview, t.community_rating, t.critic_rating, t.runtime_minutes, t.path,
+          t.media_sources, t.poster_url, t.backdrop_url, t.provider_library_id,
+          t.tagline, t.content_rating, t.premiere_date, t.studios,
+          COALESCE(ARRAY(SELECT jsonb_array_elements_text(t.directors)), '{}'),
+          COALESCE(ARRAY(SELECT jsonb_array_elements_text(t.writers)), '{}'),
+          t.actors, t.imdb_id, t.tmdb_id,
+          COALESCE(ARRAY(SELECT jsonb_array_elements_text(t.tags)), '{}'),
+          t.sort_title,
+          COALESCE(ARRAY(SELECT jsonb_array_elements_text(t.production_countries)), '{}'),
+          t.awards, t.video_resolution, t.video_codec, t.audio_codec, t.container
+        FROM unnest(
+          $1::text[], $2::text[], $3::text[], $4::int[], $5::jsonb[],
           $6::text[], $7::real[], $8::real[], $9::int[], $10::text[],
           $11::jsonb[], $12::text[], $13::text[], $14::text[], $15::text[],
-          $16::text[], $17::date[], $18::jsonb[], $19::text[][], $20::text[][],
-          $21::jsonb[], $22::text[], $23::text[], $24::text[][], $25::text[],
-          $26::text[][], $27::text[], $28::text[], $29::text[], $30::text[], $31::text[]
+          $16::text[], $17::date[], $18::jsonb[], $19::jsonb[], $20::jsonb[],
+          $21::jsonb[], $22::text[], $23::text[], $24::jsonb[], $25::text[],
+          $26::jsonb[], $27::text[], $28::text[], $29::text[], $30::text[], $31::text[]
+        ) AS t(
+          provider_item_id, title, original_title, year, genres, overview,
+          community_rating, critic_rating, runtime_minutes, path, media_sources,
+          poster_url, backdrop_url, provider_library_id, tagline, content_rating,
+          premiere_date, studios, directors, writers, actors, imdb_id, tmdb_id,
+          tags, sort_title, production_countries, awards, video_resolution,
+          video_codec, audio_codec, container
         )
         ON CONFLICT (provider_item_id) DO NOTHING`,
         [
@@ -265,7 +289,7 @@ async function processMovieBatch(
           toInsert.map((pm) => pm.movie.name),
           toInsert.map((pm) => pm.movie.originalTitle || null),
           toInsert.map((pm) => pm.movie.year || null),
-          toInsert.map((pm) => pm.movie.genres || []),
+          toInsert.map((pm) => JSON.stringify(pm.movie.genres || [])),
           toInsert.map((pm) => pm.movie.overview || null),
           toInsert.map((pm) => pm.movie.communityRating || null),
           toInsert.map((pm) => pm.movie.criticRating || null),
@@ -281,14 +305,14 @@ async function processMovieBatch(
             pm.movie.premiereDate ? pm.movie.premiereDate.split('T')[0] : null
           ),
           toInsert.map((pm) => JSON.stringify(pm.movie.studios || [])),
-          toInsert.map((pm) => pm.movie.directors || []),
-          toInsert.map((pm) => pm.movie.writers || []),
+          toInsert.map((pm) => JSON.stringify(pm.movie.directors || [])),
+          toInsert.map((pm) => JSON.stringify(pm.movie.writers || [])),
           toInsert.map((pm) => JSON.stringify(pm.movie.actors || [])),
           toInsert.map((pm) => pm.movie.imdbId || null),
           toInsert.map((pm) => pm.movie.tmdbId || null),
-          toInsert.map((pm) => pm.movie.tags || []),
+          toInsert.map((pm) => JSON.stringify(pm.movie.tags || [])),
           toInsert.map((pm) => pm.movie.sortName || null),
-          toInsert.map((pm) => pm.movie.productionCountries || []),
+          toInsert.map((pm) => JSON.stringify(pm.movie.productionCountries || [])),
           toInsert.map((pm) => pm.movie.awards || null),
           toInsert.map((pm) => pm.movie.videoResolution || null),
           toInsert.map((pm) => pm.movie.videoCodec || null),
