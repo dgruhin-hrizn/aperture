@@ -4,6 +4,7 @@ import {
   registerProfileHandlers,
   registerProviderHandlers,
   registerJobHandlers,
+  registerAvatarHandlers,
 } from './handlers/index.js'
 
 const usersRoutes: FastifyPluginAsync = async (fastify) => {
@@ -12,6 +13,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
   registerProfileHandlers(fastify)
   registerProviderHandlers(fastify)
   registerJobHandlers(fastify)
+  registerAvatarHandlers(fastify)
 }
 
 export default usersRoutes
