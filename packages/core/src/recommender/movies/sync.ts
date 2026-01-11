@@ -61,7 +61,7 @@ async function fetchMoviesParallel(
   pageSize: number,
   parallelFetches: number,
   jobId: string,
-  onProgress: (fetched: number) => void
+  onProgress?: (fetched: number) => void
 ): Promise<Movie[]> {
   const allMovies: Movie[] = []
   const totalPages = Math.ceil(totalCount / pageSize)
@@ -91,7 +91,7 @@ async function fetchMoviesParallel(
     }
 
     currentPage += pagesToFetch
-    onProgress(allMovies.length)
+    onProgress?.(allMovies.length)
 
     if (currentPage < totalPages) {
       addLog(
@@ -370,6 +370,8 @@ export async function syncMovies(existingJobId?: string): Promise<SyncMoviesResu
       addLog(jobId, 'info', `📂 Fetching ${count} movies from library${libraryId ? ` ${libraryId}` : ''}...`)
 
       // Fetch all movies from this library in parallel
+      // Note: We don't update job progress during fetch since it's fast (~7s for 12k movies)
+      // Progress updates happen during the processing phase below
       const movies = await fetchMoviesParallel(
         provider,
         apiKey,
@@ -377,10 +379,7 @@ export async function syncMovies(existingJobId?: string): Promise<SyncMoviesResu
         count,
         PAGE_SIZE,
         PARALLEL_FETCHES,
-        jobId,
-        (fetched) => {
-          updateJobProgress(jobId, processed + fetched, totalMovies, `Fetching... ${processed + fetched}/${totalMovies}`)
-        }
+        jobId
       )
 
       addLog(jobId, 'info', `✅ Fetched ${movies.length} movies, now processing...`)

@@ -465,6 +465,8 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
       addLog(jobId, 'info', `📂 Fetching ${seriesCount} series from library${libraryId ? ` ${libraryId}` : ''}...`)
 
       // Fetch all series in parallel
+      // Note: We don't update job progress during fetch since it's fast
+      // Progress updates happen during the processing phase below
       const seriesList = await fetchParallel(
         (startIndex, limit) =>
           provider.getSeries(apiKey, {
@@ -474,8 +476,7 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
           }),
         seriesCount,
         SERIES_PAGE_SIZE,
-        PARALLEL_FETCHES,
-        (fetched) => updateJobProgress(jobId, processedSeries + fetched, totalSeries, `Fetching series...`)
+        PARALLEL_FETCHES
       )
 
       addLog(jobId, 'info', `✅ Fetched ${seriesList.length} series, now processing...`)
@@ -530,6 +531,7 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
       )
 
       // Fetch all episodes in parallel
+      // Note: We don't update job progress during fetch since it's fast
       const episodeList = await fetchParallel(
         (startIndex, limit) =>
           provider.getEpisodes(apiKey, {
@@ -539,9 +541,7 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
           }),
         episodeCount,
         EPISODE_PAGE_SIZE,
-        PARALLEL_FETCHES,
-        (fetched) =>
-          updateJobProgress(jobId, processedEpisodes + fetched, totalEpisodes, `Fetching episodes...`)
+        PARALLEL_FETCHES
       )
 
       addLog(jobId, 'info', `✅ Fetched ${episodeList.length} episodes, now processing...`)
