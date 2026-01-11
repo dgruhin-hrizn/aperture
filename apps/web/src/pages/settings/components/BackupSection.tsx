@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Box,
   Typography,
@@ -23,6 +23,9 @@ import {
   Chip,
   Divider,
   Stack,
+  LinearProgress,
+  Collapse,
+  Paper,
 } from '@mui/material'
 import BackupIcon from '@mui/icons-material/Backup'
 import RestoreIcon from '@mui/icons-material/Restore'
@@ -32,6 +35,9 @@ import UploadIcon from '@mui/icons-material/Upload'
 import ScheduleIcon from '@mui/icons-material/Schedule'
 import SettingsIcon from '@mui/icons-material/Settings'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import ErrorIcon from '@mui/icons-material/Error'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 
 interface BackupInfo {
   filename: string
@@ -49,6 +55,23 @@ interface BackupConfig {
   lastBackupSizeFormatted: string | null
 }
 
+interface JobProgress {
+  jobId: string
+  jobName: string
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
+  startedAt: string
+  completedAt?: string
+  currentStep: string
+  currentStepIndex: number
+  totalSteps: number
+  overallProgress: number
+  itemsProcessed: number
+  itemsTotal: number
+  logs: Array<{ timestamp: string; level: string; message: string }>
+  error?: string
+  result?: Record<string, unknown>
+}
+
 export function BackupSection() {
   const [config, setConfig] = useState<BackupConfig | null>(null)
   const [backups, setBackups] = useState<BackupInfo[]>([])
@@ -61,6 +84,13 @@ export function BackupSection() {
   const [restoringBackup, setRestoringBackup] = useState(false)
   const [deletingBackup, setDeletingBackup] = useState<string | null>(null)
   const [uploadingBackup, setUploadingBackup] = useState(false)
+
+  // Job progress tracking
+  const [activeJobId, setActiveJobId] = useState<string | null>(null)
+  const [jobProgress, setJobProgress] = useState<JobProgress | null>(null)
+  const [showLogs, setShowLogs] = useState(false)
+  const pollIntervalRef = useRef<number | null>(null)
+  const logsEndRef = useRef<HTMLDivElement>(null)
 
   // Config editing
   const [editingConfig, setEditingConfig] = useState(false)
@@ -106,16 +136,114 @@ export function BackupSection() {
     fetchData()
   }, [fetchData])
 
+  // Poll for job progress
+  const pollJobProgress = useCallback(async (jobId: string) => {
+    try {
+      const res = await fetch(`/api/jobs/progress/${jobId}`, { credentials: 'include' })
+      
+      // Check content type before parsing
+      const contentType = res.headers.get('content-type')
+      if (!contentType?.includes('application/json')) {
+        // Got HTML or other non-JSON response - likely auth or proxy error
+        console.warn('Job progress returned non-JSON response:', contentType)
+        if (res.status === 401 || res.status === 403) {
+          setError('Session expired. Please refresh and try again.')
+        }
+        setActiveJobId(null)
+        setCreatingBackup(false)
+        setRestoringBackup(false)
+        return
+      }
+      
+      if (!res.ok) {
+        // Job might have finished and been cleaned up
+        if (res.status === 404) {
+          setActiveJobId(null)
+          setCreatingBackup(false)
+          setRestoringBackup(false)
+          return
+        }
+        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(errorData.error || 'Failed to get job progress')
+      }
+      const data = await res.json()
+      setJobProgress(data)
+
+      // Auto-scroll logs
+      if (logsEndRef.current) {
+        logsEndRef.current.scrollIntoView({ behavior: 'smooth' })
+      }
+
+      // Check if job is complete
+      if (data.status === 'completed' || data.status === 'failed' || data.status === 'cancelled') {
+        setActiveJobId(null)
+        setCreatingBackup(false)
+        setRestoringBackup(false)
+
+        if (data.status === 'completed') {
+          const result = data.result || {}
+          if (data.jobName === 'backup-database') {
+            setSuccess(`Backup created successfully: ${result.filename || 'backup'} (${Math.round((data.result?.duration || 0) / 1000)}s)`)
+          } else if (data.jobName === 'restore-database') {
+            setSuccess(`Database restored successfully (${Math.round((data.result?.duration || 0) / 1000)}s)`)
+          }
+          await fetchData()
+        } else if (data.status === 'failed') {
+          setError(data.error || 'Operation failed')
+        }
+
+        // Clear job progress after a delay
+        setTimeout(() => {
+          setJobProgress(null)
+          setShowLogs(false)
+        }, 5000)
+      }
+    } catch (err) {
+      console.error('Failed to poll job progress:', err)
+    }
+  }, [fetchData])
+
+  // Set up polling when job is active
+  useEffect(() => {
+    if (activeJobId) {
+      // Poll immediately
+      pollJobProgress(activeJobId)
+
+      // Set up interval
+      pollIntervalRef.current = window.setInterval(() => {
+        pollJobProgress(activeJobId)
+      }, 1000)
+
+      return () => {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current)
+          pollIntervalRef.current = null
+        }
+      }
+    }
+  }, [activeJobId, pollJobProgress])
+
   const handleCreateBackup = async () => {
     try {
       setCreatingBackup(true)
       setError(null)
       setSuccess(null)
+      setJobProgress(null)
+      setShowLogs(true)
 
+      // Start backup in async mode (returns job ID immediately)
       const res = await fetch('/api/backup/create', {
         method: 'POST',
         credentials: 'include',
       })
+
+      // Check content type before parsing JSON
+      const contentType = res.headers.get('content-type')
+      if (!contentType?.includes('application/json')) {
+        const text = await res.text()
+        console.error('Backup create returned non-JSON:', text.substring(0, 200))
+        throw new Error('Server returned invalid response. Check server logs.')
+      }
 
       const data = await res.json()
 
@@ -123,11 +251,17 @@ export function BackupSection() {
         throw new Error(data.error || 'Failed to create backup')
       }
 
-      setSuccess(`Backup created: ${data.filename} (${data.sizeFormatted})`)
-      await fetchData()
+      // Set active job ID to start polling
+      if (data.jobId) {
+        setActiveJobId(data.jobId)
+      } else {
+        // Sync mode fallback
+        setSuccess(`Backup created: ${data.filename} (${data.sizeFormatted})`)
+        setCreatingBackup(false)
+        await fetchData()
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create backup')
-    } finally {
       setCreatingBackup(false)
     }
   }
@@ -206,8 +340,12 @@ export function BackupSection() {
     try {
       setRestoringBackup(true)
       setError(null)
+      setSuccess(null)
       setRestoreDialogOpen(false)
+      setJobProgress(null)
+      setShowLogs(true)
 
+      // Start restore in async mode (returns job ID immediately)
       const res = await fetch('/api/backup/restore', {
         method: 'POST',
         credentials: 'include',
@@ -219,23 +357,38 @@ export function BackupSection() {
         }),
       })
 
+      // Check content type before parsing JSON
+      const contentType = res.headers.get('content-type')
+      if (!contentType?.includes('application/json')) {
+        const text = await res.text()
+        console.error('Restore returned non-JSON:', text.substring(0, 200))
+        throw new Error('Server returned invalid response. Check server logs.')
+      }
+
       const data = await res.json()
 
       if (!res.ok) {
         throw new Error(data.error || 'Failed to restore backup')
       }
 
-      setSuccess(
-        `Database restored successfully from ${restoreFilename}. ` +
-          (data.preRestoreBackup
-            ? `Pre-restore backup created: ${data.preRestoreBackup}`
-            : 'You may need to refresh the page.')
-      )
-      await fetchData()
+      // Set active job ID to start polling
+      if (data.jobId) {
+        setActiveJobId(data.jobId)
+      } else {
+        // Sync mode fallback
+        setSuccess(
+          `Database restored successfully from ${restoreFilename}. ` +
+            (data.preRestoreBackup
+              ? `Pre-restore backup created: ${data.preRestoreBackup}`
+              : 'You may need to refresh the page.')
+        )
+        setRestoringBackup(false)
+        await fetchData()
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to restore backup')
-    } finally {
       setRestoringBackup(false)
+    } finally {
       setRestoreFilename(null)
     }
   }
@@ -417,6 +570,76 @@ export function BackupSection() {
               </Typography>
             </Box>
           </Box>
+
+          {/* Job Progress Section */}
+          <Collapse in={!!jobProgress}>
+            <Box sx={{ mb: 3, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
+              <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+                <Box display="flex" alignItems="center" gap={1}>
+                  {jobProgress?.status === 'running' && <CircularProgress size={16} />}
+                  {jobProgress?.status === 'completed' && <CheckCircleIcon color="success" fontSize="small" />}
+                  {jobProgress?.status === 'failed' && <ErrorIcon color="error" fontSize="small" />}
+                  <Typography variant="subtitle2" fontWeight={600}>
+                    {jobProgress?.jobName === 'backup-database' ? 'Creating Backup' : 'Restoring Database'}
+                  </Typography>
+                </Box>
+                <Button
+                  size="small"
+                  startIcon={showLogs ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                  onClick={() => setShowLogs(!showLogs)}
+                >
+                  {showLogs ? 'Hide Logs' : 'Show Logs'}
+                </Button>
+              </Box>
+
+              {/* Progress bar */}
+              <Box sx={{ mb: 1 }}>
+                <Box display="flex" justifyContent="space-between" mb={0.5}>
+                  <Typography variant="caption" color="text.secondary">
+                    {jobProgress?.currentStep || 'Initializing...'}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {jobProgress?.overallProgress || 0}%
+                  </Typography>
+                </Box>
+                <LinearProgress
+                  variant="determinate"
+                  value={jobProgress?.overallProgress || 0}
+                  sx={{ height: 6, borderRadius: 1 }}
+                />
+              </Box>
+
+              {/* Logs */}
+              <Collapse in={showLogs}>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    mt: 1,
+                    p: 1,
+                    maxHeight: 200,
+                    overflow: 'auto',
+                    bgcolor: '#0d1117',
+                    fontFamily: 'monospace',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  {jobProgress?.logs?.map((log, i) => (
+                    <Box
+                      key={i}
+                      sx={{
+                        color: log.level === 'error' ? '#f85149' : log.level === 'warn' ? '#d29922' : '#8b949e',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-all',
+                      }}
+                    >
+                      {log.message}
+                    </Box>
+                  ))}
+                  <div ref={logsEndRef} />
+                </Paper>
+              </Collapse>
+            </Box>
+          </Collapse>
 
           {/* Backups List */}
           <Typography variant="subtitle2" fontWeight={600} mb={1}>

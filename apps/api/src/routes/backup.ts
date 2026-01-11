@@ -15,6 +15,7 @@ import { requireAdmin } from '../plugins/auth.js'
 import * as fs from 'fs'
 import * as path from 'path'
 import { pipeline } from 'stream/promises'
+import { randomUUID } from 'crypto'
 
 const backupRoutes: FastifyPluginAsync = async (fastify) => {
   // =========================================================================
@@ -129,30 +130,52 @@ const backupRoutes: FastifyPluginAsync = async (fastify) => {
 
   /**
    * POST /api/backup/create
-   * Create a new backup
+   * Create a new backup (runs in background with progress tracking)
    */
-  fastify.post(
+  fastify.post<{
+    Querystring: { sync?: string }
+  }>(
     '/api/backup/create',
     { preHandler: requireAdmin },
-    async (_request, reply) => {
+    async (request, reply) => {
       try {
-        const result = await createBackup()
+        const sync = request.query.sync === 'true'
+        const jobId = randomUUID()
 
-        if (!result.success) {
-          return reply.status(500).send({
-            error: result.error || 'Backup failed',
+        if (sync) {
+          // Synchronous mode - wait for completion
+          const result = await createBackup(jobId)
+
+          if (!result.success) {
+            return reply.status(500).send({
+              error: result.error || 'Backup failed',
+              duration: result.duration,
+              jobId,
+            })
+          }
+
+          return reply.send({
+            success: true,
+            filename: result.filename,
+            sizeBytes: result.sizeBytes,
+            sizeFormatted: result.sizeBytes ? formatBytes(result.sizeBytes) : null,
             duration: result.duration,
+            jobId,
+            message: 'Backup created successfully',
+          })
+        } else {
+          // Async mode - return job ID immediately and run in background
+          // Fire and forget - let the job progress system track it
+          createBackup(jobId).catch((err) => {
+            fastify.log.error({ err, jobId }, 'Background backup failed')
+          })
+
+          return reply.send({
+            success: true,
+            jobId,
+            message: 'Backup started. Track progress with /api/jobs/progress/:jobId',
           })
         }
-
-        return reply.send({
-          success: true,
-          filename: result.filename,
-          sizeBytes: result.sizeBytes,
-          sizeFormatted: result.sizeBytes ? formatBytes(result.sizeBytes) : null,
-          duration: result.duration,
-          message: 'Backup created successfully',
-        })
       } catch (err) {
         fastify.log.error({ err }, 'Failed to create backup')
         return reply.status(500).send({ error: 'Failed to create backup' })
@@ -162,7 +185,7 @@ const backupRoutes: FastifyPluginAsync = async (fastify) => {
 
   /**
    * POST /api/backup/restore
-   * Restore from a backup file
+   * Restore from a backup file (runs in background with progress tracking)
    */
   fastify.post<{
     Body: {
@@ -170,9 +193,12 @@ const backupRoutes: FastifyPluginAsync = async (fastify) => {
       createPreRestoreBackup?: boolean
       confirmText?: string
     }
+    Querystring: { sync?: string }
   }>('/api/backup/restore', { preHandler: requireAdmin }, async (request, reply) => {
     try {
       const { filename, createPreRestoreBackup = true, confirmText } = request.body
+      const sync = request.query.sync === 'true'
+      const jobId = randomUUID()
 
       // Require confirmation text
       if (confirmText !== 'RESTORE') {
@@ -197,22 +223,39 @@ const backupRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: validation.error || 'Invalid backup file' })
       }
 
-      const result = await restoreBackup(filename, createPreRestoreBackup)
+      if (sync) {
+        // Synchronous mode - wait for completion
+        const result = await restoreBackup(filename, createPreRestoreBackup, jobId)
 
-      if (!result.success) {
-        return reply.status(500).send({
-          error: result.error || 'Restore failed',
+        if (!result.success) {
+          return reply.status(500).send({
+            error: result.error || 'Restore failed',
+            duration: result.duration,
+            preRestoreBackup: result.preRestoreBackup,
+            jobId,
+          })
+        }
+
+        return reply.send({
+          success: true,
           duration: result.duration,
           preRestoreBackup: result.preRestoreBackup,
+          jobId,
+          message: 'Database restored successfully. You may need to restart the application.',
+        })
+      } else {
+        // Async mode - return job ID immediately and run in background
+        restoreBackup(filename, createPreRestoreBackup, jobId).catch((err) => {
+          fastify.log.error({ err, jobId }, 'Background restore failed')
+        })
+
+        return reply.send({
+          success: true,
+          jobId,
+          filename,
+          message: 'Restore started. Track progress with /api/jobs/progress/:jobId',
         })
       }
-
-      return reply.send({
-        success: true,
-        duration: result.duration,
-        preRestoreBackup: result.preRestoreBackup,
-        message: 'Database restored successfully. You may need to restart the application.',
-      })
     } catch (err) {
       fastify.log.error({ err }, 'Failed to restore backup')
       return reply.status(500).send({ error: 'Failed to restore backup' })
@@ -439,16 +482,19 @@ const backupRoutes: FastifyPluginAsync = async (fastify) => {
 
   /**
    * POST /api/setup/backup/restore
-   * Restore from a backup during setup (no auth required)
+   * Restore from a backup during setup (no auth required, runs in background with progress tracking)
    */
   fastify.post<{
     Body: {
       filename: string
       confirmText?: string
     }
+    Querystring: { sync?: string }
   }>('/api/setup/backup/restore', async (request, reply) => {
     try {
       const { filename, confirmText } = request.body
+      const sync = request.query.sync === 'true'
+      const jobId = randomUUID()
 
       // Require confirmation text
       if (confirmText !== 'RESTORE') {
@@ -473,21 +519,39 @@ const backupRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: validation.error || 'Invalid backup file' })
       }
 
-      // Don't create pre-restore backup during setup (database is likely empty)
-      const result = await restoreBackup(filename, false)
+      if (sync) {
+        // Synchronous mode - wait for completion
+        // Don't create pre-restore backup during setup (database is likely empty)
+        const result = await restoreBackup(filename, false, jobId)
 
-      if (!result.success) {
-        return reply.status(500).send({
-          error: result.error || 'Restore failed',
+        if (!result.success) {
+          return reply.status(500).send({
+            error: result.error || 'Restore failed',
+            duration: result.duration,
+            jobId,
+          })
+        }
+
+        return reply.send({
+          success: true,
           duration: result.duration,
+          jobId,
+          message: 'Database restored successfully. Setup will continue with restored data.',
+        })
+      } else {
+        // Async mode - return job ID immediately and run in background
+        // Don't create pre-restore backup during setup (database is likely empty)
+        restoreBackup(filename, false, jobId).catch((err) => {
+          fastify.log.error({ err, jobId }, 'Background restore during setup failed')
+        })
+
+        return reply.send({
+          success: true,
+          jobId,
+          filename,
+          message: 'Restore started. Track progress with /api/jobs/progress/:jobId',
         })
       }
-
-      return reply.send({
-        success: true,
-        duration: result.duration,
-        message: 'Database restored successfully. Setup will continue with restored data.',
-      })
     } catch (err) {
       fastify.log.error({ err }, 'Failed to restore backup during setup')
       return reply.status(500).send({ error: 'Failed to restore backup' })
