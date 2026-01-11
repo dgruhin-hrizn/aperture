@@ -87,11 +87,18 @@ export function JobCard({
   const getLastRunInfo = () => {
     if (!job.lastRun) return null
     const { status, startedAt, durationMs, itemsProcessed, itemsTotal, errorMessage } = job.lastRun
+    // Show items count - prefer total format if both available, otherwise just processed count
+    let items: string | undefined
+    if (itemsTotal > 0) {
+      items = `${itemsProcessed}/${itemsTotal}`
+    } else if (itemsProcessed > 0) {
+      items = `${itemsProcessed} items`
+    }
     return {
       status,
       time: formatRelativeTime(startedAt),
       duration: formatDuration(durationMs),
-      items: itemsTotal > 0 ? `${itemsProcessed}/${itemsTotal}` : undefined,
+      items,
       error: errorMessage,
       icon: status === 'completed' ? <CheckCircleIcon sx={{ fontSize: 14 }} /> :
             status === 'failed' ? <ErrorIcon sx={{ fontSize: 14 }} /> :
