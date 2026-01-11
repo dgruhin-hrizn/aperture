@@ -330,16 +330,23 @@ function generateFallbackExplanation(movie: MovieWithEvidence): string {
 
 /**
  * Store explanations in the database
+ * OPTIMIZED: Uses bulk UPDATE with unnest() instead of N individual queries
  */
 export async function storeExplanations(runId: string, explanations: ExplanationResult[]): Promise<void> {
-  for (const exp of explanations) {
-    await query(
-      `UPDATE recommendation_candidates
-       SET ai_explanation = $1
-       WHERE run_id = $2 AND movie_id = $3 AND is_selected = true`,
-      [exp.explanation, runId, exp.movieId]
-    )
-  }
+  if (explanations.length === 0) return
+
+  // Bulk UPDATE using unnest and a subquery
+  await query(
+    `UPDATE recommendation_candidates rc
+     SET ai_explanation = t.explanation
+     FROM unnest($2::uuid[], $3::text[]) AS t(movie_id, explanation)
+     WHERE rc.run_id = $1 AND rc.movie_id = t.movie_id AND rc.is_selected = true`,
+    [
+      runId,
+      explanations.map((e) => e.movieId),
+      explanations.map((e) => e.explanation),
+    ]
+  )
 
   logger.info({ runId, count: explanations.length }, 'Stored AI explanations')
 }

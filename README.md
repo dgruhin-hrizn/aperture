@@ -1,6 +1,6 @@
 # Aperture
 
-[![Version](https://img.shields.io/badge/version-0.2.5-blue.svg)](https://github.com/dgruhin-hrizn/aperture/releases)
+[![Version](https://img.shields.io/badge/version-0.2.6-blue.svg)](https://github.com/dgruhin-hrizn/aperture/releases)
 [![Docker Image](https://img.shields.io/badge/docker-ghcr.io%2Fdgruhin--hrizn%2Faperture-blue?logo=docker)](https://github.com/dgruhin-hrizn/aperture/pkgs/container/aperture)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -14,16 +14,17 @@ Aperture creates personalized recommendation libraries for your media server use
 
 ### 1. Download the docker-compose file for your platform
 
-| Platform | File | Download |
-|----------|------|----------|
-| **Unraid** | `docker-compose.unraid.yml` | [Download](https://raw.githubusercontent.com/dgruhin-hrizn/aperture/main/docker-compose.unraid.yml) |
-| **QNAP** | `docker-compose.qnap.yml` | [Download](https://raw.githubusercontent.com/dgruhin-hrizn/aperture/main/docker-compose.qnap.yml) |
-| **Synology** | `docker-compose.synology.yml` | [Download](https://raw.githubusercontent.com/dgruhin-hrizn/aperture/main/docker-compose.synology.yml) |
-| **Linux/Other** | `docker-compose.prod.yml` | [Download](https://raw.githubusercontent.com/dgruhin-hrizn/aperture/main/docker-compose.prod.yml) |
+| Platform        | File                          | Download                                                                                              |
+| --------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **Unraid**      | `docker-compose.unraid.yml`   | [Download](https://raw.githubusercontent.com/dgruhin-hrizn/aperture/main/docker-compose.unraid.yml)   |
+| **QNAP**        | `docker-compose.qnap.yml`     | [Download](https://raw.githubusercontent.com/dgruhin-hrizn/aperture/main/docker-compose.qnap.yml)     |
+| **Synology**    | `docker-compose.synology.yml` | [Download](https://raw.githubusercontent.com/dgruhin-hrizn/aperture/main/docker-compose.synology.yml) |
+| **Linux/Other** | `docker-compose.prod.yml`     | [Download](https://raw.githubusercontent.com/dgruhin-hrizn/aperture/main/docker-compose.prod.yml)     |
 
 ### 2. Configure the file
 
 Edit the docker-compose file and set:
+
 - `APP_BASE_URL` — Your server's IP address (e.g., `http://192.168.1.100:3456`)
 - `SESSION_SECRET` — A random string (32+ characters)
 - Volume paths — Adjust to match your media folder locations
@@ -45,6 +46,7 @@ docker-compose -f docker-compose.[your-platform].yml up -d
 ### 5. Complete the Setup Wizard
 
 Open `http://YOUR_SERVER_IP:3456` and follow the guided setup:
+
 1. Connect to your Emby/Jellyfin server
 2. Select source libraries
 3. Configure AI recommendations
@@ -128,28 +130,28 @@ docker-compose -f docker-compose.[your-platform].yml up -d
 
 All schedules are configurable in **Admin → Jobs**.
 
-| Job | Default Schedule |
-|-----|------------------|
-| Database Backup | Daily at 1 AM |
-| Library Scan | Daily at 2 AM |
-| Embeddings | Daily at 3 AM |
-| AI Recommendations | Weekly on Sunday at 4 AM |
-| Top Picks | Daily at 5 AM |
-| Watch History | Every 2 hours |
-| Metadata Enrichment | Every 6 hours |
+| Job                 | Default Schedule         |
+| ------------------- | ------------------------ |
+| Database Backup     | Daily at 1 AM            |
+| Library Scan        | Daily at 2 AM            |
+| Embeddings          | Daily at 3 AM            |
+| AI Recommendations  | Weekly on Sunday at 4 AM |
+| Top Picks           | Daily at 5 AM            |
+| Watch History       | Every 2 hours            |
+| Metadata Enrichment | Every 6 hours            |
 
 ---
 
 ## Documentation
 
-| Guide | Description |
-|-------|-------------|
-| [Admin Guide](docs/admin-guide.md) | Setup walkthrough, job management, algorithm tuning |
-| [User Guide](docs/user-guide.md) | Features for end users, ratings, channels |
-| [Configuration](docs/configuration.md) | Volume setup, reverse proxy, Trakt integration |
-| [API Reference](docs/api-reference.md) | Complete API endpoint documentation |
-| [Architecture](docs/architecture.md) | Technical overview, recommendation pipeline, database schema |
-| [Development](docs/development.md) | Local dev setup, scripts, contribution guidelines |
+| Guide                                  | Description                                                  |
+| -------------------------------------- | ------------------------------------------------------------ |
+| [Admin Guide](docs/admin-guide.md)     | Setup walkthrough, job management, algorithm tuning          |
+| [User Guide](docs/user-guide.md)       | Features for end users, ratings, channels                    |
+| [Configuration](docs/configuration.md) | Volume setup, reverse proxy, Trakt integration               |
+| [API Reference](docs/api-reference.md) | Complete API endpoint documentation                          |
+| [Architecture](docs/architecture.md)   | Technical overview, recommendation pipeline, database schema |
+| [Development](docs/development.md)     | Local dev setup, scripts, contribution guidelines            |
 
 ---
 

@@ -4,17 +4,48 @@
  * Enriches movies and series with data from TMDb and OMDb:
  * - TMDb: Keywords, collections/franchises, expanded crew
  * - OMDb: Rotten Tomatoes scores, Metacritic, awards
+ *
+ * PERFORMANCE OPTIMIZED:
+ * - TMDb and OMDb calls made in parallel per item
+ * - Multiple items processed concurrently (within API rate limits)
+ * - TMDb: ~40 req/sec (limit is ~50)
+ * - OMDb: ~10 req/sec (conservative for free tier)
  */
 
 import { query, queryOne } from '../lib/db.js'
 import { createChildLogger } from '../lib/logger.js'
-import { createJobProgress, updateJobProgress, setJobStep, completeJob, failJob, isJobCancelled, addLog, type JobProgress } from '../jobs/progress.js'
+import {
+  createJobProgress,
+  updateJobProgress,
+  setJobStep,
+  completeJob,
+  failJob,
+  isJobCancelled,
+  addLog,
+} from '../jobs/progress.js'
 import { getTMDbConfig, getOMDbConfig } from '../settings/systemSettings.js'
-import { getMovieEnrichmentData, getCollectionData, type CollectionData, type ApiLogCallback } from '../tmdb/index.js'
+import {
+  getMovieEnrichmentData,
+  getCollectionData,
+  type CollectionData,
+  type ApiLogCallback,
+} from '../tmdb/index.js'
 import { getSeriesEnrichmentData } from '../tmdb/series.js'
 import { getRatingsData } from '../omdb/ratings.js'
 
 const logger = createChildLogger('enrichment')
+
+// ============================================================================
+// PERFORMANCE TUNING CONSTANTS
+// ============================================================================
+// These control how aggressively we call external APIs.
+// Increase CONCURRENCY for faster processing, decrease if hitting rate limits.
+
+/** Number of items to process concurrently */
+const CONCURRENCY = 5
+
+/** Number of items to fetch per database query */
+const BATCH_SIZE = 100
 
 /**
  * Create a logging callback for API calls during enrichment
@@ -84,6 +115,7 @@ async function getMoviesNeedingEnrichment(limit: number = 100): Promise<MovieToE
 
 /**
  * Enrich a single movie with TMDb and OMDb data
+ * OPTIMIZED: TMDb and OMDb calls are made in parallel
  */
 async function enrichMovie(
   movie: MovieToEnrich,
@@ -93,50 +125,60 @@ async function enrichMovie(
   jobId: string
 ): Promise<boolean> {
   const onLog = createApiLogger(jobId, movie.title)
-  let tmdbData = null
-  let omdbData = null
   const apiResults: string[] = []
 
-  // Fetch TMDb data (keywords, collection, crew)
-  if (tmdbEnabled && (movie.tmdb_id || movie.imdb_id)) {
-    try {
-      const tmdbId = movie.tmdb_id ? parseInt(movie.tmdb_id, 10) : null
-      tmdbData = await getMovieEnrichmentData(tmdbId, movie.imdb_id, { onLog })
-      if (tmdbData) {
-        const info: string[] = []
-        if (tmdbData.keywords?.length) info.push(`${tmdbData.keywords.length} keywords`)
-        if (tmdbData.collectionName) info.push(`collection: ${tmdbData.collectionName}`)
-        apiResults.push(`TMDb: ${info.length > 0 ? info.join(', ') : 'no data'}`)
-      } else {
-        apiResults.push('TMDb: not found')
-      }
-    } catch (err) {
-      logger.warn({ err, movieId: movie.id, title: movie.title }, 'Failed to fetch TMDb data')
-      apiResults.push('TMDb: error')
-    }
-  }
+  // Prepare parallel API calls
+  const tmdbPromise =
+    tmdbEnabled && (movie.tmdb_id || movie.imdb_id)
+      ? (async () => {
+          try {
+            const tmdbId = movie.tmdb_id ? parseInt(movie.tmdb_id, 10) : null
+            const data = await getMovieEnrichmentData(tmdbId, movie.imdb_id, { onLog })
+            if (data) {
+              const info: string[] = []
+              if (data.keywords?.length) info.push(`${data.keywords.length} keywords`)
+              if (data.collectionName) info.push(`collection: ${data.collectionName}`)
+              apiResults.push(`TMDb: ${info.length > 0 ? info.join(', ') : 'no data'}`)
+            } else {
+              apiResults.push('TMDb: not found')
+            }
+            return data
+          } catch (err) {
+            logger.warn({ err, movieId: movie.id, title: movie.title }, 'Failed to fetch TMDb data')
+            apiResults.push('TMDb: error')
+            return null
+          }
+        })()
+      : Promise.resolve(null)
 
-  // Fetch OMDb data (RT scores, Metacritic, awards)
-  if (omdbEnabled && movie.imdb_id) {
-    try {
-      omdbData = await getRatingsData(movie.imdb_id, { onLog })
-      if (omdbData) {
-        const info: string[] = []
-        if (omdbData.rtCriticScore != null) info.push(`RT: ${omdbData.rtCriticScore}%`)
-        if (omdbData.metacriticScore != null) info.push(`MC: ${omdbData.metacriticScore}`)
-        apiResults.push(`OMDb: ${info.length > 0 ? info.join(', ') : 'no scores'}`)
-      } else {
-        apiResults.push('OMDb: not found')
-      }
-    } catch (err) {
-      logger.warn({ err, movieId: movie.id, title: movie.title }, 'Failed to fetch OMDb data')
-      apiResults.push('OMDb: error')
-    }
-  }
+  const omdbPromise =
+    omdbEnabled && movie.imdb_id
+      ? (async () => {
+          try {
+            const data = await getRatingsData(movie.imdb_id!, { onLog })
+            if (data) {
+              const info: string[] = []
+              if (data.rtCriticScore != null) info.push(`RT: ${data.rtCriticScore}%`)
+              if (data.metacriticScore != null) info.push(`MC: ${data.metacriticScore}`)
+              apiResults.push(`OMDb: ${info.length > 0 ? info.join(', ') : 'no scores'}`)
+            } else {
+              apiResults.push('OMDb: not found')
+            }
+            return data
+          } catch (err) {
+            logger.warn({ err, movieId: movie.id, title: movie.title }, 'Failed to fetch OMDb data')
+            apiResults.push('OMDb: error')
+            return null
+          }
+        })()
+      : Promise.resolve(null)
+
+  // Execute both API calls in parallel
+  const [tmdbData, omdbData] = await Promise.all([tmdbPromise, omdbPromise])
 
   // Log API results summary for this movie
   if (apiResults.length > 0) {
-    addLog(jobId, 'info', `📽 ${movie.title}: ${apiResults.join(' | ')}`)
+    addLog(jobId, 'debug', `📽 ${movie.title}: ${apiResults.join(' | ')}`)
   }
 
   // If we got collection data, queue it for creation
@@ -208,6 +250,7 @@ async function getSeriesNeedingEnrichment(limit: number = 100): Promise<SeriesTo
 
 /**
  * Enrich a single series with TMDb and OMDb data
+ * OPTIMIZED: TMDb and OMDb calls are made in parallel
  */
 async function enrichSeries(
   series: SeriesToEnrich,
@@ -216,49 +259,67 @@ async function enrichSeries(
   jobId: string
 ): Promise<boolean> {
   const onLog = createApiLogger(jobId, series.title)
-  let tmdbData = null
-  let omdbData = null
   const apiResults: string[] = []
 
-  // Fetch TMDb data (keywords)
-  if (tmdbEnabled && (series.tmdb_id || series.imdb_id || series.tvdb_id)) {
-    try {
-      const tmdbId = series.tmdb_id ? parseInt(series.tmdb_id, 10) : null
-      tmdbData = await getSeriesEnrichmentData(tmdbId, series.imdb_id, series.tvdb_id, { onLog })
-      if (tmdbData) {
-        const info: string[] = []
-        if (tmdbData.keywords?.length) info.push(`${tmdbData.keywords.length} keywords`)
-        apiResults.push(`TMDb: ${info.length > 0 ? info.join(', ') : 'no data'}`)
-      } else {
-        apiResults.push('TMDb: not found')
-      }
-    } catch (err) {
-      logger.warn({ err, seriesId: series.id, title: series.title }, 'Failed to fetch TMDb data')
-      apiResults.push('TMDb: error')
-    }
-  }
+  // Prepare parallel API calls
+  const tmdbPromise =
+    tmdbEnabled && (series.tmdb_id || series.imdb_id || series.tvdb_id)
+      ? (async () => {
+          try {
+            const tmdbId = series.tmdb_id ? parseInt(series.tmdb_id, 10) : null
+            const data = await getSeriesEnrichmentData(tmdbId, series.imdb_id, series.tvdb_id, {
+              onLog,
+            })
+            if (data) {
+              const info: string[] = []
+              if (data.keywords?.length) info.push(`${data.keywords.length} keywords`)
+              apiResults.push(`TMDb: ${info.length > 0 ? info.join(', ') : 'no data'}`)
+            } else {
+              apiResults.push('TMDb: not found')
+            }
+            return data
+          } catch (err) {
+            logger.warn(
+              { err, seriesId: series.id, title: series.title },
+              'Failed to fetch TMDb data'
+            )
+            apiResults.push('TMDb: error')
+            return null
+          }
+        })()
+      : Promise.resolve(null)
 
-  // Fetch OMDb data (RT scores, Metacritic, awards)
-  if (omdbEnabled && series.imdb_id) {
-    try {
-      omdbData = await getRatingsData(series.imdb_id, { onLog })
-      if (omdbData) {
-        const info: string[] = []
-        if (omdbData.rtCriticScore != null) info.push(`RT: ${omdbData.rtCriticScore}%`)
-        if (omdbData.metacriticScore != null) info.push(`MC: ${omdbData.metacriticScore}`)
-        apiResults.push(`OMDb: ${info.length > 0 ? info.join(', ') : 'no scores'}`)
-      } else {
-        apiResults.push('OMDb: not found')
-      }
-    } catch (err) {
-      logger.warn({ err, seriesId: series.id, title: series.title }, 'Failed to fetch OMDb data')
-      apiResults.push('OMDb: error')
-    }
-  }
+  const omdbPromise =
+    omdbEnabled && series.imdb_id
+      ? (async () => {
+          try {
+            const data = await getRatingsData(series.imdb_id!, { onLog })
+            if (data) {
+              const info: string[] = []
+              if (data.rtCriticScore != null) info.push(`RT: ${data.rtCriticScore}%`)
+              if (data.metacriticScore != null) info.push(`MC: ${data.metacriticScore}`)
+              apiResults.push(`OMDb: ${info.length > 0 ? info.join(', ') : 'no scores'}`)
+            } else {
+              apiResults.push('OMDb: not found')
+            }
+            return data
+          } catch (err) {
+            logger.warn(
+              { err, seriesId: series.id, title: series.title },
+              'Failed to fetch OMDb data'
+            )
+            apiResults.push('OMDb: error')
+            return null
+          }
+        })()
+      : Promise.resolve(null)
+
+  // Execute both API calls in parallel
+  const [tmdbData, omdbData] = await Promise.all([tmdbPromise, omdbPromise])
 
   // Log API results summary for this series
   if (apiResults.length > 0) {
-    addLog(jobId, 'info', `📺 ${series.title}: ${apiResults.join(' | ')}`)
+    addLog(jobId, 'debug', `📺 ${series.title}: ${apiResults.join(' | ')}`)
   }
 
   // Update series in database
@@ -329,11 +390,51 @@ async function updateCollectionCounts(): Promise<void> {
 }
 
 // ============================================================================
+// Concurrent Processing Helper
+// ============================================================================
+
+/**
+ * Process items with limited concurrency
+ * Respects API rate limits by processing only N items at a time
+ */
+async function processWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  processor: (item: T) => Promise<R>,
+  shouldCancel?: () => boolean
+): Promise<R[]> {
+  const results: R[] = []
+  let index = 0
+
+  async function processNext(): Promise<void> {
+    while (index < items.length) {
+      if (shouldCancel?.()) break
+      const currentIndex = index++
+      const result = await processor(items[currentIndex])
+      results[currentIndex] = result
+    }
+  }
+
+  // Start N concurrent workers
+  const workers = Array(Math.min(concurrency, items.length))
+    .fill(null)
+    .map(() => processNext())
+
+  await Promise.all(workers)
+  return results
+}
+
+// ============================================================================
 // Main Enrichment Job
 // ============================================================================
 
 /**
  * Run the full enrichment process for movies and series
+ *
+ * OPTIMIZED:
+ * - TMDb and OMDb calls made in parallel per item
+ * - Multiple items processed concurrently (CONCURRENCY setting)
+ * - Larger batch sizes for fewer DB queries
  */
 export async function enrichMetadata(jobId: string): Promise<EnrichmentProgress> {
   const progress: EnrichmentProgress = {
@@ -378,23 +479,25 @@ export async function enrichMetadata(jobId: string): Promise<EnrichmentProgress>
       return progress
     }
 
-    logger.info({ totalMovies, totalSeries, tmdbEnabled, omdbEnabled }, 'Starting metadata enrichment')
-    
+    const startTime = Date.now()
+    logger.info(
+      { totalMovies, totalSeries, tmdbEnabled, omdbEnabled, concurrency: CONCURRENCY },
+      'Starting metadata enrichment'
+    )
+
     // Log which metadata services are enabled
     const enabledServices: string[] = []
     if (tmdbEnabled) enabledServices.push('TMDb')
     if (omdbEnabled) enabledServices.push('OMDb')
     addLog(jobId, 'info', `Metadata services enabled: ${enabledServices.join(', ')}`)
     addLog(jobId, 'info', `Found ${totalMovies} movies and ${totalSeries} series to enrich`)
+    addLog(jobId, 'info', `⚡ Performance: ${CONCURRENCY} concurrent items, parallel API calls`)
 
     const collectionsToCreate = new Map<number, CollectionData>()
 
-    // Process movies
+    // Process movies with concurrency
     if (totalMovies > 0) {
       setJobStep(jobId, 0, 'Enriching movies', totalItems)
-
-      let offset = 0
-      const batchSize = 50
 
       while (true) {
         if (isJobCancelled(jobId)) {
@@ -402,35 +505,51 @@ export async function enrichMetadata(jobId: string): Promise<EnrichmentProgress>
           break
         }
 
-        const movies = await getMoviesNeedingEnrichment(batchSize)
+        const movies = await getMoviesNeedingEnrichment(BATCH_SIZE)
         if (movies.length === 0) break
 
-        for (const movie of movies) {
-          if (isJobCancelled(jobId)) break
+        // Process batch concurrently
+        const results = await processWithConcurrency(
+          movies,
+          CONCURRENCY,
+          async (movie) => {
+            const success = await enrichMovie(
+              movie,
+              tmdbEnabled,
+              omdbEnabled,
+              collectionsToCreate,
+              jobId
+            )
+            return success
+          },
+          () => isJobCancelled(jobId)
+        )
 
-          const success = await enrichMovie(movie, tmdbEnabled, omdbEnabled, collectionsToCreate, jobId)
+        // Update progress
+        for (const success of results) {
           progress.moviesProcessed++
-
           if (success) {
             progress.moviesEnriched++
           } else {
             progress.moviesFailed++
           }
-
-          updateJobProgress(jobId, progress.moviesProcessed, totalItems)
         }
 
-        offset += batchSize
-        addLog(jobId, 'info', `Processed ${progress.moviesProcessed} movies...`)
+        updateJobProgress(jobId, progress.moviesProcessed, totalItems)
+
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
+        const rate = (progress.moviesProcessed / parseFloat(elapsed)).toFixed(1)
+        addLog(
+          jobId,
+          'info',
+          `📽 Movies: ${progress.moviesProcessed}/${totalMovies} (${rate}/sec, ${progress.moviesEnriched} enriched)`
+        )
       }
     }
 
-    // Process series
+    // Process series with concurrency
     if (totalSeries > 0 && !isJobCancelled(jobId)) {
       setJobStep(jobId, 1, 'Enriching series', totalItems)
-
-      let offset = 0
-      const batchSize = 50
 
       while (true) {
         if (isJobCancelled(jobId)) {
@@ -438,26 +557,40 @@ export async function enrichMetadata(jobId: string): Promise<EnrichmentProgress>
           break
         }
 
-        const seriesList = await getSeriesNeedingEnrichment(batchSize)
+        const seriesList = await getSeriesNeedingEnrichment(BATCH_SIZE)
         if (seriesList.length === 0) break
 
-        for (const series of seriesList) {
-          if (isJobCancelled(jobId)) break
+        // Process batch concurrently
+        const results = await processWithConcurrency(
+          seriesList,
+          CONCURRENCY,
+          async (series) => {
+            const success = await enrichSeries(series, tmdbEnabled, omdbEnabled, jobId)
+            return success
+          },
+          () => isJobCancelled(jobId)
+        )
 
-          const success = await enrichSeries(series, tmdbEnabled, omdbEnabled, jobId)
+        // Update progress
+        for (const success of results) {
           progress.seriesProcessed++
-
           if (success) {
             progress.seriesEnriched++
           } else {
             progress.seriesFailed++
           }
-
-          updateJobProgress(jobId, progress.moviesProcessed + progress.seriesProcessed, totalItems)
         }
 
-        offset += batchSize
-        addLog(jobId, 'info', `Processed ${progress.seriesProcessed} series...`)
+        updateJobProgress(jobId, progress.moviesProcessed + progress.seriesProcessed, totalItems)
+
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
+        const totalProcessed = progress.moviesProcessed + progress.seriesProcessed
+        const rate = (totalProcessed / parseFloat(elapsed)).toFixed(1)
+        addLog(
+          jobId,
+          'info',
+          `📺 Series: ${progress.seriesProcessed}/${totalSeries} (${rate}/sec overall, ${progress.seriesEnriched} enriched)`
+        )
       }
     }
 
@@ -480,8 +613,12 @@ export async function enrichMetadata(jobId: string): Promise<EnrichmentProgress>
     }
 
     // Complete job
-    const summary = `Enriched ${progress.moviesEnriched} movies (${progress.moviesFailed} failed), ${progress.seriesEnriched} series (${progress.seriesFailed} failed), created ${progress.collectionsCreated} collections`
-    addLog(jobId, 'info', summary)
+    const totalDuration = ((Date.now() - startTime) / 1000).toFixed(1)
+    const totalProcessed = progress.moviesProcessed + progress.seriesProcessed
+    const avgRate = (totalProcessed / parseFloat(totalDuration)).toFixed(1)
+
+    const summary = `Enriched ${progress.moviesEnriched} movies (${progress.moviesFailed} failed), ${progress.seriesEnriched} series (${progress.seriesFailed} failed), created ${progress.collectionsCreated} collections in ${totalDuration}s (${avgRate}/sec)`
+    addLog(jobId, 'info', `🎉 ${summary}`)
     completeJob(jobId, { progress })
 
     logger.info(progress, 'Metadata enrichment complete')

@@ -25,6 +25,7 @@ interface OMDbConfig {
   hasApiKey: boolean
   enabled: boolean
   isConfigured: boolean
+  paidTier: boolean
 }
 
 export function OMDbConfigSection() {
@@ -38,6 +39,7 @@ export function OMDbConfigSection() {
   // Form state
   const [apiKey, setApiKey] = useState<string>('')
   const [enabled, setEnabled] = useState(true)
+  const [paidTier, setPaidTier] = useState(false)
   const [showApiKey, setShowApiKey] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
 
@@ -48,6 +50,7 @@ export function OMDbConfigSection() {
         const data = await response.json()
         setConfig(data)
         setEnabled(data.enabled)
+        setPaidTier(data.paidTier || false)
         setApiKey('')
         setHasChanges(false)
       }
@@ -75,6 +78,7 @@ export function OMDbConfigSection() {
         body: JSON.stringify({
           apiKey: apiKey || undefined,
           enabled,
+          paidTier,
         }),
       })
 
@@ -85,6 +89,7 @@ export function OMDbConfigSection() {
           hasApiKey: data.hasApiKey,
           enabled: data.enabled,
           isConfigured: data.isConfigured,
+          paidTier: data.paidTier || false,
         })
         setApiKey('')
         setHasChanges(false)
@@ -164,7 +169,7 @@ export function OMDbConfigSection() {
           <Link href="https://www.omdbapi.com/apikey.aspx" target="_blank" rel="noopener">
             Get a free API key
           </Link>{' '}
-          (1,000 requests/day, or $1/mo for unlimited).
+          (1,000 requests/day free, or 100,000/day for paid subscribers).
         </Typography>
 
         {error && (
@@ -224,6 +229,29 @@ export function OMDbConfigSection() {
               />
             }
             label="Enable OMDb enrichment"
+          />
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={paidTier}
+                onChange={(e) => {
+                  setPaidTier(e.target.checked)
+                  setHasChanges(true)
+                }}
+                disabled={!config?.hasApiKey && !apiKey}
+              />
+            }
+            label={
+              <Box>
+                <Typography variant="body2">Paid subscription</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {paidTier
+                    ? 'Using faster rate limits (40 req/sec)'
+                    : 'Enable if you have a paid OMDb key for faster enrichment'}
+                </Typography>
+              </Box>
+            }
           />
 
           <Box display="flex" gap={1} mt={1}>

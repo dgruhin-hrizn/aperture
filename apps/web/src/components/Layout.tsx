@@ -111,18 +111,26 @@ export function Layout() {
     <Box sx={{ overflow: 'auto', mt: 2, display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Logo */}
       <Box px={3} mb={3}>
-        <Typography
-          variant="h5"
-          sx={{
-            fontWeight: 700,
-            background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}
-        >
-          Aperture
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+          <Box
+            component="img"
+            src="/aperture.svg"
+            alt="Aperture"
+            sx={{ width: 28, height: 28 }}
+          />
+          <Typography
+            sx={{
+              fontFamily: '"Open Sans", sans-serif',
+              fontWeight: 600,
+              fontSize: '1.25rem',
+              color: 'text.primary',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            Aperture
+          </Typography>
+        </Box>
+        <Typography variant="caption" color="text.secondary" sx={{ pl: 5.5 }}>
           AI Movie Recommendations
         </Typography>
       </Box>
@@ -189,32 +197,20 @@ export function Layout() {
         </>
       )}
 
-      {/* User info at bottom */}
-      {user && (
-        <Box px={2} py={2} sx={{ borderTop: 1, borderColor: 'divider' }}>
-          <Box display="flex" alignItems="center" gap={1.5}>
-            <Avatar
-              src={user.avatarUrl || undefined}
-              sx={{
-                width: 32,
-                height: 32,
-                bgcolor: 'primary.main',
-                fontSize: '0.875rem',
-              }}
-            >
-              {user.username[0].toUpperCase()}
-            </Avatar>
-            <Box flex={1} minWidth={0}>
-              <Typography variant="body2" fontWeight={500} noWrap>
-                {user.displayName || user.username}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {user.isAdmin ? 'Administrator' : 'User'}
-              </Typography>
-            </Box>
-          </Box>
-        </Box>
-      )}
+      {/* Version at bottom */}
+      <Box px={3} py={2} sx={{ borderTop: 1, borderColor: 'divider' }}>
+        <Typography
+          variant="caption"
+          sx={{
+            color: 'text.secondary',
+            opacity: 0.6,
+            fontFamily: 'monospace',
+            fontSize: '0.7rem',
+          }}
+        >
+          v0.2.6
+        </Typography>
+      </Box>
     </Box>
   )
 

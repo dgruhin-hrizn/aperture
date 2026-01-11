@@ -138,7 +138,7 @@ export async function generateRecommendationsForUser(
       excludeIds = new Set(dislikedIds)
     } else {
       const allWatchedResult = await query<{ movie_id: string }>(
-        `SELECT movie_id FROM watch_history WHERE user_id = $1`,
+        `SELECT movie_id FROM watch_history WHERE user_id = $1 AND media_type = 'movie'`,
         [user.id]
       )
       excludeIds = new Set([

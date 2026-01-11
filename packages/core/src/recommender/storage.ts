@@ -1,7 +1,10 @@
 import { query, queryOne, transaction } from '../lib/db.js'
-import { getMovieEmbedding } from './movies/embeddings.js'
 import type { Candidate, WatchedMovie } from './types.js'
 
+/**
+ * Store recommendation candidates using bulk INSERT
+ * OPTIMIZED: Uses unnest() for single query instead of N individual INSERTs
+ */
 export async function storeCandidates(
   runId: string,
   allCandidates: Candidate[],
@@ -14,52 +17,77 @@ export async function storeCandidates(
   // (diversity algorithm can select movies from beyond top 100)
   const top100 = allCandidates.slice(0, 100)
   const top100Ids = new Set(top100.map((c) => c.movieId))
-  
+
   // Find selected movies that aren't in top 100
   const selectedNotInTop100 = selected.filter((s) => !top100Ids.has(s.movieId))
-  
+
   // Combine: top 100 + any selected movies not already included
   const toStore = [...top100, ...selectedNotInTop100]
 
-  for (let i = 0; i < toStore.length; i++) {
-    const c = toStore[i]
+  if (toStore.length === 0) return
+
+  // Prepare bulk data
+  const data = toStore.map((c, i) => {
     const isSelected = selectedIds.has(c.movieId)
     const selectedRank = isSelected && selectedRanks ? selectedRanks.get(c.movieId) : null
-    
-    // For candidates beyond top 100, use their position in the full list
-    const originalRank = i < 100 ? i + 1 : allCandidates.findIndex((ac) => ac.movieId === c.movieId) + 1
+    const originalRank =
+      i < 100 ? i + 1 : allCandidates.findIndex((ac) => ac.movieId === c.movieId) + 1
 
-    await query(
-      `INSERT INTO recommendation_candidates
-       (run_id, movie_id, rank, is_selected, selected_rank, final_score, similarity_score, novelty_score, rating_score, diversity_score, score_breakdown)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-      [
-        runId,
-        c.movieId,
-        originalRank,
-        isSelected,
-        selectedRank,
-        c.finalScore,
-        c.similarity,
-        c.novelty,
-        c.ratingScore,
-        c.diversityScore,
-        JSON.stringify({
-          similarity: c.similarity,
-          novelty: c.novelty,
-          rating: c.ratingScore,
-          diversity: c.diversityScore,
-        }),
-      ]
-    )
-  }
+    return {
+      movieId: c.movieId,
+      rank: originalRank,
+      isSelected,
+      selectedRank,
+      finalScore: c.finalScore,
+      similarity: c.similarity,
+      novelty: c.novelty,
+      ratingScore: c.ratingScore,
+      diversityScore: c.diversityScore,
+      scoreBreakdown: JSON.stringify({
+        similarity: c.similarity,
+        novelty: c.novelty,
+        rating: c.ratingScore,
+        diversity: c.diversityScore,
+      }),
+    }
+  })
+
+  // Bulk INSERT using unnest
+  await query(
+    `INSERT INTO recommendation_candidates
+     (run_id, movie_id, rank, is_selected, selected_rank, final_score, similarity_score, novelty_score, rating_score, diversity_score, score_breakdown)
+     SELECT $1, movie_id, rank, is_selected, selected_rank, final_score, similarity_score, novelty_score, rating_score, diversity_score, score_breakdown
+     FROM unnest(
+       $2::uuid[], $3::int[], $4::boolean[], $5::int[], $6::real[],
+       $7::real[], $8::real[], $9::real[], $10::real[], $11::jsonb[]
+     ) AS t(movie_id, rank, is_selected, selected_rank, final_score, similarity_score, novelty_score, rating_score, diversity_score, score_breakdown)`,
+    [
+      runId,
+      data.map((d) => d.movieId),
+      data.map((d) => d.rank),
+      data.map((d) => d.isSelected),
+      data.map((d) => d.selectedRank),
+      data.map((d) => d.finalScore),
+      data.map((d) => d.similarity),
+      data.map((d) => d.novelty),
+      data.map((d) => d.ratingScore),
+      data.map((d) => d.diversityScore),
+      data.map((d) => d.scoreBreakdown),
+    ]
+  )
 }
 
+/**
+ * Store recommendation evidence
+ * OPTIMIZED: Uses a single query to find all evidence, then bulk INSERT
+ */
 export async function storeEvidence(
   runId: string,
   selected: Candidate[],
   watched: WatchedMovie[]
 ): Promise<void> {
+  if (selected.length === 0 || watched.length === 0) return
+
   // Get candidate IDs
   const candidateResult = await query<{ id: string; movie_id: string }>(
     `SELECT id, movie_id FROM recommendation_candidates WHERE run_id = $1 AND is_selected = true`,
@@ -68,40 +96,75 @@ export async function storeEvidence(
 
   const candidateMap = new Map(candidateResult.rows.map((r) => [r.movie_id, r.id]))
 
-  // For each selected movie, find most similar watched movies as evidence
-  for (const sel of selected) {
-    const candidateId = candidateMap.get(sel.movieId)
+  // Create a map of watched movies for fast lookup
+  const watchedMap = new Map(watched.map((w) => [w.movieId, w]))
+  const watchedIds = watched.map((w) => w.movieId)
+
+  // Get all evidence in a single query using LATERAL join
+  // This finds the top 3 similar watched movies for each selected movie in one query
+  const selectedIds = selected.map((s) => s.movieId)
+  const evidenceResult = await query<{
+    selected_movie_id: string
+    similar_movie_id: string
+    similarity: number
+  }>(
+    `SELECT selected_movie_id, similar_movie_id, similarity
+     FROM unnest($1::uuid[]) AS sel(selected_movie_id)
+     CROSS JOIN LATERAL (
+       SELECT e2.movie_id as similar_movie_id, 
+              1 - (e2.embedding <=> e1.embedding) as similarity
+       FROM embeddings e1
+       JOIN embeddings e2 ON e2.movie_id = ANY($2)
+       WHERE e1.movie_id = sel.selected_movie_id
+       ORDER BY e2.embedding <=> e1.embedding
+       LIMIT 3
+     ) AS evidence`,
+    [selectedIds, watchedIds]
+  )
+
+  if (evidenceResult.rows.length === 0) return
+
+  // Prepare bulk insert data
+  const evidenceToInsert: {
+    candidateId: string
+    similarMovieId: string
+    similarity: number
+    evidenceType: string
+  }[] = []
+
+  for (const ev of evidenceResult.rows) {
+    const candidateId = candidateMap.get(ev.selected_movie_id)
     if (!candidateId) continue
 
-    const selEmbedding = await getMovieEmbedding(sel.movieId)
-    if (!selEmbedding) continue
+    const watchedItem = watchedMap.get(ev.similar_movie_id)
+    const evidenceType = watchedItem?.isFavorite
+      ? 'favorite'
+      : watchedItem?.playCount && watchedItem.playCount > 1
+        ? 'highly_rated'
+        : 'watched'
 
-    const vectorStr = `[${selEmbedding.join(',')}]`
+    evidenceToInsert.push({
+      candidateId,
+      similarMovieId: ev.similar_movie_id,
+      similarity: ev.similarity,
+      evidenceType,
+    })
+  }
 
-    // Find top 3 similar watched movies
-    const evidence = await query<{ movie_id: string; similarity: number }>(
-      `SELECT e.movie_id, 1 - (e.embedding <=> $1::halfvec) as similarity
-       FROM embeddings e
-       WHERE e.movie_id = ANY($2)
-       ORDER BY e.embedding <=> $1::halfvec
-       LIMIT 3`,
-      [vectorStr, watched.map((w) => w.movieId)]
+  // Bulk INSERT all evidence records
+  if (evidenceToInsert.length > 0) {
+    await query(
+      `INSERT INTO recommendation_evidence (candidate_id, similar_movie_id, similarity, evidence_type)
+       SELECT candidate_id, similar_movie_id, similarity, evidence_type
+       FROM unnest($1::uuid[], $2::uuid[], $3::real[], $4::text[])
+         AS t(candidate_id, similar_movie_id, similarity, evidence_type)`,
+      [
+        evidenceToInsert.map((e) => e.candidateId),
+        evidenceToInsert.map((e) => e.similarMovieId),
+        evidenceToInsert.map((e) => e.similarity),
+        evidenceToInsert.map((e) => e.evidenceType),
+      ]
     )
-
-    for (const ev of evidence.rows) {
-      const watchedItem = watched.find((w) => w.movieId === ev.movie_id)
-      const evidenceType = watchedItem?.isFavorite
-        ? 'favorite'
-        : watchedItem?.playCount && watchedItem.playCount > 1
-          ? 'highly_rated'
-          : 'watched'
-
-      await query(
-        `INSERT INTO recommendation_evidence (candidate_id, similar_movie_id, similarity, evidence_type)
-         VALUES ($1, $2, $3, $4)`,
-        [candidateId, ev.movie_id, ev.similarity, evidenceType]
-      )
-    }
   }
 }
 

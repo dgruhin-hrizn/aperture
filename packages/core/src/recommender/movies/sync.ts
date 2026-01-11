@@ -12,8 +12,25 @@ import {
   failJob,
 } from '../../jobs/progress.js'
 import { randomUUID } from 'crypto'
+import type { Movie, PaginatedResult } from '../../media/types.js'
+import type { MediaServerProvider } from '../../media/MediaServerProvider.js'
 
 const logger = createChildLogger('sync')
+
+// ============================================================================
+// PERFORMANCE TUNING CONSTANTS
+// ============================================================================
+// These values are optimized for local Emby/Jellyfin servers which have no rate limits.
+// Adjust if you experience issues with your specific setup.
+
+/** Number of movies to fetch per API request (Emby/Jellyfin can handle 500+ easily) */
+const PAGE_SIZE = 500
+
+/** Number of concurrent API requests for fetching pages */
+const PARALLEL_FETCHES = 4
+
+/** Number of movies to batch insert/update in a single DB transaction */
+const DB_BATCH_SIZE = 100
 
 export interface SyncMoviesResult {
   added: number
@@ -23,7 +40,279 @@ export interface SyncMoviesResult {
 }
 
 /**
+ * Prepared movie data ready for database insertion
+ */
+interface PreparedMovie {
+  movie: Movie
+  runtimeMinutes: number | null
+  posterUrl: string | null
+  backdropUrl: string | null
+  libraryId: string | null
+}
+
+/**
+ * Fetch multiple pages of movies in parallel
+ */
+async function fetchMoviesParallel(
+  provider: MediaServerProvider,
+  apiKey: string,
+  libraryId: string | null,
+  totalCount: number,
+  pageSize: number,
+  parallelFetches: number,
+  jobId: string,
+  onProgress?: (fetched: number) => void
+): Promise<Movie[]> {
+  const allMovies: Movie[] = []
+  const totalPages = Math.ceil(totalCount / pageSize)
+  let currentPage = 0
+
+  while (currentPage < totalPages) {
+    // Fetch up to parallelFetches pages at once
+    const pagesToFetch = Math.min(parallelFetches, totalPages - currentPage)
+    const fetchPromises: Promise<Movie[]>[] = []
+
+    for (let i = 0; i < pagesToFetch; i++) {
+      const startIndex = (currentPage + i) * pageSize
+      fetchPromises.push(
+        provider
+          .getMovies(apiKey, {
+            startIndex,
+            limit: pageSize,
+            parentIds: libraryId ? [libraryId] : undefined,
+          })
+          .then((result: PaginatedResult<Movie>) => result.items)
+      )
+    }
+
+    const results = await Promise.all(fetchPromises)
+    for (const movies of results) {
+      allMovies.push(...movies)
+    }
+
+    currentPage += pagesToFetch
+    onProgress?.(allMovies.length)
+
+    if (currentPage < totalPages) {
+      addLog(
+        jobId,
+        'debug',
+        `📥 Fetched ${allMovies.length}/${totalCount} movies (${currentPage}/${totalPages} pages)`
+      )
+    }
+  }
+
+  return allMovies
+}
+
+/**
+ * Process movies in batches for database insertion
+ */
+/**
+ * Process a batch of movies using bulk SQL operations
+ * 
+ * OPTIMIZED: Uses PostgreSQL unnest() for bulk INSERT/UPDATE instead of
+ * individual queries. This reduces ~100 queries per batch to just 2 queries.
+ */
+async function processMovieBatch(
+  movies: PreparedMovie[],
+  existingProviderIds: Set<string>,
+  existingTitleYears: Map<string, string>,
+  _jobId: string
+): Promise<{ added: number; updated: number }> {
+  // Separate into updates and inserts
+  const toUpdate: PreparedMovie[] = []
+  const toInsert: PreparedMovie[] = []
+
+  for (const pm of movies) {
+    if (existingProviderIds.has(pm.movie.id)) {
+      toUpdate.push(pm)
+    } else {
+      // Check for duplicate by title + year
+      const key = `${pm.movie.name?.toLowerCase()}|${pm.movie.year}`
+      if (!existingTitleYears.has(key)) {
+        toInsert.push(pm)
+        existingTitleYears.set(key, pm.movie.id)
+      }
+    }
+  }
+
+  let added = 0
+  let updated = 0
+
+  // Bulk UPDATE existing movies using unnest
+  if (toUpdate.length > 0) {
+    try {
+      const result = await query(
+        `UPDATE movies SET
+          title = data.title,
+          original_title = data.original_title,
+          year = data.year,
+          genres = data.genres,
+          overview = data.overview,
+          community_rating = data.community_rating,
+          critic_rating = data.critic_rating,
+          runtime_minutes = data.runtime_minutes,
+          path = data.path,
+          media_sources = data.media_sources,
+          poster_url = data.poster_url,
+          backdrop_url = data.backdrop_url,
+          provider_library_id = data.provider_library_id,
+          tagline = data.tagline,
+          content_rating = data.content_rating,
+          premiere_date = data.premiere_date,
+          studios = data.studios,
+          directors = data.directors,
+          writers = data.writers,
+          actors = data.actors,
+          imdb_id = data.imdb_id,
+          tmdb_id = data.tmdb_id,
+          tags = data.tags,
+          sort_title = data.sort_title,
+          production_countries = data.production_countries,
+          awards = data.awards,
+          video_resolution = data.video_resolution,
+          video_codec = data.video_codec,
+          audio_codec = data.audio_codec,
+          container = data.container,
+          updated_at = NOW()
+        FROM (
+          SELECT * FROM unnest(
+            $1::text[], $2::text[], $3::text[], $4::int[], $5::text[][],
+            $6::text[], $7::real[], $8::real[], $9::int[], $10::text[],
+            $11::jsonb[], $12::text[], $13::text[], $14::text[], $15::text[],
+            $16::text[], $17::date[], $18::jsonb[], $19::text[][], $20::text[][],
+            $21::jsonb[], $22::text[], $23::text[], $24::text[][], $25::text[],
+            $26::text[][], $27::text[], $28::text[], $29::text[], $30::text[], $31::text[]
+          ) AS t(
+            provider_item_id, title, original_title, year, genres, overview,
+            community_rating, critic_rating, runtime_minutes, path, media_sources,
+            poster_url, backdrop_url, provider_library_id, tagline, content_rating,
+            premiere_date, studios, directors, writers, actors, imdb_id, tmdb_id,
+            tags, sort_title, production_countries, awards, video_resolution,
+            video_codec, audio_codec, container
+          )
+        ) AS data
+        WHERE movies.provider_item_id = data.provider_item_id`,
+        [
+          toUpdate.map((pm) => pm.movie.id),
+          toUpdate.map((pm) => pm.movie.name),
+          toUpdate.map((pm) => pm.movie.originalTitle || null),
+          toUpdate.map((pm) => pm.movie.year || null),
+          toUpdate.map((pm) => pm.movie.genres || []),
+          toUpdate.map((pm) => pm.movie.overview || null),
+          toUpdate.map((pm) => pm.movie.communityRating || null),
+          toUpdate.map((pm) => pm.movie.criticRating || null),
+          toUpdate.map((pm) => pm.runtimeMinutes),
+          toUpdate.map((pm) => pm.movie.path || null),
+          toUpdate.map((pm) => JSON.stringify(pm.movie.mediaSources || [])),
+          toUpdate.map((pm) => pm.posterUrl),
+          toUpdate.map((pm) => pm.backdropUrl),
+          toUpdate.map((pm) => pm.libraryId),
+          toUpdate.map((pm) => pm.movie.tagline || null),
+          toUpdate.map((pm) => pm.movie.contentRating || null),
+          toUpdate.map((pm) =>
+            pm.movie.premiereDate ? pm.movie.premiereDate.split('T')[0] : null
+          ),
+          toUpdate.map((pm) => JSON.stringify(pm.movie.studios || [])),
+          toUpdate.map((pm) => pm.movie.directors || []),
+          toUpdate.map((pm) => pm.movie.writers || []),
+          toUpdate.map((pm) => JSON.stringify(pm.movie.actors || [])),
+          toUpdate.map((pm) => pm.movie.imdbId || null),
+          toUpdate.map((pm) => pm.movie.tmdbId || null),
+          toUpdate.map((pm) => pm.movie.tags || []),
+          toUpdate.map((pm) => pm.movie.sortName || null),
+          toUpdate.map((pm) => pm.movie.productionCountries || []),
+          toUpdate.map((pm) => pm.movie.awards || null),
+          toUpdate.map((pm) => pm.movie.videoResolution || null),
+          toUpdate.map((pm) => pm.movie.videoCodec || null),
+          toUpdate.map((pm) => pm.movie.audioCodec || null),
+          toUpdate.map((pm) => pm.movie.container || null),
+        ]
+      )
+      updated = result.rowCount || toUpdate.length
+      for (const pm of toUpdate) {
+        existingProviderIds.add(pm.movie.id)
+      }
+    } catch (err) {
+      logger.error({ err, count: toUpdate.length }, 'Failed to bulk update movies')
+    }
+  }
+
+  // Bulk INSERT new movies using unnest
+  if (toInsert.length > 0) {
+    try {
+      const result = await query(
+        `INSERT INTO movies (
+          provider_item_id, title, original_title, year, genres, overview,
+          community_rating, critic_rating, runtime_minutes, path, media_sources,
+          poster_url, backdrop_url, provider_library_id, tagline, content_rating,
+          premiere_date, studios, directors, writers, actors, imdb_id, tmdb_id,
+          tags, sort_title, production_countries, awards, video_resolution,
+          video_codec, audio_codec, container
+        )
+        SELECT * FROM unnest(
+          $1::text[], $2::text[], $3::text[], $4::int[], $5::text[][],
+          $6::text[], $7::real[], $8::real[], $9::int[], $10::text[],
+          $11::jsonb[], $12::text[], $13::text[], $14::text[], $15::text[],
+          $16::text[], $17::date[], $18::jsonb[], $19::text[][], $20::text[][],
+          $21::jsonb[], $22::text[], $23::text[], $24::text[][], $25::text[],
+          $26::text[][], $27::text[], $28::text[], $29::text[], $30::text[], $31::text[]
+        )
+        ON CONFLICT (provider_item_id) DO NOTHING`,
+        [
+          toInsert.map((pm) => pm.movie.id),
+          toInsert.map((pm) => pm.movie.name),
+          toInsert.map((pm) => pm.movie.originalTitle || null),
+          toInsert.map((pm) => pm.movie.year || null),
+          toInsert.map((pm) => pm.movie.genres || []),
+          toInsert.map((pm) => pm.movie.overview || null),
+          toInsert.map((pm) => pm.movie.communityRating || null),
+          toInsert.map((pm) => pm.movie.criticRating || null),
+          toInsert.map((pm) => pm.runtimeMinutes),
+          toInsert.map((pm) => pm.movie.path || null),
+          toInsert.map((pm) => JSON.stringify(pm.movie.mediaSources || [])),
+          toInsert.map((pm) => pm.posterUrl),
+          toInsert.map((pm) => pm.backdropUrl),
+          toInsert.map((pm) => pm.libraryId),
+          toInsert.map((pm) => pm.movie.tagline || null),
+          toInsert.map((pm) => pm.movie.contentRating || null),
+          toInsert.map((pm) =>
+            pm.movie.premiereDate ? pm.movie.premiereDate.split('T')[0] : null
+          ),
+          toInsert.map((pm) => JSON.stringify(pm.movie.studios || [])),
+          toInsert.map((pm) => pm.movie.directors || []),
+          toInsert.map((pm) => pm.movie.writers || []),
+          toInsert.map((pm) => JSON.stringify(pm.movie.actors || [])),
+          toInsert.map((pm) => pm.movie.imdbId || null),
+          toInsert.map((pm) => pm.movie.tmdbId || null),
+          toInsert.map((pm) => pm.movie.tags || []),
+          toInsert.map((pm) => pm.movie.sortName || null),
+          toInsert.map((pm) => pm.movie.productionCountries || []),
+          toInsert.map((pm) => pm.movie.awards || null),
+          toInsert.map((pm) => pm.movie.videoResolution || null),
+          toInsert.map((pm) => pm.movie.videoCodec || null),
+          toInsert.map((pm) => pm.movie.audioCodec || null),
+          toInsert.map((pm) => pm.movie.container || null),
+        ]
+      )
+      added = result.rowCount || toInsert.length
+      for (const pm of toInsert) {
+        existingProviderIds.add(pm.movie.id)
+      }
+    } catch (err) {
+      logger.error({ err, count: toInsert.length }, 'Failed to bulk insert movies')
+    }
+  }
+
+  return { added, updated }
+}
+
+/**
  * Sync all movies from the media server to the database
+ * 
+ * OPTIMIZED: Uses parallel API fetching and batch database operations
+ * for significantly faster sync times on large libraries.
  */
 export async function syncMovies(existingJobId?: string): Promise<SyncMoviesResult> {
   const jobId = existingJobId || randomUUID()
@@ -50,6 +339,7 @@ export async function syncMovies(existingJobId?: string): Promise<SyncMoviesResu
       'info',
       `🔑 API Key: ${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}`
     )
+    addLog(jobId, 'info', `⚡ Performance: ${PAGE_SIZE} items/page, ${PARALLEL_FETCHES} parallel fetches`)
 
     // Get enabled library IDs from config
     const enabledLibraryIds = await getEnabledLibraryIds()
@@ -73,10 +363,11 @@ export async function syncMovies(existingJobId?: string): Promise<SyncMoviesResu
     // Step 2: Fetch movie count
     setJobStep(jobId, 1, 'Fetching movie list')
     addLog(jobId, 'info', '📋 Querying media server for movie library...')
-    addLog(jobId, 'debug', 'Making initial API call to get total count...')
 
-    // Get total count - must query each library separately (Emby doesn't support multiple ParentIds)
+    // Get total count per library
+    const libraryCounts: Array<{ libraryId: string | null; count: number }> = []
     let totalMovies = 0
+
     if (librariesToSync.length > 0) {
       for (const libId of librariesToSync) {
         const countResult = await provider.getMovies(apiKey, {
@@ -84,15 +375,16 @@ export async function syncMovies(existingJobId?: string): Promise<SyncMoviesResu
           limit: 1,
           parentIds: [libId],
         })
+        libraryCounts.push({ libraryId: libId, count: countResult.totalRecordCount })
         totalMovies += countResult.totalRecordCount
         addLog(jobId, 'debug', `Library ${libId}: ${countResult.totalRecordCount} movies`)
       }
     } else {
-      // No filter - query all
       const countResult = await provider.getMovies(apiKey, {
         startIndex: 0,
         limit: 1,
       })
+      libraryCounts.push({ libraryId: null, count: countResult.totalRecordCount })
       totalMovies = countResult.totalRecordCount
     }
 
@@ -106,282 +398,94 @@ export async function syncMovies(existingJobId?: string): Promise<SyncMoviesResu
     }
     updateJobProgress(jobId, 0, totalMovies)
 
+    // Pre-fetch existing movies from database for fast duplicate checking
+    addLog(jobId, 'info', '🔍 Loading existing movies from database...')
+    const existingMovies = await query<{ provider_item_id: string; title: string; year: number | null }>(
+      'SELECT provider_item_id, title, year FROM movies'
+    )
+    const existingProviderIds = new Set<string>()
+    const existingTitleYears = new Map<string, string>()
+    for (const m of existingMovies.rows) {
+      existingProviderIds.add(m.provider_item_id)
+      if (m.title && m.year) {
+        existingTitleYears.set(`${m.title.toLowerCase()}|${m.year}`, m.provider_item_id)
+      }
+    }
+    addLog(jobId, 'info', `📊 Found ${existingMovies.rows.length} existing movies in database`)
+
+    // Step 3: Process movies - fetch and sync
+    setJobStep(jobId, 2, 'Processing movies', totalMovies)
+
     let added = 0
     let updated = 0
     let processed = 0
-    const pageSize = 50 // Smaller batches for better progress updates
+    const startTime = Date.now()
 
-    // Step 3: Process movies - sync each library separately to track library IDs correctly
-    setJobStep(jobId, 2, 'Processing movies', totalMovies)
+    for (const { libraryId, count } of libraryCounts) {
+      if (count === 0) continue
 
-    // Helper function to sync movies from a specific library
-    const syncLibrary = async (libraryId: string | null, _libraryName: string) => {
-      let startIndex = 0
+      addLog(jobId, 'info', `📂 Fetching ${count} movies from library${libraryId ? ` ${libraryId}` : ''}...`)
 
-      while (true) {
-        const result = await provider.getMovies(apiKey, {
-          startIndex,
-          limit: pageSize,
-          parentIds: libraryId ? [libraryId] : undefined,
-        })
+      // Fetch all movies from this library in parallel
+      // Note: We don't update job progress during fetch since it's fast (~7s for 12k movies)
+      // Progress updates happen during the processing phase below
+      const movies = await fetchMoviesParallel(
+        provider,
+        apiKey,
+        libraryId,
+        count,
+        PAGE_SIZE,
+        PARALLEL_FETCHES,
+        jobId
+      )
 
-        if (result.items.length === 0) {
-          break
+      addLog(jobId, 'info', `✅ Fetched ${movies.length} movies, now processing...`)
+
+      // Prepare movie data
+      const preparedMovies: PreparedMovie[] = movies.map((movie) => ({
+        movie,
+        runtimeMinutes: movie.runtimeTicks ? Math.round(movie.runtimeTicks / 600000000) : null,
+        posterUrl: movie.posterImageTag ? provider.getPosterUrl(movie.id, movie.posterImageTag) : null,
+        backdropUrl: movie.backdropImageTag ? provider.getBackdropUrl(movie.id, movie.backdropImageTag) : null,
+        libraryId,
+      }))
+
+      // Process in batches
+      for (let i = 0; i < preparedMovies.length; i += DB_BATCH_SIZE) {
+        const batch = preparedMovies.slice(i, i + DB_BATCH_SIZE)
+        const result = await processMovieBatch(batch, existingProviderIds, existingTitleYears, jobId)
+        added += result.added
+        updated += result.updated
+        processed += batch.length
+
+        updateJobProgress(
+          jobId,
+          processed,
+          totalMovies,
+          `${processed}/${totalMovies} (${added} new, ${updated} updated)`
+        )
+
+        // Log progress every few batches
+        if (i % (DB_BATCH_SIZE * 5) === 0 && i > 0) {
+          const elapsed = (Date.now() - startTime) / 1000
+          const rate = Math.round(processed / elapsed)
+          addLog(
+            jobId,
+            'info',
+            `📊 Progress: ${processed}/${totalMovies} movies (${rate}/sec, ${added} new, ${updated} updated)`
+          )
         }
-
-        for (const movie of result.items) {
-          processed++
-          updateJobProgress(jobId, processed, totalMovies, `${movie.name} (${movie.year || 'N/A'})`)
-
-          try {
-            const existing = await queryOne<{ id: string }>(
-              'SELECT id FROM movies WHERE provider_item_id = $1',
-              [movie.id]
-            )
-
-            // Convert runtime from ticks to minutes (Emby/Jellyfin use 10,000,000 ticks per second)
-            const runtimeMinutes = movie.runtimeTicks
-              ? Math.round(movie.runtimeTicks / 600000000)
-              : null
-
-            // Build poster and backdrop URLs
-            const posterUrl = movie.posterImageTag
-              ? provider.getPosterUrl(movie.id, movie.posterImageTag)
-              : null
-            const backdropUrl = movie.backdropImageTag
-              ? provider.getBackdropUrl(movie.id, movie.backdropImageTag)
-              : null
-
-            // Log detailed movie info for first few movies
-            if (processed <= 3) {
-              addLog(jobId, 'debug', `🔍 Movie details: ${movie.name}`, {
-                providerId: movie.id,
-                title: movie.name,
-                originalTitle: movie.originalTitle,
-                year: movie.year,
-                genres: movie.genres,
-                hasOverview: !!movie.overview,
-                overviewLength: movie.overview?.length || 0,
-                rating: movie.communityRating,
-                runtimeMinutes,
-                path: movie.path,
-                mediaSources: movie.mediaSources?.length || 0,
-                hasPoster: !!posterUrl,
-                hasBackdrop: !!backdropUrl,
-                libraryId,
-              })
-            }
-
-            // Use the library ID we're querying from, not the movie's parent folder
-            const libraryIdToStore = libraryId
-
-            // Check for existing movie by provider_item_id first
-            if (existing) {
-              // Update existing movie (same provider item ID) with all metadata
-              await query(
-                `UPDATE movies SET
-                  title = $2,
-                  original_title = $3,
-                  year = $4,
-                  genres = $5,
-                  overview = $6,
-                  community_rating = $7,
-                  critic_rating = $8,
-                  runtime_minutes = $9,
-                  path = $10,
-                  media_sources = $11,
-                  poster_url = $12,
-                  backdrop_url = $13,
-                  provider_library_id = $14,
-                  tagline = $15,
-                  content_rating = $16,
-                  premiere_date = $17,
-                  studios = $18,
-                  directors = $19,
-                  writers = $20,
-                  actors = $21,
-                  imdb_id = $22,
-                  tmdb_id = $23,
-                  tags = $24,
-                  sort_title = $25,
-                  production_countries = $26,
-                  awards = $27,
-                  video_resolution = $28,
-                  video_codec = $29,
-                  audio_codec = $30,
-                  container = $31,
-                  updated_at = NOW()
-                 WHERE id = $1`,
-                [
-                  existing.id,
-                  movie.name,
-                  movie.originalTitle,
-                  movie.year,
-                  movie.genres,
-                  movie.overview,
-                  movie.communityRating,
-                  movie.criticRating,
-                  runtimeMinutes,
-                  movie.path,
-                  JSON.stringify(movie.mediaSources || []),
-                  posterUrl,
-                  backdropUrl,
-                  libraryIdToStore,
-                  movie.tagline,
-                  movie.contentRating,
-                  movie.premiereDate ? movie.premiereDate.split('T')[0] : null,
-                  JSON.stringify(movie.studios || []),
-                  movie.directors || [],
-                  movie.writers || [],
-                  JSON.stringify(movie.actors || []),
-                  movie.imdbId,
-                  movie.tmdbId,
-                  movie.tags || [],
-                  movie.sortName,
-                  movie.productionCountries || [],
-                  movie.awards,
-                  movie.videoResolution,
-                  movie.videoCodec,
-                  movie.audioCodec,
-                  movie.container,
-                ]
-              )
-              updated++
-            } else {
-              // Check for duplicate by title + year (different provider item ID but same movie)
-              // This handles cases where Emby has multiple versions (4K, 1080p, etc.) of the same movie
-              const duplicateByTitleYear = await queryOne<{ id: string; provider_item_id: string }>(
-                'SELECT id, provider_item_id FROM movies WHERE LOWER(title) = LOWER($1) AND year = $2',
-                [movie.name, movie.year]
-              )
-
-              if (duplicateByTitleYear) {
-                // Skip - we already have this movie (different version)
-                if (processed <= 10 || processed % 100 === 0) {
-                  addLog(
-                    jobId,
-                    'debug',
-                    `⏭️ Skipping duplicate version: ${movie.name} (${movie.year || 'N/A'})`,
-                    {
-                      existingProviderId: duplicateByTitleYear.provider_item_id,
-                      skippedProviderId: movie.id,
-                    }
-                  )
-                }
-                // Don't count as added or updated - just skip
-              } else {
-                // Insert new movie with all metadata
-                await query(
-                  `INSERT INTO movies (
-                    provider_item_id, title, original_title, year, genres, overview,
-                    community_rating, critic_rating, runtime_minutes, path, media_sources,
-                    poster_url, backdrop_url, provider_library_id,
-                    tagline, content_rating, premiere_date, studios, directors, writers,
-                    actors, imdb_id, tmdb_id, tags, sort_title, production_countries,
-                    awards, video_resolution, video_codec, audio_codec, container
-                  ) VALUES (
-                    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-                    $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26,
-                    $27, $28, $29, $30, $31
-                  )`,
-                  [
-                    movie.id,
-                    movie.name,
-                    movie.originalTitle,
-                    movie.year,
-                    movie.genres,
-                    movie.overview,
-                    movie.communityRating,
-                    movie.criticRating,
-                    runtimeMinutes,
-                    movie.path,
-                    JSON.stringify(movie.mediaSources || []),
-                    posterUrl,
-                    backdropUrl,
-                    libraryIdToStore,
-                    movie.tagline,
-                    movie.contentRating,
-                    movie.premiereDate ? movie.premiereDate.split('T')[0] : null,
-                    JSON.stringify(movie.studios || []),
-                    movie.directors || [],
-                    movie.writers || [],
-                    JSON.stringify(movie.actors || []),
-                    movie.imdbId,
-                    movie.tmdbId,
-                    movie.tags || [],
-                    movie.sortName,
-                    movie.productionCountries || [],
-                    movie.awards,
-                    movie.videoResolution,
-                    movie.videoCodec,
-                    movie.audioCodec,
-                    movie.container,
-                  ]
-                )
-                added++
-                addLog(jobId, 'info', `➕ Added: ${movie.name} (${movie.year || 'N/A'})`, {
-                  genres: movie.genres,
-                  rating: movie.communityRating,
-                  runtime: runtimeMinutes ? `${runtimeMinutes}m` : 'N/A',
-                })
-              }
-            }
-
-            // Log progress every 25 movies
-            if (processed % 25 === 0) {
-              addLog(
-                jobId,
-                'info',
-                `📊 Progress: ${processed}/${totalMovies} movies (${added} new, ${updated} updated)`
-              )
-            }
-          } catch (movieErr) {
-            const movieError = movieErr instanceof Error ? movieErr.message : 'Unknown error'
-            addLog(
-              jobId,
-              'error',
-              `❌ Failed to sync movie: ${movie.name} (${movie.year || 'N/A'})`,
-              {
-                error: movieError,
-                movieId: movie.id,
-                title: movie.name,
-                year: movie.year,
-                communityRating: movie.communityRating,
-                criticRating: movie.criticRating,
-                runtimeTicks: movie.runtimeTicks,
-              }
-            )
-            // Continue with next movie instead of failing entire job
-            logger.error({ err: movieErr, movie: movie.name }, 'Failed to sync individual movie')
-          }
-        }
-
-        if (startIndex + result.items.length >= result.totalRecordCount) {
-          break
-        }
-
-        startIndex += pageSize
       }
     }
 
-    // Sync each library separately to properly track library IDs
-    if (librariesToSync.length > 0) {
-      for (const libraryId of librariesToSync) {
-        addLog(jobId, 'info', `📂 Syncing library: ${libraryId}`)
-        await syncLibrary(libraryId, libraryId)
-      }
-    } else {
-      // No filter - sync all (library ID will be null)
-      await syncLibrary(null, 'All Libraries')
-    }
-
+    const totalDuration = ((Date.now() - startTime) / 1000).toFixed(1)
     const finalResult = { added, updated, total: processed, jobId }
     completeJob(jobId, finalResult)
 
     addLog(
       jobId,
       'info',
-      `🎉 Sync complete: ${added} new movies, ${updated} updated, ${processed} total`
+      `🎉 Sync complete in ${totalDuration}s: ${added} new movies, ${updated} updated, ${processed} total`
     )
 
     return finalResult
@@ -437,46 +541,64 @@ export async function syncWatchHistoryForUser(
   )
   const existingMovieIds = new Set(existingHistory.rows.map((r) => r.movie_id))
 
-  let synced = 0
-  const syncedMovieIds = new Set<string>()
+  // Prepare bulk data - filter to items we have in our database
+  const toSync: {
+    movieId: string
+    playCount: number
+    lastPlayedAt: Date | null
+    isFavorite: boolean
+  }[] = []
 
   for (const item of watchedItems) {
     const movieId = providerIdToMovieId.get(item.movieId)
-
-    if (!movieId) {
-      logger.debug({ providerItemId: item.movieId }, 'Movie not found in database, skipping')
-      continue
+    if (movieId) {
+      toSync.push({
+        movieId,
+        playCount: item.playCount,
+        lastPlayedAt: item.lastPlayedDate ? new Date(item.lastPlayedDate) : null,
+        isFavorite: item.isFavorite,
+      })
     }
+  }
 
-    // Upsert watch history (uses partial unique index idx_watch_history_user_movie_unique)
-    await query(
+  const syncedMovieIds = new Set<string>(toSync.map((t) => t.movieId))
+  let synced = 0
+
+  // Bulk upsert watch history using unnest()
+  if (toSync.length > 0) {
+    const result = await query(
       `INSERT INTO watch_history (user_id, movie_id, play_count, last_played_at, is_favorite, media_type)
-       VALUES ($1, $2, $3, $4, $5, 'movie')
+       SELECT $1, movie_id, play_count, last_played_at, is_favorite, 'movie'
+       FROM unnest($2::uuid[], $3::int[], $4::timestamptz[], $5::boolean[])
+         AS t(movie_id, play_count, last_played_at, is_favorite)
        ON CONFLICT (user_id, movie_id) WHERE movie_id IS NOT NULL DO UPDATE SET
          play_count = EXCLUDED.play_count,
          last_played_at = EXCLUDED.last_played_at,
          is_favorite = EXCLUDED.is_favorite,
          updated_at = NOW()`,
-      [userId, movieId, item.playCount, item.lastPlayedDate || null, item.isFavorite]
+      [
+        userId,
+        toSync.map((t) => t.movieId),
+        toSync.map((t) => t.playCount),
+        toSync.map((t) => t.lastPlayedAt),
+        toSync.map((t) => t.isFavorite),
+      ]
     )
-
-    syncedMovieIds.add(movieId)
-    synced++
+    synced = result.rowCount || toSync.length
   }
 
   // Remove watch history entries for movies no longer marked as watched
   // Only do this on full sync (delta sync only adds/updates)
   let removed = 0
-  if (fullSync) {
-    for (const existingMovieId of existingMovieIds) {
-      if (!syncedMovieIds.has(existingMovieId)) {
-        await query('DELETE FROM watch_history WHERE user_id = $1 AND movie_id = $2', [
-          userId,
-          existingMovieId,
-        ])
-        removed++
-        logger.debug({ userId, movieId: existingMovieId }, 'Removed stale watch history entry')
-      }
+  if (fullSync && existingMovieIds.size > 0) {
+    const toRemove = [...existingMovieIds].filter((id) => !syncedMovieIds.has(id))
+    if (toRemove.length > 0) {
+      const deleteResult = await query(
+        `DELETE FROM watch_history WHERE user_id = $1 AND movie_id = ANY($2::uuid[])`,
+        [userId, toRemove]
+      )
+      removed = deleteResult.rowCount || toRemove.length
+      logger.debug({ userId, removed }, 'Removed stale watch history entries')
     }
   }
 

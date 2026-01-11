@@ -14,9 +14,6 @@ import {
   LinearProgress,
   Button,
   CircularProgress,
-  FormControlLabel,
-  Switch,
-  Tooltip,
   Tabs,
   Tab,
 } from '@mui/material'
@@ -24,8 +21,6 @@ import GridViewIcon from '@mui/icons-material/GridView'
 import ViewListIcon from '@mui/icons-material/ViewList'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import RefreshIcon from '@mui/icons-material/Refresh'
-import VisibilityIcon from '@mui/icons-material/Visibility'
-import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import { MoviePoster, RankBadge } from '@aperture/ui'
@@ -116,55 +111,6 @@ export function MyRecommendationsPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [regenerating, setRegenerating] = useState(false)
   const [regenerateMessage, setRegenerateMessage] = useState<string | null>(null)
-  const [includeWatched, setIncludeWatched] = useState(false)
-  const [savingPreference, setSavingPreference] = useState(false)
-
-  const fetchPreferences = async () => {
-    if (!user) return
-
-    try {
-      const response = await fetch(`/api/recommendations/${user.id}/preferences`, {
-        credentials: 'include',
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setIncludeWatched(data.includeWatched)
-      }
-    } catch {
-      // Ignore errors, use default
-    }
-  }
-
-  const handleIncludeWatchedChange = async (checked: boolean) => {
-    if (!user || savingPreference) return
-
-    setSavingPreference(true)
-    setIncludeWatched(checked)
-
-    try {
-      const response = await fetch(`/api/recommendations/${user.id}/preferences`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ includeWatched: checked }),
-      })
-
-      if (response.ok) {
-        const mediaLabel = mediaType === 'movies' ? 'movies' : 'series'
-        setRegenerateMessage(
-          `✓ Preference saved. ${checked ? `Recommendations will include watched ${mediaLabel}.` : `Recommendations will exclude watched ${mediaLabel}.`} Click Regenerate to apply.`
-        )
-      } else {
-        setIncludeWatched(!checked) // Revert
-        setRegenerateMessage('✗ Failed to save preference')
-      }
-    } catch {
-      setIncludeWatched(!checked) // Revert
-      setRegenerateMessage('✗ Could not save preference')
-    } finally {
-      setSavingPreference(false)
-    }
-  }
 
   const fetchMovieRecommendations = async () => {
     if (!user) return
@@ -209,7 +155,6 @@ export function MyRecommendationsPage() {
   useEffect(() => {
     fetchMovieRecommendations()
     fetchSeriesRecommendations()
-    fetchPreferences()
   }, [user])
 
   const handleRegenerate = async () => {
@@ -331,33 +276,6 @@ export function MyRecommendationsPage() {
         </Box>
 
         <Box display="flex" alignItems="center" gap={2}>
-          <Tooltip
-            title={
-              includeWatched
-                ? `Recommendations may include ${mediaType === 'movies' ? 'movies' : 'series'} you've already watched`
-                : `Recommendations will only show ${mediaType === 'movies' ? 'movies' : 'series'} you haven't watched`
-            }
-          >
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={includeWatched}
-                  onChange={(e) => handleIncludeWatchedChange(e.target.checked)}
-                  disabled={savingPreference}
-                  size="small"
-                  icon={<VisibilityOffIcon fontSize="small" />}
-                  checkedIcon={<VisibilityIcon fontSize="small" />}
-                />
-              }
-              label={
-                <Typography variant="body2" color="text.secondary">
-                  {includeWatched ? 'Including watched' : 'New only'}
-                </Typography>
-              }
-              sx={{ mr: 1 }}
-            />
-          </Tooltip>
-
           <Button
             variant="outlined"
             startIcon={regenerating ? <CircularProgress size={16} /> : <RefreshIcon />}

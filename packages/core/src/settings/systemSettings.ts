@@ -1042,6 +1042,8 @@ export interface OMDbConfig {
   apiKey: string | null
   enabled: boolean
   hasApiKey: boolean
+  /** Whether user has a paid OMDb subscription (100k requests/day vs 1k free) */
+  paidTier: boolean
 }
 
 /**
@@ -1050,11 +1052,13 @@ export interface OMDbConfig {
 export async function getOMDbConfig(): Promise<OMDbConfig> {
   const apiKey = await getSystemSetting('omdb_api_key')
   const enabled = await getSystemSetting('omdb_enabled')
+  const paidTier = await getSystemSetting('omdb_paid_tier')
 
   return {
     apiKey: apiKey || null,
     enabled: enabled !== 'false' && !!apiKey, // Enabled by default if key exists
     hasApiKey: !!apiKey,
+    paidTier: paidTier === 'true',
   }
 }
 
@@ -1071,6 +1075,7 @@ export async function getOMDbApiKey(): Promise<string | null> {
 export async function setOMDbConfig(config: {
   apiKey?: string
   enabled?: boolean
+  paidTier?: boolean
 }): Promise<OMDbConfig> {
   if (config.apiKey !== undefined) {
     await setSystemSetting(
@@ -1082,8 +1087,23 @@ export async function setOMDbConfig(config: {
   if (config.enabled !== undefined) {
     await setSystemSetting('omdb_enabled', String(config.enabled), 'Enable OMDb integration')
   }
+  if (config.paidTier !== undefined) {
+    await setSystemSetting(
+      'omdb_paid_tier',
+      String(config.paidTier),
+      'Whether using paid OMDb subscription (100k requests/day vs 1k free)'
+    )
+  }
   logger.info('OMDb config updated')
   return getOMDbConfig()
+}
+
+/**
+ * Check if user has paid OMDb tier
+ */
+export async function isOMDbPaidTier(): Promise<boolean> {
+  const paidTier = await getSystemSetting('omdb_paid_tier')
+  return paidTier === 'true'
 }
 
 /**

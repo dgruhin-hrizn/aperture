@@ -10,8 +10,8 @@ import { TMDB_API_BASE_URL } from './types.js'
 const logger = createChildLogger('tmdb')
 
 // Rate limiting configuration
-// TMDb allows ~50 requests per second, but we'll be conservative
-const RATE_LIMIT_DELAY_MS = 50 // ~20 requests per second
+// TMDb allows ~50 requests per second, we use 25ms (~40/sec) to stay safe
+const RATE_LIMIT_DELAY_MS = 25 // ~40 requests per second (TMDb allows ~50)
 const MAX_RETRIES = 3
 const RETRY_DELAY_MS = 1000
 

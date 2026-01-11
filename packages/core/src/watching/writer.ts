@@ -1,9 +1,15 @@
 /**
  * Shows You Watch STRM Writer
- * 
+ *
  * Generates symlinks/STRM files for a user's "Shows You Watch" library.
  * Simpler than Top Picks - no ranking or special sorting, just symlinks to
  * the user's selected series.
+ *
+ * INCREMENTAL UPDATE OPTIMIZATION:
+ * - Tracks existing series by provider item ID
+ * - Only writes NFO files when content actually changes (using content hash)
+ * - Preserves file modification times to avoid triggering library scans
+ * - Only triggers library refresh when series are added or removed
  */
 
 import crypto from 'crypto'
@@ -14,10 +20,7 @@ import { query, queryOne } from '../lib/db.js'
 import { getConfig } from '../strm/config.js'
 import { sanitizeFilename } from '../strm/filenames.js'
 import { downloadImage } from '../strm/images.js'
-import {
-  symlinkArtwork,
-  SERIES_SKIP_FILES,
-} from '../strm/artwork.js'
+import { symlinkArtwork, SERIES_SKIP_FILES } from '../strm/artwork.js'
 import { getMediaServerProvider } from '../media/index.js'
 import { getMediaServerApiKey, getWatchingLibraryConfig } from '../settings/systemSettings.js'
 import type { ImageDownloadTask } from '../strm/types.js'
@@ -31,6 +34,23 @@ import {
 } from '../jobs/index.js'
 
 const logger = createChildLogger('watching-writer')
+
+/**
+ * Write file only if content has changed (preserves modification time if unchanged)
+ * Returns true if the file was actually written (new or changed)
+ */
+async function writeFileIfChanged(filePath: string, content: string): Promise<boolean> {
+  try {
+    const existingContent = await fs.readFile(filePath, 'utf-8')
+    if (existingContent === content) {
+      return false // No change, file preserved
+    }
+  } catch {
+    // File doesn't exist, will be created
+  }
+  await fs.writeFile(filePath, content, 'utf-8')
+  return true
+}
 
 interface WatchingSeries {
   id: string
@@ -56,6 +76,7 @@ interface WatchingSeries {
   imdbId: string | null
   tmdbId: string | null
   tvdbId: string | null
+  addedAt: Date // When the series was added to the watching list
 }
 
 /**
@@ -73,6 +94,9 @@ function escapeXml(input: string): string {
 /**
  * Generate NFO content for a watching series
  * Standard tvshow.nfo format without ranking badges
+ *
+ * Uses the stable `addedAt` timestamp (when user added the series) rather than
+ * current time, to prevent unnecessary library metadata refreshes.
  */
 function generateWatchingSeriesNfo(series: WatchingSeries): string {
   const lines = ['<?xml version="1.0" encoding="utf-8" standalone="yes"?>', '<tvshow>']
@@ -83,7 +107,12 @@ function generateWatchingSeriesNfo(series: WatchingSeries): string {
   }
 
   lines.push(`  <lockdata>false</lockdata>`)
-  lines.push(`  <dateadded>${new Date().toISOString().slice(0, 19).replace('T', ' ')}</dateadded>`)
+  // Use stable addedAt date instead of current time to avoid triggering metadata refreshes
+  const dateAdded =
+    series.addedAt instanceof Date
+      ? series.addedAt.toISOString().slice(0, 19).replace('T', ' ')
+      : new Date(series.addedAt).toISOString().slice(0, 19).replace('T', ' ')
+  lines.push(`  <dateadded>${dateAdded}</dateadded>`)
   lines.push(`  <title>${escapeXml(series.title)}</title>`)
 
   // Original title
@@ -111,9 +140,10 @@ function generateWatchingSeriesNfo(series: WatchingSeries): string {
 
   // Rating
   if (series.communityRating != null) {
-    const rating = typeof series.communityRating === 'number' 
-      ? series.communityRating 
-      : parseFloat(String(series.communityRating))
+    const rating =
+      typeof series.communityRating === 'number'
+        ? series.communityRating
+        : parseFloat(String(series.communityRating))
     if (!isNaN(rating)) {
       lines.push(`  <rating>${rating.toFixed(1)}</rating>`)
     }
@@ -204,16 +234,27 @@ function buildWatchingSeriesFilename(series: WatchingSeries): string {
 
 /**
  * Write STRM files or symlinks for a user's watching series
+ *
+ * INCREMENTAL UPDATE: Returns `hasChanges` to indicate if files were actually
+ * added or removed, allowing the caller to skip library refresh when unchanged.
  */
 export async function writeWatchingSeriesForUser(
   userId: string,
   providerUserId: string
-): Promise<{ written: number; deleted: number; localPath: string; embyPath: string }> {
+): Promise<{
+  written: number
+  deleted: number
+  added: number
+  unchanged: number
+  hasChanges: boolean
+  localPath: string
+  embyPath: string
+}> {
   const config = await getConfig()
   const watchingConfig = await getWatchingLibraryConfig()
   const useSymlinks = watchingConfig.useSymlinks
   const provider = await getMediaServerProvider()
-  const apiKey = await getMediaServerApiKey() || ''
+  const apiKey = (await getMediaServerApiKey()) || ''
   const startTime = Date.now()
 
   // Get user's display name for folder naming
@@ -234,7 +275,7 @@ export async function writeWatchingSeriesForUser(
   const localPath = path.join(config.strmRoot, 'aperture-watching', userFolder)
   const embyPath = path.join(config.libraryPathPrefix, 'aperture-watching', userFolder)
 
-  // Get user's watching series from database
+  // Get user's watching series from database (include added_at for stable dateadded)
   const watchingResult = await query<{
     series_id: string
     title: string
@@ -259,12 +300,13 @@ export async function writeWatchingSeriesForUser(
     imdb_id: string | null
     tmdb_id: string | null
     tvdb_id: string | null
+    added_at: Date
   }>(
     `SELECT s.id as series_id, s.title, s.original_title, s.year, s.end_year,
             s.provider_item_id, s.poster_url, s.backdrop_url, s.overview,
             s.genres, s.community_rating, s.content_rating, s.network, s.status,
             s.total_seasons, s.total_episodes, s.studios, s.directors, s.writers,
-            s.actors, s.imdb_id, s.tmdb_id, s.tvdb_id
+            s.actors, s.imdb_id, s.tmdb_id, s.tvdb_id, uws.added_at
      FROM user_watching_series uws
      JOIN series s ON s.id = uws.series_id
      WHERE uws.user_id = $1
@@ -280,11 +322,13 @@ export async function writeWatchingSeriesForUser(
   // Ensure directory exists
   await fs.mkdir(localPath, { recursive: true })
 
-  // Get existing series folders to track deletions
+  // Get existing series folders to track deletions and unchanged series
   const existingFolders = new Set(await fs.readdir(localPath).catch(() => []))
   const currentFolders = new Set<string>()
 
   let written = 0
+  let added = 0 // New series added
+  let unchanged = 0 // Existing series that weren't modified
 
   for (const row of watchingResult.rows) {
     // Parse JSONB fields
@@ -330,6 +374,7 @@ export async function writeWatchingSeriesForUser(
       imdbId: row.imdb_id,
       tmdbId: row.tmdb_id,
       tvdbId: row.tvdb_id,
+      addedAt: row.added_at,
     }
 
     // Get first episode to find the original series folder path
@@ -378,16 +423,22 @@ export async function writeWatchingSeriesForUser(
     const seriesPath = path.join(localPath, seriesFolderName)
     currentFolders.add(seriesFolderName)
 
-    // Check if folder already exists
-    const folderExists = existingFolders.has(seriesFolderName)
-    if (!folderExists) {
+    // Check if folder already exists (for tracking new vs existing series)
+    const isNewSeries = !existingFolders.has(seriesFolderName)
+    if (isNewSeries) {
       await fs.mkdir(seriesPath, { recursive: true })
+      added++
+      logger.debug({ title: series.title }, '➕ New series added to watching library')
     }
 
-    // Write tvshow.nfo
+    // Write tvshow.nfo ONLY if content has changed (preserves file timestamps)
     const nfoPath = path.join(seriesPath, 'tvshow.nfo')
     const nfoContent = generateWatchingSeriesNfo(series)
-    await fs.writeFile(nfoPath, nfoContent, 'utf-8')
+    const nfoChanged = await writeFileIfChanged(nfoPath, nfoContent)
+
+    if (!isNewSeries && !nfoChanged) {
+      unchanged++
+    }
 
     if (useSymlinks) {
       // SYMLINKS MODE: Symlink entire season folders from original location
@@ -411,7 +462,10 @@ export async function writeWatchingSeriesForUser(
           // Symlink doesn't exist, create it
           try {
             await fs.symlink(season.season_path, symlinkPath)
-            logger.debug({ seasonFolderName, originalPath: season.season_path }, 'Created season symlink')
+            logger.debug(
+              { seasonFolderName, originalPath: season.season_path },
+              'Created season symlink'
+            )
           } catch (err) {
             logger.debug({ err, seasonFolderName }, 'Failed to create season symlink')
           }
@@ -545,50 +599,97 @@ export async function writeWatchingSeriesForUser(
   }
 
   const duration = Date.now() - startTime
-  logger.info({ written, deleted, duration, localPath }, '✅ Watching series STRM files written')
+  const hasChanges = added > 0 || deleted > 0
 
-  return { written, deleted, localPath, embyPath }
+  logger.info(
+    { written, added, unchanged, deleted, hasChanges, duration, localPath },
+    hasChanges
+      ? '✅ Watching series updated (library refresh needed)'
+      : '✅ Watching series unchanged (no library refresh needed)'
+  )
+
+  return { written, deleted, added, unchanged, hasChanges, localPath, embyPath }
 }
 
 /**
  * Process watching library for a single user
  * Creates/updates library and permissions
+ *
+ * OPTIMIZATION: Only triggers library refresh when files are actually added or removed,
+ * preventing unnecessary full library scans when nothing has changed.
  */
 export async function processWatchingForUser(
   userId: string,
   providerUserId: string,
   displayName: string
-): Promise<{ written: number; libraryCreated: boolean }> {
-  const { ensureUserWatchingLibrary, updateUserWatchingLibraryPermissions, refreshUserWatchingLibrary } = await import('./library.js')
+): Promise<{
+  written: number
+  added: number
+  unchanged: number
+  deleted: number
+  libraryCreated: boolean
+  libraryRefreshed: boolean
+}> {
+  const {
+    ensureUserWatchingLibrary,
+    updateUserWatchingLibraryPermissions,
+    refreshUserWatchingLibrary,
+  } = await import('./library.js')
 
-  // Step 1: Write STRM files first
+  // Step 1: Write STRM files first (incremental - only writes changed files)
   const strmResult = await writeWatchingSeriesForUser(userId, providerUserId)
 
   // Skip library creation if no series
   if (strmResult.written === 0) {
     logger.info({ userId, displayName }, '⏭️ No watching series, skipping library creation')
-    return { written: 0, libraryCreated: false }
+    return {
+      written: 0,
+      added: 0,
+      unchanged: 0,
+      deleted: 0,
+      libraryCreated: false,
+      libraryRefreshed: false,
+    }
   }
 
   // Step 2: Ensure library exists in media server
   const libraryResult = await ensureUserWatchingLibrary(userId, providerUserId, displayName)
 
-  // Step 3: Refresh library
-  await refreshUserWatchingLibrary(userId)
+  // Step 3: ONLY refresh library if files were added or removed
+  // This is the key optimization - skip refresh if nothing changed to avoid full library scans
+  let libraryRefreshed = false
+  if (strmResult.hasChanges || libraryResult.created) {
+    await refreshUserWatchingLibrary(userId)
+    libraryRefreshed = true
+    logger.info(
+      { userId, displayName, added: strmResult.added, deleted: strmResult.deleted },
+      '🔄 Library refresh triggered (files changed)'
+    )
+  } else {
+    logger.info(
+      { userId, displayName, unchanged: strmResult.unchanged },
+      '⏭️ Skipping library refresh (no changes detected)'
+    )
+  }
 
   // Step 4: Update user permissions
   await updateUserWatchingLibraryPermissions(userId, providerUserId)
 
-  return { written: strmResult.written, libraryCreated: libraryResult.created }
+  return {
+    written: strmResult.written,
+    added: strmResult.added,
+    unchanged: strmResult.unchanged,
+    deleted: strmResult.deleted,
+    libraryCreated: libraryResult.created,
+    libraryRefreshed,
+  }
 }
 
 /**
  * Process watching libraries for ALL users who have items in their watching list
  * This is the main entry point for the scheduled job
  */
-export async function processWatchingLibrariesForAllUsers(
-  jobId?: string
-): Promise<{
+export async function processWatchingLibrariesForAllUsers(jobId?: string): Promise<{
   success: number
   failed: number
   jobId: string
@@ -647,9 +748,13 @@ export async function processWatchingLibrariesForAllUsers(
       const displayName = user.display_name || user.username
 
       try {
-        addLog(actualJobId, 'info', `📺 Processing watching library for ${displayName} (${user.watching_count} series)...`)
+        addLog(
+          actualJobId,
+          'info',
+          `📺 Processing watching library for ${displayName} (${user.watching_count} series)...`
+        )
 
-        // Process the user's watching library
+        // Process the user's watching library (incremental update)
         const result = await processWatchingForUser(user.id, user.provider_user_id, displayName)
 
         users.push({
@@ -662,9 +767,32 @@ export async function processWatchingLibrariesForAllUsers(
           addLog(actualJobId, 'info', `  📚 Created new watching library in media server`)
         }
 
+        // Log incremental update status
+        if (result.libraryRefreshed) {
+          addLog(
+            actualJobId,
+            'info',
+            `  🔄 Library refreshed: +${result.added} added, -${result.deleted} removed`
+          )
+        } else if (result.unchanged > 0) {
+          addLog(actualJobId, 'debug', `  ⏭️ No changes: ${result.unchanged} series unchanged`)
+        }
+
         success++
-        addLog(actualJobId, 'info', `✅ Completed watching library for ${displayName} (${result.written} series)`)
-        updateJobProgress(actualJobId, success + failed, totalUsers, `${success + failed}/${totalUsers} users`)
+        const changeStatus = result.libraryRefreshed
+          ? `+${result.added}/-${result.deleted}`
+          : 'no changes'
+        addLog(
+          actualJobId,
+          'info',
+          `✅ Completed watching library for ${displayName} (${result.written} series, ${changeStatus})`
+        )
+        updateJobProgress(
+          actualJobId,
+          success + failed,
+          totalUsers,
+          `${success + failed}/${totalUsers} users`
+        )
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error'
         logger.error({ err, userId: user.id }, 'Failed to process watching library')
@@ -678,16 +806,29 @@ export async function processWatchingLibrariesForAllUsers(
         })
 
         failed++
-        updateJobProgress(actualJobId, success + failed, totalUsers, `${success + failed}/${totalUsers} users (${failed} failed)`)
+        updateJobProgress(
+          actualJobId,
+          success + failed,
+          totalUsers,
+          `${success + failed}/${totalUsers} users (${failed} failed)`
+        )
       }
     }
 
     const finalResult = { success, failed, jobId: actualJobId, users }
 
     if (failed > 0) {
-      addLog(actualJobId, 'warn', `⚠️ Completed with ${failed} failure(s): ${success} succeeded, ${failed} failed`)
+      addLog(
+        actualJobId,
+        'warn',
+        `⚠️ Completed with ${failed} failure(s): ${success} succeeded, ${failed} failed`
+      )
     } else {
-      addLog(actualJobId, 'info', `🎉 All ${success} user(s) watching libraries processed successfully!`)
+      addLog(
+        actualJobId,
+        'info',
+        `🎉 All ${success} user(s) watching libraries processed successfully!`
+      )
     }
 
     completeJob(actualJobId, finalResult)
@@ -699,4 +840,3 @@ export async function processWatchingLibrariesForAllUsers(
     throw err
   }
 }
-

@@ -425,6 +425,7 @@ async function createSeriesRecommendationRun(userId: string): Promise<string> {
 
 /**
  * Store series recommendation candidates
+ * OPTIMIZED: Uses unnest() for bulk INSERT instead of N individual queries
  */
 async function storeSeriesCandidates(
   runId: string,
@@ -432,32 +433,54 @@ async function storeSeriesCandidates(
   selected: SeriesCandidate[],
   selectedRanks: Map<string, number>
 ): Promise<void> {
+  if (candidates.length === 0) return
+
   const selectedIds = new Set(selected.map((s) => s.seriesId))
 
-  for (let i = 0; i < candidates.length; i++) {
-    const candidate = candidates[i]
+  // Prepare bulk data
+  const data = candidates.map((candidate, i) => {
     const isSelected = selectedIds.has(candidate.seriesId)
     const selectedRank = isSelected ? selectedRanks.get(candidate.seriesId) || null : null
 
-    await query(
-      `INSERT INTO recommendation_candidates (
-         run_id, series_id, rank, similarity_score, novelty_score, rating_score,
-         diversity_score, final_score, is_selected, selected_rank
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [
-        runId,
-        candidate.seriesId,
-        i + 1, // overall rank among all candidates
-        candidate.similarity,
-        candidate.novelty,
-        candidate.ratingScore,
-        candidate.diversityBoost,
-        candidate.finalScore,
-        isSelected,
-        selectedRank,
-      ]
-    )
-  }
+    return {
+      seriesId: candidate.seriesId,
+      rank: i + 1,
+      similarity: candidate.similarity,
+      novelty: candidate.novelty,
+      ratingScore: candidate.ratingScore,
+      diversityScore: candidate.diversityBoost,
+      finalScore: candidate.finalScore,
+      isSelected,
+      selectedRank,
+    }
+  })
+
+  // Bulk INSERT using unnest
+  await query(
+    `INSERT INTO recommendation_candidates (
+       run_id, series_id, rank, similarity_score, novelty_score, rating_score,
+       diversity_score, final_score, is_selected, selected_rank
+     )
+     SELECT $1, series_id, rank, similarity_score, novelty_score, rating_score,
+            diversity_score, final_score, is_selected, selected_rank
+     FROM unnest(
+       $2::uuid[], $3::int[], $4::real[], $5::real[], $6::real[],
+       $7::real[], $8::real[], $9::boolean[], $10::int[]
+     ) AS t(series_id, rank, similarity_score, novelty_score, rating_score, 
+            diversity_score, final_score, is_selected, selected_rank)`,
+    [
+      runId,
+      data.map((d) => d.seriesId),
+      data.map((d) => d.rank),
+      data.map((d) => d.similarity),
+      data.map((d) => d.novelty),
+      data.map((d) => d.ratingScore),
+      data.map((d) => d.diversityScore),
+      data.map((d) => d.finalScore),
+      data.map((d) => d.isSelected),
+      data.map((d) => d.selectedRank),
+    ]
+  )
 }
 
 /**
@@ -540,8 +563,26 @@ export async function generateSeriesRecommendationsForUser(
     )
     const includeWatched = userPrefs?.include_watched ?? false
 
-    // Get all watched series IDs for filtering
-    const allWatchedIds = new Set(watchedSeries.map((w) => w.seriesId))
+    // Get ALL watched series IDs for filtering (not just recent ones used for taste profile)
+    // This ensures we exclude ALL series the user has watched, not just the recentWatchLimit
+    let allWatchedIds: Set<string>
+    if (includeWatched) {
+      // If including watched, no need to query - just use empty set
+      allWatchedIds = new Set()
+    } else {
+      const allWatchedResult = await query<{ series_id: string }>(
+        `SELECT DISTINCT e.series_id 
+         FROM watch_history wh
+         JOIN episodes e ON e.id = wh.episode_id
+         WHERE wh.user_id = $1 AND wh.media_type = 'episode'`,
+        [user.id]
+      )
+      allWatchedIds = new Set(allWatchedResult.rows.map((r) => r.series_id))
+      logger.info(
+        { userId: user.id, totalWatched: allWatchedIds.size },
+        `📋 Loaded ${allWatchedIds.size} watched series to exclude`
+      )
+    }
 
     // 4. Get candidate series
     logger.info({ userId: user.id }, '🔍 Finding candidate series...')
