@@ -7,6 +7,13 @@ import { createChildLogger } from '../lib/logger.js'
 import { getMediaServerProvider, getMediaServerApiKey } from '../index.js'
 import { tmdbRequest, getImageUrl } from '../tmdb/client.js'
 import { pushImageToMediaServer } from '../uploads/mediaServerSync.js'
+import {
+  createJobProgress,
+  updateJobProgress,
+  addLog,
+  completeJob,
+  failJob,
+} from '../jobs/progress.js'
 import type { TMDbMovieDetails, TMDbTVDetails } from '../tmdb/types.js'
 
 const logger = createChildLogger('poster-repair')
@@ -301,7 +308,77 @@ export interface RepairProgress {
 }
 
 /**
- * Repair posters for selected items
+ * Repair posters for selected items (async with job progress tracking)
+ * Fetches from TMDB and pushes directly to Emby (no local storage)
+ */
+export async function repairPostersAsync(
+  items: MissingPosterItem[],
+  jobId: string
+): Promise<RepairProgress> {
+  const progress: RepairProgress = {
+    total: items.length,
+    completed: 0,
+    successful: 0,
+    failed: 0,
+    results: [],
+  }
+
+  // Initialize job progress
+  createJobProgress(jobId, 'repair-posters', items.length)
+  addLog(jobId, 'info', `🔧 Starting poster repair for ${items.length} items`)
+
+  logger.info({ total: items.length, jobId }, 'Starting poster repair')
+
+  try {
+    for (const item of items) {
+      const result = await repairSingleItem(item)
+      progress.results.push(result)
+      progress.completed++
+
+      if (result.success) {
+        progress.successful++
+        addLog(jobId, 'info', `✅ ${item.title} - poster repaired`)
+      } else {
+        progress.failed++
+        addLog(jobId, 'warn', `❌ ${item.title} - ${result.error}`)
+      }
+
+      // Update job progress
+      updateJobProgress(
+        jobId,
+        progress.completed,
+        progress.total,
+        `${item.title} (${progress.completed}/${progress.total})`
+      )
+
+      // Small delay to respect TMDB rate limits
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+
+    // Complete the job
+    addLog(jobId, 'info', `🎉 Repair complete: ${progress.successful} successful, ${progress.failed} failed`)
+    completeJob(jobId, {
+      total: progress.total,
+      successful: progress.successful,
+      failed: progress.failed,
+    })
+
+    logger.info(
+      { total: progress.total, successful: progress.successful, failed: progress.failed },
+      'Poster repair complete'
+    )
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+    failJob(jobId, errorMessage)
+    logger.error({ err, jobId }, 'Poster repair failed')
+    throw err
+  }
+
+  return progress
+}
+
+/**
+ * Repair posters for selected items (synchronous version)
  * Fetches from TMDB and pushes directly to Emby (no local storage)
  */
 export async function repairPosters(

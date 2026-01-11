@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import {
   Box,
   Typography,
@@ -83,6 +83,105 @@ export function PosterRepairSection() {
   const [repairResults, setRepairResults] = useState<RepairResult[]>([])
   const [success, setSuccess] = useState<string | null>(null)
 
+  // Job progress tracking
+  const [activeJobId, setActiveJobId] = useState<string | null>(null)
+  const [jobLogs, setJobLogs] = useState<Array<{ level: string; message: string }>>([])
+  const [showLogs, setShowLogs] = useState(false)
+  const pollIntervalRef = useRef<number | null>(null)
+  const logsEndRef = useRef<HTMLDivElement>(null)
+
+  // Poll for job progress
+  const pollJobProgress = useCallback(async (jobId: string) => {
+    try {
+      const res = await fetch(`/api/jobs/progress/${jobId}`, { credentials: 'include' })
+      
+      if (!res.ok) {
+        if (res.status === 404) {
+          // Job might have finished and been cleaned up
+          setActiveJobId(null)
+          setRepairing(false)
+          return
+        }
+        return
+      }
+
+      const data = await res.json()
+      
+      // Update progress from job data
+      setRepairProgress({
+        total: data.itemsTotal || 0,
+        completed: data.itemsProcessed || 0,
+        successful: data.result?.successful || 0,
+        failed: data.result?.failed || 0,
+      })
+
+      // Update logs
+      if (data.logs) {
+        setJobLogs(data.logs)
+      }
+
+      // Auto-scroll logs
+      if (logsEndRef.current?.parentElement && showLogs) {
+        const container = logsEndRef.current.parentElement
+        container.scrollTop = container.scrollHeight
+      }
+
+      // Check if job is complete
+      if (data.status === 'completed' || data.status === 'failed' || data.status === 'cancelled') {
+        setActiveJobId(null)
+        setRepairing(false)
+
+        if (data.status === 'completed') {
+          const result = data.result || {}
+          setRepairProgress({
+            total: result.total || data.itemsTotal || 0,
+            completed: result.total || data.itemsTotal || 0,
+            successful: result.successful || 0,
+            failed: result.failed || 0,
+          })
+          
+          // Remove successfully repaired items from the lists
+          // We don't have individual results from the async API, so just refresh counts
+          if (result.successful > 0) {
+            setSuccess(
+              `Successfully repaired ${result.successful} poster${result.successful !== 1 ? 's' : ''}` +
+                (result.failed > 0 ? ` (${result.failed} failed)` : '')
+            )
+            // Clear the lists since we repaired items
+            setMovies([])
+            setSeries([])
+            setSelectedMovies(new Set())
+            setSelectedSeries(new Set())
+          }
+        } else if (data.status === 'failed') {
+          setScanError(data.error || 'Repair operation failed')
+        }
+      }
+    } catch (err) {
+      console.error('Failed to poll job progress:', err)
+    }
+  }, [showLogs])
+
+  // Set up polling when job is active
+  useEffect(() => {
+    if (activeJobId) {
+      // Poll immediately
+      pollJobProgress(activeJobId)
+
+      // Set up interval
+      pollIntervalRef.current = window.setInterval(() => {
+        pollJobProgress(activeJobId)
+      }, 500) // Poll every 500ms for snappy updates
+
+      return () => {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current)
+          pollIntervalRef.current = null
+        }
+      }
+    }
+  }, [activeJobId, pollJobProgress])
+
   const handleScan = useCallback(async () => {
     setScanning(true)
     setScanError(null)
@@ -152,6 +251,8 @@ export function PosterRepairSection() {
       failed: 0,
     })
     setRepairResults([])
+    setJobLogs([])
+    setShowLogs(true)
 
     try {
       const res = await fetch('/api/maintenance/posters/repair', {
@@ -163,44 +264,32 @@ export function PosterRepairSection() {
 
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || 'Failed to repair posters')
+        throw new Error(data.error || 'Failed to start repair')
       }
 
       const data = await res.json()
-      setRepairProgress({
-        total: data.total,
-        completed: data.completed,
-        successful: data.successful,
-        failed: data.failed,
-      })
-      setRepairResults(data.results || [])
-
-      // Remove successfully repaired items from the lists
-      const repairedIds = new Set(
-        data.results.filter((r: RepairResult) => r.success).map((r: RepairResult) => r.id)
-      )
-      setMovies((prev) => prev.filter((m) => !repairedIds.has(m.id)))
-      setSeries((prev) => prev.filter((s) => !repairedIds.has(s.id)))
-      setSelectedMovies((prev) => {
-        const next = new Set(prev)
-        repairedIds.forEach((id) => next.delete(id as string))
-        return next
-      })
-      setSelectedSeries((prev) => {
-        const next = new Set(prev)
-        repairedIds.forEach((id) => next.delete(id as string))
-        return next
-      })
-
-      if (data.successful > 0) {
-        setSuccess(
-          `Successfully repaired ${data.successful} poster${data.successful !== 1 ? 's' : ''}` +
-            (data.failed > 0 ? ` (${data.failed} failed)` : '')
-        )
+      
+      // API returns jobId for async tracking
+      if (data.jobId) {
+        setActiveJobId(data.jobId)
+        setRepairProgress({
+          total: data.total || selectedItems.length,
+          completed: 0,
+          successful: 0,
+          failed: 0,
+        })
+      } else {
+        // Fallback for sync response (shouldn't happen with new API)
+        setRepairing(false)
+        if (data.successful > 0) {
+          setSuccess(
+            `Successfully repaired ${data.successful} poster${data.successful !== 1 ? 's' : ''}` +
+              (data.failed > 0 ? ` (${data.failed} failed)` : '')
+          )
+        }
       }
     } catch (err) {
-      setScanError(err instanceof Error ? err.message : 'Failed to repair posters')
-    } finally {
+      setScanError(err instanceof Error ? err.message : 'Failed to start repair')
       setRepairing(false)
     }
   }, [movies, series, selectedMovies, selectedSeries])
@@ -299,36 +388,45 @@ export function PosterRepairSection() {
         </Box>
 
         {/* Repair Progress */}
-        <Collapse in={repairing || (repairProgress !== null && repairResults.length > 0)}>
+        <Collapse in={repairing || (repairProgress !== null && repairProgress.completed > 0)}>
           <Box sx={{ mb: 3, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
-            <Box display="flex" alignItems="center" gap={1} mb={1}>
-              {repairing ? (
-                <CircularProgress size={16} />
-              ) : repairProgress?.failed === 0 ? (
-                <CheckCircleIcon color="success" fontSize="small" />
-              ) : (
-                <WarningIcon color="warning" fontSize="small" />
+            <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+              <Box display="flex" alignItems="center" gap={1}>
+                {repairing ? (
+                  <CircularProgress size={16} />
+                ) : repairProgress?.failed === 0 ? (
+                  <CheckCircleIcon color="success" fontSize="small" />
+                ) : (
+                  <WarningIcon color="warning" fontSize="small" />
+                )}
+                <Typography variant="subtitle2" fontWeight={600}>
+                  {repairing ? 'Repairing Posters...' : 'Repair Complete'}
+                </Typography>
+              </Box>
+              {jobLogs.length > 0 && (
+                <Button size="small" onClick={() => setShowLogs(!showLogs)}>
+                  {showLogs ? 'Hide Logs' : 'Show Logs'}
+                </Button>
               )}
-              <Typography variant="subtitle2" fontWeight={600}>
-                {repairing ? 'Repairing Posters...' : 'Repair Complete'}
-              </Typography>
             </Box>
 
             {repairProgress && (
               <>
                 <Box display="flex" justifyContent="space-between" mb={0.5}>
                   <Typography variant="caption" color="text.secondary">
-                    {repairing 
-                      ? `Processing ${repairProgress.total} items...` 
-                      : `${repairProgress.completed} of ${repairProgress.total} processed`}
+                    {repairProgress.completed} of {repairProgress.total} processed
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {repairing ? '' : `${Math.round((repairProgress.completed / repairProgress.total) * 100)}%`}
+                    {repairProgress.total > 0 
+                      ? `${Math.round((repairProgress.completed / repairProgress.total) * 100)}%`
+                      : '0%'}
                   </Typography>
                 </Box>
                 <LinearProgress
-                  variant={repairing ? 'indeterminate' : 'determinate'}
-                  value={repairing ? undefined : (repairProgress.completed / repairProgress.total) * 100}
+                  variant="determinate"
+                  value={repairProgress.total > 0 
+                    ? (repairProgress.completed / repairProgress.total) * 100 
+                    : 0}
                   sx={{ height: 6, borderRadius: 1, mb: 1 }}
                 />
                 {!repairing && (
@@ -354,7 +452,37 @@ export function PosterRepairSection() {
               </>
             )}
 
-            {/* Failed results */}
+            {/* Live logs */}
+            <Collapse in={showLogs && jobLogs.length > 0}>
+              <Paper
+                variant="outlined"
+                sx={{
+                  mt: 1,
+                  p: 1,
+                  maxHeight: 200,
+                  overflow: 'auto',
+                  bgcolor: '#0d1117',
+                  fontFamily: 'monospace',
+                  fontSize: '0.75rem',
+                }}
+              >
+                {jobLogs.map((log, i) => (
+                  <Box
+                    key={i}
+                    sx={{
+                      color: log.level === 'error' ? '#f85149' : log.level === 'warn' ? '#d29922' : '#8b949e',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-all',
+                    }}
+                  >
+                    {log.message}
+                  </Box>
+                ))}
+                <div ref={logsEndRef} />
+              </Paper>
+            </Collapse>
+
+            {/* Failed results (legacy - for sync API) */}
             {repairResults.filter((r) => !r.success).length > 0 && (
               <Box sx={{ mt: 2 }}>
                 <Typography variant="caption" color="error" fontWeight={600}>

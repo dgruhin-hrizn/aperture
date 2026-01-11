@@ -1,10 +1,11 @@
 import type { FastifyPluginAsync } from 'fastify'
 import {
   scanMissingPosters,
-  repairPosters,
+  repairPostersAsync,
   type MissingPosterItem,
 } from '@aperture/core'
 import { requireAdmin } from '../plugins/auth.js'
+import { randomUUID } from 'crypto'
 
 const maintenanceRoutes: FastifyPluginAsync = async (fastify) => {
   // =========================================================================
@@ -50,6 +51,7 @@ const maintenanceRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * POST /api/maintenance/posters/repair
    * Repair selected items by fetching posters from TMDB and pushing to Emby
+   * Returns immediately with a jobId for progress tracking
    */
   fastify.post<{
     Body: {
@@ -75,30 +77,30 @@ const maintenanceRoutes: FastifyPluginAsync = async (fastify) => {
           })
         }
 
+        const jobId = randomUUID()
+
         fastify.log.info(
-          { total: items.length, repairable: repairableItems.length },
-          'Starting poster repair'
+          { total: items.length, repairable: repairableItems.length, jobId },
+          'Starting async poster repair'
         )
 
-        const result = await repairPosters(repairableItems)
+        // Start repair in background (fire and forget)
+        repairPostersAsync(repairableItems, jobId).catch((err) => {
+          fastify.log.error({ err, jobId }, 'Background poster repair failed')
+        })
 
+        // Return immediately with jobId
         return reply.send({
           success: true,
-          total: result.total,
-          completed: result.completed,
-          successful: result.successful,
-          failed: result.failed,
-          results: result.results,
-          summary: {
-            repaired: result.successful,
-            failed: result.failed,
-            skippedNoTmdbId: items.length - repairableItems.length,
-          }
+          jobId,
+          total: repairableItems.length,
+          skippedNoTmdbId: items.length - repairableItems.length,
+          message: 'Repair started. Track progress with /api/jobs/progress/:jobId',
         })
       } catch (err) {
-        fastify.log.error({ err }, 'Failed to repair posters')
+        fastify.log.error({ err }, 'Failed to start poster repair')
         return reply.status(500).send({ 
-          error: err instanceof Error ? err.message : 'Failed to repair posters' 
+          error: err instanceof Error ? err.message : 'Failed to start poster repair' 
         })
       }
     }

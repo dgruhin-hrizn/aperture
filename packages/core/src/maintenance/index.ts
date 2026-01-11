@@ -6,6 +6,7 @@
 export {
   scanMissingPosters,
   repairPosters,
+  repairPostersAsync,
   type MissingPosterItem,
   type RepairResult,
   type ScanResult,
