@@ -173,40 +173,9 @@ export function useSetupWizard(): SetupWizardContext {
       })
   }, [])
 
-  // Fetch library images (falls back to bundled defaults only if no image exists)
-  const fetchLibraryImages = useCallback(async () => {
-    const libraryTypes = ['ai-recs-movies', 'ai-recs-series']
-    const imagePromises = libraryTypes.map(async (id) => {
-      try {
-        const response = await fetch(`/api/images/library/${id}?imageType=Primary`, {
-          credentials: 'include',
-        })
-        if (response.ok) {
-          const data = await response.json()
-          // If there's any uploaded image, use it (don't override with bundled defaults)
-          if (data.url) {
-            return { id, url: data.url, isDefault: false }
-          }
-        }
-        // Only fall back to bundled default if no image exists at all
-        return { id, url: DEFAULT_LIBRARY_IMAGES[id], isDefault: true }
-      } catch {
-        // Fall back to bundled default image on error
-        return { id, url: DEFAULT_LIBRARY_IMAGES[id], isDefault: true }
-      }
-    })
-
-    const results = await Promise.all(imagePromises)
-    const imageMap: Record<string, LibraryImageInfo> = {}
-    results.forEach((r) => {
-      imageMap[r.id] = { url: r.url || undefined, isDefault: r.isDefault }
-    })
-    setLibraryImages(imageMap)
-  }, [])
-
-  useEffect(() => {
-    fetchLibraryImages()
-  }, [fetchLibraryImages])
+  // During initial setup, always use bundled default images
+  // (there's no authenticated user yet, and no custom images could have been uploaded)
+  // Custom image fetching is only needed post-setup in the admin settings
 
   // Fetch setup progress + snapshot (resumable)
   useEffect(() => {
