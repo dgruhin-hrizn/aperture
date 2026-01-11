@@ -518,7 +518,10 @@ export async function writeWatchingSeriesForUser(
 
           // Write STRM file with original file path
           if (!ep.path) {
-            logger.warn({ series: series.title, episode: ep.title }, 'No file path for episode, skipping')
+            logger.warn(
+              { series: series.title, episode: ep.title },
+              'No file path for episode, skipping'
+            )
             continue
           }
           const strmPath = path.join(seasonFolderPath, `${episodeFilename}.strm`)
