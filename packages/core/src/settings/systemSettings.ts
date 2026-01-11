@@ -603,8 +603,8 @@ export async function getAiRecsOutputConfig(): Promise<AiRecsOutputConfig> {
   const movies = await getSystemSetting('ai_recs_movies_use_symlinks')
   const series = await getSystemSetting('ai_recs_series_use_symlinks')
   return {
-    moviesUseSymlinks: movies === 'true',
-    seriesUseSymlinks: series !== 'false', // Defaults to true for series
+    moviesUseSymlinks: movies !== 'false', // Defaults to true (symlinks recommended)
+    seriesUseSymlinks: series !== 'false', // Defaults to true (symlinks recommended)
   }
 }
 

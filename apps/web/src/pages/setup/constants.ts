@@ -31,11 +31,11 @@ export const DEFAULT_TOP_PICKS = {
   moviesLibraryEnabled: true,
   moviesCollectionEnabled: false,
   moviesPlaylistEnabled: false,
-  moviesUseSymlinks: false,
+  moviesUseSymlinks: true,
   seriesLibraryEnabled: true,
   seriesCollectionEnabled: false,
   seriesPlaylistEnabled: false,
-  seriesUseSymlinks: false,
+  seriesUseSymlinks: true,
 }
 
 export const DEFAULT_MEDIA_SERVER_TYPES = [
