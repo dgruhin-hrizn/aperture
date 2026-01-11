@@ -5,7 +5,7 @@ import {
   MediaServerStep,
   LibrariesStep,
   AiRecsStep,
-  OutputConfigStep,
+  ValidateStep,
   UsersStep,
   TopPicksStep,
   OpenAIStep,
@@ -27,8 +27,8 @@ export function SetupPage() {
         return <LibrariesStep wizard={wizard} />
       case 'aiRecsLibraries':
         return <AiRecsStep wizard={wizard} />
-      case 'outputConfig':
-        return <OutputConfigStep wizard={wizard} />
+      case 'validate':
+        return <ValidateStep wizard={wizard} />
       case 'users':
         return <UsersStep wizard={wizard} />
       case 'topPicks':

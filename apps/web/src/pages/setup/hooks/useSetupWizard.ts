@@ -5,7 +5,6 @@ import { useAuth } from '@/hooks/useAuth'
 import {
   STEP_ORDER,
   DEFAULT_AI_RECS_OUTPUT,
-  DEFAULT_OUTPUT_PATH_CONFIG,
   DEFAULT_TOP_PICKS,
   DEFAULT_MEDIA_SERVER_TYPES,
   DEFAULT_LIBRARY_IMAGES,
@@ -15,7 +14,6 @@ import type {
   SetupProgress,
   LibraryConfig,
   AiRecsOutputConfig,
-  OutputPathConfig,
   TopPicksConfig,
   MediaServerType,
   SetupWizardContext,
@@ -23,6 +21,7 @@ import type {
   SetupUser,
   DiscoveredServer,
   JobProgress,
+  ValidationResult,
 } from '../types'
 
 // Define the initial jobs with their descriptions
@@ -109,8 +108,9 @@ export function useSetupWizard(): SetupWizardContext {
   })
   const [uploadingImage, setUploadingImage] = useState<string | null>(null)
 
-  // Output path config
-  const [outputPathConfig, setOutputPathConfig] = useState<OutputPathConfig>(DEFAULT_OUTPUT_PATH_CONFIG)
+  // Validation state
+  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
+  const [validating, setValidating] = useState(false)
 
   // Users state
   const [setupUsers, setSetupUsers] = useState<SetupUser[]>([])
@@ -187,7 +187,6 @@ export function useSetupWizard(): SetupWizardContext {
         if (data?.progress) setProgress(data.progress)
         if (data?.snapshot?.libraries) setLibraries(data.snapshot.libraries)
         if (data?.snapshot?.aiRecsOutput) setAiRecsOutput(data.snapshot.aiRecsOutput)
-        if (data?.snapshot?.outputPathConfig) setOutputPathConfig((c) => ({ ...c, ...data.snapshot.outputPathConfig }))
         if (data?.snapshot?.topPicks) setTopPicks((tp) => ({ ...tp, ...data.snapshot.topPicks }))
 
         // Set existing media server config if configured
@@ -387,7 +386,9 @@ export function useSetupWizard(): SetupWizardContext {
       if (!res.ok) throw new Error(data?.error || 'Failed to save output format')
       setAiRecsOutput(data)
       await updateProgress({ completedStep: 'aiRecsLibraries' })
-      goToStep('outputConfig')
+      // Reset validation when moving to validate step
+      setValidationResult(null)
+      goToStep('validate')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save output format')
     } finally {
@@ -395,34 +396,30 @@ export function useSetupWizard(): SetupWizardContext {
     }
   }, [aiRecsOutput, updateProgress, goToStep])
 
-  // Output Path Config handlers
-  const saveOutputPathConfig = useCallback(async () => {
-    setSaving(true)
+  // Validation handler
+  const runValidation = useCallback(async () => {
+    setValidating(true)
     setError('')
     try {
-      const res = await fetch('/api/setup/output-config', {
+      const res = await fetch('/api/setup/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(outputPathConfig),
+        body: JSON.stringify({ useSymlinks: aiRecsOutput.moviesUseSymlinks || aiRecsOutput.seriesUseSymlinks }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data?.error || 'Failed to save output configuration')
-      setOutputPathConfig(data)
-      // Also update aiRecsOutput to keep symlinks in sync
-      setAiRecsOutput((prev) => ({
-        ...prev,
-        moviesUseSymlinks: data.moviesUseSymlinks,
-        seriesUseSymlinks: data.seriesUseSymlinks,
-      }))
-      await updateProgress({ completedStep: 'outputConfig' })
-      goToStep('users')
+      if (!res.ok) throw new Error(data?.error || 'Validation failed')
+      setValidationResult(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save output configuration')
+      setError(err instanceof Error ? err.message : 'Validation failed')
+      setValidationResult({
+        checks: [],
+        allPassed: false,
+      })
     } finally {
-      setSaving(false)
+      setValidating(false)
     }
-  }, [outputPathConfig, updateProgress, goToStep])
+  }, [aiRecsOutput.moviesUseSymlinks, aiRecsOutput.seriesUseSymlinks])
 
   const uploadLibraryImage = useCallback(async (libraryType: string, file: File) => {
     setUploadingImage(libraryType)
@@ -972,7 +969,8 @@ export function useSetupWizard(): SetupWizardContext {
     aiRecsOutput,
     libraryImages,
     uploadingImage,
-    outputPathConfig,
+    validationResult,
+    validating,
     setupUsers,
     loadingUsers,
     usersError,
@@ -1018,8 +1016,7 @@ export function useSetupWizard(): SetupWizardContext {
     saveAiRecsOutput,
     uploadLibraryImage,
     deleteLibraryImage,
-    setOutputPathConfig,
-    saveOutputPathConfig,
+    runValidation,
     fetchSetupUsers,
     importAndEnableUser,
     toggleUserMovies,

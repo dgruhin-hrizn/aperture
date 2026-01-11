@@ -20,7 +20,7 @@ export type SetupStepId =
   | 'mediaServer'
   | 'mediaLibraries'
   | 'aiRecsLibraries'
-  | 'outputConfig'
+  | 'validate'
   | 'users'
   | 'topPicks'
   | 'openai'
@@ -41,19 +41,6 @@ export interface LibraryConfig {
 
 export interface AiRecsOutputConfig {
   moviesUseSymlinks: boolean
-  seriesUseSymlinks: boolean
-}
-
-export interface OutputPathConfig {
-  /** Fixed path where Aperture writes libraries (inside Aperture container) */
-  apertureLibrariesPath: string
-  /** Path where media server sees the Aperture libraries folder */
-  mediaServerLibrariesPath: string
-  /** Base path where media server sees original media files (e.g., /mnt/) */
-  mediaServerPathPrefix: string
-  /** Use symlinks for movie recommendations */
-  moviesUseSymlinks: boolean
-  /** Use symlinks for series recommendations */
   seriesUseSymlinks: boolean
 }
 
@@ -135,6 +122,20 @@ export interface JobProgress {
   result?: LibrarySyncResult
 }
 
+export interface ValidationCheck {
+  id: string
+  name: string
+  description: string
+  status: 'pending' | 'running' | 'passed' | 'failed'
+  error?: string
+  suggestion?: string
+}
+
+export interface ValidationResult {
+  checks: ValidationCheck[]
+  allPassed: boolean
+}
+
 export interface SetupWizardState {
   // Navigation
   activeStep: number
@@ -161,8 +162,9 @@ export interface SetupWizardState {
   libraryImages: Record<string, LibraryImageInfo>
   uploadingImage: string | null
 
-  // Output Path Config
-  outputPathConfig: OutputPathConfig
+  // Validation
+  validationResult: ValidationResult | null
+  validating: boolean
 
   // Users
   setupUsers: SetupUser[]
@@ -215,9 +217,8 @@ export interface SetupWizardActions {
   uploadLibraryImage: (libraryType: string, file: File) => Promise<void>
   deleteLibraryImage: (libraryType: string) => Promise<void>
 
-  // Output Path Config
-  setOutputPathConfig: React.Dispatch<React.SetStateAction<OutputPathConfig>>
-  saveOutputPathConfig: () => Promise<void>
+  // Validation
+  runValidation: () => Promise<void>
 
   // Users
   fetchSetupUsers: () => Promise<void>
