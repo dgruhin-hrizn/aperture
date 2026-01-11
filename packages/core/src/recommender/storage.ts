@@ -10,13 +10,24 @@ export async function storeCandidates(
 ): Promise<void> {
   const selectedIds = new Set(selected.map((s) => s.movieId))
 
-  // Store all candidates (or at least top 100)
-  const toStore = allCandidates.slice(0, 100)
+  // Store top 100 candidates plus any selected movies not in top 100
+  // (diversity algorithm can select movies from beyond top 100)
+  const top100 = allCandidates.slice(0, 100)
+  const top100Ids = new Set(top100.map((c) => c.movieId))
+  
+  // Find selected movies that aren't in top 100
+  const selectedNotInTop100 = selected.filter((s) => !top100Ids.has(s.movieId))
+  
+  // Combine: top 100 + any selected movies not already included
+  const toStore = [...top100, ...selectedNotInTop100]
 
   for (let i = 0; i < toStore.length; i++) {
     const c = toStore[i]
     const isSelected = selectedIds.has(c.movieId)
     const selectedRank = isSelected && selectedRanks ? selectedRanks.get(c.movieId) : null
+    
+    // For candidates beyond top 100, use their position in the full list
+    const originalRank = i < 100 ? i + 1 : allCandidates.findIndex((ac) => ac.movieId === c.movieId) + 1
 
     await query(
       `INSERT INTO recommendation_candidates
@@ -25,7 +36,7 @@ export async function storeCandidates(
       [
         runId,
         c.movieId,
-        i + 1,
+        originalRank,
         isSelected,
         selectedRank,
         c.finalScore,
