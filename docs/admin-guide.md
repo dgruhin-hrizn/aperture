@@ -28,17 +28,20 @@ This guide covers initial setup, ongoing operations, and administrative configur
 - [Database Management](#database-management)
 - [Library Image Management](#library-image-management)
 - [Emby Home Row Sorting (Series)](#emby-home-row-sorting-series)
+- [Backup & Restore](#backup--restore)
 - [Recommended Workflow](#recommended-workflow)
 
 ---
 
 ## First-Time Setup Wizard
 
-When you first access Aperture, you'll be guided through a setup wizard:
+When you first access Aperture, you'll be guided through a 10-step setup wizard:
 
-### Step 1: Welcome
+### Step 1: Restore (Optional)
 
-The wizard introduces Aperture and explains the setup process.
+If you have an existing backup, you can restore it here:
+- Upload a backup file
+- Or select from available backups in the `/backups` volume
 
 ### Step 2: Media Server Connection
 
@@ -52,19 +55,61 @@ Configure your Emby or Jellyfin server:
 4. Click **Test Connection** to verify
 5. Save the configuration
 
-### Step 3: OpenAI Configuration (Optional)
+### Step 3: Source Libraries
 
-Configure your OpenAI API key for AI-powered recommendations:
+Select which libraries to include in recommendations:
+- Toggle on movie and TV libraries you want Aperture to analyze
+- Disabled libraries won't be synced
+
+### Step 4: AI Recommendations
+
+Configure library naming and cover images:
+- Set default library name templates
+- Upload custom banner images (optional)
+
+### Step 5: Validate
+
+Verify paths and output configuration:
+- **Media Server Path Prefix** — How your media server sees files (check Media Info on any movie)
+- **Aperture Libraries Path** — Where Aperture's output appears in your media server
+- **Output Format** — Choose symlinks (recommended) or STRM files
+
+### Step 6: Users
+
+Select which users receive personalized recommendations:
+- Toggle movies and/or series for each user
+- Users need watch history for recommendations to work
+
+### Step 7: Top Picks (Optional)
+
+Configure global trending content:
+- Enable/disable Top Picks
+- Set output modes (Library, Collection, Playlist)
+- Configure popularity algorithm
+
+### Step 8: OpenAI Configuration
+
+Configure your OpenAI API key:
 
 1. Enter your OpenAI API key (get one from [platform.openai.com](https://platform.openai.com))
 2. Click **Test Key** to verify
-3. Click **Save & Complete** or **Skip & Complete** to proceed
+3. Click **Save & Continue** or **Skip** to proceed
 
 > **Note**: You can always configure OpenAI later in Admin → Settings → AI.
 
-### Step 4: Complete
+### Step 9: Initial Sync
 
-Once setup is complete, you'll be redirected to the login page. Log in with your **Emby/Jellyfin admin account** to continue configuration.
+Run first-time sync jobs with real-time progress:
+- All required jobs run automatically
+- You can re-run individual jobs if needed
+- View logs and progress in real-time
+
+### Step 10: Complete
+
+Review what was created:
+- Libraries created in your media server
+- Default job schedules (configurable in Admin → Jobs)
+- Next steps and additional features
 
 ---
 
@@ -137,11 +182,20 @@ Each job can be scheduled to run automatically:
    - **Interval** — Run every N hours (1, 2, 3, 4, 6, 8, or 12)
    - **Manual** — Only run when you trigger it
 
-**Recommended schedule:**
+**Default schedules:**
 
-- Sync jobs: Daily at 3 AM
-- Recommendation jobs: Daily at 4 AM
-- STRM jobs: Daily at 5 AM
+| Job | Default Schedule |
+|-----|------------------|
+| Database Backup | Daily at 1 AM |
+| Library Scan | Daily at 2 AM |
+| Watch History | Every 2 hours |
+| Embeddings | Daily at 3 AM |
+| AI Recommendations | Weekly on Sunday at 4 AM |
+| Library Sync | Weekly on Sunday at 5 AM |
+| Top Picks | Daily at 5 AM |
+| Metadata Enrichment | Every 6 hours |
+
+All schedules can be customized in **Admin → Jobs**.
 
 ### Monitoring Jobs
 
@@ -409,16 +463,54 @@ This feature is automatic and requires no configuration.
 
 ---
 
+## Backup & Restore
+
+### Automatic Backups
+
+Aperture automatically backs up the database daily at 1 AM. Configure in **Admin → Jobs**.
+
+- Backups are stored in the `/backups` volume mount
+- Default retention: 7 backups (configurable in Admin → Settings → System)
+- Format: Compressed PostgreSQL dump
+
+### Manual Backup
+
+1. Go to **Admin → Settings → System**
+2. Scroll to **Backup & Restore**
+3. Click **Create Backup**
+4. Download for offsite storage
+
+### Restoring
+
+**During initial setup:**
+- The first step offers to restore from a backup
+- Upload a file or select from existing backups
+
+**From Admin panel:**
+1. Go to **Admin → Settings → System**
+2. Scroll to **Backup & Restore**
+3. Select a backup and click **Restore**
+
+---
+
 ## Recommended Workflow
 
-For best results, schedule jobs to run automatically:
+The default schedules are optimized for most setups:
 
-| Time    | Jobs                                                                              |
-| ------- | --------------------------------------------------------------------------------- |
-| 3:00 AM | sync-movies, sync-series, sync-movie-watch-history, sync-series-watch-history     |
-| 4:00 AM | generate-movie-recommendations, generate-series-recommendations                   |
-| 5:00 AM | sync-movie-libraries, sync-series-libraries                                       |
-| 6:00 AM | refresh-top-picks                                                                 |
+| Time | Jobs |
+|------|------|
+| 1:00 AM | Database backup |
+| 2:00 AM | Library scan (sync-movies, sync-series) |
+| Every 2h | Watch history sync |
+| 3:00 AM | Embedding generation |
+| Sunday 4:00 AM | AI recommendations |
+| Sunday 5:00 AM | Library sync (STRM/symlinks) |
+| 5:00 AM | Top Picks refresh |
+| Every 6h | Metadata enrichment |
 
-This ensures users wake up to fresh recommendations based on yesterday's viewing.
+This ensures:
+- Fresh recommendations every Sunday based on the week's viewing
+- Watch history stays current throughout the day
+- New content is indexed daily
+- Backups happen before any other jobs
 
