@@ -35,6 +35,7 @@ import {
   Warning as WarningIcon,
   SkipNext as SkipIcon,
   ExpandMore as ExpandMoreIcon,
+  TrendingUp as TrendingUpIcon,
 } from '@mui/icons-material'
 import type { SetupWizardContext, JobProgress, UserLibraryResult } from '../types'
 
@@ -52,6 +53,7 @@ function getJobIcon(jobId: string) {
   }
   if (jobId.includes('embedding')) return <PsychologyIcon fontSize="small" />
   if (jobId.includes('recommendation')) return <AutoAwesomeIcon fontSize="small" />
+  if (jobId.includes('top-picks')) return <TrendingUpIcon fontSize="small" />
   return <SyncIcon fontSize="small" />
 }
 
@@ -235,56 +237,84 @@ function TopPicksResultsSummary({ jobs }: { jobs: JobProgress[] }) {
   }
 
   const isSuccess = job.status === 'completed'
-  const moviesCount = job.result?.moviesCount ?? job.itemsProcessed ?? 0
+  const moviesCount = job.result?.moviesCount ?? 0
   const seriesCount = job.result?.seriesCount ?? 0
 
   return (
-    <Box
-      sx={{
-        mt: 1.5,
-        p: 1.5,
+    <Accordion 
+      defaultExpanded={!isSuccess}
+      sx={{ 
+        mt: 1.5, 
+        '&:before': { display: 'none' },
         border: '1px solid',
-        borderColor: isSuccess ? 'info.main' : 'error.main',
-        borderRadius: 2,
-        backgroundColor: isSuccess ? 'info.dark' : 'error.dark',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1,
+        borderColor: isSuccess ? 'success.main' : 'error.main',
+        borderRadius: '8px !important',
+        overflow: 'hidden',
       }}
     >
-      <SyncIcon fontSize="small" />
-      <Typography variant="body2" fontWeight={600}>
-        Top 10 Libraries
-      </Typography>
-      <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
-        {isSuccess ? (
-          <>
-            <Chip
-              icon={<CheckCircleIcon />}
-              label={`${moviesCount} movies`}
-              size="small"
-              color="info"
+      <AccordionSummary 
+        expandIcon={<ExpandMoreIcon />}
+        sx={{ 
+          backgroundColor: isSuccess ? 'success.dark' : 'error.dark',
+          '& .MuiAccordionSummary-content': { alignItems: 'center', gap: 1 },
+        }}
+      >
+        <TrendingUpIcon fontSize="small" />
+        <Typography variant="body2" fontWeight={600}>
+          Top Picks Libraries Created
+        </Typography>
+        <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
+          {isSuccess ? (
+            <>
+              <Chip 
+                icon={<CheckCircleIcon />} 
+                label={`${moviesCount} movies`} 
+                size="small" 
+                color="success" 
+                sx={{ height: 24 }}
+              />
+              <Chip 
+                icon={<CheckCircleIcon />} 
+                label={`${seriesCount} series`} 
+                size="small" 
+                color="success" 
+                sx={{ height: 24 }}
+              />
+            </>
+          ) : (
+            <Chip 
+              icon={<ErrorIcon />} 
+              label="Failed" 
+              size="small" 
+              color="error" 
               sx={{ height: 24 }}
             />
-            <Chip
-              icon={<CheckCircleIcon />}
-              label={`${seriesCount} series`}
-              size="small"
-              color="info"
-              sx={{ height: 24 }}
-            />
-          </>
-        ) : (
-          <Chip
-            icon={<ErrorIcon />}
-            label="Failed"
-            size="small"
-            color="error"
-            sx={{ height: 24 }}
-          />
-        )}
-      </Box>
-    </Box>
+          )}
+        </Box>
+      </AccordionSummary>
+      <AccordionDetails sx={{ p: 0 }}>
+        <Box sx={{ p: 1.5 }}>
+          {isSuccess ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1, borderRadius: 1, bgcolor: 'action.hover' }}>
+                <CheckCircleIcon color="success" fontSize="small" />
+                <Typography variant="body2">Top Picks - Movies</Typography>
+                <Chip label={`${moviesCount} movies`} size="small" variant="outlined" sx={{ ml: 'auto' }} />
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1, borderRadius: 1, bgcolor: 'action.hover' }}>
+                <CheckCircleIcon color="success" fontSize="small" />
+                <Typography variant="body2">Top Picks - Series</Typography>
+                <Chip label={`${seriesCount} series`} size="small" variant="outlined" sx={{ ml: 'auto' }} />
+              </Box>
+            </Box>
+          ) : (
+            <Typography variant="body2" color="error">
+              {job.error || 'Failed to create Top Picks libraries'}
+            </Typography>
+          )}
+        </Box>
+      </AccordionDetails>
+    </Accordion>
   )
 }
 
@@ -367,9 +397,9 @@ function JobListItem({ job, isActive, canRerun, onRerun }: JobListItemProps) {
                 sx={{ ml: 'auto', mr: showRerunButton ? 4 : 0, fontFamily: 'monospace', fontWeight: 600 }}
               />
             )}
-            {job.status === 'completed' && job.itemsTotal && job.itemsTotal > 0 && (
+            {job.status === 'completed' && typeof job.itemsProcessed === 'number' && job.itemsProcessed > 0 && (
               <Chip
-                label={`${job.itemsTotal} items`}
+                label={`${job.itemsProcessed} items`}
                 size="small"
                 color="success"
                 variant="outlined"

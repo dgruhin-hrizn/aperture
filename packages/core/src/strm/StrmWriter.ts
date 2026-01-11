@@ -103,6 +103,7 @@ export async function processStrmForAllUsers(
     let success = 0
     let failed = 0
     let skipped = 0
+    let totalRecommendations = 0
 
     for (let i = 0; i < users.rows.length; i++) {
       const user = users.rows[i]
@@ -128,7 +129,7 @@ export async function processStrmForAllUsers(
             error: 'No recommendations generated (insufficient watch history)',
           })
           skipped++
-          updateJobProgress(actualJobId, success + failed + skipped, totalUsers, `${success + failed + skipped}/${totalUsers} users`)
+          updateJobProgress(actualJobId, totalRecommendations, undefined, `${success + skipped}/${totalUsers} users (${totalRecommendations} recommendations)`)
           continue
         }
 
@@ -160,8 +161,9 @@ export async function processStrmForAllUsers(
         })
 
         success++
+        totalRecommendations += strmResult.written
         addLog(actualJobId, 'info', `✅ Completed STRM processing for ${displayName} (${strmResult.written} recommendations)`)
-        updateJobProgress(actualJobId, success + failed + skipped, totalUsers, `${success + failed + skipped}/${totalUsers} users`)
+        updateJobProgress(actualJobId, totalRecommendations, undefined, `${success + skipped}/${totalUsers} users (${totalRecommendations} recommendations)`)
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error'
         logger.error({ err, userId: user.id }, 'Failed to process STRM')
@@ -177,18 +179,18 @@ export async function processStrmForAllUsers(
         })
         
         failed++
-        updateJobProgress(actualJobId, success + failed + skipped, totalUsers, `${success + failed + skipped}/${totalUsers} users (${failed} failed)`)
+        updateJobProgress(actualJobId, totalRecommendations, undefined, `${success + skipped}/${totalUsers} users (${failed} failed)`)
       }
     }
 
     const finalResult: ProcessStrmResult = { success, failed, skipped, jobId: actualJobId, users: userResults }
     
     if (failed > 0) {
-      addLog(actualJobId, 'warn', `⚠️ Completed with issues: ${success} succeeded, ${skipped} skipped, ${failed} failed`)
+      addLog(actualJobId, 'warn', `⚠️ Completed with issues: ${success} succeeded, ${skipped} skipped, ${failed} failed (${totalRecommendations} total recommendations)`)
     } else if (skipped > 0) {
-      addLog(actualJobId, 'info', `✅ Completed: ${success} succeeded, ${skipped} skipped (no watch history)`)
+      addLog(actualJobId, 'info', `✅ Completed: ${success} succeeded, ${skipped} skipped (${totalRecommendations} total recommendations)`)
     } else {
-      addLog(actualJobId, 'info', `🎉 All ${success} user(s) processed successfully!`)
+      addLog(actualJobId, 'info', `🎉 All ${success} user(s) processed successfully! (${totalRecommendations} total recommendations)`)
     }
     
     completeJob(actualJobId, finalResult)
@@ -239,6 +241,7 @@ export async function processSeriesStrmForAllUsers(
     let success = 0
     let failed = 0
     let skipped = 0
+    let totalRecommendations = 0
 
     for (let i = 0; i < users.rows.length; i++) {
       const user = users.rows[i]
@@ -264,7 +267,7 @@ export async function processSeriesStrmForAllUsers(
             error: 'No recommendations generated (insufficient watch history)',
           })
           skipped++
-          updateJobProgress(actualJobId, success + failed + skipped, totalUsers, `${success + failed + skipped}/${totalUsers} users`)
+          updateJobProgress(actualJobId, totalRecommendations, undefined, `${success + skipped}/${totalUsers} users (${totalRecommendations} series)`)
           continue
         }
 
@@ -296,8 +299,9 @@ export async function processSeriesStrmForAllUsers(
         })
 
         success++
+        totalRecommendations += strmResult.seriesCount
         addLog(actualJobId, 'info', `✅ Completed Series STRM processing for ${displayName} (${strmResult.seriesCount} series, ${strmResult.written} episodes)`)
-        updateJobProgress(actualJobId, success + failed + skipped, totalUsers, `${success + failed + skipped}/${totalUsers} users`)
+        updateJobProgress(actualJobId, totalRecommendations, undefined, `${success + skipped}/${totalUsers} users (${totalRecommendations} series)`)
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error'
         logger.error({ err, userId: user.id }, 'Failed to process Series STRM')
@@ -313,18 +317,18 @@ export async function processSeriesStrmForAllUsers(
         })
         
         failed++
-        updateJobProgress(actualJobId, success + failed + skipped, totalUsers, `${success + failed + skipped}/${totalUsers} users (${failed} failed)`)
+        updateJobProgress(actualJobId, totalRecommendations, undefined, `${success + skipped}/${totalUsers} users (${failed} failed)`)
       }
     }
 
     const finalResult: ProcessStrmResult = { success, failed, skipped, jobId: actualJobId, users: userResults }
 
     if (failed > 0) {
-      addLog(actualJobId, 'warn', `⚠️ Completed with issues: ${success} succeeded, ${skipped} skipped, ${failed} failed`)
+      addLog(actualJobId, 'warn', `⚠️ Completed with issues: ${success} succeeded, ${skipped} skipped, ${failed} failed (${totalRecommendations} total series)`)
     } else if (skipped > 0) {
-      addLog(actualJobId, 'info', `✅ Completed: ${success} succeeded, ${skipped} skipped (no watch history)`)
+      addLog(actualJobId, 'info', `✅ Completed: ${success} succeeded, ${skipped} skipped (${totalRecommendations} total series)`)
     } else {
-      addLog(actualJobId, 'info', `🎉 All ${success} user(s) processed successfully!`)
+      addLog(actualJobId, 'info', `🎉 All ${success} user(s) processed successfully! (${totalRecommendations} total series)`)
     }
 
     completeJob(actualJobId, finalResult)

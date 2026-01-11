@@ -25,6 +25,7 @@ import {
   Login as LoginIcon,
   LiveTv as LiveTvIcon,
   Extension as ExtensionIcon,
+  TrendingUp as TrendingUpIcon,
 } from '@mui/icons-material'
 import type { SetupWizardContext, UserLibraryResult } from '../types'
 
@@ -111,18 +112,75 @@ function LibrarySummarySection({
   )
 }
 
+function TopPicksSummarySection({ 
+  moviesCount, 
+  seriesCount,
+}: { 
+  moviesCount: number
+  seriesCount: number
+}) {
+  if (moviesCount === 0 && seriesCount === 0) return null
+
+  return (
+    <Box sx={{ mb: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+        <TrendingUpIcon fontSize="small" color="primary" />
+        <Typography variant="subtitle1" fontWeight={600}>
+          Top Picks (Global)
+        </Typography>
+      </Box>
+      
+      <List dense disablePadding>
+        {moviesCount > 0 && (
+          <ListItem sx={{ py: 0.5, px: 1.5 }}>
+            <ListItemIcon sx={{ minWidth: 32 }}>
+              <CheckCircleIcon fontSize="small" color="success" />
+            </ListItemIcon>
+            <ListItemText
+              primary="Top Picks - Movies"
+              secondary={`${moviesCount} popular movies`}
+              primaryTypographyProps={{ variant: 'body2' }}
+              secondaryTypographyProps={{ variant: 'caption' }}
+            />
+          </ListItem>
+        )}
+        {seriesCount > 0 && (
+          <ListItem sx={{ py: 0.5, px: 1.5 }}>
+            <ListItemIcon sx={{ minWidth: 32 }}>
+              <CheckCircleIcon fontSize="small" color="success" />
+            </ListItemIcon>
+            <ListItemText
+              primary="Top Picks - Series"
+              secondary={`${seriesCount} popular series`}
+              primaryTypographyProps={{ variant: 'body2' }}
+              secondaryTypographyProps={{ variant: 'caption' }}
+            />
+          </ListItem>
+        )}
+      </List>
+    </Box>
+  )
+}
+
 export function CompleteStep({ wizard }: CompleteStepProps) {
   const { handleCompleteSetup, jobsProgress, serverName, serverType, goToStep } = wizard
 
   // Extract library results from completed sync jobs
   const movieSyncJob = jobsProgress.find((j) => j.id === 'sync-movie-libraries')
   const seriesSyncJob = jobsProgress.find((j) => j.id === 'sync-series-libraries')
+  const topPicksJob = jobsProgress.find((j) => j.id === 'sync-top-picks')
   
   const movieUsers = movieSyncJob?.result?.users || []
   const seriesUsers = seriesSyncJob?.result?.users || []
   
+  // Top Picks results
+  const topPicksMoviesCount = topPicksJob?.result?.moviesCount || 0
+  const topPicksSeriesCount = topPicksJob?.result?.seriesCount || 0
+  const hasTopPicks = topPicksMoviesCount > 0 || topPicksSeriesCount > 0
+  
   const hasMovieLibraries = movieUsers.some((u) => u.status === 'success')
   const hasSeriesLibraries = seriesUsers.some((u) => u.status === 'success')
+  const hasAnyLibraries = hasMovieLibraries || hasSeriesLibraries || hasTopPicks
   const hasAnyIssues = [...movieUsers, ...seriesUsers].some(
     (u) => u.status === 'skipped' || u.status === 'failed'
   )
@@ -151,7 +209,7 @@ export function CompleteStep({ wizard }: CompleteStepProps) {
       )}
 
       {/* Created Libraries Summary */}
-      {(hasMovieLibraries || hasSeriesLibraries) && (
+      {hasAnyLibraries && (
         <Card variant="outlined" sx={{ mb: 3 }}>
           <CardContent>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
@@ -173,6 +231,13 @@ export function CompleteStep({ wizard }: CompleteStepProps) {
               type="TV Series"
               users={seriesUsers}
               icon={<TvIcon fontSize="small" color="primary" />}
+            />
+            
+            {(hasMovieLibraries || hasSeriesLibraries) && hasTopPicks && <Divider sx={{ my: 2 }} />}
+            
+            <TopPicksSummarySection
+              moviesCount={topPicksMoviesCount}
+              seriesCount={topPicksSeriesCount}
             />
           </CardContent>
         </Card>
@@ -205,14 +270,62 @@ export function CompleteStep({ wizard }: CompleteStepProps) {
                 secondary="New 'AI Picks' libraries will appear for each enabled user in Aperture"
               />
             </ListItem>
-            
-            <ListItem>
-              <ListItemIcon>
-                <ScheduleIcon fontSize="small" color="primary" />
-              </ListItemIcon>
+          </List>
+        </CardContent>
+      </Card>
+
+      {/* Default Schedules */}
+      <Card variant="outlined" sx={{ mb: 3 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <ScheduleIcon color="primary" />
+            <Typography variant="h6">
+              Automatic Schedules
+            </Typography>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Aperture runs background jobs to keep recommendations fresh. Default schedules can be modified in <strong>Admin → Jobs</strong>.
+          </Typography>
+          
+          <List dense disablePadding>
+            <ListItem sx={{ py: 0.25 }}>
               <ListItemText
-                primary="Recommendations refresh automatically"
-                secondary="Aperture syncs daily to update recommendations based on new watch history. You can adjust scheduling in the Admin area."
+                primary="Watch History"
+                secondary="Every 2 hours — Tracks what users are watching"
+                primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
+                secondaryTypographyProps={{ variant: 'caption' }}
+              />
+            </ListItem>
+            <ListItem sx={{ py: 0.25 }}>
+              <ListItemText
+                primary="Library Scan"
+                secondary="Daily at 2am — Syncs new movies and series from your media server"
+                primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
+                secondaryTypographyProps={{ variant: 'caption' }}
+              />
+            </ListItem>
+            <ListItem sx={{ py: 0.25 }}>
+              <ListItemText
+                primary="Embeddings"
+                secondary="Daily at 3am — Processes content for AI recommendations"
+                primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
+                secondaryTypographyProps={{ variant: 'caption' }}
+              />
+            </ListItem>
+            <ListItem sx={{ py: 0.25 }}>
+              <ListItemText
+                primary="AI Recommendations"
+                secondary="Weekly on Sunday at 4am — Generates personalized picks for each user"
+                primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
+                secondaryTypographyProps={{ variant: 'caption' }}
+              />
+            </ListItem>
+            <ListItem sx={{ py: 0.25 }}>
+              <ListItemText
+                primary="Top Picks"
+                secondary="Daily at 5am — Updates global trending content libraries"
+                primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
+                secondaryTypographyProps={{ variant: 'caption' }}
               />
             </ListItem>
           </List>

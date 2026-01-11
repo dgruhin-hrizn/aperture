@@ -1,0 +1,152 @@
+# =============================================================================
+# Aperture - QNAP Docker Compose
+# =============================================================================
+# Use this for deployment on QNAP NAS systems.
+# This uses QNAP's qnet network driver for proper connectivity.
+#
+# Quick start:
+#   docker-compose -f docker-compose.qnap.yml up -d
+#
+# Update to latest version:
+#   docker-compose -f docker-compose.qnap.yml pull
+#   docker-compose -f docker-compose.qnap.yml up -d
+#
+# =============================================================================
+# NETWORK SETUP - IMPORTANT!
+# =============================================================================
+# QNAP requires static IPs using the qnet driver for containers to communicate
+# with other devices on your network (like Emby/Jellyfin).
+#
+# BEFORE STARTING:
+#   1. Choose 2 unused IPs on your network for the containers
+#   2. Update the ipv4_address values below
+#   3. Update the subnet/gateway to match your network
+#
+# Example: If your network is 192.168.1.x with gateway 192.168.1.1:
+#   - aperture app: 192.168.1.200
+#   - aperture db:  192.168.1.201
+#   - subnet: 192.168.1.0/24
+#   - gateway: 192.168.1.1
+#
+# =============================================================================
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: aperture-db
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: aperture
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U app -d aperture']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      qnet-network:
+        # =====================================================================
+        # CHANGE THIS: Set to an unused IP on your network for the database
+        # =====================================================================
+        ipv4_address: 192.168.0.135
+
+  app:
+    image: ghcr.io/dgruhin-hrizn/aperture:latest
+    container_name: aperture
+    # Run as root to avoid permission issues with bind mounts
+    user: root
+    environment:
+      NODE_ENV: production
+      PORT: 3456
+      DATABASE_URL: postgres://app:app@db:5432/aperture
+      RUN_MIGRATIONS_ON_START: 'true'
+      # Timezone for scheduled jobs (IANA format)
+      TZ: America/New_York
+      # =========================================================================
+      # REQUIRED: Set these before starting!
+      # =========================================================================
+      # Your Aperture container's IP address (the one you set below)
+      APP_BASE_URL: http://192.168.0.134:3456
+      # Session secret - MUST be a random string at least 32 characters
+      # Generate one at: https://randomkeygen.com/ (use "Fort Knox Passwords")
+      SESSION_SECRET: PASTE_YOUR_RANDOM_KEY_HERE
+    ports:
+      - '3456:3456'
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # ─────────────────────────────────────────────────────────────────────────
+      # VOLUME 1: Aperture Libraries Output
+      # ─────────────────────────────────────────────────────────────────────────
+      # Create this folder INSIDE your media share so Emby/Jellyfin can see it.
+      #
+      # QNAP Example:
+      #   - Host folder:     /share/Media/ApertureLibraries
+      #   - Emby sees it at: /Media/ApertureLibraries (if Media is mounted at /Media)
+      #
+      - /share/Media/ApertureLibraries:/aperture-libraries
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # VOLUME 2: Database Backups
+      # ─────────────────────────────────────────────────────────────────────────
+      # Automatic database backups are stored here. Daily backups run at 1 AM.
+      #
+      - /share/Container/aperture/backups:/backups
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # VOLUME 3: Your Media Library (read-only access)
+      # ─────────────────────────────────────────────────────────────────────────
+      # Mount the SAME media folder that your media server uses.
+      #
+      - /share/Media:/media:ro
+    restart: unless-stopped
+    networks:
+      qnet-network:
+        # =====================================================================
+        # CHANGE THIS: Set to an unused IP on your network for Aperture
+        # =====================================================================
+        ipv4_address: 192.168.0.134
+
+# =============================================================================
+# QNET NETWORK CONFIGURATION
+# =============================================================================
+# This uses QNAP's qnet driver to give containers real IPs on your network.
+# Update subnet and gateway to match YOUR network configuration.
+#
+networks:
+  qnet-network:
+    driver: qnet
+    driver_opts:
+      iface: eth0
+    ipam:
+      driver: qnet
+      options:
+        iface: eth0
+      config:
+        # =====================================================================
+        # CHANGE THESE: Match your network's subnet and gateway
+        # =====================================================================
+        - subnet: 192.168.0.0/24
+          gateway: 192.168.0.1
+
+# =============================================================================
+# SETUP WIZARD
+# =============================================================================
+# After starting Aperture, visit http://YOUR_APERTURE_IP:3456 to complete setup.
+#
+# The wizard will ask for two paths:
+#   1. Media Server Path Prefix: /Media/
+#      (How Emby sees your files - check Media Info on any movie)
+#
+#   2. Aperture Libraries Path: /Media/ApertureLibraries/
+#      (Just your prefix + the folder name you created)
+#
+# =============================================================================
+
+volumes:
+  pgdata:
+

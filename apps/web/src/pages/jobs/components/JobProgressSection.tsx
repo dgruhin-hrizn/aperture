@@ -74,12 +74,16 @@ export function JobProgressSection({
           <Typography variant="caption" color="text.secondary">
             Step {progress.currentStepIndex + 1} of {progress.totalSteps}
           </Typography>
-          {progress.itemsTotal > 0 && (
+          {progress.itemsTotal > 0 ? (
             <Typography variant="caption" color="text.secondary">
               {progress.itemsProcessed.toLocaleString()} / {progress.itemsTotal.toLocaleString()}{' '}
               items
             </Typography>
-          )}
+          ) : progress.itemsProcessed > 0 ? (
+            <Typography variant="caption" color="text.secondary">
+              {progress.itemsProcessed.toLocaleString()} items
+            </Typography>
+          ) : null}
         </Stack>
 
         {progress.currentItem && (
