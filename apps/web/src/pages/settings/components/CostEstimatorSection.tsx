@@ -18,13 +18,11 @@ import {
   Card,
   CardContent,
   CircularProgress,
-  Link,
 } from '@mui/material'
 import InfoIcon from '@mui/icons-material/Info'
 import PaymentsIcon from '@mui/icons-material/Payments'
 import StorageIcon from '@mui/icons-material/Storage'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
-import LinkIcon from '@mui/icons-material/Link'
 
 interface CostEstimatorSectionProps {
   movieCount?: number
@@ -181,6 +179,47 @@ export function CostEstimatorSection({
     return items
   }, [movieCount, seriesCount, episodeCount, embeddingModel])
 
+  // Recurring embedding costs (for new content)
+  const recurringEmbeddingCosts = useMemo(() => {
+    if (!costInputs?.embeddings) return []
+
+    const model = embeddingModel === 'text-embedding-3-large' ? 'text-embedding-3-large' : 'text-embedding-3-small'
+    const pricing = EMBEDDING_PRICING[model]
+    const items: Array<{ category: string; items: number; cost: number }> = []
+
+    // Movie embeddings (pending items that will be processed)
+    if (costInputs.embeddings.movie.pendingItems > 0 && costInputs.embeddings.movie.runsPerWeek > 0) {
+      const tokens = costInputs.embeddings.movie.pendingItems * pricing.tokensPerItem
+      items.push({
+        category: 'Movie Embeddings (pending)',
+        items: costInputs.embeddings.movie.pendingItems,
+        cost: (tokens / 1_000_000) * pricing.perMillionTokens,
+      })
+    }
+
+    // Series embeddings
+    if (costInputs.embeddings.series.pendingItems > 0 && costInputs.embeddings.series.runsPerWeek > 0) {
+      const tokens = costInputs.embeddings.series.pendingItems * Math.round(pricing.tokensPerItem * 1.2)
+      items.push({
+        category: 'Series Embeddings (pending)',
+        items: costInputs.embeddings.series.pendingItems,
+        cost: (tokens / 1_000_000) * pricing.perMillionTokens,
+      })
+    }
+
+    // Episode embeddings
+    if (costInputs.embeddings.series.pendingEpisodes > 0 && costInputs.embeddings.series.runsPerWeek > 0) {
+      const tokens = costInputs.embeddings.series.pendingEpisodes * Math.round(pricing.tokensPerItem * 0.6)
+      items.push({
+        category: 'Episode Embeddings (pending)',
+        items: costInputs.embeddings.series.pendingEpisodes,
+        cost: (tokens / 1_000_000) * pricing.perMillionTokens,
+      })
+    }
+
+    return items
+  }, [costInputs, embeddingModel])
+
   // Recurring text generation costs
   const recurringCosts = useMemo(() => {
     if (!textGenModel || !costInputs) return []
@@ -251,7 +290,9 @@ export function CostEstimatorSection({
   }, [costInputs, textGenModel])
 
   const totalOneTimeCost = embeddingCosts.reduce((sum, item) => sum + item.cost, 0)
-  const totalWeeklyCost = recurringCosts.reduce((sum, item) => sum + item.cost, 0)
+  const totalPendingEmbeddingCost = recurringEmbeddingCosts.reduce((sum, item) => sum + item.cost, 0)
+  const totalTextGenCost = recurringCosts.reduce((sum, item) => sum + item.cost, 0)
+  const totalWeeklyCost = totalTextGenCost // Text gen is the main recurring cost
   const totalMonthlyCost = totalWeeklyCost * 4.33
   const totalEnabledUsers = Math.max(costInputs?.movie.enabledUsers ?? 0, costInputs?.series.enabledUsers ?? 0, 1)
 
@@ -471,6 +512,44 @@ export function CostEstimatorSection({
                 </TableBody>
               </Table>
             </TableContainer>
+
+            {/* Pending Embeddings (one-time until processed) */}
+            {recurringEmbeddingCosts.length > 0 && (
+              <Box sx={{ mt: 2 }}>
+                <Divider sx={{ mb: 2 }} />
+                <Typography variant="caption" color="warning.main" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  Pending Embeddings (queued for next run)
+                </Typography>
+                <TableContainer sx={{ mt: 1 }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Type</TableCell>
+                        <TableCell align="right">Items</TableCell>
+                        <TableCell align="right">Cost</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {recurringEmbeddingCosts.map((item) => (
+                        <TableRow key={item.category}>
+                          <TableCell>{item.category}</TableCell>
+                          <TableCell align="right">{item.items.toLocaleString()}</TableCell>
+                          <TableCell align="right">${item.cost.toFixed(4)}</TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow>
+                        <TableCell colSpan={2}>
+                          <Typography variant="body2" fontWeight={600}>Pending Total</Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Chip label={`$${totalPendingEmbeddingCost.toFixed(4)}`} color="warning" size="small" sx={{ fontWeight: 600 }} />
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+            )}
           </CardContent>
         </Card>
       </Box>
