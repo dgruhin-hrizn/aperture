@@ -287,6 +287,7 @@ export function SettingsPage() {
           <Tab icon={<TrendingUpIcon />} iconPosition="start" label="Top Picks" />
           <Tab icon={<AddToQueueIcon />} iconPosition="start" label="Shows You Watch" />
           <Tab icon={<SmartToyIcon />} iconPosition="start" label="Chat Bot" />
+          <Tab icon={<HandymanIcon />} iconPosition="start" label="Maintenance" />
           <Tab icon={<SettingsIcon />} iconPosition="start" label="System" />
         </Tabs>
 
@@ -318,7 +319,6 @@ export function SettingsPage() {
             >
               <Tab icon={<StorageIcon />} iconPosition="start" label="Media Server" />
               <Tab icon={<ExtensionIcon />} iconPosition="start" label="Integrations" />
-              <Tab icon={<HandymanIcon />} iconPosition="start" label="Maintenance" />
             </Tabs>
 
             {/* Media Server Sub-tab */}
@@ -351,12 +351,6 @@ export function SettingsPage() {
               </Box>
             </TabPanel>
 
-            {/* Maintenance Sub-tab */}
-            <TabPanel value={setupSubTab} index={2}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <PosterRepairSection />
-              </Box>
-            </TabPanel>
           </TabPanel>
 
           {/* AI Recommendations Tab */}
@@ -437,8 +431,13 @@ export function SettingsPage() {
             <ChatAssistantModelSection />
           </TabPanel>
 
-          {/* System Tab */}
+          {/* Maintenance Tab */}
           <TabPanel value={tabValue} index={5}>
+            <PosterRepairSection />
+          </TabPanel>
+
+          {/* System Tab */}
+          <TabPanel value={tabValue} index={6}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {/* Cost Estimator */}
               <CostEstimatorSection
