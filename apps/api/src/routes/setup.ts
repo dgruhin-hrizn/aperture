@@ -1,6 +1,6 @@
 /**
  * Setup Routes
- * 
+ *
  * Public endpoints for first-run setup wizard.
  * These endpoints only work when the system is not yet configured.
  */
@@ -16,7 +16,6 @@ import {
   isSetupComplete,
   markSetupComplete,
   type SetupStepId,
-
   getMediaServerConfig,
   setMediaServerConfig,
   testMediaServerConnection,
@@ -41,11 +40,9 @@ import {
   // Top Picks
   getTopPicksConfig,
   updateTopPicksConfig,
-
   hasOpenAIApiKey,
   getOpenAIApiKey,
   setOpenAIApiKey,
-  testOpenAIConnection,
   type MediaServerType,
 
   // Job progress
@@ -96,7 +93,9 @@ function isAdminRequest(request: unknown): boolean {
  * For non-admin callers after completion, we intentionally respond as 404
  * to avoid revealing setup endpoints.
  */
-async function requireSetupWritable(request: unknown): Promise<{ complete: boolean; isAdmin: boolean }> {
+async function requireSetupWritable(
+  request: unknown
+): Promise<{ complete: boolean; isAdmin: boolean }> {
   const complete = await isSetupComplete()
   const isAdmin = isAdminRequest(request)
   return { complete, isAdmin }
@@ -107,22 +106,19 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/setup/status
    * Check if setup is needed (public endpoint)
    */
-  fastify.get<{ Reply: SetupStatusResponse }>(
-    '/api/setup/status',
-    async (_request, reply) => {
-      const setupComplete = await isSetupComplete()
-      const mediaServerConfig = await getMediaServerConfig()
-      const hasOpenAI = await hasOpenAIApiKey()
+  fastify.get<{ Reply: SetupStatusResponse }>('/api/setup/status', async (_request, reply) => {
+    const setupComplete = await isSetupComplete()
+    const mediaServerConfig = await getMediaServerConfig()
+    const hasOpenAI = await hasOpenAIApiKey()
 
-      return reply.send({
-        needsSetup: !setupComplete,
-        configured: {
-          mediaServer: mediaServerConfig.isConfigured,
-          openai: hasOpenAI,
-        },
-      })
-    }
-  )
+    return reply.send({
+      needsSetup: !setupComplete,
+      configured: {
+        mediaServer: mediaServerConfig.isConfigured,
+        openai: hasOpenAI,
+      },
+    })
+  })
 
   /**
    * GET /api/setup/progress
@@ -302,9 +298,9 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
       const { type, baseUrl, apiKey } = request.body
 
       if (!type || !baseUrl || !apiKey) {
-        return reply.status(400).send({ 
-          success: false, 
-          error: 'Type, base URL, and API key are required' 
+        return reply.status(400).send({
+          success: false,
+          error: 'Type, base URL, and API key are required',
         })
       }
 
@@ -317,37 +313,34 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
    * POST /api/setup/media-server
    * Save media server configuration (only during setup)
    */
-  fastify.post<{ Body: MediaServerBody }>(
-    '/api/setup/media-server',
-    async (request, reply) => {
-      const { complete, isAdmin } = await requireSetupWritable(request)
-      if (complete && !isAdmin) return reply.status(404).send({ error: 'Not Found' })
+  fastify.post<{ Body: MediaServerBody }>('/api/setup/media-server', async (request, reply) => {
+    const { complete, isAdmin } = await requireSetupWritable(request)
+    if (complete && !isAdmin) return reply.status(404).send({ error: 'Not Found' })
 
-      const { type, baseUrl, apiKey } = request.body
+    const { type, baseUrl, apiKey } = request.body
 
-      if (!type || !baseUrl || !apiKey) {
-        return reply.status(400).send({ 
-          error: 'Type, base URL, and API key are required' 
-        })
-      }
-
-      // Test connection first
-      const testResult = await testMediaServerConnection({ type, baseUrl, apiKey })
-      if (!testResult.success) {
-        return reply.status(400).send({ 
-          error: `Connection failed: ${testResult.error}` 
-        })
-      }
-
-      // Save configuration
-      await setMediaServerConfig({ type, baseUrl, apiKey })
-
-      return reply.send({ 
-        success: true, 
-        serverName: testResult.serverName 
+    if (!type || !baseUrl || !apiKey) {
+      return reply.status(400).send({
+        error: 'Type, base URL, and API key are required',
       })
     }
-  )
+
+    // Test connection first
+    const testResult = await testMediaServerConnection({ type, baseUrl, apiKey })
+    if (!testResult.success) {
+      return reply.status(400).send({
+        error: `Connection failed: ${testResult.error}`,
+      })
+    }
+
+    // Save configuration
+    await setMediaServerConfig({ type, baseUrl, apiKey })
+
+    return reply.send({
+      success: true,
+      serverName: testResult.serverName,
+    })
+  })
 
   /**
    * GET /api/setup/libraries
@@ -497,7 +490,8 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
     } catch (err) {
       writeCheck.status = 'failed'
       writeCheck.error = err instanceof Error ? err.message : 'Unknown error'
-      writeCheck.suggestion = 'Mount /aperture-libraries in your docker-compose.yml. Example: /mnt/user/Media/ApertureLibraries:/aperture-libraries'
+      writeCheck.suggestion =
+        'Mount /aperture-libraries in your docker-compose.yml. Example: /mnt/user/Media/ApertureLibraries:/aperture-libraries'
     }
     checks.push(writeCheck)
 
@@ -518,7 +512,8 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
     } catch (err) {
       readCheck.status = 'failed'
       readCheck.error = err instanceof Error ? err.message : 'Unknown error'
-      readCheck.suggestion = 'Mount your media folder in docker-compose.yml. Example: /mnt/user/Media:/media:ro'
+      readCheck.suggestion =
+        'Mount your media folder in docker-compose.yml. Example: /mnt/user/Media:/media:ro'
     }
     checks.push(readCheck)
 
@@ -555,7 +550,8 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
         if (!testFile) {
           symlinkCheck.status = 'failed'
           symlinkCheck.error = 'No files found in /media to test symlink'
-          symlinkCheck.suggestion = 'Ensure your media folder contains files and is properly mounted'
+          symlinkCheck.suggestion =
+            'Ensure your media folder contains files and is properly mounted'
         } else {
           const testSymlink = '/aperture-libraries/.aperture-test-symlink'
           try {
@@ -564,13 +560,15 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
           } catch (err) {
             symlinkCheck.status = 'failed'
             symlinkCheck.error = err instanceof Error ? err.message : 'Unknown error'
-            symlinkCheck.suggestion = 'Your system may not support symlinks. Switch to STRM files in the previous step, or check Docker permissions.'
+            symlinkCheck.suggestion =
+              'Your system may not support symlinks. Switch to STRM files in the previous step, or check Docker permissions.'
           }
         }
       } catch (err) {
         symlinkCheck.status = 'failed'
         symlinkCheck.error = err instanceof Error ? err.message : 'Unknown error'
-        symlinkCheck.suggestion = 'Check that both /aperture-libraries and /media are properly mounted'
+        symlinkCheck.suggestion =
+          'Check that both /aperture-libraries and /media are properly mounted'
       }
       checks.push(symlinkCheck)
     }
@@ -593,7 +591,8 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
     } catch (err) {
       mediaServerCheck.status = 'failed'
       mediaServerCheck.error = err instanceof Error ? err.message : 'Unknown error'
-      mediaServerCheck.suggestion = 'Check your media server is running and the connection details are correct'
+      mediaServerCheck.suggestion =
+        'Check your media server is running and the connection details are correct'
     }
     checks.push(mediaServerCheck)
 
@@ -655,12 +654,15 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * POST /api/setup/top-picks-config
    */
-  fastify.post<{ Body: Record<string, unknown> }>('/api/setup/top-picks-config', async (request, reply) => {
-    const { complete, isAdmin } = await requireSetupWritable(request)
-    if (complete && !isAdmin) return reply.status(404).send({ error: 'Not Found' })
-    const updated = await updateTopPicksConfig(request.body as never)
-    return reply.send(updated)
-  })
+  fastify.post<{ Body: Record<string, unknown> }>(
+    '/api/setup/top-picks-config',
+    async (request, reply) => {
+      const { complete, isAdmin } = await requireSetupWritable(request)
+      if (complete && !isAdmin) return reply.status(404).send({ error: 'Not Found' })
+      const updated = await updateTopPicksConfig(request.body as never)
+      return reply.send(updated)
+    }
+  )
 
   // ==========================================================================
   // Setup Users Endpoints (STRICTLY first-run only - returns 403 after setup)
@@ -700,7 +702,7 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
          FROM users WHERE provider = $1`,
         [provider.type]
       )
-      
+
       // Get watch history counts for all users
       const watchHistoryResult = await query<{
         user_id: string
@@ -715,7 +717,7 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
          WHERE u.provider = $1`,
         [provider.type]
       )
-      
+
       const watchHistoryMap = new Map(
         watchHistoryResult.rows.map((row) => [
           row.user_id,
@@ -855,7 +857,10 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
         ]
       )
 
-      fastify.log.info({ userId: newUser?.id, providerUserId, name: providerUser.name }, 'User imported during setup')
+      fastify.log.info(
+        { userId: newUser?.id, providerUserId, name: providerUser.name },
+        'User imported during setup'
+      )
 
       return reply.status(201).send({ user: newUser })
     } catch (error) {
@@ -905,11 +910,15 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       if (updates.length === 0) {
-        return reply.status(400).send({ error: 'At least one of moviesEnabled or seriesEnabled is required' })
+        return reply
+          .status(400)
+          .send({ error: 'At least one of moviesEnabled or seriesEnabled is required' })
       }
 
       // Compute is_enabled based on final values
-      updates.push(`is_enabled = COALESCE($${paramIndex++}, movies_enabled) OR COALESCE($${paramIndex++}, series_enabled)`)
+      updates.push(
+        `is_enabled = COALESCE($${paramIndex++}, movies_enabled) OR COALESCE($${paramIndex++}, series_enabled)`
+      )
       values.push(moviesEnabled ?? null, seriesEnabled ?? null)
 
       updates.push('updated_at = NOW()')
@@ -942,53 +951,50 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
    * POST /api/setup/openai/test
    * Test OpenAI connection (public during setup)
    */
-  fastify.post<{ Body: OpenAIBody }>(
-    '/api/setup/openai/test',
-    async (request, reply) => {
-      const { complete, isAdmin } = await requireSetupWritable(request)
-      if (complete && !isAdmin) return reply.status(404).send({ error: 'Not Found' })
-      const { apiKey } = request.body
+  fastify.post<{ Body: OpenAIBody }>('/api/setup/openai/test', async (request, reply) => {
+    const { complete, isAdmin } = await requireSetupWritable(request)
+    if (complete && !isAdmin) return reply.status(404).send({ error: 'Not Found' })
+    const { apiKey } = request.body
 
-      if (!apiKey) {
-        return reply.status(400).send({ 
-          success: false, 
-          error: 'API key is required' 
+    if (!apiKey) {
+      return reply.status(400).send({
+        success: false,
+        error: 'API key is required',
+      })
+    }
+
+    // Temporarily test with the provided key
+    const originalKey = process.env.OPENAI_API_KEY
+    process.env.OPENAI_API_KEY = apiKey
+
+    try {
+      const response = await fetch('https://api.openai.com/v1/models', {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      })
+
+      if (response.ok) {
+        return reply.send({ success: true })
+      } else {
+        const data = (await response.json().catch(() => ({}))) as { error?: { message?: string } }
+        return reply.send({
+          success: false,
+          error: data.error?.message || `API returned status ${response.status}`,
         })
       }
-
-      // Temporarily test with the provided key
-      const originalKey = process.env.OPENAI_API_KEY
-      process.env.OPENAI_API_KEY = apiKey
-      
-      try {
-        const response = await fetch('https://api.openai.com/v1/models', {
-          headers: { Authorization: `Bearer ${apiKey}` },
-        })
-
-        if (response.ok) {
-          return reply.send({ success: true })
-        } else {
-          const data = await response.json().catch(() => ({})) as { error?: { message?: string } }
-          return reply.send({ 
-            success: false, 
-            error: data.error?.message || `API returned status ${response.status}` 
-          })
-        }
-      } catch (err) {
-        return reply.send({ 
-          success: false, 
-          error: err instanceof Error ? err.message : 'Connection failed' 
-        })
-      } finally {
-        // Restore original key
-        if (originalKey) {
-          process.env.OPENAI_API_KEY = originalKey
-        } else {
-          delete process.env.OPENAI_API_KEY
-        }
+    } catch (err) {
+      return reply.send({
+        success: false,
+        error: err instanceof Error ? err.message : 'Connection failed',
+      })
+    } finally {
+      // Restore original key
+      if (originalKey) {
+        process.env.OPENAI_API_KEY = originalKey
+      } else {
+        delete process.env.OPENAI_API_KEY
       }
     }
-  )
+  })
 
   /**
    * GET /api/setup/openai
@@ -1016,23 +1022,20 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
    * POST /api/setup/openai
    * Save OpenAI API key (only during setup)
    */
-  fastify.post<{ Body: OpenAIBody }>(
-    '/api/setup/openai',
-    async (request, reply) => {
-      const { complete, isAdmin } = await requireSetupWritable(request)
-      if (complete && !isAdmin) return reply.status(404).send({ error: 'Not Found' })
+  fastify.post<{ Body: OpenAIBody }>('/api/setup/openai', async (request, reply) => {
+    const { complete, isAdmin } = await requireSetupWritable(request)
+    if (complete && !isAdmin) return reply.status(404).send({ error: 'Not Found' })
 
-      const { apiKey } = request.body
+    const { apiKey } = request.body
 
-      if (!apiKey) {
-        return reply.status(400).send({ error: 'API key is required' })
-      }
-
-      await setOpenAIApiKey(apiKey)
-
-      return reply.send({ success: true })
+    if (!apiKey) {
+      return reply.status(400).send({ error: 'API key is required' })
     }
-  )
+
+    await setOpenAIApiKey(apiKey)
+
+    return reply.send({ success: true })
+  })
 
   /**
    * POST /api/setup/jobs/:name/run
@@ -1043,8 +1046,8 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       const complete = await isSetupComplete()
       if (complete) {
-        return reply.status(403).send({ 
-          error: 'Setup is already complete. Use admin job endpoints instead.' 
+        return reply.status(403).send({
+          error: 'Setup is already complete. Use admin job endpoints instead.',
         })
       }
 
@@ -1091,8 +1094,8 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       const complete = await isSetupComplete()
       if (complete) {
-        return reply.status(403).send({ 
-          error: 'Setup is already complete. Use admin job endpoints instead.' 
+        return reply.status(403).send({
+          error: 'Setup is already complete. Use admin job endpoints instead.',
         })
       }
 
@@ -1111,26 +1114,23 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
    * POST /api/setup/complete
    * Mark setup as complete
    */
-  fastify.post(
-    '/api/setup/complete',
-    async (request, reply) => {
-      // Verify media server is configured before completing
-      const mediaServerConfig = await getMediaServerConfig()
-      if (!mediaServerConfig.isConfigured) {
-        return reply.status(400).send({ 
-          error: 'Media server must be configured before completing setup' 
-        })
-      }
-
-      const { complete, isAdmin } = await requireSetupWritable(request)
-      if (complete && !isAdmin) return reply.status(404).send({ error: 'Not Found' })
-
-      await markSetupComplete()
-      await markSetupStepCompleted('initialJobs')
-
-      return reply.send({ success: true })
+  fastify.post('/api/setup/complete', async (request, reply) => {
+    // Verify media server is configured before completing
+    const mediaServerConfig = await getMediaServerConfig()
+    if (!mediaServerConfig.isConfigured) {
+      return reply.status(400).send({
+        error: 'Media server must be configured before completing setup',
+      })
     }
-  )
+
+    const { complete, isAdmin } = await requireSetupWritable(request)
+    if (complete && !isAdmin) return reply.status(404).send({ error: 'Not Found' })
+
+    await markSetupComplete()
+    await markSetupStepCompleted('initialJobs')
+
+    return reply.send({ success: true })
+  })
 
   /**
    * POST /api/admin/setup/run-initial-jobs
@@ -1187,28 +1187,32 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
   // Admin-only rerun endpoints (accessible from Admin Settings UI)
   // ==========================================================================
 
-  fastify.get('/api/admin/setup/progress', { preHandler: requireAdmin }, async (_request, reply) => {
-    const progress = await getSetupProgress()
-    const mediaServerConfig = await getMediaServerConfig()
-    const hasOpenAI = await hasOpenAIApiKey()
-    // Exclude Aperture-created libraries from selection
-    const libraries = await getLibraryConfigs(true)
-    const aiRecsOutput = await getAiRecsOutputConfig()
-    const outputPathConfig = await getOutputPathConfig()
-    const topPicks = await getTopPicksConfig()
+  fastify.get(
+    '/api/admin/setup/progress',
+    { preHandler: requireAdmin },
+    async (_request, reply) => {
+      const progress = await getSetupProgress()
+      const mediaServerConfig = await getMediaServerConfig()
+      const hasOpenAI = await hasOpenAIApiKey()
+      // Exclude Aperture-created libraries from selection
+      const libraries = await getLibraryConfigs(true)
+      const aiRecsOutput = await getAiRecsOutputConfig()
+      const outputPathConfig = await getOutputPathConfig()
+      const topPicks = await getTopPicksConfig()
 
-    return reply.send({
-      progress,
-      snapshot: {
-        mediaServer: mediaServerConfig,
-        openai: { configured: hasOpenAI },
-        libraries,
-        aiRecsOutput,
-        outputPathConfig,
-        topPicks,
-      },
-    })
-  })
+      return reply.send({
+        progress,
+        snapshot: {
+          mediaServer: mediaServerConfig,
+          openai: { configured: hasOpenAI },
+          libraries,
+          aiRecsOutput,
+          outputPathConfig,
+          topPicks,
+        },
+      })
+    }
+  )
 
   fastify.post<{ Body: SetupProgressBody }>(
     '/api/admin/setup/progress',
@@ -1233,4 +1237,3 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
 }
 
 export default setupRoutes
-
