@@ -218,7 +218,7 @@ export async function refreshTopPicks(
       // Ensure Top Picks movies library exists (if enabled)
       if (config.moviesLibraryEnabled) {
         try {
-          const moviesLibPath = path.join(strmConfig.libraryPathPrefix, '..', 'top-picks', 'movies')
+          const moviesLibPath = path.join(strmConfig.libraryPathPrefix, 'top-picks-movies')
           addLog(jobId, 'info', `🔧 Checking Movies library "${config.moviesLibraryName}"...`)
           const moviesResult = await provider.createVirtualLibrary(
             apiKey,
@@ -242,7 +242,7 @@ export async function refreshTopPicks(
       // Ensure Top Picks series library exists (if enabled)
       if (config.seriesLibraryEnabled) {
         try {
-          const seriesLibPath = path.join(strmConfig.libraryPathPrefix, '..', 'top-picks', 'series')
+          const seriesLibPath = path.join(strmConfig.libraryPathPrefix, 'top-picks-series')
           addLog(jobId, 'info', `🔧 Checking Series library "${config.seriesLibraryName}"...`)
           const seriesResult = await provider.createVirtualLibrary(
             apiKey,
