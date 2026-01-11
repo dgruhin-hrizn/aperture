@@ -111,18 +111,26 @@ export function Layout() {
     <Box sx={{ overflow: 'auto', mt: 2, display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Logo */}
       <Box px={3} mb={3}>
-        <Typography
-          variant="h5"
-          sx={{
-            fontWeight: 700,
-            background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}
-        >
-          Aperture
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+          <Box
+            component="img"
+            src="/aperture.svg"
+            alt="Aperture"
+            sx={{ width: 28, height: 28 }}
+          />
+          <Typography
+            sx={{
+              fontFamily: '"Open Sans", sans-serif',
+              fontWeight: 600,
+              fontSize: '1.25rem',
+              color: 'text.primary',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            Aperture
+          </Typography>
+        </Box>
+        <Typography variant="caption" color="text.secondary" sx={{ pl: 5.5 }}>
           AI Movie Recommendations
         </Typography>
       </Box>
