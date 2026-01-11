@@ -1,5 +1,4 @@
 import type { Movie } from './types.js'
-import { getMediaServerProvider } from '../media/index.js'
 
 /**
  * Sanitize a filename for filesystem use
@@ -107,9 +106,12 @@ export function buildBackdropFilename(movie: Movie): string {
 
 /**
  * Get the content to write inside the STRM file.
- * Always returns a streaming URL (no API key - client authenticates via session).
+ * Uses the original file path when available (for local deployments with filesystem access).
+ * Falls back to streaming URL for remote deployments.
  */
-export async function getStrmContent(providerItemId: string): Promise<string> {
-  const provider = await getMediaServerProvider()
-  return provider.getStreamUrl(providerItemId)
+export function getStrmContent(filePath: string | null | undefined): string {
+  if (filePath) {
+    return filePath
+  }
+  throw new Error('No file path available for STRM content')
 }

@@ -21,7 +21,6 @@ import { getConfig } from '../strm/config.js'
 import { sanitizeFilename } from '../strm/filenames.js'
 import { downloadImage } from '../strm/images.js'
 import { symlinkArtwork, SERIES_SKIP_FILES } from '../strm/artwork.js'
-import { getMediaServerProvider } from '../media/index.js'
 import { getWatchingLibraryConfig } from '../settings/systemSettings.js'
 import type { ImageDownloadTask } from '../strm/types.js'
 import {
@@ -253,7 +252,6 @@ export async function writeWatchingSeriesForUser(
   const config = await getConfig()
   const watchingConfig = await getWatchingLibraryConfig()
   const useSymlinks = watchingConfig.useSymlinks
-  const provider = await getMediaServerProvider()
   const startTime = Date.now()
 
   // Get user's display name for folder naming
@@ -518,10 +516,13 @@ export async function writeWatchingSeriesForUser(
           // Episode filename: SeriesName S01E01 Episode Title.strm
           const episodeFilename = `${sanitizeFilename(series.title)} S${String(ep.season_number).padStart(2, '0')}E${String(ep.episode_number).padStart(2, '0')} ${sanitizeFilename(ep.title)}`
 
-          // Write STRM file (always streaming URL - no API key, client authenticates via session)
+          // Write STRM file with original file path
+          if (!ep.path) {
+            logger.warn({ series: series.title, episode: ep.title }, 'No file path for episode, skipping')
+            continue
+          }
           const strmPath = path.join(seasonFolderPath, `${episodeFilename}.strm`)
-          const strmContent = provider.getStreamUrl(ep.provider_item_id)
-          await fs.writeFile(strmPath, strmContent, 'utf-8')
+          await fs.writeFile(strmPath, ep.path, 'utf-8')
         }
       }
 

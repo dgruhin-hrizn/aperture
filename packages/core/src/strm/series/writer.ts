@@ -500,10 +500,13 @@ export async function writeSeriesStrmFilesForUser(
           // Episode filename: SeriesName S01E01 Episode Title.strm
           const episodeFilename = `${sanitizeForFilename(series.title)} S${String(episode.seasonNumber).padStart(2, '0')}E${String(episode.episodeNumber).padStart(2, '0')} ${sanitizeForFilename(episode.title)}`
 
-          // Write STRM file (always streaming URL - no API key, client authenticates via session)
+          // Write STRM file with original file path
+          if (!episode.path) {
+            logger.warn({ series: series.title, episode: episode.title }, 'No file path for episode, skipping')
+            continue
+          }
           const strmPath = path.join(seasonFolderPath, `${episodeFilename}.strm`)
-          const strmContent = provider.getStreamUrl(episode.providerItemId)
-          await fs.writeFile(strmPath, strmContent, 'utf-8')
+          await fs.writeFile(strmPath, episode.path, 'utf-8')
           filesWritten++
 
           // Write episode NFO

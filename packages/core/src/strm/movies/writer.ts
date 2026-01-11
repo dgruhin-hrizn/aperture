@@ -248,16 +248,14 @@ export async function writeStrmFilesForUser(
             { err, movie: movie.title },
             'Failed to create movie symlink, falling back to STRM'
           )
-          // Fallback to STRM if symlink fails
+          // Fallback to STRM if symlink fails - use original file path
           const strmPath = path.join(movieFolderPath, `${baseFilename}.strm`)
-          const strmContent = await getStrmContent(movie.providerItemId)
-          await fs.writeFile(strmPath, strmContent, 'utf-8')
+          await fs.writeFile(strmPath, originalPath, 'utf-8')
         }
       } else {
-        // No original path, must use STRM
-        const strmPath = path.join(movieFolderPath, `${baseFilename}.strm`)
-        const strmContent = await getStrmContent(movie.providerItemId)
-        await fs.writeFile(strmPath, strmContent, 'utf-8')
+        // No original path - skip this movie
+        logger.warn({ movie: movie.title }, 'No file path found for movie, skipping')
+        continue
       }
 
       // Create NFO file in folder
@@ -314,6 +312,24 @@ export async function writeStrmFilesForUser(
       }
     } else {
       // STRM MODE: Folder per movie with all images downloaded via API
+      // Get original file path for STRM content
+      let originalPath: string | null = null
+      if (movie.path) {
+        originalPath = movie.path
+      } else if (movie.mediaSources) {
+        for (const source of movie.mediaSources) {
+          if (source.path) {
+            originalPath = source.path
+            break
+          }
+        }
+      }
+
+      if (!originalPath) {
+        logger.warn({ movie: movie.title }, 'No file path found for movie, skipping STRM')
+        continue
+      }
+
       const safeTitle = movie.title.replace(/[<>:"/\\|?*]/g, '')
       const folderName = movie.year ? `${safeTitle} (${movie.year})` : safeTitle
       const movieFolderPath = path.join(localPath, folderName)
@@ -322,10 +338,10 @@ export async function writeStrmFilesForUser(
       // Create movie folder
       await fs.mkdir(movieFolderPath, { recursive: true })
 
-      // Create STRM file (always streaming URL - no API key, client authenticates via session)
+      // Create STRM file with original file path
       const baseFilename = folderName
       const strmPath = path.join(movieFolderPath, `${baseFilename}.strm`)
-      const strmContent = await getStrmContent(movie.providerItemId)
+      const strmContent = getStrmContent(originalPath)
       await fs.writeFile(strmPath, strmContent, 'utf-8')
 
       // Create NFO file in folder
