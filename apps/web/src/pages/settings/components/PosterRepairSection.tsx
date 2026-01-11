@@ -318,35 +318,39 @@ export function PosterRepairSection() {
               <>
                 <Box display="flex" justifyContent="space-between" mb={0.5}>
                   <Typography variant="caption" color="text.secondary">
-                    {repairProgress.completed} of {repairProgress.total} processed
+                    {repairing 
+                      ? `Processing ${repairProgress.total} items...` 
+                      : `${repairProgress.completed} of ${repairProgress.total} processed`}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {Math.round((repairProgress.completed / repairProgress.total) * 100)}%
+                    {repairing ? '' : `${Math.round((repairProgress.completed / repairProgress.total) * 100)}%`}
                   </Typography>
                 </Box>
                 <LinearProgress
-                  variant="determinate"
-                  value={(repairProgress.completed / repairProgress.total) * 100}
+                  variant={repairing ? 'indeterminate' : 'determinate'}
+                  value={repairing ? undefined : (repairProgress.completed / repairProgress.total) * 100}
                   sx={{ height: 6, borderRadius: 1, mb: 1 }}
                 />
-                <Box display="flex" gap={2}>
-                  <Chip
-                    size="small"
-                    icon={<CheckCircleIcon />}
-                    label={`${repairProgress.successful} successful`}
-                    color="success"
-                    variant="outlined"
-                  />
-                  {repairProgress.failed > 0 && (
+                {!repairing && (
+                  <Box display="flex" gap={2}>
                     <Chip
                       size="small"
-                      icon={<ErrorIcon />}
-                      label={`${repairProgress.failed} failed`}
-                      color="error"
+                      icon={<CheckCircleIcon />}
+                      label={`${repairProgress.successful} successful`}
+                      color="success"
                       variant="outlined"
                     />
-                  )}
-                </Box>
+                    {repairProgress.failed > 0 && (
+                      <Chip
+                        size="small"
+                        icon={<ErrorIcon />}
+                        label={`${repairProgress.failed} failed`}
+                        color="error"
+                        variant="outlined"
+                      />
+                    )}
+                  </Box>
+                )}
               </>
             )}
 
