@@ -111,9 +111,10 @@ export function BackupSection() {
       setLoading(true)
       setError(null)
 
-      const [configRes, backupsRes] = await Promise.all([
+      const [configRes, backupsRes, jobsRes] = await Promise.all([
         fetch('/api/backup/config', { credentials: 'include' }),
         fetch('/api/backup/list', { credentials: 'include' }),
+        fetch('/api/jobs', { credentials: 'include' }),
       ])
 
       if (!configRes.ok) {
@@ -129,12 +130,30 @@ export function BackupSection() {
       setConfig(configData)
       setBackups(backupsData.backups || [])
       setRetentionCount(configData.retentionCount)
+
+      // Check for running backup/restore jobs and resume tracking
+      if (jobsRes.ok) {
+        const jobsData = await jobsRes.json()
+        const backupJob = jobsData.jobs?.find(
+          (j: { name: string; currentJobId?: string }) =>
+            (j.name === 'backup-database' || j.name === 'restore-database') && j.currentJobId
+        )
+        if (backupJob?.currentJobId && !activeJobId) {
+          setActiveJobId(backupJob.currentJobId)
+          if (backupJob.name === 'backup-database') {
+            setCreatingBackup(true)
+          } else {
+            setRestoringBackup(true)
+          }
+          setShowLogs(true)
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load backup data')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [activeJobId])
 
   useEffect(() => {
     fetchData()
