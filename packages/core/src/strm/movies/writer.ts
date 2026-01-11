@@ -136,11 +136,11 @@ export async function writeStrmFilesForUser(
             m.studios, m.directors, m.writers, m.actors::text,
             m.imdb_id, m.tmdb_id, m.tags, m.production_countries, m.awards,
             m.video_resolution, m.video_codec, m.audio_codec, m.container,
-            rc.ai_explanation, rc.rank, rc.final_score
+            rc.ai_explanation, rc.selected_rank as rank, rc.final_score
      FROM recommendation_candidates rc
      JOIN movies m ON m.id = rc.movie_id
      WHERE rc.run_id = $1 AND rc.is_selected = true
-     ORDER BY rc.rank DESC`,
+     ORDER BY rc.selected_rank ASC`,
     [latestRun.id]
   )
 
