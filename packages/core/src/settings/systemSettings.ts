@@ -1158,3 +1158,39 @@ export async function testOMDbConnection(
     return { success: false, error }
   }
 }
+
+// ============================================================================
+// Studio Logo Settings
+// ============================================================================
+
+export interface StudioLogosConfig {
+  pushToEmby: boolean
+}
+
+/**
+ * Get studio logos configuration
+ */
+export async function getStudioLogosConfig(): Promise<StudioLogosConfig> {
+  const pushToEmby = await getSystemSetting('studio_logos_push_to_emby')
+
+  return {
+    pushToEmby: pushToEmby === 'true', // Default to false
+  }
+}
+
+/**
+ * Set studio logos configuration
+ */
+export async function setStudioLogosConfig(
+  config: Partial<StudioLogosConfig>
+): Promise<StudioLogosConfig> {
+  if (config.pushToEmby !== undefined) {
+    await setSystemSetting(
+      'studio_logos_push_to_emby',
+      String(config.pushToEmby),
+      'Push fetched studio/network logos to Emby/Jellyfin'
+    )
+  }
+  logger.info({ config }, 'Studio logos config updated')
+  return getStudioLogosConfig()
+}

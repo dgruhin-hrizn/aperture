@@ -276,6 +276,9 @@ export {
   setOMDbConfig,
   testOMDbConnection,
   isOMDbPaidTier,
+  // Studio logos settings
+  getStudioLogosConfig,
+  setStudioLogosConfig,
   type SystemSetting,
   type EmbeddingModel,
   type TextGenerationModel,
@@ -290,6 +293,7 @@ export {
   type ChatAssistantModelInfo,
   type TMDbConfig,
   type OMDbConfig,
+  type StudioLogosConfig,
 } from './settings/systemSettings.js'
 
 // OpenAI client (centralized, lazy-initialized)
@@ -452,6 +456,15 @@ export {
   getEnrichmentStats,
   clearEnrichmentData,
 } from './enrichment/index.js'
+
+// Studio Logo Enrichment
+export {
+  enrichStudioLogos,
+  getStudioLogoStats,
+  populateStudiosFromMedia,
+  getStudioByName,
+  getStudioLogoUrl,
+} from './enrichment/studioLogos.js'
 
 // Backup
 export {
