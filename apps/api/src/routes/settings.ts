@@ -582,7 +582,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       const recConfig = await getRecommendationConfig()
 
       // Get job schedules
-      const movieJobConfig = await getJobConfig('generate-recommendations')
+      const movieJobConfig = await getJobConfig('generate-movie-recommendations')
       const seriesJobConfig = await getJobConfig('generate-series-recommendations')
 
       // Get enabled user counts
@@ -621,7 +621,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
           enabledUsers: moviesEnabledUsers,
           source: {
             selectedCount: 'Settings > AI Config > Algorithm > Movies > Recs Per User',
-            schedule: 'Jobs > generate-recommendations',
+            schedule: 'Jobs > generate-movie-recommendations',
           },
         },
         series: {
