@@ -38,6 +38,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorIcon from '@mui/icons-material/Error'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
+import CancelIcon from '@mui/icons-material/Cancel'
 
 interface BackupInfo {
   filename: string
@@ -111,9 +112,10 @@ export function BackupSection() {
       setLoading(true)
       setError(null)
 
-      const [configRes, backupsRes] = await Promise.all([
+      const [configRes, backupsRes, jobsRes] = await Promise.all([
         fetch('/api/backup/config', { credentials: 'include' }),
         fetch('/api/backup/list', { credentials: 'include' }),
+        fetch('/api/jobs', { credentials: 'include' }),
       ])
 
       if (!configRes.ok) {
@@ -129,12 +131,30 @@ export function BackupSection() {
       setConfig(configData)
       setBackups(backupsData.backups || [])
       setRetentionCount(configData.retentionCount)
+
+      // Check for running backup/restore jobs and resume tracking
+      if (jobsRes.ok) {
+        const jobsData = await jobsRes.json()
+        const backupJob = jobsData.jobs?.find(
+          (j: { name: string; currentJobId?: string }) =>
+            (j.name === 'backup-database' || j.name === 'restore-database') && j.currentJobId
+        )
+        if (backupJob?.currentJobId && !activeJobId) {
+          setActiveJobId(backupJob.currentJobId)
+          if (backupJob.name === 'backup-database') {
+            setCreatingBackup(true)
+          } else {
+            setRestoringBackup(true)
+          }
+          setShowLogs(true)
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load backup data')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [activeJobId])
 
   useEffect(() => {
     fetchData()
@@ -189,9 +209,10 @@ export function BackupSection() {
         }
       }
 
-      // Auto-scroll logs
-      if (logsEndRef.current) {
-        logsEndRef.current.scrollIntoView({ behavior: 'smooth' })
+      // Auto-scroll logs (within container only, not the page)
+      if (logsEndRef.current?.parentElement && showLogs) {
+        const container = logsEndRef.current.parentElement
+        container.scrollTop = container.scrollHeight
       }
 
       // Check if job is complete
@@ -319,6 +340,31 @@ export function BackupSection() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create backup')
       setCreatingBackup(false)
+    }
+  }
+
+  const handleCancelBackup = async () => {
+    if (!activeJobId) return
+
+    try {
+      const res = await fetch(`/api/backup/cancel/${activeJobId}`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+
+      if (res.ok) {
+        setSuccess('Backup cancelled')
+        setCreatingBackup(false)
+        setActiveJobId(null)
+        setJobProgress(null)
+        setInProgressBackup(null)
+        await fetchData()
+      } else {
+        const data = await res.json()
+        setError(data.error || 'Failed to cancel backup')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to cancel backup')
     }
   }
 
@@ -644,14 +690,25 @@ export function BackupSection() {
               {creatingBackup ? 'Backing up...' : 'Backup Now'}
             </Button>
 
+            {creatingBackup && (
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<CancelIcon />}
+                onClick={handleCancelBackup}
+              >
+                Cancel
+              </Button>
+            )}
+
             <Button
               variant="outlined"
               component="label"
               startIcon={uploadingBackup ? <CircularProgress size={16} /> : <UploadIcon />}
-              disabled={uploadingBackup || restoringBackup}
+              disabled={uploadingBackup || restoringBackup || creatingBackup}
             >
               {uploadingBackup ? 'Uploading...' : 'Upload Backup'}
-              <input type="file" hidden accept=".sql,.sql.gz" onChange={handleUploadBackup} />
+              <input type="file" hidden accept=".sql,.sql.gz,.dump" onChange={handleUploadBackup} />
             </Button>
 
             <Box display="flex" alignItems="center" gap={0.5} ml="auto">
@@ -734,7 +791,7 @@ export function BackupSection() {
 
           {/* Backups List */}
           <Typography variant="subtitle2" fontWeight={600} mb={1}>
-            Available Backups ({backups.length}{inProgressBackup ? ' + 1 in progress' : ''})
+            Available Backups ({inProgressBackup ? backups.filter(b => b.filename !== inProgressBackup.filename).length : backups.length}{inProgressBackup ? ' + 1 in progress' : ''})
           </Typography>
 
           {backups.length === 0 && !inProgressBackup ? (
@@ -795,8 +852,10 @@ export function BackupSection() {
                       </TableCell>
                     </TableRow>
                   )}
-                  {/* Completed backups */}
-                  {backups.map((backup) => (
+                  {/* Completed backups (excluding in-progress) */}
+                  {backups
+                    .filter((backup) => !inProgressBackup || backup.filename !== inProgressBackup.filename)
+                    .map((backup) => (
                     <TableRow key={backup.filename} hover>
                       <TableCell>
                         <Tooltip title="Backup complete">
