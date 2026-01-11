@@ -182,30 +182,32 @@ export async function refreshTopPicks(
       }
     }
 
-    // Set total items for progress tracking
-    const totalItems = topMovies.length + topSeries.length
-    updateJobProgress(jobId, 0, totalItems)
+    // Track libraries created for progress (1 movie library + 1 series library = 2 max)
+    let librariesCreated = 0
+    const totalLibraries = (config.moviesLibraryEnabled ? 1 : 0) + (config.seriesLibraryEnabled ? 1 : 0)
 
     // Step 4: Write STRM files for movies (if library enabled)
-    setJobStep(jobId, 3, 'Writing library files', totalItems)
+    setJobStep(jobId, 3, 'Writing library files')
     
     if (config.moviesLibraryEnabled) {
       addLog(jobId, 'info', '📁 Writing Top Picks Movies library files...')
       const moviesResult = await writeTopPicksMovies(topMovies)
       addLog(jobId, 'info', `✅ Written ${moviesResult.written} movie files to ${moviesResult.localPath}`)
-      updateJobProgress(jobId, topMovies.length, totalItems)
+      librariesCreated++
+      updateJobProgress(jobId, librariesCreated, undefined, `${librariesCreated}/${totalLibraries} libraries`)
     } else {
       addLog(jobId, 'info', '⏭️ Skipping movies library (disabled)')
     }
 
     // Step 5: Write STRM files for series (if library enabled)
-    setJobStep(jobId, 4, 'Writing series library files', totalItems)
+    setJobStep(jobId, 4, 'Writing series library files')
     
     if (config.seriesLibraryEnabled) {
       addLog(jobId, 'info', '📁 Writing Top Picks Series library files...')
       const seriesResult = await writeTopPicksSeries(topSeries)
       addLog(jobId, 'info', `✅ Written ${seriesResult.written} series to ${seriesResult.localPath}`)
-      updateJobProgress(jobId, topMovies.length + topSeries.length, totalItems)
+      librariesCreated++
+      updateJobProgress(jobId, librariesCreated, undefined, `${librariesCreated}/${totalLibraries} libraries`)
     } else {
       addLog(jobId, 'info', '⏭️ Skipping series library (disabled)')
     }
