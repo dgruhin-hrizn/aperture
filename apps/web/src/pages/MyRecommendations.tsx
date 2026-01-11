@@ -155,7 +155,6 @@ export function MyRecommendationsPage() {
   useEffect(() => {
     fetchMovieRecommendations()
     fetchSeriesRecommendations()
-    fetchPreferences()
   }, [user])
 
   const handleRegenerate = async () => {
