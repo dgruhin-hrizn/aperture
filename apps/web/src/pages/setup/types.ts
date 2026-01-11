@@ -236,6 +236,7 @@ export interface SetupWizardActions {
 
   // Jobs
   runInitialJobs: () => Promise<void>
+  runSingleJob: (jobId: string) => Promise<void>
 
   // Complete
   handleCompleteSetup: () => Promise<void>

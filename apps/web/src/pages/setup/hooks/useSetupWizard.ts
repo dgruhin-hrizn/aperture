@@ -923,6 +923,36 @@ export function useSetupWizard(): SetupWizardContext {
     }
   }, [runJobAndWait, updateProgress, goToStep])
 
+  // Run a single job by ID (for re-running completed or failed jobs)
+  const runSingleJob = useCallback(async (jobId: string) => {
+    const jobIndex = INITIAL_JOBS.findIndex((j) => j.id === jobId)
+    if (jobIndex === -1) {
+      setError(`Unknown job: ${jobId}`)
+      return
+    }
+
+    const job = INITIAL_JOBS[jobIndex]
+    setRunningJobs(true)
+    setError('')
+    setJobLogs((l) => [...l, `[${new Date().toLocaleTimeString()}] Re-running: ${job.name}...`])
+
+    // Reset this job's status to pending first
+    setJobsProgress((prev) =>
+      prev.map((j, i) => (i === jobIndex ? { ...j, status: 'pending' as const, error: undefined, progress: undefined } : j))
+    )
+
+    try {
+      await runJobAndWait(jobIndex)
+      setJobLogs((l) => [...l, `[${new Date().toLocaleTimeString()}] ✓ Re-run complete: ${job.name}`])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Failed to re-run ${job.name}`)
+      setJobLogs((l) => [...l, `[${new Date().toLocaleTimeString()}] ✗ Re-run failed: ${err instanceof Error ? err.message : 'Unknown error'}`])
+    } finally {
+      setRunningJobs(false)
+      setCurrentJobIndex(-1)
+    }
+  }, [runJobAndWait])
+
   // Complete handler
   const handleCompleteSetup = useCallback(async () => {
     setSaving(true)
@@ -1031,6 +1061,7 @@ export function useSetupWizard(): SetupWizardContext {
     setTopPicks,
     saveTopPicks,
     runInitialJobs,
+    runSingleJob,
     handleCompleteSetup,
     updateProgress,
   }

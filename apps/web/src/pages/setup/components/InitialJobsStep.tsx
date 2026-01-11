@@ -225,12 +225,21 @@ function LibraryResultsSummary({ jobs, type }: { jobs: JobProgress[]; type: 'mov
   )
 }
 
-function JobListItem({ job, isActive }: { job: JobProgress; isActive: boolean }) {
+interface JobListItemProps {
+  job: JobProgress
+  isActive: boolean
+  canRerun: boolean
+  onRerun: () => void
+}
+
+function JobListItem({ job, isActive, canRerun, onRerun }: JobListItemProps) {
   // Format the count display
   const countDisplay =
     job.itemsTotal && job.itemsTotal > 0
       ? `${job.itemsProcessed ?? 0} / ${job.itemsTotal}`
       : null
+
+  const showRerunButton = canRerun && (job.status === 'completed' || job.status === 'failed')
 
   return (
     <ListItem
@@ -244,6 +253,22 @@ function JobListItem({ job, isActive }: { job: JobProgress; isActive: boolean })
         borderColor: isActive ? 'primary.main' : job.status === 'completed' ? 'success.main' : job.status === 'failed' ? 'error.main' : 'divider',
         borderLeftWidth: 3,
       }}
+      secondaryAction={
+        showRerunButton ? (
+          <IconButton
+            edge="end"
+            size="small"
+            onClick={onRerun}
+            title={`Re-run ${job.name}`}
+            sx={{ 
+              color: job.status === 'failed' ? 'warning.main' : 'primary.main',
+              '&:hover': { backgroundColor: job.status === 'failed' ? 'warning.light' : 'primary.light', color: 'white' }
+            }}
+          >
+            <SyncIcon fontSize="small" />
+          </IconButton>
+        ) : undefined
+      }
     >
       <ListItemIcon sx={{ minWidth: 40 }}>
         <JobStatusIcon status={job.status} />
@@ -261,7 +286,7 @@ function JobListItem({ job, isActive }: { job: JobProgress; isActive: boolean })
                 size="small"
                 color="primary"
                 variant="outlined"
-                sx={{ ml: 'auto', fontFamily: 'monospace', fontWeight: 600 }}
+                sx={{ ml: 'auto', mr: showRerunButton ? 4 : 0, fontFamily: 'monospace', fontWeight: 600 }}
               />
             )}
             {job.status === 'completed' && job.itemsTotal && job.itemsTotal > 0 && (
@@ -270,7 +295,7 @@ function JobListItem({ job, isActive }: { job: JobProgress; isActive: boolean })
                 size="small"
                 color="success"
                 variant="outlined"
-                sx={{ ml: 'auto', fontFamily: 'monospace' }}
+                sx={{ ml: 'auto', mr: showRerunButton ? 4 : 0, fontFamily: 'monospace' }}
               />
             )}
           </Box>
@@ -317,7 +342,7 @@ function JobListItem({ job, isActive }: { job: JobProgress; isActive: boolean })
 }
 
 export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
-  const { error, runningJobs, jobLogs, jobsProgress, currentJobIndex, runInitialJobs, goToStep } = wizard
+  const { error, runningJobs, jobLogs, jobsProgress, currentJobIndex, runInitialJobs, runSingleJob, goToStep } = wizard
   const [logModalOpen, setLogModalOpen] = useState(false)
   const [waitingMessageIndex, setWaitingMessageIndex] = useState(0)
   const logContainerRef = useRef<HTMLDivElement>(null)
@@ -459,7 +484,13 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
         <Paper variant="outlined" sx={{ mb: 3, maxHeight: 400, overflow: 'auto' }}>
           <List disablePadding sx={{ p: 1 }}>
             {jobsProgress.map((job, index) => (
-              <JobListItem key={job.id} job={job} isActive={index === currentJobIndex} />
+              <JobListItem 
+                key={job.id} 
+                job={job} 
+                isActive={index === currentJobIndex}
+                canRerun={!runningJobs}
+                onRerun={() => runSingleJob(job.id)}
+              />
             ))}
           </List>
         </Paper>
