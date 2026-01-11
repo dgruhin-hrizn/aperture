@@ -24,7 +24,7 @@ interface Movie {
   tagline: string | null
   directors: string[] | null
   actors: Array<{ name: string; role?: string }> | null
-  studios: string[] | null
+  studios: Array<{ id?: string; name: string }> | null
   contentRating: string | null
   tags: string[] | null
   productionCountries: string[] | null
@@ -83,7 +83,7 @@ export function buildCanonicalText(movie: Movie): string {
   // Studios have distinct styles (A24 vs Marvel vs Blumhouse)
   if (movie.studios && movie.studios.length > 0) {
     // Limit to top 2 studios to avoid noise
-    const topStudios = movie.studios.slice(0, 2)
+    const topStudios = movie.studios.slice(0, 2).map((s) => s.name)
     sections.push(`Studio: ${topStudios.join(', ')}`)
   }
 
@@ -229,7 +229,7 @@ export async function getMoviesWithoutEmbeddings(
     tagline: string | null
     directors: string[] | null
     actors: string | null
-    studios: string[] | null
+    studios: string | null
     content_rating: string | null
     tags: string[] | null
     production_countries: string[] | null
@@ -237,7 +237,7 @@ export async function getMoviesWithoutEmbeddings(
   }>(
     hasLibraryConfigs
       ? `SELECT m.id, m.title, m.year, m.genres, m.overview,
-                m.tagline, m.directors, m.actors::text, m.studios,
+                m.tagline, m.directors, m.actors::text, m.studios::text,
                 m.content_rating, m.tags, m.production_countries, m.awards
          FROM movies m
          LEFT JOIN embeddings e ON e.movie_id = m.id AND e.model = $1
@@ -249,7 +249,7 @@ export async function getMoviesWithoutEmbeddings(
            )
          LIMIT $2`
       : `SELECT m.id, m.title, m.year, m.genres, m.overview,
-                m.tagline, m.directors, m.actors::text, m.studios,
+                m.tagline, m.directors, m.actors::text, m.studios::text,
                 m.content_rating, m.tags, m.production_countries, m.awards
          FROM movies m
          LEFT JOIN embeddings e ON e.movie_id = m.id AND e.model = $1
@@ -268,7 +268,7 @@ export async function getMoviesWithoutEmbeddings(
     tagline: row.tagline,
     directors: row.directors,
     actors: row.actors ? JSON.parse(row.actors) : null,
-    studios: row.studios,
+    studios: row.studios ? JSON.parse(row.studios) : null,
     contentRating: row.content_rating,
     tags: row.tags,
     productionCountries: row.production_countries,
