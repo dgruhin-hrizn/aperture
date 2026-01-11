@@ -208,9 +208,10 @@ export function BackupSection() {
         }
       }
 
-      // Auto-scroll logs
-      if (logsEndRef.current) {
-        logsEndRef.current.scrollIntoView({ behavior: 'smooth' })
+      // Auto-scroll logs (within container only, not the page)
+      if (logsEndRef.current?.parentElement && showLogs) {
+        const container = logsEndRef.current.parentElement
+        container.scrollTop = container.scrollHeight
       }
 
       // Check if job is complete
