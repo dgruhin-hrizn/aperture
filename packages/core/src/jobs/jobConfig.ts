@@ -297,13 +297,15 @@ export function scheduleToCron(config: JobConfig): string | null {
     case 'daily':
       return `${minute} ${hour} * * *`
 
-    case 'weekly':
+    case 'weekly': {
       const dayOfWeek = config.scheduleDayOfWeek ?? 0
       return `${minute} ${hour} * * ${dayOfWeek}`
+    }
 
-    case 'interval':
+    case 'interval': {
       const intervalHours = config.scheduleIntervalHours ?? 1
       return `0 */${intervalHours} * * *`
+    }
 
     default:
       return null
@@ -336,14 +338,16 @@ export function formatSchedule(config: JobConfig): string {
     case 'daily':
       return `Daily at ${formatTime(hour, minute)}`
 
-    case 'weekly':
+    case 'weekly': {
       const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
       const dayName = days[config.scheduleDayOfWeek ?? 0]
       return `Weekly on ${dayName} at ${formatTime(hour, minute)}`
+    }
 
-    case 'interval':
+    case 'interval': {
       const hours = config.scheduleIntervalHours ?? 1
       return hours === 1 ? 'Every hour' : `Every ${hours} hours`
+    }
 
     default:
       return 'Unknown schedule'
