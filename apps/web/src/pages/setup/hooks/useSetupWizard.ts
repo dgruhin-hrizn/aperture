@@ -70,8 +70,8 @@ const INITIAL_JOBS: Array<{ id: string; name: string; description: string; optio
   },
   {
     id: 'refresh-top-picks',
-    name: 'Refresh Top 10',
-    description: 'Creating Top 10 Movies and TV this week libraries',
+    name: 'Sync Top Picks',
+    description: 'Creating Top Picks movies and series libraries',
     optional: true, // Only auto-runs if Top 10 is enabled
   },
 ]
@@ -1016,7 +1016,7 @@ export function useSetupWizard(): SetupWizardContext {
         const job = INITIAL_JOBS[i]
         // Skip optional jobs that aren't enabled
         if (job.optional && job.id === 'refresh-top-picks' && !topPicks.isEnabled) {
-          setJobLogs((l) => [...l, `[${new Date().toLocaleTimeString()}] ⊘ Skipped: ${job.name} (Top 10 not enabled)`])
+          setJobLogs((l) => [...l, `[${new Date().toLocaleTimeString()}] ⊘ Skipped: ${job.name} (Top Picks not enabled)`])
           continue
         }
         await runJobAndWait(i, INITIAL_JOBS)

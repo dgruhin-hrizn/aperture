@@ -254,7 +254,7 @@ function TopPicksResultsSummary({ jobs }: { jobs: JobProgress[] }) {
     >
       <SyncIcon fontSize="small" />
       <Typography variant="body2" fontWeight={600}>
-        Top 10 Libraries
+        Top Picks Libraries
       </Typography>
       <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
         {isSuccess ? (
@@ -367,7 +367,7 @@ function JobListItem({ job, isActive, canRerun, onRerun }: JobListItemProps) {
                 sx={{ ml: 'auto', mr: showRerunButton ? 4 : 0, fontFamily: 'monospace', fontWeight: 600 }}
               />
             )}
-            {job.status === 'completed' && job.itemsTotal && job.itemsTotal > 0 && (
+            {job.status === 'completed' && typeof job.itemsTotal === 'number' && job.itemsTotal > 0 && (
               <Chip
                 label={`${job.itemsTotal} items`}
                 size="small"
