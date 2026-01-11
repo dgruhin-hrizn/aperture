@@ -546,11 +546,46 @@ export function BackupSection() {
           <Box display="flex" alignItems="center" gap={2} mb={3} flexWrap="wrap">
             <Button
               variant="contained"
-              startIcon={creatingBackup ? <CircularProgress size={16} color="inherit" /> : <BackupIcon />}
+              startIcon={
+                creatingBackup ? (
+                  <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+                    <CircularProgress
+                      size={20}
+                      color="inherit"
+                      variant={jobProgress?.overallProgress ? 'determinate' : 'indeterminate'}
+                      value={jobProgress?.overallProgress || 0}
+                    />
+                    {jobProgress?.overallProgress !== undefined && (
+                      <Box
+                        sx={{
+                          top: 0,
+                          left: 0,
+                          bottom: 0,
+                          right: 0,
+                          position: 'absolute',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Typography
+                          variant="caption"
+                          component="span"
+                          sx={{ fontSize: '0.5rem', fontWeight: 700, color: 'inherit' }}
+                        >
+                          {Math.round(jobProgress.overallProgress)}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                ) : (
+                  <BackupIcon />
+                )
+              }
               onClick={handleCreateBackup}
               disabled={creatingBackup || restoringBackup}
             >
-              {creatingBackup ? 'Creating Backup...' : 'Backup Now'}
+              {creatingBackup ? 'Backing up...' : 'Backup Now'}
             </Button>
 
             <Button
@@ -748,7 +783,42 @@ export function BackupSection() {
             color="warning"
             onClick={handleRestore}
             disabled={restoreConfirmText !== 'RESTORE' || restoringBackup}
-            startIcon={restoringBackup ? <CircularProgress size={16} color="inherit" /> : <RestoreIcon />}
+            startIcon={
+              restoringBackup ? (
+                <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+                  <CircularProgress
+                    size={20}
+                    color="inherit"
+                    variant={jobProgress?.overallProgress ? 'determinate' : 'indeterminate'}
+                    value={jobProgress?.overallProgress || 0}
+                  />
+                  {jobProgress?.overallProgress !== undefined && (
+                    <Box
+                      sx={{
+                        top: 0,
+                        left: 0,
+                        bottom: 0,
+                        right: 0,
+                        position: 'absolute',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        component="span"
+                        sx={{ fontSize: '0.5rem', fontWeight: 700, color: 'inherit' }}
+                      >
+                        {Math.round(jobProgress.overallProgress)}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              ) : (
+                <RestoreIcon />
+              )
+            }
           >
             {restoringBackup ? 'Restoring...' : 'Restore Database'}
           </Button>
