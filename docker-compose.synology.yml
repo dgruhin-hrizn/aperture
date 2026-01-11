@@ -1,0 +1,172 @@
+# =============================================================================
+# Aperture - Synology Docker Compose
+# =============================================================================
+# Use this for deployment on Synology NAS systems.
+# Compatible with Container Manager (Docker) on DSM 7.x
+#
+# Quick start (via SSH):
+#   cd /volume1/docker/aperture
+#   docker-compose -f docker-compose.synology.yml up -d
+#
+# Or use Container Manager UI:
+#   1. Create folder: /volume1/docker/aperture
+#   2. Upload this file as docker-compose.yml
+#   3. Create the project in Container Manager
+#
+# Update to latest version:
+#   docker-compose -f docker-compose.synology.yml pull
+#   docker-compose -f docker-compose.synology.yml up -d
+#
+# =============================================================================
+# NETWORK OPTIONS
+# =============================================================================
+# Option A (Default): Bridge mode - simpler, uses port mapping
+#   - Access Aperture at: http://YOUR_SYNOLOGY_IP:3456
+#   - Works for most setups
+#
+# Option B: Macvlan mode - gives Aperture its own IP (uncomment below)
+#   - Use if you have connectivity issues with Emby/Jellyfin
+#   - Requires choosing an unused IP on your network
+#   - See "MACVLAN NETWORK" section at the bottom
+#
+# =============================================================================
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: aperture-db
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: aperture
+    volumes:
+      - /volume1/docker/aperture/pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U app -d aperture']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    # Uncomment for macvlan mode:
+    # networks:
+    #   aperture-macvlan:
+    #     ipv4_address: 192.168.1.201
+
+  app:
+    image: ghcr.io/dgruhin-hrizn/aperture:latest
+    container_name: aperture
+    # Run as root to avoid permission issues with Synology's ACLs
+    user: root
+    environment:
+      NODE_ENV: production
+      PORT: 3456
+      DATABASE_URL: postgres://app:app@db:5432/aperture
+      RUN_MIGRATIONS_ON_START: 'true'
+      # Timezone for scheduled jobs (IANA format)
+      TZ: America/New_York
+      # =========================================================================
+      # REQUIRED: Set these before starting!
+      # =========================================================================
+      # Your Synology's IP address (or container IP if using macvlan)
+      APP_BASE_URL: http://YOUR_SYNOLOGY_IP:3456
+      # Session secret - MUST be a random string at least 32 characters
+      # Generate one at: https://randomkeygen.com/ (use "Fort Knox Passwords")
+      SESSION_SECRET: PASTE_YOUR_RANDOM_KEY_HERE
+    ports:
+      - '3456:3456'
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # ─────────────────────────────────────────────────────────────────────────
+      # VOLUME 1: Aperture Libraries Output
+      # ─────────────────────────────────────────────────────────────────────────
+      # Create this folder INSIDE your media share so Emby/Jellyfin can see it.
+      #
+      # Synology Example (if your media is in a "Media" shared folder):
+      #   - Host folder:     /volume1/Media/ApertureLibraries
+      #   - Emby sees it at: /Media/ApertureLibraries (if mounted at /Media)
+      #
+      # Create the folder first:
+      #   mkdir -p /volume1/Media/ApertureLibraries
+      #
+      - /volume1/Media/ApertureLibraries:/aperture-libraries
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # VOLUME 2: Database Backups
+      # ─────────────────────────────────────────────────────────────────────────
+      # Automatic database backups are stored here. Daily backups run at 1 AM.
+      #
+      # Create the folder first:
+      #   mkdir -p /volume1/docker/aperture/backups
+      #
+      - /volume1/docker/aperture/backups:/backups
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # VOLUME 3: Your Media Library (read-only access)
+      # ─────────────────────────────────────────────────────────────────────────
+      # Mount the SAME media folder that your media server uses.
+      #
+      - /volume1/Media:/media:ro
+    restart: unless-stopped
+    # Uncomment for macvlan mode:
+    # networks:
+    #   aperture-macvlan:
+    #     ipv4_address: 192.168.1.200
+
+# =============================================================================
+# MACVLAN NETWORK (Optional - uncomment if needed)
+# =============================================================================
+# Use this if you have connectivity issues with Emby/Jellyfin.
+# Gives each container its own IP on your local network.
+#
+# Steps:
+#   1. Choose 2 unused IPs on your network
+#   2. Update ipv4_address for both services above
+#   3. Update subnet, gateway, and ip_range below
+#   4. Uncomment the networks section below and in each service
+#
+# Note: Containers with macvlan IPs cannot communicate with the Synology host
+# directly. This is a Docker limitation. Use bridge mode if you need that.
+#
+# networks:
+#   aperture-macvlan:
+#     driver: macvlan
+#     driver_opts:
+#       parent: eth0  # Change to ovs_eth0 for bonded interfaces, or check with: ip link
+#     ipam:
+#       config:
+#         - subnet: 192.168.1.0/24
+#           gateway: 192.168.1.1
+#           ip_range: 192.168.1.200/30  # Reserves .200-.203 for containers
+
+# =============================================================================
+# SETUP WIZARD
+# =============================================================================
+# After starting Aperture, visit http://YOUR_SYNOLOGY_IP:3456 to complete setup.
+#
+# The wizard will ask for two paths:
+#   1. Media Server Path Prefix: /Media/
+#      (How Emby sees your files - check Media Info on any movie in Emby)
+#
+#   2. Aperture Libraries Path: /Media/ApertureLibraries/
+#      (Just your prefix + the folder name you created)
+#
+# =============================================================================
+# TROUBLESHOOTING
+# =============================================================================
+# Container won't start?
+#   - Check Container Manager logs
+#   - Ensure folders exist: /volume1/docker/aperture, /volume1/Media/ApertureLibraries
+#
+# Can't connect to Emby/Jellyfin?
+#   - Try macvlan mode (uncomment network sections above)
+#   - Ensure Emby is accessible from Synology at the URL you provided
+#
+# Permission issues?
+#   - The container runs as root, but if issues persist:
+#     chmod -R 777 /volume1/docker/aperture
+#     chmod -R 777 /volume1/Media/ApertureLibraries
+#
+# =============================================================================
+
