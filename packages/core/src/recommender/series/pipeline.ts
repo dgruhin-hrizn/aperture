@@ -563,8 +563,26 @@ export async function generateSeriesRecommendationsForUser(
     )
     const includeWatched = userPrefs?.include_watched ?? false
 
-    // Get all watched series IDs for filtering
-    const allWatchedIds = new Set(watchedSeries.map((w) => w.seriesId))
+    // Get ALL watched series IDs for filtering (not just recent ones used for taste profile)
+    // This ensures we exclude ALL series the user has watched, not just the recentWatchLimit
+    let allWatchedIds: Set<string>
+    if (includeWatched) {
+      // If including watched, no need to query - just use empty set
+      allWatchedIds = new Set()
+    } else {
+      const allWatchedResult = await query<{ series_id: string }>(
+        `SELECT DISTINCT e.series_id 
+         FROM watch_history wh
+         JOIN episodes e ON e.id = wh.episode_id
+         WHERE wh.user_id = $1 AND wh.media_type = 'episode'`,
+        [user.id]
+      )
+      allWatchedIds = new Set(allWatchedResult.rows.map((r) => r.series_id))
+      logger.info(
+        { userId: user.id, totalWatched: allWatchedIds.size },
+        `📋 Loaded ${allWatchedIds.size} watched series to exclude`
+      )
+    }
 
     // 4. Get candidate series
     logger.info({ userId: user.id }, '🔍 Finding candidate series...')

@@ -75,6 +75,12 @@ export function UserSettingsPage() {
   const [savingDislikePref, setSavingDislikePref] = useState(false)
   const [dislikePrefSuccess, setDislikePrefSuccess] = useState<string | null>(null)
 
+  // Include watched preference state
+  const [includeWatched, setIncludeWatched] = useState(false)
+  const [loadingIncludeWatched, setLoadingIncludeWatched] = useState(false)
+  const [savingIncludeWatched, setSavingIncludeWatched] = useState(false)
+  const [includeWatchedSuccess, setIncludeWatchedSuccess] = useState<string | null>(null)
+
   // Trakt integration state
   const [traktStatus, setTraktStatus] = useState<{
     traktConfigured: boolean
@@ -90,6 +96,7 @@ export function UserSettingsPage() {
     fetchUserSettings()
     fetchAiExplanationPref()
     fetchDislikeBehavior()
+    fetchIncludeWatched()
     fetchTraktStatus()
     
     // Check for Trakt callback params
@@ -238,6 +245,45 @@ export function UserSettingsPage() {
       // Silently fail
     } finally {
       setSavingDislikePref(false)
+    }
+  }
+
+  const fetchIncludeWatched = async () => {
+    if (!user?.id) return
+    setLoadingIncludeWatched(true)
+    try {
+      const response = await fetch(`/api/recommendations/${user.id}/preferences`, { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        setIncludeWatched(data.includeWatched ?? false)
+      }
+    } catch {
+      // Silently fail - use default
+    } finally {
+      setLoadingIncludeWatched(false)
+    }
+  }
+
+  const saveIncludeWatched = async (value: boolean) => {
+    if (!user?.id) return
+    setSavingIncludeWatched(true)
+    setIncludeWatchedSuccess(null)
+    try {
+      const response = await fetch(`/api/recommendations/${user.id}/preferences`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ includeWatched: value }),
+      })
+      if (response.ok) {
+        setIncludeWatched(value)
+        setIncludeWatchedSuccess('Preference saved!')
+        setTimeout(() => setIncludeWatchedSuccess(null), 3000)
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setSavingIncludeWatched(false)
     }
   }
 
@@ -605,6 +651,62 @@ export function UserSettingsPage() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Include Watched Content */}
+            <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, maxWidth: 600, mt: 3 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Watched Content in Recommendations
+                </Typography>
+                <Typography variant="body2" color="text.secondary" mb={3}>
+                  Choose whether to include content you've already watched in your AI recommendations.
+                </Typography>
+
+                {includeWatchedSuccess && (
+                  <Alert severity="success" sx={{ mb: 2 }} onClose={() => setIncludeWatchedSuccess(null)}>
+                    {includeWatchedSuccess}
+                  </Alert>
+                )}
+
+                {loadingIncludeWatched ? (
+                  <Box display="flex" justifyContent="center" py={4}>
+                    <CircularProgress />
+                  </Box>
+                ) : (
+                  <>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={includeWatched}
+                          onChange={(e) => saveIncludeWatched(e.target.checked)}
+                          disabled={savingIncludeWatched}
+                        />
+                      }
+                      label={
+                        <Box>
+                          <Typography variant="body1" fontWeight="medium">
+                            {includeWatched ? 'Include Watched Content' : 'New Content Only'}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {includeWatched 
+                              ? 'Recommendations may include movies and series you\'ve already watched'
+                              : 'Recommendations will only show content you haven\'t watched yet'}
+                          </Typography>
+                        </Box>
+                      }
+                      sx={{ alignItems: 'flex-start', ml: 0 }}
+                    />
+
+                    <Divider sx={{ my: 3 }} />
+
+                    <Typography variant="caption" color="text.secondary">
+                      By default, recommendations only include new content. Enable this if you want rewatching suggestions.
+                      Changes will apply when your recommendations are next regenerated.
+                    </Typography>
+                  </>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Disliked Content Behavior */}
             <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, maxWidth: 600, mt: 3 }}>
