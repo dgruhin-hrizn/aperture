@@ -2,10 +2,16 @@ import { spawn } from 'child_process'
 import * as fs from 'fs'
 import * as path from 'path'
 import * as zlib from 'zlib'
-import { pipeline } from 'stream/promises'
 import { createChildLogger } from '../lib/logger.js'
 import { getDatabaseUrl } from '../config/env.js'
 import { getBackupConfig, updateLastBackupInfo } from './backupConfig.js'
+import {
+  createJobProgress,
+  setJobStep,
+  addLog,
+  completeJob,
+  failJob,
+} from '../jobs/progress.js'
 
 const logger = createChildLogger('backup-service')
 
@@ -78,11 +84,24 @@ async function ensureBackupDir(backupPath: string): Promise<void> {
 
 /**
  * Create a database backup
+ * @param jobId Optional job ID for progress tracking
  */
-export async function createBackup(): Promise<BackupResult> {
+export async function createBackup(jobId?: string): Promise<BackupResult> {
   const startTime = Date.now()
+  const trackProgress = !!jobId
+
+  // Create job progress if jobId provided
+  if (trackProgress && jobId) {
+    createJobProgress(jobId, 'backup-database', 4)
+  }
 
   try {
+    // Step 1: Initialize
+    if (trackProgress && jobId) {
+      setJobStep(jobId, 0, 'Initializing backup')
+      addLog(jobId, 'info', '🔧 Loading backup configuration...')
+    }
+
     const config = await getBackupConfig()
     const dbConfig = parseDatabaseUrl()
 
@@ -92,6 +111,13 @@ export async function createBackup(): Promise<BackupResult> {
     const filePath = path.join(config.backupPath, filename)
 
     logger.info({ filename, backupPath: config.backupPath }, 'Starting database backup')
+
+    // Step 2: Run pg_dump
+    if (trackProgress && jobId) {
+      setJobStep(jobId, 1, 'Dumping database')
+      addLog(jobId, 'info', `📦 Running pg_dump to ${filename}...`)
+      addLog(jobId, 'info', `   Database: ${dbConfig.database}@${dbConfig.host}:${dbConfig.port}`)
+    }
 
     // Create pg_dump process
     const pgDump = spawn('pg_dump', [
@@ -117,6 +143,10 @@ export async function createBackup(): Promise<BackupResult> {
     let stderr = ''
     pgDump.stderr.on('data', (data) => {
       stderr += data.toString()
+      // Log any pg_dump messages
+      if (trackProgress && jobId && data.toString().trim()) {
+        addLog(jobId, 'debug', `   pg_dump: ${data.toString().trim()}`)
+      }
     })
 
     // Pipe pg_dump -> gzip -> file
@@ -133,6 +163,12 @@ export async function createBackup(): Promise<BackupResult> {
       })
     })
 
+    // Step 3: Finalize
+    if (trackProgress && jobId) {
+      setJobStep(jobId, 2, 'Finalizing backup')
+      addLog(jobId, 'info', '📊 Getting backup file info...')
+    }
+
     // Get file size
     const stats = await fs.promises.stat(filePath)
     const sizeBytes = stats.size
@@ -140,12 +176,30 @@ export async function createBackup(): Promise<BackupResult> {
     // Update last backup info
     await updateLastBackupInfo(filename, sizeBytes)
 
-    // Prune old backups
-    await pruneOldBackups()
+    if (trackProgress && jobId) {
+      addLog(jobId, 'info', `✅ Backup created: ${filename} (${formatBytes(sizeBytes)})`)
+    }
+
+    // Step 4: Prune old backups
+    if (trackProgress && jobId) {
+      setJobStep(jobId, 3, 'Pruning old backups')
+      addLog(jobId, 'info', '🗑️ Checking for old backups to remove...')
+    }
+
+    const pruned = await pruneOldBackups()
+    if (pruned > 0 && trackProgress && jobId) {
+      addLog(jobId, 'info', `   Removed ${pruned} old backup(s)`)
+    }
 
     const duration = Date.now() - startTime
 
     logger.info({ filename, sizeBytes, duration }, 'Database backup completed successfully')
+
+    // Complete job
+    if (trackProgress && jobId) {
+      completeJob(jobId, { filename, sizeBytes, duration })
+      addLog(jobId, 'info', `🎉 Backup completed in ${Math.round(duration / 1000)}s`)
+    }
 
     return {
       success: true,
@@ -160,6 +214,11 @@ export async function createBackup(): Promise<BackupResult> {
 
     logger.error({ err, duration }, 'Database backup failed')
 
+    if (trackProgress && jobId) {
+      failJob(jobId, errorMessage)
+      addLog(jobId, 'error', `❌ Backup failed: ${errorMessage}`)
+    }
+
     return {
       success: false,
       error: errorMessage,
@@ -170,14 +229,30 @@ export async function createBackup(): Promise<BackupResult> {
 
 /**
  * Restore database from a backup file
+ * @param filename Backup file to restore
+ * @param createPreRestoreBackup Whether to create a backup before restoring
+ * @param jobId Optional job ID for progress tracking
  */
 export async function restoreBackup(
   filename: string,
-  createPreRestoreBackup = true
+  createPreRestoreBackup = true,
+  jobId?: string
 ): Promise<RestoreResult> {
   const startTime = Date.now()
+  const trackProgress = !!jobId
+
+  // Create job progress if jobId provided
+  if (trackProgress && jobId) {
+    createJobProgress(jobId, 'restore-database', createPreRestoreBackup ? 5 : 4)
+  }
 
   try {
+    // Step 1: Validate
+    if (trackProgress && jobId) {
+      setJobStep(jobId, 0, 'Validating backup file')
+      addLog(jobId, 'info', `🔍 Validating backup file: ${filename}`)
+    }
+
     const config = await getBackupConfig()
     const dbConfig = parseDatabaseUrl()
     const filePath = path.join(config.backupPath, filename)
@@ -193,23 +268,56 @@ export async function restoreBackup(
       throw new Error(`Invalid backup file: ${validation.error}`)
     }
 
+    // Get file size for info
+    const stats = await fs.promises.stat(filePath)
+    if (trackProgress && jobId) {
+      addLog(jobId, 'info', `✅ Backup file validated (${formatBytes(stats.size)})`)
+    }
+
     logger.info({ filename }, 'Starting database restore')
 
-    // Create pre-restore backup if requested
+    // Step 2: Create pre-restore backup
     let preRestoreBackup: string | undefined
+    let stepOffset = 0
     if (createPreRestoreBackup) {
-      logger.info('Creating pre-restore backup')
+      if (trackProgress && jobId) {
+        setJobStep(jobId, 1, 'Creating safety backup')
+        addLog(jobId, 'info', '🔒 Creating pre-restore safety backup...')
+      }
+
       const preBackupResult = await createBackup()
       if (preBackupResult.success) {
         preRestoreBackup = preBackupResult.filename
         logger.info({ preRestoreBackup }, 'Pre-restore backup created')
+        if (trackProgress && jobId) {
+          addLog(jobId, 'info', `✅ Safety backup created: ${preRestoreBackup}`)
+        }
       } else {
         logger.warn({ error: preBackupResult.error }, 'Failed to create pre-restore backup, continuing anyway')
+        if (trackProgress && jobId) {
+          addLog(jobId, 'warn', `⚠️ Could not create safety backup: ${preBackupResult.error}`)
+          addLog(jobId, 'info', '   Continuing with restore anyway...')
+        }
       }
+      stepOffset = 1
+    }
+
+    // Step 3: Prepare restore
+    if (trackProgress && jobId) {
+      setJobStep(jobId, 1 + stepOffset, 'Preparing database')
+      addLog(jobId, 'info', '🔧 Preparing to restore database...')
+      addLog(jobId, 'info', `   Database: ${dbConfig.database}@${dbConfig.host}:${dbConfig.port}`)
     }
 
     // Decompress and restore
     const isCompressed = filename.endsWith('.gz')
+
+    // Step 4: Run restore
+    if (trackProgress && jobId) {
+      setJobStep(jobId, 2 + stepOffset, 'Restoring database')
+      addLog(jobId, 'info', `📥 Running psql restore${isCompressed ? ' (decompressing)' : ''}...`)
+      addLog(jobId, 'warn', '⚠️ This will overwrite existing data!')
+    }
 
     // Create psql process
     const psql = spawn('psql', [
@@ -227,8 +335,14 @@ export async function restoreBackup(
 
     // Collect stderr for error reporting
     let stderr = ''
+    let lastLogTime = Date.now()
     psql.stderr.on('data', (data) => {
       stderr += data.toString()
+      // Log progress periodically (not too often to avoid spam)
+      if (trackProgress && jobId && Date.now() - lastLogTime > 2000) {
+        addLog(jobId, 'debug', '   Restore in progress...')
+        lastLogTime = Date.now()
+      }
     })
 
     // Read file, optionally decompress, and pipe to psql
@@ -255,9 +369,24 @@ export async function restoreBackup(
       readStream.on('error', reject)
     })
 
+    // Step 5: Finalize
+    if (trackProgress && jobId) {
+      setJobStep(jobId, 3 + stepOffset, 'Finalizing')
+      addLog(jobId, 'info', '✅ Database restore completed')
+    }
+
     const duration = Date.now() - startTime
 
     logger.info({ filename, duration }, 'Database restore completed successfully')
+
+    // Complete job
+    if (trackProgress && jobId) {
+      completeJob(jobId, { filename, duration, preRestoreBackup })
+      addLog(jobId, 'info', `🎉 Restore completed in ${Math.round(duration / 1000)}s`)
+      if (preRestoreBackup) {
+        addLog(jobId, 'info', `💡 Previous data saved to: ${preRestoreBackup}`)
+      }
+    }
 
     return {
       success: true,
@@ -269,6 +398,11 @@ export async function restoreBackup(
     const errorMessage = err instanceof Error ? err.message : 'Unknown error'
 
     logger.error({ err, duration }, 'Database restore failed')
+
+    if (trackProgress && jobId) {
+      failJob(jobId, errorMessage)
+      addLog(jobId, 'error', `❌ Restore failed: ${errorMessage}`)
+    }
 
     return {
       success: false,
