@@ -91,6 +91,10 @@ export function BackupSection() {
   const [showLogs, setShowLogs] = useState(false)
   const pollIntervalRef = useRef<number | null>(null)
   const logsEndRef = useRef<HTMLDivElement>(null)
+  
+  // In-progress backup tracking
+  const [inProgressBackup, setInProgressBackup] = useState<{ filename: string; sizeFormatted: string } | null>(null)
+  const backupSizePollRef = useRef<number | null>(null)
 
   // Config editing
   const [editingConfig, setEditingConfig] = useState(false)
@@ -152,6 +156,7 @@ export function BackupSection() {
         setActiveJobId(null)
         setCreatingBackup(false)
         setRestoringBackup(false)
+        setInProgressBackup(null)
         return
       }
       
@@ -161,6 +166,7 @@ export function BackupSection() {
           setActiveJobId(null)
           setCreatingBackup(false)
           setRestoringBackup(false)
+          setInProgressBackup(null)
           return
         }
         const errorData = await res.json().catch(() => ({ error: 'Unknown error' }))
@@ -168,6 +174,20 @@ export function BackupSection() {
       }
       const data = await res.json()
       setJobProgress(data)
+
+      // Extract filename from logs for in-progress backup display
+      if (data.jobName === 'backup-database' && data.status === 'running') {
+        // Look for filename in logs (format: "📦 Running pg_dump to aperture_backup_xxx.sql.gz...")
+        const filenameLog = data.logs?.find((log: { message: string }) => 
+          log.message.includes('Running pg_dump to ')
+        )
+        if (filenameLog) {
+          const match = filenameLog.message.match(/Running pg_dump to ([^\s.]+\.sql\.gz)/)
+          if (match) {
+            setInProgressBackup({ filename: match[1], sizeFormatted: 'Writing...' })
+          }
+        }
+      }
 
       // Auto-scroll logs
       if (logsEndRef.current) {
@@ -179,6 +199,7 @@ export function BackupSection() {
         setActiveJobId(null)
         setCreatingBackup(false)
         setRestoringBackup(false)
+        setInProgressBackup(null)
 
         if (data.status === 'completed') {
           const result = data.result || {}
@@ -222,6 +243,41 @@ export function BackupSection() {
       }
     }
   }, [activeJobId, pollJobProgress])
+
+  // Poll for in-progress backup file size
+  useEffect(() => {
+    if (inProgressBackup?.filename && creatingBackup) {
+      const pollSize = async () => {
+        try {
+          const res = await fetch('/api/backup/list', { credentials: 'include' })
+          if (res.ok) {
+            const data = await res.json()
+            const currentBackup = data.backups?.find(
+              (b: BackupInfo) => b.filename === inProgressBackup.filename
+            )
+            if (currentBackup) {
+              setInProgressBackup(prev => 
+                prev ? { ...prev, sizeFormatted: currentBackup.sizeFormatted } : null
+              )
+            }
+          }
+        } catch {
+          // Ignore errors during size polling
+        }
+      }
+
+      // Poll for size every 2 seconds
+      backupSizePollRef.current = window.setInterval(pollSize, 2000)
+      pollSize() // Poll immediately
+
+      return () => {
+        if (backupSizePollRef.current) {
+          clearInterval(backupSizePollRef.current)
+          backupSizePollRef.current = null
+        }
+      }
+    }
+  }, [inProgressBackup?.filename, creatingBackup])
 
   const handleCreateBackup = async () => {
     try {
@@ -678,16 +734,17 @@ export function BackupSection() {
 
           {/* Backups List */}
           <Typography variant="subtitle2" fontWeight={600} mb={1}>
-            Available Backups ({backups.length})
+            Available Backups ({backups.length}{inProgressBackup ? ' + 1 in progress' : ''})
           </Typography>
 
-          {backups.length === 0 ? (
+          {backups.length === 0 && !inProgressBackup ? (
             <Alert severity="info">No backups found. Create your first backup using the button above.</Alert>
           ) : (
             <TableContainer sx={{ maxHeight: 400 }}>
               <Table size="small" stickyHeader>
                 <TableHead>
                   <TableRow>
+                    <TableCell width={40}>Status</TableCell>
                     <TableCell>Filename</TableCell>
                     <TableCell>Size</TableCell>
                     <TableCell>Created</TableCell>
@@ -695,8 +752,57 @@ export function BackupSection() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
+                  {/* In-progress backup row */}
+                  {inProgressBackup && (
+                    <TableRow 
+                      sx={{ 
+                        bgcolor: 'action.hover',
+                        '& td': { borderBottom: '2px solid', borderColor: 'primary.main' }
+                      }}
+                    >
+                      <TableCell>
+                        <Tooltip title="Backup in progress">
+                          <CircularProgress size={18} color="primary" />
+                        </Tooltip>
+                      </TableCell>
+                      <TableCell>
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <Typography variant="body2" fontFamily="monospace" fontSize="0.8rem">
+                            {inProgressBackup.filename}
+                          </Typography>
+                          <Chip 
+                            label="In Progress" 
+                            size="small" 
+                            color="primary" 
+                            sx={{ height: 20, fontSize: '0.7rem' }} 
+                          />
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="primary.main" fontWeight={500}>
+                          {inProgressBackup.sizeFormatted}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="text.secondary" fontStyle="italic">
+                          Now
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography variant="caption" color="text.secondary">
+                          —
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {/* Completed backups */}
                   {backups.map((backup) => (
                     <TableRow key={backup.filename} hover>
+                      <TableCell>
+                        <Tooltip title="Backup complete">
+                          <CheckCircleIcon fontSize="small" color="success" />
+                        </Tooltip>
+                      </TableCell>
                       <TableCell>
                         <Box display="flex" alignItems="center" gap={1}>
                           <Typography variant="body2" fontFamily="monospace" fontSize="0.8rem">
