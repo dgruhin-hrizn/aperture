@@ -7,10 +7,6 @@ import { getAiRecsOutputConfig } from '../../settings/systemSettings.js'
 import { downloadImage } from '../images.js'
 import { generateNfoContent } from './nfo.js'
 import {
-  buildStrmFilename,
-  buildNfoFilename,
-  buildPosterFilename,
-  buildBackdropFilename,
   getStrmContent,
 } from '../filenames.js'
 import { getEffectiveAiExplanationSetting } from '../../lib/userSettings.js'
@@ -20,16 +16,10 @@ import {
   MOVIE_SKIP_FILES,
   getMovieFolderFromFilePath,
 } from '../artwork.js'
-import type { Movie, FileWriteTask, ImageDownloadTask } from '../types.js'
+import { getMediaServerProvider } from '../../media/index.js'
+import type { Movie, ImageDownloadTask } from '../types.js'
 
 const logger = createChildLogger('strm-writer')
-
-/**
- * Write a single file (used for parallel writes)
- */
-async function writeFileWithRetry(filePath: string, content: string): Promise<void> {
-  await fs.writeFile(filePath, content, 'utf-8')
-}
 
 /**
  * Write STRM files (or symlinks) for a user's movie recommendations
@@ -164,10 +154,8 @@ export async function writeStrmFilesForUser(
   const totalMovies = recommendations.rows.length
   logger.info({ count: totalMovies }, '🎬 Found recommendations, preparing files...')
 
-  // Collect all file write tasks and image downloads
+  // Collect expected folders and image downloads
   const expectedFolders = new Set<string>()
-  const expectedFiles = new Set<string>()
-  const fileWriteTasks: FileWriteTask[] = []
   const imageDownloads: ImageDownloadTask[] = []
 
   // Calculate dateAdded timestamps based on rank (Rank 1 = newest)
@@ -260,16 +248,14 @@ export async function writeStrmFilesForUser(
             { err, movie: movie.title },
             'Failed to create movie symlink, falling back to STRM'
           )
-          // Fallback to STRM if symlink fails
+          // Fallback to STRM if symlink fails - use original file path
           const strmPath = path.join(movieFolderPath, `${baseFilename}.strm`)
-          const strmContent = await getStrmContent(movie, config)
-          await fs.writeFile(strmPath, strmContent, 'utf-8')
+          await fs.writeFile(strmPath, originalPath, 'utf-8')
         }
       } else {
-        // No original path, must use STRM
-        const strmPath = path.join(movieFolderPath, `${baseFilename}.strm`)
-        const strmContent = await getStrmContent(movie, config)
-        await fs.writeFile(strmPath, strmContent, 'utf-8')
+        // No original path - skip this movie
+        logger.warn({ movie: movie.title }, 'No file path found for movie, skipping')
+        continue
       }
 
       // Create NFO file in folder
@@ -325,53 +311,85 @@ export async function writeStrmFilesForUser(
         })
       }
     } else {
-      // STRM MODE: Flat files (original behavior)
-      // Prepare STRM file task
-      const strmFilename = buildStrmFilename(movie)
-      expectedFiles.add(strmFilename)
-      const strmContent = await getStrmContent(movie, config)
-      fileWriteTasks.push({
-        path: path.join(localPath, strmFilename),
-        content: strmContent,
-        movie,
-        type: 'strm',
-      })
+      // STRM MODE: Folder per movie with all images downloaded via API
+      // Get original file path for STRM content
+      let originalPath: string | null = null
+      if (movie.path) {
+        originalPath = movie.path
+      } else if (movie.mediaSources) {
+        for (const source of movie.mediaSources) {
+          if (source.path) {
+            originalPath = source.path
+            break
+          }
+        }
+      }
 
-      // Prepare NFO file task (with dateAdded for Emby sorting)
-      const nfoFilename = buildNfoFilename(movie)
-      expectedFiles.add(nfoFilename)
+      if (!originalPath) {
+        logger.warn({ movie: movie.title }, 'No file path found for movie, skipping STRM')
+        continue
+      }
+
+      const safeTitle = movie.title.replace(/[<>:"/\\|?*]/g, '')
+      const folderName = movie.year ? `${safeTitle} (${movie.year})` : safeTitle
+      const movieFolderPath = path.join(localPath, folderName)
+      expectedFolders.add(folderName)
+
+      // Create movie folder
+      await fs.mkdir(movieFolderPath, { recursive: true })
+
+      // Create STRM file with original file path
+      const baseFilename = folderName
+      const strmPath = path.join(movieFolderPath, `${baseFilename}.strm`)
+      const strmContent = getStrmContent(originalPath)
+      await fs.writeFile(strmPath, strmContent, 'utf-8')
+
+      // Create NFO file in folder
       const nfoContent = generateNfoContent(movie, {
         includeImageUrls: !config.downloadImages,
         dateAdded,
         includeAiExplanation,
       })
-      fileWriteTasks.push({
-        path: path.join(localPath, nfoFilename),
-        content: nfoContent,
-        movie,
-        type: 'nfo',
-      })
+      await fs.writeFile(path.join(movieFolderPath, 'movie.nfo'), nfoContent, 'utf-8')
 
-      // Queue images for download (if enabled)
+      // Download all available images via API
       if (config.downloadImages) {
+        const provider = await getMediaServerProvider()
+
+        // Primary poster (with rank overlay)
         if (movie.posterUrl) {
-          const posterFilename = buildPosterFilename(movie)
-          expectedFiles.add(posterFilename)
           imageDownloads.push({
             url: movie.posterUrl,
-            path: path.join(localPath, posterFilename),
+            path: path.join(movieFolderPath, 'poster.jpg'),
             movieTitle: movie.title,
             isPoster: true,
             rank: movie.rank,
             matchScore: movie.matchScore,
           })
         }
+
+        // Backdrop/fanart
         if (movie.backdropUrl) {
-          const backdropFilename = buildBackdropFilename(movie)
-          expectedFiles.add(backdropFilename)
           imageDownloads.push({
             url: movie.backdropUrl,
-            path: path.join(localPath, backdropFilename),
+            path: path.join(movieFolderPath, 'fanart.jpg'),
+            movieTitle: movie.title,
+            isPoster: false,
+          })
+        }
+
+        // Additional images via API (gracefully handles 404 if not available)
+        const additionalImages = [
+          { url: provider.getBannerUrl(movie.providerItemId), filename: 'banner.jpg' },
+          { url: provider.getLogoUrl(movie.providerItemId), filename: 'clearlogo.png' },
+          { url: provider.getArtUrl(movie.providerItemId), filename: 'clearart.png' },
+          { url: provider.getThumbUrl(movie.providerItemId), filename: 'landscape.jpg' },
+        ]
+
+        for (const img of additionalImages) {
+          imageDownloads.push({
+            url: img.url,
+            path: path.join(movieFolderPath, img.filename),
             movieTitle: movie.title,
             isPoster: false,
           })
@@ -380,70 +398,11 @@ export async function writeStrmFilesForUser(
     }
   }
 
-  // For STRM mode, write files in parallel batches (symlinks are already written inline)
-  let filesWritten = 0
-  if (!useSymlinks && fileWriteTasks.length > 0) {
-    const FILE_BATCH_SIZE = 20 // Write 20 files concurrently (10 movies worth)
-    const totalFileBatches = Math.ceil(fileWriteTasks.length / FILE_BATCH_SIZE)
-
-    logger.info(
-      {
-        totalFiles: fileWriteTasks.length,
-        batchSize: FILE_BATCH_SIZE,
-        totalBatches: totalFileBatches,
-      },
-      '📝 Writing STRM/NFO files in parallel batches...'
-    )
-
-    for (let i = 0; i < fileWriteTasks.length; i += FILE_BATCH_SIZE) {
-      const batchNum = Math.floor(i / FILE_BATCH_SIZE) + 1
-      const batch = fileWriteTasks.slice(i, i + FILE_BATCH_SIZE)
-
-      // Get unique movies in this batch for logging
-      const movieTitles = [...new Set(batch.map((t) => t.movie.title))].slice(0, 3)
-      const moreCount = [...new Set(batch.map((t) => t.movie.title))].length - 3
-      const movieList =
-        moreCount > 0 ? `${movieTitles.join(', ')} +${moreCount} more` : movieTitles.join(', ')
-
-      logger.info(
-        {
-          batch: batchNum,
-          of: totalFileBatches,
-          files: batch.length,
-          movies: movieList,
-        },
-        `📝 Writing batch ${batchNum}/${totalFileBatches}...`
-      )
-
-      const batchStart = Date.now()
-      await Promise.all(batch.map((task) => writeFileWithRetry(task.path, task.content)))
-      const batchDuration = Date.now() - batchStart
-
-      filesWritten += batch.length
-      logger.info(
-        {
-          batch: batchNum,
-          durationMs: batchDuration,
-          avgMs: Math.round(batchDuration / batch.length),
-        },
-        `✅ Batch ${batchNum} complete (${batchDuration}ms)`
-      )
-    }
-
-    const fileWriteDuration = Date.now() - startTime
-    logger.info(
-      {
-        filesWritten,
-        movies: totalMovies,
-        durationMs: fileWriteDuration,
-        avgPerFileMs: Math.round(fileWriteDuration / filesWritten),
-      },
-      '📝 All STRM/NFO files written'
-    )
-  } else if (useSymlinks) {
-    logger.info({ movies: totalMovies }, '🔗 All movie symlinks created')
-    filesWritten = totalMovies * 2 // NFO + symlink/strm per movie
-  }
+  // Both modes now write inline (folder per movie)
+  logger.info(
+    { movies: totalMovies, mode: useSymlinks ? 'symlinks' : 'STRM' },
+    `📁 All movie ${useSymlinks ? 'symlinks' : 'STRM files'} created`
+  )
 
   // Download images in parallel batches
   if (imageDownloads.length > 0) {
@@ -489,40 +448,20 @@ export async function writeStrmFilesForUser(
     logger.info('📷 Image downloads disabled or no URLs available')
   }
 
-  // Delete old files/folders not in current recommendations
+  // Delete old folders not in current recommendations (both modes now use folders)
   let deleted = 0
   try {
     const existingEntries = await fs.readdir(localPath, { withFileTypes: true })
 
-    if (useSymlinks) {
-      // Symlinks mode: clean up old movie folders
-      for (const entry of existingEntries) {
-        if (entry.isDirectory() && !expectedFolders.has(entry.name)) {
-          const folderPath = path.join(localPath, entry.name)
-          await fs.rm(folderPath, { recursive: true, force: true })
-          deleted++
-        }
+    for (const entry of existingEntries) {
+      if (entry.isDirectory() && !expectedFolders.has(entry.name)) {
+        const folderPath = path.join(localPath, entry.name)
+        await fs.rm(folderPath, { recursive: true, force: true })
+        deleted++
       }
-      if (deleted > 0) {
-        logger.info({ count: deleted }, '🗑️ Cleaned up old movie folders')
-      }
-    } else {
-      // STRM mode: clean up old flat files
-      const filesToDelete = existingEntries.filter((entry) => {
-        if (!entry.isFile()) return false
-        const isRelevantFile =
-          entry.name.endsWith('.strm') ||
-          entry.name.endsWith('.nfo') ||
-          entry.name.endsWith('-poster.jpg') ||
-          entry.name.endsWith('-fanart.jpg')
-        return isRelevantFile && !expectedFiles.has(entry.name)
-      })
-
-      if (filesToDelete.length > 0) {
-        logger.info({ count: filesToDelete.length }, '🗑️ Cleaning up old files...')
-        await Promise.all(filesToDelete.map((entry) => fs.unlink(path.join(localPath, entry.name))))
-        deleted = filesToDelete.length
-      }
+    }
+    if (deleted > 0) {
+      logger.info({ count: deleted }, '🗑️ Cleaned up old movie folders')
     }
   } catch {
     // Directory might be empty or not exist yet

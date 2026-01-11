@@ -1,6 +1,4 @@
-import type { Movie, StrmConfig } from './types.js'
-import { getMediaServerProvider } from '../media/index.js'
-import { getMediaServerApiKey } from '../settings/systemSettings.js'
+import type { Movie } from './types.js'
 
 /**
  * Sanitize a filename for filesystem use
@@ -107,30 +105,13 @@ export function buildBackdropFilename(movie: Movie): string {
 }
 
 /**
- * Get the content to write inside the STRM file
+ * Get the content to write inside the STRM file.
+ * Uses the original file path when available (for local deployments with filesystem access).
+ * Falls back to streaming URL for remote deployments.
  */
-export async function getStrmContent(movie: Movie, config: StrmConfig): Promise<string> {
-  // If streaming URL is preferred
-  if (config.useStreamingUrl) {
-    const provider = await getMediaServerProvider()
-    const apiKey = (await getMediaServerApiKey()) || ''
-    return provider.getStreamUrl(apiKey, movie.providerItemId)
+export function getStrmContent(filePath: string | null | undefined): string {
+  if (filePath) {
+    return filePath
   }
-
-  // Try to get the actual file path
-  if (movie.mediaSources && movie.mediaSources.length > 0) {
-    const mediaPath = movie.mediaSources[0].path
-    if (mediaPath) {
-      return mediaPath
-    }
-  }
-
-  if (movie.path) {
-    return movie.path
-  }
-
-  // Fallback to streaming URL
-  const provider = await getMediaServerProvider()
-  const apiKey = (await getMediaServerApiKey()) || ''
-  return provider.getStreamUrl(apiKey, movie.providerItemId)
+  throw new Error('No file path available for STRM content')
 }

@@ -21,8 +21,7 @@ import { getConfig } from '../strm/config.js'
 import { sanitizeFilename } from '../strm/filenames.js'
 import { downloadImage } from '../strm/images.js'
 import { symlinkArtwork, SERIES_SKIP_FILES } from '../strm/artwork.js'
-import { getMediaServerProvider } from '../media/index.js'
-import { getMediaServerApiKey, getWatchingLibraryConfig } from '../settings/systemSettings.js'
+import { getWatchingLibraryConfig } from '../settings/systemSettings.js'
 import type { ImageDownloadTask } from '../strm/types.js'
 import {
   createJobProgress,
@@ -253,8 +252,6 @@ export async function writeWatchingSeriesForUser(
   const config = await getConfig()
   const watchingConfig = await getWatchingLibraryConfig()
   const useSymlinks = watchingConfig.useSymlinks
-  const provider = await getMediaServerProvider()
-  const apiKey = (await getMediaServerApiKey()) || ''
   const startTime = Date.now()
 
   // Get user's display name for folder naming
@@ -519,15 +516,16 @@ export async function writeWatchingSeriesForUser(
           // Episode filename: SeriesName S01E01 Episode Title.strm
           const episodeFilename = `${sanitizeFilename(series.title)} S${String(ep.season_number).padStart(2, '0')}E${String(ep.episode_number).padStart(2, '0')} ${sanitizeFilename(ep.title)}`
 
-          // Write STRM file
-          const strmPath = path.join(seasonFolderPath, `${episodeFilename}.strm`)
-          let strmContent: string
-          if (ep.path && !config.useStreamingUrl) {
-            strmContent = ep.path
-          } else {
-            strmContent = provider.getStreamUrl(apiKey, ep.provider_item_id)
+          // Write STRM file with original file path
+          if (!ep.path) {
+            logger.warn(
+              { series: series.title, episode: ep.title },
+              'No file path for episode, skipping'
+            )
+            continue
           }
-          await fs.writeFile(strmPath, strmContent, 'utf-8')
+          const strmPath = path.join(seasonFolderPath, `${episodeFilename}.strm`)
+          await fs.writeFile(strmPath, ep.path, 'utf-8')
         }
       }
 

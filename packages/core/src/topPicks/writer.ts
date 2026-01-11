@@ -12,8 +12,6 @@ import { createChildLogger } from '../lib/logger.js'
 import { getConfig } from '../strm/config.js'
 import { downloadImage } from '../strm/images.js'
 import { sanitizeFilename } from '../strm/filenames.js'
-import { getMediaServerProvider } from '../media/index.js'
-import { getMediaServerApiKey } from '../settings/systemSettings.js'
 import { getTopPicksConfig } from './config.js'
 import {
   symlinkArtwork,
@@ -459,34 +457,14 @@ function buildTopPicksSeriesFilename(series: TopPicksSeries): string {
 }
 
 /**
- * Get STRM content for a movie
+ * Get the original file path for a movie
  */
-async function getMovieStrmContent(movie: TopPicksMovie): Promise<string> {
-  const config = await getConfig()
-
-  // If streaming URL is preferred
-  if (config.useStreamingUrl) {
-    const provider = await getMediaServerProvider()
-    const apiKey = await getMediaServerApiKey() || ''
-    return provider.getStreamUrl(apiKey, movie.providerItemId)
-  }
-
-  // Try to get the actual file path
+function getMovieFilePath(movie: TopPicksMovie): string | null {
+  if (movie.path) return movie.path
   if (movie.mediaSources && movie.mediaSources.length > 0) {
-    const mediaPath = movie.mediaSources[0].path
-    if (mediaPath) {
-      return mediaPath
-    }
+    return movie.mediaSources[0].path || null
   }
-
-  if (movie.path) {
-    return movie.path
-  }
-
-  // Fallback to streaming URL
-  const provider = await getMediaServerProvider()
-  const apiKey = await getMediaServerApiKey() || ''
-  return provider.getStreamUrl(apiKey, movie.providerItemId)
+  return null
 }
 
 /**
@@ -657,16 +635,13 @@ export async function writeTopPicksMovies(
             { err, movie: movie.title },
             'Failed to create movie symlink, falling back to STRM'
           )
-          // Fallback to STRM if symlink fails
+          // Fallback to STRM if symlink fails - use original file path
           const strmPath = path.join(movieFolderPath, `${baseFilename}.strm`)
-          const strmContent = await getMovieStrmContent(movie)
-          await fs.writeFile(strmPath, strmContent, 'utf-8')
+          await fs.writeFile(strmPath, originalPath, 'utf-8')
         }
       } else {
-        logger.warn({ movie: movie.title }, 'No file path found for movie, using STRM')
-        const strmPath = path.join(movieFolderPath, `${baseFilename}.strm`)
-        const strmContent = await getMovieStrmContent(movie)
-        await fs.writeFile(strmPath, strmContent, 'utf-8')
+        logger.warn({ movie: movie.title }, 'No file path found for movie, skipping')
+        continue
       }
 
       // Write NFO file inside the movie folder (use standard 'movie.nfo' name for Emby compatibility)
@@ -722,9 +697,14 @@ export async function writeTopPicksMovies(
       }
     } else {
       // STRM MODE: Flat file structure (original behavior)
+      // Get original file path for STRM content
+      const filePath = getMovieFilePath(movie)
+      if (!filePath) {
+        logger.warn({ movie: movie.title }, 'No file path found for movie, skipping STRM')
+        continue
+      }
       const strmPath = path.join(localPath, `${baseFilename}.strm`)
-      const strmContent = await getMovieStrmContent(movie)
-      await fs.writeFile(strmPath, strmContent, 'utf-8')
+      await fs.writeFile(strmPath, filePath, 'utf-8')
 
       // Write NFO file
       const nfoPath = path.join(localPath, `${baseFilename}.nfo`)
@@ -1082,37 +1062,26 @@ export async function writeTopPicksSeries(
         const episodeTitle = episode.title ? ` - ${sanitizeFilename(episode.title)}` : ''
         const episodeFilename = `${sanitizeFilename(series.title)} ${episodeNum}${episodeTitle}`
 
-        // Get STRM content (streaming URL or file path)
-        let strmContent: string
-        if (config.useStreamingUrl) {
-          const provider = await getMediaServerProvider()
-          const apiKey = await getMediaServerApiKey() || ''
-          strmContent = provider.getStreamUrl(apiKey, episode.provider_item_id)
-        } else {
-          // Try to get the actual file path
-          let episodePath = episode.path
-          if (!episodePath && episode.media_sources) {
-            try {
-              const sources = JSON.parse(episode.media_sources)
-              if (sources[0]?.path) {
-                episodePath = sources[0].path
-              }
-            } catch {
-              // Ignore parse errors
+        // Get original file path for STRM content
+        let episodePath = episode.path
+        if (!episodePath && episode.media_sources) {
+          try {
+            const sources = typeof episode.media_sources === 'string' 
+              ? JSON.parse(episode.media_sources) 
+              : episode.media_sources
+            if (sources && sources.length > 0) {
+              episodePath = sources[0].path
             }
-          }
-          if (episodePath) {
-            strmContent = episodePath
-          } else {
-            // Fallback to streaming URL
-            const provider = await getMediaServerProvider()
-            const apiKey = await getMediaServerApiKey() || ''
-            strmContent = provider.getStreamUrl(apiKey, episode.provider_item_id)
-          }
+          } catch { /* ignore */ }
+        }
+
+        if (!episodePath) {
+          logger.warn({ series: series.title, episode: episode.title }, 'No file path for episode, skipping')
+          continue
         }
 
         const strmPath = path.join(seasonPath, `${episodeFilename}.strm`)
-        await fs.writeFile(strmPath, strmContent, 'utf-8')
+        await fs.writeFile(strmPath, episodePath, 'utf-8')
       }
 
       // Symlink artwork files from original series folder (even in STRM mode)

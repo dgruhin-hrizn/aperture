@@ -13,11 +13,10 @@ import { query, queryOne } from '../../lib/db.js'
 import { getConfig } from '../config.js'
 import { getAiRecsOutputConfig } from '../../settings/systemSettings.js'
 import { getMediaServerProvider } from '../../media/index.js'
-import { getMediaServerApiKey } from '../../settings/systemSettings.js'
 import { downloadImage } from '../images.js'
 import { generateSeriesNfoContent } from './nfo.js'
 import { getEffectiveAiExplanationSetting } from '../../lib/userSettings.js'
-import { symlinkArtwork, SERIES_SKIP_FILES, getSeriesFolderFromSeasonPath, getSeriesFolderFromEpisodePath } from '../artwork.js'
+import { symlinkArtwork, SERIES_SKIP_FILES, getSeriesFolderFromSeasonPath } from '../artwork.js'
 import type { Series, Actor, SeriesImageDownloadTask } from './types.js'
 import type { ImageDownloadTask } from '../types.js'
 
@@ -145,7 +144,6 @@ export async function writeSeriesStrmFilesForUser(
   const outputConfig = await getAiRecsOutputConfig()
   const useSymlinks = outputConfig.seriesUseSymlinks
   const provider = await getMediaServerProvider()
-  const apiKey = await getMediaServerApiKey() || ''
   const startTime = Date.now()
 
   // Build user folder name (DisplayName_ID format for readability)
@@ -350,7 +348,7 @@ export async function writeSeriesStrmFilesForUser(
     await fs.writeFile(seriesNfoPath, nfoContent, 'utf-8')
     filesWritten++
 
-    // Queue images for download with rank badges
+    // Queue poster and fanart for download with rank badges (both modes need these for overlays)
     if (config.downloadImages) {
       if (series.posterUrl) {
         imageDownloads.push({
@@ -502,15 +500,13 @@ export async function writeSeriesStrmFilesForUser(
           // Episode filename: SeriesName S01E01 Episode Title.strm
           const episodeFilename = `${sanitizeForFilename(series.title)} S${String(episode.seasonNumber).padStart(2, '0')}E${String(episode.episodeNumber).padStart(2, '0')} ${sanitizeForFilename(episode.title)}`
 
-          // Write STRM file
-          const strmPath = path.join(seasonFolderPath, `${episodeFilename}.strm`)
-          let strmContent: string
-          if (episode.path && !config.useStreamingUrl) {
-            strmContent = episode.path
-          } else {
-            strmContent = provider.getStreamUrl(apiKey, episode.providerItemId)
+          // Write STRM file with original file path
+          if (!episode.path) {
+            logger.warn({ series: series.title, episode: episode.title }, 'No file path for episode, skipping')
+            continue
           }
-          await fs.writeFile(strmPath, strmContent, 'utf-8')
+          const strmPath = path.join(seasonFolderPath, `${episodeFilename}.strm`)
+          await fs.writeFile(strmPath, episode.path, 'utf-8')
           filesWritten++
 
           // Write episode NFO
@@ -520,19 +516,23 @@ export async function writeSeriesStrmFilesForUser(
         }
       }
 
-      // Symlink artwork files from original series folder (even in STRM mode)
-      const firstEpisodeWithPath = episodes.rows.find(ep => ep.path)
-      if (firstEpisodeWithPath?.path) {
-        const mediaServerSeriesPath = getSeriesFolderFromEpisodePath(firstEpisodeWithPath.path)
-        const artworkCount = await symlinkArtwork({
-          mediaServerPath: mediaServerSeriesPath,
-          targetPath: seriesFolderPath,
-          skipFiles: SERIES_SKIP_FILES,
-          skipSeasonFolders: true,
-          mediaType: 'series',
-          title: series.title,
-        })
-        filesWritten += artworkCount
+      // Download additional images via API (STRM mode only - symlink mode symlinks these)
+      if (config.downloadImages) {
+        const additionalImages = [
+          { url: provider.getBannerUrl(series.providerItemId), filename: 'banner.jpg' },
+          { url: provider.getLogoUrl(series.providerItemId), filename: 'clearlogo.png' },
+          { url: provider.getArtUrl(series.providerItemId), filename: 'clearart.png' },
+          { url: provider.getThumbUrl(series.providerItemId), filename: 'landscape.jpg' },
+        ]
+
+        for (const img of additionalImages) {
+          imageDownloads.push({
+            url: img.url,
+            path: path.join(seriesFolderPath, img.filename),
+            movieTitle: series.title,
+            isPoster: false,
+          })
+        }
       }
 
       logger.info(

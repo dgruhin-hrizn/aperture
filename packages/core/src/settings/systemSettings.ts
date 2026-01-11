@@ -143,7 +143,7 @@ export async function getSetupProgress(): Promise<SetupProgress> {
   )
 
   const completedSteps = Array.isArray((row?.completed_steps as unknown[] | undefined) ?? [])
-    ? ((row!.completed_steps as unknown[]) as string[])
+    ? (row!.completed_steps as unknown[] as string[])
     : []
 
   return {
@@ -692,10 +692,8 @@ export async function getOutputPathConfig(): Promise<OutputPathConfig> {
   const dbSeriesSymlinks = await getSystemSetting('ai_recs_series_use_symlinks')
   const dbDownloadImages = await getSystemSetting('ai_recs_download_images')
 
-  // Default downloadImages to true when using symlinks (so ranked overlays are applied)
   const moviesUseSymlinks = dbMoviesSymlinks !== null ? dbMoviesSymlinks === 'true' : true
   const seriesUseSymlinks = dbSeriesSymlinks !== null ? dbSeriesSymlinks === 'true' : true
-  const defaultDownloadImages = moviesUseSymlinks || seriesUseSymlinks
 
   return {
     // Fixed paths (determined by Docker volume mounts)
@@ -705,8 +703,8 @@ export async function getOutputPathConfig(): Promise<OutputPathConfig> {
     mediaServerPathPrefix: dbPathPrefix || DEFAULT_MEDIA_SERVER_PATH_PREFIX,
     moviesUseSymlinks,
     seriesUseSymlinks,
-    // Download images and apply ranked overlays (defaults to true when using symlinks)
-    downloadImages: dbDownloadImages !== null ? dbDownloadImages === 'true' : defaultDownloadImages,
+    // Download images: default true (required for STRM mode, optional for symlink mode rank overlays)
+    downloadImages: dbDownloadImages !== null ? dbDownloadImages === 'true' : true,
   }
 }
 
