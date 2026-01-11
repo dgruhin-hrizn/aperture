@@ -44,7 +44,6 @@ export interface StrmConfig {
   libraryRoot: string
   libraryNamePrefix: string
   libraryPathPrefix: string
-  useStreamingUrl: boolean
   downloadImages: boolean
   // Path mapping for converting media server paths to local paths
   mediaServerPathPrefix: string

@@ -20,8 +20,6 @@ export async function getConfig(): Promise<StrmConfig> {
     // Library naming
     libraryNamePrefix: 'AI Picks - ',
     libraryRoot: APERTURE_MEDIA_PATH,
-    // Output format (symlinks by default)
-    useStreamingUrl: false,
     // Download images and apply ranking overlays (defaults to true when using symlinks)
     downloadImages: pathConfig.downloadImages,
     // Path mapping for symlinks:
@@ -42,7 +40,6 @@ export function getConfigSync(): StrmConfig {
     libraryRoot: APERTURE_MEDIA_PATH,
     libraryNamePrefix: 'AI Picks - ',
     libraryPathPrefix: '/mnt/ApertureLibraries/',
-    useStreamingUrl: false,
     downloadImages: false,
     mediaServerPathPrefix: '/mnt/',
     localMediaPathPrefix: APERTURE_MEDIA_PATH,
