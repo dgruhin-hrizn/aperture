@@ -38,43 +38,11 @@ import {
 } from '@mui/icons-material'
 import type { SetupWizardContext, JobProgress, UserLibraryResult } from '../types'
 
+import { WAITING_MESSAGES } from '../constants/waitingMessages'
+
 interface InitialJobsStepProps {
   wizard: SetupWizardContext
 }
-
-// Amusing messages to cycle through while waiting (with movie references!)
-const WAITING_MESSAGES = [
-  "Now might be a good time to grab some popcorn and put on a movie! 🍿",
-  "Still here? The AI is working hard, we promise! 🤖",
-  "Seriously? You're still watching the progress bar? 👀",
-  "Pro tip: This is a great time to refill your coffee ☕",
-  "The robots are analyzing your exquisite taste in media... 🎬",
-  "Our AI is binge-watching your library metadata right now 📺",
-  "You know what pairs well with waiting? Snacks. Go get some snacks. 🍕",
-  "The AI is judging your movie collection... in the nicest way possible 🎭",
-  "The embeddings are embedding. The syncs are syncing. All is well. ✨",
-  // Movie quotes adapted for the context
-  "\"The metadata really ties the whole collection together, man.\" – The Dude 🎳",
-  "\"After all, tomorrow is another sync job.\" – Scarlett O'Hara 👗",
-  "\"Here's looking at you, progress bar.\" – Rick Blaine 🥃",
-  "\"You can't handle the embeddings!\" – Colonel Jessup ⚖️",
-  "\"I'll be back... when the sync is done.\" – The Terminator 🤖",
-  "\"Life is like a box of recommendations. You never know what you're gonna get.\" – Forrest Gump 🍫",
-  "\"May the embeddings be with you.\" – Obi-Wan Kenobi ⚔️",
-  "\"E.T. phone home... to check on the sync progress.\" – E.T. 👽",
-  "\"You're gonna need a bigger library.\" – Chief Brody 🦈",
-  "\"I see watched movies.\" – Cole Sear 👻",
-  "\"To infinity and beyond!\" ...is how long this might take for big libraries. – Buzz Lightyear 🚀",
-  "\"Why so serious? It's just a progress bar.\" – The Joker 🃏",
-  "\"I'm the king of the metadata!\" – Jack Dawson 🚢",
-  "\"Keep your friends close, but your watch history closer.\" – Michael Corleone 🎩",
-  "\"There's no place like a fully synced library.\" – Dorothy 🌈",
-  "\"Frankly my dear, I don't give a damn... how long this takes.\" – Rhett Butler 💨",
-  "\"You had me at 'Start Initialization'.\" – Jerry Maguire 💕",
-  "\"I feel the need... the need for speed!\" Same, progress bar. Same. – Maverick ✈️",
-  "\"Just keep syncing, just keep syncing...\" – Dory 🐟",
-  "\"It's alive! IT'S ALIVE!\" ...the sync job, we mean. – Dr. Frankenstein ⚡",
-]
 
 function getJobIcon(jobId: string) {
   if (jobId.includes('sync-movie') || jobId.includes('sync-series')) {
