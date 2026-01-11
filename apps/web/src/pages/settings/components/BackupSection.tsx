@@ -753,7 +753,7 @@ export function BackupSection() {
 
           {/* Backups List */}
           <Typography variant="subtitle2" fontWeight={600} mb={1}>
-            Available Backups ({backups.length}{inProgressBackup ? ' + 1 in progress' : ''})
+            Available Backups ({inProgressBackup ? backups.filter(b => b.filename !== inProgressBackup.filename).length : backups.length}{inProgressBackup ? ' + 1 in progress' : ''})
           </Typography>
 
           {backups.length === 0 && !inProgressBackup ? (
@@ -814,8 +814,10 @@ export function BackupSection() {
                       </TableCell>
                     </TableRow>
                   )}
-                  {/* Completed backups */}
-                  {backups.map((backup) => (
+                  {/* Completed backups (excluding in-progress) */}
+                  {backups
+                    .filter((backup) => !inProgressBackup || backup.filename !== inProgressBackup.filename)
+                    .map((backup) => (
                     <TableRow key={backup.filename} hover>
                       <TableCell>
                         <Tooltip title="Backup complete">
