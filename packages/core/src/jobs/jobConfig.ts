@@ -68,7 +68,12 @@ const ENV_DEFAULTS: Record<
   // Watching libraries job (every 4 hours)
   'sync-watching-libraries': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 4 },
   // Assistant suggestions job (every hour)
-  'refresh-assistant-suggestions': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 1 },
+  'refresh-assistant-suggestions': {
+    scheduleType: 'interval',
+    hour: 0,
+    minute: 0,
+    intervalHours: 1,
+  },
   // Metadata enrichment job (every 6 hours)
   'enrich-metadata': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 6 },
   // Database backup job (daily at 1am)
