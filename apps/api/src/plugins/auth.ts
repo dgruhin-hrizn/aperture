@@ -1,7 +1,6 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify'
 import fp from 'fastify-plugin'
 import { query, queryOne } from '../lib/db.js'
-import { getMediaServerConfig } from '@aperture/core'
 
 export interface SessionUser {
   id: string
@@ -93,16 +92,9 @@ async function getSessionUser(sessionId: string): Promise<SessionUser | null> {
     return null
   }
 
-  // Get media server base URL for avatar
-  let avatarUrl: string | null = null
-  try {
-    const config = await getMediaServerConfig()
-    if (config.baseUrl && user.provider_user_id) {
-      avatarUrl = `${config.baseUrl}/Users/${user.provider_user_id}/Images/Primary`
-    }
-  } catch {
-    // Ignore - avatar URL is optional
-  }
+  // Use local avatar proxy URL to avoid mixed content issues
+  // The avatar endpoint proxies to the media server
+  const avatarUrl = `/api/users/${user.id}/avatar`
 
   return {
     id: user.id,
