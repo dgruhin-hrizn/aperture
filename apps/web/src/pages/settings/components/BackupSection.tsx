@@ -197,12 +197,13 @@ export function BackupSection() {
 
       // Extract filename from logs for in-progress backup display
       if (data.jobName === 'backup-database' && data.status === 'running') {
-        // Look for filename in logs (format: "📦 Running pg_dump to aperture_backup_xxx.sql.gz...")
+        // Look for filename in logs (format: "📦 Running pg_dump to aperture_backup_xxx.dump...")
         const filenameLog = data.logs?.find((log: { message: string }) => 
           log.message.includes('Running pg_dump to ')
         )
         if (filenameLog) {
-          const match = filenameLog.message.match(/Running pg_dump to ([^\s.]+\.sql\.gz)/)
+          // Match both old .sql.gz and new .dump format
+          const match = filenameLog.message.match(/Running pg_dump to (aperture_backup_[^\s]+\.(dump|sql\.gz))/)
           if (match) {
             setInProgressBackup({ filename: match[1], sizeFormatted: 'Writing...' })
           }
