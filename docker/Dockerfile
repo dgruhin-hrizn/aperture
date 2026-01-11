@@ -80,6 +80,13 @@ COPY --from=builder --chown=aperture:nodejs /app/apps/api/package.json ./apps/ap
 # Copy built web app
 COPY --from=builder --chown=aperture:nodejs /app/apps/web/dist ./apps/web/dist
 
+# Copy bundled library default images for media server sync
+COPY --from=builder --chown=aperture:nodejs /app/apps/web/public/AI_MOVIE_PICKS.png ./assets/library-defaults/
+COPY --from=builder --chown=aperture:nodejs /app/apps/web/public/AI_SERIES_PICKS.png ./assets/library-defaults/
+COPY --from=builder --chown=aperture:nodejs /app/apps/web/public/TOP_10_MOVIES_THIS_WEEK.png ./assets/library-defaults/
+COPY --from=builder --chown=aperture:nodejs /app/apps/web/public/TOP_10_SERIES_THIS_WEEKpng.png ./assets/library-defaults/
+COPY --from=builder --chown=aperture:nodejs /app/apps/web/public/Shows_You_Watch.png ./assets/library-defaults/
+
 # Copy migrations
 COPY --from=builder --chown=aperture:nodejs /app/db ./db
 

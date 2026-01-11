@@ -221,14 +221,14 @@ const BUNDLED_LIBRARY_DEFAULTS: Record<LibraryType, string> = {
 function getBundledImagePaths(filename: string): string[] {
   // Check multiple possible locations for bundled defaults
   const possiblePaths = [
-    // Data directory (production - copied during build/deploy)
+    // Docker production - copied to /app/assets/library-defaults during build
+    path.join('/app/assets/library-defaults', filename),
+    // Data directory (alternative production location)
     path.join(process.env.DATA_DIR || '/data', 'library-defaults', filename),
-    // Web app public directory (development)
+    // Web app public directory (development from workspace root)
     path.join(process.cwd(), 'apps/web/public', filename),
-    // Relative to workspace root
+    // Development from packages/core or apps/api
     path.join(process.cwd(), '..', '..', 'apps/web/public', filename),
-    // Docker volume mount location
-    path.join('/app/apps/web/public', filename),
   ]
   return possiblePaths
 }
