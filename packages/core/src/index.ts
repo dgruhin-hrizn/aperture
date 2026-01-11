@@ -275,6 +275,7 @@ export {
   getOMDbApiKey,
   setOMDbConfig,
   testOMDbConnection,
+  isOMDbPaidTier,
   type SystemSetting,
   type EmbeddingModel,
   type TextGenerationModel,

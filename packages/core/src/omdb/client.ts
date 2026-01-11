@@ -1,10 +1,14 @@
 /**
  * OMDb API Client
  * Handles API requests with rate limiting and error handling
+ *
+ * Rate limits:
+ * - Free tier: 1,000 requests/day → conservative 10 req/sec
+ * - Paid tier: 100,000 requests/day → aggressive 40 req/sec
  */
 
 import { createChildLogger } from '../lib/logger.js'
-import { getOMDbApiKey } from '../settings/systemSettings.js'
+import { getOMDbApiKey, isOMDbPaidTier } from '../settings/systemSettings.js'
 import { OMDB_API_BASE_URL } from './types.js'
 import type { OMDbMovieResponse } from './types.js'
 import type { ApiLogCallback } from '../tmdb/client.js'
@@ -12,20 +16,40 @@ import type { ApiLogCallback } from '../tmdb/client.js'
 const logger = createChildLogger('omdb')
 
 // Rate limiting configuration
-// OMDb free tier: 1,000 requests/day, paid: unlimited
-// We'll be conservative with ~10 requests/second
-const RATE_LIMIT_DELAY_MS = 100
+// Free tier: 1,000 requests/day → ~10 req/sec to be safe
+// Paid tier: 100,000 requests/day → ~40 req/sec (could go higher but matching TMDb)
+const RATE_LIMIT_FREE_MS = 100 // 10 requests/second
+const RATE_LIMIT_PAID_MS = 25 // 40 requests/second
 const MAX_RETRIES = 3
 const RETRY_DELAY_MS = 1000
 
-// Simple rate limiter
+// Cached tier status (refreshed periodically)
+let cachedPaidTier: boolean | null = null
+let lastTierCheck = 0
+const TIER_CHECK_INTERVAL_MS = 60000 // Re-check tier setting every minute
+
+// Simple rate limiter with dynamic delay
 let lastRequestTime = 0
 
+async function getRateLimitDelay(): Promise<number> {
+  const now = Date.now()
+  // Refresh cached tier status periodically
+  if (cachedPaidTier === null || now - lastTierCheck > TIER_CHECK_INTERVAL_MS) {
+    cachedPaidTier = await isOMDbPaidTier()
+    lastTierCheck = now
+    if (cachedPaidTier) {
+      logger.debug('OMDb paid tier detected - using faster rate limit')
+    }
+  }
+  return cachedPaidTier ? RATE_LIMIT_PAID_MS : RATE_LIMIT_FREE_MS
+}
+
 async function rateLimit(): Promise<void> {
+  const delay = await getRateLimitDelay()
   const now = Date.now()
   const timeSinceLastRequest = now - lastRequestTime
-  if (timeSinceLastRequest < RATE_LIMIT_DELAY_MS) {
-    await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_DELAY_MS - timeSinceLastRequest))
+  if (timeSinceLastRequest < delay) {
+    await new Promise((resolve) => setTimeout(resolve, delay - timeSinceLastRequest))
   }
   lastRequestTime = Date.now()
 }

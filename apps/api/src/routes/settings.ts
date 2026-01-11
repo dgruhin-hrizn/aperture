@@ -1836,6 +1836,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         hasApiKey: config.hasApiKey,
         enabled: config.enabled,
         isConfigured: config.hasApiKey,
+        paidTier: config.paidTier,
       })
     } catch (err) {
       fastify.log.error({ err }, 'Failed to get OMDb config')
@@ -1848,22 +1849,23 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * Update OMDb configuration
    */
   fastify.patch<{
-    Body: { apiKey?: string; enabled?: boolean }
+    Body: { apiKey?: string; enabled?: boolean; paidTier?: boolean }
   }>('/api/settings/omdb', { preHandler: requireAdmin }, async (request, reply) => {
     try {
-      const { apiKey, enabled } = request.body
+      const { apiKey, enabled, paidTier } = request.body
 
       // Validate the API key if provided
       if (apiKey !== undefined && apiKey !== '' && typeof apiKey !== 'string') {
         return reply.status(400).send({ error: 'Invalid API key format' })
       }
 
-      const config = await setOMDbConfig({ apiKey, enabled })
+      const config = await setOMDbConfig({ apiKey, enabled, paidTier })
 
       return reply.send({
         hasApiKey: config.hasApiKey,
         enabled: config.enabled,
         isConfigured: config.hasApiKey,
+        paidTier: config.paidTier,
         message: 'OMDb configuration updated',
       })
     } catch (err) {
