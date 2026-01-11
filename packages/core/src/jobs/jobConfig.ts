@@ -27,11 +27,10 @@ interface JobConfigRow {
   updated_at: Date
 }
 
-// Default schedules from ENV or hardcoded defaults
+// Default schedules (configurable via Admin → Jobs)
 const ENV_DEFAULTS: Record<
   string,
   {
-    cron: string
     scheduleType: ScheduleType
     hour: number
     minute: number
@@ -40,110 +39,40 @@ const ENV_DEFAULTS: Record<
   }
 > = {
   // Movie jobs - Scan libraries daily at 2am
-  'sync-movies': {
-    cron: process.env.SYNC_CRON || '0 2 * * *',
-    scheduleType: 'daily',
-    hour: 2,
-    minute: 0,
-  },
+  'sync-movies': { scheduleType: 'daily', hour: 2, minute: 0 },
   // Watch history every 2 hours
-  'sync-movie-watch-history': {
-    cron: '0 */2 * * *',
-    scheduleType: 'interval',
-    hour: 0,
-    minute: 0,
-    intervalHours: 2,
-  },
-  'full-sync-movie-watch-history': { cron: '', scheduleType: 'manual', hour: 0, minute: 0 },
+  'sync-movie-watch-history': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 2 },
+  'full-sync-movie-watch-history': { scheduleType: 'manual', hour: 0, minute: 0 },
   // Embeddings daily at 3am
-  'generate-movie-embeddings': { cron: '0 3 * * *', scheduleType: 'daily', hour: 3, minute: 0 },
+  'generate-movie-embeddings': { scheduleType: 'daily', hour: 3, minute: 0 },
   // Recommendations weekly on Sunday at 4am
-  'generate-movie-recommendations': {
-    cron: process.env.RECS_CRON || '0 4 * * 0',
-    scheduleType: 'weekly',
-    hour: 4,
-    minute: 0,
-    dayOfWeek: 0,
-  },
-  'rebuild-movie-recommendations': { cron: '', scheduleType: 'manual', hour: 0, minute: 0 },
+  'generate-movie-recommendations': { scheduleType: 'weekly', hour: 4, minute: 0, dayOfWeek: 0 },
+  'rebuild-movie-recommendations': { scheduleType: 'manual', hour: 0, minute: 0 },
   // Library sync after recommendations (weekly Sunday at 5am)
-  'sync-movie-libraries': {
-    cron: process.env.PERMS_CRON || '0 5 * * 0',
-    scheduleType: 'weekly',
-    hour: 5,
-    minute: 0,
-    dayOfWeek: 0,
-  },
+  'sync-movie-libraries': { scheduleType: 'weekly', hour: 5, minute: 0, dayOfWeek: 0 },
   // Series jobs - Scan libraries daily at 2am
-  'sync-series': {
-    cron: process.env.SYNC_CRON || '0 2 * * *',
-    scheduleType: 'daily',
-    hour: 2,
-    minute: 0,
-  },
+  'sync-series': { scheduleType: 'daily', hour: 2, minute: 0 },
   // Watch history every 2 hours
-  'sync-series-watch-history': {
-    cron: '0 */2 * * *',
-    scheduleType: 'interval',
-    hour: 0,
-    minute: 0,
-    intervalHours: 2,
-  },
-  'full-sync-series-watch-history': { cron: '', scheduleType: 'manual', hour: 0, minute: 0 },
+  'sync-series-watch-history': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 2 },
+  'full-sync-series-watch-history': { scheduleType: 'manual', hour: 0, minute: 0 },
   // Embeddings daily at 3am
-  'generate-series-embeddings': { cron: '0 3 * * *', scheduleType: 'daily', hour: 3, minute: 0 },
+  'generate-series-embeddings': { scheduleType: 'daily', hour: 3, minute: 0 },
   // Recommendations weekly on Sunday at 4am
-  'generate-series-recommendations': {
-    cron: process.env.RECS_CRON || '0 4 * * 0',
-    scheduleType: 'weekly',
-    hour: 4,
-    minute: 0,
-    dayOfWeek: 0,
-  },
+  'generate-series-recommendations': { scheduleType: 'weekly', hour: 4, minute: 0, dayOfWeek: 0 },
   // Library sync after recommendations (weekly Sunday at 5am)
-  'sync-series-libraries': {
-    cron: process.env.PERMS_CRON || '0 5 * * 0',
-    scheduleType: 'weekly',
-    hour: 5,
-    minute: 0,
-    dayOfWeek: 0,
-  },
+  'sync-series-libraries': { scheduleType: 'weekly', hour: 5, minute: 0, dayOfWeek: 0 },
   // Top Picks job - daily at 5am
-  'refresh-top-picks': { cron: '0 5 * * *', scheduleType: 'daily', hour: 5, minute: 0 },
-  // Trakt sync job
-  'sync-trakt-ratings': {
-    cron: '0 */6 * * *',
-    scheduleType: 'interval',
-    hour: 0,
-    minute: 0,
-    intervalHours: 6,
-  },
+  'refresh-top-picks': { scheduleType: 'daily', hour: 5, minute: 0 },
+  // Trakt sync job (every 6 hours)
+  'sync-trakt-ratings': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 6 },
   // Watching libraries job (every 4 hours)
-  'sync-watching-libraries': {
-    cron: '0 */4 * * *',
-    scheduleType: 'interval',
-    hour: 0,
-    minute: 0,
-    intervalHours: 4,
-  },
+  'sync-watching-libraries': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 4 },
   // Assistant suggestions job (every hour)
-  'refresh-assistant-suggestions': {
-    cron: '0 * * * *',
-    scheduleType: 'interval',
-    hour: 0,
-    minute: 0,
-    intervalHours: 1,
-  },
+  'refresh-assistant-suggestions': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 1 },
   // Metadata enrichment job (every 6 hours)
-  'enrich-metadata': {
-    cron: '0 */6 * * *',
-    scheduleType: 'interval',
-    hour: 0,
-    minute: 0,
-    intervalHours: 6,
-  },
-  // Database backup job (daily at 1 AM by default - before library sync)
-  'backup-database': { cron: '0 1 * * *', scheduleType: 'daily', hour: 1, minute: 0 },
+  'enrich-metadata': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 6 },
+  // Database backup job (daily at 1am)
+  'backup-database': { scheduleType: 'daily', hour: 1, minute: 0 },
 }
 
 function rowToConfig(row: JobConfigRow): JobConfig {
@@ -175,33 +104,19 @@ export async function getJobConfig(jobName: string): Promise<JobConfig | null> {
     return rowToConfig(result)
   }
 
-  // Fall back to ENV defaults if not in database
-  const envDefault = ENV_DEFAULTS[jobName]
-  if (envDefault) {
-    // Parse cron to extract hour if available
-    let hour = envDefault.hour
-    let minute = envDefault.minute
-    if (envDefault.cron && envDefault.scheduleType !== 'interval') {
-      const parts = envDefault.cron.split(' ')
-      if (parts.length >= 2) {
-        minute = parseInt(parts[0], 10) || 0
-        hour = parseInt(parts[1], 10) || 0
-      }
-    }
+  // Fall back to defaults if not in database
+  const defaultConfig = ENV_DEFAULTS[jobName]
+  if (defaultConfig) {
+    const isTimeBasedSchedule =
+      defaultConfig.scheduleType === 'daily' || defaultConfig.scheduleType === 'weekly'
 
     return {
       jobName,
-      scheduleType: envDefault.scheduleType,
-      scheduleHour:
-        envDefault.scheduleType === 'manual' || envDefault.scheduleType === 'interval'
-          ? null
-          : hour,
-      scheduleMinute:
-        envDefault.scheduleType === 'manual' || envDefault.scheduleType === 'interval'
-          ? null
-          : minute,
-      scheduleDayOfWeek: envDefault.dayOfWeek ?? null,
-      scheduleIntervalHours: envDefault.intervalHours ?? null,
+      scheduleType: defaultConfig.scheduleType,
+      scheduleHour: isTimeBasedSchedule ? defaultConfig.hour : null,
+      scheduleMinute: isTimeBasedSchedule ? defaultConfig.minute : null,
+      scheduleDayOfWeek: defaultConfig.dayOfWeek ?? null,
+      scheduleIntervalHours: defaultConfig.intervalHours ?? null,
       isEnabled: true,
       updatedAt: new Date(),
     }
