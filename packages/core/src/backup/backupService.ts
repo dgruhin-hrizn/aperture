@@ -63,11 +63,12 @@ function parseDatabaseUrl(): {
 
 /**
  * Generate a timestamped backup filename
+ * Uses .dump extension for pg_dump custom format (compressed)
  */
 function generateBackupFilename(): string {
   const now = new Date()
   const timestamp = now.toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19)
-  return `aperture_backup_${timestamp}.sql.gz`
+  return `aperture_backup_${timestamp}.dump`
 }
 
 /**
@@ -119,7 +120,11 @@ export async function createBackup(jobId?: string): Promise<BackupResult> {
       addLog(jobId, 'info', `   Database: ${dbConfig.database}@${dbConfig.host}:${dbConfig.port}`)
     }
 
-    // Create pg_dump process
+    // Create pg_dump process with optimized settings
+    // Using custom format (-F c) with compression level 6 (-Z 6) is faster than
+    // plain text + gzip because pg_dump compresses while dumping, avoiding
+    // the overhead of piping through a separate gzip process.
+    // Level 6 is ~3x faster than level 9 with minimal size difference (~5% larger).
     const pgDump = spawn('pg_dump', [
       '-h', dbConfig.host,
       '-p', dbConfig.port,
@@ -127,7 +132,8 @@ export async function createBackup(jobId?: string): Promise<BackupResult> {
       '-d', dbConfig.database,
       '--no-owner',
       '--no-acl',
-      '-F', 'p', // Plain text format
+      '-F', 'c',  // Custom format (includes compression, faster restore)
+      '-Z', '6',  // Compression level 6 (balanced speed/size)
     ], {
       env: {
         ...process.env,
@@ -135,8 +141,7 @@ export async function createBackup(jobId?: string): Promise<BackupResult> {
       },
     })
 
-    // Create gzip stream and file write stream
-    const gzip = zlib.createGzip({ level: 9 })
+    // Write directly to file (pg_dump handles compression internally)
     const writeStream = fs.createWriteStream(filePath)
 
     // Collect stderr for error reporting
@@ -149,9 +154,9 @@ export async function createBackup(jobId?: string): Promise<BackupResult> {
       }
     })
 
-    // Pipe pg_dump -> gzip -> file
+    // Pipe pg_dump -> file (compression handled by pg_dump)
     await new Promise<void>((resolve, reject) => {
-      pgDump.stdout.pipe(gzip).pipe(writeStream)
+      pgDump.stdout.pipe(writeStream)
 
       writeStream.on('finish', resolve)
       writeStream.on('error', reject)
@@ -309,65 +314,110 @@ export async function restoreBackup(
       addLog(jobId, 'info', `   Database: ${dbConfig.database}@${dbConfig.host}:${dbConfig.port}`)
     }
 
-    // Decompress and restore
+    // Determine restore method based on file format
+    const isCustomFormat = filename.endsWith('.dump')
     const isCompressed = filename.endsWith('.gz')
 
     // Step 4: Run restore
     if (trackProgress && jobId) {
       setJobStep(jobId, 2 + stepOffset, 'Restoring database')
-      addLog(jobId, 'info', `📥 Running psql restore${isCompressed ? ' (decompressing)' : ''}...`)
+      if (isCustomFormat) {
+        addLog(jobId, 'info', '📥 Running pg_restore (custom format)...')
+      } else {
+        addLog(jobId, 'info', `📥 Running psql restore${isCompressed ? ' (decompressing)' : ''}...`)
+      }
       addLog(jobId, 'warn', '⚠️ This will overwrite existing data!')
     }
-
-    // Create psql process
-    const psql = spawn('psql', [
-      '-h', dbConfig.host,
-      '-p', dbConfig.port,
-      '-U', dbConfig.user,
-      '-d', dbConfig.database,
-      '-v', 'ON_ERROR_STOP=1',
-    ], {
-      env: {
-        ...process.env,
-        PGPASSWORD: dbConfig.password,
-      },
-    })
 
     // Collect stderr for error reporting
     let stderr = ''
     let lastLogTime = Date.now()
-    psql.stderr.on('data', (data) => {
-      stderr += data.toString()
-      // Log progress periodically (not too often to avoid spam)
-      if (trackProgress && jobId && Date.now() - lastLogTime > 2000) {
-        addLog(jobId, 'debug', '   Restore in progress...')
-        lastLogTime = Date.now()
-      }
-    })
 
-    // Read file, optionally decompress, and pipe to psql
-    const readStream = fs.createReadStream(filePath)
+    if (isCustomFormat) {
+      // Use pg_restore for custom format (.dump) files
+      // --clean drops existing objects, --if-exists prevents errors
+      const pgRestore = spawn('pg_restore', [
+        '-h', dbConfig.host,
+        '-p', dbConfig.port,
+        '-U', dbConfig.user,
+        '-d', dbConfig.database,
+        '--clean',
+        '--if-exists',
+        '--no-owner',
+        '--no-acl',
+        filePath,
+      ], {
+        env: {
+          ...process.env,
+          PGPASSWORD: dbConfig.password,
+        },
+      })
 
-    await new Promise<void>((resolve, reject) => {
-      psql.on('error', reject)
-      psql.on('close', (code) => {
-        if (code !== 0) {
-          reject(new Error(`psql exited with code ${code}: ${stderr}`))
-        } else {
-          resolve()
+      pgRestore.stderr.on('data', (data) => {
+        stderr += data.toString()
+        if (trackProgress && jobId && Date.now() - lastLogTime > 2000) {
+          addLog(jobId, 'debug', '   Restore in progress...')
+          lastLogTime = Date.now()
         }
       })
 
-      if (isCompressed) {
-        const gunzip = zlib.createGunzip()
-        readStream.pipe(gunzip).pipe(psql.stdin)
-        gunzip.on('error', reject)
-      } else {
-        readStream.pipe(psql.stdin)
-      }
+      await new Promise<void>((resolve, reject) => {
+        pgRestore.on('error', reject)
+        pgRestore.on('close', (code) => {
+          // pg_restore returns non-zero for warnings too, check stderr for actual errors
+          if (code !== 0 && stderr.toLowerCase().includes('error')) {
+            reject(new Error(`pg_restore exited with code ${code}: ${stderr}`))
+          } else {
+            resolve()
+          }
+        })
+      })
+    } else {
+      // Use psql for plain text SQL files (.sql, .sql.gz)
+      const psql = spawn('psql', [
+        '-h', dbConfig.host,
+        '-p', dbConfig.port,
+        '-U', dbConfig.user,
+        '-d', dbConfig.database,
+        '-v', 'ON_ERROR_STOP=1',
+      ], {
+        env: {
+          ...process.env,
+          PGPASSWORD: dbConfig.password,
+        },
+      })
 
-      readStream.on('error', reject)
-    })
+      psql.stderr.on('data', (data) => {
+        stderr += data.toString()
+        if (trackProgress && jobId && Date.now() - lastLogTime > 2000) {
+          addLog(jobId, 'debug', '   Restore in progress...')
+          lastLogTime = Date.now()
+        }
+      })
+
+      const readStream = fs.createReadStream(filePath)
+
+      await new Promise<void>((resolve, reject) => {
+        psql.on('error', reject)
+        psql.on('close', (code) => {
+          if (code !== 0) {
+            reject(new Error(`psql exited with code ${code}: ${stderr}`))
+          } else {
+            resolve()
+          }
+        })
+
+        if (isCompressed) {
+          const gunzip = zlib.createGunzip()
+          readStream.pipe(gunzip).pipe(psql.stdin)
+          gunzip.on('error', reject)
+        } else {
+          readStream.pipe(psql.stdin)
+        }
+
+        readStream.on('error', reject)
+      })
+    }
 
     // Step 5: Finalize
     if (trackProgress && jobId) {
@@ -428,8 +478,8 @@ export async function listBackups(): Promise<BackupInfo[]> {
     const backups: BackupInfo[] = []
 
     for (const file of files) {
-      // Only include backup files
-      if (!file.startsWith('aperture_backup_') || (!file.endsWith('.sql') && !file.endsWith('.sql.gz'))) {
+      // Only include backup files (supports both old .sql/.sql.gz and new .dump formats)
+      if (!file.startsWith('aperture_backup_') || (!file.endsWith('.sql') && !file.endsWith('.sql.gz') && !file.endsWith('.dump'))) {
         continue
       }
 
@@ -441,7 +491,7 @@ export async function listBackups(): Promise<BackupInfo[]> {
         path: filePath,
         sizeBytes: stats.size,
         createdAt: stats.mtime,
-        isCompressed: file.endsWith('.gz'),
+        isCompressed: file.endsWith('.gz') || file.endsWith('.dump'),
       })
     }
 
@@ -539,12 +589,12 @@ export async function validateBackup(filename: string): Promise<{ valid: boolean
       return { valid: false, error: 'File is empty' }
     }
 
-    // Check file extension
-    if (!filename.endsWith('.sql') && !filename.endsWith('.sql.gz')) {
+    // Check file extension (supports old .sql/.sql.gz and new .dump formats)
+    if (!filename.endsWith('.sql') && !filename.endsWith('.sql.gz') && !filename.endsWith('.dump')) {
       return { valid: false, error: 'Invalid file extension' }
     }
 
-    // For compressed files, try to read the first few bytes to verify gzip header
+    // For gzip compressed files, verify gzip header
     if (filename.endsWith('.gz')) {
       const fd = await fs.promises.open(filePath, 'r')
       const buffer = Buffer.alloc(2)
@@ -554,6 +604,19 @@ export async function validateBackup(filename: string): Promise<{ valid: boolean
       // Gzip magic number: 1f 8b
       if (buffer[0] !== 0x1f || buffer[1] !== 0x8b) {
         return { valid: false, error: 'Invalid gzip file' }
+      }
+    }
+
+    // For pg_dump custom format, verify PGDMP header
+    if (filename.endsWith('.dump')) {
+      const fd = await fs.promises.open(filePath, 'r')
+      const buffer = Buffer.alloc(5)
+      await fd.read(buffer, 0, 5, 0)
+      await fd.close()
+
+      // pg_dump custom format magic: PGDMP
+      if (buffer.toString('ascii') !== 'PGDMP') {
+        return { valid: false, error: 'Invalid pg_dump custom format file' }
       }
     }
 
