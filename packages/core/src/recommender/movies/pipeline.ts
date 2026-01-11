@@ -355,8 +355,8 @@ export async function generateRecommendationsForAllUsers(jobId?: string): Promis
         )
         updateJobProgress(
           actualJobId,
-          totalRecommendations,
-          undefined,
+          i + 1,
+          totalUsers,
           `${success}/${totalUsers} users (${totalRecommendations} recommendations)`
         )
       } catch (err) {
@@ -366,8 +366,8 @@ export async function generateRecommendationsForAllUsers(jobId?: string): Promis
         failed++
         updateJobProgress(
           actualJobId,
-          totalRecommendations,
-          undefined,
+          i + 1,
+          totalUsers,
           `${success}/${totalUsers} users (${failed} failed)`
         )
       }

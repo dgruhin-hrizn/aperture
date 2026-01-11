@@ -27,6 +27,7 @@ import OutputIcon from '@mui/icons-material/Output'
 import PsychologyIcon from '@mui/icons-material/Psychology'
 import StorageIcon from '@mui/icons-material/Storage'
 import ExtensionIcon from '@mui/icons-material/Extension'
+import HandymanIcon from '@mui/icons-material/Handyman'
 import { useSettingsData } from './hooks'
 import {
   LibraryConfigSection,
@@ -46,6 +47,7 @@ import {
   TMDbConfigSection,
   OMDbConfigSection,
   BackupSection,
+  PosterRepairSection,
 } from './components'
 
 interface TabPanelProps {
@@ -285,6 +287,7 @@ export function SettingsPage() {
           <Tab icon={<TrendingUpIcon />} iconPosition="start" label="Top Picks" />
           <Tab icon={<AddToQueueIcon />} iconPosition="start" label="Shows You Watch" />
           <Tab icon={<SmartToyIcon />} iconPosition="start" label="Chat Bot" />
+          <Tab icon={<HandymanIcon />} iconPosition="start" label="Maintenance" />
           <Tab icon={<SettingsIcon />} iconPosition="start" label="System" />
         </Tabs>
 
@@ -347,6 +350,7 @@ export function SettingsPage() {
                 </Box>
               </Box>
             </TabPanel>
+
           </TabPanel>
 
           {/* AI Recommendations Tab */}
@@ -427,8 +431,13 @@ export function SettingsPage() {
             <ChatAssistantModelSection />
           </TabPanel>
 
-          {/* System Tab */}
+          {/* Maintenance Tab */}
           <TabPanel value={tabValue} index={5}>
+            <PosterRepairSection />
+          </TabPanel>
+
+          {/* System Tab */}
+          <TabPanel value={tabValue} index={6}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {/* Cost Estimator */}
               <CostEstimatorSection

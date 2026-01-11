@@ -38,6 +38,8 @@ export async function getSeries(
       'AirDays',
       'ChildCount',
       'RecursiveItemCount',
+      'ImageTags',
+      'BackdropImageTags',
     ].join(','),
     StartIndex: String(options.startIndex || 0),
     Limit: String(options.limit || 100),
