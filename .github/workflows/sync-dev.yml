@@ -1,0 +1,35 @@
+name: Sync dev with main
+
+# After merging a PR to main, sync dev branch to match main exactly
+# This keeps both branches with identical commit histories
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    # Don't run if the push came from this workflow (prevent loops)
+    if: github.actor != 'github-actions[bot]'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Sync dev to main
+        run: |
+          echo "Syncing dev branch to match main..."
+          git checkout dev
+          git reset --hard origin/main
+          git push origin dev --force
+          echo "✅ dev branch is now in sync with main"
+
