@@ -556,8 +556,8 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
       }>(
         `SELECT 
            u.id as user_id,
-           COALESCE((SELECT COUNT(*) FROM watch_history wh WHERE wh.user_id = u.id), 0) as movies_watched,
-           COALESCE((SELECT COUNT(*) FROM watch_history_episodes we WHERE we.user_id = u.id), 0) as episodes_watched
+           COALESCE((SELECT COUNT(*) FROM watch_history wh WHERE wh.user_id = u.id AND wh.media_type = 'movie'), 0) as movies_watched,
+           COALESCE((SELECT COUNT(*) FROM watch_history wh WHERE wh.user_id = u.id AND wh.media_type = 'episode'), 0) as episodes_watched
          FROM users u
          WHERE u.provider = $1`,
         [provider.type]
