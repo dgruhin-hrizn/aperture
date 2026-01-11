@@ -581,43 +581,77 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       // Get recommendation config
       const recConfig = await getRecommendationConfig()
 
-      // Get job schedules
-      const movieJobConfig = await getJobConfig('generate-movie-recommendations')
-      const seriesJobConfig = await getJobConfig('generate-series-recommendations')
+      // Get all AI-related job schedules
+      const [
+        movieRecsJobConfig,
+        seriesRecsJobConfig,
+        movieEmbeddingsJobConfig,
+        seriesEmbeddingsJobConfig,
+        assistantJobConfig,
+      ] = await Promise.all([
+        getJobConfig('generate-movie-recommendations'),
+        getJobConfig('generate-series-recommendations'),
+        getJobConfig('generate-movie-embeddings'),
+        getJobConfig('generate-series-embeddings'),
+        getJobConfig('refresh-assistant-suggestions'),
+      ])
 
-      // Get enabled user counts
+      // Get enabled user counts and item counts
       const { query } = await import('@aperture/core')
-      const enabledUsersResult = await query<{
-        movies_enabled_count: string
-        series_enabled_count: string
-      }>(`
+      const [enabledUsersResult, itemCountsResult] = await Promise.all([
+        query<{
+          movies_enabled_count: string
+          series_enabled_count: string
+          total_enabled_count: string
+        }>(`
           SELECT 
             COUNT(*) FILTER (WHERE movies_enabled = true) as movies_enabled_count,
-            COUNT(*) FILTER (WHERE series_enabled = true) as series_enabled_count
+            COUNT(*) FILTER (WHERE series_enabled = true) as series_enabled_count,
+            COUNT(*) FILTER (WHERE is_enabled = true) as total_enabled_count
           FROM users
-        `)
-      const moviesEnabledUsers = parseInt(
-        enabledUsersResult.rows[0]?.movies_enabled_count || '0',
-        10
-      )
-      const seriesEnabledUsers = parseInt(
-        enabledUsersResult.rows[0]?.series_enabled_count || '0',
-        10
-      )
+        `),
+        query<{
+          movie_count: string
+          series_count: string
+          episode_count: string
+        }>(`
+          SELECT 
+            (SELECT COUNT(*) FROM movies WHERE embedding IS NULL) as movie_count,
+            (SELECT COUNT(*) FROM series WHERE embedding IS NULL) as series_count,
+            (SELECT COUNT(*) FROM episodes WHERE embedding IS NULL) as episode_count
+        `),
+      ])
 
-      // Calculate runs per week
-      const movieRunsPerWeek = movieJobConfig
-        ? calculateRunsPerWeek(movieJobConfig.scheduleType, movieJobConfig.scheduleIntervalHours)
+      const moviesEnabledUsers = parseInt(enabledUsersResult.rows[0]?.movies_enabled_count || '0', 10)
+      const seriesEnabledUsers = parseInt(enabledUsersResult.rows[0]?.series_enabled_count || '0', 10)
+      const totalEnabledUsers = parseInt(enabledUsersResult.rows[0]?.total_enabled_count || '0', 10)
+
+      const pendingMovieEmbeddings = parseInt(itemCountsResult.rows[0]?.movie_count || '0', 10)
+      const pendingSeriesEmbeddings = parseInt(itemCountsResult.rows[0]?.series_count || '0', 10)
+      const pendingEpisodeEmbeddings = parseInt(itemCountsResult.rows[0]?.episode_count || '0', 10)
+
+      // Calculate runs per week for each job
+      const movieRecsRunsPerWeek = movieRecsJobConfig
+        ? calculateRunsPerWeek(movieRecsJobConfig.scheduleType, movieRecsJobConfig.scheduleIntervalHours)
+        : 1
+      const seriesRecsRunsPerWeek = seriesRecsJobConfig
+        ? calculateRunsPerWeek(seriesRecsJobConfig.scheduleType, seriesRecsJobConfig.scheduleIntervalHours)
+        : 1
+      const movieEmbeddingsRunsPerWeek = movieEmbeddingsJobConfig
+        ? calculateRunsPerWeek(movieEmbeddingsJobConfig.scheduleType, movieEmbeddingsJobConfig.scheduleIntervalHours)
         : 7
-      const seriesRunsPerWeek = seriesJobConfig
-        ? calculateRunsPerWeek(seriesJobConfig.scheduleType, seriesJobConfig.scheduleIntervalHours)
+      const seriesEmbeddingsRunsPerWeek = seriesEmbeddingsJobConfig
+        ? calculateRunsPerWeek(seriesEmbeddingsJobConfig.scheduleType, seriesEmbeddingsJobConfig.scheduleIntervalHours)
         : 7
+      const assistantRunsPerWeek = assistantJobConfig
+        ? calculateRunsPerWeek(assistantJobConfig.scheduleType, assistantJobConfig.scheduleIntervalHours)
+        : 168 // hourly = 168/week
 
       return reply.send({
         movie: {
           selectedCount: recConfig.movie.selectedCount,
-          runsPerWeek: movieRunsPerWeek,
-          schedule: movieJobConfig ? formatSchedule(movieJobConfig) : 'Daily at 4:00 AM',
+          runsPerWeek: movieRecsRunsPerWeek,
+          schedule: movieRecsJobConfig ? formatSchedule(movieRecsJobConfig) : 'Weekly on Sunday at 4:00 AM',
           enabledUsers: moviesEnabledUsers,
           source: {
             selectedCount: 'Settings > AI Config > Algorithm > Movies > Recs Per User',
@@ -626,12 +660,39 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         },
         series: {
           selectedCount: recConfig.series.selectedCount,
-          runsPerWeek: seriesRunsPerWeek,
-          schedule: seriesJobConfig ? formatSchedule(seriesJobConfig) : 'Daily at 4:00 AM',
+          runsPerWeek: seriesRecsRunsPerWeek,
+          schedule: seriesRecsJobConfig ? formatSchedule(seriesRecsJobConfig) : 'Weekly on Sunday at 4:00 AM',
           enabledUsers: seriesEnabledUsers,
           source: {
             selectedCount: 'Settings > AI Config > Algorithm > Series > Recs Per User',
             schedule: 'Jobs > generate-series-recommendations',
+          },
+        },
+        embeddings: {
+          movie: {
+            runsPerWeek: movieEmbeddingsRunsPerWeek,
+            schedule: movieEmbeddingsJobConfig ? formatSchedule(movieEmbeddingsJobConfig) : 'Daily at 3:00 AM',
+            pendingItems: pendingMovieEmbeddings,
+            source: {
+              schedule: 'Jobs > generate-movie-embeddings',
+            },
+          },
+          series: {
+            runsPerWeek: seriesEmbeddingsRunsPerWeek,
+            schedule: seriesEmbeddingsJobConfig ? formatSchedule(seriesEmbeddingsJobConfig) : 'Daily at 3:00 AM',
+            pendingItems: pendingSeriesEmbeddings,
+            pendingEpisodes: pendingEpisodeEmbeddings,
+            source: {
+              schedule: 'Jobs > generate-series-embeddings',
+            },
+          },
+        },
+        assistant: {
+          runsPerWeek: assistantRunsPerWeek,
+          schedule: assistantJobConfig ? formatSchedule(assistantJobConfig) : 'Every hour',
+          enabledUsers: totalEnabledUsers,
+          source: {
+            schedule: 'Jobs > refresh-assistant-suggestions',
           },
         },
       })
