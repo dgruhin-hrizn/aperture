@@ -808,7 +808,7 @@ export async function syncSeriesWatchHistoryForUser(
       toSync.push({
         episodeId,
         playCount: item.playCount,
-        lastPlayedAt: item.lastPlayedDate || null,
+        lastPlayedAt: item.lastPlayedDate ? new Date(item.lastPlayedDate) : null,
         isFavorite: item.isFavorite,
       })
     }
