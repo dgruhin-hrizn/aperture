@@ -140,6 +140,21 @@ export function BackupSection() {
   const pollJobProgress = useCallback(async (jobId: string) => {
     try {
       const res = await fetch(`/api/jobs/progress/${jobId}`, { credentials: 'include' })
+      
+      // Check content type before parsing
+      const contentType = res.headers.get('content-type')
+      if (!contentType?.includes('application/json')) {
+        // Got HTML or other non-JSON response - likely auth or proxy error
+        console.warn('Job progress returned non-JSON response:', contentType)
+        if (res.status === 401 || res.status === 403) {
+          setError('Session expired. Please refresh and try again.')
+        }
+        setActiveJobId(null)
+        setCreatingBackup(false)
+        setRestoringBackup(false)
+        return
+      }
+      
       if (!res.ok) {
         // Job might have finished and been cleaned up
         if (res.status === 404) {
@@ -148,7 +163,8 @@ export function BackupSection() {
           setRestoringBackup(false)
           return
         }
-        throw new Error('Failed to get job progress')
+        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(errorData.error || 'Failed to get job progress')
       }
       const data = await res.json()
       setJobProgress(data)
@@ -220,6 +236,14 @@ export function BackupSection() {
         method: 'POST',
         credentials: 'include',
       })
+
+      // Check content type before parsing JSON
+      const contentType = res.headers.get('content-type')
+      if (!contentType?.includes('application/json')) {
+        const text = await res.text()
+        console.error('Backup create returned non-JSON:', text.substring(0, 200))
+        throw new Error('Server returned invalid response. Check server logs.')
+      }
 
       const data = await res.json()
 
@@ -332,6 +356,14 @@ export function BackupSection() {
           createPreRestoreBackup: true,
         }),
       })
+
+      // Check content type before parsing JSON
+      const contentType = res.headers.get('content-type')
+      if (!contentType?.includes('application/json')) {
+        const text = await res.text()
+        console.error('Restore returned non-JSON:', text.substring(0, 200))
+        throw new Error('Server returned invalid response. Check server logs.')
+      }
 
       const data = await res.json()
 
