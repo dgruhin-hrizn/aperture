@@ -13,7 +13,6 @@ import { getConfig } from '../strm/config.js'
 import { downloadImage } from '../strm/images.js'
 import { sanitizeFilename } from '../strm/filenames.js'
 import { getMediaServerProvider } from '../media/index.js'
-import { getMediaServerApiKey } from '../settings/systemSettings.js'
 import { getTopPicksConfig } from './config.js'
 import {
   symlinkArtwork,
@@ -459,34 +458,11 @@ function buildTopPicksSeriesFilename(series: TopPicksSeries): string {
 }
 
 /**
- * Get STRM content for a movie
+ * Get STRM content for a movie (always streaming URL - no API key, client authenticates via session)
  */
 async function getMovieStrmContent(movie: TopPicksMovie): Promise<string> {
-  const config = await getConfig()
-
-  // If streaming URL is preferred
-  if (config.useStreamingUrl) {
-    const provider = await getMediaServerProvider()
-    const apiKey = await getMediaServerApiKey() || ''
-    return provider.getStreamUrl(apiKey, movie.providerItemId)
-  }
-
-  // Try to get the actual file path
-  if (movie.mediaSources && movie.mediaSources.length > 0) {
-    const mediaPath = movie.mediaSources[0].path
-    if (mediaPath) {
-      return mediaPath
-    }
-  }
-
-  if (movie.path) {
-    return movie.path
-  }
-
-  // Fallback to streaming URL
   const provider = await getMediaServerProvider()
-  const apiKey = await getMediaServerApiKey() || ''
-  return provider.getStreamUrl(apiKey, movie.providerItemId)
+  return provider.getStreamUrl(movie.providerItemId)
 }
 
 /**
@@ -1082,34 +1058,9 @@ export async function writeTopPicksSeries(
         const episodeTitle = episode.title ? ` - ${sanitizeFilename(episode.title)}` : ''
         const episodeFilename = `${sanitizeFilename(series.title)} ${episodeNum}${episodeTitle}`
 
-        // Get STRM content (streaming URL or file path)
-        let strmContent: string
-        if (config.useStreamingUrl) {
-          const provider = await getMediaServerProvider()
-          const apiKey = await getMediaServerApiKey() || ''
-          strmContent = provider.getStreamUrl(apiKey, episode.provider_item_id)
-        } else {
-          // Try to get the actual file path
-          let episodePath = episode.path
-          if (!episodePath && episode.media_sources) {
-            try {
-              const sources = JSON.parse(episode.media_sources)
-              if (sources[0]?.path) {
-                episodePath = sources[0].path
-              }
-            } catch {
-              // Ignore parse errors
-            }
-          }
-          if (episodePath) {
-            strmContent = episodePath
-          } else {
-            // Fallback to streaming URL
-            const provider = await getMediaServerProvider()
-            const apiKey = await getMediaServerApiKey() || ''
-            strmContent = provider.getStreamUrl(apiKey, episode.provider_item_id)
-          }
-        }
+        // Get STRM content (always streaming URL - no API key, client authenticates via session)
+        const provider = await getMediaServerProvider()
+        const strmContent = provider.getStreamUrl(episode.provider_item_id)
 
         const strmPath = path.join(seasonPath, `${episodeFilename}.strm`)
         await fs.writeFile(strmPath, strmContent, 'utf-8')

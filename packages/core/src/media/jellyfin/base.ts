@@ -96,8 +96,28 @@ export class JellyfinProviderBase {
     return `${this.baseUrl}/Items/${itemId}/Images/Backdrop${params}`
   }
 
-  getStreamUrl(apiKey: string, itemId: string): string {
-    return `${this.baseUrl}/Videos/${itemId}/stream?api_key=${apiKey}`
+  getBannerUrl(itemId: string, imageTag?: string): string {
+    const params = imageTag ? `?tag=${imageTag}` : ''
+    return `${this.baseUrl}/Items/${itemId}/Images/Banner${params}`
+  }
+
+  getLogoUrl(itemId: string, imageTag?: string): string {
+    const params = imageTag ? `?tag=${imageTag}` : ''
+    return `${this.baseUrl}/Items/${itemId}/Images/Logo${params}`
+  }
+
+  getArtUrl(itemId: string, imageTag?: string): string {
+    const params = imageTag ? `?tag=${imageTag}` : ''
+    return `${this.baseUrl}/Items/${itemId}/Images/Art${params}`
+  }
+
+  getThumbUrl(itemId: string, imageTag?: string): string {
+    const params = imageTag ? `?tag=${imageTag}` : ''
+    return `${this.baseUrl}/Items/${itemId}/Images/Thumb${params}`
+  }
+
+  getStreamUrl(itemId: string): string {
+    return `${this.baseUrl}/Videos/${itemId}/stream`
   }
 }
 

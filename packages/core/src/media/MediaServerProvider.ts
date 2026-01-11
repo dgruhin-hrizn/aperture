@@ -264,9 +264,29 @@ export interface MediaServerProvider {
   getBackdropUrl(itemId: string, imageTag?: string): string
 
   /**
-   * Build streaming URL for an item
+   * Build URL for a banner image
    */
-  getStreamUrl(apiKey: string, itemId: string): string
+  getBannerUrl(itemId: string, imageTag?: string): string
+
+  /**
+   * Build URL for a logo image
+   */
+  getLogoUrl(itemId: string, imageTag?: string): string
+
+  /**
+   * Build URL for an art image
+   */
+  getArtUrl(itemId: string, imageTag?: string): string
+
+  /**
+   * Build URL for a thumb/landscape image
+   */
+  getThumbUrl(itemId: string, imageTag?: string): string
+
+  /**
+   * Build streaming URL for an item (no API key - client authenticates via session)
+   */
+  getStreamUrl(itemId: string): string
 
   // =========================================================================
   // Watch History Management

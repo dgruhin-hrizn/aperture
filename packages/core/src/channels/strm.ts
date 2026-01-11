@@ -3,7 +3,6 @@ import path from 'path'
 import { createChildLogger } from '../lib/logger.js'
 import { queryOne } from '../lib/db.js'
 import { getMediaServerProvider } from '../media/index.js'
-import { getMediaServerApiKey } from '../settings/systemSettings.js'
 import { generateChannelRecommendations } from './recommendations.js'
 import { getConfig } from '../strm/config.js'
 
@@ -50,14 +49,13 @@ export async function writeChannelStrm(channelId: string): Promise<{
   const recommendations = await generateChannelRecommendations(channelId)
 
   // Write STRM files
+  const provider = await getMediaServerProvider()
   for (const rec of recommendations) {
     const filename = `${rec.title.replace(/[<>:"/\\|?*]/g, '')} (${rec.year || 'Unknown'}) [${rec.providerItemId}].strm`
     const filePath = path.join(localPath, filename)
 
-    // Get streaming URL
-    const provider = await getMediaServerProvider()
-    const apiKey = await getMediaServerApiKey() || ''
-    const content = provider.getStreamUrl(apiKey, rec.providerItemId)
+    // Get streaming URL (no API key - client authenticates via session)
+    const content = provider.getStreamUrl(rec.providerItemId)
 
     await fs.writeFile(filePath, content, 'utf-8')
   }
