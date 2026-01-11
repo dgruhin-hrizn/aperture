@@ -143,7 +143,7 @@ export async function getSetupProgress(): Promise<SetupProgress> {
   )
 
   const completedSteps = Array.isArray((row?.completed_steps as unknown[] | undefined) ?? [])
-    ? ((row!.completed_steps as unknown[]) as string[])
+    ? (row!.completed_steps as unknown[] as string[])
     : []
 
   return {
