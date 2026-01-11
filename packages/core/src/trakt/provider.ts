@@ -307,6 +307,9 @@ export async function disconnectTrakt(userId: string): Promise<void> {
 
 /**
  * Sync ratings from Trakt for a user
+ * 
+ * OPTIMIZED: Pre-loads all movie/series IDs and uses bulk upsert operations
+ * instead of individual queries per rating.
  */
 export async function syncTraktRatings(userId: string): Promise<TraktSyncResult> {
   const result: TraktSyncResult = {
@@ -326,92 +329,129 @@ export async function syncTraktRatings(userId: string): Promise<TraktSyncResult>
 
   logger.info({ userId }, 'Starting Trakt ratings sync')
 
-  // Get movie ratings
+  // Pre-load all movie IDs for fast lookup (IMDB and TMDB)
+  const allMovies = await query<{ id: string; imdb_id: string | null; tmdb_id: string | null }>(
+    'SELECT id, imdb_id, tmdb_id FROM movies WHERE imdb_id IS NOT NULL OR tmdb_id IS NOT NULL'
+  )
+  const movieByImdb = new Map<string, string>()
+  const movieByTmdb = new Map<string, string>()
+  for (const m of allMovies.rows) {
+    if (m.imdb_id) movieByImdb.set(m.imdb_id, m.id)
+    if (m.tmdb_id) movieByTmdb.set(m.tmdb_id, m.id)
+  }
+
+  // Pre-load all series IDs for fast lookup (IMDB, TVDB, TMDB)
+  const allSeries = await query<{
+    id: string
+    imdb_id: string | null
+    tvdb_id: string | null
+    tmdb_id: string | null
+  }>(
+    'SELECT id, imdb_id, tvdb_id, tmdb_id FROM series WHERE imdb_id IS NOT NULL OR tvdb_id IS NOT NULL OR tmdb_id IS NOT NULL'
+  )
+  const seriesByImdb = new Map<string, string>()
+  const seriesByTvdb = new Map<string, string>()
+  const seriesByTmdb = new Map<string, string>()
+  for (const s of allSeries.rows) {
+    if (s.imdb_id) seriesByImdb.set(s.imdb_id, s.id)
+    if (s.tvdb_id) seriesByTvdb.set(s.tvdb_id, s.id)
+    if (s.tmdb_id) seriesByTmdb.set(s.tmdb_id, s.id)
+  }
+
+  // Get movie ratings from Trakt
   const movieRatings = await getTraktRatings(tokens.accessToken, 'movies')
   logger.info({ userId, count: movieRatings.length }, 'Fetched movie ratings from Trakt')
 
+  // Map ratings to movie IDs
+  const movieRatingsToSync: { movieId: string; rating: number }[] = []
   for (const rating of movieRatings) {
     if (!rating.movie) continue
 
-    // Try to find movie by IMDB ID
-    let movie = await queryOne<{ id: string }>(`SELECT id FROM movies WHERE imdb_id = $1`, [
-      rating.movie.ids.imdb,
-    ])
-
-    // Fallback to TMDB ID
-    if (!movie && rating.movie.ids.tmdb) {
-      movie = await queryOne<{ id: string }>(`SELECT id FROM movies WHERE tmdb_id = $1`, [
-        String(rating.movie.ids.tmdb),
-      ])
+    // Try IMDB first, then TMDB
+    let movieId = rating.movie.ids.imdb ? movieByImdb.get(rating.movie.ids.imdb) : undefined
+    if (!movieId && rating.movie.ids.tmdb) {
+      movieId = movieByTmdb.get(String(rating.movie.ids.tmdb))
     }
 
-    if (!movie) {
-      result.moviesSkipped++
-      continue
-    }
-
-    // Upsert rating
-    const upsertResult = await query(
-      `INSERT INTO user_ratings (user_id, movie_id, rating, source)
-       VALUES ($1, $2, $3, 'trakt')
-       ON CONFLICT (user_id, movie_id) WHERE movie_id IS NOT NULL
-       DO UPDATE SET rating = EXCLUDED.rating, source = 'trakt', updated_at = NOW()
-       RETURNING (xmax = 0) as is_insert`,
-      [userId, movie.id, rating.rating]
-    )
-
-    if (upsertResult.rows[0]?.is_insert) {
-      result.moviesImported++
+    if (movieId) {
+      movieRatingsToSync.push({ movieId, rating: rating.rating })
     } else {
-      result.moviesUpdated++
+      result.moviesSkipped++
     }
   }
 
-  // Get show ratings
+  // Bulk upsert movie ratings
+  if (movieRatingsToSync.length > 0) {
+    const upsertResult = await query(
+      `INSERT INTO user_ratings (user_id, movie_id, rating, source)
+       SELECT $1, movie_id, rating, 'trakt'
+       FROM unnest($2::uuid[], $3::int[]) AS t(movie_id, rating)
+       ON CONFLICT (user_id, movie_id) WHERE movie_id IS NOT NULL
+       DO UPDATE SET rating = EXCLUDED.rating, source = 'trakt', updated_at = NOW()
+       RETURNING (xmax = 0) as is_insert`,
+      [
+        userId,
+        movieRatingsToSync.map((r) => r.movieId),
+        movieRatingsToSync.map((r) => r.rating),
+      ]
+    )
+
+    for (const row of upsertResult.rows) {
+      if (row.is_insert) {
+        result.moviesImported++
+      } else {
+        result.moviesUpdated++
+      }
+    }
+  }
+
+  // Get show ratings from Trakt
   const showRatings = await getTraktRatings(tokens.accessToken, 'shows')
   logger.info({ userId, count: showRatings.length }, 'Fetched show ratings from Trakt')
 
+  // Map ratings to series IDs
+  const seriesRatingsToSync: { seriesId: string; rating: number }[] = []
   for (const rating of showRatings) {
     if (!rating.show) continue
 
-    // Try to find series by IMDB ID
-    let series = await queryOne<{ id: string }>(`SELECT id FROM series WHERE imdb_id = $1`, [
-      rating.show.ids.imdb,
-    ])
-
-    // Fallback to TVDB ID
-    if (!series && rating.show.ids.tvdb) {
-      series = await queryOne<{ id: string }>(`SELECT id FROM series WHERE tvdb_id = $1`, [
-        String(rating.show.ids.tvdb),
-      ])
+    // Try IMDB first, then TVDB, then TMDB
+    let seriesId = rating.show.ids.imdb ? seriesByImdb.get(rating.show.ids.imdb) : undefined
+    if (!seriesId && rating.show.ids.tvdb) {
+      seriesId = seriesByTvdb.get(String(rating.show.ids.tvdb))
+    }
+    if (!seriesId && rating.show.ids.tmdb) {
+      seriesId = seriesByTmdb.get(String(rating.show.ids.tmdb))
     }
 
-    // Fallback to TMDB ID
-    if (!series && rating.show.ids.tmdb) {
-      series = await queryOne<{ id: string }>(`SELECT id FROM series WHERE tmdb_id = $1`, [
-        String(rating.show.ids.tmdb),
-      ])
-    }
-
-    if (!series) {
+    if (seriesId) {
+      seriesRatingsToSync.push({ seriesId, rating: rating.rating })
+    } else {
       result.seriesSkipped++
-      continue
     }
+  }
 
-    // Upsert rating
+  // Bulk upsert series ratings
+  if (seriesRatingsToSync.length > 0) {
     const upsertResult = await query(
       `INSERT INTO user_ratings (user_id, series_id, rating, source)
-       VALUES ($1, $2, $3, 'trakt')
+       SELECT $1, series_id, rating, 'trakt'
+       FROM unnest($2::uuid[], $3::int[]) AS t(series_id, rating)
        ON CONFLICT (user_id, series_id) WHERE series_id IS NOT NULL
        DO UPDATE SET rating = EXCLUDED.rating, source = 'trakt', updated_at = NOW()
        RETURNING (xmax = 0) as is_insert`,
-      [userId, series.id, rating.rating]
+      [
+        userId,
+        seriesRatingsToSync.map((r) => r.seriesId),
+        seriesRatingsToSync.map((r) => r.rating),
+      ]
     )
 
-    if (upsertResult.rows[0]?.is_insert) {
-      result.seriesImported++
-    } else {
-      result.seriesUpdated++
+    for (const row of upsertResult.rows) {
+      if (row.is_insert) {
+        result.seriesImported++
+      } else {
+        result.seriesUpdated++
+      }
     }
   }
 

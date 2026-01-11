@@ -794,49 +794,64 @@ export async function syncSeriesWatchHistoryForUser(
   )
   const existingEpisodeIds = new Set(existingHistory.rows.map((r) => r.episode_id))
 
-  let synced = 0
-  const syncedEpisodeIds = new Set<string>()
+  // Prepare bulk data - filter to items we have in our database
+  const toSync: {
+    episodeId: string
+    playCount: number
+    lastPlayedAt: Date | null
+    isFavorite: boolean
+  }[] = []
 
   for (const item of watchedEpisodes) {
     const episodeId = providerIdToEpisodeId.get(item.episodeId)
-
-    if (!episodeId) {
-      logger.debug({ providerItemId: item.episodeId }, 'Episode not found in database, skipping')
-      continue
+    if (episodeId) {
+      toSync.push({
+        episodeId,
+        playCount: item.playCount,
+        lastPlayedAt: item.lastPlayedDate || null,
+        isFavorite: item.isFavorite,
+      })
     }
+  }
 
-    // Upsert watch history (uses partial unique index idx_watch_history_user_episode_unique)
-    await query(
+  const syncedEpisodeIds = new Set<string>(toSync.map((t) => t.episodeId))
+  let synced = 0
+
+  // Bulk upsert watch history using unnest()
+  if (toSync.length > 0) {
+    const result = await query(
       `INSERT INTO watch_history (user_id, episode_id, media_type, play_count, last_played_at, is_favorite)
-       VALUES ($1, $2, 'episode', $3, $4, $5)
+       SELECT $1, episode_id, 'episode', play_count, last_played_at, is_favorite
+       FROM unnest($2::uuid[], $3::int[], $4::timestamptz[], $5::boolean[])
+         AS t(episode_id, play_count, last_played_at, is_favorite)
        ON CONFLICT (user_id, episode_id) WHERE episode_id IS NOT NULL DO UPDATE SET
          play_count = EXCLUDED.play_count,
          last_played_at = EXCLUDED.last_played_at,
          is_favorite = EXCLUDED.is_favorite,
          updated_at = NOW()`,
-      [userId, episodeId, item.playCount, item.lastPlayedDate || null, item.isFavorite]
+      [
+        userId,
+        toSync.map((t) => t.episodeId),
+        toSync.map((t) => t.playCount),
+        toSync.map((t) => t.lastPlayedAt),
+        toSync.map((t) => t.isFavorite),
+      ]
     )
-
-    syncedEpisodeIds.add(episodeId)
-    synced++
+    synced = result.rowCount || toSync.length
   }
 
   // Remove watch history entries for episodes no longer marked as watched
   // Only do this on full sync (delta sync only adds/updates)
   let removed = 0
-  if (fullSync) {
-    for (const existingEpisodeId of existingEpisodeIds) {
-      if (!syncedEpisodeIds.has(existingEpisodeId)) {
-        await query(
-          "DELETE FROM watch_history WHERE user_id = $1 AND episode_id = $2 AND media_type = 'episode'",
-          [userId, existingEpisodeId]
-        )
-        removed++
-        logger.debug(
-          { userId, episodeId: existingEpisodeId },
-          'Removed stale episode watch history entry'
-        )
-      }
+  if (fullSync && existingEpisodeIds.size > 0) {
+    const toRemove = [...existingEpisodeIds].filter((id) => !syncedEpisodeIds.has(id))
+    if (toRemove.length > 0) {
+      const deleteResult = await query(
+        `DELETE FROM watch_history WHERE user_id = $1 AND episode_id = ANY($2::uuid[]) AND media_type = 'episode'`,
+        [userId, toRemove]
+      )
+      removed = deleteResult.rowCount || toRemove.length
+      logger.debug({ userId, removed }, 'Removed stale episode watch history entries')
     }
   }
 
