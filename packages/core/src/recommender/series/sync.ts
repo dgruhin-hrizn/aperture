@@ -12,8 +12,26 @@ import {
   failJob,
 } from '../../jobs/progress.js'
 import { randomUUID } from 'crypto'
+import type { Series, Episode, MediaServerProvider } from '../../media/types.js'
 
 const logger = createChildLogger('sync-series')
+
+// ============================================================================
+// PERFORMANCE TUNING CONSTANTS
+// ============================================================================
+// These values are optimized for local Emby/Jellyfin servers which have no rate limits.
+
+/** Number of series to fetch per API request */
+const SERIES_PAGE_SIZE = 500
+
+/** Number of episodes to fetch per API request */
+const EPISODE_PAGE_SIZE = 1000
+
+/** Number of concurrent API requests for fetching pages */
+const PARALLEL_FETCHES = 4
+
+/** Number of items to batch insert/update in a single DB operation */
+const DB_BATCH_SIZE = 100
 
 export interface SyncSeriesResult {
   seriesAdded: number
@@ -26,7 +44,270 @@ export interface SyncSeriesResult {
 }
 
 /**
+ * Prepared series data ready for database insertion
+ */
+interface PreparedSeries {
+  series: Series
+  posterUrl: string | null
+  backdropUrl: string | null
+  libraryId: string | null
+}
+
+/**
+ * Prepared episode data ready for database insertion
+ */
+interface PreparedEpisode {
+  episode: Episode
+  seriesDbId: string
+  posterUrl: string | null
+  runtimeMinutes: number | null
+}
+
+/**
+ * Fetch multiple pages in parallel
+ */
+async function fetchParallel<T>(
+  fetchFn: (startIndex: number, limit: number) => Promise<{ items: T[]; totalRecordCount: number }>,
+  totalCount: number,
+  pageSize: number,
+  parallelFetches: number,
+  onProgress?: (fetched: number) => void
+): Promise<T[]> {
+  const allItems: T[] = []
+  const totalPages = Math.ceil(totalCount / pageSize)
+  let currentPage = 0
+
+  while (currentPage < totalPages) {
+    const pagesToFetch = Math.min(parallelFetches, totalPages - currentPage)
+    const fetchPromises: Promise<T[]>[] = []
+
+    for (let i = 0; i < pagesToFetch; i++) {
+      const startIndex = (currentPage + i) * pageSize
+      fetchPromises.push(fetchFn(startIndex, pageSize).then((result) => result.items))
+    }
+
+    const results = await Promise.all(fetchPromises)
+    for (const items of results) {
+      allItems.push(...items)
+    }
+
+    currentPage += pagesToFetch
+    onProgress?.(allItems.length)
+  }
+
+  return allItems
+}
+
+/**
+ * Process series batch for database insertion
+ */
+async function processSeriesBatch(
+  seriesList: PreparedSeries[],
+  existingProviderIds: Set<string>,
+  jobId: string
+): Promise<{ added: number; updated: number }> {
+  let added = 0
+  let updated = 0
+
+  for (const ps of seriesList) {
+    try {
+      if (existingProviderIds.has(ps.series.id)) {
+        // Update existing
+        await query(
+          `UPDATE series SET
+            title = $2, original_title = $3, sort_title = $4, year = $5, end_year = $6,
+            genres = $7, overview = $8, tagline = $9, community_rating = $10, critic_rating = $11,
+            content_rating = $12, status = $13, total_seasons = $14, total_episodes = $15,
+            air_days = $16, network = $17, studios = $18, directors = $19, writers = $20,
+            actors = $21, imdb_id = $22, tmdb_id = $23, tvdb_id = $24, tags = $25,
+            production_countries = $26, awards = $27, poster_url = $28, backdrop_url = $29,
+            provider_library_id = $30, updated_at = NOW()
+          WHERE provider_item_id = $1`,
+          [
+            ps.series.id,
+            ps.series.name,
+            ps.series.originalTitle,
+            ps.series.sortName,
+            ps.series.year,
+            ps.series.endYear,
+            ps.series.genres,
+            ps.series.overview,
+            ps.series.tagline,
+            ps.series.communityRating,
+            ps.series.criticRating,
+            ps.series.contentRating,
+            ps.series.status,
+            ps.series.totalSeasons,
+            ps.series.totalEpisodes,
+            ps.series.airDays || [],
+            ps.series.network,
+            JSON.stringify(ps.series.studios || []),
+            ps.series.directors || [],
+            ps.series.writers || [],
+            JSON.stringify(ps.series.actors || []),
+            ps.series.imdbId,
+            ps.series.tmdbId,
+            ps.series.tvdbId,
+            ps.series.tags || [],
+            ps.series.productionCountries || [],
+            ps.series.awards,
+            ps.posterUrl,
+            ps.backdropUrl,
+            ps.libraryId,
+          ]
+        )
+        updated++
+      } else {
+        // Insert new
+        await query(
+          `INSERT INTO series (
+            provider_item_id, title, original_title, sort_title, year, end_year,
+            genres, overview, tagline, community_rating, critic_rating, content_rating,
+            status, total_seasons, total_episodes, air_days, network,
+            studios, directors, writers, actors,
+            imdb_id, tmdb_id, tvdb_id, tags, production_countries, awards,
+            poster_url, backdrop_url, provider_library_id
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+            $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30
+          )`,
+          [
+            ps.series.id,
+            ps.series.name,
+            ps.series.originalTitle,
+            ps.series.sortName,
+            ps.series.year,
+            ps.series.endYear,
+            ps.series.genres,
+            ps.series.overview,
+            ps.series.tagline,
+            ps.series.communityRating,
+            ps.series.criticRating,
+            ps.series.contentRating,
+            ps.series.status,
+            ps.series.totalSeasons,
+            ps.series.totalEpisodes,
+            ps.series.airDays || [],
+            ps.series.network,
+            JSON.stringify(ps.series.studios || []),
+            ps.series.directors || [],
+            ps.series.writers || [],
+            JSON.stringify(ps.series.actors || []),
+            ps.series.imdbId,
+            ps.series.tmdbId,
+            ps.series.tvdbId,
+            ps.series.tags || [],
+            ps.series.productionCountries || [],
+            ps.series.awards,
+            ps.posterUrl,
+            ps.backdropUrl,
+            ps.libraryId,
+          ]
+        )
+        added++
+        existingProviderIds.add(ps.series.id)
+      }
+    } catch (err) {
+      logger.error({ err, series: ps.series.name }, 'Failed to sync series')
+    }
+  }
+
+  return { added, updated }
+}
+
+/**
+ * Process episode batch for database insertion
+ */
+async function processEpisodeBatch(
+  episodes: PreparedEpisode[],
+  existingProviderIds: Set<string>
+): Promise<{ added: number; updated: number }> {
+  let added = 0
+  let updated = 0
+
+  for (const pe of episodes) {
+    try {
+      if (existingProviderIds.has(pe.episode.id)) {
+        // Update existing
+        await query(
+          `UPDATE episodes SET
+            series_id = $2, season_number = $3, episode_number = $4, title = $5,
+            overview = $6, premiere_date = $7, year = $8, runtime_minutes = $9,
+            community_rating = $10, directors = $11, writers = $12, guest_stars = $13,
+            path = $14, media_sources = $15, poster_url = $16, updated_at = NOW()
+          WHERE provider_item_id = $1`,
+          [
+            pe.episode.id,
+            pe.seriesDbId,
+            pe.episode.seasonNumber,
+            pe.episode.episodeNumber,
+            pe.episode.name,
+            pe.episode.overview,
+            pe.episode.premiereDate ? pe.episode.premiereDate.split('T')[0] : null,
+            pe.episode.year,
+            pe.runtimeMinutes,
+            pe.episode.communityRating,
+            pe.episode.directors || [],
+            pe.episode.writers || [],
+            JSON.stringify(pe.episode.guestStars || []),
+            pe.episode.path,
+            JSON.stringify(pe.episode.mediaSources || []),
+            pe.posterUrl,
+          ]
+        )
+        updated++
+      } else {
+        // Insert new (with upsert on series_id + season + episode conflict)
+        await query(
+          `INSERT INTO episodes (
+            provider_item_id, series_id, season_number, episode_number, title,
+            overview, premiere_date, year, runtime_minutes, community_rating,
+            directors, writers, guest_stars, path, media_sources, poster_url
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+          ON CONFLICT (series_id, season_number, episode_number) DO UPDATE SET
+            provider_item_id = EXCLUDED.provider_item_id,
+            title = EXCLUDED.title, overview = EXCLUDED.overview,
+            premiere_date = EXCLUDED.premiere_date, year = EXCLUDED.year,
+            runtime_minutes = EXCLUDED.runtime_minutes, community_rating = EXCLUDED.community_rating,
+            directors = EXCLUDED.directors, writers = EXCLUDED.writers,
+            guest_stars = EXCLUDED.guest_stars, path = EXCLUDED.path,
+            media_sources = EXCLUDED.media_sources, poster_url = EXCLUDED.poster_url,
+            updated_at = NOW()`,
+          [
+            pe.episode.id,
+            pe.seriesDbId,
+            pe.episode.seasonNumber,
+            pe.episode.episodeNumber,
+            pe.episode.name,
+            pe.episode.overview,
+            pe.episode.premiereDate ? pe.episode.premiereDate.split('T')[0] : null,
+            pe.episode.year,
+            pe.runtimeMinutes,
+            pe.episode.communityRating,
+            pe.episode.directors || [],
+            pe.episode.writers || [],
+            JSON.stringify(pe.episode.guestStars || []),
+            pe.episode.path,
+            JSON.stringify(pe.episode.mediaSources || []),
+            pe.posterUrl,
+          ]
+        )
+        added++
+        existingProviderIds.add(pe.episode.id)
+      }
+    } catch (err) {
+      logger.error({ err, episode: pe.episode.name }, 'Failed to sync episode')
+    }
+  }
+
+  return { added, updated }
+}
+
+/**
  * Sync all series and episodes from the media server to the database
+ *
+ * OPTIMIZED: Uses parallel API fetching and batch database operations
+ * for significantly faster sync times on large libraries.
  */
 export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResult> {
   const jobId = existingJobId || randomUUID()
@@ -48,6 +329,11 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
 
     addLog(jobId, 'info', `🔌 Connecting to ${serverType.toUpperCase()} server...`)
     addLog(jobId, 'info', `📡 Server URL: ${serverUrl}`)
+    addLog(
+      jobId,
+      'info',
+      `⚡ Performance: ${SERIES_PAGE_SIZE} series/page, ${EPISODE_PAGE_SIZE} episodes/page, ${PARALLEL_FETCHES} parallel`
+    )
 
     // Get enabled TV library IDs from config
     const enabledLibraryIds = await getEnabledTvLibraryIds()
@@ -77,39 +363,54 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
     const librariesToSync = enabledLibraryIds ?? []
 
     if (librariesToSync.length > 0) {
-      addLog(
-        jobId,
-        'info',
-        `📚 Syncing from ${librariesToSync.length} selected TV library/libraries`
-      )
+      addLog(jobId, 'info', `📚 Syncing from ${librariesToSync.length} selected TV library/libraries`)
     } else {
       addLog(jobId, 'info', '📚 Syncing from ALL TV libraries (no filter configured)')
     }
 
-    // Step 2: Fetch series count
-    setJobStep(jobId, 1, 'Fetching series list')
+    // Step 2: Fetch series and episode counts
+    setJobStep(jobId, 1, 'Fetching counts')
     addLog(jobId, 'info', '📋 Querying media server for TV libraries...')
 
+    const libraryCounts: Array<{ libraryId: string | null; seriesCount: number; episodeCount: number }> =
+      []
     let totalSeries = 0
+    let totalEpisodes = 0
+
     if (librariesToSync.length > 0) {
       for (const libId of librariesToSync) {
-        const countResult = await provider.getSeries(apiKey, {
-          startIndex: 0,
-          limit: 1,
-          parentIds: [libId],
+        const [seriesResult, episodeResult] = await Promise.all([
+          provider.getSeries(apiKey, { startIndex: 0, limit: 1, parentIds: [libId] }),
+          provider.getEpisodes(apiKey, { startIndex: 0, limit: 1, parentIds: [libId] }),
+        ])
+        libraryCounts.push({
+          libraryId: libId,
+          seriesCount: seriesResult.totalRecordCount,
+          episodeCount: episodeResult.totalRecordCount,
         })
-        totalSeries += countResult.totalRecordCount
-        addLog(jobId, 'debug', `Library ${libId}: ${countResult.totalRecordCount} series`)
+        totalSeries += seriesResult.totalRecordCount
+        totalEpisodes += episodeResult.totalRecordCount
+        addLog(
+          jobId,
+          'debug',
+          `Library ${libId}: ${seriesResult.totalRecordCount} series, ${episodeResult.totalRecordCount} episodes`
+        )
       }
     } else {
-      const countResult = await provider.getSeries(apiKey, {
-        startIndex: 0,
-        limit: 1,
+      const [seriesResult, episodeResult] = await Promise.all([
+        provider.getSeries(apiKey, { startIndex: 0, limit: 1 }),
+        provider.getEpisodes(apiKey, { startIndex: 0, limit: 1 }),
+      ])
+      libraryCounts.push({
+        libraryId: null,
+        seriesCount: seriesResult.totalRecordCount,
+        episodeCount: episodeResult.totalRecordCount,
       })
-      totalSeries = countResult.totalRecordCount
+      totalSeries = seriesResult.totalRecordCount
+      totalEpisodes = episodeResult.totalRecordCount
     }
 
-    addLog(jobId, 'info', `📺 Found ${totalSeries} series in selected libraries`)
+    addLog(jobId, 'info', `📺 Found ${totalSeries} series and ${totalEpisodes} episodes`)
 
     if (totalSeries === 0) {
       addLog(jobId, 'warn', '⚠️ No series found in media server library!')
@@ -132,425 +433,168 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
       }
     }
 
+    // Pre-fetch existing data from database
+    addLog(jobId, 'info', '🔍 Loading existing series and episodes from database...')
+    const [existingSeriesResult, existingEpisodesResult] = await Promise.all([
+      query<{ provider_item_id: string }>('SELECT provider_item_id FROM series'),
+      query<{ provider_item_id: string }>('SELECT provider_item_id FROM episodes'),
+    ])
+    const existingSeriesIds = new Set(existingSeriesResult.rows.map((r) => r.provider_item_id))
+    const existingEpisodeIds = new Set(existingEpisodesResult.rows.map((r) => r.provider_item_id))
+    addLog(
+      jobId,
+      'info',
+      `📊 Found ${existingSeriesIds.size} existing series, ${existingEpisodeIds.size} existing episodes in database`
+    )
+
+    const startTime = Date.now()
     let seriesAdded = 0
     let seriesUpdated = 0
     let episodesAdded = 0
     let episodesUpdated = 0
     let processedSeries = 0
     let processedEpisodes = 0
-    const pageSize = 100
 
     // Step 3: Process series
     setJobStep(jobId, 2, 'Processing series', totalSeries)
 
-    const syncSeriesFromLibrary = async (libraryId: string | null) => {
-      let startIndex = 0
+    for (const { libraryId, seriesCount } of libraryCounts) {
+      if (seriesCount === 0) continue
 
-      while (true) {
-        const result = await provider.getSeries(apiKey, {
-          startIndex,
-          limit: pageSize,
-          parentIds: libraryId ? [libraryId] : undefined,
-        })
+      addLog(jobId, 'info', `📂 Fetching ${seriesCount} series from library${libraryId ? ` ${libraryId}` : ''}...`)
 
-        if (result.items.length === 0) {
-          break
-        }
+      // Fetch all series in parallel
+      const seriesList = await fetchParallel(
+        (startIndex, limit) =>
+          provider.getSeries(apiKey, {
+            startIndex,
+            limit,
+            parentIds: libraryId ? [libraryId] : undefined,
+          }),
+        seriesCount,
+        SERIES_PAGE_SIZE,
+        PARALLEL_FETCHES,
+        (fetched) => updateJobProgress(jobId, processedSeries + fetched, totalSeries, `Fetching series...`)
+      )
 
-        for (const series of result.items) {
-          processedSeries++
-          updateJobProgress(
-            jobId,
-            processedSeries,
-            totalSeries,
-            `${series.name} (${series.year || 'N/A'})`
-          )
+      addLog(jobId, 'info', `✅ Fetched ${seriesList.length} series, now processing...`)
 
-          try {
-            const existing = await queryOne<{ id: string }>(
-              'SELECT id FROM series WHERE provider_item_id = $1',
-              [series.id]
-            )
+      // Prepare series data
+      const preparedSeries: PreparedSeries[] = seriesList.map((series) => ({
+        series,
+        posterUrl: series.posterImageTag ? provider.getPosterUrl(series.id, series.posterImageTag) : null,
+        backdropUrl: series.backdropImageTag
+          ? provider.getBackdropUrl(series.id, series.backdropImageTag)
+          : null,
+        libraryId,
+      }))
 
-            const posterUrl = series.posterImageTag
-              ? provider.getPosterUrl(series.id, series.posterImageTag)
-              : null
-            const backdropUrl = series.backdropImageTag
-              ? provider.getBackdropUrl(series.id, series.backdropImageTag)
-              : null
-
-            const libraryIdToStore = libraryId
-
-            if (existing) {
-              // Update existing series
-              await query(
-                `UPDATE series SET
-                  title = $2,
-                  original_title = $3,
-                  sort_title = $4,
-                  year = $5,
-                  end_year = $6,
-                  genres = $7,
-                  overview = $8,
-                  tagline = $9,
-                  community_rating = $10,
-                  critic_rating = $11,
-                  content_rating = $12,
-                  status = $13,
-                  total_seasons = $14,
-                  total_episodes = $15,
-                  air_days = $16,
-                  network = $17,
-                  studios = $18,
-                  directors = $19,
-                  writers = $20,
-                  actors = $21,
-                  imdb_id = $22,
-                  tmdb_id = $23,
-                  tvdb_id = $24,
-                  tags = $25,
-                  production_countries = $26,
-                  awards = $27,
-                  poster_url = $28,
-                  backdrop_url = $29,
-                  provider_library_id = $30,
-                  updated_at = NOW()
-                WHERE id = $1`,
-                [
-                  existing.id,
-                  series.name,
-                  series.originalTitle,
-                  series.sortName,
-                  series.year,
-                  series.endYear,
-                  series.genres,
-                  series.overview,
-                  series.tagline,
-                  series.communityRating,
-                  series.criticRating,
-                  series.contentRating,
-                  series.status,
-                  series.totalSeasons,
-                  series.totalEpisodes,
-                  series.airDays || [],
-                  series.network,
-                  JSON.stringify(series.studios || []),
-                  series.directors || [],
-                  series.writers || [],
-                  JSON.stringify(series.actors || []),
-                  series.imdbId,
-                  series.tmdbId,
-                  series.tvdbId,
-                  series.tags || [],
-                  series.productionCountries || [],
-                  series.awards,
-                  posterUrl,
-                  backdropUrl,
-                  libraryIdToStore,
-                ]
-              )
-              seriesUpdated++
-            } else {
-              // Insert new series
-              await query(
-                `INSERT INTO series (
-                  provider_item_id, title, original_title, sort_title, year, end_year,
-                  genres, overview, tagline, community_rating, critic_rating, content_rating,
-                  status, total_seasons, total_episodes, air_days, network,
-                  studios, directors, writers, actors,
-                  imdb_id, tmdb_id, tvdb_id, tags, production_countries, awards,
-                  poster_url, backdrop_url, provider_library_id
-                ) VALUES (
-                  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-                  $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30
-                )`,
-                [
-                  series.id,
-                  series.name,
-                  series.originalTitle,
-                  series.sortName,
-                  series.year,
-                  series.endYear,
-                  series.genres,
-                  series.overview,
-                  series.tagline,
-                  series.communityRating,
-                  series.criticRating,
-                  series.contentRating,
-                  series.status,
-                  series.totalSeasons,
-                  series.totalEpisodes,
-                  series.airDays || [],
-                  series.network,
-                  JSON.stringify(series.studios || []),
-                  series.directors || [],
-                  series.writers || [],
-                  JSON.stringify(series.actors || []),
-                  series.imdbId,
-                  series.tmdbId,
-                  series.tvdbId,
-                  series.tags || [],
-                  series.productionCountries || [],
-                  series.awards,
-                  posterUrl,
-                  backdropUrl,
-                  libraryIdToStore,
-                ]
-              )
-              seriesAdded++
-              addLog(jobId, 'info', `➕ Added series: ${series.name} (${series.year || 'N/A'})`)
-            }
-
-            if (processedSeries % 25 === 0) {
-              addLog(
-                jobId,
-                'info',
-                `📊 Series progress: ${processedSeries}/${totalSeries} (${seriesAdded} new, ${seriesUpdated} updated)`
-              )
-            }
-          } catch (seriesErr) {
-            const seriesError = seriesErr instanceof Error ? seriesErr.message : 'Unknown error'
-            addLog(
-              jobId,
-              'error',
-              `❌ Failed to sync series: ${series.name} (${series.year || 'N/A'})`,
-              { error: seriesError }
-            )
-            logger.error({ err: seriesErr, series: series.name }, 'Failed to sync series')
-          }
-        }
-
-        if (startIndex + result.items.length >= result.totalRecordCount) {
-          break
-        }
-
-        startIndex += pageSize
+      // Process in batches
+      for (let i = 0; i < preparedSeries.length; i += DB_BATCH_SIZE) {
+        const batch = preparedSeries.slice(i, i + DB_BATCH_SIZE)
+        const result = await processSeriesBatch(batch, existingSeriesIds, jobId)
+        seriesAdded += result.added
+        seriesUpdated += result.updated
+        processedSeries += batch.length
+        updateJobProgress(jobId, processedSeries, totalSeries, `${processedSeries}/${totalSeries} series`)
       }
     }
 
-    // Sync series from each library
-    if (librariesToSync.length > 0) {
-      for (const libraryId of librariesToSync) {
-        addLog(jobId, 'info', `📂 Syncing series from library: ${libraryId}`)
-        await syncSeriesFromLibrary(libraryId)
-      }
-    } else {
-      await syncSeriesFromLibrary(null)
-    }
-
-    // Step 4: Process episodes
-    setJobStep(jobId, 3, 'Processing episodes')
-    addLog(jobId, 'info', '📺 Syncing episodes...')
-
-    // Get all series from our database to sync episodes for
-    const allSeries = await query<{ id: string; provider_item_id: string; title: string }>(
-      'SELECT id, provider_item_id, title FROM series'
+    addLog(
+      jobId,
+      'info',
+      `📊 Series sync: ${seriesAdded} new, ${seriesUpdated} updated (${processedSeries} total)`
     )
 
+    // Refresh series ID mapping after inserts
+    const allSeriesResult = await query<{ id: string; provider_item_id: string }>(
+      'SELECT id, provider_item_id FROM series'
+    )
     const providerToDbSeriesId = new Map<string, string>()
-    for (const s of allSeries.rows) {
+    for (const s of allSeriesResult.rows) {
       providerToDbSeriesId.set(s.provider_item_id, s.id)
     }
 
-    // Get total episode count
-    let totalEpisodes = 0
-    if (librariesToSync.length > 0) {
-      for (const libId of librariesToSync) {
-        const countResult = await provider.getEpisodes(apiKey, {
-          startIndex: 0,
-          limit: 1,
-          parentIds: [libId],
+    // Step 4: Process episodes
+    setJobStep(jobId, 3, 'Processing episodes', totalEpisodes)
+    addLog(jobId, 'info', '📺 Syncing episodes...')
+
+    for (const { libraryId, episodeCount } of libraryCounts) {
+      if (episodeCount === 0) continue
+
+      addLog(
+        jobId,
+        'info',
+        `📂 Fetching ${episodeCount} episodes from library${libraryId ? ` ${libraryId}` : ''}...`
+      )
+
+      // Fetch all episodes in parallel
+      const episodeList = await fetchParallel(
+        (startIndex, limit) =>
+          provider.getEpisodes(apiKey, {
+            startIndex,
+            limit,
+            parentIds: libraryId ? [libraryId] : undefined,
+          }),
+        episodeCount,
+        EPISODE_PAGE_SIZE,
+        PARALLEL_FETCHES,
+        (fetched) =>
+          updateJobProgress(jobId, processedEpisodes + fetched, totalEpisodes, `Fetching episodes...`)
+      )
+
+      addLog(jobId, 'info', `✅ Fetched ${episodeList.length} episodes, now processing...`)
+
+      // Prepare episode data, filtering out placeholders and episodes without series
+      const preparedEpisodes: PreparedEpisode[] = []
+      for (const episode of episodeList) {
+        // Skip Aperture sorting placeholder episodes
+        if (
+          episode.name === 'Aperture Sorting Placeholder' ||
+          (episode.seasonNumber === 0 && episode.episodeNumber === 0 && episode.name?.includes('Aperture'))
+        ) {
+          continue
+        }
+
+        const seriesDbId = providerToDbSeriesId.get(episode.seriesId)
+        if (!seriesDbId) continue // Series not in DB
+
+        preparedEpisodes.push({
+          episode,
+          seriesDbId,
+          posterUrl: episode.posterImageTag ? provider.getPosterUrl(episode.id, episode.posterImageTag) : null,
+          runtimeMinutes: episode.runtimeTicks ? Math.round(episode.runtimeTicks / 600000000) : null,
         })
-        totalEpisodes += countResult.totalRecordCount
       }
-    } else {
-      const countResult = await provider.getEpisodes(apiKey, {
-        startIndex: 0,
-        limit: 1,
-      })
-      totalEpisodes = countResult.totalRecordCount
-    }
 
-    addLog(jobId, 'info', `📺 Found ${totalEpisodes} episodes to sync`)
-    updateJobProgress(jobId, 0, totalEpisodes)
+      // Process in batches
+      for (let i = 0; i < preparedEpisodes.length; i += DB_BATCH_SIZE) {
+        const batch = preparedEpisodes.slice(i, i + DB_BATCH_SIZE)
+        const result = await processEpisodeBatch(batch, existingEpisodeIds)
+        episodesAdded += result.added
+        episodesUpdated += result.updated
+        processedEpisodes += batch.length
+        updateJobProgress(
+          jobId,
+          processedEpisodes,
+          totalEpisodes,
+          `${processedEpisodes}/${totalEpisodes} episodes`
+        )
 
-    const syncEpisodesFromLibrary = async (libraryId: string | null) => {
-      let startIndex = 0
-
-      while (true) {
-        const result = await provider.getEpisodes(apiKey, {
-          startIndex,
-          limit: pageSize,
-          parentIds: libraryId ? [libraryId] : undefined,
-        })
-
-        if (result.items.length === 0) {
-          break
+        // Log progress periodically
+        if (i % (DB_BATCH_SIZE * 10) === 0 && i > 0) {
+          const elapsed = (Date.now() - startTime) / 1000
+          const rate = Math.round(processedEpisodes / elapsed)
+          addLog(
+            jobId,
+            'info',
+            `📊 Episodes: ${processedEpisodes}/${totalEpisodes} (${rate}/sec, ${episodesAdded} new)`
+          )
         }
-
-        for (const episode of result.items) {
-          processedEpisodes++
-
-          // Skip Aperture sorting placeholder episodes (used for Emby home row sorting)
-          if (
-            episode.name === 'Aperture Sorting Placeholder' ||
-            (episode.seasonNumber === 0 &&
-              episode.episodeNumber === 0 &&
-              episode.name?.includes('Aperture'))
-          ) {
-            continue
-          }
-
-          if (processedEpisodes % 100 === 0) {
-            const seasonEp = `S${String(episode.seasonNumber).padStart(2, '0')}E${String(episode.episodeNumber).padStart(2, '0')}`
-            updateJobProgress(
-              jobId,
-              processedEpisodes,
-              totalEpisodes,
-              `${episode.seriesName} ${seasonEp}`
-            )
-          }
-
-          try {
-            // Find the series ID in our database
-            const seriesDbId = providerToDbSeriesId.get(episode.seriesId)
-            if (!seriesDbId) {
-              // Series not synced yet, skip this episode
-              continue
-            }
-
-            const existing = await queryOne<{ id: string }>(
-              'SELECT id FROM episodes WHERE provider_item_id = $1',
-              [episode.id]
-            )
-
-            const posterUrl = episode.posterImageTag
-              ? provider.getPosterUrl(episode.id, episode.posterImageTag)
-              : null
-
-            const runtimeMinutes = episode.runtimeTicks
-              ? Math.round(episode.runtimeTicks / 600000000)
-              : null
-
-            if (existing) {
-              // Update existing episode
-              await query(
-                `UPDATE episodes SET
-                  series_id = $2,
-                  season_number = $3,
-                  episode_number = $4,
-                  title = $5,
-                  overview = $6,
-                  premiere_date = $7,
-                  year = $8,
-                  runtime_minutes = $9,
-                  community_rating = $10,
-                  directors = $11,
-                  writers = $12,
-                  guest_stars = $13,
-                  path = $14,
-                  media_sources = $15,
-                  poster_url = $16,
-                  updated_at = NOW()
-                WHERE id = $1`,
-                [
-                  existing.id,
-                  seriesDbId,
-                  episode.seasonNumber,
-                  episode.episodeNumber,
-                  episode.name,
-                  episode.overview,
-                  episode.premiereDate ? episode.premiereDate.split('T')[0] : null,
-                  episode.year,
-                  runtimeMinutes,
-                  episode.communityRating,
-                  episode.directors || [],
-                  episode.writers || [],
-                  JSON.stringify(episode.guestStars || []),
-                  episode.path,
-                  JSON.stringify(episode.mediaSources || []),
-                  posterUrl,
-                ]
-              )
-              episodesUpdated++
-            } else {
-              // Insert new episode
-              await query(
-                `INSERT INTO episodes (
-                  provider_item_id, series_id, season_number, episode_number, title,
-                  overview, premiere_date, year, runtime_minutes, community_rating,
-                  directors, writers, guest_stars, path, media_sources, poster_url
-                ) VALUES (
-                  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
-                )
-                ON CONFLICT (series_id, season_number, episode_number) DO UPDATE SET
-                  provider_item_id = EXCLUDED.provider_item_id,
-                  title = EXCLUDED.title,
-                  overview = EXCLUDED.overview,
-                  premiere_date = EXCLUDED.premiere_date,
-                  year = EXCLUDED.year,
-                  runtime_minutes = EXCLUDED.runtime_minutes,
-                  community_rating = EXCLUDED.community_rating,
-                  directors = EXCLUDED.directors,
-                  writers = EXCLUDED.writers,
-                  guest_stars = EXCLUDED.guest_stars,
-                  path = EXCLUDED.path,
-                  media_sources = EXCLUDED.media_sources,
-                  poster_url = EXCLUDED.poster_url,
-                  updated_at = NOW()`,
-                [
-                  episode.id,
-                  seriesDbId,
-                  episode.seasonNumber,
-                  episode.episodeNumber,
-                  episode.name,
-                  episode.overview,
-                  episode.premiereDate ? episode.premiereDate.split('T')[0] : null,
-                  episode.year,
-                  runtimeMinutes,
-                  episode.communityRating,
-                  episode.directors || [],
-                  episode.writers || [],
-                  JSON.stringify(episode.guestStars || []),
-                  episode.path,
-                  JSON.stringify(episode.mediaSources || []),
-                  posterUrl,
-                ]
-              )
-              episodesAdded++
-            }
-
-            if (processedEpisodes % 500 === 0) {
-              addLog(
-                jobId,
-                'info',
-                `📊 Episodes progress: ${processedEpisodes}/${totalEpisodes} (${episodesAdded} new, ${episodesUpdated} updated)`
-              )
-            }
-          } catch (episodeErr) {
-            logger.error({ err: episodeErr, episode: episode.name }, 'Failed to sync episode')
-            // Continue with next episode
-          }
-        }
-
-        if (startIndex + result.items.length >= result.totalRecordCount) {
-          break
-        }
-
-        startIndex += pageSize
       }
     }
 
-    // Sync episodes from each library
-    if (librariesToSync.length > 0) {
-      for (const libraryId of librariesToSync) {
-        addLog(jobId, 'info', `📂 Syncing episodes from library: ${libraryId}`)
-        await syncEpisodesFromLibrary(libraryId)
-      }
-    } else {
-      await syncEpisodesFromLibrary(null)
-    }
-
+    const totalDuration = ((Date.now() - startTime) / 1000).toFixed(1)
     const finalResult = {
       seriesAdded,
       seriesUpdated,
@@ -565,7 +609,7 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
     addLog(
       jobId,
       'info',
-      `🎉 Sync complete: ${seriesAdded} new series, ${seriesUpdated} updated | ${episodesAdded} new episodes, ${episodesUpdated} updated`
+      `🎉 Sync complete in ${totalDuration}s: ${seriesAdded} new series, ${seriesUpdated} updated | ${episodesAdded} new episodes, ${episodesUpdated} updated`
     )
 
     return finalResult
