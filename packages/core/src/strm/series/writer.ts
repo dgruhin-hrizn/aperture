@@ -140,7 +140,7 @@ export async function writeSeriesStrmFilesForUser(
   userId: string,
   providerUserId: string,
   displayName: string
-): Promise<{ written: number; deleted: number; localPath: string; embyPath: string }> {
+): Promise<{ written: number; seriesCount: number; deleted: number; localPath: string; embyPath: string }> {
   const config = await getConfig()
   const outputConfig = await getAiRecsOutputConfig()
   const useSymlinks = outputConfig.seriesUseSymlinks
@@ -196,7 +196,7 @@ export async function writeSeriesStrmFilesForUser(
 
   if (!latestRun) {
     logger.warn({ userId }, 'No series recommendations found')
-    return { written: 0, deleted: 0, localPath, embyPath }
+    return { written: 0, seriesCount: 0, deleted: 0, localPath, embyPath }
   }
 
   // Get selected series from the run with full metadata for NFO generation
@@ -628,6 +628,7 @@ export async function writeSeriesStrmFilesForUser(
 
   return {
     written: filesWritten,
+    seriesCount: totalSeries,
     deleted,
     localPath,
     embyPath,
