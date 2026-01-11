@@ -35,11 +35,34 @@ export class EmbyProviderBase {
 
     logger.debug({ method: options.method || 'GET', url }, '📡 Emby API Request')
 
+    // Add 30 second timeout with AbortController
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000)
+
     const startTime = Date.now()
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    })
+    let response: Response
+    try {
+      response = await fetch(url, {
+        ...options,
+        headers,
+        signal: controller.signal,
+      })
+    } catch (err) {
+      clearTimeout(timeoutId)
+      const duration = Date.now() - startTime
+      if (err instanceof Error && err.name === 'AbortError') {
+        logger.error({ url, duration }, '⏱️ Emby API request timed out after 30 seconds')
+        throw new Error(
+          `Connection to Emby timed out after 30 seconds. Please check that your media server URL (${this.baseUrl}) is accessible from the Aperture container.`
+        )
+      }
+      logger.error({ url, duration, err }, '❌ Emby API network error')
+      throw new Error(
+        `Failed to connect to Emby at ${this.baseUrl}. Please verify the URL is correct and the server is running.`
+      )
+    } finally {
+      clearTimeout(timeoutId)
+    }
     const duration = Date.now() - startTime
 
     if (!response.ok) {

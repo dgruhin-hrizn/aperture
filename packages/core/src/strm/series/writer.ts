@@ -139,21 +139,44 @@ function generateSortingPlaceholderNfo(seriesTitle: string, rank: number): strin
 export async function writeSeriesStrmFilesForUser(
   userId: string,
   providerUserId: string,
-  _displayName: string
+  displayName: string
 ): Promise<{ written: number; deleted: number; localPath: string; embyPath: string }> {
-  const config = getConfig()
+  const config = await getConfig()
   const outputConfig = await getAiRecsOutputConfig()
   const useSymlinks = outputConfig.seriesUseSymlinks
   const provider = await getMediaServerProvider()
   const apiKey = await getMediaServerApiKey() || ''
   const startTime = Date.now()
 
-  // Build paths for series library
-  const localPath = path.join(config.strmRoot, 'aperture-tv', providerUserId)
-  const embyPath = path.join(
-    config.libraryPathPrefix.replace('/aperture', '/aperture-tv'),
-    providerUserId
-  )
+  // Build user folder name (DisplayName_ID format for readability)
+  const { getUserFolderName } = await import('../filenames.js')
+  const userFolder = getUserFolderName(displayName, providerUserId)
+
+  // Build paths for series library:
+  // - localPath: where Aperture writes files (inside Aperture container)
+  // - embyPath: where media server sees them (inside Emby/Jellyfin container)
+  // Both use 'aperture-tv' subfolder for AI series recommendations
+  const localPath = path.join(config.strmRoot, 'aperture-tv', userFolder)
+  const embyPath = path.join(config.libraryPathPrefix, 'aperture-tv', userFolder)
+
+  // Check for old-format folder and migrate if needed
+  const oldFormatPath = path.join(config.strmRoot, 'aperture-tv', providerUserId)
+  if (userFolder !== providerUserId) {
+    try {
+      const oldFolderStats = await fs.stat(oldFormatPath)
+      if (oldFolderStats.isDirectory()) {
+        const newFolderExists = await fs.stat(localPath).then(() => true).catch(() => false)
+        if (!newFolderExists) {
+          logger.info({ oldPath: oldFormatPath, newPath: localPath }, '📦 Migrating old-format series folder to new naming scheme')
+          await fs.rename(oldFormatPath, localPath)
+        } else {
+          logger.info({ oldPath: oldFormatPath }, '⚠️ Both old and new format folders exist, using new format')
+        }
+      }
+    } catch {
+      // Old folder doesn't exist, which is fine
+    }
+  }
 
   logger.info({ userId, localPath, embyPath, useSymlinks }, `📺 Starting series ${useSymlinks ? 'symlink' : 'STRM'} file generation`)
 

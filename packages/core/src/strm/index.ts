@@ -10,5 +10,8 @@ export {
   refreshUserSeriesLibrary,
   updateUserSeriesLibraryPermissions,
   processSeriesStrmForAllUsers,
+  // Types for library creation transparency
+  type UserLibraryResult,
+  type ProcessStrmResult,
 } from './StrmWriter.js'
 

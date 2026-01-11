@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth'
 import {
   STEP_ORDER,
   DEFAULT_AI_RECS_OUTPUT,
+  DEFAULT_OUTPUT_PATH_CONFIG,
   DEFAULT_TOP_PICKS,
   DEFAULT_MEDIA_SERVER_TYPES,
   DEFAULT_LIBRARY_IMAGES,
@@ -14,6 +15,7 @@ import type {
   SetupProgress,
   LibraryConfig,
   AiRecsOutputConfig,
+  OutputPathConfig,
   TopPicksConfig,
   MediaServerType,
   SetupWizardContext,
@@ -106,6 +108,9 @@ export function useSetupWizard(): SetupWizardContext {
     'ai-recs-series': { url: DEFAULT_LIBRARY_IMAGES['ai-recs-series'], isDefault: true },
   })
   const [uploadingImage, setUploadingImage] = useState<string | null>(null)
+
+  // Output path config
+  const [outputPathConfig, setOutputPathConfig] = useState<OutputPathConfig>(DEFAULT_OUTPUT_PATH_CONFIG)
 
   // Users state
   const [setupUsers, setSetupUsers] = useState<SetupUser[]>([])
@@ -213,6 +218,7 @@ export function useSetupWizard(): SetupWizardContext {
         if (data?.progress) setProgress(data.progress)
         if (data?.snapshot?.libraries) setLibraries(data.snapshot.libraries)
         if (data?.snapshot?.aiRecsOutput) setAiRecsOutput(data.snapshot.aiRecsOutput)
+        if (data?.snapshot?.outputPathConfig) setOutputPathConfig((c) => ({ ...c, ...data.snapshot.outputPathConfig }))
         if (data?.snapshot?.topPicks) setTopPicks((tp) => ({ ...tp, ...data.snapshot.topPicks }))
 
         // Set existing media server config if configured
@@ -412,13 +418,42 @@ export function useSetupWizard(): SetupWizardContext {
       if (!res.ok) throw new Error(data?.error || 'Failed to save output format')
       setAiRecsOutput(data)
       await updateProgress({ completedStep: 'aiRecsLibraries' })
-      goToStep('users')
+      goToStep('outputConfig')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save output format')
     } finally {
       setSaving(false)
     }
   }, [aiRecsOutput, updateProgress, goToStep])
+
+  // Output Path Config handlers
+  const saveOutputPathConfig = useCallback(async () => {
+    setSaving(true)
+    setError('')
+    try {
+      const res = await fetch('/api/setup/output-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(outputPathConfig),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Failed to save output configuration')
+      setOutputPathConfig(data)
+      // Also update aiRecsOutput to keep symlinks in sync
+      setAiRecsOutput((prev) => ({
+        ...prev,
+        moviesUseSymlinks: data.moviesUseSymlinks,
+        seriesUseSymlinks: data.seriesUseSymlinks,
+      }))
+      await updateProgress({ completedStep: 'outputConfig' })
+      goToStep('users')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save output configuration')
+    } finally {
+      setSaving(false)
+    }
+  }, [outputPathConfig, updateProgress, goToStep])
 
   const uploadLibraryImage = useCallback(async (libraryType: string, file: File) => {
     setUploadingImage(libraryType)
@@ -857,9 +892,10 @@ export function useSetupWizard(): SetupWizardContext {
           throw new Error(`${job.name} failed: ${errorMsg}`)
         }
 
-        // Completed - add summary
+        // Completed - add summary and store result for per-user display
         const summary = p.result
           ? Object.entries(p.result)
+              .filter(([k]) => k !== 'users' && k !== 'jobId') // Exclude users array from summary
               .map(([k, v]) => `${k}: ${v}`)
               .join(', ')
           : ''
@@ -867,7 +903,14 @@ export function useSetupWizard(): SetupWizardContext {
         setJobsProgress((prev) =>
           prev.map((j, i) =>
             i === jobIndex
-              ? { ...j, status: 'completed' as const, progress: 100, itemsProcessed: p.itemsTotal, itemsTotal: p.itemsTotal }
+              ? { 
+                  ...j, 
+                  status: 'completed' as const, 
+                  progress: 100, 
+                  itemsProcessed: p.itemsTotal, 
+                  itemsTotal: p.itemsTotal,
+                  result: p.result, // Store full result including per-user data
+                }
               : j
           )
         )
@@ -960,6 +1003,7 @@ export function useSetupWizard(): SetupWizardContext {
     aiRecsOutput,
     libraryImages,
     uploadingImage,
+    outputPathConfig,
     setupUsers,
     loadingUsers,
     usersError,
@@ -1005,6 +1049,8 @@ export function useSetupWizard(): SetupWizardContext {
     saveAiRecsOutput,
     uploadLibraryImage,
     deleteLibraryImage,
+    setOutputPathConfig,
+    saveOutputPathConfig,
     fetchSetupUsers,
     importAndEnableUser,
     toggleUserMovies,

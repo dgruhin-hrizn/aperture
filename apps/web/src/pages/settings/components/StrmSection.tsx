@@ -224,8 +224,8 @@ Access Mode: Read Only`}</CodeBlock>
           {/* Current Configuration */}
           <Box sx={{ pt: 2, borderTop: 1, borderColor: 'divider' }}>
             <Typography variant="caption" color="text.secondary">
-              Configuration is set via environment variables: <code>AI_LIBRARY_NAME_PREFIX</code>, 
-              <code>AI_LIBRARY_PATH_PREFIX</code>, and <code>MEDIA_SERVER_STRM_ROOT</code>
+              Path configuration is set in the Setup Wizard. Docker volume mounts: <code>/aperture-libraries</code> (output) 
+              and <code>/media</code> (read-only media access).
             </Typography>
           </Box>
         </Stack>

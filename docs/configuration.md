@@ -1,417 +1,246 @@
 # Configuration Guide
 
-This guide covers all configuration options for Aperture, including environment variables, STRM setup, and admin UI settings.
+This guide covers all configuration options for Aperture, including Docker setup, the Setup Wizard, and admin UI settings.
 
 ## Table of Contents
 
-- [First-Time Setup](#first-time-setup)
+- [Quick Start (Docker)](#quick-start-docker)
+- [Volume Mounts Explained](#volume-mounts-explained)
+- [Setup Wizard](#setup-wizard)
 - [Environment Variables](#environment-variables)
-  - [Required Settings](#required-settings)
-  - [Optional Settings](#optional-settings)
-  - [UI-Configurable Settings](#ui-configurable-settings)
-  - [STRM Configuration](#strm-configuration)
-  - [Job Schedules](#job-schedules-defaults)
-  - [Trakt Integration](#trakt-integration)
 - [Admin UI Configuration](#admin-ui-configuration)
-  - [Setup Tab](#setup-tab)
-  - [AI Recommendations Tab](#ai-recommendations-tab)
-  - [Top Picks Tab](#top-picks-tab)
-  - [System Tab](#system-tab)
-- [STRM Setup Guide](#strm-setup-guide)
-  - [Same Machine Setup](#same-machine-setup)
-  - [Different Machines (NAS/Network Share)](#different-machines-nasnetwork-share)
-  - [Streaming URLs vs Direct Paths](#streaming-urls-vs-direct-paths)
-  - [Using Symlinks Instead of STRM](#using-symlinks-instead-of-strm)
-  - [Path Mapping for Symlinks](#path-mapping-for-symlinks)
-  - [Symlink Folder Structure](#symlink-folder-structure)
-- [Trakt Integration Setup](#trakt-integration-setup)
+- [Symlinks vs STRM Files](#symlinks-vs-strm-files)
+- [Trakt Integration](#trakt-integration)
 - [Reverse Proxy Setup](#reverse-proxy-setup)
-  - [Nginx Proxy Manager](#nginx-proxy-manager)
-  - [Traefik](#traefik)
-  - [Caddy](#caddy)
 
 ---
 
-## First-Time Setup
+## Quick Start (Docker)
 
-When you start Aperture for the first time (via Docker or otherwise), you'll be guided through a **Setup Wizard** that configures the essential settings:
+Aperture requires only **2 volume mounts**. The recommended setup is to create the ApertureLibraries folder **inside** your existing media share.
 
-1. **Welcome** — Introduction to the setup process
-2. **Media Server** — Connect to your Emby or Jellyfin server (required)
-3. **OpenAI** — Configure your OpenAI API key (optional, can be added later)
-4. **Complete** — Finish setup and start using Aperture
+### Why Inside Your Media Share?
 
-The setup wizard saves all configuration to the database, so you don't need to configure environment variables for most settings.
+When you create `ApertureLibraries` inside your existing media share (e.g., `/mnt/user/Media/ApertureLibraries`), your media server (Emby/Jellyfin) can already see it through its existing mount. **No extra configuration needed in your media server!**
 
----
-
-## Environment Variables
-
-Aperture uses a **database-first** configuration approach. Most settings can be configured through the UI and are stored in the database. Environment variables serve as fallbacks or for settings that must be configured before the application starts.
-
-### Required Settings
-
-| Variable       | Description                  | Notes                                       |
-| -------------- | ---------------------------- | ------------------------------------------- |
-| `DATABASE_URL` | PostgreSQL connection string | e.g., `postgres://app:app@db:5432/aperture` |
-
-### Optional Settings
-
-| Variable         | Description                          | Default                                         |
-| ---------------- | ------------------------------------ | ----------------------------------------------- |
-| `PORT`           | API server port                      | `3456`                                          |
-| `NODE_ENV`       | Environment mode                     | `development`                                   |
-| `SESSION_SECRET` | Session cookie secret (min 32 chars) | Auto-generated (set in production for clusters) |
-| `APP_BASE_URL`   | Public URL of the application        | `http://localhost:3456`                         |
-| `TZ`             | Timezone                             | System default                                  |
-
-> **Important**: Set `APP_BASE_URL` to your server's actual IP/hostname when deploying to a server (e.g., `http://192.168.1.100:3456`). This is required for proper session handling and CORS.
-
-### UI-Configurable Settings
-
-The following settings can be configured via environment variables **OR** the Admin UI. **UI settings take precedence** when configured.
-
-#### Media Server (Admin → Settings → Media Server)
-
-| Variable                | Description          | Default |
-| ----------------------- | -------------------- | ------- |
-| `MEDIA_SERVER_TYPE`     | `emby` or `jellyfin` | `emby`  |
-| `MEDIA_SERVER_BASE_URL` | Media server URL     | —       |
-| `MEDIA_SERVER_API_KEY`  | Admin API key        | —       |
-
-#### OpenAI (Admin → Settings → AI)
-
-| Variable             | Description     | Default                  |
-| -------------------- | --------------- | ------------------------ |
-| `OPENAI_API_KEY`     | OpenAI API key  | —                        |
-| `OPENAI_EMBED_MODEL` | Embedding model | `text-embedding-3-small` |
-
-> **Note**: For Docker deployments, you typically don't need to set these environment variables. Just complete the setup wizard and configure everything through the UI.
-
-### STRM Configuration
-
-| Variable                    | Description                              | Default           |
-| --------------------------- | ---------------------------------------- | ----------------- |
-| `MEDIA_SERVER_STRM_ROOT`    | Where Aperture writes STRM files         | `/strm`           |
-| `AI_LIBRARY_PATH_PREFIX`    | Path prefix as seen by media server      | `/strm/aperture/` |
-| `AI_LIBRARY_NAME_PREFIX`    | Library name prefix                      | `AI Picks - `     |
-| `STRM_USE_STREAMING_URL`    | Use streaming URLs in STRM files         | `true`            |
-| `MEDIA_SERVER_LIBRARY_ROOT` | Root path for direct file paths          | `/mnt/media`      |
-| `MEDIA_SERVER_PATH_PREFIX`  | How your media server sees file paths    | `/mnt/`           |
-| `LOCAL_MEDIA_PATH_PREFIX`   | How Aperture sees the same files locally | `/mnt/`           |
-
-### Job Schedules (Defaults)
-
-| Variable     | Description               | Default            |
-| ------------ | ------------------------- | ------------------ |
-| `SYNC_CRON`  | Media sync schedule       | `0 3 * * *` (3 AM) |
-| `RECS_CRON`  | Recommendation generation | `0 4 * * *` (4 AM) |
-| `PERMS_CRON` | STRM/permissions sync     | `0 5 * * *` (5 AM) |
-
-### Trakt Integration
-
-| Variable              | Description                     | Default |
-| --------------------- | ------------------------------- | ------- |
-| `TRAKT_CLIENT_ID`     | Trakt application client ID     | —       |
-| `TRAKT_CLIENT_SECRET` | Trakt application client secret | —       |
-| `TRAKT_REDIRECT_URI`  | OAuth callback URL              | —       |
-
----
-
-## Admin UI Configuration
-
-The Admin Settings page is organized into four tabs:
-
-### Setup Tab
-
-- **Media Server**: Connection details and test connection
-- **Source Libraries**: Enable/disable libraries to include in sync
-- **Trakt Integration**: Configure Trakt.tv client credentials
-- **Docker Setup Guide**: Documentation for STRM/symlink volume configuration
-
-### AI Recommendations Tab
-
-- **Output Format**: STRM vs symlinks (separate for Movies and Series)
-- **Library Title Templates**: Default naming with merge tags
-- **AI Explanations**: Global toggle and user override settings
-- **Advanced Settings** (collapsed):
-  - AI Models: Embedding and text generation model selection
-  - Algorithm Weights: Tune similarity, novelty, rating, diversity
-
-### Top Picks Tab
-
-- **Configuration**: Time window, counts, minimum viewers
-- **Scoring Algorithm**: Weight unique viewers, play count, completion
-- **Output Modes**: Library, Collection, and/or Playlist (per content type)
-
-### System Tab
-
-- **Cost Estimator**: Estimate OpenAI API costs based on your setup
-- **Database Management**: View stats and purge data
-
----
-
-## STRM Setup Guide
-
-STRM files are how Aperture creates virtual libraries in your media server. Each STRM file is a small text file that points to the actual media file or streaming URL.
-
-**Key Concept**: The STRM directory must be accessible by both Aperture (to write files) and your media server (to read and play them).
-
-### Same Machine Setup
-
-If Aperture and your media server run on the same machine:
-
-```yaml
-# Aperture container
-volumes:
-  - /path/to/strm:/strm
-
-# Media server container (Emby/Jellyfin)
-volumes:
-  - /path/to/strm:/strm
-```
-
-Environment variables:
+### Folder Structure
 
 ```
-MEDIA_SERVER_STRM_ROOT=/strm
-AI_LIBRARY_PATH_PREFIX=/strm/aperture/
+Your Host Filesystem:
+─────────────────────────────────────────────────────────
+/mnt/user/Media/                      ← Your media share
+├── Movies/                           ← Your movies
+├── TV/                               ← Your TV shows
+└── ApertureLibraries/                ← Create this folder HERE
+    └── (Aperture writes recommendations here)
+
+
+Your Emby/Jellyfin Container (existing mount - don't change anything):
+─────────────────────────────────────────────────────────
+/mnt/user/Media  mounted at  /mnt     ← You already have this!
+
+
+What Emby Sees (automatically):
+─────────────────────────────────────────────────────────
+/mnt/
+├── Movies/                           ← Your movies
+├── TV/                               ← Your TV shows
+└── ApertureLibraries/                ← Emby can see this automatically!
+    └── (Your AI recommendation libraries appear here)
 ```
 
-### Unraid Setup
-
-Unraid is a popular platform for running Aperture alongside Emby/Jellyfin. Here's a complete setup guide:
-
-#### Quick Start (docker-compose.prod.yml)
-
-Use the production Docker Compose file designed for Unraid:
-
-```bash
-# Create a directory for Aperture
-mkdir -p /mnt/user/appdata/aperture
-cd /mnt/user/appdata/aperture
-
-# Download the production compose file
-curl -O https://raw.githubusercontent.com/dgruhin-hrizn/aperture/main/docker-compose.prod.yml
-
-# Edit and set your server IP
-nano docker-compose.prod.yml
-
-# Start the stack
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-#### Unraid with Symlinks
-
-To enable symlinks (for local playback without streaming URLs):
-
-**1. Create the virtual libraries directory:**
-
-```bash
-mkdir -p /mnt/user/Media/VirtualLibraries
-```
-
-**2. Configure Aperture's docker-compose.prod.yml:**
+### Docker Compose Example (Unraid)
 
 ```yaml
 services:
   app:
     image: ghcr.io/dgruhin-hrizn/aperture:latest
     container_name: aperture
-    user: root # Required for write permissions on Unraid
+    user: root
     environment:
-      APP_BASE_URL: http://YOUR_UNRAID_IP:3456
-      # ... other settings ...
-
-      # STRM Configuration
-      MEDIA_SERVER_STRM_ROOT: /strm
-      AI_LIBRARY_PATH_PREFIX: /mnt/VirtualLibraries/aperture/
-      MEDIA_SERVER_PATH_PREFIX: /mnt/
-      LOCAL_MEDIA_PATH_PREFIX: /media/
-      STRM_USE_STREAMING_URL: 'false'
+      APP_BASE_URL: http://YOUR_SERVER_IP:3456
+      DATABASE_URL: postgres://app:app@db:5432/aperture
+      TZ: America/New_York
+    ports:
+      - '3456:3456'
     volumes:
-      # Virtual libraries (where STRM files are written)
-      - /mnt/user/Media/VirtualLibraries:/strm
-      # Your media library (read-only, for symlinks)
+      # ─────────────────────────────────────────────────────────────
+      # VOLUME 1: Aperture Libraries Output
+      # ─────────────────────────────────────────────────────────────
+      # IMPORTANT: Create this folder INSIDE your media share!
+      #
+      # Why inside? Because your media server already has your media
+      # share mounted, so it will automatically see this folder too.
+      # No need to add another mount to Emby/Jellyfin!
+      #
+      # In this example:
+      #   - Host folder:        /mnt/user/Media/ApertureLibraries
+      #   - Emby sees it at:    /mnt/ApertureLibraries (automatically!)
+      #
+      - /mnt/user/Media/ApertureLibraries:/aperture-libraries
+
+      # ─────────────────────────────────────────────────────────────
+      # VOLUME 2: Your Media Library (read-only access)
+      # ─────────────────────────────────────────────────────────────
+      # Aperture needs to read your media files to create symlinks.
+      # Mount the SAME media folder that your media server uses.
+      # Read-only (:ro) is fine - Aperture only reads, never writes here.
+      #
       - /mnt/user/Media:/media:ro
-      # Uploads
-      - /mnt/user/appdata/aperture/uploads:/app/uploads
 ```
-
-**3. Add the virtual libraries folder to your Emby/Jellyfin container:**
-
-In Unraid's Docker UI, edit your Emby/Jellyfin container and add a new path:
-
-| Container Path          | Host Path                          | Access Mode |
-| ----------------------- | ---------------------------------- | ----------- |
-| `/mnt/VirtualLibraries` | `/mnt/user/Media/VirtualLibraries` | Read Only   |
-
-**4. Add libraries in Emby/Jellyfin:**
-
-After Aperture creates the STRM files, add new libraries pointing to:
-
-- `/mnt/VirtualLibraries/aperture/top-picks/movies` (Top Picks Movies)
-- `/mnt/VirtualLibraries/aperture/top-picks/series` (Top Picks Series)
-- User recommendation libraries will appear as `AI Picks - Username`
-
-#### Permission Note
-
-The `user: root` setting in docker-compose.prod.yml is **required** for Unraid because bind mounts inherit permissions from the host filesystem. Running as root ensures Aperture can write to the STRM directory without permission errors.
-
-### Different Machines (NAS/Network Share)
-
-If Aperture runs on a different machine than your media server:
-
-1. Create a shared folder accessible by both machines (e.g., on your NAS)
-2. Mount it on both the Aperture machine and media server machine
-
-Example:
-
-- **NAS share**: `/mnt/user/Media/VirtualLibraries`
-- **Aperture mount**: `/mnt/nas/VirtualLibraries` → `/strm` in container
-- **Media server mount**: `/media/VirtualLibraries` in its container
-
-```
-# Aperture writes to /strm (which is /mnt/nas/VirtualLibraries on host)
-MEDIA_SERVER_STRM_ROOT=/strm
-
-# Media server sees the files at /media/VirtualLibraries
-AI_LIBRARY_PATH_PREFIX=/media/VirtualLibraries/aperture/
-```
-
-### Streaming URLs vs Direct Paths
-
-By default, Aperture uses streaming URLs in STRM files:
-
-```
-STRM_USE_STREAMING_URL=true
-```
-
-This means STRM files contain URLs like:
-
-```
-http://emby-server:8096/Videos/12345/stream?api_key=...
-```
-
-If you prefer direct file paths (requires the media server to have direct access to your media files):
-
-```
-STRM_USE_STREAMING_URL=false
-MEDIA_SERVER_LIBRARY_ROOT=/path/to/your/media
-```
-
-### Using Symlinks Instead of STRM
-
-For setups where both Aperture and your media server share the same filesystem (common with NAS), you can use symlinks instead of STRM files. Symlinks preserve all metadata and allow the media server to treat files exactly as originals.
-
-**Requirements:**
-
-- Aperture must have write access to the STRM directory
-- Both containers must see the same paths for media files
-- The filesystem must support symlinks (most Linux filesystems do)
-
-Configure via **Admin → Settings → Output & AI → User Recommendations Output Format**.
-
-**Top Picks** also support symlinks, configured separately in **Admin → Settings → Top Picks → Output Configuration**.
-
-**Library Sorting**: Top Picks libraries and collections are automatically assigned sort titles that place them at the top of your library/collection lists (using `!!!!!!` prefix).
-
-### Path Mapping for Symlinks
-
-When using symlinks, Aperture needs to:
-
-1. **Read** your original media folders to find artwork and subtitles
-2. **Create symlinks** that your media server can follow
-
-If Aperture and your media server see the same files at different paths, configure the mapping so Aperture can find the files locally while creating symlinks with paths your media server understands.
-
-#### How to Find Your Paths
-
-1. In Emby/Jellyfin, go to any movie → Media Info → look at the **Path**
-2. On the machine running Aperture, find where that same file exists
-3. The different prefix between these paths is what you configure
-
-#### Common Scenarios
-
-**Same machine (no mapping needed):**
-
-```bash
-# Emby sees:     /mnt/Movies/Inception/Inception.mkv
-# Aperture sees: /mnt/Movies/Inception/Inception.mkv
-MEDIA_SERVER_PATH_PREFIX=/mnt/
-LOCAL_MEDIA_PATH_PREFIX=/mnt/
-```
-
-**Aperture on Mac, Emby on Linux/Unraid:**
-
-```bash
-# Emby sees:     /mnt/Movies/Inception/Inception.mkv
-# Mac sees:      /Volumes/Media/Movies/Inception/Inception.mkv
-MEDIA_SERVER_PATH_PREFIX=/mnt/
-LOCAL_MEDIA_PATH_PREFIX=/Volumes/Media/
-```
-
-**Both in Docker with different volume mounts:**
-
-```bash
-# Emby container:     /media/Movies/Inception/...
-# Aperture container: /data/Movies/Inception/...
-MEDIA_SERVER_PATH_PREFIX=/media/
-LOCAL_MEDIA_PATH_PREFIX=/data/
-```
-
-> **Note**: The symlinks Aperture creates will use the media server paths (so Emby can follow them), but Aperture needs the local paths to read the directory and find what files exist.
-
-### Symlink Folder Structure
-
-When using symlinks for movies, each movie gets its own folder:
-
-```
-AI Picks - Movies/
-├── Inception (2010)/
-│   ├── Inception (2010).mkv           → symlink to original video
-│   ├── Inception (2010).nfo           ← custom (with AI explanation)
-│   ├── Inception (2010).en.srt        → symlink (renamed to match video)
-│   ├── Inception (2010).es.srt        → symlink (renamed to match video)
-│   ├── poster.jpg                     ← custom (with rank badge)
-│   ├── fanart.jpg                     ← downloaded
-│   ├── banner.jpg                     → symlink from original
-│   ├── clearlogo.png                  → symlink from original
-│   └── landscape.jpg                  → symlink from original
-```
-
-For series, Aperture creates the folder with:
-
-```
-AI Picks - TV Series/
-├── Breaking Bad (2008)/
-│   ├── tvshow.nfo                     ← custom (with AI explanation)
-│   ├── poster.jpg                     ← custom (with rank badge)
-│   ├── fanart.jpg                     → symlink from original
-│   ├── banner.jpg                     → symlink from original
-│   ├── clearlogo.png                  → symlink from original
-│   ├── landscape.jpg                  → symlink from original
-│   ├── season01-poster.jpg            → symlink from original
-│   ├── Season 00/                     ← sorting workaround folder
-│   ├── Season 01/                     → symlink to original season
-│   └── Season 02/                     → symlink to original season
-```
-
-**What gets symlinked automatically:**
-
-- All artwork files (banner.jpg, clearlogo.png, landscape.jpg, fanart\*.jpg, etc.)
-- Subtitle files (.srt, .sub, .ass, etc.) — renamed to match video file
-- Season folders (for series)
-
-**What Aperture creates custom:**
-
-- NFO files (includes AI explanation when enabled)
-- poster.jpg (with rank badge overlay)
-- Season 00 folder (Emby home row sorting workaround)
 
 ---
 
-## Trakt Integration Setup
+## Volume Mounts Explained
+
+| Mount | Container Path | Purpose |
+|-------|----------------|---------|
+| **Aperture Libraries** | `/aperture-libraries` | Where Aperture writes recommendation libraries (symlinks/STRM files) |
+| **Media Library** | `/media` | Read-only access to your actual media files (for creating symlinks) |
+
+### Important Notes
+
+- **No changes needed to your Emby/Jellyfin container** if you put ApertureLibraries inside your media share
+- The `/media` mount should be the **same files** your media server accesses
+- Read-only (`:ro`) is fine for the media mount - Aperture never writes to your original media
+
+---
+
+## Setup Wizard
+
+When you first start Aperture, the Setup Wizard guides you through configuration:
+
+1. **Media Server** — Connect to your Emby or Jellyfin server
+2. **Source Libraries** — Select which libraries to include in recommendations
+3. **AI Recommendations** — Configure library naming and cover images
+4. **Output Configuration** — Set paths and choose symlinks vs STRM
+5. **Users** — Select which users get personalized recommendations
+6. **Top Picks** — Configure trending content libraries
+7. **OpenAI** — Enter your OpenAI API key
+8. **Initial Sync** — Run first-time sync jobs
+
+### Output Configuration Step
+
+The wizard will ask for two paths:
+
+| Question | What to Enter | Example |
+|----------|---------------|---------|
+| **Media Server Path Prefix** | How your media server sees your files | `/mnt/` |
+| **Aperture Libraries Path** | Where media server sees Aperture's output | `/mnt/ApertureLibraries/` |
+
+**How to find your Media Server Path Prefix:**
+1. Open Emby/Jellyfin and go to any movie
+2. Click the **⋮** menu → **Media Info**
+3. Look at the **Path** field - the prefix is everything before your media folders
+
+---
+
+## Environment Variables
+
+Aperture uses a **database-first** configuration approach. Most settings are configured through the UI and stored in the database. Only a few environment variables are needed:
+
+### Required
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | `postgres://app:app@db:5432/aperture` |
+
+### Recommended for Production
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `APP_BASE_URL` | Public URL of the application | `http://localhost:3456` |
+| `SESSION_SECRET` | Session cookie secret (min 32 chars) | Auto-generated |
+| `TZ` | Timezone for scheduled jobs | System default |
+
+### Optional
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | API server port | `3456` |
+| `NODE_ENV` | Environment mode | `development` |
+| `SYNC_CRON` | Media sync schedule | `0 3 * * *` (3 AM) |
+| `RECS_CRON` | Recommendation generation | `0 4 * * *` (4 AM) |
+| `PERMS_CRON` | Library sync schedule | `0 5 * * *` (5 AM) |
+
+> **Note**: Path configuration (library paths, media paths, etc.) is done via the Setup Wizard, NOT environment variables.
+
+---
+
+## Admin UI Configuration
+
+The Admin Settings page is organized into tabs:
+
+### Setup Tab
+
+- **Media Server**: Connection details and test connection
+- **Source Libraries**: Enable/disable libraries to include in sync
+- **Trakt Integration**: Configure Trakt.tv client credentials
+
+### AI Recommendations Tab
+
+- **Output Format**: Symlinks vs STRM (separate for Movies and Series)
+- **Library Title Templates**: Default naming with merge tags
+- **AI Explanations**: Global toggle and user override settings
+- **Advanced Settings**: AI models and algorithm weights
+
+### Top Picks Tab
+
+- **Configuration**: Time window, counts, minimum viewers
+- **Scoring Algorithm**: Weight unique viewers, play count, completion
+- **Output Modes**: Library, Collection, and/or Playlist
+
+### System Tab
+
+- **Cost Estimator**: Estimate OpenAI API costs
+- **Database Management**: View stats and purge data
+
+---
+
+## Symlinks vs STRM Files
+
+Aperture can create recommendation libraries using either **symlinks** or **STRM files**:
+
+### Symlinks (Recommended)
+
+- Creates direct filesystem links to your original media files
+- Preserves all metadata and quality
+- Best playback experience - no transcoding overhead
+- **Requires**: Shared filesystem access between Aperture and media server
+
+### STRM Files
+
+- Small text files containing streaming URLs
+- Works when symlinks aren't possible (different filesystems, network shares)
+- May require transcoding depending on setup
+
+### Folder Structure with Symlinks
+
+```
+ApertureLibraries/
+├── aperture/                         ← AI Movie recommendations
+│   └── JohnDoe_abc123/               ← Per-user folders
+│       ├── Inception (2010)/
+│       │   ├── Inception (2010).mkv  → symlink to original
+│       │   ├── Inception (2010).nfo  ← custom (with AI explanation)
+│       │   ├── poster.jpg            ← custom (with rank badge)
+│       │   └── fanart.jpg            → symlink
+│       └── ...
+├── aperture-tv/                      ← AI Series recommendations
+│   └── JohnDoe_abc123/
+│       └── Breaking Bad (2008)/
+│           ├── tvshow.nfo            ← custom
+│           ├── poster.jpg            ← custom (with rank badge)
+│           ├── Season 01/            → symlink to original season
+│           └── ...
+├── aperture-watching/                ← "Shows You Watch" libraries
+├── top-picks-movies/                 ← Trending movies
+└── top-picks-series/                 ← Trending series
+```
+
+---
+
+## Trakt Integration
 
 To enable Trakt.tv sync:
 
@@ -421,7 +250,6 @@ To enable Trakt.tv sync:
 2. Click **New Application**
 3. Fill in the details:
    - **Name**: Aperture
-   - **Description**: AI-powered media recommendations for Emby & Jellyfin
    - **Redirect URI**: `https://your-aperture-domain.com/api/trakt/callback`
 4. Note your **Client ID** and **Client Secret**
 
@@ -429,26 +257,18 @@ To enable Trakt.tv sync:
 
 Navigate to **Admin → Settings → Setup → Trakt Integration**:
 
-1. Enter your **Client ID**
-2. Enter your **Client Secret**
-3. The **Redirect URI** is shown — ensure it matches your Trakt app
-4. Click **Save**
+1. Enter your **Client ID** and **Client Secret**
+2. Click **Save**
 
 ### 3. User Connection
 
 Users can connect their Trakt accounts in **User Settings → Connect Trakt Account**.
 
-### Sync Behavior
-
-- **Push**: When users rate content in Aperture, ratings are immediately pushed to Trakt
-- **Pull**: Trakt ratings sync to Aperture on a scheduled job (default: every 6 hours)
-- **Bidirectional**: Both directions are supported for seamless integration
-
 ---
 
 ## Reverse Proxy Setup
 
-Running Aperture behind a reverse proxy like **Nginx Proxy Manager**, **Traefik**, or **Caddy** is recommended for:
+Running Aperture behind a reverse proxy is recommended for:
 
 - HTTPS/SSL termination
 - Custom domain access
@@ -457,30 +277,14 @@ Running Aperture behind a reverse proxy like **Nginx Proxy Manager**, **Traefik*
 ### Nginx Proxy Manager
 
 1. **Add a new Proxy Host**:
-   - **Domain Names**: `aperture.yourdomain.com`
+   - **Domain**: `aperture.yourdomain.com`
    - **Scheme**: `http`
-   - **Forward Hostname/IP**: Your Aperture container name or IP (e.g., `aperture` or `192.168.1.100`)
+   - **Forward Hostname/IP**: `aperture` or your server IP
    - **Forward Port**: `3456`
 
-2. **SSL Tab**:
-   - Request a new SSL certificate or use an existing one
-   - Enable **Force SSL**
+2. **SSL Tab**: Request SSL certificate and enable Force SSL
 
-3. **Advanced Tab** (optional but recommended):
-
-   ```nginx
-   proxy_set_header Host $host;
-   proxy_set_header X-Real-IP $remote_addr;
-   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-   proxy_set_header X-Forwarded-Proto $scheme;
-
-   # WebSocket support (if needed in future)
-   proxy_http_version 1.1;
-   proxy_set_header Upgrade $http_upgrade;
-   proxy_set_header Connection "upgrade";
-   ```
-
-4. **Update Aperture's `APP_BASE_URL`**:
+3. **Update Aperture**:
    ```yaml
    environment:
      APP_BASE_URL: https://aperture.yourdomain.com
@@ -491,7 +295,6 @@ Running Aperture behind a reverse proxy like **Nginx Proxy Manager**, **Traefik*
 ```yaml
 services:
   aperture:
-    image: ghcr.io/dgruhin-hrizn/aperture:latest
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.aperture.rule=Host(`aperture.yourdomain.com`)'
@@ -510,14 +313,8 @@ aperture.yourdomain.com {
 }
 ```
 
-Then set `APP_BASE_URL=https://aperture.yourdomain.com` in Aperture.
-
 ### Important Notes
 
-1. **APP_BASE_URL must match your public URL** — This is used for OAuth callbacks (Trakt) and cookie settings.
-
-2. **Session cookies** — In production (`NODE_ENV=production`), cookies are set with `secure: true`, requiring HTTPS.
-
-3. **Trakt OAuth** — The Redirect URI configured in your Trakt application must exactly match your `APP_BASE_URL` + `/api/trakt/callback`. Example: `https://aperture.yourdomain.com/api/trakt/callback`
-
-4. **Docker networking** — If using Docker, ensure your reverse proxy can reach the Aperture container (same Docker network or use host IP).
+1. **APP_BASE_URL must match your public URL** — Used for OAuth callbacks and cookie settings
+2. **Session cookies** — In production, cookies require HTTPS (`secure: true`)
+3. **Trakt OAuth** — Redirect URI must exactly match `APP_BASE_URL/api/trakt/callback`

@@ -36,7 +36,7 @@ export async function ensureUserSeriesLibrary(
   providerUserId: string,
   displayName: string
 ): Promise<{ libraryId: string; libraryGuid: string; created: boolean; name: string }> {
-  const config = getConfig()
+  const config = await getConfig()
   const provider = await getMediaServerProvider()
   const apiKey = await getMediaServerApiKey()
 
@@ -44,12 +44,13 @@ export async function ensureUserSeriesLibrary(
     throw new Error('MEDIA_SERVER_API_KEY is required')
   }
 
+  // Build user folder name (DisplayName_ID format for readability)
+  const { getUserFolderName } = await import('../filenames.js')
+  const userFolder = getUserFolderName(displayName, providerUserId)
+
   const libraryName = await getUserSeriesLibraryName(userId, displayName, config)
-  // Use separate base path for TV series (aperture-tv instead of aperture)
-  const libraryPath = path.join(
-    config.libraryPathPrefix.replace('/aperture', '/aperture-tv'),
-    providerUserId
-  )
+  // Library path includes 'aperture-tv' subfolder for AI series recommendations
+  const libraryPath = path.join(config.libraryPathPrefix, 'aperture-tv', userFolder)
 
   logger.info({ userId, libraryName, libraryPath }, '📺 Checking series library status...')
 

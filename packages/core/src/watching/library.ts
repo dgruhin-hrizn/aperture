@@ -31,7 +31,7 @@ export async function ensureUserWatchingLibrary(
   providerUserId: string,
   displayName: string
 ): Promise<{ libraryId: string; libraryGuid: string; created: boolean; name: string }> {
-  const config = getConfig()
+  const config = await getConfig()
   const provider = await getMediaServerProvider()
   const apiKey = await getMediaServerApiKey()
 
@@ -39,12 +39,13 @@ export async function ensureUserWatchingLibrary(
     throw new Error('MEDIA_SERVER_API_KEY is required')
   }
 
+  // Build user folder name (DisplayName_ID format for readability)
+  const { getUserFolderName } = await import('../strm/filenames.js')
+  const userFolder = getUserFolderName(displayName, providerUserId)
+
   const libraryName = getWatchingLibraryName(displayName)
-  // Use subfolder under existing aperture structure to avoid needing new volume mapping
-  const libraryPath = path.join(
-    config.libraryPathPrefix.replace(/\/aperture\/?$/, '/aperture-watching'),
-    providerUserId
-  )
+  // Library path includes 'aperture-watching' subfolder for "Shows You Watch" library
+  const libraryPath = path.join(config.libraryPathPrefix, 'aperture-watching', userFolder)
 
   logger.info({ userId, libraryName, libraryPath }, '📺 Checking watching library status...')
 

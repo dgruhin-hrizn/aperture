@@ -108,6 +108,9 @@ export {
   refreshUserSeriesLibrary,
   updateUserSeriesLibraryPermissions,
   processSeriesStrmForAllUsers,
+  // Types for library creation transparency
+  type UserLibraryResult,
+  type ProcessStrmResult,
 } from './strm/index.js'
 
 // Channels
@@ -250,6 +253,8 @@ export {
   getMediaServerTypes,
   getAiRecsOutputConfig,
   setAiRecsOutputConfig,
+  getOutputPathConfig,
+  setOutputPathConfig,
   getAiExplanationConfig,
   setAiExplanationConfig,
   getWatchingLibraryConfig,
@@ -276,6 +281,7 @@ export {
   type TextGenerationModelInfo,
   type MediaServerConfig,
   type AiRecsOutputConfig,
+  type OutputPathConfig,
   type AiExplanationConfig,
   type WatchingLibraryConfig,
   type LibraryTitleConfig,

@@ -5,6 +5,7 @@ import {
   MediaServerStep,
   LibrariesStep,
   AiRecsStep,
+  OutputConfigStep,
   UsersStep,
   TopPicksStep,
   OpenAIStep,
@@ -12,7 +13,7 @@ import {
   CompleteStep,
 } from './components'
 
-const APP_VERSION = '0.2.1'
+const APP_VERSION = '0.2.2'
 
 export function SetupPage() {
   const wizard = useSetupWizard()
@@ -26,6 +27,8 @@ export function SetupPage() {
         return <LibrariesStep wizard={wizard} />
       case 'aiRecsLibraries':
         return <AiRecsStep wizard={wizard} />
+      case 'outputConfig':
+        return <OutputConfigStep wizard={wizard} />
       case 'users':
         return <UsersStep wizard={wizard} />
       case 'topPicks':

@@ -104,7 +104,7 @@ export async function symlinkArtwork(options: SymlinkArtworkOptions): Promise<nu
     title = 'unknown',
   } = options
 
-  const config = getConfig()
+  const config = await getConfig()
   
   // Convert media server path to local path for reading directory
   const localPath = mediaServerPath.replace(
@@ -232,7 +232,7 @@ export async function symlinkSubtitles(options: SymlinkSubtitlesOptions): Promis
     title = 'unknown',
   } = options
 
-  const config = getConfig()
+  const config = await getConfig()
   
   // Convert media server path to local path for reading directory
   const localPath = mediaServerPath.replace(

@@ -1,17 +1,50 @@
 import type { StrmConfig } from './types.js'
+import { getOutputPathConfig, getApertureMediaPath } from '../settings/systemSettings.js'
 
-export function getConfig(): StrmConfig {
+// Fixed container paths (set by Docker volume mounts, not configurable)
+const APERTURE_LIBRARIES_PATH = '/aperture-libraries'
+const APERTURE_MEDIA_PATH = '/media/'
+
+/**
+ * Get STRM configuration from database settings.
+ * All configuration is done via the setup wizard - no ENV var fallbacks.
+ */
+export async function getConfig(): Promise<StrmConfig> {
+  const pathConfig = await getOutputPathConfig()
+
   return {
-    strmRoot: process.env.MEDIA_SERVER_STRM_ROOT || '/strm',
-    libraryRoot: process.env.MEDIA_SERVER_LIBRARY_ROOT || '/mnt/media',
-    libraryNamePrefix: process.env.AI_LIBRARY_NAME_PREFIX || 'AI Picks - ',
-    libraryPathPrefix: process.env.AI_LIBRARY_PATH_PREFIX || '/strm/aperture/',
-    useStreamingUrl: process.env.STRM_USE_STREAMING_URL === 'true',
-    downloadImages: process.env.STRM_DOWNLOAD_IMAGES === 'true',
-    // Path mapping: convert media server paths to local paths for symlinks
-    // e.g., /mnt/Television/Show -> /Volumes/Media/Television/Show
-    mediaServerPathPrefix: process.env.MEDIA_SERVER_PATH_PREFIX || '/mnt/',
-    localMediaPathPrefix: process.env.LOCAL_MEDIA_PATH_PREFIX || '/mnt/',
+    // Fixed path where Aperture writes libraries (inside Aperture container)
+    strmRoot: APERTURE_LIBRARIES_PATH,
+    // Path where media server sees Aperture libraries
+    libraryPathPrefix: pathConfig.mediaServerLibrariesPath,
+    // Library naming
+    libraryNamePrefix: 'AI Picks - ',
+    libraryRoot: APERTURE_MEDIA_PATH,
+    // Output format (symlinks by default)
+    useStreamingUrl: false,
+    downloadImages: false,
+    // Path mapping for symlinks:
+    // - mediaServerPathPrefix: how media server sees files (e.g., /mnt/)
+    // - localMediaPathPrefix: how Aperture sees files (fixed at /media/)
+    mediaServerPathPrefix: pathConfig.mediaServerPathPrefix,
+    localMediaPathPrefix: APERTURE_MEDIA_PATH,
+  }
+}
+
+/**
+ * Synchronous config getter - returns fixed defaults.
+ * Use getConfig() for database-backed configuration.
+ */
+export function getConfigSync(): StrmConfig {
+  return {
+    strmRoot: APERTURE_LIBRARIES_PATH,
+    libraryRoot: APERTURE_MEDIA_PATH,
+    libraryNamePrefix: 'AI Picks - ',
+    libraryPathPrefix: '/mnt/ApertureLibraries/',
+    useStreamingUrl: false,
+    downloadImages: false,
+    mediaServerPathPrefix: '/mnt/',
+    localMediaPathPrefix: APERTURE_MEDIA_PATH,
   }
 }
 

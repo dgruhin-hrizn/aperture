@@ -17,6 +17,10 @@ import {
   IconButton,
   Paper,
   Chip,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Divider,
 } from '@mui/material'
 import {
   CheckCircle as CheckCircleIcon,
@@ -29,8 +33,12 @@ import {
   Psychology as PsychologyIcon,
   AutoAwesome as AutoAwesomeIcon,
   CloudSync as CloudSyncIcon,
+  Warning as WarningIcon,
+  SkipNext as SkipIcon,
+  Person as PersonIcon,
+  ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material'
-import type { SetupWizardContext, JobProgress } from '../types'
+import type { SetupWizardContext, JobProgress, UserLibraryResult } from '../types'
 
 interface InitialJobsStepProps {
   wizard: SetupWizardContext
@@ -58,6 +66,163 @@ function JobStatusIcon({ status }: { status: JobProgress['status'] }) {
     default:
       return <PendingIcon color="disabled" />
   }
+}
+
+function UserStatusIcon({ status }: { status: UserLibraryResult['status'] }) {
+  switch (status) {
+    case 'success':
+      return <CheckCircleIcon fontSize="small" color="success" />
+    case 'skipped':
+      return <SkipIcon fontSize="small" color="warning" />
+    case 'failed':
+      return <ErrorIcon fontSize="small" color="error" />
+    default:
+      return <PendingIcon fontSize="small" color="disabled" />
+  }
+}
+
+function UserLibraryResultItem({ user }: { user: UserLibraryResult }) {
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 1.5,
+        py: 1,
+        px: 1.5,
+        borderLeft: '3px solid',
+        borderColor:
+          user.status === 'success'
+            ? 'success.main'
+            : user.status === 'skipped'
+              ? 'warning.main'
+              : 'error.main',
+        backgroundColor: 'action.hover',
+        borderRadius: '0 4px 4px 0',
+      }}
+    >
+      <UserStatusIcon status={user.status} />
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+          <Typography variant="body2" fontWeight={500}>
+            {user.displayName}
+          </Typography>
+          {user.status === 'success' && user.recommendationCount !== undefined && (
+            <Chip
+              label={`${user.recommendationCount} recommendations`}
+              size="small"
+              color="success"
+              variant="outlined"
+              sx={{ height: 20, fontSize: '0.7rem' }}
+            />
+          )}
+          {user.libraryCreated && (
+            <Chip
+              label="New library"
+              size="small"
+              color="primary"
+              variant="outlined"
+              sx={{ height: 20, fontSize: '0.7rem' }}
+            />
+          )}
+        </Box>
+        {user.libraryName && user.status === 'success' && (
+          <Typography variant="caption" color="text.secondary">
+            {user.libraryName}
+          </Typography>
+        )}
+        {user.status === 'skipped' && user.error && (
+          <Typography variant="caption" color="warning.main">
+            {user.error}
+          </Typography>
+        )}
+        {user.status === 'failed' && user.error && (
+          <Typography variant="caption" color="error.main">
+            {user.error}
+          </Typography>
+        )}
+      </Box>
+    </Box>
+  )
+}
+
+function LibraryResultsSummary({ jobs, type }: { jobs: JobProgress[]; type: 'movies' | 'series' }) {
+  const jobId = type === 'movies' ? 'sync-movie-libraries' : 'sync-series-libraries'
+  const job = jobs.find((j) => j.id === jobId)
+  
+  if (!job || job.status !== 'completed' || !job.result?.users?.length) {
+    return null
+  }
+
+  const users = job.result.users
+  const successCount = users.filter((u) => u.status === 'success').length
+  const skippedCount = users.filter((u) => u.status === 'skipped').length
+  const failedCount = users.filter((u) => u.status === 'failed').length
+
+  const hasIssues = skippedCount > 0 || failedCount > 0
+
+  return (
+    <Accordion 
+      defaultExpanded={hasIssues}
+      sx={{ 
+        mt: 1.5, 
+        '&:before': { display: 'none' },
+        border: '1px solid',
+        borderColor: failedCount > 0 ? 'error.main' : skippedCount > 0 ? 'warning.main' : 'success.main',
+        borderRadius: '8px !important',
+        overflow: 'hidden',
+      }}
+    >
+      <AccordionSummary 
+        expandIcon={<ExpandMoreIcon />}
+        sx={{ 
+          backgroundColor: failedCount > 0 ? 'error.dark' : skippedCount > 0 ? 'warning.dark' : 'success.dark',
+          '& .MuiAccordionSummary-content': { alignItems: 'center', gap: 1 },
+        }}
+      >
+        <CloudSyncIcon fontSize="small" />
+        <Typography variant="body2" fontWeight={600}>
+          {type === 'movies' ? 'Movie' : 'TV Series'} Libraries Created
+        </Typography>
+        <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
+          {successCount > 0 && (
+            <Chip 
+              icon={<CheckCircleIcon />} 
+              label={`${successCount} created`} 
+              size="small" 
+              color="success" 
+              sx={{ height: 24 }}
+            />
+          )}
+          {skippedCount > 0 && (
+            <Chip 
+              icon={<WarningIcon />} 
+              label={`${skippedCount} skipped`} 
+              size="small" 
+              color="warning" 
+              sx={{ height: 24 }}
+            />
+          )}
+          {failedCount > 0 && (
+            <Chip 
+              icon={<ErrorIcon />} 
+              label={`${failedCount} failed`} 
+              size="small" 
+              color="error" 
+              sx={{ height: 24 }}
+            />
+          )}
+        </Box>
+      </AccordionSummary>
+      <AccordionDetails sx={{ p: 0 }}>
+        <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {users.map((user) => (
+            <UserLibraryResultItem key={user.userId} user={user} />
+          ))}
+        </Box>
+      </AccordionDetails>
+    </Accordion>
+  )
 }
 
 function JobListItem({ job, isActive }: { job: JobProgress; isActive: boolean }) {
@@ -264,6 +429,17 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
             ))}
           </List>
         </Paper>
+      )}
+
+      {/* Per-User Library Creation Results */}
+      {hasStarted && (allCompleted || hasFailed) && (
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+            Library Creation Results
+          </Typography>
+          <LibraryResultsSummary jobs={jobsProgress} type="movies" />
+          <LibraryResultsSummary jobs={jobsProgress} type="series" />
+        </Box>
       )}
 
       {/* Action Buttons */}

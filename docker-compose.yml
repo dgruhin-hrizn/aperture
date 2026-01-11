@@ -31,24 +31,24 @@ services:
       PORT: 3456
       DATABASE_URL: postgres://app:app@db:5432/aperture
       RUN_MIGRATIONS_ON_START: 'true'
-      # Timezone for scheduled jobs (default: America/New_York)
       TZ: America/New_York
-      # Optional: Set these for production use
+      # For production: Set SESSION_SECRET (generate at https://randomkeygen.com/)
       # SESSION_SECRET: your-random-secret-at-least-32-chars
       # APP_BASE_URL: http://your-server-ip:3456
-    env_file:
-      # Optional: Create .env.local for additional settings (OpenAI key, media server, etc.)
-      # The container will start without this file - you can configure via UI
-      - path: .env.local
-        required: false
     ports:
       - '3456:3456'
     depends_on:
       db:
         condition: service_healthy
     volumes:
-      - ./data/strm:/strm
-      - ./uploads:/app/uploads
+      # ─────────────────────────────────────────────────────────────────────────
+      # Aperture Libraries - where recommendation libraries are written
+      # ─────────────────────────────────────────────────────────────────────────
+      - ./data/aperture-libraries:/aperture-libraries
+      # ─────────────────────────────────────────────────────────────────────────
+      # Media Access - mount your media library for symlink creation
+      # ─────────────────────────────────────────────────────────────────────────
+      # - /path/to/your/media:/media:ro
     restart: unless-stopped
 
 volumes:

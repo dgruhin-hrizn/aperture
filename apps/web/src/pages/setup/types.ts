@@ -20,6 +20,7 @@ export type SetupStepId =
   | 'mediaServer'
   | 'mediaLibraries'
   | 'aiRecsLibraries'
+  | 'outputConfig'
   | 'users'
   | 'topPicks'
   | 'openai'
@@ -40,6 +41,19 @@ export interface LibraryConfig {
 
 export interface AiRecsOutputConfig {
   moviesUseSymlinks: boolean
+  seriesUseSymlinks: boolean
+}
+
+export interface OutputPathConfig {
+  /** Fixed path where Aperture writes libraries (inside Aperture container) */
+  apertureLibrariesPath: string
+  /** Path where media server sees the Aperture libraries folder */
+  mediaServerLibrariesPath: string
+  /** Base path where media server sees original media files (e.g., /mnt/) */
+  mediaServerPathPrefix: string
+  /** Use symlinks for movie recommendations */
+  moviesUseSymlinks: boolean
+  /** Use symlinks for series recommendations */
   seriesUseSymlinks: boolean
 }
 
@@ -72,6 +86,9 @@ export interface SetupUser {
   isEnabled: boolean
   moviesEnabled: boolean
   seriesEnabled: boolean
+  // Watch history stats
+  moviesWatched?: number
+  episodesWatched?: number
 }
 
 export type JobStatus = 'pending' | 'running' | 'completed' | 'failed'
@@ -80,6 +97,25 @@ export interface JobLogEntry {
   timestamp: string
   level: 'info' | 'warn' | 'error' | 'debug'
   message: string
+}
+
+export interface UserLibraryResult {
+  userId: string
+  providerUserId: string
+  username: string
+  displayName: string
+  status: 'success' | 'skipped' | 'failed'
+  recommendationCount?: number
+  libraryName?: string
+  libraryCreated?: boolean
+  error?: string
+}
+
+export interface LibrarySyncResult {
+  success: number
+  failed: number
+  skipped: number
+  users?: UserLibraryResult[]
 }
 
 export interface JobProgress {
@@ -95,6 +131,8 @@ export interface JobProgress {
   itemsProcessed?: number
   itemsTotal?: number
   currentItem?: string
+  // Job result (populated on completion)
+  result?: LibrarySyncResult
 }
 
 export interface SetupWizardState {
@@ -122,6 +160,9 @@ export interface SetupWizardState {
   aiRecsOutput: AiRecsOutputConfig
   libraryImages: Record<string, LibraryImageInfo>
   uploadingImage: string | null
+
+  // Output Path Config
+  outputPathConfig: OutputPathConfig
 
   // Users
   setupUsers: SetupUser[]
@@ -173,6 +214,10 @@ export interface SetupWizardActions {
   saveAiRecsOutput: () => Promise<void>
   uploadLibraryImage: (libraryType: string, file: File) => Promise<void>
   deleteLibraryImage: (libraryType: string) => Promise<void>
+
+  // Output Path Config
+  setOutputPathConfig: React.Dispatch<React.SetStateAction<OutputPathConfig>>
+  saveOutputPathConfig: () => Promise<void>
 
   // Users
   fetchSetupUsers: () => Promise<void>

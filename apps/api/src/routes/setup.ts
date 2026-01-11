@@ -32,6 +32,8 @@ import {
   // AI output config + library images
   getAiRecsOutputConfig,
   setAiRecsOutputConfig,
+  getOutputPathConfig,
+  setOutputPathConfig,
   initUploads,
   uploadImage,
   type LibraryType,
@@ -140,6 +142,7 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
     // Exclude Aperture-created libraries from selection
     const libraries = await getLibraryConfigs(true)
     const aiRecsOutput = await getAiRecsOutputConfig()
+    const outputPathConfig = await getOutputPathConfig()
     const topPicks = await getTopPicksConfig()
 
     return reply.send({
@@ -149,6 +152,7 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
         openai: { configured: hasOpenAI },
         libraries,
         aiRecsOutput,
+        outputPathConfig,
         topPicks,
       },
     })
@@ -421,6 +425,30 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
     }
   )
 
+  /**
+   * GET /api/setup/output-config
+   * Get output path configuration for STRM/symlink files
+   */
+  fastify.get('/api/setup/output-config', async (request, reply) => {
+    const { complete, isAdmin } = await requireSetupWritable(request)
+    if (complete && !isAdmin) return reply.status(404).send({ error: 'Not Found' })
+    return reply.send(await getOutputPathConfig())
+  })
+
+  /**
+   * POST /api/setup/output-config
+   * Set output path configuration for STRM/symlink files
+   */
+  fastify.post<{ Body: Partial<Awaited<ReturnType<typeof getOutputPathConfig>>> }>(
+    '/api/setup/output-config',
+    async (request, reply) => {
+      const { complete, isAdmin } = await requireSetupWritable(request)
+      if (complete && !isAdmin) return reply.status(404).send({ error: 'Not Found' })
+      const updated = await setOutputPathConfig(request.body ?? {})
+      return reply.send(updated)
+    }
+  )
+
   interface LibraryImageBody {
     dataBase64: string
     mimeType: string
@@ -507,7 +535,7 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
       const provider = await getMediaServerProvider()
       const providerUsers = await provider.getUsers(apiKey)
 
-      // Get existing users from DB to check import status
+      // Get existing users from DB to check import status and watch history counts
       const existingResult = await query<{
         provider_user_id: string
         id: string
@@ -519,6 +547,32 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
          FROM users WHERE provider = $1`,
         [provider.type]
       )
+      
+      // Get watch history counts for all users
+      const watchHistoryResult = await query<{
+        user_id: string
+        movies_watched: string
+        episodes_watched: string
+      }>(
+        `SELECT 
+           u.id as user_id,
+           COALESCE((SELECT COUNT(*) FROM watch_history wh WHERE wh.user_id = u.id), 0) as movies_watched,
+           COALESCE((SELECT COUNT(*) FROM watch_history_episodes we WHERE we.user_id = u.id), 0) as episodes_watched
+         FROM users u
+         WHERE u.provider = $1`,
+        [provider.type]
+      )
+      
+      const watchHistoryMap = new Map(
+        watchHistoryResult.rows.map((row) => [
+          row.user_id,
+          {
+            moviesWatched: parseInt(row.movies_watched, 10),
+            episodesWatched: parseInt(row.episodes_watched, 10),
+          },
+        ])
+      )
+
       const existingMap = new Map(
         existingResult.rows.map((row) => [
           row.provider_user_id,
@@ -527,11 +581,12 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
             isEnabled: row.is_enabled,
             moviesEnabled: row.movies_enabled,
             seriesEnabled: row.series_enabled,
+            ...(watchHistoryMap.get(row.id) || { moviesWatched: 0, episodesWatched: 0 }),
           },
         ])
       )
 
-      // Combine provider users with import status
+      // Combine provider users with import status and watch history
       const usersWithStatus = providerUsers.map((user) => {
         const existing = existingMap.get(user.id)
         return {
@@ -546,6 +601,9 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
           isEnabled: existing?.isEnabled || false,
           moviesEnabled: existing?.moviesEnabled || false,
           seriesEnabled: existing?.seriesEnabled || false,
+          // Watch history counts (only if imported)
+          moviesWatched: existing?.moviesWatched,
+          episodesWatched: existing?.episodesWatched,
         }
       })
 
@@ -983,6 +1041,7 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
     // Exclude Aperture-created libraries from selection
     const libraries = await getLibraryConfigs(true)
     const aiRecsOutput = await getAiRecsOutputConfig()
+    const outputPathConfig = await getOutputPathConfig()
     const topPicks = await getTopPicksConfig()
 
     return reply.send({
@@ -992,6 +1051,7 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
         openai: { configured: hasOpenAI },
         libraries,
         aiRecsOutput,
+        outputPathConfig,
         topPicks,
       },
     })

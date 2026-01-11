@@ -59,7 +59,6 @@ const menu = [
 
   { section: 'Utilities' },
   { key: 'h', label: 'Check API health', cmd: 'curl -s http://localhost:3456/health | jq' },
-  { key: 'e', label: 'Edit .env.local', cmd: '${EDITOR:-code} .env.local', interactive: true },
   { key: 'r', label: 'Restart Docker app', cmd: 'docker compose restart app' },
 
   { section: '' },

@@ -36,24 +36,53 @@ export class JellyfinProviderBase {
       ...((options.headers as Record<string, string>) || {}),
     }
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    })
+    // Add 30 second timeout with AbortController
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000)
+
+    const startTime = Date.now()
+    let response: Response
+    try {
+      response = await fetch(url, {
+        ...options,
+        headers,
+        signal: controller.signal,
+      })
+    } catch (err) {
+      clearTimeout(timeoutId)
+      const duration = Date.now() - startTime
+      if (err instanceof Error && err.name === 'AbortError') {
+        logger.error({ url, duration }, '⏱️ Jellyfin API request timed out after 30 seconds')
+        throw new Error(
+          `Connection to Jellyfin timed out after 30 seconds. Please check that your media server URL (${this.baseUrl}) is accessible from the Aperture container.`
+        )
+      }
+      logger.error({ url, duration, err }, '❌ Jellyfin API network error')
+      throw new Error(
+        `Failed to connect to Jellyfin at ${this.baseUrl}. Please verify the URL is correct and the server is running.`
+      )
+    } finally {
+      clearTimeout(timeoutId)
+    }
+    const duration = Date.now() - startTime
 
     if (!response.ok) {
       const text = await response.text()
-      logger.error({ status: response.status, url, body: text }, 'Jellyfin API error')
+      logger.error({ status: response.status, url, body: text, duration }, '❌ Jellyfin API error')
       throw new Error(`Jellyfin API error: ${response.status} ${response.statusText}`)
     }
 
     // Some endpoints return empty response
     const text = await response.text()
     if (!text) {
+      logger.debug({ url, duration, empty: true }, '✅ Jellyfin API Response (empty)')
       return {} as T
     }
 
-    return JSON.parse(text) as T
+    const data = JSON.parse(text) as T
+    logger.debug({ url, duration, responseSize: text.length }, '✅ Jellyfin API Response')
+
+    return data
   }
 
   // Utility methods for image URLs

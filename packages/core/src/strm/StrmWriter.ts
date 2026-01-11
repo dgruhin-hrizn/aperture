@@ -10,6 +10,28 @@ import {
   failJob,
 } from '../jobs/progress.js'
 
+// Per-user library result type for transparency
+export interface UserLibraryResult {
+  userId: string
+  providerUserId: string
+  username: string
+  displayName: string
+  status: 'success' | 'skipped' | 'failed'
+  recommendationCount?: number
+  libraryName?: string
+  libraryCreated?: boolean
+  error?: string
+}
+
+export interface ProcessStrmResult {
+  success: number
+  failed: number
+  skipped: number
+  jobId: string
+  users: UserLibraryResult[]
+  [key: string]: unknown // Index signature for Record<string, unknown> compatibility
+}
+
 // Re-export all public functions (movies)
 export { writeStrmFilesForUser } from './movies/writer.js'
 export { ensureUserLibrary, refreshUserLibrary, updateUserLibraryPermissions } from './movies/library.js'
@@ -44,15 +66,13 @@ const logger = createChildLogger('strm-writer')
 
 /**
  * Process STRM output for all enabled users
+ * Returns detailed per-user results for transparency in the UI
  */
 export async function processStrmForAllUsers(
   jobId?: string
-): Promise<{
-  success: number
-  failed: number
-  jobId: string
-}> {
+): Promise<ProcessStrmResult> {
   const actualJobId = jobId || crypto.randomUUID()
+  const userResults: UserLibraryResult[] = []
   
   // Initialize job progress
   createJobProgress(actualJobId, 'sync-movie-libraries', 2)
@@ -66,27 +86,29 @@ export async function processStrmForAllUsers(
       provider_user_id: string
       display_name: string | null
       username: string
-    }>('SELECT id, provider_user_id, display_name, username FROM users WHERE is_enabled = true')
+    }>('SELECT id, provider_user_id, display_name, username FROM users WHERE is_enabled = true AND movies_enabled = true')
 
     const totalUsers = users.rows.length
 
     if (totalUsers === 0) {
-      addLog(actualJobId, 'warn', '⚠️ No enabled users found')
-      completeJob(actualJobId, { success: 0, failed: 0 })
-      return { success: 0, failed: 0, jobId: actualJobId }
+      addLog(actualJobId, 'warn', '⚠️ No users enabled for movies')
+      const result: ProcessStrmResult = { success: 0, failed: 0, skipped: 0, jobId: actualJobId, users: [] }
+      completeJob(actualJobId, result)
+      return result
     }
 
-    addLog(actualJobId, 'info', `👥 Found ${totalUsers} enabled user(s)`)
+    addLog(actualJobId, 'info', `👥 Found ${totalUsers} user(s) enabled for movies`)
     setJobStep(actualJobId, 1, 'Processing STRM files', totalUsers)
 
     let success = 0
     let failed = 0
+    let skipped = 0
 
     for (let i = 0; i < users.rows.length; i++) {
       const user = users.rows[i]
+      const displayName = user.display_name || user.username
       
       try {
-        const displayName = user.display_name || user.username
         addLog(actualJobId, 'info', `📁 Processing STRM for ${displayName}...`)
 
         // Step 1: Write STRM files first (this creates the directory that Emby needs)
@@ -96,17 +118,26 @@ export async function processStrmForAllUsers(
         // Skip library creation/permissions if no recommendations (prevents 400 errors)
         if (strmResult.written === 0) {
           addLog(actualJobId, 'info', `⏭️ Skipping library sync for ${displayName} (no recommendations yet)`)
-          success++
-          updateJobProgress(actualJobId, success + failed, totalUsers, `${success + failed}/${totalUsers} users`)
+          userResults.push({
+            userId: user.id,
+            providerUserId: user.provider_user_id,
+            username: user.username,
+            displayName,
+            status: 'skipped',
+            recommendationCount: 0,
+            error: 'No recommendations generated (insufficient watch history)',
+          })
+          skipped++
+          updateJobProgress(actualJobId, success + failed + skipped, totalUsers, `${success + failed + skipped}/${totalUsers} users`)
           continue
         }
 
         // Step 2: Now ensure the library exists in the media server (directory exists now)
         const libraryResult = await ensureUserLibrary(user.id, user.provider_user_id, displayName)
         if (libraryResult.created) {
-          addLog(actualJobId, 'info', `  📚 Created new library in media server`)
+          addLog(actualJobId, 'info', `  📚 Created new library in media server: ${libraryResult.name}`)
         } else {
-          addLog(actualJobId, 'debug', `  📚 Library already exists in media server`)
+          addLog(actualJobId, 'debug', `  📚 Library already exists in media server: ${libraryResult.name}`)
         }
 
         // Step 3: Refresh library to pick up new/changed STRM files
@@ -117,22 +148,45 @@ export async function processStrmForAllUsers(
         await updateUserLibraryPermissions(user.id, user.provider_user_id)
         addLog(actualJobId, 'debug', `  🔐 User permissions updated`)
 
+        userResults.push({
+          userId: user.id,
+          providerUserId: user.provider_user_id,
+          username: user.username,
+          displayName,
+          status: 'success',
+          recommendationCount: strmResult.written,
+          libraryName: libraryResult.name,
+          libraryCreated: libraryResult.created,
+        })
+
         success++
         addLog(actualJobId, 'info', `✅ Completed STRM processing for ${displayName} (${strmResult.written} recommendations)`)
-        updateJobProgress(actualJobId, success + failed, totalUsers, `${success + failed}/${totalUsers} users`)
+        updateJobProgress(actualJobId, success + failed + skipped, totalUsers, `${success + failed + skipped}/${totalUsers} users`)
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error'
         logger.error({ err, userId: user.id }, 'Failed to process STRM')
-        addLog(actualJobId, 'error', `❌ Failed for ${user.username}: ${errorMsg}`)
+        addLog(actualJobId, 'error', `❌ Failed for ${displayName}: ${errorMsg}`)
+        
+        userResults.push({
+          userId: user.id,
+          providerUserId: user.provider_user_id,
+          username: user.username,
+          displayName,
+          status: 'failed',
+          error: errorMsg,
+        })
+        
         failed++
-        updateJobProgress(actualJobId, success + failed, totalUsers, `${success + failed}/${totalUsers} users (${failed} failed)`)
+        updateJobProgress(actualJobId, success + failed + skipped, totalUsers, `${success + failed + skipped}/${totalUsers} users (${failed} failed)`)
       }
     }
 
-    const finalResult = { success, failed, jobId: actualJobId }
+    const finalResult: ProcessStrmResult = { success, failed, skipped, jobId: actualJobId, users: userResults }
     
     if (failed > 0) {
-      addLog(actualJobId, 'warn', `⚠️ Completed with ${failed} failure(s): ${success} succeeded, ${failed} failed`)
+      addLog(actualJobId, 'warn', `⚠️ Completed with issues: ${success} succeeded, ${skipped} skipped, ${failed} failed`)
+    } else if (skipped > 0) {
+      addLog(actualJobId, 'info', `✅ Completed: ${success} succeeded, ${skipped} skipped (no watch history)`)
     } else {
       addLog(actualJobId, 'info', `🎉 All ${success} user(s) processed successfully!`)
     }
@@ -149,15 +203,13 @@ export async function processStrmForAllUsers(
 
 /**
  * Process Series STRM output for all enabled users
+ * Returns detailed per-user results for transparency in the UI
  */
 export async function processSeriesStrmForAllUsers(
   jobId?: string
-): Promise<{
-  success: number
-  failed: number
-  jobId: string
-}> {
+): Promise<ProcessStrmResult> {
   const actualJobId = jobId || crypto.randomUUID()
+  const userResults: UserLibraryResult[] = []
 
   createJobProgress(actualJobId, 'sync-series-libraries', 2)
 
@@ -170,27 +222,29 @@ export async function processSeriesStrmForAllUsers(
       provider_user_id: string
       display_name: string | null
       username: string
-    }>('SELECT id, provider_user_id, display_name, username FROM users WHERE is_enabled = true')
+    }>('SELECT id, provider_user_id, display_name, username FROM users WHERE is_enabled = true AND series_enabled = true')
 
     const totalUsers = users.rows.length
 
     if (totalUsers === 0) {
-      addLog(actualJobId, 'warn', '⚠️ No enabled users found')
-      completeJob(actualJobId, { success: 0, failed: 0 })
-      return { success: 0, failed: 0, jobId: actualJobId }
+      addLog(actualJobId, 'warn', '⚠️ No users enabled for TV series')
+      const result: ProcessStrmResult = { success: 0, failed: 0, skipped: 0, jobId: actualJobId, users: [] }
+      completeJob(actualJobId, result)
+      return result
     }
 
-    addLog(actualJobId, 'info', `👥 Found ${totalUsers} enabled user(s)`)
+    addLog(actualJobId, 'info', `👥 Found ${totalUsers} user(s) enabled for TV series`)
     setJobStep(actualJobId, 1, 'Processing Series STRM files', totalUsers)
 
     let success = 0
     let failed = 0
+    let skipped = 0
 
     for (let i = 0; i < users.rows.length; i++) {
       const user = users.rows[i]
+      const displayName = user.display_name || user.username
 
       try {
-        const displayName = user.display_name || user.username
         addLog(actualJobId, 'info', `📺 Processing Series STRM for ${displayName}...`)
 
         // Step 1: Write STRM files
@@ -200,17 +254,26 @@ export async function processSeriesStrmForAllUsers(
         // Skip library creation/permissions if no recommendations (prevents 400 errors)
         if (strmResult.written === 0) {
           addLog(actualJobId, 'info', `⏭️ Skipping TV library sync for ${displayName} (no recommendations yet)`)
-          success++
-          updateJobProgress(actualJobId, success + failed, totalUsers, `${success + failed}/${totalUsers} users`)
+          userResults.push({
+            userId: user.id,
+            providerUserId: user.provider_user_id,
+            username: user.username,
+            displayName,
+            status: 'skipped',
+            recommendationCount: 0,
+            error: 'No recommendations generated (insufficient watch history)',
+          })
+          skipped++
+          updateJobProgress(actualJobId, success + failed + skipped, totalUsers, `${success + failed + skipped}/${totalUsers} users`)
           continue
         }
 
         // Step 2: Ensure the TV library exists in the media server
         const libraryResult = await ensureUserSeriesLibrary(user.id, user.provider_user_id, displayName)
         if (libraryResult.created) {
-          addLog(actualJobId, 'info', `  📺 Created new TV library in media server`)
+          addLog(actualJobId, 'info', `  📺 Created new TV library in media server: ${libraryResult.name}`)
         } else {
-          addLog(actualJobId, 'debug', `  📺 TV library already exists in media server`)
+          addLog(actualJobId, 'debug', `  📺 TV library already exists in media server: ${libraryResult.name}`)
         }
 
         // Step 3: Refresh library
@@ -221,22 +284,45 @@ export async function processSeriesStrmForAllUsers(
         await updateUserSeriesLibraryPermissions(user.id, user.provider_user_id)
         addLog(actualJobId, 'debug', `  🔐 User permissions updated`)
 
+        userResults.push({
+          userId: user.id,
+          providerUserId: user.provider_user_id,
+          username: user.username,
+          displayName,
+          status: 'success',
+          recommendationCount: strmResult.written,
+          libraryName: libraryResult.name,
+          libraryCreated: libraryResult.created,
+        })
+
         success++
-        addLog(actualJobId, 'info', `✅ Completed Series STRM processing for ${displayName} (${strmResult.written} files)`)
-        updateJobProgress(actualJobId, success + failed, totalUsers, `${success + failed}/${totalUsers} users`)
+        addLog(actualJobId, 'info', `✅ Completed Series STRM processing for ${displayName} (${strmResult.written} recommendations)`)
+        updateJobProgress(actualJobId, success + failed + skipped, totalUsers, `${success + failed + skipped}/${totalUsers} users`)
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error'
         logger.error({ err, userId: user.id }, 'Failed to process Series STRM')
-        addLog(actualJobId, 'error', `❌ Failed for ${user.username}: ${errorMsg}`)
+        addLog(actualJobId, 'error', `❌ Failed for ${displayName}: ${errorMsg}`)
+        
+        userResults.push({
+          userId: user.id,
+          providerUserId: user.provider_user_id,
+          username: user.username,
+          displayName,
+          status: 'failed',
+          error: errorMsg,
+        })
+        
         failed++
-        updateJobProgress(actualJobId, success + failed, totalUsers, `${success + failed}/${totalUsers} users (${failed} failed)`)
+        updateJobProgress(actualJobId, success + failed + skipped, totalUsers, `${success + failed + skipped}/${totalUsers} users (${failed} failed)`)
       }
     }
 
-    const finalResult = { success, failed, jobId: actualJobId }
+    const finalResult: ProcessStrmResult = { success, failed, skipped, jobId: actualJobId, users: userResults }
 
     if (failed > 0) {
-      addLog(actualJobId, 'warn', `⚠️ Completed with ${failed} failure(s): ${success} succeeded, ${failed} failed`)
+      addLog(actualJobId, 'warn', `⚠️ Completed with issues: ${success} succeeded, ${skipped} skipped, ${failed} failed`)
+    } else if (skipped > 0) {
+      addLog(actualJobId, 'info', `✅ Completed: ${success} succeeded, ${skipped} skipped (no watch history)`)
     } else {
       addLog(actualJobId, 'info', `🎉 All ${success} user(s) processed successfully!`)
     }
