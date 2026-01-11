@@ -48,6 +48,9 @@ import {
   getOMDbConfig,
   setOMDbConfig,
   testOMDbConnection,
+  getStudioLogosConfig,
+  setStudioLogosConfig,
+  getStudioLogoStats,
   type EmbeddingModel,
   type MediaServerType,
   type TextGenerationModel,
@@ -1888,6 +1891,57 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     } catch (err) {
       fastify.log.error({ err }, 'Failed to test OMDb connection')
       return reply.status(500).send({ error: 'Failed to test OMDb connection' })
+    }
+  })
+
+  // =========================================================================
+  // Studio Logos Configuration
+  // =========================================================================
+
+  /**
+   * GET /api/settings/studio-logos
+   * Get studio logos configuration and stats
+   */
+  fastify.get('/api/settings/studio-logos', { preHandler: requireAdmin }, async (_request, reply) => {
+    try {
+      const [config, stats] = await Promise.all([
+        getStudioLogosConfig(),
+        getStudioLogoStats(),
+      ])
+
+      return reply.send({
+        pushToEmby: config.pushToEmby,
+        stats: {
+          studios: stats.studios,
+          networks: stats.networks,
+          pushedToEmby: stats.pushedToEmby,
+        },
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get studio logos config')
+      return reply.status(500).send({ error: 'Failed to get studio logos configuration' })
+    }
+  })
+
+  /**
+   * PATCH /api/settings/studio-logos
+   * Update studio logos configuration
+   */
+  fastify.patch<{
+    Body: { pushToEmby?: boolean }
+  }>('/api/settings/studio-logos', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const { pushToEmby } = request.body
+
+      const config = await setStudioLogosConfig({ pushToEmby })
+
+      return reply.send({
+        pushToEmby: config.pushToEmby,
+        message: 'Studio logos configuration updated',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to save studio logos config')
+      return reply.status(500).send({ error: 'Failed to save studio logos configuration' })
     }
   })
 }

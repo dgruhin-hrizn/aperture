@@ -14,6 +14,9 @@ export {
   findMovieByImdbId,
   findTVByImdbId,
   findTVByTvdbId,
+  searchCompanyByName,
+  getCompanyDetails,
+  getNetworkDetails,
 } from './client.js'
 
 // Client types
@@ -52,6 +55,8 @@ export type {
   TMDbGenre,
   TMDbCrewMember,
   TMDbCastMember,
+  TMDbProductionCompany,
+  TMDbNetwork,
   TMDbCollection,
   TMDbCollectionDetails,
   TMDbCollectionPart,
@@ -61,6 +66,12 @@ export type {
   TMDbTVDetails,
   TMDbTVKeywordsResponse,
   TMDbTVCreditsResponse,
+  TMDbCompanySearchResult,
+  TMDbCompanySearchResponse,
+  TMDbCompanyDetails,
+  TMDbNetworkDetails,
+  ProductionCompanyData,
+  NetworkData,
   MovieEnrichmentData,
   SeriesEnrichmentData,
   CollectionData,

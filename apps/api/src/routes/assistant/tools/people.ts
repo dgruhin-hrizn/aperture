@@ -201,11 +201,14 @@ export function createPeopleTools(ctx: ToolContext) {
         } = { id: `studios-${Date.now()}` }
 
         if (type === 'movies' || type === 'both') {
+          // Studios is now JSONB array of {id, name} objects
           const studioData = await query<{ studio: string; count: string }>(
-            `SELECT unnest(m.studios) as studio, COUNT(DISTINCT m.id) as count
-             FROM movies m JOIN watch_history wh ON wh.movie_id = m.id
-             WHERE wh.user_id = $1
-             GROUP BY studio ORDER BY count DESC LIMIT $2`,
+            `SELECT studio_obj->>'name' as studio, COUNT(DISTINCT m.id) as count
+             FROM movies m 
+             JOIN watch_history wh ON wh.movie_id = m.id,
+             LATERAL jsonb_array_elements(m.studios) as studio_obj
+             WHERE wh.user_id = $1 AND studio_obj->>'name' IS NOT NULL
+             GROUP BY studio_obj->>'name' ORDER BY count DESC LIMIT $2`,
             [ctx.userId, limit]
           )
 
@@ -217,8 +220,13 @@ export function createPeopleTools(ctx: ToolContext) {
 
           for (const row of studioData.rows) {
             const topMovies = await query<{ id: string; title: string }>(
-              `SELECT m.id, m.title FROM movies m JOIN watch_history wh ON wh.movie_id = m.id
-               WHERE wh.user_id = $1 AND $2 = ANY(m.studios)
+              `SELECT m.id, m.title FROM movies m 
+               JOIN watch_history wh ON wh.movie_id = m.id
+               WHERE wh.user_id = $1 
+                 AND EXISTS (
+                   SELECT 1 FROM jsonb_array_elements(m.studios) s 
+                   WHERE s->>'name' = $2
+                 )
                ORDER BY m.community_rating DESC NULLS LAST LIMIT 3`,
               [ctx.userId, row.studio]
             )
