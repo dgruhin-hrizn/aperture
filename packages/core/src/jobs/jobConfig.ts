@@ -40,9 +40,8 @@ const ENV_DEFAULTS: Record<
   }
 > = {
   // === EVERY HOUR (staggered by 15 mins) ===
-  'refresh-assistant-suggestions': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 1 },
-  'sync-series-watch-history': { scheduleType: 'interval', hour: 0, minute: 15, intervalHours: 1 },
-  'sync-watching-libraries': { scheduleType: 'interval', hour: 0, minute: 30, intervalHours: 1 },
+  'sync-series-watch-history': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 1 },
+  'sync-watching-libraries': { scheduleType: 'interval', hour: 0, minute: 15, intervalHours: 1 },
 
   // === EVERY 2 HOURS ===
   'sync-movie-watch-history': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 2 },
@@ -63,7 +62,8 @@ const ENV_DEFAULTS: Record<
   'backup-database': { scheduleType: 'daily', hour: 2, minute: 0 },
   'refresh-top-picks': { scheduleType: 'daily', hour: 5, minute: 0 },
 
-  // === WEEKLY (Sunday at 4am) ===
+  // === WEEKLY (Sunday) ===
+  'refresh-assistant-suggestions': { scheduleType: 'weekly', hour: 0, minute: 0, dayOfWeek: 0 },
   'generate-movie-recommendations': { scheduleType: 'weekly', hour: 4, minute: 0, dayOfWeek: 0 },
   'generate-series-recommendations': { scheduleType: 'weekly', hour: 4, minute: 0, dayOfWeek: 0 },
 
