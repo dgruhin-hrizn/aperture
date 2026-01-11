@@ -22,6 +22,9 @@ import {
   OpenInNew as OpenInNewIcon,
   AutoAwesome as AutoAwesomeIcon,
   Person as PersonIcon,
+  Login as LoginIcon,
+  LiveTv as LiveTvIcon,
+  Extension as ExtensionIcon,
 } from '@mui/icons-material'
 import type { SetupWizardContext, UserLibraryResult } from '../types'
 
@@ -175,21 +178,31 @@ export function CompleteStep({ wizard }: CompleteStepProps) {
         </Card>
       )}
 
-      {/* What Happens Next */}
+      {/* Getting Started */}
       <Card variant="outlined" sx={{ mb: 3, backgroundColor: 'action.hover' }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            What Happens Next
+            Getting Started
           </Typography>
           
           <List dense>
+            <ListItem>
+              <ListItemIcon>
+                <LoginIcon fontSize="small" color="primary" />
+              </ListItemIcon>
+              <ListItemText
+                primary="Log in with your Media Server admin credentials"
+                secondary="Use the same username and password you use for Emby/Jellyfin"
+              />
+            </ListItem>
+            
             <ListItem>
               <ListItemIcon>
                 <OpenInNewIcon fontSize="small" color="primary" />
               </ListItemIcon>
               <ListItemText
                 primary="Open your media server to see the new libraries"
-                secondary="New 'AI Picks' libraries will appear for each user"
+                secondary="New 'AI Picks' libraries will appear for each enabled user in Aperture"
               />
             </ListItem>
             
@@ -199,17 +212,61 @@ export function CompleteStep({ wizard }: CompleteStepProps) {
               </ListItemIcon>
               <ListItemText
                 primary="Recommendations refresh automatically"
-                secondary="Aperture syncs daily to update recommendations based on new watch history"
+                secondary="Aperture syncs daily to update recommendations based on new watch history. You can adjust scheduling in the Admin area."
+              />
+            </ListItem>
+          </List>
+        </CardContent>
+      </Card>
+
+      {/* Additional Features */}
+      <Card variant="outlined" sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Unlock More Features
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            After logging in, visit <strong>Admin → Settings</strong> to enable these additional features:
+          </Typography>
+          
+          <List dense>
+            <ListItem>
+              <ListItemIcon>
+                <ExtensionIcon fontSize="small" color="secondary" />
+              </ListItemIcon>
+              <ListItemText
+                primary="Trakt Integration"
+                secondary="Connect your Trakt account to import ratings, watchlists, and discover trending content"
               />
             </ListItem>
             
             <ListItem>
               <ListItemIcon>
-                <PersonIcon fontSize="small" color="primary" />
+                <MovieIcon fontSize="small" color="secondary" />
               </ListItemIcon>
               <ListItemText
-                primary="Users can customize their settings"
-                secondary="Each user can adjust their recommendation preferences"
+                primary="TMDb & OMDb Metadata"
+                secondary="Enrich your library with additional metadata, ratings, and artwork from TMDb and OMDb"
+              />
+            </ListItem>
+            
+            <ListItem>
+              <ListItemIcon>
+                <LiveTvIcon fontSize="small" color="secondary" />
+              </ListItemIcon>
+              <ListItemText
+                primary="Shows You Watch – Virtual DVR"
+                secondary="Automatically create a library of shows you're currently watching, perfect for catching up on your favorites, and ignoring other shows you're not interested in with new episodes."
+              />
+            </ListItem>
+            
+            <ListItem>
+              <ListItemIcon>
+                <PersonIcon fontSize="small" color="secondary" />
+              </ListItemIcon>
+              <ListItemText
+                primary="User Preferences"
+                secondary="Each user can customize their recommendation preferences and settings"
               />
             </ListItem>
           </List>
@@ -232,7 +289,7 @@ export function CompleteStep({ wizard }: CompleteStepProps) {
       </Box>
 
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 2 }}>
-        Clicking Finish will disable the public setup wizard and redirect to login.
+        Clicking Finish will disable the public setup wizard, secure Aperture, and redirect to login.
       </Typography>
     </Box>
   )
