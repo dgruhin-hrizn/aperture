@@ -61,6 +61,27 @@ interface CostInputs {
       schedule: string
     }
   }
+  embeddings?: {
+    movie: {
+      runsPerWeek: number
+      schedule: string
+      pendingItems: number
+      source: { schedule: string }
+    }
+    series: {
+      runsPerWeek: number
+      schedule: string
+      pendingItems: number
+      pendingEpisodes: number
+      source: { schedule: string }
+    }
+  }
+  assistant?: {
+    runsPerWeek: number
+    schedule: string
+    enabledUsers: number
+    source: { schedule: string }
+  }
 }
 
 interface TextGenModel {
@@ -164,35 +185,33 @@ export function CostEstimatorSection({
   const recurringCosts = useMemo(() => {
     if (!textGenModel || !costInputs) return []
 
-    const items: Array<{ category: string; calls: number; tokens: number; cost: number }> = []
+    const items: Array<{ category: string; calls: number; cost: number }> = []
     const { inputCostPerMillion, outputCostPerMillion } = textGenModel
 
-    // Movie costs
+    // Movie recommendation costs
     if (costInputs.movie.enabledUsers > 0 && costInputs.movie.runsPerWeek > 0) {
-      // Taste synopsis
+      // Taste synopsis (1 per user per run)
       const tasteCalls = costInputs.movie.enabledUsers * costInputs.movie.runsPerWeek
       const tasteInput = 1500 * tasteCalls
       const tasteOutput = 200 * tasteCalls
       items.push({
         category: 'Movie Taste Synopses',
         calls: tasteCalls,
-        tokens: tasteInput + tasteOutput,
         cost: (tasteInput / 1_000_000) * inputCostPerMillion + (tasteOutput / 1_000_000) * outputCostPerMillion,
       })
 
-      // Explanations
+      // Explanations (1 per recommendation per user per run)
       const expCalls = costInputs.movie.selectedCount * costInputs.movie.enabledUsers * costInputs.movie.runsPerWeek
       const expInput = 500 * expCalls
       const expOutput = 80 * expCalls
       items.push({
         category: 'Movie Explanations',
         calls: expCalls,
-        tokens: expInput + expOutput,
         cost: (expInput / 1_000_000) * inputCostPerMillion + (expOutput / 1_000_000) * outputCostPerMillion,
       })
     }
 
-    // Series costs
+    // Series recommendation costs
     if (costInputs.series.enabledUsers > 0 && costInputs.series.runsPerWeek > 0) {
       // Taste synopsis
       const tasteCalls = costInputs.series.enabledUsers * costInputs.series.runsPerWeek
@@ -201,7 +220,6 @@ export function CostEstimatorSection({
       items.push({
         category: 'Series Taste Synopses',
         calls: tasteCalls,
-        tokens: tasteInput + tasteOutput,
         cost: (tasteInput / 1_000_000) * inputCostPerMillion + (tasteOutput / 1_000_000) * outputCostPerMillion,
       })
 
@@ -212,8 +230,20 @@ export function CostEstimatorSection({
       items.push({
         category: 'Series Explanations',
         calls: expCalls,
-        tokens: expInput + expOutput,
         cost: (expInput / 1_000_000) * inputCostPerMillion + (expOutput / 1_000_000) * outputCostPerMillion,
+      })
+    }
+
+    // Assistant suggestions costs (uses AI to generate suggestions)
+    if (costInputs.assistant && costInputs.assistant.enabledUsers > 0 && costInputs.assistant.runsPerWeek > 0) {
+      // Each refresh generates ~5 suggestions per user
+      const suggestionCalls = 5 * costInputs.assistant.enabledUsers * costInputs.assistant.runsPerWeek
+      const suggestionInput = 300 * suggestionCalls // Smaller context for suggestions
+      const suggestionOutput = 50 * suggestionCalls
+      items.push({
+        category: 'Assistant Suggestions',
+        calls: suggestionCalls,
+        cost: (suggestionInput / 1_000_000) * inputCostPerMillion + (suggestionOutput / 1_000_000) * outputCostPerMillion,
       })
     }
 
@@ -255,37 +285,71 @@ export function CostEstimatorSection({
         <Card variant="outlined" sx={{ mb: 3, bgcolor: 'action.hover' }}>
           <CardContent sx={{ py: 2 }}>
             <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-              Configuration (from your settings)
+              AI Job Schedules (from your settings)
             </Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
-              {/* Movies */}
+              {/* Recommendations */}
               <Box>
-                <Typography variant="body2">
-                  <strong>Movie Recs:</strong> {costInputs.movie.selectedCount} per user
+                <Typography variant="caption" color="primary.main" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  Recommendations
                 </Typography>
-                <Typography variant="caption" color="text.secondary" display="flex" alignItems="center" gap={0.5}>
-                  <LinkIcon sx={{ fontSize: 12 }} /> {costInputs.movie.source.selectedCount}
+                <Typography variant="body2" sx={{ mt: 0.5 }}>
+                  <strong>Movies:</strong> {costInputs.movie.selectedCount}/user × {costInputs.movie.runsPerWeek}/wk
                 </Typography>
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                  <strong>Movie Runs:</strong> {costInputs.movie.runsPerWeek}/week ({costInputs.movie.schedule})
+                <Typography variant="caption" color="text.secondary">
+                  {costInputs.movie.schedule}
                 </Typography>
-                <Typography variant="caption" color="text.secondary" display="flex" alignItems="center" gap={0.5}>
-                  <LinkIcon sx={{ fontSize: 12 }} /> {costInputs.movie.source.schedule}
+                <Typography variant="body2" sx={{ mt: 0.5 }}>
+                  <strong>Series:</strong> {costInputs.series.selectedCount}/user × {costInputs.series.runsPerWeek}/wk
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {costInputs.series.schedule}
                 </Typography>
               </Box>
-              {/* Series */}
+              {/* Embeddings */}
               <Box>
+                <Typography variant="caption" color="primary.main" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  Embeddings
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 0.5 }}>
+                  <strong>Movies:</strong> {costInputs.embeddings?.movie.runsPerWeek || 7}/wk
+                  {costInputs.embeddings?.movie.pendingItems ? ` (${costInputs.embeddings.movie.pendingItems} pending)` : ''}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {costInputs.embeddings?.movie.schedule || 'Daily at 3:00 AM'}
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 0.5 }}>
+                  <strong>Series:</strong> {costInputs.embeddings?.series.runsPerWeek || 7}/wk
+                  {costInputs.embeddings?.series.pendingItems ? ` (${costInputs.embeddings.series.pendingItems} pending)` : ''}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {costInputs.embeddings?.series.schedule || 'Daily at 3:00 AM'}
+                </Typography>
+              </Box>
+              {/* Assistant */}
+              {costInputs.assistant && (
+                <Box>
+                  <Typography variant="caption" color="primary.main" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    Assistant Suggestions
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5 }}>
+                    <strong>Runs:</strong> {costInputs.assistant.runsPerWeek}/wk ({costInputs.assistant.enabledUsers} users)
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {costInputs.assistant.schedule}
+                  </Typography>
+                </Box>
+              )}
+              {/* Users */}
+              <Box>
+                <Typography variant="caption" color="primary.main" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  Enabled Users
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 0.5 }}>
+                  <strong>Movies:</strong> {costInputs.movie.enabledUsers} user(s)
+                </Typography>
                 <Typography variant="body2">
-                  <strong>Series Recs:</strong> {costInputs.series.selectedCount} per user
-                </Typography>
-                <Typography variant="caption" color="text.secondary" display="flex" alignItems="center" gap={0.5}>
-                  <LinkIcon sx={{ fontSize: 12 }} /> {costInputs.series.source.selectedCount}
-                </Typography>
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                  <strong>Series Runs:</strong> {costInputs.series.runsPerWeek}/week ({costInputs.series.schedule})
-                </Typography>
-                <Typography variant="caption" color="text.secondary" display="flex" alignItems="center" gap={0.5}>
-                  <LinkIcon sx={{ fontSize: 12 }} /> {costInputs.series.source.schedule}
+                  <strong>Series:</strong> {costInputs.series.enabledUsers} user(s)
                 </Typography>
               </Box>
             </Box>
@@ -306,7 +370,10 @@ export function CostEstimatorSection({
             </Box>
             <Alert severity="info" sx={{ mb: 2, py: 0.5 }}>
               <Typography variant="caption">
-                Embeddings using <strong>text-embedding-3-large</strong>
+                Embeddings using <strong>{embeddingModel}</strong>
+                {costInputs?.embeddings && (
+                  <> • Runs {costInputs.embeddings.movie.schedule}</>
+                )}
               </Typography>
             </Alert>
 
