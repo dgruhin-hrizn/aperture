@@ -26,7 +26,7 @@ interface SeriesForEmbedding {
   network: string | null
   directors: string[] | null // Showrunners/Creators
   actors: Array<{ name: string; role?: string }> | null
-  studios: string[] | null
+  studios: Array<{ id?: string; name: string }> | null
   contentRating: string | null
   tags: string[] | null
   productionCountries: string[] | null
@@ -123,7 +123,7 @@ export function buildSeriesCanonicalText(series: SeriesForEmbedding): string {
 
   // Studios
   if (series.studios && series.studios.length > 0) {
-    const topStudios = series.studios.slice(0, 2)
+    const topStudios = series.studios.slice(0, 2).map((s) => s.name)
     sections.push(`Studio: ${topStudios.join(', ')}`)
   }
 
@@ -408,7 +408,7 @@ export async function getSeriesWithoutEmbeddings(
     network: string | null
     directors: string[] | null
     actors: string | null
-    studios: string[] | null
+    studios: string | null
     content_rating: string | null
     tags: string[] | null
     production_countries: string[] | null
@@ -418,7 +418,7 @@ export async function getSeriesWithoutEmbeddings(
   }>(
     hasTvLibraryConfigs
       ? `SELECT s.id, s.title, s.year, s.end_year, s.genres, s.overview,
-                s.tagline, s.status, s.network, s.directors, s.actors::text, s.studios,
+                s.tagline, s.status, s.network, s.directors, s.actors::text, s.studios::text,
                 s.content_rating, s.tags, s.production_countries, s.awards,
                 s.total_seasons, s.total_episodes
          FROM series s
@@ -431,7 +431,7 @@ export async function getSeriesWithoutEmbeddings(
            )
          LIMIT $2`
       : `SELECT s.id, s.title, s.year, s.end_year, s.genres, s.overview,
-                s.tagline, s.status, s.network, s.directors, s.actors::text, s.studios,
+                s.tagline, s.status, s.network, s.directors, s.actors::text, s.studios::text,
                 s.content_rating, s.tags, s.production_countries, s.awards,
                 s.total_seasons, s.total_episodes
          FROM series s
@@ -453,7 +453,7 @@ export async function getSeriesWithoutEmbeddings(
     network: row.network,
     directors: row.directors,
     actors: row.actors ? JSON.parse(row.actors) : null,
-    studios: row.studios,
+    studios: row.studios ? JSON.parse(row.studios) : null,
     contentRating: row.content_rating,
     tags: row.tags,
     productionCountries: row.production_countries,
