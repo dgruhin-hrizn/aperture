@@ -669,8 +669,8 @@ export async function writeTopPicksMovies(
         await fs.writeFile(strmPath, strmContent, 'utf-8')
       }
 
-      // Write NFO file inside the movie folder (named after the movie)
-      const nfoPath = path.join(movieFolderPath, `${baseFilename}.nfo`)
+      // Write NFO file inside the movie folder (use standard 'movie.nfo' name for Emby compatibility)
+      const nfoPath = path.join(movieFolderPath, 'movie.nfo')
       const nfoContent = generateTopPicksMovieNfo(movie, dateAdded)
       await fs.writeFile(nfoPath, nfoContent, 'utf-8')
 
