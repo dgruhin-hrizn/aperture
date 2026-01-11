@@ -265,7 +265,7 @@ export const WAITING_MESSAGES = [
   '"All those moments will be lost in time, like tears in rain. Unless you sync them." 🌧️',
 
   // 2001: A Space Odyssey
-  '"I\'m sorry, Dave. I\'m afraid I can\'t speed up this sync." – HAL 9000 🔴',
+  "\"I'm sorry, Dave. I'm afraid I can't speed up this sync.\" – HAL 9000 🔴",
   '"Open the sync bay doors, HAL." 🚀',
 
   // Alien
@@ -349,7 +349,7 @@ export const WAITING_MESSAGES = [
   '"I\'m an innocent man being chased by a sync job!" – Roger Thornhill 🌽',
 
   // Rear Window
-  '"I\'ve been watching my neighbor\'s sync progress. It\'s fascinating." – Jeff 📷',
+  "\"I've been watching my neighbor's sync progress. It's fascinating.\" – Jeff 📷",
 
   // The Birds
   '"Why are they syncing?!" – Melanie 🐦',
@@ -486,7 +486,7 @@ export const WAITING_MESSAGES = [
 
   // Superman
   '"You\'ll believe a sync can fly." 🦸',
-  '"Look! Up in the sky! It\'s a bird! It\'s a plane! It\'s a sync job!" 🦸',
+  "\"Look! Up in the sky! It's a bird! It's a plane! It's a sync job!\" 🦸",
 
   // X-Men
   '"Mutation: it is the key to our sync-olution." – Professor X 🧬',
@@ -597,7 +597,7 @@ export const WAITING_MESSAGES = [
 
   // Wreck-It Ralph
   '"I\'m gonna wreck it!" After the sync finishes. – Ralph 👊',
-  '"I\'m bad, and that\'s good. I will never be slow, and that\'s not bad." – Vanellope about syncs 🍬',
+  "\"I'm bad, and that's good. I will never be slow, and that's not bad.\" – Vanellope about syncs 🍬",
 
   // Big Hero 6
   '"I am satisfied with my sync." – Baymax 🤖',
