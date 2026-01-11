@@ -51,13 +51,18 @@ This starts a PostgreSQL container with pgvector extension.
 
 ### 3. Configure Environment
 
-Set the database URL environment variable:
+Create a `.env.local` file in the project root with the following contents:
 
 ```bash
-export DATABASE_URL=postgres://app:app@localhost:5432/aperture
+DATABASE_URL=postgres://app:app@localhost:5432/aperture
+SESSION_SECRET=your-random-32-character-secret-here
 ```
 
-Or add it to your shell profile (e.g., `~/.zshrc` or `~/.bashrc`).
+Generate a secure session secret:
+
+```bash
+openssl rand -base64 32
+```
 
 > **Note**: All other configuration (OpenAI, Media Server, paths, etc.) is done via the Setup Wizard on first launch. Settings are stored in the database.
 
