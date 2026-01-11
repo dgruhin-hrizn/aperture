@@ -466,6 +466,7 @@ export {
   validateBackup,
   getBackupPath,
   formatBytes,
+  cancelBackupProcess,
   type BackupConfig,
   type BackupInfo,
   type BackupResult,
