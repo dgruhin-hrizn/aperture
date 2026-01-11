@@ -57,21 +57,9 @@ export async function createVirtualLibrary(
   const existing = existingLibraries.find((lib) => lib.name === name)
   
   if (existing) {
-    // Library already exists - check if path matches
-    if (existing.path !== path) {
-      // Path mismatch - delete and recreate with correct path
-      console.log(`Library "${name}" exists with wrong path (${existing.path}), recreating with correct path (${path})`)
-      await provider.fetch(
-        `/Library/VirtualFolders?name=${encodeURIComponent(name)}`,
-        apiKey,
-        { method: 'DELETE' }
-      )
-      // Fall through to create the library with correct path
-    } else {
-      // Library exists with correct path - ensure it has the sort title set
-      await setLibrarySortTitle(provider, apiKey, existing.id, name)
-      return { libraryId: existing.id, alreadyExists: true }
-    }
+    // Library already exists - just use it and ensure sort title is set
+    await setLibrarySortTitle(provider, apiKey, existing.id, name)
+    return { libraryId: existing.id, alreadyExists: true }
   }
 
   // Emby uses different collection type names
