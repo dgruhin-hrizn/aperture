@@ -616,9 +616,9 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
           episode_count: string
         }>(`
           SELECT 
-            (SELECT COUNT(*) FROM movies WHERE embedding IS NULL) as movie_count,
-            (SELECT COUNT(*) FROM series WHERE embedding IS NULL) as series_count,
-            (SELECT COUNT(*) FROM episodes WHERE embedding IS NULL) as episode_count
+            (SELECT COUNT(*) FROM movies m WHERE NOT EXISTS (SELECT 1 FROM embeddings e WHERE e.movie_id = m.id)) as movie_count,
+            (SELECT COUNT(*) FROM series s WHERE NOT EXISTS (SELECT 1 FROM series_embeddings se WHERE se.series_id = s.id)) as series_count,
+            (SELECT COUNT(*) FROM episodes ep WHERE NOT EXISTS (SELECT 1 FROM episode_embeddings ee WHERE ee.episode_id = ep.id)) as episode_count
         `),
       ])
 
