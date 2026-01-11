@@ -425,6 +425,7 @@ async function createSeriesRecommendationRun(userId: string): Promise<string> {
 
 /**
  * Store series recommendation candidates
+ * OPTIMIZED: Uses unnest() for bulk INSERT instead of N individual queries
  */
 async function storeSeriesCandidates(
   runId: string,
@@ -432,32 +433,54 @@ async function storeSeriesCandidates(
   selected: SeriesCandidate[],
   selectedRanks: Map<string, number>
 ): Promise<void> {
+  if (candidates.length === 0) return
+
   const selectedIds = new Set(selected.map((s) => s.seriesId))
 
-  for (let i = 0; i < candidates.length; i++) {
-    const candidate = candidates[i]
+  // Prepare bulk data
+  const data = candidates.map((candidate, i) => {
     const isSelected = selectedIds.has(candidate.seriesId)
     const selectedRank = isSelected ? selectedRanks.get(candidate.seriesId) || null : null
 
-    await query(
-      `INSERT INTO recommendation_candidates (
-         run_id, series_id, rank, similarity_score, novelty_score, rating_score,
-         diversity_score, final_score, is_selected, selected_rank
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [
-        runId,
-        candidate.seriesId,
-        i + 1, // overall rank among all candidates
-        candidate.similarity,
-        candidate.novelty,
-        candidate.ratingScore,
-        candidate.diversityBoost,
-        candidate.finalScore,
-        isSelected,
-        selectedRank,
-      ]
-    )
-  }
+    return {
+      seriesId: candidate.seriesId,
+      rank: i + 1,
+      similarity: candidate.similarity,
+      novelty: candidate.novelty,
+      ratingScore: candidate.ratingScore,
+      diversityScore: candidate.diversityBoost,
+      finalScore: candidate.finalScore,
+      isSelected,
+      selectedRank,
+    }
+  })
+
+  // Bulk INSERT using unnest
+  await query(
+    `INSERT INTO recommendation_candidates (
+       run_id, series_id, rank, similarity_score, novelty_score, rating_score,
+       diversity_score, final_score, is_selected, selected_rank
+     )
+     SELECT $1, series_id, rank, similarity_score, novelty_score, rating_score,
+            diversity_score, final_score, is_selected, selected_rank
+     FROM unnest(
+       $2::uuid[], $3::int[], $4::real[], $5::real[], $6::real[],
+       $7::real[], $8::real[], $9::boolean[], $10::int[]
+     ) AS t(series_id, rank, similarity_score, novelty_score, rating_score, 
+            diversity_score, final_score, is_selected, selected_rank)`,
+    [
+      runId,
+      data.map((d) => d.seriesId),
+      data.map((d) => d.rank),
+      data.map((d) => d.similarity),
+      data.map((d) => d.novelty),
+      data.map((d) => d.ratingScore),
+      data.map((d) => d.diversityScore),
+      data.map((d) => d.finalScore),
+      data.map((d) => d.isSelected),
+      data.map((d) => d.selectedRank),
+    ]
+  )
 }
 
 /**

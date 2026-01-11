@@ -5,9 +5,8 @@
  * Handles storing evidence linking recommended series to similar watched series.
  */
 
-import { query, queryOne } from '../../lib/db.js'
+import { query } from '../../lib/db.js'
 import { createChildLogger } from '../../lib/logger.js'
-import { getSeriesEmbedding } from './embeddings.js'
 import type { SeriesCandidate, WatchedSeriesData } from './pipeline.js'
 
 const logger = createChildLogger('series-storage')
@@ -15,12 +14,15 @@ const logger = createChildLogger('series-storage')
 /**
  * Store evidence for series recommendations
  * Links each recommended series to the most similar watched series
+ * OPTIMIZED: Uses single query with LATERAL join + bulk INSERT
  */
 export async function storeSeriesEvidence(
   runId: string,
   selected: SeriesCandidate[],
   watched: WatchedSeriesData[]
 ): Promise<void> {
+  if (selected.length === 0 || watched.length === 0) return
+
   // Get candidate IDs for selected series
   const candidateResult = await query<{ id: string; series_id: string }>(
     `SELECT id, series_id FROM recommendation_candidates WHERE run_id = $1 AND is_selected = true`,
@@ -29,43 +31,80 @@ export async function storeSeriesEvidence(
 
   const candidateMap = new Map(candidateResult.rows.map((r) => [r.series_id, r.id]))
 
-  // For each selected series, find most similar watched series as evidence
-  for (const sel of selected) {
-    const candidateId = candidateMap.get(sel.seriesId)
-    if (!candidateId) continue
+  // Create a map of watched series for fast lookup
+  const watchedMap = new Map(watched.map((w) => [w.seriesId, w]))
+  const watchedIds = watched.map((w) => w.seriesId)
 
-    const selEmbedding = await getSeriesEmbedding(sel.seriesId)
-    if (!selEmbedding) continue
+  // Get all evidence in a single query using LATERAL join
+  const selectedIds = selected.map((s) => s.seriesId)
+  const evidenceResult = await query<{
+    selected_series_id: string
+    similar_series_id: string
+    similarity: number
+  }>(
+    `SELECT selected_series_id, similar_series_id, similarity
+     FROM unnest($1::uuid[]) AS sel(selected_series_id)
+     CROSS JOIN LATERAL (
+       SELECT e2.series_id as similar_series_id,
+              1 - (e2.embedding <=> e1.embedding) as similarity
+       FROM series_embeddings e1
+       JOIN series_embeddings e2 ON e2.series_id = ANY($2)
+       WHERE e1.series_id = sel.selected_series_id
+       ORDER BY e2.embedding <=> e1.embedding
+       LIMIT 3
+     ) AS evidence`,
+    [selectedIds, watchedIds]
+  )
 
-    const vectorStr = `[${selEmbedding.join(',')}]`
-
-    // Find top 3 similar watched series using series_embeddings table
-    const evidence = await query<{ series_id: string; similarity: number }>(
-      `SELECT e.series_id, 1 - (e.embedding <=> $1::halfvec) as similarity
-       FROM series_embeddings e
-       WHERE e.series_id = ANY($2)
-       ORDER BY e.embedding <=> $1::halfvec
-       LIMIT 3`,
-      [vectorStr, watched.map((w) => w.seriesId)]
-    )
-
-    for (const ev of evidence.rows) {
-      const watchedItem = watched.find((w) => w.seriesId === ev.series_id)
-      const evidenceType = watchedItem?.isFavorite
-        ? 'favorite'
-        : watchedItem?.episodesWatched && watchedItem.episodesWatched > 5
-          ? 'highly_rated'
-          : 'watched'
-
-      await query(
-        `INSERT INTO recommendation_evidence (candidate_id, similar_series_id, similarity, evidence_type)
-         VALUES ($1, $2, $3, $4)`,
-        [candidateId, ev.series_id, ev.similarity, evidenceType]
-      )
-    }
+  if (evidenceResult.rows.length === 0) {
+    logger.info({ runId, selectedCount: selected.length }, 'No evidence found for series recommendations')
+    return
   }
 
-  logger.info({ runId, selectedCount: selected.length }, 'Stored series recommendation evidence')
+  // Prepare bulk insert data
+  const evidenceToInsert: {
+    candidateId: string
+    similarSeriesId: string
+    similarity: number
+    evidenceType: string
+  }[] = []
+
+  for (const ev of evidenceResult.rows) {
+    const candidateId = candidateMap.get(ev.selected_series_id)
+    if (!candidateId) continue
+
+    const watchedItem = watchedMap.get(ev.similar_series_id)
+    const evidenceType = watchedItem?.isFavorite
+      ? 'favorite'
+      : watchedItem?.episodesWatched && watchedItem.episodesWatched > 5
+        ? 'highly_rated'
+        : 'watched'
+
+    evidenceToInsert.push({
+      candidateId,
+      similarSeriesId: ev.similar_series_id,
+      similarity: ev.similarity,
+      evidenceType,
+    })
+  }
+
+  // Bulk INSERT all evidence records
+  if (evidenceToInsert.length > 0) {
+    await query(
+      `INSERT INTO recommendation_evidence (candidate_id, similar_series_id, similarity, evidence_type)
+       SELECT candidate_id, similar_series_id, similarity, evidence_type
+       FROM unnest($1::uuid[], $2::uuid[], $3::real[], $4::text[])
+         AS t(candidate_id, similar_series_id, similarity, evidence_type)`,
+      [
+        evidenceToInsert.map((e) => e.candidateId),
+        evidenceToInsert.map((e) => e.similarSeriesId),
+        evidenceToInsert.map((e) => e.similarity),
+        evidenceToInsert.map((e) => e.evidenceType),
+      ]
+    )
+  }
+
+  logger.info({ runId, selectedCount: selected.length, evidenceCount: evidenceToInsert.length }, 'Stored series recommendation evidence')
 }
 
 /**
