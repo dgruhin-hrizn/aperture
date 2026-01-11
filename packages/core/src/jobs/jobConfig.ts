@@ -28,40 +28,120 @@ interface JobConfigRow {
 }
 
 // Default schedules from ENV or hardcoded defaults
-const ENV_DEFAULTS: Record<string, { cron: string; scheduleType: ScheduleType; hour: number; minute: number; intervalHours?: number; dayOfWeek?: number }> = {
+const ENV_DEFAULTS: Record<
+  string,
+  {
+    cron: string
+    scheduleType: ScheduleType
+    hour: number
+    minute: number
+    intervalHours?: number
+    dayOfWeek?: number
+  }
+> = {
   // Movie jobs - Scan libraries daily at 2am
-  'sync-movies': { cron: process.env.SYNC_CRON || '0 2 * * *', scheduleType: 'daily', hour: 2, minute: 0 },
+  'sync-movies': {
+    cron: process.env.SYNC_CRON || '0 2 * * *',
+    scheduleType: 'daily',
+    hour: 2,
+    minute: 0,
+  },
   // Watch history every 2 hours
-  'sync-movie-watch-history': { cron: '0 */2 * * *', scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 2 },
+  'sync-movie-watch-history': {
+    cron: '0 */2 * * *',
+    scheduleType: 'interval',
+    hour: 0,
+    minute: 0,
+    intervalHours: 2,
+  },
   'full-sync-movie-watch-history': { cron: '', scheduleType: 'manual', hour: 0, minute: 0 },
   // Embeddings daily at 3am
   'generate-movie-embeddings': { cron: '0 3 * * *', scheduleType: 'daily', hour: 3, minute: 0 },
   // Recommendations weekly on Sunday at 4am
-  'generate-movie-recommendations': { cron: process.env.RECS_CRON || '0 4 * * 0', scheduleType: 'weekly', hour: 4, minute: 0, dayOfWeek: 0 },
+  'generate-movie-recommendations': {
+    cron: process.env.RECS_CRON || '0 4 * * 0',
+    scheduleType: 'weekly',
+    hour: 4,
+    minute: 0,
+    dayOfWeek: 0,
+  },
   'rebuild-movie-recommendations': { cron: '', scheduleType: 'manual', hour: 0, minute: 0 },
   // Library sync after recommendations (weekly Sunday at 5am)
-  'sync-movie-libraries': { cron: process.env.PERMS_CRON || '0 5 * * 0', scheduleType: 'weekly', hour: 5, minute: 0, dayOfWeek: 0 },
+  'sync-movie-libraries': {
+    cron: process.env.PERMS_CRON || '0 5 * * 0',
+    scheduleType: 'weekly',
+    hour: 5,
+    minute: 0,
+    dayOfWeek: 0,
+  },
   // Series jobs - Scan libraries daily at 2am
-  'sync-series': { cron: process.env.SYNC_CRON || '0 2 * * *', scheduleType: 'daily', hour: 2, minute: 0 },
+  'sync-series': {
+    cron: process.env.SYNC_CRON || '0 2 * * *',
+    scheduleType: 'daily',
+    hour: 2,
+    minute: 0,
+  },
   // Watch history every 2 hours
-  'sync-series-watch-history': { cron: '0 */2 * * *', scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 2 },
+  'sync-series-watch-history': {
+    cron: '0 */2 * * *',
+    scheduleType: 'interval',
+    hour: 0,
+    minute: 0,
+    intervalHours: 2,
+  },
   'full-sync-series-watch-history': { cron: '', scheduleType: 'manual', hour: 0, minute: 0 },
   // Embeddings daily at 3am
   'generate-series-embeddings': { cron: '0 3 * * *', scheduleType: 'daily', hour: 3, minute: 0 },
   // Recommendations weekly on Sunday at 4am
-  'generate-series-recommendations': { cron: process.env.RECS_CRON || '0 4 * * 0', scheduleType: 'weekly', hour: 4, minute: 0, dayOfWeek: 0 },
+  'generate-series-recommendations': {
+    cron: process.env.RECS_CRON || '0 4 * * 0',
+    scheduleType: 'weekly',
+    hour: 4,
+    minute: 0,
+    dayOfWeek: 0,
+  },
   // Library sync after recommendations (weekly Sunday at 5am)
-  'sync-series-libraries': { cron: process.env.PERMS_CRON || '0 5 * * 0', scheduleType: 'weekly', hour: 5, minute: 0, dayOfWeek: 0 },
+  'sync-series-libraries': {
+    cron: process.env.PERMS_CRON || '0 5 * * 0',
+    scheduleType: 'weekly',
+    hour: 5,
+    minute: 0,
+    dayOfWeek: 0,
+  },
   // Top Picks job - daily at 5am
   'refresh-top-picks': { cron: '0 5 * * *', scheduleType: 'daily', hour: 5, minute: 0 },
   // Trakt sync job
-  'sync-trakt-ratings': { cron: '0 */6 * * *', scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 6 },
+  'sync-trakt-ratings': {
+    cron: '0 */6 * * *',
+    scheduleType: 'interval',
+    hour: 0,
+    minute: 0,
+    intervalHours: 6,
+  },
   // Watching libraries job (every 4 hours)
-  'sync-watching-libraries': { cron: '0 */4 * * *', scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 4 },
+  'sync-watching-libraries': {
+    cron: '0 */4 * * *',
+    scheduleType: 'interval',
+    hour: 0,
+    minute: 0,
+    intervalHours: 4,
+  },
   // Assistant suggestions job (every hour)
-  'refresh-assistant-suggestions': { cron: '0 * * * *', scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 1 },
-  // Metadata enrichment job (manual by default, can be scheduled)
-  'enrich-metadata': { cron: '', scheduleType: 'manual', hour: 0, minute: 0 },
+  'refresh-assistant-suggestions': {
+    cron: '0 * * * *',
+    scheduleType: 'interval',
+    hour: 0,
+    minute: 0,
+    intervalHours: 1,
+  },
+  // Metadata enrichment job (every 6 hours)
+  'enrich-metadata': {
+    cron: '0 */6 * * *',
+    scheduleType: 'interval',
+    hour: 0,
+    minute: 0,
+    intervalHours: 6,
+  },
   // Database backup job (daily at 1 AM by default - before library sync)
   'backup-database': { cron: '0 1 * * *', scheduleType: 'daily', hour: 1, minute: 0 },
 }
@@ -112,8 +192,14 @@ export async function getJobConfig(jobName: string): Promise<JobConfig | null> {
     return {
       jobName,
       scheduleType: envDefault.scheduleType,
-      scheduleHour: envDefault.scheduleType === 'manual' || envDefault.scheduleType === 'interval' ? null : hour,
-      scheduleMinute: envDefault.scheduleType === 'manual' || envDefault.scheduleType === 'interval' ? null : minute,
+      scheduleHour:
+        envDefault.scheduleType === 'manual' || envDefault.scheduleType === 'interval'
+          ? null
+          : hour,
+      scheduleMinute:
+        envDefault.scheduleType === 'manual' || envDefault.scheduleType === 'interval'
+          ? null
+          : minute,
       scheduleDayOfWeek: envDefault.dayOfWeek ?? null,
       scheduleIntervalHours: envDefault.intervalHours ?? null,
       isEnabled: true,
@@ -270,4 +356,3 @@ export function formatSchedule(config: JobConfig): string {
 export function getValidJobNames(): string[] {
   return Object.keys(ENV_DEFAULTS)
 }
-
