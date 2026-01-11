@@ -73,9 +73,6 @@ export interface SetupUser {
   isEnabled: boolean
   moviesEnabled: boolean
   seriesEnabled: boolean
-  // Watch history stats
-  moviesWatched?: number
-  episodesWatched?: number
 }
 
 export type JobStatus = 'pending' | 'running' | 'completed' | 'failed'

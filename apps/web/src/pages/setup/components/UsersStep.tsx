@@ -24,66 +24,9 @@ import RefreshIcon from '@mui/icons-material/Refresh'
 import MovieIcon from '@mui/icons-material/LocalMovies'
 import TvIcon from '@mui/icons-material/Tv'
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
-import WarningAmberIcon from '@mui/icons-material/WarningAmber'
-import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import type { SetupWizardContext, SetupUser } from '../types'
 
-const LOW_WATCH_THRESHOLD = 10 // Below this, recommendations may be limited
-
 const ROWS_PER_PAGE = 10
-
-function WatchHistoryDisplay({ user }: { user: SetupUser }) {
-  const moviesWatched = user.moviesWatched ?? 0
-  const episodesWatched = user.episodesWatched ?? 0
-  const totalWatched = moviesWatched + episodesWatched
-  
-  // If user isn't imported yet, we don't have watch history data
-  if (!user.isImported) {
-    return (
-      <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-        Not synced yet
-      </Typography>
-    )
-  }
-  
-  // Determine status based on watch count
-  const hasGoodHistory = totalWatched >= LOW_WATCH_THRESHOLD
-  const hasLimitedHistory = totalWatched > 0 && totalWatched < LOW_WATCH_THRESHOLD
-  const hasNoHistory = totalWatched === 0
-  
-  return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.25 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-        {hasGoodHistory && <CheckCircleIcon fontSize="small" color="success" />}
-        {hasLimitedHistory && (
-          <Tooltip title="Limited watch history may result in fewer or less accurate recommendations">
-            <WarningAmberIcon fontSize="small" color="warning" />
-          </Tooltip>
-        )}
-        {hasNoHistory && (
-          <Tooltip title="No watch history - recommendations cannot be generated until this user watches content">
-            <WarningAmberIcon fontSize="small" color="error" />
-          </Tooltip>
-        )}
-        <Typography 
-          variant="caption" 
-          color={hasNoHistory ? 'error.main' : hasLimitedHistory ? 'warning.main' : 'text.secondary'}
-          fontWeight={hasNoHistory || hasLimitedHistory ? 500 : 400}
-        >
-          {moviesWatched > 0 && `${moviesWatched} movie${moviesWatched !== 1 ? 's' : ''}`}
-          {moviesWatched > 0 && episodesWatched > 0 && ', '}
-          {episodesWatched > 0 && `${episodesWatched} ep${episodesWatched !== 1 ? 's' : ''}`}
-          {totalWatched === 0 && 'No history'}
-        </Typography>
-      </Box>
-      {hasLimitedHistory && (
-        <Typography variant="caption" color="warning.main" sx={{ fontSize: '0.65rem' }}>
-          May have limited recs
-        </Typography>
-      )}
-    </Box>
-  )
-}
 
 interface UsersStepProps {
   wizard: SetupWizardContext
@@ -111,9 +54,6 @@ function UserTable({ users, toggleUserMovies, toggleUserSeries, enabledAdminCoun
         <TableHead>
           <TableRow>
             <TableCell>User</TableCell>
-            <TableCell align="center" sx={{ minWidth: 140 }}>
-              Watch History
-            </TableCell>
             <TableCell align="center" sx={{ width: 100 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
                 <MovieIcon fontSize="small" />
@@ -158,9 +98,6 @@ function UserTable({ users, toggleUserMovies, toggleUserSeries, enabledAdminCoun
                       <Chip label="Disabled" size="small" color="default" variant="outlined" />
                     )}
                   </Box>
-                </TableCell>
-                <TableCell align="center">
-                  <WatchHistoryDisplay user={user} />
                 </TableCell>
                 <TableCell align="center">
                   <Tooltip

@@ -690,7 +690,7 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
       const provider = await getMediaServerProvider()
       const providerUsers = await provider.getUsers(apiKey)
 
-      // Get existing users from DB to check import status and watch history counts
+      // Get existing users from DB to check import status
       const existingResult = await query<{
         provider_user_id: string
         id: string
@@ -703,31 +703,6 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
         [provider.type]
       )
 
-      // Get watch history counts for all users
-      const watchHistoryResult = await query<{
-        user_id: string
-        movies_watched: string
-        episodes_watched: string
-      }>(
-        `SELECT 
-           u.id as user_id,
-           COALESCE((SELECT COUNT(*) FROM watch_history wh WHERE wh.user_id = u.id AND wh.media_type = 'movie'), 0) as movies_watched,
-           COALESCE((SELECT COUNT(*) FROM watch_history wh WHERE wh.user_id = u.id AND wh.media_type = 'episode'), 0) as episodes_watched
-         FROM users u
-         WHERE u.provider = $1`,
-        [provider.type]
-      )
-
-      const watchHistoryMap = new Map(
-        watchHistoryResult.rows.map((row) => [
-          row.user_id,
-          {
-            moviesWatched: parseInt(row.movies_watched, 10),
-            episodesWatched: parseInt(row.episodes_watched, 10),
-          },
-        ])
-      )
-
       const existingMap = new Map(
         existingResult.rows.map((row) => [
           row.provider_user_id,
@@ -736,12 +711,11 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
             isEnabled: row.is_enabled,
             moviesEnabled: row.movies_enabled,
             seriesEnabled: row.series_enabled,
-            ...(watchHistoryMap.get(row.id) || { moviesWatched: 0, episodesWatched: 0 }),
           },
         ])
       )
 
-      // Combine provider users with import status and watch history
+      // Combine provider users with import status
       const usersWithStatus = providerUsers.map((user) => {
         const existing = existingMap.get(user.id)
         return {
@@ -756,9 +730,6 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
           isEnabled: existing?.isEnabled || false,
           moviesEnabled: existing?.moviesEnabled || false,
           seriesEnabled: existing?.seriesEnabled || false,
-          // Watch history counts (only if imported)
-          moviesWatched: existing?.moviesWatched,
-          episodesWatched: existing?.episodesWatched,
         }
       })
 
