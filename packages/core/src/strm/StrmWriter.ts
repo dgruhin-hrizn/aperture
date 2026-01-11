@@ -129,7 +129,7 @@ export async function processStrmForAllUsers(
             error: 'No recommendations generated (insufficient watch history)',
           })
           skipped++
-          updateJobProgress(actualJobId, totalRecommendations, undefined, `${success + skipped}/${totalUsers} users (${totalRecommendations} recommendations)`)
+          updateJobProgress(actualJobId, i + 1, totalUsers, `${success + skipped}/${totalUsers} users (${totalRecommendations} recommendations)`)
           continue
         }
 
@@ -163,7 +163,7 @@ export async function processStrmForAllUsers(
         success++
         totalRecommendations += strmResult.written
         addLog(actualJobId, 'info', `✅ Completed STRM processing for ${displayName} (${strmResult.written} recommendations)`)
-        updateJobProgress(actualJobId, totalRecommendations, undefined, `${success + skipped}/${totalUsers} users (${totalRecommendations} recommendations)`)
+        updateJobProgress(actualJobId, i + 1, totalUsers, `${success + skipped}/${totalUsers} users (${totalRecommendations} recommendations)`)
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error'
         logger.error({ err, userId: user.id }, 'Failed to process STRM')
@@ -179,7 +179,7 @@ export async function processStrmForAllUsers(
         })
         
         failed++
-        updateJobProgress(actualJobId, totalRecommendations, undefined, `${success + skipped}/${totalUsers} users (${failed} failed)`)
+        updateJobProgress(actualJobId, i + 1, totalUsers, `${success + skipped}/${totalUsers} users (${failed} failed)`)
       }
     }
 
@@ -267,7 +267,7 @@ export async function processSeriesStrmForAllUsers(
             error: 'No recommendations generated (insufficient watch history)',
           })
           skipped++
-          updateJobProgress(actualJobId, totalRecommendations, undefined, `${success + skipped}/${totalUsers} users (${totalRecommendations} series)`)
+          updateJobProgress(actualJobId, i + 1, totalUsers, `${success + skipped}/${totalUsers} users (${totalRecommendations} series)`)
           continue
         }
 
@@ -301,7 +301,7 @@ export async function processSeriesStrmForAllUsers(
         success++
         totalRecommendations += strmResult.seriesCount
         addLog(actualJobId, 'info', `✅ Completed Series STRM processing for ${displayName} (${strmResult.seriesCount} series, ${strmResult.written} episodes)`)
-        updateJobProgress(actualJobId, totalRecommendations, undefined, `${success + skipped}/${totalUsers} users (${totalRecommendations} series)`)
+        updateJobProgress(actualJobId, i + 1, totalUsers, `${success + skipped}/${totalUsers} users (${totalRecommendations} series)`)
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error'
         logger.error({ err, userId: user.id }, 'Failed to process Series STRM')
@@ -317,7 +317,7 @@ export async function processSeriesStrmForAllUsers(
         })
         
         failed++
-        updateJobProgress(actualJobId, totalRecommendations, undefined, `${success + skipped}/${totalUsers} users (${failed} failed)`)
+        updateJobProgress(actualJobId, i + 1, totalUsers, `${success + skipped}/${totalUsers} users (${failed} failed)`)
       }
     }
 
