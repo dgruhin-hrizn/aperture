@@ -17,7 +17,28 @@ This guide covers all configuration options for Aperture, including Docker setup
 
 ## Quick Start (Docker)
 
-Aperture requires only **2 volume mounts**. The recommended setup is to create the ApertureLibraries folder **inside** your existing media share.
+### Platform-Specific Docker Compose Files
+
+We provide pre-configured docker-compose files for common platforms:
+
+| Platform | File | Notes |
+|----------|------|-------|
+| **Unraid** | [`docker-compose.unraid.yml`](https://github.com/dgruhin-hrizn/aperture/blob/main/docker-compose.unraid.yml) | `/mnt/user/` paths |
+| **QNAP** | [`docker-compose.qnap.yml`](https://github.com/dgruhin-hrizn/aperture/blob/main/docker-compose.qnap.yml) | qnet driver with static IPs |
+| **Synology** | [`docker-compose.synology.yml`](https://github.com/dgruhin-hrizn/aperture/blob/main/docker-compose.synology.yml) | `/volume1/` paths, optional macvlan |
+| **Linux/Other** | [`docker-compose.prod.yml`](https://github.com/dgruhin-hrizn/aperture/blob/main/docker-compose.prod.yml) | Generic production setup |
+
+Download the file for your platform and edit the required values (IP address, session secret, paths).
+
+### Volume Mounts
+
+Aperture requires **3 volume mounts**:
+
+1. **Aperture Libraries** (`/aperture-libraries`) — Where recommendations are written
+2. **Backups** (`/backups`) — Database backup storage
+3. **Media Library** (`/media`) — Read-only access to your media files
+
+The recommended setup is to create the ApertureLibraries folder **inside** your existing media share.
 
 ### Why Inside Your Media Share?
 
@@ -110,14 +131,16 @@ services:
 
 When you first start Aperture, the Setup Wizard guides you through configuration:
 
-1. **Media Server** — Connect to your Emby or Jellyfin server
-2. **Source Libraries** — Select which libraries to include in recommendations
-3. **AI Recommendations** — Configure library naming and cover images
-4. **Output Configuration** — Set paths and choose symlinks vs STRM
-5. **Users** — Select which users get personalized recommendations
-6. **Top Picks** — Configure trending content libraries
-7. **OpenAI** — Enter your OpenAI API key
-8. **Initial Sync** — Run first-time sync jobs
+1. **Restore** — Optionally restore from a previous backup
+2. **Media Server** — Connect to your Emby or Jellyfin server
+3. **Source Libraries** — Select which libraries to include in recommendations
+4. **AI Recommendations** — Configure library naming and cover images
+5. **Validate** — Verify paths and output format (symlinks vs STRM)
+6. **Users** — Select which users get personalized recommendations
+7. **Top Picks** — Configure trending content libraries (optional)
+8. **OpenAI** — Enter your OpenAI API key
+9. **Initial Sync** — Run first-time sync jobs (with re-run capability)
+10. **Complete** — Review created libraries and default schedules
 
 ### Output Configuration Step
 
@@ -159,11 +182,9 @@ Aperture uses a **database-first** configuration approach. Most settings are con
 |----------|-------------|---------|
 | `PORT` | API server port | `3456` |
 | `NODE_ENV` | Environment mode | `development` |
-| `SYNC_CRON` | Media sync schedule | `0 3 * * *` (3 AM) |
-| `RECS_CRON` | Recommendation generation | `0 4 * * *` (4 AM) |
-| `PERMS_CRON` | Library sync schedule | `0 5 * * *` (5 AM) |
+| `RUN_MIGRATIONS_ON_START` | Auto-run database migrations | `true` |
 
-> **Note**: Path configuration (library paths, media paths, etc.) is done via the Setup Wizard, NOT environment variables.
+> **Note**: Path configuration and job schedules are managed through the Setup Wizard and Admin UI, not environment variables.
 
 ---
 
@@ -194,6 +215,46 @@ The Admin Settings page is organized into tabs:
 
 - **Cost Estimator**: Estimate OpenAI API costs
 - **Database Management**: View stats and purge data
+- **Backup & Restore**: Create manual backups, restore from backup, configure retention
+
+---
+
+## Backup & Restore
+
+Aperture automatically backs up the database daily. Backups are stored in the `/backups` volume mount.
+
+### Automatic Backups
+
+- **Default Schedule**: Daily at 1 AM (configurable in Admin → Jobs)
+- **Retention**: Keeps the last 7 backups by default (configurable)
+- **Format**: Compressed PostgreSQL dump (`.sql.gz`)
+
+### Restore from Backup
+
+**During Initial Setup:**
+1. The first step of the Setup Wizard offers to restore from a backup
+2. Upload a backup file or select from existing backups
+3. Aperture will restore and continue setup
+
+**From Admin Panel:**
+1. Go to **Admin → Settings → System**
+2. Scroll to **Backup & Restore**
+3. Select a backup and click **Restore**
+
+### Manual Backup
+
+1. Go to **Admin → Settings → System**
+2. Click **Create Backup** in the Backup section
+3. Download the backup file for offsite storage
+
+### Volume Mount
+
+Ensure you have the backups volume mounted:
+
+```yaml
+volumes:
+  - /path/to/backups:/backups
+```
 
 ---
 
