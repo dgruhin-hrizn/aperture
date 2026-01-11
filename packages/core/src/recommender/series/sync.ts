@@ -102,114 +102,181 @@ async function fetchParallel<T>(
 /**
  * Process series batch for database insertion
  */
+/**
+ * Process series batch using bulk SQL operations
+ * 
+ * OPTIMIZED: Uses PostgreSQL unnest() for bulk INSERT/UPDATE
+ */
 async function processSeriesBatch(
   seriesList: PreparedSeries[],
   existingProviderIds: Set<string>,
-  jobId: string
+  _jobId: string
 ): Promise<{ added: number; updated: number }> {
+  // Separate into updates and inserts
+  const toUpdate: PreparedSeries[] = []
+  const toInsert: PreparedSeries[] = []
+
+  for (const ps of seriesList) {
+    if (existingProviderIds.has(ps.series.id)) {
+      toUpdate.push(ps)
+    } else {
+      toInsert.push(ps)
+    }
+  }
+
   let added = 0
   let updated = 0
 
-  for (const ps of seriesList) {
+  // Bulk UPDATE existing series
+  if (toUpdate.length > 0) {
     try {
-      if (existingProviderIds.has(ps.series.id)) {
-        // Update existing
-        await query(
-          `UPDATE series SET
-            title = $2, original_title = $3, sort_title = $4, year = $5, end_year = $6,
-            genres = $7, overview = $8, tagline = $9, community_rating = $10, critic_rating = $11,
-            content_rating = $12, status = $13, total_seasons = $14, total_episodes = $15,
-            air_days = $16, network = $17, studios = $18, directors = $19, writers = $20,
-            actors = $21, imdb_id = $22, tmdb_id = $23, tvdb_id = $24, tags = $25,
-            production_countries = $26, awards = $27, poster_url = $28, backdrop_url = $29,
-            provider_library_id = $30, updated_at = NOW()
-          WHERE provider_item_id = $1`,
-          [
-            ps.series.id,
-            ps.series.name,
-            ps.series.originalTitle,
-            ps.series.sortName,
-            ps.series.year,
-            ps.series.endYear,
-            ps.series.genres,
-            ps.series.overview,
-            ps.series.tagline,
-            ps.series.communityRating,
-            ps.series.criticRating,
-            ps.series.contentRating,
-            ps.series.status,
-            ps.series.totalSeasons,
-            ps.series.totalEpisodes,
-            ps.series.airDays || [],
-            ps.series.network,
-            JSON.stringify(ps.series.studios || []),
-            ps.series.directors || [],
-            ps.series.writers || [],
-            JSON.stringify(ps.series.actors || []),
-            ps.series.imdbId,
-            ps.series.tmdbId,
-            ps.series.tvdbId,
-            ps.series.tags || [],
-            ps.series.productionCountries || [],
-            ps.series.awards,
-            ps.posterUrl,
-            ps.backdropUrl,
-            ps.libraryId,
-          ]
-        )
-        updated++
-      } else {
-        // Insert new
-        await query(
-          `INSERT INTO series (
+      const result = await query(
+        `UPDATE series SET
+          title = data.title,
+          original_title = data.original_title,
+          sort_title = data.sort_title,
+          year = data.year,
+          end_year = data.end_year,
+          genres = data.genres,
+          overview = data.overview,
+          tagline = data.tagline,
+          community_rating = data.community_rating,
+          critic_rating = data.critic_rating,
+          content_rating = data.content_rating,
+          status = data.status,
+          total_seasons = data.total_seasons,
+          total_episodes = data.total_episodes,
+          air_days = data.air_days,
+          network = data.network,
+          studios = data.studios,
+          directors = data.directors,
+          writers = data.writers,
+          actors = data.actors,
+          imdb_id = data.imdb_id,
+          tmdb_id = data.tmdb_id,
+          tvdb_id = data.tvdb_id,
+          tags = data.tags,
+          production_countries = data.production_countries,
+          awards = data.awards,
+          poster_url = data.poster_url,
+          backdrop_url = data.backdrop_url,
+          provider_library_id = data.provider_library_id,
+          updated_at = NOW()
+        FROM (
+          SELECT * FROM unnest(
+            $1::text[], $2::text[], $3::text[], $4::text[], $5::int[], $6::int[],
+            $7::text[][], $8::text[], $9::text[], $10::real[], $11::real[],
+            $12::text[], $13::text[], $14::int[], $15::int[], $16::text[][],
+            $17::text[], $18::jsonb[], $19::text[][], $20::text[][], $21::jsonb[],
+            $22::text[], $23::text[], $24::text[], $25::text[][], $26::text[][],
+            $27::text[], $28::text[], $29::text[], $30::text[]
+          ) AS t(
             provider_item_id, title, original_title, sort_title, year, end_year,
             genres, overview, tagline, community_rating, critic_rating, content_rating,
-            status, total_seasons, total_episodes, air_days, network,
-            studios, directors, writers, actors,
-            imdb_id, tmdb_id, tvdb_id, tags, production_countries, awards,
-            poster_url, backdrop_url, provider_library_id
-          ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-            $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30
-          )`,
-          [
-            ps.series.id,
-            ps.series.name,
-            ps.series.originalTitle,
-            ps.series.sortName,
-            ps.series.year,
-            ps.series.endYear,
-            ps.series.genres,
-            ps.series.overview,
-            ps.series.tagline,
-            ps.series.communityRating,
-            ps.series.criticRating,
-            ps.series.contentRating,
-            ps.series.status,
-            ps.series.totalSeasons,
-            ps.series.totalEpisodes,
-            ps.series.airDays || [],
-            ps.series.network,
-            JSON.stringify(ps.series.studios || []),
-            ps.series.directors || [],
-            ps.series.writers || [],
-            JSON.stringify(ps.series.actors || []),
-            ps.series.imdbId,
-            ps.series.tmdbId,
-            ps.series.tvdbId,
-            ps.series.tags || [],
-            ps.series.productionCountries || [],
-            ps.series.awards,
-            ps.posterUrl,
-            ps.backdropUrl,
-            ps.libraryId,
-          ]
+            status, total_seasons, total_episodes, air_days, network, studios,
+            directors, writers, actors, imdb_id, tmdb_id, tvdb_id, tags,
+            production_countries, awards, poster_url, backdrop_url, provider_library_id
+          )
+        ) AS data
+        WHERE series.provider_item_id = data.provider_item_id`,
+        [
+          toUpdate.map((ps) => ps.series.id),
+          toUpdate.map((ps) => ps.series.name),
+          toUpdate.map((ps) => ps.series.originalTitle || null),
+          toUpdate.map((ps) => ps.series.sortName || null),
+          toUpdate.map((ps) => ps.series.year || null),
+          toUpdate.map((ps) => ps.series.endYear || null),
+          toUpdate.map((ps) => ps.series.genres || []),
+          toUpdate.map((ps) => ps.series.overview || null),
+          toUpdate.map((ps) => ps.series.tagline || null),
+          toUpdate.map((ps) => ps.series.communityRating || null),
+          toUpdate.map((ps) => ps.series.criticRating || null),
+          toUpdate.map((ps) => ps.series.contentRating || null),
+          toUpdate.map((ps) => ps.series.status || null),
+          toUpdate.map((ps) => ps.series.totalSeasons || null),
+          toUpdate.map((ps) => ps.series.totalEpisodes || null),
+          toUpdate.map((ps) => ps.series.airDays || []),
+          toUpdate.map((ps) => ps.series.network || null),
+          toUpdate.map((ps) => JSON.stringify(ps.series.studios || [])),
+          toUpdate.map((ps) => ps.series.directors || []),
+          toUpdate.map((ps) => ps.series.writers || []),
+          toUpdate.map((ps) => JSON.stringify(ps.series.actors || [])),
+          toUpdate.map((ps) => ps.series.imdbId || null),
+          toUpdate.map((ps) => ps.series.tmdbId || null),
+          toUpdate.map((ps) => ps.series.tvdbId || null),
+          toUpdate.map((ps) => ps.series.tags || []),
+          toUpdate.map((ps) => ps.series.productionCountries || []),
+          toUpdate.map((ps) => ps.series.awards || null),
+          toUpdate.map((ps) => ps.posterUrl),
+          toUpdate.map((ps) => ps.backdropUrl),
+          toUpdate.map((ps) => ps.libraryId),
+        ]
+      )
+      updated = result.rowCount || toUpdate.length
+    } catch (err) {
+      logger.error({ err, count: toUpdate.length }, 'Failed to bulk update series')
+    }
+  }
+
+  // Bulk INSERT new series
+  if (toInsert.length > 0) {
+    try {
+      const result = await query(
+        `INSERT INTO series (
+          provider_item_id, title, original_title, sort_title, year, end_year,
+          genres, overview, tagline, community_rating, critic_rating, content_rating,
+          status, total_seasons, total_episodes, air_days, network, studios,
+          directors, writers, actors, imdb_id, tmdb_id, tvdb_id, tags,
+          production_countries, awards, poster_url, backdrop_url, provider_library_id
         )
-        added++
+        SELECT * FROM unnest(
+          $1::text[], $2::text[], $3::text[], $4::text[], $5::int[], $6::int[],
+          $7::text[][], $8::text[], $9::text[], $10::real[], $11::real[],
+          $12::text[], $13::text[], $14::int[], $15::int[], $16::text[][],
+          $17::text[], $18::jsonb[], $19::text[][], $20::text[][], $21::jsonb[],
+          $22::text[], $23::text[], $24::text[], $25::text[][], $26::text[][],
+          $27::text[], $28::text[], $29::text[], $30::text[]
+        )
+        ON CONFLICT (provider_item_id) DO NOTHING`,
+        [
+          toInsert.map((ps) => ps.series.id),
+          toInsert.map((ps) => ps.series.name),
+          toInsert.map((ps) => ps.series.originalTitle || null),
+          toInsert.map((ps) => ps.series.sortName || null),
+          toInsert.map((ps) => ps.series.year || null),
+          toInsert.map((ps) => ps.series.endYear || null),
+          toInsert.map((ps) => ps.series.genres || []),
+          toInsert.map((ps) => ps.series.overview || null),
+          toInsert.map((ps) => ps.series.tagline || null),
+          toInsert.map((ps) => ps.series.communityRating || null),
+          toInsert.map((ps) => ps.series.criticRating || null),
+          toInsert.map((ps) => ps.series.contentRating || null),
+          toInsert.map((ps) => ps.series.status || null),
+          toInsert.map((ps) => ps.series.totalSeasons || null),
+          toInsert.map((ps) => ps.series.totalEpisodes || null),
+          toInsert.map((ps) => ps.series.airDays || []),
+          toInsert.map((ps) => ps.series.network || null),
+          toInsert.map((ps) => JSON.stringify(ps.series.studios || [])),
+          toInsert.map((ps) => ps.series.directors || []),
+          toInsert.map((ps) => ps.series.writers || []),
+          toInsert.map((ps) => JSON.stringify(ps.series.actors || [])),
+          toInsert.map((ps) => ps.series.imdbId || null),
+          toInsert.map((ps) => ps.series.tmdbId || null),
+          toInsert.map((ps) => ps.series.tvdbId || null),
+          toInsert.map((ps) => ps.series.tags || []),
+          toInsert.map((ps) => ps.series.productionCountries || []),
+          toInsert.map((ps) => ps.series.awards || null),
+          toInsert.map((ps) => ps.posterUrl),
+          toInsert.map((ps) => ps.backdropUrl),
+          toInsert.map((ps) => ps.libraryId),
+        ]
+      )
+      added = result.rowCount || toInsert.length
+      for (const ps of toInsert) {
         existingProviderIds.add(ps.series.id)
       }
     } catch (err) {
-      logger.error({ err, series: ps.series.name }, 'Failed to sync series')
+      logger.error({ err, count: toInsert.length }, 'Failed to bulk insert series')
     }
   }
 
@@ -217,87 +284,145 @@ async function processSeriesBatch(
 }
 
 /**
- * Process episode batch for database insertion
+ * Process episode batch using bulk SQL operations
+ * 
+ * OPTIMIZED: Uses PostgreSQL unnest() for bulk INSERT/UPDATE
  */
 async function processEpisodeBatch(
   episodes: PreparedEpisode[],
   existingProviderIds: Set<string>
 ): Promise<{ added: number; updated: number }> {
+  // Separate into updates and inserts
+  const toUpdate: PreparedEpisode[] = []
+  const toInsert: PreparedEpisode[] = []
+
+  for (const pe of episodes) {
+    if (existingProviderIds.has(pe.episode.id)) {
+      toUpdate.push(pe)
+    } else {
+      toInsert.push(pe)
+    }
+  }
+
   let added = 0
   let updated = 0
 
-  for (const pe of episodes) {
+  // Bulk UPDATE existing episodes
+  if (toUpdate.length > 0) {
     try {
-      if (existingProviderIds.has(pe.episode.id)) {
-        // Update existing
-        await query(
-          `UPDATE episodes SET
-            series_id = $2, season_number = $3, episode_number = $4, title = $5,
-            overview = $6, premiere_date = $7, year = $8, runtime_minutes = $9,
-            community_rating = $10, directors = $11, writers = $12, guest_stars = $13,
-            path = $14, media_sources = $15, poster_url = $16, updated_at = NOW()
-          WHERE provider_item_id = $1`,
-          [
-            pe.episode.id,
-            pe.seriesDbId,
-            pe.episode.seasonNumber,
-            pe.episode.episodeNumber,
-            pe.episode.name,
-            pe.episode.overview,
-            pe.episode.premiereDate ? pe.episode.premiereDate.split('T')[0] : null,
-            pe.episode.year,
-            pe.runtimeMinutes,
-            pe.episode.communityRating,
-            pe.episode.directors || [],
-            pe.episode.writers || [],
-            JSON.stringify(pe.episode.guestStars || []),
-            pe.episode.path,
-            JSON.stringify(pe.episode.mediaSources || []),
-            pe.posterUrl,
-          ]
-        )
-        updated++
-      } else {
-        // Insert new (with upsert on series_id + season + episode conflict)
-        await query(
-          `INSERT INTO episodes (
+      const result = await query(
+        `UPDATE episodes SET
+          series_id = data.series_id,
+          season_number = data.season_number,
+          episode_number = data.episode_number,
+          title = data.title,
+          overview = data.overview,
+          premiere_date = data.premiere_date,
+          year = data.year,
+          runtime_minutes = data.runtime_minutes,
+          community_rating = data.community_rating,
+          directors = data.directors,
+          writers = data.writers,
+          guest_stars = data.guest_stars,
+          path = data.path,
+          media_sources = data.media_sources,
+          poster_url = data.poster_url,
+          updated_at = NOW()
+        FROM (
+          SELECT * FROM unnest(
+            $1::text[], $2::uuid[], $3::int[], $4::int[], $5::text[],
+            $6::text[], $7::date[], $8::int[], $9::int[], $10::real[],
+            $11::text[][], $12::text[][], $13::jsonb[], $14::text[], $15::jsonb[], $16::text[]
+          ) AS t(
             provider_item_id, series_id, season_number, episode_number, title,
             overview, premiere_date, year, runtime_minutes, community_rating,
             directors, writers, guest_stars, path, media_sources, poster_url
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-          ON CONFLICT (series_id, season_number, episode_number) DO UPDATE SET
-            provider_item_id = EXCLUDED.provider_item_id,
-            title = EXCLUDED.title, overview = EXCLUDED.overview,
-            premiere_date = EXCLUDED.premiere_date, year = EXCLUDED.year,
-            runtime_minutes = EXCLUDED.runtime_minutes, community_rating = EXCLUDED.community_rating,
-            directors = EXCLUDED.directors, writers = EXCLUDED.writers,
-            guest_stars = EXCLUDED.guest_stars, path = EXCLUDED.path,
-            media_sources = EXCLUDED.media_sources, poster_url = EXCLUDED.poster_url,
-            updated_at = NOW()`,
-          [
-            pe.episode.id,
-            pe.seriesDbId,
-            pe.episode.seasonNumber,
-            pe.episode.episodeNumber,
-            pe.episode.name,
-            pe.episode.overview,
-            pe.episode.premiereDate ? pe.episode.premiereDate.split('T')[0] : null,
-            pe.episode.year,
-            pe.runtimeMinutes,
-            pe.episode.communityRating,
-            pe.episode.directors || [],
-            pe.episode.writers || [],
-            JSON.stringify(pe.episode.guestStars || []),
-            pe.episode.path,
-            JSON.stringify(pe.episode.mediaSources || []),
-            pe.posterUrl,
-          ]
+          )
+        ) AS data
+        WHERE episodes.provider_item_id = data.provider_item_id`,
+        [
+          toUpdate.map((pe) => pe.episode.id),
+          toUpdate.map((pe) => pe.seriesDbId),
+          toUpdate.map((pe) => pe.episode.seasonNumber),
+          toUpdate.map((pe) => pe.episode.episodeNumber),
+          toUpdate.map((pe) => pe.episode.name),
+          toUpdate.map((pe) => pe.episode.overview || null),
+          toUpdate.map((pe) =>
+            pe.episode.premiereDate ? pe.episode.premiereDate.split('T')[0] : null
+          ),
+          toUpdate.map((pe) => pe.episode.year || null),
+          toUpdate.map((pe) => pe.runtimeMinutes),
+          toUpdate.map((pe) => pe.episode.communityRating || null),
+          toUpdate.map((pe) => pe.episode.directors || []),
+          toUpdate.map((pe) => pe.episode.writers || []),
+          toUpdate.map((pe) => JSON.stringify(pe.episode.guestStars || [])),
+          toUpdate.map((pe) => pe.episode.path || null),
+          toUpdate.map((pe) => JSON.stringify(pe.episode.mediaSources || [])),
+          toUpdate.map((pe) => pe.posterUrl),
+        ]
+      )
+      updated = result.rowCount || toUpdate.length
+    } catch (err) {
+      logger.error({ err, count: toUpdate.length }, 'Failed to bulk update episodes')
+    }
+  }
+
+  // Bulk INSERT new episodes with UPSERT
+  if (toInsert.length > 0) {
+    try {
+      const result = await query(
+        `INSERT INTO episodes (
+          provider_item_id, series_id, season_number, episode_number, title,
+          overview, premiere_date, year, runtime_minutes, community_rating,
+          directors, writers, guest_stars, path, media_sources, poster_url
         )
-        added++
+        SELECT * FROM unnest(
+          $1::text[], $2::uuid[], $3::int[], $4::int[], $5::text[],
+          $6::text[], $7::date[], $8::int[], $9::int[], $10::real[],
+          $11::text[][], $12::text[][], $13::jsonb[], $14::text[], $15::jsonb[], $16::text[]
+        )
+        ON CONFLICT (series_id, season_number, episode_number) DO UPDATE SET
+          provider_item_id = EXCLUDED.provider_item_id,
+          title = EXCLUDED.title,
+          overview = EXCLUDED.overview,
+          premiere_date = EXCLUDED.premiere_date,
+          year = EXCLUDED.year,
+          runtime_minutes = EXCLUDED.runtime_minutes,
+          community_rating = EXCLUDED.community_rating,
+          directors = EXCLUDED.directors,
+          writers = EXCLUDED.writers,
+          guest_stars = EXCLUDED.guest_stars,
+          path = EXCLUDED.path,
+          media_sources = EXCLUDED.media_sources,
+          poster_url = EXCLUDED.poster_url,
+          updated_at = NOW()`,
+        [
+          toInsert.map((pe) => pe.episode.id),
+          toInsert.map((pe) => pe.seriesDbId),
+          toInsert.map((pe) => pe.episode.seasonNumber),
+          toInsert.map((pe) => pe.episode.episodeNumber),
+          toInsert.map((pe) => pe.episode.name),
+          toInsert.map((pe) => pe.episode.overview || null),
+          toInsert.map((pe) =>
+            pe.episode.premiereDate ? pe.episode.premiereDate.split('T')[0] : null
+          ),
+          toInsert.map((pe) => pe.episode.year || null),
+          toInsert.map((pe) => pe.runtimeMinutes),
+          toInsert.map((pe) => pe.episode.communityRating || null),
+          toInsert.map((pe) => pe.episode.directors || []),
+          toInsert.map((pe) => pe.episode.writers || []),
+          toInsert.map((pe) => JSON.stringify(pe.episode.guestStars || [])),
+          toInsert.map((pe) => pe.episode.path || null),
+          toInsert.map((pe) => JSON.stringify(pe.episode.mediaSources || [])),
+          toInsert.map((pe) => pe.posterUrl),
+        ]
+      )
+      added = result.rowCount || toInsert.length
+      for (const pe of toInsert) {
         existingProviderIds.add(pe.episode.id)
       }
     } catch (err) {
-      logger.error({ err, episode: pe.episode.name }, 'Failed to sync episode')
+      logger.error({ err, count: toInsert.length }, 'Failed to bulk insert episodes')
     }
   }
 
