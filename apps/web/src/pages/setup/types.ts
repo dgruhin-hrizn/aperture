@@ -20,6 +20,7 @@ export type SetupStepId =
   | 'mediaServer'
   | 'mediaLibraries'
   | 'aiRecsLibraries'
+  | 'validate'
   | 'users'
   | 'topPicks'
   | 'openai'
@@ -82,6 +83,25 @@ export interface JobLogEntry {
   message: string
 }
 
+export interface UserLibraryResult {
+  userId: string
+  providerUserId: string
+  username: string
+  displayName: string
+  status: 'success' | 'skipped' | 'failed'
+  recommendationCount?: number
+  libraryName?: string
+  libraryCreated?: boolean
+  error?: string
+}
+
+export interface LibrarySyncResult {
+  success: number
+  failed: number
+  skipped: number
+  users?: UserLibraryResult[]
+}
+
 export interface JobProgress {
   id: string
   name: string
@@ -95,6 +115,22 @@ export interface JobProgress {
   itemsProcessed?: number
   itemsTotal?: number
   currentItem?: string
+  // Job result (populated on completion)
+  result?: LibrarySyncResult
+}
+
+export interface ValidationCheck {
+  id: string
+  name: string
+  description: string
+  status: 'pending' | 'running' | 'passed' | 'failed'
+  error?: string
+  suggestion?: string
+}
+
+export interface ValidationResult {
+  checks: ValidationCheck[]
+  allPassed: boolean
 }
 
 export interface SetupWizardState {
@@ -122,6 +158,10 @@ export interface SetupWizardState {
   aiRecsOutput: AiRecsOutputConfig
   libraryImages: Record<string, LibraryImageInfo>
   uploadingImage: string | null
+
+  // Validation
+  validationResult: ValidationResult | null
+  validating: boolean
 
   // Users
   setupUsers: SetupUser[]
@@ -173,6 +213,9 @@ export interface SetupWizardActions {
   saveAiRecsOutput: () => Promise<void>
   uploadLibraryImage: (libraryType: string, file: File) => Promise<void>
   deleteLibraryImage: (libraryType: string) => Promise<void>
+
+  // Validation
+  runValidation: () => Promise<void>
 
   // Users
   fetchSetupUsers: () => Promise<void>

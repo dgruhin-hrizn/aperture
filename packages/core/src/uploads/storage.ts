@@ -1,6 +1,10 @@
 /**
  * File Storage Module
  * Handles local filesystem storage for uploaded images
+ * 
+ * Uploads are stored inside the aperture-libraries volume so they persist
+ * with a single volume mount. The .aperture-data folder is hidden from
+ * media server library scans.
  */
 
 import { promises as fs } from 'fs'
@@ -10,8 +14,9 @@ import { createChildLogger } from '../lib/logger.js'
 
 const logger = createChildLogger('file-storage')
 
-// Base uploads directory - can be configured via environment
-const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(process.cwd(), 'uploads')
+// Uploads stored inside aperture-libraries volume for persistence
+// Using .aperture-data to hide from media server library scans
+const UPLOADS_DIR = '/aperture-libraries/.aperture-data/uploads'
 
 export interface StoredFile {
   filePath: string // Relative path from uploads dir

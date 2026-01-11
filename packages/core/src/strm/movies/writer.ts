@@ -32,18 +32,42 @@ async function writeFileWithRetry(filePath: string, content: string): Promise<vo
 export async function writeStrmFilesForUser(
   userId: string,
   providerUserId: string,
-  _displayName: string
+  displayName: string
 ): Promise<{ written: number; deleted: number; localPath: string; embyPath: string }> {
-  const config = getConfig()
+  const config = await getConfig()
   const outputConfig = await getAiRecsOutputConfig()
   const useSymlinks = outputConfig.moviesUseSymlinks
   const startTime = Date.now()
 
+  // Build user folder name (DisplayName_ID format for readability)
+  const { getUserFolderName } = await import('../filenames.js')
+  const userFolder = getUserFolderName(displayName, providerUserId)
+
   // Build paths:
-  // - localPath: where Aperture writes files (mounted share on this machine)
-  // - embyPath: where Emby sees them (path inside Emby container)
-  const localPath = path.join(config.strmRoot, 'aperture', providerUserId)
-  const embyPath = path.join(config.libraryPathPrefix, providerUserId)
+  // - localPath: where Aperture writes files (inside Aperture container)
+  // - embyPath: where media server sees them (inside Emby/Jellyfin container)
+  // Both use 'aperture' subfolder for AI movie recommendations
+  const localPath = path.join(config.strmRoot, 'aperture', userFolder)
+  const embyPath = path.join(config.libraryPathPrefix, 'aperture', userFolder)
+
+  // Check for old-format folder and migrate if needed
+  const oldFormatPath = path.join(config.strmRoot, 'aperture', providerUserId)
+  if (userFolder !== providerUserId) {
+    try {
+      const oldFolderStats = await fs.stat(oldFormatPath)
+      if (oldFolderStats.isDirectory()) {
+        const newFolderExists = await fs.stat(localPath).then(() => true).catch(() => false)
+        if (!newFolderExists) {
+          logger.info({ oldPath: oldFormatPath, newPath: localPath }, '📦 Migrating old-format folder to new naming scheme')
+          await fs.rename(oldFormatPath, localPath)
+        } else {
+          logger.info({ oldPath: oldFormatPath }, '⚠️ Both old and new format folders exist, using new format')
+        }
+      }
+    } catch {
+      // Old folder doesn't exist, which is fine
+    }
+  }
 
   logger.info({ userId, localPath, embyPath, useSymlinks }, `📁 Starting ${useSymlinks ? 'symlink' : 'STRM'} file generation`)
 

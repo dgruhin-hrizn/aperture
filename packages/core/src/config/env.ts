@@ -12,11 +12,6 @@ const envSchema = z.object({
   // Database (required)
   DATABASE_URL: z.string().url(),
 
-  // Filesystem paths (not UI-configurable, must be set via env for Docker volume mounts)
-  MEDIA_SERVER_STRM_ROOT: z.string().default('/strm'),
-  MEDIA_SERVER_LIBRARY_ROOT: z.string().default('/mnt/media'),
-  AI_LIBRARY_PATH_PREFIX: z.string().default('/strm/aperture/'),
-
   // Job schedules (optional - have sensible defaults)
   SYNC_CRON: z.string().default('0 3 * * *'),
   RECS_CRON: z.string().default('0 4 * * *'),
@@ -28,11 +23,12 @@ const envSchema = z.object({
     .transform((val) => val === 'true')
     .default('true'),
 
-  // NOTE: The following are NOT in this schema because they are UI-configurable
-  // and read directly from process.env as fallbacks in systemSettings.ts:
+  // NOTE: Path configuration is done via the Setup Wizard and stored in the database.
+  // Docker volume mounts are fixed: /aperture-libraries (output) and /media (read-only media access)
+  //
+  // UI-configurable settings (read from database with env fallbacks in systemSettings.ts):
   // - OPENAI_API_KEY, OPENAI_EMBED_MODEL (Settings > AI)
   // - MEDIA_SERVER_TYPE, MEDIA_SERVER_BASE_URL, MEDIA_SERVER_API_KEY (Settings > Media Server)
-  // - AI_LIBRARY_NAME_PREFIX (Settings > Libraries)
 })
 
 export type Env = z.infer<typeof envSchema>

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import {
   Box,
   Button,
@@ -30,34 +30,8 @@ export function TopPicksStep({ wizard }: TopPicksStepProps) {
   })
   const [uploadingFor, setUploadingFor] = useState<string | null>(null)
 
-  // Fetch Top Picks images on mount - override defaults only if custom images exist
-  useEffect(() => {
-    const fetchImages = async () => {
-      const libraryTypes = ['top-picks-movies', 'top-picks-series']
-
-      for (const id of libraryTypes) {
-        try {
-          const response = await fetch(`/api/images/library/${id}?imageType=Primary`, {
-            credentials: 'include',
-          })
-          if (response.ok) {
-            const data = await response.json()
-            // Only override if there's a custom uploaded image
-            if (data.url) {
-              setTopPicksImages((prev) => ({
-                ...prev,
-                [id]: { url: data.url, isDefault: false },
-              }))
-            }
-          }
-        } catch {
-          // Keep default on error
-        }
-      }
-    }
-
-    fetchImages()
-  }, [])
+  // During setup, we use bundled default images - no need to fetch custom images
+  // (Custom images are only available after setup when user is authenticated)
 
   const handleUploadImage = useCallback(async (libraryTypeId: string, file: File) => {
     setUploadingFor(libraryTypeId)

@@ -21,6 +21,7 @@ import type {
   SetupUser,
   DiscoveredServer,
   JobProgress,
+  ValidationResult,
 } from '../types'
 
 // Define the initial jobs with their descriptions
@@ -107,6 +108,10 @@ export function useSetupWizard(): SetupWizardContext {
   })
   const [uploadingImage, setUploadingImage] = useState<string | null>(null)
 
+  // Validation state
+  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
+  const [validating, setValidating] = useState(false)
+
   // Users state
   const [setupUsers, setSetupUsers] = useState<SetupUser[]>([])
   const [loadingUsers, setLoadingUsers] = useState(false)
@@ -168,40 +173,9 @@ export function useSetupWizard(): SetupWizardContext {
       })
   }, [])
 
-  // Fetch library images (falls back to bundled defaults only if no image exists)
-  const fetchLibraryImages = useCallback(async () => {
-    const libraryTypes = ['ai-recs-movies', 'ai-recs-series']
-    const imagePromises = libraryTypes.map(async (id) => {
-      try {
-        const response = await fetch(`/api/images/library/${id}?imageType=Primary`, {
-          credentials: 'include',
-        })
-        if (response.ok) {
-          const data = await response.json()
-          // If there's any uploaded image, use it (don't override with bundled defaults)
-          if (data.url) {
-            return { id, url: data.url, isDefault: false }
-          }
-        }
-        // Only fall back to bundled default if no image exists at all
-        return { id, url: DEFAULT_LIBRARY_IMAGES[id], isDefault: true }
-      } catch {
-        // Fall back to bundled default image on error
-        return { id, url: DEFAULT_LIBRARY_IMAGES[id], isDefault: true }
-      }
-    })
-
-    const results = await Promise.all(imagePromises)
-    const imageMap: Record<string, LibraryImageInfo> = {}
-    results.forEach((r) => {
-      imageMap[r.id] = { url: r.url || undefined, isDefault: r.isDefault }
-    })
-    setLibraryImages(imageMap)
-  }, [])
-
-  useEffect(() => {
-    fetchLibraryImages()
-  }, [fetchLibraryImages])
+  // During initial setup, always use bundled default images
+  // (there's no authenticated user yet, and no custom images could have been uploaded)
+  // Custom image fetching is only needed post-setup in the admin settings
 
   // Fetch setup progress + snapshot (resumable)
   useEffect(() => {
@@ -412,13 +386,40 @@ export function useSetupWizard(): SetupWizardContext {
       if (!res.ok) throw new Error(data?.error || 'Failed to save output format')
       setAiRecsOutput(data)
       await updateProgress({ completedStep: 'aiRecsLibraries' })
-      goToStep('users')
+      // Reset validation when moving to validate step
+      setValidationResult(null)
+      goToStep('validate')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save output format')
     } finally {
       setSaving(false)
     }
   }, [aiRecsOutput, updateProgress, goToStep])
+
+  // Validation handler
+  const runValidation = useCallback(async () => {
+    setValidating(true)
+    setError('')
+    try {
+      const res = await fetch('/api/setup/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ useSymlinks: aiRecsOutput.moviesUseSymlinks || aiRecsOutput.seriesUseSymlinks }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Validation failed')
+      setValidationResult(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Validation failed')
+      setValidationResult({
+        checks: [],
+        allPassed: false,
+      })
+    } finally {
+      setValidating(false)
+    }
+  }, [aiRecsOutput.moviesUseSymlinks, aiRecsOutput.seriesUseSymlinks])
 
   const uploadLibraryImage = useCallback(async (libraryType: string, file: File) => {
     setUploadingImage(libraryType)
@@ -857,9 +858,10 @@ export function useSetupWizard(): SetupWizardContext {
           throw new Error(`${job.name} failed: ${errorMsg}`)
         }
 
-        // Completed - add summary
+        // Completed - add summary and store result for per-user display
         const summary = p.result
           ? Object.entries(p.result)
+              .filter(([k]) => k !== 'users' && k !== 'jobId') // Exclude users array from summary
               .map(([k, v]) => `${k}: ${v}`)
               .join(', ')
           : ''
@@ -867,7 +869,14 @@ export function useSetupWizard(): SetupWizardContext {
         setJobsProgress((prev) =>
           prev.map((j, i) =>
             i === jobIndex
-              ? { ...j, status: 'completed' as const, progress: 100, itemsProcessed: p.itemsTotal, itemsTotal: p.itemsTotal }
+              ? { 
+                  ...j, 
+                  status: 'completed' as const, 
+                  progress: 100, 
+                  itemsProcessed: p.itemsTotal, 
+                  itemsTotal: p.itemsTotal,
+                  result: p.result, // Store full result including per-user data
+                }
               : j
           )
         )
@@ -960,6 +969,8 @@ export function useSetupWizard(): SetupWizardContext {
     aiRecsOutput,
     libraryImages,
     uploadingImage,
+    validationResult,
+    validating,
     setupUsers,
     loadingUsers,
     usersError,
@@ -1005,6 +1016,7 @@ export function useSetupWizard(): SetupWizardContext {
     saveAiRecsOutput,
     uploadLibraryImage,
     deleteLibraryImage,
+    runValidation,
     fetchSetupUsers,
     importAndEnableUser,
     toggleUserMovies,

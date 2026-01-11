@@ -213,7 +213,7 @@ export async function refreshTopPicks(
     let seriesLib: LibraryInfo | null = null
     
     if (apiKey && (config.moviesLibraryEnabled || config.seriesLibraryEnabled)) {
-      const strmConfig = getConfig()
+      const strmConfig = await getConfig()
       
       // Ensure Top Picks movies library exists (if enabled)
       if (config.moviesLibraryEnabled) {

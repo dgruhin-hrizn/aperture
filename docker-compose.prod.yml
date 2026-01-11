@@ -10,6 +10,25 @@
 # Update to latest version:
 #   docker-compose -f docker-compose.prod.yml pull
 #   docker-compose -f docker-compose.prod.yml up -d
+#
+# =============================================================================
+# VOLUME SETUP - READ THIS FIRST!
+# =============================================================================
+# Aperture needs 2 volume mounts. The recommended setup is to create the
+# ApertureLibraries folder INSIDE your existing media share. This way your
+# media server (Emby/Jellyfin) can already see it without any extra config!
+#
+# Example folder structure on your host:
+#
+#   /mnt/user/Media/                    <- Your media share
+#   ├── Movies/                         <- Your movies
+#   ├── TV/                             <- Your TV shows
+#   └── ApertureLibraries/              <- Create this folder HERE
+#
+# If your Emby has /mnt/user/Media mounted at /mnt, then:
+#   - Emby sees movies at: /mnt/Movies/...
+#   - Emby sees Aperture libraries at: /mnt/ApertureLibraries/ (automatically!)
+#
 # =============================================================================
 
 services:
@@ -36,63 +55,63 @@ services:
     user: root
     environment:
       NODE_ENV: production
-      # =========================================================================
-      # REQUIRED: Set this to your server's IP address
-      # =========================================================================
-      APP_BASE_URL: http://YOUR_SERVER_IP:3456
       PORT: 3456
       DATABASE_URL: postgres://app:app@db:5432/aperture
       RUN_MIGRATIONS_ON_START: 'true'
       # Timezone for scheduled jobs (IANA format)
       TZ: America/New_York
       # =========================================================================
-      # STRM / Virtual Library Configuration (for symlinks)
+      # REQUIRED: Set these before starting!
       # =========================================================================
-      # Uncomment and configure these if you want to use STRM files with symlinks
-      # instead of streaming URLs. This enables local playback without transcoding.
-      #
-      # Where Aperture writes STRM files (path INSIDE this container)
-      # MEDIA_SERVER_STRM_ROOT: /strm
-      #
-      # What path your media server sees for the STRM folder
-      # (path INSIDE your Emby/Jellyfin container)
-      # AI_LIBRARY_PATH_PREFIX: /mnt/VirtualLibraries/aperture/
-      #
-      # For symlinks: How your media server sees your media paths
-      # (check Media Info in Emby/Jellyfin for any movie)
-      # MEDIA_SERVER_PATH_PREFIX: /mnt/
-      #
-      # For symlinks: How Aperture sees those SAME files
-      # (the /media mount defined in volumes below)
-      # LOCAL_MEDIA_PATH_PREFIX: /media/
-      #
-      # Use file paths (symlinks) instead of streaming URLs
-      # STRM_USE_STREAMING_URL: 'false'
-      # =========================================================================
-      # Optional: Uncomment and set these for production use
-      # =========================================================================
-      # SESSION_SECRET: your-random-secret-at-least-32-chars
-      # OPENAI_API_KEY: sk-your-key-here
+      # Your server's IP address or hostname
+      APP_BASE_URL: http://YOUR_SERVER_IP:3456
+      # Session secret - MUST be a random string at least 32 characters
+      # Generate one at: https://randomkeygen.com/ (use "JWT Secrets" for type)
+      SESSION_SECRET: PASTE_YOUR_RANDOM_KEY_HERE
     ports:
       - '3456:3456'
     depends_on:
       db:
         condition: service_healthy
     volumes:
-      # STRM files for virtual libraries
-      # Change the left side to your desired host path
-      # Example for Unraid: /mnt/user/Media/VirtualLibraries:/strm
-      - ./data/strm:/strm
-      # Uploaded images (library artwork, etc.)
-      - ./uploads:/app/uploads
-      # =========================================================================
-      # OPTIONAL: Media library access (required for symlinks)
-      # =========================================================================
-      # If using symlinks (STRM_USE_STREAMING_URL=false), mount your media library
-      # as read-only so Aperture can create symlinks to artwork files.
-      # Example for Unraid: /mnt/user/Media:/media:ro
-      # - /path/to/your/media:/media:ro
+      # ─────────────────────────────────────────────────────────────────────────
+      # VOLUME 1: Aperture Libraries Output
+      # ─────────────────────────────────────────────────────────────────────────
+      # IMPORTANT: Create this folder INSIDE your media share!
+      #
+      # Why inside? Because your media server already has your media share
+      # mounted, so it will automatically see this folder too. No need to add
+      # another mount to Emby/Jellyfin!
+      #
+      # Unraid Example:
+      #   - Host folder:     /mnt/user/Media/ApertureLibraries
+      #   - Emby sees it at: /mnt/ApertureLibraries (automatically!)
+      #
+      - /mnt/user/Media/ApertureLibraries:/aperture-libraries
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # VOLUME 2: Your Media Library (read-only access)
+      # ─────────────────────────────────────────────────────────────────────────
+      # Aperture needs to read your media files to create symlinks.
+      # Mount the SAME media folder that your media server uses.
+      # Read-only (:ro) is fine - Aperture only reads, never writes here.
+      #
+      - /mnt/user/Media:/media:ro
     restart: unless-stopped
+
+# =============================================================================
+# SETUP WIZARD
+# =============================================================================
+# After starting Aperture, visit http://YOUR_SERVER_IP:3456 to complete setup.
+# The wizard will ask for two paths:
+#
+#   1. Media Server Path Prefix: /mnt/
+#      (How Emby sees your files - check Media Info on any movie)
+#
+#   2. Aperture Libraries Path: /mnt/ApertureLibraries/
+#      (Just your prefix + the folder name you created)
+#
+# =============================================================================
 
 volumes:
   pgdata:

@@ -209,19 +209,30 @@ export async function writeWatchingSeriesForUser(
   userId: string,
   providerUserId: string
 ): Promise<{ written: number; deleted: number; localPath: string; embyPath: string }> {
-  const config = getConfig()
+  const config = await getConfig()
   const watchingConfig = await getWatchingLibraryConfig()
   const useSymlinks = watchingConfig.useSymlinks
   const provider = await getMediaServerProvider()
   const apiKey = await getMediaServerApiKey() || ''
   const startTime = Date.now()
 
-  // Build paths for this user's watching library (same pattern as series AI recs)
-  const localPath = path.join(config.strmRoot, 'aperture-watching', providerUserId)
-  const embyPath = path.join(
-    config.libraryPathPrefix.replace('/aperture', '/aperture-watching'),
-    providerUserId
+  // Get user's display name for folder naming
+  const userRecord = await queryOne<{ display_name: string | null; username: string }>(
+    'SELECT display_name, username FROM users WHERE id = $1',
+    [userId]
   )
+  const displayName = userRecord?.display_name || userRecord?.username || providerUserId
+
+  // Build user folder name (DisplayName_ID format for readability)
+  const { getUserFolderName } = await import('../strm/filenames.js')
+  const userFolder = getUserFolderName(displayName, providerUserId)
+
+  // Build paths for this user's watching library:
+  // - localPath: where Aperture writes files (inside Aperture container)
+  // - embyPath: where media server sees them (inside Emby/Jellyfin container)
+  // Both use 'aperture-watching' subfolder for "Shows You Watch" library
+  const localPath = path.join(config.strmRoot, 'aperture-watching', userFolder)
+  const embyPath = path.join(config.libraryPathPrefix, 'aperture-watching', userFolder)
 
   // Get user's watching series from database
   const watchingResult = await query<{

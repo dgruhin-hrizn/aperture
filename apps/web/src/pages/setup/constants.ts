@@ -12,7 +12,8 @@ export const DEFAULT_LIBRARY_IMAGES: Record<string, string> = {
 export const STEP_ORDER: Array<{ id: SetupStepId; label: string }> = [
   { id: 'mediaServer', label: 'Connect' },
   { id: 'mediaLibraries', label: 'Libraries' },
-  { id: 'aiRecsLibraries', label: 'For You' },
+  { id: 'aiRecsLibraries', label: 'Recs' },
+  { id: 'validate', label: 'Validate' },
   { id: 'users', label: 'Users' },
   { id: 'topPicks', label: 'Top 10' },
   { id: 'openai', label: 'AI' },
@@ -21,7 +22,7 @@ export const STEP_ORDER: Array<{ id: SetupStepId; label: string }> = [
 ]
 
 export const DEFAULT_AI_RECS_OUTPUT = {
-  moviesUseSymlinks: false,
+  moviesUseSymlinks: true,
   seriesUseSymlinks: true,
 }
 
@@ -30,11 +31,11 @@ export const DEFAULT_TOP_PICKS = {
   moviesLibraryEnabled: true,
   moviesCollectionEnabled: false,
   moviesPlaylistEnabled: false,
-  moviesUseSymlinks: false,
+  moviesUseSymlinks: true,
   seriesLibraryEnabled: true,
   seriesCollectionEnabled: false,
   seriesPlaylistEnabled: false,
-  seriesUseSymlinks: false,
+  seriesUseSymlinks: true,
 }
 
 export const DEFAULT_MEDIA_SERVER_TYPES = [

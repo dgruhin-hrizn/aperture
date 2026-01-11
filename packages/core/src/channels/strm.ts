@@ -5,6 +5,7 @@ import { queryOne } from '../lib/db.js'
 import { getMediaServerProvider } from '../media/index.js'
 import { getMediaServerApiKey } from '../settings/systemSettings.js'
 import { generateChannelRecommendations } from './recommendations.js'
+import { getConfig } from '../strm/config.js'
 
 const logger = createChildLogger('channels')
 
@@ -35,11 +36,15 @@ export async function writeChannelStrm(channelId: string): Promise<{
     throw new Error(`Pinned channel not found: ${channelId}`)
   }
 
-  const libraryPathPrefix = process.env.AI_LIBRARY_PATH_PREFIX || '/strm/aperture/'
-  const libraryPath = path.join(libraryPathPrefix, 'channels', channel.id)
+  const config = await getConfig()
+  // Channels are stored in a 'channels' subfolder within aperture-libraries
+  // - localPath: where Aperture writes files (inside Aperture container)
+  // - libraryPath: where media server sees them (inside Emby/Jellyfin container)
+  const localPath = path.join(config.strmRoot, 'channels', channel.id)
+  const libraryPath = path.join(config.libraryPathPrefix, 'channels', channel.id)
 
-  // Ensure directory exists
-  await fs.mkdir(libraryPath, { recursive: true })
+  // Ensure directory exists on local mount
+  await fs.mkdir(localPath, { recursive: true })
 
   // Generate recommendations
   const recommendations = await generateChannelRecommendations(channelId)
@@ -47,7 +52,7 @@ export async function writeChannelStrm(channelId: string): Promise<{
   // Write STRM files
   for (const rec of recommendations) {
     const filename = `${rec.title.replace(/[<>:"/\\|?*]/g, '')} (${rec.year || 'Unknown'}) [${rec.providerItemId}].strm`
-    const filePath = path.join(libraryPath, filename)
+    const filePath = path.join(localPath, filename)
 
     // Get streaming URL
     const provider = await getMediaServerProvider()
@@ -57,7 +62,7 @@ export async function writeChannelStrm(channelId: string): Promise<{
     await fs.writeFile(filePath, content, 'utf-8')
   }
 
-  logger.info({ channelId, written: recommendations.length, libraryPath }, 'Channel STRM files written')
+  logger.info({ channelId, written: recommendations.length, localPath, libraryPath }, 'Channel STRM files written')
 
   return {
     written: recommendations.length,

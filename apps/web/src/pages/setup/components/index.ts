@@ -1,6 +1,7 @@
 export { MediaServerStep } from './MediaServerStep'
 export { LibrariesStep } from './LibrariesStep'
 export { AiRecsStep } from './AiRecsStep'
+export { ValidateStep } from './ValidateStep'
 export { UsersStep } from './UsersStep'
 export { TopPicksStep } from './TopPicksStep'
 export { OpenAIStep } from './OpenAIStep'

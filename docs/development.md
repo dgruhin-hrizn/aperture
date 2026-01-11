@@ -51,30 +51,15 @@ This starts a PostgreSQL container with pgvector extension.
 
 ### 3. Configure Environment
 
-```bash
-cp env.local.example .env.local
-```
-
-Edit `.env.local` with your settings:
+Set the database URL environment variable:
 
 ```bash
-# Required for local development
-DATABASE_URL=postgres://app:app@localhost:5432/aperture
-
-# Optional (have sensible defaults)
-SESSION_SECRET=your-random-secret-at-least-32-chars
-APP_BASE_URL=http://localhost:3456
-
-# OpenAI (optional - can configure via Setup Wizard or Admin UI)
-OPENAI_API_KEY=sk-your-openai-api-key
-
-# Media Server (optional - can configure via Setup Wizard or Admin UI)
-MEDIA_SERVER_TYPE=emby  # or 'jellyfin'
-MEDIA_SERVER_BASE_URL=http://your-server:8096
-MEDIA_SERVER_API_KEY=your-api-key
+export DATABASE_URL=postgres://app:app@localhost:5432/aperture
 ```
 
-> **Note**: For local development, you can either set environment variables in `.env.local` or complete the Setup Wizard on first launch. The Setup Wizard saves settings to the database, which take precedence over environment variables.
+Or add it to your shell profile (e.g., `~/.zshrc` or `~/.bashrc`).
+
+> **Note**: All other configuration (OpenAI, Media Server, paths, etc.) is done via the Setup Wizard on first launch. Settings are stored in the database.
 
 ### 4. Run Migrations
 
@@ -89,6 +74,7 @@ pnpm dev
 ```
 
 This starts:
+
 - API server at http://localhost:3456
 - Web dev server at http://localhost:3457 (with proxy to API)
 
@@ -210,7 +196,7 @@ server: {
 
 ### 2. Configure CORS
 
-Add your domain to allowed origins in `.env.local`:
+Set `APP_BASE_URL` in your `docker-compose.yml` or as an environment variable:
 
 ```bash
 APP_BASE_URL=https://your-domain.com
@@ -219,6 +205,7 @@ APP_BASE_URL=https://your-domain.com
 ### 3. Set Up Reverse Proxy
 
 If using Nginx Proxy Manager or similar:
+
 - Proxy `/api/*` requests to `localhost:3456`
 - Proxy all other requests to `localhost:3457`
 
@@ -230,4 +217,3 @@ If using Nginx Proxy Manager or similar:
 - ESLint for linting
 - Prettier for formatting
 - Conventional commits recommended
-

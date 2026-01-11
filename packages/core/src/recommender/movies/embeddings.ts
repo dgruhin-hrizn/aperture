@@ -300,7 +300,7 @@ export async function generateMissingEmbeddings(
 
     if (!apiKey) {
       addLog(jobId, 'error', '❌ OPENAI_API_KEY is not configured!')
-      addLog(jobId, 'info', '💡 Add OPENAI_API_KEY to your .env.local file to enable AI embeddings')
+      addLog(jobId, 'info', '💡 Go to Settings > AI to configure your OpenAI API key')
       completeJob(jobId, { generated: 0, failed: 0, skipped: true })
       return { generated: 0, failed: 0, jobId }
     }

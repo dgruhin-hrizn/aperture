@@ -603,8 +603,8 @@ export async function getAiRecsOutputConfig(): Promise<AiRecsOutputConfig> {
   const movies = await getSystemSetting('ai_recs_movies_use_symlinks')
   const series = await getSystemSetting('ai_recs_series_use_symlinks')
   return {
-    moviesUseSymlinks: movies === 'true',
-    seriesUseSymlinks: series !== 'false', // Defaults to true for series
+    moviesUseSymlinks: movies !== 'false', // Defaults to true (symlinks recommended)
+    seriesUseSymlinks: series !== 'false', // Defaults to true (symlinks recommended)
   }
 }
 
@@ -629,6 +629,97 @@ export async function setAiRecsOutputConfig(
     )
   }
   return getAiRecsOutputConfig()
+}
+
+// ============================================================================
+// Output Path Configuration Settings
+// ============================================================================
+
+export interface OutputPathConfig {
+  /** Fixed path where Aperture writes libraries (inside Aperture container) */
+  apertureLibrariesPath: string
+  /** Path where media server sees the Aperture libraries folder */
+  mediaServerLibrariesPath: string
+  /** Base path where media server sees original media files (e.g., /mnt/) */
+  mediaServerPathPrefix: string
+  /** Use symlinks for movie recommendations */
+  moviesUseSymlinks: boolean
+  /** Use symlinks for series recommendations */
+  seriesUseSymlinks: boolean
+}
+
+// Fixed container paths (not configurable - set by volume mounts)
+const APERTURE_LIBRARIES_PATH = '/aperture-libraries'
+const APERTURE_MEDIA_PATH = '/media/'
+
+// Defaults for user-configured paths
+const DEFAULT_MEDIA_SERVER_LIBRARIES_PATH = '/mnt/ApertureLibraries/'
+const DEFAULT_MEDIA_SERVER_PATH_PREFIX = '/mnt/'
+
+/**
+ * Get output path configuration from database
+ * All configuration is done via the setup wizard - no ENV var fallbacks
+ */
+export async function getOutputPathConfig(): Promise<OutputPathConfig> {
+  const dbLibrariesPath = await getSystemSetting('media_server_libraries_path')
+  const dbPathPrefix = await getSystemSetting('media_server_path_prefix')
+  const dbMoviesSymlinks = await getSystemSetting('ai_recs_movies_use_symlinks')
+  const dbSeriesSymlinks = await getSystemSetting('ai_recs_series_use_symlinks')
+
+  return {
+    // Fixed paths (determined by Docker volume mounts)
+    apertureLibrariesPath: APERTURE_LIBRARIES_PATH,
+    // User-configured paths (set in setup wizard)
+    mediaServerLibrariesPath: dbLibrariesPath || DEFAULT_MEDIA_SERVER_LIBRARIES_PATH,
+    mediaServerPathPrefix: dbPathPrefix || DEFAULT_MEDIA_SERVER_PATH_PREFIX,
+    moviesUseSymlinks: dbMoviesSymlinks !== null ? dbMoviesSymlinks === 'true' : true,
+    seriesUseSymlinks: dbSeriesSymlinks !== null ? dbSeriesSymlinks === 'true' : true,
+  }
+}
+
+/**
+ * Get the fixed path where Aperture reads media files (inside Aperture container)
+ */
+export function getApertureMediaPath(): string {
+  return APERTURE_MEDIA_PATH
+}
+
+/**
+ * Set output path configuration
+ */
+export async function setOutputPathConfig(
+  config: Partial<OutputPathConfig>
+): Promise<OutputPathConfig> {
+  if (config.mediaServerLibrariesPath !== undefined) {
+    await setSystemSetting(
+      'media_server_libraries_path',
+      config.mediaServerLibrariesPath,
+      'Path where media server sees Aperture libraries (e.g., /mnt/ApertureLibraries/)'
+    )
+  }
+  if (config.mediaServerPathPrefix !== undefined) {
+    await setSystemSetting(
+      'media_server_path_prefix',
+      config.mediaServerPathPrefix,
+      'Base path where media server sees original media files (e.g., /mnt/)'
+    )
+  }
+  if (config.moviesUseSymlinks !== undefined) {
+    await setSystemSetting(
+      'ai_recs_movies_use_symlinks',
+      String(config.moviesUseSymlinks),
+      'Use symlinks instead of STRM files for AI Movies library'
+    )
+  }
+  if (config.seriesUseSymlinks !== undefined) {
+    await setSystemSetting(
+      'ai_recs_series_use_symlinks',
+      String(config.seriesUseSymlinks),
+      'Use symlinks instead of STRM files for AI Series library'
+    )
+  }
+  logger.info({ config }, 'Output path config updated')
+  return getOutputPathConfig()
 }
 
 // ============================================================================

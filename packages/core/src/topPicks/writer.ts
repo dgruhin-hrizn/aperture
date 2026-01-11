@@ -462,7 +462,7 @@ function buildTopPicksSeriesFilename(series: TopPicksSeries): string {
  * Get STRM content for a movie
  */
 async function getMovieStrmContent(movie: TopPicksMovie): Promise<string> {
-  const config = getConfig()
+  const config = await getConfig()
 
   // If streaming URL is preferred
   if (config.useStreamingUrl) {
@@ -495,14 +495,16 @@ async function getMovieStrmContent(movie: TopPicksMovie): Promise<string> {
 export async function writeTopPicksMovies(
   movies: PopularMovie[]
 ): Promise<{ written: number; localPath: string; embyPath: string }> {
-  const config = getConfig()
+  const config = await getConfig()
   const topPicksConfig = await getTopPicksConfig()
   const startTime = Date.now()
   const useSymlinks = topPicksConfig.moviesUseSymlinks
 
-  // Build paths for the global Top Picks Movies library
-  const localPath = path.join(config.strmRoot, 'top-picks', 'movies')
-  const embyPath = path.join(config.libraryPathPrefix, '..', 'top-picks', 'movies')
+  // Build paths for the global Top Picks Movies library:
+  // - localPath: where Aperture writes files (inside Aperture container)
+  // - embyPath: where media server sees them (inside Emby/Jellyfin container)
+  const localPath = path.join(config.strmRoot, 'top-picks-movies')
+  const embyPath = path.join(config.libraryPathPrefix, 'top-picks-movies')
 
   logger.info(
     { localPath, embyPath, count: movies.length, useSymlinks },
@@ -770,14 +772,16 @@ export async function writeTopPicksMovies(
 export async function writeTopPicksSeries(
   seriesList: PopularSeries[]
 ): Promise<{ written: number; localPath: string; embyPath: string }> {
-  const config = getConfig()
+  const config = await getConfig()
   const topPicksConfig = await getTopPicksConfig()
   const startTime = Date.now()
   const useSymlinks = topPicksConfig.seriesUseSymlinks
 
-  // Build paths for the global Top Picks Series library
-  const localPath = path.join(config.strmRoot, 'top-picks', 'series')
-  const embyPath = path.join(config.libraryPathPrefix, '..', 'top-picks', 'series')
+  // Build paths for the global Top Picks Series library:
+  // - localPath: where Aperture writes files (inside Aperture container)
+  // - embyPath: where media server sees them (inside Emby/Jellyfin container)
+  const localPath = path.join(config.strmRoot, 'top-picks-series')
+  const embyPath = path.join(config.libraryPathPrefix, 'top-picks-series')
 
   logger.info(
     { localPath, embyPath, count: seriesList.length, useSymlinks },
