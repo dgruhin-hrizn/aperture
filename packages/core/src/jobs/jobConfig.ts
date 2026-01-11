@@ -28,6 +28,7 @@ interface JobConfigRow {
 }
 
 // Default schedules (configurable via Admin → Jobs)
+// Jobs at same intervals are staggered by minute offset to avoid resource contention
 const ENV_DEFAULTS: Record<
   string,
   {
@@ -38,46 +39,38 @@ const ENV_DEFAULTS: Record<
     dayOfWeek?: number
   }
 > = {
-  // Movie jobs - Scan libraries daily at 2am
-  'sync-movies': { scheduleType: 'daily', hour: 2, minute: 0 },
-  // Watch history every 2 hours
+  // === EVERY HOUR (staggered by 15 mins) ===
+  'refresh-assistant-suggestions': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 1 },
+  'sync-series-watch-history': { scheduleType: 'interval', hour: 0, minute: 15, intervalHours: 1 },
+  'sync-watching-libraries': { scheduleType: 'interval', hour: 0, minute: 30, intervalHours: 1 },
+
+  // === EVERY 2 HOURS ===
   'sync-movie-watch-history': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 2 },
-  'full-sync-movie-watch-history': { scheduleType: 'manual', hour: 0, minute: 0 },
-  // Embeddings daily at 3am
-  'generate-movie-embeddings': { scheduleType: 'daily', hour: 3, minute: 0 },
-  // Recommendations weekly on Sunday at 4am
-  'generate-movie-recommendations': { scheduleType: 'weekly', hour: 4, minute: 0, dayOfWeek: 0 },
-  'rebuild-movie-recommendations': { scheduleType: 'manual', hour: 0, minute: 0 },
-  // Library sync after recommendations (weekly Sunday at 5am)
-  'sync-movie-libraries': { scheduleType: 'weekly', hour: 5, minute: 0, dayOfWeek: 0 },
-  // Series jobs - Scan libraries daily at 2am
-  'sync-series': { scheduleType: 'daily', hour: 2, minute: 0 },
-  // Watch history every 2 hours
-  'sync-series-watch-history': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 2 },
-  'full-sync-series-watch-history': { scheduleType: 'manual', hour: 0, minute: 0 },
-  // Embeddings daily at 3am
-  'generate-series-embeddings': { scheduleType: 'daily', hour: 3, minute: 0 },
-  // Recommendations weekly on Sunday at 4am
-  'generate-series-recommendations': { scheduleType: 'weekly', hour: 4, minute: 0, dayOfWeek: 0 },
-  // Library sync after recommendations (weekly Sunday at 5am)
-  'sync-series-libraries': { scheduleType: 'weekly', hour: 5, minute: 0, dayOfWeek: 0 },
-  // Top Picks job - daily at 5am
-  'refresh-top-picks': { scheduleType: 'daily', hour: 5, minute: 0 },
-  // Trakt sync job (every 6 hours)
-  'sync-trakt-ratings': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 6 },
-  // Watching libraries job (every 4 hours)
-  'sync-watching-libraries': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 4 },
-  // Assistant suggestions job (every hour)
-  'refresh-assistant-suggestions': {
-    scheduleType: 'interval',
-    hour: 0,
-    minute: 0,
-    intervalHours: 1,
-  },
-  // Metadata enrichment job (every 6 hours)
+
+  // === EVERY 3 HOURS (staggered by 10 mins) ===
+  'sync-movies': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 3 },
+  'sync-series': { scheduleType: 'interval', hour: 0, minute: 10, intervalHours: 3 },
+  'sync-movie-libraries': { scheduleType: 'interval', hour: 0, minute: 20, intervalHours: 3 },
+  'sync-series-libraries': { scheduleType: 'interval', hour: 0, minute: 30, intervalHours: 3 },
+
+  // === EVERY 6 HOURS (staggered by 10 mins) ===
   'enrich-metadata': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 6 },
-  // Database backup job (daily at 1am)
-  'backup-database': { scheduleType: 'daily', hour: 1, minute: 0 },
+  'generate-movie-embeddings': { scheduleType: 'interval', hour: 0, minute: 10, intervalHours: 6 },
+  'generate-series-embeddings': { scheduleType: 'interval', hour: 0, minute: 20, intervalHours: 6 },
+  'sync-trakt-ratings': { scheduleType: 'interval', hour: 0, minute: 30, intervalHours: 6 },
+
+  // === DAILY ===
+  'backup-database': { scheduleType: 'daily', hour: 2, minute: 0 },
+  'refresh-top-picks': { scheduleType: 'daily', hour: 5, minute: 0 },
+
+  // === WEEKLY (Sunday at 4am) ===
+  'generate-movie-recommendations': { scheduleType: 'weekly', hour: 4, minute: 0, dayOfWeek: 0 },
+  'generate-series-recommendations': { scheduleType: 'weekly', hour: 4, minute: 0, dayOfWeek: 0 },
+
+  // === MANUAL ONLY ===
+  'full-sync-movie-watch-history': { scheduleType: 'manual', hour: 0, minute: 0 },
+  'full-sync-series-watch-history': { scheduleType: 'manual', hour: 0, minute: 0 },
+  'rebuild-movie-recommendations': { scheduleType: 'manual', hour: 0, minute: 0 },
 }
 
 function rowToConfig(row: JobConfigRow): JobConfig {
@@ -112,14 +105,11 @@ export async function getJobConfig(jobName: string): Promise<JobConfig | null> {
   // Fall back to defaults if not in database
   const defaultConfig = ENV_DEFAULTS[jobName]
   if (defaultConfig) {
-    const isTimeBasedSchedule =
-      defaultConfig.scheduleType === 'daily' || defaultConfig.scheduleType === 'weekly'
-
     return {
       jobName,
       scheduleType: defaultConfig.scheduleType,
-      scheduleHour: isTimeBasedSchedule ? defaultConfig.hour : null,
-      scheduleMinute: isTimeBasedSchedule ? defaultConfig.minute : null,
+      scheduleHour: defaultConfig.hour,
+      scheduleMinute: defaultConfig.minute,
       scheduleDayOfWeek: defaultConfig.dayOfWeek ?? null,
       scheduleIntervalHours: defaultConfig.intervalHours ?? null,
       isEnabled: true,
@@ -224,7 +214,8 @@ export function scheduleToCron(config: JobConfig): string | null {
 
     case 'interval': {
       const intervalHours = config.scheduleIntervalHours ?? 1
-      return `0 */${intervalHours} * * *`
+      // Use minute offset for staggering jobs at the same interval
+      return `${minute} */${intervalHours} * * *`
     }
 
     default:
@@ -266,6 +257,10 @@ export function formatSchedule(config: JobConfig): string {
 
     case 'interval': {
       const hours = config.scheduleIntervalHours ?? 1
+      // Show minute offset if non-zero (for staggered jobs)
+      if (minute > 0) {
+        return hours === 1 ? `Every hour at :${minute.toString().padStart(2, '0')}` : `Every ${hours} hours at :${minute.toString().padStart(2, '0')}`
+      }
       return hours === 1 ? 'Every hour' : `Every ${hours} hours`
     }
 
