@@ -9,6 +9,8 @@ import {
   validateBackup,
   getBackupPath,
   formatBytes,
+  cancelBackupProcess,
+  cancelJob,
   type BackupConfig,
 } from '@aperture/core'
 import { requireAdmin } from '../plugins/auth.js'
@@ -182,6 +184,38 @@ const backupRoutes: FastifyPluginAsync = async (fastify) => {
       }
     }
   )
+
+  /**
+   * POST /api/backup/cancel/:jobId
+   * Cancel a running backup
+   */
+  fastify.post<{
+    Params: { jobId: string }
+  }>('/api/backup/cancel/:jobId', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const { jobId } = request.params
+
+      // Cancel the job (marks it as cancelled)
+      const jobCancelled = cancelJob(jobId)
+      
+      // Also kill the pg_dump process if it's still running
+      const processCancelled = cancelBackupProcess(jobId)
+
+      if (jobCancelled || processCancelled) {
+        return reply.send({
+          success: true,
+          message: 'Backup cancelled',
+        })
+      } else {
+        return reply.status(404).send({
+          error: 'No running backup found with that job ID',
+        })
+      }
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to cancel backup')
+      return reply.status(500).send({ error: 'Failed to cancel backup' })
+    }
+  })
 
   /**
    * POST /api/backup/restore

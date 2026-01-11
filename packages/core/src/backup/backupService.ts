@@ -1,4 +1,4 @@
-import { spawn } from 'child_process'
+import { spawn, ChildProcess } from 'child_process'
 import * as fs from 'fs'
 import * as path from 'path'
 import * as zlib from 'zlib'
@@ -11,9 +11,26 @@ import {
   addLog,
   completeJob,
   failJob,
+  isJobCancelled,
 } from '../jobs/progress.js'
 
 const logger = createChildLogger('backup-service')
+
+// Track active backup processes for cancellation
+const activeBackupProcesses = new Map<string, ChildProcess>()
+
+/**
+ * Cancel an active backup by killing its process
+ */
+export function cancelBackupProcess(jobId: string): boolean {
+  const process = activeBackupProcesses.get(jobId)
+  if (process) {
+    process.kill('SIGTERM')
+    activeBackupProcesses.delete(jobId)
+    return true
+  }
+  return false
+}
 
 export interface BackupInfo {
   filename: string
@@ -141,11 +158,18 @@ export async function createBackup(jobId?: string): Promise<BackupResult> {
       },
     })
 
+    // Track the process for cancellation
+    if (jobId) {
+      activeBackupProcesses.set(jobId, pgDump)
+    }
+
     // Write directly to file (pg_dump handles compression internally)
     const writeStream = fs.createWriteStream(filePath)
 
     // Collect stderr for error reporting
     let stderr = ''
+    let wasCancelled = false
+
     pgDump.stderr.on('data', (data) => {
       stderr += data.toString()
       // Log any pg_dump messages
@@ -155,18 +179,44 @@ export async function createBackup(jobId?: string): Promise<BackupResult> {
     })
 
     // Pipe pg_dump -> file (compression handled by pg_dump)
-    await new Promise<void>((resolve, reject) => {
-      pgDump.stdout.pipe(writeStream)
+    try {
+      await new Promise<void>((resolve, reject) => {
+        pgDump.stdout.pipe(writeStream)
 
-      writeStream.on('finish', resolve)
-      writeStream.on('error', reject)
-      pgDump.on('error', reject)
-      pgDump.on('close', (code) => {
-        if (code !== 0) {
-          reject(new Error(`pg_dump exited with code ${code}: ${stderr}`))
-        }
+        writeStream.on('finish', resolve)
+        writeStream.on('error', reject)
+        pgDump.on('error', reject)
+        pgDump.on('close', (code, signal) => {
+          // Check if it was cancelled
+          if (signal === 'SIGTERM' || (jobId && isJobCancelled(jobId))) {
+            wasCancelled = true
+            reject(new Error('Backup cancelled'))
+          } else if (code !== 0) {
+            reject(new Error(`pg_dump exited with code ${code}: ${stderr}`))
+          }
+        })
       })
-    })
+    } finally {
+      // Clean up process tracking
+      if (jobId) {
+        activeBackupProcesses.delete(jobId)
+      }
+    }
+
+    // If cancelled, clean up partial file and return
+    if (wasCancelled || (jobId && isJobCancelled(jobId))) {
+      try {
+        await fs.promises.unlink(filePath)
+        logger.info({ filename }, 'Deleted partial backup file after cancellation')
+      } catch {
+        // Ignore if file doesn't exist
+      }
+      return {
+        success: false,
+        error: 'Backup cancelled by user',
+        duration: Date.now() - startTime,
+      }
+    }
 
     // Step 3: Finalize
     if (trackProgress && jobId) {

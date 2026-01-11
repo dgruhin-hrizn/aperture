@@ -38,6 +38,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorIcon from '@mui/icons-material/Error'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
+import CancelIcon from '@mui/icons-material/Cancel'
 
 interface BackupInfo {
   filename: string
@@ -339,6 +340,31 @@ export function BackupSection() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create backup')
       setCreatingBackup(false)
+    }
+  }
+
+  const handleCancelBackup = async () => {
+    if (!activeJobId) return
+
+    try {
+      const res = await fetch(`/api/backup/cancel/${activeJobId}`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+
+      if (res.ok) {
+        setSuccess('Backup cancelled')
+        setCreatingBackup(false)
+        setActiveJobId(null)
+        setJobProgress(null)
+        setInProgressBackup(null)
+        await fetchData()
+      } else {
+        const data = await res.json()
+        setError(data.error || 'Failed to cancel backup')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to cancel backup')
     }
   }
 
@@ -664,14 +690,25 @@ export function BackupSection() {
               {creatingBackup ? 'Backing up...' : 'Backup Now'}
             </Button>
 
+            {creatingBackup && (
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<CancelIcon />}
+                onClick={handleCancelBackup}
+              >
+                Cancel
+              </Button>
+            )}
+
             <Button
               variant="outlined"
               component="label"
               startIcon={uploadingBackup ? <CircularProgress size={16} /> : <UploadIcon />}
-              disabled={uploadingBackup || restoringBackup}
+              disabled={uploadingBackup || restoringBackup || creatingBackup}
             >
               {uploadingBackup ? 'Uploading...' : 'Upload Backup'}
-              <input type="file" hidden accept=".sql,.sql.gz" onChange={handleUploadBackup} />
+              <input type="file" hidden accept=".sql,.sql.gz,.dump" onChange={handleUploadBackup} />
             </Button>
 
             <Box display="flex" alignItems="center" gap={0.5} ml="auto">

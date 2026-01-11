@@ -14,6 +14,7 @@ export {
   validateBackup,
   getBackupPath,
   formatBytes,
+  cancelBackupProcess,
   type BackupInfo,
   type BackupResult,
   type RestoreResult,
