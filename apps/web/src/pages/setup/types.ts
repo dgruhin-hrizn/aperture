@@ -101,6 +101,10 @@ export interface LibrarySyncResult {
   failed: number
   skipped: number
   users?: UserLibraryResult[]
+  // Top Picks specific fields
+  moviesCount?: number
+  seriesCount?: number
+  usersUpdated?: number
 }
 
 export interface JobProgress {

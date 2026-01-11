@@ -227,6 +227,67 @@ function LibraryResultsSummary({ jobs, type }: { jobs: JobProgress[]; type: 'mov
   )
 }
 
+function TopPicksResultsSummary({ jobs }: { jobs: JobProgress[] }) {
+  const job = jobs.find((j) => j.id === 'refresh-top-picks')
+  
+  if (!job || (job.status !== 'completed' && job.status !== 'failed')) {
+    return null
+  }
+
+  const isSuccess = job.status === 'completed'
+  const moviesCount = job.result?.moviesCount ?? job.itemsProcessed ?? 0
+  const seriesCount = job.result?.seriesCount ?? 0
+
+  return (
+    <Box
+      sx={{
+        mt: 1.5,
+        p: 1.5,
+        border: '1px solid',
+        borderColor: isSuccess ? 'info.main' : 'error.main',
+        borderRadius: 2,
+        backgroundColor: isSuccess ? 'info.dark' : 'error.dark',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+      }}
+    >
+      <SyncIcon fontSize="small" />
+      <Typography variant="body2" fontWeight={600}>
+        Top 10 Libraries
+      </Typography>
+      <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
+        {isSuccess ? (
+          <>
+            <Chip
+              icon={<CheckCircleIcon />}
+              label={`${moviesCount} movies`}
+              size="small"
+              color="info"
+              sx={{ height: 24 }}
+            />
+            <Chip
+              icon={<CheckCircleIcon />}
+              label={`${seriesCount} series`}
+              size="small"
+              color="info"
+              sx={{ height: 24 }}
+            />
+          </>
+        ) : (
+          <Chip
+            icon={<ErrorIcon />}
+            label="Failed"
+            size="small"
+            color="error"
+            sx={{ height: 24 }}
+          />
+        )}
+      </Box>
+    </Box>
+  )
+}
+
 interface JobListItemProps {
   job: JobProgress
   isActive: boolean
@@ -523,6 +584,7 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
           </Typography>
           <LibraryResultsSummary jobs={jobsProgress} type="movies" />
           <LibraryResultsSummary jobs={jobsProgress} type="series" />
+          <TopPicksResultsSummary jobs={jobsProgress} />
         </Box>
       )}
 
