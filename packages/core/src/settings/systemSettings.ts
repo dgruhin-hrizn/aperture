@@ -646,6 +646,8 @@ export interface OutputPathConfig {
   moviesUseSymlinks: boolean
   /** Use symlinks for series recommendations */
   seriesUseSymlinks: boolean
+  /** Download and process images with ranking overlays (Sharp) */
+  downloadImages: boolean
 }
 
 // Fixed container paths (not configurable - set by volume mounts)
@@ -665,6 +667,12 @@ export async function getOutputPathConfig(): Promise<OutputPathConfig> {
   const dbPathPrefix = await getSystemSetting('media_server_path_prefix')
   const dbMoviesSymlinks = await getSystemSetting('ai_recs_movies_use_symlinks')
   const dbSeriesSymlinks = await getSystemSetting('ai_recs_series_use_symlinks')
+  const dbDownloadImages = await getSystemSetting('ai_recs_download_images')
+
+  // Default downloadImages to true when using symlinks (so ranked overlays are applied)
+  const moviesUseSymlinks = dbMoviesSymlinks !== null ? dbMoviesSymlinks === 'true' : true
+  const seriesUseSymlinks = dbSeriesSymlinks !== null ? dbSeriesSymlinks === 'true' : true
+  const defaultDownloadImages = moviesUseSymlinks || seriesUseSymlinks
 
   return {
     // Fixed paths (determined by Docker volume mounts)
@@ -672,8 +680,10 @@ export async function getOutputPathConfig(): Promise<OutputPathConfig> {
     // User-configured paths (set in setup wizard)
     mediaServerLibrariesPath: dbLibrariesPath || DEFAULT_MEDIA_SERVER_LIBRARIES_PATH,
     mediaServerPathPrefix: dbPathPrefix || DEFAULT_MEDIA_SERVER_PATH_PREFIX,
-    moviesUseSymlinks: dbMoviesSymlinks !== null ? dbMoviesSymlinks === 'true' : true,
-    seriesUseSymlinks: dbSeriesSymlinks !== null ? dbSeriesSymlinks === 'true' : true,
+    moviesUseSymlinks,
+    seriesUseSymlinks,
+    // Download images and apply ranked overlays (defaults to true when using symlinks)
+    downloadImages: dbDownloadImages !== null ? dbDownloadImages === 'true' : defaultDownloadImages,
   }
 }
 
@@ -716,6 +726,13 @@ export async function setOutputPathConfig(
       'ai_recs_series_use_symlinks',
       String(config.seriesUseSymlinks),
       'Use symlinks instead of STRM files for AI Series library'
+    )
+  }
+  if (config.downloadImages !== undefined) {
+    await setSystemSetting(
+      'ai_recs_download_images',
+      String(config.downloadImages),
+      'Download and process images with ranking overlays for AI recommendation libraries'
     )
   }
   logger.info({ config }, 'Output path config updated')
