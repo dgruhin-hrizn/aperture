@@ -349,38 +349,47 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
       </Typography>
 
       {!hasStarted && (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          <Typography variant="body2" fontWeight={500} gutterBottom>
-            What happens during initialization:
-          </Typography>
-          <Box component="ul" sx={{ mt: 1, mb: 0, pl: 2, '& li': { mb: 0.5 } }}>
-            <li>
-              <Typography variant="body2">
-                <strong>Sync Media</strong> — Import movie and TV series metadata from your media server
-              </Typography>
-            </li>
-            <li>
-              <Typography variant="body2">
-                <strong>Sync Watch History</strong> — Import viewing history to understand preferences
-              </Typography>
-            </li>
-            <li>
-              <Typography variant="body2">
-                <strong>Generate Embeddings</strong> — Create AI vectors to understand content themes (uses OpenAI)
-              </Typography>
-            </li>
-            <li>
-              <Typography variant="body2">
-                <strong>Generate Recommendations</strong> — Create personalized picks for each user
-              </Typography>
-            </li>
-            <li>
-              <Typography variant="body2">
-                <strong>Sync Libraries</strong> — Push recommendation libraries to your media server
-              </Typography>
-            </li>
-          </Box>
-        </Alert>
+        <>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <Typography variant="body2" fontWeight={500} gutterBottom>
+              What happens during initialization:
+            </Typography>
+            <Box component="ul" sx={{ mt: 1, mb: 0, pl: 2, '& li': { mb: 0.5 } }}>
+              <li>
+                <Typography variant="body2">
+                  <strong>Sync Media</strong> — Import movie and TV series metadata from your media server
+                </Typography>
+              </li>
+              <li>
+                <Typography variant="body2">
+                  <strong>Sync Watch History</strong> — Import viewing history to understand preferences
+                </Typography>
+              </li>
+              <li>
+                <Typography variant="body2">
+                  <strong>Generate Embeddings</strong> — Create AI vectors to understand content themes (uses OpenAI)
+                </Typography>
+              </li>
+              <li>
+                <Typography variant="body2">
+                  <strong>Generate Recommendations</strong> — Create personalized picks for each user
+                </Typography>
+              </li>
+              <li>
+                <Typography variant="body2">
+                  <strong>Sync Libraries</strong> — Push recommendation libraries to your media server
+                </Typography>
+              </li>
+            </Box>
+          </Alert>
+          <Alert severity="warning" sx={{ mb: 3 }} icon={false}>
+            <Typography variant="body2">
+              <strong>Heads up!</strong> This can take anywhere from a few minutes to 30+ minutes depending on the size
+              of your media libraries. Large collections with thousands of movies and episodes will take longer.
+              Now might be a good time to grab some popcorn and put on a movie while you wait! 🍿
+            </Typography>
+          </Alert>
+        </>
       )}
 
       {error && (
