@@ -365,9 +365,11 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
   const logContainerRef = useRef<HTMLDivElement>(null)
 
   const completedCount = jobsProgress.filter((j) => j.status === 'completed').length
+  const skippedCount = jobsProgress.filter((j) => j.status === 'skipped').length
+  const doneCount = completedCount + skippedCount
   const totalCount = jobsProgress.length
   const hasStarted = jobsProgress.length > 0
-  const allCompleted = hasStarted && completedCount === totalCount
+  const allCompleted = hasStarted && doneCount === totalCount
   const hasFailed = jobsProgress.some((j) => j.status === 'failed')
 
   // Auto-scroll logs to bottom
@@ -542,9 +544,19 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
           </Button>
         )}
 
-        {hasStarted && !allCompleted && !hasFailed && (
+        {hasStarted && runningJobs && !hasFailed && (
           <Button variant="contained" disabled startIcon={<CircularProgress size={20} color="inherit" />}>
             Running... ({completedCount}/{totalCount})
+          </Button>
+        )}
+
+        {hasStarted && !runningJobs && !allCompleted && !hasFailed && (
+          <Button
+            variant="contained"
+            onClick={runInitialJobs}
+            startIcon={<RunningIcon />}
+          >
+            Continue ({completedCount}/{totalCount} done)
           </Button>
         )}
 
