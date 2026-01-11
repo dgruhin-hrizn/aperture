@@ -270,14 +270,62 @@ export function CompleteStep({ wizard }: CompleteStepProps) {
                 secondary="New 'AI Picks' libraries will appear for each enabled user in Aperture"
               />
             </ListItem>
-            
-            <ListItem>
-              <ListItemIcon>
-                <ScheduleIcon fontSize="small" color="primary" />
-              </ListItemIcon>
+          </List>
+        </CardContent>
+      </Card>
+
+      {/* Default Schedules */}
+      <Card variant="outlined" sx={{ mb: 3 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <ScheduleIcon color="primary" />
+            <Typography variant="h6">
+              Automatic Schedules
+            </Typography>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Aperture runs background jobs to keep recommendations fresh. Default schedules can be modified in <strong>Admin → Jobs</strong>.
+          </Typography>
+          
+          <List dense disablePadding>
+            <ListItem sx={{ py: 0.25 }}>
               <ListItemText
-                primary="Recommendations refresh automatically"
-                secondary="Aperture syncs daily to update recommendations based on new watch history. You can adjust scheduling in the Admin area."
+                primary="Watch History"
+                secondary="Every 2 hours — Tracks what users are watching"
+                primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
+                secondaryTypographyProps={{ variant: 'caption' }}
+              />
+            </ListItem>
+            <ListItem sx={{ py: 0.25 }}>
+              <ListItemText
+                primary="Library Scan"
+                secondary="Daily at 2am — Syncs new movies and series from your media server"
+                primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
+                secondaryTypographyProps={{ variant: 'caption' }}
+              />
+            </ListItem>
+            <ListItem sx={{ py: 0.25 }}>
+              <ListItemText
+                primary="Embeddings"
+                secondary="Daily at 3am — Processes content for AI recommendations"
+                primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
+                secondaryTypographyProps={{ variant: 'caption' }}
+              />
+            </ListItem>
+            <ListItem sx={{ py: 0.25 }}>
+              <ListItemText
+                primary="AI Recommendations"
+                secondary="Weekly on Sunday at 4am — Generates personalized picks for each user"
+                primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
+                secondaryTypographyProps={{ variant: 'caption' }}
+              />
+            </ListItem>
+            <ListItem sx={{ py: 0.25 }}>
+              <ListItemText
+                primary="Top Picks"
+                secondary="Daily at 5am — Updates global trending content libraries"
+                primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
+                secondaryTypographyProps={{ variant: 'caption' }}
               />
             </ListItem>
           </List>
