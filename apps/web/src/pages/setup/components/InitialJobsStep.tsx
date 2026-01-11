@@ -572,6 +572,18 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
           </Button>
         )}
 
+        {/* Dedicated Top 10 button - shows when Top 10 hasn't run yet */}
+        {hasStarted && !runningJobs && jobsProgress.some((j) => j.id === 'refresh-top-picks' && (j.status === 'pending' || j.status === 'skipped')) && (
+          <Button
+            variant="outlined"
+            color="info"
+            onClick={() => runSingleJob('refresh-top-picks')}
+            startIcon={<SyncIcon />}
+          >
+            Run Top 10
+          </Button>
+        )}
+
         {hasStarted && (
           <Button
             variant="outlined"
