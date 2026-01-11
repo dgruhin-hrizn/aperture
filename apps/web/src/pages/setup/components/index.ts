@@ -1,3 +1,4 @@
+export { RestoreStep } from './RestoreStep'
 export { MediaServerStep } from './MediaServerStep'
 export { LibrariesStep } from './LibrariesStep'
 export { AiRecsStep } from './AiRecsStep'

@@ -211,6 +211,82 @@ export function useSetupWizard(): SetupWizardContext {
       })
   }, [status?.needsSetup])
 
+  // Fetch last job runs when navigating to the jobs step (to restore state after refresh)
+  useEffect(() => {
+    if (stepId !== 'initialJobs' || jobsProgress.length > 0) return
+
+    fetch('/api/setup/jobs/last-runs', { credentials: 'include' })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.lastRuns || Object.keys(data.lastRuns).length === 0) return
+
+        // Check if all jobs have run recently (within last 24 hours)
+        const lastRuns = data.lastRuns as Record<string, {
+          status: string
+          completedAt: string
+          itemsProcessed: number
+          itemsTotal: number
+          error?: string
+          result?: Record<string, unknown>
+          logs?: Array<{ timestamp: string; level: string; message: string }>
+        }>
+
+        // Build job progress from last runs
+        const restoredProgress: JobProgress[] = INITIAL_JOBS.map((job) => {
+          const lastRun = lastRuns[job.id]
+          if (lastRun) {
+            return {
+              id: job.id,
+              name: job.name,
+              description: job.description,
+              status: lastRun.status as 'completed' | 'failed',
+              progress: lastRun.status === 'completed' ? 100 : undefined,
+              itemsProcessed: lastRun.itemsProcessed,
+              itemsTotal: lastRun.itemsTotal,
+              error: lastRun.error,
+              result: lastRun.result as import('../types').LibrarySyncResult | undefined,
+            }
+          }
+          return {
+            id: job.id,
+            name: job.name,
+            description: job.description,
+            status: 'pending' as const,
+          }
+        })
+
+        // Only restore if at least one job has run
+        const hasRun = restoredProgress.some((j) => j.status !== 'pending')
+        if (hasRun) {
+          setJobsProgress(restoredProgress)
+
+          // Restore logs from last runs
+          const restoredLogs: string[] = ['[Restored] Previous job run results:']
+          for (const job of INITIAL_JOBS) {
+            const lastRun = lastRuns[job.id]
+            if (lastRun) {
+              const completedAt = new Date(lastRun.completedAt).toLocaleTimeString()
+              const statusIcon = lastRun.status === 'completed' ? '✓' : '✗'
+              restoredLogs.push(`[${completedAt}] ${statusIcon} ${job.name}: ${lastRun.status}`)
+              
+              // Add any logs from the run
+              if (lastRun.logs && Array.isArray(lastRun.logs)) {
+                for (const log of lastRun.logs.slice(-10)) { // Last 10 logs per job
+                  const time = new Date(log.timestamp).toLocaleTimeString()
+                  const levelIcon = log.level === 'error' ? '✗' : log.level === 'warn' ? '⚠' : '•'
+                  restoredLogs.push(`  [${time}] ${levelIcon} ${log.message}`)
+                }
+              }
+            }
+          }
+          setJobLogs(restoredLogs)
+        }
+      })
+      .catch(() => {
+        // non-fatal
+      })
+  }, [stepId, jobsProgress.length])
+
   const updateProgress = useCallback(
     async (opts: { currentStep?: SetupStepId | null; completedStep?: SetupStepId }) => {
       try {
@@ -923,6 +999,36 @@ export function useSetupWizard(): SetupWizardContext {
     }
   }, [runJobAndWait, updateProgress, goToStep])
 
+  // Run a single job by ID (for re-running completed or failed jobs)
+  const runSingleJob = useCallback(async (jobId: string) => {
+    const jobIndex = INITIAL_JOBS.findIndex((j) => j.id === jobId)
+    if (jobIndex === -1) {
+      setError(`Unknown job: ${jobId}`)
+      return
+    }
+
+    const job = INITIAL_JOBS[jobIndex]
+    setRunningJobs(true)
+    setError('')
+    setJobLogs((l) => [...l, `[${new Date().toLocaleTimeString()}] Re-running: ${job.name}...`])
+
+    // Reset this job's status to pending first
+    setJobsProgress((prev) =>
+      prev.map((j, i) => (i === jobIndex ? { ...j, status: 'pending' as const, error: undefined, progress: undefined } : j))
+    )
+
+    try {
+      await runJobAndWait(jobIndex)
+      setJobLogs((l) => [...l, `[${new Date().toLocaleTimeString()}] ✓ Re-run complete: ${job.name}`])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Failed to re-run ${job.name}`)
+      setJobLogs((l) => [...l, `[${new Date().toLocaleTimeString()}] ✗ Re-run failed: ${err instanceof Error ? err.message : 'Unknown error'}`])
+    } finally {
+      setRunningJobs(false)
+      setCurrentJobIndex(-1)
+    }
+  }, [runJobAndWait])
+
   // Complete handler
   const handleCompleteSetup = useCallback(async () => {
     setSaving(true)
@@ -1031,6 +1137,7 @@ export function useSetupWizard(): SetupWizardContext {
     setTopPicks,
     saveTopPicks,
     runInitialJobs,
+    runSingleJob,
     handleCompleteSetup,
     updateProgress,
   }

@@ -46,6 +46,10 @@ services:
       # ─────────────────────────────────────────────────────────────────────────
       - ./data/aperture-libraries:/aperture-libraries
       # ─────────────────────────────────────────────────────────────────────────
+      # Database Backups - where automatic backups are stored
+      # ─────────────────────────────────────────────────────────────────────────
+      - ./data/backups:/backups
+      # ─────────────────────────────────────────────────────────────────────────
       # Media Access - mount your media library for symlink creation
       # ─────────────────────────────────────────────────────────────────────────
       # - /path/to/your/media:/media:ro

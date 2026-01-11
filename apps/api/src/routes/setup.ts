@@ -47,6 +47,7 @@ import {
 
   // Job progress
   getJobProgress,
+  getLastJobRuns,
 } from '@aperture/core'
 import { requireAdmin } from '../plugins/auth.js'
 import { query, queryOne } from '../lib/db.js'
@@ -1080,6 +1081,65 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.send(progress)
     }
   )
+
+  /**
+   * GET /api/setup/jobs/last-runs
+   * Get the last run for each job type (for restoring state after page refresh)
+   */
+  fastify.get('/api/setup/jobs/last-runs', async (_request, reply) => {
+    const complete = await isSetupComplete()
+    if (complete) {
+      return reply.status(403).send({
+        error: 'Setup is already complete. Use admin job endpoints instead.',
+      })
+    }
+
+    const lastRuns = await getLastJobRuns()
+    
+    // Convert Map to object for JSON serialization
+    const result: Record<string, {
+      status: string
+      completedAt: Date
+      itemsProcessed: number
+      itemsTotal: number
+      error?: string
+      result?: Record<string, unknown>
+      logs?: Array<{ timestamp: Date; level: string; message: string }>
+    }> = {}
+
+    // Only include jobs that are part of the initial setup
+    const setupJobs = [
+      'sync-movies',
+      'sync-series',
+      'sync-movie-watch-history',
+      'sync-series-watch-history',
+      'generate-movie-embeddings',
+      'generate-series-embeddings',
+      'generate-movie-recommendations',
+      'generate-series-recommendations',
+      'sync-movie-libraries',
+      'sync-series-libraries',
+    ]
+
+    for (const jobName of setupJobs) {
+      const run = lastRuns.get(jobName)
+      if (run) {
+        const metadata = run.metadata as { logs?: Array<{ timestamp: Date; level: string; message: string }>; [key: string]: unknown } || {}
+        const { logs, ...restMetadata } = metadata
+        result[jobName] = {
+          status: run.status,
+          completedAt: run.completed_at,
+          itemsProcessed: run.items_processed,
+          itemsTotal: run.items_total,
+          error: run.error_message || undefined,
+          result: restMetadata,
+          logs: logs,
+        }
+      }
+    }
+
+    return reply.send({ lastRuns: result })
+  })
 
   /**
    * POST /api/setup/complete

@@ -249,10 +249,10 @@ export async function processSeriesStrmForAllUsers(
 
         // Step 1: Write STRM files
         const strmResult = await writeSeriesStrmFilesForUser(user.id, user.provider_user_id, displayName)
-        addLog(actualJobId, 'debug', `  📝 Series STRM files written: ${strmResult.written} files at ${strmResult.localPath}`)
+        addLog(actualJobId, 'debug', `  📝 Series STRM files written: ${strmResult.seriesCount} series (${strmResult.written} episode files) at ${strmResult.localPath}`)
 
         // Skip library creation/permissions if no recommendations (prevents 400 errors)
-        if (strmResult.written === 0) {
+        if (strmResult.seriesCount === 0) {
           addLog(actualJobId, 'info', `⏭️ Skipping TV library sync for ${displayName} (no recommendations yet)`)
           userResults.push({
             userId: user.id,
@@ -290,13 +290,13 @@ export async function processSeriesStrmForAllUsers(
           username: user.username,
           displayName,
           status: 'success',
-          recommendationCount: strmResult.written,
+          recommendationCount: strmResult.seriesCount,
           libraryName: libraryResult.name,
           libraryCreated: libraryResult.created,
         })
 
         success++
-        addLog(actualJobId, 'info', `✅ Completed Series STRM processing for ${displayName} (${strmResult.written} recommendations)`)
+        addLog(actualJobId, 'info', `✅ Completed Series STRM processing for ${displayName} (${strmResult.seriesCount} series, ${strmResult.written} episodes)`)
         updateJobProgress(actualJobId, success + failed + skipped, totalUsers, `${success + failed + skipped}/${totalUsers} users`)
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error'

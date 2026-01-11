@@ -7,7 +7,7 @@ CREATE TABLE recommendation_config (
   
   -- Candidate selection
   max_candidates INTEGER NOT NULL DEFAULT 50000,      -- How many movies to consider (high = more thorough, slower)
-  selected_count INTEGER NOT NULL DEFAULT 50,         -- Final recommendations per user
+  selected_count INTEGER NOT NULL DEFAULT 12,         -- Final recommendations per user
   recent_watch_limit INTEGER NOT NULL DEFAULT 50,     -- Movies used to build taste profile
   
   -- Scoring weights (must sum to ~1.0 for balanced scoring)

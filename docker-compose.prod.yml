@@ -90,7 +90,19 @@ services:
       - /mnt/user/Media/ApertureLibraries:/aperture-libraries
 
       # ─────────────────────────────────────────────────────────────────────────
-      # VOLUME 2: Your Media Library (read-only access)
+      # VOLUME 2: Database Backups
+      # ─────────────────────────────────────────────────────────────────────────
+      # Automatic database backups are stored here. Daily backups run at 2 AM.
+      # Keep this on a reliable storage location, ideally separate from the
+      # database volume for disaster recovery.
+      #
+      # Unraid Example:
+      #   - Host folder:     /mnt/user/appdata/aperture/backups
+      #
+      - /mnt/user/appdata/aperture/backups:/backups
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # VOLUME 3: Your Media Library (read-only access)
       # ─────────────────────────────────────────────────────────────────────────
       # Aperture needs to read your media files to create symlinks.
       # Mount the SAME media folder that your media server uses.

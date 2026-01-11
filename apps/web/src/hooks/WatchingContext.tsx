@@ -1,14 +1,13 @@
 /**
- * useWatching Hook
+ * WatchingContext
  * 
- * Manages the user's "Shows You Watch" list state.
- * Provides methods to add/remove series and check watching status.
+ * Context and provider for managing the user's "Shows You Watch" list state.
  */
 
-import { useState, useEffect, useCallback, createContext, useContext } from 'react'
+import { useState, useEffect, useCallback, createContext } from 'react'
 import type { ReactNode } from 'react'
 
-interface WatchingContextValue {
+export interface WatchingContextValue {
   /** Set of series IDs the user is watching */
   watchingIds: Set<string>
   /** Whether initial data is loading */
@@ -25,7 +24,7 @@ interface WatchingContextValue {
   refresh: () => Promise<void>
 }
 
-const WatchingContext = createContext<WatchingContextValue | null>(null)
+export const WatchingContext = createContext<WatchingContextValue | null>(null)
 
 interface WatchingProviderProps {
   children: ReactNode
@@ -138,10 +137,3 @@ export function WatchingProvider({ children }: WatchingProviderProps) {
   )
 }
 
-export function useWatching() {
-  const context = useContext(WatchingContext)
-  if (!context) {
-    throw new Error('useWatching must be used within a WatchingProvider')
-  }
-  return context
-}

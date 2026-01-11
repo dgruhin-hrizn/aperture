@@ -10,6 +10,7 @@ export const DEFAULT_LIBRARY_IMAGES: Record<string, string> = {
 }
 
 export const STEP_ORDER: Array<{ id: SetupStepId; label: string }> = [
+  { id: 'restoreFromBackup', label: 'Restore' },
   { id: 'mediaServer', label: 'Connect' },
   { id: 'mediaLibraries', label: 'Libraries' },
   { id: 'aiRecsLibraries', label: 'Recs' },

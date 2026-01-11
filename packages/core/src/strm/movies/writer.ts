@@ -79,10 +79,10 @@ export async function writeStrmFilesForUser(
   await fs.mkdir(localPath, { recursive: true })
   logger.info({ localPath }, '📂 Directory ready')
 
-  // Get user's latest recommendations
+  // Get user's latest movie recommendations
   const latestRun = await queryOne<{ id: string }>(
     `SELECT id FROM recommendation_runs
-     WHERE user_id = $1 AND status = 'completed'
+     WHERE user_id = $1 AND status = 'completed' AND media_type = 'movie'
      ORDER BY created_at DESC LIMIT 1`,
     [userId]
   )

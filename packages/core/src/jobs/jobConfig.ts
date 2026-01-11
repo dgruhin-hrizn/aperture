@@ -54,6 +54,8 @@ const ENV_DEFAULTS: Record<string, { cron: string; scheduleType: ScheduleType; h
   'refresh-assistant-suggestions': { cron: '0 * * * *', scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 1 },
   // Metadata enrichment job (manual by default, can be scheduled)
   'enrich-metadata': { cron: '', scheduleType: 'manual', hour: 0, minute: 0 },
+  // Database backup job (daily at 2 AM by default)
+  'backup-database': { cron: '0 2 * * *', scheduleType: 'daily', hour: 2, minute: 0 },
 }
 
 function rowToConfig(row: JobConfigRow): JobConfig {

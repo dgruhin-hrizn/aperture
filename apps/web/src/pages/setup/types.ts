@@ -17,6 +17,7 @@ export interface ExistingMediaServer {
 }
 
 export type SetupStepId =
+  | 'restoreFromBackup'
   | 'mediaServer'
   | 'mediaLibraries'
   | 'aiRecsLibraries'
@@ -235,6 +236,7 @@ export interface SetupWizardActions {
 
   // Jobs
   runInitialJobs: () => Promise<void>
+  runSingleJob: (jobId: string) => Promise<void>
 
   // Complete
   handleCompleteSetup: () => Promise<void>

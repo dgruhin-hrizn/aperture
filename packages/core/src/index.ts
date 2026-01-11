@@ -452,3 +452,22 @@ export {
   clearEnrichmentData,
 } from './enrichment/index.js'
 
+// Backup
+export {
+  getBackupConfig,
+  setBackupConfig,
+  updateLastBackupInfo,
+  createBackup,
+  restoreBackup,
+  listBackups,
+  deleteBackup,
+  pruneOldBackups,
+  validateBackup,
+  getBackupPath,
+  formatBytes,
+  type BackupConfig,
+  type BackupInfo,
+  type BackupResult,
+  type RestoreResult,
+} from './backup/index.js'
+
