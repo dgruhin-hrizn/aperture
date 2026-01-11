@@ -6,8 +6,39 @@ const getLogLevel = () => {
   return 'info'
 }
 
+// Paths to redact sensitive data from logs (defense-in-depth)
+const REDACT_PATHS = [
+  // Common sensitive field names
+  'apiKey',
+  'api_key',
+  'password',
+  'secret',
+  'token',
+  'accessToken',
+  'refreshToken',
+  'clientSecret',
+  // Nested paths (one level deep)
+  '*.apiKey',
+  '*.api_key',
+  '*.password',
+  '*.secret',
+  '*.token',
+  '*.accessToken',
+  '*.refreshToken',
+  '*.clientSecret',
+  // Config object paths
+  'config.apiKey',
+  'config.api_key',
+  'config.secret',
+  'config.password',
+]
+
 const defaultOptions: LoggerOptions = {
   level: getLogLevel(),
+  redact: {
+    paths: REDACT_PATHS,
+    censor: '[REDACTED]',
+  },
   transport:
     process.env.NODE_ENV === 'production'
       ? undefined

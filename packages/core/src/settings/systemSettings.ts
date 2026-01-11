@@ -3,6 +3,28 @@ import { createChildLogger } from '../lib/logger.js'
 
 const logger = createChildLogger('system-settings')
 
+// Keys that contain sensitive data and should be redacted in logs
+const SENSITIVE_SETTING_KEYS = new Set([
+  'media_server_api_key',
+  'openai_api_key',
+  'tmdb_api_key',
+  'omdb_api_key',
+  'trakt_client_secret',
+])
+
+/**
+ * Check if a setting key contains sensitive data that should be redacted
+ */
+function isSensitiveSetting(key: string): boolean {
+  return (
+    SENSITIVE_SETTING_KEYS.has(key) ||
+    key.includes('api_key') ||
+    key.includes('secret') ||
+    key.includes('password') ||
+    key.includes('token')
+  )
+}
+
 export interface SystemSetting {
   key: string
   value: string
@@ -59,7 +81,8 @@ export async function setSystemSetting(
        updated_at = NOW()`,
     [key, value, description ?? null]
   )
-  logger.info({ key, value }, 'System setting updated')
+  const logValue = isSensitiveSetting(key) ? '[REDACTED]' : value
+  logger.info({ key, value: logValue }, 'System setting updated')
 }
 
 /**
