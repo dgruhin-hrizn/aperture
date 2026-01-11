@@ -241,7 +241,7 @@ function JobListItem({ job, isActive, canRerun, onRerun }: JobListItemProps) {
       ? `${job.itemsProcessed ?? 0} / ${job.itemsTotal}`
       : null
 
-  const showRerunButton = canRerun && (job.status === 'completed' || job.status === 'failed' || job.status === 'skipped')
+  const showRerunButton = canRerun && (job.status === 'completed' || job.status === 'failed' || job.status === 'skipped' || job.status === 'pending')
 
   // Determine border color based on status
   const getBorderColor = () => {
@@ -273,11 +273,11 @@ function JobListItem({ job, isActive, canRerun, onRerun }: JobListItemProps) {
             edge="end"
             size="small"
             onClick={onRerun}
-            title={job.status === 'skipped' ? `Run ${job.name}` : `Re-run ${job.name}`}
+            title={job.status === 'skipped' || job.status === 'pending' ? `Run ${job.name}` : `Re-run ${job.name}`}
             sx={{ 
-              color: job.status === 'failed' ? 'warning.main' : job.status === 'skipped' ? 'info.main' : 'primary.main',
+              color: job.status === 'failed' ? 'warning.main' : (job.status === 'skipped' || job.status === 'pending') ? 'info.main' : 'primary.main',
               '&:hover': { 
-                backgroundColor: job.status === 'failed' ? 'warning.light' : job.status === 'skipped' ? 'info.light' : 'primary.light', 
+                backgroundColor: job.status === 'failed' ? 'warning.light' : (job.status === 'skipped' || job.status === 'pending') ? 'info.light' : 'primary.light', 
                 color: 'white' 
               }
             }}
@@ -569,18 +569,6 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
             startIcon={<RunningIcon />}
           >
             Retry
-          </Button>
-        )}
-
-        {/* Dedicated Top 10 button - shows when Top 10 hasn't run yet */}
-        {hasStarted && !runningJobs && jobsProgress.some((j) => j.id === 'refresh-top-picks' && (j.status === 'pending' || j.status === 'skipped')) && (
-          <Button
-            variant="outlined"
-            color="info"
-            onClick={() => runSingleJob('refresh-top-picks')}
-            startIcon={<SyncIcon />}
-          >
-            Run Top 10
           </Button>
         )}
 
