@@ -473,3 +473,13 @@ export {
   type RestoreResult,
 } from './backup/index.js'
 
+// Maintenance
+export {
+  scanMissingPosters,
+  repairPosters,
+  type MissingPosterItem,
+  type RepairResult,
+  type ScanResult,
+  type RepairProgress,
+} from './maintenance/index.js'
+

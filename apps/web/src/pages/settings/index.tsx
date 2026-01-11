@@ -27,6 +27,7 @@ import OutputIcon from '@mui/icons-material/Output'
 import PsychologyIcon from '@mui/icons-material/Psychology'
 import StorageIcon from '@mui/icons-material/Storage'
 import ExtensionIcon from '@mui/icons-material/Extension'
+import HandymanIcon from '@mui/icons-material/Handyman'
 import { useSettingsData } from './hooks'
 import {
   LibraryConfigSection,
@@ -46,6 +47,7 @@ import {
   TMDbConfigSection,
   OMDbConfigSection,
   BackupSection,
+  PosterRepairSection,
 } from './components'
 
 interface TabPanelProps {
@@ -316,6 +318,7 @@ export function SettingsPage() {
             >
               <Tab icon={<StorageIcon />} iconPosition="start" label="Media Server" />
               <Tab icon={<ExtensionIcon />} iconPosition="start" label="Integrations" />
+              <Tab icon={<HandymanIcon />} iconPosition="start" label="Maintenance" />
             </Tabs>
 
             {/* Media Server Sub-tab */}
@@ -345,6 +348,13 @@ export function SettingsPage() {
                   <TMDbConfigSection />
                   <OMDbConfigSection />
                 </Box>
+              </Box>
+            </TabPanel>
+
+            {/* Maintenance Sub-tab */}
+            <TabPanel value={setupSubTab} index={2}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <PosterRepairSection />
               </Box>
             </TabPanel>
           </TabPanel>
