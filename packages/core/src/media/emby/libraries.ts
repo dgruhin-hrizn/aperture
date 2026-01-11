@@ -57,7 +57,7 @@ export async function createVirtualLibrary(
   const existing = existingLibraries.find((lib) => lib.name === name)
   
   if (existing) {
-    // Library already exists - ensure it has the sort title set
+    // Library already exists - just use it and ensure sort title is set
     await setLibrarySortTitle(provider, apiKey, existing.id, name)
     return { libraryId: existing.id, alreadyExists: true }
   }

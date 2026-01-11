@@ -12,6 +12,7 @@ import { randomUUID } from 'crypto'
 import {
   createJobProgress,
   setJobStep,
+  updateJobProgress,
   addLog,
   completeJob,
   failJob,
@@ -181,24 +182,30 @@ export async function refreshTopPicks(
       }
     }
 
+    // Set total items for progress tracking
+    const totalItems = topMovies.length + topSeries.length
+    updateJobProgress(jobId, 0, totalItems)
+
     // Step 4: Write STRM files for movies (if library enabled)
-    setJobStep(jobId, 3, 'Writing library files')
+    setJobStep(jobId, 3, 'Writing library files', totalItems)
     
     if (config.moviesLibraryEnabled) {
       addLog(jobId, 'info', '📁 Writing Top Picks Movies library files...')
       const moviesResult = await writeTopPicksMovies(topMovies)
       addLog(jobId, 'info', `✅ Written ${moviesResult.written} movie files to ${moviesResult.localPath}`)
+      updateJobProgress(jobId, topMovies.length, totalItems)
     } else {
       addLog(jobId, 'info', '⏭️ Skipping movies library (disabled)')
     }
 
     // Step 5: Write STRM files for series (if library enabled)
-    setJobStep(jobId, 4, 'Writing series library files')
+    setJobStep(jobId, 4, 'Writing series library files', totalItems)
     
     if (config.seriesLibraryEnabled) {
       addLog(jobId, 'info', '📁 Writing Top Picks Series library files...')
       const seriesResult = await writeTopPicksSeries(topSeries)
       addLog(jobId, 'info', `✅ Written ${seriesResult.written} series to ${seriesResult.localPath}`)
+      updateJobProgress(jobId, topMovies.length + topSeries.length, totalItems)
     } else {
       addLog(jobId, 'info', '⏭️ Skipping series library (disabled)')
     }
@@ -211,6 +218,9 @@ export async function refreshTopPicks(
     
     let moviesLib: LibraryInfo | null = null
     let seriesLib: LibraryInfo | null = null
+    let moviesLibraryCreated = false
+    let seriesLibraryCreated = false
+    const libraryErrors: string[] = []
     
     if (apiKey && (config.moviesLibraryEnabled || config.seriesLibraryEnabled)) {
       const strmConfig = await getConfig()
@@ -218,7 +228,7 @@ export async function refreshTopPicks(
       // Ensure Top Picks movies library exists (if enabled)
       if (config.moviesLibraryEnabled) {
         try {
-          const moviesLibPath = path.join(strmConfig.libraryPathPrefix, '..', 'top-picks', 'movies')
+          const moviesLibPath = path.join(strmConfig.libraryPathPrefix, 'top-picks-movies')
           addLog(jobId, 'info', `🔧 Checking Movies library "${config.moviesLibraryName}"...`)
           const moviesResult = await provider.createVirtualLibrary(
             apiKey,
@@ -231,18 +241,21 @@ export async function refreshTopPicks(
           } else {
             addLog(jobId, 'info', `✅ Movies library "${config.moviesLibraryName}" created`)
           }
+          moviesLibraryCreated = true
           // Store the library ID in strm_libraries for exclusion filtering
           // Use user_id = NULL for global Top Picks libraries
           await storeTopPicksLibrary(moviesResult.libraryId, config.moviesLibraryName, moviesLibPath, 'movies')
         } catch (err) {
-          addLog(jobId, 'error', `❌ Failed to ensure Movies library: ${err instanceof Error ? err.message : 'Unknown error'}`)
+          const errorMsg = err instanceof Error ? err.message : 'Unknown error'
+          addLog(jobId, 'error', `❌ Failed to ensure Movies library: ${errorMsg}`)
+          libraryErrors.push(`Movies library: ${errorMsg}`)
         }
       }
 
       // Ensure Top Picks series library exists (if enabled)
       if (config.seriesLibraryEnabled) {
         try {
-          const seriesLibPath = path.join(strmConfig.libraryPathPrefix, '..', 'top-picks', 'series')
+          const seriesLibPath = path.join(strmConfig.libraryPathPrefix, 'top-picks-series')
           addLog(jobId, 'info', `🔧 Checking Series library "${config.seriesLibraryName}"...`)
           const seriesResult = await provider.createVirtualLibrary(
             apiKey,
@@ -255,11 +268,14 @@ export async function refreshTopPicks(
           } else {
             addLog(jobId, 'info', `✅ Series library "${config.seriesLibraryName}" created`)
           }
+          seriesLibraryCreated = true
           // Store the library ID in strm_libraries for exclusion filtering
           // Use user_id = NULL for global Top Picks libraries
           await storeTopPicksLibrary(seriesResult.libraryId, config.seriesLibraryName, seriesLibPath, 'series')
         } catch (err) {
-          addLog(jobId, 'error', `❌ Failed to ensure Series library: ${err instanceof Error ? err.message : 'Unknown error'}`)
+          const errorMsg = err instanceof Error ? err.message : 'Unknown error'
+          addLog(jobId, 'error', `❌ Failed to ensure Series library: ${errorMsg}`)
+          libraryErrors.push(`Series library: ${errorMsg}`)
         }
       }
 
@@ -397,7 +413,17 @@ export async function refreshTopPicks(
       moviesCount: topMovies.length,
       seriesCount: topSeries.length,
       usersUpdated: 0,
+      moviesLibraryCreated,
+      seriesLibraryCreated,
+      libraryErrors,
       jobId,
+    }
+
+    // If library creation was enabled but failed, throw an error so job shows as failed
+    if (libraryErrors.length > 0) {
+      const errorSummary = libraryErrors.join('; ')
+      addLog(jobId, 'error', `🎬 Top Picks files created (${result.moviesCount} movies, ${result.seriesCount} series) but library creation failed: ${errorSummary}`)
+      throw new Error(`Library creation failed: ${errorSummary}`)
     }
 
     completeJob(jobId, result)

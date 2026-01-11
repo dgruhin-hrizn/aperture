@@ -76,7 +76,7 @@ export interface SetupUser {
   seriesEnabled: boolean
 }
 
-export type JobStatus = 'pending' | 'running' | 'completed' | 'failed'
+export type JobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped'
 
 export interface JobLogEntry {
   timestamp: string
@@ -101,6 +101,10 @@ export interface LibrarySyncResult {
   failed: number
   skipped: number
   users?: UserLibraryResult[]
+  // Top Picks specific fields
+  moviesCount?: number
+  seriesCount?: number
+  usersUpdated?: number
 }
 
 export interface JobProgress {

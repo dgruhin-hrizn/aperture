@@ -22,7 +22,8 @@ export async function getConfig(): Promise<StrmConfig> {
     libraryRoot: APERTURE_MEDIA_PATH,
     // Output format (symlinks by default)
     useStreamingUrl: false,
-    downloadImages: false,
+    // Download images and apply ranking overlays (defaults to true when using symlinks)
+    downloadImages: pathConfig.downloadImages,
     // Path mapping for symlinks:
     // - mediaServerPathPrefix: how media server sees files (e.g., /mnt/)
     // - localMediaPathPrefix: how Aperture sees files (fixed at /media/)

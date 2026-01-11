@@ -63,6 +63,8 @@ function JobStatusIcon({ status }: { status: JobProgress['status'] }) {
       return <ErrorIcon color="error" />
     case 'running':
       return <CircularProgress size={24} />
+    case 'skipped':
+      return <SkipIcon color="disabled" />
     default:
       return <PendingIcon color="disabled" />
   }
@@ -225,6 +227,67 @@ function LibraryResultsSummary({ jobs, type }: { jobs: JobProgress[]; type: 'mov
   )
 }
 
+function TopPicksResultsSummary({ jobs }: { jobs: JobProgress[] }) {
+  const job = jobs.find((j) => j.id === 'refresh-top-picks')
+  
+  if (!job || (job.status !== 'completed' && job.status !== 'failed')) {
+    return null
+  }
+
+  const isSuccess = job.status === 'completed'
+  const moviesCount = job.result?.moviesCount ?? job.itemsProcessed ?? 0
+  const seriesCount = job.result?.seriesCount ?? 0
+
+  return (
+    <Box
+      sx={{
+        mt: 1.5,
+        p: 1.5,
+        border: '1px solid',
+        borderColor: isSuccess ? 'info.main' : 'error.main',
+        borderRadius: 2,
+        backgroundColor: isSuccess ? 'info.dark' : 'error.dark',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+      }}
+    >
+      <SyncIcon fontSize="small" />
+      <Typography variant="body2" fontWeight={600}>
+        Top 10 Libraries
+      </Typography>
+      <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
+        {isSuccess ? (
+          <>
+            <Chip
+              icon={<CheckCircleIcon />}
+              label={`${moviesCount} movies`}
+              size="small"
+              color="info"
+              sx={{ height: 24 }}
+            />
+            <Chip
+              icon={<CheckCircleIcon />}
+              label={`${seriesCount} series`}
+              size="small"
+              color="info"
+              sx={{ height: 24 }}
+            />
+          </>
+        ) : (
+          <Chip
+            icon={<ErrorIcon />}
+            label="Failed"
+            size="small"
+            color="error"
+            sx={{ height: 24 }}
+          />
+        )}
+      </Box>
+    </Box>
+  )
+}
+
 interface JobListItemProps {
   job: JobProgress
   isActive: boolean
@@ -239,19 +302,31 @@ function JobListItem({ job, isActive, canRerun, onRerun }: JobListItemProps) {
       ? `${job.itemsProcessed ?? 0} / ${job.itemsTotal}`
       : null
 
-  const showRerunButton = canRerun && (job.status === 'completed' || job.status === 'failed')
+  const showRerunButton = canRerun && (job.status === 'completed' || job.status === 'failed' || job.status === 'skipped' || job.status === 'pending')
+
+  // Determine border color based on status
+  const getBorderColor = () => {
+    if (isActive) return 'primary.main'
+    switch (job.status) {
+      case 'completed': return 'success.main'
+      case 'failed': return 'error.main'
+      case 'skipped': return 'grey.500'
+      default: return 'divider'
+    }
+  }
 
   return (
     <ListItem
       sx={{
         py: 1.5,
         px: 2,
-        backgroundColor: isActive ? 'action.selected' : 'transparent',
+        backgroundColor: isActive ? 'action.selected' : job.status === 'skipped' ? 'action.disabledBackground' : 'transparent',
         borderRadius: 1,
         mb: 0.5,
         border: '1px solid',
-        borderColor: isActive ? 'primary.main' : job.status === 'completed' ? 'success.main' : job.status === 'failed' ? 'error.main' : 'divider',
+        borderColor: getBorderColor(),
         borderLeftWidth: 3,
+        opacity: job.status === 'skipped' ? 0.7 : 1,
       }}
       secondaryAction={
         showRerunButton ? (
@@ -259,10 +334,13 @@ function JobListItem({ job, isActive, canRerun, onRerun }: JobListItemProps) {
             edge="end"
             size="small"
             onClick={onRerun}
-            title={`Re-run ${job.name}`}
+            title={job.status === 'skipped' || job.status === 'pending' ? `Run ${job.name}` : `Re-run ${job.name}`}
             sx={{ 
-              color: job.status === 'failed' ? 'warning.main' : 'primary.main',
-              '&:hover': { backgroundColor: job.status === 'failed' ? 'warning.light' : 'primary.light', color: 'white' }
+              color: job.status === 'failed' ? 'warning.main' : (job.status === 'skipped' || job.status === 'pending') ? 'info.main' : 'primary.main',
+              '&:hover': { 
+                backgroundColor: job.status === 'failed' ? 'warning.light' : (job.status === 'skipped' || job.status === 'pending') ? 'info.light' : 'primary.light', 
+                color: 'white' 
+              }
             }}
           >
             <SyncIcon fontSize="small" />
@@ -348,9 +426,11 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
   const logContainerRef = useRef<HTMLDivElement>(null)
 
   const completedCount = jobsProgress.filter((j) => j.status === 'completed').length
+  const skippedCount = jobsProgress.filter((j) => j.status === 'skipped').length
+  const doneCount = completedCount + skippedCount
   const totalCount = jobsProgress.length
   const hasStarted = jobsProgress.length > 0
-  const allCompleted = hasStarted && completedCount === totalCount
+  const allCompleted = hasStarted && doneCount === totalCount
   const hasFailed = jobsProgress.some((j) => j.status === 'failed')
 
   // Auto-scroll logs to bottom
@@ -504,6 +584,7 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
           </Typography>
           <LibraryResultsSummary jobs={jobsProgress} type="movies" />
           <LibraryResultsSummary jobs={jobsProgress} type="series" />
+          <TopPicksResultsSummary jobs={jobsProgress} />
         </Box>
       )}
 
@@ -525,9 +606,19 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
           </Button>
         )}
 
-        {hasStarted && !allCompleted && !hasFailed && (
+        {hasStarted && runningJobs && !hasFailed && (
           <Button variant="contained" disabled startIcon={<CircularProgress size={20} color="inherit" />}>
             Running... ({completedCount}/{totalCount})
+          </Button>
+        )}
+
+        {hasStarted && !runningJobs && !allCompleted && !hasFailed && (
+          <Button
+            variant="contained"
+            onClick={runInitialJobs}
+            startIcon={<RunningIcon />}
+          >
+            Continue ({completedCount}/{totalCount} done)
           </Button>
         )}
 
