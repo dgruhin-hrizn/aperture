@@ -76,7 +76,7 @@ export interface SetupUser {
   seriesEnabled: boolean
 }
 
-export type JobStatus = 'pending' | 'running' | 'completed' | 'failed'
+export type JobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped'
 
 export interface JobLogEntry {
   timestamp: string

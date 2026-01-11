@@ -63,6 +63,8 @@ function JobStatusIcon({ status }: { status: JobProgress['status'] }) {
       return <ErrorIcon color="error" />
     case 'running':
       return <CircularProgress size={24} />
+    case 'skipped':
+      return <SkipIcon color="disabled" />
     default:
       return <PendingIcon color="disabled" />
   }
@@ -239,19 +241,31 @@ function JobListItem({ job, isActive, canRerun, onRerun }: JobListItemProps) {
       ? `${job.itemsProcessed ?? 0} / ${job.itemsTotal}`
       : null
 
-  const showRerunButton = canRerun && (job.status === 'completed' || job.status === 'failed')
+  const showRerunButton = canRerun && (job.status === 'completed' || job.status === 'failed' || job.status === 'skipped')
+
+  // Determine border color based on status
+  const getBorderColor = () => {
+    if (isActive) return 'primary.main'
+    switch (job.status) {
+      case 'completed': return 'success.main'
+      case 'failed': return 'error.main'
+      case 'skipped': return 'grey.500'
+      default: return 'divider'
+    }
+  }
 
   return (
     <ListItem
       sx={{
         py: 1.5,
         px: 2,
-        backgroundColor: isActive ? 'action.selected' : 'transparent',
+        backgroundColor: isActive ? 'action.selected' : job.status === 'skipped' ? 'action.disabledBackground' : 'transparent',
         borderRadius: 1,
         mb: 0.5,
         border: '1px solid',
-        borderColor: isActive ? 'primary.main' : job.status === 'completed' ? 'success.main' : job.status === 'failed' ? 'error.main' : 'divider',
+        borderColor: getBorderColor(),
         borderLeftWidth: 3,
+        opacity: job.status === 'skipped' ? 0.7 : 1,
       }}
       secondaryAction={
         showRerunButton ? (
@@ -259,10 +273,13 @@ function JobListItem({ job, isActive, canRerun, onRerun }: JobListItemProps) {
             edge="end"
             size="small"
             onClick={onRerun}
-            title={`Re-run ${job.name}`}
+            title={job.status === 'skipped' ? `Run ${job.name}` : `Re-run ${job.name}`}
             sx={{ 
-              color: job.status === 'failed' ? 'warning.main' : 'primary.main',
-              '&:hover': { backgroundColor: job.status === 'failed' ? 'warning.light' : 'primary.light', color: 'white' }
+              color: job.status === 'failed' ? 'warning.main' : job.status === 'skipped' ? 'info.main' : 'primary.main',
+              '&:hover': { 
+                backgroundColor: job.status === 'failed' ? 'warning.light' : job.status === 'skipped' ? 'info.light' : 'primary.light', 
+                color: 'white' 
+              }
             }}
           >
             <SyncIcon fontSize="small" />

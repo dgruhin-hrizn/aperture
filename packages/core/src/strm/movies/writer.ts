@@ -14,7 +14,12 @@ import {
   getStrmContent,
 } from '../filenames.js'
 import { getEffectiveAiExplanationSetting } from '../../lib/userSettings.js'
-import { symlinkArtwork, symlinkSubtitles, MOVIE_SKIP_FILES, getMovieFolderFromFilePath } from '../artwork.js'
+import {
+  symlinkArtwork,
+  symlinkSubtitles,
+  MOVIE_SKIP_FILES,
+  getMovieFolderFromFilePath,
+} from '../artwork.js'
 import type { Movie, FileWriteTask, ImageDownloadTask } from '../types.js'
 
 const logger = createChildLogger('strm-writer')
@@ -56,12 +61,21 @@ export async function writeStrmFilesForUser(
     try {
       const oldFolderStats = await fs.stat(oldFormatPath)
       if (oldFolderStats.isDirectory()) {
-        const newFolderExists = await fs.stat(localPath).then(() => true).catch(() => false)
+        const newFolderExists = await fs
+          .stat(localPath)
+          .then(() => true)
+          .catch(() => false)
         if (!newFolderExists) {
-          logger.info({ oldPath: oldFormatPath, newPath: localPath }, '📦 Migrating old-format folder to new naming scheme')
+          logger.info(
+            { oldPath: oldFormatPath, newPath: localPath },
+            '📦 Migrating old-format folder to new naming scheme'
+          )
           await fs.rename(oldFormatPath, localPath)
         } else {
-          logger.info({ oldPath: oldFormatPath }, '⚠️ Both old and new format folders exist, using new format')
+          logger.info(
+            { oldPath: oldFormatPath },
+            '⚠️ Both old and new format folders exist, using new format'
+          )
         }
       }
     } catch {
@@ -69,7 +83,10 @@ export async function writeStrmFilesForUser(
     }
   }
 
-  logger.info({ userId, localPath, embyPath, useSymlinks }, `📁 Starting ${useSymlinks ? 'symlink' : 'STRM'} file generation`)
+  logger.info(
+    { userId, localPath, embyPath, useSymlinks },
+    `📁 Starting ${useSymlinks ? 'symlink' : 'STRM'} file generation`
+  )
 
   // Check if AI explanation should be included for this user
   const includeAiExplanation = await getEffectiveAiExplanationSetting(userId)
@@ -239,7 +256,10 @@ export async function writeStrmFilesForUser(
           await fs.symlink(originalPath, symlinkPath)
           logger.debug({ movie: movie.title, originalPath }, 'Created movie symlink')
         } catch (err) {
-          logger.debug({ err, movie: movie.title }, 'Failed to create movie symlink, falling back to STRM')
+          logger.debug(
+            { err, movie: movie.title },
+            'Failed to create movie symlink, falling back to STRM'
+          )
           // Fallback to STRM if symlink fails
           const strmPath = path.join(movieFolderPath, `${baseFilename}.strm`)
           const strmContent = await getStrmContent(movie, config)
@@ -473,7 +493,7 @@ export async function writeStrmFilesForUser(
   let deleted = 0
   try {
     const existingEntries = await fs.readdir(localPath, { withFileTypes: true })
-    
+
     if (useSymlinks) {
       // Symlinks mode: clean up old movie folders
       for (const entry of existingEntries) {
