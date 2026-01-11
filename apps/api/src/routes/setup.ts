@@ -1037,6 +1037,7 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
         'generate-series-recommendations',
         'sync-movie-libraries',
         'sync-series-libraries',
+        'refresh-top-picks',
       ]
 
       if (!allowedJobs.includes(name)) {
@@ -1119,6 +1120,7 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
       'generate-series-recommendations',
       'sync-movie-libraries',
       'sync-series-libraries',
+      'refresh-top-picks',
     ]
 
     for (const jobName of setupJobs) {

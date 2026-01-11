@@ -25,7 +25,7 @@ import type {
 } from '../types'
 
 // Define the initial jobs with their descriptions
-const INITIAL_JOBS: Array<{ id: string; name: string; description: string }> = [
+const BASE_INITIAL_JOBS: Array<{ id: string; name: string; description: string }> = [
   { id: 'sync-movies', name: 'Sync Movies', description: 'Importing movie metadata from your media server' },
   { id: 'sync-series', name: 'Sync Series', description: 'Importing TV series metadata from your media server' },
   {
@@ -69,6 +69,21 @@ const INITIAL_JOBS: Array<{ id: string; name: string; description: string }> = [
     description: 'Creating recommendation libraries in your media server',
   },
 ]
+
+// Top Picks job - only included if Top 10 is enabled
+const TOP_PICKS_JOB = {
+  id: 'refresh-top-picks',
+  name: 'Refresh Top 10',
+  description: 'Creating Top 10 Movies and TV this week libraries',
+}
+
+// Helper to get jobs list based on config
+function getInitialJobs(topPicksEnabled: boolean): Array<{ id: string; name: string; description: string }> {
+  if (topPicksEnabled) {
+    return [...BASE_INITIAL_JOBS, TOP_PICKS_JOB]
+  }
+  return BASE_INITIAL_JOBS
+}
 
 export function useSetupWizard(): SetupWizardContext {
   const navigate = useNavigate()
@@ -125,6 +140,9 @@ export function useSetupWizard(): SetupWizardContext {
 
   // Top Picks
   const [topPicks, setTopPicks] = useState<TopPicksConfig>(DEFAULT_TOP_PICKS)
+
+  // Compute the initial jobs list based on Top Picks config
+  const initialJobs = useMemo(() => getInitialJobs(topPicks.isEnabled), [topPicks.isEnabled])
 
   // UI state
   const [testing, setTesting] = useState(false)
@@ -231,8 +249,11 @@ export function useSetupWizard(): SetupWizardContext {
           logs?: Array<{ timestamp: string; level: string; message: string }>
         }>
 
+        // Use initialJobs to build the progress list (includes Top 10 if enabled)
+        const jobsToRestore = initialJobs
+
         // Build job progress from last runs
-        const restoredProgress: JobProgress[] = INITIAL_JOBS.map((job) => {
+        const restoredProgress: JobProgress[] = jobsToRestore.map((job) => {
           const lastRun = lastRuns[job.id]
           if (lastRun) {
             return {
@@ -262,7 +283,7 @@ export function useSetupWizard(): SetupWizardContext {
 
           // Restore logs from last runs
           const restoredLogs: string[] = ['[Restored] Previous job run results:']
-          for (const job of INITIAL_JOBS) {
+          for (const job of jobsToRestore) {
             const lastRun = lastRuns[job.id]
             if (lastRun) {
               const completedAt = new Date(lastRun.completedAt).toLocaleTimeString()
@@ -285,7 +306,7 @@ export function useSetupWizard(): SetupWizardContext {
       .catch(() => {
         // non-fatal
       })
-  }, [stepId, jobsProgress.length])
+  }, [stepId, jobsProgress.length, initialJobs])
 
   const updateProgress = useCallback(
     async (opts: { currentStep?: SetupStepId | null; completedStep?: SetupStepId }) => {
@@ -838,8 +859,8 @@ export function useSetupWizard(): SetupWizardContext {
   // Jobs handlers - track which logs we've already shown (use ref to persist across renders)
   const lastLogIndexRef = useRef(0)
 
-  const runJobAndWait = useCallback(async (jobIndex: number) => {
-    const job = INITIAL_JOBS[jobIndex]
+  const runJobAndWait = useCallback(async (jobIndex: number, jobs: Array<{ id: string; name: string; description: string }>) => {
+    const job = jobs[jobIndex]
     if (!job) throw new Error(`Invalid job index: ${jobIndex}`)
 
     setCurrentJobIndex(jobIndex)
@@ -969,9 +990,12 @@ export function useSetupWizard(): SetupWizardContext {
 
   const runInitialJobs = useCallback(async () => {
     // No auth required - setup endpoint only works before setup is complete
+    // Get the current jobs list (may include Top 10 if enabled)
+    const jobs = initialJobs
+    
     // Initialize job progress
     setJobsProgress(
-      INITIAL_JOBS.map((job) => ({
+      jobs.map((job) => ({
         id: job.id,
         name: job.name,
         description: job.description,
@@ -984,8 +1008,8 @@ export function useSetupWizard(): SetupWizardContext {
     setJobLogs([`[${new Date().toLocaleTimeString()}] Starting initial setup jobs...`])
 
     try {
-      for (let i = 0; i < INITIAL_JOBS.length; i++) {
-        await runJobAndWait(i)
+      for (let i = 0; i < jobs.length; i++) {
+        await runJobAndWait(i, jobs)
       }
       setJobLogs((l) => [...l, `[${new Date().toLocaleTimeString()}] All jobs completed successfully!`])
       await updateProgress({ completedStep: 'initialJobs' })
@@ -997,17 +1021,18 @@ export function useSetupWizard(): SetupWizardContext {
       setRunningJobs(false)
       setCurrentJobIndex(-1)
     }
-  }, [runJobAndWait, updateProgress, goToStep])
+  }, [runJobAndWait, updateProgress, goToStep, initialJobs])
 
   // Run a single job by ID (for re-running completed or failed jobs)
   const runSingleJob = useCallback(async (jobId: string) => {
-    const jobIndex = INITIAL_JOBS.findIndex((j) => j.id === jobId)
+    // Use jobsProgress to find the job (it contains the current list of jobs)
+    const jobIndex = jobsProgress.findIndex((j) => j.id === jobId)
     if (jobIndex === -1) {
       setError(`Unknown job: ${jobId}`)
       return
     }
 
-    const job = INITIAL_JOBS[jobIndex]
+    const job = jobsProgress[jobIndex]
     setRunningJobs(true)
     setError('')
     setJobLogs((l) => [...l, `[${new Date().toLocaleTimeString()}] Re-running: ${job.name}...`])
@@ -1017,8 +1042,11 @@ export function useSetupWizard(): SetupWizardContext {
       prev.map((j, i) => (i === jobIndex ? { ...j, status: 'pending' as const, error: undefined, progress: undefined } : j))
     )
 
+    // Build a minimal job object for runJobAndWait
+    const jobsForRunner = jobsProgress.map((j) => ({ id: j.id, name: j.name, description: j.description }))
+
     try {
-      await runJobAndWait(jobIndex)
+      await runJobAndWait(jobIndex, jobsForRunner)
       setJobLogs((l) => [...l, `[${new Date().toLocaleTimeString()}] ✓ Re-run complete: ${job.name}`])
     } catch (err) {
       setError(err instanceof Error ? err.message : `Failed to re-run ${job.name}`)
@@ -1027,7 +1055,7 @@ export function useSetupWizard(): SetupWizardContext {
       setRunningJobs(false)
       setCurrentJobIndex(-1)
     }
-  }, [runJobAndWait])
+  }, [runJobAndWait, jobsProgress])
 
   // Complete handler
   const handleCompleteSetup = useCallback(async () => {
