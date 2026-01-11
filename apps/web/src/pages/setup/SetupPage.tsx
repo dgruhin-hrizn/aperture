@@ -2,6 +2,7 @@ import { Box, Card, CardContent, Stepper, Step, StepLabel, Typography } from '@m
 import { useSetupWizard } from './hooks/useSetupWizard'
 import { STEP_ORDER } from './constants'
 import {
+  RestoreStep,
   MediaServerStep,
   LibrariesStep,
   AiRecsStep,
@@ -13,7 +14,7 @@ import {
   CompleteStep,
 } from './components'
 
-const APP_VERSION = '0.2.3'
+const APP_VERSION = '0.2.4'
 
 export function SetupPage() {
   const wizard = useSetupWizard()
@@ -21,6 +22,8 @@ export function SetupPage() {
 
   const renderStepContent = () => {
     switch (stepId) {
+      case 'restoreFromBackup':
+        return <RestoreStep wizard={wizard} />
       case 'mediaServer':
         return <MediaServerStep wizard={wizard} />
       case 'mediaLibraries':
@@ -40,7 +43,7 @@ export function SetupPage() {
       case 'complete':
         return <CompleteStep wizard={wizard} />
       default:
-        return <MediaServerStep wizard={wizard} />
+        return <RestoreStep wizard={wizard} />
     }
   }
 

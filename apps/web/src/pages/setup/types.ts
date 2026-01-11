@@ -17,6 +17,7 @@ export interface ExistingMediaServer {
 }
 
 export type SetupStepId =
+  | 'restoreFromBackup'
   | 'mediaServer'
   | 'mediaLibraries'
   | 'aiRecsLibraries'

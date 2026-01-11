@@ -18,6 +18,7 @@ import imageRoutes from './images.js'
 import assistantRoutes from './assistant/index.js'
 import searchRoutes from './search.js'
 import watchingRoutes from './watching.js'
+import backupRoutes from './backup.js'
 
 const routes: FastifyPluginAsync = async (fastify) => {
   // Register health check routes
@@ -76,6 +77,9 @@ const routes: FastifyPluginAsync = async (fastify) => {
 
   // Register watching routes
   await fastify.register(watchingRoutes)
+
+  // Register backup routes
+  await fastify.register(backupRoutes)
 }
 
 export default routes

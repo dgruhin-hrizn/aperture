@@ -36,6 +36,8 @@ import {
   getValidJobNames,
   getJobRunHistory,
   getLastJobRuns,
+  // Backup
+  createBackup,
   type JobProgress,
   type ScheduleType,
 } from '@aperture/core'
@@ -155,6 +157,12 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
     name: 'enrich-metadata',
     description: 'Enrich movies and series with TMDb keywords, collections, and OMDb ratings',
     cron: null, // Manual by default
+  },
+  // === Database Backup Job ===
+  {
+    name: 'backup-database',
+    description: 'Create a full database backup',
+    cron: '0 2 * * *', // Daily at 2 AM
   },
 ]
 
@@ -883,6 +891,21 @@ async function runJob(name: string, jobId: string): Promise<void> {
           seriesEnriched: result.seriesEnriched,
           collectionsCreated: result.collectionsCreated,
         }, `✅ Metadata enrichment complete`)
+        break
+      }
+      // === Database Backup Job ===
+      case 'backup-database': {
+        const result = await createBackup()
+        if (!result.success) {
+          throw new Error(result.error || 'Backup failed')
+        }
+        logger.info({
+          job: name,
+          jobId,
+          filename: result.filename,
+          sizeBytes: result.sizeBytes,
+          duration: result.duration,
+        }, `✅ Database backup complete`)
         break
       }
       default:

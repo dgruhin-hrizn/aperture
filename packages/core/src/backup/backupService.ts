@@ -1,0 +1,471 @@
+import { spawn } from 'child_process'
+import * as fs from 'fs'
+import * as path from 'path'
+import * as zlib from 'zlib'
+import { pipeline } from 'stream/promises'
+import { createChildLogger } from '../lib/logger.js'
+import { getDatabaseUrl } from '../config/env.js'
+import { getBackupConfig, updateLastBackupInfo } from './backupConfig.js'
+
+const logger = createChildLogger('backup-service')
+
+export interface BackupInfo {
+  filename: string
+  path: string
+  sizeBytes: number
+  createdAt: Date
+  isCompressed: boolean
+}
+
+export interface BackupResult {
+  success: boolean
+  filename?: string
+  path?: string
+  sizeBytes?: number
+  error?: string
+  duration?: number
+}
+
+export interface RestoreResult {
+  success: boolean
+  error?: string
+  duration?: number
+  preRestoreBackup?: string
+}
+
+/**
+ * Parse DATABASE_URL into connection parameters
+ */
+function parseDatabaseUrl(): {
+  host: string
+  port: string
+  database: string
+  user: string
+  password: string
+} {
+  const url = getDatabaseUrl()
+  const parsed = new URL(url)
+
+  return {
+    host: parsed.hostname,
+    port: parsed.port || '5432',
+    database: parsed.pathname.slice(1), // Remove leading /
+    user: parsed.username,
+    password: parsed.password,
+  }
+}
+
+/**
+ * Generate a timestamped backup filename
+ */
+function generateBackupFilename(): string {
+  const now = new Date()
+  const timestamp = now.toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19)
+  return `aperture_backup_${timestamp}.sql.gz`
+}
+
+/**
+ * Ensure backup directory exists
+ */
+async function ensureBackupDir(backupPath: string): Promise<void> {
+  try {
+    await fs.promises.mkdir(backupPath, { recursive: true })
+  } catch (err) {
+    logger.error({ err, backupPath }, 'Failed to create backup directory')
+    throw new Error(`Failed to create backup directory: ${backupPath}`)
+  }
+}
+
+/**
+ * Create a database backup
+ */
+export async function createBackup(): Promise<BackupResult> {
+  const startTime = Date.now()
+
+  try {
+    const config = await getBackupConfig()
+    const dbConfig = parseDatabaseUrl()
+
+    await ensureBackupDir(config.backupPath)
+
+    const filename = generateBackupFilename()
+    const filePath = path.join(config.backupPath, filename)
+
+    logger.info({ filename, backupPath: config.backupPath }, 'Starting database backup')
+
+    // Create pg_dump process
+    const pgDump = spawn('pg_dump', [
+      '-h', dbConfig.host,
+      '-p', dbConfig.port,
+      '-U', dbConfig.user,
+      '-d', dbConfig.database,
+      '--no-owner',
+      '--no-acl',
+      '-F', 'p', // Plain text format
+    ], {
+      env: {
+        ...process.env,
+        PGPASSWORD: dbConfig.password,
+      },
+    })
+
+    // Create gzip stream and file write stream
+    const gzip = zlib.createGzip({ level: 9 })
+    const writeStream = fs.createWriteStream(filePath)
+
+    // Collect stderr for error reporting
+    let stderr = ''
+    pgDump.stderr.on('data', (data) => {
+      stderr += data.toString()
+    })
+
+    // Pipe pg_dump -> gzip -> file
+    await new Promise<void>((resolve, reject) => {
+      pgDump.stdout.pipe(gzip).pipe(writeStream)
+
+      writeStream.on('finish', resolve)
+      writeStream.on('error', reject)
+      pgDump.on('error', reject)
+      pgDump.on('close', (code) => {
+        if (code !== 0) {
+          reject(new Error(`pg_dump exited with code ${code}: ${stderr}`))
+        }
+      })
+    })
+
+    // Get file size
+    const stats = await fs.promises.stat(filePath)
+    const sizeBytes = stats.size
+
+    // Update last backup info
+    await updateLastBackupInfo(filename, sizeBytes)
+
+    // Prune old backups
+    await pruneOldBackups()
+
+    const duration = Date.now() - startTime
+
+    logger.info({ filename, sizeBytes, duration }, 'Database backup completed successfully')
+
+    return {
+      success: true,
+      filename,
+      path: filePath,
+      sizeBytes,
+      duration,
+    }
+  } catch (err) {
+    const duration = Date.now() - startTime
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+
+    logger.error({ err, duration }, 'Database backup failed')
+
+    return {
+      success: false,
+      error: errorMessage,
+      duration,
+    }
+  }
+}
+
+/**
+ * Restore database from a backup file
+ */
+export async function restoreBackup(
+  filename: string,
+  createPreRestoreBackup = true
+): Promise<RestoreResult> {
+  const startTime = Date.now()
+
+  try {
+    const config = await getBackupConfig()
+    const dbConfig = parseDatabaseUrl()
+    const filePath = path.join(config.backupPath, filename)
+
+    // Validate backup file exists
+    if (!await fileExists(filePath)) {
+      throw new Error(`Backup file not found: ${filename}`)
+    }
+
+    // Validate backup file
+    const validation = await validateBackup(filename)
+    if (!validation.valid) {
+      throw new Error(`Invalid backup file: ${validation.error}`)
+    }
+
+    logger.info({ filename }, 'Starting database restore')
+
+    // Create pre-restore backup if requested
+    let preRestoreBackup: string | undefined
+    if (createPreRestoreBackup) {
+      logger.info('Creating pre-restore backup')
+      const preBackupResult = await createBackup()
+      if (preBackupResult.success) {
+        preRestoreBackup = preBackupResult.filename
+        logger.info({ preRestoreBackup }, 'Pre-restore backup created')
+      } else {
+        logger.warn({ error: preBackupResult.error }, 'Failed to create pre-restore backup, continuing anyway')
+      }
+    }
+
+    // Decompress and restore
+    const isCompressed = filename.endsWith('.gz')
+
+    // Create psql process
+    const psql = spawn('psql', [
+      '-h', dbConfig.host,
+      '-p', dbConfig.port,
+      '-U', dbConfig.user,
+      '-d', dbConfig.database,
+      '-v', 'ON_ERROR_STOP=1',
+    ], {
+      env: {
+        ...process.env,
+        PGPASSWORD: dbConfig.password,
+      },
+    })
+
+    // Collect stderr for error reporting
+    let stderr = ''
+    psql.stderr.on('data', (data) => {
+      stderr += data.toString()
+    })
+
+    // Read file, optionally decompress, and pipe to psql
+    const readStream = fs.createReadStream(filePath)
+
+    await new Promise<void>((resolve, reject) => {
+      psql.on('error', reject)
+      psql.on('close', (code) => {
+        if (code !== 0) {
+          reject(new Error(`psql exited with code ${code}: ${stderr}`))
+        } else {
+          resolve()
+        }
+      })
+
+      if (isCompressed) {
+        const gunzip = zlib.createGunzip()
+        readStream.pipe(gunzip).pipe(psql.stdin)
+        gunzip.on('error', reject)
+      } else {
+        readStream.pipe(psql.stdin)
+      }
+
+      readStream.on('error', reject)
+    })
+
+    const duration = Date.now() - startTime
+
+    logger.info({ filename, duration }, 'Database restore completed successfully')
+
+    return {
+      success: true,
+      duration,
+      preRestoreBackup,
+    }
+  } catch (err) {
+    const duration = Date.now() - startTime
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+
+    logger.error({ err, duration }, 'Database restore failed')
+
+    return {
+      success: false,
+      error: errorMessage,
+      duration,
+    }
+  }
+}
+
+/**
+ * List all available backups
+ */
+export async function listBackups(): Promise<BackupInfo[]> {
+  try {
+    const config = await getBackupConfig()
+
+    // Check if backup directory exists
+    if (!await fileExists(config.backupPath)) {
+      return []
+    }
+
+    const files = await fs.promises.readdir(config.backupPath)
+    const backups: BackupInfo[] = []
+
+    for (const file of files) {
+      // Only include backup files
+      if (!file.startsWith('aperture_backup_') || (!file.endsWith('.sql') && !file.endsWith('.sql.gz'))) {
+        continue
+      }
+
+      const filePath = path.join(config.backupPath, file)
+      const stats = await fs.promises.stat(filePath)
+
+      backups.push({
+        filename: file,
+        path: filePath,
+        sizeBytes: stats.size,
+        createdAt: stats.mtime,
+        isCompressed: file.endsWith('.gz'),
+      })
+    }
+
+    // Sort by creation date, newest first
+    backups.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+
+    return backups
+  } catch (err) {
+    logger.error({ err }, 'Failed to list backups')
+    return []
+  }
+}
+
+/**
+ * Delete a specific backup file
+ */
+export async function deleteBackup(filename: string): Promise<boolean> {
+  try {
+    const config = await getBackupConfig()
+    const filePath = path.join(config.backupPath, filename)
+
+    // Validate filename to prevent directory traversal
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      throw new Error('Invalid filename')
+    }
+
+    // Check if file exists
+    if (!await fileExists(filePath)) {
+      throw new Error('Backup file not found')
+    }
+
+    await fs.promises.unlink(filePath)
+
+    logger.info({ filename }, 'Backup file deleted')
+
+    return true
+  } catch (err) {
+    logger.error({ err, filename }, 'Failed to delete backup')
+    return false
+  }
+}
+
+/**
+ * Prune old backups based on retention policy
+ */
+export async function pruneOldBackups(): Promise<number> {
+  try {
+    const config = await getBackupConfig()
+    const backups = await listBackups()
+
+    if (backups.length <= config.retentionCount) {
+      return 0
+    }
+
+    // Sort by date, oldest first
+    const sortedBackups = [...backups].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+
+    // Calculate how many to delete
+    const toDelete = sortedBackups.slice(0, sortedBackups.length - config.retentionCount)
+
+    let deleted = 0
+    for (const backup of toDelete) {
+      if (await deleteBackup(backup.filename)) {
+        deleted++
+      }
+    }
+
+    if (deleted > 0) {
+      logger.info({ deleted, retentionCount: config.retentionCount }, 'Pruned old backups')
+    }
+
+    return deleted
+  } catch (err) {
+    logger.error({ err }, 'Failed to prune old backups')
+    return 0
+  }
+}
+
+/**
+ * Validate a backup file
+ */
+export async function validateBackup(filename: string): Promise<{ valid: boolean; error?: string }> {
+  try {
+    const config = await getBackupConfig()
+    const filePath = path.join(config.backupPath, filename)
+
+    // Check file exists
+    if (!await fileExists(filePath)) {
+      return { valid: false, error: 'File not found' }
+    }
+
+    // Check file size
+    const stats = await fs.promises.stat(filePath)
+    if (stats.size === 0) {
+      return { valid: false, error: 'File is empty' }
+    }
+
+    // Check file extension
+    if (!filename.endsWith('.sql') && !filename.endsWith('.sql.gz')) {
+      return { valid: false, error: 'Invalid file extension' }
+    }
+
+    // For compressed files, try to read the first few bytes to verify gzip header
+    if (filename.endsWith('.gz')) {
+      const fd = await fs.promises.open(filePath, 'r')
+      const buffer = Buffer.alloc(2)
+      await fd.read(buffer, 0, 2, 0)
+      await fd.close()
+
+      // Gzip magic number: 1f 8b
+      if (buffer[0] !== 0x1f || buffer[1] !== 0x8b) {
+        return { valid: false, error: 'Invalid gzip file' }
+      }
+    }
+
+    return { valid: true }
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+    return { valid: false, error: errorMessage }
+  }
+}
+
+/**
+ * Get the full path for a backup file
+ */
+export async function getBackupPath(filename: string): Promise<string | null> {
+  const config = await getBackupConfig()
+  const filePath = path.join(config.backupPath, filename)
+
+  if (await fileExists(filePath)) {
+    return filePath
+  }
+
+  return null
+}
+
+/**
+ * Check if a file exists
+ */
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.promises.access(filePath)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Format bytes to human readable string
+ */
+export function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B'
+
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  const k = 1024
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${units[i]}`
+}
+

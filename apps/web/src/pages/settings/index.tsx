@@ -47,6 +47,7 @@ import {
   OpenAIConfigSection,
   TMDbConfigSection,
   OMDbConfigSection,
+  BackupSection,
 } from './components'
 
 interface TabPanelProps {
@@ -445,6 +446,9 @@ export function SettingsPage() {
                 enabledUserCount={1}
                 embeddingModel={settings.embeddingConfig?.currentModel ?? 'text-embedding-3-large'}
               />
+
+              {/* Database Backup & Restore */}
+              <BackupSection />
 
               {/* Database Management - Danger Zone */}
               <DatabaseSection
