@@ -27,14 +27,12 @@ import OutputIcon from '@mui/icons-material/Output'
 import PsychologyIcon from '@mui/icons-material/Psychology'
 import StorageIcon from '@mui/icons-material/Storage'
 import ExtensionIcon from '@mui/icons-material/Extension'
-import MenuBookIcon from '@mui/icons-material/MenuBook'
 import { useSettingsData } from './hooks'
 import {
   LibraryConfigSection,
   RecommendationConfigSection,
   DatabaseSection,
   MediaServerSection,
-  StrmSection,
   CostEstimatorSection,
   TextGenerationModelSection,
   ChatAssistantModelSection,
@@ -318,7 +316,6 @@ export function SettingsPage() {
             >
               <Tab icon={<StorageIcon />} iconPosition="start" label="Media Server" />
               <Tab icon={<ExtensionIcon />} iconPosition="start" label="Integrations" />
-              <Tab icon={<MenuBookIcon />} iconPosition="start" label="Docker Guide" />
             </Tabs>
 
             {/* Media Server Sub-tab */}
@@ -349,11 +346,6 @@ export function SettingsPage() {
                   <OMDbConfigSection />
                 </Box>
               </Box>
-            </TabPanel>
-
-            {/* Docker Guide Sub-tab */}
-            <TabPanel value={setupSubTab} index={2}>
-              <StrmSection />
             </TabPanel>
           </TabPanel>
 
