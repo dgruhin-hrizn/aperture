@@ -107,11 +107,13 @@ export function RotatingBackdrop({
   // When the hidden slot finishes loading, perform the swap
   useEffect(() => {
     if (activeSlot === 0 && slot1Loaded && slot1Url) {
-      // Slot 1 just loaded, swap to it
+      // Slot 1 just loaded, swap to it and reset slot 0's loaded state
       setActiveSlot(1)
+      setSlot0Loaded(false) // Prevent immediate swap back
     } else if (activeSlot === 1 && slot0Loaded && slot0Url) {
-      // Slot 0 just loaded, swap to it
+      // Slot 0 just loaded, swap to it and reset slot 1's loaded state
       setActiveSlot(0)
+      setSlot1Loaded(false) // Prevent immediate swap back
     }
   }, [activeSlot, slot0Loaded, slot1Loaded, slot0Url, slot1Url])
 
