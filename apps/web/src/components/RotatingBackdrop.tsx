@@ -2,7 +2,7 @@
  * RotatingBackdrop Component
  * 
  * Displays rotating fanart backdrop images with smooth crossfade transitions.
- * Used on person and studio detail page headers.
+ * Uses a double-buffer approach for seamless transitions.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react'
@@ -35,7 +35,7 @@ export function RotatingBackdrop({
   interval = 8000,
   height = 280,
 }: RotatingBackdropProps) {
-  // Filter out null/undefined URLs and limit to 10
+  // Filter out null/undefined URLs and limit
   const validUrls = backdropUrls
     .filter((url): url is string => !!url)
     .slice(0, 20)
@@ -43,32 +43,22 @@ export function RotatingBackdrop({
   // Shuffle on mount for variety
   const [shuffledUrls] = useState(() => shuffleArray(validUrls))
   
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [nextIndex, setNextIndex] = useState(1)
-  const [isTransitioning, setIsTransitioning] = useState(false)
-  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set())
+  // Double buffer: two image slots that alternate
+  // activeSlot: 0 or 1, indicates which slot is currently visible
+  const [activeSlot, setActiveSlot] = useState(0)
+  const [slot0Url, setSlot0Url] = useState<string | null>(shuffledUrls[0] || null)
+  const [slot1Url, setSlot1Url] = useState<string | null>(shuffledUrls[1] || null)
+  const [slot0Loaded, setSlot0Loaded] = useState(false)
+  const [slot1Loaded, setSlot1Loaded] = useState(false)
+  
+  const currentIndexRef = useRef(0)
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
-  const intervalRef = useRef<number | null>(null)
 
-  // Get URLs with proxy
-  const getUrl = useCallback((index: number) => {
-    if (index >= shuffledUrls.length) return null
-    return getProxiedImageUrl(shuffledUrls[index], '')
-  }, [shuffledUrls])
-
-  // Preload an image
-  const preloadImage = useCallback((url: string) => {
-    if (loadedImages.has(url) || failedImages.has(url)) return
-    
-    const img = new Image()
-    img.onload = () => {
-      setLoadedImages(prev => new Set(prev).add(url))
-    }
-    img.onerror = () => {
-      setFailedImages(prev => new Set(prev).add(url))
-    }
-    img.src = url
-  }, [loadedImages, failedImages])
+  // Get proxied URL
+  const getUrl = useCallback((url: string | null) => {
+    if (!url) return null
+    return getProxiedImageUrl(url, '')
+  }, [])
 
   // Find next valid index (skip failed images)
   const findNextValidIndex = useCallback((fromIndex: number): number => {
@@ -78,7 +68,7 @@ export function RotatingBackdrop({
     let attempts = 0
     
     while (attempts < shuffledUrls.length) {
-      const url = getUrl(nextIdx)
+      const url = shuffledUrls[nextIdx]
       if (url && !failedImages.has(url)) {
         return nextIdx
       }
@@ -86,55 +76,64 @@ export function RotatingBackdrop({
       attempts++
     }
     
-    return fromIndex // All images failed, stay on current
-  }, [shuffledUrls.length, getUrl, failedImages])
+    return fromIndex
+  }, [shuffledUrls, failedImages])
 
-  // Start rotation
+  // Rotation effect
   useEffect(() => {
     if (shuffledUrls.length <= 1) return
 
-    // Preload first few images
-    shuffledUrls.slice(0, 3).forEach(url => {
-      const proxied = getProxiedImageUrl(url, '')
-      if (proxied) preloadImage(proxied)
-    })
+    const timer = setInterval(() => {
+      // Get next image index
+      const nextIndex = findNextValidIndex(currentIndexRef.current)
+      currentIndexRef.current = nextIndex
+      const nextUrl = shuffledUrls[nextIndex]
 
-    intervalRef.current = window.setInterval(() => {
-      setIsTransitioning(true)
-      
-      // After transition completes, update indices
-      setTimeout(() => {
-        setCurrentIndex(prev => {
-          const next = findNextValidIndex(prev)
-          // Preload the one after next
-          const afterNext = findNextValidIndex(next)
-          const afterNextUrl = getUrl(afterNext)
-          if (afterNextUrl) preloadImage(afterNextUrl)
-          return next
-        })
-        setIsTransitioning(false)
-      }, 1000) // Match CSS transition duration
+      // Load next image into the hidden slot, then swap
+      if (activeSlot === 0) {
+        // Slot 0 is visible, load into slot 1
+        setSlot1Url(nextUrl)
+        setSlot1Loaded(false)
+      } else {
+        // Slot 1 is visible, load into slot 0
+        setSlot0Url(nextUrl)
+        setSlot0Loaded(false)
+      }
     }, interval)
 
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
-    }
-  }, [shuffledUrls, interval, preloadImage, findNextValidIndex, getUrl])
+    return () => clearInterval(timer)
+  }, [shuffledUrls, interval, activeSlot, findNextValidIndex])
 
-  // Update next index when current changes
+  // When the hidden slot finishes loading, perform the swap
   useEffect(() => {
-    setNextIndex(findNextValidIndex(currentIndex))
-  }, [currentIndex, findNextValidIndex])
+    if (activeSlot === 0 && slot1Loaded && slot1Url) {
+      // Slot 1 just loaded, swap to it
+      setActiveSlot(1)
+    } else if (activeSlot === 1 && slot0Loaded && slot0Url) {
+      // Slot 0 just loaded, swap to it
+      setActiveSlot(0)
+    }
+  }, [activeSlot, slot0Loaded, slot1Loaded, slot0Url, slot1Url])
+
+  // Handle image load/error
+  const handleSlot0Load = useCallback(() => setSlot0Loaded(true), [])
+  const handleSlot1Load = useCallback(() => setSlot1Loaded(true), [])
+  
+  const handleSlot0Error = useCallback(() => {
+    if (slot0Url) setFailedImages(prev => new Set(prev).add(slot0Url))
+  }, [slot0Url])
+  
+  const handleSlot1Error = useCallback(() => {
+    if (slot1Url) setFailedImages(prev => new Set(prev).add(slot1Url))
+  }, [slot1Url])
 
   // Don't render if no valid URLs
   if (shuffledUrls.length === 0) {
     return null
   }
 
-  const currentUrl = getUrl(currentIndex)
-  const nextUrl = getUrl(nextIndex)
+  const slot0ProxiedUrl = getUrl(slot0Url)
+  const slot1ProxiedUrl = getUrl(slot1Url)
 
   return (
     <Box
@@ -148,13 +147,14 @@ export function RotatingBackdrop({
         zIndex: 0,
       }}
     >
-      {/* Current image */}
-      {currentUrl && !failedImages.has(currentUrl) && (
+      {/* Slot 0 */}
+      {slot0ProxiedUrl && !failedImages.has(slot0Url!) && (
         <Box
           component="img"
-          src={currentUrl}
+          src={slot0ProxiedUrl}
           alt=""
-          onError={() => setFailedImages(prev => new Set(prev).add(currentUrl))}
+          onLoad={handleSlot0Load}
+          onError={handleSlot0Error}
           sx={{
             position: 'absolute',
             top: 0,
@@ -163,19 +163,20 @@ export function RotatingBackdrop({
             height: '100%',
             objectFit: 'cover',
             objectPosition: 'center 20%',
-            opacity: isTransitioning ? 0 : 1,
-            transition: 'opacity 1s ease-in-out',
+            opacity: activeSlot === 0 ? 1 : 0,
+            transition: 'opacity 1.5s ease-in-out',
           }}
         />
       )}
 
-      {/* Next image (for crossfade) */}
-      {nextUrl && !failedImages.has(nextUrl) && shuffledUrls.length > 1 && (
+      {/* Slot 1 */}
+      {slot1ProxiedUrl && !failedImages.has(slot1Url!) && (
         <Box
           component="img"
-          src={nextUrl}
+          src={slot1ProxiedUrl}
           alt=""
-          onError={() => setFailedImages(prev => new Set(prev).add(nextUrl))}
+          onLoad={handleSlot1Load}
+          onError={handleSlot1Error}
           sx={{
             position: 'absolute',
             top: 0,
@@ -184,8 +185,8 @@ export function RotatingBackdrop({
             height: '100%',
             objectFit: 'cover',
             objectPosition: 'center 20%',
-            opacity: isTransitioning ? 1 : 0,
-            transition: 'opacity 1s ease-in-out',
+            opacity: activeSlot === 1 ? 1 : 0,
+            transition: 'opacity 1.5s ease-in-out',
           }}
         />
       )}
@@ -205,4 +206,3 @@ export function RotatingBackdrop({
     </Box>
   )
 }
-

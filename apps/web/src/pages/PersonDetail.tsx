@@ -16,6 +16,7 @@ import TvIcon from '@mui/icons-material/Tv'
 import VideocamIcon from '@mui/icons-material/Videocam'
 import { MoviePoster, BaseCarousel, CarouselItem, getProxiedImageUrl } from '@aperture/ui'
 import { useUserRatings } from '../hooks/useUserRatings'
+import { useWatching } from '../hooks/useWatching'
 import { RotatingBackdrop } from '../components/RotatingBackdrop'
 
 interface ContentItem {
@@ -46,6 +47,7 @@ export function PersonDetailPage() {
   const { name } = useParams<{ name: string }>()
   const navigate = useNavigate()
   const { getRating, setRating } = useUserRatings()
+  const { isWatching, toggleWatching } = useWatching()
   const [data, setData] = useState<PersonData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -248,6 +250,8 @@ export function PersonDetailPage() {
                     genres={series.genres}
                     userRating={getRating('series', series.id)}
                     onRate={(rating) => setRating('series', series.id, rating)}
+                    isWatching={isWatching(series.id)}
+                    onWatchingToggle={() => toggleWatching(series.id)}
                     onClick={() => navigate(`/series/${series.id}`)}
                     size="medium"
                   />
