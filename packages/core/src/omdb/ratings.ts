@@ -42,6 +42,16 @@ function parseAwards(value: string | undefined): string | null {
 }
 
 /**
+ * Parse comma-separated string into array
+ * e.g., "English, French, Spanish" -> ["English", "French", "Spanish"]
+ */
+function parseCommaSeparated(value: string | undefined): string[] | null {
+  if (!value || value === 'N/A') return null
+  const items = value.split(',').map((s) => s.trim()).filter(Boolean)
+  return items.length > 0 ? items : null
+}
+
+/**
  * Extract ratings data from OMDb response
  */
 export function extractRatingsData(data: OMDbMovieResponse): RatingsData {
@@ -59,11 +69,17 @@ export function extractRatingsData(data: OMDbMovieResponse): RatingsData {
   // Get awards summary
   const awardsSummary = parseAwards(data.Awards)
 
+  // Parse language and country fields
+  const languages = parseCommaSeparated(data.Language)
+  const countries = parseCommaSeparated(data.Country)
+
   return {
     rtCriticScore,
     rtAudienceScore,
     metacriticScore,
     awardsSummary,
+    languages,
+    countries,
   }
 }
 

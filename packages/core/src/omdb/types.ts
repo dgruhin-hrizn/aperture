@@ -50,6 +50,10 @@ export interface RatingsData {
   rtAudienceScore: number | null
   metacriticScore: number | null
   awardsSummary: string | null
+  /** Spoken languages parsed from Language field (e.g., ["English", "French"]) */
+  languages: string[] | null
+  /** Production countries parsed from Country field (e.g., ["USA", "UK"]) */
+  countries: string[] | null
 }
 
 // ============================================================================
@@ -57,5 +61,3 @@ export interface RatingsData {
 // ============================================================================
 
 export const OMDB_API_BASE_URL = 'https://www.omdbapi.com'
-
-

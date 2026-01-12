@@ -497,3 +497,81 @@ export {
   type RepairProgress,
 } from './maintenance/index.js'
 
+// API Error Handling
+export {
+  // Types
+  type ErrorType,
+  type ErrorSeverity,
+  type ApiErrorDefinition,
+  type ParsedApiError,
+  type ApiErrorRecord,
+  // Handler functions
+  parseApiError,
+  toApiErrorRecord,
+  shouldAutoRetry,
+  getRetryDelay,
+  // Database functions
+  logApiError,
+  getActiveApiErrors,
+  getActiveErrorsByProvider,
+  getLatestErrorByProvider,
+  dismissApiError,
+  dismissErrorsByProvider,
+  cleanupOldErrors,
+  hasRecentSimilarError,
+  getErrorSummary,
+  // Error constants
+  OPENAI_ERRORS,
+  OPENAI_ERROR_PATTERNS,
+  TMDB_ERRORS,
+  TMDB_HTTP_TO_STATUS,
+  TRAKT_ERRORS,
+  MDBLIST_ERRORS,
+  OMDB_ERRORS,
+  OMDB_ERROR_MESSAGES,
+} from './errors/index.js'
+
+// MDBList Integration
+export {
+  // Configuration
+  getMDBListConfig,
+  getMDBListApiKey,
+  setMDBListConfig,
+  isMDBListSupporterTier,
+  isMDBListConfigured,
+  testMDBListConnection,
+  // Lists API
+  getTopLists,
+  searchLists,
+  getListInfo,
+  getListItems,
+  getMyLists,
+  // Media Info API
+  getMediaInfoByImdb,
+  getMediaInfoByTmdb,
+  getMediaInfoByTvdb,
+  getMediaInfoBatch,
+  // Helpers
+  extractEnrichmentData,
+  // Enrichment Job
+  enrichMDBListMetadata,
+  getMDBListEnrichmentStats,
+  clearMDBListEnrichmentData,
+  enrichSingleItem,
+  // Types
+  type MDBListConfig,
+  type MDBListUserInfo,
+  type MDBListMediaInfo,
+  type MDBListItem,
+  type MDBListListInfo,
+  type MDBListSearchResult,
+  type MDBListEnrichmentData,
+  type MDBListRating,
+  type MDBListStream,
+  type MDBListWatchProvider,
+  type MDBListKeyword,
+  // Constants
+  MDBLIST_API_BASE_URL,
+  MDBLIST_BATCH_SIZE,
+} from './mdblist/index.js'
+

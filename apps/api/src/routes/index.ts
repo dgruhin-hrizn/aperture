@@ -13,6 +13,7 @@ import jobsRoutes from './jobs.js'
 import settingsRoutes from './settings.js'
 import topPicksRoutes from './top-picks.js'
 import traktRoutes from './trakt.js'
+import mdblistRoutes from './mdblist.js'
 import dashboardRoutes from './dashboard.js'
 import imageRoutes from './images.js'
 import mediaProxyRoutes from './media-proxy.js'
@@ -22,6 +23,7 @@ import discoverRoutes from './discover.js'
 import watchingRoutes from './watching.js'
 import backupRoutes from './backup.js'
 import maintenanceRoutes from './maintenance.js'
+import apiErrorsRoutes from './apiErrors.js'
 
 const routes: FastifyPluginAsync = async (fastify) => {
   // Register health check routes
@@ -66,6 +68,9 @@ const routes: FastifyPluginAsync = async (fastify) => {
   // Register Trakt routes
   await fastify.register(traktRoutes)
 
+  // Register MDBList routes
+  await fastify.register(mdblistRoutes)
+
   // Register dashboard routes
   await fastify.register(dashboardRoutes)
 
@@ -92,6 +97,9 @@ const routes: FastifyPluginAsync = async (fastify) => {
 
   // Register maintenance routes
   await fastify.register(maintenanceRoutes)
+
+  // Register API errors routes
+  await fastify.register(apiErrorsRoutes)
 }
 
 export default routes

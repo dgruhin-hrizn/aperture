@@ -72,6 +72,7 @@ const ENV_DEFAULTS: Record<
   'full-sync-movie-watch-history': { scheduleType: 'manual', hour: 0, minute: 0 },
   'full-sync-series-watch-history': { scheduleType: 'manual', hour: 0, minute: 0 },
   'rebuild-movie-recommendations': { scheduleType: 'manual', hour: 0, minute: 0 },
+  'enrich-mdblist': { scheduleType: 'manual', hour: 0, minute: 0 }, // Manual due to daily API quota
 }
 
 function rowToConfig(row: JobConfigRow): JobConfig {

@@ -10,6 +10,8 @@ import { createChildLogger } from '../lib/logger.js'
 
 const logger = createChildLogger('top-picks-config')
 
+export type PopularitySource = 'local' | 'mdblist' | 'hybrid'
+
 export interface TopPicksConfig {
   isEnabled: boolean
   timeWindowDays: number
@@ -41,6 +43,14 @@ export interface TopPicksConfig {
   // Collection/Playlist names
   moviesCollectionName: string
   seriesCollectionName: string
+  // MDBList popularity source options
+  popularitySource: PopularitySource
+  mdblistMoviesListId: number | null
+  mdblistSeriesListId: number | null
+  mdblistMoviesListName: string | null
+  mdblistSeriesListName: string | null
+  hybridLocalWeight: number
+  hybridMdblistWeight: number
   // Timestamps
   createdAt: Date
   updatedAt: Date
@@ -74,6 +84,14 @@ interface TopPicksConfigRow {
   // Collection/Playlist names
   movies_collection_name: string
   series_collection_name: string
+  // MDBList popularity source options
+  popularity_source: string | null
+  mdblist_movies_list_id: number | null
+  mdblist_series_list_id: number | null
+  mdblist_movies_list_name: string | null
+  mdblist_series_list_name: string | null
+  hybrid_local_weight: string | null
+  hybrid_mdblist_weight: string | null
   created_at: Date
   updated_at: Date
 }
@@ -111,6 +129,13 @@ export async function getTopPicksConfig(): Promise<TopPicksConfig> {
       seriesPlaylistEnabled: false,
       moviesCollectionName: 'Top Picks - Movies',
       seriesCollectionName: 'Top Picks - Series',
+      popularitySource: 'local' as PopularitySource,
+      mdblistMoviesListId: null,
+      mdblistSeriesListId: null,
+      mdblistMoviesListName: null,
+      mdblistSeriesListName: null,
+      hybridLocalWeight: 0.5,
+      hybridMdblistWeight: 0.5,
       createdAt: new Date(),
       updatedAt: new Date(),
     }
@@ -215,6 +240,35 @@ export async function updateTopPicksConfig(
     setClauses.push(`series_collection_name = $${paramIndex++}`)
     values.push(updates.seriesCollectionName)
   }
+  // MDBList popularity source options
+  if (updates.popularitySource !== undefined) {
+    setClauses.push(`popularity_source = $${paramIndex++}`)
+    values.push(updates.popularitySource)
+  }
+  if (updates.mdblistMoviesListId !== undefined) {
+    setClauses.push(`mdblist_movies_list_id = $${paramIndex++}`)
+    values.push(updates.mdblistMoviesListId)
+  }
+  if (updates.mdblistSeriesListId !== undefined) {
+    setClauses.push(`mdblist_series_list_id = $${paramIndex++}`)
+    values.push(updates.mdblistSeriesListId)
+  }
+  if (updates.mdblistMoviesListName !== undefined) {
+    setClauses.push(`mdblist_movies_list_name = $${paramIndex++}`)
+    values.push(updates.mdblistMoviesListName)
+  }
+  if (updates.mdblistSeriesListName !== undefined) {
+    setClauses.push(`mdblist_series_list_name = $${paramIndex++}`)
+    values.push(updates.mdblistSeriesListName)
+  }
+  if (updates.hybridLocalWeight !== undefined) {
+    setClauses.push(`hybrid_local_weight = $${paramIndex++}`)
+    values.push(updates.hybridLocalWeight)
+  }
+  if (updates.hybridMdblistWeight !== undefined) {
+    setClauses.push(`hybrid_mdblist_weight = $${paramIndex++}`)
+    values.push(updates.hybridMdblistWeight)
+  }
 
   if (setClauses.length === 0) {
     return getTopPicksConfig()
@@ -279,6 +333,13 @@ export async function resetTopPicksConfig(): Promise<TopPicksConfig> {
       series_playlist_enabled = false,
       movies_collection_name = 'Top Picks - Movies',
       series_collection_name = 'Top Picks - Series',
+      popularity_source = 'local',
+      mdblist_movies_list_id = NULL,
+      mdblist_series_list_id = NULL,
+      mdblist_movies_list_name = NULL,
+      mdblist_series_list_name = NULL,
+      hybrid_local_weight = 0.50,
+      hybrid_mdblist_weight = 0.50,
       updated_at = NOW()
     WHERE id = 1
     RETURNING *
@@ -292,6 +353,12 @@ export async function resetTopPicksConfig(): Promise<TopPicksConfig> {
 }
 
 function mapRowToConfig(row: TopPicksConfigRow): TopPicksConfig {
+  // Validate popularity source
+  const validSources: PopularitySource[] = ['local', 'mdblist', 'hybrid']
+  const popularitySource = validSources.includes(row.popularity_source as PopularitySource)
+    ? (row.popularity_source as PopularitySource)
+    : 'local'
+
   return {
     isEnabled: row.is_enabled,
     timeWindowDays: row.time_window_days,
@@ -315,6 +382,13 @@ function mapRowToConfig(row: TopPicksConfigRow): TopPicksConfig {
     seriesPlaylistEnabled: row.series_playlist_enabled,
     moviesCollectionName: row.movies_collection_name,
     seriesCollectionName: row.series_collection_name,
+    popularitySource,
+    mdblistMoviesListId: row.mdblist_movies_list_id,
+    mdblistSeriesListId: row.mdblist_series_list_id,
+    mdblistMoviesListName: row.mdblist_movies_list_name,
+    mdblistSeriesListName: row.mdblist_series_list_name,
+    hybridLocalWeight: row.hybrid_local_weight ? parseFloat(row.hybrid_local_weight) : 0.5,
+    hybridMdblistWeight: row.hybrid_mdblist_weight ? parseFloat(row.hybrid_mdblist_weight) : 0.5,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }

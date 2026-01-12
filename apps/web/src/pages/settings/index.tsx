@@ -46,9 +46,11 @@ import {
   OpenAIConfigSection,
   TMDbConfigSection,
   OMDbConfigSection,
+  MDBListConfigSection,
   BackupSection,
   PosterRepairSection,
 } from './components'
+import { ApiErrorAlert } from '../../components/ApiErrorAlert'
 
 interface TabPanelProps {
   children?: React.ReactNode
@@ -344,11 +346,15 @@ export function SettingsPage() {
             {/* Integrations Sub-tab */}
             <TabPanel value={setupSubTab} index={1}>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {/* API Error Alerts */}
+                <ApiErrorAlert maxErrors={5} />
+                
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
                   <OpenAIConfigSection />
                   <TraktConfigSection />
                   <TMDbConfigSection />
                   <OMDbConfigSection />
+                  <MDBListConfigSection />
                 </Box>
               </Box>
             </TabPanel>

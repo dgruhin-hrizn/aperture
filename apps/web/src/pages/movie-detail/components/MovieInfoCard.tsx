@@ -1,6 +1,7 @@
 import { Box, Typography, Paper, Divider, Chip, Tooltip } from '@mui/material'
 import StarIcon from '@mui/icons-material/Star'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
+import StreamIcon from '@mui/icons-material/Stream'
 import type { Movie } from '../types'
 import { formatRuntime } from '../hooks'
 
@@ -63,8 +64,44 @@ function MetacriticBadge({ score }: { score: number }) {
   )
 }
 
+// Letterboxd score badge
+function LetterboxdBadge({ score }: { score: number }) {
+  // Letterboxd uses a 5-star scale
+  const displayScore = score.toFixed(1)
+  const percentage = (score / 5) * 100
+  
+  // Letterboxd colors: orange-ish gradient
+  const getColor = () => {
+    if (percentage >= 80) return '#00e054' // Green for excellent
+    if (percentage >= 60) return '#40bcf4' // Blue for good
+    if (percentage >= 40) return '#ee9b00' // Orange for average
+    return '#ff8000' // Dark orange for below average
+  }
+  
+  return (
+    <Tooltip title={`Letterboxd: ${displayScore}/5`}>
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: 0.5,
+        bgcolor: getColor(),
+        color: 'white',
+        px: 1,
+        py: 0.25,
+        borderRadius: 1,
+        fontSize: '0.75rem',
+        fontWeight: 600,
+      }}>
+        <span>📽️</span>
+        <span>{displayScore}</span>
+      </Box>
+    </Tooltip>
+  )
+}
+
 export function MovieInfoCard({ movie }: MovieInfoCardProps) {
-  const hasRatings = movie.rt_critic_score || movie.rt_audience_score || movie.metacritic_score
+  const hasRatings = movie.rt_critic_score || movie.rt_audience_score || movie.metacritic_score || movie.letterboxd_score
+  const hasStreamingProviders = movie.streaming_providers && movie.streaming_providers.length > 0
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -85,6 +122,9 @@ export function MovieInfoCard({ movie }: MovieInfoCardProps) {
             {movie.metacritic_score && (
               <MetacriticBadge score={movie.metacritic_score} />
             )}
+            {movie.letterboxd_score && (
+              <LetterboxdBadge score={movie.letterboxd_score} />
+            )}
           </Box>
           {movie.rt_consensus && (
             <Typography 
@@ -95,6 +135,30 @@ export function MovieInfoCard({ movie }: MovieInfoCardProps) {
               "{movie.rt_consensus}"
             </Typography>
           )}
+        </Paper>
+      )}
+
+      {/* Streaming Providers Section */}
+      {hasStreamingProviders && (
+        <Paper sx={{ p: 2, borderRadius: 2, bgcolor: 'background.paper' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <StreamIcon sx={{ color: 'info.main', fontSize: 20 }} />
+            <Typography variant="subtitle2" color="text.secondary">
+              Also Available On
+            </Typography>
+          </Box>
+          <Divider sx={{ my: 1 }} />
+          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+            {movie.streaming_providers!.map((provider) => (
+              <Chip
+                key={provider.id}
+                label={provider.name}
+                size="small"
+                variant="outlined"
+                sx={{ fontSize: '0.7rem' }}
+              />
+            ))}
+          </Box>
         </Paper>
       )}
 
