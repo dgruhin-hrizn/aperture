@@ -340,18 +340,21 @@ export async function storeSeriesEmbeddings(
 ): Promise<void> {
   const model = modelOverride || (await getEmbeddingModel())
 
-  for (const emb of embeddings) {
-    const vectorStr = `[${emb.embedding.join(',')}]`
-
-    await query(
-      `INSERT INTO series_embeddings (series_id, model, embedding, canonical_text)
-       VALUES ($1, $2, $3::halfvec, $4)
-       ON CONFLICT (series_id, model) DO UPDATE SET
-         embedding = EXCLUDED.embedding,
-         canonical_text = EXCLUDED.canonical_text`,
-      [emb.seriesId, model, vectorStr, emb.canonicalText]
-    )
-  }
+  await query(
+    `INSERT INTO series_embeddings (series_id, model, embedding, canonical_text)
+     SELECT t.series_id, t.model, t.embedding, t.canonical_text
+     FROM unnest($1::uuid[], $2::text[], $3::halfvec[], $4::text[])
+     AS t(series_id, model, embedding, canonical_text)
+     ON CONFLICT (series_id, model) DO UPDATE SET
+       embedding = EXCLUDED.embedding,
+       canonical_text = EXCLUDED.canonical_text`,
+    [
+      embeddings.map((emb) => emb.seriesId),
+      Array(embeddings.length).fill(model),
+      embeddings.map((emb) => `[${emb.embedding.join(',')}]`),
+      embeddings.map((emb) => emb.canonicalText),
+    ]
+  )
 
   logger.info({ count: embeddings.length }, 'Series embeddings stored')
 }
@@ -365,18 +368,21 @@ export async function storeEpisodeEmbeddings(
 ): Promise<void> {
   const model = modelOverride || (await getEmbeddingModel())
 
-  for (const emb of embeddings) {
-    const vectorStr = `[${emb.embedding.join(',')}]`
-
-    await query(
-      `INSERT INTO episode_embeddings (episode_id, model, embedding, canonical_text)
-       VALUES ($1, $2, $3::halfvec, $4)
-       ON CONFLICT (episode_id, model) DO UPDATE SET
-         embedding = EXCLUDED.embedding,
-         canonical_text = EXCLUDED.canonical_text`,
-      [emb.episodeId, model, vectorStr, emb.canonicalText]
-    )
-  }
+  await query(
+    `INSERT INTO episode_embeddings (episode_id, model, embedding, canonical_text)
+     SELECT t.episode_id, t.model, t.embedding, t.canonical_text
+     FROM unnest($1::uuid[], $2::text[], $3::halfvec[], $4::text[])
+     AS t(episode_id, model, embedding, canonical_text)
+     ON CONFLICT (episode_id, model) DO UPDATE SET
+       embedding = EXCLUDED.embedding,
+       canonical_text = EXCLUDED.canonical_text`,
+    [
+      embeddings.map((emb) => emb.episodeId),
+      Array(embeddings.length).fill(model),
+      embeddings.map((emb) => `[${emb.embedding.join(',')}]`),
+      embeddings.map((emb) => emb.canonicalText),
+    ]
+  )
 
   logger.info({ count: embeddings.length }, 'Episode embeddings stored')
 }
