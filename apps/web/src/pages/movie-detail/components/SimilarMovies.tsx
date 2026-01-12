@@ -1,5 +1,6 @@
 import { Box, Typography, Paper } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
+import { getProxiedImageUrl, FALLBACK_POSTER_URL } from '@aperture/ui'
 import type { SimilarMovie } from '../types'
 
 interface SimilarMoviesProps {
@@ -34,28 +35,16 @@ export function SimilarMovies({ similar }: SimilarMoviesProps) {
             }}
           >
             <Box sx={{ height: 200, bgcolor: 'grey.800' }}>
-              {sim.poster_url ? (
-                <Box
-                  component="img"
-                  src={sim.poster_url}
-                  alt={sim.title}
-                  sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              ) : (
-                <Box
-                  sx={{
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Typography variant="caption" color="text.secondary" textAlign="center" p={1}>
-                    {sim.title}
-                  </Typography>
-                </Box>
-              )}
+              <Box
+                component="img"
+                src={getProxiedImageUrl(sim.poster_url)}
+                alt={sim.title}
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement
+                  target.src = FALLBACK_POSTER_URL
+                }}
+                sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
             </Box>
             <Box sx={{ p: 1 }}>
               <Typography variant="caption" fontWeight={500} noWrap>

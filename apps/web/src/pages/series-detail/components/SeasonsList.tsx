@@ -19,6 +19,7 @@ import StarIcon from '@mui/icons-material/Star'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import TvIcon from '@mui/icons-material/Tv'
+import { getProxiedImageUrl } from '@aperture/ui'
 import type { Episode } from '../types'
 
 interface SeasonsListProps {
@@ -121,7 +122,7 @@ export function SeasonsList({ seasons }: SeasonsListProps) {
                 <ListItemAvatar>
                   <Avatar
                     variant="rounded"
-                    src={episode.poster_url || undefined}
+                    src={getProxiedImageUrl(episode.poster_url)}
                     sx={{
                       width: 80,
                       height: 45,

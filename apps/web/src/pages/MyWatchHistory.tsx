@@ -40,7 +40,7 @@ import HistoryIcon from '@mui/icons-material/History'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
-import { MoviePoster } from '@aperture/ui'
+import { MoviePoster, getProxiedImageUrl, FALLBACK_POSTER_URL } from '@aperture/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { useWatching } from '@/hooks/useWatching'
 
@@ -490,8 +490,12 @@ export function MyWatchHistoryPage() {
                             <Box display="flex" alignItems="center" gap={2}>
                               <Box
                                 component="img"
-                                src={item.poster_url || undefined}
+                                src={getProxiedImageUrl(item.poster_url)}
                                 alt={item.title}
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement
+                                  target.src = FALLBACK_POSTER_URL
+                                }}
                                 sx={{
                                   width: 40,
                                   height: 60,
@@ -729,8 +733,12 @@ export function MyWatchHistoryPage() {
                             <Box display="flex" alignItems="center" gap={2}>
                               <Box
                                 component="img"
-                                src={item.poster_url || undefined}
+                                src={getProxiedImageUrl(item.poster_url)}
                                 alt={item.title}
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement
+                                  target.src = FALLBACK_POSTER_URL
+                                }}
                                 sx={{
                                   width: 40,
                                   height: 60,

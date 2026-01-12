@@ -21,6 +21,7 @@ import SearchIcon from '@mui/icons-material/Search'
 import CloseIcon from '@mui/icons-material/Close'
 import MovieIcon from '@mui/icons-material/Movie'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
+import { getProxiedImageUrl } from '@aperture/ui'
 import type { Channel, Movie, FormData, SnackbarState } from '../types'
 
 interface PlaylistDialogProps {
@@ -314,13 +315,9 @@ export function PlaylistDialog({
                   }}
                   onClick={() => handleAddMovie(movie)}
                 >
-                  {movie.poster_url ? (
-                    <Avatar src={movie.poster_url} variant="rounded" sx={{ width: 32, height: 48 }} />
-                  ) : (
-                    <Avatar variant="rounded" sx={{ width: 32, height: 48 }}>
-                      <MovieIcon fontSize="small" />
-                    </Avatar>
-                  )}
+                  <Avatar src={getProxiedImageUrl(movie.poster_url)} variant="rounded" sx={{ width: 32, height: 48 }}>
+                    <MovieIcon fontSize="small" />
+                  </Avatar>
                   <Box>
                     <Typography variant="body2">{movie.title}</Typography>
                     {movie.year && (
@@ -341,13 +338,9 @@ export function PlaylistDialog({
                 <Chip
                   key={movie.id}
                   avatar={
-                    movie.poster_url ? (
-                      <Avatar src={movie.poster_url} />
-                    ) : (
-                      <Avatar>
-                        <MovieIcon fontSize="small" />
-                      </Avatar>
-                    )
+                    <Avatar src={getProxiedImageUrl(movie.poster_url)}>
+                      <MovieIcon fontSize="small" />
+                    </Avatar>
                   }
                   label={`${movie.title}${movie.year ? ` (${movie.year})` : ''}`}
                   onDelete={() => onRemoveExampleMovie(movie.id)}

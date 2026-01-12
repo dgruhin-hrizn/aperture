@@ -32,7 +32,7 @@ import SaveIcon from '@mui/icons-material/Save'
 import GridViewIcon from '@mui/icons-material/GridView'
 import ViewListIcon from '@mui/icons-material/ViewList'
 import FavoriteIcon from '@mui/icons-material/Favorite'
-import { MoviePoster } from '@aperture/ui'
+import { MoviePoster, getProxiedImageUrl, FALLBACK_POSTER_URL } from '@aperture/ui'
 import { Breadcrumbs } from '@/components/Breadcrumbs'
 
 interface User {
@@ -521,8 +521,12 @@ function WatchHistoryTab({ userId }: { userId: string }) {
                     <Box display="flex" alignItems="center" gap={2}>
                       <Box
                         component="img"
-                        src={item.poster_url || undefined}
+                        src={getProxiedImageUrl(item.poster_url)}
                         alt={item.title}
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          target.src = FALLBACK_POSTER_URL
+                        }}
                         sx={{
                           width: 40,
                           height: 60,

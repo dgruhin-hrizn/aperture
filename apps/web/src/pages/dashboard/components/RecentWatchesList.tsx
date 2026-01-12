@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
+import { getProxiedImageUrl, FALLBACK_POSTER_URL } from '@aperture/ui'
 
 interface WatchItem {
   id: string
@@ -128,31 +129,23 @@ export function RecentWatchesList({ watches, loading }: RecentWatchesListProps) 
               },
             }}
           >
-            {item.posterUrl ? (
-              <Box
-                component="img"
-                src={item.posterUrl}
-                alt={item.title}
-                sx={{
-                  width: 48,
-                  height: 72,
-                  objectFit: 'cover',
-                  borderRadius: 1,
-                  flexShrink: 0,
-                }}
-              />
-            ) : (
-              <Avatar
-                variant="rounded"
-                sx={{
-                  width: 48,
-                  height: 72,
-                  backgroundColor: 'grey.800',
-                }}
-              >
-                {item.type === 'movie' ? <MovieIcon /> : <TvIcon />}
-              </Avatar>
-            )}
+            <Box
+              component="img"
+              src={getProxiedImageUrl(item.posterUrl)}
+              alt={item.title}
+              onError={(e) => {
+                const target = e.target as HTMLImageElement
+                target.src = FALLBACK_POSTER_URL
+              }}
+              sx={{
+                width: 48,
+                height: 72,
+                objectFit: 'cover',
+                borderRadius: 1,
+                flexShrink: 0,
+                backgroundColor: 'grey.800',
+              }}
+            />
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Typography
                 variant="body2"

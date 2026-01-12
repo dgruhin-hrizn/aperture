@@ -23,7 +23,7 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
-import { MoviePoster, RankBadge } from '@aperture/ui'
+import { MoviePoster, RankBadge, getProxiedImageUrl, FALLBACK_POSTER_URL } from '@aperture/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { useUserRatings } from '@/hooks/useUserRatings'
 import { useWatching } from '@/hooks/useWatching'
@@ -454,8 +454,12 @@ export function MyRecommendationsPage() {
                   {/* Poster */}
                   <Box
                     component="img"
-                    src={item.poster_url || undefined}
+                    src={getProxiedImageUrl(item.poster_url)}
                     alt={item.title}
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement
+                      target.src = FALLBACK_POSTER_URL
+                    }}
                     sx={{
                       width: 80,
                       height: 120,

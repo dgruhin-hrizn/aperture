@@ -7,6 +7,7 @@ import PublicIcon from '@mui/icons-material/Public'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import LinkIcon from '@mui/icons-material/Link'
 import LocalOfferIcon from '@mui/icons-material/LocalOffer'
+import { getProxiedImageUrl } from '@aperture/ui'
 import type { Series } from '../types'
 
 interface SeriesInfoCardProps {
@@ -171,7 +172,7 @@ export function SeriesInfoCard({ series }: SeriesInfoCardProps) {
               {series.actors.slice(0, 12).map((actor, idx) => (
                 <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Avatar
-                    src={actor.thumb}
+                    src={getProxiedImageUrl(actor.thumb)}
                     sx={{ width: 40, height: 40, bgcolor: 'grey.700' }}
                   >
                     <PersonIcon fontSize="small" />

@@ -36,6 +36,7 @@ import {
   Bar,
   Legend,
 } from 'recharts'
+import { getProxiedImageUrl } from '@aperture/ui'
 import { useAuth } from '@/hooks/useAuth'
 
 interface WatchStats {
@@ -476,7 +477,7 @@ export function WatchStatsPage() {
                             {index + 1}.
                           </Typography>
                           <Avatar
-                            src={actor.thumb || undefined}
+                            src={getProxiedImageUrl(actor.thumb)}
                             alt={actor.name}
                             sx={{ 
                               width: 40, 
@@ -571,7 +572,7 @@ export function WatchStatsPage() {
                             {index + 1}.
                           </Typography>
                           <Avatar
-                            src={director.thumb || undefined}
+                            src={getProxiedImageUrl(director.thumb)}
                             alt={director.name}
                             sx={{ 
                               width: 40, 
@@ -669,7 +670,7 @@ export function WatchStatsPage() {
                             {index + 1}.
                           </Typography>
                           <Avatar
-                            src={studio.thumb || undefined}
+                            src={getProxiedImageUrl(studio.thumb)}
                             alt={studio.name}
                             variant="rounded"
                             sx={{ 
@@ -765,7 +766,7 @@ export function WatchStatsPage() {
                             {index + 1}.
                           </Typography>
                           <Avatar
-                            src={network.thumb || undefined}
+                            src={getProxiedImageUrl(network.thumb)}
                             alt={network.name}
                             variant="rounded"
                             sx={{ 

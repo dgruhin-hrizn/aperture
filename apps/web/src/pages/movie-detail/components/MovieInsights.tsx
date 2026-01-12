@@ -19,6 +19,7 @@ import ThumbUpIcon from '@mui/icons-material/ThumbUp'
 import ShuffleIcon from '@mui/icons-material/Shuffle'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
+import { getProxiedImageUrl, FALLBACK_POSTER_URL } from '@aperture/ui'
 import type { RecommendationInsights } from '../types'
 
 interface MovieInsightsProps {
@@ -259,28 +260,16 @@ export function MovieInsights({ insights }: MovieInsightsProps) {
                       }}
                     >
                       <Box sx={{ height: 160, bgcolor: 'grey.800', position: 'relative' }}>
-                        {ev.similar_movie.poster_url ? (
-                          <Box
-                            component="img"
-                            src={ev.similar_movie.poster_url}
-                            alt={ev.similar_movie.title}
-                            sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          />
-                        ) : (
-                          <Box
-                            sx={{
-                              width: '100%',
-                              height: '100%',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}
-                          >
-                            <Typography variant="caption" color="text.secondary" textAlign="center" p={1}>
-                              {ev.similar_movie.title}
-                            </Typography>
-                          </Box>
-                        )}
+                        <Box
+                          component="img"
+                          src={getProxiedImageUrl(ev.similar_movie.poster_url)}
+                          alt={ev.similar_movie.title}
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement
+                            target.src = FALLBACK_POSTER_URL
+                          }}
+                          sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
                         {/* Similarity badge */}
                         <Chip
                           label={`${Math.round(ev.similarity * 100)}%`}
