@@ -121,42 +121,25 @@ export function StudioDetailPage() {
           {/* Studio Logo */}
           {proxiedImageUrl && !imageError ? (
             <Box
+              component="img"
+              src={proxiedImageUrl}
+              alt={`${decodedName} logo`}
+              onError={() => setImageError(true)}
               sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minWidth: 80,
-                maxWidth: 200,
-                height: 80,
-                p: 1.5,
-                bgcolor: 'rgba(255, 255, 255, 0.95)',
-                borderRadius: 2,
-                border: '2px solid',
-                borderColor: 'rgba(249, 115, 22, 0.3)',
+                height: 64,
+                maxWidth: 180,
+                objectFit: 'contain',
+                borderRadius: 1,
               }}
-            >
-              <Box
-                component="img"
-                src={proxiedImageUrl}
-                alt={`${decodedName} logo`}
-                onError={() => setImageError(true)}
-                sx={{
-                  maxWidth: '100%',
-                  maxHeight: '100%',
-                  objectFit: 'contain',
-                }}
-              />
-            </Box>
+            />
           ) : (
             <Avatar
               variant="rounded"
               sx={{
-                width: 80,
-                height: 80,
+                width: 64,
+                height: 64,
                 bgcolor: '#f97316',
-                fontSize: '1.5rem',
-                border: '2px solid',
-                borderColor: 'rgba(249, 115, 22, 0.5)',
+                fontSize: '1.25rem',
               }}
             >
               {decodedName.substring(0, 2).toUpperCase()}
