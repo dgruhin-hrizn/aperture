@@ -8,7 +8,7 @@
  * - Get error summary for dashboard
  */
 
-import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify'
+import type { FastifyPluginAsync } from 'fastify'
 import { requireAuth, requireAdmin } from '../plugins/auth.js'
 import {
   getActiveApiErrors,
@@ -30,7 +30,7 @@ const apiErrorsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     '/api/errors',
     { preHandler: requireAuth },
-    async (_request: FastifyRequest, reply: FastifyReply) => {
+    async (_request, reply) => {
       try {
         const errors = await getActiveApiErrors()
         
@@ -62,7 +62,7 @@ const apiErrorsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     '/api/errors/summary',
     { preHandler: requireAuth },
-    async (_request: FastifyRequest, reply: FastifyReply) => {
+    async (_request, reply) => {
       try {
         const summary = await getErrorSummary()
         reply.send({ summary })
@@ -77,13 +77,10 @@ const apiErrorsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/errors/:provider
    * Get active errors for a specific provider
    */
-  fastify.get(
+  fastify.get<{ Params: { provider: string } }>(
     '/api/errors/:provider',
     { preHandler: requireAuth },
-    async (
-      request: FastifyRequest<{ Params: { provider: string } }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       const { provider } = request.params
       
       // Validate provider
@@ -119,13 +116,10 @@ const apiErrorsRoutes: FastifyPluginAsync = async (fastify) => {
    * POST /api/errors/:id/dismiss
    * Dismiss a specific error
    */
-  fastify.post(
+  fastify.post<{ Params: { id: string } }>(
     '/api/errors/:id/dismiss',
     { preHandler: requireAuth },
-    async (
-      request: FastifyRequest<{ Params: { id: string } }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       const { id } = request.params
       
       try {
@@ -142,13 +136,10 @@ const apiErrorsRoutes: FastifyPluginAsync = async (fastify) => {
    * POST /api/errors/:provider/dismiss-all
    * Dismiss all errors for a provider
    */
-  fastify.post(
+  fastify.post<{ Params: { provider: string } }>(
     '/api/errors/:provider/dismiss-all',
     { preHandler: requireAuth },
-    async (
-      request: FastifyRequest<{ Params: { provider: string } }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       const { provider } = request.params
       
       // Validate provider
@@ -174,7 +165,7 @@ const apiErrorsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     '/api/errors/cleanup',
     { preHandler: requireAdmin },
-    async (_request: FastifyRequest, reply: FastifyReply) => {
+    async (_request, reply) => {
       try {
         const count = await cleanupOldErrors()
         reply.send({ success: true, deleted: count })
@@ -187,4 +178,3 @@ const apiErrorsRoutes: FastifyPluginAsync = async (fastify) => {
 }
 
 export default apiErrorsRoutes
-
