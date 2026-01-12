@@ -14,6 +14,7 @@ import Movie from '@mui/icons-material/Movie'
 import Favorite from '@mui/icons-material/Favorite'
 import PlayArrow from '@mui/icons-material/PlayArrow'
 import ThumbUp from '@mui/icons-material/ThumbUp'
+import { getProxiedImageUrl } from './imageUtils.js'
 
 // Type workaround for MUI icons with NodeNext module resolution
 type IconComponent = React.ComponentType<{ fontSize?: string }>
@@ -109,7 +110,7 @@ export function EvidenceList({
               <ListItemAvatar>
                 {item.posterUrl ? (
                   <Avatar
-                    src={item.posterUrl}
+                    src={getProxiedImageUrl(item.posterUrl)}
                     variant="rounded"
                     sx={{ width: 48, height: 72 }}
                   />

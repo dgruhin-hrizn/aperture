@@ -441,7 +441,7 @@ export function SearchPage() {
 
           <Grid container spacing={2}>
             {results.map((result) => (
-              <Grid item key={`${result.type}-${result.id}`}>
+              <Grid item xs={6} sm={4} md={3} lg={2} key={`${result.type}-${result.id}`}>
                 <MoviePoster
                   title={result.title}
                   year={result.year}
@@ -454,7 +454,7 @@ export function SearchPage() {
                   isWatching={result.type === 'series' ? isWatching(result.id) : undefined}
                   onWatchingToggle={result.type === 'series' ? () => toggleWatching(result.id) : undefined}
                   hideWatchingToggle={result.type !== 'series'}
-                  size="medium"
+                  responsive
                   onClick={() => navigate(`/${result.type === 'movie' ? 'movies' : 'series'}/${result.id}`)}
                 />
               </Grid>

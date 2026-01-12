@@ -91,8 +91,8 @@ export function TopPicksMoviesPage() {
         <Skeleton variant="text" width={200} height={24} sx={{ mb: 4 }} />
         <Grid container spacing={2}>
           {[...Array(10)].map((_, i) => (
-            <Grid item key={i}>
-              <Skeleton variant="rectangular" width={154} height={231} sx={{ borderRadius: 1 }} />
+            <Grid item xs={6} sm={4} md={3} lg={2} key={i}>
+              <Skeleton variant="rectangular" sx={{ width: '100%', aspectRatio: '2/3', borderRadius: 1 }} />
             </Grid>
           ))}
         </Grid>
@@ -103,7 +103,7 @@ export function TopPicksMoviesPage() {
   return (
     <Box>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={4}>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={4} flexWrap="wrap" gap={2}>
         <Box>
           <Box display="flex" alignItems="center" gap={2} mb={1}>
             <WhatshotIcon sx={{ color: '#f97316', fontSize: 32 }} />
@@ -150,7 +150,7 @@ export function TopPicksMoviesPage() {
       ) : viewMode === 'grid' ? (
         <Grid container spacing={2}>
           {movies.map((movie) => (
-            <Grid item key={movie.movieId}>
+            <Grid item xs={6} sm={4} md={3} lg={2} key={movie.movieId}>
               <Box position="relative">
                 <MoviePoster
                   title={movie.title}
@@ -161,7 +161,7 @@ export function TopPicksMoviesPage() {
                   overview={movie.overview}
                   userRating={getRating('movie', movie.movieId)}
                   onRate={(rating) => handleRate(movie.movieId, rating)}
-                  size="medium"
+                  responsive
                   onClick={() => navigate(`/movies/${movie.movieId}`)}
                 />
                 <RankBadge rank={movie.rank} size="large" />

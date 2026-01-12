@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Box,
   Typography,
@@ -35,6 +36,7 @@ import {
   Bar,
   Legend,
 } from 'recharts'
+import { getProxiedImageUrl } from '@aperture/ui'
 import { useAuth } from '@/hooks/useAuth'
 
 interface WatchStats {
@@ -66,6 +68,7 @@ const DECADE_COLORS = ['#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe', '#e0e7ff']
 
 export function WatchStatsPage() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [stats, setStats] = useState<WatchStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -451,7 +454,21 @@ export function WatchStatsPage() {
                   {stats.topActors.length > 0 ? (
                     <Box display="flex" flexDirection="column" gap={1.5}>
                       {stats.topActors.map((actor, index) => (
-                        <Box key={actor.name} display="flex" alignItems="center" gap={2}>
+                        <Box 
+                          key={actor.name} 
+                          display="flex" 
+                          alignItems="center" 
+                          gap={2}
+                          onClick={() => navigate(`/person/${encodeURIComponent(actor.name)}`)}
+                          sx={{ 
+                            cursor: 'pointer',
+                            borderRadius: 1,
+                            p: 0.5,
+                            mx: -0.5,
+                            '&:hover': { bgcolor: 'rgba(99, 102, 241, 0.1)' },
+                            transition: 'background-color 0.2s',
+                          }}
+                        >
                           <Typography 
                             variant="body2" 
                             color="text.secondary" 
@@ -460,7 +477,7 @@ export function WatchStatsPage() {
                             {index + 1}.
                           </Typography>
                           <Avatar
-                            src={actor.thumb || undefined}
+                            src={getProxiedImageUrl(actor.thumb)}
                             alt={actor.name}
                             sx={{ 
                               width: 40, 
@@ -532,7 +549,21 @@ export function WatchStatsPage() {
                   {stats.topDirectors.length > 0 ? (
                     <Box display="flex" flexDirection="column" gap={1.5}>
                       {stats.topDirectors.map((director, index) => (
-                        <Box key={director.name} display="flex" alignItems="center" gap={2}>
+                        <Box 
+                          key={director.name} 
+                          display="flex" 
+                          alignItems="center" 
+                          gap={2}
+                          onClick={() => navigate(`/person/${encodeURIComponent(director.name)}`)}
+                          sx={{ 
+                            cursor: 'pointer',
+                            borderRadius: 1,
+                            p: 0.5,
+                            mx: -0.5,
+                            '&:hover': { bgcolor: 'rgba(139, 92, 246, 0.1)' },
+                            transition: 'background-color 0.2s',
+                          }}
+                        >
                           <Typography 
                             variant="body2" 
                             color="text.secondary" 
@@ -541,7 +572,7 @@ export function WatchStatsPage() {
                             {index + 1}.
                           </Typography>
                           <Avatar
-                            src={director.thumb || undefined}
+                            src={getProxiedImageUrl(director.thumb)}
                             alt={director.name}
                             sx={{ 
                               width: 40, 
@@ -616,7 +647,21 @@ export function WatchStatsPage() {
                   {stats.topStudios.length > 0 ? (
                     <Box display="flex" flexDirection="column" gap={1.5}>
                       {stats.topStudios.map((studio, index) => (
-                        <Box key={studio.name} display="flex" alignItems="center" gap={2}>
+                        <Box 
+                          key={studio.name} 
+                          display="flex" 
+                          alignItems="center" 
+                          gap={2}
+                          onClick={() => navigate(`/studio/${encodeURIComponent(studio.name)}`)}
+                          sx={{ 
+                            cursor: 'pointer',
+                            borderRadius: 1,
+                            p: 0.5,
+                            mx: -0.5,
+                            '&:hover': { bgcolor: 'rgba(249, 115, 22, 0.1)' },
+                            transition: 'background-color 0.2s',
+                          }}
+                        >
                           <Typography 
                             variant="body2" 
                             color="text.secondary" 
@@ -625,7 +670,7 @@ export function WatchStatsPage() {
                             {index + 1}.
                           </Typography>
                           <Avatar
-                            src={studio.thumb || undefined}
+                            src={getProxiedImageUrl(studio.thumb)}
                             alt={studio.name}
                             variant="rounded"
                             sx={{ 
@@ -698,7 +743,21 @@ export function WatchStatsPage() {
                   {stats.topNetworks.length > 0 ? (
                     <Box display="flex" flexDirection="column" gap={1.5}>
                       {stats.topNetworks.map((network, index) => (
-                        <Box key={network.name} display="flex" alignItems="center" gap={2}>
+                        <Box 
+                          key={network.name} 
+                          display="flex" 
+                          alignItems="center" 
+                          gap={2}
+                          onClick={() => navigate(`/studio/${encodeURIComponent(network.name)}`)}
+                          sx={{ 
+                            cursor: 'pointer',
+                            borderRadius: 1,
+                            p: 0.5,
+                            mx: -0.5,
+                            '&:hover': { bgcolor: 'rgba(6, 182, 212, 0.1)' },
+                            transition: 'background-color 0.2s',
+                          }}
+                        >
                           <Typography 
                             variant="body2" 
                             color="text.secondary" 
@@ -707,7 +766,7 @@ export function WatchStatsPage() {
                             {index + 1}.
                           </Typography>
                           <Avatar
-                            src={network.thumb || undefined}
+                            src={getProxiedImageUrl(network.thumb)}
                             alt={network.name}
                             variant="rounded"
                             sx={{ 

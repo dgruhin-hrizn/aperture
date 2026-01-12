@@ -7,6 +7,7 @@ import PersonIcon from '@mui/icons-material/Person'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import { useNavigate } from 'react-router-dom'
+import { getProxiedImageUrl } from '@aperture/ui'
 import type { Person, PersonResultData } from './types'
 
 interface PersonCardProps {
@@ -37,7 +38,7 @@ function PersonCardSingle({ person }: PersonCardProps) {
       {/* Header with photo */}
       <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
         <Avatar
-          src={person.thumb || undefined}
+          src={getProxiedImageUrl(person.thumb)}
           sx={{
             width: 64,
             height: 64,

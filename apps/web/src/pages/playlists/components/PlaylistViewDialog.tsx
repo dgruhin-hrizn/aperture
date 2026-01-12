@@ -20,6 +20,7 @@ import MovieIcon from '@mui/icons-material/Movie'
 import AddIcon from '@mui/icons-material/Add'
 import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay'
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline'
+import { getProxiedImageUrl } from '@aperture/ui'
 import type { Channel, Movie, PlaylistItem } from '../types'
 
 interface PlaylistViewDialogProps {
@@ -164,13 +165,9 @@ export function PlaylistViewDialog({
                     }}
                     onClick={() => addingMovieId !== movie.id && handleAddMovie(movie)}
                   >
-                    {movie.poster_url ? (
-                      <Avatar src={movie.poster_url} variant="rounded" sx={{ width: 32, height: 48 }} />
-                    ) : (
-                      <Avatar variant="rounded" sx={{ width: 32, height: 48 }}>
-                        <MovieIcon fontSize="small" />
-                      </Avatar>
-                    )}
+                    <Avatar src={getProxiedImageUrl(movie.poster_url)} variant="rounded" sx={{ width: 32, height: 48 }}>
+                      <MovieIcon fontSize="small" />
+                    </Avatar>
                     <Box flexGrow={1}>
                       <Typography variant="body2">{movie.title}</Typography>
                       {movie.year && (
@@ -232,13 +229,9 @@ export function PlaylistViewDialog({
                 <Typography variant="body2" color="text.secondary" sx={{ minWidth: 24 }}>
                   {index + 1}
                 </Typography>
-                {item.posterUrl ? (
-                  <Avatar src={item.posterUrl} variant="rounded" sx={{ width: 40, height: 60 }} />
-                ) : (
-                  <Avatar variant="rounded" sx={{ width: 40, height: 60 }}>
-                    <MovieIcon />
-                  </Avatar>
-                )}
+                <Avatar src={getProxiedImageUrl(item.posterUrl)} variant="rounded" sx={{ width: 40, height: 60 }}>
+                  <MovieIcon />
+                </Avatar>
                 <Box flexGrow={1}>
                   <Typography variant="body1">{item.title}</Typography>
                   <Typography variant="caption" color="text.secondary">

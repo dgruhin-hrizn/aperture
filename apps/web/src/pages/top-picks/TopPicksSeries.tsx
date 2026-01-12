@@ -95,8 +95,8 @@ export function TopPicksSeriesPage() {
         <Skeleton variant="text" width={200} height={24} sx={{ mb: 4 }} />
         <Grid container spacing={2}>
           {[...Array(10)].map((_, i) => (
-            <Grid item key={i}>
-              <Skeleton variant="rectangular" width={154} height={231} sx={{ borderRadius: 1 }} />
+            <Grid item xs={6} sm={4} md={3} lg={2} key={i}>
+              <Skeleton variant="rectangular" sx={{ width: '100%', aspectRatio: '2/3', borderRadius: 1 }} />
             </Grid>
           ))}
         </Grid>
@@ -107,7 +107,7 @@ export function TopPicksSeriesPage() {
   return (
     <Box>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={4}>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={4} flexWrap="wrap" gap={2}>
         <Box>
           <Box display="flex" alignItems="center" gap={2} mb={1}>
             <TvIcon sx={{ color: '#8b5cf6', fontSize: 32 }} />
@@ -154,7 +154,7 @@ export function TopPicksSeriesPage() {
       ) : viewMode === 'grid' ? (
         <Grid container spacing={2}>
           {series.map((show) => (
-            <Grid item key={show.seriesId}>
+            <Grid item xs={6} sm={4} md={3} lg={2} key={show.seriesId}>
               <Box position="relative">
                 <MoviePoster
                   title={show.title}
@@ -165,6 +165,7 @@ export function TopPicksSeriesPage() {
                   overview={show.overview}
                   userRating={getRating('series', show.seriesId)}
                   onRate={(rating) => handleRate(show.seriesId, rating)}
+                  responsive
                   isWatching={isWatching(show.seriesId)}
                   onWatchingToggle={() => toggleWatching(show.seriesId)}
                   size="medium"

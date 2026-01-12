@@ -23,7 +23,7 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
-import { MoviePoster, RankBadge } from '@aperture/ui'
+import { MoviePoster, RankBadge, getProxiedImageUrl, FALLBACK_POSTER_URL } from '@aperture/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { useUserRatings } from '@/hooks/useUserRatings'
 import { useWatching } from '@/hooks/useWatching'
@@ -251,8 +251,8 @@ export function MyRecommendationsPage() {
     <Box>
       <Grid container spacing={2}>
         {[...Array(12)].map((_, i) => (
-          <Grid item key={i}>
-            <Skeleton variant="rectangular" width={154} height={231} sx={{ borderRadius: 1 }} />
+          <Grid item xs={6} sm={4} md={3} lg={2} key={i}>
+            <Skeleton variant="rectangular" sx={{ width: '100%', aspectRatio: '2/3', borderRadius: 1 }} />
           </Grid>
         ))}
       </Grid>
@@ -262,7 +262,7 @@ export function MyRecommendationsPage() {
   return (
     <Box>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3} flexWrap="wrap" gap={2}>
         <Box>
           <Box display="flex" alignItems="center" gap={2} mb={1}>
             <AutoAwesomeIcon sx={{ color: 'primary.main', fontSize: 32 }} />
@@ -275,7 +275,7 @@ export function MyRecommendationsPage() {
           </Typography>
         </Box>
 
-        <Box display="flex" alignItems="center" gap={2}>
+        <Box display="flex" alignItems="center" gap={2} flexWrap="wrap">
           <Button
             variant="outlined"
             startIcon={regenerating ? <CircularProgress size={16} /> : <RefreshIcon />}
@@ -402,7 +402,7 @@ export function MyRecommendationsPage() {
             const { id, item, navigateTo } = getItemProps(rec)
             const type = mediaType === 'movies' ? 'movie' : 'series'
             return (
-              <Grid item key={id}>
+              <Grid item xs={6} sm={4} md={3} lg={2} key={id}>
                 <Box position="relative">
                   <MoviePoster
                     title={item.title}
@@ -419,7 +419,7 @@ export function MyRecommendationsPage() {
                     isWatching={type === 'series' ? isWatching(id) : undefined}
                     onWatchingToggle={type === 'series' ? () => toggleWatching(id) : undefined}
                     hideWatchingToggle={type !== 'series'}
-                    size="medium"
+                    responsive
                     onClick={() => navigate(navigateTo)}
                   />
                   <RankBadge rank={index + 1} size="medium" />
@@ -454,8 +454,12 @@ export function MyRecommendationsPage() {
                   {/* Poster */}
                   <Box
                     component="img"
-                    src={item.poster_url || undefined}
+                    src={getProxiedImageUrl(item.poster_url)}
                     alt={item.title}
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement
+                      target.src = FALLBACK_POSTER_URL
+                    }}
                     sx={{
                       width: 80,
                       height: 120,

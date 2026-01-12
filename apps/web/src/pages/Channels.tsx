@@ -36,6 +36,7 @@ import MovieIcon from '@mui/icons-material/Movie'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
+import { getProxiedImageUrl } from '@aperture/ui'
 
 interface Channel {
   id: string
@@ -844,13 +845,9 @@ export function ChannelsPage() {
                     }}
                     onClick={() => addExampleMovie(movie)}
                   >
-                    {movie.poster_url ? (
-                      <Avatar src={movie.poster_url} variant="rounded" sx={{ width: 32, height: 48 }} />
-                    ) : (
-                      <Avatar variant="rounded" sx={{ width: 32, height: 48 }}>
-                        <MovieIcon fontSize="small" />
-                      </Avatar>
-                    )}
+                    <Avatar src={getProxiedImageUrl(movie.poster_url)} variant="rounded" sx={{ width: 32, height: 48 }}>
+                      <MovieIcon fontSize="small" />
+                    </Avatar>
                     <Box>
                       <Typography variant="body2">{movie.title}</Typography>
                       {movie.year && (
@@ -871,13 +868,9 @@ export function ChannelsPage() {
                   <Chip
                     key={movie.id}
                     avatar={
-                      movie.poster_url ? (
-                        <Avatar src={movie.poster_url} />
-                      ) : (
-                        <Avatar>
-                          <MovieIcon fontSize="small" />
-                        </Avatar>
-                      )
+                      <Avatar src={getProxiedImageUrl(movie.poster_url)}>
+                        <MovieIcon fontSize="small" />
+                      </Avatar>
                     }
                     label={`${movie.title}${movie.year ? ` (${movie.year})` : ''}`}
                     onDelete={() => removeExampleMovie(movie.id)}
@@ -1075,13 +1068,9 @@ export function ChannelsPage() {
                       }}
                       onClick={() => addingMovieId !== movie.id && handleAddToPlaylist(movie)}
                     >
-                      {movie.poster_url ? (
-                        <Avatar src={movie.poster_url} variant="rounded" sx={{ width: 32, height: 48 }} />
-                      ) : (
-                        <Avatar variant="rounded" sx={{ width: 32, height: 48 }}>
-                          <MovieIcon fontSize="small" />
-                        </Avatar>
-                      )}
+                      <Avatar src={getProxiedImageUrl(movie.poster_url)} variant="rounded" sx={{ width: 32, height: 48 }}>
+                        <MovieIcon fontSize="small" />
+                      </Avatar>
                       <Box flexGrow={1}>
                         <Typography variant="body2">{movie.title}</Typography>
                         {movie.year && (

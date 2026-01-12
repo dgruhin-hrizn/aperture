@@ -15,8 +15,10 @@ import topPicksRoutes from './top-picks.js'
 import traktRoutes from './trakt.js'
 import dashboardRoutes from './dashboard.js'
 import imageRoutes from './images.js'
+import mediaProxyRoutes from './media-proxy.js'
 import assistantRoutes from './assistant/index.js'
 import searchRoutes from './search.js'
+import discoverRoutes from './discover.js'
 import watchingRoutes from './watching.js'
 import backupRoutes from './backup.js'
 import maintenanceRoutes from './maintenance.js'
@@ -70,11 +72,17 @@ const routes: FastifyPluginAsync = async (fastify) => {
   // Register image routes
   await fastify.register(imageRoutes)
 
+  // Register media proxy routes (for proxying Emby/Jellyfin images)
+  await fastify.register(mediaProxyRoutes)
+
   // Register assistant routes
   await fastify.register(assistantRoutes)
 
   // Register search routes
   await fastify.register(searchRoutes)
+
+  // Register discover routes (person/studio browsing)
+  await fastify.register(discoverRoutes)
 
   // Register watching routes
   await fastify.register(watchingRoutes)

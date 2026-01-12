@@ -10,6 +10,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import SyncIcon from '@mui/icons-material/Sync'
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
 import AddToQueueIcon from '@mui/icons-material/AddToQueue'
+import BusinessIcon from '@mui/icons-material/Business'
 import type { JobCategory } from './types'
 
 // Movie job categories
@@ -62,7 +63,7 @@ export const GLOBAL_JOB_CATEGORIES: JobCategory[] = [
     title: 'Metadata Enrichment',
     description: 'Enrich movies and series with TMDb and OMDb data',
     color: '#10b981',
-    jobs: ['enrich-metadata'],
+    jobs: ['enrich-metadata', 'enrich-studio-logos'],
   },
   {
     title: 'Top Picks',
@@ -109,6 +110,7 @@ export const JOB_ICONS: Record<string, React.ReactNode> = {
   'sync-series-libraries': <FolderIcon />,
   // Global jobs
   'enrich-metadata': <AutoFixHighIcon />,
+  'enrich-studio-logos': <BusinessIcon />,
   'refresh-top-picks': <TrendingUpIcon />,
   'sync-watching-libraries': <AddToQueueIcon />,
   'sync-trakt-ratings': <SyncIcon />,
@@ -132,6 +134,7 @@ export const JOB_COLORS: Record<string, string> = {
   'sync-series-libraries': '#4f46e5',
   // Global jobs
   'enrich-metadata': '#10b981',
+  'enrich-studio-logos': '#14b8a6',
   'refresh-top-picks': '#f59e0b',
   'sync-watching-libraries': '#06b6d4',
   'sync-trakt-ratings': '#ed1c24',

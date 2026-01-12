@@ -179,3 +179,69 @@ export async function findTVByTvdbId(
   return null
 }
 
+/**
+ * Search for a company by name
+ * Returns the first match if found
+ */
+export async function searchCompanyByName(
+  name: string,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<{ id: number; name: string; logo_path: string | null; origin_country: string } | null> {
+  interface SearchResponse {
+    results?: Array<{
+      id: number
+      name: string
+      logo_path: string | null
+      origin_country: string
+    }>
+  }
+
+  const result = await tmdbRequest<SearchResponse>(
+    `/search/company?query=${encodeURIComponent(name)}`,
+    options
+  )
+  
+  if (result?.results && result.results.length > 0) {
+    // Try to find an exact name match first
+    const exactMatch = result.results.find(
+      (c) => c.name.toLowerCase() === name.toLowerCase()
+    )
+    return exactMatch || result.results[0]
+  }
+  return null
+}
+
+/**
+ * Get company details by TMDB company ID
+ */
+export async function getCompanyDetails(
+  companyId: number,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<{ id: number; name: string; logo_path: string | null; origin_country: string } | null> {
+  interface CompanyResponse {
+    id: number
+    name: string
+    logo_path: string | null
+    origin_country: string
+  }
+
+  return tmdbRequest<CompanyResponse>(`/company/${companyId}`, options)
+}
+
+/**
+ * Get network details by TMDB network ID
+ */
+export async function getNetworkDetails(
+  networkId: number,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<{ id: number; name: string; logo_path: string | null; origin_country: string } | null> {
+  interface NetworkResponse {
+    id: number
+    name: string
+    logo_path: string | null
+    origin_country: string
+  }
+
+  return tmdbRequest<NetworkResponse>(`/network/${networkId}`, options)
+}
+

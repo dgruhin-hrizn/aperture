@@ -17,6 +17,7 @@ import {
   refreshTopPicks,
   // Enrichment
   enrichMetadata,
+  enrichStudioLogos,
   // Common
   createChildLogger,
   // Watching libraries
@@ -157,6 +158,12 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
     name: 'enrich-metadata',
     description: 'Enrich movies and series with TMDb keywords, collections, and OMDb ratings',
     cron: null, // Manual by default
+  },
+  // === Studio Logo Enrichment Job ===
+  {
+    name: 'enrich-studio-logos',
+    description: 'Fetch studio and network logos from TMDB',
+    cron: '0 5 * * *', // Daily at 5 AM
   },
   // === Database Backup Job ===
   {
@@ -891,6 +898,18 @@ async function runJob(name: string, jobId: string): Promise<void> {
           seriesEnriched: result.seriesEnriched,
           collectionsCreated: result.collectionsCreated,
         }, `✅ Metadata enrichment complete`)
+        break
+      }
+      // === Studio Logo Enrichment Job ===
+      case 'enrich-studio-logos': {
+        const result = await enrichStudioLogos(jobId)
+        logger.info({
+          job: name,
+          jobId,
+          studiosEnriched: result.studiosEnriched,
+          networksEnriched: result.networksEnriched,
+          logosPushedToEmby: result.logosPushedToEmby,
+        }, `✅ Studio logo enrichment complete`)
         break
       }
       // === Database Backup Job ===

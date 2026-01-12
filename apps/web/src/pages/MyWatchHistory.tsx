@@ -40,7 +40,7 @@ import HistoryIcon from '@mui/icons-material/History'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
-import { MoviePoster } from '@aperture/ui'
+import { MoviePoster, getProxiedImageUrl, FALLBACK_POSTER_URL } from '@aperture/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { useWatching } from '@/hooks/useWatching'
 
@@ -269,8 +269,8 @@ export function MyWatchHistoryPage() {
         <Skeleton variant="text" width={200} height={24} sx={{ mb: 4 }} />
         <Grid container spacing={2}>
           {[...Array(12)].map((_, i) => (
-            <Grid item key={i}>
-              <Skeleton variant="rectangular" width={160} height={240} sx={{ borderRadius: 1 }} />
+            <Grid item xs={6} sm={4} md={3} lg={2} key={i}>
+              <Skeleton variant="rectangular" sx={{ width: '100%', aspectRatio: '2/3', borderRadius: 1 }} />
             </Grid>
           ))}
         </Grid>
@@ -378,7 +378,7 @@ export function MyWatchHistoryPage() {
               {viewMode === 'grid' && (
                 <Grid container spacing={2}>
                   {filteredMovies.map((item) => (
-                    <Grid item key={item.movie_id}>
+                    <Grid item xs={6} sm={4} md={3} lg={2} key={item.movie_id}>
                       <Box 
                         position="relative"
                         sx={{
@@ -394,7 +394,7 @@ export function MyWatchHistoryPage() {
                           genres={item.genres}
                           rating={item.community_rating}
                           overview={item.overview}
-                          size="medium"
+                          responsive
                           onClick={() => navigate(`/movies/${item.movie_id}`)}
                         />
                         {/* Play count badge - cap display at 5x, show "Rewatched" for higher */}
@@ -490,8 +490,12 @@ export function MyWatchHistoryPage() {
                             <Box display="flex" alignItems="center" gap={2}>
                               <Box
                                 component="img"
-                                src={item.poster_url || undefined}
+                                src={getProxiedImageUrl(item.poster_url)}
                                 alt={item.title}
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement
+                                  target.src = FALLBACK_POSTER_URL
+                                }}
                                 sx={{
                                   width: 40,
                                   height: 60,
@@ -599,7 +603,7 @@ export function MyWatchHistoryPage() {
               {viewMode === 'grid' && (
                 <Grid container spacing={2}>
                   {filteredSeries.map((item) => (
-                    <Grid item key={item.series_id}>
+                    <Grid item xs={6} sm={4} md={3} lg={2} key={item.series_id}>
                       <Box 
                         sx={{ 
                           '&:hover .mark-unwatched-btn': {
@@ -615,7 +619,7 @@ export function MyWatchHistoryPage() {
                             genres={item.genres}
                             rating={item.community_rating}
                             overview={item.overview}
-                            size="medium"
+                            responsive
                             hideRating
                             isWatching={isWatching(item.series_id)}
                             onWatchingToggle={() => toggleWatching(item.series_id)}
@@ -729,8 +733,12 @@ export function MyWatchHistoryPage() {
                             <Box display="flex" alignItems="center" gap={2}>
                               <Box
                                 component="img"
-                                src={item.poster_url || undefined}
+                                src={getProxiedImageUrl(item.poster_url)}
                                 alt={item.title}
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement
+                                  target.src = FALLBACK_POSTER_URL
+                                }}
                                 sx={{
                                   width: 40,
                                   height: 60,

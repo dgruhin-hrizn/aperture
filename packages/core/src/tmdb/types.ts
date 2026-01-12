@@ -32,6 +32,20 @@ export interface TMDbCastMember {
   order: number
 }
 
+export interface TMDbProductionCompany {
+  id: number
+  name: string
+  logo_path: string | null
+  origin_country: string
+}
+
+export interface TMDbNetwork {
+  id: number
+  name: string
+  logo_path: string | null
+  origin_country: string
+}
+
 export interface TMDbCollection {
   id: number
   name: string
@@ -68,6 +82,7 @@ export interface TMDbMovieDetails {
   vote_count: number
   genres: TMDbGenre[]
   belongs_to_collection: TMDbCollection | null
+  production_companies: TMDbProductionCompany[]
 }
 
 export interface TMDbMovieKeywordsResponse {
@@ -96,6 +111,8 @@ export interface TMDbTVDetails {
   status: string
   number_of_seasons: number
   number_of_episodes: number
+  networks: TMDbNetwork[]
+  production_companies: TMDbProductionCompany[]
 }
 
 export interface TMDbTVKeywordsResponse {
@@ -109,9 +126,56 @@ export interface TMDbTVCreditsResponse {
   crew: TMDbCrewMember[]
 }
 
+export interface TMDbCompanySearchResult {
+  id: number
+  name: string
+  logo_path: string | null
+  origin_country: string
+}
+
+export interface TMDbCompanySearchResponse {
+  page: number
+  results: TMDbCompanySearchResult[]
+  total_pages: number
+  total_results: number
+}
+
+export interface TMDbCompanyDetails {
+  id: number
+  name: string
+  logo_path: string | null
+  origin_country: string
+  description: string
+  headquarters: string
+  homepage: string | null
+}
+
+export interface TMDbNetworkDetails {
+  id: number
+  name: string
+  logo_path: string | null
+  origin_country: string
+  headquarters: string
+  homepage: string | null
+}
+
 // ============================================================================
 // Internal Types (for our use)
 // ============================================================================
+
+export interface ProductionCompanyData {
+  tmdbId: number
+  name: string
+  logoPath: string | null
+  originCountry: string
+}
+
+export interface NetworkData {
+  tmdbId: number
+  name: string
+  logoPath: string | null
+  originCountry: string
+}
 
 export interface MovieEnrichmentData {
   keywords: string[]
@@ -120,10 +184,13 @@ export interface MovieEnrichmentData {
   cinematographers: string[]
   composers: string[]
   editors: string[]
+  productionCompanies: ProductionCompanyData[]
 }
 
 export interface SeriesEnrichmentData {
   keywords: string[]
+  networks: NetworkData[]
+  productionCompanies: ProductionCompanyData[]
 }
 
 export interface CollectionData {

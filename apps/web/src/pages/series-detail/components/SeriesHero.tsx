@@ -6,7 +6,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
 import AddToQueueIcon from '@mui/icons-material/AddToQueue'
 import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck'
 import type { Series, MediaServerInfo } from '../types'
-import { HeartRating } from '@aperture/ui'
+import { HeartRating, getProxiedImageUrl, FALLBACK_POSTER_URL } from '@aperture/ui'
 
 interface SeriesHeroProps {
   series: Series
@@ -59,8 +59,12 @@ export function SeriesHero({ series, mediaServer, userRating, onRate, isWatching
         {series.poster_url ? (
           <Box
             component="img"
-            src={series.poster_url}
+            src={getProxiedImageUrl(series.poster_url)}
             alt={series.title}
+            onError={(e) => {
+              const target = e.target as HTMLImageElement
+              target.src = FALLBACK_POSTER_URL
+            }}
             sx={{
               width: '100%',
               height: '100%',

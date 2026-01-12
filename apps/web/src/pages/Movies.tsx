@@ -136,7 +136,7 @@ export function MoviesPage() {
             setPage(1)
           }}
           size="small"
-          sx={{ minWidth: 250 }}
+          sx={{ width: { xs: '100%', sm: 250 } }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -146,7 +146,7 @@ export function MoviesPage() {
           }}
         />
 
-        <FormControl size="small" sx={{ minWidth: 150 }}>
+        <FormControl size="small" sx={{ width: { xs: '100%', sm: 150 } }}>
           <InputLabel>Genre</InputLabel>
           <Select
             value={genre}
@@ -166,7 +166,7 @@ export function MoviesPage() {
         </FormControl>
 
         {collections.length > 0 && (
-          <FormControl size="small" sx={{ minWidth: 180 }}>
+          <FormControl size="small" sx={{ width: { xs: '100%', sm: 180 } }}>
             <InputLabel>Franchise</InputLabel>
             <Select
               value={collection}
@@ -186,7 +186,7 @@ export function MoviesPage() {
           </FormControl>
         )}
 
-        <Box sx={{ minWidth: 180, px: 1 }}>
+        <Box sx={{ width: { xs: '100%', sm: 180 }, px: 1 }}>
           <Typography variant="caption" color="text.secondary">
             Min RT Score: {minRtScore > 0 ? `${minRtScore}%` : 'Any'}
           </Typography>
@@ -241,8 +241,8 @@ export function MoviesPage() {
       {loading ? (
         <Grid container spacing={2}>
           {Array.from({ length: 12 }).map((_, i) => (
-            <Grid item key={i}>
-              <MoviePoster title="" loading size="medium" />
+            <Grid item xs={6} sm={4} md={3} lg={2} key={i}>
+              <MoviePoster title="" loading responsive />
             </Grid>
           ))}
         </Grid>
@@ -256,7 +256,7 @@ export function MoviesPage() {
         <>
           <Grid container spacing={2}>
             {movies.map((movie) => (
-              <Grid item key={movie.id}>
+              <Grid item xs={6} sm={4} md={3} lg={2} key={movie.id}>
                 <MoviePoster
                   title={movie.title}
                   year={movie.year}
@@ -266,7 +266,7 @@ export function MoviesPage() {
                   overview={movie.overview}
                   userRating={getRating('movie', movie.id)}
                   onRate={(rating) => handleRate(movie.id, rating)}
-                  size="medium"
+                  responsive
                   onClick={() => navigate(`/movies/${movie.id}`)}
                 />
               </Grid>

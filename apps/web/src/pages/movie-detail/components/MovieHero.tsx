@@ -9,7 +9,7 @@ import StarIcon from '@mui/icons-material/Star'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
-import { HeartRating } from '@aperture/ui'
+import { HeartRating, getProxiedImageUrl, FALLBACK_POSTER_URL } from '@aperture/ui'
 import type { Movie, MediaServerInfo, WatchStatus } from '../types'
 import { formatRuntime } from '../hooks'
 
@@ -92,25 +92,21 @@ export function MovieHero({ movie, mediaServer, watchStatus, canManageWatchHisto
           {movie.poster_url ? (
             <Box
               component="img"
-              src={movie.poster_url}
+              src={getProxiedImageUrl(movie.poster_url)}
               alt={movie.title}
+              onError={(e) => {
+                const target = e.target as HTMLImageElement
+                target.src = FALLBACK_POSTER_URL
+              }}
               sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
           ) : (
             <Box
-              sx={{
-                width: '100%',
-                height: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                bgcolor: 'grey.800',
-              }}
-            >
-              <Typography variant="body2" color="text.secondary" textAlign="center" p={2}>
-                {movie.title}
-              </Typography>
-            </Box>
+              component="img"
+              src={FALLBACK_POSTER_URL}
+              alt={movie.title}
+              sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
           )}
         </Paper>
       </Box>

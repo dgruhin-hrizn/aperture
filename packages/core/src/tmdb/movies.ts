@@ -9,6 +9,7 @@ import type {
   TMDbMovieKeywordsResponse,
   TMDbMovieCreditsResponse,
   MovieEnrichmentData,
+  ProductionCompanyData,
 } from './types.js'
 
 const logger = createChildLogger('tmdb:movies')
@@ -100,6 +101,14 @@ export async function getMovieEnrichmentData(
   const composers = credits ? extractCrewByJob(credits, ['Original Music Composer', 'Music']) : []
   const editors = credits ? extractCrewByJob(credits, ['Editor']) : []
 
+  // Extract production companies
+  const productionCompanies: ProductionCompanyData[] = (details.production_companies || []).map((company) => ({
+    tmdbId: company.id,
+    name: company.name,
+    logoPath: company.logo_path,
+    originCountry: company.origin_country,
+  }))
+
   return {
     keywords,
     collectionId: details.belongs_to_collection?.id ?? null,
@@ -107,6 +116,7 @@ export async function getMovieEnrichmentData(
     cinematographers,
     composers,
     editors,
+    productionCompanies,
   }
 }
 

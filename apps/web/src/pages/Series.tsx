@@ -239,8 +239,8 @@ export function SeriesPage() {
       {loading ? (
         <Grid container spacing={2}>
           {Array.from({ length: 12 }).map((_, i) => (
-            <Grid item key={i}>
-              <MoviePoster title="" loading size="medium" />
+            <Grid item xs={6} sm={4} md={3} lg={2} key={i}>
+              <MoviePoster title="" loading responsive />
             </Grid>
           ))}
         </Grid>
@@ -254,7 +254,7 @@ export function SeriesPage() {
         <>
           <Grid container spacing={2}>
             {series.map((show) => (
-              <Grid item key={show.id}>
+              <Grid item xs={6} sm={4} md={3} lg={2} key={show.id}>
                 <MoviePoster
                   title={show.title}
                   year={show.year}
@@ -266,7 +266,7 @@ export function SeriesPage() {
                   onRate={(rating) => handleRate(show.id, rating)}
                   isWatching={isWatching(show.id)}
                   onWatchingToggle={() => toggleWatching(show.id)}
-                  size="medium"
+                  responsive
                   onClick={() => navigate(`/series/${show.id}`)}
                 />
               </Grid>

@@ -270,6 +270,8 @@ export function SettingsPage() {
         <Tabs
           value={tabValue}
           onChange={(_, v) => setTabValue(v)}
+          variant="scrollable"
+          scrollButtons="auto"
           sx={{
             px: 2,
             borderBottom: 1,

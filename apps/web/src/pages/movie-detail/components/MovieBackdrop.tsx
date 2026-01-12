@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { Box, IconButton } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
+import { getProxiedImageUrl } from '@aperture/ui'
 
 interface MovieBackdropProps {
   backdropUrl: string | null
@@ -8,6 +10,9 @@ interface MovieBackdropProps {
 }
 
 export function MovieBackdrop({ backdropUrl, title, onBack }: MovieBackdropProps) {
+  const [imageError, setImageError] = useState(false)
+  const proxiedBackdropUrl = backdropUrl ? getProxiedImageUrl(backdropUrl, '') : null
+
   return (
     <Box
       sx={{
@@ -19,11 +24,12 @@ export function MovieBackdrop({ backdropUrl, title, onBack }: MovieBackdropProps
         overflow: 'hidden',
       }}
     >
-      {backdropUrl ? (
+      {proxiedBackdropUrl && !imageError ? (
         <Box
           component="img"
-          src={backdropUrl}
+          src={proxiedBackdropUrl}
           alt={title}
+          onError={() => setImageError(true)}
           sx={{
             width: '100%',
             height: '100%',

@@ -601,7 +601,14 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
         }))
 
         // Top studios (from movies) - studios is now JSONB with {id, name}
-        const studiosResult = await query<{ id: string | null; name: string; count: string }>(
+        // Joins with studios_networks table to get TMDB logo data
+        const studiosResult = await query<{ 
+          id: string | null
+          name: string
+          count: string
+          logo_path: string | null
+          logo_local_path: string | null
+        }>(
           `WITH watched_movies AS (
              SELECT m.studios
              FROM watch_history wh
@@ -616,30 +623,59 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
            all_studios AS (
              SELECT jsonb_array_elements(wm.studios) as studio_obj
              FROM watched_movies wm
+           ),
+           studio_counts AS (
+             SELECT 
+               studio_obj->>'id' as id,
+               studio_obj->>'name' as name,
+               COUNT(*) as count
+             FROM all_studios
+             WHERE studio_obj->>'name' IS NOT NULL
+             GROUP BY studio_obj->>'id', studio_obj->>'name'
+             ORDER BY count DESC
+             LIMIT 10
            )
            SELECT 
-             studio_obj->>'id' as id,
-             studio_obj->>'name' as name,
-             COUNT(*) as count
-           FROM all_studios
-           WHERE studio_obj->>'name' IS NOT NULL
-           GROUP BY studio_obj->>'id', studio_obj->>'name'
-           ORDER BY count DESC
-           LIMIT 10`,
+             sc.id,
+             sc.name,
+             sc.count,
+             sn.logo_path,
+             sn.logo_local_path
+           FROM studio_counts sc
+           LEFT JOIN studios_networks sn ON sn.name = sc.name AND sn.type = 'studio'
+           ORDER BY sc.count DESC`,
           [id]
         )
 
-        // Construct studio image URLs using Emby/Jellyfin API format: /Items/{StudioId}/Images/Thumb
-        const topStudios = studiosResult.rows.map(r => ({
-          name: r.name,
-          thumb: mediaServerBaseUrl && r.id
-            ? `${mediaServerBaseUrl}/Items/${r.id}/Images/Thumb`
-            : null,
-          count: parseInt(r.count)
-        }))
+        // Construct studio image URLs - prefer local path, then TMDB, then Emby
+        const topStudios = studiosResult.rows.map(r => {
+          let thumb: string | null = null
+          if (r.logo_local_path) {
+            // Use local uploaded logo
+            thumb = `/api/uploads/${r.logo_local_path}`
+          } else if (r.logo_path) {
+            // Use TMDB logo directly
+            thumb = `https://image.tmdb.org/t/p/w185${r.logo_path}`
+          } else if (mediaServerBaseUrl && r.id) {
+            // Fall back to Emby/Jellyfin
+            thumb = `${mediaServerBaseUrl}/Items/${r.id}/Images/Thumb`
+          }
+          return {
+            name: r.name,
+            thumb,
+            count: parseInt(r.count)
+          }
+        })
 
         // Top networks (from series) - get the first studio ID matching the network name
-        const networksResult = await query<{ id: string | null; name: string; count: string }>(
+        // Joins with studios_networks table to get TMDB logo data
+        const networksResult = await query<{ 
+          id: string | null
+          name: string
+          count: string
+          logo_path: string | null
+          logo_local_path: string | null
+        }>(
           `WITH network_data AS (
              SELECT DISTINCT 
                s.id as series_id,
@@ -656,26 +692,48 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
                AND wh.episode_id IS NOT NULL
                AND s.network IS NOT NULL
                AND s.network != ''
+           ),
+           network_counts AS (
+             SELECT 
+               name,
+               MAX(network_id) as id,
+               COUNT(DISTINCT series_id) as count
+             FROM network_data
+             GROUP BY name
+             ORDER BY count DESC
+             LIMIT 10
            )
            SELECT 
-             name,
-             MAX(network_id) as id,
-             COUNT(DISTINCT series_id) as count
-           FROM network_data
-           GROUP BY name
-           ORDER BY count DESC
-           LIMIT 10`,
+             nc.id,
+             nc.name,
+             nc.count,
+             sn.logo_path,
+             sn.logo_local_path
+           FROM network_counts nc
+           LEFT JOIN studios_networks sn ON sn.name = nc.name AND sn.type = 'network'
+           ORDER BY nc.count DESC`,
           [id]
         )
 
-        // Construct network image URLs using Emby/Jellyfin API format: /Items/{StudioId}/Images/Thumb
-        const topNetworks = networksResult.rows.map(r => ({
-          name: r.name,
-          thumb: mediaServerBaseUrl && r.id
-            ? `${mediaServerBaseUrl}/Items/${r.id}/Images/Thumb`
-            : null,
-          count: parseInt(r.count)
-        }))
+        // Construct network image URLs - prefer local path, then TMDB, then Emby
+        const topNetworks = networksResult.rows.map(r => {
+          let thumb: string | null = null
+          if (r.logo_local_path) {
+            // Use local uploaded logo
+            thumb = `/api/uploads/${r.logo_local_path}`
+          } else if (r.logo_path) {
+            // Use TMDB logo directly
+            thumb = `https://image.tmdb.org/t/p/w185${r.logo_path}`
+          } else if (mediaServerBaseUrl && r.id) {
+            // Fall back to Emby/Jellyfin
+            thumb = `${mediaServerBaseUrl}/Items/${r.id}/Images/Thumb`
+          }
+          return {
+            name: r.name,
+            thumb,
+            count: parseInt(r.count)
+          }
+        })
 
         // Series genre distribution for comparison
         const seriesGenreResult = await query<{ genre: string; count: string }>(

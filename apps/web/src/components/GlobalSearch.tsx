@@ -24,6 +24,7 @@ import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import KeyboardIcon from '@mui/icons-material/Keyboard'
 import CloseIcon from '@mui/icons-material/Close'
+import { getProxiedImageUrl } from '@aperture/ui'
 
 interface SearchResult {
   id: string
@@ -318,7 +319,7 @@ export function GlobalSearch() {
                       <ListItemAvatar>
                         <Avatar
                           variant="rounded"
-                          src={result.poster_url || undefined}
+                          src={getProxiedImageUrl(result.poster_url)}
                           sx={{ width: 48, height: 72, borderRadius: 1 }}
                         >
                           {result.type === 'movie' ? <MovieIcon /> : <TvIcon />}

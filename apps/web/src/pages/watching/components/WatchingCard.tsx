@@ -57,7 +57,7 @@ export function WatchingCard({ series, onRemove }: WatchingCardProps) {
   const isAiring = series.status === 'Continuing'
 
   return (
-    <Box sx={{ width: 160 }}>
+    <Box sx={{ width: '100%' }}>
       {/* Standard MoviePoster */}
       <MoviePoster
         title={series.title}
@@ -70,7 +70,7 @@ export function WatchingCard({ series, onRemove }: WatchingCardProps) {
         onRate={handleRate}
         isWatching={true}
         onWatchingToggle={() => onRemove(series.seriesId)}
-        size="medium"
+        responsive
         onClick={handleClick}
       >
         {/* Status badge */}

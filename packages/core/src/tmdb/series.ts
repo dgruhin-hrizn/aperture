@@ -8,6 +8,8 @@ import type {
   TMDbTVDetails,
   TMDbTVKeywordsResponse,
   SeriesEnrichmentData,
+  NetworkData,
+  ProductionCompanyData,
 } from './types.js'
 
 const logger = createChildLogger('tmdb:series')
@@ -64,11 +66,32 @@ export async function getSeriesEnrichmentData(
     return null
   }
 
-  // Fetch keywords
-  const keywords = await getTVKeywords(resolvedTmdbId, { onLog })
+  // Fetch all data in parallel
+  const [details, keywords] = await Promise.all([
+    getTVDetails(resolvedTmdbId, { onLog }),
+    getTVKeywords(resolvedTmdbId, { onLog }),
+  ])
+
+  // Extract networks
+  const networks: NetworkData[] = details?.networks?.map((network) => ({
+    tmdbId: network.id,
+    name: network.name,
+    logoPath: network.logo_path,
+    originCountry: network.origin_country,
+  })) || []
+
+  // Extract production companies
+  const productionCompanies: ProductionCompanyData[] = details?.production_companies?.map((company) => ({
+    tmdbId: company.id,
+    name: company.name,
+    logoPath: company.logo_path,
+    originCountry: company.origin_country,
+  })) || []
 
   return {
     keywords,
+    networks,
+    productionCompanies,
   }
 }
 
