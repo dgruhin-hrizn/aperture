@@ -234,17 +234,24 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
       )
 
       // Check if we have a local logo from TMDB enrichment first
-      const studioLogo = await queryOne<{ logo_local_path: string | null }>(
-        `SELECT logo_local_path FROM studios_networks 
-         WHERE name ILIKE $1 AND logo_local_path IS NOT NULL 
+      // Check both 'studio' and 'network' types since this page handles both
+      const studioLogo = await queryOne<{ logo_local_path: string | null; logo_path: string | null }>(
+        `SELECT logo_local_path, logo_path FROM studios_networks 
+         WHERE name ILIKE $1 AND (logo_local_path IS NOT NULL OR logo_path IS NOT NULL)
+         ORDER BY logo_local_path IS NOT NULL DESC
          LIMIT 1`,
         [decodedName]
       )
 
-      // Use local logo if available, otherwise fall back to media server
-      const imageUrl = studioLogo?.logo_local_path 
-        ? `/api/uploads/${studioLogo.logo_local_path}`
-        : `/api/media/images/Studios/${encodeURIComponent(decodedName)}/Images/Primary`
+      // Use local logo if available, then TMDB, then fall back to media server
+      let imageUrl: string | null = null
+      if (studioLogo?.logo_local_path) {
+        imageUrl = `/api/uploads/${studioLogo.logo_local_path}`
+      } else if (studioLogo?.logo_path) {
+        imageUrl = `https://image.tmdb.org/t/p/w185${studioLogo.logo_path}`
+      } else {
+        imageUrl = `/api/media/images/Studios/${encodeURIComponent(decodedName)}/Images/Primary`
+      }
 
       const response: StudioResponse = {
         name: decodedName,
