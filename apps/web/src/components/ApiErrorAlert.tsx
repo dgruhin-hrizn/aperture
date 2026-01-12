@@ -214,27 +214,34 @@ export function ApiErrorAlert({
                 )}
 
                 {error.actionUrl && (
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    color={ERROR_SEVERITY[error.errorType]}
-                    href={error.actionUrl.startsWith('/') ? undefined : error.actionUrl}
-                    onClick={
-                      error.actionUrl.startsWith('/')
-                        ? () => (window.location.href = error.actionUrl!)
-                        : undefined
-                    }
-                    target={error.actionUrl.startsWith('/') ? undefined : '_blank'}
-                    rel="noopener noreferrer"
-                    endIcon={!error.actionUrl.startsWith('/') && <OpenInNewIcon fontSize="small" />}
-                    sx={{ ml: 'auto' }}
-                  >
-                    {error.errorType === 'auth'
-                      ? 'Check Settings'
-                      : error.errorType === 'limit'
-                      ? 'Upgrade'
-                      : 'Learn More'}
-                  </Button>
+                  error.actionUrl.startsWith('/') ? (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color={ERROR_SEVERITY[error.errorType]}
+                      onClick={() => (window.location.href = error.actionUrl!)}
+                      sx={{ ml: 'auto' }}
+                    >
+                      {error.errorType === 'auth' ? 'Check Settings' : 'Learn More'}
+                    </Button>
+                  ) : (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color={ERROR_SEVERITY[error.errorType]}
+                      href={error.actionUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      endIcon={<OpenInNewIcon fontSize="small" />}
+                      sx={{ ml: 'auto' }}
+                    >
+                      {error.errorType === 'auth'
+                        ? 'Check Settings'
+                        : error.errorType === 'limit'
+                        ? 'Upgrade'
+                        : 'Learn More'}
+                    </Button>
+                  )
                 )}
               </Box>
             )}
