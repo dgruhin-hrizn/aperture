@@ -73,6 +73,14 @@ export function StudioDetailPage() {
     fetchStudio()
   }, [name])
 
+  // Collect backdrop URLs from movies and series (must be before early returns)
+  const backdropUrls = useMemo(() => {
+    if (!data) return []
+    const movieBackdrops = data.movies.map(m => m.backdropUrl)
+    const seriesBackdrops = data.series.map(s => s.backdropUrl)
+    return [...movieBackdrops, ...seriesBackdrops]
+  }, [data])
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
@@ -91,13 +99,6 @@ export function StudioDetailPage() {
 
   const decodedName = decodeURIComponent(name || '')
   const proxiedImageUrl = data.imageUrl ? getProxiedImageUrl(data.imageUrl, '') : null
-
-  // Collect backdrop URLs from movies and series
-  const backdropUrls = useMemo(() => {
-    const movieBackdrops = data.movies.map(m => m.backdropUrl)
-    const seriesBackdrops = data.series.map(s => s.backdropUrl)
-    return [...movieBackdrops, ...seriesBackdrops]
-  }, [data.movies, data.series])
 
   return (
     <Box>
