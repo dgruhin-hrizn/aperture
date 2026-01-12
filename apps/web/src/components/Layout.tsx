@@ -358,7 +358,7 @@ export function Layout() {
           minHeight: 'calc(100vh - 64px)',
         }}
       >
-        <Outlet />
+        <Outlet key={location.pathname} />
       </Box>
 
       {/* Welcome Modal - shows on first visit */}
