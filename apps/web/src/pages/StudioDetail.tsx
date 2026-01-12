@@ -116,8 +116,8 @@ export function StudioDetailPage() {
           minHeight: 200,
         }}
       >
-        {/* Rotating fanart backdrop */}
-        <RotatingBackdrop backdropUrls={backdropUrls} height={280} />
+        {/* Rotating fanart backdrop - temporarily disabled for debugging */}
+        {/* <RotatingBackdrop backdropUrls={backdropUrls} height={280} /> */}
 
         {/* Content overlay */}
         <Box sx={{ position: 'relative', zIndex: 2 }}>

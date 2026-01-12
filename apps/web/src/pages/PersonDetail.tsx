@@ -128,7 +128,7 @@ export function PersonDetailPage() {
         <Box sx={{ position: 'relative', zIndex: 2 }}>
           {/* Back button */}
           <IconButton
-            onClick={() => navigate(-1)}
+            onClick={() => window.history.back()}
             sx={{
               mb: 2,
               bgcolor: 'rgba(0,0,0,0.4)',
