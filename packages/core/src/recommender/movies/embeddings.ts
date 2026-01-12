@@ -189,19 +189,21 @@ export async function storeEmbeddings(
 ): Promise<void> {
   const model = modelOverride || (await getEmbeddingModel())
 
-  for (const emb of embeddings) {
-    // Convert embedding array to PostgreSQL vector format
-    const vectorStr = `[${emb.embedding.join(',')}]`
-
-    await query(
-      `INSERT INTO embeddings (movie_id, model, embedding, canonical_text)
-       VALUES ($1, $2, $3::halfvec, $4)
-       ON CONFLICT (movie_id, model) DO UPDATE SET
-         embedding = EXCLUDED.embedding,
-         canonical_text = EXCLUDED.canonical_text`,
-      [emb.movieId, model, vectorStr, emb.canonicalText]
+  await query(
+    `INSERT INTO embeddings (movie_id, model, embedding, canonical_text)
+     SELECT t.movie_id, t.model, t.embedding, t.canonical_text
+     FROM unnest($1::uuid[], $2::text[], $3::halfvec[], $4::text[])
+     AS t(movie_id, model, embedding, canonical_text)
+     ON CONFLICT (movie_id, model) DO UPDATE SET
+       embedding = EXCLUDED.embedding,
+       canonical_text = EXCLUDED.canonical_text`,
+    [
+      embeddings.map((emb) => emb.movieId),
+      Array(embeddings.length).fill(model),
+      embeddings.map((emb) => `[${emb.embedding.join(',')}]`),
+      embeddings.map((emb) => emb.canonicalText),
+    ]
     )
-  }
 
   logger.info({ count: embeddings.length }, 'Embeddings stored')
 }
