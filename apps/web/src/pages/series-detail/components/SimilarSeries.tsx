@@ -37,7 +37,7 @@ export function SimilarSeries({ similar }: SimilarSeriesProps) {
       </Typography>
       <Grid container spacing={2}>
         {similar.map((show) => (
-          <Grid item key={show.id}>
+          <Grid item xs={6} sm={4} md={3} lg={2} key={show.id}>
             <MoviePoster
               title={show.title}
               year={show.year}
@@ -47,7 +47,7 @@ export function SimilarSeries({ similar }: SimilarSeriesProps) {
               onRate={(rating) => handleRate(show.id, rating)}
               isWatching={isWatching(show.id)}
               onWatchingToggle={() => toggleWatching(show.id)}
-              size="medium"
+              responsive
               onClick={() => navigate(`/series/${show.id}`)}
             />
           </Grid>

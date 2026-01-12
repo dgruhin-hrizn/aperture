@@ -93,9 +93,9 @@ export function WatchingPage() {
         </Typography>
         <Grid container spacing={2}>
           {Array.from({ length: 8 }).map((_, i) => (
-            <Grid item key={i}>
-              <Box sx={{ width: 160 }}>
-                <Skeleton variant="rectangular" width={160} height={240} sx={{ borderRadius: 2 }} />
+            <Grid item xs={6} sm={4} md={3} lg={2} key={i}>
+              <Box>
+                <Skeleton variant="rectangular" sx={{ width: '100%', aspectRatio: '2/3', borderRadius: 2 }} />
                 <Skeleton width="80%" sx={{ mt: 1 }} />
                 <Skeleton width="40%" />
                 <Skeleton variant="rectangular" height={50} sx={{ mt: 1, borderRadius: 1 }} />
@@ -232,7 +232,7 @@ export function WatchingPage() {
       ) : (
         <Grid container spacing={2}>
           {filteredSeries.map((item) => (
-            <Grid item key={item.id}>
+            <Grid item xs={6} sm={4} md={3} lg={2} key={item.id}>
               <WatchingCard series={item} onRemove={handleRemove} />
             </Grid>
           ))}

@@ -395,8 +395,8 @@ function WatchHistoryTab({ userId }: { userId: string }) {
       <Box>
         <Grid container spacing={2}>
           {[...Array(12)].map((_, i) => (
-            <Grid item key={i}>
-              <Skeleton variant="rectangular" width={140} height={210} sx={{ borderRadius: 1 }} />
+            <Grid item xs={6} sm={4} md={3} lg={2} key={i}>
+              <Skeleton variant="rectangular" sx={{ width: '100%', aspectRatio: '2/3', borderRadius: 1 }} />
             </Grid>
           ))}
         </Grid>
@@ -449,7 +449,7 @@ function WatchHistoryTab({ userId }: { userId: string }) {
       {viewMode === 'grid' && (
         <Grid container spacing={2}>
           {history.map((item) => (
-            <Grid item key={item.movie_id}>
+            <Grid item xs={6} sm={4} md={3} lg={2} key={item.movie_id}>
               <Box position="relative">
                 <MoviePoster
                   title={item.title}
@@ -458,7 +458,7 @@ function WatchHistoryTab({ userId }: { userId: string }) {
                   genres={item.genres}
                   rating={item.community_rating}
                   overview={item.overview}
-                  size="medium"
+                  responsive
                   onClick={() => navigate(`/movies/${item.movie_id}`)}
                 />
                 {/* Play count badge - cap display at 5x, show "Rewatched" for higher */}
@@ -702,7 +702,7 @@ export function UserDetailPage() {
             ) : (
               <Grid container spacing={2}>
                 {recommendations.map((rec) => (
-                  <Grid item key={rec.movie_id}>
+                  <Grid item xs={6} sm={4} md={3} lg={2} key={rec.movie_id}>
                     <MoviePoster
                       title={rec.movie.title}
                       year={rec.movie.year}
@@ -710,7 +710,7 @@ export function UserDetailPage() {
                       genres={rec.movie.genres}
                       score={rec.final_score}
                       showScore
-                      size="medium"
+                      responsive
                     />
                   </Grid>
                 ))}

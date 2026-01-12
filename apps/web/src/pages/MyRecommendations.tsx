@@ -251,8 +251,8 @@ export function MyRecommendationsPage() {
     <Box>
       <Grid container spacing={2}>
         {[...Array(12)].map((_, i) => (
-          <Grid item key={i}>
-            <Skeleton variant="rectangular" width={154} height={231} sx={{ borderRadius: 1 }} />
+          <Grid item xs={6} sm={4} md={3} lg={2} key={i}>
+            <Skeleton variant="rectangular" sx={{ width: '100%', aspectRatio: '2/3', borderRadius: 1 }} />
           </Grid>
         ))}
       </Grid>
@@ -402,7 +402,7 @@ export function MyRecommendationsPage() {
             const { id, item, navigateTo } = getItemProps(rec)
             const type = mediaType === 'movies' ? 'movie' : 'series'
             return (
-              <Grid item key={id}>
+              <Grid item xs={6} sm={4} md={3} lg={2} key={id}>
                 <Box position="relative">
                   <MoviePoster
                     title={item.title}
@@ -419,7 +419,7 @@ export function MyRecommendationsPage() {
                     isWatching={type === 'series' ? isWatching(id) : undefined}
                     onWatchingToggle={type === 'series' ? () => toggleWatching(id) : undefined}
                     hideWatchingToggle={type !== 'series'}
-                    size="medium"
+                    responsive
                     onClick={() => navigate(navigateTo)}
                   />
                   <RankBadge rank={index + 1} size="medium" />

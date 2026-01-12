@@ -38,6 +38,8 @@ export interface MoviePosterProps {
   /** Hide the watching toggle button */
   hideWatchingToggle?: boolean
   loading?: boolean
+  /** Make poster fill container width with 2:3 aspect ratio (for responsive grids) */
+  responsive?: boolean
   children?: React.ReactNode
 }
 
@@ -66,6 +68,7 @@ export function MoviePoster({
   onWatchingToggle,
   hideWatchingToggle = false,
   loading = false,
+  responsive = false,
   children,
 }: MoviePosterProps) {
   const [isHovered, setIsHovered] = useState(false)
@@ -77,12 +80,15 @@ export function MoviePoster({
 
   if (loading) {
     return (
-      <Box sx={{ width: dimensions.width }}>
+      <Box sx={{ width: responsive ? '100%' : dimensions.width }}>
         <Skeleton
           variant="rectangular"
-          width={dimensions.width}
-          height={dimensions.height}
-          sx={{ borderRadius: 1 }}
+          sx={{ 
+            width: '100%',
+            aspectRatio: '2/3',
+            height: responsive ? 'auto' : dimensions.height,
+            borderRadius: 1,
+          }}
         />
         <Skeleton variant="text" width="80%" sx={{ mt: 1 }} />
         <Skeleton variant="text" width="40%" />
@@ -96,7 +102,7 @@ export function MoviePoster({
   return (
     <Box
       sx={{
-        width: dimensions.width,
+        width: responsive ? '100%' : dimensions.width,
         cursor: onClick ? 'pointer' : 'default',
       }}
       onClick={onClick}
@@ -107,8 +113,9 @@ export function MoviePoster({
         onMouseLeave={() => setIsHovered(false)}
         sx={{
           position: 'relative',
-          width: dimensions.width,
-          height: dimensions.height,
+          width: '100%',
+          aspectRatio: '2/3',
+          height: responsive ? 'auto' : dimensions.height,
           borderRadius: 2,
           overflow: 'hidden',
           backgroundColor: 'grey.900',

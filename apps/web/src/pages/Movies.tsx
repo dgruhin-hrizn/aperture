@@ -241,8 +241,8 @@ export function MoviesPage() {
       {loading ? (
         <Grid container spacing={2}>
           {Array.from({ length: 12 }).map((_, i) => (
-            <Grid item key={i}>
-              <MoviePoster title="" loading size="medium" />
+            <Grid item xs={6} sm={4} md={3} lg={2} key={i}>
+              <MoviePoster title="" loading responsive />
             </Grid>
           ))}
         </Grid>
@@ -256,7 +256,7 @@ export function MoviesPage() {
         <>
           <Grid container spacing={2}>
             {movies.map((movie) => (
-              <Grid item key={movie.id}>
+              <Grid item xs={6} sm={4} md={3} lg={2} key={movie.id}>
                 <MoviePoster
                   title={movie.title}
                   year={movie.year}
@@ -266,7 +266,7 @@ export function MoviesPage() {
                   overview={movie.overview}
                   userRating={getRating('movie', movie.id)}
                   onRate={(rating) => handleRate(movie.id, rating)}
-                  size="medium"
+                  responsive
                   onClick={() => navigate(`/movies/${movie.id}`)}
                 />
               </Grid>

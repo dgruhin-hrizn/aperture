@@ -388,7 +388,7 @@ export function FranchisesPage() {
                 <CardContent sx={{ pt: 0 }}>
                   <Grid container spacing={2} mt={1}>
                     {franchise.movies.map((movie) => (
-                      <Grid item key={movie.id}>
+                      <Grid item xs={4} sm={3} md={2} lg={1.5} key={movie.id}>
                         <Box position="relative">
                           <MoviePoster
                             title={movie.title}
@@ -397,7 +397,7 @@ export function FranchisesPage() {
                             rating={movie.rating}
                             userRating={getRating('movie', movie.id)}
                             onRate={(rating) => handleRate(movie.id, rating)}
-                            size="small"
+                            responsive
                             onClick={() => navigate(`/movies/${movie.id}`)}
                           />
                           {movie.watched && (
