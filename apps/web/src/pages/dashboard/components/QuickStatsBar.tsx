@@ -24,9 +24,9 @@ function StatCard({ icon, label, value, color, loading }: StatCardProps) {
   return (
     <Card
       sx={{
-        flex: 1,
-        minWidth: 140,
-        p: 2,
+        flex: { xs: '1 1 calc(50% - 8px)', sm: 1 },
+        minWidth: { xs: 0, sm: 140 },
+        p: { xs: 1.5, sm: 2 },
         display: 'flex',
         alignItems: 'center',
         gap: 1.5,
@@ -91,7 +91,8 @@ export function QuickStatsBar({
       sx={{
         display: 'flex',
         gap: 2,
-        overflowX: 'auto',
+        flexWrap: { xs: 'wrap', sm: 'nowrap' },
+        overflowX: { xs: 'visible', sm: 'auto' },
         pb: 1,
         '&::-webkit-scrollbar': { height: 6 },
         '&::-webkit-scrollbar-thumb': { 

@@ -262,7 +262,7 @@ export function MyRecommendationsPage() {
   return (
     <Box>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3} flexWrap="wrap" gap={2}>
         <Box>
           <Box display="flex" alignItems="center" gap={2} mb={1}>
             <AutoAwesomeIcon sx={{ color: 'primary.main', fontSize: 32 }} />
@@ -275,7 +275,7 @@ export function MyRecommendationsPage() {
           </Typography>
         </Box>
 
-        <Box display="flex" alignItems="center" gap={2}>
+        <Box display="flex" alignItems="center" gap={2} flexWrap="wrap">
           <Button
             variant="outlined"
             startIcon={regenerating ? <CircularProgress size={16} /> : <RefreshIcon />}

@@ -103,7 +103,7 @@ export function TopPicksMoviesPage() {
   return (
     <Box>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={4}>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={4} flexWrap="wrap" gap={2}>
         <Box>
           <Box display="flex" alignItems="center" gap={2} mb={1}>
             <WhatshotIcon sx={{ color: '#f97316', fontSize: 32 }} />

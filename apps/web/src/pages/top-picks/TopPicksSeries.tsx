@@ -107,7 +107,7 @@ export function TopPicksSeriesPage() {
   return (
     <Box>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={4}>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={4} flexWrap="wrap" gap={2}>
         <Box>
           <Box display="flex" alignItems="center" gap={2} mb={1}>
             <TvIcon sx={{ color: '#8b5cf6', fontSize: 32 }} />

@@ -349,8 +349,10 @@ export function Layout() {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
+          p: { xs: 2, sm: 3 },
           width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
+          maxWidth: '100%',
+          overflowX: 'hidden',
           mt: '64px',
           backgroundColor: 'background.default',
           minHeight: 'calc(100vh - 64px)',
