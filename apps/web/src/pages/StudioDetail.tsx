@@ -119,21 +119,49 @@ export function StudioDetailPage() {
 
         <Box display="flex" alignItems="center" gap={3}>
           {/* Studio Logo */}
-          <Avatar
-            src={proxiedImageUrl && !imageError ? proxiedImageUrl : undefined}
-            onError={() => setImageError(true)}
-            variant="rounded"
-            sx={{
-              width: 120,
-              height: 120,
-              bgcolor: '#f97316',
-              fontSize: '1.5rem',
-              border: '4px solid',
-              borderColor: '#f97316',
-            }}
-          >
-            {decodedName.substring(0, 2).toUpperCase()}
-          </Avatar>
+          {proxiedImageUrl && !imageError ? (
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: 80,
+                maxWidth: 200,
+                height: 80,
+                p: 1.5,
+                bgcolor: 'rgba(255, 255, 255, 0.95)',
+                borderRadius: 2,
+                border: '2px solid',
+                borderColor: 'rgba(249, 115, 22, 0.3)',
+              }}
+            >
+              <Box
+                component="img"
+                src={proxiedImageUrl}
+                alt={`${decodedName} logo`}
+                onError={() => setImageError(true)}
+                sx={{
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  objectFit: 'contain',
+                }}
+              />
+            </Box>
+          ) : (
+            <Avatar
+              variant="rounded"
+              sx={{
+                width: 80,
+                height: 80,
+                bgcolor: '#f97316',
+                fontSize: '1.5rem',
+                border: '2px solid',
+                borderColor: 'rgba(249, 115, 22, 0.5)',
+              }}
+            >
+              {decodedName.substring(0, 2).toUpperCase()}
+            </Avatar>
+          )}
 
           {/* Studio Info */}
           <Box flex={1}>

@@ -4,7 +4,7 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify'
-import { query } from '../lib/db.js'
+import { query, queryOne } from '../lib/db.js'
 import { requireAuth } from '../plugins/auth.js'
 import { getMediaServerConfig } from '@aperture/core'
 
@@ -233,9 +233,18 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
         [decodedName]
       )
 
-      // Try to get studio image URL (studios may have logos in Emby)
-      // Format: /Studios/{name}/Images/Primary
-      const imageUrl = `/api/media/images/Studios/${encodeURIComponent(decodedName)}/Images/Primary`
+      // Check if we have a local logo from TMDB enrichment first
+      const studioLogo = await queryOne<{ logo_local_path: string | null }>(
+        `SELECT logo_local_path FROM studios_networks 
+         WHERE name ILIKE $1 AND logo_local_path IS NOT NULL 
+         LIMIT 1`,
+        [decodedName]
+      )
+
+      // Use local logo if available, otherwise fall back to media server
+      const imageUrl = studioLogo?.logo_local_path 
+        ? `/api/uploads/${studioLogo.logo_local_path}`
+        : `/api/media/images/Studios/${encodeURIComponent(decodedName)}/Images/Primary`
 
       const response: StudioResponse = {
         name: decodedName,
