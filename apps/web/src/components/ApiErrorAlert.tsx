@@ -29,8 +29,6 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import ErrorIcon from '@mui/icons-material/Error'
 import InfoIcon from '@mui/icons-material/Info'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '../lib/api'
 
 interface ApiError {
   id: string
@@ -42,6 +40,12 @@ interface ApiError {
   resetAt?: string
   actionUrl?: string
   createdAt: string
+}
+
+interface ErrorSummaryItem {
+  provider: string
+  activeCount: number
+  latestErrorType: string | null
 }
 
 interface ApiErrorAlertProps {
@@ -116,49 +120,58 @@ export function ApiErrorAlert({
   maxErrors = 3,
   compact = false,
 }: ApiErrorAlertProps) {
-  const queryClient = useQueryClient()
+  const [errors, setErrors] = useState<ApiError[]>([])
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
+  const [loading, setLoading] = useState(true)
 
   // Fetch active errors
-  const { data, isLoading } = useQuery({
-    queryKey: ['api-errors', provider],
-    queryFn: async () => {
+  const fetchErrors = useCallback(async () => {
+    try {
       const endpoint = provider ? `/api/errors/${provider}` : '/api/errors'
-      const response = await api.get(endpoint)
-      return response.data as { errors: ApiError[] }
-    },
-    refetchInterval: 60000, // Refresh every minute
-    staleTime: 30000,
-  })
+      const response = await fetch(endpoint, { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        setErrors(data.errors || [])
+      }
+    } catch (err) {
+      console.error('Failed to fetch API errors:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [provider])
 
-  // Dismiss mutation
-  const dismissMutation = useMutation({
-    mutationFn: async (errorId: string) => {
-      await api.post(`/api/errors/${errorId}/dismiss`)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['api-errors'] })
-    },
-  })
+  useEffect(() => {
+    fetchErrors()
+    // Refresh every minute
+    const interval = setInterval(fetchErrors, 60000)
+    return () => clearInterval(interval)
+  }, [fetchErrors])
 
   // Handle dismiss
-  const handleDismiss = useCallback((errorId: string) => {
+  const handleDismiss = useCallback(async (errorId: string) => {
     setDismissedIds((prev) => new Set(prev).add(errorId))
-    dismissMutation.mutate(errorId)
-  }, [dismissMutation])
+    try {
+      await fetch(`/api/errors/${errorId}/dismiss`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+    } catch (err) {
+      console.error('Failed to dismiss error:', err)
+    }
+  }, [])
 
   // Filter out dismissed errors and limit count
-  const visibleErrors = (data?.errors || [])
-    .filter((error) => !dismissedIds.has(error.id))
+  const visibleErrors = errors
+    .filter((error: ApiError) => !dismissedIds.has(error.id))
     .slice(0, maxErrors)
 
-  if (isLoading || visibleErrors.length === 0) {
+  if (loading || visibleErrors.length === 0) {
     return null
   }
 
   return (
     <Stack spacing={1}>
-      {visibleErrors.map((error) => (
+      {visibleErrors.map((error: ApiError) => (
         <Collapse key={error.id} in={!dismissedIds.has(error.id)}>
           <Alert
             severity={ERROR_SEVERITY[error.errorType] || 'warning'}
@@ -229,9 +242,9 @@ export function ApiErrorAlert({
         </Collapse>
       ))}
 
-      {data?.errors && data.errors.length > maxErrors && (
+      {errors.length > maxErrors && (
         <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
-          +{data.errors.length - maxErrors} more{' '}
+          +{errors.length - maxErrors} more{' '}
           <Link href="/settings#integrations" underline="hover">
             View all in settings
           </Link>
@@ -245,32 +258,36 @@ export function ApiErrorAlert({
  * Compact version for use in headers/toolbars
  */
 export function ApiErrorIndicator() {
-  const { data } = useQuery({
-    queryKey: ['api-errors-summary'],
-    queryFn: async () => {
-      const response = await api.get('/api/errors/summary')
-      return response.data as {
-        summary: Array<{
-          provider: string
-          activeCount: number
-          latestErrorType: string | null
-        }>
-      }
-    },
-    refetchInterval: 60000,
-    staleTime: 30000,
-  })
+  const [summary, setSummary] = useState<ErrorSummaryItem[]>([])
 
-  const totalErrors = data?.summary?.reduce((sum, s) => sum + s.activeCount, 0) || 0
+  useEffect(() => {
+    const fetchSummary = async () => {
+      try {
+        const response = await fetch('/api/errors/summary', { credentials: 'include' })
+        if (response.ok) {
+          const data = await response.json()
+          setSummary(data.summary || [])
+        }
+      } catch (err) {
+        console.error('Failed to fetch error summary:', err)
+      }
+    }
+
+    fetchSummary()
+    const interval = setInterval(fetchSummary, 60000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const totalErrors = summary.reduce((sum: number, s: ErrorSummaryItem) => sum + s.activeCount, 0)
 
   if (totalErrors === 0) {
     return null
   }
 
   // Determine worst severity
-  const hasAuthError = data?.summary?.some((s) => s.latestErrorType === 'auth')
-  const hasRateLimitError = data?.summary?.some(
-    (s) => s.latestErrorType === 'rate_limit' || s.latestErrorType === 'limit'
+  const hasAuthError = summary.some((s: ErrorSummaryItem) => s.latestErrorType === 'auth')
+  const hasRateLimitError = summary.some(
+    (s: ErrorSummaryItem) => s.latestErrorType === 'rate_limit' || s.latestErrorType === 'limit'
   )
 
   const severity = hasAuthError ? 'error' : hasRateLimitError ? 'warning' : 'info'
@@ -294,4 +311,3 @@ export function ApiErrorIndicator() {
 }
 
 export default ApiErrorAlert
-
