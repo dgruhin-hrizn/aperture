@@ -61,6 +61,7 @@ const ENV_DEFAULTS: Record<
   // === DAILY ===
   'backup-database': { scheduleType: 'daily', hour: 2, minute: 0 },
   'refresh-top-picks': { scheduleType: 'daily', hour: 5, minute: 0 },
+  'enrich-studio-logos': { scheduleType: 'daily', hour: 5, minute: 30 },
 
   // === WEEKLY (Sunday) ===
   'refresh-assistant-suggestions': { scheduleType: 'weekly', hour: 0, minute: 0, dayOfWeek: 0 },
