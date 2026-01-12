@@ -233,23 +233,31 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
         [decodedName]
       )
 
-      // Check if we have a local logo from TMDB enrichment first
+      // Check if we have logo data from TMDB enrichment or Emby ID for fallback
       // Check both 'studio' and 'network' types since this page handles both
-      const studioLogo = await queryOne<{ logo_local_path: string | null; logo_path: string | null }>(
-        `SELECT logo_local_path, logo_path FROM studios_networks 
-         WHERE name ILIKE $1 AND (logo_local_path IS NOT NULL OR logo_path IS NOT NULL)
-         ORDER BY logo_local_path IS NOT NULL DESC
+      const studioLogo = await queryOne<{ 
+        logo_local_path: string | null
+        logo_path: string | null
+        emby_id: string | null 
+      }>(
+        `SELECT logo_local_path, logo_path, emby_id FROM studios_networks 
+         WHERE name ILIKE $1
+         ORDER BY logo_local_path IS NOT NULL DESC, logo_path IS NOT NULL DESC
          LIMIT 1`,
         [decodedName]
       )
 
-      // Use local logo if available, then TMDB, then fall back to media server
+      // Use local logo if available, then TMDB, then Emby ID, then name-based fallback
       let imageUrl: string | null = null
       if (studioLogo?.logo_local_path) {
         imageUrl = `/api/uploads/${studioLogo.logo_local_path}`
       } else if (studioLogo?.logo_path) {
         imageUrl = `https://image.tmdb.org/t/p/w185${studioLogo.logo_path}`
+      } else if (studioLogo?.emby_id) {
+        // Use Emby/Jellyfin item ID for the image
+        imageUrl = `/api/media/images/Items/${studioLogo.emby_id}/Images/Thumb`
       } else {
+        // Last resort: try by name (may not work on all media servers)
         imageUrl = `/api/media/images/Studios/${encodeURIComponent(decodedName)}/Images/Primary`
       }
 
