@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -10,17 +10,18 @@ import {
   IconButton,
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
-import BusinessIcon from '@mui/icons-material/Business'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import { MoviePoster, BaseCarousel, CarouselItem, getProxiedImageUrl } from '@aperture/ui'
 import { useUserRatings } from '../hooks/useUserRatings'
+import { RotatingBackdrop } from '../components/RotatingBackdrop'
 
 interface ContentItem {
   id: string
   title: string
   year: number | null
   posterUrl: string | null
+  backdropUrl: string | null
   genres: string[]
   communityRating: number | null
 }
@@ -91,80 +92,101 @@ export function StudioDetailPage() {
   const decodedName = decodeURIComponent(name || '')
   const proxiedImageUrl = data.imageUrl ? getProxiedImageUrl(data.imageUrl, '') : null
 
+  // Collect backdrop URLs from movies and series
+  const backdropUrls = useMemo(() => {
+    const movieBackdrops = data.movies.map(m => m.backdropUrl)
+    const seriesBackdrops = data.series.map(s => s.backdropUrl)
+    return [...movieBackdrops, ...seriesBackdrops]
+  }, [data.movies, data.series])
+
   return (
     <Box>
-      {/* Header */}
+      {/* Header with rotating backdrop */}
       <Box
         sx={{
-          background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.2) 0%, rgba(234, 88, 12, 0.1) 100%)',
+          position: 'relative',
           mx: -3,
           mt: -3,
           px: 3,
           pt: 3,
           pb: 4,
+          minHeight: 200,
         }}
       >
-        {/* Back button */}
-        <IconButton
-          onClick={() => navigate(-1)}
-          sx={{
-            mb: 2,
-            bgcolor: 'rgba(0,0,0,0.3)',
-            color: 'white',
-            '&:hover': { bgcolor: 'rgba(0,0,0,0.5)' },
-          }}
-        >
-          <ArrowBackIcon />
-        </IconButton>
+        {/* Rotating fanart backdrop */}
+        <RotatingBackdrop backdropUrls={backdropUrls} height={280} />
 
-        <Box display="flex" alignItems="center" gap={3}>
-          {/* Studio Logo */}
-          {proxiedImageUrl && !imageError ? (
-            <Box
-              component="img"
-              src={proxiedImageUrl}
-              alt={`${decodedName} logo`}
-              onError={() => setImageError(true)}
-              sx={{
-                height: 64,
-                maxWidth: 180,
-                objectFit: 'contain',
-                borderRadius: 1,
-              }}
-            />
-          ) : (
-            <Avatar
-              variant="rounded"
-              sx={{
-                width: 64,
-                height: 64,
-                bgcolor: '#f97316',
-                fontSize: '1.25rem',
-              }}
-            >
-              {decodedName.substring(0, 2).toUpperCase()}
-            </Avatar>
-          )}
+        {/* Content overlay */}
+        <Box sx={{ position: 'relative', zIndex: 2 }}>
+          {/* Back button */}
+          <IconButton
+            onClick={() => navigate(-1)}
+            sx={{
+              mb: 2,
+              bgcolor: 'rgba(0,0,0,0.4)',
+              color: 'white',
+              '&:hover': { bgcolor: 'rgba(0,0,0,0.6)' },
+            }}
+          >
+            <ArrowBackIcon />
+          </IconButton>
 
-          {/* Studio Info */}
-          <Box flex={1}>
-            <Typography variant="h4" fontWeight={700} mb={1}>
-              {decodedName}
-            </Typography>
-
-            <Box display="flex" flexWrap="wrap" gap={1}>
-              <Chip
-                icon={<MovieIcon />}
-                label={`${data.stats.totalMovies} Movies`}
-                size="small"
-                sx={{ bgcolor: 'rgba(249, 115, 22, 0.2)' }}
+          <Box display="flex" alignItems="center" gap={3}>
+            {/* Studio Logo */}
+            {proxiedImageUrl && !imageError ? (
+              <Box
+                component="img"
+                src={proxiedImageUrl}
+                alt={`${decodedName} logo`}
+                onError={() => setImageError(true)}
+                sx={{
+                  height: 64,
+                  maxWidth: 180,
+                  objectFit: 'contain',
+                  borderRadius: 1,
+                  filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.5))',
+                }}
               />
-              <Chip
-                icon={<TvIcon />}
-                label={`${data.stats.totalSeries} Series`}
-                size="small"
-                sx={{ bgcolor: 'rgba(6, 182, 212, 0.2)' }}
-              />
+            ) : (
+              <Avatar
+                variant="rounded"
+                sx={{
+                  width: 64,
+                  height: 64,
+                  bgcolor: '#f97316',
+                  fontSize: '1.25rem',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+                }}
+              >
+                {decodedName.substring(0, 2).toUpperCase()}
+              </Avatar>
+            )}
+
+            {/* Studio Info */}
+            <Box flex={1}>
+              <Typography 
+                variant="h4" 
+                fontWeight={700} 
+                mb={1}
+                sx={{ textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}
+              >
+                {decodedName}
+              </Typography>
+
+              <Box display="flex" flexWrap="wrap" gap={1}>
+                <Chip
+                  icon={<MovieIcon />}
+                  label={`${data.stats.totalMovies} Movies`}
+                  size="small"
+                  sx={{ bgcolor: 'rgba(249, 115, 22, 0.6)', backdropFilter: 'blur(4px)' }}
+                />
+                <Chip
+                  icon={<TvIcon />}
+                  label={`${data.stats.totalSeries} Series`}
+                  size="small"
+                  sx={{ bgcolor: 'rgba(6, 182, 212, 0.6)', backdropFilter: 'blur(4px)' }}
+                />
+              </Box>
             </Box>
           </Box>
         </Box>

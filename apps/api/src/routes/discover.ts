@@ -13,6 +13,7 @@ interface ContentItem {
   title: string
   year: number | null
   posterUrl: string | null
+  backdropUrl: string | null
   genres: string[]
   communityRating: number | null
   role?: string // For actors - their role in this content
@@ -60,6 +61,7 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
         title: string
         year: number | null
         poster_url: string | null
+        backdrop_url: string | null
         genres: string[]
         community_rating: number | null
         is_actor: boolean
@@ -71,6 +73,7 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
           m.title,
           m.year,
           m.poster_url,
+          m.backdrop_url,
           m.genres,
           m.community_rating,
           EXISTS(
@@ -97,6 +100,7 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
         title: string
         year: number | null
         poster_url: string | null
+        backdrop_url: string | null
         genres: string[]
         community_rating: number | null
         is_actor: boolean
@@ -108,6 +112,7 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
           s.title,
           s.year,
           s.poster_url,
+          s.backdrop_url,
           s.genres,
           s.community_rating,
           EXISTS(
@@ -145,6 +150,7 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
           title: r.title,
           year: r.year,
           posterUrl: r.poster_url,
+          backdropUrl: r.backdrop_url,
           genres: r.genres || [],
           communityRating: r.community_rating,
           role: r.role || undefined,
@@ -154,6 +160,7 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
           title: r.title,
           year: r.year,
           posterUrl: r.poster_url,
+          backdropUrl: r.backdrop_url,
           genres: r.genres || [],
           communityRating: r.community_rating,
           role: r.role || undefined,
@@ -187,6 +194,7 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
         title: string
         year: number | null
         poster_url: string | null
+        backdrop_url: string | null
         genres: string[]
         community_rating: number | null
       }>(
@@ -195,6 +203,7 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
           m.title,
           m.year,
           m.poster_url,
+          m.backdrop_url,
           m.genres,
           m.community_rating
         FROM movies m
@@ -212,6 +221,7 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
         title: string
         year: number | null
         poster_url: string | null
+        backdrop_url: string | null
         genres: string[]
         community_rating: number | null
       }>(
@@ -220,6 +230,7 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
           s.title,
           s.year,
           s.poster_url,
+          s.backdrop_url,
           s.genres,
           s.community_rating
         FROM series s
@@ -269,6 +280,7 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
           title: r.title,
           year: r.year,
           posterUrl: r.poster_url,
+          backdropUrl: r.backdrop_url,
           genres: r.genres || [],
           communityRating: r.community_rating,
         })),
@@ -277,6 +289,7 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
           title: r.title,
           year: r.year,
           posterUrl: r.poster_url,
+          backdropUrl: r.backdrop_url,
           genres: r.genres || [],
           communityRating: r.community_rating,
         })),

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -16,12 +16,14 @@ import TvIcon from '@mui/icons-material/Tv'
 import VideocamIcon from '@mui/icons-material/Videocam'
 import { MoviePoster, BaseCarousel, CarouselItem, getProxiedImageUrl } from '@aperture/ui'
 import { useUserRatings } from '../hooks/useUserRatings'
+import { RotatingBackdrop } from '../components/RotatingBackdrop'
 
 interface ContentItem {
   id: string
   title: string
   year: number | null
   posterUrl: string | null
+  backdropUrl: string | null
   genres: string[]
   communityRating: number | null
   role?: string
@@ -95,84 +97,104 @@ export function PersonDetailPage() {
   const decodedName = decodeURIComponent(name || '')
   const proxiedImageUrl = data.imageUrl ? getProxiedImageUrl(data.imageUrl, '') : null
 
+  // Collect backdrop URLs from movies and series
+  const backdropUrls = useMemo(() => {
+    const movieBackdrops = data.movies.map(m => m.backdropUrl)
+    const seriesBackdrops = data.series.map(s => s.backdropUrl)
+    return [...movieBackdrops, ...seriesBackdrops]
+  }, [data.movies, data.series])
+
   return (
     <Box>
-      {/* Header */}
+      {/* Header with rotating backdrop */}
       <Box
         sx={{
-          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.1) 100%)',
+          position: 'relative',
           mx: -3,
           mt: -3,
           px: 3,
           pt: 3,
           pb: 4,
+          minHeight: 200,
         }}
       >
-        {/* Back button */}
-        <IconButton
-          onClick={() => navigate(-1)}
-          sx={{
-            mb: 2,
-            bgcolor: 'rgba(0,0,0,0.3)',
-            color: 'white',
-            '&:hover': { bgcolor: 'rgba(0,0,0,0.5)' },
-          }}
-        >
-          <ArrowBackIcon />
-        </IconButton>
+        {/* Rotating fanart backdrop */}
+        <RotatingBackdrop backdropUrls={backdropUrls} height={280} />
 
-        <Box display="flex" alignItems="center" gap={3}>
-          {/* Person Avatar */}
-          <Avatar
-            src={proxiedImageUrl && !imageError ? proxiedImageUrl : undefined}
-            onError={() => setImageError(true)}
+        {/* Content overlay */}
+        <Box sx={{ position: 'relative', zIndex: 2 }}>
+          {/* Back button */}
+          <IconButton
+            onClick={() => navigate(-1)}
             sx={{
-              width: 120,
-              height: 120,
-              bgcolor: 'primary.dark',
-              fontSize: '2.5rem',
-              border: '4px solid',
-              borderColor: 'primary.main',
+              mb: 2,
+              bgcolor: 'rgba(0,0,0,0.4)',
+              color: 'white',
+              '&:hover': { bgcolor: 'rgba(0,0,0,0.6)' },
             }}
           >
-            {decodedName.charAt(0)}
-          </Avatar>
+            <ArrowBackIcon />
+          </IconButton>
 
-          {/* Person Info */}
-          <Box flex={1}>
-            <Typography variant="h4" fontWeight={700} mb={1}>
-              {decodedName}
-            </Typography>
+          <Box display="flex" alignItems="center" gap={3}>
+            {/* Person Avatar */}
+            <Avatar
+              src={proxiedImageUrl && !imageError ? proxiedImageUrl : undefined}
+              onError={() => setImageError(true)}
+              sx={{
+                width: 120,
+                height: 120,
+                bgcolor: 'primary.dark',
+                fontSize: '2.5rem',
+                border: '4px solid',
+                borderColor: 'primary.main',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+              }}
+            >
+              {decodedName.charAt(0)}
+            </Avatar>
 
-            <Box display="flex" flexWrap="wrap" gap={1}>
-              {data.stats.asActor > 0 && (
+            {/* Person Info */}
+            <Box flex={1}>
+              <Typography 
+                variant="h4" 
+                fontWeight={700} 
+                mb={1}
+                sx={{ textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}
+              >
+                {decodedName}
+              </Typography>
+
+              <Box display="flex" flexWrap="wrap" gap={1}>
+                {data.stats.asActor > 0 && (
+                  <Chip
+                    icon={<PersonIcon />}
+                    label={`${data.stats.asActor} as Actor`}
+                    size="small"
+                    sx={{ bgcolor: 'rgba(99, 102, 241, 0.6)', backdropFilter: 'blur(4px)' }}
+                  />
+                )}
+                {data.stats.asDirector > 0 && (
+                  <Chip
+                    icon={<VideocamIcon />}
+                    label={`${data.stats.asDirector} as Director`}
+                    size="small"
+                    sx={{ bgcolor: 'rgba(139, 92, 246, 0.6)', backdropFilter: 'blur(4px)' }}
+                  />
+                )}
                 <Chip
-                  icon={<PersonIcon />}
-                  label={`${data.stats.asActor} as Actor`}
+                  icon={<MovieIcon />}
+                  label={`${data.stats.totalMovies} Movies`}
                   size="small"
-                  sx={{ bgcolor: 'rgba(99, 102, 241, 0.2)' }}
+                  sx={{ bgcolor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}
                 />
-              )}
-              {data.stats.asDirector > 0 && (
                 <Chip
-                  icon={<VideocamIcon />}
-                  label={`${data.stats.asDirector} as Director`}
+                  icon={<TvIcon />}
+                  label={`${data.stats.totalSeries} Series`}
                   size="small"
-                  sx={{ bgcolor: 'rgba(139, 92, 246, 0.2)' }}
+                  sx={{ bgcolor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}
                 />
-              )}
-              <Chip
-                icon={<MovieIcon />}
-                label={`${data.stats.totalMovies} Movies`}
-                size="small"
-                variant="outlined"
-              />
-              <Chip
-                icon={<TvIcon />}
-                label={`${data.stats.totalSeries} Series`}
-                size="small"
-                variant="outlined"
-              />
+              </Box>
             </Box>
           </Box>
         </Box>
