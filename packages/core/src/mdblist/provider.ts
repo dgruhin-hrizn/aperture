@@ -315,23 +315,37 @@ export async function getListItems(
     endpoint += `?${params.toString()}`
   }
 
-  // API may return array directly or wrapped in { items: [...] }
-  const result = await mdblistRequest<MDBListItem[] | { items: MDBListItem[] }>(endpoint)
+  // API may return array directly or wrapped in { items: [...] } or { movies: [...], shows: [...] }
+  const result = await mdblistRequest<
+    MDBListItem[] | { items?: MDBListItem[]; movies?: MDBListItem[]; shows?: MDBListItem[] }
+  >(endpoint)
 
   if (!result) {
     return []
   }
 
-  // Handle both response formats
+  // Handle direct array response (legacy format)
   if (Array.isArray(result)) {
     return result
   }
 
-  if (result && typeof result === 'object' && 'items' in result && Array.isArray(result.items)) {
-    return result.items
+  // Handle object wrapper formats
+  if (result && typeof result === 'object') {
+    // New format: { movies: [...], shows: [...] }
+    if ('movies' in result || 'shows' in result) {
+      const movies = Array.isArray(result.movies) ? result.movies : []
+      const shows = Array.isArray(result.shows) ? result.shows : []
+      return [...movies, ...shows]
+    }
+
+    // Legacy format: { items: [...] }
+    if ('items' in result && Array.isArray(result.items)) {
+      return result.items
+    }
+
+    logger.warn({ listId, responseKeys: Object.keys(result) }, 'Unexpected MDBList items response format')
   }
 
-  logger.warn({ result: typeof result }, 'Unexpected MDBList items response format')
   return []
 }
 
