@@ -47,6 +47,28 @@ export function SimilarityGraph({
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null)
   const [hoveredEdge, setHoveredEdge] = useState<GraphEdge | null>(null)
   const simulationRef = useRef<d3.Simulation<GraphNode, GraphEdge> | null>(null)
+  
+  // Store callbacks in refs to prevent effect re-runs when parent re-renders
+  const onNodeClickRef = useRef(onNodeClick)
+  const onNodeDoubleClickRef = useRef(onNodeDoubleClick)
+  
+  // Keep refs updated with latest callbacks
+  useEffect(() => {
+    onNodeClickRef.current = onNodeClick
+  }, [onNodeClick])
+  
+  useEffect(() => {
+    onNodeDoubleClickRef.current = onNodeDoubleClick
+  }, [onNodeDoubleClick])
+  
+  // Create a stable key for data to prevent unnecessary re-renders
+  // Only re-render when actual node IDs change, not when object references change
+  const dataKey = useMemo(() => {
+    if (!data) return ''
+    const nodeIds = data.nodes.map(n => n.id).sort().join(',')
+    const centerId = data.nodes.find(n => n.isCenter)?.id || ''
+    return `${centerId}:${nodeIds}`
+  }, [data])
 
   // Build node connection map for tooltips
   const nodeConnectionMap = useMemo(() => {
@@ -196,11 +218,11 @@ export function SimilarityGraph({
       )
       .on('click', (event, d) => {
         event.stopPropagation()
-        onNodeClick?.(d)
+        onNodeClickRef.current?.(d)
       })
       .on('dblclick', (event, d) => {
         event.stopPropagation()
-        onNodeDoubleClick?.(d)
+        onNodeDoubleClickRef.current?.(d)
       })
       .on('mouseenter', (_, d) => setHoveredNode(d))
       .on('mouseleave', () => setHoveredNode(null))
@@ -367,7 +389,9 @@ export function SimilarityGraph({
     return () => {
       simulation.stop()
     }
-  }, [data, dimensions, compact, onNodeClick, onNodeDoubleClick, getPrimaryConnectionType])
+    // Use dataKey instead of data to prevent re-renders when data reference changes but content is same
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataKey, dimensions, compact, getPrimaryConnectionType])
 
   if (loading) {
     return (
