@@ -343,7 +343,7 @@ export async function getListItems(
 
   // Handle direct array response (legacy format)
   if (Array.isArray(result)) {
-    return result.map((item) => normalizeListItem(item as Record<string, unknown>))
+    return result.map((item) => normalizeListItem(item as unknown as Record<string, unknown>))
   }
 
   // Handle object wrapper formats
@@ -363,17 +363,17 @@ export async function getListItems(
       )
 
       const movies = Array.isArray(result.movies)
-        ? result.movies.map((item) => normalizeListItem(item as Record<string, unknown>))
+        ? result.movies.map((item) => normalizeListItem(item as unknown as Record<string, unknown>))
         : []
       const shows = Array.isArray(result.shows)
-        ? result.shows.map((item) => normalizeListItem(item as Record<string, unknown>))
+        ? result.shows.map((item) => normalizeListItem(item as unknown as Record<string, unknown>))
         : []
       return [...movies, ...shows]
     }
 
     // Legacy format: { items: [...] }
     if ('items' in result && Array.isArray(result.items)) {
-      return result.items.map((item) => normalizeListItem(item as Record<string, unknown>))
+      return result.items.map((item) => normalizeListItem(item as unknown as Record<string, unknown>))
     }
 
     logger.warn({ listId, responseKeys: Object.keys(result) }, 'Unexpected MDBList items response format')
