@@ -1013,16 +1013,19 @@ export function TopPicksSection() {
             </AccordionDetails>
           </Accordion>
 
-          {/* Movies Output Config */}
-          <Card variant="outlined" sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <MovieIcon color="primary" />
-                Movies Output
-                {images['top-picks-movies']?.url && (
-                  <Chip size="small" label="Image Set" color="success" variant="outlined" sx={{ ml: 'auto' }} />
-                )}
-              </Typography>
+          {/* Movies & Series Output - Side by Side */}
+          <Grid container spacing={3}>
+            {/* Movies Output Config */}
+            <Grid item xs={12} lg={6}>
+              <Card variant="outlined" sx={{ height: '100%' }}>
+                <CardContent>
+                  <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <MovieIcon color="primary" />
+                    Movies Output
+                    {images['top-picks-movies']?.url && (
+                      <Chip size="small" label="Image Set" color="success" variant="outlined" sx={{ ml: 'auto' }} />
+                    )}
+                  </Typography>
 
               {/* Library Cover Image */}
               <Box sx={{ mb: 3 }}>
@@ -1155,42 +1158,44 @@ export function TopPicksSection() {
                   </Stack>
                 </Grid>
               </Grid>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            </Grid>
 
-          {/* Series Output Config */}
-          <Card variant="outlined" sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <TvIcon color="primary" />
-                Series Output
-                {images['top-picks-series']?.url && (
-                  <Chip size="small" label="Image Set" color="success" variant="outlined" sx={{ ml: 'auto' }} />
-                )}
-              </Typography>
+            {/* Series Output Config */}
+            <Grid item xs={12} lg={6}>
+              <Card variant="outlined" sx={{ height: '100%' }}>
+                <CardContent>
+                  <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <TvIcon color="primary" />
+                    Series Output
+                    {images['top-picks-series']?.url && (
+                      <Chip size="small" label="Image Set" color="success" variant="outlined" sx={{ ml: 'auto' }} />
+                    )}
+                  </Typography>
 
-              {/* Library Cover Image */}
-              <Box sx={{ mb: 3 }}>
-                <Box display="flex" alignItems="center" gap={1} mb={1}>
-                  <ImageIcon fontSize="small" color="action" />
-                  <Typography variant="body2" fontWeight={500}>Library Cover Image</Typography>
-                </Box>
-                <Box sx={{ maxWidth: 400 }}>
-                  <ImageUpload
-                    currentImageUrl={images['top-picks-series']?.url}
-                    isDefault={images['top-picks-series']?.isDefault}
-                    recommendedDimensions={RECOMMENDED_DIMENSIONS}
-                    onUpload={(file) => handleUpload('top-picks-series', file)}
-                    onDelete={images['top-picks-series']?.url ? () => handleDeleteImage('top-picks-series') : undefined}
-                    loading={uploadingFor === 'top-picks-series'}
-                    height={160}
-                    label="Drop image (16:9)"
-                    showDelete={!!images['top-picks-series']?.url}
-                  />
-                </Box>
-              </Box>
+                  {/* Library Cover Image */}
+                  <Box sx={{ mb: 3 }}>
+                    <Box display="flex" alignItems="center" gap={1} mb={1}>
+                      <ImageIcon fontSize="small" color="action" />
+                      <Typography variant="body2" fontWeight={500}>Library Cover Image</Typography>
+                    </Box>
+                    <Box sx={{ maxWidth: 400 }}>
+                      <ImageUpload
+                        currentImageUrl={images['top-picks-series']?.url}
+                        isDefault={images['top-picks-series']?.isDefault}
+                        recommendedDimensions={RECOMMENDED_DIMENSIONS}
+                        onUpload={(file) => handleUpload('top-picks-series', file)}
+                        onDelete={images['top-picks-series']?.url ? () => handleDeleteImage('top-picks-series') : undefined}
+                        loading={uploadingFor === 'top-picks-series'}
+                        height={160}
+                        label="Drop image (16:9)"
+                        showDelete={!!images['top-picks-series']?.url}
+                      />
+                    </Box>
+                  </Box>
 
-              <Divider sx={{ mb: 3 }} />
+                  <Divider sx={{ mb: 3 }} />
               
               <Grid container spacing={3}>
                 <Grid item xs={12} md={6}>
@@ -1298,10 +1303,12 @@ export function TopPicksSection() {
                       </Box>
                     )}
                   </Stack>
+                  </Grid>
                 </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
 
           {/* Symlink Warning */}
           {(config.moviesUseSymlinks || config.seriesUseSymlinks) && (
