@@ -358,7 +358,7 @@ export async function getMediaInfoByTvdb(tvdbId: number): Promise<MDBListMediaIn
 
 /**
  * Batch get media info by TMDB IDs using POST endpoint
- * POST /tmdb/{type}?apikey=xxx with body containing IDs
+ * POST /tmdb/{type}?apikey=xxx with body: { ids: ["id1", "id2"], append_to_response: ["keyword"] }
  */
 export async function getMediaInfoByTmdbBatch(
   tmdbIds: string[],
@@ -397,12 +397,18 @@ export async function getMediaInfoByTmdbBatch(
       const url = `${MDBLIST_API_BASE_URL}/tmdb/${mediaType}?apikey=${apiKey}`
       logger.debug({ url, batchSize: batch.length }, 'MDBList batch POST request')
 
+      // API expects { ids: ["id1", "id2"], append_to_response: [...] }
+      const requestBody = {
+        ids: batch, // IDs as strings
+        append_to_response: ['keyword'],
+      }
+
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(batch.map((id) => parseInt(id, 10))),
+        body: JSON.stringify(requestBody),
       })
 
       if (!response.ok) {
