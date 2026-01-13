@@ -327,9 +327,10 @@ export function TopPicksSection() {
     )
   }
 
-  // Ensure weights sum to 1.0
+  // Calculate proportional percentages for display (weights are normalized at calculation time)
   const totalWeight = config.uniqueViewersWeight + config.playCountWeight + config.completionWeight
-  const weightsValid = Math.abs(totalWeight - 1.0) < 0.01
+  const getProportionalPercent = (weight: number) => 
+    totalWeight > 0 ? Math.round((weight / totalWeight) * 100) : 33
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -633,12 +634,9 @@ export function TopPicksSection() {
                 Local Popularity Algorithm
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Adjust how local popularity is calculated. These weights determine which factors matter most.
+                Adjust the relative importance of each factor. Values are automatically normalized.
               </Typography>
             </Box>
-            {!weightsValid && (
-              <Chip label="Weights must sum to 100%" size="small" color="error" />
-            )}
           </Box>
 
           <Alert severity="info" icon={<InfoOutlinedIcon />} sx={{ my: 2 }}>
@@ -655,7 +653,7 @@ export function TopPicksSection() {
                 <GroupIcon fontSize="small" color="primary" />
                 <Typography variant="body2" fontWeight={500}>Unique Viewers</Typography>
                 <Chip 
-                  label={`${Math.round(config.uniqueViewersWeight * 100)}%`} 
+                  label={`${getProportionalPercent(config.uniqueViewersWeight)}%`} 
                   size="small" 
                   color="primary"
                   variant="outlined"
@@ -668,7 +666,7 @@ export function TopPicksSection() {
                 max={100}
                 disabled={!config.isEnabled}
                 valueLabelDisplay="auto"
-                valueLabelFormat={(v) => `${v}%`}
+                valueLabelFormat={(v) => `${v}`}
               />
             </Grid>
             <Grid item xs={12} md={4}>
@@ -676,7 +674,7 @@ export function TopPicksSection() {
                 <PlayArrowIcon fontSize="small" color="primary" />
                 <Typography variant="body2" fontWeight={500}>Play Count</Typography>
                 <Chip 
-                  label={`${Math.round(config.playCountWeight * 100)}%`} 
+                  label={`${getProportionalPercent(config.playCountWeight)}%`} 
                   size="small" 
                   color="primary"
                   variant="outlined"
@@ -689,7 +687,7 @@ export function TopPicksSection() {
                 max={100}
                 disabled={!config.isEnabled}
                 valueLabelDisplay="auto"
-                valueLabelFormat={(v) => `${v}%`}
+                valueLabelFormat={(v) => `${v}`}
               />
             </Grid>
             <Grid item xs={12} md={4}>
@@ -697,7 +695,7 @@ export function TopPicksSection() {
                 <CheckCircleIcon fontSize="small" color="primary" />
                 <Typography variant="body2" fontWeight={500}>Completion Rate</Typography>
                 <Chip 
-                  label={`${Math.round(config.completionWeight * 100)}%`} 
+                  label={`${getProportionalPercent(config.completionWeight)}%`} 
                   size="small" 
                   color="primary"
                   variant="outlined"
@@ -710,7 +708,7 @@ export function TopPicksSection() {
                 max={100}
                 disabled={!config.isEnabled}
                 valueLabelDisplay="auto"
-                valueLabelFormat={(v) => `${v}%`}
+                valueLabelFormat={(v) => `${v}`}
               />
             </Grid>
           </Grid>
@@ -1104,7 +1102,7 @@ export function TopPicksSection() {
               variant="contained"
               startIcon={saving ? <CircularProgress size={16} /> : <SaveIcon />}
               onClick={handleSave}
-              disabled={saving || !hasChanges || !weightsValid}
+              disabled={saving || !hasChanges}
               size="large"
             >
               {saving ? 'Saving...' : 'Save Changes'}

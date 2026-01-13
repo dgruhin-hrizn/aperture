@@ -91,10 +91,16 @@ async function getTopMoviesLocalPublic(
   const config = await getTopPicksConfig()
   const timeWindowDays = configOverrides?.timeWindowDays ?? config.timeWindowDays
   const count = configOverrides?.moviesCount ?? config.moviesCount
-  const uniqueViewersWeight = configOverrides?.uniqueViewersWeight ?? config.uniqueViewersWeight
-  const playCountWeight = configOverrides?.playCountWeight ?? config.playCountWeight
-  const completionWeight = configOverrides?.completionWeight ?? config.completionWeight
   const minUniqueViewers = configOverrides?.minUniqueViewers ?? config.minUniqueViewers
+  
+  // Normalize weights so they sum to 1.0 (allows any slider values to work)
+  const rawViewers = configOverrides?.uniqueViewersWeight ?? config.uniqueViewersWeight
+  const rawPlayCount = configOverrides?.playCountWeight ?? config.playCountWeight
+  const rawCompletion = configOverrides?.completionWeight ?? config.completionWeight
+  const totalWeight = rawViewers + rawPlayCount + rawCompletion
+  const uniqueViewersWeight = totalWeight > 0 ? rawViewers / totalWeight : 0.33
+  const playCountWeight = totalWeight > 0 ? rawPlayCount / totalWeight : 0.33
+  const completionWeight = totalWeight > 0 ? rawCompletion / totalWeight : 0.34
 
   logger.info({
     timeWindowDays,
@@ -215,10 +221,16 @@ async function getTopSeriesLocalPublic(
   const config = await getTopPicksConfig()
   const timeWindowDays = configOverrides?.timeWindowDays ?? config.timeWindowDays
   const count = configOverrides?.seriesCount ?? config.seriesCount
-  const uniqueViewersWeight = configOverrides?.uniqueViewersWeight ?? config.uniqueViewersWeight
-  const playCountWeight = configOverrides?.playCountWeight ?? config.playCountWeight
-  const completionWeight = configOverrides?.completionWeight ?? config.completionWeight
   const minUniqueViewers = configOverrides?.minUniqueViewers ?? config.minUniqueViewers
+  
+  // Normalize weights so they sum to 1.0 (allows any slider values to work)
+  const rawViewers = configOverrides?.uniqueViewersWeight ?? config.uniqueViewersWeight
+  const rawPlayCount = configOverrides?.playCountWeight ?? config.playCountWeight
+  const rawCompletion = configOverrides?.completionWeight ?? config.completionWeight
+  const totalWeight = rawViewers + rawPlayCount + rawCompletion
+  const uniqueViewersWeight = totalWeight > 0 ? rawViewers / totalWeight : 0.33
+  const playCountWeight = totalWeight > 0 ? rawPlayCount / totalWeight : 0.33
+  const completionWeight = totalWeight > 0 ? rawCompletion / totalWeight : 0.34
 
   logger.info({
     timeWindowDays,
@@ -726,10 +738,16 @@ async function getTopMoviesLocal(
   const timeWindowDays = configOverrides?.timeWindowDays ?? config.timeWindowDays
   // Get more for hybrid blending
   const count = (configOverrides?.moviesCount ?? config.moviesCount) * 2
-  const uniqueViewersWeight = configOverrides?.uniqueViewersWeight ?? config.uniqueViewersWeight
-  const playCountWeight = configOverrides?.playCountWeight ?? config.playCountWeight
-  const completionWeight = configOverrides?.completionWeight ?? config.completionWeight
   const minUniqueViewers = configOverrides?.minUniqueViewers ?? config.minUniqueViewers
+  
+  // Normalize weights so they sum to 1.0
+  const rawViewers = configOverrides?.uniqueViewersWeight ?? config.uniqueViewersWeight
+  const rawPlayCount = configOverrides?.playCountWeight ?? config.playCountWeight
+  const rawCompletion = configOverrides?.completionWeight ?? config.completionWeight
+  const totalWeight = rawViewers + rawPlayCount + rawCompletion
+  const uniqueViewersWeight = totalWeight > 0 ? rawViewers / totalWeight : 0.33
+  const playCountWeight = totalWeight > 0 ? rawPlayCount / totalWeight : 0.33
+  const completionWeight = totalWeight > 0 ? rawCompletion / totalWeight : 0.34
 
   const result = await query<{
     movie_id: string
@@ -809,10 +827,16 @@ async function getTopSeriesLocal(
   const config = await getTopPicksConfig()
   const timeWindowDays = configOverrides?.timeWindowDays ?? config.timeWindowDays
   const count = (configOverrides?.seriesCount ?? config.seriesCount) * 2
-  const uniqueViewersWeight = configOverrides?.uniqueViewersWeight ?? config.uniqueViewersWeight
-  const playCountWeight = configOverrides?.playCountWeight ?? config.playCountWeight
-  const completionWeight = configOverrides?.completionWeight ?? config.completionWeight
   const minUniqueViewers = configOverrides?.minUniqueViewers ?? config.minUniqueViewers
+  
+  // Normalize weights so they sum to 1.0
+  const rawViewers = configOverrides?.uniqueViewersWeight ?? config.uniqueViewersWeight
+  const rawPlayCount = configOverrides?.playCountWeight ?? config.playCountWeight
+  const rawCompletion = configOverrides?.completionWeight ?? config.completionWeight
+  const totalWeight = rawViewers + rawPlayCount + rawCompletion
+  const uniqueViewersWeight = totalWeight > 0 ? rawViewers / totalWeight : 0.33
+  const playCountWeight = totalWeight > 0 ? rawPlayCount / totalWeight : 0.33
+  const completionWeight = totalWeight > 0 ? rawCompletion / totalWeight : 0.34
 
   const result = await query<{
     series_id: string
