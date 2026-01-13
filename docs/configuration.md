@@ -10,6 +10,7 @@ This guide covers all configuration options for Aperture, including Docker setup
 - [Environment Variables](#environment-variables)
 - [Admin UI Configuration](#admin-ui-configuration)
 - [Symlinks vs STRM Files](#symlinks-vs-strm-files)
+- [MDBList Integration](#mdblist-integration)
 - [Trakt Integration](#trakt-integration)
 - [Reverse Proxy Setup](#reverse-proxy-setup)
 
@@ -196,7 +197,6 @@ The Admin Settings page is organized into tabs:
 
 - **Media Server**: Connection details and test connection
 - **Source Libraries**: Enable/disable libraries to include in sync
-- **Trakt Integration**: Configure Trakt.tv client credentials
 
 ### AI Recommendations Tab
 
@@ -207,9 +207,17 @@ The Admin Settings page is organized into tabs:
 
 ### Top Picks Tab
 
-- **Configuration**: Time window, counts, minimum viewers
-- **Scoring Algorithm**: Weight unique viewers, play count, completion
+- **Popularity Source**: Choose Local, MDBList, or Hybrid for movies and series
+- **MDBList Selection**: Browse/search lists, choose sort order, preview library matches
+- **Local Settings**: Time window, minimum viewers, scoring weights
 - **Output Modes**: Library, Collection, and/or Playlist
+
+### Integrations Tab
+
+- **OpenAI**: API key configuration and model selection
+- **MDBList**: API key and connection status
+- **TMDb / OMDb**: Additional metadata sources
+- **Trakt**: OAuth client credentials for rating sync
 
 ### System Tab
 
@@ -298,6 +306,36 @@ ApertureLibraries/
 ├── top-picks-movies/                 ← Trending movies
 └── top-picks-series/                 ← Trending series
 ```
+
+---
+
+## MDBList Integration
+
+MDBList provides curated movie and TV lists with rich metadata from multiple sources (IMDb, TMDb, Rotten Tomatoes, Metacritic, etc.).
+
+### Setup
+
+1. Get a free API key from [mdblist.com/preferences](https://mdblist.com/preferences/)
+2. Navigate to **Admin → Settings → Integrations → MDBList**
+3. Enter your API key and click **Test Connection**
+4. Save the configuration
+
+### Features
+
+Once configured, MDBList enables:
+
+- **Top Picks from MDBList** — Use public or private lists as your Top Picks source
+- **Sort Options** — Rank by IMDb popularity, rating, Rotten Tomatoes score, etc.
+- **Library Match Preview** — See which list items exist in your library before enabling
+
+### Rate Limits
+
+| Tier       | Daily Requests | Rate Limit    |
+| ---------- | -------------- | ------------- |
+| Free       | 1,000          | 10 req/sec    |
+| Supporter  | 100,000        | 40 req/sec    |
+
+Aperture automatically respects these limits. If you hit the daily limit, a warning alert will appear.
 
 ---
 

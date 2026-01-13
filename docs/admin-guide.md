@@ -25,6 +25,7 @@ This guide covers initial setup, ongoing operations, and administrative configur
 - [Library Title Templates](#library-title-templates)
 - [Output Format Settings](#output-format-settings)
 - [Watch History Management](#watch-history-management)
+- [API Error Alerts](#api-error-alerts)
 - [Database Management](#database-management)
 - [Library Image Management](#library-image-management)
 - [Emby Home Row Sorting (Series)](#emby-home-row-sorting-series)
@@ -235,23 +236,68 @@ Other settings:
 
 Navigate to **Admin → Settings → Top Picks**
 
-Top Picks shows globally popular content based on aggregated watch data across all users.
+Top Picks shows globally popular content. You can base this on your server's watch data, external MDBList rankings, or a hybrid of both.
 
-### Content Selection
+### Popularity Source
 
-- **Enable/Disable** — Turn Top Picks on or off
-- **Time Window** — How far back to analyze (e.g., 30 days)
-- **Movies Count** — How many movies to include
-- **Series Count** — How many series to include
+Choose where popularity rankings come from (configured separately for Movies and Series):
+
+| Source      | Description                                                                 |
+| ----------- | --------------------------------------------------------------------------- |
+| **Local**   | Based on your server's watch history (unique viewers, play counts, completion) |
+| **MDBList** | Use rankings from a public or private MDBList list                          |
+| **Hybrid**  | Combine local watch data with MDBList rankings (configurable weights)       |
+
+### Local Mode Settings
+
+When using **Local** as the popularity source:
+
+- **Time Window** — How far back to analyze watch history (e.g., 30 days)
 - **Minimum Viewers** — Require at least N unique viewers for inclusion
+- **Count** — How many items to include in Top Picks
 
-### Popularity Algorithm
+**Scoring Weights** (should sum to 1.0):
 
-Configure how popularity is calculated by weighting:
+| Weight              | Description                                    | Default |
+| ------------------- | ---------------------------------------------- | ------- |
+| **Unique Viewers**  | Different users who watched the content        | 0.5     |
+| **Play Count**      | Total plays across all users                   | 0.3     |
+| **Completion Rate** | How often users finish what they start         | 0.2     |
 
-- **Unique Viewers** — Different users who watched the content
-- **Play Count** — Total plays across all users
-- **Completion Rate** — How often users finish what they start
+### MDBList Mode Settings
+
+When using **MDBList** as the popularity source:
+
+1. **Select a List** — Browse popular lists, your own lists, search, or enter a list ID directly
+2. **Choose Sort Order** — How items in the list should be ranked:
+
+| Sort Option        | Description                                           |
+| ------------------ | ----------------------------------------------------- |
+| **MDBList Score**  | Combined score from all rating sources                |
+| **Average Score**  | Simple average of all ratings                         |
+| **IMDb Rating**    | Sort by IMDb user rating (10-point scale)             |
+| **IMDb Votes**     | Sort by number of IMDb votes (most voted first)       |
+| **IMDb Popularity**| Sort by IMDb popularity rank (most popular first)     |
+| **TMDb Popularity**| Sort by TMDb popularity score                         |
+| **Rotten Tomatoes**| Sort by Rotten Tomatoes critic score                  |
+| **Metacritic**     | Sort by Metacritic score                              |
+
+3. **Library Match Preview** — After selecting a list, Aperture shows:
+   - Total items in the list
+   - How many match your library
+   - Which items are missing (expandable list)
+
+> **Note**: Only items that exist in your library will appear in Top Picks. If a list has 100 items but you only have 30 in your library, your Top Picks will show those 30.
+
+### Hybrid Mode Settings
+
+When using **Hybrid** as the popularity source:
+
+- Configure both Local settings (time window, minimum viewers) AND select an MDBList
+- **Local Weight** — How much local watch data influences the final ranking (default: 0.5)
+- **MDBList Weight** — How much the external list influences the ranking (default: 0.5)
+
+Items are scored by combining normalized local popularity with their MDBList position.
 
 ### Output Configuration
 
@@ -388,6 +434,38 @@ Control whether users can mark items as unwatched:
 - **Enable Watch History Management** — Toggle to allow this user to remove items from their watch history
 - When enabled, users see "Mark Unwatched" buttons on movies, episodes, seasons, and series
 - Changes sync to both Aperture's database and the media server
+
+---
+
+## API Error Alerts
+
+Aperture tracks errors from external API integrations (MDBList, TMDb, OMDb, OpenAI) and displays alerts when issues occur.
+
+### Error Types
+
+| Type              | Severity | Description                                      |
+| ----------------- | -------- | ------------------------------------------------ |
+| **Authentication**| Error    | Invalid API key or expired credentials           |
+| **Rate Limit**    | Warning  | Daily/hourly request limit reached               |
+| **Service Outage**| Info     | Temporary server errors (500, 502, 503, 504)     |
+
+### Alert Behavior
+
+- **Auth errors** — Require manual action (check/update API key)
+- **Rate limits** — Show reset time; auto-clear when limit resets
+- **Outage errors** — **Auto-dismiss** when a successful connection is detected
+
+### Auto-Dismiss for Outages
+
+When an external service has a temporary outage, Aperture logs the error and shows an alert. Once the service recovers:
+
+- Testing the connection in Settings will automatically clear the alert
+- No manual dismissal needed for recovered services
+- This prevents stale "Service Unavailable" alerts from persisting
+
+### Manual Dismissal
+
+Click the **X** button on any alert to dismiss it. Dismissed errors are cleaned up after 7 days.
 
 ---
 
