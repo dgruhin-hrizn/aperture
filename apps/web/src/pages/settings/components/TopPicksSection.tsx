@@ -452,16 +452,19 @@ export function TopPicksSection() {
         </CardContent>
       </Card>
 
-      {/* Movies Settings Card */}
-      <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
-        <CardContent>
-          <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-            <MovieIcon fontSize="small" color="primary" />
-            Movies Settings
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Configure data source, filters, and list size for movie Top Picks.
-          </Typography>
+      {/* Movies & Series Settings - Side by Side */}
+      <Grid container spacing={3}>
+        {/* Movies Settings Card */}
+        <Grid item xs={12} lg={6}>
+          <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2, height: '100%' }}>
+            <CardContent>
+              <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <MovieIcon fontSize="small" color="primary" />
+                Movies Settings
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Configure data source, filters, and list size for movie Top Picks.
+              </Typography>
 
           {/* Data Source */}
           <FormControl component="fieldset" disabled={!config.isEnabled} sx={{ mb: 3, width: '100%' }}>
@@ -650,19 +653,21 @@ export function TopPicksSection() {
               </Grid>
             )}
           </Grid>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </Grid>
 
-      {/* Series Settings Card */}
-      <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
-        <CardContent>
-          <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-            <TvIcon fontSize="small" color="primary" />
-            Series Settings
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Configure data source, filters, and list size for series Top Picks.
-          </Typography>
+        {/* Series Settings Card */}
+        <Grid item xs={12} lg={6}>
+          <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2, height: '100%' }}>
+            <CardContent>
+              <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <TvIcon fontSize="small" color="primary" />
+                Series Settings
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Configure data source, filters, and list size for series Top Picks.
+              </Typography>
 
           {/* Data Source */}
           <FormControl component="fieldset" disabled={!config.isEnabled} sx={{ mb: 3, width: '100%' }}>
@@ -851,8 +856,10 @@ export function TopPicksSection() {
               </Grid>
             )}
           </Grid>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
       {/* Local Popularity Algorithm (shown if either movies or series uses local/hybrid) */}
       {(config.moviesPopularitySource === 'local' || config.moviesPopularitySource === 'hybrid' ||
