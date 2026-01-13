@@ -320,5 +320,3 @@ export function MovieInsights({ insights }: MovieInsightsProps) {
   )
 }
 
-
-

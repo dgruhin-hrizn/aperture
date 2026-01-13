@@ -3,12 +3,14 @@ import { Box, Typography, Paper, Chip, Skeleton, Tooltip, IconButton } from '@mu
 import Star from '@mui/icons-material/Star'
 import AddToQueue from '@mui/icons-material/AddToQueue'
 import PlaylistAddCheck from '@mui/icons-material/PlaylistAddCheck'
+import HubOutlined from '@mui/icons-material/HubOutlined'
 import { HeartRating } from './HeartRating.js'
 import { getProxiedImageUrl, FALLBACK_POSTER_URL } from './imageUtils.js'
 
 const StarIcon = Star as unknown as React.ComponentType<{ fontSize?: string }>
 const AddToQueueIcon = AddToQueue as unknown as React.ComponentType<{ fontSize?: 'small' | 'medium' | 'large' }>
 const PlaylistAddCheckIcon = PlaylistAddCheck as unknown as React.ComponentType<{ fontSize?: 'small' | 'medium' | 'large' }>
+const HubOutlinedIcon = HubOutlined as unknown as React.ComponentType<{ fontSize?: 'small' | 'medium' | 'large' }>
 
 export interface MoviePosterProps {
   title: string
@@ -37,6 +39,10 @@ export interface MoviePosterProps {
   onWatchingToggle?: () => void
   /** Hide the watching toggle button */
   hideWatchingToggle?: boolean
+  /** Callback when user clicks explore button to view similarity graph */
+  onExploreClick?: () => void
+  /** Hide the explore button */
+  hideExploreButton?: boolean
   loading?: boolean
   /** Make poster fill container width with 2:3 aspect ratio (for responsive grids) */
   responsive?: boolean
@@ -67,6 +73,8 @@ export function MoviePoster({
   isWatching = false,
   onWatchingToggle,
   hideWatchingToggle = false,
+  onExploreClick,
+  hideExploreButton = false,
   loading = false,
   responsive = false,
   children,
@@ -200,39 +208,73 @@ export function MoviePoster({
           </Tooltip>
         )}
 
-        {/* Heart rating button - bottom right */}
-        {!hideHeartRating && (
-          <Box
-            onClick={(e) => {
-              // Stop propagation so clicking heart doesn't trigger poster onClick
-              e.stopPropagation()
-            }}
-            sx={{
-              position: 'absolute',
-              bottom: 8,
-              right: 8,
-              zIndex: 4,
-              backgroundColor: 'rgba(0, 0, 0, 0.6)',
-              borderRadius: '50%',
-              p: 0.5,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backdropFilter: 'blur(4px)',
-              transition: 'background-color 0.2s ease',
-              '&:hover': {
-                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-              },
-            }}
-          >
-            <HeartRating
-              value={userRating ?? null}
-              onChange={onRate}
-              size="small"
-              readOnly={!onRate}
-            />
-          </Box>
-        )}
+        {/* Bottom right button group: Explore + Heart */}
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: 8,
+            right: 8,
+            zIndex: 4,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+          }}
+        >
+          {/* Explore button - opens similarity graph */}
+          {!hideExploreButton && onExploreClick && (
+            <Tooltip title="Explore similar content" arrow>
+              <IconButton
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onExploreClick()
+                }}
+                size="small"
+                sx={{
+                  backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                  color: 'white',
+                  backdropFilter: 'blur(4px)',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    backgroundColor: 'rgba(139, 92, 246, 0.9)',
+                    transform: 'scale(1.1)',
+                  },
+                }}
+              >
+                <HubOutlinedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+          
+          {/* Heart rating button */}
+          {!hideHeartRating && (
+            <Box
+              onClick={(e) => {
+                // Stop propagation so clicking heart doesn't trigger poster onClick
+                e.stopPropagation()
+              }}
+              sx={{
+                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                borderRadius: '50%',
+                p: 0.5,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backdropFilter: 'blur(4px)',
+                transition: 'background-color 0.2s ease',
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                },
+              }}
+            >
+              <HeartRating
+                value={userRating ?? null}
+                onChange={onRate}
+                size="small"
+                readOnly={!onRate}
+              />
+            </Box>
+          )}
+        </Box>
 
         {/* Custom children (for badges like play count, favorite icon, etc.) */}
         {children}

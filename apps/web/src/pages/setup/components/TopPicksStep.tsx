@@ -96,7 +96,7 @@ export function TopPicksStep({ wizard }: TopPicksStepProps) {
       <Typography variant="body2" color="text.secondary" paragraph>
         Create global "what's popular" libraries based on aggregated watch history from all users. Unlike personalized
         AI recommendations, Top Picks show the same trending content to everyone - great for discovering what's popular
-        in your household.
+        on your server.
       </Typography>
 
       {error && (

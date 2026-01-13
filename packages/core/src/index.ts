@@ -542,6 +542,34 @@ export {
   OMDB_ERROR_MESSAGES,
 } from './errors/index.js'
 
+// Similarity
+export {
+  getSimilarMovies,
+  getSimilarSeries,
+  getSimilarWithDepth,
+  getGraphForSource,
+  semanticSearch,
+  buildGraphFromSemanticSearch,
+  computeConnectionReasons,
+  getPrimaryConnectionType,
+  validateConnection,
+  getValidationCacheStats,
+  CONNECTION_COLORS,
+  type SimilarityItem,
+  type SimilarityConnection,
+  type SimilarityResult,
+  type GraphNode,
+  type GraphEdge,
+  type GraphData,
+  type GraphSource,
+  type SimilarityOptions,
+  type SemanticSearchOptions,
+  type SemanticSearchResult,
+  type ConnectionType,
+  type ConnectionReason,
+  type ConnectionValidation,
+} from './similarity/index.js'
+
 // MDBList Integration
 export {
   // Configuration
