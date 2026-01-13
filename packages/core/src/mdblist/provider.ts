@@ -146,9 +146,17 @@ async function mdblistRequest<T>(
     return null
   }
 
-  // Add API key to URL
-  const url = new URL(endpoint, MDBLIST_API_BASE_URL)
-  url.searchParams.set('apikey', apiKey)
+  // Build URL - handle endpoints that already have query params
+  let url: URL
+  if (endpoint.includes('?')) {
+    // Endpoint already has query params, append apikey
+    url = new URL(`${MDBLIST_API_BASE_URL}${endpoint}&apikey=${apiKey}`)
+  } else {
+    // No query params yet
+    url = new URL(`${MDBLIST_API_BASE_URL}${endpoint}?apikey=${apiKey}`)
+  }
+  
+  logger.debug({ url: url.toString() }, 'MDBList API request')
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     await rateLimit()
