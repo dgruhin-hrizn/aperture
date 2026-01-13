@@ -31,6 +31,7 @@ import {
   List,
   ListItem,
   ListItemText,
+  InputLabel,
 } from '@mui/material'
 import { MDBListSelector } from './MDBListSelector'
 import SaveIcon from '@mui/icons-material/Save'
@@ -672,11 +673,11 @@ export function TopPicksSection() {
                   />
                 </Grid>
                 <Grid item xs={12} sm={4}>
-                  <FormControl fullWidth size="small" disabled={!config.isEnabled}>
-                    <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>
-                      Sort By
-                    </Typography>
+                  <FormControl fullWidth size="small" disabled={!config.isEnabled} variant="outlined">
+                    <InputLabel id="movies-sort-label">Sort By</InputLabel>
                     <Select
+                      labelId="movies-sort-label"
+                      label="Sort By"
                       value={config.mdblistMoviesSort || 'score'}
                       onChange={(e) => updateConfig({ mdblistMoviesSort: e.target.value })}
                     >
@@ -957,11 +958,11 @@ export function TopPicksSection() {
                   />
                 </Grid>
                 <Grid item xs={12} sm={4}>
-                  <FormControl fullWidth size="small" disabled={!config.isEnabled}>
-                    <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>
-                      Sort By
-                    </Typography>
+                  <FormControl fullWidth size="small" disabled={!config.isEnabled} variant="outlined">
+                    <InputLabel id="series-sort-label">Sort By</InputLabel>
                     <Select
+                      labelId="series-sort-label"
+                      label="Sort By"
                       value={config.mdblistSeriesSort || 'score'}
                       onChange={(e) => updateConfig({ mdblistSeriesSort: e.target.value })}
                     >
