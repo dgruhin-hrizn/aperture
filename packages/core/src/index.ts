@@ -255,6 +255,7 @@ export {
   setAiRecsOutputConfig,
   getOutputPathConfig,
   setOutputPathConfig,
+  detectPathMappings,
   getAiExplanationConfig,
   setAiExplanationConfig,
   getWatchingLibraryConfig,

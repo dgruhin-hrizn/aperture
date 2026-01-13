@@ -760,6 +760,103 @@ export async function setOutputPathConfig(
   return getOutputPathConfig()
 }
 
+/**
+ * Auto-detect path mappings by comparing media server file paths with local filesystem
+ * 
+ * This works by:
+ * 1. Getting a sample movie from the media server with its file path
+ * 2. Finding the same file in Aperture's /media/ mount
+ * 3. Computing the path prefix mapping
+ * 
+ * @returns Detected paths or null if detection failed
+ */
+export async function detectPathMappings(): Promise<{
+  mediaServerPathPrefix: string
+  mediaServerLibrariesPath: string
+  sampleMediaServerPath: string
+  sampleAperturePath: string
+} | null> {
+  const { getMediaServerProvider } = await import('../media/index.js')
+  const fs = await import('fs/promises')
+  const path = await import('path')
+  
+  try {
+    const provider = await getMediaServerProvider()
+    const apiKey = await getMediaServerApiKey()
+    
+    if (!apiKey) {
+      logger.warn('Cannot detect paths: No media server API key configured')
+      return null
+    }
+    
+    // Get a sample movie with file path
+    const result = await provider.getMovies(apiKey, { limit: 10 })
+    
+    if (result.items.length === 0) {
+      logger.warn('Cannot detect paths: No movies found in media server')
+      return null
+    }
+    
+    // Find a movie with a valid path
+    const movieWithPath = result.items.find(m => m.path && m.path.length > 0)
+    if (!movieWithPath?.path) {
+      logger.warn('Cannot detect paths: No movies have file path information')
+      return null
+    }
+    
+    const mediaServerPath = movieWithPath.path
+    logger.info({ mediaServerPath }, 'Sample movie path from media server')
+    
+    // Aperture mounts media at /media/
+    const apertureMediaRoot = '/media'
+    
+    // Try to find the file by walking up the path and checking different prefixes
+    // Media server might see: /mnt/Movies/Inception/Inception.mkv
+    // Aperture sees: /media/Movies/Inception/Inception.mkv
+    
+    // Extract the relative path after the media server prefix
+    // We try common prefixes and see which one works
+    const pathParts = mediaServerPath.split('/')
+    
+    for (let i = 1; i < pathParts.length - 1; i++) {
+      const potentialPrefix = pathParts.slice(0, i + 1).join('/') + '/'
+      const relativePath = mediaServerPath.substring(potentialPrefix.length)
+      const aperturePath = path.join(apertureMediaRoot, relativePath)
+      
+      try {
+        await fs.access(aperturePath)
+        // Found it!
+        logger.info(
+          { mediaServerPrefix: potentialPrefix, aperturePath },
+          'Detected path mapping'
+        )
+        
+        // Infer libraries path: if media is at /mnt/, libraries are probably at /mnt/ApertureLibraries/
+        const librariesPath = potentialPrefix + 'ApertureLibraries/'
+        
+        return {
+          mediaServerPathPrefix: potentialPrefix,
+          mediaServerLibrariesPath: librariesPath,
+          sampleMediaServerPath: mediaServerPath,
+          sampleAperturePath: aperturePath,
+        }
+      } catch {
+        // File not found at this prefix, try next
+        continue
+      }
+    }
+    
+    logger.warn(
+      { mediaServerPath },
+      'Could not find media server file in Aperture /media/ mount. Check volume mounts.'
+    )
+    return null
+  } catch (err) {
+    logger.error({ err }, 'Failed to detect path mappings')
+    return null
+  }
+}
+
 // ============================================================================
 // AI Explanation Settings
 // ============================================================================

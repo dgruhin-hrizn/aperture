@@ -13,6 +13,7 @@ export const STEP_ORDER: Array<{ id: SetupStepId; label: string }> = [
   { id: 'restoreFromBackup', label: 'Restore' },
   { id: 'mediaServer', label: 'Connect' },
   { id: 'mediaLibraries', label: 'Libraries' },
+  { id: 'fileLocations', label: 'Paths' },
   { id: 'aiRecsLibraries', label: 'Recs' },
   { id: 'validate', label: 'Validate' },
   { id: 'users', label: 'Users' },

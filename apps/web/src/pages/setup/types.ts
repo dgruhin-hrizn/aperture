@@ -20,6 +20,7 @@ export type SetupStepId =
   | 'restoreFromBackup'
   | 'mediaServer'
   | 'mediaLibraries'
+  | 'fileLocations'
   | 'aiRecsLibraries'
   | 'validate'
   | 'users'

@@ -33,6 +33,7 @@ import {
   setAiRecsOutputConfig,
   getOutputPathConfig,
   setOutputPathConfig,
+  detectPathMappings,
   initUploads,
   uploadImage,
   type LibraryType,
@@ -442,6 +443,28 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.send(updated)
     }
   )
+
+  /**
+   * POST /api/setup/detect-paths
+   * Auto-detect path mappings by comparing media server paths with local filesystem
+   */
+  fastify.post('/api/setup/detect-paths', async (request, reply) => {
+    const { complete, isAdmin } = await requireSetupWritable(request)
+    if (complete && !isAdmin) return reply.status(404).send({ error: 'Not Found' })
+
+    const result = await detectPathMappings()
+
+    if (!result) {
+      return reply.status(400).send({
+        error: 'Could not auto-detect paths',
+        message:
+          'Unable to find media server files in Aperture\'s /media/ mount. ' +
+          'Make sure your media folder is mounted at /media in Aperture\'s container.',
+      })
+    }
+
+    return reply.send(result)
+  })
 
   // ==========================================================================
   // Setup Validation Endpoint
