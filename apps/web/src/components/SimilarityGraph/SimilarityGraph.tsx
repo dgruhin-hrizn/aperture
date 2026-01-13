@@ -260,9 +260,33 @@ export function SimilarityGraph({
       .attr('fill', '#888')
       .attr('font-size', '8px')
 
-    // Create simulation with comfortable spacing
+    // Pre-position nodes in a circle around center for smoother initial layout
+    const centerNode = data.nodes.find(n => n.isCenter)
+    const otherNodes = data.nodes.filter(n => !n.isCenter)
+    const radius = Math.min(width, height) * 0.3
+    
+    // Place center node at center
+    if (centerNode) {
+      centerNode.x = width / 2
+      centerNode.y = height / 2
+    }
+    
+    // Arrange other nodes in a circle
+    otherNodes.forEach((node, i) => {
+      const angle = (2 * Math.PI * i) / otherNodes.length - Math.PI / 2
+      node.x = width / 2 + radius * Math.cos(angle)
+      node.y = height / 2 + radius * Math.sin(angle)
+    })
+
+    // Start with container hidden, fade in after initial settling
+    container.style('opacity', 0)
+    
+    // Create simulation with gentler initial energy
     const simulation = d3
       .forceSimulation<GraphNode>(data.nodes)
+      .alpha(0.4) // Start with lower energy (default is 1)
+      .alphaDecay(0.02) // Slightly faster settling
+      .velocityDecay(0.4) // More friction for smoother movement
       .force(
         'link',
         d3
@@ -282,6 +306,11 @@ export function SimilarityGraph({
       }))
 
     simulationRef.current = simulation
+    
+    // Fade in after brief settling period
+    setTimeout(() => {
+      container.transition().duration(400).style('opacity', 1)
+    }, 150)
 
     // Track if we've centered on the initial node
     let hasCentered = false
