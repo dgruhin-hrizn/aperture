@@ -220,4 +220,3 @@ export function SeasonsList({ seasons }: SeasonsListProps) {
   )
 }
 
-

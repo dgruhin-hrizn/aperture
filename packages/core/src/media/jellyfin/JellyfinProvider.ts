@@ -48,6 +48,7 @@ import {
 } from './series.js'
 import {
   createOrUpdatePlaylist,
+  createPlaylistWithOverview,
   deletePlaylist,
   getPlaylistItems,
   removePlaylistItems,
@@ -173,6 +174,16 @@ export class JellyfinProvider extends JellyfinProviderBase implements MediaServe
     itemIds: string[]
   ): Promise<PlaylistCreateResult> {
     return createOrUpdatePlaylist(this, apiKey, userId, name, itemIds)
+  }
+
+  async createPlaylistWithOverview(
+    apiKey: string,
+    userId: string,
+    name: string,
+    itemIds: string[],
+    overview?: string
+  ): Promise<PlaylistCreateResult> {
+    return createPlaylistWithOverview(this, apiKey, userId, name, itemIds, overview)
   }
 
   async deletePlaylist(apiKey: string, playlistId: string): Promise<void> {

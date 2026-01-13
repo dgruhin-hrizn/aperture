@@ -3,13 +3,13 @@ import { Box, IconButton } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import { getProxiedImageUrl } from '@aperture/ui'
 
-interface MovieBackdropProps {
+interface MediaBackdropProps {
   backdropUrl: string | null
   title: string
   onBack: () => void
 }
 
-export function MovieBackdrop({ backdropUrl, title, onBack }: MovieBackdropProps) {
+export function MediaBackdrop({ backdropUrl, title, onBack }: MediaBackdropProps) {
   const [imageError, setImageError] = useState(false)
   const proxiedBackdropUrl = backdropUrl ? getProxiedImageUrl(backdropUrl, '') : null
 
@@ -17,10 +17,10 @@ export function MovieBackdrop({ backdropUrl, title, onBack }: MovieBackdropProps
     <Box
       sx={{
         position: 'relative',
-        height: { xs: 300, md: 450 },
+        height: { xs: 250, md: 350 },
         mx: -3,
         mt: -3,
-        mb: 3,
+        mb: 0,
         overflow: 'hidden',
       }}
     >
@@ -76,6 +76,4 @@ export function MovieBackdrop({ backdropUrl, title, onBack }: MovieBackdropProps
     </Box>
   )
 }
-
-
 

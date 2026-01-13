@@ -1,3 +1,0 @@
-export { useSeriesDetail } from './useSeriesDetail'
-
-

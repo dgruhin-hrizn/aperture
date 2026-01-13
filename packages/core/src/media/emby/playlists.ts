@@ -141,5 +141,63 @@ export async function getGenres(provider: EmbyProviderBase, apiKey: string): Pro
   return response.Items.map((item) => item.Name)
 }
 
+/**
+ * Update playlist overview/description
+ * Emby requires posting the full item object back when updating metadata
+ * 
+ * Note: GET requires user context (/Users/{userId}/Items/{id})
+ *       POST works with just /Items/{id}
+ */
+export async function updatePlaylistOverview(
+  provider: EmbyProviderBase,
+  apiKey: string,
+  userId: string,
+  playlistId: string,
+  overview: string
+): Promise<void> {
+  try {
+    // Fetch the full item data using user context (required for playlists)
+    const item = await provider.fetch<Record<string, unknown>>(
+      `/Users/${userId}/Items/${playlistId}`,
+      apiKey
+    )
+
+    // Update the overview
+    item.Overview = overview
+
+    // POST the full item back (doesn't need user context)
+    await provider.fetch(`/Items/${playlistId}`, apiKey, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(item),
+    })
+  } catch (err) {
+    // Non-fatal: playlist will still work, just won't have a description
+    console.warn(`Failed to set overview for playlist ${playlistId}:`, err)
+  }
+}
+
+/**
+ * Create a new playlist with items and optional overview
+ */
+export async function createPlaylistWithOverview(
+  provider: EmbyProviderBase,
+  apiKey: string,
+  userId: string,
+  name: string,
+  itemIds: string[],
+  overview?: string
+): Promise<PlaylistCreateResult> {
+  // Create the playlist first
+  const result = await createOrUpdatePlaylist(provider, apiKey, userId, name, itemIds)
+
+  // Set overview if provided
+  if (overview) {
+    await updatePlaylistOverview(provider, apiKey, userId, result.playlistId, overview)
+  }
+
+  return result
+}
+
 
 

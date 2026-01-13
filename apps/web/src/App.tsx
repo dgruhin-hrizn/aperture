@@ -17,8 +17,7 @@ import { MyRecommendationsPage } from './pages/MyRecommendations'
 import { MyWatchHistoryPage } from './pages/MyWatchHistory'
 import { MoviesPage } from './pages/Movies'
 import { SeriesPage } from './pages/Series'
-import { MovieDetailPage } from './pages/movie-detail'
-import { SeriesDetailPage } from './pages/series-detail'
+import { MovieDetailPage, SeriesDetailPage } from './pages/media-detail'
 import { PlaylistsPage } from './pages/playlists'
 import { UserSettingsPage } from './pages/UserSettings'
 import { TopPicksMoviesPage, TopPicksSeriesPage } from './pages/top-picks'
@@ -28,6 +27,7 @@ import { FranchisesPage } from './pages/Franchises'
 import { WatchingPage } from './pages/watching'
 import { PersonDetailPage } from './pages/PersonDetail'
 import { StudioDetailPage } from './pages/StudioDetail'
+import { ExplorePage } from './pages/explore'
 // Admin pages
 import { AdminDashboard } from './pages/admin'
 import { UsersPage } from './pages/Users'
@@ -160,6 +160,7 @@ function AppRoutes() {
         <Route path="watching" element={<WatchingPage />} />
         <Route path="person/:name" element={<PersonDetailPage />} />
         <Route path="studio/:name" element={<StudioDetailPage />} />
+        <Route path="explore" element={<ExplorePage />} />
         <Route path="settings" element={<UserSettingsPage />} />
 
         {/* Admin Routes - nested under AdminLayout */}
