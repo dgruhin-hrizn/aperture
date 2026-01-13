@@ -196,9 +196,13 @@ export async function createPlaylistWithOverview(
 ): Promise<PlaylistCreateResult> {
   // Create the playlist first
   const result = await createOrUpdatePlaylist(provider, apiKey, userId, name, itemIds)
+  
+  logger.info({ playlistId: result.playlistId, hasOverview: !!overview }, 'Playlist created, setting overview')
 
   // Set overview if provided
   if (overview) {
+    // Small delay to ensure Emby has fully registered the playlist
+    await new Promise(resolve => setTimeout(resolve, 500))
     await updatePlaylistOverview(provider, apiKey, userId, result.playlistId, overview)
   }
 
