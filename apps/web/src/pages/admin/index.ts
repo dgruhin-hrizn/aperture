@@ -1,3 +1,8 @@
 export { AdminDashboard } from './AdminDashboard'
-
-
+export { MediaSyncPage } from './MediaSyncPage'
+export { AIRecommendationsPage } from './AIRecommendationsPage'
+export { AIChatPage } from './AIChatPage'
+export { TopPicksPage } from './TopPicksPage'
+export { WatchingPage } from './WatchingPage'
+export { IntegrationsPage } from './IntegrationsPage'
+export { SystemPage } from './SystemPage'

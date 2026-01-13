@@ -1,0 +1,2 @@
+export { useRecommendationConfig } from './useRecommendationConfig'
+

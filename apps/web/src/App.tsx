@@ -29,7 +29,16 @@ import { WatchingPage } from './pages/watching'
 import { PersonDetailPage } from './pages/PersonDetail'
 import { StudioDetailPage } from './pages/StudioDetail'
 // Admin pages
-import { AdminDashboard } from './pages/admin'
+import {
+  AdminDashboard,
+  MediaSyncPage,
+  AIRecommendationsPage,
+  AIChatPage,
+  TopPicksPage as AdminTopPicksPage,
+  WatchingPage as AdminWatchingPage,
+  IntegrationsPage,
+  SystemPage,
+} from './pages/admin'
 import { UsersPage } from './pages/Users'
 import { UserDetailPage } from './pages/UserDetail'
 import { JobsPage } from './pages/jobs'
@@ -174,6 +183,13 @@ function AppRoutes() {
           <Route index element={<AdminDashboard />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="users/:id" element={<UserDetailPage />} />
+          <Route path="media-sync" element={<MediaSyncPage />} />
+          <Route path="ai-recommendations" element={<AIRecommendationsPage />} />
+          <Route path="ai-chat" element={<AIChatPage />} />
+          <Route path="top-picks" element={<AdminTopPicksPage />} />
+          <Route path="watching" element={<AdminWatchingPage />} />
+          <Route path="integrations" element={<IntegrationsPage />} />
+          <Route path="system" element={<SystemPage />} />
           <Route path="jobs" element={<JobsPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
