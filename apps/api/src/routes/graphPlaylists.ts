@@ -103,6 +103,15 @@ export async function graphPlaylistRoutes(fastify: FastifyInstance) {
       }
 
       try {
+        request.log.info({
+          userId: currentUser.id,
+          name,
+          movieIds: movieIds || [],
+          seriesIds: seriesIds || [],
+          sourceItemId,
+          sourceItemType,
+        }, 'Creating graph playlist')
+
         const playlist = await createGraphPlaylist(currentUser.id, {
           name,
           description,
@@ -114,7 +123,12 @@ export async function graphPlaylistRoutes(fastify: FastifyInstance) {
 
         return reply.status(201).send(playlist)
       } catch (err) {
-        request.log.error({ err, userId: currentUser.id }, 'Failed to create graph playlist')
+        request.log.error({ 
+          err, 
+          userId: currentUser.id,
+          errorMessage: err instanceof Error ? err.message : 'Unknown',
+          errorStack: err instanceof Error ? err.stack : undefined,
+        }, 'Failed to create graph playlist')
         const message = err instanceof Error ? err.message : 'Failed to create playlist'
         return reply.status(500).send({ error: message })
       }

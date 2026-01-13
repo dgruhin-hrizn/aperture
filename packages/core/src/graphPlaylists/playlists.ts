@@ -66,6 +66,8 @@ export async function createGraphPlaylist(
   userId: string,
   input: CreateGraphPlaylistInput
 ): Promise<GraphPlaylist> {
+  logger.info({ userId, input }, 'createGraphPlaylist called')
+
   const provider = await getMediaServerProvider()
   const apiKey = await getMediaServerApiKey()
 
@@ -79,6 +81,8 @@ export async function createGraphPlaylist(
     [userId]
   )
 
+  logger.info({ userId, providerUserId: user?.provider_user_id }, 'Got user info')
+
   if (!user?.provider_user_id) {
     throw new Error('User is not linked to media server')
   }
@@ -86,13 +90,15 @@ export async function createGraphPlaylist(
   // Get media server item IDs
   const mediaServerItemIds = await getMediaServerItemIds(input.movieIds, input.seriesIds)
 
+  logger.info({ movieIds: input.movieIds, seriesIds: input.seriesIds, mediaServerItemIds }, 'Got media server item IDs')
+
   if (mediaServerItemIds.length === 0) {
     throw new Error('No valid items found to add to playlist')
   }
 
   logger.info(
     { userId, name: input.name, itemCount: mediaServerItemIds.length },
-    'Creating graph playlist'
+    'Creating graph playlist on media server'
   )
 
   // Create playlist on media server with overview
@@ -103,6 +109,8 @@ export async function createGraphPlaylist(
     mediaServerItemIds,
     input.description
   )
+
+  logger.info({ result }, 'Media server playlist created')
 
   // Store in database
   const dbResult = await queryOne<GraphPlaylist>(

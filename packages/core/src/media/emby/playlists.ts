@@ -143,6 +143,7 @@ export async function getGenres(provider: EmbyProviderBase, apiKey: string): Pro
 
 /**
  * Update playlist overview/description
+ * Emby requires posting the full item object back when updating metadata
  */
 export async function updatePlaylistOverview(
   provider: EmbyProviderBase,
@@ -150,19 +151,26 @@ export async function updatePlaylistOverview(
   playlistId: string,
   overview: string
 ): Promise<void> {
-  // First get the current item to preserve other metadata
-  const item = await provider.fetch<{ Id: string; Name: string }>(`/Items/${playlistId}`, apiKey)
+  try {
+    // Fetch the full item data (required by Emby API for updates)
+    const item = await provider.fetch<Record<string, unknown>>(
+      `/Items/${playlistId}`,
+      apiKey
+    )
 
-  // Update with new overview
-  await provider.fetch(`/Items/${playlistId}`, apiKey, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      Id: item.Id,
-      Name: item.Name,
-      Overview: overview,
-    }),
-  })
+    // Update the overview
+    item.Overview = overview
+
+    // POST the full item back
+    await provider.fetch(`/Items/${playlistId}`, apiKey, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(item),
+    })
+  } catch {
+    // Non-fatal: playlist will still work, just won't have a description
+    console.warn(`Failed to set overview for playlist ${playlistId}`)
+  }
 }
 
 /**
