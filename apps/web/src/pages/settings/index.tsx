@@ -34,6 +34,7 @@ import {
   RecommendationConfigSection,
   DatabaseSection,
   MediaServerSection,
+  FileLocationsSection,
   CostEstimatorSection,
   TextGenerationModelSection,
   ChatAssistantModelSection,
@@ -340,6 +341,7 @@ export function SettingsPage() {
                     onToggle={settings.toggleLibraryEnabled}
                   />
                 </Box>
+                <FileLocationsSection />
               </Box>
             </TabPanel>
 

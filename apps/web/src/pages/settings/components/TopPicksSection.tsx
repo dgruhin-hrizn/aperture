@@ -25,6 +25,13 @@ import {
   RadioGroup,
   FormControl,
   FormLabel,
+  Select,
+  MenuItem,
+  Collapse,
+  List,
+  ListItem,
+  ListItemText,
+  InputLabel,
 } from '@mui/material'
 import { MDBListSelector } from './MDBListSelector'
 import SaveIcon from '@mui/icons-material/Save'
@@ -42,14 +49,12 @@ import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
-import SettingsIcon from '@mui/icons-material/Settings'
 import TuneIcon from '@mui/icons-material/Tune'
 import OutputIcon from '@mui/icons-material/Output'
 import ImageIcon from '@mui/icons-material/Image'
 import PublicIcon from '@mui/icons-material/Public'
 import HomeIcon from '@mui/icons-material/Home'
 import MergeIcon from '@mui/icons-material/Merge'
-import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted'
 import { ImageUpload } from '../../../components/ImageUpload'
 import { DEFAULT_LIBRARY_IMAGES } from '../../setup/constants'
 
@@ -57,9 +62,19 @@ type PopularitySource = 'local' | 'mdblist' | 'hybrid'
 
 interface TopPicksConfig {
   isEnabled: boolean
-  timeWindowDays: number
+  // Movies-specific settings
+  moviesPopularitySource: PopularitySource
+  moviesTimeWindowDays: number
+  moviesMinUniqueViewers: number
+  moviesUseAllMatches: boolean
   moviesCount: number
+  // Series-specific settings
+  seriesPopularitySource: PopularitySource
+  seriesTimeWindowDays: number
+  seriesMinUniqueViewers: number
+  seriesUseAllMatches: boolean
   seriesCount: number
+  // Shared weights
   uniqueViewersWeight: number
   playCountWeight: number
   completionWeight: number
@@ -67,7 +82,6 @@ interface TopPicksConfig {
   lastRefreshedAt: string | null
   moviesLibraryName: string
   seriesLibraryName: string
-  minUniqueViewers: number
   // Output format settings (separate for movies and series)
   moviesUseSymlinks: boolean
   seriesUseSymlinks: boolean
@@ -82,20 +96,58 @@ interface TopPicksConfig {
   // Collection/Playlist names
   moviesCollectionName: string
   seriesCollectionName: string
-  // MDBList popularity source
-  popularitySource: PopularitySource
+  // MDBList list selections
   mdblistMoviesListId: number | null
   mdblistSeriesListId: number | null
   mdblistMoviesListName: string | null
   mdblistSeriesListName: string | null
+  // MDBList sort order
+  mdblistMoviesSort: string
+  mdblistSeriesSort: string
+  // Hybrid mode weights
   hybridLocalWeight: number
   hybridMdblistWeight: number
+}
+
+interface PreviewCounts {
+  movies: number
+  series: number
+  recommendedMoviesMinViewers: number
+  recommendedSeriesMinViewers: number
 }
 
 interface LibraryImageInfo {
   url?: string
   isDefault?: boolean
 }
+
+interface SortOption {
+  value: string
+  label: string
+}
+
+interface LibraryMatchResult {
+  total: number
+  matched: number
+  missing: Array<{
+    title: string
+    year: number | null
+    tmdbid?: number
+    imdbid?: string
+    mediatype: string
+  }>
+}
+
+const SORT_OPTIONS: SortOption[] = [
+  { value: 'score', label: 'MDBList Score' },
+  { value: 'score_average', label: 'Average Score' },
+  { value: 'imdbrating', label: 'IMDb Rating' },
+  { value: 'imdbvotes', label: 'IMDb Votes' },
+  { value: 'imdbpopular', label: 'IMDb Popularity' },
+  { value: 'tmdbpopular', label: 'TMDb Popularity' },
+  { value: 'rtomatoes', label: 'Rotten Tomatoes' },
+  { value: 'metacritic', label: 'Metacritic' },
+]
 
 const RECOMMENDED_DIMENSIONS = {
   width: 1920,
@@ -119,6 +171,111 @@ export function TopPicksSection() {
 
   // MDBList state
   const [mdblistConfigured, setMdblistConfigured] = useState(false)
+
+  // Preview counts state
+  const [previewCounts, setPreviewCounts] = useState<PreviewCounts | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+
+  // MDBList item counts state
+  const [moviesListCounts, setMoviesListCounts] = useState<{ total: number } | null>(null)
+  const [seriesListCounts, setSeriesListCounts] = useState<{ total: number } | null>(null)
+
+  // Library match state
+  const [moviesLibraryMatch, setMoviesLibraryMatch] = useState<LibraryMatchResult | null>(null)
+  const [seriesLibraryMatch, setSeriesLibraryMatch] = useState<LibraryMatchResult | null>(null)
+  const [moviesMatchLoading, setMoviesMatchLoading] = useState(false)
+  const [seriesMatchLoading, setSeriesMatchLoading] = useState(false)
+  const [moviesMatchExpanded, setMoviesMatchExpanded] = useState(false)
+  const [seriesMatchExpanded, setSeriesMatchExpanded] = useState(false)
+
+  // Fetch MDBList item counts when list selection changes
+  const fetchListCounts = useCallback(async (listId: number | null, type: 'movies' | 'series') => {
+    if (!listId) {
+      if (type === 'movies') setMoviesListCounts(null)
+      else setSeriesListCounts(null)
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/mdblist/lists/${listId}/counts`, { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        if (type === 'movies') setMoviesListCounts(data)
+        else setSeriesListCounts(data)
+      }
+    } catch {
+      // Silently fail
+    }
+  }, [])
+
+  // Fetch library match when list selection or sort changes
+  const fetchLibraryMatch = useCallback(async (listId: number | null, type: 'movies' | 'series', sort: string) => {
+    if (!listId) {
+      if (type === 'movies') setMoviesLibraryMatch(null)
+      else setSeriesLibraryMatch(null)
+      return
+    }
+
+    if (type === 'movies') setMoviesMatchLoading(true)
+    else setSeriesMatchLoading(true)
+
+    try {
+      const mediatype = type === 'movies' ? 'movie' : 'show'
+      const response = await fetch(`/api/mdblist/lists/${listId}/library-match?mediatype=${mediatype}&sort=${sort}`, { 
+        credentials: 'include' 
+      })
+      if (response.ok) {
+        const data = await response.json()
+        if (type === 'movies') setMoviesLibraryMatch(data)
+        else setSeriesLibraryMatch(data)
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      if (type === 'movies') setMoviesMatchLoading(false)
+      else setSeriesMatchLoading(false)
+    }
+  }, [])
+
+  // Fetch counts when list IDs change
+  useEffect(() => {
+    if (config?.mdblistMoviesListId) {
+      fetchListCounts(config.mdblistMoviesListId, 'movies')
+    } else {
+      setMoviesListCounts(null)
+    }
+  }, [config?.mdblistMoviesListId, fetchListCounts])
+
+  useEffect(() => {
+    if (config?.mdblistSeriesListId) {
+      fetchListCounts(config.mdblistSeriesListId, 'series')
+    } else {
+      setSeriesListCounts(null)
+    }
+  }, [config?.mdblistSeriesListId, fetchListCounts])
+
+  // Fetch library match when list ID or sort changes (debounced)
+  useEffect(() => {
+    if (!config?.mdblistMoviesListId) {
+      setMoviesLibraryMatch(null)
+      return
+    }
+    const timeout = setTimeout(() => {
+      fetchLibraryMatch(config.mdblistMoviesListId, 'movies', config.mdblistMoviesSort || 'score')
+    }, 500)
+    return () => clearTimeout(timeout)
+  }, [config?.mdblistMoviesListId, config?.mdblistMoviesSort, fetchLibraryMatch])
+
+  useEffect(() => {
+    if (!config?.mdblistSeriesListId) {
+      setSeriesLibraryMatch(null)
+      return
+    }
+    const timeout = setTimeout(() => {
+      fetchLibraryMatch(config.mdblistSeriesListId, 'series', config.mdblistSeriesSort || 'score')
+    }, 500)
+    return () => clearTimeout(timeout)
+  }, [config?.mdblistSeriesListId, config?.mdblistSeriesSort, fetchLibraryMatch])
 
   // Fetch images - override defaults only if custom images exist
   const fetchImages = useCallback(async () => {
@@ -221,13 +378,63 @@ export function TopPicksSection() {
       const response = await fetch('/api/mdblist/config', { credentials: 'include' })
       if (response.ok) {
         const data = await response.json()
-        setMdblistConfigured(data.configured)
+        setMdblistConfigured(data.configured && data.enabled)
       }
     } catch {
       setMdblistConfigured(false)
     }
   }, [])
 
+  // Fetch preview counts (debounced)
+  const fetchPreviewCounts = useCallback(async (cfg: TopPicksConfig) => {
+    // Only fetch if using local or hybrid mode
+    if (cfg.moviesPopularitySource === 'mdblist' && cfg.seriesPopularitySource === 'mdblist') {
+      setPreviewCounts(null)
+      return
+    }
+
+    setPreviewLoading(true)
+    try {
+      const response = await fetch('/api/settings/top-picks/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          moviesMinViewers: cfg.moviesMinUniqueViewers,
+          moviesTimeWindowDays: cfg.moviesTimeWindowDays,
+          seriesMinViewers: cfg.seriesMinUniqueViewers,
+          seriesTimeWindowDays: cfg.seriesTimeWindowDays,
+        }),
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setPreviewCounts(data)
+      }
+    } catch {
+      // Silently fail preview
+    } finally {
+      setPreviewLoading(false)
+    }
+  }, [])
+
+  // Debounce preview fetch when settings change
+  // We intentionally watch specific properties, not the whole config object
+  useEffect(() => {
+    if (!config) return
+    const timeout = setTimeout(() => {
+      fetchPreviewCounts(config)
+    }, 300)
+    return () => clearTimeout(timeout)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    config?.moviesMinUniqueViewers,
+    config?.moviesTimeWindowDays,
+    config?.seriesMinUniqueViewers,
+    config?.seriesTimeWindowDays,
+    config?.moviesPopularitySource,
+    config?.seriesPopularitySource,
+    fetchPreviewCounts,
+  ])
 
   // Fetch config on mount
   useEffect(() => {
@@ -384,247 +591,582 @@ export function TopPicksSection() {
         </CardContent>
       </Card>
 
-      {/* Section 1: What to Include */}
-      <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
-        <CardContent>
-          <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-            <SettingsIcon fontSize="small" color="primary" />
-            Content Selection
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Configure which media to include in Top Picks and how much of it.
-          </Typography>
+      {/* Movies & Series Settings - Side by Side */}
+      <Grid container spacing={3}>
+        {/* Movies Settings Card */}
+        <Grid item xs={12} lg={6}>
+          <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2, height: '100%' }}>
+            <CardContent>
+              <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <MovieIcon fontSize="small" color="primary" />
+                Movies Settings
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Configure data source, filters, and list size for movie Top Picks.
+              </Typography>
 
-          <Grid container spacing={3}>
-            <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                fullWidth
-                label="Time Window"
-                type="number"
-                value={config.timeWindowDays}
-                onChange={(e) => updateConfig({ timeWindowDays: parseInt(e.target.value) || 30 })}
-                InputProps={{
-                  endAdornment: <InputAdornment position="end">days</InputAdornment>,
-                }}
-                size="small"
-                helperText="How far back to look at watch history"
-                disabled={!config.isEnabled}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                fullWidth
-                label="Movies to Show"
-                type="number"
-                value={config.moviesCount}
-                onChange={(e) => updateConfig({ moviesCount: parseInt(e.target.value) || 10 })}
-                size="small"
-                helperText="Number of top movies"
-                disabled={!config.isEnabled}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                fullWidth
-                label="Series to Show"
-                type="number"
-                value={config.seriesCount}
-                onChange={(e) => updateConfig({ seriesCount: parseInt(e.target.value) || 10 })}
-                size="small"
-                helperText="Number of top series"
-                disabled={!config.isEnabled}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                fullWidth
-                label="Minimum Viewers"
-                type="number"
-                value={config.minUniqueViewers}
-                onChange={(e) => updateConfig({ minUniqueViewers: parseInt(e.target.value) || 2 })}
-                size="small"
-                helperText="Required unique viewers to qualify"
-                disabled={!config.isEnabled}
-              />
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
-
-      {/* Section 2: Data Source */}
-      <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
-        <CardContent>
-          <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-            <FormatListBulletedIcon fontSize="small" color="primary" />
-            Data Source
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Choose where popularity rankings come from.
-          </Typography>
-
-          <FormControl component="fieldset" disabled={!config.isEnabled}>
+          {/* Data Source */}
+          <FormControl component="fieldset" disabled={!config.isEnabled} sx={{ mb: 3, width: '100%' }}>
+            <FormLabel sx={{ mb: 1, fontWeight: 500 }}>Data Source</FormLabel>
             <RadioGroup
-              value={config.popularitySource}
-              onChange={(e) => updateConfig({ popularitySource: e.target.value as PopularitySource })}
+              row
+              value={config.moviesPopularitySource}
+              onChange={(e) => updateConfig({ moviesPopularitySource: e.target.value as PopularitySource })}
             >
               <FormControlLabel
                 value="local"
-                control={<Radio />}
+                control={<Radio size="small" />}
                 label={
-                  <Box>
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <HomeIcon fontSize="small" color="primary" />
-                      <Typography variant="body1" fontWeight={500}>Local Watch History</Typography>
-                    </Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Rankings based on what your Emby/Jellyfin users are watching
-                    </Typography>
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    <HomeIcon fontSize="small" />
+                    <Typography variant="body2">Local Watch History</Typography>
                   </Box>
                 }
               />
               <FormControlLabel
                 value="mdblist"
-                control={<Radio />}
+                control={<Radio size="small" />}
                 disabled={!mdblistConfigured}
                 label={
-                  <Box>
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <PublicIcon fontSize="small" color={mdblistConfigured ? 'primary' : 'disabled'} />
-                      <Typography variant="body1" fontWeight={500}>MDBList Rankings</Typography>
-                      {!mdblistConfigured && (
-                        <Chip label="Configure MDBList first" size="small" color="warning" variant="outlined" />
-                      )}
-                    </Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Use curated lists from MDBList.com (e.g., "Top Watched Movies This Week")
-                    </Typography>
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    <PublicIcon fontSize="small" color={mdblistConfigured ? 'inherit' : 'disabled'} />
+                    <Typography variant="body2" color={mdblistConfigured ? 'inherit' : 'text.disabled'}>MDBList</Typography>
                   </Box>
                 }
               />
               <FormControlLabel
                 value="hybrid"
-                control={<Radio />}
+                control={<Radio size="small" />}
                 disabled={!mdblistConfigured}
                 label={
-                  <Box>
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <MergeIcon fontSize="small" color={mdblistConfigured ? 'primary' : 'disabled'} />
-                      <Typography variant="body1" fontWeight={500}>Hybrid (Local + MDBList)</Typography>
-                    </Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Blend local watch data with internet popularity for balanced rankings
-                    </Typography>
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    <MergeIcon fontSize="small" color={mdblistConfigured ? 'inherit' : 'disabled'} />
+                    <Typography variant="body2" color={mdblistConfigured ? 'inherit' : 'text.disabled'}>Hybrid</Typography>
                   </Box>
                 }
               />
             </RadioGroup>
+            {!mdblistConfigured && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                Configure MDBList in Settings → Integrations to enable MDBList and Hybrid options.
+              </Typography>
+            )}
           </FormControl>
 
-          {/* MDBList List Selection (shown for mdblist or hybrid) */}
-          {(config.popularitySource === 'mdblist' || config.popularitySource === 'hybrid') && mdblistConfigured && (
-            <Box sx={{ mt: 3, pl: 4 }}>
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ position: 'relative' }}>
-                    <MDBListSelector
-                      value={config.mdblistMoviesListId ? { id: config.mdblistMoviesListId, name: config.mdblistMoviesListName || '' } : null}
-                      onChange={(newValue) => {
-                        updateConfig({
-                          mdblistMoviesListId: newValue?.id || null,
-                          mdblistMoviesListName: newValue?.name || null,
-                        })
-                      }}
-                      mediatype="movie"
-                      label="Movies List"
-                      helperText="Select a MDBList to use for movie rankings"
-                      disabled={!config.isEnabled}
-                    />
-                  </Box>
+          {/* MDBList Selector (for mdblist or hybrid) */}
+          {(config.moviesPopularitySource === 'mdblist' || config.moviesPopularitySource === 'hybrid') && mdblistConfigured && (
+            <Box sx={{ mb: 3 }}>
+              <Grid container spacing={2} sx={{ mb: 2 }}>
+                <Grid item xs={12} sm={8}>
+                  <MDBListSelector
+                    value={config.mdblistMoviesListId ? { id: config.mdblistMoviesListId, name: config.mdblistMoviesListName || '' } : null}
+                    onChange={(newValue) => {
+                      updateConfig({
+                        mdblistMoviesListId: newValue?.id || null,
+                        mdblistMoviesListName: newValue?.name || null,
+                      })
+                    }}
+                    mediatype="movie"
+                    label="Movies List"
+                    helperText="Select a MDBList to use for movie rankings"
+                    disabled={!config.isEnabled}
+                  />
                 </Grid>
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ position: 'relative' }}>
-                    <MDBListSelector
-                      value={config.mdblistSeriesListId ? { id: config.mdblistSeriesListId, name: config.mdblistSeriesListName || '' } : null}
-                      onChange={(newValue) => {
-                        updateConfig({
-                          mdblistSeriesListId: newValue?.id || null,
-                          mdblistSeriesListName: newValue?.name || null,
-                        })
-                      }}
-                      mediatype="show"
-                      label="Series List"
-                      helperText="Select a MDBList to use for series rankings"
-                      disabled={!config.isEnabled}
-                    />
-                  </Box>
+                <Grid item xs={12} sm={4}>
+                  <FormControl fullWidth size="small" disabled={!config.isEnabled} variant="outlined">
+                    <InputLabel id="movies-sort-label">Sort By</InputLabel>
+                    <Select
+                      labelId="movies-sort-label"
+                      label="Sort By"
+                      value={config.mdblistMoviesSort || 'score'}
+                      onChange={(e) => updateConfig({ mdblistMoviesSort: e.target.value })}
+                    >
+                      {SORT_OPTIONS.map((opt) => (
+                        <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
                 </Grid>
               </Grid>
+
+              {/* Library Match Preview */}
+              {config.mdblistMoviesListId && (
+                <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
+                  {moviesMatchLoading ? (
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <CircularProgress size={16} />
+                      <Typography variant="body2" color="text.secondary">Checking library matches...</Typography>
+                    </Box>
+                  ) : moviesLibraryMatch ? (
+                    <>
+                      <Typography variant="body2">
+                        List contains <strong>{moviesLibraryMatch.total}</strong> items
+                      </Typography>
+                      <Typography variant="body2" color="success.main">
+                        Your library has <strong>{moviesLibraryMatch.matched}</strong> matches
+                      </Typography>
+                      {moviesLibraryMatch.missing.length > 0 && (
+                        <>
+                          <Box 
+                            onClick={() => setMoviesMatchExpanded(!moviesMatchExpanded)}
+                            sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 0.5, 
+                              cursor: 'pointer',
+                              color: 'warning.main',
+                              '&:hover': { textDecoration: 'underline' }
+                            }}
+                          >
+                            <ExpandMoreIcon 
+                              fontSize="small" 
+                              sx={{ 
+                                transform: moviesMatchExpanded ? 'rotate(180deg)' : 'rotate(0)',
+                                transition: 'transform 0.2s'
+                              }} 
+                            />
+                            <Typography variant="body2">
+                              Missing from your library ({moviesLibraryMatch.missing.length})
+                            </Typography>
+                          </Box>
+                          <Collapse in={moviesMatchExpanded}>
+                            <List dense sx={{ maxHeight: 200, overflow: 'auto', mt: 1 }}>
+                              {moviesLibraryMatch.missing.map((item, idx) => (
+                                <ListItem key={idx} sx={{ py: 0 }}>
+                                  <ListItemText 
+                                    primary={`${item.title}${item.year ? ` (${item.year})` : ''}`}
+                                    primaryTypographyProps={{ variant: 'caption' }}
+                                  />
+                                </ListItem>
+                              ))}
+                            </List>
+                          </Collapse>
+                        </>
+                      )}
+                    </>
+                  ) : moviesListCounts ? (
+                    <Typography variant="caption" color="text.secondary">
+                      List contains {moviesListCounts.total} items
+                    </Typography>
+                  ) : null}
+                </Box>
+              )}
             </Box>
           )}
 
-          {/* Hybrid Weights (only for hybrid mode) */}
-          {config.popularitySource === 'hybrid' && mdblistConfigured && (
-            <Box sx={{ mt: 3, pl: 4 }}>
+          {/* Local/Hybrid Settings */}
+          {(config.moviesPopularitySource === 'local' || config.moviesPopularitySource === 'hybrid') && (
+            <Grid container spacing={3} sx={{ mb: 3 }}>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  fullWidth
+                  label="Time Window"
+                  type="number"
+                  value={config.moviesTimeWindowDays}
+                  onChange={(e) => updateConfig({ moviesTimeWindowDays: parseInt(e.target.value) || 30 })}
+                  InputProps={{
+                    endAdornment: <InputAdornment position="end">days</InputAdornment>,
+                  }}
+                  size="small"
+                  helperText="How far back to look at watch history"
+                  disabled={!config.isEnabled}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  fullWidth
+                  label="Minimum Viewers"
+                  type="number"
+                  value={config.moviesMinUniqueViewers}
+                  onChange={(e) => updateConfig({ moviesMinUniqueViewers: parseInt(e.target.value) || 1 })}
+                  size="small"
+                  helperText="Required unique viewers to qualify"
+                  disabled={!config.isEnabled}
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                {/* Preview Count */}
+                <Box sx={{ p: 1.5, bgcolor: 'action.hover', borderRadius: 1 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Movies matching criteria
+                  </Typography>
+                  <Typography variant="h6" color="primary">
+                    {previewLoading ? (
+                      <CircularProgress size={16} />
+                    ) : (
+                      previewCounts?.movies ?? '—'
+                    )}
+                  </Typography>
+                  {previewCounts && previewCounts.movies > 30 && config.moviesPopularitySource === 'local' && (
+                    <Typography variant="caption" color="warning.main">
+                      Large list — consider MDBList or increase minimum viewers to {previewCounts.recommendedMoviesMinViewers}
+                    </Typography>
+                  )}
+                </Box>
+              </Grid>
+            </Grid>
+          )}
+
+          {/* Hybrid Weights */}
+          {config.moviesPopularitySource === 'hybrid' && mdblistConfigured && (
+            <Box sx={{ mb: 3 }}>
               <Typography variant="body2" fontWeight={500} gutterBottom>
-                Blend Weights
+                Blend Weight (Local vs MDBList)
               </Typography>
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                  <Box display="flex" alignItems="center" gap={1} mb={1}>
-                    <HomeIcon fontSize="small" color="primary" />
-                    <Typography variant="body2">Local Weight</Typography>
-                    <Chip 
-                      label={`${Math.round(config.hybridLocalWeight * 100)}%`} 
-                      size="small" 
-                      color="primary"
-                      variant="outlined"
-                    />
-                  </Box>
-                  <Slider
-                    value={config.hybridLocalWeight * 100}
-                    onChange={(_, value) => updateConfig({ 
-                      hybridLocalWeight: (value as number) / 100,
-                      hybridMdblistWeight: 1 - (value as number) / 100,
-                    })}
-                    min={0}
-                    max={100}
-                    disabled={!config.isEnabled}
-                    valueLabelDisplay="auto"
-                    valueLabelFormat={(v) => `${v}%`}
-                  />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <Box display="flex" alignItems="center" gap={1} mb={1}>
-                    <PublicIcon fontSize="small" color="primary" />
-                    <Typography variant="body2">MDBList Weight</Typography>
-                    <Chip 
-                      label={`${Math.round(config.hybridMdblistWeight * 100)}%`} 
-                      size="small" 
-                      color="primary"
-                      variant="outlined"
-                    />
-                  </Box>
-                  <Slider
-                    value={config.hybridMdblistWeight * 100}
-                    onChange={(_, value) => updateConfig({ 
-                      hybridMdblistWeight: (value as number) / 100,
-                      hybridLocalWeight: 1 - (value as number) / 100,
-                    })}
-                    min={0}
-                    max={100}
-                    disabled={!config.isEnabled}
-                    valueLabelDisplay="auto"
-                    valueLabelFormat={(v) => `${v}%`}
-                  />
-                </Grid>
-              </Grid>
+              <Box display="flex" alignItems="center" gap={2}>
+                <HomeIcon fontSize="small" color="primary" />
+                <Slider
+                  value={config.hybridLocalWeight * 100}
+                  onChange={(_, value) => updateConfig({ 
+                    hybridLocalWeight: (value as number) / 100,
+                    hybridMdblistWeight: 1 - (value as number) / 100,
+                  })}
+                  min={0}
+                  max={100}
+                  disabled={!config.isEnabled}
+                  valueLabelDisplay="auto"
+                  valueLabelFormat={(v) => `Local ${v}%`}
+                  sx={{ flex: 1 }}
+                />
+                <PublicIcon fontSize="small" color="primary" />
+              </Box>
             </Box>
           )}
-        </CardContent>
-      </Card>
 
-      {/* Section 3: Popularity Algorithm (only for local or hybrid) */}
-      {(config.popularitySource === 'local' || config.popularitySource === 'hybrid') && (
+          <Divider sx={{ my: 2 }} />
+
+          {/* List Size */}
+          <Typography variant="body2" fontWeight={500} gutterBottom>
+            List Size
+          </Typography>
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+            Limit to a specific number of top movies, or include all matches from your criteria.
+          </Typography>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={config.moviesUseAllMatches}
+                    onChange={(e) => updateConfig({ moviesUseAllMatches: e.target.checked })}
+                    disabled={!config.isEnabled}
+                    size="small"
+                  />
+                }
+                label={
+                  <Typography variant="body2">
+                    {config.moviesUseAllMatches ? 'Use all matches' : 'Limit count'}
+                  </Typography>
+                }
+              />
+            </Grid>
+            {!config.moviesUseAllMatches && (
+              <Grid item xs={6} sm={4} md={3}>
+                <TextField
+                  fullWidth
+                  label="Movies to Show"
+                  type="number"
+                  value={config.moviesCount}
+                  onChange={(e) => updateConfig({ moviesCount: parseInt(e.target.value) || 10 })}
+                  size="small"
+                  disabled={!config.isEnabled || config.moviesUseAllMatches}
+                />
+              </Grid>
+            )}
+          </Grid>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Series Settings Card */}
+        <Grid item xs={12} lg={6}>
+          <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2, height: '100%' }}>
+            <CardContent>
+              <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <TvIcon fontSize="small" color="primary" />
+                Series Settings
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Configure data source, filters, and list size for series Top Picks.
+              </Typography>
+
+          {/* Data Source */}
+          <FormControl component="fieldset" disabled={!config.isEnabled} sx={{ mb: 3, width: '100%' }}>
+            <FormLabel sx={{ mb: 1, fontWeight: 500 }}>Data Source</FormLabel>
+            <RadioGroup
+              row
+              value={config.seriesPopularitySource}
+              onChange={(e) => updateConfig({ seriesPopularitySource: e.target.value as PopularitySource })}
+            >
+              <FormControlLabel
+                value="local"
+                control={<Radio size="small" />}
+                label={
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    <HomeIcon fontSize="small" />
+                    <Typography variant="body2">Local Watch History</Typography>
+                  </Box>
+                }
+              />
+              <FormControlLabel
+                value="mdblist"
+                control={<Radio size="small" />}
+                disabled={!mdblistConfigured}
+                label={
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    <PublicIcon fontSize="small" color={mdblistConfigured ? 'inherit' : 'disabled'} />
+                    <Typography variant="body2" color={mdblistConfigured ? 'inherit' : 'text.disabled'}>MDBList</Typography>
+                  </Box>
+                }
+              />
+              <FormControlLabel
+                value="hybrid"
+                control={<Radio size="small" />}
+                disabled={!mdblistConfigured}
+                label={
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    <MergeIcon fontSize="small" color={mdblistConfigured ? 'inherit' : 'disabled'} />
+                    <Typography variant="body2" color={mdblistConfigured ? 'inherit' : 'text.disabled'}>Hybrid</Typography>
+                  </Box>
+                }
+              />
+            </RadioGroup>
+            {!mdblistConfigured && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                Configure MDBList in Settings → Integrations to enable MDBList and Hybrid options.
+              </Typography>
+            )}
+          </FormControl>
+
+          {/* MDBList Selector (for mdblist or hybrid) */}
+          {(config.seriesPopularitySource === 'mdblist' || config.seriesPopularitySource === 'hybrid') && mdblistConfigured && (
+            <Box sx={{ mb: 3 }}>
+              <Grid container spacing={2} sx={{ mb: 2 }}>
+                <Grid item xs={12} sm={8}>
+                  <MDBListSelector
+                    value={config.mdblistSeriesListId ? { id: config.mdblistSeriesListId, name: config.mdblistSeriesListName || '' } : null}
+                    onChange={(newValue) => {
+                      updateConfig({
+                        mdblistSeriesListId: newValue?.id || null,
+                        mdblistSeriesListName: newValue?.name || null,
+                      })
+                    }}
+                    mediatype="show"
+                    label="Series List"
+                    helperText="Select a MDBList to use for series rankings"
+                    disabled={!config.isEnabled}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <FormControl fullWidth size="small" disabled={!config.isEnabled} variant="outlined">
+                    <InputLabel id="series-sort-label">Sort By</InputLabel>
+                    <Select
+                      labelId="series-sort-label"
+                      label="Sort By"
+                      value={config.mdblistSeriesSort || 'score'}
+                      onChange={(e) => updateConfig({ mdblistSeriesSort: e.target.value })}
+                    >
+                      {SORT_OPTIONS.map((opt) => (
+                        <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </Grid>
+
+              {/* Library Match Preview */}
+              {config.mdblistSeriesListId && (
+                <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
+                  {seriesMatchLoading ? (
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <CircularProgress size={16} />
+                      <Typography variant="body2" color="text.secondary">Checking library matches...</Typography>
+                    </Box>
+                  ) : seriesLibraryMatch ? (
+                    <>
+                      <Typography variant="body2">
+                        List contains <strong>{seriesLibraryMatch.total}</strong> items
+                      </Typography>
+                      <Typography variant="body2" color="success.main">
+                        Your library has <strong>{seriesLibraryMatch.matched}</strong> matches
+                      </Typography>
+                      {seriesLibraryMatch.missing.length > 0 && (
+                        <>
+                          <Box 
+                            onClick={() => setSeriesMatchExpanded(!seriesMatchExpanded)}
+                            sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 0.5, 
+                              cursor: 'pointer',
+                              color: 'warning.main',
+                              '&:hover': { textDecoration: 'underline' }
+                            }}
+                          >
+                            <ExpandMoreIcon 
+                              fontSize="small" 
+                              sx={{ 
+                                transform: seriesMatchExpanded ? 'rotate(180deg)' : 'rotate(0)',
+                                transition: 'transform 0.2s'
+                              }} 
+                            />
+                            <Typography variant="body2">
+                              Missing from your library ({seriesLibraryMatch.missing.length})
+                            </Typography>
+                          </Box>
+                          <Collapse in={seriesMatchExpanded}>
+                            <List dense sx={{ maxHeight: 200, overflow: 'auto', mt: 1 }}>
+                              {seriesLibraryMatch.missing.map((item, idx) => (
+                                <ListItem key={idx} sx={{ py: 0 }}>
+                                  <ListItemText 
+                                    primary={`${item.title}${item.year ? ` (${item.year})` : ''}`}
+                                    primaryTypographyProps={{ variant: 'caption' }}
+                                  />
+                                </ListItem>
+                              ))}
+                            </List>
+                          </Collapse>
+                        </>
+                      )}
+                    </>
+                  ) : seriesListCounts ? (
+                    <Typography variant="caption" color="text.secondary">
+                      List contains {seriesListCounts.total} items
+                    </Typography>
+                  ) : null}
+                </Box>
+              )}
+            </Box>
+          )}
+
+          {/* Local/Hybrid Settings */}
+          {(config.seriesPopularitySource === 'local' || config.seriesPopularitySource === 'hybrid') && (
+            <Grid container spacing={3} sx={{ mb: 3 }}>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  fullWidth
+                  label="Time Window"
+                  type="number"
+                  value={config.seriesTimeWindowDays}
+                  onChange={(e) => updateConfig({ seriesTimeWindowDays: parseInt(e.target.value) || 30 })}
+                  InputProps={{
+                    endAdornment: <InputAdornment position="end">days</InputAdornment>,
+                  }}
+                  size="small"
+                  helperText="How far back to look at watch history"
+                  disabled={!config.isEnabled}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  fullWidth
+                  label="Minimum Viewers"
+                  type="number"
+                  value={config.seriesMinUniqueViewers}
+                  onChange={(e) => updateConfig({ seriesMinUniqueViewers: parseInt(e.target.value) || 1 })}
+                  size="small"
+                  helperText="Required unique viewers to qualify"
+                  disabled={!config.isEnabled}
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                {/* Preview Count */}
+                <Box sx={{ p: 1.5, bgcolor: 'action.hover', borderRadius: 1 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Series matching criteria
+                  </Typography>
+                  <Typography variant="h6" color="primary">
+                    {previewLoading ? (
+                      <CircularProgress size={16} />
+                    ) : (
+                      previewCounts?.series ?? '—'
+                    )}
+                  </Typography>
+                  {previewCounts && previewCounts.series > 30 && config.seriesPopularitySource === 'local' && (
+                    <Typography variant="caption" color="warning.main">
+                      Large list — consider MDBList or increase minimum viewers to {previewCounts.recommendedSeriesMinViewers}
+                    </Typography>
+                  )}
+                </Box>
+              </Grid>
+            </Grid>
+          )}
+
+          {/* Hybrid Weights (shared with movies for now, but could be separate) */}
+          {config.seriesPopularitySource === 'hybrid' && mdblistConfigured && (
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="body2" fontWeight={500} gutterBottom>
+                Blend Weight (Local vs MDBList)
+              </Typography>
+              <Box display="flex" alignItems="center" gap={2}>
+                <HomeIcon fontSize="small" color="primary" />
+                <Slider
+                  value={config.hybridLocalWeight * 100}
+                  onChange={(_, value) => updateConfig({ 
+                    hybridLocalWeight: (value as number) / 100,
+                    hybridMdblistWeight: 1 - (value as number) / 100,
+                  })}
+                  min={0}
+                  max={100}
+                  disabled={!config.isEnabled}
+                  valueLabelDisplay="auto"
+                  valueLabelFormat={(v) => `Local ${v}%`}
+                  sx={{ flex: 1 }}
+                />
+                <PublicIcon fontSize="small" color="primary" />
+              </Box>
+            </Box>
+          )}
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* List Size */}
+          <Typography variant="body2" fontWeight={500} gutterBottom>
+            List Size
+          </Typography>
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+            Limit to a specific number of top series, or include all matches from your criteria.
+          </Typography>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={config.seriesUseAllMatches}
+                    onChange={(e) => updateConfig({ seriesUseAllMatches: e.target.checked })}
+                    disabled={!config.isEnabled}
+                    size="small"
+                  />
+                }
+                label={
+                  <Typography variant="body2">
+                    {config.seriesUseAllMatches ? 'Use all matches' : 'Limit count'}
+                  </Typography>
+                }
+              />
+            </Grid>
+            {!config.seriesUseAllMatches && (
+              <Grid item xs={6} sm={4} md={3}>
+                <TextField
+                  fullWidth
+                  label="Series to Show"
+                  type="number"
+                  value={config.seriesCount}
+                  onChange={(e) => updateConfig({ seriesCount: parseInt(e.target.value) || 10 })}
+                  size="small"
+                  disabled={!config.isEnabled || config.seriesUseAllMatches}
+                />
+              </Grid>
+            )}
+          </Grid>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Local Popularity Algorithm (shown if either movies or series uses local/hybrid) */}
+      {(config.moviesPopularitySource === 'local' || config.moviesPopularitySource === 'hybrid' ||
+        config.seriesPopularitySource === 'local' || config.seriesPopularitySource === 'hybrid') && (
       <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
         <CardContent>
           <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
@@ -634,7 +1176,7 @@ export function TopPicksSection() {
                 Local Popularity Algorithm
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Adjust the relative importance of each factor. Values are automatically normalized.
+                Adjust the relative importance of each factor when using Local or Hybrid mode.
               </Typography>
             </Box>
           </Box>
@@ -774,16 +1316,19 @@ export function TopPicksSection() {
             </AccordionDetails>
           </Accordion>
 
-          {/* Movies Output Config */}
-          <Card variant="outlined" sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <MovieIcon color="primary" />
-                Movies Output
-                {images['top-picks-movies']?.url && (
-                  <Chip size="small" label="Image Set" color="success" variant="outlined" sx={{ ml: 'auto' }} />
-                )}
-              </Typography>
+          {/* Movies & Series Output - Side by Side */}
+          <Grid container spacing={3}>
+            {/* Movies Output Config */}
+            <Grid item xs={12} lg={6}>
+              <Card variant="outlined" sx={{ height: '100%' }}>
+                <CardContent>
+                  <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <MovieIcon color="primary" />
+                    Movies Output
+                    {images['top-picks-movies']?.url && (
+                      <Chip size="small" label="Image Set" color="success" variant="outlined" sx={{ ml: 'auto' }} />
+                    )}
+                  </Typography>
 
               {/* Library Cover Image */}
               <Box sx={{ mb: 3 }}>
@@ -916,42 +1461,44 @@ export function TopPicksSection() {
                   </Stack>
                 </Grid>
               </Grid>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            </Grid>
 
-          {/* Series Output Config */}
-          <Card variant="outlined" sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <TvIcon color="primary" />
-                Series Output
-                {images['top-picks-series']?.url && (
-                  <Chip size="small" label="Image Set" color="success" variant="outlined" sx={{ ml: 'auto' }} />
-                )}
-              </Typography>
+            {/* Series Output Config */}
+            <Grid item xs={12} lg={6}>
+              <Card variant="outlined" sx={{ height: '100%' }}>
+                <CardContent>
+                  <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <TvIcon color="primary" />
+                    Series Output
+                    {images['top-picks-series']?.url && (
+                      <Chip size="small" label="Image Set" color="success" variant="outlined" sx={{ ml: 'auto' }} />
+                    )}
+                  </Typography>
 
-              {/* Library Cover Image */}
-              <Box sx={{ mb: 3 }}>
-                <Box display="flex" alignItems="center" gap={1} mb={1}>
-                  <ImageIcon fontSize="small" color="action" />
-                  <Typography variant="body2" fontWeight={500}>Library Cover Image</Typography>
-                </Box>
-                <Box sx={{ maxWidth: 400 }}>
-                  <ImageUpload
-                    currentImageUrl={images['top-picks-series']?.url}
-                    isDefault={images['top-picks-series']?.isDefault}
-                    recommendedDimensions={RECOMMENDED_DIMENSIONS}
-                    onUpload={(file) => handleUpload('top-picks-series', file)}
-                    onDelete={images['top-picks-series']?.url ? () => handleDeleteImage('top-picks-series') : undefined}
-                    loading={uploadingFor === 'top-picks-series'}
-                    height={160}
-                    label="Drop image (16:9)"
-                    showDelete={!!images['top-picks-series']?.url}
-                  />
-                </Box>
-              </Box>
+                  {/* Library Cover Image */}
+                  <Box sx={{ mb: 3 }}>
+                    <Box display="flex" alignItems="center" gap={1} mb={1}>
+                      <ImageIcon fontSize="small" color="action" />
+                      <Typography variant="body2" fontWeight={500}>Library Cover Image</Typography>
+                    </Box>
+                    <Box sx={{ maxWidth: 400 }}>
+                      <ImageUpload
+                        currentImageUrl={images['top-picks-series']?.url}
+                        isDefault={images['top-picks-series']?.isDefault}
+                        recommendedDimensions={RECOMMENDED_DIMENSIONS}
+                        onUpload={(file) => handleUpload('top-picks-series', file)}
+                        onDelete={images['top-picks-series']?.url ? () => handleDeleteImage('top-picks-series') : undefined}
+                        loading={uploadingFor === 'top-picks-series'}
+                        height={160}
+                        label="Drop image (16:9)"
+                        showDelete={!!images['top-picks-series']?.url}
+                      />
+                    </Box>
+                  </Box>
 
-              <Divider sx={{ mb: 3 }} />
+                  <Divider sx={{ mb: 3 }} />
               
               <Grid container spacing={3}>
                 <Grid item xs={12} md={6}>
@@ -1059,10 +1606,12 @@ export function TopPicksSection() {
                       </Box>
                     )}
                   </Stack>
+                  </Grid>
                 </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
 
           {/* Symlink Warning */}
           {(config.moviesUseSymlinks || config.seriesUseSymlinks) && (

@@ -1,6 +1,7 @@
 export { RestoreStep } from './RestoreStep'
 export { MediaServerStep } from './MediaServerStep'
 export { LibrariesStep } from './LibrariesStep'
+export { FileLocationsStep } from './FileLocationsStep'
 export { AiRecsStep } from './AiRecsStep'
 export { ValidateStep } from './ValidateStep'
 export { UsersStep } from './UsersStep'

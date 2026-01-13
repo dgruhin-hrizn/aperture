@@ -255,6 +255,7 @@ export {
   setAiRecsOutputConfig,
   getOutputPathConfig,
   setOutputPathConfig,
+  detectPathMappings,
   getAiExplanationConfig,
   setAiExplanationConfig,
   getWatchingLibraryConfig,
@@ -308,6 +309,7 @@ export {
   getTopMovies,
   getTopSeries,
   getTopPicks,
+  getTopPicksPreviewCounts,
   writeTopPicksMovies,
   writeTopPicksSeries,
   writeAllTopPicks,
@@ -318,6 +320,8 @@ export {
   type PopularMovie,
   type PopularSeries,
   type RefreshTopPicksResult,
+  type TopPicksPreviewParams,
+  type TopPicksPreviewResult,
 } from './topPicks/index.js'
 
 // Watching Libraries
@@ -551,6 +555,7 @@ export {
   searchLists,
   getListInfo,
   getListItems,
+  getListItemCounts,
   getMyLists,
   // Media Info API
   getMediaInfoByImdb,
@@ -571,6 +576,7 @@ export {
   type MDBListItem,
   type MDBListListInfo,
   type MDBListSearchResult,
+  type ListItemCounts,
   type MDBListEnrichmentData,
   type MDBListRating,
   type MDBListStream,
@@ -579,5 +585,8 @@ export {
   // Constants
   MDBLIST_API_BASE_URL,
   MDBLIST_BATCH_SIZE,
+  MDBLIST_SORT_OPTIONS,
+  // Types
+  type MDBListSortOption,
 } from './mdblist/index.js'
 

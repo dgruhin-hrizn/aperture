@@ -9,8 +9,10 @@ import {
   searchLists,
   getListInfo,
   getListItems,
+  getListItemCounts,
   getMyLists,
-  type MDBListConfig,
+  query,
+  MDBLIST_SORT_OPTIONS,
 } from '@aperture/core'
 
 const mdblistRoutes: FastifyPluginAsync = async (fastify) => {
@@ -132,7 +134,7 @@ const mdblistRoutes: FastifyPluginAsync = async (fastify) => {
 
       const { mediatype, limit } = request.query
       const lists = await getTopLists(mediatype)
-      
+
       // Apply optional limit (default to all)
       const maxItems = limit ? parseInt(limit, 10) : lists.length
       const limitedLists = lists.slice(0, maxItems)
@@ -161,10 +163,10 @@ const mdblistRoutes: FastifyPluginAsync = async (fastify) => {
 
       const { mediatype } = request.query
       let lists = await getMyLists()
-      
+
       // Filter by mediatype if specified
       if (mediatype && lists.length > 0) {
-        lists = lists.filter(list => list.mediatype === mediatype)
+        lists = lists.filter((list) => list.mediatype === mediatype)
       }
 
       return reply.send({ lists })
@@ -238,6 +240,39 @@ const mdblistRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   /**
+   * GET /api/mdblist/lists/:id/counts
+   * Get item counts for a list (without fetching all items)
+   */
+  fastify.get<{
+    Params: {
+      id: string
+    }
+  }>('/api/mdblist/lists/:id/counts', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const configured = await isMDBListConfigured()
+      if (!configured) {
+        return reply.status(400).send({ error: 'MDBList is not configured' })
+      }
+
+      const listId = parseInt(request.params.id, 10)
+      if (isNaN(listId)) {
+        return reply.status(400).send({ error: 'Invalid list ID' })
+      }
+
+      const counts = await getListItemCounts(listId)
+
+      if (!counts) {
+        return reply.status(404).send({ error: 'Could not get list counts' })
+      }
+
+      return reply.send(counts)
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get list item counts')
+      return reply.status(500).send({ error: 'Failed to get list item counts' })
+    }
+  })
+
+  /**
    * GET /api/mdblist/lists/:id/items
    * Get list items
    */
@@ -272,7 +307,160 @@ const mdblistRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(500).send({ error: 'Failed to get list items' })
     }
   })
+
+  /**
+   * GET /api/mdblist/lists/:id/library-match
+   * Get list items matched against local library
+   * Returns total items, matched count, and missing items list
+   */
+  fastify.get<{
+    Params: {
+      id: string
+    }
+    Querystring: {
+      mediatype?: 'movie' | 'show'
+      sort?: string
+    }
+  }>('/api/mdblist/lists/:id/library-match', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const configured = await isMDBListConfigured()
+      if (!configured) {
+        return reply.status(400).send({ error: 'MDBList is not configured' })
+      }
+
+      const listId = parseInt(request.params.id, 10)
+      if (isNaN(listId)) {
+        return reply.status(400).send({ error: 'Invalid list ID' })
+      }
+
+      const { mediatype, sort } = request.query
+
+      // Fetch all list items (with optional sort)
+      const items = await getListItems(listId, { limit: 10000, sort: sort || 'score' })
+
+      if (items.length === 0) {
+        return reply.send({
+          total: 0,
+          matched: 0,
+          missing: [],
+        })
+      }
+
+      // Filter by mediatype if specified
+      const filteredItems = mediatype
+        ? items.filter((item) => item.mediatype === mediatype)
+        : items
+
+      // Separate movies and shows
+      const movieItems = filteredItems.filter((item) => item.mediatype === 'movie')
+      const showItems = filteredItems.filter((item) => item.mediatype === 'show')
+
+      // Get IDs for matching
+      const movieTmdbIds = movieItems.filter((i) => i.tmdbid).map((i) => String(i.tmdbid))
+      const movieImdbIds = movieItems.filter((i) => i.imdbid).map((i) => i.imdbid!)
+      const showTmdbIds = showItems.filter((i) => i.tmdbid).map((i) => String(i.tmdbid))
+      const showImdbIds = showItems.filter((i) => i.imdbid).map((i) => i.imdbid!)
+      const showTvdbIds = showItems.filter((i) => i.tvdbid).map((i) => String(i.tvdbid))
+
+      // Query local library for matches
+      interface MatchRow {
+        tmdb_id: string | null
+        imdb_id: string | null
+        tvdb_id?: string | null
+      }
+
+      const matchedMovieTmdbIds = new Set<string>()
+      const matchedMovieImdbIds = new Set<string>()
+      const matchedShowTmdbIds = new Set<string>()
+      const matchedShowImdbIds = new Set<string>()
+      const matchedShowTvdbIds = new Set<string>()
+
+      // Match movies
+      if (movieTmdbIds.length > 0 || movieImdbIds.length > 0) {
+        const movieResult = await query<MatchRow>(
+          `SELECT tmdb_id, imdb_id FROM movies
+           WHERE tmdb_id = ANY($1) OR imdb_id = ANY($2)`,
+          [movieTmdbIds, movieImdbIds]
+        )
+        for (const row of movieResult.rows) {
+          if (row.tmdb_id) matchedMovieTmdbIds.add(row.tmdb_id)
+          if (row.imdb_id) matchedMovieImdbIds.add(row.imdb_id)
+        }
+      }
+
+      // Match shows
+      if (showTmdbIds.length > 0 || showImdbIds.length > 0 || showTvdbIds.length > 0) {
+        const showResult = await query<MatchRow>(
+          `SELECT tmdb_id, imdb_id, tvdb_id FROM series
+           WHERE tmdb_id = ANY($1) OR imdb_id = ANY($2) OR tvdb_id = ANY($3)`,
+          [showTmdbIds, showImdbIds, showTvdbIds]
+        )
+        for (const row of showResult.rows) {
+          if (row.tmdb_id) matchedShowTmdbIds.add(row.tmdb_id)
+          if (row.imdb_id) matchedShowImdbIds.add(row.imdb_id)
+          if (row.tvdb_id) matchedShowTvdbIds.add(row.tvdb_id)
+        }
+      }
+
+      // Determine which items are matched and which are missing
+      const matched: typeof filteredItems = []
+      const missing: { title: string; year: number | null; tmdbid: number | undefined; imdbid: string | undefined; mediatype: string }[] = []
+
+      for (const item of movieItems) {
+        const isMatched =
+          (item.tmdbid && matchedMovieTmdbIds.has(String(item.tmdbid))) ||
+          (item.imdbid && matchedMovieImdbIds.has(item.imdbid))
+
+        if (isMatched) {
+          matched.push(item)
+        } else {
+          missing.push({
+            title: item.title || 'Unknown',
+            year: item.year || null,
+            tmdbid: item.tmdbid,
+            imdbid: item.imdbid,
+            mediatype: 'movie',
+          })
+        }
+      }
+
+      for (const item of showItems) {
+        const isMatched =
+          (item.tmdbid && matchedShowTmdbIds.has(String(item.tmdbid))) ||
+          (item.imdbid && matchedShowImdbIds.has(item.imdbid)) ||
+          (item.tvdbid && matchedShowTvdbIds.has(String(item.tvdbid)))
+
+        if (isMatched) {
+          matched.push(item)
+        } else {
+          missing.push({
+            title: item.title || 'Unknown',
+            year: item.year || null,
+            tmdbid: item.tmdbid,
+            imdbid: item.imdbid,
+            mediatype: 'show',
+          })
+        }
+      }
+
+      return reply.send({
+        total: filteredItems.length,
+        matched: matched.length,
+        missing,
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get library match')
+      return reply.status(500).send({ error: 'Failed to get library match' })
+    }
+  })
+
+  /**
+   * GET /api/mdblist/sort-options
+   * Get available sort options for MDBList items
+   */
+  fastify.get('/api/mdblist/sort-options', { preHandler: requireAdmin }, async (_request, reply) => {
+    return reply.send({ options: MDBLIST_SORT_OPTIONS })
+  })
 }
 
 export default mdblistRoutes
-

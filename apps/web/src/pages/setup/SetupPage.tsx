@@ -5,6 +5,7 @@ import {
   RestoreStep,
   MediaServerStep,
   LibrariesStep,
+  FileLocationsStep,
   AiRecsStep,
   ValidateStep,
   UsersStep,
@@ -14,7 +15,7 @@ import {
   CompleteStep,
 } from './components'
 
-const APP_VERSION = '0.3.4'
+const APP_VERSION = '0.3.6'
 
 export function SetupPage() {
   const wizard = useSetupWizard()
@@ -28,6 +29,8 @@ export function SetupPage() {
         return <MediaServerStep wizard={wizard} />
       case 'mediaLibraries':
         return <LibrariesStep wizard={wizard} />
+      case 'fileLocations':
+        return <FileLocationsStep wizard={wizard} />
       case 'aiRecsLibraries':
         return <AiRecsStep wizard={wizard} />
       case 'validate':

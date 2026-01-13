@@ -34,10 +34,14 @@ interface PopularSeriesResponse {
 }
 
 interface TopPicksConfigResponse {
-  timeWindowDays: number
+  // Movies settings
+  moviesTimeWindowDays: number
+  moviesMinUniqueViewers: number
   moviesCount: number
+  // Series settings  
+  seriesTimeWindowDays: number
+  seriesMinUniqueViewers: number
   seriesCount: number
-  minUniqueViewers: number
   lastRefreshedAt: Date | null
 }
 
@@ -63,10 +67,12 @@ const topPicksRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.send({
         movies,
         config: {
-          timeWindowDays: config.timeWindowDays,
+          moviesTimeWindowDays: config.moviesTimeWindowDays,
+          moviesMinUniqueViewers: config.moviesMinUniqueViewers,
           moviesCount: config.moviesCount,
+          seriesTimeWindowDays: config.seriesTimeWindowDays,
+          seriesMinUniqueViewers: config.seriesMinUniqueViewers,
           seriesCount: config.seriesCount,
-          minUniqueViewers: config.minUniqueViewers,
           lastRefreshedAt: config.lastRefreshedAt
         }
       })
@@ -97,10 +103,12 @@ const topPicksRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.send({
         series,
         config: {
-          timeWindowDays: config.timeWindowDays,
+          moviesTimeWindowDays: config.moviesTimeWindowDays,
+          moviesMinUniqueViewers: config.moviesMinUniqueViewers,
           moviesCount: config.moviesCount,
+          seriesTimeWindowDays: config.seriesTimeWindowDays,
+          seriesMinUniqueViewers: config.seriesMinUniqueViewers,
           seriesCount: config.seriesCount,
-          minUniqueViewers: config.minUniqueViewers,
           lastRefreshedAt: config.lastRefreshedAt
         }
       })

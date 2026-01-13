@@ -455,7 +455,7 @@ export function useSetupWizard(): SetupWizardContext {
       if (!res.ok) throw new Error(data?.error || 'Failed to save libraries')
       setLibraries(data.libraries || libraries)
       await updateProgress({ completedStep: 'mediaLibraries' })
-      goToStep('aiRecsLibraries')
+      goToStep('fileLocations')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save libraries')
     } finally {

@@ -317,16 +317,35 @@ function normalizeListItem(item: Record<string, unknown>): MDBListItem {
 }
 
 /**
+ * Valid sort options for MDBList items
+ */
+export const MDBLIST_SORT_OPTIONS = [
+  { value: 'score', label: 'MDBList Score' },
+  { value: 'score_average', label: 'Average Score' },
+  { value: 'imdbrating', label: 'IMDb Rating' },
+  { value: 'imdbvotes', label: 'IMDb Votes' },
+  { value: 'imdbpopular', label: 'IMDb Popularity' },
+  { value: 'tmdbpopular', label: 'TMDb Popularity' },
+  { value: 'rtomatoes', label: 'Rotten Tomatoes' },
+  { value: 'metacritic', label: 'Metacritic' },
+] as const
+
+export type MDBListSortOption = (typeof MDBLIST_SORT_OPTIONS)[number]['value']
+
+/**
  * Get items from a list
  */
 export async function getListItems(
   listId: number,
-  options: { limit?: number; offset?: number } = {}
+  options: { limit?: number; offset?: number; sort?: string; order?: 'asc' | 'desc' } = {}
 ): Promise<MDBListItem[]> {
   let endpoint = `/lists/${listId}/items`
   const params = new URLSearchParams()
   if (options.limit) params.set('limit', String(options.limit))
   if (options.offset) params.set('offset', String(options.offset))
+  if (options.sort) params.set('sort', options.sort)
+  // Default to descending order for rankings
+  params.set('order', options.order || 'desc')
 
   if (params.toString()) {
     endpoint += `?${params.toString()}`
@@ -380,6 +399,75 @@ export async function getListItems(
   }
 
   return []
+}
+
+export interface ListItemCounts {
+  total: number
+  movies: number
+  shows: number
+}
+
+/**
+ * Get item counts for a list without fetching all items
+ * Uses limit=1 to minimize data transfer and reads X-Total-Items header
+ */
+export async function getListItemCounts(listId: number): Promise<ListItemCounts | null> {
+  const apiKey = await getMDBListApiKey()
+  if (!apiKey) {
+    logger.warn('MDBList API key not configured')
+    return null
+  }
+
+  const url = new URL(`${MDBLIST_API_BASE_URL}/lists/${listId}/items?limit=1&apikey=${apiKey}`)
+
+  try {
+    await rateLimit()
+    const response = await fetch(url.toString(), {
+      headers: { Accept: 'application/json' },
+    })
+
+    if (!response.ok) {
+      logger.warn({ status: response.status, listId }, 'Failed to get list item counts')
+      return null
+    }
+
+    // Get total from header
+    const totalHeader = response.headers.get('X-Total-Items')
+    const total = totalHeader ? parseInt(totalHeader, 10) : 0
+
+    // Parse response to count movies vs shows
+    const data = (await response.json()) as
+      | { movies?: unknown[]; shows?: unknown[] }
+      | unknown[]
+      | { items?: unknown[] }
+
+    let movies = 0
+    let shows = 0
+
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      if ('movies' in data && Array.isArray(data.movies)) {
+        movies = data.movies.length
+      }
+      if ('shows' in data && Array.isArray(data.shows)) {
+        shows = data.shows.length
+      }
+      // If we only got 1 item due to limit, use total for estimation
+      if (total > 0 && movies + shows <= 1) {
+        // Can't determine split from 1 item - just return total
+        return { total, movies: 0, shows: 0 }
+      }
+    }
+
+    // If header wasn't present, try to infer from response
+    if (total === 0) {
+      return { total: movies + shows, movies, shows }
+    }
+
+    return { total, movies, shows }
+  } catch (err) {
+    logger.error({ err, listId }, 'Error getting list item counts')
+    return null
+  }
 }
 
 /**

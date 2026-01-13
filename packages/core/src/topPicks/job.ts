@@ -135,7 +135,7 @@ export async function refreshTopPicks(
       return { moviesCount: 0, seriesCount: 0, usersUpdated: 0, jobId }
     }
 
-    addLog(jobId, 'info', `⚙️ Configuration loaded: ${config.timeWindowDays} day window, ${config.moviesCount} movies, ${config.seriesCount} series`)
+    addLog(jobId, 'info', `⚙️ Configuration loaded: Movies (${config.moviesTimeWindowDays}d, min ${config.moviesMinUniqueViewers} viewers), Series (${config.seriesTimeWindowDays}d, min ${config.seriesMinUniqueViewers} viewers)`)
     addLog(jobId, 'info', `📊 Weights: Viewers ${config.uniqueViewersWeight}, Plays ${config.playCountWeight}, Completion ${config.completionWeight}`)
     
     // Log output modes
