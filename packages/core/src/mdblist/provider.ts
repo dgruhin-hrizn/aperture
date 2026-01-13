@@ -227,8 +227,14 @@ export async function testMDBListConnection(
  */
 export async function getTopLists(mediatype?: 'movie' | 'show'): Promise<MDBListListInfo[]> {
   const endpoint = mediatype ? `/lists/top?mediatype=${mediatype}` : '/lists/top'
-  const result = await mdblistRequest<MDBListListInfo[]>(endpoint)
-  return result || []
+  const result = await mdblistRequest<MDBListListInfo[] | { lists: MDBListListInfo[] }>(endpoint)
+
+  if (!result) return []
+  if (Array.isArray(result)) return result
+  if (result && typeof result === 'object' && 'lists' in result && Array.isArray(result.lists)) {
+    return result.lists
+  }
+  return []
 }
 
 /**
@@ -242,8 +248,16 @@ export async function searchLists(
   if (mediatype) {
     endpoint += `&mediatype=${mediatype}`
   }
-  const result = await mdblistRequest<MDBListSearchResult[]>(endpoint)
-  return result || []
+  const result = await mdblistRequest<MDBListSearchResult[] | { lists: MDBListSearchResult[] }>(
+    endpoint
+  )
+
+  if (!result) return []
+  if (Array.isArray(result)) return result
+  if (result && typeof result === 'object' && 'lists' in result && Array.isArray(result.lists)) {
+    return result.lists
+  }
+  return []
 }
 
 /**
@@ -269,16 +283,40 @@ export async function getListItems(
     endpoint += `?${params.toString()}`
   }
 
-  const result = await mdblistRequest<MDBListItem[]>(endpoint)
-  return result || []
+  // API may return array directly or wrapped in { items: [...] }
+  const result = await mdblistRequest<MDBListItem[] | { items: MDBListItem[] }>(endpoint)
+
+  if (!result) {
+    return []
+  }
+
+  // Handle both response formats
+  if (Array.isArray(result)) {
+    return result
+  }
+
+  if (result && typeof result === 'object' && 'items' in result && Array.isArray(result.items)) {
+    return result.items
+  }
+
+  logger.warn({ result: typeof result }, 'Unexpected MDBList items response format')
+  return []
 }
 
 /**
  * Get user's own lists
  */
 export async function getMyLists(): Promise<MDBListListInfo[]> {
-  const result = await mdblistRequest<MDBListListInfo[]>('/lists/user')
-  return result || []
+  const result = await mdblistRequest<MDBListListInfo[] | { lists: MDBListListInfo[] }>(
+    '/lists/user'
+  )
+
+  if (!result) return []
+  if (Array.isArray(result)) return result
+  if (result && typeof result === 'object' && 'lists' in result && Array.isArray(result.lists)) {
+    return result.lists
+  }
+  return []
 }
 
 // ============================================================================
