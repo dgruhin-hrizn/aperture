@@ -1,10 +1,12 @@
 import React, { useState } from 'react'
-import { Box, Typography, Chip, Alert, Stack, Tabs, Tab } from '@mui/material'
+import { Box, Typography, Chip, Alert, Stack, Tabs, Tab, Button, AlertTitle } from '@mui/material'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import ScheduleIcon from '@mui/icons-material/Schedule'
-import { useJobsData } from './hooks'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
+import RefreshIcon from '@mui/icons-material/Refresh'
+import { useJobsData, useEnrichmentStatus } from './hooks'
 import { MOVIE_JOB_CATEGORIES, SERIES_JOB_CATEGORIES, GLOBAL_JOB_CATEGORIES } from './constants'
 import { JobCard, JobConfigDialog, JobHistoryDialog, CancelDialog, LoadingSkeleton, ScheduleTable } from './components'
 import type { JobCategory } from './types'
@@ -124,10 +126,38 @@ export function JobsPage() {
     setCancelDialogJob,
   } = useJobsData()
 
+  const {
+    status: enrichmentStatus,
+    clearInterruptedRun,
+    refresh: refreshEnrichmentStatus,
+  } = useEnrichmentStatus()
+
   const [tabValue, setTabValue] = useState(0)
   const [configDialogJob, setConfigDialogJob] = useState<string | null>(null)
   const [historyDialogJob, setHistoryDialogJob] = useState<string | null>(null)
+  const [clearingInterrupted, setClearingInterrupted] = useState(false)
   const configJob = jobs.find((j) => j.name === configDialogJob)
+
+  // Handle clearing interrupted enrichment run
+  const handleClearInterrupted = async () => {
+    setClearingInterrupted(true)
+    try {
+      await clearInterruptedRun()
+    } finally {
+      setClearingInterrupted(false)
+    }
+  }
+
+  // Handle running enrichment to resume from interrupted state
+  const handleResumeEnrichment = async () => {
+    setClearingInterrupted(true)
+    try {
+      await clearInterruptedRun()
+      await handleRunJob('enrich-metadata')
+    } finally {
+      setClearingInterrupted(false)
+    }
+  }
 
   // Count running jobs per tab
   const movieJobNames = MOVIE_JOB_CATEGORIES.flatMap((c) => c.jobs)
@@ -180,6 +210,55 @@ export function JobsPage() {
       {error && (
         <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
           {error}
+        </Alert>
+      )}
+
+      {/* Interrupted Enrichment Run Alert */}
+      {enrichmentStatus?.hasIncompleteRun && enrichmentStatus.run && (
+        <Alert
+          severity="warning"
+          icon={<WarningAmberIcon />}
+          sx={{ mb: 3, borderRadius: 2 }}
+          action={
+            <Stack direction="row" spacing={1}>
+              <Button
+                color="inherit"
+                size="small"
+                startIcon={<RefreshIcon />}
+                onClick={handleResumeEnrichment}
+                disabled={clearingInterrupted}
+              >
+                Resume
+              </Button>
+              <Button
+                color="inherit"
+                size="small"
+                onClick={handleClearInterrupted}
+                disabled={clearingInterrupted}
+              >
+                Dismiss
+              </Button>
+            </Stack>
+          }
+        >
+          <AlertTitle>Metadata Enrichment Interrupted</AlertTitle>
+          A previous enrichment run was interrupted (possibly due to a container restart). 
+          {enrichmentStatus.remainingMovies + enrichmentStatus.remainingSeries > 0 && (
+            <>
+              {' '}
+              <strong>
+                {enrichmentStatus.remainingMovies} movies and {enrichmentStatus.remainingSeries} series
+              </strong>{' '}
+              still need enrichment.
+            </>
+          )}
+          {enrichmentStatus.run.processed_movies + enrichmentStatus.run.processed_series > 0 && (
+            <>
+              {' '}
+              ({enrichmentStatus.run.processed_movies} movies and {enrichmentStatus.run.processed_series} series were completed before interruption.)
+            </>
+          )}
+          {' '}Click <strong>Resume</strong> to continue enrichment, or <strong>Dismiss</strong> to clear this warning.
         </Alert>
       )}
 

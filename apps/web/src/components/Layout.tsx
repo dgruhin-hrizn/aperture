@@ -208,7 +208,7 @@ export function Layout() {
             fontSize: '0.7rem',
           }}
         >
-          v0.3.3
+          v0.3.4
         </Typography>
       </Box>
     </Box>

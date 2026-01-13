@@ -455,6 +455,12 @@ export {
   enrichMetadata,
   getEnrichmentStats,
   clearEnrichmentData,
+  getEnrichmentVersionStatus,
+  // Run tracking (for crash recovery)
+  detectInterruptedEnrichmentRuns,
+  getLastEnrichmentRun,
+  getIncompleteEnrichmentRun,
+  clearInterruptedEnrichmentRun,
 } from './enrichment/index.js'
 
 // Studio Logo Enrichment

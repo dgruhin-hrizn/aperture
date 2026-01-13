@@ -62,7 +62,8 @@ export const SERIES_JOB_CATEGORIES: JobCategory[] = [
 export const GLOBAL_JOB_CATEGORIES: JobCategory[] = [
   {
     title: 'Metadata Enrichment',
-    description: 'Enrich movies and series with TMDb, OMDb, and MDBList data',
+    description:
+      'Enrich with keywords, collections, RT/Metacritic scores, languages, countries, streaming providers',
     color: '#10b981',
     jobs: ['enrich-metadata', 'enrich-studio-logos', 'enrich-mdblist'],
   },

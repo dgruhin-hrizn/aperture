@@ -4,6 +4,7 @@ import BusinessIcon from '@mui/icons-material/Business'
 import CreateIcon from '@mui/icons-material/Create'
 import MovieFilterIcon from '@mui/icons-material/MovieFilter'
 import PublicIcon from '@mui/icons-material/Public'
+import LanguageIcon from '@mui/icons-material/Language'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import LinkIcon from '@mui/icons-material/Link'
 import LocalOfferIcon from '@mui/icons-material/LocalOffer'
@@ -318,6 +319,27 @@ export function SeriesInfoCard({ series }: SeriesInfoCardProps) {
                   <Chip key={`${studioName}-${idx}`} label={studioName} size="small" variant="outlined" />
                 )
               })}
+            </Stack>
+          </>
+        )}
+
+        {/* Languages */}
+        {series.languages && series.languages.length > 0 && (
+          <>
+            <Divider sx={{ my: 2 }} />
+            <Typography
+              variant="subtitle1"
+              fontWeight={600}
+              gutterBottom
+              sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+            >
+              <LanguageIcon fontSize="small" />
+              Languages
+            </Typography>
+            <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
+              {series.languages.map((language) => (
+                <Chip key={language} label={language} size="small" variant="outlined" />
+              ))}
             </Stack>
           </>
         )}

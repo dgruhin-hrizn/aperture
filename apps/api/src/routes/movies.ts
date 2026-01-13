@@ -44,6 +44,7 @@ interface MovieDetailRow extends MovieRow {
   metacritic_score: number | null
   awards_summary: string | null
   languages: string[] | null
+  production_countries: string[] | null
   // MDBList enrichment
   letterboxd_score: number | null
   mdblist_score: number | null
@@ -175,7 +176,7 @@ const moviesRoutes: FastifyPluginAsync = async (fastify) => {
                 directors, writers, cinematographers, composers, editors,
                 keywords, collection_id, collection_name,
                 rt_critic_score, rt_audience_score, rt_consensus, metacritic_score, awards_summary,
-                languages, letterboxd_score, mdblist_score, streaming_providers
+                languages, production_countries, letterboxd_score, mdblist_score, streaming_providers
          FROM movies WHERE id = $1`,
         [id]
       )

@@ -5,6 +5,8 @@
 
 import { createChildLogger } from '../lib/logger.js'
 import { getSystemSetting, setSystemSetting } from '../settings/systemSettings.js'
+import { parseApiError } from '../errors/handler.js'
+import { logApiError, hasRecentSimilarError } from '../errors/db.js'
 import {
   MDBLIST_API_BASE_URL,
   type MDBListConfig,
@@ -169,16 +171,38 @@ async function mdblistRequest<T>(
       })
 
       if (response.status === 429) {
-        // Rate limit hit
+        // Rate limit hit - log to database for user notification
         const retryAfter = response.headers.get('Retry-After')
         const waitMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : RETRY_DELAY_MS * attempt
         logger.warn({ attempt, waitMs }, 'MDBList rate limit hit, waiting...')
+
+        // Log to database (avoid duplicates)
+        const hasRecent = await hasRecentSimilarError('mdblist', 'rate_limit', 429)
+        if (!hasRecent) {
+          const parsedError = parseApiError('mdblist', 429, {
+            retryAfterHeader: retryAfter || undefined,
+          })
+          await logApiError(parsedError).catch((err) =>
+            logger.error({ err }, 'Failed to log API error')
+          )
+        }
+
         await new Promise((resolve) => setTimeout(resolve, waitMs))
         continue
       }
 
       if (!response.ok) {
         logger.error({ status: response.status, endpoint }, 'MDBList API request failed')
+
+        // Log non-429 errors to database
+        const hasRecent = await hasRecentSimilarError('mdblist', 'outage', response.status)
+        if (!hasRecent) {
+          const parsedError = parseApiError('mdblist', response.status)
+          await logApiError(parsedError).catch((err) =>
+            logger.error({ err }, 'Failed to log API error')
+          )
+        }
+
         return null
       }
 
@@ -413,6 +437,20 @@ export async function getMediaInfoByTmdbBatch(
 
       if (!response.ok) {
         logger.error({ status: response.status }, 'MDBList batch request failed')
+
+        // Log to database for user notification
+        const hasRecent = await hasRecentSimilarError(
+          'mdblist',
+          response.status === 429 ? 'rate_limit' : 'outage',
+          response.status
+        )
+        if (!hasRecent) {
+          const parsedError = parseApiError('mdblist', response.status)
+          await logApiError(parsedError).catch((err) =>
+            logger.error({ err }, 'Failed to log API error')
+          )
+        }
+
         continue
       }
 
@@ -501,6 +539,20 @@ export async function getMediaInfoBatch(imdbIds: string[]): Promise<MDBListMedia
 
       if (!response.ok) {
         logger.error({ status: response.status }, 'MDBList IMDB batch request failed')
+
+        // Log to database for user notification
+        const hasRecent = await hasRecentSimilarError(
+          'mdblist',
+          response.status === 429 ? 'rate_limit' : 'outage',
+          response.status
+        )
+        if (!hasRecent) {
+          const parsedError = parseApiError('mdblist', response.status)
+          await logApiError(parsedError).catch((err) =>
+            logger.error({ err }, 'Failed to log API error')
+          )
+        }
+
         continue
       }
 
