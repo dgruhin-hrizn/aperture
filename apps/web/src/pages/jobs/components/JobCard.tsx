@@ -1,5 +1,4 @@
 import React from 'react'
-import { Link } from 'react-router-dom'
 import { Box, Button, Collapse, IconButton, Stack, Tooltip, Typography, Chip } from '@mui/material'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
@@ -9,11 +8,9 @@ import HistoryIcon from '@mui/icons-material/History'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorIcon from '@mui/icons-material/Error'
 import CancelIcon from '@mui/icons-material/Cancel'
-import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import { JOB_ICONS, JOB_COLORS, formatJobName } from '../constants'
 import { JobProgressSection } from './JobProgressSection'
 import { JobResult } from './JobResult'
-import { getJobRoutePath, getJobRouteLabel, JOB_ROUTES } from '../jobRoutes'
 import type { Job, JobProgress } from '../types'
 
 // Helper to format relative time
@@ -154,44 +151,9 @@ export function JobCard({
           {/* Content */}
           <Box flex={1} minWidth={0}>
             <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
-              {JOB_ROUTES[job.name] ? (
-                <Tooltip title={`Go to ${getJobRouteLabel(job.name)}`}>
-                  <Typography
-                    variant="subtitle1"
-                    fontWeight={600}
-                    noWrap
-                    component={Link}
-                    to={getJobRoutePath(job.name)}
-                    sx={{
-                      textDecoration: 'none',
-                      color: 'text.primary',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 0.5,
-                      '&:hover': {
-                        color: 'primary.main',
-                        '& .config-icon': {
-                          opacity: 1,
-                        },
-                      },
-                    }}
-                  >
-                    {formatJobName(job.name)}
-                    <OpenInNewIcon
-                      className="config-icon"
-                      sx={{
-                        fontSize: 14,
-                        opacity: 0,
-                        transition: 'opacity 0.2s',
-                      }}
-                    />
-                  </Typography>
-                </Tooltip>
-              ) : (
-                <Typography variant="subtitle1" fontWeight={600} noWrap>
-                  {formatJobName(job.name)}
-                </Typography>
-              )}
+              <Typography variant="subtitle1" fontWeight={600} noWrap>
+                {formatJobName(job.name)}
+              </Typography>
               {isRunning && (
                 <Box
                   sx={{
@@ -208,16 +170,6 @@ export function JobCard({
                 />
               )}
             </Stack>
-            {/* Route breadcrumb */}
-            {JOB_ROUTES[job.name] && (
-              <Typography
-                variant="caption"
-                color="text.disabled"
-                sx={{ display: 'block', mb: 0.5 }}
-              >
-                {getJobRouteLabel(job.name)}
-              </Typography>
-            )}
             <Typography variant="body2" color="text.secondary" mb={1}>
               {job.description}
             </Typography>

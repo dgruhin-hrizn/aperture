@@ -11,12 +11,6 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import DashboardIcon from '@mui/icons-material/Dashboard'
 import PeopleIcon from '@mui/icons-material/People'
 import WorkIcon from '@mui/icons-material/Work'
-import SyncIcon from '@mui/icons-material/Sync'
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
-import SmartToyIcon from '@mui/icons-material/SmartToy'
-import TrendingUpIcon from '@mui/icons-material/TrendingUp'
-import AddToQueueIcon from '@mui/icons-material/AddToQueue'
-import ExtensionIcon from '@mui/icons-material/Extension'
 import SettingsIcon from '@mui/icons-material/Settings'
 import { Breadcrumbs } from './Breadcrumbs'
 
@@ -29,14 +23,8 @@ interface AdminTab {
 const adminTabs: AdminTab[] = [
   { label: 'Overview', path: '/admin', icon: <DashboardIcon /> },
   { label: 'Users', path: '/admin/users', icon: <PeopleIcon /> },
-  { label: 'Media Sync', path: '/admin/media-sync', icon: <SyncIcon /> },
-  { label: 'AI Recommendations', path: '/admin/ai-recommendations', icon: <AutoAwesomeIcon /> },
-  { label: 'AI Chat', path: '/admin/ai-chat', icon: <SmartToyIcon /> },
-  { label: 'Top Picks', path: '/admin/top-picks', icon: <TrendingUpIcon /> },
-  { label: 'Shows You Watch', path: '/admin/watching', icon: <AddToQueueIcon /> },
-  { label: 'Integrations', path: '/admin/integrations', icon: <ExtensionIcon /> },
-  { label: 'System', path: '/admin/system', icon: <SettingsIcon /> },
   { label: 'Jobs', path: '/admin/jobs', icon: <WorkIcon /> },
+  { label: 'Settings', path: '/admin/settings', icon: <SettingsIcon /> },
 ]
 
 export function AdminLayout() {
