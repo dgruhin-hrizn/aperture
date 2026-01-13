@@ -25,6 +25,7 @@ import backupRoutes from './backup.js'
 import maintenanceRoutes from './maintenance.js'
 import apiErrorsRoutes from './apiErrors.js'
 import similarityRoutes from './similarity.js'
+import { graphPlaylistRoutes } from './graphPlaylists.js'
 
 const routes: FastifyPluginAsync = async (fastify) => {
   // Register health check routes
@@ -104,6 +105,9 @@ const routes: FastifyPluginAsync = async (fastify) => {
 
   // Register similarity routes (for explore/similar features)
   await fastify.register(similarityRoutes)
+
+  // Register graph playlist routes
+  await fastify.register(graphPlaylistRoutes)
 }
 
 export default routes

@@ -9,12 +9,13 @@ import {
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import { usePlaylistsData } from './hooks'
-import { PlaylistCard, PlaylistDialog, PlaylistViewDialog, EmptyState } from './components'
+import { PlaylistCard, GraphPlaylistCard, PlaylistDialog, PlaylistViewDialog, EmptyState } from './components'
 
 export function PlaylistsPage() {
   const {
     // Data
     channels,
+    graphPlaylists,
     loading,
     error,
     availableGenres,
@@ -38,6 +39,7 @@ export function PlaylistsPage() {
     handleCloseDialog,
     handleSubmit,
     handleDelete,
+    handleDeleteGraphPlaylist,
     handleGeneratePlaylist,
     addExampleMovie,
     removeExampleMovie,
@@ -86,10 +88,11 @@ export function PlaylistsPage() {
         </Alert>
       )}
 
-      {channels.length === 0 ? (
+      {channels.length === 0 && graphPlaylists.length === 0 ? (
         <EmptyState onCreateClick={() => handleOpenDialog()} />
       ) : (
         <Grid container spacing={3}>
+          {/* Channel-based playlists */}
           {channels.map((channel) => (
             <Grid item xs={12} sm={6} md={4} key={channel.id}>
               <PlaylistCard
@@ -99,6 +102,15 @@ export function PlaylistsPage() {
                 onDelete={handleDelete}
                 onGenerate={handleGeneratePlaylist}
                 onView={handleViewPlaylist}
+              />
+            </Grid>
+          ))}
+          {/* Graph-based playlists */}
+          {graphPlaylists.map((playlist) => (
+            <Grid item xs={12} sm={6} md={4} key={`graph-${playlist.id}`}>
+              <GraphPlaylistCard
+                playlist={playlist}
+                onDelete={handleDeleteGraphPlaylist}
               />
             </Grid>
           ))}

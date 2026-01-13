@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import type { Channel, Movie, PlaylistItem, FormData, SnackbarState } from '../types'
+import { useState, useEffect, useCallback } from 'react'
+import type { Channel, Movie, PlaylistItem, FormData, SnackbarState, GraphPlaylist } from '../types'
 
 const initialFormData: FormData = {
   name: '',
@@ -11,6 +11,7 @@ const initialFormData: FormData = {
 
 export function usePlaylistsData() {
   const [channels, setChannels] = useState<Channel[]>([])
+  const [graphPlaylists, setGraphPlaylists] = useState<GraphPlaylist[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -54,6 +55,19 @@ export function usePlaylistsData() {
     }
   }
 
+  const fetchGraphPlaylists = useCallback(async () => {
+    try {
+      const response = await fetch('/api/graph-playlists', { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        setGraphPlaylists(data.playlists || [])
+      }
+    } catch {
+      // Silent fail - graph playlists are optional
+      console.error('Failed to fetch graph playlists')
+    }
+  }, [])
+
   const fetchGenres = async () => {
     setLoadingGenres(true)
     try {
@@ -72,7 +86,8 @@ export function usePlaylistsData() {
   useEffect(() => {
     fetchChannels()
     fetchGenres()
-  }, [])
+    fetchGraphPlaylists()
+  }, [fetchGraphPlaylists])
 
   const fetchExampleMovies = async (movieIds: string[]): Promise<Movie[]> => {
     if (movieIds.length === 0) return []
@@ -168,6 +183,26 @@ export function usePlaylistsData() {
       if (response.ok) {
         fetchChannels()
         setSnackbar({ open: true, message: 'Playlist deleted', severity: 'success' })
+      }
+    } catch {
+      setSnackbar({ open: true, message: 'Failed to delete playlist', severity: 'error' })
+    }
+  }
+
+  const handleDeleteGraphPlaylist = async (playlistId: string) => {
+    if (!confirm('Are you sure you want to delete this playlist?')) return
+
+    try {
+      const response = await fetch(`/api/graph-playlists/${playlistId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+
+      if (response.ok) {
+        fetchGraphPlaylists()
+        setSnackbar({ open: true, message: 'Playlist deleted', severity: 'success' })
+      } else {
+        setSnackbar({ open: true, message: 'Failed to delete playlist', severity: 'error' })
       }
     } catch {
       setSnackbar({ open: true, message: 'Failed to delete playlist', severity: 'error' })
@@ -304,6 +339,7 @@ export function usePlaylistsData() {
   return {
     // Data
     channels,
+    graphPlaylists,
     loading,
     error,
     availableGenres,
@@ -327,6 +363,7 @@ export function usePlaylistsData() {
     handleCloseDialog,
     handleSubmit,
     handleDelete,
+    handleDeleteGraphPlaylist,
     handleGeneratePlaylist,
     addExampleMovie,
     removeExampleMovie,

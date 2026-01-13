@@ -619,3 +619,19 @@ export {
   type MDBListSortOption,
 } from './mdblist/index.js'
 
+// Graph Playlists
+export {
+  // AI generation
+  generateGraphPlaylistName,
+  generateGraphPlaylistDescription,
+  // Playlist operations
+  createGraphPlaylist,
+  getGraphPlaylists,
+  getGraphPlaylist,
+  deleteGraphPlaylist,
+  getGraphPlaylistItems,
+  // Types
+  type GraphPlaylist,
+  type CreateGraphPlaylistInput,
+} from './graphPlaylists/index.js'
+

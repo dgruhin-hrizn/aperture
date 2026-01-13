@@ -14,6 +14,8 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
+  Snackbar,
+  Alert,
 } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { MoviePoster } from '@aperture/ui'
@@ -24,6 +26,8 @@ import HomeIcon from '@mui/icons-material/Home'
 import NavigateNextIcon from '@mui/icons-material/NavigateNext'
 import FullscreenOutlinedIcon from '@mui/icons-material/FullscreenOutlined'
 import FullscreenExitOutlinedIcon from '@mui/icons-material/FullscreenExitOutlined'
+import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd'
+import { CreatePlaylistDialog } from '../../../components/CreatePlaylistDialog'
 import { useUserRatings } from '../../../hooks/useUserRatings'
 import { useWatching } from '../../../hooks/useWatching'
 import {
@@ -47,6 +51,12 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
   const { isWatching, toggleWatching } = useWatching()
   const [viewMode, setViewMode] = useState<'list' | 'graph'>('graph')
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [playlistDialogOpen, setPlaylistDialogOpen] = useState(false)
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  })
 
   // Fetch graph data with rabbit-hole navigation support (depth=1 for compact view)
   const {
@@ -319,11 +329,24 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
                   </Breadcrumbs>
                 )}
               </Box>
-              <Tooltip title="Exit fullscreen">
-                <IconButton onClick={() => setIsFullscreen(false)}>
-                  <FullscreenExitOutlinedIcon />
-                </IconButton>
-              </Tooltip>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Tooltip title="Create playlist from these items">
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<PlaylistAddIcon />}
+                    onClick={() => setPlaylistDialogOpen(true)}
+                    disabled={!fullscreenGraphData || fullscreenGraphData.nodes.length === 0}
+                  >
+                    Create Playlist
+                  </Button>
+                </Tooltip>
+                <Tooltip title="Exit fullscreen">
+                  <IconButton onClick={() => setIsFullscreen(false)}>
+                    <FullscreenExitOutlinedIcon />
+                  </IconButton>
+                </Tooltip>
+              </Box>
             </DialogTitle>
             <DialogContent
               sx={{
@@ -365,8 +388,48 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
               </Box>
             </DialogContent>
           </Dialog>
+
+          {/* Create Playlist Dialog */}
+          <CreatePlaylistDialog
+            open={playlistDialogOpen}
+            onClose={() => setPlaylistDialogOpen(false)}
+            nodes={
+              fullscreenGraphData?.nodes.map((n) => ({
+                id: n.id,
+                title: n.title,
+                year: n.year,
+                type: n.type,
+                poster_url: n.poster_url,
+              })) || []
+            }
+            sourceItemId={mediaId}
+            sourceItemType={mediaType}
+            onSuccess={() => {
+              setSnackbar({
+                open: true,
+                message: 'Playlist created successfully!',
+                severity: 'success',
+              })
+            }}
+          />
         </>
       )}
+
+      {/* Success/Error Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   )
 }

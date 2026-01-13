@@ -141,5 +141,51 @@ export async function getGenres(provider: EmbyProviderBase, apiKey: string): Pro
   return response.Items.map((item) => item.Name)
 }
 
+/**
+ * Update playlist overview/description
+ */
+export async function updatePlaylistOverview(
+  provider: EmbyProviderBase,
+  apiKey: string,
+  playlistId: string,
+  overview: string
+): Promise<void> {
+  // First get the current item to preserve other metadata
+  const item = await provider.fetch<{ Id: string; Name: string }>(`/Items/${playlistId}`, apiKey)
+
+  // Update with new overview
+  await provider.fetch(`/Items/${playlistId}`, apiKey, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      Id: item.Id,
+      Name: item.Name,
+      Overview: overview,
+    }),
+  })
+}
+
+/**
+ * Create a new playlist with items and optional overview
+ */
+export async function createPlaylistWithOverview(
+  provider: EmbyProviderBase,
+  apiKey: string,
+  userId: string,
+  name: string,
+  itemIds: string[],
+  overview?: string
+): Promise<PlaylistCreateResult> {
+  // Create the playlist first
+  const result = await createOrUpdatePlaylist(provider, apiKey, userId, name, itemIds)
+
+  // Set overview if provided
+  if (overview) {
+    await updatePlaylistOverview(provider, apiKey, result.playlistId, overview)
+  }
+
+  return result
+}
+
 
 

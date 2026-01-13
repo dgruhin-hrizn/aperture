@@ -97,7 +97,7 @@ function MetacriticBadge({ score }: { score: number | string }) {
           color: numScore >= 50 ? 'black' : 'white',
           px: 1,
           py: 0.25,
-          borderRadius: 0.5,
+          borderRadius: 1,
           fontSize: '0.75rem',
           fontWeight: 700,
         }}
