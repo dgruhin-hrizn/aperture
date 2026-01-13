@@ -362,7 +362,7 @@ export async function getMediaInfoBatch(imdbIds: string[]): Promise<MDBListMedia
     const batch = imdbIds.slice(i, i + batchSize)
     const idsParam = batch.join(',')
     const batchResult = await mdblistRequest<
-      MDBListMediaInfo[] | MDBListMediaInfo | { items: MDBListMediaInfo[] }
+      MDBListMediaInfo[] | MDBListMediaInfo | { items: MDBListMediaInfo[] } | Record<string, MDBListMediaInfo>
     >(`/?i=${idsParam}`)
 
     if (batchResult) {
@@ -372,12 +372,33 @@ export async function getMediaInfoBatch(imdbIds: string[]): Promise<MDBListMedia
       } else if (
         typeof batchResult === 'object' &&
         'items' in batchResult &&
-        Array.isArray(batchResult.items)
+        Array.isArray((batchResult as { items: MDBListMediaInfo[] }).items)
       ) {
-        results.push(...batchResult.items)
+        results.push(...(batchResult as { items: MDBListMediaInfo[] }).items)
       } else if (typeof batchResult === 'object' && 'imdbid' in batchResult) {
         // Single item returned (when only one ID requested)
         results.push(batchResult as MDBListMediaInfo)
+      } else if (typeof batchResult === 'object') {
+        // Maybe keyed by IMDB ID: { "tt123456": {...}, "tt234567": {...} }
+        const keys = Object.keys(batchResult)
+        if (keys.length > 0 && keys[0].startsWith('tt')) {
+          for (const key of keys) {
+            const item = (batchResult as Record<string, MDBListMediaInfo>)[key]
+            if (item && typeof item === 'object') {
+              // Ensure imdbid is set
+              if (!item.imdbid) {
+                item.imdbid = key
+              }
+              results.push(item)
+            }
+          }
+        } else {
+          // Log unknown format for debugging
+          logger.warn(
+            { keys: keys.slice(0, 5), sampleKey: keys[0], batchSize: batch.length },
+            'Unknown MDBList batch response format'
+          )
+        }
       }
     }
   }
