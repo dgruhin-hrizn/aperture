@@ -24,6 +24,7 @@ This guide covers initial setup, ongoing operations, and administrative configur
 - [AI Explanation Settings](#ai-explanation-settings)
 - [Library Title Templates](#library-title-templates)
 - [Output Format Settings](#output-format-settings)
+- [File Locations Configuration](#file-locations-configuration)
 - [Watch History Management](#watch-history-management)
 - [API Error Alerts](#api-error-alerts)
 - [Database Management](#database-management)
@@ -36,7 +37,7 @@ This guide covers initial setup, ongoing operations, and administrative configur
 
 ## First-Time Setup Wizard
 
-When you first access Aperture, you'll be guided through a 10-step setup wizard:
+When you first access Aperture, you'll be guided through an 11-step setup wizard:
 
 ### Step 1: Restore (Optional)
 
@@ -62,33 +63,43 @@ Select which libraries to include in recommendations:
 - Toggle on movie and TV libraries you want Aperture to analyze
 - Disabled libraries won't be synced
 
-### Step 4: AI Recommendations
+### Step 4: File Locations
+
+Configure path mappings between Aperture and your media server:
+
+- **Auto-Detect Paths** — Click to automatically discover the correct paths by comparing how your media server and Aperture see the same files
+- **Aperture Libraries Path** — Where your media server sees Aperture's output folder
+- **Media Server Path Prefix** — Base path where your media server sees your media files
+- **Skip** — Use defaults (`/mnt/ApertureLibraries/`, `/mnt/`) if you have a standard setup
+
+This step is critical for symlinks to work. If you're unsure, try auto-detection first.
+
+### Step 5: AI Recommendations
 
 Configure library naming and cover images:
 - Set default library name templates
 - Upload custom banner images (optional)
 
-### Step 5: Validate
+### Step 6: Validate
 
-Verify paths and output configuration:
-- **Media Server Path Prefix** — How your media server sees files (check Media Info on any movie)
-- **Aperture Libraries Path** — Where Aperture's output appears in your media server
+Verify output format configuration:
 - **Output Format** — Choose symlinks (recommended) or STRM files
+- Review the configured paths from the previous step
 
-### Step 6: Users
+### Step 7: Users
 
 Select which users receive personalized recommendations:
 - Toggle movies and/or series for each user
 - Users need watch history for recommendations to work
 
-### Step 7: Top Picks (Optional)
+### Step 8: Top Picks (Optional)
 
 Configure global trending content:
 - Enable/disable Top Picks
 - Set output modes (Library, Collection, Playlist)
 - Configure popularity algorithm
 
-### Step 8: OpenAI Configuration
+### Step 9: OpenAI Configuration
 
 Configure your OpenAI API key:
 
@@ -98,14 +109,14 @@ Configure your OpenAI API key:
 
 > **Note**: You can always configure OpenAI later in Admin → Settings → AI.
 
-### Step 9: Initial Sync
+### Step 10: Initial Sync
 
 Run first-time sync jobs with real-time progress:
 - All required jobs run automatically
 - You can re-run individual jobs if needed
 - View logs and progress in real-time
 
-### Step 10: Complete
+### Step 11: Complete
 
 Review what was created:
 - Libraries created in your media server
@@ -422,6 +433,82 @@ Configure how virtual libraries are created, separately for Movies and Series:
 - **Series**: Symlinks (default)
 
 > **Note**: Top Picks has its own separate STRM/Symlinks toggles in **Admin → Settings → Top Picks → Output Configuration**.
+
+---
+
+## File Locations Configuration
+
+Navigate to **Admin → Settings → Setup → File Locations**
+
+This section configures how Aperture creates symlinks and where your media server finds Aperture's output libraries. Getting these paths right is essential for symlinks to work correctly.
+
+### The Problem
+
+When using symlinks, Aperture needs to know:
+1. Where your **media server** sees your original media files
+2. Where your **media server** sees Aperture's output folder
+
+If these paths don't match your actual Docker volume mounts, you'll see "path does not exist" errors when Aperture tries to create symlinks or when your media server tries to play content from Aperture libraries.
+
+### Configuration Options
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| **Aperture Libraries Path** | Where your media server sees the `/aperture-libraries` volume | `/mnt/ApertureLibraries/` |
+| **Media Server Path Prefix** | Base path where your media server sees your media files | `/mnt/` |
+
+### Auto-Detection
+
+Click **Auto-Detect Paths** to let Aperture automatically discover the correct paths by:
+1. Fetching a sample file path from your media server
+2. Comparing it to how Aperture sees the same file
+3. Calculating the path prefix mapping
+
+Auto-detection works when:
+- You have movies synced in Aperture
+- The media server and Aperture can both access the same files
+- The paths differ only by a prefix (e.g., `/mnt/Movies/...` vs `/data/Movies/...`)
+
+### Use Case Examples
+
+**Unraid (Default Setup)**
+
+Most Unraid users mount their media at `/mnt/user/Media/` and their media server sees it at `/mnt/`:
+
+| Setting | Value |
+|---------|-------|
+| Aperture Libraries Path | `/mnt/ApertureLibraries/` |
+| Media Server Path Prefix | `/mnt/` |
+
+**Synology NAS**
+
+Synology users often use `/volume1/` paths:
+
+| Setting | Value |
+|---------|-------|
+| Aperture Libraries Path | `/volume1/docker/aperture/libraries/` |
+| Media Server Path Prefix | `/volume1/` |
+
+**Custom Docker Setup (Different Mount Points)**
+
+If your media server mounts media at `/data/` but Aperture mounts it at `/media/`:
+
+| Setting | Value |
+|---------|-------|
+| Aperture Libraries Path | `/data/ApertureLibraries/` |
+| Media Server Path Prefix | `/data/` |
+
+### Troubleshooting
+
+**"Path does not exist" errors:**
+- Run auto-detection to find the correct paths
+- Check your Docker volume mounts match the configured paths
+- Verify your media server can access the ApertureLibraries folder
+
+**Symlinks not working:**
+- Ensure both containers share the same underlying filesystem
+- The path prefix must match exactly (including trailing slashes)
+- Consider using STRM files if symlinks aren't possible in your setup
 
 ---
 

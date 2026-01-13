@@ -135,27 +135,32 @@ When you first start Aperture, the Setup Wizard guides you through configuration
 1. **Restore** — Optionally restore from a previous backup
 2. **Media Server** — Connect to your Emby or Jellyfin server
 3. **Source Libraries** — Select which libraries to include in recommendations
-4. **AI Recommendations** — Configure library naming and cover images
-5. **Validate** — Verify paths and output format (symlinks vs STRM)
-6. **Users** — Select which users get personalized recommendations
-7. **Top Picks** — Configure trending content libraries (optional)
-8. **OpenAI** — Enter your OpenAI API key
-9. **Initial Sync** — Run first-time sync jobs (with re-run capability)
-10. **Complete** — Review created libraries and default schedules
+4. **File Locations** — Configure path mappings (with auto-detection)
+5. **AI Recommendations** — Configure library naming and cover images
+6. **Validate** — Verify output format (symlinks vs STRM)
+7. **Users** — Select which users get personalized recommendations
+8. **Top Picks** — Configure trending content libraries (optional)
+9. **OpenAI** — Enter your OpenAI API key
+10. **Initial Sync** — Run first-time sync jobs (with re-run capability)
+11. **Complete** — Review created libraries and default schedules
 
-### Output Configuration Step
+### File Locations Step
 
-The wizard will ask for two paths:
+This step configures path mappings between Aperture and your media server:
 
-| Question | What to Enter | Example |
-|----------|---------------|---------|
-| **Media Server Path Prefix** | How your media server sees your files | `/mnt/` |
+| Setting | Description | Default |
+|---------|-------------|---------|
 | **Aperture Libraries Path** | Where media server sees Aperture's output | `/mnt/ApertureLibraries/` |
+| **Media Server Path Prefix** | Base path for your media files | `/mnt/` |
 
-**How to find your Media Server Path Prefix:**
+**Auto-Detection**: Click "Detect Paths Automatically" to let Aperture discover the correct paths by comparing how your media server and Aperture see the same files.
+
+**Skip Option**: If you have a standard setup (Unraid with default paths), you can skip this step to use the defaults.
+
+**How to find paths manually:**
 1. Open Emby/Jellyfin and go to any movie
 2. Click the **⋮** menu → **Media Info**
-3. Look at the **Path** field - the prefix is everything before your media folders
+3. Look at the **Path** field - the prefix is everything before your media folders (e.g., `/mnt/`)
 
 ---
 
