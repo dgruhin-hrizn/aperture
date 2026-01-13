@@ -9,6 +9,7 @@ import {
   searchLists,
   getListInfo,
   getListItems,
+  getMyLists,
   type MDBListConfig,
 } from '@aperture/core'
 
@@ -115,11 +116,12 @@ const mdblistRoutes: FastifyPluginAsync = async (fastify) => {
 
   /**
    * GET /api/mdblist/lists/top
-   * Get popular public lists
+   * Get popular public lists (returns up to 100)
    */
   fastify.get<{
     Querystring: {
       mediatype?: 'movie' | 'show'
+      limit?: string
     }
   }>('/api/mdblist/lists/top', { preHandler: requireAdmin }, async (request, reply) => {
     try {
@@ -128,13 +130,47 @@ const mdblistRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: 'MDBList is not configured' })
       }
 
-      const { mediatype } = request.query
+      const { mediatype, limit } = request.query
       const lists = await getTopLists(mediatype)
+      
+      // Apply optional limit (default to all)
+      const maxItems = limit ? parseInt(limit, 10) : lists.length
+      const limitedLists = lists.slice(0, maxItems)
 
-      return reply.send({ lists })
+      return reply.send({ lists: limitedLists })
     } catch (err) {
       fastify.log.error({ err }, 'Failed to get top lists')
       return reply.status(500).send({ error: 'Failed to get top lists' })
+    }
+  })
+
+  /**
+   * GET /api/mdblist/lists/mine
+   * Get user's own MDBList lists
+   */
+  fastify.get<{
+    Querystring: {
+      mediatype?: 'movie' | 'show'
+    }
+  }>('/api/mdblist/lists/mine', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const configured = await isMDBListConfigured()
+      if (!configured) {
+        return reply.status(400).send({ error: 'MDBList is not configured' })
+      }
+
+      const { mediatype } = request.query
+      let lists = await getMyLists()
+      
+      // Filter by mediatype if specified
+      if (mediatype && lists.length > 0) {
+        lists = lists.filter(list => list.mediatype === mediatype)
+      }
+
+      return reply.send({ lists })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get user lists')
+      return reply.status(500).send({ error: 'Failed to get user lists' })
     }
   })
 

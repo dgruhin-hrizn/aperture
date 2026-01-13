@@ -25,8 +25,8 @@ import {
   RadioGroup,
   FormControl,
   FormLabel,
-  Autocomplete,
 } from '@mui/material'
+import { MDBListSelector } from './MDBListSelector'
 import SaveIcon from '@mui/icons-material/Save'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import RestoreIcon from '@mui/icons-material/Restore'
@@ -119,10 +119,6 @@ export function TopPicksSection() {
 
   // MDBList state
   const [mdblistConfigured, setMdblistConfigured] = useState(false)
-  const [movieLists, setMovieLists] = useState<Array<{ id: number; name: string }>>([])
-  const [seriesLists, setSeriesLists] = useState<Array<{ id: number; name: string }>>([])
-  const [searchingMovieLists, setSearchingMovieLists] = useState(false)
-  const [searchingSeriesLists, setSearchingSeriesLists] = useState(false)
 
   // Fetch images - override defaults only if custom images exist
   const fetchImages = useCallback(async () => {
@@ -232,69 +228,6 @@ export function TopPicksSection() {
     }
   }, [])
 
-  // Search MDBList for movie lists
-  const searchMovieLists = useCallback(async (query: string) => {
-    if (!query || query.length < 2) {
-      setMovieLists([])
-      return
-    }
-    setSearchingMovieLists(true)
-    try {
-      const response = await fetch(`/api/mdblist/lists/search?q=${encodeURIComponent(query)}&mediatype=movie`, {
-        credentials: 'include',
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setMovieLists(data.lists?.map((l: { id: number; name: string }) => ({ id: l.id, name: l.name })) || [])
-      }
-    } catch {
-      console.error('Failed to search movie lists')
-    } finally {
-      setSearchingMovieLists(false)
-    }
-  }, [])
-
-  // Search MDBList for series lists
-  const searchSeriesLists = useCallback(async (query: string) => {
-    if (!query || query.length < 2) {
-      setSeriesLists([])
-      return
-    }
-    setSearchingSeriesLists(true)
-    try {
-      const response = await fetch(`/api/mdblist/lists/search?q=${encodeURIComponent(query)}&mediatype=show`, {
-        credentials: 'include',
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setSeriesLists(data.lists?.map((l: { id: number; name: string }) => ({ id: l.id, name: l.name })) || [])
-      }
-    } catch {
-      console.error('Failed to search series lists')
-    } finally {
-      setSearchingSeriesLists(false)
-    }
-  }, [])
-
-  // Fetch top lists from MDBList
-  const fetchTopLists = useCallback(async () => {
-    try {
-      const [movieRes, seriesRes] = await Promise.all([
-        fetch('/api/mdblist/lists/top?mediatype=movie', { credentials: 'include' }),
-        fetch('/api/mdblist/lists/top?mediatype=show', { credentials: 'include' }),
-      ])
-      if (movieRes.ok) {
-        const data = await movieRes.json()
-        setMovieLists(data.lists?.slice(0, 10).map((l: { id: number; name: string }) => ({ id: l.id, name: l.name })) || [])
-      }
-      if (seriesRes.ok) {
-        const data = await seriesRes.json()
-        setSeriesLists(data.lists?.slice(0, 10).map((l: { id: number; name: string }) => ({ id: l.id, name: l.name })) || [])
-      }
-    } catch {
-      console.error('Failed to fetch top lists')
-    }
-  }, [])
 
   // Fetch config on mount
   useEffect(() => {
@@ -302,13 +235,6 @@ export function TopPicksSection() {
     fetchImages()
     checkMDBListConfig()
   }, [fetchImages, checkMDBListConfig])
-
-  // Load top lists when MDBList is configured
-  useEffect(() => {
-    if (mdblistConfigured) {
-      fetchTopLists()
-    }
-  }, [mdblistConfigured, fetchTopLists])
 
   const fetchConfig = async () => {
     try {
@@ -598,56 +524,38 @@ export function TopPicksSection() {
             <Box sx={{ mt: 3, pl: 4 }}>
               <Grid container spacing={3}>
                 <Grid item xs={12} md={6}>
-                  <Autocomplete
-                    options={movieLists}
-                    getOptionLabel={(option) => option.name}
-                    value={config.mdblistMoviesListId ? { id: config.mdblistMoviesListId, name: config.mdblistMoviesListName || '' } : null}
-                    onChange={(_, newValue) => {
-                      updateConfig({
-                        mdblistMoviesListId: newValue?.id || null,
-                        mdblistMoviesListName: newValue?.name || null,
-                      })
-                    }}
-                    onInputChange={(_, value) => searchMovieLists(value)}
-                    loading={searchingMovieLists}
-                    isOptionEqualToValue={(option, value) => option.id === value.id}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Movies List"
-                        placeholder="Search for a list..."
-                        size="small"
-                        helperText="Search for a MDBList to use for movie rankings"
-                      />
-                    )}
-                    disabled={!config.isEnabled}
-                  />
+                  <Box sx={{ position: 'relative' }}>
+                    <MDBListSelector
+                      value={config.mdblistMoviesListId ? { id: config.mdblistMoviesListId, name: config.mdblistMoviesListName || '' } : null}
+                      onChange={(newValue) => {
+                        updateConfig({
+                          mdblistMoviesListId: newValue?.id || null,
+                          mdblistMoviesListName: newValue?.name || null,
+                        })
+                      }}
+                      mediatype="movie"
+                      label="Movies List"
+                      helperText="Select a MDBList to use for movie rankings"
+                      disabled={!config.isEnabled}
+                    />
+                  </Box>
                 </Grid>
                 <Grid item xs={12} md={6}>
-                  <Autocomplete
-                    options={seriesLists}
-                    getOptionLabel={(option) => option.name}
-                    value={config.mdblistSeriesListId ? { id: config.mdblistSeriesListId, name: config.mdblistSeriesListName || '' } : null}
-                    onChange={(_, newValue) => {
-                      updateConfig({
-                        mdblistSeriesListId: newValue?.id || null,
-                        mdblistSeriesListName: newValue?.name || null,
-                      })
-                    }}
-                    onInputChange={(_, value) => searchSeriesLists(value)}
-                    loading={searchingSeriesLists}
-                    isOptionEqualToValue={(option, value) => option.id === value.id}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Series List"
-                        placeholder="Search for a list..."
-                        size="small"
-                        helperText="Search for a MDBList to use for series rankings"
-                      />
-                    )}
-                    disabled={!config.isEnabled}
-                  />
+                  <Box sx={{ position: 'relative' }}>
+                    <MDBListSelector
+                      value={config.mdblistSeriesListId ? { id: config.mdblistSeriesListId, name: config.mdblistSeriesListName || '' } : null}
+                      onChange={(newValue) => {
+                        updateConfig({
+                          mdblistSeriesListId: newValue?.id || null,
+                          mdblistSeriesListName: newValue?.name || null,
+                        })
+                      }}
+                      mediatype="show"
+                      label="Series List"
+                      helperText="Select a MDBList to use for series rankings"
+                      disabled={!config.isEnabled}
+                    />
+                  </Box>
                 </Grid>
               </Grid>
             </Box>
