@@ -16,7 +16,7 @@ import type { GraphPlaylist } from '../types'
 
 interface GraphPlaylistCardProps {
   playlist: GraphPlaylist
-  onDelete: (playlistId: string) => void
+  onDelete: (playlistId: string, playlistName: string) => void
 }
 
 export function GraphPlaylistCard({ playlist, onDelete }: GraphPlaylistCardProps) {
@@ -91,7 +91,7 @@ export function GraphPlaylistCard({ playlist, onDelete }: GraphPlaylistCardProps
       </CardContent>
 
       <CardActions sx={{ justifyContent: 'flex-end', px: 2, pb: 2 }}>
-        <IconButton size="small" onClick={() => onDelete(playlist.id)} color="error">
+        <IconButton size="small" onClick={() => onDelete(playlist.id, playlist.name)} color="error">
           <DeleteIcon fontSize="small" />
         </IconButton>
       </CardActions>

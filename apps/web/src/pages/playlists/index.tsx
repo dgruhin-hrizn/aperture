@@ -6,6 +6,12 @@ import {
   Skeleton,
   Alert,
   Snackbar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  CircularProgress,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import { usePlaylistsData } from './hooks'
@@ -34,12 +40,18 @@ export function PlaylistsPage() {
     loadingPlaylist,
     removingItemId,
     addingMovieId,
+    // Delete confirmation dialog state
+    deleteDialogOpen,
+    deletingPlaylist,
+    deleteLoading,
     // Actions
     handleOpenDialog,
     handleCloseDialog,
     handleSubmit,
     handleDelete,
     handleDeleteGraphPlaylist,
+    handleDeleteCancel,
+    handleDeleteConfirm,
     handleGeneratePlaylist,
     addExampleMovie,
     removeExampleMovie,
@@ -144,6 +156,35 @@ export function PlaylistsPage() {
         onRemoveItem={handleRemoveFromPlaylist}
         onAddMovie={handleAddToPlaylist}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Delete Playlist</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete "{deletingPlaylist?.name}"? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} disabled={deleteLoading}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            variant="contained"
+            disabled={deleteLoading}
+            startIcon={deleteLoading ? <CircularProgress size={16} color="inherit" /> : null}
+          >
+            {deleteLoading ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Snackbar */}
       <Snackbar

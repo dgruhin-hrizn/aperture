@@ -38,6 +38,11 @@ export function usePlaylistsData() {
   const [removingItemId, setRemovingItemId] = useState<string | null>(null)
   const [addingMovieId, setAddingMovieId] = useState<string | null>(null)
 
+  // Delete confirmation dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deletingPlaylist, setDeletingPlaylist] = useState<{ id: string; name: string; type: 'channel' | 'graph' } | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
   const fetchChannels = async () => {
     try {
       const response = await fetch('/api/channels', { credentials: 'include' })
@@ -171,42 +176,57 @@ export function usePlaylistsData() {
     }
   }
 
-  const handleDelete = async (channelId: string) => {
-    if (!confirm('Are you sure you want to delete this playlist?')) return
-
-    try {
-      const response = await fetch(`/api/channels/${channelId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      })
-
-      if (response.ok) {
-        fetchChannels()
-        setSnackbar({ open: true, message: 'Playlist deleted', severity: 'success' })
-      }
-    } catch {
-      setSnackbar({ open: true, message: 'Failed to delete playlist', severity: 'error' })
-    }
+  // Open delete confirmation dialog
+  const handleDeleteClick = (id: string, name: string, type: 'channel' | 'graph') => {
+    setDeletingPlaylist({ id, name, type })
+    setDeleteDialogOpen(true)
   }
 
-  const handleDeleteGraphPlaylist = async (playlistId: string) => {
-    if (!confirm('Are you sure you want to delete this playlist?')) return
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false)
+    setDeletingPlaylist(null)
+  }
 
+  const handleDeleteConfirm = async () => {
+    if (!deletingPlaylist) return
+
+    setDeleteLoading(true)
     try {
-      const response = await fetch(`/api/graph-playlists/${playlistId}`, {
+      const url = deletingPlaylist.type === 'channel'
+        ? `/api/channels/${deletingPlaylist.id}`
+        : `/api/graph-playlists/${deletingPlaylist.id}`
+
+      const response = await fetch(url, {
         method: 'DELETE',
         credentials: 'include',
       })
 
       if (response.ok) {
-        fetchGraphPlaylists()
+        if (deletingPlaylist.type === 'channel') {
+          fetchChannels()
+        } else {
+          fetchGraphPlaylists()
+        }
         setSnackbar({ open: true, message: 'Playlist deleted', severity: 'success' })
+        setDeleteDialogOpen(false)
+        setDeletingPlaylist(null)
       } else {
         setSnackbar({ open: true, message: 'Failed to delete playlist', severity: 'error' })
       }
     } catch {
       setSnackbar({ open: true, message: 'Failed to delete playlist', severity: 'error' })
+    } finally {
+      setDeleteLoading(false)
     }
+  }
+
+  // Legacy functions that now use the dialog
+  const handleDelete = (channelId: string, channelName: string) => {
+    handleDeleteClick(channelId, channelName, 'channel')
+  }
+
+  const handleDeleteGraphPlaylist = (playlistId: string, playlistName: string) => {
+    handleDeleteClick(playlistId, playlistName, 'graph')
   }
 
   const handleGeneratePlaylist = async (channelId: string) => {
@@ -358,12 +378,18 @@ export function usePlaylistsData() {
     loadingPlaylist,
     removingItemId,
     addingMovieId,
+    // Delete confirmation dialog state
+    deleteDialogOpen,
+    deletingPlaylist,
+    deleteLoading,
     // Actions
     handleOpenDialog,
     handleCloseDialog,
     handleSubmit,
     handleDelete,
     handleDeleteGraphPlaylist,
+    handleDeleteCancel,
+    handleDeleteConfirm,
     handleGeneratePlaylist,
     addExampleMovie,
     removeExampleMovie,
