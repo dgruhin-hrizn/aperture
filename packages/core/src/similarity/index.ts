@@ -300,8 +300,22 @@ import {
 } from './diverse.js'
 
 // Constants for bubble breaking
-const MAX_PER_COLLECTION = 5 // Max items from same collection (allows more franchise depth)
 const BUBBLE_THRESHOLD = 0.5 // 50% from same collection triggers AI escape
+
+// Dynamic collection size limits - handles large franchises like James Bond (26) and Marvel
+const COLLECTION_SIZE_CACHE = new Map<string, number>()
+
+/**
+ * Calculate dynamic limit for a collection based on its size.
+ * Small collections (≤5): allow all
+ * Medium collections (6-15): allow 50%, min 3
+ * Large collections (>15): allow 30%, min 5, max 8
+ */
+function getDynamicCollectionLimit(collectionSize: number): number {
+  if (collectionSize <= 5) return collectionSize // Allow all from small collections
+  if (collectionSize <= 15) return Math.max(3, Math.floor(collectionSize * 0.5)) // 50% of medium
+  return Math.min(8, Math.max(5, Math.floor(collectionSize * 0.3))) // 30% of large, capped at 8
+}
 
 /**
  * Get a multi-level similarity graph for a single item.
@@ -329,6 +343,8 @@ export async function getSimilarWithDepth(
 
   // Track collection counts for smart exclusion
   const collectionCounts = new Map<string, number>()
+  // Cache collection sizes for dynamic limits
+  const collectionSizes = new Map<string, number>()
 
   // Track all items added for bubble analysis
   const allItems: SimilarityItem[] = []
@@ -336,11 +352,36 @@ export async function getSimilarWithDepth(
   // Track full SimilarityItem data by ID for validation
   const itemsById = new Map<string, SimilarityItem>()
 
-  // Helper to check if we can add from a collection
-  const canAddFromCollection = (collectionName: string | null): boolean => {
+  // Helper to get collection size (cached)
+  const getCollectionSize = async (collectionName: string): Promise<number> => {
+    if (collectionSizes.has(collectionName)) {
+      return collectionSizes.get(collectionName)!
+    }
+    // Check global cache first
+    if (COLLECTION_SIZE_CACHE.has(collectionName)) {
+      const size = COLLECTION_SIZE_CACHE.get(collectionName)!
+      collectionSizes.set(collectionName, size)
+      return size
+    }
+    // Query database for collection size
+    const table = itemType === 'movie' ? 'movies' : 'series'
+    const result = await queryOne<{ count: string }>(
+      `SELECT COUNT(*) as count FROM ${table} WHERE collection_name = $1`,
+      [collectionName]
+    )
+    const size = parseInt(result?.count || '1', 10)
+    collectionSizes.set(collectionName, size)
+    COLLECTION_SIZE_CACHE.set(collectionName, size) // Cache globally
+    return size
+  }
+
+  // Helper to check if we can add from a collection (dynamic limits)
+  const canAddFromCollection = async (collectionName: string | null): Promise<boolean> => {
     if (!collectionName) return true
     const count = collectionCounts.get(collectionName) || 0
-    return count < MAX_PER_COLLECTION
+    const collectionSize = await getCollectionSize(collectionName)
+    const maxAllowed = getDynamicCollectionLimit(collectionSize)
+    return count < maxAllowed
   }
 
   // Helper to increment collection count
@@ -462,8 +503,8 @@ export async function getSimilarWithDepth(
           // Skip if already in graph
           if (nodes.has(conn.item.id)) continue
 
-          // SMART EXCLUSION: Skip if collection is over-represented
-          if (!canAddFromCollection(conn.item.collection_name)) {
+          // SMART EXCLUSION: Skip if collection is over-represented (dynamic limits based on franchise size)
+          if (!(await canAddFromCollection(conn.item.collection_name))) {
             logger.debug(
               { title: conn.item.title, collection: conn.item.collection_name },
               'Skipping - collection over-represented'
