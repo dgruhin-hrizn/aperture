@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import * as d3 from 'd3'
 import { Box, Typography, Fade, CircularProgress, Chip, Stack } from '@mui/material'
+import { getProxiedImageUrl } from '@aperture/ui'
 import type { GraphNode, GraphEdge, GraphData, ConnectionReason, LoadingStatus } from './types'
 import { CONNECTION_COLORS, CONNECTION_LABELS } from './types'
 
@@ -255,7 +256,7 @@ export function SimilarityGraph({
     // Poster image
     nodes
       .append('image')
-      .attr('xlink:href', (d) => d.poster_url || '/placeholder-poster.png')
+      .attr('xlink:href', (d) => getProxiedImageUrl(d.poster_url, '/placeholder-poster.png'))
       .attr('width', (d) => (d.isCenter ? centerNodeWidth - 8 : nodeWidth - 8))
       .attr('height', (d) => (d.isCenter ? centerNodeHeight - 4 : nodeHeight - 4))
       .attr('x', (d) => -(d.isCenter ? centerNodeWidth - 8 : nodeWidth - 8) / 2)
