@@ -361,9 +361,24 @@ export async function getMediaInfoBatch(imdbIds: string[]): Promise<MDBListMedia
   for (let i = 0; i < imdbIds.length; i += batchSize) {
     const batch = imdbIds.slice(i, i + batchSize)
     const idsParam = batch.join(',')
-    const batchResult = await mdblistRequest<MDBListMediaInfo[]>(`/?i=${idsParam}`)
+    const batchResult = await mdblistRequest<
+      MDBListMediaInfo[] | MDBListMediaInfo | { items: MDBListMediaInfo[] }
+    >(`/?i=${idsParam}`)
+
     if (batchResult) {
-      results.push(...batchResult)
+      // Handle various response formats
+      if (Array.isArray(batchResult)) {
+        results.push(...batchResult)
+      } else if (
+        typeof batchResult === 'object' &&
+        'items' in batchResult &&
+        Array.isArray(batchResult.items)
+      ) {
+        results.push(...batchResult.items)
+      } else if (typeof batchResult === 'object' && 'imdbid' in batchResult) {
+        // Single item returned (when only one ID requested)
+        results.push(batchResult as MDBListMediaInfo)
+      }
     }
   }
 
