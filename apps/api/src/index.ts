@@ -1,6 +1,6 @@
 import { buildServer } from './server.js'
 import { validateEnv, getDatabaseUrl } from './config/env.js'
-import { runMigrations, getMigrationStatus } from '@aperture/core'
+import { runMigrations, getMigrationStatus, detectInterruptedEnrichmentRuns } from '@aperture/core'
 import { closePool } from './lib/db.js'
 import { initializeScheduler, stopScheduler } from './lib/scheduler.js'
 import path from 'path'
@@ -56,6 +56,14 @@ async function main() {
     } catch {
       console.warn('⚠ Could not check migration status')
     }
+  }
+
+  // Detect any enrichment runs that were interrupted (e.g. container restart)
+  try {
+    await detectInterruptedEnrichmentRuns()
+  } catch (err) {
+    console.warn('⚠️ Could not check for interrupted enrichment runs:', err)
+    // Don't exit - this is a recoverable error
   }
 
   // Build and start server

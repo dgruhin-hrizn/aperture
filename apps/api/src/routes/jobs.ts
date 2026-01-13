@@ -19,6 +19,8 @@ import {
   enrichMetadata,
   enrichStudioLogos,
   enrichMDBListMetadata,
+  getIncompleteEnrichmentRun,
+  clearInterruptedEnrichmentRun,
   // Common
   createChildLogger,
   // Watching libraries
@@ -679,6 +681,44 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
       lastRunsObj[key] = value
     }
     return reply.send({ lastRuns: lastRunsObj })
+  })
+
+  // =========================================================================
+  // Enrichment Run Status
+  // =========================================================================
+
+  /**
+   * GET /api/jobs/enrichment/status
+   * Get enrichment run status - detects incomplete/interrupted runs
+   */
+  fastify.get('/api/jobs/enrichment/status', { preHandler: requireAdmin }, async (_request, reply) => {
+    try {
+      const status = await getIncompleteEnrichmentRun()
+      return reply.send(status)
+    } catch (err) {
+      logger.error({ err }, 'Failed to get enrichment status')
+      return reply.status(500).send({ error: 'Failed to get enrichment status' })
+    }
+  })
+
+  /**
+   * POST /api/jobs/enrichment/clear-interrupted
+   * Clear/acknowledge an interrupted enrichment run
+   * Allows the user to reset the state so they can run enrichment again
+   */
+  fastify.post('/api/jobs/enrichment/clear-interrupted', { preHandler: requireAdmin }, async (_request, reply) => {
+    try {
+      const cleared = await clearInterruptedEnrichmentRun()
+      if (cleared) {
+        logger.info('Cleared interrupted enrichment run')
+        return reply.send({ message: 'Interrupted enrichment run cleared', cleared: true })
+      } else {
+        return reply.send({ message: 'No interrupted run to clear', cleared: false })
+      }
+    } catch (err) {
+      logger.error({ err }, 'Failed to clear interrupted enrichment run')
+      return reply.status(500).send({ error: 'Failed to clear interrupted enrichment run' })
+    }
   })
 
   // =========================================================================
