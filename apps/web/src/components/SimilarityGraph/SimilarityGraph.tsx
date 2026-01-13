@@ -346,8 +346,8 @@ export function SimilarityGraph({
         ref={containerRef}
         sx={{
           width: '100%',
-          height: compact ? 400 : '100%',
-          minHeight: compact ? 400 : 600,
+          height: compact ? 550 : '100%',
+          minHeight: compact ? 550 : 600,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -462,8 +462,8 @@ export function SimilarityGraph({
         ref={containerRef}
         sx={{
           width: '100%',
-          height: compact ? 400 : '100%',
-          minHeight: compact ? 400 : 600,
+          height: compact ? 550 : '100%',
+          minHeight: compact ? 550 : 600,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -481,8 +481,8 @@ export function SimilarityGraph({
       ref={containerRef}
       sx={{
         width: '100%',
-        height: compact ? 400 : '100%',
-        minHeight: compact ? 400 : 600,
+        height: compact ? 550 : '100%',
+        minHeight: compact ? 550 : 600,
         position: 'relative',
         bgcolor: '#0f0f1a',
         borderRadius: 2,
