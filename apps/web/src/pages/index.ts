@@ -4,9 +4,9 @@ export { MyRecommendationsPage } from './MyRecommendations'
 export { MyWatchHistoryPage } from './MyWatchHistory'
 export { MoviesPage } from './Movies'
 export { SeriesPage } from './Series'
-export { MovieDetailPage } from './movie-detail'
-export { SeriesDetailPage } from './series-detail'
+export { MovieDetailPage, SeriesDetailPage, MediaDetailPage } from './media-detail'
 export { PlaylistsPage } from './playlists'
+export { ExplorePage } from './explore'
 export { LoginPage } from './Login'
 
 // Admin pages

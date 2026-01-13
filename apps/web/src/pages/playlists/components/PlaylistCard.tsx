@@ -21,7 +21,7 @@ interface PlaylistCardProps {
   channel: Channel
   generatingChannelId: string | null
   onEdit: (channel: Channel) => void
-  onDelete: (channelId: string) => void
+  onDelete: (channelId: string, channelName: string) => void
   onGenerate: (channelId: string) => void
   onView: (channel: Channel) => void
 }
@@ -131,7 +131,7 @@ export function PlaylistCard({
           <IconButton size="small" onClick={() => onEdit(channel)}>
             <EditIcon fontSize="small" />
           </IconButton>
-          <IconButton size="small" onClick={() => onDelete(channel.id)} color="error">
+          <IconButton size="small" onClick={() => onDelete(channel.id, channel.name)} color="error">
             <DeleteIcon fontSize="small" />
           </IconButton>
         </Box>

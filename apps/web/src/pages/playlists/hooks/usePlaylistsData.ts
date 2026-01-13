@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import type { Channel, Movie, PlaylistItem, FormData, SnackbarState } from '../types'
+import { useState, useEffect, useCallback } from 'react'
+import type { Channel, Movie, PlaylistItem, FormData, SnackbarState, GraphPlaylist } from '../types'
 
 const initialFormData: FormData = {
   name: '',
@@ -11,6 +11,7 @@ const initialFormData: FormData = {
 
 export function usePlaylistsData() {
   const [channels, setChannels] = useState<Channel[]>([])
+  const [graphPlaylists, setGraphPlaylists] = useState<GraphPlaylist[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -37,6 +38,11 @@ export function usePlaylistsData() {
   const [removingItemId, setRemovingItemId] = useState<string | null>(null)
   const [addingMovieId, setAddingMovieId] = useState<string | null>(null)
 
+  // Delete confirmation dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deletingPlaylist, setDeletingPlaylist] = useState<{ id: string; name: string; type: 'channel' | 'graph' } | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
   const fetchChannels = async () => {
     try {
       const response = await fetch('/api/channels', { credentials: 'include' })
@@ -53,6 +59,19 @@ export function usePlaylistsData() {
       setLoading(false)
     }
   }
+
+  const fetchGraphPlaylists = useCallback(async () => {
+    try {
+      const response = await fetch('/api/graph-playlists', { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        setGraphPlaylists(data.playlists || [])
+      }
+    } catch {
+      // Silent fail - graph playlists are optional
+      console.error('Failed to fetch graph playlists')
+    }
+  }, [])
 
   const fetchGenres = async () => {
     setLoadingGenres(true)
@@ -72,7 +91,8 @@ export function usePlaylistsData() {
   useEffect(() => {
     fetchChannels()
     fetchGenres()
-  }, [])
+    fetchGraphPlaylists()
+  }, [fetchGraphPlaylists])
 
   const fetchExampleMovies = async (movieIds: string[]): Promise<Movie[]> => {
     if (movieIds.length === 0) return []
@@ -156,22 +176,57 @@ export function usePlaylistsData() {
     }
   }
 
-  const handleDelete = async (channelId: string) => {
-    if (!confirm('Are you sure you want to delete this playlist?')) return
+  // Open delete confirmation dialog
+  const handleDeleteClick = (id: string, name: string, type: 'channel' | 'graph') => {
+    setDeletingPlaylist({ id, name, type })
+    setDeleteDialogOpen(true)
+  }
 
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false)
+    setDeletingPlaylist(null)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingPlaylist) return
+
+    setDeleteLoading(true)
     try {
-      const response = await fetch(`/api/channels/${channelId}`, {
+      const url = deletingPlaylist.type === 'channel'
+        ? `/api/channels/${deletingPlaylist.id}`
+        : `/api/graph-playlists/${deletingPlaylist.id}`
+
+      const response = await fetch(url, {
         method: 'DELETE',
         credentials: 'include',
       })
 
       if (response.ok) {
-        fetchChannels()
+        if (deletingPlaylist.type === 'channel') {
+          fetchChannels()
+        } else {
+          fetchGraphPlaylists()
+        }
         setSnackbar({ open: true, message: 'Playlist deleted', severity: 'success' })
+        setDeleteDialogOpen(false)
+        setDeletingPlaylist(null)
+      } else {
+        setSnackbar({ open: true, message: 'Failed to delete playlist', severity: 'error' })
       }
     } catch {
       setSnackbar({ open: true, message: 'Failed to delete playlist', severity: 'error' })
+    } finally {
+      setDeleteLoading(false)
     }
+  }
+
+  // Legacy functions that now use the dialog
+  const handleDelete = (channelId: string, channelName: string) => {
+    handleDeleteClick(channelId, channelName, 'channel')
+  }
+
+  const handleDeleteGraphPlaylist = (playlistId: string, playlistName: string) => {
+    handleDeleteClick(playlistId, playlistName, 'graph')
   }
 
   const handleGeneratePlaylist = async (channelId: string) => {
@@ -304,6 +359,7 @@ export function usePlaylistsData() {
   return {
     // Data
     channels,
+    graphPlaylists,
     loading,
     error,
     availableGenres,
@@ -322,11 +378,18 @@ export function usePlaylistsData() {
     loadingPlaylist,
     removingItemId,
     addingMovieId,
+    // Delete confirmation dialog state
+    deleteDialogOpen,
+    deletingPlaylist,
+    deleteLoading,
     // Actions
     handleOpenDialog,
     handleCloseDialog,
     handleSubmit,
     handleDelete,
+    handleDeleteGraphPlaylist,
+    handleDeleteCancel,
+    handleDeleteConfirm,
     handleGeneratePlaylist,
     addExampleMovie,
     removeExampleMovie,

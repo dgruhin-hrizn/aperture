@@ -6,15 +6,22 @@ import {
   Skeleton,
   Alert,
   Snackbar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  CircularProgress,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import { usePlaylistsData } from './hooks'
-import { PlaylistCard, PlaylistDialog, PlaylistViewDialog, EmptyState } from './components'
+import { PlaylistCard, GraphPlaylistCard, PlaylistDialog, PlaylistViewDialog, EmptyState } from './components'
 
 export function PlaylistsPage() {
   const {
     // Data
     channels,
+    graphPlaylists,
     loading,
     error,
     availableGenres,
@@ -33,11 +40,18 @@ export function PlaylistsPage() {
     loadingPlaylist,
     removingItemId,
     addingMovieId,
+    // Delete confirmation dialog state
+    deleteDialogOpen,
+    deletingPlaylist,
+    deleteLoading,
     // Actions
     handleOpenDialog,
     handleCloseDialog,
     handleSubmit,
     handleDelete,
+    handleDeleteGraphPlaylist,
+    handleDeleteCancel,
+    handleDeleteConfirm,
     handleGeneratePlaylist,
     addExampleMovie,
     removeExampleMovie,
@@ -86,10 +100,11 @@ export function PlaylistsPage() {
         </Alert>
       )}
 
-      {channels.length === 0 ? (
+      {channels.length === 0 && graphPlaylists.length === 0 ? (
         <EmptyState onCreateClick={() => handleOpenDialog()} />
       ) : (
         <Grid container spacing={3}>
+          {/* Channel-based playlists */}
           {channels.map((channel) => (
             <Grid item xs={12} sm={6} md={4} key={channel.id}>
               <PlaylistCard
@@ -99,6 +114,15 @@ export function PlaylistsPage() {
                 onDelete={handleDelete}
                 onGenerate={handleGeneratePlaylist}
                 onView={handleViewPlaylist}
+              />
+            </Grid>
+          ))}
+          {/* Graph-based playlists */}
+          {graphPlaylists.map((playlist) => (
+            <Grid item xs={12} sm={6} md={4} key={`graph-${playlist.id}`}>
+              <GraphPlaylistCard
+                playlist={playlist}
+                onDelete={handleDeleteGraphPlaylist}
               />
             </Grid>
           ))}
@@ -132,6 +156,35 @@ export function PlaylistsPage() {
         onRemoveItem={handleRemoveFromPlaylist}
         onAddMovie={handleAddToPlaylist}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Delete Playlist</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete "{deletingPlaylist?.name}"? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} disabled={deleteLoading}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            variant="contained"
+            disabled={deleteLoading}
+            startIcon={deleteLoading ? <CircularProgress size={16} color="inherit" /> : null}
+          >
+            {deleteLoading ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Snackbar */}
       <Snackbar

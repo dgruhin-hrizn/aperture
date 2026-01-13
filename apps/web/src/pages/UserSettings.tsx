@@ -16,6 +16,7 @@ import {
   Avatar,
   Switch,
   FormControlLabel,
+  Grid,
 } from '@mui/material'
 import SettingsIcon from '@mui/icons-material/Settings'
 import PersonIcon from '@mui/icons-material/Person'
@@ -23,6 +24,7 @@ import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
 import SaveIcon from '@mui/icons-material/Save'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import PsychologyIcon from '@mui/icons-material/Psychology'
+import HubOutlinedIcon from '@mui/icons-material/HubOutlined'
 import { useAuth } from '@/hooks/useAuth'
 import { Breadcrumbs } from '@/components/Breadcrumbs'
 import { TasteProfileSection } from './UserSettings/TasteProfileSection'
@@ -81,6 +83,13 @@ export function UserSettingsPage() {
   const [savingIncludeWatched, setSavingIncludeWatched] = useState(false)
   const [includeWatchedSuccess, setIncludeWatchedSuccess] = useState<string | null>(null)
 
+  // Similarity graph preferences state
+  const [similarityFullFranchise, setSimilarityFullFranchise] = useState(false)
+  const [similarityHideWatched, setSimilarityHideWatched] = useState(true) // Default ON
+  const [loadingSimilarityPrefs, setLoadingSimilarityPrefs] = useState(false)
+  const [savingSimilarityPrefs, setSavingSimilarityPrefs] = useState(false)
+  const [similarityPrefsSuccess, setSimilarityPrefsSuccess] = useState<string | null>(null)
+
   // Trakt integration state
   const [traktStatus, setTraktStatus] = useState<{
     traktConfigured: boolean
@@ -97,6 +106,7 @@ export function UserSettingsPage() {
     fetchAiExplanationPref()
     fetchDislikeBehavior()
     fetchIncludeWatched()
+    fetchSimilarityPrefs()
     fetchTraktStatus()
     
     // Check for Trakt callback params
@@ -284,6 +294,48 @@ export function UserSettingsPage() {
       // Silently fail
     } finally {
       setSavingIncludeWatched(false)
+    }
+  }
+
+  const fetchSimilarityPrefs = async () => {
+    setLoadingSimilarityPrefs(true)
+    try {
+      const response = await fetch('/api/settings/user/similarity-prefs', { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        setSimilarityFullFranchise(data.fullFranchiseMode ?? false)
+        setSimilarityHideWatched(data.hideWatched ?? true)
+      }
+    } catch {
+      // Silently fail - use defaults
+    } finally {
+      setLoadingSimilarityPrefs(false)
+    }
+  }
+
+  const saveSimilarityPref = async (key: 'fullFranchiseMode' | 'hideWatched', value: boolean) => {
+    setSavingSimilarityPrefs(true)
+    setSimilarityPrefsSuccess(null)
+    try {
+      const response = await fetch('/api/settings/user/similarity-prefs', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ [key]: value }),
+      })
+      if (response.ok) {
+        if (key === 'fullFranchiseMode') {
+          setSimilarityFullFranchise(value)
+        } else {
+          setSimilarityHideWatched(value)
+        }
+        setSimilarityPrefsSuccess('Preference saved!')
+        setTimeout(() => setSimilarityPrefsSuccess(null), 3000)
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setSavingSimilarityPrefs(false)
     }
   }
 
@@ -478,294 +530,386 @@ export function UserSettingsPage() {
 
           {/* Preferences Tab */}
           <TabPanel value={tabValue} index={2}>
-            <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, maxWidth: 600 }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  AI Library Names
-                </Typography>
-                <Typography variant="body2" color="text.secondary" mb={3}>
-                  Customize how your AI recommendations libraries appear in your media server.
-                </Typography>
-
-                {userSettingsError && (
-                  <Alert severity="error" sx={{ mb: 2 }} onClose={() => setUserSettingsError(null)}>
-                    {userSettingsError}
-                  </Alert>
-                )}
-
-                {userSettingsSuccess && (
-                  <Alert severity="success" sx={{ mb: 2 }} onClose={() => setUserSettingsSuccess(null)}>
-                    {userSettingsSuccess}
-                  </Alert>
-                )}
-
-                {loadingUserSettings ? (
-                  <Box display="flex" justifyContent="center" py={4}>
-                    <CircularProgress />
-                  </Box>
-                ) : (
-                  <>
-                    <FormControl fullWidth sx={{ mb: 3 }}>
-                      <Typography variant="body2" fontWeight={500} gutterBottom>
-                        Movies Library Name
-                      </Typography>
-                      <TextField
-                        placeholder={`${defaultLibraryPrefix}${user?.displayName || user?.username || 'User'} - Movies`}
-                        value={moviesLibraryName}
-                        onChange={(e) => setMoviesLibraryName(e.target.value)}
-                        size="small"
-                        fullWidth
-                        inputProps={{ maxLength: 100 }}
-                        helperText={
-                          moviesLibraryName
-                            ? `Your movies library will be named: "${moviesLibraryName}"`
-                            : 'Leave empty to use the global default template'
-                        }
-                      />
-                    </FormControl>
-
-                    <FormControl fullWidth sx={{ mb: 3 }}>
-                      <Typography variant="body2" fontWeight={500} gutterBottom>
-                        TV Series Library Name
-                      </Typography>
-                      <TextField
-                        placeholder={`${defaultLibraryPrefix}${user?.displayName || user?.username || 'User'} - TV Series`}
-                        value={seriesLibraryName}
-                        onChange={(e) => setSeriesLibraryName(e.target.value)}
-                        size="small"
-                        fullWidth
-                        inputProps={{ maxLength: 100 }}
-                        helperText={
-                          seriesLibraryName
-                            ? `Your series library will be named: "${seriesLibraryName}"`
-                            : 'Leave empty to use the global default template'
-                        }
-                      />
-                    </FormControl>
-
-                    <Box display="flex" gap={1}>
-                      <Button
-                        variant="contained"
-                        startIcon={savingUserSettings ? <CircularProgress size={16} /> : <SaveIcon />}
-                        onClick={saveUserSettings}
-                        disabled={savingUserSettings}
-                        size="small"
-                      >
-                        {savingUserSettings ? 'Saving...' : 'Save'}
-                      </Button>
-                      {(moviesLibraryName || seriesLibraryName) && (
-                        <Button
-                          variant="outlined"
-                          onClick={() => {
-                            setMoviesLibraryName('')
-                            setSeriesLibraryName('')
-                          }}
-                          disabled={savingUserSettings}
-                          size="small"
-                        >
-                          Reset to Defaults
-                        </Button>
-                      )}
-                    </Box>
-
-                    <Divider sx={{ my: 3 }} />
-
-                    <Typography variant="caption" color="text.secondary">
-                      Changes will apply the next time the library sync jobs run or when recommendations are regenerated.
-                      If you already have libraries with old names, you may need to manually delete them from your media server.
+            <Grid container spacing={3}>
+              {/* AI Library Names */}
+              <Grid item xs={12} lg={6}>
+                <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, height: '100%' }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      AI Library Names
                     </Typography>
-                  </>
-                )}
-              </CardContent>
-            </Card>
+                    <Typography variant="body2" color="text.secondary" mb={3}>
+                      Customize how your AI recommendations libraries appear in your media server.
+                    </Typography>
 
-            {/* AI Explanation Preference - only show if user can override */}
-            {aiExplanationPref?.canOverride && (
-              <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, maxWidth: 600, mt: 3 }}>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <AutoAwesomeIcon color="primary" />
-                    AI Explanation Preference
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" mb={3}>
-                    Choose whether to include AI-generated explanations in your recommendation descriptions.
-                  </Typography>
+                    {userSettingsError && (
+                      <Alert severity="error" sx={{ mb: 2 }} onClose={() => setUserSettingsError(null)}>
+                        {userSettingsError}
+                      </Alert>
+                    )}
 
-                  {aiPrefError && (
-                    <Alert severity="error" sx={{ mb: 2 }} onClose={() => setAiPrefError(null)}>
-                      {aiPrefError}
-                    </Alert>
-                  )}
+                    {userSettingsSuccess && (
+                      <Alert severity="success" sx={{ mb: 2 }} onClose={() => setUserSettingsSuccess(null)}>
+                        {userSettingsSuccess}
+                      </Alert>
+                    )}
 
-                  {aiPrefSuccess && (
-                    <Alert severity="success" sx={{ mb: 2 }} onClose={() => setAiPrefSuccess(null)}>
-                      {aiPrefSuccess}
-                    </Alert>
-                  )}
-
-                  {loadingAiPref ? (
-                    <Box display="flex" justifyContent="center" py={4}>
-                      <CircularProgress />
-                    </Box>
-                  ) : (
-                    <>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={aiExplanationPref.userPreference ?? aiExplanationPref.globalEnabled}
-                            onChange={(e) => saveAiExplanationPref(e.target.checked)}
-                            disabled={savingAiPref}
+                    {loadingUserSettings ? (
+                      <Box display="flex" justifyContent="center" py={4}>
+                        <CircularProgress />
+                      </Box>
+                    ) : (
+                      <>
+                        <FormControl fullWidth sx={{ mb: 3 }}>
+                          <Typography variant="body2" fontWeight={500} gutterBottom>
+                            Movies Library Name
+                          </Typography>
+                          <TextField
+                            placeholder={`${defaultLibraryPrefix}${user?.displayName || user?.username || 'User'} - Movies`}
+                            value={moviesLibraryName}
+                            onChange={(e) => setMoviesLibraryName(e.target.value)}
+                            size="small"
+                            fullWidth
+                            inputProps={{ maxLength: 100 }}
+                            helperText={
+                              moviesLibraryName
+                                ? `Your movies library will be named: "${moviesLibraryName}"`
+                                : 'Leave empty to use the global default template'
+                            }
                           />
-                        }
-                        label={
-                          <Box>
-                            <Typography variant="body1" fontWeight="medium">
-                              Include AI Explanations
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              When enabled, each recommendation includes "Why Aperture picked this for you"
-                            </Typography>
-                          </Box>
-                        }
-                        sx={{ alignItems: 'flex-start', ml: 0, mb: 2 }}
-                      />
+                        </FormControl>
 
-                      {aiExplanationPref.userPreference !== null && (
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          onClick={() => saveAiExplanationPref(null)}
-                          disabled={savingAiPref}
-                        >
-                          Reset to Default ({aiExplanationPref.globalEnabled ? 'Enabled' : 'Disabled'})
-                        </Button>
+                        <FormControl fullWidth sx={{ mb: 3 }}>
+                          <Typography variant="body2" fontWeight={500} gutterBottom>
+                            TV Series Library Name
+                          </Typography>
+                          <TextField
+                            placeholder={`${defaultLibraryPrefix}${user?.displayName || user?.username || 'User'} - TV Series`}
+                            value={seriesLibraryName}
+                            onChange={(e) => setSeriesLibraryName(e.target.value)}
+                            size="small"
+                            fullWidth
+                            inputProps={{ maxLength: 100 }}
+                            helperText={
+                              seriesLibraryName
+                                ? `Your series library will be named: "${seriesLibraryName}"`
+                                : 'Leave empty to use the global default template'
+                            }
+                          />
+                        </FormControl>
+
+                        <Box display="flex" gap={1}>
+                          <Button
+                            variant="contained"
+                            startIcon={savingUserSettings ? <CircularProgress size={16} /> : <SaveIcon />}
+                            onClick={saveUserSettings}
+                            disabled={savingUserSettings}
+                            size="small"
+                          >
+                            {savingUserSettings ? 'Saving...' : 'Save'}
+                          </Button>
+                          {(moviesLibraryName || seriesLibraryName) && (
+                            <Button
+                              variant="outlined"
+                              onClick={() => {
+                                setMoviesLibraryName('')
+                                setSeriesLibraryName('')
+                              }}
+                              disabled={savingUserSettings}
+                              size="small"
+                            >
+                              Reset to Defaults
+                            </Button>
+                          )}
+                        </Box>
+
+                        <Divider sx={{ my: 3 }} />
+
+                        <Typography variant="caption" color="text.secondary">
+                          Changes will apply the next time the library sync jobs run or when recommendations are regenerated.
+                        </Typography>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* AI Explanation Preference - only show if user can override */}
+              {aiExplanationPref?.canOverride && (
+                <Grid item xs={12} lg={6}>
+                  <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, height: '100%' }}>
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <AutoAwesomeIcon color="primary" />
+                        AI Explanation Preference
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" mb={3}>
+                        Choose whether to include AI-generated explanations in your recommendation descriptions.
+                      </Typography>
+
+                      {aiPrefError && (
+                        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setAiPrefError(null)}>
+                          {aiPrefError}
+                        </Alert>
                       )}
 
-                      <Divider sx={{ my: 3 }} />
+                      {aiPrefSuccess && (
+                        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setAiPrefSuccess(null)}>
+                          {aiPrefSuccess}
+                        </Alert>
+                      )}
 
-                      <Typography variant="caption" color="text.secondary">
-                        Changes will apply when your recommendations are next regenerated.
+                      {loadingAiPref ? (
+                        <Box display="flex" justifyContent="center" py={4}>
+                          <CircularProgress />
+                        </Box>
+                      ) : (
+                        <>
+                          <FormControlLabel
+                            control={
+                              <Switch
+                                checked={aiExplanationPref.userPreference ?? aiExplanationPref.globalEnabled}
+                                onChange={(e) => saveAiExplanationPref(e.target.checked)}
+                                disabled={savingAiPref}
+                              />
+                            }
+                            label={
+                              <Box>
+                                <Typography variant="body1" fontWeight="medium">
+                                  Include AI Explanations
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  When enabled, each recommendation includes "Why Aperture picked this for you"
+                                </Typography>
+                              </Box>
+                            }
+                            sx={{ alignItems: 'flex-start', ml: 0, mb: 2 }}
+                          />
+
+                          {aiExplanationPref.userPreference !== null && (
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              onClick={() => saveAiExplanationPref(null)}
+                              disabled={savingAiPref}
+                            >
+                              Reset to Default ({aiExplanationPref.globalEnabled ? 'Enabled' : 'Disabled'})
+                            </Button>
+                          )}
+
+                          <Divider sx={{ my: 3 }} />
+
+                          <Typography variant="caption" color="text.secondary">
+                            Changes will apply when your recommendations are next regenerated.
+                          </Typography>
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Grid>
+              )}
+
+              {/* Include Watched Content */}
+              <Grid item xs={12} lg={6}>
+                <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, height: '100%' }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Watched Content in Recommendations
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" mb={3}>
+                      Choose whether to include content you've already watched in your AI recommendations.
+                    </Typography>
+
+                    {includeWatchedSuccess && (
+                      <Alert severity="success" sx={{ mb: 2 }} onClose={() => setIncludeWatchedSuccess(null)}>
+                        {includeWatchedSuccess}
+                      </Alert>
+                    )}
+
+                    {loadingIncludeWatched ? (
+                      <Box display="flex" justifyContent="center" py={4}>
+                        <CircularProgress />
+                      </Box>
+                    ) : (
+                      <>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={includeWatched}
+                              onChange={(e) => saveIncludeWatched(e.target.checked)}
+                              disabled={savingIncludeWatched}
+                            />
+                          }
+                          label={
+                            <Box>
+                              <Typography variant="body1" fontWeight="medium">
+                                {includeWatched ? 'Include Watched Content' : 'New Content Only'}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                {includeWatched 
+                                  ? 'Recommendations may include movies and series you\'ve already watched'
+                                  : 'Recommendations will only show content you haven\'t watched yet'}
+                              </Typography>
+                            </Box>
+                          }
+                          sx={{ alignItems: 'flex-start', ml: 0 }}
+                        />
+
+                        <Divider sx={{ my: 3 }} />
+
+                        <Typography variant="caption" color="text.secondary">
+                          By default, recommendations only include new content. Enable this if you want rewatching suggestions.
+                        </Typography>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Disliked Content Behavior */}
+              <Grid item xs={12} lg={6}>
+                <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, height: '100%' }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Disliked Content Behavior
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" mb={3}>
+                      Choose how content you've rated 1-3 hearts should be handled in recommendations.
+                    </Typography>
+
+                    {dislikePrefSuccess && (
+                      <Alert severity="success" sx={{ mb: 2 }} onClose={() => setDislikePrefSuccess(null)}>
+                        {dislikePrefSuccess}
+                      </Alert>
+                    )}
+
+                    {loadingDislikePref ? (
+                      <Box display="flex" justifyContent="center" py={4}>
+                        <CircularProgress />
+                      </Box>
+                    ) : (
+                      <>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={dislikeBehavior === 'exclude'}
+                              onChange={(e) => saveDislikeBehavior(e.target.checked ? 'exclude' : 'penalize')}
+                              disabled={savingDislikePref}
+                            />
+                          }
+                          label={
+                            <Box>
+                              <Typography variant="body1" fontWeight="medium">
+                                {dislikeBehavior === 'exclude' ? 'Exclude Disliked Content' : 'Penalize Disliked Content'}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                {dislikeBehavior === 'exclude' 
+                                  ? 'Content you dislike will never appear in recommendations'
+                                  : 'Content you dislike will appear less often but may still show up occasionally'}
+                              </Typography>
+                            </Box>
+                          }
+                          sx={{ alignItems: 'flex-start', ml: 0 }}
+                        />
+
+                        <Divider sx={{ my: 3 }} />
+
+                        <Typography variant="caption" color="text.secondary">
+                          Rate content with 1-3 hearts to mark it as disliked. Changes will apply when your recommendations are next regenerated.
+                        </Typography>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Similarity Graph Preferences */}
+              <Grid item xs={12} lg={6}>
+                <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, height: '100%' }}>
+                  <CardContent>
+                    <Box display="flex" alignItems="center" gap={1} mb={1}>
+                      <HubOutlinedIcon color="primary" />
+                      <Typography variant="h6">
+                        Similarity Graph
                       </Typography>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Include Watched Content */}
-            <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, maxWidth: 600, mt: 3 }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Watched Content in Recommendations
-                </Typography>
-                <Typography variant="body2" color="text.secondary" mb={3}>
-                  Choose whether to include content you've already watched in your AI recommendations.
-                </Typography>
-
-                {includeWatchedSuccess && (
-                  <Alert severity="success" sx={{ mb: 2 }} onClose={() => setIncludeWatchedSuccess(null)}>
-                    {includeWatchedSuccess}
-                  </Alert>
-                )}
-
-                {loadingIncludeWatched ? (
-                  <Box display="flex" justifyContent="center" py={4}>
-                    <CircularProgress />
-                  </Box>
-                ) : (
-                  <>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={includeWatched}
-                          onChange={(e) => saveIncludeWatched(e.target.checked)}
-                          disabled={savingIncludeWatched}
-                        />
-                      }
-                      label={
-                        <Box>
-                          <Typography variant="body1" fontWeight="medium">
-                            {includeWatched ? 'Include Watched Content' : 'New Content Only'}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {includeWatched 
-                              ? 'Recommendations may include movies and series you\'ve already watched'
-                              : 'Recommendations will only show content you haven\'t watched yet'}
-                          </Typography>
-                        </Box>
-                      }
-                      sx={{ alignItems: 'flex-start', ml: 0 }}
-                    />
-
-                    <Divider sx={{ my: 3 }} />
-
-                    <Typography variant="caption" color="text.secondary">
-                      By default, recommendations only include new content. Enable this if you want rewatching suggestions.
-                      Changes will apply when your recommendations are next regenerated.
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" mb={3}>
+                      Customize how the similarity graph explores connections between movies and series.
                     </Typography>
-                  </>
-                )}
-              </CardContent>
-            </Card>
 
-            {/* Disliked Content Behavior */}
-            <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, maxWidth: 600, mt: 3 }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Disliked Content Behavior
-                </Typography>
-                <Typography variant="body2" color="text.secondary" mb={3}>
-                  Choose how content you've rated 1-3 hearts should be handled in recommendations.
-                </Typography>
+                    {similarityPrefsSuccess && (
+                      <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSimilarityPrefsSuccess(null)}>
+                        {similarityPrefsSuccess}
+                      </Alert>
+                    )}
 
-                {dislikePrefSuccess && (
-                  <Alert severity="success" sx={{ mb: 2 }} onClose={() => setDislikePrefSuccess(null)}>
-                    {dislikePrefSuccess}
-                  </Alert>
-                )}
-
-                {loadingDislikePref ? (
-                  <Box display="flex" justifyContent="center" py={4}>
-                    <CircularProgress />
-                  </Box>
-                ) : (
-                  <>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={dislikeBehavior === 'exclude'}
-                          onChange={(e) => saveDislikeBehavior(e.target.checked ? 'exclude' : 'penalize')}
-                          disabled={savingDislikePref}
+                    {loadingSimilarityPrefs ? (
+                      <Box display="flex" justifyContent="center" py={4}>
+                        <CircularProgress />
+                      </Box>
+                    ) : (
+                      <>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={similarityHideWatched}
+                              onChange={(e) => saveSimilarityPref('hideWatched', e.target.checked)}
+                              disabled={savingSimilarityPrefs}
+                            />
+                          }
+                          label={
+                            <Box>
+                              <Typography variant="body1" fontWeight="medium">
+                                Hide Watched Content
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                {similarityHideWatched 
+                                  ? 'Graph only shows unwatched content for new discoveries'
+                                  : 'Graph includes all similar content, even what you\'ve already seen'}
+                              </Typography>
+                            </Box>
+                          }
+                          sx={{ alignItems: 'flex-start', ml: 0, mb: 2 }}
                         />
-                      }
-                      label={
-                        <Box>
-                          <Typography variant="body1" fontWeight="medium">
-                            {dislikeBehavior === 'exclude' ? 'Exclude Disliked Content' : 'Penalize Disliked Content'}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {dislikeBehavior === 'exclude' 
-                              ? 'Content you dislike will never appear in recommendations'
-                              : 'Content you dislike will appear less often but may still show up occasionally'}
-                          </Typography>
-                        </Box>
-                      }
-                      sx={{ alignItems: 'flex-start', ml: 0 }}
-                    />
 
-                    <Divider sx={{ my: 3 }} />
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={similarityFullFranchise}
+                              onChange={(e) => saveSimilarityPref('fullFranchiseMode', e.target.checked)}
+                              disabled={savingSimilarityPrefs}
+                            />
+                          }
+                          label={
+                            <Box>
+                              <Typography variant="body1" fontWeight="medium">
+                                Full Franchise Mode
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                {similarityFullFranchise 
+                                  ? 'Show entire franchises without limits (e.g., all 26 James Bond films)'
+                                  : 'Limit items per franchise to encourage diverse discoveries'}
+                              </Typography>
+                            </Box>
+                          }
+                          sx={{ alignItems: 'flex-start', ml: 0 }}
+                        />
 
-                    <Typography variant="caption" color="text.secondary">
-                      Rate content with 1-3 hearts to mark it as disliked. Changes will apply when your recommendations are next regenerated.
-                    </Typography>
-                  </>
-                )}
-              </CardContent>
-            </Card>
+                        <Divider sx={{ my: 3 }} />
 
-            {/* Trakt Integration */}
-            {traktStatus?.traktConfigured && (
-              <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, maxWidth: 600, mt: 3 }}>
+                        <Typography variant="caption" color="text.secondary">
+                          These preferences apply when exploring similar content on detail pages and in fullscreen graph view.
+                        </Typography>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Trakt Integration */}
+              {traktStatus?.traktConfigured && (
+                <Grid item xs={12} lg={6}>
+                  <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, height: '100%' }}>
                 <CardContent>
                   <Box display="flex" alignItems="center" gap={1} mb={1}>
                     <Box
@@ -838,14 +982,16 @@ export function UserSettingsPage() {
                     </Button>
                   )}
 
-                  <Divider sx={{ my: 3 }} />
+                    <Divider sx={{ my: 3 }} />
 
-                  <Typography variant="caption" color="text.secondary">
-                    Syncing imports your Trakt ratings (1-10) as heart ratings in Aperture. Higher-rated content will have more influence on your recommendations.
-                  </Typography>
-                </CardContent>
-              </Card>
-            )}
+                    <Typography variant="caption" color="text.secondary">
+                      Syncing imports your Trakt ratings (1-10) as heart ratings in Aperture. Higher-rated content will have more influence on your recommendations.
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              )}
+            </Grid>
           </TabPanel>
         </Box>
       </Paper>

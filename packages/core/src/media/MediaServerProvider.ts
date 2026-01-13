@@ -185,6 +185,17 @@ export interface MediaServerProvider {
   ): Promise<PlaylistCreateResult>
 
   /**
+   * Create a playlist with an overview/description
+   */
+  createPlaylistWithOverview(
+    apiKey: string,
+    userId: string,
+    name: string,
+    itemIds: string[],
+    overview?: string
+  ): Promise<PlaylistCreateResult>
+
+  /**
    * Delete a playlist
    */
   deletePlaylist(apiKey: string, playlistId: string): Promise<void>

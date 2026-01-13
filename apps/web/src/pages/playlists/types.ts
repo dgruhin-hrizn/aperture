@@ -42,4 +42,17 @@ export interface SnackbarState {
   severity: 'success' | 'error'
 }
 
+export interface GraphPlaylist {
+  id: string
+  name: string
+  description: string | null
+  mediaServerPlaylistId: string
+  ownerId: string
+  sourceItemId: string | null
+  sourceItemType: string | null
+  itemCount: number
+  createdAt: string
+  updatedAt: string
+}
+
 

@@ -36,6 +36,7 @@ import InsightsIcon from '@mui/icons-material/Insights'
 import SearchIcon from '@mui/icons-material/Search'
 import CollectionsIcon from '@mui/icons-material/Collections'
 import AddToQueueIcon from '@mui/icons-material/AddToQueue'
+import ExploreIcon from '@mui/icons-material/Explore'
 import { useAuth } from '@/hooks/useAuth'
 import { WelcomeModal, useWelcomeModal } from './WelcomeModal'
 import { RunningJobsWidget } from './RunningJobsWidget'
@@ -47,6 +48,7 @@ const DRAWER_WIDTH = 260
 const userMenuItems = [
   { text: 'Home', icon: <HomeIcon />, path: '/' },
   { text: 'Search', icon: <SearchIcon />, path: '/search' },
+  { text: 'Explore', icon: <ExploreIcon />, path: '/explore' },
   { text: 'Recommendations', icon: <AutoAwesomeIcon />, path: '/recommendations' },
   { text: "Shows You Watch", icon: <AddToQueueIcon />, path: '/watching' },
   { text: 'Top Pick Movies', icon: <WhatshotIcon />, path: '/top-picks/movies' },
@@ -208,7 +210,7 @@ export function Layout() {
             fontSize: '0.7rem',
           }}
         >
-          v0.3.7
+          v0.4.0
         </Typography>
       </Box>
     </Box>

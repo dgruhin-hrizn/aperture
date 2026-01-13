@@ -31,6 +31,12 @@ This guide covers all the features available to Aperture users.
   - [Match Score Breakdown](#match-score-breakdown)
   - [Genre Analysis](#genre-analysis)
   - [Evidence Trail](#evidence-trail)
+- [Similarity Graphs](#similarity-graphs)
+  - [Viewing the Graph](#viewing-the-graph)
+  - [Interacting with the Graph](#interacting-with-the-graph)
+  - [Fullscreen Mode](#fullscreen-mode)
+  - [Creating Playlists from Graphs](#creating-playlists-from-graphs)
+  - [Graph Preferences](#graph-preferences)
 - [Creating Channels](#creating-channels)
 - [Watch History](#watch-history)
 - [Watch Stats](#watch-stats)
@@ -264,6 +270,83 @@ View the specific movies/series from your watch history that influenced this rec
 
 ---
 
+## Similarity Graphs
+
+Aperture includes an interactive graph visualization that shows how movies and series in your library are connected through directors, actors, genres, collections, and more.
+
+### Viewing the Graph
+
+On any movie or series detail page, look for the **Similar** section:
+
+1. **List View** — Traditional grid of similar content posters
+2. **Graph View** — Interactive force-directed graph showing connections
+
+Click the **Graph** tab to switch to the visualization.
+
+### Interacting with the Graph
+
+The graph displays movies/series as poster nodes with color-coded lines showing why they're connected:
+
+| Color | Connection Type |
+|-------|----------------|
+| 🔵 Blue | Same director |
+| 🌊 Teal | Shared actors |
+| 🥇 Gold | Same collection/franchise |
+| 💜 Purple | Shared genres |
+| 💗 Pink | Shared keywords/themes |
+| 🟠 Orange | Same studio |
+| 🟢 Green | Same network (TV) |
+| 🩶 Gray | AI similarity |
+| 💚 Emerald | AI discovery |
+
+**Mouse/Touch Controls:**
+
+- **Click a poster** — Refocus the graph on that item (explore deeper!)
+- **Double-click** — Navigate to that movie/series detail page
+- **Drag posters** — Rearrange the layout
+- **Scroll** — Zoom in and out
+- **Hover on lines** — See detailed connection reasons
+
+**Breadcrumb Navigation:**
+
+As you click through posters, a breadcrumb trail appears showing your exploration path. Click any breadcrumb to jump back to that point.
+
+### Fullscreen Mode
+
+Click the **fullscreen button** (⛶) in the top-right of the graph to expand it:
+
+- **Deeper exploration** — Graph expands to 3 levels deep (connections of connections of connections)
+- **More items** — Up to 35 nodes displayed
+- **Create Playlist button** — Save your discoveries as a playlist
+- **Same interactions** — Drag, zoom, click all work the same
+
+### Creating Playlists from Graphs
+
+In fullscreen mode, you can save your graph exploration as a playlist:
+
+1. Explore the graph until you have a collection you like
+2. Click **Create Playlist** in the dialog header
+3. Enter a name or click ✨ for an **AI-generated name**
+4. Enter a description or click ✨ for an **AI-generated description**
+5. Click **Create**
+
+The playlist syncs to your media server (Emby/Jellyfin) with all the items from the graph. Graph playlists appear on the **Playlists** page marked with a hub icon.
+
+### Graph Preferences
+
+Customize how the similarity graph works in **Settings → Preferences**:
+
+**Hide Watched Content** (Default: ON)
+- When enabled, movies/series you've already watched won't appear in the graph
+- Helps you discover new content rather than seeing things you've already seen
+
+**Full Franchise Mode** (Default: OFF)
+- When enabled, shows entire franchises without limits
+- Normally, the graph limits items per collection to encourage diverse discovery
+- Turn on when you want to see all 26 James Bond films or all Marvel movies
+
+---
+
 ## Creating Channels
 
 Channels are custom collections you can create based on your own criteria.
@@ -313,12 +396,19 @@ Navigate to **Settings** (user icon in sidebar):
 
 ### Preferences Tab
 
+**Library Names**
 - **Movies Library Name** — Customize your AI recommendations movie library name
 - **Series Library Name** — Customize your AI recommendations series library name
+
+Both library names are optional — leave empty to use the global default templates set by your admin.
+
+**Recommendations**
 - **Disliked Content Behavior** — Choose how low-rated content affects recommendations
 - **AI Explanation Preference** — If your admin has enabled this option, toggle whether AI explanations appear in your recommendation descriptions
 
-Both library names are optional — leave empty to use the global default templates set by your admin.
+**Similarity Graph**
+- **Hide Watched Content** — When ON, filters out already-watched items from similarity graphs
+- **Full Franchise Mode** — When ON, shows entire franchises without collection limits
 
 ### Taste Profile Tab
 
