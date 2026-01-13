@@ -25,6 +25,11 @@ interface SeriesRow {
   awards_summary: string | null
 }
 
+interface StreamingProvider {
+  id: number
+  name: string
+}
+
 interface SeriesDetailRow extends SeriesRow {
   tagline: string | null
   content_rating: string | null
@@ -47,6 +52,11 @@ interface SeriesDetailRow extends SeriesRow {
   rt_consensus: string | null
   metacritic_score: number | null
   awards_summary: string | null
+  languages: string[] | null
+  // MDBList enrichment
+  letterboxd_score: number | null
+  mdblist_score: number | null
+  streaming_providers: StreamingProvider[] | null
 }
 
 interface SeriesListResponse {
@@ -182,7 +192,8 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
                 network, tagline, studios, directors, writers, actors,
                 imdb_id, tmdb_id, tvdb_id, air_days, production_countries, awards,
                 poster_url, backdrop_url, created_at, updated_at,
-                keywords, rt_critic_score, rt_audience_score, rt_consensus, metacritic_score, awards_summary
+                keywords, rt_critic_score, rt_audience_score, rt_consensus, metacritic_score, awards_summary,
+                languages, letterboxd_score, mdblist_score, streaming_providers
          FROM series WHERE id = $1`,
         [id]
       )

@@ -7,6 +7,7 @@ import PublicIcon from '@mui/icons-material/Public'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import LinkIcon from '@mui/icons-material/Link'
 import LocalOfferIcon from '@mui/icons-material/LocalOffer'
+import StreamIcon from '@mui/icons-material/Stream'
 import { getProxiedImageUrl } from '@aperture/ui'
 import type { Series } from '../types'
 
@@ -69,8 +70,44 @@ function MetacriticBadge({ score }: { score: number }) {
   )
 }
 
+// Letterboxd score badge
+function LetterboxdBadge({ score }: { score: number }) {
+  // Letterboxd uses a 5-star scale
+  const displayScore = score.toFixed(1)
+  const percentage = (score / 5) * 100
+  
+  // Color based on score
+  const getColor = () => {
+    if (percentage >= 80) return '#00e054' // Green for excellent
+    if (percentage >= 60) return '#40bcf4' // Blue for good
+    if (percentage >= 40) return '#ee9b00' // Orange for average
+    return '#ff8000' // Dark orange for below average
+  }
+  
+  return (
+    <Tooltip title={`Letterboxd: ${displayScore}/5`}>
+      <Box sx={{ 
+        display: 'inline-flex', 
+        alignItems: 'center', 
+        gap: 0.5,
+        bgcolor: getColor(),
+        color: 'white',
+        px: 1,
+        py: 0.25,
+        borderRadius: 1,
+        fontSize: '0.75rem',
+        fontWeight: 600,
+      }}>
+        <span>📽️</span>
+        <span>{displayScore}</span>
+      </Box>
+    </Tooltip>
+  )
+}
+
 export function SeriesInfoCard({ series }: SeriesInfoCardProps) {
-  const hasRatings = series.rt_critic_score || series.rt_audience_score || series.metacritic_score
+  const hasRatings = series.rt_critic_score || series.rt_audience_score || series.metacritic_score || series.letterboxd_score
+  const hasStreamingProviders = series.streaming_providers && series.streaming_providers.length > 0
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -90,6 +127,9 @@ export function SeriesInfoCard({ series }: SeriesInfoCardProps) {
             {series.metacritic_score && (
               <MetacriticBadge score={series.metacritic_score} />
             )}
+            {series.letterboxd_score && (
+              <LetterboxdBadge score={series.letterboxd_score} />
+            )}
           </Box>
           {series.rt_consensus && (
             <Typography 
@@ -100,6 +140,29 @@ export function SeriesInfoCard({ series }: SeriesInfoCardProps) {
               "{series.rt_consensus}"
             </Typography>
           )}
+        </Paper>
+      )}
+
+      {/* Streaming Providers Section */}
+      {hasStreamingProviders && (
+        <Paper sx={{ p: 2, borderRadius: 2, bgcolor: 'background.paper' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <StreamIcon sx={{ color: 'info.main', fontSize: 20 }} />
+            <Typography variant="subtitle1" fontWeight={600}>
+              Also Available On
+            </Typography>
+          </Box>
+          <Stack direction="row" flexWrap="wrap" gap={0.5}>
+            {series.streaming_providers!.map((provider) => (
+              <Chip
+                key={provider.id}
+                label={provider.name}
+                size="small"
+                variant="outlined"
+                sx={{ fontSize: '0.7rem' }}
+              />
+            ))}
+          </Stack>
         </Paper>
       )}
 

@@ -21,6 +21,11 @@ interface MovieRow {
   awards_summary: string | null
 }
 
+interface StreamingProvider {
+  id: number
+  name: string
+}
+
 interface MovieDetailRow extends MovieRow {
   // Crew
   directors: string[] | null
@@ -38,6 +43,11 @@ interface MovieDetailRow extends MovieRow {
   rt_consensus: string | null
   metacritic_score: number | null
   awards_summary: string | null
+  languages: string[] | null
+  // MDBList enrichment
+  letterboxd_score: number | null
+  mdblist_score: number | null
+  streaming_providers: StreamingProvider[] | null
 }
 
 interface MoviesListResponse {
@@ -164,7 +174,8 @@ const moviesRoutes: FastifyPluginAsync = async (fastify) => {
                 community_rating, runtime_minutes, poster_url, backdrop_url, created_at, updated_at,
                 directors, writers, cinematographers, composers, editors,
                 keywords, collection_id, collection_name,
-                rt_critic_score, rt_audience_score, rt_consensus, metacritic_score, awards_summary
+                rt_critic_score, rt_audience_score, rt_consensus, metacritic_score, awards_summary,
+                languages, letterboxd_score, mdblist_score, streaming_providers
          FROM movies WHERE id = $1`,
         [id]
       )

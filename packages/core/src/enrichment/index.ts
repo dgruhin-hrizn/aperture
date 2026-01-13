@@ -205,6 +205,8 @@ async function enrichMovie(
          rt_audience_score = COALESCE($9, rt_audience_score),
          metacritic_score = COALESCE($10, metacritic_score),
          awards_summary = COALESCE($11, awards_summary),
+         languages = COALESCE($12, languages),
+         production_countries = COALESCE($13, production_countries),
          enriched_at = NOW()
        WHERE id = $1`,
       [
@@ -219,6 +221,8 @@ async function enrichMovie(
         omdbData?.rtAudienceScore ?? null,
         omdbData?.metacriticScore ?? null,
         omdbData?.awardsSummary ?? null,
+        omdbData?.languages ?? null,
+        omdbData?.countries ?? null,
       ]
     )
     return true
@@ -331,6 +335,8 @@ async function enrichSeries(
          rt_audience_score = COALESCE($4, rt_audience_score),
          metacritic_score = COALESCE($5, metacritic_score),
          awards_summary = COALESCE($6, awards_summary),
+         languages = COALESCE($7, languages),
+         production_countries = COALESCE($8, production_countries),
          enriched_at = NOW()
        WHERE id = $1`,
       [
@@ -340,6 +346,8 @@ async function enrichSeries(
         omdbData?.rtAudienceScore ?? null,
         omdbData?.metacriticScore ?? null,
         omdbData?.awardsSummary ?? null,
+        omdbData?.languages ?? null,
+        omdbData?.countries ?? null,
       ]
     )
     return true

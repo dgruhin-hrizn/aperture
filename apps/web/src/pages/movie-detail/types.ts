@@ -1,3 +1,8 @@
+export interface StreamingProvider {
+  id: number
+  name: string
+}
+
 export interface Movie {
   id: string
   provider_item_id: string
@@ -26,6 +31,11 @@ export interface Movie {
   rt_consensus?: string | null
   metacritic_score?: number | null
   awards_summary?: string | null
+  languages?: string[] | null
+  // MDBList enrichment
+  letterboxd_score?: number | null
+  mdblist_score?: number | null
+  streaming_providers?: StreamingProvider[] | null
 }
 
 export interface WatchStatus {

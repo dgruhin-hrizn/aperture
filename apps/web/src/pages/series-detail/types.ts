@@ -1,6 +1,11 @@
 // Studios can be either strings or objects with id/name
 export type StudioItem = string | { id?: string; name: string }
 
+export interface StreamingProvider {
+  id: number
+  name: string
+}
+
 export interface Series {
   id: string
   provider_item_id: string
@@ -38,6 +43,11 @@ export interface Series {
   rt_consensus?: string | null
   metacritic_score?: number | null
   awards_summary?: string | null
+  languages?: string[] | null
+  // MDBList enrichment
+  letterboxd_score?: number | null
+  mdblist_score?: number | null
+  streaming_providers?: StreamingProvider[] | null
 }
 
 export interface Episode {

@@ -21,7 +21,12 @@ import {
   AccordionSummary,
   AccordionDetails,
   Divider,
+  Radio,
+  RadioGroup,
+  FormControl,
+  FormLabel,
 } from '@mui/material'
+import { MDBListSelector } from './MDBListSelector'
 import SaveIcon from '@mui/icons-material/Save'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import RestoreIcon from '@mui/icons-material/Restore'
@@ -41,8 +46,14 @@ import SettingsIcon from '@mui/icons-material/Settings'
 import TuneIcon from '@mui/icons-material/Tune'
 import OutputIcon from '@mui/icons-material/Output'
 import ImageIcon from '@mui/icons-material/Image'
+import PublicIcon from '@mui/icons-material/Public'
+import HomeIcon from '@mui/icons-material/Home'
+import MergeIcon from '@mui/icons-material/Merge'
+import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted'
 import { ImageUpload } from '../../../components/ImageUpload'
 import { DEFAULT_LIBRARY_IMAGES } from '../../setup/constants'
+
+type PopularitySource = 'local' | 'mdblist' | 'hybrid'
 
 interface TopPicksConfig {
   isEnabled: boolean
@@ -71,6 +82,14 @@ interface TopPicksConfig {
   // Collection/Playlist names
   moviesCollectionName: string
   seriesCollectionName: string
+  // MDBList popularity source
+  popularitySource: PopularitySource
+  mdblistMoviesListId: number | null
+  mdblistSeriesListId: number | null
+  mdblistMoviesListName: string | null
+  mdblistSeriesListName: string | null
+  hybridLocalWeight: number
+  hybridMdblistWeight: number
 }
 
 interface LibraryImageInfo {
@@ -97,6 +116,9 @@ export function TopPicksSection() {
     'top-picks-series': { url: DEFAULT_LIBRARY_IMAGES['top-picks-series'], isDefault: true },
   })
   const [uploadingFor, setUploadingFor] = useState<string | null>(null)
+
+  // MDBList state
+  const [mdblistConfigured, setMdblistConfigured] = useState(false)
 
   // Fetch images - override defaults only if custom images exist
   const fetchImages = useCallback(async () => {
@@ -193,11 +215,26 @@ export function TopPicksSection() {
     }
   }, [])
 
+  // Check if MDBList is configured
+  const checkMDBListConfig = useCallback(async () => {
+    try {
+      const response = await fetch('/api/mdblist/config', { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        setMdblistConfigured(data.configured)
+      }
+    } catch {
+      setMdblistConfigured(false)
+    }
+  }, [])
+
+
   // Fetch config on mount
   useEffect(() => {
     fetchConfig()
     fetchImages()
-  }, [fetchImages])
+    checkMDBListConfig()
+  }, [fetchImages, checkMDBListConfig])
 
   const fetchConfig = async () => {
     try {
@@ -290,9 +327,10 @@ export function TopPicksSection() {
     )
   }
 
-  // Ensure weights sum to 1.0
+  // Calculate proportional percentages for display (weights are normalized at calculation time)
   const totalWeight = config.uniqueViewersWeight + config.playCountWeight + config.completionWeight
-  const weightsValid = Math.abs(totalWeight - 1.0) < 0.01
+  const getProportionalPercent = (weight: number) => 
+    totalWeight > 0 ? Math.round((weight / totalWeight) * 100) : 33
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -413,22 +451,192 @@ export function TopPicksSection() {
         </CardContent>
       </Card>
 
-      {/* Section 2: Popularity Algorithm */}
+      {/* Section 2: Data Source */}
+      <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
+        <CardContent>
+          <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <FormatListBulletedIcon fontSize="small" color="primary" />
+            Data Source
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Choose where popularity rankings come from.
+          </Typography>
+
+          <FormControl component="fieldset" disabled={!config.isEnabled}>
+            <RadioGroup
+              value={config.popularitySource}
+              onChange={(e) => updateConfig({ popularitySource: e.target.value as PopularitySource })}
+            >
+              <FormControlLabel
+                value="local"
+                control={<Radio />}
+                label={
+                  <Box>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <HomeIcon fontSize="small" color="primary" />
+                      <Typography variant="body1" fontWeight={500}>Local Watch History</Typography>
+                    </Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Rankings based on what your Emby/Jellyfin users are watching
+                    </Typography>
+                  </Box>
+                }
+              />
+              <FormControlLabel
+                value="mdblist"
+                control={<Radio />}
+                disabled={!mdblistConfigured}
+                label={
+                  <Box>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <PublicIcon fontSize="small" color={mdblistConfigured ? 'primary' : 'disabled'} />
+                      <Typography variant="body1" fontWeight={500}>MDBList Rankings</Typography>
+                      {!mdblistConfigured && (
+                        <Chip label="Configure MDBList first" size="small" color="warning" variant="outlined" />
+                      )}
+                    </Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Use curated lists from MDBList.com (e.g., "Top Watched Movies This Week")
+                    </Typography>
+                  </Box>
+                }
+              />
+              <FormControlLabel
+                value="hybrid"
+                control={<Radio />}
+                disabled={!mdblistConfigured}
+                label={
+                  <Box>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <MergeIcon fontSize="small" color={mdblistConfigured ? 'primary' : 'disabled'} />
+                      <Typography variant="body1" fontWeight={500}>Hybrid (Local + MDBList)</Typography>
+                    </Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Blend local watch data with internet popularity for balanced rankings
+                    </Typography>
+                  </Box>
+                }
+              />
+            </RadioGroup>
+          </FormControl>
+
+          {/* MDBList List Selection (shown for mdblist or hybrid) */}
+          {(config.popularitySource === 'mdblist' || config.popularitySource === 'hybrid') && mdblistConfigured && (
+            <Box sx={{ mt: 3, pl: 4 }}>
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                  <Box sx={{ position: 'relative' }}>
+                    <MDBListSelector
+                      value={config.mdblistMoviesListId ? { id: config.mdblistMoviesListId, name: config.mdblistMoviesListName || '' } : null}
+                      onChange={(newValue) => {
+                        updateConfig({
+                          mdblistMoviesListId: newValue?.id || null,
+                          mdblistMoviesListName: newValue?.name || null,
+                        })
+                      }}
+                      mediatype="movie"
+                      label="Movies List"
+                      helperText="Select a MDBList to use for movie rankings"
+                      disabled={!config.isEnabled}
+                    />
+                  </Box>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Box sx={{ position: 'relative' }}>
+                    <MDBListSelector
+                      value={config.mdblistSeriesListId ? { id: config.mdblistSeriesListId, name: config.mdblistSeriesListName || '' } : null}
+                      onChange={(newValue) => {
+                        updateConfig({
+                          mdblistSeriesListId: newValue?.id || null,
+                          mdblistSeriesListName: newValue?.name || null,
+                        })
+                      }}
+                      mediatype="show"
+                      label="Series List"
+                      helperText="Select a MDBList to use for series rankings"
+                      disabled={!config.isEnabled}
+                    />
+                  </Box>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+
+          {/* Hybrid Weights (only for hybrid mode) */}
+          {config.popularitySource === 'hybrid' && mdblistConfigured && (
+            <Box sx={{ mt: 3, pl: 4 }}>
+              <Typography variant="body2" fontWeight={500} gutterBottom>
+                Blend Weights
+              </Typography>
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                  <Box display="flex" alignItems="center" gap={1} mb={1}>
+                    <HomeIcon fontSize="small" color="primary" />
+                    <Typography variant="body2">Local Weight</Typography>
+                    <Chip 
+                      label={`${Math.round(config.hybridLocalWeight * 100)}%`} 
+                      size="small" 
+                      color="primary"
+                      variant="outlined"
+                    />
+                  </Box>
+                  <Slider
+                    value={config.hybridLocalWeight * 100}
+                    onChange={(_, value) => updateConfig({ 
+                      hybridLocalWeight: (value as number) / 100,
+                      hybridMdblistWeight: 1 - (value as number) / 100,
+                    })}
+                    min={0}
+                    max={100}
+                    disabled={!config.isEnabled}
+                    valueLabelDisplay="auto"
+                    valueLabelFormat={(v) => `${v}%`}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Box display="flex" alignItems="center" gap={1} mb={1}>
+                    <PublicIcon fontSize="small" color="primary" />
+                    <Typography variant="body2">MDBList Weight</Typography>
+                    <Chip 
+                      label={`${Math.round(config.hybridMdblistWeight * 100)}%`} 
+                      size="small" 
+                      color="primary"
+                      variant="outlined"
+                    />
+                  </Box>
+                  <Slider
+                    value={config.hybridMdblistWeight * 100}
+                    onChange={(_, value) => updateConfig({ 
+                      hybridMdblistWeight: (value as number) / 100,
+                      hybridLocalWeight: 1 - (value as number) / 100,
+                    })}
+                    min={0}
+                    max={100}
+                    disabled={!config.isEnabled}
+                    valueLabelDisplay="auto"
+                    valueLabelFormat={(v) => `${v}%`}
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Section 3: Popularity Algorithm (only for local or hybrid) */}
+      {(config.popularitySource === 'local' || config.popularitySource === 'hybrid') && (
       <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
         <CardContent>
           <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
             <Box>
               <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <TuneIcon fontSize="small" color="primary" />
-                Popularity Algorithm
+                Local Popularity Algorithm
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Adjust how popularity is calculated. These weights determine which factors matter most.
+                Adjust the relative importance of each factor. Values are automatically normalized.
               </Typography>
             </Box>
-            {!weightsValid && (
-              <Chip label="Weights must sum to 100%" size="small" color="error" />
-            )}
           </Box>
 
           <Alert severity="info" icon={<InfoOutlinedIcon />} sx={{ my: 2 }}>
@@ -445,20 +653,20 @@ export function TopPicksSection() {
                 <GroupIcon fontSize="small" color="primary" />
                 <Typography variant="body2" fontWeight={500}>Unique Viewers</Typography>
                 <Chip 
-                  label={`${Math.round(config.uniqueViewersWeight * 100)}%`} 
+                  label={`${getProportionalPercent(config.uniqueViewersWeight)}%`} 
                   size="small" 
                   color="primary"
                   variant="outlined"
                 />
               </Box>
               <Slider
-                value={config.uniqueViewersWeight * 100}
+                value={Math.round(config.uniqueViewersWeight * 100)}
                 onChange={(_, value) => updateConfig({ uniqueViewersWeight: (value as number) / 100 })}
                 min={0}
                 max={100}
+                step={1}
                 disabled={!config.isEnabled}
                 valueLabelDisplay="auto"
-                valueLabelFormat={(v) => `${v}%`}
               />
             </Grid>
             <Grid item xs={12} md={4}>
@@ -466,20 +674,20 @@ export function TopPicksSection() {
                 <PlayArrowIcon fontSize="small" color="primary" />
                 <Typography variant="body2" fontWeight={500}>Play Count</Typography>
                 <Chip 
-                  label={`${Math.round(config.playCountWeight * 100)}%`} 
+                  label={`${getProportionalPercent(config.playCountWeight)}%`} 
                   size="small" 
                   color="primary"
                   variant="outlined"
                 />
               </Box>
               <Slider
-                value={config.playCountWeight * 100}
+                value={Math.round(config.playCountWeight * 100)}
                 onChange={(_, value) => updateConfig({ playCountWeight: (value as number) / 100 })}
                 min={0}
                 max={100}
+                step={1}
                 disabled={!config.isEnabled}
                 valueLabelDisplay="auto"
-                valueLabelFormat={(v) => `${v}%`}
               />
             </Grid>
             <Grid item xs={12} md={4}>
@@ -487,27 +695,28 @@ export function TopPicksSection() {
                 <CheckCircleIcon fontSize="small" color="primary" />
                 <Typography variant="body2" fontWeight={500}>Completion Rate</Typography>
                 <Chip 
-                  label={`${Math.round(config.completionWeight * 100)}%`} 
+                  label={`${getProportionalPercent(config.completionWeight)}%`} 
                   size="small" 
                   color="primary"
                   variant="outlined"
                 />
               </Box>
               <Slider
-                value={config.completionWeight * 100}
+                value={Math.round(config.completionWeight * 100)}
                 onChange={(_, value) => updateConfig({ completionWeight: (value as number) / 100 })}
                 min={0}
                 max={100}
+                step={1}
                 disabled={!config.isEnabled}
                 valueLabelDisplay="auto"
-                valueLabelFormat={(v) => `${v}%`}
               />
             </Grid>
           </Grid>
         </CardContent>
       </Card>
+      )}
 
-      {/* Section 3: Output Configuration */}
+      {/* Section 4: Output Configuration */}
       <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
         <CardContent>
           <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -893,7 +1102,7 @@ export function TopPicksSection() {
               variant="contained"
               startIcon={saving ? <CircularProgress size={16} /> : <SaveIcon />}
               onClick={handleSave}
-              disabled={saving || !hasChanges || !weightsValid}
+              disabled={saving || !hasChanges}
               size="large"
             >
               {saving ? 'Saving...' : 'Save Changes'}
