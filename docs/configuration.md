@@ -10,6 +10,7 @@ This guide covers all configuration options for Aperture, including Docker setup
 - [Environment Variables](#environment-variables)
 - [Admin UI Configuration](#admin-ui-configuration)
 - [Symlinks vs STRM Files](#symlinks-vs-strm-files)
+- [MDBList Integration](#mdblist-integration)
 - [Trakt Integration](#trakt-integration)
 - [Reverse Proxy Setup](#reverse-proxy-setup)
 
@@ -134,27 +135,32 @@ When you first start Aperture, the Setup Wizard guides you through configuration
 1. **Restore** — Optionally restore from a previous backup
 2. **Media Server** — Connect to your Emby or Jellyfin server
 3. **Source Libraries** — Select which libraries to include in recommendations
-4. **AI Recommendations** — Configure library naming and cover images
-5. **Validate** — Verify paths and output format (symlinks vs STRM)
-6. **Users** — Select which users get personalized recommendations
-7. **Top Picks** — Configure trending content libraries (optional)
-8. **OpenAI** — Enter your OpenAI API key
-9. **Initial Sync** — Run first-time sync jobs (with re-run capability)
-10. **Complete** — Review created libraries and default schedules
+4. **File Locations** — Configure path mappings (with auto-detection)
+5. **AI Recommendations** — Configure library naming and cover images
+6. **Validate** — Verify output format (symlinks vs STRM)
+7. **Users** — Select which users get personalized recommendations
+8. **Top Picks** — Configure trending content libraries (optional)
+9. **OpenAI** — Enter your OpenAI API key
+10. **Initial Sync** — Run first-time sync jobs (with re-run capability)
+11. **Complete** — Review created libraries and default schedules
 
-### Output Configuration Step
+### File Locations Step
 
-The wizard will ask for two paths:
+This step configures path mappings between Aperture and your media server:
 
-| Question | What to Enter | Example |
-|----------|---------------|---------|
-| **Media Server Path Prefix** | How your media server sees your files | `/mnt/` |
+| Setting | Description | Default |
+|---------|-------------|---------|
 | **Aperture Libraries Path** | Where media server sees Aperture's output | `/mnt/ApertureLibraries/` |
+| **Media Server Path Prefix** | Base path for your media files | `/mnt/` |
 
-**How to find your Media Server Path Prefix:**
+**Auto-Detection**: Click "Detect Paths Automatically" to let Aperture discover the correct paths by comparing how your media server and Aperture see the same files.
+
+**Skip Option**: If you have a standard setup (Unraid with default paths), you can skip this step to use the defaults.
+
+**How to find paths manually:**
 1. Open Emby/Jellyfin and go to any movie
 2. Click the **⋮** menu → **Media Info**
-3. Look at the **Path** field - the prefix is everything before your media folders
+3. Look at the **Path** field - the prefix is everything before your media folders (e.g., `/mnt/`)
 
 ---
 
@@ -196,7 +202,6 @@ The Admin Settings page is organized into tabs:
 
 - **Media Server**: Connection details and test connection
 - **Source Libraries**: Enable/disable libraries to include in sync
-- **Trakt Integration**: Configure Trakt.tv client credentials
 
 ### AI Recommendations Tab
 
@@ -207,9 +212,17 @@ The Admin Settings page is organized into tabs:
 
 ### Top Picks Tab
 
-- **Configuration**: Time window, counts, minimum viewers
-- **Scoring Algorithm**: Weight unique viewers, play count, completion
+- **Popularity Source**: Choose Local, MDBList, or Hybrid for movies and series
+- **MDBList Selection**: Browse/search lists, choose sort order, preview library matches
+- **Local Settings**: Time window, minimum viewers, scoring weights
 - **Output Modes**: Library, Collection, and/or Playlist
+
+### Integrations Tab
+
+- **OpenAI**: API key configuration and model selection
+- **MDBList**: API key and connection status
+- **TMDb / OMDb**: Additional metadata sources
+- **Trakt**: OAuth client credentials for rating sync
 
 ### System Tab
 
@@ -298,6 +311,36 @@ ApertureLibraries/
 ├── top-picks-movies/                 ← Trending movies
 └── top-picks-series/                 ← Trending series
 ```
+
+---
+
+## MDBList Integration
+
+MDBList provides curated movie and TV lists with rich metadata from multiple sources (IMDb, TMDb, Rotten Tomatoes, Metacritic, etc.).
+
+### Setup
+
+1. Get a free API key from [mdblist.com/preferences](https://mdblist.com/preferences/)
+2. Navigate to **Admin → Settings → Integrations → MDBList**
+3. Enter your API key and click **Test Connection**
+4. Save the configuration
+
+### Features
+
+Once configured, MDBList enables:
+
+- **Top Picks from MDBList** — Use public or private lists as your Top Picks source
+- **Sort Options** — Rank by IMDb popularity, rating, Rotten Tomatoes score, etc.
+- **Library Match Preview** — See which list items exist in your library before enabling
+
+### Rate Limits
+
+| Tier       | Daily Requests | Rate Limit    |
+| ---------- | -------------- | ------------- |
+| Free       | 1,000          | 10 req/sec    |
+| Supporter  | 100,000        | 40 req/sec    |
+
+Aperture automatically respects these limits. If you hit the daily limit, a warning alert will appear.
 
 ---
 

@@ -24,7 +24,9 @@ This guide covers initial setup, ongoing operations, and administrative configur
 - [AI Explanation Settings](#ai-explanation-settings)
 - [Library Title Templates](#library-title-templates)
 - [Output Format Settings](#output-format-settings)
+- [File Locations Configuration](#file-locations-configuration)
 - [Watch History Management](#watch-history-management)
+- [API Error Alerts](#api-error-alerts)
 - [Database Management](#database-management)
 - [Library Image Management](#library-image-management)
 - [Emby Home Row Sorting (Series)](#emby-home-row-sorting-series)
@@ -35,7 +37,7 @@ This guide covers initial setup, ongoing operations, and administrative configur
 
 ## First-Time Setup Wizard
 
-When you first access Aperture, you'll be guided through a 10-step setup wizard:
+When you first access Aperture, you'll be guided through an 11-step setup wizard:
 
 ### Step 1: Restore (Optional)
 
@@ -61,33 +63,43 @@ Select which libraries to include in recommendations:
 - Toggle on movie and TV libraries you want Aperture to analyze
 - Disabled libraries won't be synced
 
-### Step 4: AI Recommendations
+### Step 4: File Locations
+
+Configure path mappings between Aperture and your media server:
+
+- **Auto-Detect Paths** — Click to automatically discover the correct paths by comparing how your media server and Aperture see the same files
+- **Aperture Libraries Path** — Where your media server sees Aperture's output folder
+- **Media Server Path Prefix** — Base path where your media server sees your media files
+- **Skip** — Use defaults (`/mnt/ApertureLibraries/`, `/mnt/`) if you have a standard setup
+
+This step is critical for symlinks to work. If you're unsure, try auto-detection first.
+
+### Step 5: AI Recommendations
 
 Configure library naming and cover images:
 - Set default library name templates
 - Upload custom banner images (optional)
 
-### Step 5: Validate
+### Step 6: Validate
 
-Verify paths and output configuration:
-- **Media Server Path Prefix** — How your media server sees files (check Media Info on any movie)
-- **Aperture Libraries Path** — Where Aperture's output appears in your media server
+Verify output format configuration:
 - **Output Format** — Choose symlinks (recommended) or STRM files
+- Review the configured paths from the previous step
 
-### Step 6: Users
+### Step 7: Users
 
 Select which users receive personalized recommendations:
 - Toggle movies and/or series for each user
 - Users need watch history for recommendations to work
 
-### Step 7: Top Picks (Optional)
+### Step 8: Top Picks (Optional)
 
 Configure global trending content:
 - Enable/disable Top Picks
 - Set output modes (Library, Collection, Playlist)
 - Configure popularity algorithm
 
-### Step 8: OpenAI Configuration
+### Step 9: OpenAI Configuration
 
 Configure your OpenAI API key:
 
@@ -97,14 +109,14 @@ Configure your OpenAI API key:
 
 > **Note**: You can always configure OpenAI later in Admin → Settings → AI.
 
-### Step 9: Initial Sync
+### Step 10: Initial Sync
 
 Run first-time sync jobs with real-time progress:
 - All required jobs run automatically
 - You can re-run individual jobs if needed
 - View logs and progress in real-time
 
-### Step 10: Complete
+### Step 11: Complete
 
 Review what was created:
 - Libraries created in your media server
@@ -235,23 +247,68 @@ Other settings:
 
 Navigate to **Admin → Settings → Top Picks**
 
-Top Picks shows globally popular content based on aggregated watch data across all users.
+Top Picks shows globally popular content. You can base this on your server's watch data, external MDBList rankings, or a hybrid of both.
 
-### Content Selection
+### Popularity Source
 
-- **Enable/Disable** — Turn Top Picks on or off
-- **Time Window** — How far back to analyze (e.g., 30 days)
-- **Movies Count** — How many movies to include
-- **Series Count** — How many series to include
+Choose where popularity rankings come from (configured separately for Movies and Series):
+
+| Source      | Description                                                                 |
+| ----------- | --------------------------------------------------------------------------- |
+| **Local**   | Based on your server's watch history (unique viewers, play counts, completion) |
+| **MDBList** | Use rankings from a public or private MDBList list                          |
+| **Hybrid**  | Combine local watch data with MDBList rankings (configurable weights)       |
+
+### Local Mode Settings
+
+When using **Local** as the popularity source:
+
+- **Time Window** — How far back to analyze watch history (e.g., 30 days)
 - **Minimum Viewers** — Require at least N unique viewers for inclusion
+- **Count** — How many items to include in Top Picks
 
-### Popularity Algorithm
+**Scoring Weights** (should sum to 1.0):
 
-Configure how popularity is calculated by weighting:
+| Weight              | Description                                    | Default |
+| ------------------- | ---------------------------------------------- | ------- |
+| **Unique Viewers**  | Different users who watched the content        | 0.5     |
+| **Play Count**      | Total plays across all users                   | 0.3     |
+| **Completion Rate** | How often users finish what they start         | 0.2     |
 
-- **Unique Viewers** — Different users who watched the content
-- **Play Count** — Total plays across all users
-- **Completion Rate** — How often users finish what they start
+### MDBList Mode Settings
+
+When using **MDBList** as the popularity source:
+
+1. **Select a List** — Browse popular lists, your own lists, search, or enter a list ID directly
+2. **Choose Sort Order** — How items in the list should be ranked:
+
+| Sort Option        | Description                                           |
+| ------------------ | ----------------------------------------------------- |
+| **MDBList Score**  | Combined score from all rating sources                |
+| **Average Score**  | Simple average of all ratings                         |
+| **IMDb Rating**    | Sort by IMDb user rating (10-point scale)             |
+| **IMDb Votes**     | Sort by number of IMDb votes (most voted first)       |
+| **IMDb Popularity**| Sort by IMDb popularity rank (most popular first)     |
+| **TMDb Popularity**| Sort by TMDb popularity score                         |
+| **Rotten Tomatoes**| Sort by Rotten Tomatoes critic score                  |
+| **Metacritic**     | Sort by Metacritic score                              |
+
+3. **Library Match Preview** — After selecting a list, Aperture shows:
+   - Total items in the list
+   - How many match your library
+   - Which items are missing (expandable list)
+
+> **Note**: Only items that exist in your library will appear in Top Picks. If a list has 100 items but you only have 30 in your library, your Top Picks will show those 30.
+
+### Hybrid Mode Settings
+
+When using **Hybrid** as the popularity source:
+
+- Configure both Local settings (time window, minimum viewers) AND select an MDBList
+- **Local Weight** — How much local watch data influences the final ranking (default: 0.5)
+- **MDBList Weight** — How much the external list influences the ranking (default: 0.5)
+
+Items are scored by combining normalized local popularity with their MDBList position.
 
 ### Output Configuration
 
@@ -379,6 +436,82 @@ Configure how virtual libraries are created, separately for Movies and Series:
 
 ---
 
+## File Locations Configuration
+
+Navigate to **Admin → Settings → Setup → File Locations**
+
+This section configures how Aperture creates symlinks and where your media server finds Aperture's output libraries. Getting these paths right is essential for symlinks to work correctly.
+
+### The Problem
+
+When using symlinks, Aperture needs to know:
+1. Where your **media server** sees your original media files
+2. Where your **media server** sees Aperture's output folder
+
+If these paths don't match your actual Docker volume mounts, you'll see "path does not exist" errors when Aperture tries to create symlinks or when your media server tries to play content from Aperture libraries.
+
+### Configuration Options
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| **Aperture Libraries Path** | Where your media server sees the `/aperture-libraries` volume | `/mnt/ApertureLibraries/` |
+| **Media Server Path Prefix** | Base path where your media server sees your media files | `/mnt/` |
+
+### Auto-Detection
+
+Click **Auto-Detect Paths** to let Aperture automatically discover the correct paths by:
+1. Fetching a sample file path from your media server
+2. Comparing it to how Aperture sees the same file
+3. Calculating the path prefix mapping
+
+Auto-detection works when:
+- You have movies synced in Aperture
+- The media server and Aperture can both access the same files
+- The paths differ only by a prefix (e.g., `/mnt/Movies/...` vs `/data/Movies/...`)
+
+### Use Case Examples
+
+**Unraid (Default Setup)**
+
+Most Unraid users mount their media at `/mnt/user/Media/` and their media server sees it at `/mnt/`:
+
+| Setting | Value |
+|---------|-------|
+| Aperture Libraries Path | `/mnt/ApertureLibraries/` |
+| Media Server Path Prefix | `/mnt/` |
+
+**Synology NAS**
+
+Synology users often use `/volume1/` paths:
+
+| Setting | Value |
+|---------|-------|
+| Aperture Libraries Path | `/volume1/docker/aperture/libraries/` |
+| Media Server Path Prefix | `/volume1/` |
+
+**Custom Docker Setup (Different Mount Points)**
+
+If your media server mounts media at `/data/` but Aperture mounts it at `/media/`:
+
+| Setting | Value |
+|---------|-------|
+| Aperture Libraries Path | `/data/ApertureLibraries/` |
+| Media Server Path Prefix | `/data/` |
+
+### Troubleshooting
+
+**"Path does not exist" errors:**
+- Run auto-detection to find the correct paths
+- Check your Docker volume mounts match the configured paths
+- Verify your media server can access the ApertureLibraries folder
+
+**Symlinks not working:**
+- Ensure both containers share the same underlying filesystem
+- The path prefix must match exactly (including trailing slashes)
+- Consider using STRM files if symlinks aren't possible in your setup
+
+---
+
 ## Watch History Management
 
 Navigate to **Admin → Users → [User] → Settings**
@@ -388,6 +521,38 @@ Control whether users can mark items as unwatched:
 - **Enable Watch History Management** — Toggle to allow this user to remove items from their watch history
 - When enabled, users see "Mark Unwatched" buttons on movies, episodes, seasons, and series
 - Changes sync to both Aperture's database and the media server
+
+---
+
+## API Error Alerts
+
+Aperture tracks errors from external API integrations (MDBList, TMDb, OMDb, OpenAI) and displays alerts when issues occur.
+
+### Error Types
+
+| Type              | Severity | Description                                      |
+| ----------------- | -------- | ------------------------------------------------ |
+| **Authentication**| Error    | Invalid API key or expired credentials           |
+| **Rate Limit**    | Warning  | Daily/hourly request limit reached               |
+| **Service Outage**| Info     | Temporary server errors (500, 502, 503, 504)     |
+
+### Alert Behavior
+
+- **Auth errors** — Require manual action (check/update API key)
+- **Rate limits** — Show reset time; auto-clear when limit resets
+- **Outage errors** — **Auto-dismiss** when a successful connection is detected
+
+### Auto-Dismiss for Outages
+
+When an external service has a temporary outage, Aperture logs the error and shows an alert. Once the service recovers:
+
+- Testing the connection in Settings will automatically clear the alert
+- No manual dismissal needed for recovered services
+- This prevents stale "Service Unavailable" alerts from persisting
+
+### Manual Dismissal
+
+Click the **X** button on any alert to dismiss it. Dismissed errors are cleaned up after 7 days.
 
 ---
 

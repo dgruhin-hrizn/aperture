@@ -1,6 +1,6 @@
 /**
  * API Errors Database Functions
- * 
+ *
  * Manages the api_errors table for tracking and displaying
  * rate limits, auth failures, and service outages.
  */
@@ -45,12 +45,9 @@ function rowToRecord(row: ApiErrorRow): ApiErrorRecord {
 /**
  * Log an API error to the database
  */
-export async function logApiError(
-  error: ParsedApiError,
-  jobId?: string
-): Promise<ApiErrorRecord> {
+export async function logApiError(error: ParsedApiError, jobId?: string): Promise<ApiErrorRecord> {
   const record = toApiErrorRecord(error, jobId)
-  
+
   const result = await queryOne<ApiErrorRow>(
     `INSERT INTO api_errors (provider, error_type, error_code, http_status, job_id, error_message, reset_at, action_url)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -66,11 +63,11 @@ export async function logApiError(
       record.actionUrl,
     ]
   )
-  
+
   if (!result) {
     throw new Error('Failed to log API error')
   }
-  
+
   logger.info({ provider: record.provider, type: record.errorType }, 'API error logged')
   return rowToRecord(result)
 }
@@ -85,7 +82,7 @@ export async function getActiveApiErrors(): Promise<ApiErrorRecord[]> {
      ORDER BY created_at DESC
      LIMIT 50`
   )
-  
+
   return result.rows.map(rowToRecord)
 }
 
@@ -102,7 +99,7 @@ export async function getActiveErrorsByProvider(
      LIMIT 10`,
     [provider]
   )
-  
+
   return result.rows.map(rowToRecord)
 }
 
@@ -119,7 +116,7 @@ export async function getLatestErrorByProvider(
      LIMIT 1`,
     [provider]
   )
-  
+
   return result ? rowToRecord(result) : null
 }
 
@@ -127,10 +124,7 @@ export async function getLatestErrorByProvider(
  * Dismiss an API error (user acknowledges it)
  */
 export async function dismissApiError(errorId: string): Promise<void> {
-  await query(
-    `UPDATE api_errors SET dismissed_at = NOW() WHERE id = $1`,
-    [errorId]
-  )
+  await query(`UPDATE api_errors SET dismissed_at = NOW() WHERE id = $1`, [errorId])
   logger.debug({ errorId }, 'API error dismissed')
 }
 
@@ -145,9 +139,29 @@ export async function dismissErrorsByProvider(
      WHERE provider = $1 AND dismissed_at IS NULL`,
     [provider]
   )
-  
+
   const count = result.rowCount ?? 0
   logger.info({ provider, count }, 'API errors dismissed for provider')
+  return count
+}
+
+/**
+ * Dismiss outage errors for a provider (auto-resolve when service comes back online)
+ * This is called when a successful connection is established.
+ */
+export async function dismissOutageErrors(provider: ApiErrorRecord['provider']): Promise<number> {
+  const result = await query(
+    `UPDATE api_errors SET dismissed_at = NOW()
+     WHERE provider = $1 
+       AND dismissed_at IS NULL
+       AND error_type = 'outage'`,
+    [provider]
+  )
+
+  const count = result.rowCount ?? 0
+  if (count > 0) {
+    logger.info({ provider, count }, 'Outage errors auto-dismissed after successful connection')
+  }
   return count
 }
 
@@ -160,7 +174,7 @@ export async function cleanupOldErrors(): Promise<number> {
      WHERE dismissed_at IS NOT NULL
        AND dismissed_at < NOW() - INTERVAL '7 days'`
   )
-  
+
   const count = result.rowCount ?? 0
   if (count > 0) {
     logger.info({ count }, 'Old API errors cleaned up')
@@ -185,7 +199,7 @@ export async function hasRecentSimilarError(
        AND created_at > NOW() - INTERVAL '5 minutes'`,
     [provider, errorType, httpStatus]
   )
-  
+
   return parseInt(result?.count || '0', 10) > 0
 }
 
@@ -218,7 +232,7 @@ export async function getErrorSummary(): Promise<
      GROUP BY provider
      ORDER BY MAX(created_at) DESC`
   )
-  
+
   return result.rows.map((row) => ({
     provider: row.provider,
     activeCount: parseInt(row.active_count, 10),
@@ -226,4 +240,3 @@ export async function getErrorSummary(): Promise<
     latestCreatedAt: row.latest_created_at,
   }))
 }
-

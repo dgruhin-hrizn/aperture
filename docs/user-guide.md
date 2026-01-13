@@ -202,12 +202,13 @@ Navigate to **Series** in the sidebar:
 
 ### Top Movies & Top Series
 
-Navigate to **Top Movies** or **Top Series** in the sidebar to see global trending content:
+Navigate to **Top Movies** or **Top Series** in the sidebar to see trending content:
 
 - **Rank Badges** — Gold (#1), Silver (#2), Bronze (#3) badges for top 3
-- **Popularity Metrics** — View count, unique viewers, and popularity scores
 - **Grid View** — Browse all trending content with posters
 - **Quick Actions** — One-click play buttons for each title
+
+> **Note**: Top Picks can be based on your server's watch history, external rankings from MDBList, or a combination of both. Your admin configures the source and ranking criteria.
 
 ---
 
