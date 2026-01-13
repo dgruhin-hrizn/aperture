@@ -1124,6 +1124,9 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       mdblistSeriesListId?: number | null
       mdblistMoviesListName?: string | null
       mdblistSeriesListName?: string | null
+      // MDBList sort order
+      mdblistMoviesSort?: string
+      mdblistSeriesSort?: string
       // Hybrid weights
       hybridLocalWeight?: number
       hybridMdblistWeight?: number

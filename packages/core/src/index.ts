@@ -584,5 +584,8 @@ export {
   // Constants
   MDBLIST_API_BASE_URL,
   MDBLIST_BATCH_SIZE,
+  MDBLIST_SORT_OPTIONS,
+  // Types
+  type MDBListSortOption,
 } from './mdblist/index.js'
 

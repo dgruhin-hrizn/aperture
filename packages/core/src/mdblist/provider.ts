@@ -317,16 +317,35 @@ function normalizeListItem(item: Record<string, unknown>): MDBListItem {
 }
 
 /**
+ * Valid sort options for MDBList items
+ */
+export const MDBLIST_SORT_OPTIONS = [
+  { value: 'score', label: 'MDBList Score' },
+  { value: 'score_average', label: 'Average Score' },
+  { value: 'imdbrating', label: 'IMDb Rating' },
+  { value: 'imdbvotes', label: 'IMDb Votes' },
+  { value: 'imdbpopular', label: 'IMDb Popularity' },
+  { value: 'tmdbpopular', label: 'TMDb Popularity' },
+  { value: 'rtomatoes', label: 'Rotten Tomatoes' },
+  { value: 'metacritic', label: 'Metacritic' },
+] as const
+
+export type MDBListSortOption = (typeof MDBLIST_SORT_OPTIONS)[number]['value']
+
+/**
  * Get items from a list
  */
 export async function getListItems(
   listId: number,
-  options: { limit?: number; offset?: number } = {}
+  options: { limit?: number; offset?: number; sort?: string; order?: 'asc' | 'desc' } = {}
 ): Promise<MDBListItem[]> {
   let endpoint = `/lists/${listId}/items`
   const params = new URLSearchParams()
   if (options.limit) params.set('limit', String(options.limit))
   if (options.offset) params.set('offset', String(options.offset))
+  if (options.sort) params.set('sort', options.sort)
+  // Default to descending order for rankings
+  params.set('order', options.order || 'desc')
 
   if (params.toString()) {
     endpoint += `?${params.toString()}`

@@ -25,6 +25,12 @@ import {
   RadioGroup,
   FormControl,
   FormLabel,
+  Select,
+  MenuItem,
+  Collapse,
+  List,
+  ListItem,
+  ListItemText,
 } from '@mui/material'
 import { MDBListSelector } from './MDBListSelector'
 import SaveIcon from '@mui/icons-material/Save'
@@ -96,6 +102,9 @@ interface TopPicksConfig {
   mdblistSeriesListId: number | null
   mdblistMoviesListName: string | null
   mdblistSeriesListName: string | null
+  // MDBList sort order
+  mdblistMoviesSort: string
+  mdblistSeriesSort: string
   // Hybrid mode weights
   hybridLocalWeight: number
   hybridMdblistWeight: number
@@ -112,6 +121,34 @@ interface LibraryImageInfo {
   url?: string
   isDefault?: boolean
 }
+
+interface SortOption {
+  value: string
+  label: string
+}
+
+interface LibraryMatchResult {
+  total: number
+  matched: number
+  missing: Array<{
+    title: string
+    year: number | null
+    tmdbid?: number
+    imdbid?: string
+    mediatype: string
+  }>
+}
+
+const SORT_OPTIONS: SortOption[] = [
+  { value: 'score', label: 'MDBList Score' },
+  { value: 'score_average', label: 'Average Score' },
+  { value: 'imdbrating', label: 'IMDb Rating' },
+  { value: 'imdbvotes', label: 'IMDb Votes' },
+  { value: 'imdbpopular', label: 'IMDb Popularity' },
+  { value: 'tmdbpopular', label: 'TMDb Popularity' },
+  { value: 'rtomatoes', label: 'Rotten Tomatoes' },
+  { value: 'metacritic', label: 'Metacritic' },
+]
 
 const RECOMMENDED_DIMENSIONS = {
   width: 1920,
@@ -144,6 +181,14 @@ export function TopPicksSection() {
   const [moviesListCounts, setMoviesListCounts] = useState<{ total: number } | null>(null)
   const [seriesListCounts, setSeriesListCounts] = useState<{ total: number } | null>(null)
 
+  // Library match state
+  const [moviesLibraryMatch, setMoviesLibraryMatch] = useState<LibraryMatchResult | null>(null)
+  const [seriesLibraryMatch, setSeriesLibraryMatch] = useState<LibraryMatchResult | null>(null)
+  const [moviesMatchLoading, setMoviesMatchLoading] = useState(false)
+  const [seriesMatchLoading, setSeriesMatchLoading] = useState(false)
+  const [moviesMatchExpanded, setMoviesMatchExpanded] = useState(false)
+  const [seriesMatchExpanded, setSeriesMatchExpanded] = useState(false)
+
   // Fetch MDBList item counts when list selection changes
   const fetchListCounts = useCallback(async (listId: number | null, type: 'movies' | 'series') => {
     if (!listId) {
@@ -164,6 +209,35 @@ export function TopPicksSection() {
     }
   }, [])
 
+  // Fetch library match when list selection or sort changes
+  const fetchLibraryMatch = useCallback(async (listId: number | null, type: 'movies' | 'series', sort: string) => {
+    if (!listId) {
+      if (type === 'movies') setMoviesLibraryMatch(null)
+      else setSeriesLibraryMatch(null)
+      return
+    }
+
+    if (type === 'movies') setMoviesMatchLoading(true)
+    else setSeriesMatchLoading(true)
+
+    try {
+      const mediatype = type === 'movies' ? 'movie' : 'show'
+      const response = await fetch(`/api/mdblist/lists/${listId}/library-match?mediatype=${mediatype}&sort=${sort}`, { 
+        credentials: 'include' 
+      })
+      if (response.ok) {
+        const data = await response.json()
+        if (type === 'movies') setMoviesLibraryMatch(data)
+        else setSeriesLibraryMatch(data)
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      if (type === 'movies') setMoviesMatchLoading(false)
+      else setSeriesMatchLoading(false)
+    }
+  }, [])
+
   // Fetch counts when list IDs change
   useEffect(() => {
     if (config?.mdblistMoviesListId) {
@@ -180,6 +254,29 @@ export function TopPicksSection() {
       setSeriesListCounts(null)
     }
   }, [config?.mdblistSeriesListId, fetchListCounts])
+
+  // Fetch library match when list ID or sort changes (debounced)
+  useEffect(() => {
+    if (!config?.mdblistMoviesListId) {
+      setMoviesLibraryMatch(null)
+      return
+    }
+    const timeout = setTimeout(() => {
+      fetchLibraryMatch(config.mdblistMoviesListId, 'movies', config.mdblistMoviesSort || 'score')
+    }, 500)
+    return () => clearTimeout(timeout)
+  }, [config?.mdblistMoviesListId, config?.mdblistMoviesSort, fetchLibraryMatch])
+
+  useEffect(() => {
+    if (!config?.mdblistSeriesListId) {
+      setSeriesLibraryMatch(null)
+      return
+    }
+    const timeout = setTimeout(() => {
+      fetchLibraryMatch(config.mdblistSeriesListId, 'series', config.mdblistSeriesSort || 'score')
+    }, 500)
+    return () => clearTimeout(timeout)
+  }, [config?.mdblistSeriesListId, config?.mdblistSeriesSort, fetchLibraryMatch])
 
   // Fetch images - override defaults only if custom images exist
   const fetchImages = useCallback(async () => {
@@ -558,23 +655,100 @@ export function TopPicksSection() {
           {/* MDBList Selector (for mdblist or hybrid) */}
           {(config.moviesPopularitySource === 'mdblist' || config.moviesPopularitySource === 'hybrid') && mdblistConfigured && (
             <Box sx={{ mb: 3 }}>
-              <MDBListSelector
-                value={config.mdblistMoviesListId ? { id: config.mdblistMoviesListId, name: config.mdblistMoviesListName || '' } : null}
-                onChange={(newValue) => {
-                  updateConfig({
-                    mdblistMoviesListId: newValue?.id || null,
-                    mdblistMoviesListName: newValue?.name || null,
-                  })
-                }}
-                mediatype="movie"
-                label="Movies List"
-                helperText="Select a MDBList to use for movie rankings"
-                disabled={!config.isEnabled}
-              />
-              {moviesListCounts && (
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                  List contains {moviesListCounts.total} items
-                </Typography>
+              <Grid container spacing={2} sx={{ mb: 2 }}>
+                <Grid item xs={12} sm={8}>
+                  <MDBListSelector
+                    value={config.mdblistMoviesListId ? { id: config.mdblistMoviesListId, name: config.mdblistMoviesListName || '' } : null}
+                    onChange={(newValue) => {
+                      updateConfig({
+                        mdblistMoviesListId: newValue?.id || null,
+                        mdblistMoviesListName: newValue?.name || null,
+                      })
+                    }}
+                    mediatype="movie"
+                    label="Movies List"
+                    helperText="Select a MDBList to use for movie rankings"
+                    disabled={!config.isEnabled}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <FormControl fullWidth size="small" disabled={!config.isEnabled}>
+                    <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>
+                      Sort By
+                    </Typography>
+                    <Select
+                      value={config.mdblistMoviesSort || 'score'}
+                      onChange={(e) => updateConfig({ mdblistMoviesSort: e.target.value })}
+                    >
+                      {SORT_OPTIONS.map((opt) => (
+                        <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </Grid>
+
+              {/* Library Match Preview */}
+              {config.mdblistMoviesListId && (
+                <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
+                  {moviesMatchLoading ? (
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <CircularProgress size={16} />
+                      <Typography variant="body2" color="text.secondary">Checking library matches...</Typography>
+                    </Box>
+                  ) : moviesLibraryMatch ? (
+                    <>
+                      <Typography variant="body2">
+                        List contains <strong>{moviesLibraryMatch.total}</strong> items
+                      </Typography>
+                      <Typography variant="body2" color="success.main">
+                        Your library has <strong>{moviesLibraryMatch.matched}</strong> matches
+                      </Typography>
+                      {moviesLibraryMatch.missing.length > 0 && (
+                        <>
+                          <Box 
+                            onClick={() => setMoviesMatchExpanded(!moviesMatchExpanded)}
+                            sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 0.5, 
+                              cursor: 'pointer',
+                              color: 'warning.main',
+                              '&:hover': { textDecoration: 'underline' }
+                            }}
+                          >
+                            <ExpandMoreIcon 
+                              fontSize="small" 
+                              sx={{ 
+                                transform: moviesMatchExpanded ? 'rotate(180deg)' : 'rotate(0)',
+                                transition: 'transform 0.2s'
+                              }} 
+                            />
+                            <Typography variant="body2">
+                              Missing from your library ({moviesLibraryMatch.missing.length})
+                            </Typography>
+                          </Box>
+                          <Collapse in={moviesMatchExpanded}>
+                            <List dense sx={{ maxHeight: 200, overflow: 'auto', mt: 1 }}>
+                              {moviesLibraryMatch.missing.map((item, idx) => (
+                                <ListItem key={idx} sx={{ py: 0 }}>
+                                  <ListItemText 
+                                    primary={`${item.title}${item.year ? ` (${item.year})` : ''}`}
+                                    primaryTypographyProps={{ variant: 'caption' }}
+                                  />
+                                </ListItem>
+                              ))}
+                            </List>
+                          </Collapse>
+                        </>
+                      )}
+                    </>
+                  ) : moviesListCounts ? (
+                    <Typography variant="caption" color="text.secondary">
+                      List contains {moviesListCounts.total} items
+                    </Typography>
+                  ) : null}
+                </Box>
               )}
             </Box>
           )}
@@ -766,23 +940,100 @@ export function TopPicksSection() {
           {/* MDBList Selector (for mdblist or hybrid) */}
           {(config.seriesPopularitySource === 'mdblist' || config.seriesPopularitySource === 'hybrid') && mdblistConfigured && (
             <Box sx={{ mb: 3 }}>
-              <MDBListSelector
-                value={config.mdblistSeriesListId ? { id: config.mdblistSeriesListId, name: config.mdblistSeriesListName || '' } : null}
-                onChange={(newValue) => {
-                  updateConfig({
-                    mdblistSeriesListId: newValue?.id || null,
-                    mdblistSeriesListName: newValue?.name || null,
-                  })
-                }}
-                mediatype="show"
-                label="Series List"
-                helperText="Select a MDBList to use for series rankings"
-                disabled={!config.isEnabled}
-              />
-              {seriesListCounts && (
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                  List contains {seriesListCounts.total} items
-                </Typography>
+              <Grid container spacing={2} sx={{ mb: 2 }}>
+                <Grid item xs={12} sm={8}>
+                  <MDBListSelector
+                    value={config.mdblistSeriesListId ? { id: config.mdblistSeriesListId, name: config.mdblistSeriesListName || '' } : null}
+                    onChange={(newValue) => {
+                      updateConfig({
+                        mdblistSeriesListId: newValue?.id || null,
+                        mdblistSeriesListName: newValue?.name || null,
+                      })
+                    }}
+                    mediatype="show"
+                    label="Series List"
+                    helperText="Select a MDBList to use for series rankings"
+                    disabled={!config.isEnabled}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <FormControl fullWidth size="small" disabled={!config.isEnabled}>
+                    <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>
+                      Sort By
+                    </Typography>
+                    <Select
+                      value={config.mdblistSeriesSort || 'score'}
+                      onChange={(e) => updateConfig({ mdblistSeriesSort: e.target.value })}
+                    >
+                      {SORT_OPTIONS.map((opt) => (
+                        <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </Grid>
+
+              {/* Library Match Preview */}
+              {config.mdblistSeriesListId && (
+                <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
+                  {seriesMatchLoading ? (
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <CircularProgress size={16} />
+                      <Typography variant="body2" color="text.secondary">Checking library matches...</Typography>
+                    </Box>
+                  ) : seriesLibraryMatch ? (
+                    <>
+                      <Typography variant="body2">
+                        List contains <strong>{seriesLibraryMatch.total}</strong> items
+                      </Typography>
+                      <Typography variant="body2" color="success.main">
+                        Your library has <strong>{seriesLibraryMatch.matched}</strong> matches
+                      </Typography>
+                      {seriesLibraryMatch.missing.length > 0 && (
+                        <>
+                          <Box 
+                            onClick={() => setSeriesMatchExpanded(!seriesMatchExpanded)}
+                            sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 0.5, 
+                              cursor: 'pointer',
+                              color: 'warning.main',
+                              '&:hover': { textDecoration: 'underline' }
+                            }}
+                          >
+                            <ExpandMoreIcon 
+                              fontSize="small" 
+                              sx={{ 
+                                transform: seriesMatchExpanded ? 'rotate(180deg)' : 'rotate(0)',
+                                transition: 'transform 0.2s'
+                              }} 
+                            />
+                            <Typography variant="body2">
+                              Missing from your library ({seriesLibraryMatch.missing.length})
+                            </Typography>
+                          </Box>
+                          <Collapse in={seriesMatchExpanded}>
+                            <List dense sx={{ maxHeight: 200, overflow: 'auto', mt: 1 }}>
+                              {seriesLibraryMatch.missing.map((item, idx) => (
+                                <ListItem key={idx} sx={{ py: 0 }}>
+                                  <ListItemText 
+                                    primary={`${item.title}${item.year ? ` (${item.year})` : ''}`}
+                                    primaryTypographyProps={{ variant: 'caption' }}
+                                  />
+                                </ListItem>
+                              ))}
+                            </List>
+                          </Collapse>
+                        </>
+                      )}
+                    </>
+                  ) : seriesListCounts ? (
+                    <Typography variant="caption" color="text.secondary">
+                      List contains {seriesListCounts.total} items
+                    </Typography>
+                  ) : null}
+                </Box>
               )}
             </Box>
           )}

@@ -55,6 +55,9 @@ export interface TopPicksConfig {
   mdblistSeriesListId: number | null
   mdblistMoviesListName: string | null
   mdblistSeriesListName: string | null
+  // MDBList sort order (score, score_average, imdbrating, imdbvotes, imdbpopular, tmdbpopular, rtomatoes, metacritic)
+  mdblistMoviesSort: string
+  mdblistSeriesSort: string
   // Hybrid mode weights
   hybridLocalWeight: number
   hybridMdblistWeight: number
@@ -105,6 +108,8 @@ interface TopPicksConfigRow {
   mdblist_series_list_id: number | null
   mdblist_movies_list_name: string | null
   mdblist_series_list_name: string | null
+  mdblist_movies_sort: string | null
+  mdblist_series_sort: string | null
   hybrid_local_weight: string | null
   hybrid_mdblist_weight: string | null
   created_at: Date
@@ -157,6 +162,8 @@ export async function getTopPicksConfig(): Promise<TopPicksConfig> {
       mdblistSeriesListId: null,
       mdblistMoviesListName: null,
       mdblistSeriesListName: null,
+      mdblistMoviesSort: 'score',
+      mdblistSeriesSort: 'score',
       hybridLocalWeight: 0.5,
       hybridMdblistWeight: 0.5,
       createdAt: new Date(),
@@ -307,6 +314,14 @@ export async function updateTopPicksConfig(
     setClauses.push(`mdblist_series_list_name = $${paramIndex++}`)
     values.push(updates.mdblistSeriesListName)
   }
+  if (updates.mdblistMoviesSort !== undefined) {
+    setClauses.push(`mdblist_movies_sort = $${paramIndex++}`)
+    values.push(updates.mdblistMoviesSort)
+  }
+  if (updates.mdblistSeriesSort !== undefined) {
+    setClauses.push(`mdblist_series_sort = $${paramIndex++}`)
+    values.push(updates.mdblistSeriesSort)
+  }
   if (updates.hybridLocalWeight !== undefined) {
     setClauses.push(`hybrid_local_weight = $${paramIndex++}`)
     values.push(updates.hybridLocalWeight)
@@ -392,6 +407,8 @@ export async function resetTopPicksConfig(): Promise<TopPicksConfig> {
       mdblist_series_list_id = NULL,
       mdblist_movies_list_name = NULL,
       mdblist_series_list_name = NULL,
+      mdblist_movies_sort = 'score',
+      mdblist_series_sort = 'score',
       hybrid_local_weight = 0.50,
       hybrid_mdblist_weight = 0.50,
       updated_at = NOW()
@@ -452,6 +469,8 @@ function mapRowToConfig(row: TopPicksConfigRow): TopPicksConfig {
     mdblistSeriesListId: row.mdblist_series_list_id,
     mdblistMoviesListName: row.mdblist_movies_list_name,
     mdblistSeriesListName: row.mdblist_series_list_name,
+    mdblistMoviesSort: row.mdblist_movies_sort || 'score',
+    mdblistSeriesSort: row.mdblist_series_sort || 'score',
     hybridLocalWeight: row.hybrid_local_weight ? parseFloat(row.hybrid_local_weight) : 0.5,
     hybridMdblistWeight: row.hybrid_mdblist_weight ? parseFloat(row.hybrid_mdblist_weight) : 0.5,
     createdAt: row.created_at,

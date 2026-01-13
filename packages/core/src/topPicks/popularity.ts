@@ -363,9 +363,14 @@ export async function getTopPicks(
  */
 export async function getTopMoviesFromMDBList(
   listId: number,
-  count: number
+  count: number,
+  sort?: string
 ): Promise<PopularMovie[]> {
-  logger.info({ listId, count }, 'Fetching top movies from MDBList')
+  // Get sort from config if not passed
+  const config = await getTopPicksConfig()
+  const sortOption = sort ?? config.mdblistMoviesSort
+
+  logger.info({ listId, count, sort: sortOption }, 'Fetching top movies from MDBList')
 
   // Check if MDBList is configured
   const configured = await isMDBListConfigured()
@@ -375,7 +380,7 @@ export async function getTopMoviesFromMDBList(
   }
 
   // Fetch list items (get more than needed since some won't match)
-  const listItems = await getListItems(listId, { limit: count * 3 })
+  const listItems = await getListItems(listId, { limit: count * 3, sort: sortOption, order: 'desc' })
 
   if (listItems.length === 0) {
     logger.warn({ listId }, 'MDBList returned empty list')
@@ -397,9 +402,14 @@ export async function getTopMoviesFromMDBList(
  */
 export async function getTopSeriesFromMDBList(
   listId: number,
-  count: number
+  count: number,
+  sort?: string
 ): Promise<PopularSeries[]> {
-  logger.info({ listId, count }, 'Fetching top series from MDBList')
+  // Get sort from config if not passed
+  const config = await getTopPicksConfig()
+  const sortOption = sort ?? config.mdblistSeriesSort
+
+  logger.info({ listId, count, sort: sortOption }, 'Fetching top series from MDBList')
 
   const configured = await isMDBListConfigured()
   if (!configured) {
@@ -407,7 +417,7 @@ export async function getTopSeriesFromMDBList(
     return []
   }
 
-  const listItems = await getListItems(listId, { limit: count * 3 })
+  const listItems = await getListItems(listId, { limit: count * 3, sort: sortOption, order: 'desc' })
 
   if (listItems.length === 0) {
     logger.warn({ listId }, 'MDBList returned empty list')
@@ -615,7 +625,8 @@ export async function getTopMoviesHybrid(
   // Get MDBList movies if configured
   let mdblistMovies: PopularMovie[] = []
   if (listId) {
-    mdblistMovies = await getTopMoviesFromMDBList(listId, count * 2)
+    const sortOption = configOverrides?.mdblistMoviesSort ?? config.mdblistMoviesSort
+    mdblistMovies = await getTopMoviesFromMDBList(listId, count * 2, sortOption)
   }
 
   // Blend scores
@@ -644,7 +655,8 @@ export async function getTopSeriesHybrid(
 
   let mdblistSeries: PopularSeries[] = []
   if (listId) {
-    mdblistSeries = await getTopSeriesFromMDBList(listId, count * 2)
+    const sortOption = configOverrides?.mdblistSeriesSort ?? config.mdblistSeriesSort
+    mdblistSeries = await getTopSeriesFromMDBList(listId, count * 2, sortOption)
   }
 
   return blendSeriesPopularityScores(localSeries, mdblistSeries, localWeight, mdblistWeight, count)
