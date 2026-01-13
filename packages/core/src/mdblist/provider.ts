@@ -300,6 +300,23 @@ export async function getListInfo(listId: number): Promise<MDBListListInfo | nul
 }
 
 /**
+ * Normalize field names from MDBList API response to match expected interface
+ * API returns: id, imdb_id, tvdb_id (with underscores)
+ * Code expects: tmdbid, imdbid, tvdbid (no underscores)
+ */
+function normalizeListItem(item: Record<string, unknown>): MDBListItem {
+  return {
+    ...item,
+    // Map 'id' to 'tmdbid' (API uses 'id' for TMDB ID in list items)
+    tmdbid: (item.id as number) || (item.tmdbid as number) || undefined,
+    // Map 'imdb_id' to 'imdbid'
+    imdbid: (item.imdb_id as string) || (item.imdbid as string) || undefined,
+    // Map 'tvdb_id' to 'tvdbid'
+    tvdbid: (item.tvdb_id as number) || (item.tvdbid as number) || undefined,
+  } as MDBListItem
+}
+
+/**
  * Get items from a list
  */
 export async function getListItems(
@@ -326,21 +343,37 @@ export async function getListItems(
 
   // Handle direct array response (legacy format)
   if (Array.isArray(result)) {
-    return result
+    return result.map((item) => normalizeListItem(item as Record<string, unknown>))
   }
 
   // Handle object wrapper formats
   if (result && typeof result === 'object') {
     // New format: { movies: [...], shows: [...] }
     if ('movies' in result || 'shows' in result) {
-      const movies = Array.isArray(result.movies) ? result.movies : []
-      const shows = Array.isArray(result.shows) ? result.shows : []
+      // Log sample response for debugging
+      logger.debug(
+        {
+          listId,
+          moviesCount: result.movies?.length,
+          showsCount: result.shows?.length,
+          sampleMovie: result.movies?.[0],
+          sampleShow: result.shows?.[0],
+        },
+        'MDBList items response structure'
+      )
+
+      const movies = Array.isArray(result.movies)
+        ? result.movies.map((item) => normalizeListItem(item as Record<string, unknown>))
+        : []
+      const shows = Array.isArray(result.shows)
+        ? result.shows.map((item) => normalizeListItem(item as Record<string, unknown>))
+        : []
       return [...movies, ...shows]
     }
 
     // Legacy format: { items: [...] }
     if ('items' in result && Array.isArray(result.items)) {
-      return result.items
+      return result.items.map((item) => normalizeListItem(item as Record<string, unknown>))
     }
 
     logger.warn({ listId, responseKeys: Object.keys(result) }, 'Unexpected MDBList items response format')
