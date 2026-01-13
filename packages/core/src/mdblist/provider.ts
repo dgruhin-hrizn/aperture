@@ -357,16 +357,21 @@ export async function getMediaInfoByTvdb(tvdbId: number): Promise<MDBListMediaIn
 }
 
 /**
- * Batch get media info by IMDB IDs (up to 200 at a time)
- *
- * API response format has IMDB ID nested: { ids: { imdb: "tt123" } }
- * We normalize this to top-level imdbid for consistency
+ * Batch get media info by TMDB IDs using POST endpoint
+ * POST /tmdb/{type}?apikey=xxx with body containing IDs
  */
-export async function getMediaInfoBatch(imdbIds: string[]): Promise<MDBListMediaInfo[]> {
-  if (imdbIds.length === 0) return []
+export async function getMediaInfoByTmdbBatch(
+  tmdbIds: string[],
+  mediaType: 'movie' | 'show'
+): Promise<MDBListMediaInfo[]> {
+  if (tmdbIds.length === 0) return []
 
-  // API supports up to 200 items per request
-  const batchSize = 200
+  const apiKey = await getMDBListApiKey()
+  if (!apiKey) {
+    logger.warn('MDBList API key not configured')
+    return []
+  }
+
   const results: MDBListMediaInfo[] = []
 
   // Response item type from API (has nested ids)
@@ -383,23 +388,49 @@ export async function getMediaInfoBatch(imdbIds: string[]): Promise<MDBListMedia
     [key: string]: unknown
   }
 
-  for (let i = 0; i < imdbIds.length; i += batchSize) {
-    const batch = imdbIds.slice(i, i + batchSize)
-    const idsParam = batch.join(',')
-    const batchResult = await mdblistRequest<ApiResponseItem[] | ApiResponseItem>(`/?i=${idsParam}`)
+  // Batch up to 100 at a time
+  const batchSize = 100
+  for (let i = 0; i < tmdbIds.length; i += batchSize) {
+    const batch = tmdbIds.slice(i, i + batchSize)
 
-    if (batchResult) {
-      // Normalize response to array
-      const items = Array.isArray(batchResult) ? batchResult : [batchResult]
+    try {
+      const url = `${MDBLIST_API_BASE_URL}/tmdb/${mediaType}?apikey=${apiKey}`
+      logger.debug({ url, batchSize: batch.length }, 'MDBList batch POST request')
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(batch.map((id) => parseInt(id, 10))),
+      })
+
+      if (!response.ok) {
+        logger.error({ status: response.status }, 'MDBList batch request failed')
+        continue
+      }
+
+      const data = (await response.json()) as ApiResponseItem[] | Record<string, ApiResponseItem>
+
+      // Handle array or object response
+      let items: ApiResponseItem[]
+      if (Array.isArray(data)) {
+        items = data
+      } else if (typeof data === 'object' && data !== null) {
+        // Response might be keyed by ID
+        items = Object.values(data)
+      } else {
+        logger.warn({ responseType: typeof data }, 'Unexpected MDBList batch response type')
+        continue
+      }
 
       for (const item of items) {
-        // Skip error/info pages (they have keys like "website", "documentation")
+        // Skip error/info pages
         if ('website' in item || 'documentation' in item) {
-          logger.warn('MDBList returned info page instead of data - check API key')
           continue
         }
 
-        // Normalize: copy ids.imdb to top-level imdbid for consistency
+        // Normalize: copy ids to top-level for consistency
         const normalizedItem: MDBListMediaInfo = {
           ...item,
           imdbid: item.ids?.imdb || undefined,
@@ -410,6 +441,89 @@ export async function getMediaInfoBatch(imdbIds: string[]): Promise<MDBListMedia
 
         results.push(normalizedItem)
       }
+    } catch (err) {
+      logger.error({ err, batchStart: i }, 'MDBList batch request error')
+    }
+  }
+
+  return results
+}
+
+/**
+ * @deprecated Use getMediaInfoByTmdbBatch instead
+ * Batch get media info by IMDB IDs (legacy endpoint)
+ */
+export async function getMediaInfoBatch(imdbIds: string[]): Promise<MDBListMediaInfo[]> {
+  if (imdbIds.length === 0) return []
+
+  const apiKey = await getMDBListApiKey()
+  if (!apiKey) {
+    logger.warn('MDBList API key not configured')
+    return []
+  }
+
+  const results: MDBListMediaInfo[] = []
+
+  interface ApiResponseItem {
+    id: number
+    title: string
+    ids?: {
+      imdb?: string
+      trakt?: number
+      tmdb?: number
+      tvdb?: number | null
+      mal?: number | null
+    }
+    [key: string]: unknown
+  }
+
+  // Use POST batch endpoint for IMDB too
+  const batchSize = 100
+  for (let i = 0; i < imdbIds.length; i += batchSize) {
+    const batch = imdbIds.slice(i, i + batchSize)
+
+    try {
+      const url = `${MDBLIST_API_BASE_URL}/imdb/movie?apikey=${apiKey}`
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(batch),
+      })
+
+      if (!response.ok) {
+        logger.error({ status: response.status }, 'MDBList IMDB batch request failed')
+        continue
+      }
+
+      const data = (await response.json()) as ApiResponseItem[] | Record<string, ApiResponseItem>
+
+      let items: ApiResponseItem[]
+      if (Array.isArray(data)) {
+        items = data
+      } else if (typeof data === 'object' && data !== null) {
+        items = Object.values(data)
+      } else {
+        continue
+      }
+
+      for (const item of items) {
+        if ('website' in item || 'documentation' in item) continue
+
+        const normalizedItem: MDBListMediaInfo = {
+          ...item,
+          imdbid: item.ids?.imdb || undefined,
+          traktid: item.ids?.trakt || undefined,
+          tmdbid: item.ids?.tmdb || undefined,
+          tvdbid: item.ids?.tvdb || undefined,
+        } as MDBListMediaInfo
+
+        results.push(normalizedItem)
+      }
+    } catch (err) {
+      logger.error({ err }, 'MDBList IMDB batch request error')
     }
   }
 

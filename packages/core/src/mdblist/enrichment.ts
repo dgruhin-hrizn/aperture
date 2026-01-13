@@ -25,7 +25,7 @@ import {
   isJobCancelled,
   addLog,
 } from '../jobs/progress.js'
-import { getMDBListConfig, getMediaInfoBatch, getMediaInfoByImdb, extractEnrichmentData } from './provider.js'
+import { getMDBListConfig, getMediaInfoByTmdbBatch, getMediaInfoByImdb, extractEnrichmentData } from './provider.js'
 import type { MDBListEnrichmentData } from './types.js'
 
 const logger = createChildLogger('mdblist:enrichment')
@@ -56,6 +56,7 @@ interface MDBListEnrichmentProgress {
 interface ItemToEnrich {
   id: string
   title: string
+  tmdb_id: string | null
   imdb_id: string | null
 }
 
@@ -65,14 +66,17 @@ interface ItemToEnrich {
 
 /**
  * Get movies that need MDBList enrichment
+ * Prefers items with TMDB IDs, falls back to IMDB
  */
 async function getMoviesNeedingMDBListEnrichment(limit: number = 500): Promise<ItemToEnrich[]> {
   const result = await query<ItemToEnrich>(
-    `SELECT id, title, imdb_id
+    `SELECT id, title, tmdb_id, imdb_id
      FROM movies
      WHERE mdblist_enriched_at IS NULL
-       AND imdb_id IS NOT NULL
-     ORDER BY created_at DESC
+       AND (tmdb_id IS NOT NULL OR imdb_id IS NOT NULL)
+     ORDER BY 
+       CASE WHEN tmdb_id IS NOT NULL THEN 0 ELSE 1 END,
+       created_at DESC
      LIMIT $1`,
     [limit]
   )
@@ -122,14 +126,17 @@ async function updateMovieEnrichment(
 
 /**
  * Get series that need MDBList enrichment
+ * Prefers items with TMDB IDs, falls back to IMDB
  */
 async function getSeriesNeedingMDBListEnrichment(limit: number = 500): Promise<ItemToEnrich[]> {
   const result = await query<ItemToEnrich>(
-    `SELECT id, title, imdb_id
+    `SELECT id, title, tmdb_id, imdb_id
      FROM series
      WHERE mdblist_enriched_at IS NULL
-       AND imdb_id IS NOT NULL
-     ORDER BY created_at DESC
+       AND (tmdb_id IS NOT NULL OR imdb_id IS NOT NULL)
+     ORDER BY 
+       CASE WHEN tmdb_id IS NOT NULL THEN 0 ELSE 1 END,
+       created_at DESC
      LIMIT $1`,
     [limit]
   )
@@ -179,40 +186,64 @@ async function updateSeriesEnrichment(
 
 /**
  * Process a batch of items (movies or series) with MDBList data
+ * Uses TMDB IDs when available, falls back to IMDB
  */
 async function processBatch(
   items: ItemToEnrich[],
   updateFn: (id: string, data: MDBListEnrichmentData) => Promise<boolean>,
+  mediaType: 'movie' | 'show',
   jobId: string
 ): Promise<{ enriched: number; failed: number }> {
   const result = { enriched: 0, failed: 0 }
 
-  // Get IMDB IDs for batch request
-  const imdbIds = items
-    .map((item) => item.imdb_id)
-    .filter((id): id is string => id !== null)
+  // Separate items by ID type
+  const tmdbItems = items.filter((item) => item.tmdb_id !== null)
+  const imdbOnlyItems = items.filter((item) => item.tmdb_id === null && item.imdb_id !== null)
 
-  if (imdbIds.length === 0) {
-    return result
-  }
+  // Create maps for quick lookup by item ID
+  const infoByItemId = new Map<string, MDBListEnrichmentData>()
 
   try {
-    // Fetch data from MDBList in batch
-    const mediaInfoList = await getMediaInfoBatch(imdbIds)
+    // Fetch TMDB items (most items should have TMDB IDs)
+    if (tmdbItems.length > 0) {
+      const tmdbIds = tmdbItems.map((item) => item.tmdb_id!)
+      const mediaInfoList = await getMediaInfoByTmdbBatch(tmdbIds, mediaType)
 
-    // Create a map for quick lookup
-    const infoMap = new Map<string, MDBListEnrichmentData>()
-    for (const info of mediaInfoList) {
-      if (info.imdbid) {
-        infoMap.set(info.imdbid, extractEnrichmentData(info))
+      // Map results back by TMDB ID
+      const tmdbIdToInfo = new Map<number, MDBListEnrichmentData>()
+      for (const info of mediaInfoList) {
+        if (info.tmdbid) {
+          tmdbIdToInfo.set(info.tmdbid, extractEnrichmentData(info))
+        }
+      }
+
+      // Link to item IDs
+      for (const item of tmdbItems) {
+        const data = tmdbIdToInfo.get(parseInt(item.tmdb_id!, 10))
+        if (data) {
+          infoByItemId.set(item.id, data)
+        }
+      }
+    }
+
+    // For items without TMDB, try IMDB (less common case)
+    // Use individual lookups since we deprecated the old batch
+    for (const item of imdbOnlyItems) {
+      if (item.imdb_id) {
+        try {
+          const info = await getMediaInfoByImdb(item.imdb_id)
+          if (info) {
+            infoByItemId.set(item.id, extractEnrichmentData(info))
+          }
+        } catch {
+          // Skip failed lookups
+        }
       }
     }
 
     // Update each item
     for (const item of items) {
-      if (!item.imdb_id) continue
-
-      const data = infoMap.get(item.imdb_id)
+      const data = infoByItemId.get(item.id)
       if (data) {
         const success = await updateFn(item.id, data)
         if (success) {
@@ -270,12 +301,12 @@ export async function enrichMDBListMetadata(jobId: string): Promise<MDBListEnric
   createJobProgress(jobId, 'enrich-mdblist', 2) // 2 steps: movies, series
 
   try {
-    // Get counts
+    // Get counts (items with TMDB or IMDB IDs)
     const movieCount = await queryOne<{ count: string }>(
-      `SELECT COUNT(*) as count FROM movies WHERE mdblist_enriched_at IS NULL AND imdb_id IS NOT NULL`
+      `SELECT COUNT(*) as count FROM movies WHERE mdblist_enriched_at IS NULL AND (tmdb_id IS NOT NULL OR imdb_id IS NOT NULL)`
     )
     const seriesCount = await queryOne<{ count: string }>(
-      `SELECT COUNT(*) as count FROM series WHERE mdblist_enriched_at IS NULL AND imdb_id IS NOT NULL`
+      `SELECT COUNT(*) as count FROM series WHERE mdblist_enriched_at IS NULL AND (tmdb_id IS NOT NULL OR imdb_id IS NOT NULL)`
     )
 
     const totalMovies = parseInt(movieCount?.count || '0', 10)
@@ -309,7 +340,7 @@ export async function enrichMDBListMetadata(jobId: string): Promise<MDBListEnric
         // Process in batches for the API
         for (let i = 0; i < movies.length && !isJobCancelled(jobId); i += BATCH_SIZE) {
           const batch = movies.slice(i, i + BATCH_SIZE)
-          const batchResult = await processBatch(batch, updateMovieEnrichment, jobId)
+          const batchResult = await processBatch(batch, updateMovieEnrichment, 'movie', jobId)
 
           progress.moviesProcessed += batch.length
           progress.moviesEnriched += batchResult.enriched
@@ -337,7 +368,7 @@ export async function enrichMDBListMetadata(jobId: string): Promise<MDBListEnric
 
         for (let i = 0; i < seriesList.length && !isJobCancelled(jobId); i += BATCH_SIZE) {
           const batch = seriesList.slice(i, i + BATCH_SIZE)
-          const batchResult = await processBatch(batch, updateSeriesEnrichment, jobId)
+          const batchResult = await processBatch(batch, updateSeriesEnrichment, 'show', jobId)
 
           progress.seriesProcessed += batch.length
           progress.seriesEnriched += batchResult.enriched
@@ -387,7 +418,7 @@ export async function getMDBListEnrichmentStats(): Promise<{
        COUNT(*) as total,
        COUNT(*) FILTER (WHERE mdblist_enriched_at IS NOT NULL) as enriched
      FROM movies
-     WHERE imdb_id IS NOT NULL`
+     WHERE tmdb_id IS NOT NULL OR imdb_id IS NOT NULL`
   )
 
   const seriesStats = await queryOne<{ total: string; enriched: string }>(
@@ -395,7 +426,7 @@ export async function getMDBListEnrichmentStats(): Promise<{
        COUNT(*) as total,
        COUNT(*) FILTER (WHERE mdblist_enriched_at IS NOT NULL) as enriched
      FROM series
-     WHERE imdb_id IS NOT NULL`
+     WHERE tmdb_id IS NOT NULL OR imdb_id IS NOT NULL`
   )
 
   const totalMovies = parseInt(movieStats?.total || '0', 10)
