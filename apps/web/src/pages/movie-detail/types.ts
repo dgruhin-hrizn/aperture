@@ -32,6 +32,7 @@ export interface Movie {
   metacritic_score?: number | null
   awards_summary?: string | null
   languages?: string[] | null
+  production_countries?: string[] | null
   // MDBList enrichment
   letterboxd_score?: number | null
   mdblist_score?: number | null

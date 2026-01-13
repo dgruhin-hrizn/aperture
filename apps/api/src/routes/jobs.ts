@@ -19,6 +19,7 @@ import {
   enrichMetadata,
   enrichStudioLogos,
   enrichMDBListMetadata,
+  clearEnrichmentData,
   // Common
   createChildLogger,
   // Watching libraries
@@ -698,6 +699,12 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
     { preHandler: requireAdmin },
     executePurge
   )
+
+  /**
+   * POST /api/admin/reset-enrichment
+   * Reset enrichment so items can be re-enriched with updated metadata
+   */
+  fastify.post('/api/admin/reset-enrichment', { preHandler: requireAdmin }, resetEnrichment)
 }
 
 // Job execution - calls actual implementations from @aperture/core
@@ -1012,6 +1019,28 @@ async function executePurge(
   } catch (err) {
     logger.error({ err }, 'Failed to purge movie database')
     reply.status(500).send({ error: 'Failed to purge movie database' })
+  }
+}
+
+/**
+ * POST /api/admin/reset-enrichment
+ * Reset enrichment status so items can be re-enriched
+ */
+async function resetEnrichment(
+  _request: FastifyRequest,
+  reply: FastifyReply
+): Promise<void> {
+  try {
+    logger.info('🔄 Admin initiated enrichment reset')
+    await clearEnrichmentData()
+    logger.info('✅ Enrichment reset complete - run enrich-metadata job to re-enrich')
+    reply.send({ 
+      success: true, 
+      message: 'Enrichment reset. Run the enrichment job to re-fetch metadata.' 
+    })
+  } catch (err) {
+    logger.error({ err }, 'Failed to reset enrichment')
+    reply.status(500).send({ error: 'Failed to reset enrichment' })
   }
 }
 

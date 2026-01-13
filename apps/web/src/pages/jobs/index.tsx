@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
-import { Box, Typography, Chip, Alert, Stack, Tabs, Tab } from '@mui/material'
+import { Box, Typography, Chip, Alert, Stack, Tabs, Tab, Paper, Button, CircularProgress } from '@mui/material'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import ScheduleIcon from '@mui/icons-material/Schedule'
+import BuildIcon from '@mui/icons-material/Build'
+import RefreshIcon from '@mui/icons-material/Refresh'
 import { useJobsData } from './hooks'
 import { MOVIE_JOB_CATEGORIES, SERIES_JOB_CATEGORIES, GLOBAL_JOB_CATEGORIES } from './constants'
 import { JobCard, JobConfigDialog, JobHistoryDialog, CancelDialog, LoadingSkeleton, ScheduleTable } from './components'
@@ -102,6 +104,106 @@ function JobCategoryList({
           </Box>
         )
       })}
+    </Stack>
+  )
+}
+
+// Maintenance section with reset enrichment and other admin tasks
+function MaintenanceSection({ onRunJob }: { onRunJob: (name: string) => void }) {
+  const [resettingEnrichment, setResettingEnrichment] = useState(false)
+  const [resetMessage, setResetMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  const handleResetEnrichment = async () => {
+    setResettingEnrichment(true)
+    setResetMessage(null)
+    
+    try {
+      const response = await fetch('/api/admin/reset-enrichment', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to reset enrichment')
+      }
+      
+      setResetMessage({ 
+        type: 'success', 
+        text: 'Enrichment reset successfully. Run the "Enrich Metadata" job to re-fetch all metadata.' 
+      })
+    } catch {
+      setResetMessage({ type: 'error', text: 'Failed to reset enrichment. Please try again.' })
+    } finally {
+      setResettingEnrichment(false)
+    }
+  }
+
+  return (
+    <Stack spacing={4}>
+      <Box>
+        <Typography variant="h6" fontWeight={600} gutterBottom>
+          Database Maintenance
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Administrative tools for managing your Aperture database. Use with caution.
+        </Typography>
+      </Box>
+
+      {resetMessage && (
+        <Alert 
+          severity={resetMessage.type} 
+          onClose={() => setResetMessage(null)}
+          sx={{ borderRadius: 2 }}
+        >
+          {resetMessage.text}
+        </Alert>
+      )}
+
+      {/* Reset Enrichment */}
+      <Paper sx={{ p: 3, borderRadius: 2 }}>
+        <Stack spacing={2}>
+          <Box>
+            <Typography variant="subtitle1" fontWeight={600}>
+              Reset Metadata Enrichment
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Clears the enrichment status for all movies and series, allowing them to be re-enriched
+              with fresh data from TMDb, OMDb, and MDBList.
+            </Typography>
+          </Box>
+          
+          <Alert severity="info" sx={{ borderRadius: 1.5 }}>
+            <Typography variant="body2" fontWeight={500} gutterBottom>
+              When to use this:
+            </Typography>
+            <Typography variant="body2" component="ul" sx={{ m: 0, pl: 2 }}>
+              <li>After Aperture updates that add new metadata fields (e.g., languages, streaming providers)</li>
+              <li>If enrichment data appears incomplete or outdated</li>
+              <li>To refresh Rotten Tomatoes scores, Letterboxd ratings, or keywords</li>
+            </Typography>
+          </Alert>
+
+          <Stack direction="row" spacing={2}>
+            <Button
+              variant="outlined"
+              color="warning"
+              startIcon={resettingEnrichment ? <CircularProgress size={18} /> : <RefreshIcon />}
+              onClick={handleResetEnrichment}
+              disabled={resettingEnrichment}
+            >
+              {resettingEnrichment ? 'Resetting...' : 'Reset Enrichment'}
+            </Button>
+            
+            <Button
+              variant="contained"
+              onClick={() => onRunJob('enrich-metadata')}
+              disabled={resettingEnrichment}
+            >
+              Run Enrichment Job
+            </Button>
+          </Stack>
+        </Stack>
+      </Paper>
     </Stack>
   )
 }
@@ -263,6 +365,11 @@ export function JobsPage() {
           iconPosition="start"
           label="Schedule"
         />
+        <Tab
+          icon={<BuildIcon />}
+          iconPosition="start"
+          label="Maintenance"
+        />
       </Tabs>
 
       {/* Movies Tab */}
@@ -335,6 +442,11 @@ export function JobsPage() {
             handleUpdateConfig(jobName, { isEnabled: enabled })
           }}
         />
+      </TabPanel>
+
+      {/* Maintenance Tab */}
+      <TabPanel value={tabValue} index={4}>
+        <MaintenanceSection onRunJob={handleRunJob} />
       </TabPanel>
 
       {/* Cancel Confirmation Dialog */}

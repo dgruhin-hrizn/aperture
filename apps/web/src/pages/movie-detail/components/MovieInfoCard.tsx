@@ -217,6 +217,24 @@ export function MovieInfoCard({ movie }: MovieInfoCardProps) {
             </Box>
           </Box>
         )}
+
+        {movie.languages && movie.languages.length > 0 && (
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1 }}>
+            <Typography variant="body2" color="text.secondary">Language</Typography>
+            <Typography variant="body2" fontWeight={500}>
+              {movie.languages.join(', ')}
+            </Typography>
+          </Box>
+        )}
+
+        {movie.production_countries && movie.production_countries.length > 0 && (
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1 }}>
+            <Typography variant="body2" color="text.secondary">Country</Typography>
+            <Typography variant="body2" fontWeight={500}>
+              {movie.production_countries.join(', ')}
+            </Typography>
+          </Box>
+        )}
       </Paper>
 
       {/* Franchise/Collection Section */}
