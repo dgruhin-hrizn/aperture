@@ -4,7 +4,7 @@
 
 import type { PlaylistCreateResult, PlaylistItem } from '../types.js'
 import type { EmbyItemsResponse } from './types.js'
-import type { EmbyProviderBase } from './base.js'
+import { logger, type EmbyProviderBase } from './base.js'
 
 export async function createOrUpdatePlaylist(
   provider: EmbyProviderBase,
@@ -155,25 +155,31 @@ export async function updatePlaylistOverview(
   playlistId: string,
   overview: string
 ): Promise<void> {
+  logger.info({ userId, playlistId, overviewLength: overview?.length }, 'Updating playlist overview')
+  
   try {
     // Fetch the full item data using user context (required for playlists)
+    logger.debug({ endpoint: `/Users/${userId}/Items/${playlistId}` }, 'Fetching playlist item')
     const item = await provider.fetch<Record<string, unknown>>(
       `/Users/${userId}/Items/${playlistId}`,
       apiKey
     )
+    logger.debug({ itemName: item.Name, hasItem: !!item }, 'Fetched playlist item')
 
     // Update the overview
     item.Overview = overview
 
     // POST the full item back (doesn't need user context)
+    logger.debug({ endpoint: `/Items/${playlistId}` }, 'Posting updated item')
     await provider.fetch(`/Items/${playlistId}`, apiKey, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(item),
     })
+    logger.info({ playlistId }, 'Successfully updated playlist overview')
   } catch (err) {
-    // Non-fatal: playlist will still work, just won't have a description
-    console.warn(`Failed to set overview for playlist ${playlistId}:`, err)
+    // Log the full error for debugging
+    logger.error({ err, userId, playlistId }, 'Failed to set overview for playlist')
   }
 }
 
@@ -190,9 +196,13 @@ export async function createPlaylistWithOverview(
 ): Promise<PlaylistCreateResult> {
   // Create the playlist first
   const result = await createOrUpdatePlaylist(provider, apiKey, userId, name, itemIds)
+  
+  logger.info({ playlistId: result.playlistId, hasOverview: !!overview }, 'Playlist created, setting overview')
 
   // Set overview if provided
   if (overview) {
+    // Small delay to ensure Emby has fully registered the playlist
+    await new Promise(resolve => setTimeout(resolve, 500))
     await updatePlaylistOverview(provider, apiKey, userId, result.playlistId, overview)
   }
 
