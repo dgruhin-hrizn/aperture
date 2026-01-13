@@ -3,7 +3,6 @@ import {
   Box,
   Typography,
   TextField,
-  Autocomplete,
   CircularProgress,
   Chip,
   Tabs,
@@ -18,8 +17,10 @@ import {
   IconButton,
   Tooltip,
   Alert,
-  Divider,
+  Modal,
+  Fade,
 } from '@mui/material'
+import CloseIcon from '@mui/icons-material/Close'
 import SearchIcon from '@mui/icons-material/Search'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import PersonIcon from '@mui/icons-material/Person'
@@ -306,24 +307,57 @@ export function MDBListSelector({
         sx={{ cursor: disabled ? 'default' : 'pointer' }}
       />
 
-      {/* Selection dialog/dropdown */}
-      {isOpen && (
-        <Paper
-          elevation={8}
-          sx={{
-            position: 'absolute',
-            zIndex: 1300,
-            width: '100%',
-            maxWidth: 600,
-            maxHeight: 500,
-            overflow: 'hidden',
-            mt: 1,
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          {/* Tabs */}
-          <Tabs
+      {/* Selection dialog - using Modal to escape container bounds */}
+      <Modal
+        open={isOpen}
+        onClose={() => setIsOpen(false)}
+        closeAfterTransition
+        slotProps={{
+          backdrop: {
+            sx: { backgroundColor: 'rgba(0, 0, 0, 0.5)' }
+          }
+        }}
+      >
+        <Fade in={isOpen}>
+          <Paper
+            elevation={8}
+            sx={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: '90%',
+              maxWidth: 600,
+              maxHeight: '80vh',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              borderRadius: 2,
+            }}
+          >
+            {/* Header */}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                px: 2,
+                py: 1.5,
+                borderBottom: 1,
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+              }}
+            >
+              <Typography variant="subtitle1" fontWeight={600}>
+                Select {mediatype === 'movie' ? 'Movies' : 'Series'} List
+              </Typography>
+              <IconButton size="small" onClick={() => setIsOpen(false)}>
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Box>
+
+            {/* Tabs */}
+            <Tabs
             value={activeTab}
             onChange={(_, v) => setActiveTab(v)}
             variant="fullWidth"
@@ -456,26 +490,28 @@ export function MDBListSelector({
             )}
           </Box>
 
-          {/* Footer */}
-          <Box
-            sx={{
-              borderTop: 1,
-              borderColor: 'divider',
-              p: 1,
-              display: 'flex',
-              justifyContent: 'flex-end',
-              flexShrink: 0,
-            }}
-          >
-            <Chip
-              label="Close"
-              onClick={() => setIsOpen(false)}
-              size="small"
-              variant="outlined"
-            />
-          </Box>
-        </Paper>
-      )}
+            {/* Footer */}
+            <Box
+              sx={{
+                borderTop: 1,
+                borderColor: 'divider',
+                p: 1.5,
+                display: 'flex',
+                justifyContent: 'flex-end',
+                flexShrink: 0,
+                bgcolor: 'background.paper',
+              }}
+            >
+              <Chip
+                label="Close"
+                onClick={() => setIsOpen(false)}
+                size="small"
+                variant="outlined"
+              />
+            </Box>
+          </Paper>
+        </Fade>
+      </Modal>
     </Box>
   )
 }
