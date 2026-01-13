@@ -660,13 +660,13 @@ export function TopPicksSection() {
                 />
               </Box>
               <Slider
-                value={config.uniqueViewersWeight * 100}
+                value={Math.round(config.uniqueViewersWeight * 100)}
                 onChange={(_, value) => updateConfig({ uniqueViewersWeight: (value as number) / 100 })}
                 min={0}
                 max={100}
+                step={1}
                 disabled={!config.isEnabled}
                 valueLabelDisplay="auto"
-                valueLabelFormat={(v) => `${v}`}
               />
             </Grid>
             <Grid item xs={12} md={4}>
@@ -681,13 +681,13 @@ export function TopPicksSection() {
                 />
               </Box>
               <Slider
-                value={config.playCountWeight * 100}
+                value={Math.round(config.playCountWeight * 100)}
                 onChange={(_, value) => updateConfig({ playCountWeight: (value as number) / 100 })}
                 min={0}
                 max={100}
+                step={1}
                 disabled={!config.isEnabled}
                 valueLabelDisplay="auto"
-                valueLabelFormat={(v) => `${v}`}
               />
             </Grid>
             <Grid item xs={12} md={4}>
@@ -702,13 +702,13 @@ export function TopPicksSection() {
                 />
               </Box>
               <Slider
-                value={config.completionWeight * 100}
+                value={Math.round(config.completionWeight * 100)}
                 onChange={(_, value) => updateConfig({ completionWeight: (value as number) / 100 })}
                 min={0}
                 max={100}
+                step={1}
                 disabled={!config.isEnabled}
                 valueLabelDisplay="auto"
-                valueLabelFormat={(v) => `${v}`}
               />
             </Grid>
           </Grid>
