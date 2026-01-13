@@ -350,6 +350,9 @@ export async function getMediaInfoByTvdb(tvdbId: number): Promise<MDBListMediaIn
 
 /**
  * Batch get media info by IMDB IDs (up to 200 at a time)
+ *
+ * API response format has IMDB ID nested: { ids: { imdb: "tt123" } }
+ * We normalize this to top-level imdbid for consistency
  */
 export async function getMediaInfoBatch(imdbIds: string[]): Promise<MDBListMediaInfo[]> {
   if (imdbIds.length === 0) return []
@@ -358,47 +361,46 @@ export async function getMediaInfoBatch(imdbIds: string[]): Promise<MDBListMedia
   const batchSize = 200
   const results: MDBListMediaInfo[] = []
 
+  // Response item type from API (has nested ids)
+  interface ApiResponseItem {
+    id: number
+    title: string
+    ids?: {
+      imdb?: string
+      trakt?: number
+      tmdb?: number
+      tvdb?: number | null
+      mal?: number | null
+    }
+    [key: string]: unknown
+  }
+
   for (let i = 0; i < imdbIds.length; i += batchSize) {
     const batch = imdbIds.slice(i, i + batchSize)
     const idsParam = batch.join(',')
-    const batchResult = await mdblistRequest<
-      MDBListMediaInfo[] | MDBListMediaInfo | { items: MDBListMediaInfo[] } | Record<string, MDBListMediaInfo>
-    >(`/?i=${idsParam}`)
+    const batchResult = await mdblistRequest<ApiResponseItem[] | ApiResponseItem>(`/?i=${idsParam}`)
 
     if (batchResult) {
-      // Handle various response formats
-      if (Array.isArray(batchResult)) {
-        results.push(...batchResult)
-      } else if (
-        typeof batchResult === 'object' &&
-        'items' in batchResult &&
-        Array.isArray((batchResult as { items: MDBListMediaInfo[] }).items)
-      ) {
-        results.push(...(batchResult as { items: MDBListMediaInfo[] }).items)
-      } else if (typeof batchResult === 'object' && 'imdbid' in batchResult) {
-        // Single item returned (when only one ID requested)
-        results.push(batchResult as MDBListMediaInfo)
-      } else if (typeof batchResult === 'object') {
-        // Maybe keyed by IMDB ID: { "tt123456": {...}, "tt234567": {...} }
-        const keys = Object.keys(batchResult)
-        if (keys.length > 0 && keys[0].startsWith('tt')) {
-          for (const key of keys) {
-            const item = (batchResult as Record<string, MDBListMediaInfo>)[key]
-            if (item && typeof item === 'object') {
-              // Ensure imdbid is set
-              if (!item.imdbid) {
-                item.imdbid = key
-              }
-              results.push(item)
-            }
-          }
-        } else {
-          // Log unknown format for debugging
-          logger.warn(
-            { keys: keys.slice(0, 5), sampleKey: keys[0], batchSize: batch.length },
-            'Unknown MDBList batch response format'
-          )
+      // Normalize response to array
+      const items = Array.isArray(batchResult) ? batchResult : [batchResult]
+
+      for (const item of items) {
+        // Skip error/info pages (they have keys like "website", "documentation")
+        if ('website' in item || 'documentation' in item) {
+          logger.warn('MDBList returned info page instead of data - check API key')
+          continue
         }
+
+        // Normalize: copy ids.imdb to top-level imdbid for consistency
+        const normalizedItem: MDBListMediaInfo = {
+          ...item,
+          imdbid: item.ids?.imdb || undefined,
+          traktid: item.ids?.trakt || undefined,
+          tmdbid: item.ids?.tmdb || undefined,
+          tvdbid: item.ids?.tvdb || undefined,
+        } as MDBListMediaInfo
+
+        results.push(normalizedItem)
       }
     }
   }
