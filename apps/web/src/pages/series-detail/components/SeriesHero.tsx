@@ -21,8 +21,8 @@ export function SeriesHero({ series, mediaServer, userRating, onRate, isWatching
   const handlePlayOnMediaServer = () => {
     if (!mediaServer?.baseUrl || !series.provider_item_id) return
 
-    const webClientUrl = mediaServer.webClientUrl || mediaServer.baseUrl
-    const url = `${webClientUrl}/web/index.html#!/item?id=${series.provider_item_id}&serverId=${mediaServer.serverId}`
+    const webClientUrl = mediaServer.webClientUrl || `${mediaServer.baseUrl}/web/index.html`
+    const url = `${webClientUrl}#!/item?id=${series.provider_item_id}&serverId=${mediaServer.serverId}`
     window.open(url, '_blank')
   }
 
