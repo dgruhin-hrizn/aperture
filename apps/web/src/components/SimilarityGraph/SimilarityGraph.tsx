@@ -630,14 +630,3 @@ function truncateTitle(title: string, maxLength: number): string {
   return title.slice(0, maxLength - 1) + '…'
 }
 
-// Re-export types
-export type { GraphNode, GraphEdge, GraphData, ConnectionType, ConnectionReason, LoadingStatus } from './types'
-export { CONNECTION_COLORS, CONNECTION_LABELS } from './types'
-
-// Re-export controls
-export { GraphControls, GraphLegend } from './GraphControls'
-
-// Re-export hooks
-export { useGraphData, useSimilarityData } from './useGraphData'
-export type { BreadcrumbItem } from './useGraphData'
-
