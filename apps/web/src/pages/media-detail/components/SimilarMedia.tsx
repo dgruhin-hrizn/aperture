@@ -78,7 +78,7 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
     setFocusId: fullscreenSetFocusId,
     goToHistoryIndex: fullscreenGoToHistoryIndex,
     startOver: fullscreenStartOver,
-  } = useSimilarityData(mediaType, isFullscreen ? mediaId || null : null, { limit: 6, depth: 3 })
+  } = useSimilarityData(mediaType, isFullscreen ? mediaId || null : null, { limit: 12, depth: 3 })
 
   // Get current center node title
   const currentTitle = graphData?.nodes.find((n) => n.isCenter)?.title || mediaTitle || 'Media'

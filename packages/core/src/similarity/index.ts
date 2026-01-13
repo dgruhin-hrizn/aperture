@@ -300,8 +300,8 @@ import {
 } from './diverse.js'
 
 // Constants for bubble breaking
-const MAX_PER_COLLECTION = 3 // Max items from same collection
-const BUBBLE_THRESHOLD = 0.6 // 60% from same collection triggers AI escape
+const MAX_PER_COLLECTION = 5 // Max items from same collection (allows more franchise depth)
+const BUBBLE_THRESHOLD = 0.5 // 50% from same collection triggers AI escape
 
 /**
  * Get a multi-level similarity graph for a single item.
@@ -317,10 +317,10 @@ export async function getSimilarWithDepth(
   const { limit = 6, depth = 1 } = options
 
   // Calculate max nodes based on depth - prevents exponential explosion
-  // depth=1: just center + limit = ~7 nodes
-  // depth=2: ~20 nodes  
-  // depth=3: ~35 nodes (max for usable visualization)
-  const maxNodes = depth === 1 ? limit + 1 : depth === 2 ? 20 : 35
+  // depth=1: just center + limit = ~13 nodes
+  // depth=2: ~25 nodes  
+  // depth=3: ~45 nodes (max for usable visualization)
+  const maxNodes = depth === 1 ? limit + 1 : depth === 2 ? 25 : 45
 
   const nodes: Map<string, GraphNode> = new Map()
   const edges: GraphEdge[] = []
