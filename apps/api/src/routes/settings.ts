@@ -1086,18 +1086,28 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.patch<{
     Body: {
       isEnabled?: boolean
-      timeWindowDays?: number
+      // Movies-specific settings
+      moviesPopularitySource?: 'local' | 'mdblist' | 'hybrid'
+      moviesTimeWindowDays?: number
+      moviesMinUniqueViewers?: number
+      moviesUseAllMatches?: boolean
       moviesCount?: number
+      // Series-specific settings
+      seriesPopularitySource?: 'local' | 'mdblist' | 'hybrid'
+      seriesTimeWindowDays?: number
+      seriesMinUniqueViewers?: number
+      seriesUseAllMatches?: boolean
       seriesCount?: number
+      // Shared weights
       uniqueViewersWeight?: number
       playCountWeight?: number
       completionWeight?: number
       refreshCron?: string
       moviesLibraryName?: string
       seriesLibraryName?: string
-      minUniqueViewers?: number
       // Output format settings
-      useSymlinks?: boolean
+      moviesUseSymlinks?: boolean
+      seriesUseSymlinks?: boolean
       // Movies output modes
       moviesLibraryEnabled?: boolean
       moviesCollectionEnabled?: boolean
@@ -1109,6 +1119,14 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       // Collection/Playlist names
       moviesCollectionName?: string
       seriesCollectionName?: string
+      // MDBList list selections
+      mdblistMoviesListId?: number | null
+      mdblistSeriesListId?: number | null
+      mdblistMoviesListName?: string | null
+      mdblistSeriesListName?: string | null
+      // Hybrid weights
+      hybridLocalWeight?: number
+      hybridMdblistWeight?: number
     }
   }>('/api/settings/top-picks', { preHandler: requireAdmin }, async (request, reply) => {
     try {
@@ -1136,6 +1154,32 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       } catch (err) {
         fastify.log.error({ err }, 'Failed to reset Top Picks config')
         return reply.status(500).send({ error: 'Failed to reset Top Picks configuration' })
+      }
+    }
+  )
+
+  /**
+   * POST /api/settings/top-picks/preview
+   * Get preview counts for Top Picks settings (how many items would qualify with given settings)
+   */
+  fastify.post<{
+    Body: {
+      moviesMinViewers: number
+      moviesTimeWindowDays: number
+      seriesMinViewers: number
+      seriesTimeWindowDays: number
+    }
+  }>(
+    '/api/settings/top-picks/preview',
+    { preHandler: requireAdmin },
+    async (request, reply) => {
+      try {
+        const { getTopPicksPreviewCounts } = await import('@aperture/core')
+        const result = await getTopPicksPreviewCounts(request.body)
+        return reply.send(result)
+      } catch (err) {
+        fastify.log.error({ err }, 'Failed to get Top Picks preview counts')
+        return reply.status(500).send({ error: 'Failed to get preview counts' })
       }
     }
   )

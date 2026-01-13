@@ -308,6 +308,7 @@ export {
   getTopMovies,
   getTopSeries,
   getTopPicks,
+  getTopPicksPreviewCounts,
   writeTopPicksMovies,
   writeTopPicksSeries,
   writeAllTopPicks,
@@ -318,6 +319,8 @@ export {
   type PopularMovie,
   type PopularSeries,
   type RefreshTopPicksResult,
+  type TopPicksPreviewParams,
+  type TopPicksPreviewResult,
 } from './topPicks/index.js'
 
 // Watching Libraries

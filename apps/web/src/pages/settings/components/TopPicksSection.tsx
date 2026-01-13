@@ -57,9 +57,19 @@ type PopularitySource = 'local' | 'mdblist' | 'hybrid'
 
 interface TopPicksConfig {
   isEnabled: boolean
-  timeWindowDays: number
+  // Movies-specific settings
+  moviesPopularitySource: PopularitySource
+  moviesTimeWindowDays: number
+  moviesMinUniqueViewers: number
+  moviesUseAllMatches: boolean
   moviesCount: number
+  // Series-specific settings
+  seriesPopularitySource: PopularitySource
+  seriesTimeWindowDays: number
+  seriesMinUniqueViewers: number
+  seriesUseAllMatches: boolean
   seriesCount: number
+  // Shared weights
   uniqueViewersWeight: number
   playCountWeight: number
   completionWeight: number
@@ -67,7 +77,6 @@ interface TopPicksConfig {
   lastRefreshedAt: string | null
   moviesLibraryName: string
   seriesLibraryName: string
-  minUniqueViewers: number
   // Output format settings (separate for movies and series)
   moviesUseSymlinks: boolean
   seriesUseSymlinks: boolean
@@ -82,14 +91,21 @@ interface TopPicksConfig {
   // Collection/Playlist names
   moviesCollectionName: string
   seriesCollectionName: string
-  // MDBList popularity source
-  popularitySource: PopularitySource
+  // MDBList list selections
   mdblistMoviesListId: number | null
   mdblistSeriesListId: number | null
   mdblistMoviesListName: string | null
   mdblistSeriesListName: string | null
+  // Hybrid mode weights
   hybridLocalWeight: number
   hybridMdblistWeight: number
+}
+
+interface PreviewCounts {
+  movies: number
+  series: number
+  recommendedMoviesMinViewers: number
+  recommendedSeriesMinViewers: number
 }
 
 interface LibraryImageInfo {
@@ -119,6 +135,10 @@ export function TopPicksSection() {
 
   // MDBList state
   const [mdblistConfigured, setMdblistConfigured] = useState(false)
+
+  // Preview counts state
+  const [previewCounts, setPreviewCounts] = useState<PreviewCounts | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
 
   // Fetch images - override defaults only if custom images exist
   const fetchImages = useCallback(async () => {
@@ -221,13 +241,61 @@ export function TopPicksSection() {
       const response = await fetch('/api/mdblist/config', { credentials: 'include' })
       if (response.ok) {
         const data = await response.json()
-        setMdblistConfigured(data.configured)
+        setMdblistConfigured(data.configured && data.enabled)
       }
     } catch {
       setMdblistConfigured(false)
     }
   }, [])
 
+  // Fetch preview counts (debounced)
+  const fetchPreviewCounts = useCallback(async (cfg: TopPicksConfig) => {
+    // Only fetch if using local or hybrid mode
+    if (cfg.moviesPopularitySource === 'mdblist' && cfg.seriesPopularitySource === 'mdblist') {
+      setPreviewCounts(null)
+      return
+    }
+
+    setPreviewLoading(true)
+    try {
+      const response = await fetch('/api/settings/top-picks/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          moviesMinViewers: cfg.moviesMinUniqueViewers,
+          moviesTimeWindowDays: cfg.moviesTimeWindowDays,
+          seriesMinViewers: cfg.seriesMinUniqueViewers,
+          seriesTimeWindowDays: cfg.seriesTimeWindowDays,
+        }),
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setPreviewCounts(data)
+      }
+    } catch {
+      // Silently fail preview
+    } finally {
+      setPreviewLoading(false)
+    }
+  }, [])
+
+  // Debounce preview fetch when settings change
+  useEffect(() => {
+    if (!config) return
+    const timeout = setTimeout(() => {
+      fetchPreviewCounts(config)
+    }, 300)
+    return () => clearTimeout(timeout)
+  }, [
+    config?.moviesMinUniqueViewers,
+    config?.moviesTimeWindowDays,
+    config?.seriesMinUniqueViewers,
+    config?.seriesTimeWindowDays,
+    config?.moviesPopularitySource,
+    config?.seriesPopularitySource,
+    fetchPreviewCounts,
+  ])
 
   // Fetch config on mount
   useEffect(() => {
@@ -384,247 +452,411 @@ export function TopPicksSection() {
         </CardContent>
       </Card>
 
-      {/* Section 1: What to Include */}
+      {/* Movies Settings Card */}
       <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
         <CardContent>
           <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-            <SettingsIcon fontSize="small" color="primary" />
-            Content Selection
+            <MovieIcon fontSize="small" color="primary" />
+            Movies Settings
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Configure which media to include in Top Picks and how much of it.
+            Configure data source, filters, and list size for movie Top Picks.
           </Typography>
 
-          <Grid container spacing={3}>
-            <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                fullWidth
-                label="Time Window"
-                type="number"
-                value={config.timeWindowDays}
-                onChange={(e) => updateConfig({ timeWindowDays: parseInt(e.target.value) || 30 })}
-                InputProps={{
-                  endAdornment: <InputAdornment position="end">days</InputAdornment>,
-                }}
-                size="small"
-                helperText="How far back to look at watch history"
-                disabled={!config.isEnabled}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                fullWidth
-                label="Movies to Show"
-                type="number"
-                value={config.moviesCount}
-                onChange={(e) => updateConfig({ moviesCount: parseInt(e.target.value) || 10 })}
-                size="small"
-                helperText="Number of top movies"
-                disabled={!config.isEnabled}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                fullWidth
-                label="Series to Show"
-                type="number"
-                value={config.seriesCount}
-                onChange={(e) => updateConfig({ seriesCount: parseInt(e.target.value) || 10 })}
-                size="small"
-                helperText="Number of top series"
-                disabled={!config.isEnabled}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                fullWidth
-                label="Minimum Viewers"
-                type="number"
-                value={config.minUniqueViewers}
-                onChange={(e) => updateConfig({ minUniqueViewers: parseInt(e.target.value) || 2 })}
-                size="small"
-                helperText="Required unique viewers to qualify"
-                disabled={!config.isEnabled}
-              />
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
-
-      {/* Section 2: Data Source */}
-      <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
-        <CardContent>
-          <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-            <FormatListBulletedIcon fontSize="small" color="primary" />
-            Data Source
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Choose where popularity rankings come from.
-          </Typography>
-
-          <FormControl component="fieldset" disabled={!config.isEnabled}>
+          {/* Data Source */}
+          <FormControl component="fieldset" disabled={!config.isEnabled} sx={{ mb: 3, width: '100%' }}>
+            <FormLabel sx={{ mb: 1, fontWeight: 500 }}>Data Source</FormLabel>
             <RadioGroup
-              value={config.popularitySource}
-              onChange={(e) => updateConfig({ popularitySource: e.target.value as PopularitySource })}
+              row
+              value={config.moviesPopularitySource}
+              onChange={(e) => updateConfig({ moviesPopularitySource: e.target.value as PopularitySource })}
             >
               <FormControlLabel
                 value="local"
-                control={<Radio />}
+                control={<Radio size="small" />}
                 label={
-                  <Box>
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <HomeIcon fontSize="small" color="primary" />
-                      <Typography variant="body1" fontWeight={500}>Local Watch History</Typography>
-                    </Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Rankings based on what your Emby/Jellyfin users are watching
-                    </Typography>
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    <HomeIcon fontSize="small" />
+                    <Typography variant="body2">Local Watch History</Typography>
                   </Box>
                 }
               />
               <FormControlLabel
                 value="mdblist"
-                control={<Radio />}
+                control={<Radio size="small" />}
                 disabled={!mdblistConfigured}
                 label={
-                  <Box>
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <PublicIcon fontSize="small" color={mdblistConfigured ? 'primary' : 'disabled'} />
-                      <Typography variant="body1" fontWeight={500}>MDBList Rankings</Typography>
-                      {!mdblistConfigured && (
-                        <Chip label="Configure MDBList first" size="small" color="warning" variant="outlined" />
-                      )}
-                    </Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Use curated lists from MDBList.com (e.g., "Top Watched Movies This Week")
-                    </Typography>
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    <PublicIcon fontSize="small" color={mdblistConfigured ? 'inherit' : 'disabled'} />
+                    <Typography variant="body2" color={mdblistConfigured ? 'inherit' : 'text.disabled'}>MDBList</Typography>
                   </Box>
                 }
               />
               <FormControlLabel
                 value="hybrid"
-                control={<Radio />}
+                control={<Radio size="small" />}
                 disabled={!mdblistConfigured}
                 label={
-                  <Box>
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <MergeIcon fontSize="small" color={mdblistConfigured ? 'primary' : 'disabled'} />
-                      <Typography variant="body1" fontWeight={500}>Hybrid (Local + MDBList)</Typography>
-                    </Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Blend local watch data with internet popularity for balanced rankings
-                    </Typography>
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    <MergeIcon fontSize="small" color={mdblistConfigured ? 'inherit' : 'disabled'} />
+                    <Typography variant="body2" color={mdblistConfigured ? 'inherit' : 'text.disabled'}>Hybrid</Typography>
                   </Box>
                 }
               />
             </RadioGroup>
+            {!mdblistConfigured && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                Configure MDBList in Settings → Integrations to enable MDBList and Hybrid options.
+              </Typography>
+            )}
           </FormControl>
 
-          {/* MDBList List Selection (shown for mdblist or hybrid) */}
-          {(config.popularitySource === 'mdblist' || config.popularitySource === 'hybrid') && mdblistConfigured && (
-            <Box sx={{ mt: 3, pl: 4 }}>
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ position: 'relative' }}>
-                    <MDBListSelector
-                      value={config.mdblistMoviesListId ? { id: config.mdblistMoviesListId, name: config.mdblistMoviesListName || '' } : null}
-                      onChange={(newValue) => {
-                        updateConfig({
-                          mdblistMoviesListId: newValue?.id || null,
-                          mdblistMoviesListName: newValue?.name || null,
-                        })
-                      }}
-                      mediatype="movie"
-                      label="Movies List"
-                      helperText="Select a MDBList to use for movie rankings"
-                      disabled={!config.isEnabled}
-                    />
-                  </Box>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ position: 'relative' }}>
-                    <MDBListSelector
-                      value={config.mdblistSeriesListId ? { id: config.mdblistSeriesListId, name: config.mdblistSeriesListName || '' } : null}
-                      onChange={(newValue) => {
-                        updateConfig({
-                          mdblistSeriesListId: newValue?.id || null,
-                          mdblistSeriesListName: newValue?.name || null,
-                        })
-                      }}
-                      mediatype="show"
-                      label="Series List"
-                      helperText="Select a MDBList to use for series rankings"
-                      disabled={!config.isEnabled}
-                    />
-                  </Box>
-                </Grid>
-              </Grid>
+          {/* MDBList Selector (for mdblist or hybrid) */}
+          {(config.moviesPopularitySource === 'mdblist' || config.moviesPopularitySource === 'hybrid') && mdblistConfigured && (
+            <Box sx={{ mb: 3 }}>
+              <MDBListSelector
+                value={config.mdblistMoviesListId ? { id: config.mdblistMoviesListId, name: config.mdblistMoviesListName || '' } : null}
+                onChange={(newValue) => {
+                  updateConfig({
+                    mdblistMoviesListId: newValue?.id || null,
+                    mdblistMoviesListName: newValue?.name || null,
+                  })
+                }}
+                mediatype="movie"
+                label="Movies List"
+                helperText="Select a MDBList to use for movie rankings"
+                disabled={!config.isEnabled}
+              />
             </Box>
           )}
 
-          {/* Hybrid Weights (only for hybrid mode) */}
-          {config.popularitySource === 'hybrid' && mdblistConfigured && (
-            <Box sx={{ mt: 3, pl: 4 }}>
-              <Typography variant="body2" fontWeight={500} gutterBottom>
-                Blend Weights
-              </Typography>
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                  <Box display="flex" alignItems="center" gap={1} mb={1}>
-                    <HomeIcon fontSize="small" color="primary" />
-                    <Typography variant="body2">Local Weight</Typography>
-                    <Chip 
-                      label={`${Math.round(config.hybridLocalWeight * 100)}%`} 
-                      size="small" 
-                      color="primary"
-                      variant="outlined"
-                    />
-                  </Box>
-                  <Slider
-                    value={config.hybridLocalWeight * 100}
-                    onChange={(_, value) => updateConfig({ 
-                      hybridLocalWeight: (value as number) / 100,
-                      hybridMdblistWeight: 1 - (value as number) / 100,
-                    })}
-                    min={0}
-                    max={100}
-                    disabled={!config.isEnabled}
-                    valueLabelDisplay="auto"
-                    valueLabelFormat={(v) => `${v}%`}
-                  />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <Box display="flex" alignItems="center" gap={1} mb={1}>
-                    <PublicIcon fontSize="small" color="primary" />
-                    <Typography variant="body2">MDBList Weight</Typography>
-                    <Chip 
-                      label={`${Math.round(config.hybridMdblistWeight * 100)}%`} 
-                      size="small" 
-                      color="primary"
-                      variant="outlined"
-                    />
-                  </Box>
-                  <Slider
-                    value={config.hybridMdblistWeight * 100}
-                    onChange={(_, value) => updateConfig({ 
-                      hybridMdblistWeight: (value as number) / 100,
-                      hybridLocalWeight: 1 - (value as number) / 100,
-                    })}
-                    min={0}
-                    max={100}
-                    disabled={!config.isEnabled}
-                    valueLabelDisplay="auto"
-                    valueLabelFormat={(v) => `${v}%`}
-                  />
-                </Grid>
+          {/* Local/Hybrid Settings */}
+          {(config.moviesPopularitySource === 'local' || config.moviesPopularitySource === 'hybrid') && (
+            <Grid container spacing={3} sx={{ mb: 3 }}>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  fullWidth
+                  label="Time Window"
+                  type="number"
+                  value={config.moviesTimeWindowDays}
+                  onChange={(e) => updateConfig({ moviesTimeWindowDays: parseInt(e.target.value) || 30 })}
+                  InputProps={{
+                    endAdornment: <InputAdornment position="end">days</InputAdornment>,
+                  }}
+                  size="small"
+                  helperText="How far back to look at watch history"
+                  disabled={!config.isEnabled}
+                />
               </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  fullWidth
+                  label="Minimum Viewers"
+                  type="number"
+                  value={config.moviesMinUniqueViewers}
+                  onChange={(e) => updateConfig({ moviesMinUniqueViewers: parseInt(e.target.value) || 1 })}
+                  size="small"
+                  helperText="Required unique viewers to qualify"
+                  disabled={!config.isEnabled}
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                {/* Preview Count */}
+                <Box sx={{ p: 1.5, bgcolor: 'action.hover', borderRadius: 1 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Movies matching criteria
+                  </Typography>
+                  <Typography variant="h6" color="primary">
+                    {previewLoading ? (
+                      <CircularProgress size={16} />
+                    ) : (
+                      previewCounts?.movies ?? '—'
+                    )}
+                  </Typography>
+                  {previewCounts && previewCounts.movies > 30 && config.moviesPopularitySource === 'local' && (
+                    <Typography variant="caption" color="warning.main">
+                      Large list — consider MDBList or increase minimum viewers to {previewCounts.recommendedMoviesMinViewers}
+                    </Typography>
+                  )}
+                </Box>
+              </Grid>
+            </Grid>
+          )}
+
+          {/* Hybrid Weights */}
+          {config.moviesPopularitySource === 'hybrid' && mdblistConfigured && (
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="body2" fontWeight={500} gutterBottom>
+                Blend Weight (Local vs MDBList)
+              </Typography>
+              <Box display="flex" alignItems="center" gap={2}>
+                <HomeIcon fontSize="small" color="primary" />
+                <Slider
+                  value={config.hybridLocalWeight * 100}
+                  onChange={(_, value) => updateConfig({ 
+                    hybridLocalWeight: (value as number) / 100,
+                    hybridMdblistWeight: 1 - (value as number) / 100,
+                  })}
+                  min={0}
+                  max={100}
+                  disabled={!config.isEnabled}
+                  valueLabelDisplay="auto"
+                  valueLabelFormat={(v) => `Local ${v}%`}
+                  sx={{ flex: 1 }}
+                />
+                <PublicIcon fontSize="small" color="primary" />
+              </Box>
             </Box>
           )}
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* List Size */}
+          <Typography variant="body2" fontWeight={500} gutterBottom>
+            List Size
+          </Typography>
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+            Limit to a specific number of top movies, or include all matches from your criteria.
+          </Typography>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={config.moviesUseAllMatches}
+                    onChange={(e) => updateConfig({ moviesUseAllMatches: e.target.checked })}
+                    disabled={!config.isEnabled}
+                    size="small"
+                  />
+                }
+                label={
+                  <Typography variant="body2">
+                    {config.moviesUseAllMatches ? 'Use all matches' : 'Limit count'}
+                  </Typography>
+                }
+              />
+            </Grid>
+            {!config.moviesUseAllMatches && (
+              <Grid item xs={6} sm={4} md={3}>
+                <TextField
+                  fullWidth
+                  label="Movies to Show"
+                  type="number"
+                  value={config.moviesCount}
+                  onChange={(e) => updateConfig({ moviesCount: parseInt(e.target.value) || 10 })}
+                  size="small"
+                  disabled={!config.isEnabled || config.moviesUseAllMatches}
+                />
+              </Grid>
+            )}
+          </Grid>
         </CardContent>
       </Card>
 
-      {/* Section 3: Popularity Algorithm (only for local or hybrid) */}
-      {(config.popularitySource === 'local' || config.popularitySource === 'hybrid') && (
+      {/* Series Settings Card */}
+      <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
+        <CardContent>
+          <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <TvIcon fontSize="small" color="primary" />
+            Series Settings
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Configure data source, filters, and list size for series Top Picks.
+          </Typography>
+
+          {/* Data Source */}
+          <FormControl component="fieldset" disabled={!config.isEnabled} sx={{ mb: 3, width: '100%' }}>
+            <FormLabel sx={{ mb: 1, fontWeight: 500 }}>Data Source</FormLabel>
+            <RadioGroup
+              row
+              value={config.seriesPopularitySource}
+              onChange={(e) => updateConfig({ seriesPopularitySource: e.target.value as PopularitySource })}
+            >
+              <FormControlLabel
+                value="local"
+                control={<Radio size="small" />}
+                label={
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    <HomeIcon fontSize="small" />
+                    <Typography variant="body2">Local Watch History</Typography>
+                  </Box>
+                }
+              />
+              <FormControlLabel
+                value="mdblist"
+                control={<Radio size="small" />}
+                disabled={!mdblistConfigured}
+                label={
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    <PublicIcon fontSize="small" color={mdblistConfigured ? 'inherit' : 'disabled'} />
+                    <Typography variant="body2" color={mdblistConfigured ? 'inherit' : 'text.disabled'}>MDBList</Typography>
+                  </Box>
+                }
+              />
+              <FormControlLabel
+                value="hybrid"
+                control={<Radio size="small" />}
+                disabled={!mdblistConfigured}
+                label={
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    <MergeIcon fontSize="small" color={mdblistConfigured ? 'inherit' : 'disabled'} />
+                    <Typography variant="body2" color={mdblistConfigured ? 'inherit' : 'text.disabled'}>Hybrid</Typography>
+                  </Box>
+                }
+              />
+            </RadioGroup>
+            {!mdblistConfigured && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                Configure MDBList in Settings → Integrations to enable MDBList and Hybrid options.
+              </Typography>
+            )}
+          </FormControl>
+
+          {/* MDBList Selector (for mdblist or hybrid) */}
+          {(config.seriesPopularitySource === 'mdblist' || config.seriesPopularitySource === 'hybrid') && mdblistConfigured && (
+            <Box sx={{ mb: 3 }}>
+              <MDBListSelector
+                value={config.mdblistSeriesListId ? { id: config.mdblistSeriesListId, name: config.mdblistSeriesListName || '' } : null}
+                onChange={(newValue) => {
+                  updateConfig({
+                    mdblistSeriesListId: newValue?.id || null,
+                    mdblistSeriesListName: newValue?.name || null,
+                  })
+                }}
+                mediatype="show"
+                label="Series List"
+                helperText="Select a MDBList to use for series rankings"
+                disabled={!config.isEnabled}
+              />
+            </Box>
+          )}
+
+          {/* Local/Hybrid Settings */}
+          {(config.seriesPopularitySource === 'local' || config.seriesPopularitySource === 'hybrid') && (
+            <Grid container spacing={3} sx={{ mb: 3 }}>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  fullWidth
+                  label="Time Window"
+                  type="number"
+                  value={config.seriesTimeWindowDays}
+                  onChange={(e) => updateConfig({ seriesTimeWindowDays: parseInt(e.target.value) || 30 })}
+                  InputProps={{
+                    endAdornment: <InputAdornment position="end">days</InputAdornment>,
+                  }}
+                  size="small"
+                  helperText="How far back to look at watch history"
+                  disabled={!config.isEnabled}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextField
+                  fullWidth
+                  label="Minimum Viewers"
+                  type="number"
+                  value={config.seriesMinUniqueViewers}
+                  onChange={(e) => updateConfig({ seriesMinUniqueViewers: parseInt(e.target.value) || 1 })}
+                  size="small"
+                  helperText="Required unique viewers to qualify"
+                  disabled={!config.isEnabled}
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                {/* Preview Count */}
+                <Box sx={{ p: 1.5, bgcolor: 'action.hover', borderRadius: 1 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Series matching criteria
+                  </Typography>
+                  <Typography variant="h6" color="primary">
+                    {previewLoading ? (
+                      <CircularProgress size={16} />
+                    ) : (
+                      previewCounts?.series ?? '—'
+                    )}
+                  </Typography>
+                  {previewCounts && previewCounts.series > 30 && config.seriesPopularitySource === 'local' && (
+                    <Typography variant="caption" color="warning.main">
+                      Large list — consider MDBList or increase minimum viewers to {previewCounts.recommendedSeriesMinViewers}
+                    </Typography>
+                  )}
+                </Box>
+              </Grid>
+            </Grid>
+          )}
+
+          {/* Hybrid Weights (shared with movies for now, but could be separate) */}
+          {config.seriesPopularitySource === 'hybrid' && mdblistConfigured && (
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="body2" fontWeight={500} gutterBottom>
+                Blend Weight (Local vs MDBList)
+              </Typography>
+              <Box display="flex" alignItems="center" gap={2}>
+                <HomeIcon fontSize="small" color="primary" />
+                <Slider
+                  value={config.hybridLocalWeight * 100}
+                  onChange={(_, value) => updateConfig({ 
+                    hybridLocalWeight: (value as number) / 100,
+                    hybridMdblistWeight: 1 - (value as number) / 100,
+                  })}
+                  min={0}
+                  max={100}
+                  disabled={!config.isEnabled}
+                  valueLabelDisplay="auto"
+                  valueLabelFormat={(v) => `Local ${v}%`}
+                  sx={{ flex: 1 }}
+                />
+                <PublicIcon fontSize="small" color="primary" />
+              </Box>
+            </Box>
+          )}
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* List Size */}
+          <Typography variant="body2" fontWeight={500} gutterBottom>
+            List Size
+          </Typography>
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+            Limit to a specific number of top series, or include all matches from your criteria.
+          </Typography>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={config.seriesUseAllMatches}
+                    onChange={(e) => updateConfig({ seriesUseAllMatches: e.target.checked })}
+                    disabled={!config.isEnabled}
+                    size="small"
+                  />
+                }
+                label={
+                  <Typography variant="body2">
+                    {config.seriesUseAllMatches ? 'Use all matches' : 'Limit count'}
+                  </Typography>
+                }
+              />
+            </Grid>
+            {!config.seriesUseAllMatches && (
+              <Grid item xs={6} sm={4} md={3}>
+                <TextField
+                  fullWidth
+                  label="Series to Show"
+                  type="number"
+                  value={config.seriesCount}
+                  onChange={(e) => updateConfig({ seriesCount: parseInt(e.target.value) || 10 })}
+                  size="small"
+                  disabled={!config.isEnabled || config.seriesUseAllMatches}
+                />
+              </Grid>
+            )}
+          </Grid>
+        </CardContent>
+      </Card>
+
+      {/* Local Popularity Algorithm (shown if either movies or series uses local/hybrid) */}
+      {(config.moviesPopularitySource === 'local' || config.moviesPopularitySource === 'hybrid' ||
+        config.seriesPopularitySource === 'local' || config.seriesPopularitySource === 'hybrid') && (
       <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
         <CardContent>
           <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
@@ -634,7 +866,7 @@ export function TopPicksSection() {
                 Local Popularity Algorithm
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Adjust the relative importance of each factor. Values are automatically normalized.
+                Adjust the relative importance of each factor when using Local or Hybrid mode.
               </Typography>
             </Box>
           </Box>

@@ -14,10 +14,19 @@ export type PopularitySource = 'local' | 'mdblist' | 'hybrid'
 
 export interface TopPicksConfig {
   isEnabled: boolean
-  timeWindowDays: number
+  // Movies-specific settings
+  moviesPopularitySource: PopularitySource
+  moviesTimeWindowDays: number
+  moviesMinUniqueViewers: number
+  moviesUseAllMatches: boolean
   moviesCount: number
+  // Series-specific settings
+  seriesPopularitySource: PopularitySource
+  seriesTimeWindowDays: number
+  seriesMinUniqueViewers: number
+  seriesUseAllMatches: boolean
   seriesCount: number
-  // Popularity weights (should sum to 1.0)
+  // Popularity weights (should sum to 1.0) - shared for Local/Hybrid calculations
   uniqueViewersWeight: number
   playCountWeight: number
   completionWeight: number
@@ -27,8 +36,6 @@ export interface TopPicksConfig {
   // Library names
   moviesLibraryName: string
   seriesLibraryName: string
-  // Minimum viewers threshold
-  minUniqueViewers: number
   // Output format settings (separate for movies and series)
   moviesUseSymlinks: boolean
   seriesUseSymlinks: boolean
@@ -43,12 +50,12 @@ export interface TopPicksConfig {
   // Collection/Playlist names
   moviesCollectionName: string
   seriesCollectionName: string
-  // MDBList popularity source options
-  popularitySource: PopularitySource
+  // MDBList list selections (used when source is mdblist or hybrid)
   mdblistMoviesListId: number | null
   mdblistSeriesListId: number | null
   mdblistMoviesListName: string | null
   mdblistSeriesListName: string | null
+  // Hybrid mode weights
   hybridLocalWeight: number
   hybridMdblistWeight: number
   // Timestamps
@@ -59,9 +66,19 @@ export interface TopPicksConfig {
 interface TopPicksConfigRow {
   id: number
   is_enabled: boolean
-  time_window_days: number
+  // Movies-specific settings
+  movies_popularity_source: string | null
+  movies_time_window_days: number
+  movies_min_unique_viewers: number
+  movies_use_all_matches: boolean
   movies_count: number
+  // Series-specific settings
+  series_popularity_source: string | null
+  series_time_window_days: number
+  series_min_unique_viewers: number
+  series_use_all_matches: boolean
   series_count: number
+  // Shared weights
   unique_viewers_weight: string
   play_count_weight: string
   completion_weight: string
@@ -69,8 +86,7 @@ interface TopPicksConfigRow {
   last_refreshed_at: Date | null
   movies_library_name: string
   series_library_name: string
-  min_unique_viewers: number
-  // Output format settings (separate for movies and series)
+  // Output format settings
   movies_use_symlinks: boolean
   series_use_symlinks: boolean
   // Movies output modes
@@ -84,8 +100,7 @@ interface TopPicksConfigRow {
   // Collection/Playlist names
   movies_collection_name: string
   series_collection_name: string
-  // MDBList popularity source options
-  popularity_source: string | null
+  // MDBList list selections
   mdblist_movies_list_id: number | null
   mdblist_series_list_id: number | null
   mdblist_movies_list_name: string | null
@@ -108,9 +123,19 @@ export async function getTopPicksConfig(): Promise<TopPicksConfig> {
     // Return defaults if no config exists
     return {
       isEnabled: false,
-      timeWindowDays: 30,
+      // Movies-specific defaults
+      moviesPopularitySource: 'local' as PopularitySource,
+      moviesTimeWindowDays: 30,
+      moviesMinUniqueViewers: 2,
+      moviesUseAllMatches: false,
       moviesCount: 10,
+      // Series-specific defaults
+      seriesPopularitySource: 'local' as PopularitySource,
+      seriesTimeWindowDays: 30,
+      seriesMinUniqueViewers: 2,
+      seriesUseAllMatches: false,
       seriesCount: 10,
+      // Shared weights
       uniqueViewersWeight: 0.5,
       playCountWeight: 0.3,
       completionWeight: 0.2,
@@ -118,7 +143,6 @@ export async function getTopPicksConfig(): Promise<TopPicksConfig> {
       lastRefreshedAt: null,
       moviesLibraryName: 'Top Picks - Movies',
       seriesLibraryName: 'Top Picks - Series',
-      minUniqueViewers: 2,
       moviesUseSymlinks: true,
       seriesUseSymlinks: true,
       moviesLibraryEnabled: true,
@@ -129,7 +153,6 @@ export async function getTopPicksConfig(): Promise<TopPicksConfig> {
       seriesPlaylistEnabled: false,
       moviesCollectionName: 'Top Picks - Movies',
       seriesCollectionName: 'Top Picks - Series',
-      popularitySource: 'local' as PopularitySource,
       mdblistMoviesListId: null,
       mdblistSeriesListId: null,
       mdblistMoviesListName: null,
@@ -160,18 +183,49 @@ export async function updateTopPicksConfig(
     setClauses.push(`is_enabled = $${paramIndex++}`)
     values.push(updates.isEnabled)
   }
-  if (updates.timeWindowDays !== undefined) {
-    setClauses.push(`time_window_days = $${paramIndex++}`)
-    values.push(updates.timeWindowDays)
+  // Movies-specific settings
+  if (updates.moviesPopularitySource !== undefined) {
+    setClauses.push(`movies_popularity_source = $${paramIndex++}`)
+    values.push(updates.moviesPopularitySource)
+  }
+  if (updates.moviesTimeWindowDays !== undefined) {
+    setClauses.push(`movies_time_window_days = $${paramIndex++}`)
+    values.push(updates.moviesTimeWindowDays)
+  }
+  if (updates.moviesMinUniqueViewers !== undefined) {
+    setClauses.push(`movies_min_unique_viewers = $${paramIndex++}`)
+    values.push(updates.moviesMinUniqueViewers)
+  }
+  if (updates.moviesUseAllMatches !== undefined) {
+    setClauses.push(`movies_use_all_matches = $${paramIndex++}`)
+    values.push(updates.moviesUseAllMatches)
   }
   if (updates.moviesCount !== undefined) {
     setClauses.push(`movies_count = $${paramIndex++}`)
     values.push(updates.moviesCount)
   }
+  // Series-specific settings
+  if (updates.seriesPopularitySource !== undefined) {
+    setClauses.push(`series_popularity_source = $${paramIndex++}`)
+    values.push(updates.seriesPopularitySource)
+  }
+  if (updates.seriesTimeWindowDays !== undefined) {
+    setClauses.push(`series_time_window_days = $${paramIndex++}`)
+    values.push(updates.seriesTimeWindowDays)
+  }
+  if (updates.seriesMinUniqueViewers !== undefined) {
+    setClauses.push(`series_min_unique_viewers = $${paramIndex++}`)
+    values.push(updates.seriesMinUniqueViewers)
+  }
+  if (updates.seriesUseAllMatches !== undefined) {
+    setClauses.push(`series_use_all_matches = $${paramIndex++}`)
+    values.push(updates.seriesUseAllMatches)
+  }
   if (updates.seriesCount !== undefined) {
     setClauses.push(`series_count = $${paramIndex++}`)
     values.push(updates.seriesCount)
   }
+  // Shared weights
   if (updates.uniqueViewersWeight !== undefined) {
     setClauses.push(`unique_viewers_weight = $${paramIndex++}`)
     values.push(updates.uniqueViewersWeight)
@@ -195,10 +249,6 @@ export async function updateTopPicksConfig(
   if (updates.seriesLibraryName !== undefined) {
     setClauses.push(`series_library_name = $${paramIndex++}`)
     values.push(updates.seriesLibraryName)
-  }
-  if (updates.minUniqueViewers !== undefined) {
-    setClauses.push(`min_unique_viewers = $${paramIndex++}`)
-    values.push(updates.minUniqueViewers)
   }
   if (updates.moviesUseSymlinks !== undefined) {
     setClauses.push(`movies_use_symlinks = $${paramIndex++}`)
@@ -240,11 +290,7 @@ export async function updateTopPicksConfig(
     setClauses.push(`series_collection_name = $${paramIndex++}`)
     values.push(updates.seriesCollectionName)
   }
-  // MDBList popularity source options
-  if (updates.popularitySource !== undefined) {
-    setClauses.push(`popularity_source = $${paramIndex++}`)
-    values.push(updates.popularitySource)
-  }
+  // MDBList list selections
   if (updates.mdblistMoviesListId !== undefined) {
     setClauses.push(`mdblist_movies_list_id = $${paramIndex++}`)
     values.push(updates.mdblistMoviesListId)
@@ -313,16 +359,25 @@ export async function resetTopPicksConfig(): Promise<TopPicksConfig> {
     UPDATE top_picks_config
     SET
       is_enabled = false,
-      time_window_days = 30,
+      -- Movies-specific settings
+      movies_popularity_source = 'local',
+      movies_time_window_days = 30,
+      movies_min_unique_viewers = 2,
+      movies_use_all_matches = false,
       movies_count = 10,
+      -- Series-specific settings
+      series_popularity_source = 'local',
+      series_time_window_days = 30,
+      series_min_unique_viewers = 2,
+      series_use_all_matches = false,
       series_count = 10,
+      -- Shared settings
       unique_viewers_weight = 0.50,
       play_count_weight = 0.30,
       completion_weight = 0.20,
       refresh_cron = '0 6 * * *',
       movies_library_name = 'Top Picks - Movies',
       series_library_name = 'Top Picks - Series',
-      min_unique_viewers = 2,
       movies_use_symlinks = true,
       series_use_symlinks = true,
       movies_library_enabled = true,
@@ -333,7 +388,6 @@ export async function resetTopPicksConfig(): Promise<TopPicksConfig> {
       series_playlist_enabled = false,
       movies_collection_name = 'Top Picks - Movies',
       series_collection_name = 'Top Picks - Series',
-      popularity_source = 'local',
       mdblist_movies_list_id = NULL,
       mdblist_series_list_id = NULL,
       mdblist_movies_list_name = NULL,
@@ -353,17 +407,30 @@ export async function resetTopPicksConfig(): Promise<TopPicksConfig> {
 }
 
 function mapRowToConfig(row: TopPicksConfigRow): TopPicksConfig {
-  // Validate popularity source
+  // Validate popularity sources
   const validSources: PopularitySource[] = ['local', 'mdblist', 'hybrid']
-  const popularitySource = validSources.includes(row.popularity_source as PopularitySource)
-    ? (row.popularity_source as PopularitySource)
+  const moviesPopularitySource = validSources.includes(row.movies_popularity_source as PopularitySource)
+    ? (row.movies_popularity_source as PopularitySource)
+    : 'local'
+  const seriesPopularitySource = validSources.includes(row.series_popularity_source as PopularitySource)
+    ? (row.series_popularity_source as PopularitySource)
     : 'local'
 
   return {
     isEnabled: row.is_enabled,
-    timeWindowDays: row.time_window_days,
+    // Movies-specific settings
+    moviesPopularitySource,
+    moviesTimeWindowDays: row.movies_time_window_days,
+    moviesMinUniqueViewers: row.movies_min_unique_viewers,
+    moviesUseAllMatches: row.movies_use_all_matches ?? false,
     moviesCount: row.movies_count,
+    // Series-specific settings
+    seriesPopularitySource,
+    seriesTimeWindowDays: row.series_time_window_days,
+    seriesMinUniqueViewers: row.series_min_unique_viewers,
+    seriesUseAllMatches: row.series_use_all_matches ?? false,
     seriesCount: row.series_count,
+    // Shared weights
     uniqueViewersWeight: parseFloat(row.unique_viewers_weight),
     playCountWeight: parseFloat(row.play_count_weight),
     completionWeight: parseFloat(row.completion_weight),
@@ -371,7 +438,6 @@ function mapRowToConfig(row: TopPicksConfigRow): TopPicksConfig {
     lastRefreshedAt: row.last_refreshed_at,
     moviesLibraryName: row.movies_library_name,
     seriesLibraryName: row.series_library_name,
-    minUniqueViewers: row.min_unique_viewers,
     moviesUseSymlinks: row.movies_use_symlinks ?? true,
     seriesUseSymlinks: row.series_use_symlinks ?? true,
     moviesLibraryEnabled: row.movies_library_enabled,
@@ -382,7 +448,6 @@ function mapRowToConfig(row: TopPicksConfigRow): TopPicksConfig {
     seriesPlaylistEnabled: row.series_playlist_enabled,
     moviesCollectionName: row.movies_collection_name,
     seriesCollectionName: row.series_collection_name,
-    popularitySource,
     mdblistMoviesListId: row.mdblist_movies_list_id,
     mdblistSeriesListId: row.mdblist_series_list_id,
     mdblistMoviesListName: row.mdblist_movies_list_name,

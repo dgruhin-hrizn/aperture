@@ -1,6 +1,6 @@
 /**
  * Top Picks Popularity Calculation
- * 
+ *
  * Calculates weighted popularity scores for movies and series
  * based on aggregated watch history from all users, or from
  * MDBList curated lists, or a hybrid of both sources.
@@ -8,12 +8,8 @@
 
 import { query } from '../lib/db.js'
 import { createChildLogger } from '../lib/logger.js'
-import { getTopPicksConfig, type TopPicksConfig, type PopularitySource } from './config.js'
-import {
-  getListItems,
-  isMDBListConfigured,
-  type MDBListItem,
-} from '../mdblist/index.js'
+import { getTopPicksConfig, type TopPicksConfig } from './config.js'
+import { getListItems, isMDBListConfigured, type MDBListItem } from '../mdblist/index.js'
 
 const logger = createChildLogger('top-picks-popularity')
 
@@ -53,18 +49,19 @@ export interface PopularSeries {
 
 /**
  * Get top N most popular movies based on configured popularity source
- * 
+ *
  * Routes to local, MDBList, or hybrid calculation based on config
  */
 export async function getTopMovies(
   configOverrides?: Partial<TopPicksConfig>
 ): Promise<PopularMovie[]> {
   const config = await getTopPicksConfig()
-  const source = configOverrides?.popularitySource ?? config.popularitySource
-  const count = configOverrides?.moviesCount ?? config.moviesCount
-  
-  logger.info({ source, count }, 'Getting top movies')
-  
+  const source = configOverrides?.moviesPopularitySource ?? config.moviesPopularitySource
+  const useAllMatches = configOverrides?.moviesUseAllMatches ?? config.moviesUseAllMatches
+  const count = useAllMatches ? 10000 : (configOverrides?.moviesCount ?? config.moviesCount)
+
+  logger.info({ source, count, useAllMatches }, 'Getting top movies')
+
   switch (source) {
     case 'mdblist': {
       const listId = configOverrides?.mdblistMoviesListId ?? config.mdblistMoviesListId
@@ -89,10 +86,11 @@ async function getTopMoviesLocalPublic(
   configOverrides?: Partial<TopPicksConfig>
 ): Promise<PopularMovie[]> {
   const config = await getTopPicksConfig()
-  const timeWindowDays = configOverrides?.timeWindowDays ?? config.timeWindowDays
-  const count = configOverrides?.moviesCount ?? config.moviesCount
-  const minUniqueViewers = configOverrides?.minUniqueViewers ?? config.minUniqueViewers
-  
+  const timeWindowDays = configOverrides?.moviesTimeWindowDays ?? config.moviesTimeWindowDays
+  const useAllMatches = configOverrides?.moviesUseAllMatches ?? config.moviesUseAllMatches
+  const count = useAllMatches ? 10000 : (configOverrides?.moviesCount ?? config.moviesCount)
+  const minUniqueViewers = configOverrides?.moviesMinUniqueViewers ?? config.moviesMinUniqueViewers
+
   // Normalize weights so they sum to 1.0 (allows any slider values to work)
   const rawViewers = configOverrides?.uniqueViewersWeight ?? config.uniqueViewersWeight
   const rawPlayCount = configOverrides?.playCountWeight ?? config.playCountWeight
@@ -102,12 +100,16 @@ async function getTopMoviesLocalPublic(
   const playCountWeight = totalWeight > 0 ? rawPlayCount / totalWeight : 0.33
   const completionWeight = totalWeight > 0 ? rawCompletion / totalWeight : 0.34
 
-  logger.info({
-    timeWindowDays,
-    count,
-    weights: { uniqueViewersWeight, playCountWeight, completionWeight },
-    minUniqueViewers,
-  }, 'Calculating top movies from local watch history')
+  logger.info(
+    {
+      timeWindowDays,
+      count,
+      useAllMatches,
+      weights: { uniqueViewersWeight, playCountWeight, completionWeight },
+      minUniqueViewers,
+    },
+    'Calculating top movies from local watch history'
+  )
 
   const result = await query<{
     movie_id: string
@@ -123,7 +125,8 @@ async function getTopMoviesLocalPublic(
     play_count: string
     completion_rate: string | null
     popularity_score: string
-  }>(`
+  }>(
+    `
     WITH movie_stats AS (
       SELECT 
         wh.movie_id,
@@ -159,7 +162,9 @@ async function getTopMoviesLocalPublic(
     JOIN movies m ON m.id = ms.movie_id
     ORDER BY popularity_score DESC
     LIMIT $5
-  `, [minUniqueViewers, uniqueViewersWeight, playCountWeight, completionWeight, count])
+  `,
+    [minUniqueViewers, uniqueViewersWeight, playCountWeight, completionWeight, count]
+  )
 
   logger.info({ count: result.rows.length }, 'Top movies calculated')
 
@@ -183,18 +188,19 @@ async function getTopMoviesLocalPublic(
 
 /**
  * Get top N most popular series based on configured popularity source
- * 
+ *
  * Routes to local, MDBList, or hybrid calculation based on config
  */
 export async function getTopSeries(
   configOverrides?: Partial<TopPicksConfig>
 ): Promise<PopularSeries[]> {
   const config = await getTopPicksConfig()
-  const source = configOverrides?.popularitySource ?? config.popularitySource
-  const count = configOverrides?.seriesCount ?? config.seriesCount
-  
-  logger.info({ source, count }, 'Getting top series')
-  
+  const source = configOverrides?.seriesPopularitySource ?? config.seriesPopularitySource
+  const useAllMatches = configOverrides?.seriesUseAllMatches ?? config.seriesUseAllMatches
+  const count = useAllMatches ? 10000 : (configOverrides?.seriesCount ?? config.seriesCount)
+
+  logger.info({ source, count, useAllMatches }, 'Getting top series')
+
   switch (source) {
     case 'mdblist': {
       const listId = configOverrides?.mdblistSeriesListId ?? config.mdblistSeriesListId
@@ -219,10 +225,11 @@ async function getTopSeriesLocalPublic(
   configOverrides?: Partial<TopPicksConfig>
 ): Promise<PopularSeries[]> {
   const config = await getTopPicksConfig()
-  const timeWindowDays = configOverrides?.timeWindowDays ?? config.timeWindowDays
-  const count = configOverrides?.seriesCount ?? config.seriesCount
-  const minUniqueViewers = configOverrides?.minUniqueViewers ?? config.minUniqueViewers
-  
+  const timeWindowDays = configOverrides?.seriesTimeWindowDays ?? config.seriesTimeWindowDays
+  const useAllMatches = configOverrides?.seriesUseAllMatches ?? config.seriesUseAllMatches
+  const count = useAllMatches ? 10000 : (configOverrides?.seriesCount ?? config.seriesCount)
+  const minUniqueViewers = configOverrides?.seriesMinUniqueViewers ?? config.seriesMinUniqueViewers
+
   // Normalize weights so they sum to 1.0 (allows any slider values to work)
   const rawViewers = configOverrides?.uniqueViewersWeight ?? config.uniqueViewersWeight
   const rawPlayCount = configOverrides?.playCountWeight ?? config.playCountWeight
@@ -232,12 +239,16 @@ async function getTopSeriesLocalPublic(
   const playCountWeight = totalWeight > 0 ? rawPlayCount / totalWeight : 0.33
   const completionWeight = totalWeight > 0 ? rawCompletion / totalWeight : 0.34
 
-  logger.info({
-    timeWindowDays,
-    count,
-    weights: { uniqueViewersWeight, playCountWeight, completionWeight },
-    minUniqueViewers,
-  }, 'Calculating top series from local watch history')
+  logger.info(
+    {
+      timeWindowDays,
+      count,
+      useAllMatches,
+      weights: { uniqueViewersWeight, playCountWeight, completionWeight },
+      minUniqueViewers,
+    },
+    'Calculating top series from local watch history'
+  )
 
   const result = await query<{
     series_id: string
@@ -253,7 +264,8 @@ async function getTopSeriesLocalPublic(
     total_episodes_watched: string
     avg_completion_rate: string | null
     popularity_score: string
-  }>(`
+  }>(
+    `
     WITH series_stats AS (
       SELECT 
         e.series_id,
@@ -304,7 +316,9 @@ async function getTopSeriesLocalPublic(
     JOIN series s ON s.id = ss.series_id
     ORDER BY popularity_score DESC
     LIMIT $5
-  `, [minUniqueViewers, uniqueViewersWeight, playCountWeight, completionWeight, count])
+  `,
+    [minUniqueViewers, uniqueViewersWeight, playCountWeight, completionWeight, count]
+  )
 
   logger.info({ count: result.rows.length }, 'Top series calculated')
 
@@ -352,26 +366,29 @@ export async function getTopMoviesFromMDBList(
   count: number
 ): Promise<PopularMovie[]> {
   logger.info({ listId, count }, 'Fetching top movies from MDBList')
-  
+
   // Check if MDBList is configured
   const configured = await isMDBListConfigured()
   if (!configured) {
     logger.warn('MDBList not configured, returning empty list')
     return []
   }
-  
+
   // Fetch list items (get more than needed since some won't match)
   const listItems = await getListItems(listId, { limit: count * 3 })
-  
+
   if (listItems.length === 0) {
     logger.warn({ listId }, 'MDBList returned empty list')
     return []
   }
-  
+
   // Match list items to local library by TMDB/IMDB ID
   const movies = await matchMDBListMoviesToLibrary(listItems, count)
-  
-  logger.info({ listId, fetched: listItems.length, matched: movies.length }, 'MDBList movies matched to library')
+
+  logger.info(
+    { listId, fetched: listItems.length, matched: movies.length },
+    'MDBList movies matched to library'
+  )
   return movies
 }
 
@@ -383,23 +400,26 @@ export async function getTopSeriesFromMDBList(
   count: number
 ): Promise<PopularSeries[]> {
   logger.info({ listId, count }, 'Fetching top series from MDBList')
-  
+
   const configured = await isMDBListConfigured()
   if (!configured) {
     logger.warn('MDBList not configured, returning empty list')
     return []
   }
-  
+
   const listItems = await getListItems(listId, { limit: count * 3 })
-  
+
   if (listItems.length === 0) {
     logger.warn({ listId }, 'MDBList returned empty list')
     return []
   }
-  
+
   const series = await matchMDBListSeriesToLibrary(listItems, count)
-  
-  logger.info({ listId, fetched: listItems.length, matched: series.length }, 'MDBList series matched to library')
+
+  logger.info(
+    { listId, fetched: listItems.length, matched: series.length },
+    'MDBList series matched to library'
+  )
   return series
 }
 
@@ -411,13 +431,13 @@ async function matchMDBListMoviesToLibrary(
   limit: number
 ): Promise<PopularMovie[]> {
   // Extract IMDB and TMDB IDs from list items
-  const imdbIds = items.filter(i => i.imdbid).map(i => i.imdbid!)
-  const tmdbIds = items.filter(i => i.tmdbid).map(i => String(i.tmdbid!))
-  
+  const imdbIds = items.filter((i) => i.imdbid).map((i) => i.imdbid!)
+  const tmdbIds = items.filter((i) => i.tmdbid).map((i) => String(i.tmdbid!))
+
   if (imdbIds.length === 0 && tmdbIds.length === 0) {
     return []
   }
-  
+
   // Query local movies that match these IDs
   const result = await query<{
     id: string
@@ -431,35 +451,38 @@ async function matchMDBListMoviesToLibrary(
     path: string | null
     imdb_id: string | null
     tmdb_id: string | null
-  }>(`
+  }>(
+    `
     SELECT 
       id, title, year, poster_url, backdrop_url, overview, genres,
       community_rating, path, imdb_id, tmdb_id
     FROM movies
     WHERE imdb_id = ANY($1) OR tmdb_id = ANY($2)
-  `, [imdbIds, tmdbIds])
-  
+  `,
+    [imdbIds, tmdbIds]
+  )
+
   // Build lookup maps
-  const movieByImdb = new Map<string, typeof result.rows[0]>()
-  const movieByTmdb = new Map<string, typeof result.rows[0]>()
+  const movieByImdb = new Map<string, (typeof result.rows)[0]>()
+  const movieByTmdb = new Map<string, (typeof result.rows)[0]>()
   for (const movie of result.rows) {
     if (movie.imdb_id) movieByImdb.set(movie.imdb_id, movie)
     if (movie.tmdb_id) movieByTmdb.set(movie.tmdb_id, movie)
   }
-  
+
   // Maintain the order from MDBList (which is the ranking order)
   const movies: PopularMovie[] = []
   let rank = 1
-  
+
   for (const item of items) {
     if (movies.length >= limit) break
-    
+
     // Try to find matching local movie
     let movie = item.imdbid ? movieByImdb.get(item.imdbid) : undefined
     if (!movie && item.tmdbid) {
       movie = movieByTmdb.get(String(item.tmdbid))
     }
-    
+
     if (movie) {
       movies.push({
         movieId: movie.id,
@@ -474,12 +497,12 @@ async function matchMDBListMoviesToLibrary(
         uniqueViewers: 0, // Not applicable for MDBList source
         playCount: 0,
         completionRate: 0,
-        popularityScore: item.rank || (1000 - rank), // Use MDBList rank as score
+        popularityScore: item.rank || 1000 - rank, // Use MDBList rank as score
         rank: rank++,
       })
     }
   }
-  
+
   return movies
 }
 
@@ -490,14 +513,14 @@ async function matchMDBListSeriesToLibrary(
   items: MDBListItem[],
   limit: number
 ): Promise<PopularSeries[]> {
-  const imdbIds = items.filter(i => i.imdbid).map(i => i.imdbid!)
-  const tmdbIds = items.filter(i => i.tmdbid).map(i => String(i.tmdbid!))
-  const tvdbIds = items.filter(i => i.tvdbid).map(i => String(i.tvdbid!))
-  
+  const imdbIds = items.filter((i) => i.imdbid).map((i) => i.imdbid!)
+  const tmdbIds = items.filter((i) => i.tmdbid).map((i) => String(i.tmdbid!))
+  const tvdbIds = items.filter((i) => i.tvdbid).map((i) => String(i.tvdbid!))
+
   if (imdbIds.length === 0 && tmdbIds.length === 0 && tvdbIds.length === 0) {
     return []
   }
-  
+
   const result = await query<{
     id: string
     title: string
@@ -511,33 +534,36 @@ async function matchMDBListSeriesToLibrary(
     imdb_id: string | null
     tmdb_id: string | null
     tvdb_id: string | null
-  }>(`
+  }>(
+    `
     SELECT 
       id, title, year, poster_url, backdrop_url, overview, genres,
       community_rating, network, imdb_id, tmdb_id, tvdb_id
     FROM series
     WHERE imdb_id = ANY($1) OR tmdb_id = ANY($2) OR tvdb_id = ANY($3)
-  `, [imdbIds, tmdbIds, tvdbIds])
-  
-  const seriesByImdb = new Map<string, typeof result.rows[0]>()
-  const seriesByTmdb = new Map<string, typeof result.rows[0]>()
-  const seriesByTvdb = new Map<string, typeof result.rows[0]>()
+  `,
+    [imdbIds, tmdbIds, tvdbIds]
+  )
+
+  const seriesByImdb = new Map<string, (typeof result.rows)[0]>()
+  const seriesByTmdb = new Map<string, (typeof result.rows)[0]>()
+  const seriesByTvdb = new Map<string, (typeof result.rows)[0]>()
   for (const s of result.rows) {
     if (s.imdb_id) seriesByImdb.set(s.imdb_id, s)
     if (s.tmdb_id) seriesByTmdb.set(s.tmdb_id, s)
     if (s.tvdb_id) seriesByTvdb.set(s.tvdb_id, s)
   }
-  
+
   const series: PopularSeries[] = []
   let rank = 1
-  
+
   for (const item of items) {
     if (series.length >= limit) break
-    
+
     let s = item.imdbid ? seriesByImdb.get(item.imdbid) : undefined
     if (!s && item.tmdbid) s = seriesByTmdb.get(String(item.tmdbid))
     if (!s && item.tvdbid) s = seriesByTvdb.get(String(item.tvdbid))
-    
+
     if (s) {
       series.push({
         seriesId: s.id,
@@ -552,12 +578,12 @@ async function matchMDBListSeriesToLibrary(
         uniqueViewers: 0,
         totalEpisodesWatched: 0,
         avgCompletionRate: 0,
-        popularityScore: item.rank || (1000 - rank),
+        popularityScore: item.rank || 1000 - rank,
         rank: rank++,
       })
     }
   }
-  
+
   return series
 }
 
@@ -572,22 +598,26 @@ export async function getTopMoviesHybrid(
   configOverrides?: Partial<TopPicksConfig>
 ): Promise<PopularMovie[]> {
   const config = await getTopPicksConfig()
-  const count = configOverrides?.moviesCount ?? config.moviesCount
+  const useAllMatches = configOverrides?.moviesUseAllMatches ?? config.moviesUseAllMatches
+  const count = useAllMatches ? 10000 : (configOverrides?.moviesCount ?? config.moviesCount)
   const localWeight = configOverrides?.hybridLocalWeight ?? config.hybridLocalWeight
   const mdblistWeight = configOverrides?.hybridMdblistWeight ?? config.hybridMdblistWeight
   const listId = configOverrides?.mdblistMoviesListId ?? config.mdblistMoviesListId
-  
-  logger.info({ count, localWeight, mdblistWeight, listId }, 'Calculating hybrid top movies')
-  
+
+  logger.info(
+    { count, useAllMatches, localWeight, mdblistWeight, listId },
+    'Calculating hybrid top movies'
+  )
+
   // Get local top movies (get more for blending)
   const localMovies = await getTopMoviesLocal(configOverrides)
-  
+
   // Get MDBList movies if configured
   let mdblistMovies: PopularMovie[] = []
   if (listId) {
     mdblistMovies = await getTopMoviesFromMDBList(listId, count * 2)
   }
-  
+
   // Blend scores
   return blendPopularityScores(localMovies, mdblistMovies, localWeight, mdblistWeight, count)
 }
@@ -599,20 +629,24 @@ export async function getTopSeriesHybrid(
   configOverrides?: Partial<TopPicksConfig>
 ): Promise<PopularSeries[]> {
   const config = await getTopPicksConfig()
-  const count = configOverrides?.seriesCount ?? config.seriesCount
+  const useAllMatches = configOverrides?.seriesUseAllMatches ?? config.seriesUseAllMatches
+  const count = useAllMatches ? 10000 : (configOverrides?.seriesCount ?? config.seriesCount)
   const localWeight = configOverrides?.hybridLocalWeight ?? config.hybridLocalWeight
   const mdblistWeight = configOverrides?.hybridMdblistWeight ?? config.hybridMdblistWeight
   const listId = configOverrides?.mdblistSeriesListId ?? config.mdblistSeriesListId
-  
-  logger.info({ count, localWeight, mdblistWeight, listId }, 'Calculating hybrid top series')
-  
+
+  logger.info(
+    { count, useAllMatches, localWeight, mdblistWeight, listId },
+    'Calculating hybrid top series'
+  )
+
   const localSeries = await getTopSeriesLocal(configOverrides)
-  
+
   let mdblistSeries: PopularSeries[] = []
   if (listId) {
     mdblistSeries = await getTopSeriesFromMDBList(listId, count * 2)
   }
-  
+
   return blendSeriesPopularityScores(localSeries, mdblistSeries, localWeight, mdblistWeight, count)
 }
 
@@ -627,12 +661,15 @@ function blendPopularityScores(
   limit: number
 ): PopularMovie[] {
   // Normalize scores to 0-100 scale
-  const maxLocalScore = Math.max(...local.map(m => m.popularityScore), 1)
-  const maxMdblistScore = Math.max(...mdblist.map(m => m.popularityScore), 1)
-  
+  const maxLocalScore = Math.max(...local.map((m) => m.popularityScore), 1)
+  const maxMdblistScore = Math.max(...mdblist.map((m) => m.popularityScore), 1)
+
   // Build lookup by movieId
-  const scoreMap = new Map<string, { movie: PopularMovie; localScore: number; mdblistScore: number }>()
-  
+  const scoreMap = new Map<
+    string,
+    { movie: PopularMovie; localScore: number; mdblistScore: number }
+  >()
+
   for (const movie of local) {
     const normalizedScore = (movie.popularityScore / maxLocalScore) * 100
     scoreMap.set(movie.movieId, {
@@ -641,7 +678,7 @@ function blendPopularityScores(
       mdblistScore: 0,
     })
   }
-  
+
   for (const movie of mdblist) {
     const normalizedScore = (movie.popularityScore / maxMdblistScore) * 100
     const existing = scoreMap.get(movie.movieId)
@@ -655,16 +692,16 @@ function blendPopularityScores(
       })
     }
   }
-  
+
   // Calculate blended scores and sort
   const blended = Array.from(scoreMap.values())
     .map(({ movie, localScore, mdblistScore }) => ({
       ...movie,
-      popularityScore: (localScore * localWeight) + (mdblistScore * mdblistWeight),
+      popularityScore: localScore * localWeight + mdblistScore * mdblistWeight,
     }))
     .sort((a, b) => b.popularityScore - a.popularityScore)
     .slice(0, limit)
-  
+
   // Re-assign ranks
   return blended.map((movie, index) => ({
     ...movie,
@@ -682,11 +719,14 @@ function blendSeriesPopularityScores(
   mdblistWeight: number,
   limit: number
 ): PopularSeries[] {
-  const maxLocalScore = Math.max(...local.map(s => s.popularityScore), 1)
-  const maxMdblistScore = Math.max(...mdblist.map(s => s.popularityScore), 1)
-  
-  const scoreMap = new Map<string, { series: PopularSeries; localScore: number; mdblistScore: number }>()
-  
+  const maxLocalScore = Math.max(...local.map((s) => s.popularityScore), 1)
+  const maxMdblistScore = Math.max(...mdblist.map((s) => s.popularityScore), 1)
+
+  const scoreMap = new Map<
+    string,
+    { series: PopularSeries; localScore: number; mdblistScore: number }
+  >()
+
   for (const series of local) {
     const normalizedScore = (series.popularityScore / maxLocalScore) * 100
     scoreMap.set(series.seriesId, {
@@ -695,7 +735,7 @@ function blendSeriesPopularityScores(
       mdblistScore: 0,
     })
   }
-  
+
   for (const series of mdblist) {
     const normalizedScore = (series.popularityScore / maxMdblistScore) * 100
     const existing = scoreMap.get(series.seriesId)
@@ -709,15 +749,15 @@ function blendSeriesPopularityScores(
       })
     }
   }
-  
+
   const blended = Array.from(scoreMap.values())
     .map(({ series, localScore, mdblistScore }) => ({
       ...series,
-      popularityScore: (localScore * localWeight) + (mdblistScore * mdblistWeight),
+      popularityScore: localScore * localWeight + mdblistScore * mdblistWeight,
     }))
     .sort((a, b) => b.popularityScore - a.popularityScore)
     .slice(0, limit)
-  
+
   return blended.map((series, index) => ({
     ...series,
     rank: index + 1,
@@ -735,11 +775,11 @@ async function getTopMoviesLocal(
   configOverrides?: Partial<TopPicksConfig>
 ): Promise<PopularMovie[]> {
   const config = await getTopPicksConfig()
-  const timeWindowDays = configOverrides?.timeWindowDays ?? config.timeWindowDays
+  const timeWindowDays = configOverrides?.moviesTimeWindowDays ?? config.moviesTimeWindowDays
   // Get more for hybrid blending
   const count = (configOverrides?.moviesCount ?? config.moviesCount) * 2
-  const minUniqueViewers = configOverrides?.minUniqueViewers ?? config.minUniqueViewers
-  
+  const minUniqueViewers = configOverrides?.moviesMinUniqueViewers ?? config.moviesMinUniqueViewers
+
   // Normalize weights so they sum to 1.0
   const rawViewers = configOverrides?.uniqueViewersWeight ?? config.uniqueViewersWeight
   const rawPlayCount = configOverrides?.playCountWeight ?? config.playCountWeight
@@ -763,7 +803,8 @@ async function getTopMoviesLocal(
     play_count: string
     completion_rate: string | null
     popularity_score: string
-  }>(`
+  }>(
+    `
     WITH movie_stats AS (
       SELECT 
         wh.movie_id,
@@ -798,7 +839,9 @@ async function getTopMoviesLocal(
     JOIN movies m ON m.id = ms.movie_id
     ORDER BY popularity_score DESC
     LIMIT $5
-  `, [minUniqueViewers, uniqueViewersWeight, playCountWeight, completionWeight, count])
+  `,
+    [minUniqueViewers, uniqueViewersWeight, playCountWeight, completionWeight, count]
+  )
 
   return result.rows.map((row, index) => ({
     movieId: row.movie_id,
@@ -825,10 +868,10 @@ async function getTopSeriesLocal(
   configOverrides?: Partial<TopPicksConfig>
 ): Promise<PopularSeries[]> {
   const config = await getTopPicksConfig()
-  const timeWindowDays = configOverrides?.timeWindowDays ?? config.timeWindowDays
+  const timeWindowDays = configOverrides?.seriesTimeWindowDays ?? config.seriesTimeWindowDays
   const count = (configOverrides?.seriesCount ?? config.seriesCount) * 2
-  const minUniqueViewers = configOverrides?.minUniqueViewers ?? config.minUniqueViewers
-  
+  const minUniqueViewers = configOverrides?.seriesMinUniqueViewers ?? config.seriesMinUniqueViewers
+
   // Normalize weights so they sum to 1.0
   const rawViewers = configOverrides?.uniqueViewersWeight ?? config.uniqueViewersWeight
   const rawPlayCount = configOverrides?.playCountWeight ?? config.playCountWeight
@@ -852,7 +895,8 @@ async function getTopSeriesLocal(
     total_episodes_watched: string
     avg_completion_rate: string | null
     popularity_score: string
-  }>(`
+  }>(
+    `
     WITH series_stats AS (
       SELECT 
         e.series_id,
@@ -902,7 +946,9 @@ async function getTopSeriesLocal(
     JOIN series s ON s.id = ss.series_id
     ORDER BY popularity_score DESC
     LIMIT $5
-  `, [minUniqueViewers, uniqueViewersWeight, playCountWeight, completionWeight, count])
+  `,
+    [minUniqueViewers, uniqueViewersWeight, playCountWeight, completionWeight, count]
+  )
 
   return result.rows.map((row, index) => ({
     seriesId: row.series_id,
@@ -922,3 +968,146 @@ async function getTopSeriesLocal(
   }))
 }
 
+// ============================================================================
+// Preview Counts for Settings UI
+// ============================================================================
+
+export interface TopPicksPreviewParams {
+  moviesMinViewers: number
+  moviesTimeWindowDays: number
+  seriesMinViewers: number
+  seriesTimeWindowDays: number
+}
+
+export interface TopPicksPreviewResult {
+  movies: number
+  series: number
+  recommendedMoviesMinViewers: number
+  recommendedSeriesMinViewers: number
+}
+
+/**
+ * Get preview counts for Top Picks settings UI
+ *
+ * Returns the number of movies/series that would qualify with the given settings,
+ * plus recommended minViewers values to target ~25 items.
+ */
+export async function getTopPicksPreviewCounts(
+  params: TopPicksPreviewParams
+): Promise<TopPicksPreviewResult> {
+  const { moviesMinViewers, moviesTimeWindowDays, seriesMinViewers, seriesTimeWindowDays } = params
+
+  // Count movies with given settings
+  const moviesResult = await query<{ count: string }>(
+    `
+    SELECT COUNT(*) as count FROM (
+      SELECT movie_id
+      FROM watch_history
+      WHERE movie_id IS NOT NULL
+        AND media_type = 'movie'
+        AND last_played_at >= NOW() - INTERVAL '${moviesTimeWindowDays} days'
+      GROUP BY movie_id
+      HAVING COUNT(DISTINCT user_id) >= $1
+    ) sub
+  `,
+    [moviesMinViewers]
+  )
+
+  // Count series with given settings
+  const seriesResult = await query<{ count: string }>(
+    `
+    SELECT COUNT(*) as count FROM (
+      SELECT e.series_id
+      FROM watch_history wh
+      JOIN episodes e ON e.id = wh.episode_id
+      WHERE wh.episode_id IS NOT NULL
+        AND wh.media_type = 'episode'
+        AND wh.last_played_at >= NOW() - INTERVAL '${seriesTimeWindowDays} days'
+      GROUP BY e.series_id
+      HAVING COUNT(DISTINCT wh.user_id) >= $1
+    ) sub
+  `,
+    [seriesMinViewers]
+  )
+
+  const moviesCount = parseInt(moviesResult.rows[0]?.count || '0')
+  const seriesCount = parseInt(seriesResult.rows[0]?.count || '0')
+
+  // Calculate recommended minViewers to target ~25 items
+  const recommendedMoviesMinViewers = await findRecommendedMinViewers(
+    'movies',
+    moviesTimeWindowDays,
+    25
+  )
+  const recommendedSeriesMinViewers = await findRecommendedMinViewers(
+    'series',
+    seriesTimeWindowDays,
+    25
+  )
+
+  return {
+    movies: moviesCount,
+    series: seriesCount,
+    recommendedMoviesMinViewers,
+    recommendedSeriesMinViewers,
+  }
+}
+
+/**
+ * Find the minimum viewers threshold that would result in approximately targetCount items
+ */
+async function findRecommendedMinViewers(
+  type: 'movies' | 'series',
+  timeWindowDays: number,
+  targetCount: number
+): Promise<number> {
+  // Get counts for various minViewers thresholds
+  const thresholds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20]
+
+  for (const threshold of thresholds) {
+    let count: number
+
+    if (type === 'movies') {
+      const result = await query<{ count: string }>(
+        `
+        SELECT COUNT(*) as count FROM (
+          SELECT movie_id
+          FROM watch_history
+          WHERE movie_id IS NOT NULL
+            AND media_type = 'movie'
+            AND last_played_at >= NOW() - INTERVAL '${timeWindowDays} days'
+          GROUP BY movie_id
+          HAVING COUNT(DISTINCT user_id) >= $1
+        ) sub
+      `,
+        [threshold]
+      )
+      count = parseInt(result.rows[0]?.count || '0')
+    } else {
+      const result = await query<{ count: string }>(
+        `
+        SELECT COUNT(*) as count FROM (
+          SELECT e.series_id
+          FROM watch_history wh
+          JOIN episodes e ON e.id = wh.episode_id
+          WHERE wh.episode_id IS NOT NULL
+            AND wh.media_type = 'episode'
+            AND wh.last_played_at >= NOW() - INTERVAL '${timeWindowDays} days'
+          GROUP BY e.series_id
+          HAVING COUNT(DISTINCT wh.user_id) >= $1
+        ) sub
+      `,
+        [threshold]
+      )
+      count = parseInt(result.rows[0]?.count || '0')
+    }
+
+    // Return the first threshold that gives us <= targetCount items
+    if (count <= targetCount) {
+      return threshold
+    }
+  }
+
+  // If even 20+ viewers gives too many, return 20
+  return 20
+}
