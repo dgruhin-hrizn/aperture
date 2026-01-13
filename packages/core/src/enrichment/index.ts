@@ -3,13 +3,19 @@
  *
  * Enriches movies and series with data from TMDb and OMDb:
  * - TMDb: Keywords, collections/franchises, expanded crew
- * - OMDb: Rotten Tomatoes scores, Metacritic, awards
+ * - OMDb: Rotten Tomatoes scores, Metacritic, awards, languages, countries
  *
  * PERFORMANCE OPTIMIZED:
  * - TMDb and OMDb calls made in parallel per item
  * - Multiple items processed concurrently (within API rate limits)
  * - TMDb: ~40 req/sec (limit is ~50)
  * - OMDb: ~10 req/sec (conservative for free tier)
+ *
+ * DB WRITE STRATEGY:
+ * - Individual UPDATEs per item (not batched) - intentional design choice
+ * - API calls are the bottleneck (~1-2 sec per item), not DB writes (~1ms)
+ * - Per-item writes ensure progress is saved immediately (crash resilience)
+ * - Batch DB writes would only save ~100ms per 100 items but add complexity
  */
 
 import { query, queryOne } from '../lib/db.js'
@@ -169,7 +175,9 @@ async function enrichMovie(
               const info: string[] = []
               if (data.rtCriticScore != null) info.push(`RT: ${data.rtCriticScore}%`)
               if (data.metacriticScore != null) info.push(`MC: ${data.metacriticScore}`)
-              apiResults.push(`OMDb: ${info.length > 0 ? info.join(', ') : 'no scores'}`)
+              if (data.languages?.length) info.push(`${data.languages.length} lang`)
+              if (data.countries?.length) info.push(`${data.countries.length} country`)
+              apiResults.push(`OMDb: ${info.length > 0 ? info.join(', ') : 'no data'}`)
             } else {
               apiResults.push('OMDb: not found')
             }
@@ -320,7 +328,9 @@ async function enrichSeries(
               const info: string[] = []
               if (data.rtCriticScore != null) info.push(`RT: ${data.rtCriticScore}%`)
               if (data.metacriticScore != null) info.push(`MC: ${data.metacriticScore}`)
-              apiResults.push(`OMDb: ${info.length > 0 ? info.join(', ') : 'no scores'}`)
+              if (data.languages?.length) info.push(`${data.languages.length} lang`)
+              if (data.countries?.length) info.push(`${data.countries.length} country`)
+              apiResults.push(`OMDb: ${info.length > 0 ? info.join(', ') : 'no data'}`)
             } else {
               apiResults.push('OMDb: not found')
             }

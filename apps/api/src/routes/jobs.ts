@@ -157,7 +157,8 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
   // === Metadata Enrichment Job ===
   {
     name: 'enrich-metadata',
-    description: 'Enrich movies and series with TMDb keywords, collections, and OMDb ratings',
+    description:
+      'Enrich with TMDb (keywords, collections, crew) and OMDb (RT/Metacritic scores, awards, languages, countries)',
     cron: null, // Manual by default
   },
   // === Studio Logo Enrichment Job ===
@@ -169,7 +170,8 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
   // === MDBList Enrichment Job ===
   {
     name: 'enrich-mdblist',
-    description: 'Enrich movies and series with MDBList ratings, streaming info, and keywords',
+    description:
+      'Enrich with MDBList (Letterboxd scores, MDBList scores, streaming providers, keywords)',
     cron: null, // Manual by default - uses daily API quota
   },
   // === Database Backup Job ===
