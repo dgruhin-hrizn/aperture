@@ -5,10 +5,10 @@ import type { GraphNode, GraphEdge, GraphData, ConnectionReason, LoadingStatus }
 import { CONNECTION_COLORS, CONNECTION_LABELS } from './types'
 
 // Node dimensions (2:3 poster ratio)
-const NODE_WIDTH = 80
-const NODE_HEIGHT = 120
-const CENTER_NODE_WIDTH = 100
-const CENTER_NODE_HEIGHT = 150
+const NODE_WIDTH = 100
+const NODE_HEIGHT = 150
+const CENTER_NODE_WIDTH = 120
+const CENTER_NODE_HEIGHT = 180
 const TITLE_HEIGHT = 32
 
 interface NodeConnectionInfo {
@@ -269,16 +269,16 @@ export function SimilarityGraph({
           .forceLink<GraphNode, GraphEdge>(data.edges)
           .id((d) => d.id)
           .distance((d) => {
-            // Moderate distance between nodes (175-250 range)
-            return 250 - d.similarity * 75
+            // Moderate distance between nodes (200-300 range)
+            return 300 - d.similarity * 100
           })
           .strength((d) => d.similarity * 0.4)
       )
-      .force('charge', d3.forceManyBody().strength(-550))
+      .force('charge', d3.forceManyBody().strength(-650))
       .force('center', d3.forceCenter(width / 2, height / 2))
       .force('collision', d3.forceCollide().radius((d) => {
         const nodeW = (d as GraphNode).isCenter ? centerNodeWidth : nodeWidth
-        return nodeW / 2 + 40
+        return nodeW / 2 + 50
       }))
 
     simulationRef.current = simulation
