@@ -554,6 +554,7 @@ export {
   searchLists,
   getListInfo,
   getListItems,
+  getListItemCounts,
   getMyLists,
   // Media Info API
   getMediaInfoByImdb,
@@ -574,6 +575,7 @@ export {
   type MDBListItem,
   type MDBListListInfo,
   type MDBListSearchResult,
+  type ListItemCounts,
   type MDBListEnrichmentData,
   type MDBListRating,
   type MDBListStream,

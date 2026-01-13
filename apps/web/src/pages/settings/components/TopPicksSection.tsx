@@ -140,6 +140,47 @@ export function TopPicksSection() {
   const [previewCounts, setPreviewCounts] = useState<PreviewCounts | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
 
+  // MDBList item counts state
+  const [moviesListCounts, setMoviesListCounts] = useState<{ total: number } | null>(null)
+  const [seriesListCounts, setSeriesListCounts] = useState<{ total: number } | null>(null)
+
+  // Fetch MDBList item counts when list selection changes
+  const fetchListCounts = useCallback(async (listId: number | null, type: 'movies' | 'series') => {
+    if (!listId) {
+      if (type === 'movies') setMoviesListCounts(null)
+      else setSeriesListCounts(null)
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/mdblist/lists/${listId}/counts`, { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        if (type === 'movies') setMoviesListCounts(data)
+        else setSeriesListCounts(data)
+      }
+    } catch {
+      // Silently fail
+    }
+  }, [])
+
+  // Fetch counts when list IDs change
+  useEffect(() => {
+    if (config?.mdblistMoviesListId) {
+      fetchListCounts(config.mdblistMoviesListId, 'movies')
+    } else {
+      setMoviesListCounts(null)
+    }
+  }, [config?.mdblistMoviesListId, fetchListCounts])
+
+  useEffect(() => {
+    if (config?.mdblistSeriesListId) {
+      fetchListCounts(config.mdblistSeriesListId, 'series')
+    } else {
+      setSeriesListCounts(null)
+    }
+  }, [config?.mdblistSeriesListId, fetchListCounts])
+
   // Fetch images - override defaults only if custom images exist
   const fetchImages = useCallback(async () => {
     try {
@@ -530,6 +571,11 @@ export function TopPicksSection() {
                 helperText="Select a MDBList to use for movie rankings"
                 disabled={!config.isEnabled}
               />
+              {moviesListCounts && (
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                  List contains {moviesListCounts.total} items
+                </Typography>
+              )}
             </Box>
           )}
 
@@ -733,6 +779,11 @@ export function TopPicksSection() {
                 helperText="Select a MDBList to use for series rankings"
                 disabled={!config.isEnabled}
               />
+              {seriesListCounts && (
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                  List contains {seriesListCounts.total} items
+                </Typography>
+              )}
             </Box>
           )}
 

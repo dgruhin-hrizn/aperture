@@ -9,8 +9,8 @@ import {
   searchLists,
   getListInfo,
   getListItems,
+  getListItemCounts,
   getMyLists,
-  type MDBListConfig,
 } from '@aperture/core'
 
 const mdblistRoutes: FastifyPluginAsync = async (fastify) => {
@@ -234,6 +234,39 @@ const mdblistRoutes: FastifyPluginAsync = async (fastify) => {
     } catch (err) {
       fastify.log.error({ err }, 'Failed to get list info')
       return reply.status(500).send({ error: 'Failed to get list info' })
+    }
+  })
+
+  /**
+   * GET /api/mdblist/lists/:id/counts
+   * Get item counts for a list (without fetching all items)
+   */
+  fastify.get<{
+    Params: {
+      id: string
+    }
+  }>('/api/mdblist/lists/:id/counts', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const configured = await isMDBListConfigured()
+      if (!configured) {
+        return reply.status(400).send({ error: 'MDBList is not configured' })
+      }
+
+      const listId = parseInt(request.params.id, 10)
+      if (isNaN(listId)) {
+        return reply.status(400).send({ error: 'Invalid list ID' })
+      }
+
+      const counts = await getListItemCounts(listId)
+
+      if (!counts) {
+        return reply.status(404).send({ error: 'Could not get list counts' })
+      }
+
+      return reply.send(counts)
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get list item counts')
+      return reply.status(500).send({ error: 'Failed to get list item counts' })
     }
   })
 
