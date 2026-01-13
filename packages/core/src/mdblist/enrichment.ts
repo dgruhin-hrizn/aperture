@@ -126,6 +126,9 @@ interface EnrichmentUpdate {
 /**
  * Bulk update movies with MDBList enrichment data using unnest()
  * OPTIMIZED: Single query updates all items instead of N individual queries
+ * 
+ * Note: Keywords are passed as JSON arrays and converted back to text[] in SQL
+ * because unnest() doesn't handle text[][] well with COALESCE
  */
 async function bulkUpdateMovies(updates: EnrichmentUpdate[]): Promise<number> {
   if (updates.length === 0) return 0
@@ -139,14 +142,17 @@ async function bulkUpdateMovies(updates: EnrichmentUpdate[]): Promise<number> {
         rt_audience_score = COALESCE(data.rt_audience_score, movies.rt_audience_score),
         metacritic_score = COALESCE(data.metacritic_score, movies.metacritic_score),
         streaming_providers = COALESCE(data.streaming_providers, movies.streaming_providers),
-        mdblist_keywords = COALESCE(data.keywords, movies.mdblist_keywords),
+        mdblist_keywords = COALESCE(
+          (SELECT array_agg(x)::text[] FROM jsonb_array_elements_text(data.keywords_json) AS x),
+          movies.mdblist_keywords
+        ),
         mdblist_enriched_at = NOW()
       FROM (
         SELECT * FROM unnest(
           $1::uuid[], $2::real[], $3::real[], $4::real[], $5::real[],
-          $6::real[], $7::jsonb[], $8::text[][]
+          $6::real[], $7::jsonb[], $8::jsonb[]
         ) AS t(id, letterboxd_score, mdblist_score, rt_critic_score, rt_audience_score,
-               metacritic_score, streaming_providers, keywords)
+               metacritic_score, streaming_providers, keywords_json)
       ) AS data
       WHERE movies.id = data.id`,
       [
@@ -157,7 +163,7 @@ async function bulkUpdateMovies(updates: EnrichmentUpdate[]): Promise<number> {
         updates.map((u) => u.rtAudienceScore),
         updates.map((u) => u.metacriticScore),
         updates.map((u) => u.streamingProviders),
-        updates.map((u) => u.keywords),
+        updates.map((u) => u.keywords ? JSON.stringify(u.keywords) : null),
       ]
     )
     return result.rowCount || 0
@@ -170,6 +176,9 @@ async function bulkUpdateMovies(updates: EnrichmentUpdate[]): Promise<number> {
 /**
  * Bulk update series with MDBList enrichment data using unnest()
  * OPTIMIZED: Single query updates all items instead of N individual queries
+ * 
+ * Note: Keywords are passed as JSON arrays and converted back to text[] in SQL
+ * because unnest() doesn't handle text[][] well with COALESCE
  */
 async function bulkUpdateSeries(updates: EnrichmentUpdate[]): Promise<number> {
   if (updates.length === 0) return 0
@@ -183,14 +192,17 @@ async function bulkUpdateSeries(updates: EnrichmentUpdate[]): Promise<number> {
         rt_audience_score = COALESCE(data.rt_audience_score, series.rt_audience_score),
         metacritic_score = COALESCE(data.metacritic_score, series.metacritic_score),
         streaming_providers = COALESCE(data.streaming_providers, series.streaming_providers),
-        mdblist_keywords = COALESCE(data.keywords, series.mdblist_keywords),
+        mdblist_keywords = COALESCE(
+          (SELECT array_agg(x)::text[] FROM jsonb_array_elements_text(data.keywords_json) AS x),
+          series.mdblist_keywords
+        ),
         mdblist_enriched_at = NOW()
       FROM (
         SELECT * FROM unnest(
           $1::uuid[], $2::real[], $3::real[], $4::real[], $5::real[],
-          $6::real[], $7::jsonb[], $8::text[][]
+          $6::real[], $7::jsonb[], $8::jsonb[]
         ) AS t(id, letterboxd_score, mdblist_score, rt_critic_score, rt_audience_score,
-               metacritic_score, streaming_providers, keywords)
+               metacritic_score, streaming_providers, keywords_json)
       ) AS data
       WHERE series.id = data.id`,
       [
@@ -201,7 +213,7 @@ async function bulkUpdateSeries(updates: EnrichmentUpdate[]): Promise<number> {
         updates.map((u) => u.rtAudienceScore),
         updates.map((u) => u.metacriticScore),
         updates.map((u) => u.streamingProviders),
-        updates.map((u) => u.keywords),
+        updates.map((u) => u.keywords ? JSON.stringify(u.keywords) : null),
       ]
     )
     return result.rowCount || 0
@@ -218,12 +230,13 @@ async function markAsProcessed(ids: string[], table: 'movies' | 'series'): Promi
   if (ids.length === 0) return
 
   try {
-    await query(
+    const result = await query(
       `UPDATE ${table} SET mdblist_enriched_at = NOW() WHERE id = ANY($1::uuid[])`,
       [ids]
     )
+    logger.debug({ table, ids: ids.length, updated: result.rowCount }, 'Marked items as processed')
   } catch (err) {
-    logger.error({ err, table }, 'Failed to mark items as processed')
+    logger.error({ err, table, ids }, 'Failed to mark items as processed')
   }
 }
 
@@ -313,14 +326,32 @@ async function processBatch(
         ? await bulkUpdateMovies(updates)
         : await bulkUpdateSeries(updates)
       result.enriched = updated
+      logger.debug({ table, updates: updates.length, updated }, 'Bulk update completed')
     }
 
     // Mark items without data as processed (single query!)
-    await markAsProcessed(notFoundIds, table)
+    if (notFoundIds.length > 0) {
+      logger.debug({ table, notFoundIds: notFoundIds.length }, 'Marking items without MDBList data as processed')
+      await markAsProcessed(notFoundIds, table)
+    }
     result.failed = notFoundIds.length
+
+    // Safety: if somehow items weren't updated, mark ALL as processed to prevent infinite loop
+    const allIds = items.map(i => i.id)
+    const processedCount = result.enriched + notFoundIds.length
+    if (processedCount < items.length) {
+      const missingIds = allIds.filter(id => !updates.find(u => u.id === id) && !notFoundIds.includes(id))
+      if (missingIds.length > 0) {
+        logger.warn({ table, missingIds: missingIds.length }, 'Found items that slipped through - marking as processed')
+        await markAsProcessed(missingIds, table)
+      }
+    }
 
   } catch (err) {
     logger.error({ err }, 'Batch MDBList fetch failed')
+    // Mark ALL items as processed to prevent infinite retry loop
+    const allIds = items.map(i => i.id)
+    await markAsProcessed(allIds, table)
     result.failed = items.length
   }
 
