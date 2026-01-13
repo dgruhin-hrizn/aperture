@@ -125,7 +125,8 @@ export async function populateStudiosFromMedia(): Promise<{ studios: number; net
  */
 async function getStudiosNeedingLogos(
   type: 'studio' | 'network',
-  limit: number = 50
+  limit: number = 50,
+  offset: number = 0
 ): Promise<StudioToEnrich[]> {
   const result = await query<StudioToEnrich>(
     `SELECT id, name, type, emby_id, tmdb_id
@@ -133,8 +134,9 @@ async function getStudiosNeedingLogos(
      WHERE type = $1
        AND logo_path IS NULL
      ORDER BY name
-     LIMIT $2`,
-    [type, limit]
+     LIMIT $2
+     OFFSET $3`,
+    [type, limit, offset]
   )
   return result.rows
 }
@@ -383,7 +385,7 @@ export async function enrichStudioLogos(jobId: string): Promise<StudioLogoProgre
           break
         }
 
-        const studios = await getStudiosNeedingLogos('studio', BATCH_SIZE)
+        const studios = await getStudiosNeedingLogos('studio', BATCH_SIZE, progress.studiosFailed)
         if (studios.length === 0) break
 
         const results = await processWithConcurrency(
@@ -428,7 +430,7 @@ export async function enrichStudioLogos(jobId: string): Promise<StudioLogoProgre
           break
         }
 
-        const networks = await getStudiosNeedingLogos('network', BATCH_SIZE)
+        const networks = await getStudiosNeedingLogos('network', BATCH_SIZE, progress.networksFailed)
         if (networks.length === 0) break
 
         const results = await processWithConcurrency(
