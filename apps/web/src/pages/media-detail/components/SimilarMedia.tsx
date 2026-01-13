@@ -19,7 +19,6 @@ import {
 } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { MoviePoster } from '@aperture/ui'
-import ExploreIcon from '@mui/icons-material/Explore'
 import GridViewIcon from '@mui/icons-material/GridView'
 import BubbleChartIcon from '@mui/icons-material/BubbleChart'
 import HomeIcon from '@mui/icons-material/Home'
@@ -146,16 +145,6 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
             />
           </Tabs>
 
-          {mediaId && (
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<ExploreIcon />}
-              onClick={() => navigate(`/explore?type=${mediaType}&id=${mediaId}`)}
-            >
-              Explore
-            </Button>
-          )}
         </Box>
       </Box>
 
