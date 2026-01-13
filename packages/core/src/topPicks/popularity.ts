@@ -387,6 +387,23 @@ export async function getTopMoviesFromMDBList(
     return []
   }
 
+  // Log the top items from MDBList for debugging (before library matching)
+  // Note: Array position is the sorted rank, item.rank is just the original list position
+  logger.info(
+    {
+      listId,
+      sort: sortOption,
+      topFromMDBList: listItems.slice(0, 5).map((item, idx) => ({
+        sortedRank: idx + 1,
+        title: item.title,
+        year: item.year,
+        imdbid: item.imdbid,
+        originalListPosition: item.rank, // NOT the sorted rank!
+      })),
+    },
+    'Top items from MDBList (sorted by ' + sortOption + ', before library matching)'
+  )
+
   // Match list items to local library by TMDB/IMDB ID
   const movies = await matchMDBListMoviesToLibrary(listItems, count)
 
@@ -507,8 +524,8 @@ async function matchMDBListMoviesToLibrary(
         uniqueViewers: 0, // Not applicable for MDBList source
         playCount: 0,
         completionRate: 0,
-        popularityScore: item.rank || 1000 - rank, // Use MDBList rank as score
-        rank: rank++,
+        popularityScore: 1000 - rank, // Higher score for items earlier in sorted list
+        rank: rank++, // Array position = sorted rank (NOT item.rank which is original list position)
       })
     }
   }
@@ -588,8 +605,8 @@ async function matchMDBListSeriesToLibrary(
         uniqueViewers: 0,
         totalEpisodesWatched: 0,
         avgCompletionRate: 0,
-        popularityScore: item.rank || 1000 - rank,
-        rank: rank++,
+        popularityScore: 1000 - rank, // Higher score for items earlier in sorted list
+        rank: rank++, // Array position = sorted rank (NOT item.rank which is original list position)
       })
     }
   }
