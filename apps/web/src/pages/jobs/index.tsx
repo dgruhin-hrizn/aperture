@@ -167,19 +167,18 @@ function MaintenanceSection({ onRunJob }: { onRunJob: (name: string) => void }) 
               Reset Metadata Enrichment
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Clears the enrichment status for all movies and series, allowing them to be re-enriched
-              with fresh data from TMDb, OMDb, and MDBList.
+              Forces a complete re-fetch of metadata for all movies and series from TMDb, OMDb, and MDBList.
             </Typography>
           </Box>
           
           <Alert severity="info" sx={{ borderRadius: 1.5 }}>
             <Typography variant="body2" fontWeight={500} gutterBottom>
-              When to use this:
+              Note: Normally not needed
             </Typography>
-            <Typography variant="body2" component="ul" sx={{ m: 0, pl: 2 }}>
-              <li>After Aperture updates that add new metadata fields (e.g., languages, streaming providers)</li>
-              <li>If enrichment data appears incomplete or outdated</li>
-              <li>To refresh Rotten Tomatoes scores, Letterboxd ratings, or keywords</li>
+            <Typography variant="body2">
+              The enrichment job automatically updates items when new metadata fields are added 
+              (via the enrichment version system). Use this only if you want to force a complete refresh 
+              of all ratings, keywords, and metadata.
             </Typography>
           </Alert>
 
@@ -191,7 +190,7 @@ function MaintenanceSection({ onRunJob }: { onRunJob: (name: string) => void }) 
               onClick={handleResetEnrichment}
               disabled={resettingEnrichment}
             >
-              {resettingEnrichment ? 'Resetting...' : 'Reset Enrichment'}
+              {resettingEnrichment ? 'Resetting...' : 'Force Full Reset'}
             </Button>
             
             <Button

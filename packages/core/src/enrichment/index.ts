@@ -98,17 +98,26 @@ interface SeriesToEnrich {
 // ============================================================================
 
 /**
- * Get movies that need enrichment (missing keywords or RT scores)
+ * Get movies that need enrichment
+ * Includes: never enriched OR enrichment version is outdated
  */
 async function getMoviesNeedingEnrichment(limit: number = 100): Promise<MovieToEnrich[]> {
+  // Get current enrichment version from system settings
+  const versionResult = await queryOne<{ value: string }>(
+    `SELECT value FROM system_settings WHERE key = 'enrichment_version'`
+  )
+  const currentVersion = parseInt(versionResult?.value || '1', 10)
+
   const result = await query<MovieToEnrich>(
     `SELECT id, title, tmdb_id, imdb_id
      FROM movies
-     WHERE enriched_at IS NULL
+     WHERE (enriched_at IS NULL OR COALESCE(enrichment_version, 0) < $2)
        AND (imdb_id IS NOT NULL OR tmdb_id IS NOT NULL)
-     ORDER BY created_at DESC
+     ORDER BY 
+       CASE WHEN enriched_at IS NULL THEN 0 ELSE 1 END,  -- New items first
+       created_at DESC
      LIMIT $1`,
-    [limit]
+    [limit, currentVersion]
   )
   return result.rows
 }
@@ -207,7 +216,8 @@ async function enrichMovie(
          awards_summary = COALESCE($11, awards_summary),
          languages = COALESCE($12, languages),
          production_countries = COALESCE($13, production_countries),
-         enriched_at = NOW()
+         enriched_at = NOW(),
+         enrichment_version = COALESCE((SELECT value::int FROM system_settings WHERE key = 'enrichment_version'), 1)
        WHERE id = $1`,
       [
         movie.id,
@@ -240,14 +250,22 @@ async function enrichMovie(
  * Get series that need enrichment
  */
 async function getSeriesNeedingEnrichment(limit: number = 100): Promise<SeriesToEnrich[]> {
+  // Get current enrichment version from system settings
+  const versionResult = await queryOne<{ value: string }>(
+    `SELECT value FROM system_settings WHERE key = 'enrichment_version'`
+  )
+  const currentVersion = parseInt(versionResult?.value || '1', 10)
+
   const result = await query<SeriesToEnrich>(
     `SELECT id, title, tmdb_id, imdb_id, tvdb_id
      FROM series
-     WHERE enriched_at IS NULL
+     WHERE (enriched_at IS NULL OR COALESCE(enrichment_version, 0) < $2)
        AND (imdb_id IS NOT NULL OR tmdb_id IS NOT NULL OR tvdb_id IS NOT NULL)
-     ORDER BY created_at DESC
+     ORDER BY 
+       CASE WHEN enriched_at IS NULL THEN 0 ELSE 1 END,  -- New items first
+       created_at DESC
      LIMIT $1`,
-    [limit]
+    [limit, currentVersion]
   )
   return result.rows
 }
@@ -337,7 +355,8 @@ async function enrichSeries(
          awards_summary = COALESCE($6, awards_summary),
          languages = COALESCE($7, languages),
          production_countries = COALESCE($8, production_countries),
-         enriched_at = NOW()
+         enriched_at = NOW(),
+         enrichment_version = COALESCE((SELECT value::int FROM system_settings WHERE key = 'enrichment_version'), 1)
        WHERE id = $1`,
       [
         series.id,
@@ -469,12 +488,24 @@ export async function enrichMetadata(jobId: string): Promise<EnrichmentProgress>
   createJobProgress(jobId, 'enrich-metadata', 3) // 3 steps: movies, series, collections
 
   try {
-    // Get counts for progress tracking
+    // Get current enrichment version
+    const versionResult = await queryOne<{ value: string }>(
+      `SELECT value FROM system_settings WHERE key = 'enrichment_version'`
+    )
+    const currentVersion = parseInt(versionResult?.value || '1', 10)
+
+    // Get counts for progress tracking (includes never enriched + outdated versions)
     const movieCount = await queryOne<{ count: string }>(
-      `SELECT COUNT(*) as count FROM movies WHERE enriched_at IS NULL AND (imdb_id IS NOT NULL OR tmdb_id IS NOT NULL)`
+      `SELECT COUNT(*) as count FROM movies 
+       WHERE (enriched_at IS NULL OR COALESCE(enrichment_version, 0) < $1)
+         AND (imdb_id IS NOT NULL OR tmdb_id IS NOT NULL)`,
+      [currentVersion]
     )
     const seriesCount = await queryOne<{ count: string }>(
-      `SELECT COUNT(*) as count FROM series WHERE enriched_at IS NULL AND (imdb_id IS NOT NULL OR tmdb_id IS NOT NULL OR tvdb_id IS NOT NULL)`
+      `SELECT COUNT(*) as count FROM series 
+       WHERE (enriched_at IS NULL OR COALESCE(enrichment_version, 0) < $1)
+         AND (imdb_id IS NOT NULL OR tmdb_id IS NOT NULL OR tvdb_id IS NOT NULL)`,
+      [currentVersion]
     )
 
     const totalMovies = parseInt(movieCount?.count || '0', 10)
@@ -482,10 +513,12 @@ export async function enrichMetadata(jobId: string): Promise<EnrichmentProgress>
     const totalItems = totalMovies + totalSeries
 
     if (totalItems === 0) {
-      addLog(jobId, 'info', 'No items need enrichment')
+      addLog(jobId, 'info', `All items at enrichment version ${currentVersion} - nothing to do`)
       completeJob(jobId, { progress })
       return progress
     }
+
+    addLog(jobId, 'info', `Enrichment version: ${currentVersion}`)
 
     const startTime = Date.now()
     logger.info(
@@ -691,8 +724,61 @@ export async function getEnrichmentStats(): Promise<{
  * Clear enrichment data (for re-enriching)
  */
 export async function clearEnrichmentData(): Promise<void> {
-  await query(`UPDATE movies SET enriched_at = NULL`)
-  await query(`UPDATE series SET enriched_at = NULL`)
+  await query(`UPDATE movies SET enriched_at = NULL, enrichment_version = 0`)
+  await query(`UPDATE series SET enriched_at = NULL, enrichment_version = 0`)
   logger.info('Enrichment data cleared')
+}
+
+/**
+ * Get enrichment version status
+ * Returns current version and counts of items needing update
+ */
+export async function getEnrichmentVersionStatus(): Promise<{
+  currentVersion: number
+  movies: { total: number; outdated: number }
+  series: { total: number; outdated: number }
+  needsUpdate: boolean
+}> {
+  // Get current version from system settings
+  const versionResult = await queryOne<{ value: string }>(
+    `SELECT value FROM system_settings WHERE key = 'enrichment_version'`
+  )
+  const currentVersion = parseInt(versionResult?.value || '1', 10)
+
+  // Count movies with outdated enrichment
+  const movieStats = await queryOne<{ total: string; outdated: string }>(
+    `SELECT 
+       COUNT(*) as total,
+       COUNT(*) FILTER (WHERE enrichment_version < $1) as outdated
+     FROM movies
+     WHERE enriched_at IS NOT NULL`,
+    [currentVersion]
+  )
+
+  // Count series with outdated enrichment
+  const seriesStats = await queryOne<{ total: string; outdated: string }>(
+    `SELECT 
+       COUNT(*) as total,
+       COUNT(*) FILTER (WHERE enrichment_version < $1) as outdated
+     FROM series
+     WHERE enriched_at IS NOT NULL`,
+    [currentVersion]
+  )
+
+  const movieOutdated = parseInt(movieStats?.outdated || '0', 10)
+  const seriesOutdated = parseInt(seriesStats?.outdated || '0', 10)
+
+  return {
+    currentVersion,
+    movies: {
+      total: parseInt(movieStats?.total || '0', 10),
+      outdated: movieOutdated,
+    },
+    series: {
+      total: parseInt(seriesStats?.total || '0', 10),
+      outdated: seriesOutdated,
+    },
+    needsUpdate: movieOutdated > 0 || seriesOutdated > 0,
+  }
 }
 

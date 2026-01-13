@@ -455,6 +455,7 @@ export {
   enrichMetadata,
   getEnrichmentStats,
   clearEnrichmentData,
+  getEnrichmentVersionStatus,
 } from './enrichment/index.js'
 
 // Studio Logo Enrichment

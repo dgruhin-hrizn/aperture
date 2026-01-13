@@ -20,6 +20,7 @@ import {
   enrichStudioLogos,
   enrichMDBListMetadata,
   clearEnrichmentData,
+  getEnrichmentVersionStatus,
   // Common
   createChildLogger,
   // Watching libraries
@@ -705,6 +706,20 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
    * Reset enrichment so items can be re-enriched with updated metadata
    */
   fastify.post('/api/admin/reset-enrichment', { preHandler: requireAdmin }, resetEnrichment)
+
+  /**
+   * GET /api/admin/enrichment-status
+   * Get enrichment version status to detect outdated items
+   */
+  fastify.get('/api/admin/enrichment-status', { preHandler: requireAdmin }, async (_request, reply) => {
+    try {
+      const status = await getEnrichmentVersionStatus()
+      reply.send(status)
+    } catch (err) {
+      logger.error({ err }, 'Failed to get enrichment status')
+      reply.status(500).send({ error: 'Failed to get enrichment status' })
+    }
+  })
 }
 
 // Job execution - calls actual implementations from @aperture/core
