@@ -155,7 +155,7 @@ async function mdblistRequest<T>(
     // No query params yet
     url = new URL(`${MDBLIST_API_BASE_URL}${endpoint}?apikey=${apiKey}`)
   }
-  
+
   logger.debug({ url: url.toString() }, 'MDBList API request')
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
