@@ -83,42 +83,6 @@ async function getMoviesNeedingMDBListEnrichment(limit: number = 500): Promise<I
   return result.rows
 }
 
-/**
- * Update a movie with MDBList enrichment data
- */
-async function updateMovieEnrichment(
-  movieId: string,
-  data: MDBListEnrichmentData
-): Promise<boolean> {
-  try {
-    await query(
-      `UPDATE movies SET
-         letterboxd_score = COALESCE($2, letterboxd_score),
-         mdblist_score = COALESCE($3, mdblist_score),
-         rt_critic_score = COALESCE($4, rt_critic_score),
-         rt_audience_score = COALESCE($5, rt_audience_score),
-         metacritic_score = COALESCE($6, metacritic_score),
-         streaming_providers = COALESCE($7, streaming_providers),
-         mdblist_keywords = COALESCE($8, mdblist_keywords),
-         mdblist_enriched_at = NOW()
-       WHERE id = $1`,
-      [
-        movieId,
-        data.letterboxdScore,
-        data.mdblistScore,
-        data.rtCriticScore,
-        data.rtAudienceScore,
-        data.metacriticScore,
-        JSON.stringify(data.streamingProviders),
-        data.keywords.length > 0 ? data.keywords : null,
-      ]
-    )
-    return true
-  } catch (err) {
-    logger.error({ err, movieId }, 'Failed to update movie with MDBList data')
-    return false
-  }
-}
 
 // ============================================================================
 // Series Enrichment
@@ -143,56 +107,137 @@ async function getSeriesNeedingMDBListEnrichment(limit: number = 500): Promise<I
   return result.rows
 }
 
+
+// ============================================================================
+// Batch Processing (Optimized with unnest)
+// ============================================================================
+
+interface EnrichmentUpdate {
+  id: string
+  letterboxdScore: number | null
+  mdblistScore: number | null
+  rtCriticScore: number | null
+  rtAudienceScore: number | null
+  metacriticScore: number | null
+  streamingProviders: string // JSON string
+  keywords: string[] | null
+}
+
 /**
- * Update a series with MDBList enrichment data
+ * Bulk update movies with MDBList enrichment data using unnest()
+ * OPTIMIZED: Single query updates all items instead of N individual queries
  */
-async function updateSeriesEnrichment(
-  seriesId: string,
-  data: MDBListEnrichmentData
-): Promise<boolean> {
+async function bulkUpdateMovies(updates: EnrichmentUpdate[]): Promise<number> {
+  if (updates.length === 0) return 0
+
   try {
-    await query(
-      `UPDATE series SET
-         letterboxd_score = COALESCE($2, letterboxd_score),
-         mdblist_score = COALESCE($3, mdblist_score),
-         rt_critic_score = COALESCE($4, rt_critic_score),
-         rt_audience_score = COALESCE($5, rt_audience_score),
-         metacritic_score = COALESCE($6, metacritic_score),
-         streaming_providers = COALESCE($7, streaming_providers),
-         mdblist_keywords = COALESCE($8, mdblist_keywords),
-         mdblist_enriched_at = NOW()
-       WHERE id = $1`,
+    const result = await query(
+      `UPDATE movies SET
+        letterboxd_score = COALESCE(data.letterboxd_score, movies.letterboxd_score),
+        mdblist_score = COALESCE(data.mdblist_score, movies.mdblist_score),
+        rt_critic_score = COALESCE(data.rt_critic_score, movies.rt_critic_score),
+        rt_audience_score = COALESCE(data.rt_audience_score, movies.rt_audience_score),
+        metacritic_score = COALESCE(data.metacritic_score, movies.metacritic_score),
+        streaming_providers = COALESCE(data.streaming_providers, movies.streaming_providers),
+        mdblist_keywords = COALESCE(data.keywords, movies.mdblist_keywords),
+        mdblist_enriched_at = NOW()
+      FROM (
+        SELECT * FROM unnest(
+          $1::uuid[], $2::real[], $3::real[], $4::real[], $5::real[],
+          $6::real[], $7::jsonb[], $8::text[][]
+        ) AS t(id, letterboxd_score, mdblist_score, rt_critic_score, rt_audience_score,
+               metacritic_score, streaming_providers, keywords)
+      ) AS data
+      WHERE movies.id = data.id`,
       [
-        seriesId,
-        data.letterboxdScore,
-        data.mdblistScore,
-        data.rtCriticScore,
-        data.rtAudienceScore,
-        data.metacriticScore,
-        JSON.stringify(data.streamingProviders),
-        data.keywords.length > 0 ? data.keywords : null,
+        updates.map((u) => u.id),
+        updates.map((u) => u.letterboxdScore),
+        updates.map((u) => u.mdblistScore),
+        updates.map((u) => u.rtCriticScore),
+        updates.map((u) => u.rtAudienceScore),
+        updates.map((u) => u.metacriticScore),
+        updates.map((u) => u.streamingProviders),
+        updates.map((u) => u.keywords),
       ]
     )
-    return true
+    return result.rowCount || 0
   } catch (err) {
-    logger.error({ err, seriesId }, 'Failed to update series with MDBList data')
-    return false
+    logger.error({ err }, 'Bulk movie update failed')
+    return 0
   }
 }
 
-// ============================================================================
-// Batch Processing
-// ============================================================================
+/**
+ * Bulk update series with MDBList enrichment data using unnest()
+ * OPTIMIZED: Single query updates all items instead of N individual queries
+ */
+async function bulkUpdateSeries(updates: EnrichmentUpdate[]): Promise<number> {
+  if (updates.length === 0) return 0
+
+  try {
+    const result = await query(
+      `UPDATE series SET
+        letterboxd_score = COALESCE(data.letterboxd_score, series.letterboxd_score),
+        mdblist_score = COALESCE(data.mdblist_score, series.mdblist_score),
+        rt_critic_score = COALESCE(data.rt_critic_score, series.rt_critic_score),
+        rt_audience_score = COALESCE(data.rt_audience_score, series.rt_audience_score),
+        metacritic_score = COALESCE(data.metacritic_score, series.metacritic_score),
+        streaming_providers = COALESCE(data.streaming_providers, series.streaming_providers),
+        mdblist_keywords = COALESCE(data.keywords, series.mdblist_keywords),
+        mdblist_enriched_at = NOW()
+      FROM (
+        SELECT * FROM unnest(
+          $1::uuid[], $2::real[], $3::real[], $4::real[], $5::real[],
+          $6::real[], $7::jsonb[], $8::text[][]
+        ) AS t(id, letterboxd_score, mdblist_score, rt_critic_score, rt_audience_score,
+               metacritic_score, streaming_providers, keywords)
+      ) AS data
+      WHERE series.id = data.id`,
+      [
+        updates.map((u) => u.id),
+        updates.map((u) => u.letterboxdScore),
+        updates.map((u) => u.mdblistScore),
+        updates.map((u) => u.rtCriticScore),
+        updates.map((u) => u.rtAudienceScore),
+        updates.map((u) => u.metacriticScore),
+        updates.map((u) => u.streamingProviders),
+        updates.map((u) => u.keywords),
+      ]
+    )
+    return result.rowCount || 0
+  } catch (err) {
+    logger.error({ err }, 'Bulk series update failed')
+    return 0
+  }
+}
+
+/**
+ * Mark items as processed (no data found) in bulk
+ */
+async function markAsProcessed(ids: string[], table: 'movies' | 'series'): Promise<void> {
+  if (ids.length === 0) return
+
+  try {
+    await query(
+      `UPDATE ${table} SET mdblist_enriched_at = NOW() WHERE id = ANY($1::uuid[])`,
+      [ids]
+    )
+  } catch (err) {
+    logger.error({ err, table }, 'Failed to mark items as processed')
+  }
+}
 
 /**
  * Process a batch of items (movies or series) with MDBList data
  * Uses TMDB IDs when available, falls back to IMDB
+ * 
+ * OPTIMIZED: Uses bulk UPDATE with unnest() instead of individual queries
  */
 async function processBatch(
   items: ItemToEnrich[],
-  updateFn: (id: string, data: MDBListEnrichmentData) => Promise<boolean>,
   mediaType: 'movie' | 'show',
-  jobId: string
+  table: 'movies' | 'series',
+  _jobId: string
 ): Promise<{ enriched: number; failed: number }> {
   const result = { enriched: 0, failed: 0 }
 
@@ -227,7 +272,6 @@ async function processBatch(
     }
 
     // For items without TMDB, try IMDB (less common case)
-    // Use individual lookups since we deprecated the old batch
     for (const item of imdbOnlyItems) {
       if (item.imdb_id) {
         try {
@@ -241,31 +285,40 @@ async function processBatch(
       }
     }
 
-    // Update each item
+    // Prepare bulk update data
+    const updates: EnrichmentUpdate[] = []
+    const notFoundIds: string[] = []
+
     for (const item of items) {
       const data = infoByItemId.get(item.id)
       if (data) {
-        const success = await updateFn(item.id, data)
-        if (success) {
-          result.enriched++
-        } else {
-          result.failed++
-        }
-      } else {
-        // Mark as enriched even if not found to avoid re-processing
-        await query(
-          `UPDATE movies SET mdblist_enriched_at = NOW() WHERE id = $1`,
-          [item.id]
-        ).catch(() => {
-          // Try series table if movie update fails
-          return query(
-            `UPDATE series SET mdblist_enriched_at = NOW() WHERE id = $1`,
-            [item.id]
-          )
+        updates.push({
+          id: item.id,
+          letterboxdScore: data.letterboxdScore,
+          mdblistScore: data.mdblistScore,
+          rtCriticScore: data.rtCriticScore,
+          rtAudienceScore: data.rtAudienceScore,
+          metacriticScore: data.metacriticScore,
+          streamingProviders: JSON.stringify(data.streamingProviders),
+          keywords: data.keywords.length > 0 ? data.keywords : null,
         })
-        result.failed++
+      } else {
+        notFoundIds.push(item.id)
       }
     }
+
+    // Bulk update items with data (single query!)
+    if (updates.length > 0) {
+      const updated = table === 'movies'
+        ? await bulkUpdateMovies(updates)
+        : await bulkUpdateSeries(updates)
+      result.enriched = updated
+    }
+
+    // Mark items without data as processed (single query!)
+    await markAsProcessed(notFoundIds, table)
+    result.failed = notFoundIds.length
+
   } catch (err) {
     logger.error({ err }, 'Batch MDBList fetch failed')
     result.failed = items.length
@@ -340,7 +393,7 @@ export async function enrichMDBListMetadata(jobId: string): Promise<MDBListEnric
         // Process in batches for the API
         for (let i = 0; i < movies.length && !isJobCancelled(jobId); i += BATCH_SIZE) {
           const batch = movies.slice(i, i + BATCH_SIZE)
-          const batchResult = await processBatch(batch, updateMovieEnrichment, 'movie', jobId)
+          const batchResult = await processBatch(batch, 'movie', 'movies', jobId)
 
           progress.moviesProcessed += batch.length
           progress.moviesEnriched += batchResult.enriched
@@ -368,7 +421,7 @@ export async function enrichMDBListMetadata(jobId: string): Promise<MDBListEnric
 
         for (let i = 0; i < seriesList.length && !isJobCancelled(jobId); i += BATCH_SIZE) {
           const batch = seriesList.slice(i, i + BATCH_SIZE)
-          const batchResult = await processBatch(batch, updateSeriesEnrichment, 'show', jobId)
+          const batchResult = await processBatch(batch, 'show', 'series', jobId)
 
           progress.seriesProcessed += batch.length
           progress.seriesEnriched += batchResult.enriched
