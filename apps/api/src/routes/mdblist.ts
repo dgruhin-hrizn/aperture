@@ -132,7 +132,7 @@ const mdblistRoutes: FastifyPluginAsync = async (fastify) => {
 
       const { mediatype, limit } = request.query
       const lists = await getTopLists(mediatype)
-      
+
       // Apply optional limit (default to all)
       const maxItems = limit ? parseInt(limit, 10) : lists.length
       const limitedLists = lists.slice(0, maxItems)
@@ -161,10 +161,10 @@ const mdblistRoutes: FastifyPluginAsync = async (fastify) => {
 
       const { mediatype } = request.query
       let lists = await getMyLists()
-      
+
       // Filter by mediatype if specified
       if (mediatype && lists.length > 0) {
-        lists = lists.filter(list => list.mediatype === mediatype)
+        lists = lists.filter((list) => list.mediatype === mediatype)
       }
 
       return reply.send({ lists })
@@ -308,4 +308,3 @@ const mdblistRoutes: FastifyPluginAsync = async (fastify) => {
 }
 
 export default mdblistRoutes
-
