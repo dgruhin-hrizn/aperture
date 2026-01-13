@@ -291,39 +291,32 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
                   Expanded view • {fullscreenGraphData?.nodes.length || 0} items
                 </Typography>
                 {fullscreenHistory.length > 0 && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Tooltip title="Start over">
-                      <IconButton size="small" onClick={fullscreenStartOver} sx={{ color: 'primary.main' }}>
-                        <HomeIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Breadcrumbs
-                      separator={<NavigateNextIcon fontSize="small" />}
-                      sx={{
-                        '& .MuiBreadcrumbs-separator': { mx: 0.5 },
-                        '& .MuiBreadcrumbs-li': { fontSize: '0.875rem' },
-                      }}
-                    >
-                      {fullscreenHistory.map((item, index) => (
-                        <Link
-                          key={item.id}
-                          component="button"
-                          variant="body2"
-                          onClick={() => fullscreenGoToHistoryIndex(index)}
-                          sx={{
-                            cursor: 'pointer',
-                            color: 'text.secondary',
-                            '&:hover': { color: 'primary.main' },
-                          }}
-                        >
-                          {item.title}
-                        </Link>
-                      ))}
-                      <Typography variant="body2" color="text.primary" fontWeight={500}>
-                        {fullscreenTitle}
-                      </Typography>
-                    </Breadcrumbs>
-                  </Box>
+                  <Breadcrumbs
+                    separator={<NavigateNextIcon fontSize="small" />}
+                    sx={{
+                      '& .MuiBreadcrumbs-separator': { mx: 0.5 },
+                      '& .MuiBreadcrumbs-li': { fontSize: '0.875rem' },
+                    }}
+                  >
+                    {fullscreenHistory.map((item, index) => (
+                      <Link
+                        key={item.id}
+                        component="button"
+                        variant="body2"
+                        onClick={() => index === 0 ? fullscreenStartOver() : fullscreenGoToHistoryIndex(index)}
+                        sx={{
+                          cursor: 'pointer',
+                          color: 'text.secondary',
+                          '&:hover': { color: 'primary.main' },
+                        }}
+                      >
+                        {item.title}
+                      </Link>
+                    ))}
+                    <Typography variant="body2" color="text.primary" fontWeight={500}>
+                      {fullscreenTitle}
+                    </Typography>
+                  </Breadcrumbs>
                 )}
               </Box>
               <Tooltip title="Exit fullscreen">
