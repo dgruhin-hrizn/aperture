@@ -242,6 +242,12 @@ export async function testMDBListConnection(
       return { success: false, error: 'Failed to connect to MDBList API' }
     }
 
+    // Auto-dismiss any outage errors since connection is successful
+    const { dismissOutageErrors } = await import('../errors/db.js')
+    await dismissOutageErrors('mdblist').catch((err) =>
+      logger.warn({ err }, 'Failed to dismiss outage errors')
+    )
+
     return { success: true, userInfo }
   } catch (err) {
     const error = err instanceof Error ? err.message : 'Unknown error'
@@ -334,6 +340,10 @@ export type MDBListSortOption = (typeof MDBLIST_SORT_OPTIONS)[number]['value']
 
 /**
  * Get items from a list
+ * 
+ * Note: The API returns items already sorted when sort parameter is provided.
+ * The `rank` field in each item is the ORIGINAL list position, NOT the sorted position.
+ * Always use array index order as the actual rank after sorting.
  */
 export async function getListItems(
   listId: number,
@@ -351,6 +361,8 @@ export async function getListItems(
     endpoint += `?${params.toString()}`
   }
 
+  logger.debug({ listId, endpoint, sort: options.sort, order: options.order }, 'Fetching MDBList items')
+
   // API may return array directly or wrapped in { items: [...] } or { movies: [...], shows: [...] }
   const result = await mdblistRequest<
     MDBListItem[] | { items?: MDBListItem[]; movies?: MDBListItem[]; shows?: MDBListItem[] }
@@ -360,45 +372,60 @@ export async function getListItems(
     return []
   }
 
+  let items: MDBListItem[] = []
+
   // Handle direct array response (legacy format)
   if (Array.isArray(result)) {
-    return result.map((item) => normalizeListItem(item as unknown as Record<string, unknown>))
-  }
-
-  // Handle object wrapper formats
-  if (result && typeof result === 'object') {
+    items = result.map((item) => normalizeListItem(item as unknown as Record<string, unknown>))
+  } else if (result && typeof result === 'object') {
     // New format: { movies: [...], shows: [...] }
     if ('movies' in result || 'shows' in result) {
-      // Log sample response for debugging
-      logger.debug(
-        {
-          listId,
-          moviesCount: result.movies?.length,
-          showsCount: result.shows?.length,
-          sampleMovie: result.movies?.[0],
-          sampleShow: result.shows?.[0],
-        },
-        'MDBList items response structure'
-      )
-
       const movies = Array.isArray(result.movies)
         ? result.movies.map((item) => normalizeListItem(item as unknown as Record<string, unknown>))
         : []
       const shows = Array.isArray(result.shows)
         ? result.shows.map((item) => normalizeListItem(item as unknown as Record<string, unknown>))
         : []
-      return [...movies, ...shows]
+      // Combine movies first, then shows - API returns each array in sorted order
+      items = [...movies, ...shows]
+      
+      logger.debug(
+        {
+          listId,
+          moviesCount: movies.length,
+          showsCount: shows.length,
+          topMovies: movies.slice(0, 3).map((m) => ({ title: m.title, year: m.year })),
+        },
+        'MDBList items response (movies/shows format)'
+      )
+    } else if ('items' in result && Array.isArray(result.items)) {
+      // Legacy format: { items: [...] }
+      items = result.items.map((item) => normalizeListItem(item as unknown as Record<string, unknown>))
+    } else {
+      logger.warn({ listId, responseKeys: Object.keys(result) }, 'Unexpected MDBList items response format')
+      return []
     }
-
-    // Legacy format: { items: [...] }
-    if ('items' in result && Array.isArray(result.items)) {
-      return result.items.map((item) => normalizeListItem(item as unknown as Record<string, unknown>))
-    }
-
-    logger.warn({ listId, responseKeys: Object.keys(result) }, 'Unexpected MDBList items response format')
   }
 
-  return []
+  // Log top items to verify sort order (array position is the actual rank)
+  if (items.length > 0) {
+    logger.debug(
+      {
+        listId,
+        sort: options.sort,
+        totalItems: items.length,
+        topItems: items.slice(0, 5).map((item, idx) => ({
+          arrayPosition: idx + 1,
+          title: item.title,
+          year: item.year,
+          originalListRank: item.rank, // This is NOT the sorted rank!
+        })),
+      },
+      'MDBList items fetched (array position = sorted rank)'
+    )
+  }
+
+  return items
 }
 
 export interface ListItemCounts {

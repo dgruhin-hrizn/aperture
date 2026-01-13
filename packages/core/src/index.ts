@@ -527,6 +527,7 @@ export {
   getLatestErrorByProvider,
   dismissApiError,
   dismissErrorsByProvider,
+  dismissOutageErrors,
   cleanupOldErrors,
   hasRecentSimilarError,
   getErrorSummary,
