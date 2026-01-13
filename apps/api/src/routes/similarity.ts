@@ -20,19 +20,24 @@ const similarityRoutes: FastifyPluginAsync = async (fastify) => {
    * Query params:
    * - limit: Max connections (default: 12)
    * - depth: How many levels (1 = direct, 2 = spider out) (default: 1)
+   * 
+   * User preferences are automatically applied:
+   * - fullFranchiseMode: Show entire franchise without limits
+   * - hideWatched: Filter out already-watched content
    */
   fastify.get<{
     Params: { id: string }
     Querystring: { limit?: string; depth?: string }
   }>('/api/similarity/movie/:id', { preHandler: requireAuth }, async (request, reply) => {
     const { id } = request.params
+    const currentUser = request.user as SessionUser
     const limit = request.query.limit ? parseInt(request.query.limit, 10) : 12
     const depth = request.query.depth ? parseInt(request.query.depth, 10) : 1
 
     try {
       // If depth > 1, return graph data for multi-level view
       if (depth > 1) {
-        const graphData = await getSimilarWithDepth(id, 'movie', { limit, depth })
+        const graphData = await getSimilarWithDepth(id, 'movie', { limit, depth, userId: currentUser.id })
         return reply.send(graphData)
       }
       
@@ -54,19 +59,24 @@ const similarityRoutes: FastifyPluginAsync = async (fastify) => {
    * Query params:
    * - limit: Max connections (default: 12)
    * - depth: How many levels (1 = direct, 2 = spider out) (default: 1)
+   * 
+   * User preferences are automatically applied:
+   * - fullFranchiseMode: Show entire franchise without limits
+   * - hideWatched: Filter out already-watched content
    */
   fastify.get<{
     Params: { id: string }
     Querystring: { limit?: string; depth?: string }
   }>('/api/similarity/series/:id', { preHandler: requireAuth }, async (request, reply) => {
     const { id } = request.params
+    const currentUser = request.user as SessionUser
     const limit = request.query.limit ? parseInt(request.query.limit, 10) : 12
     const depth = request.query.depth ? parseInt(request.query.depth, 10) : 1
 
     try {
       // If depth > 1, return graph data for multi-level view
       if (depth > 1) {
-        const graphData = await getSimilarWithDepth(id, 'series', { limit, depth })
+        const graphData = await getSimilarWithDepth(id, 'series', { limit, depth, userId: currentUser.id })
         return reply.send(graphData)
       }
       

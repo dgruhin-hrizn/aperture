@@ -563,6 +563,7 @@ export {
   type GraphData,
   type GraphSource,
   type SimilarityOptions,
+  type SimilarityPreferences,
   type SemanticSearchOptions,
   type SemanticSearchResult,
   type ConnectionType,

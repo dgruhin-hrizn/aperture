@@ -23,6 +23,7 @@ import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
 import SaveIcon from '@mui/icons-material/Save'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import PsychologyIcon from '@mui/icons-material/Psychology'
+import HubOutlinedIcon from '@mui/icons-material/HubOutlined'
 import { useAuth } from '@/hooks/useAuth'
 import { Breadcrumbs } from '@/components/Breadcrumbs'
 import { TasteProfileSection } from './UserSettings/TasteProfileSection'
@@ -81,6 +82,13 @@ export function UserSettingsPage() {
   const [savingIncludeWatched, setSavingIncludeWatched] = useState(false)
   const [includeWatchedSuccess, setIncludeWatchedSuccess] = useState<string | null>(null)
 
+  // Similarity graph preferences state
+  const [similarityFullFranchise, setSimilarityFullFranchise] = useState(false)
+  const [similarityHideWatched, setSimilarityHideWatched] = useState(true) // Default ON
+  const [loadingSimilarityPrefs, setLoadingSimilarityPrefs] = useState(false)
+  const [savingSimilarityPrefs, setSavingSimilarityPrefs] = useState(false)
+  const [similarityPrefsSuccess, setSimilarityPrefsSuccess] = useState<string | null>(null)
+
   // Trakt integration state
   const [traktStatus, setTraktStatus] = useState<{
     traktConfigured: boolean
@@ -97,6 +105,7 @@ export function UserSettingsPage() {
     fetchAiExplanationPref()
     fetchDislikeBehavior()
     fetchIncludeWatched()
+    fetchSimilarityPrefs()
     fetchTraktStatus()
     
     // Check for Trakt callback params
@@ -284,6 +293,48 @@ export function UserSettingsPage() {
       // Silently fail
     } finally {
       setSavingIncludeWatched(false)
+    }
+  }
+
+  const fetchSimilarityPrefs = async () => {
+    setLoadingSimilarityPrefs(true)
+    try {
+      const response = await fetch('/api/settings/user/similarity-prefs', { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        setSimilarityFullFranchise(data.fullFranchiseMode ?? false)
+        setSimilarityHideWatched(data.hideWatched ?? true)
+      }
+    } catch {
+      // Silently fail - use defaults
+    } finally {
+      setLoadingSimilarityPrefs(false)
+    }
+  }
+
+  const saveSimilarityPref = async (key: 'fullFranchiseMode' | 'hideWatched', value: boolean) => {
+    setSavingSimilarityPrefs(true)
+    setSimilarityPrefsSuccess(null)
+    try {
+      const response = await fetch('/api/settings/user/similarity-prefs', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ [key]: value }),
+      })
+      if (response.ok) {
+        if (key === 'fullFranchiseMode') {
+          setSimilarityFullFranchise(value)
+        } else {
+          setSimilarityHideWatched(value)
+        }
+        setSimilarityPrefsSuccess('Preference saved!')
+        setTimeout(() => setSimilarityPrefsSuccess(null), 3000)
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setSavingSimilarityPrefs(false)
     }
   }
 
@@ -757,6 +808,87 @@ export function UserSettingsPage() {
 
                     <Typography variant="caption" color="text.secondary">
                       Rate content with 1-3 hearts to mark it as disliked. Changes will apply when your recommendations are next regenerated.
+                    </Typography>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Similarity Graph Preferences */}
+            <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, maxWidth: 600, mt: 3 }}>
+              <CardContent>
+                <Box display="flex" alignItems="center" gap={1} mb={1}>
+                  <HubOutlinedIcon color="primary" />
+                  <Typography variant="h6">
+                    Similarity Graph
+                  </Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" mb={3}>
+                  Customize how the similarity graph explores connections between movies and series.
+                </Typography>
+
+                {similarityPrefsSuccess && (
+                  <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSimilarityPrefsSuccess(null)}>
+                    {similarityPrefsSuccess}
+                  </Alert>
+                )}
+
+                {loadingSimilarityPrefs ? (
+                  <Box display="flex" justifyContent="center" py={4}>
+                    <CircularProgress />
+                  </Box>
+                ) : (
+                  <>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={similarityHideWatched}
+                          onChange={(e) => saveSimilarityPref('hideWatched', e.target.checked)}
+                          disabled={savingSimilarityPrefs}
+                        />
+                      }
+                      label={
+                        <Box>
+                          <Typography variant="body1" fontWeight="medium">
+                            Hide Watched Content
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {similarityHideWatched 
+                              ? 'Graph only shows unwatched content for new discoveries'
+                              : 'Graph includes all similar content, even what you\'ve already seen'}
+                          </Typography>
+                        </Box>
+                      }
+                      sx={{ alignItems: 'flex-start', ml: 0, mb: 2 }}
+                    />
+
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={similarityFullFranchise}
+                          onChange={(e) => saveSimilarityPref('fullFranchiseMode', e.target.checked)}
+                          disabled={savingSimilarityPrefs}
+                        />
+                      }
+                      label={
+                        <Box>
+                          <Typography variant="body1" fontWeight="medium">
+                            Full Franchise Mode
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {similarityFullFranchise 
+                              ? 'Show entire franchises without limits (e.g., all 26 James Bond films)'
+                              : 'Limit items per franchise to encourage diverse discoveries'}
+                          </Typography>
+                        </Box>
+                      }
+                      sx={{ alignItems: 'flex-start', ml: 0 }}
+                    />
+
+                    <Divider sx={{ my: 3 }} />
+
+                    <Typography variant="caption" color="text.secondary">
+                      These preferences apply when exploring similar content on detail pages and in fullscreen graph view.
                     </Typography>
                   </>
                 )}

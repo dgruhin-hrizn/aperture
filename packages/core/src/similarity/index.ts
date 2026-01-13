@@ -63,6 +63,58 @@ export interface SimilarityOptions {
   limit?: number
   includeCrossMedia?: boolean
   depth?: number // How many levels of connections to fetch (1 = direct only, 2 = include connections of connections)
+  userId?: string // If provided, user preferences are applied (hide watched, full franchise mode)
+}
+
+// User similarity preferences
+export interface SimilarityPreferences {
+  fullFranchiseMode: boolean // Show entire franchise without limits
+  hideWatched: boolean // Filter out already-watched content
+}
+
+/**
+ * Fetch user's similarity graph preferences
+ */
+async function getUserSimilarityPreferences(userId: string): Promise<SimilarityPreferences> {
+  const prefs = await queryOne<{
+    similarity_full_franchise: boolean
+    similarity_hide_watched: boolean
+  }>(
+    `SELECT similarity_full_franchise, similarity_hide_watched 
+     FROM user_preferences WHERE user_id = $1`,
+    [userId]
+  )
+
+  return {
+    fullFranchiseMode: prefs?.similarity_full_franchise ?? false,
+    hideWatched: prefs?.similarity_hide_watched ?? true, // Default to hiding watched
+  }
+}
+
+/**
+ * Get set of watched movie IDs for a user
+ */
+async function getUserWatchedMovieIds(userId: string): Promise<Set<string>> {
+  const result = await query<{ movie_id: string }>(
+    `SELECT DISTINCT movie_id FROM watch_history 
+     WHERE user_id = $1 AND movie_id IS NOT NULL AND play_count > 0`,
+    [userId]
+  )
+  return new Set(result.rows.map((r) => r.movie_id))
+}
+
+/**
+ * Get set of watched series IDs for a user (any episode watched)
+ */
+async function getUserWatchedSeriesIds(userId: string): Promise<Set<string>> {
+  const result = await query<{ series_id: string }>(
+    `SELECT DISTINCT e.series_id 
+     FROM watch_history wh
+     JOIN episodes e ON e.id = wh.episode_id
+     WHERE wh.user_id = $1 AND wh.episode_id IS NOT NULL AND wh.play_count > 0`,
+    [userId]
+  )
+  return new Set(result.rows.map((r) => r.series_id))
 }
 
 // ============================================================================
@@ -322,13 +374,34 @@ function getDynamicCollectionLimit(collectionSize: number): number {
  * At depth=1, shows direct connections.
  * At depth=2+, uses smart exclusion to break out of franchise bubbles.
  * Falls back to AI suggestions when stuck in a tight bubble.
+ * 
+ * If userId is provided, applies user preferences:
+ * - fullFranchiseMode: Show entire franchise without collection limits
+ * - hideWatched: Filter out already-watched content
  */
 export async function getSimilarWithDepth(
   itemId: string,
   itemType: 'movie' | 'series',
   options: SimilarityOptions = {}
 ): Promise<GraphData> {
-  const { limit = 6, depth = 1 } = options
+  const { limit = 6, depth = 1, userId } = options
+
+  // Fetch user preferences if userId provided
+  const prefs: SimilarityPreferences = userId
+    ? await getUserSimilarityPreferences(userId)
+    : { fullFranchiseMode: false, hideWatched: false }
+
+  // Get watched content IDs if hiding watched
+  const watchedIds: Set<string> = prefs.hideWatched && userId
+    ? itemType === 'movie'
+      ? await getUserWatchedMovieIds(userId)
+      : await getUserWatchedSeriesIds(userId)
+    : new Set()
+
+  logger.debug(
+    { userId, fullFranchiseMode: prefs.fullFranchiseMode, hideWatched: prefs.hideWatched, watchedCount: watchedIds.size },
+    'Similarity graph preferences'
+  )
 
   // Calculate max nodes based on depth - prevents exponential explosion
   // depth=1: just center + limit = ~13 nodes
@@ -341,7 +414,7 @@ export async function getSimilarWithDepth(
   const seenEdges = new Set<string>()
   const processedIds = new Set<string>()
 
-  // Track collection counts for smart exclusion
+  // Track collection counts for smart exclusion (skipped in fullFranchiseMode)
   const collectionCounts = new Map<string, number>()
   // Cache collection sizes for dynamic limits
   const collectionSizes = new Map<string, number>()
@@ -376,12 +449,19 @@ export async function getSimilarWithDepth(
   }
 
   // Helper to check if we can add from a collection (dynamic limits)
+  // In fullFranchiseMode, no limits are applied
   const canAddFromCollection = async (collectionName: string | null): Promise<boolean> => {
+    if (prefs.fullFranchiseMode) return true // Full franchise mode bypasses limits
     if (!collectionName) return true
     const count = collectionCounts.get(collectionName) || 0
     const collectionSize = await getCollectionSize(collectionName)
     const maxAllowed = getDynamicCollectionLimit(collectionSize)
     return count < maxAllowed
+  }
+
+  // Helper to check if item is watched (for filtering)
+  const isWatched = (itemId: string): boolean => {
+    return watchedIds.has(itemId)
   }
 
   // Helper to increment collection count
@@ -394,8 +474,12 @@ export async function getSimilarWithDepth(
     }
   }
 
-  // Helper to add a node
+  // Helper to add a node (respects hideWatched preference)
   const addNode = (item: SimilarityItem, isCenter = false) => {
+    // Never filter out the center node, but filter others if hideWatched is enabled
+    if (!isCenter && prefs.hideWatched && isWatched(item.id)) {
+      return false // Don't add watched items
+    }
     if (!nodes.has(item.id)) {
       nodes.set(item.id, {
         id: item.id,
@@ -407,7 +491,9 @@ export async function getSimilarWithDepth(
       })
       allItems.push(item)
       itemsById.set(item.id, item) // Track full item data for validation
+      return true
     }
+    return false
   }
 
   // Helper to add an edge
@@ -458,10 +544,12 @@ export async function getSimilarWithDepth(
 
   // Add first level connections (no exclusion yet - show actual similar items)
   for (const conn of centerResult.connections) {
-    addNode(conn.item)
-    trackCollection(conn.item.collection_name)
-    addEdge(centerResult.center.id, conn)
-    currentLevelIds.push({ id: conn.item.id, type: conn.item.type })
+    const added = addNode(conn.item)
+    if (added) {
+      trackCollection(conn.item.collection_name)
+      addEdge(centerResult.center.id, conn)
+      currentLevelIds.push({ id: conn.item.id, type: conn.item.type })
+    }
   }
 
   // Process additional levels based on depth WITH smart exclusion
@@ -531,13 +619,15 @@ export async function getSimilarWithDepth(
             }
           }
 
-          addNode(conn.item)
-          trackCollection(conn.item.collection_name)
-          if (addEdge(id, conn)) {
-            addedForThisNode++
-            addedAtThisLevel++
-            if (!processedIds.has(conn.item.id)) {
-              nextLevelIds.push({ id: conn.item.id, type: conn.item.type })
+          const added = addNode(conn.item)
+          if (added) {
+            trackCollection(conn.item.collection_name)
+            if (addEdge(id, conn)) {
+              addedForThisNode++
+              addedAtThisLevel++
+              if (!processedIds.has(conn.item.id)) {
+                nextLevelIds.push({ id: conn.item.id, type: conn.item.type })
+              }
             }
           }
         }
@@ -572,12 +662,14 @@ export async function getSimilarWithDepth(
         for (const item of diverseResult.items) {
           if (nodes.has(item.id)) continue
 
-          addNode(item)
-          trackCollection(item.collection_name)
+          const added = addNode(item)
+          if (added) {
+            trackCollection(item.collection_name)
 
-          // Connect to center with AI diverse edge
-          addAIDiverseEdge(centerResult.center.id, item, centerResult.center.title)
-          nextLevelIds.push({ id: item.id, type: item.type })
+            // Connect to center with AI diverse edge
+            addAIDiverseEdge(centerResult.center.id, item, centerResult.center.title)
+            nextLevelIds.push({ id: item.id, type: item.type })
+          }
         }
 
         logger.info(

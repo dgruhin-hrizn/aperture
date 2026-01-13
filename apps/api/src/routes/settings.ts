@@ -1593,6 +1593,97 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   // =========================================================================
+  // Similarity Graph Preferences (User)
+  // =========================================================================
+
+  /**
+   * GET /api/settings/user/similarity-prefs
+   * Get current user's similarity graph preferences
+   */
+  fastify.get('/api/settings/user/similarity-prefs', async (request, reply) => {
+    try {
+      const userId = request.user?.id
+      if (!userId) {
+        return reply.status(401).send({ error: 'Not authenticated' })
+      }
+
+      const result = await queryOne<{
+        similarity_full_franchise: boolean
+        similarity_hide_watched: boolean
+      }>(
+        `SELECT 
+           COALESCE(similarity_full_franchise, false) as similarity_full_franchise,
+           COALESCE(similarity_hide_watched, true) as similarity_hide_watched
+         FROM user_preferences WHERE user_id = $1`,
+        [userId]
+      )
+
+      return reply.send({
+        fullFranchiseMode: result?.similarity_full_franchise ?? false,
+        hideWatched: result?.similarity_hide_watched ?? true,
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get similarity preferences')
+      return reply.status(500).send({ error: 'Failed to get similarity preferences' })
+    }
+  })
+
+  /**
+   * PATCH /api/settings/user/similarity-prefs
+   * Update current user's similarity graph preferences
+   */
+  fastify.patch<{
+    Body: {
+      fullFranchiseMode?: boolean
+      hideWatched?: boolean
+    }
+  }>('/api/settings/user/similarity-prefs', async (request, reply) => {
+    try {
+      const userId = request.user?.id
+      if (!userId) {
+        return reply.status(401).send({ error: 'Not authenticated' })
+      }
+
+      const { fullFranchiseMode, hideWatched } = request.body
+
+      // Build dynamic update
+      const updates: string[] = []
+      const values: (string | boolean)[] = [userId]
+      let paramIdx = 2
+
+      if (fullFranchiseMode !== undefined) {
+        updates.push(`similarity_full_franchise = $${paramIdx++}`)
+        values.push(fullFranchiseMode)
+      }
+      if (hideWatched !== undefined) {
+        updates.push(`similarity_hide_watched = $${paramIdx++}`)
+        values.push(hideWatched)
+      }
+
+      if (updates.length === 0) {
+        return reply.status(400).send({ error: 'No preferences to update' })
+      }
+
+      // Upsert the preference(s)
+      await query(
+        `INSERT INTO user_preferences (user_id, ${updates.map(u => u.split(' = ')[0]).join(', ')})
+         VALUES ($1, ${values.slice(1).map((_, i) => `$${i + 2}`).join(', ')})
+         ON CONFLICT (user_id) DO UPDATE SET ${updates.join(', ')}`,
+        values
+      )
+
+      return reply.send({
+        message: 'Similarity preferences saved',
+        fullFranchiseMode,
+        hideWatched,
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to update similarity preferences')
+      return reply.status(500).send({ error: 'Failed to update similarity preferences' })
+    }
+  })
+
+  // =========================================================================
   // Library Title Templates (Admin Only)
   // =========================================================================
 
