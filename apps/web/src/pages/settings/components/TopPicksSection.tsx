@@ -49,14 +49,12 @@ import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
-import SettingsIcon from '@mui/icons-material/Settings'
 import TuneIcon from '@mui/icons-material/Tune'
 import OutputIcon from '@mui/icons-material/Output'
 import ImageIcon from '@mui/icons-material/Image'
 import PublicIcon from '@mui/icons-material/Public'
 import HomeIcon from '@mui/icons-material/Home'
 import MergeIcon from '@mui/icons-material/Merge'
-import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted'
 import { ImageUpload } from '../../../components/ImageUpload'
 import { DEFAULT_LIBRARY_IMAGES } from '../../setup/constants'
 
@@ -420,12 +418,14 @@ export function TopPicksSection() {
   }, [])
 
   // Debounce preview fetch when settings change
+  // We intentionally watch specific properties, not the whole config object
   useEffect(() => {
     if (!config) return
     const timeout = setTimeout(() => {
       fetchPreviewCounts(config)
     }, 300)
     return () => clearTimeout(timeout)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     config?.moviesMinUniqueViewers,
     config?.moviesTimeWindowDays,
