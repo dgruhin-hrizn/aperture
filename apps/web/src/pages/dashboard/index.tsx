@@ -30,7 +30,14 @@ export function DashboardPage() {
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: { xs: 'column', sm: 'row' },
+        alignItems: { xs: 'stretch', sm: 'center' }, 
+        justifyContent: 'space-between', 
+        gap: { xs: 2, sm: 0 },
+        mb: 3 
+      }}>
         <Box>
           <Typography variant="h4" fontWeight={700}>
             {greeting}, {user?.displayName || user?.username}
@@ -45,6 +52,7 @@ export function DashboardPage() {
           startIcon={<RefreshIcon />}
           onClick={refetch}
           disabled={loading}
+          sx={{ alignSelf: { xs: 'flex-start', sm: 'center' } }}
         >
           Refresh
         </Button>

@@ -24,6 +24,12 @@ import {
   ListItemText,
   Divider,
   Snackbar,
+  Card,
+  CardContent,
+  Stack,
+  useTheme,
+  useMediaQuery,
+  Avatar,
 } from '@mui/material'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import PersonAddIcon from '@mui/icons-material/PersonAdd'
@@ -60,6 +66,8 @@ interface GlobalAiConfig {
 
 export function UsersPage() {
   const navigate = useNavigate()
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const [providerUsers, setProviderUsers] = useState<ProviderUser[]>([])
   const [provider, setProvider] = useState<string>('emby')
   const [loading, setLoading] = useState(true)
@@ -308,6 +316,263 @@ export function UsersPage() {
 
   const isJobRunning = (userId: string) => runningJobs.has(userId)
 
+  // Mobile card view
+  if (isMobile) {
+    return (
+      <Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="body2" color="text.secondary">
+            Manage {provider.charAt(0).toUpperCase() + provider.slice(1)} users
+          </Typography>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={fetchProviderUsers}
+            startIcon={<RefreshIcon />}
+          >
+            Refresh
+          </Button>
+        </Box>
+
+        <Stack spacing={2}>
+          {sortedUsers.length === 0 ? (
+            <Paper sx={{ p: 4, textAlign: 'center', backgroundColor: 'background.paper', borderRadius: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                No users found on {provider} server.
+              </Typography>
+            </Paper>
+          ) : (
+            sortedUsers.map((user) => (
+              <Card
+                key={user.providerUserId}
+                sx={{
+                  backgroundColor: user.isEnabled ? 'rgba(82, 181, 75, 0.05)' : 'background.paper',
+                  borderRadius: 2,
+                  opacity: user.isDisabled ? 0.5 : 1,
+                }}
+              >
+                <CardContent>
+                  {/* User header with name and status */}
+                  <Stack direction="row" alignItems="flex-start" justifyContent="space-between" mb={2}>
+                    <Stack direction="row" spacing={1.5} alignItems="center" flex={1}>
+                      <Avatar
+                        sx={{
+                          width: 40,
+                          height: 40,
+                          bgcolor: 'primary.main',
+                          fontSize: '1rem',
+                        }}
+                      >
+                        {user.name[0].toUpperCase()}
+                      </Avatar>
+                      <Box flex={1}>
+                        <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
+                          <Typography variant="subtitle2" fontWeight={600}>
+                            {user.name}
+                          </Typography>
+                          {user.isAdmin && (
+                            <Chip label="Admin" size="small" color="primary" sx={{ height: 20 }} />
+                          )}
+                        </Stack>
+                        <Typography variant="caption" color="text.secondary">
+                          {user.isDisabled ? (
+                            <Chip 
+                              icon={<BlockIcon sx={{ fontSize: 14 }} />}
+                              label="Disabled in Emby" 
+                              size="small" 
+                              color="error" 
+                              variant="outlined"
+                              sx={{ height: 20, mt: 0.5 }}
+                            />
+                          ) : (
+                            <Chip 
+                              label="Active" 
+                              size="small" 
+                              color="success" 
+                              variant="outlined"
+                              sx={{ height: 20, mt: 0.5 }}
+                            />
+                          )}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                    {user.isImported ? (
+                      <Tooltip title="Imported to Aperture">
+                        <CheckCircleIcon color="success" />
+                      </Tooltip>
+                    ) : null}
+                  </Stack>
+
+                  {/* Import button for non-imported users */}
+                  {!user.isImported && (
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      color="primary"
+                      disabled={importing === user.providerUserId || user.isDisabled}
+                      onClick={() => handleImportUser(user.providerUserId, true)}
+                      startIcon={
+                        importing === user.providerUserId ? (
+                          <CircularProgress size={16} color="inherit" />
+                        ) : (
+                          <PersonAddIcon />
+                        )
+                      }
+                      sx={{ mb: 2 }}
+                    >
+                      Enable for AI Recommendations
+                    </Button>
+                  )}
+
+                  {/* Settings for imported users */}
+                  {user.isImported && (
+                    <>
+                      {/* Movies toggle */}
+                      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1.5}>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <MovieIcon fontSize="small" color="action" />
+                          <Typography variant="body2">Movies</Typography>
+                        </Stack>
+                        <Switch
+                          checked={user.moviesEnabled}
+                          onChange={() => handleToggleMovies(user)}
+                          disabled={updating === user.providerUserId || user.isDisabled}
+                          color="primary"
+                          size="small"
+                        />
+                      </Stack>
+
+                      {/* Series toggle */}
+                      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1.5}>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <TvIcon fontSize="small" color="action" />
+                          <Typography variant="body2">Series</Typography>
+                        </Stack>
+                        <Switch
+                          checked={user.seriesEnabled}
+                          onChange={() => handleToggleSeries(user)}
+                          disabled={updating === user.providerUserId || user.isDisabled}
+                          color="primary"
+                          size="small"
+                        />
+                      </Stack>
+
+                      {/* AI Override toggle (if enabled globally) */}
+                      {globalAiConfig?.userOverrideAllowed && (
+                        <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
+                          <Stack direction="row" alignItems="center" spacing={1}>
+                            <AutoAwesomeIcon fontSize="small" color="action" />
+                            <Typography variant="body2">AI Override</Typography>
+                          </Stack>
+                          <Switch
+                            checked={user.aiOverrideAllowed}
+                            onChange={() => handleToggleAiOverride(user)}
+                            disabled={updating === user.providerUserId || user.isDisabled}
+                            color="secondary"
+                            size="small"
+                          />
+                        </Stack>
+                      )}
+
+                      {/* Action buttons */}
+                      <Stack direction="row" spacing={1} justifyContent="flex-end">
+                        {isJobRunning(user.apertureUserId!) && (
+                          <CircularProgress size={20} sx={{ mr: 1 }} />
+                        )}
+                        <Tooltip title="View User Details">
+                          <IconButton
+                            size="small"
+                            onClick={() => navigate(`/admin/users/${user.apertureUserId}`)}
+                            sx={{
+                              bgcolor: 'action.hover',
+                              '&:hover': { bgcolor: 'action.selected' },
+                            }}
+                          >
+                            <VisibilityIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        {user.isEnabled && (
+                          <Tooltip title="User Actions">
+                            <IconButton
+                              size="small"
+                              onClick={(e) => handleMenuOpen(e, user)}
+                              disabled={isJobRunning(user.apertureUserId!)}
+                              sx={{
+                                bgcolor: 'action.hover',
+                                '&:hover': { bgcolor: 'action.selected' },
+                              }}
+                            >
+                              <MoreVertIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                      </Stack>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </Stack>
+
+        {/* Actions Menu */}
+        <Menu
+          anchorEl={menuAnchor}
+          open={Boolean(menuAnchor)}
+          onClose={handleMenuClose}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        >
+          <MenuItem 
+            onClick={() => menuUser?.apertureUserId && runUserJob(menuUser.apertureUserId, 'run-all', menuUser.name)}
+            sx={{ color: 'primary.main' }}
+          >
+            <ListItemIcon>
+              <PlayArrowIcon fontSize="small" color="primary" />
+            </ListItemIcon>
+            <ListItemText primary="Run Full Pipeline" secondary="Sync → Recommend → STRM" />
+          </MenuItem>
+          <Divider />
+          <MenuItem onClick={() => menuUser?.apertureUserId && runUserJob(menuUser.apertureUserId, 'sync-history', menuUser.name)}>
+            <ListItemIcon>
+              <HistoryIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="Sync Watch History" />
+          </MenuItem>
+          <MenuItem onClick={() => menuUser?.apertureUserId && runUserJob(menuUser.apertureUserId, 'generate-recommendations', menuUser.name)}>
+            <ListItemIcon>
+              <RecommendIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="Generate Recommendations" />
+          </MenuItem>
+          <MenuItem onClick={() => menuUser?.apertureUserId && runUserJob(menuUser.apertureUserId, 'update-strm', menuUser.name)}>
+            <ListItemIcon>
+              <FolderIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="Update STRM Files" />
+          </MenuItem>
+        </Menu>
+
+        {/* Snackbar for notifications */}
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={4000}
+          onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert 
+            onClose={() => setSnackbar((s) => ({ ...s, open: false }))} 
+            severity={snackbar.severity}
+            variant="filled"
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </Box>
+    )
+  }
+
+  // Desktop table view
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>

@@ -80,7 +80,14 @@ export function PlaylistsPage() {
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+      <Box 
+        display="flex" 
+        flexDirection={{ xs: 'column', sm: 'row' }}
+        justifyContent="space-between" 
+        alignItems={{ xs: 'stretch', sm: 'center' }}
+        gap={{ xs: 2, sm: 0 }}
+        mb={4}
+      >
         <Box>
           <Typography variant="h4" fontWeight={700} mb={1}>
             Playlists
@@ -89,7 +96,12 @@ export function PlaylistsPage() {
             Create custom recommendation playlists with genres and example movies
           </Typography>
         </Box>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenDialog()}>
+        <Button 
+          variant="contained" 
+          startIcon={<AddIcon />} 
+          onClick={() => handleOpenDialog()}
+          sx={{ alignSelf: { xs: 'flex-start', sm: 'center' } }}
+        >
           New Playlist
         </Button>
       </Box>
