@@ -270,6 +270,9 @@ export function JobsPage() {
       <Tabs
         value={tabValue}
         onChange={(_, newValue) => setTabValue(newValue)}
+        variant="scrollable"
+        scrollButtons="auto"
+        allowScrollButtonsMobile
         sx={{ borderBottom: 1, borderColor: 'divider', mb: 1 }}
       >
         <Tab
