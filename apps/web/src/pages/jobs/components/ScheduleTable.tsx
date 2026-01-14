@@ -36,24 +36,6 @@ interface ScheduleTableProps {
   onToggleEnabled: (jobName: string, enabled: boolean) => void
 }
 
-function getScheduleTypeLabel(schedule: JobSchedule | null): string {
-  if (!schedule) return 'Manual'
-  if (!schedule.isEnabled) return 'Disabled'
-  
-  switch (schedule.type) {
-    case 'daily':
-      return 'Daily'
-    case 'weekly':
-      return 'Weekly'
-    case 'interval':
-      return `Every ${schedule.intervalHours}h`
-    case 'manual':
-      return 'Manual'
-    default:
-      return schedule.type
-  }
-}
-
 function getNextRunTime(schedule: JobSchedule | null): string {
   if (!schedule || !schedule.isEnabled || schedule.type === 'manual') {
     return '—'
@@ -63,7 +45,7 @@ function getNextRunTime(schedule: JobSchedule | null): string {
   const targetHour = schedule.hour ?? 0
   const targetMinute = schedule.minute ?? 0
   
-  let nextRun = new Date()
+  const nextRun = new Date()
   
   if (schedule.type === 'daily') {
     nextRun.setHours(targetHour, targetMinute, 0, 0)
@@ -150,7 +132,7 @@ function getMinutesUntilNextRun(schedule: JobSchedule | null | undefined): numbe
   const targetHour = schedule.hour ?? 0
   const targetMinute = schedule.minute ?? 0
   
-  let nextRun = new Date()
+  const nextRun = new Date()
   
   if (schedule.type === 'daily') {
     nextRun.setHours(targetHour, targetMinute, 0, 0)
