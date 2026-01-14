@@ -374,30 +374,30 @@ export function UsersPage() {
                             <Chip label="Admin" size="small" color="primary" sx={{ height: 20 }} />
                           )}
                         </Stack>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="text.secondary" component="div">
                           {user.isDisabled ? (
                             <Chip 
                               icon={<BlockIcon sx={{ fontSize: 14 }} />}
-                              label="Disabled in Emby" 
+                              label={`${provider}: Disabled`}
                               size="small" 
                               color="error" 
                               variant="outlined"
-                              sx={{ height: 20, mt: 0.5 }}
+                              sx={{ height: 20, mt: 0.5, fontSize: '0.7rem' }}
                             />
                           ) : (
                             <Chip 
-                              label="Active" 
+                              label={`${provider}: Active`}
                               size="small" 
                               color="success" 
                               variant="outlined"
-                              sx={{ height: 20, mt: 0.5 }}
+                              sx={{ height: 20, mt: 0.5, fontSize: '0.7rem' }}
                             />
                           )}
                         </Typography>
                       </Box>
                     </Stack>
-                    {user.isImported ? (
-                      <Tooltip title="Imported to Aperture">
+                    {user.isImported && (user.moviesEnabled || user.seriesEnabled) ? (
+                      <Tooltip title="Recommendations enabled">
                         <CheckCircleIcon color="success" />
                       </Tooltip>
                     ) : null}
@@ -427,43 +427,37 @@ export function UsersPage() {
                   {/* Settings for imported users */}
                   {user.isImported && (
                     <>
-                      {/* Movies toggle */}
-                      <Stack direction="row" alignItems="center" spacing={3} mb={1.5}>
+                      {/* Media toggles in a compact row */}
+                      <Stack direction="row" alignItems="center" spacing={2} mb={1.5}>
                         <Stack direction="row" alignItems="center" spacing={1}>
                           <MovieIcon fontSize="small" color="action" />
-                          <Typography variant="body2">Movies</Typography>
+                          <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>Movies</Typography>
+                          <Switch
+                            checked={user.moviesEnabled}
+                            onChange={() => handleToggleMovies(user)}
+                            disabled={updating === user.providerUserId || user.isDisabled}
+                            color="primary"
+                            size="small"
+                          />
                         </Stack>
-                        <Switch
-                          checked={user.moviesEnabled}
-                          onChange={() => handleToggleMovies(user)}
-                          disabled={updating === user.providerUserId || user.isDisabled}
-                          color="primary"
-                          size="small"
-                        />
-                      </Stack>
-
-                      {/* Series toggle */}
-                      <Stack direction="row" alignItems="center" spacing={3} mb={1.5}>
                         <Stack direction="row" alignItems="center" spacing={1}>
                           <TvIcon fontSize="small" color="action" />
-                          <Typography variant="body2">Series</Typography>
+                          <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>Series</Typography>
+                          <Switch
+                            checked={user.seriesEnabled}
+                            onChange={() => handleToggleSeries(user)}
+                            disabled={updating === user.providerUserId || user.isDisabled}
+                            color="primary"
+                            size="small"
+                          />
                         </Stack>
-                        <Switch
-                          checked={user.seriesEnabled}
-                          onChange={() => handleToggleSeries(user)}
-                          disabled={updating === user.providerUserId || user.isDisabled}
-                          color="primary"
-                          size="small"
-                        />
                       </Stack>
 
                       {/* AI Override toggle (if enabled globally) */}
                       {globalAiConfig?.userOverrideAllowed && (
-                        <Stack direction="row" alignItems="center" spacing={3} mb={2}>
-                          <Stack direction="row" alignItems="center" spacing={1}>
-                            <AutoAwesomeIcon fontSize="small" color="action" />
-                            <Typography variant="body2">AI Override</Typography>
-                          </Stack>
+                        <Stack direction="row" alignItems="center" spacing={1} mb={2}>
+                          <AutoAwesomeIcon fontSize="small" color="action" />
+                          <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>AI Override</Typography>
                           <Switch
                             checked={user.aiOverrideAllowed}
                             onChange={() => handleToggleAiOverride(user)}
