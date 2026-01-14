@@ -266,8 +266,8 @@ export function ScheduleTable({
                 {/* Status and timing info */}
                 <Stack spacing={1} mb={2}>
                   {/* Status */}
-                  <Stack direction="row" alignItems="center" justifyContent="space-between">
-                    <Typography variant="caption" color="text.secondary">
+                  <Stack direction="row" alignItems="center" spacing={2}>
+                    <Typography variant="caption" color="text.secondary" sx={{ minWidth: 60 }}>
                       Status
                     </Typography>
                     {isRunning ? (
@@ -311,8 +311,8 @@ export function ScheduleTable({
 
                   {/* Next Run */}
                   {!isManual && isEnabled && (
-                    <Stack direction="row" alignItems="center" justifyContent="space-between">
-                      <Typography variant="caption" color="text.secondary">
+                    <Stack direction="row" alignItems="center" spacing={2}>
+                      <Typography variant="caption" color="text.secondary" sx={{ minWidth: 60 }}>
                         Next Run
                       </Typography>
                       <Stack direction="row" spacing={0.5} alignItems="center">
@@ -325,8 +325,8 @@ export function ScheduleTable({
                   )}
 
                   {/* Last Run */}
-                  <Stack direction="row" alignItems="center" justifyContent="space-between">
-                    <Typography variant="caption" color="text.secondary">
+                  <Stack direction="row" alignItems="center" spacing={2}>
+                    <Typography variant="caption" color="text.secondary" sx={{ minWidth: 60 }}>
                       Last Run
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
@@ -336,8 +336,8 @@ export function ScheduleTable({
 
                   {/* Duration */}
                   {job.lastRun?.durationMs && (
-                    <Stack direction="row" alignItems="center" justifyContent="space-between">
-                      <Typography variant="caption" color="text.secondary">
+                    <Stack direction="row" alignItems="center" spacing={2}>
+                      <Typography variant="caption" color="text.secondary" sx={{ minWidth: 60 }}>
                         Duration
                       </Typography>
                       <Typography variant="caption" color="text.secondary">

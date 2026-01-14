@@ -428,8 +428,8 @@ export function UsersPage() {
                   {user.isImported && (
                     <>
                       {/* Movies toggle */}
-                      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1.5}>
-                        <Stack direction="row" alignItems="center" spacing={1}>
+                      <Stack direction="row" alignItems="center" spacing={2} mb={1.5}>
+                        <Stack direction="row" alignItems="center" spacing={1} flex={1}>
                           <MovieIcon fontSize="small" color="action" />
                           <Typography variant="body2">Movies</Typography>
                         </Stack>
@@ -443,8 +443,8 @@ export function UsersPage() {
                       </Stack>
 
                       {/* Series toggle */}
-                      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1.5}>
-                        <Stack direction="row" alignItems="center" spacing={1}>
+                      <Stack direction="row" alignItems="center" spacing={2} mb={1.5}>
+                        <Stack direction="row" alignItems="center" spacing={1} flex={1}>
                           <TvIcon fontSize="small" color="action" />
                           <Typography variant="body2">Series</Typography>
                         </Stack>
@@ -459,8 +459,8 @@ export function UsersPage() {
 
                       {/* AI Override toggle (if enabled globally) */}
                       {globalAiConfig?.userOverrideAllowed && (
-                        <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
-                          <Stack direction="row" alignItems="center" spacing={1}>
+                        <Stack direction="row" alignItems="center" spacing={2} mb={2}>
+                          <Stack direction="row" alignItems="center" spacing={1} flex={1}>
                             <AutoAwesomeIcon fontSize="small" color="action" />
                             <Typography variant="body2">AI Override</Typography>
                           </Stack>
