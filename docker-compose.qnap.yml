@@ -29,6 +29,37 @@
 #   - gateway: 192.168.1.1
 #
 # =============================================================================
+# TROUBLESHOOTING: Can't connect after starting?
+# =============================================================================
+# If database migrations succeed but you can't access Aperture on port 3456,
+# you may need to use host networking mode instead of qnet. This is a simpler
+# alternative that works reliably across all QNAP configurations.
+#
+# SYMPTOMS:
+#   - Logs show "Running database migrations... ✓" (migrations work)
+#   - But accessing http://YOUR_NAS_IP:3456 fails or times out
+#   - This happens because qnet networking can conflict with certain QNAP setups
+#
+# SOLUTION - Switch to Host Networking Mode:
+#   1. In BOTH the 'db' and 'app' services below:
+#      - Comment out the 'networks:' section (lines with qnet-network)
+#      - Uncomment the 'network_mode: host' line
+#
+#   2. In the 'app' service, change the DATABASE_URL:
+#      FROM: DATABASE_URL: postgres://app:app@db:5432/aperture
+#      TO:   DATABASE_URL: postgres://app:app@localhost:5432/aperture
+#
+#   3. Comment out the entire 'networks:' section at the bottom of this file
+#
+#   4. Restart: docker-compose -f docker-compose.qnap.yml down
+#               docker-compose -f docker-compose.qnap.yml up -d
+#
+# TRADE-OFFS:
+#   qnet (default):  Containers get their own IPs, proper Docker isolation
+#   host mode:       Simpler, more compatible, but less network isolation
+#
+# Both modes work perfectly - choose what works best for your QNAP setup!
+# =============================================================================
 
 services:
   db:
@@ -46,12 +77,19 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    # ───────────────────────────────────────────────────────────────────────────
+    # NETWORKING: Choose ONE option below (see TROUBLESHOOTING section above)
+    # ───────────────────────────────────────────────────────────────────────────
+    # OPTION A (DEFAULT): qnet networking - containers get their own IPs
     networks:
       qnet-network:
         # =====================================================================
         # CHANGE THIS: Set to an unused IP on your network for the database
         # =====================================================================
         ipv4_address: 192.168.0.135
+    # OPTION B: Host networking - use if you can't access Aperture with qnet
+    # Uncomment the line below and comment out the 'networks:' section above
+    # network_mode: host
 
   app:
     image: ghcr.io/dgruhin-hrizn/aperture:latest
@@ -61,7 +99,15 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3456
+      # ───────────────────────────────────────────────────────────────────────
+      # DATABASE_URL: Choose based on your networking mode
+      # ───────────────────────────────────────────────────────────────────────
+      # OPTION A (DEFAULT): For qnet networking, use 'db' as hostname
       DATABASE_URL: postgres://app:app@db:5432/aperture
+      # OPTION B: For host networking, use 'localhost' as hostname
+      # Uncomment the line below and comment out the line above if using host mode
+      # DATABASE_URL: postgres://app:app@localhost:5432/aperture
+      # ───────────────────────────────────────────────────────────────────────
       RUN_MIGRATIONS_ON_START: 'true'
       # Timezone for scheduled jobs (IANA format)
       TZ: America/New_York
@@ -104,18 +150,28 @@ services:
       #
       - /share/Media:/media:ro
     restart: unless-stopped
+    # ───────────────────────────────────────────────────────────────────────────
+    # NETWORKING: Choose ONE option below (see TROUBLESHOOTING section above)
+    # ───────────────────────────────────────────────────────────────────────────
+    # OPTION A (DEFAULT): qnet networking - containers get their own IPs
     networks:
       qnet-network:
         # =====================================================================
         # CHANGE THIS: Set to an unused IP on your network for Aperture
         # =====================================================================
         ipv4_address: 192.168.0.134
+    # OPTION B: Host networking - use if you can't access Aperture with qnet
+    # Uncomment the line below and comment out the 'networks:' section above
+    # network_mode: host
 
 # =============================================================================
 # QNET NETWORK CONFIGURATION
 # =============================================================================
 # This uses QNAP's qnet driver to give containers real IPs on your network.
 # Update subnet and gateway to match YOUR network configuration.
+#
+# NOTE: If you're using host networking mode (see TROUBLESHOOTING section above),
+# comment out this entire 'networks:' section. It's only needed for qnet mode.
 #
 networks:
   qnet-network:
