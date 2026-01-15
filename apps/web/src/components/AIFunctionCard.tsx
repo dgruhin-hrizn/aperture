@@ -542,7 +542,7 @@ export function AIFunctionCard({
               {functionType === 'embeddings' 
                 ? '# Embedding models\nollama pull nomic-embed-text\nollama pull mxbai-embed-large\nollama pull nomic-embed-text-v2-moe  # multilingual'
                 : functionType === 'chat'
-                ? '# Chat models (with tool calling)\nollama pull firefunction-v2  # best for tools\nollama pull qwen3'
+                ? '# Chat models (with tool calling)\nollama pull qwen3  # recommended\nollama pull firefunction-v2'
                 : '# Text generation models\nollama pull llama3.2\nollama pull llama3.1\nollama pull gemma3\nollama pull phi4'
               }
             </Box>

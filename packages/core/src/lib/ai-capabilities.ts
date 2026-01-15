@@ -341,7 +341,7 @@ export const PROVIDERS: ProviderMetadata[] = [
       {
         id: 'qwen3',
         name: 'Qwen 3',
-        description: 'Latest Qwen with reasoning/thinking capabilities. Excellent quality.',
+        description: 'Recommended. Latest Qwen with reasoning capabilities and reliable tool calling.',
         capabilities: {
           supportsToolCalling: true,
           supportsToolStreaming: true,
