@@ -1,6 +1,6 @@
 {
   "name": "@aperture/core",
-  "version": "0.4.4-llm",
+  "version": "0.4.4",
   "private": true,
   "type": "module",
   "exports": {
