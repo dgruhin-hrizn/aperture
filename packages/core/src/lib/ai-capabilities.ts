@@ -283,7 +283,7 @@ export const PROVIDERS: ProviderMetadata[] = [
       {
         id: 'nomic-embed-text',
         name: 'Nomic Embed Text',
-        description: 'Good quality local embeddings. No API costs.',
+        description: 'Recommended. Good quality 768-dim embeddings.',
         capabilities: {
           supportsToolCalling: false,
           supportsToolStreaming: false,
@@ -297,7 +297,7 @@ export const PROVIDERS: ProviderMetadata[] = [
       {
         id: 'mxbai-embed-large',
         name: 'mxbai Embed Large',
-        description: 'Larger embedding model with better accuracy.',
+        description: 'Higher quality 1024-dim embeddings. More accurate.',
         capabilities: {
           supportsToolCalling: false,
           supportsToolStreaming: false,
@@ -311,7 +311,7 @@ export const PROVIDERS: ProviderMetadata[] = [
       {
         id: 'all-minilm',
         name: 'All MiniLM',
-        description: 'Lightweight and fast. Lower quality.',
+        description: 'Fast but lower quality. 384-dim embeddings.',
         capabilities: {
           supportsToolCalling: false,
           supportsToolStreaming: false,
@@ -325,7 +325,7 @@ export const PROVIDERS: ProviderMetadata[] = [
       {
         id: 'nomic-embed-text-v2-moe',
         name: 'Nomic Embed Text v2 MoE',
-        description: 'Multilingual MoE embedding model. Excellent for non-English content.',
+        description: 'Best for non-English content. 768-dim multilingual.',
         capabilities: {
           supportsToolCalling: false,
           supportsToolStreaming: false,
@@ -341,7 +341,7 @@ export const PROVIDERS: ProviderMetadata[] = [
       {
         id: 'qwen3',
         name: 'Qwen 3',
-        description: 'Recommended. Latest Qwen with reasoning capabilities and reliable tool calling.',
+        description: 'Recommended. Excellent tool calling and reasoning.',
         capabilities: {
           supportsToolCalling: true,
           supportsToolStreaming: true,
@@ -356,7 +356,7 @@ export const PROVIDERS: ProviderMetadata[] = [
       {
         id: 'firefunction-v2',
         name: 'FireFunction v2',
-        description: 'Optimized specifically for function calling. Competitive with GPT-4o.',
+        description: 'Specialized for function calling. GPT-4 level tools.',
         capabilities: {
           supportsToolCalling: true,
           supportsToolStreaming: true,
@@ -373,7 +373,7 @@ export const PROVIDERS: ProviderMetadata[] = [
       {
         id: 'llama3.2',
         name: 'Llama 3.2',
-        description: 'General purpose model. Good for text generation.',
+        description: 'Recommended. Latest Llama, fast and capable.',
         capabilities: {
           supportsToolCalling: false,
           supportsToolStreaming: false,
@@ -388,7 +388,7 @@ export const PROVIDERS: ProviderMetadata[] = [
       {
         id: 'llama3.1',
         name: 'Llama 3.1',
-        description: 'Meta\'s popular model. Available in 8B/70B/405B sizes.',
+        description: 'Proven and reliable. 8B/70B/405B sizes available.',
         capabilities: {
           supportsToolCalling: false,
           supportsToolStreaming: false,
@@ -403,7 +403,7 @@ export const PROVIDERS: ProviderMetadata[] = [
       {
         id: 'gemma3',
         name: 'Gemma 3',
-        description: 'Google\'s capable model. Runs well on single GPU.',
+        description: 'Fast and efficient. Great for limited hardware.',
         capabilities: {
           supportsToolCalling: false,
           supportsToolStreaming: false,
@@ -418,7 +418,7 @@ export const PROVIDERS: ProviderMetadata[] = [
       {
         id: 'phi4',
         name: 'Phi 4',
-        description: 'Microsoft\'s state-of-the-art 14B model. Great for explanations.',
+        description: 'Compact 14B model. Punches above its weight.',
         capabilities: {
           supportsToolCalling: false,
           supportsToolStreaming: false,
