@@ -562,7 +562,8 @@ export function AIFunctionCard({
                   sx={{ 
                     display: 'flex', 
                     alignItems: 'center', 
-                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: 0.5,
                     bgcolor: 'background.paper',
                     px: 1.5,
                     py: 0.75,
@@ -571,7 +572,7 @@ export function AIFunctionCard({
                     fontSize: '0.8rem',
                   }}
                 >
-                  <Box component="span" sx={{ color: 'text.primary', whiteSpace: 'nowrap' }}>{cmd}</Box>
+                  <Box component="span" sx={{ color: 'text.primary' }}>{cmd}</Box>
                   {note && (
                     <Chip 
                       label={note} 
@@ -580,8 +581,6 @@ export function AIFunctionCard({
                       sx={{ 
                         height: 20, 
                         fontSize: '0.65rem',
-                        ml: 1,
-                        flexShrink: 0,
                         '& .MuiChip-label': { px: 1 }
                       }} 
                     />
