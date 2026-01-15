@@ -157,6 +157,7 @@ export function AIFunctionCard({
   const [apiKey, setApiKey] = useState('')
   const [baseUrl, setBaseUrl] = useState(config?.baseUrl || '')
   const [showApiKey, setShowApiKey] = useState(false)
+  const [initialized, setInitialized] = useState(false)
   
   // Status
   const [saving, setSaving] = useState(false)
@@ -168,6 +169,16 @@ export function AIFunctionCard({
   const isConfigured = Boolean(config)
   const providerInfo = PROVIDER_INFO[provider]
   const selectedModel = models.find(m => m.id === model)
+
+  // Sync form state when config prop changes (e.g., loaded from DB)
+  useEffect(() => {
+    if (config && !initialized) {
+      if (config.provider) setProvider(config.provider)
+      if (config.model) setModel(config.model)
+      if (config.baseUrl) setBaseUrl(config.baseUrl)
+      setInitialized(true)
+    }
+  }, [config, initialized])
   
   // Check capability warning
   const hasCapabilityWarning = requiredCapability === 'toolCalling' && 
@@ -205,14 +216,20 @@ export function AIFunctionCard({
       .then(res => res.json())
       .then(data => {
         setModels(data.models || [])
-        // Auto-select first model if none selected or current not available
-        if (data.models?.length > 0 && !data.models.find((m: ModelInfo) => m.id === model)) {
-          setModel(data.models[0].id)
+        // If we have a config model and it's in the list, keep it selected
+        // Otherwise auto-select first model
+        if (data.models?.length > 0) {
+          const configModelExists = config?.model && data.models.find((m: ModelInfo) => m.id === config.model)
+          if (configModelExists && !model) {
+            setModel(config.model)
+          } else if (!model || !data.models.find((m: ModelInfo) => m.id === model)) {
+            setModel(data.models[0].id)
+          }
         }
       })
       .catch(() => setModels([]))
       .finally(() => setLoading(false))
-  }, [provider, functionType])
+  }, [provider, functionType, config?.model])
 
   // Set default base URL when switching providers
   useEffect(() => {
