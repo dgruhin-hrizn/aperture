@@ -105,14 +105,22 @@ export function PlaylistCard({
         </Box>
       </CardContent>
 
-      <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
-        <Box display="flex" gap={1}>
+      <CardActions sx={{ 
+        flexDirection: { xs: 'column', sm: 'row' },
+        justifyContent: { xs: 'stretch', sm: 'space-between' },
+        gap: { xs: 1, sm: 0 },
+        px: 2, 
+        pb: 2,
+        alignItems: { xs: 'stretch', sm: 'center' }
+      }}>
+        <Box display="flex" gap={1} width={{ xs: '100%', sm: 'auto' }}>
           <Button
             size="small"
             variant="contained"
             startIcon={generatingChannelId === channel.id ? <CircularProgress size={16} color="inherit" /> : <RefreshIcon />}
             onClick={() => onGenerate(channel.id)}
             disabled={generatingChannelId === channel.id}
+            sx={{ flex: { xs: 1, sm: 0 } }}
           >
             {channel.playlist_id ? 'Refresh' : 'Generate'}
           </Button>
@@ -122,12 +130,13 @@ export function PlaylistCard({
               variant="outlined"
               startIcon={<VisibilityIcon />}
               onClick={() => onView(channel)}
+              sx={{ flex: { xs: 1, sm: 0 } }}
             >
               View
             </Button>
           )}
         </Box>
-        <Box>
+        <Box display="flex" gap={0.5} justifyContent={{ xs: 'flex-end', sm: 'flex-start' }}>
           <IconButton size="small" onClick={() => onEdit(channel)}>
             <EditIcon fontSize="small" />
           </IconButton>

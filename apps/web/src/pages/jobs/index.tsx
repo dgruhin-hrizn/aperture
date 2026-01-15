@@ -80,7 +80,11 @@ function JobCategoryList({
             {/* Job Cards Grid */}
             <Box
               display="grid"
-              gridTemplateColumns="repeat(auto-fill, minmax(500px, 1fr))"
+              gridTemplateColumns={{
+                xs: '1fr',
+                sm: 'repeat(auto-fill, minmax(400px, 1fr))',
+                lg: 'repeat(auto-fill, minmax(500px, 1fr))',
+              }}
               gap={2.5}
             >
               {categoryJobs.map((job) => (
@@ -266,6 +270,9 @@ export function JobsPage() {
       <Tabs
         value={tabValue}
         onChange={(_, newValue) => setTabValue(newValue)}
+        variant="scrollable"
+        scrollButtons="auto"
+        allowScrollButtonsMobile
         sx={{ borderBottom: 1, borderColor: 'divider', mb: 1 }}
       >
         <Tab

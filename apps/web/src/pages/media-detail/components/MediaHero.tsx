@@ -293,7 +293,13 @@ export function MediaHero({
           )}
 
           {/* Action buttons */}
-          <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', alignItems: 'center' }}>
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: { xs: 'column', sm: 'row' },
+            gap: { xs: 1.5, sm: 2 }, 
+            mb: 3,
+            alignItems: { xs: 'stretch', sm: 'center' }
+          }}>
             <HeartRating
               value={userRating}
               onChange={onRatingChange}

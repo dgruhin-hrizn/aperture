@@ -262,37 +262,47 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
             open={isFullscreen}
             onClose={() => setIsFullscreen(false)}
             maxWidth={false}
-            fullWidth
+            fullScreen
             PaperProps={{
               sx: {
-                width: '95vw',
-                height: '90vh',
-                maxWidth: 'none',
                 bgcolor: 'background.default',
+                m: 0,
               },
             }}
           >
             <DialogTitle
               sx={{
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
                 justifyContent: 'space-between',
-                py: 1.5,
+                gap: { xs: 1, sm: 2 },
+                py: { xs: 1, sm: 1.5 },
+                px: { xs: 2, sm: 3 },
                 borderBottom: 1,
                 borderColor: 'divider',
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Typography variant="h6" fontWeight={600}>
-                  Similar {mediaType === 'movie' ? 'Movies' : 'Series'}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Expanded view • {fullscreenGraphData?.nodes.length || 0} items
-                </Typography>
+              <Box sx={{ 
+                display: 'flex', 
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' }, 
+                gap: { xs: 0.5, sm: 2 },
+                width: { xs: '100%', sm: 'auto' }
+              }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="h6" fontWeight={600} sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
+                    Similar {mediaType === 'movie' ? 'Movies' : 'Series'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
+                    Expanded view • {fullscreenGraphData?.nodes.length || 0} items
+                  </Typography>
+                </Box>
                 {fullscreenHistory.length > 0 && (
                   <Breadcrumbs
                     separator={<NavigateNextIcon fontSize="small" />}
                     sx={{
+                      display: { xs: 'none', md: 'flex' },
                       '& .MuiBreadcrumbs-separator': { mx: 0.5 },
                       '& .MuiBreadcrumbs-li': { fontSize: '0.875rem' },
                     }}
@@ -318,7 +328,7 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
                   </Breadcrumbs>
                 )}
               </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: { xs: '100%', sm: 'auto' } }}>
                 <Tooltip title="Create playlist from these items">
                   <Button
                     size="small"
@@ -326,8 +336,13 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
                     startIcon={<PlaylistAddIcon />}
                     onClick={() => setPlaylistDialogOpen(true)}
                     disabled={!fullscreenGraphData || fullscreenGraphData.nodes.length === 0}
+                    sx={{ 
+                      flex: { xs: 1, sm: 0 },
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                    }}
                   >
-                    Create Playlist
+                    <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Create Playlist</Box>
+                    <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>Playlist</Box>
                   </Button>
                 </Tooltip>
                 <Tooltip title="Exit fullscreen">
@@ -365,14 +380,19 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
                   borderTop: 1,
                   borderColor: 'divider',
                   display: 'flex',
+                  flexDirection: { xs: 'column', sm: 'row' },
                   justifyContent: 'space-between',
-                  alignItems: 'center',
+                  alignItems: { xs: 'flex-start', sm: 'center' },
+                  gap: 1,
                 }}
               >
                 <GraphLegend />
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
                   Click a poster to explore • Double-click to view details • Drag to reposition •
                   Scroll to zoom
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'block', sm: 'none' } }}>
+                  Click to explore • Double-click for details
                 </Typography>
               </Box>
             </DialogContent>

@@ -14,6 +14,10 @@ import {
   Switch,
   Typography,
   Stack,
+  Card,
+  CardContent,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material'
 import SettingsIcon from '@mui/icons-material/Settings'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
@@ -32,24 +36,6 @@ interface ScheduleTableProps {
   onToggleEnabled: (jobName: string, enabled: boolean) => void
 }
 
-function getScheduleTypeLabel(schedule: JobSchedule | null): string {
-  if (!schedule) return 'Manual'
-  if (!schedule.isEnabled) return 'Disabled'
-  
-  switch (schedule.type) {
-    case 'daily':
-      return 'Daily'
-    case 'weekly':
-      return 'Weekly'
-    case 'interval':
-      return `Every ${schedule.intervalHours}h`
-    case 'manual':
-      return 'Manual'
-    default:
-      return schedule.type
-  }
-}
-
 function getNextRunTime(schedule: JobSchedule | null): string {
   if (!schedule || !schedule.isEnabled || schedule.type === 'manual') {
     return '—'
@@ -59,7 +45,7 @@ function getNextRunTime(schedule: JobSchedule | null): string {
   const targetHour = schedule.hour ?? 0
   const targetMinute = schedule.minute ?? 0
   
-  let nextRun = new Date()
+  const nextRun = new Date()
   
   if (schedule.type === 'daily') {
     nextRun.setHours(targetHour, targetMinute, 0, 0)
@@ -146,7 +132,7 @@ function getMinutesUntilNextRun(schedule: JobSchedule | null | undefined): numbe
   const targetHour = schedule.hour ?? 0
   const targetMinute = schedule.minute ?? 0
   
-  let nextRun = new Date()
+  const nextRun = new Date()
   
   if (schedule.type === 'daily') {
     nextRun.setHours(targetHour, targetMinute, 0, 0)
@@ -182,6 +168,9 @@ export function ScheduleTable({
   onRunJob,
   onToggleEnabled,
 }: ScheduleTableProps) {
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  
   // Sort jobs: running first, then by next run time, then manual, then disabled
   const sortedJobs = [...jobs].sort((a, b) => {
     const aRunning = a.status === 'running'
@@ -214,6 +203,181 @@ export function ScheduleTable({
     return a.name.localeCompare(b.name)
   })
 
+  // Mobile card view
+  if (isMobile) {
+    return (
+      <Stack spacing={2}>
+        {sortedJobs.map((job) => {
+          const isManual = job.schedule?.type === 'manual'
+          const isEnabled = job.schedule?.isEnabled ?? true
+          const isRunning = job.status === 'running'
+          
+          return (
+            <Card
+              key={job.name}
+              sx={{
+                backgroundColor: 'background.paper',
+                borderRadius: 2,
+                opacity: isEnabled ? 1 : 0.6,
+              }}
+            >
+              <CardContent>
+                {/* Header with job name and enabled toggle */}
+                <Stack direction="row" alignItems="flex-start" justifyContent="space-between" mb={2}>
+                  <Stack direction="row" spacing={1.5} alignItems="center" flex={1}>
+                    <Box sx={{ color: JOB_COLORS[job.name] || 'text.secondary' }}>
+                      {JOB_ICONS[job.name]}
+                    </Box>
+                    <Box flex={1}>
+                      <Typography variant="subtitle2" fontWeight={600}>
+                        {formatJobName(job.name)}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {job.schedule?.formatted || 'Manual only'}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                  <Switch
+                    size="small"
+                    checked={isEnabled && !isManual}
+                    disabled={isManual}
+                    onChange={(e) => onToggleEnabled(job.name, e.target.checked)}
+                  />
+                </Stack>
+
+                {/* Status and timing info */}
+                <Stack spacing={1} mb={2}>
+                  {/* Status */}
+                  <Stack direction="row" alignItems="center" spacing={2}>
+                    <Typography variant="caption" color="text.secondary" sx={{ minWidth: 60 }}>
+                      Status
+                    </Typography>
+                    {isRunning ? (
+                      <Chip
+                        size="small"
+                        label="Running"
+                        sx={{
+                          bgcolor: 'primary.main',
+                          color: 'white',
+                          height: 20,
+                          fontSize: '0.7rem',
+                          animation: 'pulse 2s infinite',
+                          '@keyframes pulse': {
+                            '0%, 100%': { opacity: 1 },
+                            '50%': { opacity: 0.7 },
+                          },
+                        }}
+                      />
+                    ) : job.lastRun?.status === 'completed' ? (
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <CheckCircleIcon sx={{ fontSize: 14, color: 'success.main' }} />
+                        <Typography variant="caption" color="success.main">
+                          OK
+                        </Typography>
+                      </Stack>
+                    ) : job.lastRun?.status === 'failed' ? (
+                      <Tooltip title={job.lastRun.errorMessage || 'Unknown error'}>
+                        <Stack direction="row" spacing={0.5} alignItems="center">
+                          <ErrorIcon sx={{ fontSize: 14, color: 'error.main' }} />
+                          <Typography variant="caption" color="error.main">
+                            Failed
+                          </Typography>
+                        </Stack>
+                      </Tooltip>
+                    ) : (
+                      <Typography variant="caption" color="text.secondary">
+                        —
+                      </Typography>
+                    )}
+                  </Stack>
+
+                  {/* Next Run */}
+                  {!isManual && isEnabled && (
+                    <Stack direction="row" alignItems="center" spacing={2}>
+                      <Typography variant="caption" color="text.secondary" sx={{ minWidth: 60 }}>
+                        Next Run
+                      </Typography>
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <AccessTimeIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                        <Typography variant="caption" color="text.secondary">
+                          {getNextRunTime(job.schedule ?? null)}
+                        </Typography>
+                      </Stack>
+                    </Stack>
+                  )}
+
+                  {/* Last Run */}
+                  <Stack direction="row" alignItems="center" spacing={2}>
+                    <Typography variant="caption" color="text.secondary" sx={{ minWidth: 60 }}>
+                      Last Run
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {formatLastRun(job.lastRun)}
+                    </Typography>
+                  </Stack>
+
+                  {/* Duration */}
+                  {job.lastRun?.durationMs && (
+                    <Stack direction="row" alignItems="center" spacing={2}>
+                      <Typography variant="caption" color="text.secondary" sx={{ minWidth: 60 }}>
+                        Duration
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {formatDuration(job.lastRun.durationMs)}
+                      </Typography>
+                    </Stack>
+                  )}
+                </Stack>
+
+                {/* Actions */}
+                <Stack direction="row" spacing={1} justifyContent="flex-end">
+                  <Tooltip title="Run now">
+                    <IconButton
+                      size="small"
+                      onClick={() => onRunJob(job.name)}
+                      disabled={isRunning}
+                      sx={{
+                        bgcolor: 'action.hover',
+                        '&:hover': { bgcolor: 'action.selected' },
+                      }}
+                    >
+                      <PlayArrowIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Schedule settings">
+                    <IconButton
+                      size="small"
+                      onClick={() => onConfigClick(job.name)}
+                      sx={{
+                        bgcolor: 'action.hover',
+                        '&:hover': { bgcolor: 'action.selected' },
+                      }}
+                    >
+                      <SettingsIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="View history">
+                    <IconButton
+                      size="small"
+                      onClick={() => onHistoryClick(job.name)}
+                      sx={{
+                        bgcolor: 'action.hover',
+                        '&:hover': { bgcolor: 'action.selected' },
+                      }}
+                    >
+                      <HistoryIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
+              </CardContent>
+            </Card>
+          )
+        })}
+      </Stack>
+    )
+  }
+
+  // Desktop table view
   return (
     <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
       <Table size="small">

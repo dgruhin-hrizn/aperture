@@ -132,7 +132,11 @@ export function JobCard({
             : 'transparent',
         }}
       >
-        <Stack direction="row" spacing={2} alignItems="flex-start">
+        <Stack 
+          direction={{ xs: 'column', sm: 'row' }} 
+          spacing={2} 
+          alignItems={{ xs: 'stretch', sm: 'flex-start' }}
+        >
           {/* Icon */}
           <Box
             sx={{
@@ -143,6 +147,7 @@ export function JobCard({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              width: { xs: '100%', sm: 'auto' },
             }}
           >
             {JOB_ICONS[job.name]}
@@ -150,8 +155,8 @@ export function JobCard({
 
           {/* Content */}
           <Box flex={1} minWidth={0}>
-            <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
-              <Typography variant="subtitle1" fontWeight={600} noWrap>
+            <Stack direction="row" alignItems="center" spacing={1} mb={0.5} flexWrap="wrap">
+              <Typography variant="subtitle1" fontWeight={600}>
                 {formatJobName(job.name)}
               </Typography>
               {isRunning && (
@@ -204,7 +209,13 @@ export function JobCard({
           </Box>
 
           {/* Config + Action Buttons */}
-          <Stack direction="row" spacing={0.5} alignItems="center">
+          <Stack 
+            direction="row" 
+            spacing={0.5} 
+            alignItems="center"
+            justifyContent={{ xs: 'flex-end', sm: 'flex-start' }}
+            width={{ xs: '100%', sm: 'auto' }}
+          >
             <Tooltip title="View run history">
               <IconButton
                 size="small"
