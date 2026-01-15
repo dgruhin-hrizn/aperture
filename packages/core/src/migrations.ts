@@ -63,6 +63,14 @@ async function applyMigration(
 ): Promise<void> {
   logger.info({ migration: migration.name }, 'Applying migration')
 
+  // Listen for NOTICE messages from PostgreSQL (for migration progress)
+  const noticeHandler = (notice: { message?: string }) => {
+    if (notice.message) {
+      logger.info({ migration: migration.name }, notice.message)
+    }
+  }
+  client.on('notice', noticeHandler)
+
   // Run migration in transaction
   await client.query('BEGIN')
   try {
@@ -73,6 +81,8 @@ async function applyMigration(
   } catch (err) {
     await client.query('ROLLBACK')
     throw err
+  } finally {
+    client.removeListener('notice', noticeHandler)
   }
 }
 

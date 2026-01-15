@@ -16,6 +16,46 @@ export {
   type QueryResult,
   type Pool,
   type PoolClient,
+  // AI Provider Abstraction
+  getAIConfig,
+  setAIConfig,
+  getFunctionConfig,
+  setFunctionConfig,
+  getEmbeddingModelInstance,
+  getChatModelInstance,
+  getTextGenerationModelInstance,
+  getAICapabilitiesStatus,
+  isAIFunctionConfigured,
+  isAnyAIConfigured,
+  isFullyConfigured,
+  getCurrentEmbeddingDimensions,
+  testProviderConnection,
+  getOpenAIApiKeyLegacy,
+  getProvider,
+  getModel,
+  getDefaultModel,
+  validateCapabilityForFeature,
+  getEmbeddingDimensions,
+  getProvidersForFunction,
+  getModelsForFunction,
+  getPricingForModel,
+  getPricingForModelAsync,
+  PROVIDERS,
+  // Pricing cache
+  getPricingData,
+  findModelPricing,
+  refreshPricingCache,
+  getPricingCacheStatus,
+  type ProviderType,
+  type ProviderConfig,
+  type AIConfig,
+  type FunctionStatus,
+  type AICapabilitiesStatus,
+  type AIFunction,
+  type ModelMetadata,
+  type ProviderMetadata,
+  type ModelCapabilities,
+  type FunctionPricing,
 } from './lib/index.js'
 
 // Migrations
@@ -296,9 +336,6 @@ export {
   type OMDbConfig,
   type StudioLogosConfig,
 } from './settings/systemSettings.js'
-
-// OpenAI client (centralized, lazy-initialized)
-export { getOpenAIClient, isOpenAIConfigured, clearOpenAIClient } from './lib/openai.js'
 
 // Top Picks
 export {

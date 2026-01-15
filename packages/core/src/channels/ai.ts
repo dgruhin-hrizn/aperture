@@ -1,7 +1,7 @@
 import { createChildLogger } from '../lib/logger.js'
-import { getOpenAIClient } from '../lib/openai.js'
+import { getTextGenerationModelInstance } from '../lib/ai-provider.js'
+import { generateText } from 'ai'
 import { query, queryOne } from '../lib/db.js'
-import { getTextGenerationModel } from '../settings/systemSettings.js'
 
 const logger = createChildLogger('channels')
 
@@ -98,14 +98,10 @@ export async function generateAIPreferences(
   }
 
   try {
-    const model = await getTextGenerationModel()
-    const openai = await getOpenAIClient()
-    const response = await openai.chat.completions.create({
+    const model = await getTextGenerationModelInstance()
+    const { text } = await generateText({
       model,
-      messages: [
-        {
-          role: 'system',
-          content: `You are a movie curator helping create a custom playlist. Based on the user's taste profile, selected genres, and example movies, generate 2-3 short preference paragraphs that describe what kind of movies should be included in this playlist.
+      system: `You are a movie curator helping create a custom playlist. Based on the user's taste profile, selected genres, and example movies, generate 2-3 short preference paragraphs that describe what kind of movies should be included in this playlist.
 
 Be specific and actionable. Reference the qualities, themes, and styles evident in the example movies. Consider what makes these movies work together as a collection.
 
@@ -118,23 +114,17 @@ Focus on:
 - What to avoid if implied by the examples
 
 Write in first person as if the user is describing what they want. Keep it concise but specific - each paragraph should be 1-2 sentences. Don't use bullet points.`,
-        },
-        {
-          role: 'user',
-          content: contextParts.join('\n\n'),
-        },
-      ],
+      prompt: contextParts.join('\n\n'),
       temperature: 0.7,
-      max_tokens: 500,
+      maxOutputTokens: 500,
     })
 
-    const preferences = response.choices[0]?.message?.content
-    if (!preferences) {
+    if (!text) {
       throw new Error('No response from AI')
     }
 
-    logger.info({ userId, preferencesLength: preferences.length }, 'AI preferences generated')
-    return preferences
+    logger.info({ userId, preferencesLength: text.length }, 'AI preferences generated')
+    return text
   } catch (error) {
     logger.error({ error, userId }, 'Failed to generate AI preferences')
     throw new Error('Failed to generate AI preferences. Please try again.')
@@ -158,14 +148,10 @@ export async function generateAIPlaylistName(
   }
 
   try {
-    const model = await getTextGenerationModel()
-    const openai = await getOpenAIClient()
-    const response = await openai.chat.completions.create({
+    const model = await getTextGenerationModelInstance()
+    const { text } = await generateText({
       model,
-      messages: [
-        {
-          role: 'system',
-          content: `You are a creative playlist naming expert. Generate a single catchy, memorable playlist name based on the provided context.
+      system: `You are a creative playlist naming expert. Generate a single catchy, memorable playlist name based on the provided context.
 
 Rules:
 - Keep it short (2-4 words max)
@@ -184,23 +170,17 @@ Examples of good names:
 - "Retro Rewind" (80s movies)
 
 Return ONLY the playlist name, nothing else.`,
-        },
-        {
-          role: 'user',
-          content: context,
-        },
-      ],
+      prompt: context,
       temperature: 0.9,
-      max_tokens: 50,
+      maxOutputTokens: 50,
     })
 
-    const name = response.choices[0]?.message?.content?.trim()
-    if (!name) {
+    if (!text) {
       throw new Error('No response from AI')
     }
 
     // Remove quotes if AI added them
-    return name.replace(/^["']|["']$/g, '')
+    return text.trim().replace(/^["']|["']$/g, '')
   } catch (error) {
     logger.error({ error }, 'Failed to generate AI playlist name')
     throw new Error('Failed to generate playlist name. Please try again.')
@@ -227,14 +207,10 @@ export async function generateAIPlaylistDescription(
   const nameContext = playlistName ? `\nPLAYLIST NAME: "${playlistName}"` : ''
 
   try {
-    const model = await getTextGenerationModel()
-    const openai = await getOpenAIClient()
-    const response = await openai.chat.completions.create({
+    const model = await getTextGenerationModelInstance()
+    const { text } = await generateText({
       model,
-      messages: [
-        {
-          role: 'system',
-          content: `You are a movie curator writing a brief playlist description. Write 1-2 sentences that capture what makes this playlist special.
+      system: `You are a movie curator writing a brief playlist description. Write 1-2 sentences that capture what makes this playlist special.
 
 Rules:
 - Be concise and engaging
@@ -249,22 +225,16 @@ Examples:
 - "Dark, atmospheric thrillers where nothing is as it seems. Prepare for twist endings and sleepless nights."
 
 Return ONLY the description, nothing else.`,
-        },
-        {
-          role: 'user',
-          content: context + nameContext,
-        },
-      ],
+      prompt: context + nameContext,
       temperature: 0.8,
-      max_tokens: 150,
+      maxOutputTokens: 150,
     })
 
-    const description = response.choices[0]?.message?.content?.trim()
-    if (!description) {
+    if (!text) {
       throw new Error('No response from AI')
     }
 
-    return description
+    return text.trim()
   } catch (error) {
     logger.error({ error }, 'Failed to generate AI playlist description')
     throw new Error('Failed to generate playlist description. Please try again.')

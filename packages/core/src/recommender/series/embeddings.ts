@@ -1,5 +1,4 @@
 import { createChildLogger } from '../../lib/logger.js'
-import { getOpenAIClient } from '../../lib/openai.js'
 import { query, queryOne } from '../../lib/db.js'
 import {
   createJobProgress,
@@ -9,7 +8,12 @@ import {
   completeJob,
   failJob,
 } from '../../jobs/progress.js'
-import { getEmbeddingModel, getOpenAIApiKey, type EmbeddingModel } from '../../settings/systemSettings.js'
+import {
+  getEmbeddingModelInstance,
+  isAIFunctionConfigured,
+  getFunctionConfig,
+} from '../../lib/ai-provider.js'
+import { embedMany } from 'ai'
 import { randomUUID } from 'crypto'
 
 const logger = createChildLogger('embeddings-series')
@@ -193,7 +197,9 @@ export function buildEpisodeCanonicalText(episode: EpisodeForEmbedding): string 
   const sections: string[] = []
 
   // === SECTION 1: Episode Identity ===
-  sections.push(`${episode.seriesTitle} - Season ${episode.seasonNumber}, Episode ${episode.episodeNumber}`)
+  sections.push(
+    `${episode.seriesTitle} - Season ${episode.seasonNumber}, Episode ${episode.episodeNumber}`
+  )
   sections.push(`"${episode.title}"`)
 
   if (episode.year) {
@@ -232,16 +238,13 @@ export function buildEpisodeCanonicalText(episode: EpisodeForEmbedding): string 
 /**
  * Generate embeddings for a batch of series
  */
-export async function embedSeries(
-  series: SeriesForEmbedding[],
-  modelOverride?: EmbeddingModel
-): Promise<SeriesEmbeddingResult[]> {
+export async function embedSeries(series: SeriesForEmbedding[]): Promise<SeriesEmbeddingResult[]> {
   if (series.length === 0) {
     return []
   }
 
-  const client = await getOpenAIClient()
-  const model = modelOverride || (await getEmbeddingModel())
+  const embeddingModel = await getEmbeddingModelInstance()
+  const config = await getFunctionConfig('embeddings')
 
   // Build canonical texts
   const textsWithIds = series.map((s) => ({
@@ -249,7 +252,10 @@ export async function embedSeries(
     text: buildSeriesCanonicalText(s),
   }))
 
-  logger.info({ count: textsWithIds.length, model }, 'Generating series embeddings')
+  logger.info(
+    { count: textsWithIds.length, provider: config?.provider, model: config?.model },
+    'Generating series embeddings'
+  )
 
   const batchSize = 100
   const results: SeriesEmbeddingResult[] = []
@@ -258,15 +264,16 @@ export async function embedSeries(
     const batch = textsWithIds.slice(i, i + batchSize)
     const texts = batch.map((t) => t.text)
 
-    const response = await client.embeddings.create({
-      model,
-      input: texts,
+    // Use AI SDK embedMany for batch embedding
+    const { embeddings } = await embedMany({
+      model: embeddingModel,
+      values: texts,
     })
 
     for (let j = 0; j < batch.length; j++) {
       results.push({
         seriesId: batch[j].seriesId,
-        embedding: response.data[j].embedding,
+        embedding: embeddings[j],
         canonicalText: batch[j].text,
       })
     }
@@ -284,15 +291,14 @@ export async function embedSeries(
  * Generate embeddings for a batch of episodes
  */
 export async function embedEpisodes(
-  episodes: EpisodeForEmbedding[],
-  modelOverride?: EmbeddingModel
+  episodes: EpisodeForEmbedding[]
 ): Promise<EpisodeEmbeddingResult[]> {
   if (episodes.length === 0) {
     return []
   }
 
-  const client = await getOpenAIClient()
-  const model = modelOverride || (await getEmbeddingModel())
+  const embeddingModel = await getEmbeddingModelInstance()
+  const config = await getFunctionConfig('embeddings')
 
   // Build canonical texts
   const textsWithIds = episodes.map((e) => ({
@@ -300,7 +306,10 @@ export async function embedEpisodes(
     text: buildEpisodeCanonicalText(e),
   }))
 
-  logger.info({ count: textsWithIds.length, model }, 'Generating episode embeddings')
+  logger.info(
+    { count: textsWithIds.length, provider: config?.provider, model: config?.model },
+    'Generating episode embeddings'
+  )
 
   const batchSize = 100
   const results: EpisodeEmbeddingResult[] = []
@@ -309,15 +318,16 @@ export async function embedEpisodes(
     const batch = textsWithIds.slice(i, i + batchSize)
     const texts = batch.map((t) => t.text)
 
-    const response = await client.embeddings.create({
-      model,
-      input: texts,
+    // Use AI SDK embedMany for batch embedding
+    const { embeddings } = await embedMany({
+      model: embeddingModel,
+      values: texts,
     })
 
     for (let j = 0; j < batch.length; j++) {
       results.push({
         episodeId: batch[j].episodeId,
-        embedding: response.data[j].embedding,
+        embedding: embeddings[j],
         canonicalText: batch[j].text,
       })
     }
@@ -334,11 +344,9 @@ export async function embedEpisodes(
 /**
  * Store series embeddings in the database
  */
-export async function storeSeriesEmbeddings(
-  embeddings: SeriesEmbeddingResult[],
-  modelOverride?: EmbeddingModel
-): Promise<void> {
-  const model = modelOverride || (await getEmbeddingModel())
+export async function storeSeriesEmbeddings(embeddings: SeriesEmbeddingResult[]): Promise<void> {
+  const config = await getFunctionConfig('embeddings')
+  const modelName = config ? `${config.provider}:${config.model}` : 'unknown'
 
   await query(
     `INSERT INTO series_embeddings (series_id, model, embedding, canonical_text)
@@ -350,7 +358,7 @@ export async function storeSeriesEmbeddings(
        canonical_text = EXCLUDED.canonical_text`,
     [
       embeddings.map((emb) => emb.seriesId),
-      Array(embeddings.length).fill(model),
+      Array(embeddings.length).fill(modelName),
       embeddings.map((emb) => `[${emb.embedding.join(',')}]`),
       embeddings.map((emb) => emb.canonicalText),
     ]
@@ -362,11 +370,9 @@ export async function storeSeriesEmbeddings(
 /**
  * Store episode embeddings in the database
  */
-export async function storeEpisodeEmbeddings(
-  embeddings: EpisodeEmbeddingResult[],
-  modelOverride?: EmbeddingModel
-): Promise<void> {
-  const model = modelOverride || (await getEmbeddingModel())
+export async function storeEpisodeEmbeddings(embeddings: EpisodeEmbeddingResult[]): Promise<void> {
+  const config = await getFunctionConfig('embeddings')
+  const modelName = config ? `${config.provider}:${config.model}` : 'unknown'
 
   await query(
     `INSERT INTO episode_embeddings (episode_id, model, embedding, canonical_text)
@@ -378,7 +384,7 @@ export async function storeEpisodeEmbeddings(
        canonical_text = EXCLUDED.canonical_text`,
     [
       embeddings.map((emb) => emb.episodeId),
-      Array(embeddings.length).fill(model),
+      Array(embeddings.length).fill(modelName),
       embeddings.map((emb) => `[${emb.embedding.join(',')}]`),
       embeddings.map((emb) => emb.canonicalText),
     ]
@@ -390,11 +396,9 @@ export async function storeEpisodeEmbeddings(
 /**
  * Get series that don't have embeddings yet (with full metadata)
  */
-export async function getSeriesWithoutEmbeddings(
-  limit = 100,
-  modelOverride?: EmbeddingModel
-): Promise<SeriesForEmbedding[]> {
-  const model = modelOverride || (await getEmbeddingModel())
+export async function getSeriesWithoutEmbeddings(limit = 100): Promise<SeriesForEmbedding[]> {
+  const config = await getFunctionConfig('embeddings')
+  const modelName = config ? `${config.provider}:${config.model}` : 'unknown'
 
   // Check if any TV library configs exist
   const configCheck = await queryOne<{ count: string }>(
@@ -444,7 +448,7 @@ export async function getSeriesWithoutEmbeddings(
          LEFT JOIN series_embeddings e ON e.series_id = s.id AND e.model = $1
          WHERE e.id IS NULL
          LIMIT $2`,
-    [model, limit]
+    [modelName, limit]
   )
 
   return result.rows.map((row) => ({
@@ -472,11 +476,9 @@ export async function getSeriesWithoutEmbeddings(
 /**
  * Get episodes that don't have embeddings yet
  */
-export async function getEpisodesWithoutEmbeddings(
-  limit = 100,
-  modelOverride?: EmbeddingModel
-): Promise<EpisodeForEmbedding[]> {
-  const model = modelOverride || (await getEmbeddingModel())
+export async function getEpisodesWithoutEmbeddings(limit = 100): Promise<EpisodeForEmbedding[]> {
+  const config = await getFunctionConfig('embeddings')
+  const modelName = config ? `${config.provider}:${config.model}` : 'unknown'
 
   const result = await query<{
     id: string
@@ -499,7 +501,7 @@ export async function getEpisodesWithoutEmbeddings(
      LEFT JOIN episode_embeddings ee ON ee.episode_id = e.id AND ee.model = $1
      WHERE ee.id IS NULL
      LIMIT $2`,
-    [model, limit]
+    [modelName, limit]
   )
 
   return result.rows.map((row) => ({
@@ -535,19 +537,21 @@ export async function generateMissingSeriesEmbeddings(
   createJobProgress(jobId, 'generate-series-embeddings', includeEpisodes ? 4 : 3)
 
   try {
-    // Step 1: Check OpenAI configuration
-    setJobStep(jobId, 0, 'Checking OpenAI configuration')
+    // Step 1: Check AI provider configuration
+    setJobStep(jobId, 0, 'Checking AI configuration')
 
-    const apiKey = await getOpenAIApiKey()
-    const model = await getEmbeddingModel()
+    const isConfigured = await isAIFunctionConfigured('embeddings')
+    const config = await getFunctionConfig('embeddings')
 
-    if (!apiKey) {
-      addLog(jobId, 'error', '❌ OPENAI_API_KEY is not configured!')
+    if (!isConfigured || !config) {
+      addLog(jobId, 'error', '❌ Embedding provider is not configured!')
+      addLog(jobId, 'info', '💡 Go to Settings > AI to configure your embedding provider')
       completeJob(jobId, { seriesGenerated: 0, episodesGenerated: 0, failed: 0 })
       return { seriesGenerated: 0, episodesGenerated: 0, failed: 0, jobId }
     }
 
-    addLog(jobId, 'info', `🤖 Using OpenAI model: ${model}`)
+    const modelName = `${config.provider}:${config.model}`
+    addLog(jobId, 'info', `🤖 Using embedding provider: ${config.provider}, model: ${config.model}`)
 
     // Step 2: Count series needing embeddings
     setJobStep(jobId, 1, 'Counting series without embeddings')
@@ -557,7 +561,7 @@ export async function generateMissingSeriesEmbeddings(
        FROM series s
        LEFT JOIN series_embeddings e ON e.series_id = s.id AND e.model = $1
        WHERE e.id IS NULL`,
-      [model]
+      [modelName]
     )
 
     const totalSeriesNeeded = parseInt(seriesCountResult.rows[0]?.count || '0', 10)
@@ -601,11 +605,11 @@ export async function generateMissingSeriesEmbeddings(
             addLog(jobId, 'error', `❌ Series batch failed: ${error}`)
             totalFailed += batch.length
 
-            if (error.includes('rate_limit')) {
+            if (error.includes('rate_limit') || error.includes('429')) {
               addLog(jobId, 'warn', '⏳ Rate limited - waiting 60 seconds...')
               await new Promise((resolve) => setTimeout(resolve, 60000))
-            } else if (error.includes('insufficient_quota')) {
-              addLog(jobId, 'error', '💳 OpenAI quota exceeded - stopping job')
+            } else if (error.includes('insufficient_quota') || error.includes('402')) {
+              addLog(jobId, 'error', '💳 API quota exceeded - stopping job')
               break
             }
           }
@@ -624,7 +628,7 @@ export async function generateMissingSeriesEmbeddings(
          FROM episodes e
          LEFT JOIN episode_embeddings ee ON ee.episode_id = e.id AND ee.model = $1
          WHERE ee.id IS NULL`,
-        [model]
+        [modelName]
       )
 
       const totalEpisodesNeeded = parseInt(episodeCountResult.rows[0]?.count || '0', 10)
@@ -666,11 +670,11 @@ export async function generateMissingSeriesEmbeddings(
               addLog(jobId, 'error', `❌ Episode batch failed: ${error}`)
               totalFailed += batch.length
 
-              if (error.includes('rate_limit')) {
+              if (error.includes('rate_limit') || error.includes('429')) {
                 addLog(jobId, 'warn', '⏳ Rate limited - waiting 60 seconds...')
                 await new Promise((resolve) => setTimeout(resolve, 60000))
-              } else if (error.includes('insufficient_quota')) {
-                addLog(jobId, 'error', '💳 OpenAI quota exceeded - stopping job')
+              } else if (error.includes('insufficient_quota') || error.includes('402')) {
+                addLog(jobId, 'error', '💳 API quota exceeded - stopping job')
                 break
               }
             }
@@ -700,11 +704,12 @@ export async function generateMissingSeriesEmbeddings(
  * Get embedding for a specific series
  */
 export async function getSeriesEmbedding(seriesId: string): Promise<number[] | null> {
-  const model = await getEmbeddingModel()
+  const config = await getFunctionConfig('embeddings')
+  const modelName = config ? `${config.provider}:${config.model}` : 'unknown'
 
   const result = await queryOne<{ embedding: string }>(
     `SELECT embedding::text FROM series_embeddings WHERE series_id = $1 AND model = $2`,
-    [seriesId, model]
+    [seriesId, modelName]
   )
 
   if (!result) {
@@ -719,11 +724,12 @@ export async function getSeriesEmbedding(seriesId: string): Promise<number[] | n
  * Get embedding for a specific episode
  */
 export async function getEpisodeEmbedding(episodeId: string): Promise<number[] | null> {
-  const model = await getEmbeddingModel()
+  const config = await getFunctionConfig('embeddings')
+  const modelName = config ? `${config.provider}:${config.model}` : 'unknown'
 
   const result = await queryOne<{ embedding: string }>(
     `SELECT embedding::text FROM episode_embeddings WHERE episode_id = $1 AND model = $2`,
-    [episodeId, model]
+    [episodeId, modelName]
   )
 
   if (!result) {
@@ -740,14 +746,15 @@ export async function getEpisodeEmbedding(episodeId: string): Promise<number[] |
 export async function getSeriesEpisodeEmbeddings(
   seriesId: string
 ): Promise<Array<{ episodeId: string; embedding: number[] }>> {
-  const model = await getEmbeddingModel()
+  const config = await getFunctionConfig('embeddings')
+  const modelName = config ? `${config.provider}:${config.model}` : 'unknown'
 
   const result = await query<{ episode_id: string; embedding: string }>(
     `SELECT ee.episode_id, ee.embedding::text
      FROM episode_embeddings ee
      JOIN episodes e ON e.id = ee.episode_id
      WHERE e.series_id = $1 AND ee.model = $2`,
-    [seriesId, model]
+    [seriesId, modelName]
   )
 
   return result.rows.map((row) => ({
@@ -755,4 +762,3 @@ export async function getSeriesEpisodeEmbeddings(
     embedding: row.embedding.replace(/[[\]]/g, '').split(',').map(Number),
   }))
 }
-

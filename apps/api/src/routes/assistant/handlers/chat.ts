@@ -9,9 +9,9 @@
 import { Readable } from 'node:stream'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { streamText, convertToModelMessages, stepCountIs, type UIMessage } from 'ai'
-import { getEmbeddingModel, getChatAssistantModel } from '@aperture/core'
+import { getChatModelInstance, getEmbeddingModelInstance, getFunctionConfig, type AIFunction } from '@aperture/core'
 import { requireAuth, type SessionUser } from '../../../plugins/auth.js'
-import { getMediaServerInfo, buildSystemPrompt, getOpenAIClient } from '../helpers/index.js'
+import { getMediaServerInfo, buildSystemPrompt } from '../helpers/index.js'
 import { createTools } from '../tools/index.js'
 
 interface ChatBody {
@@ -106,30 +106,31 @@ export function registerChatHandler(fastify: FastifyInstance) {
       }
 
       try {
-        const model = await getChatAssistantModel()
-        const embeddingModel = await getEmbeddingModel()
+        const chatModel = await getChatModelInstance()
+        const embeddingModel = await getEmbeddingModelInstance()
+        const chatConfig = await getFunctionConfig('chat' as AIFunction)
+        const embeddingConfig = await getFunctionConfig('embeddings' as AIFunction)
         const mediaServer = await getMediaServerInfo()
         const systemPrompt = await buildSystemPrompt(user.id, user.isAdmin)
-        const openai = await getOpenAIClient()
 
         // Create tool context
         const toolContext = {
           userId: user.id,
           isAdmin: user.isAdmin,
           embeddingModel,
+          embeddingModelId: embeddingConfig?.model ?? 'text-embedding-3-large',
           mediaServer,
-          openai,
         }
 
         // Create tools with context
         const tools = createTools(toolContext)
 
-        fastify.log.info({ toolCount: Object.keys(tools).length, model }, 'Starting chat stream')
+        fastify.log.info({ toolCount: Object.keys(tools).length, model: chatConfig?.model ?? 'unknown' }, 'Starting chat stream')
 
         // Stream the response using AI SDK v5
         // stopWhen allows the model to continue generating text after tool results
         const result = streamText({
-          model: openai.chat(model),
+          model: chatModel,
           system: systemPrompt,
           messages: convertToModelMessages(messages),
           tools,

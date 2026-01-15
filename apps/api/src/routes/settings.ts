@@ -42,6 +42,24 @@ import {
   hasOpenAIApiKey,
   setOpenAIApiKey,
   testOpenAIConnection,
+  // Multi-provider AI config
+  getAIConfig,
+  setAIConfig,
+  getFunctionConfig,
+  setFunctionConfig,
+  getAICapabilitiesStatus,
+  testProviderConnection,
+  PROVIDERS,
+  getProvidersForFunction,
+  getModelsForFunction,
+  getPricingForModelAsync,
+  refreshPricingCache,
+  getPricingCacheStatus,
+  // System settings
+  getSystemSetting,
+  setSystemSetting,
+  type AIFunction,
+  type ProviderType,
   getTMDbConfig,
   setTMDbConfig,
   testTMDbConnection,
@@ -57,7 +75,7 @@ import {
   type ChatAssistantModel,
   type MediaTypeConfig,
 } from '@aperture/core'
-import { requireAdmin } from '../plugins/auth.js'
+import { requireAdmin, requireAuth } from '../plugins/auth.js'
 import { query, queryOne } from '../lib/db.js'
 
 const settingsRoutes: FastifyPluginAsync = async (fastify) => {
@@ -599,9 +617,20 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         getJobConfig('refresh-assistant-suggestions'),
       ])
 
-      // Get enabled user counts and item counts
+      // Get user's cost estimation preferences
+      const costEstimationConfigStr = await getSystemSetting('cost_estimation_config')
+      const costEstimationConfig = costEstimationConfigStr
+        ? JSON.parse(costEstimationConfigStr)
+        : {
+            weeklyMoviesAdded: 5,
+            weeklyShowsAdded: 3,
+            weeklyEpisodesAdded: 20,
+            weeklyChatMessagesPerUser: 50,
+          }
+
+      // Get enabled user counts, total library counts, and pending counts
       const { query } = await import('@aperture/core')
-      const [enabledUsersResult, itemCountsResult] = await Promise.all([
+      const [enabledUsersResult, itemCountsResult, totalLibraryResult] = await Promise.all([
         query<{
           movies_enabled_count: string
           series_enabled_count: string
@@ -623,6 +652,16 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
             (SELECT COUNT(*) FROM series s WHERE NOT EXISTS (SELECT 1 FROM series_embeddings se WHERE se.series_id = s.id)) as series_count,
             (SELECT COUNT(*) FROM episodes ep WHERE NOT EXISTS (SELECT 1 FROM episode_embeddings ee WHERE ee.episode_id = ep.id)) as episode_count
         `),
+        query<{
+          total_movies: string
+          total_series: string
+          total_episodes: string
+        }>(`
+          SELECT 
+            (SELECT COUNT(*) FROM movies) as total_movies,
+            (SELECT COUNT(*) FROM series) as total_series,
+            (SELECT COUNT(*) FROM episodes) as total_episodes
+        `),
       ])
 
       const moviesEnabledUsers = parseInt(enabledUsersResult.rows[0]?.movies_enabled_count || '0', 10)
@@ -632,6 +671,10 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       const pendingMovieEmbeddings = parseInt(itemCountsResult.rows[0]?.movie_count || '0', 10)
       const pendingSeriesEmbeddings = parseInt(itemCountsResult.rows[0]?.series_count || '0', 10)
       const pendingEpisodeEmbeddings = parseInt(itemCountsResult.rows[0]?.episode_count || '0', 10)
+
+      const totalMovies = parseInt(totalLibraryResult.rows[0]?.total_movies || '0', 10)
+      const totalSeries = parseInt(totalLibraryResult.rows[0]?.total_series || '0', 10)
+      const totalEpisodes = parseInt(totalLibraryResult.rows[0]?.total_episodes || '0', 10)
 
       // Calculate runs per week for each job
       const movieRecsRunsPerWeek = movieRecsJobConfig
@@ -698,10 +741,65 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
             schedule: 'Jobs > refresh-assistant-suggestions',
           },
         },
+        // Library totals for one-time embedding cost calculation
+        library: {
+          totalMovies,
+          totalSeries,
+          totalEpisodes,
+        },
+        // User-configurable estimates for recurring cost calculation
+        userEstimates: costEstimationConfig,
       })
     } catch (err) {
       fastify.log.error({ err }, 'Failed to get cost inputs')
       return reply.status(500).send({ error: 'Failed to get cost estimation inputs' })
+    }
+  })
+
+  /**
+   * PATCH /api/settings/cost-inputs/estimates
+   * Update user-configurable cost estimation preferences
+   */
+  fastify.patch<{
+    Body: {
+      weeklyMoviesAdded?: number
+      weeklyShowsAdded?: number
+      weeklyEpisodesAdded?: number
+      weeklyChatMessagesPerUser?: number
+    }
+  }>('/api/settings/cost-inputs/estimates', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const { weeklyMoviesAdded, weeklyShowsAdded, weeklyEpisodesAdded, weeklyChatMessagesPerUser } = request.body
+
+      // Get existing config
+      const existingConfigStr = await getSystemSetting('cost_estimation_config')
+      const existingConfig = existingConfigStr
+        ? JSON.parse(existingConfigStr)
+        : {
+            weeklyMoviesAdded: 5,
+            weeklyShowsAdded: 3,
+            weeklyEpisodesAdded: 20,
+            weeklyChatMessagesPerUser: 50,
+          }
+
+      // Merge updates
+      const newConfig = {
+        weeklyMoviesAdded: weeklyMoviesAdded ?? existingConfig.weeklyMoviesAdded,
+        weeklyShowsAdded: weeklyShowsAdded ?? existingConfig.weeklyShowsAdded,
+        weeklyEpisodesAdded: weeklyEpisodesAdded ?? existingConfig.weeklyEpisodesAdded,
+        weeklyChatMessagesPerUser: weeklyChatMessagesPerUser ?? existingConfig.weeklyChatMessagesPerUser,
+      }
+
+      await setSystemSetting(
+        'cost_estimation_config',
+        JSON.stringify(newConfig),
+        'User-configurable cost estimation preferences'
+      )
+
+      return reply.send({ config: newConfig })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to update cost estimation config')
+      return reply.status(500).send({ error: 'Failed to update cost estimation preferences' })
     }
   })
 
@@ -1893,6 +1991,298 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       }
     }
   )
+
+  // =========================================================================
+  // Multi-Provider AI Configuration (Admin Only)
+  // =========================================================================
+
+  /**
+   * GET /api/settings/ai
+   * Get full AI configuration for all functions
+   */
+  fastify.get('/api/settings/ai', { preHandler: requireAdmin }, async (_request, reply) => {
+    try {
+      const config = await getAIConfig()
+      const capabilities = await getAICapabilitiesStatus()
+      return reply.send({ config, capabilities })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get AI config')
+      return reply.status(500).send({ error: 'Failed to get AI configuration' })
+    }
+  })
+
+  /**
+   * PUT /api/settings/ai
+   * Update full AI configuration
+   */
+  fastify.put<{
+    Body: {
+      embeddings?: { provider: ProviderType; model: string; apiKey?: string; baseUrl?: string }
+      chat?: { provider: ProviderType; model: string; apiKey?: string; baseUrl?: string }
+      textGeneration?: { provider: ProviderType; model: string; apiKey?: string; baseUrl?: string }
+    }
+  }>('/api/settings/ai', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const currentConfig = await getAIConfig()
+      const updates = request.body
+
+      // Merge updates with current config
+      const newConfig = {
+        embeddings: updates.embeddings
+          ? { ...currentConfig.embeddings, ...updates.embeddings }
+          : currentConfig.embeddings,
+        chat: updates.chat ? { ...currentConfig.chat, ...updates.chat } : currentConfig.chat,
+        textGeneration: updates.textGeneration
+          ? { ...currentConfig.textGeneration, ...updates.textGeneration }
+          : currentConfig.textGeneration,
+      }
+
+      await setAIConfig(newConfig)
+      const capabilities = await getAICapabilitiesStatus()
+      return reply.send({ config: newConfig, capabilities })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to update AI config')
+      return reply.status(500).send({ error: 'Failed to update AI configuration' })
+    }
+  })
+
+  /**
+   * GET /api/settings/ai/capabilities
+   * Get AI capabilities status for each function (Admin - full details)
+   */
+  fastify.get('/api/settings/ai/capabilities', { preHandler: requireAdmin }, async (_request, reply) => {
+    try {
+      const capabilities = await getAICapabilitiesStatus()
+      return reply.send(capabilities)
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get AI capabilities')
+      return reply.status(500).send({ error: 'Failed to get AI capabilities' })
+    }
+  })
+
+  /**
+   * GET /api/settings/ai/features
+   * Get AI feature availability status (User accessible - no sensitive info)
+   */
+  fastify.get('/api/settings/ai/features', { preHandler: requireAuth }, async (_request, reply) => {
+    try {
+      const capabilities = await getAICapabilitiesStatus()
+      
+      // Return only feature availability without sensitive config details
+      return reply.send({
+        embeddings: {
+          configured: capabilities.embeddings.configured,
+          supportsEmbeddings: capabilities.embeddings.capabilities?.supportsEmbeddings ?? false,
+        },
+        chat: {
+          configured: capabilities.chat.configured,
+          supportsToolCalling: capabilities.chat.capabilities?.supportsToolCalling ?? false,
+          supportsStreaming: capabilities.chat.capabilities?.supportsToolStreaming ?? false,
+        },
+        textGeneration: {
+          configured: capabilities.textGeneration.configured,
+        },
+        features: {
+          semanticSearch: capabilities.embeddings.configured,
+          chatWithTools: capabilities.chat.configured && (capabilities.chat.capabilities?.supportsToolCalling ?? false),
+          basicChat: capabilities.chat.configured,
+          recommendations: capabilities.embeddings.configured && capabilities.textGeneration.configured,
+          explanations: capabilities.textGeneration.configured,
+        },
+        isFullyConfigured: capabilities.isFullyConfigured,
+        isAnyConfigured: capabilities.isAnyConfigured,
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get AI features')
+      return reply.status(500).send({ error: 'Failed to get AI features' })
+    }
+  })
+
+  /**
+   * GET /api/settings/ai/providers
+   * Get available providers and their models
+   */
+  fastify.get<{
+    Querystring: { function?: string }
+  }>('/api/settings/ai/providers', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const fn = request.query.function as AIFunction | undefined
+
+      if (fn) {
+        // Get providers for a specific function
+        const providers = await getProvidersForFunction(fn)
+        return reply.send({ providers })
+      }
+
+      // Return all providers
+      return reply.send({ providers: PROVIDERS })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get AI providers')
+      return reply.status(500).send({ error: 'Failed to get AI providers' })
+    }
+  })
+
+  /**
+   * GET /api/settings/ai/models
+   * Get available models for a specific provider and function
+   */
+  fastify.get<{
+    Querystring: { provider: string; function: string }
+  }>('/api/settings/ai/models', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const { provider, function: fn } = request.query
+
+      if (!provider || !fn) {
+        return reply.status(400).send({ error: 'provider and function are required' })
+      }
+
+      const models = await getModelsForFunction(provider as ProviderType, fn as AIFunction)
+      return reply.send({ models })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get AI models')
+      return reply.status(500).send({ error: 'Failed to get AI models' })
+    }
+  })
+
+  /**
+   * GET /api/settings/ai/pricing
+   * Get pricing info for all configured AI functions
+   * Uses dynamic pricing from Helicone API (cached daily)
+   */
+  fastify.get('/api/settings/ai/pricing', { preHandler: requireAdmin }, async (_request, reply) => {
+    try {
+      const aiConfig = await getAIConfig()
+
+      const [embeddingsPricing, chatPricing, textGenerationPricing] = await Promise.all([
+        aiConfig.embeddings
+          ? getPricingForModelAsync(aiConfig.embeddings.provider, aiConfig.embeddings.model, 'embeddings')
+          : null,
+        aiConfig.chat
+          ? getPricingForModelAsync(aiConfig.chat.provider, aiConfig.chat.model, 'chat')
+          : null,
+        aiConfig.textGeneration
+          ? getPricingForModelAsync(aiConfig.textGeneration.provider, aiConfig.textGeneration.model, 'textGeneration')
+          : null,
+      ])
+
+      return reply.send({
+        embeddings: embeddingsPricing,
+        chat: chatPricing,
+        textGeneration: textGenerationPricing,
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get AI pricing')
+      return reply.status(500).send({ error: 'Failed to get AI pricing' })
+    }
+  })
+
+  /**
+   * GET /api/settings/ai/pricing/status
+   * Get the status of the pricing cache
+   */
+  fastify.get('/api/settings/ai/pricing/status', { preHandler: requireAdmin }, async (_request, reply) => {
+    try {
+      const status = await getPricingCacheStatus()
+      return reply.send(status)
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get pricing cache status')
+      return reply.status(500).send({ error: 'Failed to get pricing cache status' })
+    }
+  })
+
+  /**
+   * POST /api/settings/ai/pricing/refresh
+   * Force refresh the pricing cache from Helicone API
+   */
+  fastify.post('/api/settings/ai/pricing/refresh', { preHandler: requireAdmin }, async (_request, reply) => {
+    try {
+      await refreshPricingCache()
+      const status = await getPricingCacheStatus()
+      return reply.send({ success: true, status })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to refresh pricing cache')
+      return reply.status(500).send({ error: 'Failed to refresh pricing cache' })
+    }
+  })
+
+  /**
+   * POST /api/settings/ai/test
+   * Test a specific provider/model configuration
+   */
+  fastify.post<{
+    Body: {
+      function: string
+      provider: string
+      model: string
+      apiKey?: string
+      baseUrl?: string
+    }
+  }>('/api/settings/ai/test', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const { function: fn, provider, model, apiKey, baseUrl } = request.body
+
+      if (!fn || !provider || !model) {
+        return reply.status(400).send({ error: 'function, provider, and model are required' })
+      }
+
+      // If no API key provided, try to use the saved one from the config
+      let testApiKey = apiKey
+      let testBaseUrl = baseUrl
+      if (!testApiKey || !testBaseUrl) {
+        const savedConfig = await getFunctionConfig(fn as AIFunction)
+        if (savedConfig && savedConfig.provider === provider) {
+          testApiKey = testApiKey || savedConfig.apiKey
+          testBaseUrl = testBaseUrl || savedConfig.baseUrl
+        }
+      }
+
+      const result = await testProviderConnection(
+        {
+          provider: provider as ProviderType,
+          model,
+          apiKey: testApiKey,
+          baseUrl: testBaseUrl,
+        },
+        fn as AIFunction
+      )
+
+      return reply.send(result)
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to test AI provider')
+      return reply.status(500).send({ error: 'Failed to test AI provider' })
+    }
+  })
+
+  /**
+   * PATCH /api/settings/ai/:function
+   * Update configuration for a specific AI function
+   */
+  fastify.patch<{
+    Params: { function: string }
+    Body: { provider: string; model: string; apiKey?: string; baseUrl?: string }
+  }>('/api/settings/ai/:function', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const fn = request.params.function as AIFunction
+      const { provider, model, apiKey, baseUrl } = request.body
+
+      if (!['embeddings', 'chat', 'textGeneration'].includes(fn)) {
+        return reply.status(400).send({ error: 'Invalid function. Must be embeddings, chat, or textGeneration' })
+      }
+
+      await setFunctionConfig(fn, {
+        provider: provider as ProviderType,
+        model,
+        apiKey,
+        baseUrl,
+      })
+
+      const config = await getFunctionConfig(fn)
+      return reply.send({ config })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to update AI function config')
+      return reply.status(500).send({ error: 'Failed to update AI function configuration' })
+    }
+  })
 
   // =========================================================================
   // TMDb API Settings (Admin Only)

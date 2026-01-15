@@ -10,7 +10,7 @@ import {
   ValidateStep,
   UsersStep,
   TopPicksStep,
-  OpenAIStep,
+  AISetupStep,
   InitialJobsStep,
   CompleteStep,
 } from './components'
@@ -39,8 +39,8 @@ export function SetupPage() {
         return <UsersStep wizard={wizard} />
       case 'topPicks':
         return <TopPicksStep wizard={wizard} />
-      case 'openai':
-        return <OpenAIStep wizard={wizard} />
+      case 'aiSetup':
+        return <AISetupStep wizard={wizard} />
       case 'initialJobs':
         return <InitialJobsStep wizard={wizard} />
       case 'complete':

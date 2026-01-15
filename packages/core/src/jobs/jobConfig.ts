@@ -62,17 +62,18 @@ const ENV_DEFAULTS: Record<
   'backup-database': { scheduleType: 'daily', hour: 2, minute: 0 },
   'refresh-top-picks': { scheduleType: 'daily', hour: 5, minute: 0 },
   'enrich-studio-logos': { scheduleType: 'daily', hour: 5, minute: 30 },
+  'enrich-mdblist': { scheduleType: 'daily', hour: 7, minute: 0 },
 
   // === WEEKLY (Sunday) ===
   'refresh-assistant-suggestions': { scheduleType: 'weekly', hour: 0, minute: 0, dayOfWeek: 0 },
   'generate-movie-recommendations': { scheduleType: 'weekly', hour: 4, minute: 0, dayOfWeek: 0 },
   'generate-series-recommendations': { scheduleType: 'weekly', hour: 4, minute: 0, dayOfWeek: 0 },
+  'refresh-ai-pricing': { scheduleType: 'weekly', hour: 0, minute: 0, dayOfWeek: 0 },
 
   // === MANUAL ONLY ===
   'full-sync-movie-watch-history': { scheduleType: 'manual', hour: 0, minute: 0 },
   'full-sync-series-watch-history': { scheduleType: 'manual', hour: 0, minute: 0 },
   'rebuild-movie-recommendations': { scheduleType: 'manual', hour: 0, minute: 0 },
-  'enrich-mdblist': { scheduleType: 'manual', hour: 0, minute: 0 }, // Manual due to daily API quota
 }
 
 function rowToConfig(row: JobConfigRow): JobConfig {

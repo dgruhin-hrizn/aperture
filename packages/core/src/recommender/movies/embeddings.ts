@@ -1,5 +1,4 @@
 import { createChildLogger } from '../../lib/logger.js'
-import { getOpenAIClient } from '../../lib/openai.js'
 import { query, queryOne } from '../../lib/db.js'
 import {
   createJobProgress,
@@ -9,7 +8,12 @@ import {
   completeJob,
   failJob,
 } from '../../jobs/progress.js'
-import { getEmbeddingModel, getOpenAIApiKey, type EmbeddingModel } from '../../settings/systemSettings.js'
+import {
+  getEmbeddingModelInstance,
+  isAIFunctionConfigured,
+  getFunctionConfig,
+} from '../../lib/ai-provider.js'
+import { embedMany } from 'ai'
 import { randomUUID } from 'crypto'
 
 const logger = createChildLogger('embeddings')
@@ -131,16 +135,13 @@ export function buildCanonicalText(movie: Movie): string {
 /**
  * Generate embeddings for a batch of movies
  */
-export async function embedMovies(
-  movies: Movie[],
-  modelOverride?: EmbeddingModel
-): Promise<EmbeddingResult[]> {
+export async function embedMovies(movies: Movie[]): Promise<EmbeddingResult[]> {
   if (movies.length === 0) {
     return []
   }
 
-  const client = await getOpenAIClient()
-  const model = modelOverride || (await getEmbeddingModel())
+  const embeddingModel = await getEmbeddingModelInstance()
+  const config = await getFunctionConfig('embeddings')
 
   // Build canonical texts
   const textsWithIds = movies.map((movie) => ({
@@ -148,9 +149,9 @@ export async function embedMovies(
     text: buildCanonicalText(movie),
   }))
 
-  logger.info({ count: textsWithIds.length, model }, 'Generating embeddings')
+  logger.info({ count: textsWithIds.length, provider: config?.provider, model: config?.model }, 'Generating embeddings')
 
-  // OpenAI recommends batches of up to 2048 texts
+  // Process in batches of up to 100 texts
   const batchSize = 100
   const results: EmbeddingResult[] = []
 
@@ -158,15 +159,16 @@ export async function embedMovies(
     const batch = textsWithIds.slice(i, i + batchSize)
     const texts = batch.map((t) => t.text)
 
-    const response = await client.embeddings.create({
-      model,
-      input: texts,
+    // Use AI SDK embedMany for batch embedding
+    const { embeddings } = await embedMany({
+      model: embeddingModel,
+      values: texts,
     })
 
     for (let j = 0; j < batch.length; j++) {
       results.push({
         movieId: batch[j].movieId,
-        embedding: response.data[j].embedding,
+        embedding: embeddings[j],
         canonicalText: batch[j].text,
       })
     }
@@ -183,11 +185,9 @@ export async function embedMovies(
 /**
  * Store embeddings in the database
  */
-export async function storeEmbeddings(
-  embeddings: EmbeddingResult[],
-  modelOverride?: EmbeddingModel
-): Promise<void> {
-  const model = modelOverride || (await getEmbeddingModel())
+export async function storeEmbeddings(embeddings: EmbeddingResult[]): Promise<void> {
+  const config = await getFunctionConfig('embeddings')
+  const modelName = config ? `${config.provider}:${config.model}` : 'unknown'
 
   await query(
     `INSERT INTO embeddings (movie_id, model, embedding, canonical_text)
@@ -199,11 +199,11 @@ export async function storeEmbeddings(
        canonical_text = EXCLUDED.canonical_text`,
     [
       embeddings.map((emb) => emb.movieId),
-      Array(embeddings.length).fill(model),
+      Array(embeddings.length).fill(modelName),
       embeddings.map((emb) => `[${emb.embedding.join(',')}]`),
       embeddings.map((emb) => emb.canonicalText),
     ]
-    )
+  )
 
   logger.info({ count: embeddings.length }, 'Embeddings stored')
 }
@@ -212,11 +212,9 @@ export async function storeEmbeddings(
  * Get movies that don't have embeddings yet (with full metadata)
  * Only includes movies from enabled libraries
  */
-export async function getMoviesWithoutEmbeddings(
-  limit = 100,
-  modelOverride?: EmbeddingModel
-): Promise<Movie[]> {
-  const model = modelOverride || (await getEmbeddingModel())
+export async function getMoviesWithoutEmbeddings(limit = 100): Promise<Movie[]> {
+  const config = await getFunctionConfig('embeddings')
+  const modelName = config ? `${config.provider}:${config.model}` : 'unknown'
 
   // Check if any library configs exist
   const configCheck = await queryOne<{ count: string }>('SELECT COUNT(*) FROM library_config')
@@ -257,7 +255,7 @@ export async function getMoviesWithoutEmbeddings(
          LEFT JOIN embeddings e ON e.movie_id = m.id AND e.model = $1
          WHERE e.id IS NULL
          LIMIT $2`,
-    [model, limit]
+    [modelName, limit]
   )
 
   // Map database rows to Movie interface
@@ -294,20 +292,21 @@ export async function generateMissingEmbeddings(
   createJobProgress(jobId, 'generate-movie-embeddings', 3)
 
   try {
-    // Step 1: Check OpenAI configuration
-    setJobStep(jobId, 0, 'Checking OpenAI configuration')
+    // Step 1: Check AI provider configuration
+    setJobStep(jobId, 0, 'Checking AI configuration')
 
-    const apiKey = await getOpenAIApiKey()
-    const model = await getEmbeddingModel()
+    const isConfigured = await isAIFunctionConfigured('embeddings')
+    const config = await getFunctionConfig('embeddings')
 
-    if (!apiKey) {
-      addLog(jobId, 'error', '❌ OPENAI_API_KEY is not configured!')
-      addLog(jobId, 'info', '💡 Go to Settings > AI to configure your OpenAI API key')
+    if (!isConfigured || !config) {
+      addLog(jobId, 'error', '❌ Embedding provider is not configured!')
+      addLog(jobId, 'info', '💡 Go to Settings > AI to configure your embedding provider')
       completeJob(jobId, { generated: 0, failed: 0, skipped: true })
       return { generated: 0, failed: 0, jobId }
     }
 
-    addLog(jobId, 'info', `🤖 Using OpenAI model: ${model}`)
+    const modelName = `${config.provider}:${config.model}`
+    addLog(jobId, 'info', `🤖 Using embedding provider: ${config.provider}, model: ${config.model}`)
 
     // Step 2: Count movies needing embeddings (only from enabled libraries)
     setJobStep(jobId, 1, 'Counting movies without embeddings')
@@ -331,7 +330,7 @@ export async function generateMissingEmbeddings(
            FROM movies m
            LEFT JOIN embeddings e ON e.movie_id = m.id AND e.model = $1
            WHERE e.id IS NULL`,
-      [model]
+      [modelName]
     )
 
     const totalNeeded = parseInt(countResult.rows[0]?.count || '0', 10)
@@ -399,11 +398,11 @@ export async function generateMissingEmbeddings(
           totalFailed += batch.length
 
           // Continue with next batch
-          if (error.includes('rate_limit')) {
+          if (error.includes('rate_limit') || error.includes('429')) {
             addLog(jobId, 'warn', '⏳ Rate limited - waiting 60 seconds...')
             await new Promise((resolve) => setTimeout(resolve, 60000))
-          } else if (error.includes('insufficient_quota')) {
-            addLog(jobId, 'error', '💳 OpenAI quota exceeded - stopping job')
+          } else if (error.includes('insufficient_quota') || error.includes('402')) {
+            addLog(jobId, 'error', '💳 API quota exceeded - stopping job')
             break
           }
         }
@@ -431,11 +430,12 @@ export async function generateMissingEmbeddings(
  * Get embedding for a specific movie
  */
 export async function getMovieEmbedding(movieId: string): Promise<number[] | null> {
-  const model = await getEmbeddingModel()
+  const config = await getFunctionConfig('embeddings')
+  const modelName = config ? `${config.provider}:${config.model}` : 'unknown'
 
   const result = await queryOne<{ embedding: string }>(
     `SELECT embedding::text FROM embeddings WHERE movie_id = $1 AND model = $2`,
-    [movieId, model]
+    [movieId, modelName]
   )
 
   if (!result) {

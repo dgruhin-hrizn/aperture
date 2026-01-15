@@ -12,6 +12,7 @@ import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
 import AddToQueueIcon from '@mui/icons-material/AddToQueue'
 import BusinessIcon from '@mui/icons-material/Business'
 import StreamIcon from '@mui/icons-material/Stream'
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney'
 import type { JobCategory } from './types'
 
 // Movie job categories
@@ -85,6 +86,12 @@ export const GLOBAL_JOB_CATEGORIES: JobCategory[] = [
     color: '#ed1c24',
     jobs: ['sync-trakt-ratings'],
   },
+  {
+    title: 'AI System',
+    description: 'AI/LLM system maintenance',
+    color: '#22c55e',
+    jobs: ['refresh-ai-pricing'],
+  },
 ]
 
 // Combined for backwards compatibility
@@ -117,6 +124,7 @@ export const JOB_ICONS: Record<string, React.ReactNode> = {
   'refresh-top-picks': <TrendingUpIcon />,
   'sync-watching-libraries': <AddToQueueIcon />,
   'sync-trakt-ratings': <SyncIcon />,
+  'refresh-ai-pricing': <AttachMoneyIcon />,
 }
 
 export const JOB_COLORS: Record<string, string> = {
@@ -142,6 +150,7 @@ export const JOB_COLORS: Record<string, string> = {
   'refresh-top-picks': '#f59e0b',
   'sync-watching-libraries': '#06b6d4',
   'sync-trakt-ratings': '#ed1c24',
+  'refresh-ai-pricing': '#22c55e',
 }
 
 export function formatJobName(name: string): string {

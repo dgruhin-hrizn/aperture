@@ -1,7 +1,7 @@
 import { createChildLogger } from '../lib/logger.js'
 import { query, queryOne } from '../lib/db.js'
-import { getOpenAIClient } from '../lib/openai.js'
-import { getEmbeddingModel } from '../settings/systemSettings.js'
+import { getEmbeddingModelInstance } from '../lib/ai-provider.js'
+import { embed } from 'ai'
 import { computeConnectionReasons, type ConnectionReason } from './reasons.js'
 
 const logger = createChildLogger('similarity')
@@ -867,15 +867,13 @@ export async function semanticSearch(
   logger.info({ searchQuery, type, limit }, 'Performing semantic search')
 
   // Generate embedding for the search query
-  const client = await getOpenAIClient()
-  const model = await getEmbeddingModel()
+  const model = await getEmbeddingModelInstance()
 
-  const embeddingResponse = await client.embeddings.create({
+  const { embedding: queryEmbedding } = await embed({
     model,
-    input: searchQuery,
+    value: searchQuery,
   })
 
-  const queryEmbedding = embeddingResponse.data[0].embedding
   const embeddingVector = `[${queryEmbedding.join(',')}]`
 
   const results: Array<{ item: SimilarityItem; similarity: number }> = []

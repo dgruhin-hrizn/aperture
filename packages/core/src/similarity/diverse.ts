@@ -1,6 +1,7 @@
 import { createChildLogger } from '../lib/logger.js'
 import { query, queryOne } from '../lib/db.js'
-import { getOpenAIClient } from '../lib/openai.js'
+import { getChatModelInstance } from '../lib/ai-provider.js'
+import { generateText } from 'ai'
 import type { SimilarityItem, SimilarityConnection } from './index.js'
 import type { ConnectionReason } from './reasons.js'
 
@@ -192,7 +193,7 @@ async function validateWithAI(
   target: SimilarityItem
 ): Promise<{ isValid: boolean; reason: string }> {
   try {
-    const client = await getOpenAIClient()
+    const model = await getChatModelInstance()
 
     const prompt = `Are these two movies thematically related enough to recommend together?
 
@@ -207,14 +208,14 @@ Movie 2: "${target.title}" (${target.year || 'unknown'})
 Answer with ONLY "YES" or "NO" followed by a brief reason (max 10 words).
 Example: "YES - both epic space adventures" or "NO - completely different genres and themes"`
 
-    const response = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 50,
+    const { text } = await generateText({
+      model,
+      prompt,
+      maxOutputTokens: 50,
       temperature: 0,
     })
 
-    const content = response.choices[0]?.message?.content || ''
+    const content = text || ''
     const isValid = content.toUpperCase().startsWith('YES')
     const reason = content.replace(/^(YES|NO)\s*[-–—:.]?\s*/i, '').trim() || (isValid ? 'AI approved' : 'AI rejected')
 
@@ -381,7 +382,7 @@ export async function findDiverseContent(
   )
 
   try {
-    const client = await getOpenAIClient()
+    const model = await getChatModelInstance()
 
     const prompt = `Given the ${type} "${centerItem.title}" (${centerItem.year || 'unknown year'}), which has these characteristics:
 - Genres: ${centerItem.genres.join(', ') || 'unknown'}
@@ -398,14 +399,14 @@ ${excludeCollections.length > 0 ? `\nALSO EXCLUDE any movies from: ${excludeColl
 Return ONLY the movie titles, one per line, without numbers or explanations.
 Focus on well-known, popular films that are likely to be in a home media library.`
 
-    const response = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 300,
+    const { text } = await generateText({
+      model,
+      prompt,
+      maxOutputTokens: 300,
       temperature: 0.7,
     })
 
-    const content = response.choices[0]?.message?.content || ''
+    const content = text || ''
     const suggestedTitles = parseTitles(content)
 
     logger.debug({ suggestedTitles }, 'AI suggested titles')
