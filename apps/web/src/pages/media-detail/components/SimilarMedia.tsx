@@ -337,13 +337,12 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
                     onClick={() => setPlaylistDialogOpen(true)}
                     disabled={!fullscreenGraphData || fullscreenGraphData.nodes.length === 0}
                     sx={{ 
-                      flex: { xs: 1, sm: 0 },
+                      flex: { xs: 1, sm: 'none' },
                       fontSize: { xs: '0.75rem', sm: '0.875rem' },
                       whiteSpace: 'nowrap'
                     }}
                   >
-                    <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Create Playlist</Box>
-                    <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>Playlist</Box>
+                    Create Playlist
                   </Button>
                 </Tooltip>
                 <Tooltip title="Exit fullscreen">
