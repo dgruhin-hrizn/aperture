@@ -368,6 +368,38 @@ export const PROVIDERS: ProviderMetadata[] = [
         costTier: 'free',
         contextWindow: '8K',
       },
+    ],
+    textGenerationModels: [
+      {
+        id: 'llama3.2',
+        name: 'Llama 3.2',
+        description: 'General purpose model. Good for text generation.',
+        capabilities: {
+          supportsToolCalling: false,
+          supportsToolStreaming: false,
+          supportsObjectGeneration: true,
+          supportsEmbeddings: false,
+        },
+        quality: 'standard',
+        speed: 'medium',
+        costTier: 'free',
+        contextWindow: '128K',
+      },
+      {
+        id: 'llama3.1',
+        name: 'Llama 3.1',
+        description: 'Meta\'s popular model. Available in 8B/70B/405B sizes.',
+        capabilities: {
+          supportsToolCalling: false,
+          supportsToolStreaming: false,
+          supportsObjectGeneration: true,
+          supportsEmbeddings: false,
+        },
+        quality: 'standard',
+        speed: 'medium',
+        costTier: 'free',
+        contextWindow: '128K',
+      },
       {
         id: 'gemma3',
         name: 'Gemma 3',
@@ -399,7 +431,6 @@ export const PROVIDERS: ProviderMetadata[] = [
         contextWindow: '16K',
       },
     ],
-    textGenerationModels: [],
   },
 
   {
