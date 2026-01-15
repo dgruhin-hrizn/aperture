@@ -178,9 +178,9 @@ importers:
       ai:
         specifier: ^5.0.0
         version: 5.0.118(zod@3.25.76)
-      ollama-ai-provider-v2:
-        specifier: ^2.0.0
-        version: 2.0.0(ai@5.0.118(zod@3.25.76))(zod@3.25.76)
+      ai-sdk-ollama:
+        specifier: 2.2.0
+        version: 2.2.0(ai@5.0.118(zod@3.25.76))(zod@3.25.76)
       openai:
         specifier: ^4.77.0
         version: 4.104.0(zod@3.25.76)
@@ -1809,6 +1809,12 @@ packages:
     resolution: {integrity: sha512-kja8j7PjmncONqaTsB8fQ+wE2mSU2DJ9D4XKoJ5PFWIdRMa6SLSN1ff4mOr4jCbfRSsxR4keIiySJU0N9T5hIQ==}
     engines: {node: '>= 8.0.0'}
 
+  ai-sdk-ollama@2.2.0:
+    resolution: {integrity: sha512-M7zDxlmnnIyFQCDxgQj+ln4g1KeUWDLfO5a3aZbY334xJUSlrZOqEoRDxNEpmuiZF/NCP7QpxQ4oQA7HEECHBA==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      ai: ^5.0.116
+
   ai@5.0.118:
     resolution: {integrity: sha512-sKJHfhJkvAyq5NC3yJJ4R8Z3tn4pSHF760/jInKAtmLwPLWTHfGo293DSO4un8QUAgJOagHd09VSXOXv+STMNQ==}
     engines: {node: '>=18'}
@@ -2810,12 +2816,8 @@ packages:
   obliterator@2.0.5:
     resolution: {integrity: sha512-42CPE9AhahZRsMNslczq0ctAEtqk8Eka26QofnqC346BZdHDySk3LWka23LI7ULIw11NmltpiLagIq8gBozxTw==}
 
-  ollama-ai-provider-v2@2.0.0:
-    resolution: {integrity: sha512-vbLG/xsW0kgGlInrTIa3W8niy294dw7n8nkLFVwjPHlX9EjtBH4bNPgHQEbmQUy60LjV3NF3Y1HtWPxORSb3bQ==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      ai: ^5.0.0 || ^6.0.0
-      zod: ^3.23.8
+  ollama@0.6.3:
+    resolution: {integrity: sha512-KEWEhIqE5wtfzEIZbDCLH51VFZ6Z3ZSa6sIOg/E/tBV8S51flyqBOXi+bRxlOYKDf8i327zG9eSTb8IJxvm3Zg==}
 
   on-exit-leak-free@2.1.2:
     resolution: {integrity: sha512-0eJJY6hXLGf1udHwfNftBqH+g73EU4B504nZeKpz1sYRKafAghwxEJunB2O7rDZkL4PGfsMVnTXZ2EjibbqcsA==}
@@ -3557,6 +3559,9 @@ packages:
 
   webidl-conversions@3.0.1:
     resolution: {integrity: sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==}
+
+  whatwg-fetch@3.6.20:
+    resolution: {integrity: sha512-EqhiFU6daOA8kpjOWTL0olhVOF3i7OrFzSYiGsEMB8GcXS+RrzauAERX65xMeNWVqxA6HXH2m69Z9LaKKdisfg==}
 
   whatwg-url@5.0.0:
     resolution: {integrity: sha512-saE57nupxk6v3HY35+jzBwYa0rKSy0XR8JSxZPwgLr7ys0IBzhGviA1/TUGJLmSVqs8pb9AnvICXEuOHLprYTw==}
@@ -5080,6 +5085,15 @@ snapshots:
     dependencies:
       humanize-ms: 1.2.1
 
+  ai-sdk-ollama@2.2.0(ai@5.0.118(zod@3.25.76))(zod@3.25.76):
+    dependencies:
+      '@ai-sdk/provider': 2.0.1
+      '@ai-sdk/provider-utils': 3.0.20(zod@3.25.76)
+      ai: 5.0.118(zod@3.25.76)
+      ollama: 0.6.3
+    transitivePeerDependencies:
+      - zod
+
   ai@5.0.118(zod@3.25.76):
     dependencies:
       '@ai-sdk/gateway': 2.0.24(zod@3.25.76)
@@ -6258,12 +6272,9 @@ snapshots:
 
   obliterator@2.0.5: {}
 
-  ollama-ai-provider-v2@2.0.0(ai@5.0.118(zod@3.25.76))(zod@3.25.76):
+  ollama@0.6.3:
     dependencies:
-      '@ai-sdk/provider': 3.0.3
-      '@ai-sdk/provider-utils': 4.0.6(zod@3.25.76)
-      ai: 5.0.118(zod@3.25.76)
-      zod: 3.25.76
+      whatwg-fetch: 3.6.20
 
   on-exit-leak-free@2.1.2: {}
 
@@ -7022,6 +7033,8 @@ snapshots:
   web-streams-polyfill@4.0.0-beta.3: {}
 
   webidl-conversions@3.0.1: {}
+
+  whatwg-fetch@3.6.20: {}
 
   whatwg-url@5.0.0:
     dependencies:

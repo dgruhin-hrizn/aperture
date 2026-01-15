@@ -8,7 +8,7 @@
 import { createOpenAI } from '@ai-sdk/openai'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
-import { ollama, createOllama } from 'ollama-ai-provider-v2'
+import { ollama, createOllama } from 'ai-sdk-ollama'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createGroq } from '@ai-sdk/groq'
 import { createDeepSeek } from '@ai-sdk/deepseek'
@@ -282,7 +282,7 @@ export async function getEmbeddingModelInstance(): Promise<EmbeddingModel<string
 
     case 'ollama':
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (provider as any).textEmbeddingModel(modelId)
+      return (provider as any).embedding(modelId)
 
     case 'google':
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
