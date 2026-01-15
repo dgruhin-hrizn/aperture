@@ -2,6 +2,7 @@
  * Watch history and ratings tools with Tool UI output schemas
  */
 import { tool } from 'ai'
+import { nullSafe } from './utils.js'
 import { z } from 'zod'
 import { query } from '../../../lib/db.js'
 import { buildPlayLink } from '../helpers/mediaServer.js'
@@ -12,10 +13,10 @@ export function createHistoryTools(ctx: ToolContext) {
   return {
     getWatchHistory: tool({
       description: 'Get the user\'s watch history. Use for "what have I watched", "my history".',
-      inputSchema: z.object({
+      inputSchema: nullSafe(z.object({
         type: z.enum(['movies', 'series', 'both']).optional().default('both'),
         limit: z.number().optional().default(20),
-      }),
+      })),
       execute: async ({ type = 'both', limit = 20 }) => {
         const items: ContentItem[] = []
 
@@ -121,11 +122,11 @@ export function createHistoryTools(ctx: ToolContext) {
 
     getUserRatings: tool({
       description: 'Get the user\'s ratings. Use for "what have I rated", "my ratings".',
-      inputSchema: z.object({
+      inputSchema: nullSafe(z.object({
         minRating: z.number().optional().describe('Minimum rating (1-10)'),
         maxRating: z.number().optional().describe('Maximum rating (1-10)'),
         limit: z.number().optional().default(20),
-      }),
+      })),
       execute: async ({ minRating, maxRating, limit = 20 }) => {
         const items: ContentItem[] = []
 

@@ -2,6 +2,7 @@
  * People and studios tools with Tool UI output schemas
  */
 import { tool } from 'ai'
+import { nullSafe } from './utils.js'
 import { z } from 'zod'
 import { query } from '../../../lib/db.js'
 import type { ToolContext } from '../types.js'
@@ -10,11 +11,11 @@ export function createPeopleTools(ctx: ToolContext) {
   return {
     searchPeople: tool({
       description: 'Search for actors, directors, or writers. Returns filmography with images.',
-      inputSchema: z.object({
+      inputSchema: nullSafe(z.object({
         name: z.string().describe('Name of the person'),
         role: z.enum(['actor', 'director', 'writer', 'any']).optional().default('any'),
         limit: z.number().optional().default(10),
-      }),
+      })),
       execute: async ({ name, role = 'any', limit = 10 }) => {
         const people: Array<{
           name: string
@@ -181,10 +182,10 @@ export function createPeopleTools(ctx: ToolContext) {
 
     getTopStudios: tool({
       description: "Get the user's most watched studios and networks.",
-      inputSchema: z.object({
+      inputSchema: nullSafe(z.object({
         type: z.enum(['movies', 'series', 'both']).optional().default('both'),
         limit: z.number().optional().default(10),
-      }),
+      })),
       execute: async ({ type = 'both', limit = 10 }) => {
         const result: {
           id: string

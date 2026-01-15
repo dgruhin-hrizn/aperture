@@ -2,6 +2,7 @@
  * System help tools with Tool UI output
  */
 import { tool } from 'ai'
+import { nullSafe } from './utils.js'
 import { z } from 'zod'
 import type { ToolContext } from '../types.js'
 
@@ -9,9 +10,9 @@ export function createHelpTools(ctx: ToolContext) {
   return {
     getSystemHelp: tool({
       description: 'Get help on how to use Aperture.',
-      inputSchema: z.object({
+      inputSchema: nullSafe(z.object({
         topic: z.string().optional().describe('Specific topic (ratings, recommendations, jobs)'),
-      }),
+      })),
       execute: async ({ topic }) => {
         const generalHelp = {
           overview: 'Aperture is an AI-powered recommendation system for your media server.',

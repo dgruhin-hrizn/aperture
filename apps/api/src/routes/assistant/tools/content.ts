@@ -2,6 +2,7 @@
  * Content details tool with Tool UI output schema
  */
 import { tool } from 'ai'
+import { nullSafe } from './utils.js'
 import { z } from 'zod'
 import { queryOne } from '../../../lib/db.js'
 import type { ToolContext } from '../types.js'
@@ -13,9 +14,9 @@ export function createContentTools(ctx: ToolContext) {
     getContentDetails: tool({
       description:
         'Get comprehensive details about a specific movie or TV series including play link, cast, and more.',
-      inputSchema: z.object({
+      inputSchema: nullSafe(z.object({
         title: z.string().describe('The title to get details for'),
-      }),
+      })),
       execute: async ({ title }): Promise<ContentDetail | { id: string; error: string }> => {
         try {
           // Try movie first

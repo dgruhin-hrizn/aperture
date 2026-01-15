@@ -2,6 +2,7 @@
  * Search and similarity tools with Tool UI output schemas
  */
 import { tool, embed, generateObject } from 'ai'
+import { nullSafe } from './utils.js'
 import { z } from 'zod'
 import { getTextGenerationModelInstance, getActiveEmbeddingTableName } from '@aperture/core'
 import { query, queryOne } from '../../../lib/db.js'
@@ -88,7 +89,7 @@ export function createSearchTools(ctx: ToolContext) {
     searchContent: tool({
       description:
         'Comprehensive search for movies and TV series with ALL available filters. Use for specific queries with known criteria. For conceptual/vague queries like "mind-bending movies", use semanticSearch instead.',
-      inputSchema: z.object({
+      inputSchema: nullSafe(z.object({
         // Text search
         query: z.string().optional().describe('Title or keywords to match'),
 
@@ -143,7 +144,7 @@ export function createSearchTools(ctx: ToolContext) {
           .optional()
           .default('rating'),
         sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
-      }),
+      })),
       execute: async (params) => {
         const {
           query: searchQuery,
@@ -351,7 +352,7 @@ export function createSearchTools(ctx: ToolContext) {
     semanticSearch: tool({
       description:
         'Search for movies and TV series by concept, theme, mood, or description using AI embeddings. BEST for vague or conceptual queries like "mind-bending sci-fi", "feel-good comedies", "dark thrillers with plot twists", "movies like Inception but darker". Use this instead of searchContent for non-literal searches.',
-      inputSchema: z.object({
+      inputSchema: nullSafe(z.object({
         concept: z
           .string()
           .describe(
@@ -367,7 +368,7 @@ export function createSearchTools(ctx: ToolContext) {
           .optional()
           .default(15)
           .describe('Number of results to return (default 15, max 50)'),
-      }),
+      })),
       execute: async ({ concept, type = 'both', excludeTitle, limit = 15 }) => {
         try {
           const safeLimit = Math.min(limit ?? 15, 50)
@@ -477,7 +478,7 @@ export function createSearchTools(ctx: ToolContext) {
     findSimilarContent: tool({
       description:
         'Find movies or TV series similar to a given title using AI embeddings. Returns ONLY the same type (movies for movies, series for series). Can optionally exclude content the user has already watched.',
-      inputSchema: z.object({
+      inputSchema: nullSafe(z.object({
         title: z.string().describe('The title to find similar content for'),
         type: z
           .enum(['movies', 'series'])
@@ -493,7 +494,7 @@ export function createSearchTools(ctx: ToolContext) {
           .optional()
           .default(15)
           .describe('Number of results to return (default 15, max 50)'),
-      }),
+      })),
       execute: async ({ title, type, excludeWatched = false, limit = 15 }) => {
         try {
           const items: ContentItem[] = []

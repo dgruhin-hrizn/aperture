@@ -393,7 +393,7 @@ export function AIFunctionCard({
                   <CircularProgress size={16} sx={{ mr: 1 }} /> Loading...
                 </MenuItem>
               )}
-              {providers.map((p) => (
+              {[...providers].sort((a, b) => a.name.localeCompare(b.name)).map((p) => (
                 <MenuItem key={p.id} value={p.id}>
                   <Box display="flex" alignItems="center" gap={1}>
                     {p.type === 'self-hosted' ? (
@@ -430,7 +430,7 @@ export function AIFunctionCard({
                   No models available
                 </MenuItem>
               )}
-              {models.map((m) => (
+              {[...models].sort((a, b) => a.name.localeCompare(b.name)).map((m) => (
                 <MenuItem key={m.id} value={m.id}>
                   <Box>
                     <Typography variant="body2">{m.name}</Typography>

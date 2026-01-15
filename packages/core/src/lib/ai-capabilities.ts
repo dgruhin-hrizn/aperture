@@ -341,9 +341,9 @@ export const PROVIDERS: ProviderMetadata[] = [
       {
         id: 'llama3.2',
         name: 'Llama 3.2',
-        description: 'General purpose model. Tool calling unreliable - use firefunction-v2 or qwen3 for chat.',
+        description: 'General purpose model. Tool calling may be unreliable - consider firefunction-v2 or qwen3 for best results.',
         capabilities: {
-          supportsToolCalling: false,
+          supportsToolCalling: true,
           supportsToolStreaming: false,
           supportsObjectGeneration: true,
           supportsEmbeddings: false,

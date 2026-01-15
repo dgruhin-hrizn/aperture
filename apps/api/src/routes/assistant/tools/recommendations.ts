@@ -2,6 +2,7 @@
  * Recommendation tools with Tool UI output schemas
  */
 import { tool } from 'ai'
+import { nullSafe } from './utils.js'
 import { z } from 'zod'
 import { query } from '../../../lib/db.js'
 import { buildPlayLink } from '../helpers/mediaServer.js'
@@ -44,10 +45,10 @@ export function createRecommendationTools(ctx: ToolContext) {
   return {
     getMyRecommendations: tool({
       description: "Get the user's current AI-generated personalized recommendations.",
-      inputSchema: z.object({
+      inputSchema: nullSafe(z.object({
         type: z.enum(['movies', 'series', 'both']).default('both'),
         limit: z.number().optional().default(15).describe('Number of results (default 15, max 50)'),
-      }),
+      })),
       execute: async ({ type, limit = 15 }) => {
         const items: ContentItem[] = []
 
@@ -127,11 +128,11 @@ export function createRecommendationTools(ctx: ToolContext) {
 
     getTopRated: tool({
       description: 'Get the highest-rated content in the library.',
-      inputSchema: z.object({
+      inputSchema: nullSafe(z.object({
         type: z.enum(['movies', 'series', 'both']).default('both'),
         genre: z.string().optional().describe('Filter by genre'),
         limit: z.number().optional().default(15).describe('Number of results (default 15, max 50)'),
-      }),
+      })),
       execute: async ({ type, genre, limit = 15 }) => {
         const items: ContentItem[] = []
 
@@ -196,12 +197,12 @@ export function createRecommendationTools(ctx: ToolContext) {
 
     getUnwatched: tool({
       description: 'Get content the user has NOT watched yet.',
-      inputSchema: z.object({
+      inputSchema: nullSafe(z.object({
         type: z.enum(['movies', 'series', 'both']).default('both'),
         genre: z.string().optional().describe('Filter by genre'),
         minRating: z.number().optional().describe('Minimum community rating'),
         limit: z.number().optional().default(15).describe('Number of results (default 15, max 50)'),
-      }),
+      })),
       execute: async ({ type, genre, minRating, limit = 15 }) => {
         const items: ContentItem[] = []
 

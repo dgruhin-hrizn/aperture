@@ -2,6 +2,7 @@
  * Library statistics tools with Tool UI output schemas
  */
 import { tool } from 'ai'
+import { nullSafe } from './utils.js'
 import { z } from 'zod'
 import { query, queryOne } from '../../../lib/db.js'
 import { buildPlayLink } from '../helpers/mediaServer.js'
@@ -12,7 +13,7 @@ export function createLibraryTools(ctx: ToolContext) {
     getContentRankings: tool({
       description:
         'Get content rankings/leaderboards. Use for questions like "which series has the most episodes", "longest movie", "highest rated series", "oldest movie", etc.',
-      inputSchema: z.object({
+      inputSchema: nullSafe(z.object({
         rankBy: z
           .enum([
             'most_episodes',
@@ -26,7 +27,7 @@ export function createLibraryTools(ctx: ToolContext) {
           .describe('What to rank by'),
         type: z.enum(['movies', 'series']).describe('Content type to rank'),
         limit: z.number().optional().default(10),
-      }),
+      })),
       execute: async ({ rankBy, type, limit = 10 }) => {
         if (type === 'series') {
           if (rankBy === 'most_episodes') {
@@ -267,7 +268,7 @@ export function createLibraryTools(ctx: ToolContext) {
     getLibraryStats: tool({
       description:
         'Get comprehensive statistics about the user\'s media library. Use for "how many movies", "library size", etc.',
-      inputSchema: z.object({}),
+      inputSchema: nullSafe(z.object({})),
       execute: async () => {
         const movieStats = await queryOne<{
           count: string
@@ -343,9 +344,9 @@ export function createLibraryTools(ctx: ToolContext) {
 
     getAvailableGenres: tool({
       description: 'Get a list of all available genres in the library with counts.',
-      inputSchema: z.object({
+      inputSchema: nullSafe(z.object({
         type: z.enum(['movies', 'series', 'both']).default('both'),
-      }),
+      })),
       execute: async ({ type }) => {
         const result: {
           id: string
