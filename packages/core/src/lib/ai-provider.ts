@@ -486,7 +486,7 @@ export async function testProviderConnection(
       await generateText({
         model,
         prompt: 'Say "ok" and nothing else.',
-        maxOutputTokens: 5,
+        maxOutputTokens: 20,
       })
     }
 
