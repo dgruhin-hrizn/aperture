@@ -339,21 +339,6 @@ export const PROVIDERS: ProviderMetadata[] = [
     ],
     chatModels: [
       {
-        id: 'qwen2.5',
-        name: 'Qwen 2.5',
-        description: 'Strong multilingual model with tool calling.',
-        capabilities: {
-          supportsToolCalling: true,
-          supportsToolStreaming: true,
-          supportsObjectGeneration: true,
-          supportsEmbeddings: false,
-        },
-        quality: 'standard',
-        speed: 'medium',
-        costTier: 'free',
-        contextWindow: '128K',
-      },
-      {
         id: 'qwen3',
         name: 'Qwen 3',
         description: 'Latest Qwen with reasoning/thinking capabilities. Excellent quality.',
