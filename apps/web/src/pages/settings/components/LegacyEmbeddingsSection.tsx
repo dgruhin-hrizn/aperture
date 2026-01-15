@@ -20,11 +20,9 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 
 interface LegacyInfo {
   exists: boolean
-  tables: string[]
-  tableDetails: Array<{
-    table: string
-    count: number
-    estimatedSizeMB: number
+  tables: Array<{
+    name: string
+    rowCount: number
   }>
   totalRows: number
 }
@@ -80,7 +78,8 @@ export function LegacyEmbeddingsSection() {
     return null
   }
 
-  const totalSizeMB = legacyInfo?.tableDetails.reduce((sum, t) => sum + t.estimatedSizeMB, 0) || 0
+  // Estimate ~8KB per embedding row (3072 floats * 2 bytes for halfvec + overhead)
+  const estimatedSizeMB = (legacyInfo?.totalRows || 0) * 8 / 1024
 
   return (
     <Card>
@@ -111,10 +110,10 @@ export function LegacyEmbeddingsSection() {
             </Typography>
 
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-              {legacyInfo?.tableDetails.map((t) => (
+              {legacyInfo?.tables.map((t) => (
                 <Chip
-                  key={t.table}
-                  label={`${t.table} (${t.count.toLocaleString()} rows, ~${t.estimatedSizeMB.toFixed(1)}MB)`}
+                  key={t.name}
+                  label={`${t.name} (${t.rowCount.toLocaleString()} rows)`}
                   size="small"
                   variant="outlined"
                   color="warning"
@@ -125,7 +124,7 @@ export function LegacyEmbeddingsSection() {
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 2 }}>
               <Typography variant="body2" color="text.secondary">
                 Total: <strong>{legacyInfo?.totalRows.toLocaleString()}</strong> rows, 
-                ~<strong>{totalSizeMB.toFixed(1)}</strong> MB storage
+                ~<strong>{estimatedSizeMB.toFixed(1)}</strong> MB storage
               </Typography>
               
               <Button
@@ -155,7 +154,7 @@ export function LegacyEmbeddingsSection() {
             This will permanently delete the following tables:
             <Box component="ul" sx={{ mt: 1 }}>
               {legacyInfo?.tables.map((t) => (
-                <li key={t}>{t}</li>
+                <li key={t.name}>{t.name} ({t.rowCount.toLocaleString()} rows)</li>
               ))}
             </Box>
             This action cannot be undone. Your new dimension-specific embedding tables 
