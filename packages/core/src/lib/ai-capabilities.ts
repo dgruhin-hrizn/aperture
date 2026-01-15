@@ -283,7 +283,7 @@ export const PROVIDERS: ProviderMetadata[] = [
       {
         id: 'nomic-embed-text',
         name: 'Nomic Embed Text',
-        description: 'Good quality local embeddings. No API costs.',
+        description: 'Recommended. Good quality 768-dim embeddings.',
         capabilities: {
           supportsToolCalling: false,
           supportsToolStreaming: false,
@@ -297,7 +297,7 @@ export const PROVIDERS: ProviderMetadata[] = [
       {
         id: 'mxbai-embed-large',
         name: 'mxbai Embed Large',
-        description: 'Larger embedding model with better accuracy.',
+        description: 'Higher quality 1024-dim embeddings. More accurate.',
         capabilities: {
           supportsToolCalling: false,
           supportsToolStreaming: false,
@@ -311,7 +311,7 @@ export const PROVIDERS: ProviderMetadata[] = [
       {
         id: 'all-minilm',
         name: 'All MiniLM',
-        description: 'Lightweight and fast. Lower quality.',
+        description: 'Fast but lower quality. 384-dim embeddings.',
         capabilities: {
           supportsToolCalling: false,
           supportsToolStreaming: false,
@@ -325,7 +325,7 @@ export const PROVIDERS: ProviderMetadata[] = [
       {
         id: 'nomic-embed-text-v2-moe',
         name: 'Nomic Embed Text v2 MoE',
-        description: 'Multilingual MoE embedding model. Excellent for non-English content.',
+        description: 'Best for non-English content. 768-dim multilingual.',
         capabilities: {
           supportsToolCalling: false,
           supportsToolStreaming: false,
@@ -339,54 +339,9 @@ export const PROVIDERS: ProviderMetadata[] = [
     ],
     chatModels: [
       {
-        id: 'llama3.2',
-        name: 'Llama 3.2',
-        description: 'Latest Llama model with excellent tool calling support.',
-        capabilities: {
-          supportsToolCalling: true,
-          supportsToolStreaming: true,
-          supportsObjectGeneration: true,
-          supportsEmbeddings: false,
-        },
-        quality: 'standard',
-        speed: 'medium',
-        costTier: 'free',
-        contextWindow: '128K',
-      },
-      {
-        id: 'mistral',
-        name: 'Mistral',
-        description: 'Fast and capable model with good tool support.',
-        capabilities: {
-          supportsToolCalling: true,
-          supportsToolStreaming: true,
-          supportsObjectGeneration: true,
-          supportsEmbeddings: false,
-        },
-        quality: 'standard',
-        speed: 'fast',
-        costTier: 'free',
-        contextWindow: '32K',
-      },
-      {
-        id: 'qwen2.5',
-        name: 'Qwen 2.5',
-        description: 'Strong multilingual model with tool calling.',
-        capabilities: {
-          supportsToolCalling: true,
-          supportsToolStreaming: true,
-          supportsObjectGeneration: true,
-          supportsEmbeddings: false,
-        },
-        quality: 'standard',
-        speed: 'medium',
-        costTier: 'free',
-        contextWindow: '128K',
-      },
-      {
         id: 'qwen3',
         name: 'Qwen 3',
-        description: 'Latest Qwen with reasoning/thinking capabilities. Excellent quality.',
+        description: 'Recommended. Excellent tool calling and reasoning.',
         capabilities: {
           supportsToolCalling: true,
           supportsToolStreaming: true,
@@ -399,24 +354,9 @@ export const PROVIDERS: ProviderMetadata[] = [
         contextWindow: '128K',
       },
       {
-        id: 'llama3.1',
-        name: 'Llama 3.1',
-        description: 'Meta\'s most popular model. Excellent tool calling in 8B/70B/405B sizes.',
-        capabilities: {
-          supportsToolCalling: true,
-          supportsToolStreaming: true,
-          supportsObjectGeneration: true,
-          supportsEmbeddings: false,
-        },
-        quality: 'standard',
-        speed: 'medium',
-        costTier: 'free',
-        contextWindow: '128K',
-      },
-      {
         id: 'firefunction-v2',
         name: 'FireFunction v2',
-        description: 'Optimized specifically for function calling. Competitive with GPT-4o.',
+        description: 'Specialized for function calling. GPT-4 level tools.',
         capabilities: {
           supportsToolCalling: true,
           supportsToolStreaming: true,
@@ -428,10 +368,42 @@ export const PROVIDERS: ProviderMetadata[] = [
         costTier: 'free',
         contextWindow: '8K',
       },
+    ],
+    textGenerationModels: [
+      {
+        id: 'llama3.2',
+        name: 'Llama 3.2',
+        description: 'Recommended. Latest Llama, fast and capable.',
+        capabilities: {
+          supportsToolCalling: false,
+          supportsToolStreaming: false,
+          supportsObjectGeneration: true,
+          supportsEmbeddings: false,
+        },
+        quality: 'standard',
+        speed: 'medium',
+        costTier: 'free',
+        contextWindow: '128K',
+      },
+      {
+        id: 'llama3.1',
+        name: 'Llama 3.1',
+        description: 'Proven and reliable. 8B/70B/405B sizes available.',
+        capabilities: {
+          supportsToolCalling: false,
+          supportsToolStreaming: false,
+          supportsObjectGeneration: true,
+          supportsEmbeddings: false,
+        },
+        quality: 'standard',
+        speed: 'medium',
+        costTier: 'free',
+        contextWindow: '128K',
+      },
       {
         id: 'gemma3',
         name: 'Gemma 3',
-        description: 'Google\'s capable model. Runs well on single GPU.',
+        description: 'Fast and efficient. Great for limited hardware.',
         capabilities: {
           supportsToolCalling: false,
           supportsToolStreaming: false,
@@ -446,7 +418,7 @@ export const PROVIDERS: ProviderMetadata[] = [
       {
         id: 'phi4',
         name: 'Phi 4',
-        description: 'Microsoft\'s state-of-the-art 14B model. Great for explanations.',
+        description: 'Compact 14B model. Punches above its weight.',
         capabilities: {
           supportsToolCalling: false,
           supportsToolStreaming: false,
@@ -459,7 +431,6 @@ export const PROVIDERS: ProviderMetadata[] = [
         contextWindow: '16K',
       },
     ],
-    textGenerationModels: [],
   },
 
   {
@@ -727,7 +698,11 @@ export function getModelsForFunction(providerId: string, fn: AIFunction): ModelM
     return provider.chatModels.filter((m) => m.capabilities.supportsToolCalling)
   }
   if (fn === 'textGeneration') {
-    return provider.textGenerationModels
+    // Text generation doesn't require tool calling, so use textGenerationModels
+    // or fall back to all chat models (many providers share the same models)
+    return provider.textGenerationModels.length > 0
+      ? provider.textGenerationModels
+      : provider.chatModels
   }
   return []
 }

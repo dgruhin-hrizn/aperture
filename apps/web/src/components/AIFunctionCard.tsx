@@ -159,10 +159,14 @@ export function AIFunctionCard({
   // Form state
   const [provider, setProvider] = useState<ProviderType>(config?.provider || 'openai')
   const [model, setModel] = useState(config?.model || '')
+  const [customModel, setCustomModel] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [baseUrl, setBaseUrl] = useState(config?.baseUrl || '')
   const [showApiKey, setShowApiKey] = useState(false)
   const [initialized, setInitialized] = useState(false)
+  
+  const isCustomModel = model === '__custom__'
+  const effectiveModel = isCustomModel ? customModel : model
   
   // Status
   const [saving, setSaving] = useState(false)
@@ -179,11 +183,21 @@ export function AIFunctionCard({
   useEffect(() => {
     if (config && !initialized) {
       if (config.provider) setProvider(config.provider)
-      if (config.model) setModel(config.model)
+      if (config.model) {
+        // Check if the model is a known model or a custom one
+        const isKnownModel = models.some(m => m.id === config.model)
+        if (isKnownModel || models.length === 0) {
+          setModel(config.model)
+        } else {
+          // It's a custom model
+          setModel('__custom__')
+          setCustomModel(config.model)
+        }
+      }
       if (config.baseUrl) setBaseUrl(config.baseUrl)
       setInitialized(true)
     }
-  }, [config, initialized])
+  }, [config, initialized, models])
   
   // Check capability warning
   const hasCapabilityWarning = requiredCapability === 'toolCalling' && 
@@ -276,7 +290,7 @@ export function AIFunctionCard({
         body: JSON.stringify({
           function: functionType,
           provider,
-          model,
+          model: effectiveModel,
           apiKey: apiKey || undefined,
           baseUrl: baseUrl || undefined,
         }),
@@ -293,7 +307,7 @@ export function AIFunctionCard({
   const handleSave = async () => {
     const newConfig: FunctionConfig = {
       provider,
-      model,
+      model: effectiveModel,
       apiKey: apiKey || undefined,
       baseUrl: baseUrl || undefined,
     }
@@ -378,8 +392,8 @@ export function AIFunctionCard({
         )}
 
         {/* Provider & Model Selection */}
-        <Box display="flex" gap={2} mb={2} flexWrap="wrap">
-          <FormControl size="small" sx={{ minWidth: 160 }}>
+        <Box display="flex" flexDirection="column" gap={2} mb={2}>
+          <FormControl size="small" fullWidth>
             <InputLabel>Provider</InputLabel>
             <Select
               value={!loadingProviders && providers.length > 0 ? provider : ''}
@@ -393,7 +407,7 @@ export function AIFunctionCard({
                   <CircularProgress size={16} sx={{ mr: 1 }} /> Loading...
                 </MenuItem>
               )}
-              {providers.map((p) => (
+              {[...providers].sort((a, b) => a.name.localeCompare(b.name)).map((p) => (
                 <MenuItem key={p.id} value={p.id}>
                   <Box display="flex" alignItems="center" gap={1}>
                     {p.type === 'self-hosted' ? (
@@ -408,14 +422,17 @@ export function AIFunctionCard({
             </Select>
           </FormControl>
 
-          <FormControl size="small" sx={{ minWidth: 180, flex: 1 }}>
+          <FormControl size="small" fullWidth>
             <InputLabel>Model</InputLabel>
             <Select
-              value={!loading && models.length > 0 ? model : ''}
+              value={!loading && (models.length > 0 || model === '__custom__') ? model : ''}
               label="Model"
               onChange={(e) => {
                 setModel(e.target.value)
                 setTestResult(null)
+                if (e.target.value !== '__custom__') {
+                  setCustomModel('')
+                }
               }}
               disabled={loading || loadingProviders || providers.length === 0}
               displayEmpty
@@ -430,7 +447,7 @@ export function AIFunctionCard({
                   No models available
                 </MenuItem>
               )}
-              {models.map((m) => (
+              {[...models].sort((a, b) => a.name.localeCompare(b.name)).map((m) => (
                 <MenuItem key={m.id} value={m.id}>
                   <Box>
                     <Typography variant="body2">{m.name}</Typography>
@@ -442,8 +459,35 @@ export function AIFunctionCard({
                   </Box>
                 </MenuItem>
               ))}
+              {/* Custom model option for self-hosted providers */}
+              {(provider === 'ollama' || provider === 'openai-compatible') && (
+                <MenuItem value="__custom__" sx={{ borderTop: 1, borderColor: 'divider', mt: 1 }}>
+                  <Box>
+                    <Typography variant="body2">Custom Model...</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Enter any model name manually
+                    </Typography>
+                  </Box>
+                </MenuItem>
+              )}
             </Select>
           </FormControl>
+
+          {/* Custom model text input */}
+          {isCustomModel && (
+            <TextField
+              label="Custom Model Name"
+              value={customModel}
+              onChange={(e) => {
+                setCustomModel(e.target.value)
+                setTestResult(null)
+              }}
+              size="small"
+              fullWidth
+              placeholder={provider === 'ollama' ? 'e.g., llama3.3:70b, mixtral:8x22b' : 'Enter model name'}
+              helperText={provider === 'ollama' ? 'Enter the exact model name from ollama.com/library' : 'Enter the model identifier'}
+            />
+          )}
         </Box>
 
         {/* Model Info Chips */}
@@ -473,7 +517,13 @@ export function AIFunctionCard({
         {/* Capability Warnings */}
         {hasCapabilityWarning && (
           <Alert severity="warning" sx={{ mb: 2 }}>
-            This model doesn't support tool calling. The assistant will work but cannot access your library.
+            <Typography variant="body2" sx={{ mb: 0.5 }}>
+              <strong>This model doesn't support reliable tool calling.</strong>
+            </Typography>
+            <Typography variant="body2">
+              The assistant will work but cannot search your library or make recommendations.
+              {provider === 'ollama' && ' For Ollama, use firefunction-v2 or qwen3 instead.'}
+            </Typography>
           </Alert>
         )}
         {hasEmbeddingWarning && (
@@ -520,25 +570,70 @@ export function AIFunctionCard({
 
         {/* Ollama Instructions */}
         {provider === 'ollama' && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            <Typography variant="body2" sx={{ mb: 1 }}>
-              <strong>Install models on your Ollama server:</strong>
+          <Box sx={{ 
+            mb: 2, 
+            p: 2, 
+            borderRadius: 2, 
+            bgcolor: (theme) => alpha(theme.palette.info.main, 0.08),
+            border: 1,
+            borderColor: (theme) => alpha(theme.palette.info.main, 0.2),
+          }}>
+            <Typography variant="subtitle2" sx={{ mb: 1.5, color: 'info.main', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <ComputerIcon fontSize="small" />
+              Install models on your Ollama server
             </Typography>
-            <Box component="code" sx={{ 
-              display: 'block', 
-              bgcolor: 'background.default', 
-              p: 1, 
-              borderRadius: 1,
-              fontSize: '0.75rem',
-              fontFamily: 'monospace',
-              whiteSpace: 'pre-wrap'
-            }}>
-              {functionType === 'embeddings' 
-                ? '# Embedding models\nollama pull nomic-embed-text\nollama pull mxbai-embed-large\nollama pull nomic-embed-text-v2-moe  # multilingual'
-                : '# Chat/Text models (with tool calling)\nollama pull llama3.1\nollama pull qwen3\nollama pull firefunction-v2  # best for tools\n\n# Text generation only\nollama pull gemma3\nollama pull phi4'
-              }
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+              {(functionType === 'embeddings' 
+                ? [
+                    { cmd: 'ollama pull nomic-embed-text', note: 'recommended' },
+                    { cmd: 'ollama pull mxbai-embed-large', note: 'higher quality' },
+                    { cmd: 'ollama pull all-minilm', note: 'fast, lower quality' },
+                    { cmd: 'ollama pull nomic-embed-text-v2-moe', note: 'multilingual' },
+                  ]
+                : functionType === 'chat'
+                ? [
+                    { cmd: 'ollama pull qwen3', note: 'recommended' },
+                    { cmd: 'ollama pull firefunction-v2', note: 'best for tools' },
+                  ]
+                : [
+                    { cmd: 'ollama pull llama3.2', note: 'recommended' },
+                    { cmd: 'ollama pull llama3.1', note: null },
+                    { cmd: 'ollama pull gemma3', note: 'fast' },
+                    { cmd: 'ollama pull phi4', note: 'small & capable' },
+                  ]
+              ).map(({ cmd, note }) => (
+                <Box 
+                  key={cmd}
+                  sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    flexWrap: 'wrap',
+                    gap: 0.5,
+                    bgcolor: 'background.paper',
+                    px: 1.5,
+                    py: 0.75,
+                    borderRadius: 1,
+                    fontFamily: 'monospace',
+                    fontSize: '0.8rem',
+                  }}
+                >
+                  <Box component="span" sx={{ color: 'text.primary' }}>{cmd}</Box>
+                  {note && (
+                    <Chip 
+                      label={note} 
+                      size="small" 
+                      variant="outlined"
+                      sx={{ 
+                        height: 20, 
+                        fontSize: '0.65rem',
+                        '& .MuiChip-label': { px: 1 }
+                      }} 
+                    />
+                  )}
+                </Box>
+              ))}
             </Box>
-          </Alert>
+          </Box>
         )}
 
         {/* Base URL */}
@@ -565,7 +660,7 @@ export function AIFunctionCard({
             variant="outlined"
             size="small"
             onClick={handleTest}
-            disabled={testing || !model}
+            disabled={testing || !effectiveModel}
           >
             {testing ? <CircularProgress size={16} /> : 'Test'}
           </Button>
@@ -573,7 +668,7 @@ export function AIFunctionCard({
             variant="contained"
             size="small"
             onClick={handleSave}
-            disabled={saving || !model}
+            disabled={saving || !effectiveModel}
           >
             {saving ? <CircularProgress size={16} /> : 'Save'}
           </Button>

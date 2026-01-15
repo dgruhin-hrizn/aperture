@@ -2,6 +2,7 @@
  * Discovery tools for enriched metadata: keywords, franchises, awards, RT scores
  */
 import { tool } from 'ai'
+import { nullSafe } from './utils.js'
 import { z } from 'zod'
 import { query } from '../../../lib/db.js'
 import { buildPlayLink } from '../helpers/mediaServer.js'
@@ -12,11 +13,11 @@ export function createDiscoveryTools(ctx: ToolContext) {
     searchByKeyword: tool({
       description:
         'Find movies and series by thematic keywords. Use for questions like "movies about time travel", "films with heists", "series about dystopia", etc.',
-      inputSchema: z.object({
+      inputSchema: nullSafe(z.object({
         keyword: z.string().describe('The keyword or theme to search for (e.g., "time travel", "heist", "dystopia")'),
         type: z.enum(['movies', 'series', 'both']).default('both').describe('Content type to search'),
         limit: z.number().optional().default(10),
-      }),
+      })),
       execute: async ({ keyword, type, limit = 10 }) => {
         const keywordLower = keyword.toLowerCase()
         const results: Array<{
@@ -112,10 +113,10 @@ export function createDiscoveryTools(ctx: ToolContext) {
     getFranchises: tool({
       description:
         'Get movie franchises/collections in the library with watch progress. Use for "what franchises do I have", "Star Wars movies", "MCU progress", etc.',
-      inputSchema: z.object({
+      inputSchema: nullSafe(z.object({
         search: z.string().optional().describe('Optional search term to filter franchises'),
         limit: z.number().optional().default(20),
-      }),
+      })),
       execute: async ({ search, limit = 20 }) => {
         const searchCondition = search ? ` AND m.collection_name ILIKE $2` : ''
         const params: unknown[] = [ctx.userId]
@@ -167,7 +168,7 @@ export function createDiscoveryTools(ctx: ToolContext) {
     getAwardWinners: tool({
       description:
         'Find award-winning movies and series. Use for "Oscar winners", "Emmy winning shows", "Golden Globe movies", etc.',
-      inputSchema: z.object({
+      inputSchema: nullSafe(z.object({
         awardType: z
           .enum(['oscar', 'emmy', 'golden_globe', 'bafta', 'any'])
           .default('any')
@@ -175,7 +176,7 @@ export function createDiscoveryTools(ctx: ToolContext) {
         type: z.enum(['movies', 'series', 'both']).default('both').describe('Content type to search'),
         winnersOnly: z.boolean().default(false).describe('Only include winners (not just nominees)'),
         limit: z.number().optional().default(15),
-      }),
+      })),
       execute: async ({ awardType, type, winnersOnly, limit = 15 }) => {
         const awardPatterns: Record<string, string> = {
           oscar: 'oscar|academy award',
@@ -293,12 +294,12 @@ export function createDiscoveryTools(ctx: ToolContext) {
     getTopByRtScore: tool({
       description:
         'Get movies and series ranked by Rotten Tomatoes score. Use for "highest rated on Rotten Tomatoes", "critically acclaimed", "fresh movies", etc.',
-      inputSchema: z.object({
+      inputSchema: nullSafe(z.object({
         type: z.enum(['movies', 'series', 'both']).default('both').describe('Content type to search'),
         minScore: z.number().optional().default(75).describe('Minimum RT score (0-100)'),
         genre: z.string().optional().describe('Optional genre filter'),
         limit: z.number().optional().default(15),
-      }),
+      })),
       execute: async ({ type, minScore = 75, genre, limit = 15 }) => {
         const results: Array<{
           id: string
@@ -412,9 +413,9 @@ export function createDiscoveryTools(ctx: ToolContext) {
     getFranchiseProgress: tool({
       description:
         'Get detailed progress for a specific franchise/collection. Use for "my Star Wars progress", "how many Marvel movies have I seen", etc.',
-      inputSchema: z.object({
+      inputSchema: nullSafe(z.object({
         franchiseName: z.string().describe('Name of the franchise/collection to check'),
-      }),
+      })),
       execute: async ({ franchiseName }) => {
         const movies = await query<{
           id: string
