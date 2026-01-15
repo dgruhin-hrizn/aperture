@@ -712,11 +712,11 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * GET /api/setup/users
    * Fetch users from media server using saved API key.
-   * ONLY available during first-run setup - returns 403 after setup is complete.
+   * Public during first-run, admin-only after setup is complete.
    */
-  fastify.get('/api/setup/users', async (_request, reply) => {
-    const complete = await isSetupComplete()
-    if (complete) {
+  fastify.get('/api/setup/users', async (request, reply) => {
+    const { complete, isAdmin } = await requireSetupWritable(request)
+    if (complete && !isAdmin) {
       return reply.status(403).send({
         error: 'Setup is complete. Manage users in Admin → Users.',
       })
@@ -793,11 +793,11 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * POST /api/setup/users/import
    * Import a user from media server into Aperture DB.
-   * ONLY available during first-run setup.
+   * Public during first-run, admin-only after setup is complete.
    */
   fastify.post<{ Body: SetupUserImportBody }>('/api/setup/users/import', async (request, reply) => {
-    const complete = await isSetupComplete()
-    if (complete) {
+    const { complete, isAdmin } = await requireSetupWritable(request)
+    if (complete && !isAdmin) {
       return reply.status(403).send({
         error: 'Setup is complete. Manage users in Admin → Users.',
       })
@@ -890,11 +890,11 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * POST /api/setup/users/enable
    * Update movies/series enabled status for an imported user.
-   * ONLY available during first-run setup.
+   * Public during first-run, admin-only after setup is complete.
    */
   fastify.post<{ Body: SetupUserEnableBody }>('/api/setup/users/enable', async (request, reply) => {
-    const complete = await isSetupComplete()
-    if (complete) {
+    const { complete, isAdmin } = await requireSetupWritable(request)
+    if (complete && !isAdmin) {
       return reply.status(403).send({
         error: 'Setup is complete. Manage users in Admin → Users.',
       })
@@ -1051,13 +1051,14 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
 
   /**
    * POST /api/setup/jobs/:name/run
-   * Run a job during first-time setup (no auth required, only works before setup is complete)
+   * Run a job during first-time setup.
+   * Public during first-run, admin-only after setup is complete.
    */
   fastify.post<{ Params: { name: string } }>(
     '/api/setup/jobs/:name/run',
     async (request, reply) => {
-      const complete = await isSetupComplete()
-      if (complete) {
+      const { complete, isAdmin } = await requireSetupWritable(request)
+      if (complete && !isAdmin) {
         return reply.status(403).send({
           error: 'Setup is already complete. Use admin job endpoints instead.',
         })
@@ -1100,13 +1101,14 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
 
   /**
    * GET /api/setup/jobs/progress/:jobId
-   * Get job progress during initial setup (no auth required, only works if setup not complete)
+   * Get job progress during initial setup.
+   * Public during first-run, admin-only after setup is complete.
    */
   fastify.get<{ Params: { jobId: string } }>(
     '/api/setup/jobs/progress/:jobId',
     async (request, reply) => {
-      const complete = await isSetupComplete()
-      if (complete) {
+      const { complete, isAdmin } = await requireSetupWritable(request)
+      if (complete && !isAdmin) {
         return reply.status(403).send({
           error: 'Setup is already complete. Use admin job endpoints instead.',
         })
@@ -1125,11 +1127,12 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
 
   /**
    * GET /api/setup/jobs/last-runs
-   * Get the last run for each job type (for restoring state after page refresh)
+   * Get the last run for each job type (for restoring state after page refresh).
+   * Public during first-run, admin-only after setup is complete.
    */
-  fastify.get('/api/setup/jobs/last-runs', async (_request, reply) => {
-    const complete = await isSetupComplete()
-    if (complete) {
+  fastify.get('/api/setup/jobs/last-runs', async (request, reply) => {
+    const { complete, isAdmin } = await requireSetupWritable(request)
+    if (complete && !isAdmin) {
       return reply.status(403).send({
         error: 'Setup is already complete. Use admin job endpoints instead.',
       })
