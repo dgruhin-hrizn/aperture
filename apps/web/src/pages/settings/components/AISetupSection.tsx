@@ -21,6 +21,11 @@ import {
   Link,
   alpha,
   Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material'
 import {
   Visibility as VisibilityIcon,
@@ -173,9 +178,21 @@ function AIFunctionCard({
   const [success, setSuccess] = useState<string | null>(null)
   const [testResult, setTestResult] = useState<{ success: boolean; error?: string } | null>(null)
   
+  // Embedding dimension change confirmation dialog
+  const [showEmbeddingDialog, setShowEmbeddingDialog] = useState(false)
+  const [pendingConfig, setPendingConfig] = useState<FunctionConfig | null>(null)
+  const [clearingEmbeddings, setClearingEmbeddings] = useState(false)
+  
   const isConfigured = Boolean(config)
   const providerInfo = PROVIDER_INFO[provider]
   const selectedModel = models.find(m => m.id === model)
+  
+  // Get current configured model's dimensions
+  const currentConfiguredModel = config?.model
+  const currentModels = models // Use current models list
+  const configuredModelInfo = currentModels.find(m => m.id === currentConfiguredModel)
+  const configuredDimensions = configuredModelInfo?.embeddingDimensions
+  const newDimensions = selectedModel?.embeddingDimensions
   
   // Check capability warning
   const hasCapabilityWarning = requiredCapability === 'toolCalling' && 
@@ -250,16 +267,32 @@ function AIFunctionCard({
   }
 
   const handleSave = async () => {
+    const newConfig: FunctionConfig = {
+      provider,
+      model,
+      apiKey: apiKey || undefined,
+      baseUrl: baseUrl || undefined,
+    }
+    
+    // Check if this is an embedding config change with different dimensions
+    if (functionType === 'embeddings' && isConfigured && configuredDimensions && newDimensions && 
+        configuredDimensions !== newDimensions) {
+      // Show confirmation dialog
+      setPendingConfig(newConfig)
+      setShowEmbeddingDialog(true)
+      return
+    }
+    
+    // Normal save
+    await doSave(newConfig)
+  }
+  
+  const doSave = async (configToSave: FunctionConfig) => {
     setSaving(true)
     setError(null)
     setSuccess(null)
     try {
-      await onSave({
-        provider,
-        model,
-        apiKey: apiKey || undefined,
-        baseUrl: baseUrl || undefined,
-      })
+      await onSave(configToSave)
       setSuccess('Configuration saved!')
       setApiKey('') // Clear for security
       setTimeout(() => setSuccess(null), 3000)
@@ -268,6 +301,58 @@ function AIFunctionCard({
     } finally {
       setSaving(false)
     }
+  }
+  
+  const handleEmbeddingDialogConfirm = async () => {
+    if (!pendingConfig) return
+    
+    setClearingEmbeddings(true)
+    setError(null)
+    
+    try {
+      // 1. Clear all embeddings
+      const clearRes = await fetch('/api/settings/ai/embeddings/clear', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (!clearRes.ok) {
+        throw new Error('Failed to clear embeddings')
+      }
+      
+      // 2. Save the new config
+      await onSave(pendingConfig)
+      
+      // 3. Trigger embedding regeneration job
+      await fetch('/api/jobs/generate-movie-embeddings/run', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      await fetch('/api/jobs/generate-series-embeddings/run', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      
+      setSuccess('Embeddings cleared and regeneration started!')
+      setApiKey('')
+      setTimeout(() => setSuccess(null), 5000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update embeddings')
+    } finally {
+      setClearingEmbeddings(false)
+      setShowEmbeddingDialog(false)
+      setPendingConfig(null)
+    }
+  }
+  
+  const handleEmbeddingDialogCancel = () => {
+    // Restore previous selection
+    if (config) {
+      setProvider(config.provider)
+      setModel(config.model)
+      setBaseUrl(config.baseUrl || '')
+    }
+    setShowEmbeddingDialog(false)
+    setPendingConfig(null)
   }
 
   return (
@@ -536,6 +621,64 @@ function AIFunctionCard({
           </Button>
         </Box>
       </CardContent>
+      
+      {/* Embedding Dimension Change Confirmation Dialog */}
+      <Dialog
+        open={showEmbeddingDialog}
+        onClose={handleEmbeddingDialogCancel}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ color: 'warning.main' }}>
+          ⚠️ Embedding Dimensions Changed
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            You are switching from <strong>{configuredDimensions}d</strong> embeddings to{' '}
+            <strong>{newDimensions}d</strong> embeddings.
+          </DialogContentText>
+          <DialogContentText sx={{ mb: 2 }}>
+            <strong>This will:</strong>
+          </DialogContentText>
+          <Box component="ul" sx={{ pl: 2, mb: 2 }}>
+            <Typography component="li" variant="body2" color="text.secondary">
+              Delete all existing movie, series, and episode embeddings
+            </Typography>
+            <Typography component="li" variant="body2" color="text.secondary">
+              Start regenerating embeddings with the new model
+            </Typography>
+            <Typography component="li" variant="body2" color="text.secondary">
+              Semantic search and recommendations will be unavailable until complete
+            </Typography>
+          </Box>
+          <Alert severity="warning" sx={{ mt: 2 }}>
+            This process may take a while depending on your library size and will use API credits.
+          </Alert>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button 
+            onClick={handleEmbeddingDialogCancel} 
+            disabled={clearingEmbeddings}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleEmbeddingDialogConfirm} 
+            variant="contained" 
+            color="warning"
+            disabled={clearingEmbeddings}
+          >
+            {clearingEmbeddings ? (
+              <>
+                <CircularProgress size={16} sx={{ mr: 1 }} />
+                Clearing Embeddings...
+              </>
+            ) : (
+              'Confirm & Regenerate'
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Card>
   )
 }

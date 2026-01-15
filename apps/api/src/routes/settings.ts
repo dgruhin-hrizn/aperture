@@ -2206,6 +2206,25 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   /**
+   * POST /api/settings/ai/embeddings/clear
+   * Clear all embeddings (for dimension change)
+   */
+  fastify.post('/api/settings/ai/embeddings/clear', { preHandler: requireAdmin }, async (_request, reply) => {
+    try {
+      // Clear all embedding tables
+      await query('TRUNCATE embeddings')
+      await query('TRUNCATE series_embeddings')
+      await query('TRUNCATE episode_embeddings')
+      
+      fastify.log.info('All embeddings cleared for dimension change')
+      return reply.send({ success: true, message: 'All embeddings cleared' })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to clear embeddings')
+      return reply.status(500).send({ error: 'Failed to clear embeddings' })
+    }
+  })
+
+  /**
    * POST /api/settings/ai/test
    * Test a specific provider/model configuration
    */
