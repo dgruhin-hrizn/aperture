@@ -1,4 +1,5 @@
 import { query, queryOne, transaction } from '../lib/db.js'
+import { getActiveEmbeddingModelId, getActiveEmbeddingTableName } from '../lib/ai-provider.js'
 import type { Candidate, WatchedMovie } from './types.js'
 
 /**
@@ -100,6 +101,16 @@ export async function storeEvidence(
   const watchedMap = new Map(watched.map((w) => [w.movieId, w]))
   const watchedIds = watched.map((w) => w.movieId)
 
+  // Get active embedding model
+  const modelId = await getActiveEmbeddingModelId()
+  if (!modelId) {
+    // Skip evidence storage if no embedding model configured
+    return
+  }
+
+  // Get the embedding table name
+  const tableName = await getActiveEmbeddingTableName('embeddings')
+
   // Get all evidence in a single query using LATERAL join
   // This finds the top 3 similar watched movies for each selected movie in one query
   const selectedIds = selected.map((s) => s.movieId)
@@ -113,13 +124,13 @@ export async function storeEvidence(
      CROSS JOIN LATERAL (
        SELECT e2.movie_id as similar_movie_id, 
               1 - (e2.embedding <=> e1.embedding) as similarity
-       FROM embeddings e1
-       JOIN embeddings e2 ON e2.movie_id = ANY($2)
-       WHERE e1.movie_id = sel.selected_movie_id
+       FROM ${tableName} e1
+       JOIN ${tableName} e2 ON e2.movie_id = ANY($2) AND e2.model = $3
+       WHERE e1.movie_id = sel.selected_movie_id AND e1.model = $3
        ORDER BY e2.embedding <=> e1.embedding
        LIMIT 3
      ) AS evidence`,
-    [selectedIds, watchedIds]
+    [selectedIds, watchedIds, modelId]
   )
 
   if (evidenceResult.rows.length === 0) return

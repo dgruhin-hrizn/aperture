@@ -2,6 +2,8 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 
 interface SetupStatus {
   needsSetup: boolean
+  isAdmin: boolean
+  canAccessSetup: boolean // true if needs setup OR user is admin
   configured: {
     mediaServer: boolean
     openai: boolean
@@ -48,7 +50,7 @@ export function SetupProvider({ children }: { children: ReactNode }) {
   }, [refresh])
 
   const markComplete = useCallback(() => {
-    setStatus(prev => prev ? { ...prev, needsSetup: false } : null)
+    setStatus(prev => prev ? { ...prev, needsSetup: false, canAccessSetup: prev.isAdmin } : null)
   }, [])
 
   return (

@@ -1,5 +1,8 @@
-import { Box, Card, CardContent, Stepper, Step, StepLabel, Typography } from '@mui/material'
+import { Box, Card, CardContent, Stepper, Step, StepLabel, Typography, IconButton, Tooltip } from '@mui/material'
+import CloseIcon from '@mui/icons-material/Close'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useSetupWizard } from './hooks/useSetupWizard'
+import { useSetupStatus } from '../../hooks/useSetupStatus'
 import { STEP_ORDER } from './constants'
 import {
   RestoreStep,
@@ -10,16 +13,25 @@ import {
   ValidateStep,
   UsersStep,
   TopPicksStep,
-  OpenAIStep,
+  AISetupStep,
   InitialJobsStep,
   CompleteStep,
 } from './components'
 
-const APP_VERSION = '0.4.2'
+const APP_VERSION = '0.4.4'
 
 export function SetupPage() {
   const wizard = useSetupWizard()
+  const { status } = useSetupStatus()
+  const navigate = useNavigate()
+  const location = useLocation()
   const { activeStep, stepId } = wizard
+
+  // Show exit button only when admin is re-running setup (not during initial setup)
+  const isAdminRerun = status && !status.needsSetup && status.isAdmin
+
+  // Get the origin path from location state, default to admin settings
+  const exitPath = (location.state as { from?: string })?.from || '/admin/settings'
 
   const renderStepContent = () => {
     switch (stepId) {
@@ -39,8 +51,8 @@ export function SetupPage() {
         return <UsersStep wizard={wizard} />
       case 'topPicks':
         return <TopPicksStep wizard={wizard} />
-      case 'openai':
-        return <OpenAIStep wizard={wizard} />
+      case 'aiSetup':
+        return <AISetupStep wizard={wizard} />
       case 'initialJobs':
         return <InitialJobsStep wizard={wizard} />
       case 'complete':
@@ -93,6 +105,28 @@ export function SetupPage() {
           Aperture
         </Typography>
       </Box>
+
+      {/* Exit button for admin re-run - top right */}
+      {isAdminRerun && (
+        <Tooltip title="Exit Setup Wizard">
+          <IconButton
+            onClick={() => navigate(exitPath)}
+            sx={{
+              position: 'fixed',
+              top: 20,
+              right: 24,
+              zIndex: 10,
+              color: 'text.secondary',
+              '&:hover': {
+                color: 'text.primary',
+                backgroundColor: 'action.hover',
+              },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </Tooltip>
+      )}
 
       {/* Version - bottom left */}
       <Typography

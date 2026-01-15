@@ -620,7 +620,7 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
 
       {/* Action Buttons */}
       <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-        <Button variant="outlined" onClick={() => goToStep('openai')} disabled={runningJobs}>
+        <Button variant="outlined" onClick={() => goToStep('aiSetup')} disabled={runningJobs}>
           Back
         </Button>
 

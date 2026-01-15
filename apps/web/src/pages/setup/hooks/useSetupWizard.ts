@@ -22,6 +22,11 @@ import type {
   DiscoveredServer,
   JobProgress,
   ValidationResult,
+  AIConfig,
+  AIFunctionConfig,
+  AIProviderOption,
+  AIModelOption,
+  AIFunction,
 } from '../types'
 
 // Define the initial jobs with their descriptions
@@ -124,10 +129,15 @@ export function useSetupWizard(): SetupWizardContext {
   const [usersError, setUsersError] = useState<string | null>(null)
   const [setupCompleteForUsers, setSetupCompleteForUsers] = useState(false)
 
-  // OpenAI state
-  const [openaiKey, setOpenaiKey] = useState('')
-  const [showOpenaiKey, setShowOpenaiKey] = useState(false)
-  const [existingOpenaiKey, setExistingOpenaiKey] = useState<string | null>(null)
+  // AI Configuration state (multi-provider)
+  const [aiConfig, setAiConfig] = useState<AIConfig>({})
+  const [aiProviders, setAiProviders] = useState<AIProviderOption[]>([])
+  const [loadingAIConfig, setLoadingAIConfig] = useState(false)
+  const [aiTestResults, setAiTestResults] = useState<Record<AIFunction, boolean | null>>({
+    embeddings: null,
+    chat: null,
+    textGeneration: null,
+  })
 
   // Top Picks
   const [topPicks, setTopPicks] = useState<TopPicksConfig>(DEFAULT_TOP_PICKS)
@@ -137,7 +147,6 @@ export function useSetupWizard(): SetupWizardContext {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [testSuccess, setTestSuccess] = useState(false)
-  const [openaiTestSuccess, setOpenaiTestSuccess] = useState(false)
   const [runningJobs, setRunningJobs] = useState(false)
   const [jobLogs, setJobLogs] = useState<string[]>([])
   const [jobsProgress, setJobsProgress] = useState<JobProgress[]>([])
@@ -149,9 +158,9 @@ export function useSetupWizard(): SetupWizardContext {
     setActiveStep(STEP_ORDER.findIndex((s) => s.id === targetStepId))
   }, [])
 
-  // Redirect if setup is already complete
+  // Redirect if setup is already complete AND user is not an admin
   useEffect(() => {
-    if (status && !status.needsSetup) {
+    if (status && !status.canAccessSetup) {
       navigate('/login')
     }
   }, [status, navigate])
@@ -164,14 +173,33 @@ export function useSetupWizard(): SetupWizardContext {
       .catch(() => setMediaServerTypes(DEFAULT_MEDIA_SERVER_TYPES))
   }, [])
 
-  // Fetch existing OpenAI key (masked)
+  // Fetch existing AI config and available providers
   useEffect(() => {
-    fetch('/api/setup/openai', { credentials: 'include' })
+    // Fetch AI providers
+    fetch('/api/settings/ai/providers', { credentials: 'include' })
       .then((res) => res.json())
       .then((data) => {
-        if (data.configured && data.maskedKey) {
-          setExistingOpenaiKey(data.maskedKey)
-          setOpenaiTestSuccess(true) // Already validated if it exists
+        if (data.providers) {
+          setAiProviders(data.providers)
+        }
+      })
+      .catch(() => {
+        // Ignore errors - will use defaults
+      })
+
+    // Fetch existing AI config
+    fetch('/api/settings/ai', { credentials: 'include' })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data) {
+          setAiConfig(data)
+          // Mark functions with existing config as tested
+          const newTestResults: Record<AIFunction, boolean | null> = {
+            embeddings: data.embeddings?.provider ? true : null,
+            chat: data.chat?.provider ? true : null,
+            textGeneration: data.textGeneration?.provider ? true : null,
+          }
+          setAiTestResults(newTestResults)
         }
       })
       .catch(() => {
@@ -185,7 +213,7 @@ export function useSetupWizard(): SetupWizardContext {
 
   // Fetch setup progress + snapshot (resumable)
   useEffect(() => {
-    if (!status?.needsSetup) return
+    if (!status?.canAccessSetup) return
 
     fetch('/api/setup/progress', { credentials: 'include' })
       .then((res) => res.json())
@@ -215,7 +243,7 @@ export function useSetupWizard(): SetupWizardContext {
       .catch(() => {
         // non-fatal
       })
-  }, [status?.needsSetup])
+  }, [status?.canAccessSetup])
 
   // Fetch last job runs when navigating to the jobs step (to restore state after refresh)
   useEffect(() => {
@@ -769,37 +797,99 @@ export function useSetupWizard(): SetupWizardContext {
     [setupUsers, importAndEnableUser]
   )
 
-  // OpenAI handlers
-  const handleTestOpenAI = useCallback(async () => {
+  // AI Configuration handlers (multi-provider)
+  const loadAIConfig = useCallback(async () => {
+    setLoadingAIConfig(true)
+    try {
+      const res = await fetch('/api/settings/ai', { credentials: 'include' })
+      const data = await res.json()
+      if (data) {
+        setAiConfig(data)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load AI config')
+    } finally {
+      setLoadingAIConfig(false)
+    }
+  }, [])
+
+  const loadAIProviders = useCallback(async () => {
+    try {
+      const res = await fetch('/api/settings/ai/providers', { credentials: 'include' })
+      const data = await res.json()
+      if (data.providers) {
+        setAiProviders(data.providers)
+      }
+    } catch (err) {
+      // Non-fatal
+    }
+  }, [])
+
+  const setAIFunctionConfig = useCallback((fn: AIFunction, config: AIFunctionConfig | null) => {
+    setAiConfig((prev) => ({
+      ...prev,
+      [fn]: config,
+    }))
+    // Reset test result when config changes
+    setAiTestResults((prev) => ({
+      ...prev,
+      [fn]: null,
+    }))
+  }, [])
+
+  const testAIConnection = useCallback(async (fn: AIFunction): Promise<boolean> => {
     setTesting(true)
     setError('')
-    setOpenaiTestSuccess(false)
 
     try {
-      const response = await fetch('/api/setup/openai/test', {
+      const config = aiConfig[fn]
+      if (!config?.provider) {
+        setError(`No provider configured for ${fn}`)
+        return false
+      }
+
+      const response = await fetch('/api/settings/ai/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: openaiKey }),
+        credentials: 'include',
+        body: JSON.stringify({
+          function: fn,
+          provider: config,
+        }),
       })
 
       const data = await response.json()
 
       if (data.success) {
-        setOpenaiTestSuccess(true)
+        setAiTestResults((prev) => ({
+          ...prev,
+          [fn]: true,
+        }))
+        return true
       } else {
-        setError(data.error || 'API key validation failed')
+        setError(data.error || `${fn} connection test failed`)
+        setAiTestResults((prev) => ({
+          ...prev,
+          [fn]: false,
+        }))
+        return false
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'API key validation failed')
+      setError(err instanceof Error ? err.message : `${fn} connection test failed`)
+      setAiTestResults((prev) => ({
+        ...prev,
+        [fn]: false,
+      }))
+      return false
     } finally {
       setTesting(false)
     }
-  }, [openaiKey])
+  }, [aiConfig])
 
-  const handleSaveOpenAI = useCallback(async () => {
-    if (!openaiKey) {
-      await updateProgress({ completedStep: 'openai' })
-      goToStep('initialJobs')
+  const saveAIConfig = useCallback(async () => {
+    // Check if at least embeddings is configured (required for recommendations)
+    if (!aiConfig.embeddings?.provider) {
+      setError('At minimum, Embeddings must be configured for AI recommendations to work')
       return
     }
 
@@ -807,26 +897,37 @@ export function useSetupWizard(): SetupWizardContext {
     setError('')
 
     try {
-      const response = await fetch('/api/setup/openai', {
-        method: 'POST',
+      const response = await fetch('/api/settings/ai', {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: openaiKey }),
+        credentials: 'include',
+        body: JSON.stringify(aiConfig),
       })
 
       const data = await response.json()
 
-      if (data.success || response.ok) {
-        await updateProgress({ completedStep: 'openai' })
+      if (response.ok) {
+        await updateProgress({ completedStep: 'aiSetup' })
         goToStep('initialJobs')
       } else {
-        setError(data.error || 'Failed to save API key')
+        setError(data.error || 'Failed to save AI configuration')
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save API key')
+      setError(err instanceof Error ? err.message : 'Failed to save AI configuration')
     } finally {
       setSaving(false)
     }
-  }, [openaiKey, updateProgress, goToStep])
+  }, [aiConfig, updateProgress, goToStep])
+
+  const getModelsForProvider = useCallback(async (providerId: string, fn: AIFunction): Promise<AIModelOption[]> => {
+    try {
+      const res = await fetch(`/api/settings/ai/models?provider=${providerId}&function=${fn}`, { credentials: 'include' })
+      const data = await res.json()
+      return data.models || []
+    } catch {
+      return []
+    }
+  }, [])
 
   // Top Picks handlers
   const saveTopPicks = useCallback(async () => {
@@ -843,7 +944,7 @@ export function useSetupWizard(): SetupWizardContext {
       if (!res.ok) throw new Error(data?.error || 'Failed to save Top Picks config')
       setTopPicks((tp) => ({ ...tp, ...data }))
       await updateProgress({ completedStep: 'topPicks' })
-      goToStep('openai')
+      goToStep('aiSetup')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save Top Picks config')
     } finally {
@@ -1072,10 +1173,14 @@ export function useSetupWizard(): SetupWizardContext {
     setSaving(true)
     setError('')
 
+    // Check if this is an admin re-running setup (setup was already complete)
+    const isAdminRerun = status && !status.needsSetup && status.isAdmin
+
     try {
       const response = await fetch('/api/setup/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({}),
       })
 
@@ -1083,7 +1188,12 @@ export function useSetupWizard(): SetupWizardContext {
 
       if (data.success || response.ok) {
         markComplete()
-        goToStep('complete')
+        // Navigate appropriately based on whether this is admin re-run or initial setup
+        if (isAdminRerun) {
+          navigate('/admin/settings')
+        } else {
+          navigate('/login')
+        }
       } else {
         setError(data.error || 'Failed to complete setup')
       }
@@ -1092,7 +1202,7 @@ export function useSetupWizard(): SetupWizardContext {
     } finally {
       setSaving(false)
     }
-  }, [markComplete, goToStep])
+  }, [markComplete, navigate, status])
 
   return {
     // State
@@ -1119,15 +1229,15 @@ export function useSetupWizard(): SetupWizardContext {
     loadingUsers,
     usersError,
     setupCompleteForUsers,
-    openaiKey,
-    showOpenaiKey,
-    existingOpenaiKey,
+    aiConfig,
+    aiProviders,
+    loadingAIConfig,
     topPicks,
     testing,
     saving,
     error,
     testSuccess,
-    openaiTestSuccess,
+    aiTestResults,
     runningJobs,
     jobLogs,
     jobsProgress,
@@ -1165,13 +1275,12 @@ export function useSetupWizard(): SetupWizardContext {
     importAndEnableUser,
     toggleUserMovies,
     toggleUserSeries,
-    setOpenaiKey: (key: string) => {
-      setOpenaiKey(key)
-      setOpenaiTestSuccess(false)
-    },
-    setShowOpenaiKey,
-    handleTestOpenAI,
-    handleSaveOpenAI,
+    loadAIConfig,
+    loadAIProviders,
+    setAIFunctionConfig,
+    testAIConnection,
+    saveAIConfig,
+    getModelsForProvider,
     setTopPicks,
     saveTopPicks,
     runInitialJobs,

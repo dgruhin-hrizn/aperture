@@ -18,7 +18,7 @@ export const STEP_ORDER: Array<{ id: SetupStepId; label: string }> = [
   { id: 'validate', label: 'Validate' },
   { id: 'users', label: 'Users' },
   { id: 'topPicks', label: 'Top 10' },
-  { id: 'openai', label: 'AI' },
+  { id: 'aiSetup', label: 'AI / LLM' },
   { id: 'initialJobs', label: 'Sync' },
   { id: 'complete', label: 'Done' },
 ]

@@ -42,6 +42,14 @@ import {
   getLastJobRuns,
   // Backup
   createBackup,
+  // Pricing cache
+  refreshPricingCache,
+  getPricingCacheStatus,
+  // Job progress
+  createJobProgress,
+  setJobStep,
+  addLog,
+  completeJob,
   type JobProgress,
   type ScheduleType,
 } from '@aperture/core'
@@ -174,13 +182,19 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
     name: 'enrich-mdblist',
     description:
       'Enrich with MDBList (Letterboxd scores, MDBList scores, streaming providers, keywords)',
-    cron: null, // Manual by default - uses daily API quota
+    cron: '0 7 * * *', // Daily at 7 AM
   },
   // === Database Backup Job ===
   {
     name: 'backup-database',
     description: 'Create a full database backup',
     cron: '0 2 * * *', // Daily at 2 AM
+  },
+  // === AI Pricing Cache Job ===
+  {
+    name: 'refresh-ai-pricing',
+    description: 'Refresh LLM pricing data from Helicone API',
+    cron: '0 0 * * 0', // Weekly on Sunday at midnight
   },
 ]
 
@@ -986,6 +1000,39 @@ async function runJob(name: string, jobId: string): Promise<void> {
           sizeBytes: result.sizeBytes,
           duration: result.duration,
         }, `✅ Database backup complete`)
+        break
+      }
+      // === AI Pricing Cache Job ===
+      case 'refresh-ai-pricing': {
+        createJobProgress(jobId, 'refresh-ai-pricing', 2)
+        
+        // Step 1: Check current status
+        setJobStep(jobId, 0, 'Checking cache status')
+        const statusBefore = await getPricingCacheStatus()
+        addLog(jobId, 'info', `Current cache: ${statusBefore.cached ? `${statusBefore.modelCount} models` : 'empty'}${statusBefore.isStale ? ' (stale)' : ''}`)
+        
+        // Step 2: Refresh from API
+        setJobStep(jobId, 1, 'Fetching pricing data from Helicone API')
+        addLog(jobId, 'info', '🔄 Fetching latest pricing data...')
+        
+        await refreshPricingCache()
+        
+        const statusAfter = await getPricingCacheStatus()
+        addLog(jobId, 'info', `✅ Loaded ${statusAfter.modelCount} model pricing entries`)
+        
+        completeJob(jobId, {
+          modelCount: statusAfter.modelCount,
+          fetchedAt: statusAfter.fetchedAt?.toISOString(),
+          cached: statusAfter.cached,
+        })
+        
+        logger.info({
+          job: name,
+          jobId,
+          cached: statusAfter.cached,
+          modelCount: statusAfter.modelCount,
+          fetchedAt: statusAfter.fetchedAt,
+        }, `✅ AI pricing cache refreshed`)
         break
       }
       default:

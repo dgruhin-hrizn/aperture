@@ -3,10 +3,11 @@
  */
 import { tool, embed, generateObject } from 'ai'
 import { z } from 'zod'
+import { getTextGenerationModelInstance, getActiveEmbeddingTableName } from '@aperture/core'
 import { query, queryOne } from '../../../lib/db.js'
 import { buildPlayLink } from '../helpers/mediaServer.js'
 import type { ContentItem } from '../schemas/index.js'
-import type { ToolContext, MovieResult, SeriesResult, OpenAIProvider } from '../types.js'
+import type { ToolContext, MovieResult, SeriesResult } from '../types.js'
 
 /**
  * AI-powered semantic search query generator
@@ -14,13 +15,12 @@ import type { ToolContext, MovieResult, SeriesResult, OpenAIProvider } from '../
  */
 async function generateSearchQuery(
   title: string,
-  type: 'movie' | 'series',
-  openai: OpenAIProvider
+  type: 'movie' | 'series'
 ): Promise<string> {
   try {
+    const model = await getTextGenerationModelInstance()
     const { object } = await generateObject({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      model: openai('gpt-4.1-nano') as any,
+      model,
       schema: z.object({
         searchQuery: z.string().describe('A specific description for semantic search'),
       }),
@@ -374,8 +374,7 @@ export function createSearchTools(ctx: ToolContext) {
 
           // Generate embedding for the search concept using AI SDK
           const { embedding: queryEmbedding } = await embed({
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            model: ctx.openai.embedding(ctx.embeddingModel) as any,
+            model: ctx.embeddingModel,
             value: concept,
           })
           const embeddingStr = `[${queryEmbedding.join(',')}]`
@@ -386,18 +385,22 @@ export function createSearchTools(ctx: ToolContext) {
           // If user mentioned a title they already watched, exclude it
           const excludeLower = excludeTitle?.toLowerCase()
 
+          // Get model ID for database query (stored in db as string identifier)
+          const modelId = ctx.embeddingModelId
+
           if (type === 'movies' || type === 'both') {
+            const movieTableName = await getActiveEmbeddingTableName('embeddings')
             const movieResults = await query<
               MovieResult & { provider_item_id?: string; similarity: number }
             >(
               `SELECT m.id, m.title, m.year, m.genres, m.community_rating, m.poster_url, m.provider_item_id,
                       1 - (e.embedding <=> $1::halfvec) as similarity
-               FROM embeddings e
+               FROM ${movieTableName} e
                JOIN movies m ON m.id = e.movie_id
                WHERE e.model = $2
                ORDER BY e.embedding <=> $1::halfvec
                LIMIT $3`,
-              [embeddingStr, ctx.embeddingModel, safeLimit + 5] // Get extra to account for exclusion
+              [embeddingStr, modelId, safeLimit + 5] // Get extra to account for exclusion
             )
 
             for (const m of movieResults.rows) {
@@ -412,17 +415,18 @@ export function createSearchTools(ctx: ToolContext) {
           }
 
           if (type === 'series' || type === 'both') {
+            const seriesTableName = await getActiveEmbeddingTableName('series_embeddings')
             const seriesResults = await query<
               SeriesResult & { provider_item_id?: string; similarity: number }
             >(
               `SELECT s.id, s.title, s.year, s.genres, s.network, s.community_rating, s.poster_url, s.provider_item_id,
                       1 - (se.embedding <=> $1::halfvec) as similarity
-               FROM series_embeddings se
+               FROM ${seriesTableName} se
                JOIN series s ON s.id = se.series_id
                WHERE se.model = $2
                ORDER BY se.embedding <=> $1::halfvec
                LIMIT $3`,
-              [embeddingStr, ctx.embeddingModel, safeLimit + 5] // Get extra to account for exclusion
+              [embeddingStr, modelId, safeLimit + 5] // Get extra to account for exclusion
             )
 
             for (const s of seriesResults.rows) {
@@ -500,6 +504,9 @@ export function createSearchTools(ctx: ToolContext) {
           const searchMovies = !type || type === 'movies'
           const searchSeries = !type || type === 'series'
 
+          // Get model ID for database query
+          const modelId = ctx.embeddingModelId
+
           // Try to find as movie - get rich metadata for intelligent embedding
           interface MovieWithMeta {
             id: string
@@ -514,10 +521,11 @@ export function createSearchTools(ctx: ToolContext) {
           }
           let movie: MovieWithMeta | null = null
           if (searchMovies) {
+            const movieEmbeddingTable = await getActiveEmbeddingTableName('embeddings')
             movie = await queryOne<MovieWithMeta>(
               `SELECT m.id, m.title, m.overview, m.year, m.tagline, m.directors, m.actors, m.studios, m.tags
                FROM movies m
-               LEFT JOIN embeddings e ON e.movie_id = m.id AND e.model = $2
+               LEFT JOIN ${movieEmbeddingTable} e ON e.movie_id = m.id AND e.model = $2
                WHERE m.title ILIKE $1
                ORDER BY 
                  CASE 
@@ -527,7 +535,7 @@ export function createSearchTools(ctx: ToolContext) {
                  END,
                  e.id IS NOT NULL DESC
                LIMIT 1`,
-              [`%${title}%`, ctx.embeddingModel, title, `${title}%`]
+              [`%${title}%`, modelId, title, `${title}%`]
             )
           }
 
@@ -539,6 +547,7 @@ export function createSearchTools(ctx: ToolContext) {
             year: number | null
           } | null = null
           if (searchSeries) {
+            const seriesEmbeddingTable = await getActiveEmbeddingTableName('series_embeddings')
             series = await queryOne<{
               id: string
               title: string
@@ -546,7 +555,7 @@ export function createSearchTools(ctx: ToolContext) {
               year: number | null
             }>(
               `SELECT s.id, s.title, s.overview, s.year FROM series s
-               LEFT JOIN series_embeddings se ON se.series_id = s.id AND se.model = $2
+               LEFT JOIN ${seriesEmbeddingTable} se ON se.series_id = s.id AND se.model = $2
                WHERE s.title ILIKE $1
                ORDER BY 
                  CASE 
@@ -556,7 +565,7 @@ export function createSearchTools(ctx: ToolContext) {
                  END,
                  se.id IS NOT NULL DESC
                LIMIT 1`,
-              [`%${title}%`, ctx.embeddingModel, title, `${title}%`]
+              [`%${title}%`, modelId, title, `${title}%`]
             )
           }
 
@@ -579,11 +588,10 @@ export function createSearchTools(ctx: ToolContext) {
 
             // AI-POWERED SEMANTIC SEARCH
             // The AI KNOWS what this movie is about - let it describe what to search for!
-            const searchQuery = await generateSearchQuery(movie.title, 'movie', ctx.openai)
+            const searchQuery = await generateSearchQuery(movie.title, 'movie')
 
             const { embedding: queryEmbedding } = await embed({
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              model: ctx.openai.embedding(ctx.embeddingModel) as any,
+              model: ctx.embeddingModel,
               value: searchQuery,
             })
             const embeddingStr = `[${queryEmbedding.join(',')}]`
@@ -592,12 +600,13 @@ export function createSearchTools(ctx: ToolContext) {
               ? `AND m.id NOT IN (SELECT movie_id FROM watch_history WHERE user_id = $4 AND movie_id IS NOT NULL)`
               : ''
             const params = excludeWatched
-              ? [movie.id, ctx.embeddingModel, embeddingStr, ctx.userId, limit]
-              : [movie.id, ctx.embeddingModel, embeddingStr, limit]
+              ? [movie.id, modelId, embeddingStr, ctx.userId, limit]
+              : [movie.id, modelId, embeddingStr, limit]
 
+            const movieSimilarTable = await getActiveEmbeddingTableName('embeddings')
             const similar = await query<MovieResult & { provider_item_id?: string }>(
               `SELECT m.id, m.title, m.year, m.genres, m.community_rating, m.poster_url, m.provider_item_id
-               FROM embeddings e JOIN movies m ON m.id = e.movie_id
+               FROM ${movieSimilarTable} e JOIN movies m ON m.id = e.movie_id
                WHERE e.movie_id != $1 AND e.model = $2 ${watchedFilter}
                ORDER BY e.embedding <=> $3::halfvec 
                LIMIT ${excludeWatched ? '$5' : '$4'}`,
@@ -618,12 +627,11 @@ export function createSearchTools(ctx: ToolContext) {
             // - AI uses world knowledge, not just our DB's potentially wrong genre tags
             // - AI understands tone, themes, audience - not just surface features
 
-            const searchQuery = await generateSearchQuery(series.title, 'series', ctx.openai)
+            const searchQuery = await generateSearchQuery(series.title, 'series')
 
             // Generate embedding from AI's semantic description
             const { embedding: queryEmbedding } = await embed({
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              model: ctx.openai.embedding(ctx.embeddingModel) as any,
+              model: ctx.embeddingModel,
               value: searchQuery,
             })
             const embeddingStr = `[${queryEmbedding.join(',')}]`
@@ -637,12 +645,13 @@ export function createSearchTools(ctx: ToolContext) {
               : ''
 
             const params = excludeWatched
-              ? [series.id, ctx.embeddingModel, embeddingStr, ctx.userId, limit]
-              : [series.id, ctx.embeddingModel, embeddingStr, limit]
+              ? [series.id, modelId, embeddingStr, ctx.userId, limit]
+              : [series.id, modelId, embeddingStr, limit]
 
+            const seriesSimilarTable = await getActiveEmbeddingTableName('series_embeddings')
             const similar = await query<SeriesResult & { provider_item_id?: string }>(
               `SELECT s.id, s.title, s.year, s.genres, s.network, s.community_rating, s.poster_url, s.provider_item_id
-               FROM series_embeddings se 
+               FROM ${seriesSimilarTable} se 
                JOIN series s ON s.id = se.series_id
                WHERE se.series_id != $1 
                  AND se.model = $2 
