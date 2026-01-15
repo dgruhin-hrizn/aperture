@@ -31,7 +31,7 @@ import {
   useMediaQuery,
   Avatar,
 } from '@mui/material'
-import VisibilityIcon from '@mui/icons-material/Visibility'
+import SettingsIcon from '@mui/icons-material/Settings'
 import PersonAddIcon from '@mui/icons-material/PersonAdd'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import BlockIcon from '@mui/icons-material/Block'
@@ -44,6 +44,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
+import ExploreIcon from '@mui/icons-material/Explore'
 
 interface ProviderUser {
   providerUserId: string
@@ -56,6 +57,8 @@ interface ProviderUser {
   isEnabled: boolean
   moviesEnabled: boolean
   seriesEnabled: boolean
+  discoverEnabled: boolean
+  discoverRequestEnabled: boolean
   aiOverrideAllowed: boolean
 }
 
@@ -232,6 +235,83 @@ export function UsersPage() {
           message: newValue 
             ? `${user.name} can now control their AI explanation preference` 
             : `${user.name} will use the global AI explanation setting`,
+          severity: 'success' 
+        })
+      }
+    } finally {
+      setUpdating(null)
+    }
+  }
+
+  const handleToggleDiscover = async (user: ProviderUser) => {
+    if (!user.apertureUserId) return
+
+    setUpdating(user.providerUserId)
+    try {
+      const newValue = !user.discoverEnabled
+      const response = await fetch(`/api/users/${user.apertureUserId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          discoverEnabled: newValue,
+          // If disabling discovery, also disable request permission
+          ...(newValue === false && { discoverRequestEnabled: false }),
+        }),
+      })
+
+      if (response.ok) {
+        setProviderUsers((prev) =>
+          prev.map((u) =>
+            u.providerUserId === user.providerUserId
+              ? { 
+                  ...u, 
+                  discoverEnabled: newValue,
+                  // If disabling discovery, also disable request permission
+                  discoverRequestEnabled: newValue ? u.discoverRequestEnabled : false,
+                }
+              : u
+          )
+        )
+        setSnackbar({ 
+          open: true, 
+          message: newValue 
+            ? `${user.name} can now see discovery suggestions` 
+            : `${user.name} will no longer see discovery suggestions`,
+          severity: 'success' 
+        })
+      }
+    } finally {
+      setUpdating(null)
+    }
+  }
+
+  const handleToggleDiscoverRequest = async (user: ProviderUser) => {
+    if (!user.apertureUserId) return
+
+    setUpdating(user.providerUserId)
+    try {
+      const newValue = !user.discoverRequestEnabled
+      const response = await fetch(`/api/users/${user.apertureUserId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ discoverRequestEnabled: newValue }),
+      })
+
+      if (response.ok) {
+        setProviderUsers((prev) =>
+          prev.map((u) =>
+            u.providerUserId === user.providerUserId
+              ? { ...u, discoverRequestEnabled: newValue }
+              : u
+          )
+        )
+        setSnackbar({ 
+          open: true, 
+          message: newValue 
+            ? `${user.name} can now request discovered content` 
+            : `${user.name} can no longer request discovered content`,
           severity: 'success' 
         })
       }
@@ -453,6 +533,32 @@ export function UsersPage() {
                         </Stack>
                       </Stack>
 
+                      {/* Discovery toggles in a compact row */}
+                      <Stack direction="row" alignItems="center" spacing={2} mb={1.5}>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <ExploreIcon fontSize="small" color="action" />
+                          <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>Discover</Typography>
+                          <Switch
+                            checked={user.discoverEnabled}
+                            onChange={() => handleToggleDiscover(user)}
+                            disabled={updating === user.providerUserId || user.isDisabled}
+                            color="primary"
+                            size="small"
+                          />
+                        </Stack>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <ExploreIcon fontSize="small" color="action" />
+                          <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>Request</Typography>
+                          <Switch
+                            checked={user.discoverRequestEnabled}
+                            onChange={() => handleToggleDiscoverRequest(user)}
+                            disabled={updating === user.providerUserId || user.isDisabled || !user.discoverEnabled}
+                            color="primary"
+                            size="small"
+                          />
+                        </Stack>
+                      </Stack>
+
                       {/* AI Override toggle (if enabled globally) */}
                       {globalAiConfig?.userOverrideAllowed && (
                         <Stack direction="row" alignItems="center" spacing={1} mb={2}>
@@ -473,16 +579,16 @@ export function UsersPage() {
                         {isJobRunning(user.apertureUserId!) && (
                           <CircularProgress size={20} sx={{ mr: 1 }} />
                         )}
-                        <Tooltip title="View User Details">
+                        <Tooltip title="More User Settings">
                           <IconButton
                             size="small"
-                            onClick={() => navigate(`/admin/users/${user.apertureUserId}`)}
+                            onClick={() => navigate(`/admin/users/${user.apertureUserId}?tab=settings`)}
                             sx={{
                               bgcolor: 'action.hover',
                               '&:hover': { bgcolor: 'action.selected' },
                             }}
                           >
-                            <VisibilityIcon fontSize="small" />
+                            <SettingsIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
                         {user.isEnabled && (
@@ -605,6 +711,22 @@ export function UsersPage() {
                   Series
                 </Box>
               </TableCell>
+              <TableCell align="center">
+                <Tooltip title="Show discovery suggestions for content not in library">
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                    <ExploreIcon fontSize="small" />
+                    Discover
+                  </Box>
+                </Tooltip>
+              </TableCell>
+              <TableCell align="center">
+                <Tooltip title="Allow user to request discovered content via Jellyseerr">
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                    <ExploreIcon fontSize="small" />
+                    Request
+                  </Box>
+                </Tooltip>
+              </TableCell>
               {globalAiConfig?.userOverrideAllowed && (
                 <TableCell align="center">
                   <Tooltip title="Allow user to control their AI explanation preference">
@@ -621,7 +743,7 @@ export function UsersPage() {
           <TableBody>
             {sortedUsers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={globalAiConfig?.userOverrideAllowed ? 7 : 6} align="center">
+                <TableCell colSpan={globalAiConfig?.userOverrideAllowed ? 9 : 8} align="center">
                   <Typography variant="body2" color="text.secondary" py={4}>
                     No users found on {provider} server.
                   </Typography>
@@ -702,6 +824,36 @@ export function UsersPage() {
                       <Typography variant="body2" color="text.secondary">—</Typography>
                     )}
                   </TableCell>
+                  <TableCell align="center">
+                    {user.isImported ? (
+                      <Tooltip title={user.discoverEnabled ? 'Disable discovery suggestions' : 'Enable discovery suggestions'}>
+                        <Switch
+                          checked={user.discoverEnabled}
+                          onChange={() => handleToggleDiscover(user)}
+                          disabled={updating === user.providerUserId || user.isDisabled}
+                          color="primary"
+                          size="small"
+                        />
+                      </Tooltip>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">—</Typography>
+                    )}
+                  </TableCell>
+                  <TableCell align="center">
+                    {user.isImported ? (
+                      <Tooltip title={user.discoverRequestEnabled ? 'Disable content requests' : 'Enable content requests'}>
+                        <Switch
+                          checked={user.discoverRequestEnabled}
+                          onChange={() => handleToggleDiscoverRequest(user)}
+                          disabled={updating === user.providerUserId || user.isDisabled || !user.discoverEnabled}
+                          color="primary"
+                          size="small"
+                        />
+                      </Tooltip>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">—</Typography>
+                    )}
+                  </TableCell>
                   {globalAiConfig?.userOverrideAllowed && (
                     <TableCell align="center">
                       {user.isImported ? (
@@ -746,12 +898,12 @@ export function UsersPage() {
                           {isJobRunning(user.apertureUserId) && (
                             <CircularProgress size={20} sx={{ mr: 1 }} />
                           )}
-                          <Tooltip title="View User Details">
+                          <Tooltip title="More User Settings">
                             <IconButton
                               size="small"
-                              onClick={() => navigate(`/admin/users/${user.apertureUserId}`)}
+                              onClick={() => navigate(`/admin/users/${user.apertureUserId}?tab=settings`)}
                             >
-                              <VisibilityIcon fontSize="small" />
+                              <SettingsIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
                           {user.isEnabled && (

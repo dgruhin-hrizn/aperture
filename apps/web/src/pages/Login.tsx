@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -19,9 +19,29 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [allowPasswordlessLogin, setAllowPasswordlessLogin] = useState(false)
+  const [loadingOptions, setLoadingOptions] = useState(true)
+
+  // Fetch login options on mount
+  useEffect(() => {
+    const fetchLoginOptions = async () => {
+      try {
+        const response = await fetch('/api/auth/login-options')
+        if (response.ok) {
+          const data = await response.json()
+          setAllowPasswordlessLogin(data.allowPasswordlessLogin)
+        }
+      } catch {
+        // Default to requiring password if we can't fetch options
+      } finally {
+        setLoadingOptions(false)
+      }
+    }
+    fetchLoginOptions()
+  }, [])
 
   // Redirect if already logged in
-  React.useEffect(() => {
+  useEffect(() => {
     if (user) {
       navigate('/')
     }
@@ -41,6 +61,9 @@ export function LoginPage() {
       setLoading(false)
     }
   }
+
+  // Determine if submit should be disabled
+  const isSubmitDisabled = loading || !username || (!allowPasswordlessLogin && !password)
 
   return (
     <Box
@@ -97,18 +120,19 @@ export function LoginPage() {
               margin="normal"
               autoComplete="username"
               autoFocus
-              disabled={loading}
+              disabled={loading || loadingOptions}
             />
 
             <TextField
               fullWidth
-              label="Password"
+              label={allowPasswordlessLogin ? 'Password (optional)' : 'Password'}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               margin="normal"
               autoComplete="current-password"
-              disabled={loading}
+              disabled={loading || loadingOptions}
+              helperText={allowPasswordlessLogin ? 'Password is optional for this server' : undefined}
             />
 
             <Button
@@ -116,10 +140,10 @@ export function LoginPage() {
               fullWidth
               variant="contained"
               size="large"
-              disabled={loading || !username || !password}
+              disabled={isSubmitDisabled || loadingOptions}
               sx={{ mt: 3 }}
             >
-              {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
+              {loading || loadingOptions ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
             </Button>
           </form>
 
@@ -137,6 +161,3 @@ export function LoginPage() {
     </Box>
   )
 }
-
-
-

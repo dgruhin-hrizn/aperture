@@ -1,6 +1,6 @@
 /**
  * Trakt integration module
- * Provides OAuth authentication and ratings sync with Trakt.tv
+ * Provides OAuth authentication, ratings sync, and content discovery with Trakt.tv
  */
 
 export * from './types.js'
@@ -21,4 +21,24 @@ export {
   pushRatingToTrakt,
   removeRatingFromTrakt,
 } from './provider.js'
+
+// Discovery functions
+export {
+  getTrendingMovies,
+  getPopularMovies,
+  getMostWatchedMovies,
+  getAnticipatedMovies,
+  getRecommendedMovies,
+  getRelatedMovies,
+  getTrendingShows,
+  getPopularShows,
+  getMostWatchedShows,
+  getAnticipatedShows,
+  getRecommendedShows,
+  getRelatedShows,
+  extractMovieTmdbId,
+  extractShowTmdbId,
+  normalizeTraktMovie,
+  normalizeTraktShow,
+} from './discover.js'
 

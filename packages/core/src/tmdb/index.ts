@@ -36,6 +36,8 @@ export {
 export {
   getTVDetails,
   getTVKeywords,
+  getTVExternalIds,
+  getTVCredits,
   getSeriesEnrichmentData,
   getSeriesEnrichmentByImdbId,
   getSeriesEnrichmentByTmdbId,
@@ -48,6 +50,23 @@ export {
   getCollectionData,
   getCollectionsData,
 } from './collections.js'
+
+// Discovery functions (recommendations, similar, discover)
+export {
+  getMovieRecommendations,
+  getSimilarMovies,
+  discoverMovies,
+  getMovieRecommendationsBatch,
+  getSimilarMoviesBatch,
+  getTVRecommendations,
+  getSimilarTV,
+  discoverTV,
+  getTVRecommendationsBatch,
+  getSimilarTVBatch,
+  extractYear,
+  normalizeMovieResult,
+  normalizeTVResult,
+} from './discover.js'
 
 // Types
 export type {
@@ -76,6 +95,18 @@ export type {
   SeriesEnrichmentData,
   CollectionData,
   TMDbImageSize,
+  // Discovery types
+  TMDbMovieResult,
+  TMDbTVResult,
+  TMDbPaginatedResponse,
+  TMDbMovieRecommendationsResponse,
+  TMDbMovieSimilarResponse,
+  TMDbMovieDiscoverResponse,
+  TMDbTVRecommendationsResponse,
+  TMDbTVSimilarResponse,
+  TMDbTVDiscoverResponse,
+  DiscoverMovieFilters,
+  DiscoverTVFilters,
 } from './types.js'
 
 // Constants

@@ -45,6 +45,9 @@ import {
   // Pricing cache
   refreshPricingCache,
   getPricingCacheStatus,
+  // Discovery
+  generateDiscoveryForAllUsers,
+  DEFAULT_DISCOVERY_CONFIG,
   // Job progress
   createJobProgress,
   setJobStep,
@@ -195,6 +198,12 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
     name: 'refresh-ai-pricing',
     description: 'Refresh LLM pricing data from Helicone API',
     cron: '0 0 * * 0', // Weekly on Sunday at midnight
+  },
+  // === Discovery Suggestions Job ===
+  {
+    name: 'generate-discovery-suggestions',
+    description: 'Generate AI-powered suggestions for content not in your library',
+    cron: '0 6 * * *', // Daily at 6 AM
   },
 ]
 
@@ -1033,6 +1042,35 @@ async function runJob(name: string, jobId: string): Promise<void> {
           modelCount: statusAfter.modelCount,
           fetchedAt: statusAfter.fetchedAt,
         }, `✅ AI pricing cache refreshed`)
+        break
+      }
+      // === Discovery Suggestions Job ===
+      case 'generate-discovery-suggestions': {
+        createJobProgress(jobId, 'generate-discovery-suggestions', 2)
+        
+        // Step 1: Check prerequisites
+        setJobStep(jobId, 0, 'Checking prerequisites')
+        addLog(jobId, 'info', '🔍 Checking Jellyseerr configuration and user enablement...')
+        
+        const result = await generateDiscoveryForAllUsers(DEFAULT_DISCOVERY_CONFIG, jobId)
+        
+        if (result.success === 0 && result.failed === 0) {
+          addLog(jobId, 'warn', '⚠️ No users have discovery enabled. Enable discovery for users in Admin → Users.')
+        }
+        
+        // Step 2: Complete
+        setJobStep(jobId, 1, 'Complete')
+        completeJob(jobId, {
+          success: result.success,
+          failed: result.failed,
+        })
+        
+        logger.info({
+          job: name,
+          jobId,
+          success: result.success,
+          failed: result.failed,
+        }, `✅ Discovery suggestions generation complete`)
         break
       }
       default:

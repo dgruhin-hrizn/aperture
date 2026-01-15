@@ -7,6 +7,8 @@ import { tmdbRequest, findTVByImdbId, findTVByTvdbId, type ApiLogCallback } from
 import type {
   TMDbTVDetails,
   TMDbTVKeywordsResponse,
+  TMDbTVCreditsResponse,
+  TMDbExternalIds,
   SeriesEnrichmentData,
   NetworkData,
   ProductionCompanyData,
@@ -37,6 +39,26 @@ export async function getTVKeywords(
   )
   if (!result?.results) return []
   return result.results.map((k) => k.name)
+}
+
+/**
+ * Get TV series external IDs (IMDb, TVDB, etc.)
+ */
+export async function getTVExternalIds(
+  tmdbId: number,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<TMDbExternalIds | null> {
+  return tmdbRequest<TMDbExternalIds>(`/tv/${tmdbId}/external_ids`, options)
+}
+
+/**
+ * Get TV series credits (cast and crew) from TMDb
+ */
+export async function getTVCredits(
+  tmdbId: number,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<TMDbTVCreditsResponse | null> {
+  return tmdbRequest<TMDbTVCreditsResponse>(`/tv/${tmdbId}/credits`, options)
 }
 
 /**

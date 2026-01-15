@@ -212,6 +212,56 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   /**
+   * GET /api/settings/media-server/security
+   * Get media server security settings (allow passwordless login)
+   */
+  fastify.get(
+    '/api/settings/media-server/security',
+    { preHandler: requireAdmin },
+    async (_request, reply) => {
+      try {
+        const allowPasswordlessLogin = await getSystemSetting('allow_passwordless_login')
+        return reply.send({
+          allowPasswordlessLogin: allowPasswordlessLogin === 'true',
+        })
+      } catch (err) {
+        fastify.log.error({ err }, 'Failed to get media server security settings')
+        return reply.status(500).send({ error: 'Failed to get security settings' })
+      }
+    }
+  )
+
+  /**
+   * PATCH /api/settings/media-server/security
+   * Update media server security settings
+   */
+  fastify.patch<{
+    Body: {
+      allowPasswordlessLogin?: boolean
+    }
+  }>('/api/settings/media-server/security', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const { allowPasswordlessLogin } = request.body
+
+      if (allowPasswordlessLogin !== undefined) {
+        await setSystemSetting(
+          'allow_passwordless_login',
+          String(allowPasswordlessLogin),
+          'Allow users with no password on their media server account to log in'
+        )
+      }
+
+      return reply.send({
+        allowPasswordlessLogin: allowPasswordlessLogin ?? false,
+        message: 'Security settings updated',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to update media server security settings')
+      return reply.status(500).send({ error: 'Failed to update security settings' })
+    }
+  })
+
+  /**
    * POST /api/settings/media-server/test
    * Test media server connection with provided or saved credentials
    */

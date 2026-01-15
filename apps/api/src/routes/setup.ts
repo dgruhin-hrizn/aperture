@@ -362,6 +362,58 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   /**
+   * GET /api/setup/media-server/security
+   * Get media server security settings (allow passwordless login)
+   */
+  fastify.get('/api/setup/media-server/security', async (request, reply) => {
+    const { complete, isAdmin } = await requireSetupWritable(request)
+    if (complete && !isAdmin) return reply.status(404).send({ error: 'Not Found' })
+
+    try {
+      const allowPasswordlessLogin = await getSystemSetting('allow_passwordless_login')
+      return reply.send({
+        allowPasswordlessLogin: allowPasswordlessLogin === 'true',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get media server security settings')
+      return reply.status(500).send({ error: 'Failed to get security settings' })
+    }
+  })
+
+  /**
+   * POST /api/setup/media-server/security
+   * Update media server security settings (allow passwordless login)
+   */
+  fastify.post<{
+    Body: {
+      allowPasswordlessLogin?: boolean
+    }
+  }>('/api/setup/media-server/security', async (request, reply) => {
+    const { complete, isAdmin } = await requireSetupWritable(request)
+    if (complete && !isAdmin) return reply.status(404).send({ error: 'Not Found' })
+
+    try {
+      const { allowPasswordlessLogin } = request.body
+
+      if (allowPasswordlessLogin !== undefined) {
+        await setSystemSetting(
+          'allow_passwordless_login',
+          String(allowPasswordlessLogin),
+          'Allow users with no password on their media server account to log in'
+        )
+      }
+
+      return reply.send({
+        allowPasswordlessLogin: allowPasswordlessLogin ?? false,
+        message: 'Security settings updated',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to update media server security settings')
+      return reply.status(500).send({ error: 'Failed to update security settings' })
+    }
+  })
+
+  /**
    * GET /api/setup/libraries
    * Fetch libraries from media server and sync into local library_config table
    */

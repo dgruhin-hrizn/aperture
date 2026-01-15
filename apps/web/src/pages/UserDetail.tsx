@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Box,
   Typography,
@@ -28,6 +28,7 @@ import {
   Button,
 } from '@mui/material'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
+import ExploreIcon from '@mui/icons-material/Explore'
 import SaveIcon from '@mui/icons-material/Save'
 import GridViewIcon from '@mui/icons-material/GridView'
 import ViewListIcon from '@mui/icons-material/ViewList'
@@ -44,6 +45,8 @@ interface User {
   is_enabled: boolean
   movies_enabled: boolean
   series_enabled: boolean
+  discover_enabled: boolean
+  discover_request_enabled: boolean
   can_manage_watch_history: boolean
   created_at: string
 }
@@ -103,9 +106,12 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [savingWatchHistory, setSavingWatchHistory] = useState(false)
+  const [savingDiscovery, setSavingDiscovery] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [canManageWatchHistory, setCanManageWatchHistory] = useState(user.can_manage_watch_history)
+  const [discoverEnabled, setDiscoverEnabled] = useState(user.discover_enabled)
+  const [discoverRequestEnabled, setDiscoverRequestEnabled] = useState(user.discover_request_enabled)
   const [settings, setSettings] = useState<{
     overrideAllowed: boolean
     enabled: boolean | null
@@ -183,6 +189,47 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
     }
   }
 
+  const handleDiscoveryToggle = async (field: 'discover' | 'request', enabled: boolean) => {
+    try {
+      setSavingDiscovery(true)
+      setError(null)
+      const body = field === 'discover' 
+        ? { discoverEnabled: enabled }
+        : { discoverRequestEnabled: enabled }
+      
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        credentials: 'include',
+      })
+      if (!response.ok) throw new Error('Failed to update permission')
+      
+      if (field === 'discover') {
+        setDiscoverEnabled(enabled)
+        // If disabling discovery, also disable request permission
+        if (!enabled) {
+          setDiscoverRequestEnabled(false)
+        }
+      } else {
+        setDiscoverRequestEnabled(enabled)
+      }
+      
+      setSuccess(`Discovery ${field === 'discover' ? 'access' : 'request'} permission updated!`)
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
+      // Revert the toggle on error
+      if (field === 'discover') {
+        setDiscoverEnabled(!enabled)
+      } else {
+        setDiscoverRequestEnabled(!enabled)
+      }
+    } finally {
+      setSavingDiscovery(false)
+    }
+  }
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" py={4}>
@@ -243,6 +290,75 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
           />
 
           {savingWatchHistory && (
+            <Box display="flex" alignItems="center" gap={1} mt={2}>
+              <CircularProgress size={16} />
+              <Typography variant="caption" color="text.secondary">Saving...</Typography>
+            </Box>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Discovery Permissions */}
+      <Card variant="outlined" sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <ExploreIcon sx={{ color: '#ec4899' }} />
+            Discovery Permissions
+          </Typography>
+          
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Control this user's access to the Discovery feature, which suggests content not currently in your library based on their taste profile.
+          </Typography>
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={discoverEnabled}
+                onChange={(e) => handleDiscoveryToggle('discover', e.target.checked)}
+                disabled={savingDiscovery}
+              />
+            }
+            label={
+              <Box>
+                <Typography variant="body1" fontWeight="medium">
+                  Enable Discovery Suggestions
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  User can view AI-powered suggestions for movies and series not in the library
+                </Typography>
+              </Box>
+            }
+            sx={{ alignItems: 'flex-start', ml: 0, mb: 2 }}
+          />
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={discoverRequestEnabled}
+                onChange={(e) => handleDiscoveryToggle('request', e.target.checked)}
+                disabled={savingDiscovery || !discoverEnabled}
+              />
+            }
+            label={
+              <Box>
+                <Typography variant="body1" fontWeight="medium">
+                  Allow Content Requests
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  User can request discovered content to be added to the library via Jellyseerr
+                </Typography>
+              </Box>
+            }
+            sx={{ alignItems: 'flex-start', ml: 0 }}
+          />
+
+          {!discoverEnabled && discoverRequestEnabled && (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              Request permission requires Discovery to be enabled first.
+            </Alert>
+          )}
+
+          {savingDiscovery && (
             <Box display="flex" alignItems="center" gap={1} mt={2}>
               <CircularProgress size={16} />
               <Typography variant="caption" color="text.secondary">Saving...</Typography>
@@ -594,13 +710,43 @@ function WatchHistoryTab({ userId }: { userId: string }) {
   )
 }
 
+// Tab name mapping
+const TAB_NAMES = ['recommendations', 'history', 'playlists', 'diagnostics', 'settings'] as const
+type TabName = typeof TAB_NAMES[number]
+
+const getTabIndex = (tabName: string | null): number => {
+  if (!tabName) return 0
+  const index = TAB_NAMES.indexOf(tabName as TabName)
+  return index >= 0 ? index : 0
+}
+
+const getTabName = (index: number): TabName => {
+  return TAB_NAMES[index] || 'recommendations'
+}
+
 export function UserDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const [searchParams, setSearchParams] = useSearchParams()
+  
+  // Get current tab from URL
+  const currentTab = searchParams.get('tab')
+  const tabValue = getTabIndex(currentTab)
+  
+  // Handle tab change - update URL which will update the tab
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    const tabName = getTabName(newValue)
+    if (tabName === 'recommendations') {
+      // Remove tab param for default tab to keep URL clean
+      setSearchParams({}, { replace: false })
+    } else {
+      setSearchParams({ tab: tabName }, { replace: false })
+    }
+  }
+  
   const [user, setUser] = useState<User | null>(null)
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [tabValue, setTabValue] = useState(0)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -644,7 +790,7 @@ export function UserDetailPage() {
       <Box>
         <Breadcrumbs
           items={[
-            { label: 'Admin', path: '/admin' },
+            { label: 'Admin', path: '/admin/users' },
             { label: 'Users', path: '/admin/users' },
             { label: 'User' },
           ]}
@@ -658,7 +804,7 @@ export function UserDetailPage() {
     <Box>
       <Breadcrumbs
         items={[
-          { label: 'Admin', path: '/admin' },
+          { label: 'Admin', path: '/admin/users' },
           { label: 'Users', path: '/admin/users' },
         ]}
         currentLabel={user.display_name || user.username}
@@ -685,7 +831,7 @@ export function UserDetailPage() {
       </Typography>
 
       <Paper sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
-        <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)} sx={{ px: 2, pt: 1 }}>
+        <Tabs value={tabValue} onChange={handleTabChange} sx={{ px: 2, pt: 1 }}>
           <Tab label="Recommendations" />
           <Tab label="Watch History" />
           <Tab label="Playlists" />

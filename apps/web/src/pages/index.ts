@@ -7,6 +7,7 @@ export { SeriesPage } from './Series'
 export { MovieDetailPage, SeriesDetailPage, MediaDetailPage } from './media-detail'
 export { PlaylistsPage } from './playlists'
 export { ExplorePage } from './explore'
+export { DiscoveryPage } from './discovery'
 export { LoginPage } from './Login'
 
 // Admin pages

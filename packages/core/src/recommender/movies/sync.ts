@@ -17,6 +17,17 @@ import type { MediaServerProvider } from '../../media/MediaServerProvider.js'
 
 const logger = createChildLogger('sync')
 
+/**
+ * Clamp a rating value to fit within NUMERIC(5,2) column constraints (max 999.99)
+ * Ratings from media servers should be 0-10 (community) or 0-100 (critic),
+ * but bad metadata can sometimes have unexpected values
+ */
+function clampRating(rating: number | null | undefined): number | null {
+  if (rating === null || rating === undefined) return null
+  // Clamp to valid range for NUMERIC(5,2) - max is 999.99
+  return Math.min(Math.max(0, rating), 999.99)
+}
+
 // ============================================================================
 // PERFORMANCE TUNING CONSTANTS
 // ============================================================================
@@ -203,8 +214,8 @@ async function processMovieBatch(
           toUpdate.map((pm) => pm.movie.year || null),
           toUpdate.map((pm) => JSON.stringify(pm.movie.genres || [])),
           toUpdate.map((pm) => pm.movie.overview || null),
-          toUpdate.map((pm) => pm.movie.communityRating || null),
-          toUpdate.map((pm) => pm.movie.criticRating || null),
+          toUpdate.map((pm) => clampRating(pm.movie.communityRating)),
+          toUpdate.map((pm) => clampRating(pm.movie.criticRating)),
           toUpdate.map((pm) => pm.runtimeMinutes),
           toUpdate.map((pm) => pm.movie.path || null),
           toUpdate.map((pm) => JSON.stringify(pm.movie.mediaSources || [])),
@@ -291,8 +302,8 @@ async function processMovieBatch(
           toInsert.map((pm) => pm.movie.year || null),
           toInsert.map((pm) => JSON.stringify(pm.movie.genres || [])),
           toInsert.map((pm) => pm.movie.overview || null),
-          toInsert.map((pm) => pm.movie.communityRating || null),
-          toInsert.map((pm) => pm.movie.criticRating || null),
+          toInsert.map((pm) => clampRating(pm.movie.communityRating)),
+          toInsert.map((pm) => clampRating(pm.movie.criticRating)),
           toInsert.map((pm) => pm.runtimeMinutes),
           toInsert.map((pm) => pm.movie.path || null),
           toInsert.map((pm) => JSON.stringify(pm.movie.mediaSources || [])),

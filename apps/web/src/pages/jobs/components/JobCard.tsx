@@ -60,6 +60,8 @@ interface JobCardProps {
   onConfigClick: () => void
   onHistoryClick: () => void
   logsContainerRef: (el: HTMLDivElement | null) => void
+  disabled?: boolean
+  disabledMessage?: string
 }
 
 export function JobCard({
@@ -73,6 +75,8 @@ export function JobCard({
   onConfigClick,
   onHistoryClick,
   logsContainerRef,
+  disabled = false,
+  disabledMessage,
 }: JobCardProps) {
   const isRunning = job.status === 'running' || progress?.status === 'running'
   const jobColor = JOB_COLORS[job.name] || '#666'
@@ -115,14 +119,51 @@ export function JobCard({
         borderRadius: 3,
         bgcolor: 'background.paper',
         border: '1px solid',
-        borderColor: isRunning ? `${jobColor}55` : 'divider',
+        borderColor: disabled ? 'divider' : isRunning ? `${jobColor}55` : 'divider',
         overflow: 'hidden',
         transition: 'all 0.3s ease',
-        ...(isRunning && {
+        position: 'relative',
+        ...(isRunning && !disabled && {
           boxShadow: `0 0 20px ${jobColor}22`,
+        }),
+        ...(disabled && {
+          opacity: 0.6,
         }),
       }}
     >
+      {/* Disabled Overlay */}
+      {disabled && disabledMessage && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            bgcolor: 'rgba(0, 0, 0, 0.5)',
+            backdropFilter: 'blur(2px)',
+            zIndex: 10,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            p: 3,
+          }}
+        >
+          <Box
+            sx={{
+              bgcolor: 'background.paper',
+              borderRadius: 2,
+              p: 2,
+              textAlign: 'center',
+              maxWidth: '90%',
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              {disabledMessage}
+            </Typography>
+          </Box>
+        </Box>
+      )}
       {/* Card Header */}
       <Box
         sx={{
@@ -266,12 +307,16 @@ export function JobCard({
                 size="small"
                 startIcon={<PlayArrowIcon />}
                 onClick={onRun}
+                disabled={disabled}
                 sx={{
                   bgcolor: jobColor,
                   minWidth: 90,
                   '&:hover': {
                     bgcolor: jobColor,
                     filter: 'brightness(1.15)',
+                  },
+                  '&.Mui-disabled': {
+                    bgcolor: 'action.disabledBackground',
                   },
                 }}
               >

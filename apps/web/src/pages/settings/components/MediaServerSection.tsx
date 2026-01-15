@@ -16,12 +16,16 @@ import {
   Alert,
   Chip,
   CircularProgress,
+  Divider,
+  FormControlLabel,
+  Switch,
 } from '@mui/material'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorIcon from '@mui/icons-material/Error'
 import RefreshIcon from '@mui/icons-material/Refresh'
+import WarningIcon from '@mui/icons-material/Warning'
 
 interface MediaServerConfig {
   type: string | null
@@ -52,6 +56,44 @@ export function MediaServerSection() {
   const [showApiKey, setShowApiKey] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
 
+  // Security settings
+  const [allowPasswordlessLogin, setAllowPasswordlessLogin] = useState(false)
+  const [savingSecuritySetting, setSavingSecuritySetting] = useState(false)
+  const [securitySuccess, setSecuritySuccess] = useState<string | null>(null)
+
+  const fetchSecuritySettings = useCallback(async () => {
+    try {
+      const response = await fetch('/api/settings/media-server/security', { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        setAllowPasswordlessLogin(data.allowPasswordlessLogin)
+      }
+    } catch {
+      // Default to false if we can't fetch
+    }
+  }, [])
+
+  const handlePasswordlessToggle = async (enabled: boolean) => {
+    setSavingSecuritySetting(true)
+    setSecuritySuccess(null)
+    try {
+      const response = await fetch('/api/settings/media-server/security', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ allowPasswordlessLogin: enabled }),
+      })
+      if (response.ok) {
+        setAllowPasswordlessLogin(enabled)
+        setSecuritySuccess(enabled ? 'Passwordless login enabled' : 'Passwordless login disabled')
+      }
+    } catch {
+      // Revert on error
+    } finally {
+      setSavingSecuritySetting(false)
+    }
+  }
+
   const fetchConfig = useCallback(async () => {
     try {
       const response = await fetch('/api/settings/media-server/config', { credentials: 'include' })
@@ -73,7 +115,8 @@ export function MediaServerSection() {
 
   useEffect(() => {
     fetchConfig()
-  }, [fetchConfig])
+    fetchSecuritySettings()
+  }, [fetchConfig, fetchSecuritySettings])
 
   const handleTestConnection = async () => {
     if (!serverType || !baseUrl || (!apiKey && !config?.hasApiKey)) {
@@ -313,6 +356,51 @@ export function MediaServerSection() {
               Your media server must be accessible from this container. For Docker deployments, 
               use the container name (e.g., <code>http://emby:8096</code>) or the host IP address.
             </Typography>
+          </Box>
+
+          {/* Security Settings */}
+          <Divider />
+          
+          <Box>
+            <Typography variant="subtitle1" fontWeight={500} gutterBottom>
+              Security Settings
+            </Typography>
+            
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={allowPasswordlessLogin}
+                  onChange={(e) => handlePasswordlessToggle(e.target.checked)}
+                  disabled={savingSecuritySetting}
+                />
+              }
+              label="Allow passwordless login"
+            />
+            <Typography variant="body2" color="text.secondary" sx={{ ml: 6, mt: -0.5, mb: 1 }}>
+              Enable this if your media server users don't have passwords set
+            </Typography>
+
+            {allowPasswordlessLogin && (
+              <Alert 
+                severity="warning" 
+                icon={<WarningIcon />}
+                sx={{ mt: 1 }}
+              >
+                <Typography variant="body2" fontWeight={500}>
+                  Security Warning
+                </Typography>
+                <Typography variant="body2">
+                  Only enable this if your Aperture instance is on a private network with no internet exposure. 
+                  If your server is accessible via reverse proxy or the internet, leave this disabled to prevent unauthorized access.
+                </Typography>
+              </Alert>
+            )}
+
+            {securitySuccess && (
+              <Alert severity="success" sx={{ mt: 1 }} onClose={() => setSecuritySuccess(null)}>
+                {securitySuccess}
+              </Alert>
+            )}
           </Box>
         </Stack>
       </CardContent>

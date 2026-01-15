@@ -17,6 +17,17 @@ import type { MediaServerProvider } from '../../media/MediaServerProvider.js'
 
 const logger = createChildLogger('sync-series')
 
+/**
+ * Clamp a rating value to fit within NUMERIC(5,2) column constraints (max 999.99)
+ * Ratings from media servers should be 0-10 (community) or 0-100 (critic),
+ * but bad metadata can sometimes have unexpected values
+ */
+function clampRating(rating: number | null | undefined): number | null {
+  if (rating === null || rating === undefined) return null
+  // Clamp to valid range for NUMERIC(5,2) - max is 999.99
+  return Math.min(Math.max(0, rating), 999.99)
+}
+
 // ============================================================================
 // PERFORMANCE TUNING CONSTANTS
 // ============================================================================
@@ -191,8 +202,8 @@ async function processSeriesBatch(
           toUpdate.map((ps) => JSON.stringify(ps.series.genres || [])),
           toUpdate.map((ps) => ps.series.overview || null),
           toUpdate.map((ps) => ps.series.tagline || null),
-          toUpdate.map((ps) => ps.series.communityRating || null),
-          toUpdate.map((ps) => ps.series.criticRating || null),
+          toUpdate.map((ps) => clampRating(ps.series.communityRating)),
+          toUpdate.map((ps) => clampRating(ps.series.criticRating)),
           toUpdate.map((ps) => ps.series.contentRating || null),
           toUpdate.map((ps) => ps.series.status || null),
           toUpdate.map((ps) => ps.series.totalSeasons || null),
@@ -271,8 +282,8 @@ async function processSeriesBatch(
           toInsert.map((ps) => JSON.stringify(ps.series.genres || [])),
           toInsert.map((ps) => ps.series.overview || null),
           toInsert.map((ps) => ps.series.tagline || null),
-          toInsert.map((ps) => ps.series.communityRating || null),
-          toInsert.map((ps) => ps.series.criticRating || null),
+          toInsert.map((ps) => clampRating(ps.series.communityRating)),
+          toInsert.map((ps) => clampRating(ps.series.criticRating)),
           toInsert.map((ps) => ps.series.contentRating || null),
           toInsert.map((ps) => ps.series.status || null),
           toInsert.map((ps) => ps.series.totalSeasons || null),
@@ -327,6 +338,17 @@ async function processEpisodeBatch(
     }
   }
 
+  // Deduplicate toInsert by (series_id, season_number, episode_number) to avoid
+  // "ON CONFLICT DO UPDATE command cannot affect row a second time" error
+  // This can happen when the media server has multiple versions of the same episode
+  const insertMap = new Map<string, PreparedEpisode>()
+  for (const pe of toInsert) {
+    const key = `${pe.seriesDbId}:${pe.episode.seasonNumber}:${pe.episode.episodeNumber}`
+    // Keep the last occurrence (or could keep first - doesn't matter much)
+    insertMap.set(key, pe)
+  }
+  const deduplicatedInserts = Array.from(insertMap.values())
+
   let added = 0
   let updated = 0
 
@@ -377,7 +399,7 @@ async function processEpisodeBatch(
           ),
           toUpdate.map((pe) => pe.episode.year || null),
           toUpdate.map((pe) => pe.runtimeMinutes),
-          toUpdate.map((pe) => pe.episode.communityRating || null),
+          toUpdate.map((pe) => clampRating(pe.episode.communityRating)),
           toUpdate.map((pe) => JSON.stringify(pe.episode.directors || [])),
           toUpdate.map((pe) => JSON.stringify(pe.episode.writers || [])),
           toUpdate.map((pe) => JSON.stringify(pe.episode.guestStars || [])),
@@ -395,7 +417,7 @@ async function processEpisodeBatch(
   // Bulk INSERT new episodes with UPSERT
   // Note: Array columns (directors, writers) are passed as JSONB
   // and converted back to text[] in SQL to avoid unnest() flattening 2D arrays incorrectly
-  if (toInsert.length > 0) {
+  if (deduplicatedInserts.length > 0) {
     try {
       const result = await query(
         `INSERT INTO episodes (
@@ -434,32 +456,33 @@ async function processEpisodeBatch(
           poster_url = EXCLUDED.poster_url,
           updated_at = NOW()`,
         [
-          toInsert.map((pe) => pe.episode.id),
-          toInsert.map((pe) => pe.seriesDbId),
-          toInsert.map((pe) => pe.episode.seasonNumber),
-          toInsert.map((pe) => pe.episode.episodeNumber),
-          toInsert.map((pe) => pe.episode.name),
-          toInsert.map((pe) => pe.episode.overview || null),
-          toInsert.map((pe) =>
+          deduplicatedInserts.map((pe) => pe.episode.id),
+          deduplicatedInserts.map((pe) => pe.seriesDbId),
+          deduplicatedInserts.map((pe) => pe.episode.seasonNumber),
+          deduplicatedInserts.map((pe) => pe.episode.episodeNumber),
+          deduplicatedInserts.map((pe) => pe.episode.name),
+          deduplicatedInserts.map((pe) => pe.episode.overview || null),
+          deduplicatedInserts.map((pe) =>
             pe.episode.premiereDate ? pe.episode.premiereDate.split('T')[0] : null
           ),
-          toInsert.map((pe) => pe.episode.year || null),
-          toInsert.map((pe) => pe.runtimeMinutes),
-          toInsert.map((pe) => pe.episode.communityRating || null),
-          toInsert.map((pe) => JSON.stringify(pe.episode.directors || [])),
-          toInsert.map((pe) => JSON.stringify(pe.episode.writers || [])),
-          toInsert.map((pe) => JSON.stringify(pe.episode.guestStars || [])),
-          toInsert.map((pe) => pe.episode.path || null),
-          toInsert.map((pe) => JSON.stringify(pe.episode.mediaSources || [])),
-          toInsert.map((pe) => pe.posterUrl),
+          deduplicatedInserts.map((pe) => pe.episode.year || null),
+          deduplicatedInserts.map((pe) => pe.runtimeMinutes),
+          deduplicatedInserts.map((pe) => clampRating(pe.episode.communityRating)),
+          deduplicatedInserts.map((pe) => JSON.stringify(pe.episode.directors || [])),
+          deduplicatedInserts.map((pe) => JSON.stringify(pe.episode.writers || [])),
+          deduplicatedInserts.map((pe) => JSON.stringify(pe.episode.guestStars || [])),
+          deduplicatedInserts.map((pe) => pe.episode.path || null),
+          deduplicatedInserts.map((pe) => JSON.stringify(pe.episode.mediaSources || [])),
+          deduplicatedInserts.map((pe) => pe.posterUrl),
         ]
       )
-      added = result.rowCount || toInsert.length
+      added = result.rowCount || deduplicatedInserts.length
+      // Track all original provider IDs (including duplicates) as processed
       for (const pe of toInsert) {
         existingProviderIds.add(pe.episode.id)
       }
     } catch (err) {
-      logger.error({ err, count: toInsert.length }, 'Failed to bulk insert episodes')
+      logger.error({ err, count: deduplicatedInserts.length }, 'Failed to bulk insert episodes')
     }
   }
 

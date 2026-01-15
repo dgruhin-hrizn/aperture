@@ -8,6 +8,7 @@ import InfoIcon from '@mui/icons-material/Info'
 import StarIcon from '@mui/icons-material/Star'
 import FavoriteIcon from '@mui/icons-material/Favorite'
 import { useNavigate } from 'react-router-dom'
+import { RankBadge } from '@aperture/ui'
 import type { ContentItem } from './types'
 
 interface ContentCardProps {
@@ -95,27 +96,7 @@ export function ContentCard({ item, onPlay }: ContentCardProps) {
           </Box>
         )}
         {/* Rank badge */}
-        {item.rank && (
-          <Box
-            sx={{
-              position: 'absolute',
-              top: 4,
-              left: 4,
-              width: 20,
-              height: 20,
-              borderRadius: '50%',
-              bgcolor: '#6366f1',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 10,
-              fontWeight: 700,
-              color: '#fff',
-            }}
-          >
-            {item.rank}
-          </Box>
-        )}
+        {item.rank && <RankBadge rank={item.rank} size="small" />}
       </Box>
 
       {/* Content */}
