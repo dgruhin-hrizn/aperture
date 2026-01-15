@@ -50,8 +50,6 @@ export interface ProviderMetadata {
   // Required configuration
   requiresApiKey: boolean
   requiresBaseUrl: boolean
-
-  // Default base URL for self-hosted
   defaultBaseUrl?: string
 
   // Available models
@@ -324,6 +322,20 @@ export const PROVIDERS: ProviderMetadata[] = [
         quality: 'budget',
         costTier: 'free',
       },
+      {
+        id: 'nomic-embed-text-v2-moe',
+        name: 'Nomic Embed Text v2 MoE',
+        description: 'Multilingual MoE embedding model. Excellent for non-English content.',
+        capabilities: {
+          supportsToolCalling: false,
+          supportsToolStreaming: false,
+          supportsObjectGeneration: false,
+          supportsEmbeddings: true,
+        },
+        embeddingDimensions: 768,
+        quality: 'standard',
+        costTier: 'free',
+      },
     ],
     chatModels: [
       {
@@ -370,6 +382,81 @@ export const PROVIDERS: ProviderMetadata[] = [
         speed: 'medium',
         costTier: 'free',
         contextWindow: '128K',
+      },
+      {
+        id: 'qwen3',
+        name: 'Qwen 3',
+        description: 'Latest Qwen with reasoning/thinking capabilities. Excellent quality.',
+        capabilities: {
+          supportsToolCalling: true,
+          supportsToolStreaming: true,
+          supportsObjectGeneration: true,
+          supportsEmbeddings: false,
+        },
+        quality: 'premium',
+        speed: 'medium',
+        costTier: 'free',
+        contextWindow: '128K',
+      },
+      {
+        id: 'llama3.1',
+        name: 'Llama 3.1',
+        description: 'Meta\'s most popular model. Excellent tool calling in 8B/70B/405B sizes.',
+        capabilities: {
+          supportsToolCalling: true,
+          supportsToolStreaming: true,
+          supportsObjectGeneration: true,
+          supportsEmbeddings: false,
+        },
+        quality: 'standard',
+        speed: 'medium',
+        costTier: 'free',
+        contextWindow: '128K',
+      },
+      {
+        id: 'firefunction-v2',
+        name: 'FireFunction v2',
+        description: 'Optimized specifically for function calling. Competitive with GPT-4o.',
+        capabilities: {
+          supportsToolCalling: true,
+          supportsToolStreaming: true,
+          supportsObjectGeneration: true,
+          supportsEmbeddings: false,
+        },
+        quality: 'premium',
+        speed: 'medium',
+        costTier: 'free',
+        contextWindow: '8K',
+      },
+      {
+        id: 'gemma3',
+        name: 'Gemma 3',
+        description: 'Google\'s capable model. Runs well on single GPU.',
+        capabilities: {
+          supportsToolCalling: false,
+          supportsToolStreaming: false,
+          supportsObjectGeneration: true,
+          supportsEmbeddings: false,
+        },
+        quality: 'standard',
+        speed: 'fast',
+        costTier: 'free',
+        contextWindow: '8K',
+      },
+      {
+        id: 'phi4',
+        name: 'Phi 4',
+        description: 'Microsoft\'s state-of-the-art 14B model. Great for explanations.',
+        capabilities: {
+          supportsToolCalling: false,
+          supportsToolStreaming: false,
+          supportsObjectGeneration: true,
+          supportsEmbeddings: false,
+        },
+        quality: 'premium',
+        speed: 'fast',
+        costTier: 'free',
+        contextWindow: '16K',
       },
     ],
     textGenerationModels: [],

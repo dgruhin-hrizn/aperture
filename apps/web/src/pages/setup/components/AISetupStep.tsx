@@ -80,14 +80,28 @@ function FunctionConfigCard({
   }, [config?.provider, functionType, getModels])
 
   const handleProviderChange = useCallback(
-    (providerId: string) => {
+    async (providerId: string) => {
       const provider = providers.find((p) => p.id === providerId)
       if (provider) {
+        // Fetch saved credentials for this provider
+        let savedApiKey = ''
+        let savedBaseUrl = ''
+        try {
+          const res = await fetch(`/api/settings/ai/credentials/${providerId}`, { credentials: 'include' })
+          if (res.ok) {
+            const data = await res.json()
+            savedApiKey = data.apiKey || ''
+            savedBaseUrl = data.baseUrl || ''
+          }
+        } catch {
+          // Ignore errors, use defaults
+        }
+
         onConfigChange({
           provider: providerId,
           model: '',
-          apiKey: config?.apiKey || '',
-          baseUrl: config?.baseUrl || '',
+          apiKey: savedApiKey || config?.apiKey || '',
+          baseUrl: savedBaseUrl || provider.defaultBaseUrl || '',
         })
       }
     },
@@ -239,8 +253,8 @@ function FunctionConfigCard({
                 whiteSpace: 'pre-wrap'
               }}>
                 {functionType === 'embeddings' 
-                  ? 'ollama pull nomic-embed-text'
-                  : 'ollama pull llama3.2'
+                  ? 'ollama pull nomic-embed-text\nollama pull mxbai-embed-large'
+                  : 'ollama pull llama3.1\nollama pull qwen3\nollama pull firefunction-v2'
                 }
               </Box>
             </Alert>

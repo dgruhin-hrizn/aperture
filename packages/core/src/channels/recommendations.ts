@@ -2,6 +2,7 @@ import { createChildLogger } from '../lib/logger.js'
 import { query, queryOne } from '../lib/db.js'
 import { getMovieEmbedding } from '../recommender/movies/embeddings.js'
 import { averageEmbeddings } from '../recommender/shared/embeddings.js'
+import { getActiveEmbeddingModelId, getActiveEmbeddingTableName } from '../lib/ai-provider.js'
 import type { ChannelRecommendation } from './types.js'
 import { weightedRandomSample } from './utils.js'
 
@@ -86,79 +87,101 @@ export async function generateChannelRecommendations(
     params.push(channel.max_parental_rating)
   }
 
-  const whereClause = whereClauses.length > 0 ? ` WHERE ${whereClauses.join(' AND ')}` : ''
-
   // Fetch more candidates than needed (3x) to enable variety through weighted sampling
   const poolSize = limit * 3
 
   let candidates: ChannelRecommendation[]
 
   if (tasteProfile) {
-    // Use embedding similarity
-    const vectorStr = `[${tasteProfile.join(',')}]`
-    params.push(vectorStr)
+    // Get active embedding model for filtering
+    const modelId = await getActiveEmbeddingModelId()
+    if (!modelId) {
+      logger.warn('No embedding model configured, falling back to rating-based recommendations')
+      // Fall through to rating-based ordering
+    } else {
+      // Get the embedding table name
+      const tableName = await getActiveEmbeddingTableName('embeddings')
+      
+      // Add model filter to where clause
+      const embeddingWhereClauses = [...whereClauses, `e.model = $${paramIndex++}`]
+      params.push(modelId)
+      const embeddingWhereClause = embeddingWhereClauses.length > 0 ? ` WHERE ${embeddingWhereClauses.join(' AND ')}` : ''
+      
+      // Use embedding similarity
+      const vectorStr = `[${tasteProfile.join(',')}]`
+      params.push(vectorStr)
 
-    const result = await query<{
-      id: string
-      provider_item_id: string
-      title: string
-      year: number | null
-      similarity: number
-    }>(
-      `SELECT m.id, m.provider_item_id, m.title, m.year,
-              1 - (e.embedding <=> $${paramIndex}::halfvec) as similarity
-       FROM embeddings e
-       JOIN movies m ON m.id = e.movie_id
-       ${whereClause}
-       ORDER BY e.embedding <=> $${paramIndex}::halfvec
-       LIMIT $${paramIndex + 1}`,
-      [...params, poolSize + watchedIds.size]
-    )
+      const result = await query<{
+        id: string
+        provider_item_id: string
+        title: string
+        year: number | null
+        similarity: number
+      }>(
+        `SELECT m.id, m.provider_item_id, m.title, m.year,
+                1 - (e.embedding <=> $${paramIndex}::halfvec) as similarity
+         FROM ${tableName} e
+         JOIN movies m ON m.id = e.movie_id
+         ${embeddingWhereClause}
+         ORDER BY e.embedding <=> $${paramIndex}::halfvec
+         LIMIT $${paramIndex + 1}`,
+        [...params, poolSize + watchedIds.size]
+      )
 
-    const pool = result.rows
-      .filter((r) => !watchedIds.has(r.id))
-      .slice(0, poolSize)
-      .map((r) => ({
-        movieId: r.id,
-        providerItemId: r.provider_item_id,
-        title: r.title,
-        year: r.year,
-        score: r.similarity,
-      }))
+      const pool = result.rows
+        .filter((r) => !watchedIds.has(r.id))
+        .slice(0, poolSize)
+        .map((r) => ({
+          movieId: r.id,
+          providerItemId: r.provider_item_id,
+          title: r.title,
+          year: r.year,
+          score: r.similarity,
+        }))
 
-    // Weighted random sampling for variety
-    candidates = weightedRandomSample(pool, limit)
-  } else {
-    // Fallback to rating-based ordering
-    const result = await query<{
-      id: string
-      provider_item_id: string
-      title: string
-      year: number | null
-      community_rating: number | null
-    }>(
-      `SELECT m.id, m.provider_item_id, m.title, m.year, m.community_rating
-       FROM movies m
-       ${whereClause}
-       ORDER BY m.community_rating DESC NULLS LAST
-       LIMIT $${paramIndex}`,
-      [...params, poolSize + watchedIds.size]
-    )
+      // Weighted random sampling for variety
+      candidates = weightedRandomSample(pool, limit)
+      
+      logger.debug(
+        { channelId: channel.id, candidateCount: candidates.length },
+        'Generated channel recommendations'
+      )
 
-    const pool = result.rows
-      .filter((r) => !watchedIds.has(r.id))
-      .slice(0, poolSize)
-      .map((r) => ({
-        movieId: r.id,
-        providerItemId: r.provider_item_id,
-        title: r.title,
-        year: r.year,
-        score: r.community_rating ? r.community_rating / 10 : 0.5,
-      }))
-
-    // Weighted random sampling for variety
-    candidates = weightedRandomSample(pool, limit)
+      return candidates
+    }
   }
+  
+  const whereClause = whereClauses.length > 0 ? ` WHERE ${whereClauses.join(' AND ')}` : ''
+
+  // Fallback to rating-based ordering
+  const result = await query<{
+    id: string
+    provider_item_id: string
+    title: string
+    year: number | null
+    community_rating: number | null
+  }>(
+    `SELECT m.id, m.provider_item_id, m.title, m.year, m.community_rating
+     FROM movies m
+     ${whereClause}
+     ORDER BY m.community_rating DESC NULLS LAST
+     LIMIT $${paramIndex}`,
+    [...params, poolSize + watchedIds.size]
+  )
+
+  const pool = result.rows
+    .filter((r) => !watchedIds.has(r.id))
+    .slice(0, poolSize)
+    .map((r) => ({
+      movieId: r.id,
+      providerItemId: r.provider_item_id,
+      title: r.title,
+      year: r.year,
+      score: r.community_rating ? r.community_rating / 10 : 0.5,
+    }))
+
+  // Weighted random sampling for variety
+  candidates = weightedRandomSample(pool, limit)
 
   logger.info(
     { channelId, candidateCount: candidates.length, topScores: candidates.slice(0, 3).map((c) => c.score.toFixed(3)) },

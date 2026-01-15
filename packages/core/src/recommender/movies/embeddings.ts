@@ -12,6 +12,7 @@ import {
   getEmbeddingModelInstance,
   isAIFunctionConfigured,
   getFunctionConfig,
+  getActiveEmbeddingTableName,
 } from '../../lib/ai-provider.js'
 import { embedMany } from 'ai'
 import { randomUUID } from 'crypto'
@@ -188,9 +189,10 @@ export async function embedMovies(movies: Movie[]): Promise<EmbeddingResult[]> {
 export async function storeEmbeddings(embeddings: EmbeddingResult[]): Promise<void> {
   const config = await getFunctionConfig('embeddings')
   const modelName = config ? `${config.provider}:${config.model}` : 'unknown'
+  const tableName = await getActiveEmbeddingTableName('embeddings')
 
   await query(
-    `INSERT INTO embeddings (movie_id, model, embedding, canonical_text)
+    `INSERT INTO ${tableName} (movie_id, model, embedding, canonical_text)
      SELECT t.movie_id, t.model, t.embedding, t.canonical_text
      FROM unnest($1::uuid[], $2::text[], $3::halfvec[], $4::text[])
      AS t(movie_id, model, embedding, canonical_text)
@@ -205,7 +207,7 @@ export async function storeEmbeddings(embeddings: EmbeddingResult[]): Promise<vo
     ]
   )
 
-  logger.info({ count: embeddings.length }, 'Embeddings stored')
+  logger.info({ count: embeddings.length, table: tableName }, 'Embeddings stored')
 }
 
 /**
@@ -215,6 +217,7 @@ export async function storeEmbeddings(embeddings: EmbeddingResult[]): Promise<vo
 export async function getMoviesWithoutEmbeddings(limit = 100): Promise<Movie[]> {
   const config = await getFunctionConfig('embeddings')
   const modelName = config ? `${config.provider}:${config.model}` : 'unknown'
+  const tableName = await getActiveEmbeddingTableName('embeddings')
 
   // Check if any library configs exist
   const configCheck = await queryOne<{ count: string }>('SELECT COUNT(*) FROM library_config')
@@ -240,7 +243,7 @@ export async function getMoviesWithoutEmbeddings(limit = 100): Promise<Movie[]> 
                 m.tagline, m.directors, m.actors::text, m.studios::text,
                 m.content_rating, m.tags, m.production_countries, m.awards
          FROM movies m
-         LEFT JOIN embeddings e ON e.movie_id = m.id AND e.model = $1
+         LEFT JOIN ${tableName} e ON e.movie_id = m.id AND e.model = $1
          WHERE e.id IS NULL
            AND EXISTS (
              SELECT 1 FROM library_config lc
@@ -252,7 +255,7 @@ export async function getMoviesWithoutEmbeddings(limit = 100): Promise<Movie[]> 
                 m.tagline, m.directors, m.actors::text, m.studios::text,
                 m.content_rating, m.tags, m.production_countries, m.awards
          FROM movies m
-         LEFT JOIN embeddings e ON e.movie_id = m.id AND e.model = $1
+         LEFT JOIN ${tableName} e ON e.movie_id = m.id AND e.model = $1
          WHERE e.id IS NULL
          LIMIT $2`,
     [modelName, limit]
@@ -314,12 +317,13 @@ export async function generateMissingEmbeddings(
     // Check if any library configs exist
     const configCheck = await queryOne<{ count: string }>('SELECT COUNT(*) FROM library_config')
     const hasLibraryConfigs = configCheck && parseInt(configCheck.count, 10) > 0
+    const tableName = await getActiveEmbeddingTableName('embeddings')
 
     const countResult = await query<{ count: string }>(
       hasLibraryConfigs
         ? `SELECT COUNT(*) as count
            FROM movies m
-           LEFT JOIN embeddings e ON e.movie_id = m.id AND e.model = $1
+           LEFT JOIN ${tableName} e ON e.movie_id = m.id AND e.model = $1
            WHERE e.id IS NULL
              AND EXISTS (
                SELECT 1 FROM library_config lc
@@ -328,7 +332,7 @@ export async function generateMissingEmbeddings(
              )`
         : `SELECT COUNT(*) as count
            FROM movies m
-           LEFT JOIN embeddings e ON e.movie_id = m.id AND e.model = $1
+           LEFT JOIN ${tableName} e ON e.movie_id = m.id AND e.model = $1
            WHERE e.id IS NULL`,
       [modelName]
     )
@@ -432,9 +436,10 @@ export async function generateMissingEmbeddings(
 export async function getMovieEmbedding(movieId: string): Promise<number[] | null> {
   const config = await getFunctionConfig('embeddings')
   const modelName = config ? `${config.provider}:${config.model}` : 'unknown'
+  const tableName = await getActiveEmbeddingTableName('embeddings')
 
   const result = await queryOne<{ embedding: string }>(
-    `SELECT embedding::text FROM embeddings WHERE movie_id = $1 AND model = $2`,
+    `SELECT embedding::text FROM ${tableName} WHERE movie_id = $1 AND model = $2`,
     [movieId, modelName]
   )
 

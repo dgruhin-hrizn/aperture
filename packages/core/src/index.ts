@@ -29,6 +29,14 @@ export {
   isAnyAIConfigured,
   isFullyConfigured,
   getCurrentEmbeddingDimensions,
+  getActiveEmbeddingModelId,
+  // Multi-Dimension Embedding Tables
+  VALID_EMBEDDING_DIMENSIONS,
+  getEmbeddingTableSuffix,
+  getActiveEmbeddingTableName,
+  // Legacy Embedding Cleanup
+  checkLegacyEmbeddingsExist,
+  dropLegacyEmbeddingTables,
   testProviderConnection,
   getOpenAIApiKeyLegacy,
   getProvider,
@@ -56,6 +64,8 @@ export {
   type ProviderMetadata,
   type ModelCapabilities,
   type FunctionPricing,
+  type ValidEmbeddingDimension,
+  type LegacyEmbeddingsInfo,
 } from './lib/index.js'
 
 // Migrations

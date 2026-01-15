@@ -16,7 +16,7 @@ import {
   failJob,
 } from '../../jobs/progress.js'
 import { randomUUID } from 'crypto'
-import { getEmbeddingModel } from '../../settings/systemSettings.js'
+import { getActiveEmbeddingModelId, getActiveEmbeddingTableName } from '../../lib/ai-provider.js'
 import { averageEmbeddings } from '../shared/index.js'
 import {
   calculateRatingScore,
@@ -175,13 +175,20 @@ async function buildSeriesTasteProfile(
     return null
   }
 
-  const model = await getEmbeddingModel()
+  const model = await getActiveEmbeddingModelId()
+  if (!model) {
+    logger.warn('No embedding model configured for building series taste profile')
+    return null
+  }
+
+  // Get the embedding table name
+  const tableName = await getActiveEmbeddingTableName('series_embeddings')
 
   // Get series embeddings
   const seriesIds = watchedSeries.map((w) => w.seriesId)
   const result = await query<{ series_id: string; embedding: string }>(
     `SELECT series_id, embedding::text
-     FROM series_embeddings
+     FROM ${tableName}
      WHERE series_id = ANY($1) AND model = $2`,
     [seriesIds, model]
   )
@@ -244,7 +251,14 @@ async function getSeriesCandidates(
   includeWatched: boolean,
   maxParentalRating: number | null
 ): Promise<SeriesCandidate[]> {
-  const model = await getEmbeddingModel()
+  const model = await getActiveEmbeddingModelId()
+  if (!model) {
+    logger.warn('No embedding model configured for series candidate generation')
+    return []
+  }
+
+  // Get the embedding table name
+  const tableName = await getActiveEmbeddingTableName('series_embeddings')
   const vectorStr = `[${tasteProfile.join(',')}]`
 
   // Build query with optional parental rating filter
@@ -285,7 +299,7 @@ async function getSeriesCandidates(
        s.community_rating,
        1 - (se.embedding <=> $1::halfvec) as similarity
      FROM series s
-     JOIN series_embeddings se ON se.series_id = s.id AND se.model = $2
+     JOIN ${tableName} se ON se.series_id = s.id AND se.model = $2
      WHERE 1=1 ${ratingFilter}
      ORDER BY se.embedding <=> $1::halfvec
      LIMIT $3`,

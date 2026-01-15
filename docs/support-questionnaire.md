@@ -6,7 +6,7 @@ Please fill out this questionnaire before posting a support request. This helps 
 
 ## 📋 Basic Information
 
-**Aperture Version:** (e.g., v0.4.2 - check Admin → Dashboard or container logs)
+**Aperture Version:** (e.g., v0.4.3-llm - check Admin → Dashboard or container logs)
 
 **Platform:**
 
@@ -14,14 +14,14 @@ Please fill out this questionnaire before posting a support request. This helps 
 - [ ] Synology
 - [ ] QNAP
 - [ ] Linux/Docker
-- [ ] Other: ****\_\_\_****
+- [ ] Other: \***\*\_\_\_\*\***
 
 **Media Server:**
 
 - [ ] Emby
 - [ ] Jellyfin
 
-**Media Server Version:** ****\_\_\_****
+**Media Server Version:** \***\*\_\_\_\*\***
 
 ---
 
@@ -192,7 +192,7 @@ Backups:             /your/path:/backups
 **Are there any alerts showing in the Admin panel?**
 
 - [ ] No alerts
-- [ ] Yes: ****\_\_\_****
+- [ ] Yes: \***\*\_\_\_\*\***
 
 ---
 
@@ -206,7 +206,7 @@ Backups:             /your/path:/backups
 - [ ] Tested API connections (OpenAI, media server)
 - [ ] Ran Auto-Detect Paths
 - [ ] Rescanned libraries in media server
-- [ ] Other: ****\_\_\_****
+- [ ] Other: \***\*\_\_\_\*\***
 
 ---
 

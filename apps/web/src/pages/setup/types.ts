@@ -50,6 +50,7 @@ export interface AIProviderOption {
   description: string
   requiresApiKey: boolean
   requiresBaseUrl: boolean
+  defaultBaseUrl?: string
   supportsEmbeddings: boolean
   supportsChat: boolean
   supportsTextGeneration: boolean

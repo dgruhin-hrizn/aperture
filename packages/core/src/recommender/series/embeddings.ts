@@ -12,6 +12,7 @@ import {
   getEmbeddingModelInstance,
   isAIFunctionConfigured,
   getFunctionConfig,
+  getActiveEmbeddingTableName,
 } from '../../lib/ai-provider.js'
 import { embedMany } from 'ai'
 import { randomUUID } from 'crypto'
@@ -347,9 +348,10 @@ export async function embedEpisodes(
 export async function storeSeriesEmbeddings(embeddings: SeriesEmbeddingResult[]): Promise<void> {
   const config = await getFunctionConfig('embeddings')
   const modelName = config ? `${config.provider}:${config.model}` : 'unknown'
+  const tableName = await getActiveEmbeddingTableName('series_embeddings')
 
   await query(
-    `INSERT INTO series_embeddings (series_id, model, embedding, canonical_text)
+    `INSERT INTO ${tableName} (series_id, model, embedding, canonical_text)
      SELECT t.series_id, t.model, t.embedding, t.canonical_text
      FROM unnest($1::uuid[], $2::text[], $3::halfvec[], $4::text[])
      AS t(series_id, model, embedding, canonical_text)
@@ -364,7 +366,7 @@ export async function storeSeriesEmbeddings(embeddings: SeriesEmbeddingResult[])
     ]
   )
 
-  logger.info({ count: embeddings.length }, 'Series embeddings stored')
+  logger.info({ count: embeddings.length, table: tableName }, 'Series embeddings stored')
 }
 
 /**
@@ -373,9 +375,10 @@ export async function storeSeriesEmbeddings(embeddings: SeriesEmbeddingResult[])
 export async function storeEpisodeEmbeddings(embeddings: EpisodeEmbeddingResult[]): Promise<void> {
   const config = await getFunctionConfig('embeddings')
   const modelName = config ? `${config.provider}:${config.model}` : 'unknown'
+  const tableName = await getActiveEmbeddingTableName('episode_embeddings')
 
   await query(
-    `INSERT INTO episode_embeddings (episode_id, model, embedding, canonical_text)
+    `INSERT INTO ${tableName} (episode_id, model, embedding, canonical_text)
      SELECT t.episode_id, t.model, t.embedding, t.canonical_text
      FROM unnest($1::uuid[], $2::text[], $3::halfvec[], $4::text[])
      AS t(episode_id, model, embedding, canonical_text)
@@ -390,7 +393,7 @@ export async function storeEpisodeEmbeddings(embeddings: EpisodeEmbeddingResult[
     ]
   )
 
-  logger.info({ count: embeddings.length }, 'Episode embeddings stored')
+  logger.info({ count: embeddings.length, table: tableName }, 'Episode embeddings stored')
 }
 
 /**
@@ -399,6 +402,7 @@ export async function storeEpisodeEmbeddings(embeddings: EpisodeEmbeddingResult[
 export async function getSeriesWithoutEmbeddings(limit = 100): Promise<SeriesForEmbedding[]> {
   const config = await getFunctionConfig('embeddings')
   const modelName = config ? `${config.provider}:${config.model}` : 'unknown'
+  const tableName = await getActiveEmbeddingTableName('series_embeddings')
 
   // Check if any TV library configs exist
   const configCheck = await queryOne<{ count: string }>(
@@ -432,7 +436,7 @@ export async function getSeriesWithoutEmbeddings(limit = 100): Promise<SeriesFor
                 s.content_rating, s.tags, s.production_countries, s.awards,
                 s.total_seasons, s.total_episodes
          FROM series s
-         LEFT JOIN series_embeddings e ON e.series_id = s.id AND e.model = $1
+         LEFT JOIN ${tableName} e ON e.series_id = s.id AND e.model = $1
          WHERE e.id IS NULL
            AND EXISTS (
              SELECT 1 FROM library_config lc
@@ -445,7 +449,7 @@ export async function getSeriesWithoutEmbeddings(limit = 100): Promise<SeriesFor
                 s.content_rating, s.tags, s.production_countries, s.awards,
                 s.total_seasons, s.total_episodes
          FROM series s
-         LEFT JOIN series_embeddings e ON e.series_id = s.id AND e.model = $1
+         LEFT JOIN ${tableName} e ON e.series_id = s.id AND e.model = $1
          WHERE e.id IS NULL
          LIMIT $2`,
     [modelName, limit]
@@ -479,6 +483,7 @@ export async function getSeriesWithoutEmbeddings(limit = 100): Promise<SeriesFor
 export async function getEpisodesWithoutEmbeddings(limit = 100): Promise<EpisodeForEmbedding[]> {
   const config = await getFunctionConfig('embeddings')
   const modelName = config ? `${config.provider}:${config.model}` : 'unknown'
+  const tableName = await getActiveEmbeddingTableName('episode_embeddings')
 
   const result = await query<{
     id: string
@@ -498,7 +503,7 @@ export async function getEpisodesWithoutEmbeddings(limit = 100): Promise<Episode
             e.overview, e.year, e.directors, e.writers, e.guest_stars::text
      FROM episodes e
      JOIN series s ON s.id = e.series_id
-     LEFT JOIN episode_embeddings ee ON ee.episode_id = e.id AND ee.model = $1
+     LEFT JOIN ${tableName} ee ON ee.episode_id = e.id AND ee.model = $1
      WHERE ee.id IS NULL
      LIMIT $2`,
     [modelName, limit]
@@ -555,11 +560,12 @@ export async function generateMissingSeriesEmbeddings(
 
     // Step 2: Count series needing embeddings
     setJobStep(jobId, 1, 'Counting series without embeddings')
+    const seriesTableName = await getActiveEmbeddingTableName('series_embeddings')
 
     const seriesCountResult = await query<{ count: string }>(
       `SELECT COUNT(*) as count
        FROM series s
-       LEFT JOIN series_embeddings e ON e.series_id = s.id AND e.model = $1
+       LEFT JOIN ${seriesTableName} e ON e.series_id = s.id AND e.model = $1
        WHERE e.id IS NULL`,
       [modelName]
     )
@@ -622,11 +628,12 @@ export async function generateMissingSeriesEmbeddings(
 
     if (includeEpisodes) {
       setJobStep(jobId, 3, 'Counting episodes without embeddings')
+      const episodeTableName = await getActiveEmbeddingTableName('episode_embeddings')
 
       const episodeCountResult = await query<{ count: string }>(
         `SELECT COUNT(*) as count
          FROM episodes e
-         LEFT JOIN episode_embeddings ee ON ee.episode_id = e.id AND ee.model = $1
+         LEFT JOIN ${episodeTableName} ee ON ee.episode_id = e.id AND ee.model = $1
          WHERE ee.id IS NULL`,
         [modelName]
       )
@@ -706,9 +713,10 @@ export async function generateMissingSeriesEmbeddings(
 export async function getSeriesEmbedding(seriesId: string): Promise<number[] | null> {
   const config = await getFunctionConfig('embeddings')
   const modelName = config ? `${config.provider}:${config.model}` : 'unknown'
+  const tableName = await getActiveEmbeddingTableName('series_embeddings')
 
   const result = await queryOne<{ embedding: string }>(
-    `SELECT embedding::text FROM series_embeddings WHERE series_id = $1 AND model = $2`,
+    `SELECT embedding::text FROM ${tableName} WHERE series_id = $1 AND model = $2`,
     [seriesId, modelName]
   )
 
@@ -726,9 +734,10 @@ export async function getSeriesEmbedding(seriesId: string): Promise<number[] | n
 export async function getEpisodeEmbedding(episodeId: string): Promise<number[] | null> {
   const config = await getFunctionConfig('embeddings')
   const modelName = config ? `${config.provider}:${config.model}` : 'unknown'
+  const tableName = await getActiveEmbeddingTableName('episode_embeddings')
 
   const result = await queryOne<{ embedding: string }>(
-    `SELECT embedding::text FROM episode_embeddings WHERE episode_id = $1 AND model = $2`,
+    `SELECT embedding::text FROM ${tableName} WHERE episode_id = $1 AND model = $2`,
     [episodeId, modelName]
   )
 
@@ -748,10 +757,11 @@ export async function getSeriesEpisodeEmbeddings(
 ): Promise<Array<{ episodeId: string; embedding: number[] }>> {
   const config = await getFunctionConfig('embeddings')
   const modelName = config ? `${config.provider}:${config.model}` : 'unknown'
+  const tableName = await getActiveEmbeddingTableName('episode_embeddings')
 
   const result = await query<{ episode_id: string; embedding: string }>(
     `SELECT ee.episode_id, ee.embedding::text
-     FROM episode_embeddings ee
+     FROM ${tableName} ee
      JOIN episodes e ON e.id = ee.episode_id
      WHERE e.series_id = $1 AND ee.model = $2`,
     [seriesId, modelName]

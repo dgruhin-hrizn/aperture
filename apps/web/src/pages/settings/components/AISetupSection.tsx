@@ -21,11 +21,6 @@ import {
   Link,
   alpha,
   Divider,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
 } from '@mui/material'
 import {
   Visibility as VisibilityIcon,
@@ -37,6 +32,8 @@ import {
   Cloud as CloudIcon,
   Computer as ComputerIcon,
   Warning as WarningIcon,
+  Delete as DeleteIcon,
+  Storage as StorageIcon,
 } from '@mui/icons-material'
 import { CostEstimatorSection } from './CostEstimatorSection'
 
@@ -178,21 +175,9 @@ function AIFunctionCard({
   const [success, setSuccess] = useState<string | null>(null)
   const [testResult, setTestResult] = useState<{ success: boolean; error?: string } | null>(null)
   
-  // Embedding dimension change confirmation dialog
-  const [showEmbeddingDialog, setShowEmbeddingDialog] = useState(false)
-  const [pendingConfig, setPendingConfig] = useState<FunctionConfig | null>(null)
-  const [clearingEmbeddings, setClearingEmbeddings] = useState(false)
-  
   const isConfigured = Boolean(config)
   const providerInfo = PROVIDER_INFO[provider]
   const selectedModel = models.find(m => m.id === model)
-  
-  // Get current configured model's dimensions
-  const currentConfiguredModel = config?.model
-  const currentModels = models // Use current models list
-  const configuredModelInfo = currentModels.find(m => m.id === currentConfiguredModel)
-  const configuredDimensions = configuredModelInfo?.embeddingDimensions
-  const newDimensions = selectedModel?.embeddingDimensions
   
   // Check capability warning
   const hasCapabilityWarning = requiredCapability === 'toolCalling' && 
@@ -209,6 +194,19 @@ function AIFunctionCard({
       .catch(() => setProviders(Object.values(PROVIDER_INFO)))
       .finally(() => setLoadingProviders(false))
   }, [functionType])
+
+  // Load saved credentials for current provider on mount (if no apiKey in config)
+  useEffect(() => {
+    if (!config?.apiKey && provider) {
+      fetch(`/api/settings/ai/credentials/${provider}`, { credentials: 'include' })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data?.apiKey) setApiKey(data.apiKey)
+          if (data?.baseUrl && !baseUrl) setBaseUrl(data.baseUrl)
+        })
+        .catch(() => {})
+    }
+  }, []) // Only run once on mount
 
   // Fetch models when provider changes
   useEffect(() => {
@@ -233,12 +231,26 @@ function AIFunctionCard({
     }
   }, [provider])
 
-  const handleProviderChange = (newProvider: ProviderType) => {
+  const handleProviderChange = async (newProvider: ProviderType) => {
     setProvider(newProvider)
     setModel('')
-    setApiKey('')
-    setBaseUrl(PROVIDER_INFO[newProvider]?.defaultBaseUrl || '')
     setTestResult(null)
+    
+    // Fetch saved credentials for this provider
+    try {
+      const res = await fetch(`/api/settings/ai/credentials/${newProvider}`, { credentials: 'include' })
+      if (res.ok) {
+        const data = await res.json()
+        setApiKey(data.apiKey || '')
+        setBaseUrl(data.baseUrl || PROVIDER_INFO[newProvider]?.defaultBaseUrl || '')
+      } else {
+        setApiKey('')
+        setBaseUrl(PROVIDER_INFO[newProvider]?.defaultBaseUrl || '')
+      }
+    } catch {
+      setApiKey('')
+      setBaseUrl(PROVIDER_INFO[newProvider]?.defaultBaseUrl || '')
+    }
   }
 
   const handleTest = async () => {
@@ -274,25 +286,11 @@ function AIFunctionCard({
       baseUrl: baseUrl || undefined,
     }
     
-    // Check if this is an embedding config change with different dimensions
-    if (functionType === 'embeddings' && isConfigured && configuredDimensions && newDimensions && 
-        configuredDimensions !== newDimensions) {
-      // Show confirmation dialog
-      setPendingConfig(newConfig)
-      setShowEmbeddingDialog(true)
-      return
-    }
-    
-    // Normal save
-    await doSave(newConfig)
-  }
-  
-  const doSave = async (configToSave: FunctionConfig) => {
     setSaving(true)
     setError(null)
     setSuccess(null)
     try {
-      await onSave(configToSave)
+      await onSave(newConfig)
       setSuccess('Configuration saved!')
       setApiKey('') // Clear for security
       setTimeout(() => setSuccess(null), 3000)
@@ -301,58 +299,6 @@ function AIFunctionCard({
     } finally {
       setSaving(false)
     }
-  }
-  
-  const handleEmbeddingDialogConfirm = async () => {
-    if (!pendingConfig) return
-    
-    setClearingEmbeddings(true)
-    setError(null)
-    
-    try {
-      // 1. Clear all embeddings
-      const clearRes = await fetch('/api/settings/ai/embeddings/clear', {
-        method: 'POST',
-        credentials: 'include',
-      })
-      if (!clearRes.ok) {
-        throw new Error('Failed to clear embeddings')
-      }
-      
-      // 2. Save the new config
-      await onSave(pendingConfig)
-      
-      // 3. Trigger embedding regeneration job
-      await fetch('/api/jobs/generate-movie-embeddings/run', {
-        method: 'POST',
-        credentials: 'include',
-      })
-      await fetch('/api/jobs/generate-series-embeddings/run', {
-        method: 'POST',
-        credentials: 'include',
-      })
-      
-      setSuccess('Embeddings cleared and regeneration started!')
-      setApiKey('')
-      setTimeout(() => setSuccess(null), 5000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update embeddings')
-    } finally {
-      setClearingEmbeddings(false)
-      setShowEmbeddingDialog(false)
-      setPendingConfig(null)
-    }
-  }
-  
-  const handleEmbeddingDialogCancel = () => {
-    // Restore previous selection
-    if (config) {
-      setProvider(config.provider)
-      setModel(config.model)
-      setBaseUrl(config.baseUrl || '')
-    }
-    setShowEmbeddingDialog(false)
-    setPendingConfig(null)
   }
 
   return (
@@ -576,8 +522,8 @@ function AIFunctionCard({
               whiteSpace: 'pre-wrap'
             }}>
               {functionType === 'embeddings' 
-                ? '# Embedding models\nollama pull nomic-embed-text\nollama pull mxbai-embed-large'
-                : '# Chat/Text models\nollama pull llama3.2\nollama pull mistral\nollama pull qwen2.5'
+                ? '# Embedding models\nollama pull nomic-embed-text\nollama pull mxbai-embed-large\nollama pull nomic-embed-text-v2-moe  # multilingual'
+                : '# Chat/Text models (with tool calling)\nollama pull llama3.1\nollama pull qwen3\nollama pull firefunction-v2  # best for tools\n\n# Text generation only\nollama pull gemma3\nollama pull phi4'
               }
             </Box>
           </Alert>
@@ -621,64 +567,166 @@ function AIFunctionCard({
           </Button>
         </Box>
       </CardContent>
-      
-      {/* Embedding Dimension Change Confirmation Dialog */}
-      <Dialog
-        open={showEmbeddingDialog}
-        onClose={handleEmbeddingDialogCancel}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle sx={{ color: 'warning.main' }}>
-          ⚠️ Embedding Dimensions Changed
-        </DialogTitle>
-        <DialogContent>
-          <DialogContentText sx={{ mb: 2 }}>
-            You are switching from <strong>{configuredDimensions}d</strong> embeddings to{' '}
-            <strong>{newDimensions}d</strong> embeddings.
-          </DialogContentText>
-          <DialogContentText sx={{ mb: 2 }}>
-            <strong>This will:</strong>
-          </DialogContentText>
-          <Box component="ul" sx={{ pl: 2, mb: 2 }}>
-            <Typography component="li" variant="body2" color="text.secondary">
-              Delete all existing movie, series, and episode embeddings
-            </Typography>
-            <Typography component="li" variant="body2" color="text.secondary">
-              Start regenerating embeddings with the new model
-            </Typography>
-            <Typography component="li" variant="body2" color="text.secondary">
-              Semantic search and recommendations will be unavailable until complete
-            </Typography>
-          </Box>
-          <Alert severity="warning" sx={{ mt: 2 }}>
-            This process may take a while depending on your library size and will use API credits.
+    </Card>
+  )
+}
+
+interface EmbeddingSet {
+  model: string
+  dimensions: number
+  movieCount: number
+  seriesCount: number
+  episodeCount: number
+  totalCount: number
+  isActive: boolean
+}
+
+/**
+ * Component to manage embedding sets - view and delete old embedding sets
+ */
+function EmbeddingSetsManager() {
+  const [sets, setSets] = useState<EmbeddingSet[]>([])
+  const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchSets = useCallback(async () => {
+    try {
+      const res = await fetch('/api/settings/ai/embeddings/sets', { credentials: 'include' })
+      if (res.ok) {
+        const data = await res.json()
+        setSets(data.sets || [])
+      }
+    } catch {
+      // Ignore
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchSets()
+  }, [fetchSets])
+
+  const handleDelete = async (model: string) => {
+    if (!confirm(`Delete all embeddings for "${model}"? This cannot be undone.`)) {
+      return
+    }
+
+    setDeleting(model)
+    setError(null)
+    try {
+      const res = await fetch(`/api/settings/ai/embeddings/sets/${encodeURIComponent(model)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to delete')
+      }
+      // Refresh the list
+      fetchSets()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete embedding set')
+    } finally {
+      setDeleting(null)
+    }
+  }
+
+  if (loading) {
+    return null
+  }
+
+  // Don't show if no sets or only one active set
+  if (sets.length <= 1) {
+    return null
+  }
+
+  const inactiveSets = sets.filter(s => !s.isActive)
+  if (inactiveSets.length === 0) {
+    return null
+  }
+
+  return (
+    <Card sx={{ mt: 3 }}>
+      <CardContent>
+        <Box display="flex" alignItems="center" gap={1} mb={2}>
+          <StorageIcon color="primary" />
+          <Typography variant="h6">Embedding Sets</Typography>
+          <Chip 
+            size="small" 
+            label={`${sets.length} sets`} 
+            sx={{ ml: 'auto' }}
+          />
+        </Box>
+
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          You have embeddings stored from multiple models. Inactive sets can be deleted to free up storage.
+          When you switch back to a model with existing embeddings, they will be used immediately without regenerating.
+        </Typography>
+
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+            {error}
           </Alert>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button 
-            onClick={handleEmbeddingDialogCancel} 
-            disabled={clearingEmbeddings}
-          >
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleEmbeddingDialogConfirm} 
-            variant="contained" 
-            color="warning"
-            disabled={clearingEmbeddings}
-          >
-            {clearingEmbeddings ? (
-              <>
-                <CircularProgress size={16} sx={{ mr: 1 }} />
-                Clearing Embeddings...
-              </>
-            ) : (
-              'Confirm & Regenerate'
-            )}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        )}
+
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {sets.map((set) => (
+            <Box
+              key={set.model}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                p: 1.5,
+                borderRadius: 1,
+                bgcolor: set.isActive ? alpha('#4caf50', 0.1) : 'background.default',
+                border: 1,
+                borderColor: set.isActive ? 'success.main' : 'divider',
+              }}
+            >
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Typography 
+                    variant="body2" 
+                    fontWeight={set.isActive ? 600 : 400}
+                    sx={{ 
+                      overflow: 'hidden', 
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {set.model}
+                  </Typography>
+                  {set.isActive && (
+                    <Chip size="small" label="Active" color="success" />
+                  )}
+                </Box>
+                <Typography variant="caption" color="text.secondary">
+                  {set.dimensions}d • {set.movieCount.toLocaleString()} movies • {set.seriesCount.toLocaleString()} series • {set.episodeCount.toLocaleString()} episodes
+                </Typography>
+              </Box>
+              
+              {!set.isActive && (
+                <IconButton
+                  size="small"
+                  color="error"
+                  onClick={() => handleDelete(set.model)}
+                  disabled={deleting === set.model}
+                  title="Delete this embedding set"
+                >
+                  {deleting === set.model ? (
+                    <CircularProgress size={16} />
+                  ) : (
+                    <DeleteIcon fontSize="small" />
+                  )}
+                </IconButton>
+              )}
+            </Box>
+          ))}
+        </Box>
+      </CardContent>
     </Card>
   )
 }
@@ -779,6 +827,9 @@ export function AISetupSection() {
           onSave={(c) => handleSave('textGeneration', c)}
         />
       </Box>
+
+      {/* Embedding Sets Manager */}
+      <EmbeddingSetsManager />
 
       {/* Cost Estimator */}
       <Divider sx={{ my: 4 }} />

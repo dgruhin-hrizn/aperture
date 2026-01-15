@@ -445,6 +445,124 @@ export async function getCurrentEmbeddingDimensions(): Promise<number | undefine
   return getEmbeddingDimensions(config.provider, config.model)
 }
 
+/**
+ * Get the active embedding model ID (in format "provider:model")
+ * Used by queries to filter embeddings by the currently configured model
+ */
+export async function getActiveEmbeddingModelId(): Promise<string | null> {
+  const config = await getFunctionConfig('embeddings')
+  if (!config) return null
+  return `${config.provider}:${config.model}`
+}
+
+// ============================================================================
+// Multi-Dimension Embedding Table Helpers
+// ============================================================================
+
+/**
+ * Valid embedding dimensions supported by the system.
+ * Each dimension has a corresponding table (e.g., embeddings_768, embeddings_3072)
+ */
+export const VALID_EMBEDDING_DIMENSIONS = [256, 384, 512, 768, 1024, 1536, 3072] as const
+
+export type ValidEmbeddingDimension = (typeof VALID_EMBEDDING_DIMENSIONS)[number]
+
+/**
+ * Get the table suffix for a given embedding dimension
+ * @throws Error if dimension is not supported
+ */
+export function getEmbeddingTableSuffix(dimensions: number): string {
+  if (!VALID_EMBEDDING_DIMENSIONS.includes(dimensions as ValidEmbeddingDimension)) {
+    throw new Error(
+      `Unsupported embedding dimension: ${dimensions}. ` +
+        `Supported dimensions: ${VALID_EMBEDDING_DIMENSIONS.join(', ')}`
+    )
+  }
+  return `_${dimensions}`
+}
+
+/**
+ * Get the full table name for the current embedding model's dimension
+ * @param baseTable - Base table name ('embeddings', 'series_embeddings', 'episode_embeddings')
+ * @returns Full table name like 'embeddings_768' or 'series_embeddings_3072'
+ * @throws Error if no embedding model is configured or dimensions are unknown
+ */
+export async function getActiveEmbeddingTableName(
+  baseTable: 'embeddings' | 'series_embeddings' | 'episode_embeddings'
+): Promise<string> {
+  const dims = await getCurrentEmbeddingDimensions()
+  if (!dims) {
+    throw new Error('No embedding model configured or dimensions unknown')
+  }
+  return `${baseTable}${getEmbeddingTableSuffix(dims)}`
+}
+
+// ============================================================================
+// Legacy Embedding Table Helpers
+// ============================================================================
+
+export interface LegacyEmbeddingsInfo {
+  exists: boolean
+  tables: Array<{
+    name: string
+    rowCount: number
+  }>
+  totalRows: number
+}
+
+const LEGACY_TABLE_NAMES = ['embeddings_legacy', 'series_embeddings_legacy', 'episode_embeddings_legacy']
+
+/**
+ * Check if legacy embedding tables exist (from before multi-dimension migration)
+ */
+export async function checkLegacyEmbeddingsExist(): Promise<LegacyEmbeddingsInfo> {
+  const { query } = await import('./db.js')
+
+  const tablesInfo: Array<{ name: string; rowCount: number }> = []
+
+  for (const tableName of LEGACY_TABLE_NAMES) {
+    // Check if table exists
+    const existsResult = await query<{ exists: boolean }>(
+      `SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = $1
+      )`,
+      [tableName]
+    )
+
+    if (existsResult.rows[0]?.exists) {
+      // Get row count
+      const countResult = await query<{ count: string }>(
+        `SELECT COUNT(*) as count FROM ${tableName}`
+      )
+      tablesInfo.push({
+        name: tableName,
+        rowCount: parseInt(countResult.rows[0]?.count || '0', 10),
+      })
+    }
+  }
+
+  return {
+    exists: tablesInfo.length > 0,
+    tables: tablesInfo,
+    totalRows: tablesInfo.reduce((sum, t) => sum + t.rowCount, 0),
+  }
+}
+
+/**
+ * Drop all legacy embedding tables
+ * @throws Error if drop fails
+ */
+export async function dropLegacyEmbeddingTables(): Promise<void> {
+  const { query } = await import('./db.js')
+
+  for (const tableName of LEGACY_TABLE_NAMES) {
+    await query(`DROP TABLE IF EXISTS ${tableName} CASCADE`)
+    logger.info({ table: tableName }, 'Dropped legacy embedding table')
+  }
+}
+
 // ============================================================================
 // Connection Testing
 // ============================================================================

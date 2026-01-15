@@ -29,6 +29,14 @@ export {
   isAnyAIConfigured,
   isFullyConfigured,
   getCurrentEmbeddingDimensions,
+  getActiveEmbeddingModelId,
+  // Multi-Dimension Embedding Tables
+  VALID_EMBEDDING_DIMENSIONS,
+  getEmbeddingTableSuffix,
+  getActiveEmbeddingTableName,
+  // Legacy Embedding Cleanup
+  checkLegacyEmbeddingsExist,
+  dropLegacyEmbeddingTables,
   // Connection Testing
   testProviderConnection,
   // Backwards Compatibility
@@ -60,4 +68,6 @@ export {
   type ProviderMetadata,
   type ModelCapabilities,
   type FunctionPricing,
+  type ValidEmbeddingDimension,
+  type LegacyEmbeddingsInfo,
 } from './ai-provider.js'

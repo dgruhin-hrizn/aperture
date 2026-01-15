@@ -38,6 +38,7 @@ import {
   MDBListConfigSection,
   BackupSection,
   PosterRepairSection,
+  LegacyEmbeddingsSection,
 } from './components'
 import { ApiErrorAlert } from '../../components/ApiErrorAlert'
 
@@ -243,7 +244,10 @@ export function SettingsPage() {
 
           {/* Maintenance Tab */}
           <TabPanel value={tabValue} index={5}>
-            <PosterRepairSection />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <LegacyEmbeddingsSection />
+              <PosterRepairSection />
+            </Box>
           </TabPanel>
 
           {/* System Tab */}

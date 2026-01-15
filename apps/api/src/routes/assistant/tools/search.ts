@@ -3,7 +3,7 @@
  */
 import { tool, embed, generateObject } from 'ai'
 import { z } from 'zod'
-import { getTextGenerationModelInstance } from '@aperture/core'
+import { getTextGenerationModelInstance, getActiveEmbeddingTableName } from '@aperture/core'
 import { query, queryOne } from '../../../lib/db.js'
 import { buildPlayLink } from '../helpers/mediaServer.js'
 import type { ContentItem } from '../schemas/index.js'
@@ -389,12 +389,13 @@ export function createSearchTools(ctx: ToolContext) {
           const modelId = ctx.embeddingModelId
 
           if (type === 'movies' || type === 'both') {
+            const movieTableName = await getActiveEmbeddingTableName('embeddings')
             const movieResults = await query<
               MovieResult & { provider_item_id?: string; similarity: number }
             >(
               `SELECT m.id, m.title, m.year, m.genres, m.community_rating, m.poster_url, m.provider_item_id,
                       1 - (e.embedding <=> $1::halfvec) as similarity
-               FROM embeddings e
+               FROM ${movieTableName} e
                JOIN movies m ON m.id = e.movie_id
                WHERE e.model = $2
                ORDER BY e.embedding <=> $1::halfvec
@@ -414,12 +415,13 @@ export function createSearchTools(ctx: ToolContext) {
           }
 
           if (type === 'series' || type === 'both') {
+            const seriesTableName = await getActiveEmbeddingTableName('series_embeddings')
             const seriesResults = await query<
               SeriesResult & { provider_item_id?: string; similarity: number }
             >(
               `SELECT s.id, s.title, s.year, s.genres, s.network, s.community_rating, s.poster_url, s.provider_item_id,
                       1 - (se.embedding <=> $1::halfvec) as similarity
-               FROM series_embeddings se
+               FROM ${seriesTableName} se
                JOIN series s ON s.id = se.series_id
                WHERE se.model = $2
                ORDER BY se.embedding <=> $1::halfvec
@@ -599,9 +601,10 @@ export function createSearchTools(ctx: ToolContext) {
               ? [movie.id, modelId, embeddingStr, ctx.userId, limit]
               : [movie.id, modelId, embeddingStr, limit]
 
+            const movieSimilarTable = await getActiveEmbeddingTableName('embeddings')
             const similar = await query<MovieResult & { provider_item_id?: string }>(
               `SELECT m.id, m.title, m.year, m.genres, m.community_rating, m.poster_url, m.provider_item_id
-               FROM embeddings e JOIN movies m ON m.id = e.movie_id
+               FROM ${movieSimilarTable} e JOIN movies m ON m.id = e.movie_id
                WHERE e.movie_id != $1 AND e.model = $2 ${watchedFilter}
                ORDER BY e.embedding <=> $3::halfvec 
                LIMIT ${excludeWatched ? '$5' : '$4'}`,
@@ -643,9 +646,10 @@ export function createSearchTools(ctx: ToolContext) {
               ? [series.id, modelId, embeddingStr, ctx.userId, limit]
               : [series.id, modelId, embeddingStr, limit]
 
+            const seriesSimilarTable = await getActiveEmbeddingTableName('series_embeddings')
             const similar = await query<SeriesResult & { provider_item_id?: string }>(
               `SELECT s.id, s.title, s.year, s.genres, s.network, s.community_rating, s.poster_url, s.provider_item_id
-               FROM series_embeddings se 
+               FROM ${seriesSimilarTable} se 
                JOIN series s ON s.id = se.series_id
                WHERE se.series_id != $1 
                  AND se.model = $2 

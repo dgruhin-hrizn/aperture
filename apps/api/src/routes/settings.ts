@@ -48,6 +48,9 @@ import {
   getFunctionConfig,
   setFunctionConfig,
   getAICapabilitiesStatus,
+  VALID_EMBEDDING_DIMENSIONS,
+  checkLegacyEmbeddingsExist,
+  dropLegacyEmbeddingTables,
   testProviderConnection,
   PROVIDERS,
   getProvidersForFunction,
@@ -629,7 +632,19 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
           }
 
       // Get enabled user counts, total library counts, and pending counts
-      const { query } = await import('@aperture/core')
+      const { query, getCurrentEmbeddingDimensions, getFunctionConfig } = await import('@aperture/core')
+      
+      // Get current embedding config for determining which dimension table to check
+      const embeddingConfig = await getFunctionConfig('embeddings')
+      const dims = await getCurrentEmbeddingDimensions()
+      const modelName = embeddingConfig ? `${embeddingConfig.provider}:${embeddingConfig.model}` : null
+      
+      // Build queries based on current model's dimension table (or show all as pending if not configured)
+      const movieEmbedTable = dims ? `embeddings_${dims}` : 'embeddings_3072' // fallback for unconfigured state
+      const seriesEmbedTable = dims ? `series_embeddings_${dims}` : 'series_embeddings_3072'
+      const episodeEmbedTable = dims ? `episode_embeddings_${dims}` : 'episode_embeddings_3072'
+      const modelFilter = modelName ? `AND e.model = '${modelName}'` : ''
+      
       const [enabledUsersResult, itemCountsResult, totalLibraryResult] = await Promise.all([
         query<{
           movies_enabled_count: string
@@ -648,9 +663,9 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
           episode_count: string
         }>(`
           SELECT 
-            (SELECT COUNT(*) FROM movies m WHERE NOT EXISTS (SELECT 1 FROM embeddings e WHERE e.movie_id = m.id)) as movie_count,
-            (SELECT COUNT(*) FROM series s WHERE NOT EXISTS (SELECT 1 FROM series_embeddings se WHERE se.series_id = s.id)) as series_count,
-            (SELECT COUNT(*) FROM episodes ep WHERE NOT EXISTS (SELECT 1 FROM episode_embeddings ee WHERE ee.episode_id = ep.id)) as episode_count
+            (SELECT COUNT(*) FROM movies m WHERE NOT EXISTS (SELECT 1 FROM ${movieEmbedTable} e WHERE e.movie_id = m.id ${modelFilter})) as movie_count,
+            (SELECT COUNT(*) FROM series s WHERE NOT EXISTS (SELECT 1 FROM ${seriesEmbedTable} e WHERE e.series_id = s.id ${modelFilter})) as series_count,
+            (SELECT COUNT(*) FROM episodes ep WHERE NOT EXISTS (SELECT 1 FROM ${episodeEmbedTable} e WHERE e.episode_id = ep.id ${modelFilter})) as episode_count
         `),
         query<{
           total_movies: string
@@ -919,13 +934,16 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         )
         const movieCount = parseInt(countResult.rows[0]?.count || '0', 10)
 
-        // Get embedding count to show current state
-        const embeddingResult = await query<{ count: string; model: string }>(
-          'SELECT COUNT(*) as count, model FROM embeddings GROUP BY model'
+        // Get embedding count to show current state (from all dimension tables)
+        const embeddingUnions = VALID_EMBEDDING_DIMENSIONS.map(d => 
+          `SELECT COUNT(*)::int as count, model FROM embeddings_${d} GROUP BY model`
+        ).join(' UNION ALL ')
+        const embeddingResult = await query<{ count: number; model: string }>(
+          `SELECT SUM(count)::int as count, model FROM (${embeddingUnions}) t GROUP BY model`
         )
         const embeddingsByModel = embeddingResult.rows.reduce(
           (acc, row) => {
-            acc[row.model] = parseInt(row.count, 10)
+            acc[row.model] = row.count
             return acc
           },
           {} as Record<string, number>
@@ -2099,6 +2117,90 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   /**
+   * GET /api/settings/ai/credentials
+   * Get saved credentials for all providers (API keys are masked)
+   */
+  fastify.get('/api/settings/ai/credentials', { preHandler: requireAdmin }, async (_request, reply) => {
+    try {
+      const credentialsJson = await getSystemSetting('ai_provider_credentials')
+      const credentials = credentialsJson ? JSON.parse(credentialsJson) : {}
+      
+      // Mask API keys for security
+      const maskedCredentials: Record<string, { hasApiKey: boolean; baseUrl?: string }> = {}
+      for (const [provider, creds] of Object.entries(credentials)) {
+        const c = creds as { apiKey?: string; baseUrl?: string }
+        maskedCredentials[provider] = {
+          hasApiKey: !!c.apiKey,
+          baseUrl: c.baseUrl,
+        }
+      }
+      
+      return reply.send({ credentials: maskedCredentials })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get AI credentials')
+      return reply.status(500).send({ error: 'Failed to get AI credentials' })
+    }
+  })
+
+  /**
+   * GET /api/settings/ai/credentials/:provider
+   * Get credentials for a specific provider (includes API key for form population)
+   */
+  fastify.get<{ Params: { provider: string } }>('/api/settings/ai/credentials/:provider', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const { provider } = request.params
+      const credentialsJson = await getSystemSetting('ai_provider_credentials')
+      const credentials = credentialsJson ? JSON.parse(credentialsJson) : {}
+      const providerCreds = credentials[provider] || {}
+      
+      return reply.send({
+        provider,
+        apiKey: providerCreds.apiKey || '',
+        baseUrl: providerCreds.baseUrl || '',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get provider credentials')
+      return reply.status(500).send({ error: 'Failed to get provider credentials' })
+    }
+  })
+
+  /**
+   * PUT /api/settings/ai/credentials/:provider
+   * Save credentials for a specific provider
+   */
+  fastify.put<{ 
+    Params: { provider: string }
+    Body: { apiKey?: string; baseUrl?: string }
+  }>('/api/settings/ai/credentials/:provider', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const { provider } = request.params
+      const { apiKey, baseUrl } = request.body
+      
+      const credentialsJson = await getSystemSetting('ai_provider_credentials')
+      const credentials = credentialsJson ? JSON.parse(credentialsJson) : {}
+      
+      // Update credentials for this provider
+      credentials[provider] = {
+        ...(credentials[provider] || {}),
+        ...(apiKey !== undefined && { apiKey }),
+        ...(baseUrl !== undefined && { baseUrl }),
+      }
+      
+      // Remove empty credentials
+      if (!credentials[provider].apiKey && !credentials[provider].baseUrl) {
+        delete credentials[provider]
+      }
+      
+      await setSystemSetting('ai_provider_credentials', JSON.stringify(credentials), 'Stored credentials for AI providers')
+      
+      return reply.send({ success: true, provider })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to save provider credentials')
+      return reply.status(500).send({ error: 'Failed to save provider credentials' })
+    }
+  })
+
+  /**
    * GET /api/settings/ai/providers
    * Get available providers and their models
    */
@@ -2206,21 +2308,189 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   /**
+   * GET /api/settings/ai/embeddings/sets
+   * List all embedding sets (grouped by model) with counts and dimensions
+   * Queries all dimension-specific tables (embeddings_256, embeddings_384, etc.)
+   */
+  fastify.get('/api/settings/ai/embeddings/sets', { preHandler: requireAdmin }, async (_request, reply) => {
+    try {
+      // Build UNION ALL queries across all dimension tables
+      const movieUnions = VALID_EMBEDDING_DIMENSIONS.map(d => 
+        `SELECT model, COUNT(*)::int as count, ${d} as dimensions FROM embeddings_${d} GROUP BY model`
+      ).join(' UNION ALL ')
+      
+      const seriesUnions = VALID_EMBEDDING_DIMENSIONS.map(d => 
+        `SELECT model, COUNT(*)::int as count, ${d} as dimensions FROM series_embeddings_${d} GROUP BY model`
+      ).join(' UNION ALL ')
+      
+      const episodeUnions = VALID_EMBEDDING_DIMENSIONS.map(d => 
+        `SELECT model, COUNT(*)::int as count, ${d} as dimensions FROM episode_embeddings_${d} GROUP BY model`
+      ).join(' UNION ALL ')
+      
+      // Get embedding sets from all dimension tables
+      const movieSets = await query<{ model: string; count: number; dimensions: number }>(`${movieUnions}`)
+      const seriesSets = await query<{ model: string; count: number; dimensions: number }>(`${seriesUnions}`)
+      const episodeSets = await query<{ model: string; count: number; dimensions: number }>(`${episodeUnions}`)
+      
+      // Aggregate by model
+      const setsMap = new Map<string, { model: string; dimensions: number; movieCount: number; seriesCount: number; episodeCount: number; totalCount: number }>()
+      
+      for (const row of movieSets.rows) {
+        const existing = setsMap.get(row.model) || { model: row.model, dimensions: row.dimensions, movieCount: 0, seriesCount: 0, episodeCount: 0, totalCount: 0 }
+        existing.movieCount += row.count
+        existing.totalCount += row.count
+        setsMap.set(row.model, existing)
+      }
+      
+      for (const row of seriesSets.rows) {
+        const existing = setsMap.get(row.model) || { model: row.model, dimensions: row.dimensions, movieCount: 0, seriesCount: 0, episodeCount: 0, totalCount: 0 }
+        existing.seriesCount += row.count
+        existing.totalCount += row.count
+        setsMap.set(row.model, existing)
+      }
+      
+      for (const row of episodeSets.rows) {
+        const existing = setsMap.get(row.model) || { model: row.model, dimensions: row.dimensions, movieCount: 0, seriesCount: 0, episodeCount: 0, totalCount: 0 }
+        existing.episodeCount += row.count
+        existing.totalCount += row.count
+        setsMap.set(row.model, existing)
+      }
+      
+      // Get current configured embedding model
+      const aiConfig = await getAIConfig()
+      const currentModel = aiConfig.embeddings ? `${aiConfig.embeddings.provider}:${aiConfig.embeddings.model}` : null
+      
+      const sets = Array.from(setsMap.values()).map(set => ({
+        ...set,
+        isActive: set.model === currentModel,
+      })).sort((a, b) => {
+        // Active set first, then by total count
+        if (a.isActive && !b.isActive) return -1
+        if (!a.isActive && b.isActive) return 1
+        return b.totalCount - a.totalCount
+      })
+      
+      return reply.send({
+        sets,
+        currentModel,
+        totalSets: sets.length,
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get embedding sets')
+      return reply.status(500).send({ error: 'Failed to get embedding sets' })
+    }
+  })
+
+  /**
+   * DELETE /api/settings/ai/embeddings/sets/:model
+   * Delete a specific embedding set by model name
+   * Deletes from all dimension-specific tables
+   */
+  fastify.delete<{ Params: { model: string } }>('/api/settings/ai/embeddings/sets/:model', { preHandler: requireAdmin }, async (request, reply) => {
+    const { model } = request.params
+    const decodedModel = decodeURIComponent(model)
+    
+    try {
+      // Check if this is the active model - prevent deletion
+      const aiConfig = await getAIConfig()
+      const currentModel = aiConfig.embeddings ? `${aiConfig.embeddings.provider}:${aiConfig.embeddings.model}` : null
+      
+      if (decodedModel === currentModel) {
+        return reply.status(400).send({ error: 'Cannot delete the active embedding set. Switch to a different model first.' })
+      }
+      
+      // Delete from all dimension-specific tables
+      let movieCount = 0
+      let seriesCount = 0
+      let episodeCount = 0
+      
+      for (const dim of VALID_EMBEDDING_DIMENSIONS) {
+        const movieResult = await query(`DELETE FROM embeddings_${dim} WHERE model = $1`, [decodedModel])
+        const seriesResult = await query(`DELETE FROM series_embeddings_${dim} WHERE model = $1`, [decodedModel])
+        const episodeResult = await query(`DELETE FROM episode_embeddings_${dim} WHERE model = $1`, [decodedModel])
+        
+        movieCount += movieResult.rowCount || 0
+        seriesCount += seriesResult.rowCount || 0
+        episodeCount += episodeResult.rowCount || 0
+      }
+      
+      const totalDeleted = movieCount + seriesCount + episodeCount
+      
+      fastify.log.info({ model: decodedModel, totalDeleted }, 'Deleted embedding set')
+      return reply.send({ 
+        success: true, 
+        message: `Deleted embedding set for ${decodedModel}`,
+        deleted: {
+          movies: movieCount,
+          series: seriesCount,
+          episodes: episodeCount,
+        }
+      })
+    } catch (err) {
+      fastify.log.error({ err, model: decodedModel }, 'Failed to delete embedding set')
+      return reply.status(500).send({ error: 'Failed to delete embedding set' })
+    }
+  })
+
+  /**
    * POST /api/settings/ai/embeddings/clear
-   * Clear all embeddings (for dimension change)
+   * Clear all embeddings from all dimension-specific tables
    */
   fastify.post('/api/settings/ai/embeddings/clear', { preHandler: requireAdmin }, async (_request, reply) => {
     try {
-      // Clear all embedding tables
-      await query('TRUNCATE embeddings')
-      await query('TRUNCATE series_embeddings')
-      await query('TRUNCATE episode_embeddings')
+      // Clear all dimension-specific embedding tables
+      for (const dim of VALID_EMBEDDING_DIMENSIONS) {
+        await query(`TRUNCATE embeddings_${dim}`)
+        await query(`TRUNCATE series_embeddings_${dim}`)
+        await query(`TRUNCATE episode_embeddings_${dim}`)
+      }
       
-      fastify.log.info('All embeddings cleared for dimension change')
+      fastify.log.info('All embeddings cleared from dimension tables')
       return reply.send({ success: true, message: 'All embeddings cleared' })
     } catch (err) {
       fastify.log.error({ err }, 'Failed to clear embeddings')
       return reply.status(500).send({ error: 'Failed to clear embeddings' })
+    }
+  })
+
+  /**
+   * GET /api/settings/ai/embeddings/legacy
+   * Check if legacy embedding tables exist (from before multi-dimension migration)
+   */
+  fastify.get('/api/settings/ai/embeddings/legacy', { preHandler: requireAdmin }, async (_request, reply) => {
+    try {
+      const legacyInfo = await checkLegacyEmbeddingsExist()
+      return reply.send(legacyInfo)
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to check legacy embeddings')
+      return reply.status(500).send({ error: 'Failed to check legacy embeddings' })
+    }
+  })
+
+  /**
+   * DELETE /api/settings/ai/embeddings/legacy
+   * Drop legacy embedding tables (embeddings_legacy, series_embeddings_legacy, episode_embeddings_legacy)
+   */
+  fastify.delete('/api/settings/ai/embeddings/legacy', { preHandler: requireAdmin }, async (_request, reply) => {
+    try {
+      // First check if legacy tables exist
+      const legacyInfo = await checkLegacyEmbeddingsExist()
+      if (!legacyInfo.exists) {
+        return reply.status(404).send({ error: 'No legacy embedding tables found' })
+      }
+      
+      await dropLegacyEmbeddingTables()
+      
+      fastify.log.info({ tables: legacyInfo.tables }, 'Legacy embedding tables dropped')
+      return reply.send({ 
+        success: true, 
+        message: 'Legacy embedding tables dropped',
+        droppedTables: legacyInfo.tables,
+        totalRowsDeleted: legacyInfo.totalRows
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to drop legacy embeddings')
+      return reply.status(500).send({ error: 'Failed to drop legacy embeddings' })
     }
   })
 
@@ -2275,6 +2545,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * PATCH /api/settings/ai/:function
    * Update configuration for a specific AI function
+   * Also saves credentials to the provider credentials store for reuse
    */
   fastify.patch<{
     Params: { function: string }
@@ -2286,6 +2557,20 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (!['embeddings', 'chat', 'textGeneration'].includes(fn)) {
         return reply.status(400).send({ error: 'Invalid function. Must be embeddings, chat, or textGeneration' })
+      }
+
+      // Save credentials to the provider credentials store for reuse
+      if (apiKey || baseUrl) {
+        const credentialsJson = await getSystemSetting('ai_provider_credentials')
+        const credentials = credentialsJson ? JSON.parse(credentialsJson) : {}
+        
+        credentials[provider] = {
+          ...(credentials[provider] || {}),
+          ...(apiKey && { apiKey }),
+          ...(baseUrl && { baseUrl }),
+        }
+        
+        await setSystemSetting('ai_provider_credentials', JSON.stringify(credentials), 'Stored credentials for AI providers')
       }
 
       await setFunctionConfig(fn, {
