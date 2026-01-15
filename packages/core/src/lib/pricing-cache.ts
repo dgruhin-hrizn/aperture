@@ -235,9 +235,15 @@ export async function findModelPricing(
           case 'equals':
             return entry.model === pattern || entry.model.toLowerCase() === pattern.toLowerCase()
           case 'startsWith':
-            return pattern.startsWith(entry.model) || pattern.toLowerCase().startsWith(entry.model.toLowerCase())
+            return (
+              pattern.startsWith(entry.model) ||
+              pattern.toLowerCase().startsWith(entry.model.toLowerCase())
+            )
           case 'includes':
-            return pattern.includes(entry.model) || pattern.toLowerCase().includes(entry.model.toLowerCase())
+            return (
+              pattern.includes(entry.model) ||
+              pattern.toLowerCase().includes(entry.model.toLowerCase())
+            )
           default:
             return entry.model === pattern
         }
@@ -334,4 +340,3 @@ export async function getPricingCacheStatus(): Promise<{
     isStale: !isCacheValid(dbCache),
   }
 }
-

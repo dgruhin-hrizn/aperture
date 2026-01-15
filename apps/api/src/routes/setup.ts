@@ -62,6 +62,8 @@ interface DiscoveredServer {
 
 interface SetupStatusResponse {
   needsSetup: boolean
+  isAdmin: boolean
+  canAccessSetup: boolean // true if needs setup OR user is admin
   configured: {
     mediaServer: boolean
     openai: boolean
@@ -106,15 +108,18 @@ async function requireSetupWritable(
 const setupRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * GET /api/setup/status
-   * Check if setup is needed (public endpoint)
+   * Check if setup is needed (public endpoint, but includes admin check)
    */
-  fastify.get<{ Reply: SetupStatusResponse }>('/api/setup/status', async (_request, reply) => {
+  fastify.get<{ Reply: SetupStatusResponse }>('/api/setup/status', async (request, reply) => {
     const setupComplete = await isSetupComplete()
+    const isAdmin = isAdminRequest(request)
     const mediaServerConfig = await getMediaServerConfig()
     const hasOpenAI = await hasOpenAIApiKey()
 
     return reply.send({
       needsSetup: !setupComplete,
+      isAdmin,
+      canAccessSetup: !setupComplete || isAdmin,
       configured: {
         mediaServer: mediaServerConfig.isConfigured,
         openai: hasOpenAI,

@@ -158,9 +158,9 @@ export function useSetupWizard(): SetupWizardContext {
     setActiveStep(STEP_ORDER.findIndex((s) => s.id === targetStepId))
   }, [])
 
-  // Redirect if setup is already complete
+  // Redirect if setup is already complete AND user is not an admin
   useEffect(() => {
-    if (status && !status.needsSetup) {
+    if (status && !status.canAccessSetup) {
       navigate('/login')
     }
   }, [status, navigate])
@@ -213,7 +213,7 @@ export function useSetupWizard(): SetupWizardContext {
 
   // Fetch setup progress + snapshot (resumable)
   useEffect(() => {
-    if (!status?.needsSetup) return
+    if (!status?.canAccessSetup) return
 
     fetch('/api/setup/progress', { credentials: 'include' })
       .then((res) => res.json())
@@ -243,7 +243,7 @@ export function useSetupWizard(): SetupWizardContext {
       .catch(() => {
         // non-fatal
       })
-  }, [status?.needsSetup])
+  }, [status?.canAccessSetup])
 
   // Fetch last job runs when navigating to the jobs step (to restore state after refresh)
   useEffect(() => {
