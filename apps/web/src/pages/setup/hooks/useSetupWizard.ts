@@ -1173,10 +1173,14 @@ export function useSetupWizard(): SetupWizardContext {
     setSaving(true)
     setError('')
 
+    // Check if this is an admin re-running setup (setup was already complete)
+    const isAdminRerun = status && !status.needsSetup && status.isAdmin
+
     try {
       const response = await fetch('/api/setup/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({}),
       })
 
@@ -1184,7 +1188,12 @@ export function useSetupWizard(): SetupWizardContext {
 
       if (data.success || response.ok) {
         markComplete()
-        goToStep('complete')
+        // Navigate appropriately based on whether this is admin re-run or initial setup
+        if (isAdminRerun) {
+          navigate('/admin/settings')
+        } else {
+          navigate('/login')
+        }
       } else {
         setError(data.error || 'Failed to complete setup')
       }
@@ -1193,7 +1202,7 @@ export function useSetupWizard(): SetupWizardContext {
     } finally {
       setSaving(false)
     }
-  }, [markComplete, goToStep])
+  }, [markComplete, navigate, status])
 
   return {
     // State
