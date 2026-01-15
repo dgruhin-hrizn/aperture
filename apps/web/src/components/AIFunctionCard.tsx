@@ -159,10 +159,14 @@ export function AIFunctionCard({
   // Form state
   const [provider, setProvider] = useState<ProviderType>(config?.provider || 'openai')
   const [model, setModel] = useState(config?.model || '')
+  const [customModel, setCustomModel] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [baseUrl, setBaseUrl] = useState(config?.baseUrl || '')
   const [showApiKey, setShowApiKey] = useState(false)
   const [initialized, setInitialized] = useState(false)
+  
+  const isCustomModel = model === '__custom__'
+  const effectiveModel = isCustomModel ? customModel : model
   
   // Status
   const [saving, setSaving] = useState(false)
@@ -179,11 +183,21 @@ export function AIFunctionCard({
   useEffect(() => {
     if (config && !initialized) {
       if (config.provider) setProvider(config.provider)
-      if (config.model) setModel(config.model)
+      if (config.model) {
+        // Check if the model is a known model or a custom one
+        const isKnownModel = models.some(m => m.id === config.model)
+        if (isKnownModel || models.length === 0) {
+          setModel(config.model)
+        } else {
+          // It's a custom model
+          setModel('__custom__')
+          setCustomModel(config.model)
+        }
+      }
       if (config.baseUrl) setBaseUrl(config.baseUrl)
       setInitialized(true)
     }
-  }, [config, initialized])
+  }, [config, initialized, models])
   
   // Check capability warning
   const hasCapabilityWarning = requiredCapability === 'toolCalling' && 
@@ -276,7 +290,7 @@ export function AIFunctionCard({
         body: JSON.stringify({
           function: functionType,
           provider,
-          model,
+          model: effectiveModel,
           apiKey: apiKey || undefined,
           baseUrl: baseUrl || undefined,
         }),
@@ -293,7 +307,7 @@ export function AIFunctionCard({
   const handleSave = async () => {
     const newConfig: FunctionConfig = {
       provider,
-      model,
+      model: effectiveModel,
       apiKey: apiKey || undefined,
       baseUrl: baseUrl || undefined,
     }
@@ -411,11 +425,14 @@ export function AIFunctionCard({
           <FormControl size="small" fullWidth>
             <InputLabel>Model</InputLabel>
             <Select
-              value={!loading && models.length > 0 ? model : ''}
+              value={!loading && (models.length > 0 || model === '__custom__') ? model : ''}
               label="Model"
               onChange={(e) => {
                 setModel(e.target.value)
                 setTestResult(null)
+                if (e.target.value !== '__custom__') {
+                  setCustomModel('')
+                }
               }}
               disabled={loading || loadingProviders || providers.length === 0}
               displayEmpty
@@ -442,8 +459,35 @@ export function AIFunctionCard({
                   </Box>
                 </MenuItem>
               ))}
+              {/* Custom model option for self-hosted providers */}
+              {(provider === 'ollama' || provider === 'openai-compatible') && (
+                <MenuItem value="__custom__" sx={{ borderTop: 1, borderColor: 'divider', mt: 1 }}>
+                  <Box>
+                    <Typography variant="body2">Custom Model...</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Enter any model name manually
+                    </Typography>
+                  </Box>
+                </MenuItem>
+              )}
             </Select>
           </FormControl>
+
+          {/* Custom model text input */}
+          {isCustomModel && (
+            <TextField
+              label="Custom Model Name"
+              value={customModel}
+              onChange={(e) => {
+                setCustomModel(e.target.value)
+                setTestResult(null)
+              }}
+              size="small"
+              fullWidth
+              placeholder={provider === 'ollama' ? 'e.g., llama3.3:70b, mixtral:8x22b' : 'Enter model name'}
+              helperText={provider === 'ollama' ? 'Enter the exact model name from ollama.com/library' : 'Enter the model identifier'}
+            />
+          )}
         </Box>
 
         {/* Model Info Chips */}
@@ -616,7 +660,7 @@ export function AIFunctionCard({
             variant="outlined"
             size="small"
             onClick={handleTest}
-            disabled={testing || !model}
+            disabled={testing || !effectiveModel}
           >
             {testing ? <CircularProgress size={16} /> : 'Test'}
           </Button>
@@ -624,7 +668,7 @@ export function AIFunctionCard({
             variant="contained"
             size="small"
             onClick={handleSave}
-            disabled={saving || !model}
+            disabled={saving || !effectiveModel}
           >
             {saving ? <CircularProgress size={16} /> : 'Save'}
           </Button>
