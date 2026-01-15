@@ -521,10 +521,11 @@ export function createSearchTools(ctx: ToolContext) {
           }
           let movie: MovieWithMeta | null = null
           if (searchMovies) {
+            const movieEmbeddingTable = await getActiveEmbeddingTableName('embeddings')
             movie = await queryOne<MovieWithMeta>(
               `SELECT m.id, m.title, m.overview, m.year, m.tagline, m.directors, m.actors, m.studios, m.tags
                FROM movies m
-               LEFT JOIN embeddings e ON e.movie_id = m.id AND e.model = $2
+               LEFT JOIN ${movieEmbeddingTable} e ON e.movie_id = m.id AND e.model = $2
                WHERE m.title ILIKE $1
                ORDER BY 
                  CASE 
@@ -546,6 +547,7 @@ export function createSearchTools(ctx: ToolContext) {
             year: number | null
           } | null = null
           if (searchSeries) {
+            const seriesEmbeddingTable = await getActiveEmbeddingTableName('series_embeddings')
             series = await queryOne<{
               id: string
               title: string
@@ -553,7 +555,7 @@ export function createSearchTools(ctx: ToolContext) {
               year: number | null
             }>(
               `SELECT s.id, s.title, s.overview, s.year FROM series s
-               LEFT JOIN series_embeddings se ON se.series_id = s.id AND se.model = $2
+               LEFT JOIN ${seriesEmbeddingTable} se ON se.series_id = s.id AND se.model = $2
                WHERE s.title ILIKE $1
                ORDER BY 
                  CASE 
