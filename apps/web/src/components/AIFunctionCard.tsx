@@ -378,8 +378,8 @@ export function AIFunctionCard({
         )}
 
         {/* Provider & Model Selection */}
-        <Box display="flex" gap={2} mb={2} flexWrap="wrap">
-          <FormControl size="small" sx={{ minWidth: 160 }}>
+        <Box display="flex" flexDirection="column" gap={2} mb={2}>
+          <FormControl size="small" fullWidth>
             <InputLabel>Provider</InputLabel>
             <Select
               value={!loadingProviders && providers.length > 0 ? provider : ''}
@@ -408,7 +408,7 @@ export function AIFunctionCard({
             </Select>
           </FormControl>
 
-          <FormControl size="small" sx={{ minWidth: 180, flex: 1 }}>
+          <FormControl size="small" fullWidth>
             <InputLabel>Model</InputLabel>
             <Select
               value={!loading && models.length > 0 ? model : ''}
