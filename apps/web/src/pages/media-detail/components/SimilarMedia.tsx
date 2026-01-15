@@ -338,7 +338,8 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
                     disabled={!fullscreenGraphData || fullscreenGraphData.nodes.length === 0}
                     sx={{ 
                       flex: { xs: 1, sm: 0 },
-                      fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                      whiteSpace: 'nowrap'
                     }}
                   >
                     <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Create Playlist</Box>
