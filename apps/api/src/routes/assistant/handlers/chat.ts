@@ -9,7 +9,7 @@
 import { Readable } from 'node:stream'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { streamText, convertToModelMessages, stepCountIs, type UIMessage } from 'ai'
-import { getChatModelInstance, getEmbeddingModelInstance, getFunctionConfig, type AIFunction } from '@aperture/core'
+import { getChatModelInstance, getEmbeddingModelInstance, getFunctionConfig, getActiveEmbeddingModelId, type AIFunction } from '@aperture/core'
 import { requireAuth, type SessionUser } from '../../../plugins/auth.js'
 import { getMediaServerInfo, buildSystemPrompt } from '../helpers/index.js'
 import { createTools } from '../tools/index.js'
@@ -109,16 +109,20 @@ export function registerChatHandler(fastify: FastifyInstance) {
         const chatModel = await getChatModelInstance()
         const embeddingModel = await getEmbeddingModelInstance()
         const chatConfig = await getFunctionConfig('chat' as AIFunction)
-        const embeddingConfig = await getFunctionConfig('embeddings' as AIFunction)
+        const embeddingModelId = await getActiveEmbeddingModelId()
         const mediaServer = await getMediaServerInfo()
         const systemPrompt = await buildSystemPrompt(user.id, user.isAdmin)
+
+        if (!embeddingModelId) {
+          return reply.status(500).send({ error: 'Embedding model not configured' })
+        }
 
         // Create tool context
         const toolContext = {
           userId: user.id,
           isAdmin: user.isAdmin,
           embeddingModel,
-          embeddingModelId: embeddingConfig?.model ?? 'text-embedding-3-large',
+          embeddingModelId, // Format: "provider:model" (e.g., "openai:text-embedding-3-large")
           mediaServer,
         }
 
