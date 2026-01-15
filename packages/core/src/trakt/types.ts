@@ -69,4 +69,46 @@ export interface TraktSyncResult {
   seriesSkipped: number
 }
 
+// ============================================================================
+// Trakt Discovery Types (trending, popular, recommendations)
+// ============================================================================
+
+export interface TraktMovieWithStats {
+  watchers?: number // For trending
+  watcher_count?: number // For most watched
+  collected_count?: number // For most collected
+  collector_count?: number // For most collected
+  play_count?: number // For most played
+  list_count?: number // For most anticipated/favorited
+  movie: TraktMovie
+}
+
+export interface TraktShowWithStats {
+  watchers?: number // For trending
+  watcher_count?: number // For most watched
+  collected_count?: number // For most collected
+  collector_count?: number // For most collected
+  play_count?: number // For most played
+  list_count?: number // For most anticipated/favorited
+  show: TraktShow
+}
+
+export interface TraktRecommendedMovie {
+  user_count: number
+  movie: TraktMovie
+}
+
+export interface TraktRecommendedShow {
+  user_count: number
+  show: TraktShow
+}
+
+export type TraktTimePeriod = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'all'
+
+export interface TraktDiscoveryOptions {
+  page?: number
+  limit?: number
+  period?: TraktTimePeriod
+}
+
 

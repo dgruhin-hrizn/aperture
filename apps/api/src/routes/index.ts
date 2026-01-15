@@ -26,6 +26,8 @@ import maintenanceRoutes from './maintenance.js'
 import apiErrorsRoutes from './apiErrors.js'
 import similarityRoutes from './similarity.js'
 import { graphPlaylistRoutes } from './graphPlaylists.js'
+import discoveryRoutes from './discovery.js'
+import jellyseerrRoutes from './jellyseerr.js'
 
 const routes: FastifyPluginAsync = async (fastify) => {
   // Register health check routes
@@ -108,6 +110,12 @@ const routes: FastifyPluginAsync = async (fastify) => {
 
   // Register graph playlist routes
   await fastify.register(graphPlaylistRoutes)
+
+  // Register discovery routes (missing content suggestions)
+  await fastify.register(discoveryRoutes)
+
+  // Register Jellyseerr routes (content requests)
+  await fastify.register(jellyseerrRoutes)
 }
 
 export default routes

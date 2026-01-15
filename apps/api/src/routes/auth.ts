@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { getMediaServerProvider, getMediaServerConfig, type AuthResult } from '@aperture/core'
+import { getMediaServerProvider, getMediaServerConfig, getSystemSetting, type AuthResult } from '@aperture/core'
 import { queryOne } from '../lib/db.js'
 import {
   createSession,
@@ -37,6 +37,18 @@ interface MeResponse {
 
 const authRoutes: FastifyPluginAsync = async (fastify) => {
   /**
+   * GET /api/auth/login-options
+   * Get login options (whether passwordless login is allowed)
+   * Public endpoint - no authentication required
+   */
+  fastify.get('/api/auth/login-options', async (_request, reply) => {
+    const allowPasswordlessLogin = await getSystemSetting('allow_passwordless_login')
+    return reply.send({
+      allowPasswordlessLogin: allowPasswordlessLogin === 'true',
+    })
+  })
+
+  /**
    * POST /api/auth/login
    * Authenticate with media server credentials
    */
@@ -45,8 +57,16 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       const { username, password } = request.body
 
-      if (!username || !password) {
-        return reply.status(400).send({ error: 'Username and password are required' } as never)
+      // Check if passwordless login is allowed
+      const allowPasswordlessLogin = await getSystemSetting('allow_passwordless_login')
+      const passwordRequired = allowPasswordlessLogin !== 'true'
+
+      if (!username) {
+        return reply.status(400).send({ error: 'Username is required' } as never)
+      }
+
+      if (passwordRequired && !password) {
+        return reply.status(400).send({ error: 'Password is required' } as never)
       }
 
       // Get media server provider
@@ -61,7 +81,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       // Authenticate with media server
       let authResult: AuthResult
       try {
-        authResult = await provider.authenticateByName(username, password)
+        authResult = await provider.authenticateByName(username, password || '')
       } catch (err) {
         fastify.log.warn({ err, username }, 'Authentication failed')
         return reply.status(401).send({ error: 'Invalid username or password' } as never)

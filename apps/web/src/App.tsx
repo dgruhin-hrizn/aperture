@@ -28,6 +28,7 @@ import { WatchingPage } from './pages/watching'
 import { PersonDetailPage } from './pages/PersonDetail'
 import { StudioDetailPage } from './pages/StudioDetail'
 import { ExplorePage } from './pages/explore'
+import { DiscoveryPage } from './pages/discovery'
 // Admin pages
 import { AdminDashboard } from './pages/admin'
 import { UsersPage } from './pages/Users'
@@ -161,6 +162,7 @@ function AppRoutes() {
         <Route path="person/:name" element={<PersonDetailPage />} />
         <Route path="studio/:name" element={<StudioDetailPage />} />
         <Route path="explore" element={<ExplorePage />} />
+        <Route path="discovery" element={<DiscoveryPage />} />
         <Route path="settings" element={<UserSettingsPage />} />
 
         {/* Admin Routes - nested under AdminLayout */}

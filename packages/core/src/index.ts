@@ -683,3 +683,86 @@ export {
   type CreateGraphPlaylistInput,
 } from './graphPlaylists/index.js'
 
+// Jellyseerr Integration
+export {
+  // Configuration
+  getJellyseerrConfig,
+  setJellyseerrConfig,
+  isJellyseerrConfigured,
+  testJellyseerrConnection,
+  // Search & Media Info
+  searchContent as jellyseerrSearchContent,
+  getMovieDetails as getJellyseerrMovieDetails,
+  getTVDetails as getJellyseerrTVDetails,
+  getMediaStatus as getJellyseerrMediaStatus,
+  // Request Management
+  createRequest as createJellyseerrRequest,
+  getRequest as getJellyseerrRequest,
+  getRequestStatus as getJellyseerrRequestStatus,
+  deleteRequest as deleteJellyseerrRequest,
+  // Batch Operations
+  batchGetMediaStatus as batchGetJellyseerrMediaStatus,
+  // Types
+  type JellyseerrConfig,
+  type JellyseerrUser,
+  type JellyseerrMediaInfo,
+  type JellyseerrSearchResult,
+  type JellyseerrSearchItem,
+  type JellyseerrMovieDetails,
+  type JellyseerrTVDetails,
+  type JellyseerrMediaStatus,
+  type JellyseerrRequestStatus,
+  type JellyseerrRequestBody,
+  type JellyseerrRequestResponse,
+  type JellyseerrMediaRequest,
+  getMediaStatusLabel,
+  getRequestStatusLabel,
+  JELLYSEERR_MEDIA_STATUS,
+  JELLYSEERR_REQUEST_STATUS,
+} from './jellyseerr/index.js'
+
+// Discovery (Missing Content Suggestions)
+export {
+  // Pipeline
+  generateDiscoveryForUser,
+  generateDiscoveryForAllUsers,
+  regenerateUserDiscovery,
+  getDiscoveryEnabledUsers,
+  // Sources
+  fetchAllCandidates,
+  hasDiscoverySources,
+  // Filter
+  filterCandidates,
+  isInLibrary,
+  hasWatched,
+  // Scorer
+  scoreCandidates,
+  // Storage
+  createDiscoveryRun,
+  updateDiscoveryRunStats,
+  finalizeDiscoveryRun,
+  getLatestDiscoveryRun,
+  storeDiscoveryCandidates,
+  getDiscoveryCandidates,
+  getDiscoveryCandidateCount,
+  clearDiscoveryCandidates,
+  createDiscoveryRequest,
+  updateDiscoveryRequestStatus,
+  getDiscoveryRequests,
+  hasExistingRequest,
+  // Types
+  type MediaType,
+  type DiscoverySource,
+  type DiscoveryRunStatus,
+  type DiscoveryRequestStatus,
+  type DiscoveryCandidate,
+  type DiscoveryRun,
+  type DiscoveryRequest,
+  type DiscoveryUser,
+  type DiscoveryConfig,
+  type RawCandidate,
+  type ScoredCandidate,
+  type DiscoveryPipelineResult,
+  DEFAULT_DISCOVERY_CONFIG,
+} from './discover/index.js'
+

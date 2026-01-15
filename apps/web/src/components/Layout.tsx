@@ -50,6 +50,7 @@ const userMenuItems = [
   { text: 'Search', icon: <SearchIcon />, path: '/search' },
   { text: 'Explore', icon: <ExploreIcon />, path: '/explore' },
   { text: 'Recommendations', icon: <AutoAwesomeIcon />, path: '/recommendations' },
+  { text: 'Discover', icon: <ExploreIcon />, path: '/discovery' },
   { text: "Shows You Watch", icon: <AddToQueueIcon />, path: '/watching' },
   { text: 'Top Pick Movies', icon: <WhatshotIcon />, path: '/top-picks/movies' },
   { text: 'Top Pick Series', icon: <TvIcon />, path: '/top-picks/series' },
@@ -210,7 +211,7 @@ export function Layout() {
             fontSize: '0.7rem',
           }}
         >
-          v0.4.5
+          v0.4.6
         </Typography>
       </Box>
     </Box>

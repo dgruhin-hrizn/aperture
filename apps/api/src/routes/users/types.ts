@@ -8,6 +8,8 @@ export interface UserRow {
   is_enabled: boolean
   movies_enabled: boolean
   series_enabled: boolean
+  discover_enabled: boolean
+  discover_request_enabled: boolean
   max_parental_rating: number | null
   can_manage_watch_history: boolean
   created_at: Date
@@ -24,6 +26,8 @@ export interface UserUpdateBody {
   isEnabled?: boolean
   moviesEnabled?: boolean
   seriesEnabled?: boolean
+  discoverEnabled?: boolean
+  discoverRequestEnabled?: boolean
   canManageWatchHistory?: boolean
 }
 

@@ -309,20 +309,6 @@ export const PROVIDERS: ProviderMetadata[] = [
         costTier: 'free',
       },
       {
-        id: 'all-minilm',
-        name: 'All MiniLM',
-        description: 'Fast but lower quality. 384-dim embeddings.',
-        capabilities: {
-          supportsToolCalling: false,
-          supportsToolStreaming: false,
-          supportsObjectGeneration: false,
-          supportsEmbeddings: true,
-        },
-        embeddingDimensions: 384,
-        quality: 'budget',
-        costTier: 'free',
-      },
-      {
         id: 'nomic-embed-text-v2-moe',
         name: 'Nomic Embed Text v2 MoE',
         description: 'Best for non-English content. 768-dim multilingual.',
