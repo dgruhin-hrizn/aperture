@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Box,
   TextField,
@@ -18,6 +18,8 @@ import {
   Chip,
   Divider,
   Collapse,
+  FormControlLabel,
+  Switch,
 } from '@mui/material'
 import {
   CheckCircle as CheckCircleIcon,
@@ -26,6 +28,7 @@ import {
   Search as SearchIcon,
   Dns as DnsIcon,
   ExpandMore as ExpandMoreIcon,
+  Warning as WarningIcon,
 } from '@mui/icons-material'
 import type { SetupWizardContext } from '../types'
 
@@ -59,6 +62,42 @@ export function MediaServerStep({ wizard }: MediaServerStepProps) {
   } = wizard
 
   const [showReconfigure, setShowReconfigure] = useState(false)
+  const [allowPasswordlessLogin, setAllowPasswordlessLogin] = useState(false)
+  const [savingSecuritySetting, setSavingSecuritySetting] = useState(false)
+
+  // Load security settings on mount
+  useEffect(() => {
+    const loadSecuritySettings = async () => {
+      try {
+        const response = await fetch('/api/setup/media-server/security')
+        if (response.ok) {
+          const data = await response.json()
+          setAllowPasswordlessLogin(data.allowPasswordlessLogin)
+        }
+      } catch {
+        // Default to false if we can't fetch
+      }
+    }
+    loadSecuritySettings()
+  }, [])
+
+  const handlePasswordlessToggle = async (enabled: boolean) => {
+    setSavingSecuritySetting(true)
+    try {
+      const response = await fetch('/api/setup/media-server/security', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ allowPasswordlessLogin: enabled }),
+      })
+      if (response.ok) {
+        setAllowPasswordlessLogin(enabled)
+      }
+    } catch {
+      // Revert on error
+    } finally {
+      setSavingSecuritySetting(false)
+    }
+  }
 
   return (
     <Box>
@@ -370,6 +409,45 @@ export function MediaServerStep({ wizard }: MediaServerStepProps) {
             }}
           />
         </>
+      )}
+
+      {/* Security Settings */}
+      <Divider sx={{ my: 3 }} />
+      
+      <Typography variant="h6" gutterBottom>
+        Security Settings
+      </Typography>
+      
+      <Box sx={{ mb: 2 }}>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={allowPasswordlessLogin}
+              onChange={(e) => handlePasswordlessToggle(e.target.checked)}
+              disabled={savingSecuritySetting}
+            />
+          }
+          label="Allow passwordless login"
+        />
+        <Typography variant="body2" color="text.secondary" sx={{ ml: 4.5, mt: -0.5 }}>
+          Enable this if your media server users don't have passwords set
+        </Typography>
+      </Box>
+
+      {allowPasswordlessLogin && (
+        <Alert 
+          severity="warning" 
+          icon={<WarningIcon />}
+          sx={{ mb: 2 }}
+        >
+          <Typography variant="body2" fontWeight={500}>
+            Security Warning
+          </Typography>
+          <Typography variant="body2">
+            Only enable this if your Aperture instance is on a private network with no internet exposure. 
+            If your server is accessible via reverse proxy or the internet, leave this disabled to prevent unauthorized access.
+          </Typography>
+        </Alert>
       )}
 
       <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>

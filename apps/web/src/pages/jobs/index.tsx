@@ -6,7 +6,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import ScheduleIcon from '@mui/icons-material/Schedule'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import RefreshIcon from '@mui/icons-material/Refresh'
-import { useJobsData, useEnrichmentStatus } from './hooks'
+import { useJobsData, useEnrichmentStatus, useDiscoveryPrerequisites } from './hooks'
 import { MOVIE_JOB_CATEGORIES, SERIES_JOB_CATEGORIES, GLOBAL_JOB_CATEGORIES } from './constants'
 import { JobCard, JobConfigDialog, JobHistoryDialog, CancelDialog, LoadingSkeleton, ScheduleTable } from './components'
 import type { JobCategory } from './types'
@@ -37,6 +37,8 @@ interface JobCategoryListProps {
   onToggleLogs: (name: string) => void
   onConfigClick: (name: string) => void
   onHistoryClick: (name: string) => void
+  discoveryReady?: boolean
+  discoveryMessage?: string | null
 }
 
 function JobCategoryList({
@@ -51,6 +53,8 @@ function JobCategoryList({
   onToggleLogs,
   onConfigClick,
   onHistoryClick,
+  discoveryReady,
+  discoveryMessage,
 }: JobCategoryListProps) {
   return (
     <Stack spacing={5}>
@@ -87,23 +91,31 @@ function JobCategoryList({
               }}
               gap={2.5}
             >
-              {categoryJobs.map((job) => (
-                <JobCard
-                  key={job.name}
-                  job={job}
-                  progress={jobProgress.get(job.name)}
-                  logsExpanded={expandedLogs.has(job.name)}
-                  isCancelling={cancellingJobs.has(job.name)}
-                  onRun={() => onRunJob(job.name)}
-                  onCancel={() => onCancelJob(job.name)}
-                  onToggleLogs={() => onToggleLogs(job.name)}
-                  onConfigClick={() => onConfigClick(job.name)}
-                  onHistoryClick={() => onHistoryClick(job.name)}
-                  logsContainerRef={(el) => {
-                    if (el) logsContainerRefs.current.set(job.name, el)
-                  }}
-                />
-              ))}
+              {categoryJobs.map((job) => {
+                // Check if this is the discovery job and apply disabled state
+                const isDiscoveryJob = job.name === 'generate-discovery-suggestions'
+                const isDisabled = isDiscoveryJob && discoveryReady === false
+                
+                return (
+                  <JobCard
+                    key={job.name}
+                    job={job}
+                    progress={jobProgress.get(job.name)}
+                    logsExpanded={expandedLogs.has(job.name)}
+                    isCancelling={cancellingJobs.has(job.name)}
+                    onRun={() => onRunJob(job.name)}
+                    onCancel={() => onCancelJob(job.name)}
+                    onToggleLogs={() => onToggleLogs(job.name)}
+                    onConfigClick={() => onConfigClick(job.name)}
+                    onHistoryClick={() => onHistoryClick(job.name)}
+                    logsContainerRef={(el) => {
+                      if (el) logsContainerRefs.current.set(job.name, el)
+                    }}
+                    disabled={isDisabled}
+                    disabledMessage={isDisabled ? discoveryMessage ?? undefined : undefined}
+                  />
+                )
+              })}
             </Box>
           </Box>
         )
@@ -135,6 +147,8 @@ export function JobsPage() {
     clearInterruptedRun,
     refresh: refreshEnrichmentStatus,
   } = useEnrichmentStatus()
+
+  const { prerequisites: discoveryPrerequisites } = useDiscoveryPrerequisites()
 
   const [tabValue, setTabValue] = useState(0)
   const [configDialogJob, setConfigDialogJob] = useState<string | null>(null)
@@ -399,6 +413,8 @@ export function JobsPage() {
           onToggleLogs={toggleLogs}
           onConfigClick={setConfigDialogJob}
           onHistoryClick={setHistoryDialogJob}
+          discoveryReady={discoveryPrerequisites?.ready}
+          discoveryMessage={discoveryPrerequisites?.message}
         />
       </TabPanel>
 

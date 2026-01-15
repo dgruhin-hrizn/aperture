@@ -36,6 +36,7 @@ import {
   TMDbConfigSection,
   OMDbConfigSection,
   MDBListConfigSection,
+  JellyseerrConfigSection,
   BackupSection,
   PosterRepairSection,
   LegacyEmbeddingsSection,
@@ -159,6 +160,7 @@ export function SettingsPage() {
                   <TMDbConfigSection />
                   <OMDbConfigSection />
                   <MDBListConfigSection />
+                  <JellyseerrConfigSection />
                 </Box>
               </Box>
             </TabPanel>

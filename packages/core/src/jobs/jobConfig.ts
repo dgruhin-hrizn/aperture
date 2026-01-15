@@ -63,6 +63,7 @@ const ENV_DEFAULTS: Record<
   'refresh-top-picks': { scheduleType: 'daily', hour: 5, minute: 0 },
   'enrich-studio-logos': { scheduleType: 'daily', hour: 5, minute: 30 },
   'enrich-mdblist': { scheduleType: 'daily', hour: 7, minute: 0 },
+  'generate-discovery-suggestions': { scheduleType: 'daily', hour: 6, minute: 0 },
 
   // === WEEKLY (Sunday) ===
   'refresh-assistant-suggestions': { scheduleType: 'weekly', hour: 0, minute: 0, dayOfWeek: 0 },

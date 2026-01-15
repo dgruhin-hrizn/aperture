@@ -13,6 +13,7 @@ import AddToQueueIcon from '@mui/icons-material/AddToQueue'
 import BusinessIcon from '@mui/icons-material/Business'
 import StreamIcon from '@mui/icons-material/Stream'
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney'
+import ExploreIcon from '@mui/icons-material/Explore'
 import type { JobCategory } from './types'
 
 // Movie job categories
@@ -92,6 +93,12 @@ export const GLOBAL_JOB_CATEGORIES: JobCategory[] = [
     color: '#22c55e',
     jobs: ['refresh-ai-pricing'],
   },
+  {
+    title: 'Discovery',
+    description: 'Find content not in your library that matches your taste',
+    color: '#ec4899',
+    jobs: ['generate-discovery-suggestions'],
+  },
 ]
 
 // Combined for backwards compatibility
@@ -125,6 +132,8 @@ export const JOB_ICONS: Record<string, React.ReactNode> = {
   'sync-watching-libraries': <AddToQueueIcon />,
   'sync-trakt-ratings': <SyncIcon />,
   'refresh-ai-pricing': <AttachMoneyIcon />,
+  // Discovery jobs
+  'generate-discovery-suggestions': <ExploreIcon />,
 }
 
 export const JOB_COLORS: Record<string, string> = {
@@ -151,6 +160,8 @@ export const JOB_COLORS: Record<string, string> = {
   'sync-watching-libraries': '#06b6d4',
   'sync-trakt-ratings': '#ed1c24',
   'refresh-ai-pricing': '#22c55e',
+  // Discovery jobs
+  'generate-discovery-suggestions': '#ec4899',
 }
 
 export function formatJobName(name: string): string {
