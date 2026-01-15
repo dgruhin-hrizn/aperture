@@ -526,41 +526,66 @@ export function AIFunctionCard({
 
         {/* Ollama Instructions */}
         {provider === 'ollama' && (
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-              Install a model on your Ollama server:
+          <Box sx={{ 
+            mb: 2, 
+            p: 2, 
+            borderRadius: 2, 
+            bgcolor: (theme) => alpha(theme.palette.info.main, 0.08),
+            border: 1,
+            borderColor: (theme) => alpha(theme.palette.info.main, 0.2),
+          }}>
+            <Typography variant="subtitle2" sx={{ mb: 1.5, color: 'info.main', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <ComputerIcon fontSize="small" />
+              Install models on your Ollama server
             </Typography>
-            <Box sx={{ 
-              bgcolor: '#1a1a2e', 
-              borderRadius: 1.5,
-              p: 1.5,
-              fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-              fontSize: '0.75rem',
-              lineHeight: 1.8,
-            }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
               {(functionType === 'embeddings' 
                 ? [
-                    { model: 'nomic-embed-text', note: '← recommended' },
-                    { model: 'mxbai-embed-large', note: '← higher quality' },
-                    { model: 'nomic-embed-text-v2-moe', note: '← multilingual' },
+                    { cmd: 'ollama pull nomic-embed-text', note: 'recommended' },
+                    { cmd: 'ollama pull mxbai-embed-large', note: 'higher quality' },
+                    { cmd: 'ollama pull nomic-embed-text-v2-moe', note: 'multilingual' },
                   ]
                 : functionType === 'chat'
                 ? [
-                    { model: 'qwen3', note: '← recommended' },
-                    { model: 'firefunction-v2', note: null },
+                    { cmd: 'ollama pull qwen3', note: 'recommended' },
+                    { cmd: 'ollama pull firefunction-v2', note: 'best for tools' },
                   ]
                 : [
-                    { model: 'llama3.2', note: '← recommended' },
-                    { model: 'llama3.1', note: null },
-                    { model: 'gemma3', note: '← fast' },
-                    { model: 'phi4', note: '← compact' },
+                    { cmd: 'ollama pull llama3.2', note: 'recommended' },
+                    { cmd: 'ollama pull llama3.1', note: null },
+                    { cmd: 'ollama pull gemma3', note: 'fast' },
+                    { cmd: 'ollama pull phi4', note: 'small & capable' },
                   ]
-              ).map(({ model, note }, i) => (
-                <Box key={model} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box component="span" sx={{ color: '#6b7280' }}>$</Box>
-                  <Box component="span" sx={{ color: '#f8f8f2' }}>ollama pull</Box>
-                  <Box component="span" sx={{ color: '#50fa7b' }}>{model}</Box>
-                  {note && <Box component="span" sx={{ color: '#6272a4', ml: 'auto' }}>{note}</Box>}
+              ).map(({ cmd, note }) => (
+                <Box 
+                  key={cmd}
+                  sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between',
+                    bgcolor: 'background.paper',
+                    px: 1.5,
+                    py: 0.75,
+                    borderRadius: 1,
+                    fontFamily: 'monospace',
+                    fontSize: '0.8rem',
+                  }}
+                >
+                  <Box component="span" sx={{ color: 'text.primary', whiteSpace: 'nowrap' }}>{cmd}</Box>
+                  {note && (
+                    <Chip 
+                      label={note} 
+                      size="small" 
+                      variant="outlined"
+                      sx={{ 
+                        height: 20, 
+                        fontSize: '0.65rem',
+                        ml: 1,
+                        flexShrink: 0,
+                        '& .MuiChip-label': { px: 1 }
+                      }} 
+                    />
+                  )}
                 </Box>
               ))}
             </Box>
