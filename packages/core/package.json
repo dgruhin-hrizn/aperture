@@ -49,14 +49,14 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "ai": "^5.0.0",
-    "@ai-sdk/openai": "^2.0.0",
     "@ai-sdk/anthropic": "^2.0.0",
-    "@ai-sdk/openai-compatible": "^2.0.0",
-    "@ai-sdk/groq": "^2.0.0",
-    "@ai-sdk/google": "^2.0.0",
     "@ai-sdk/deepseek": "^2.0.0",
-    "ollama-ai-provider": "^1.0.0",
+    "@ai-sdk/google": "^2.0.0",
+    "@ai-sdk/groq": "^2.0.0",
+    "@ai-sdk/openai": "^2.0.0",
+    "@ai-sdk/openai-compatible": "^2.0.0",
+    "ai": "^5.0.0",
+    "ollama-ai-provider": "^1.2.0",
     "openai": "^4.77.0",
     "pg": "^8.13.1",
     "pino": "^9.5.0",
@@ -69,4 +69,3 @@
     "pino-pretty": "^13.0.0"
   }
 }
-
