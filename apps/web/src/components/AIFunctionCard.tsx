@@ -541,7 +541,7 @@ export function AIFunctionCard({
             }}>
               {functionType === 'embeddings' 
                 ? '# Embedding models\nollama pull nomic-embed-text\nollama pull mxbai-embed-large\nollama pull nomic-embed-text-v2-moe  # multilingual'
-                : '# Chat/Text models (with tool calling)\nollama pull llama3.1\nollama pull qwen3\nollama pull firefunction-v2  # best for tools\n\n# Text generation only\nollama pull gemma3\nollama pull phi4'
+                : '# Chat models (with tool calling)\nollama pull firefunction-v2  # best for tools\nollama pull qwen3\nollama pull qwen2.5\n\n# Text generation only\nollama pull gemma3\nollama pull phi4'
               }
             </Box>
           </Alert>
