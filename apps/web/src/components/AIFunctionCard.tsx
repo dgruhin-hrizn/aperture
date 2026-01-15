@@ -473,7 +473,13 @@ export function AIFunctionCard({
         {/* Capability Warnings */}
         {hasCapabilityWarning && (
           <Alert severity="warning" sx={{ mb: 2 }}>
-            This model doesn't support tool calling. The assistant will work but cannot access your library.
+            <Typography variant="body2" sx={{ mb: 0.5 }}>
+              <strong>This model doesn't support reliable tool calling.</strong>
+            </Typography>
+            <Typography variant="body2">
+              The assistant will work but cannot search your library or make recommendations.
+              {provider === 'ollama' && ' For Ollama, use firefunction-v2 or qwen3 instead.'}
+            </Typography>
           </Alert>
         )}
         {hasEmbeddingWarning && (

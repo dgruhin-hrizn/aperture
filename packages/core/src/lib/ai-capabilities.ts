@@ -341,10 +341,10 @@ export const PROVIDERS: ProviderMetadata[] = [
       {
         id: 'llama3.2',
         name: 'Llama 3.2',
-        description: 'Latest Llama model with excellent tool calling support.',
+        description: 'General purpose model. Tool calling unreliable - use firefunction-v2 or qwen3 for chat.',
         capabilities: {
-          supportsToolCalling: true,
-          supportsToolStreaming: true,
+          supportsToolCalling: false,
+          supportsToolStreaming: false,
           supportsObjectGeneration: true,
           supportsEmbeddings: false,
         },
@@ -727,7 +727,11 @@ export function getModelsForFunction(providerId: string, fn: AIFunction): ModelM
     return provider.chatModels.filter((m) => m.capabilities.supportsToolCalling)
   }
   if (fn === 'textGeneration') {
-    return provider.textGenerationModels
+    // Text generation doesn't require tool calling, so use textGenerationModels
+    // or fall back to all chat models (many providers share the same models)
+    return provider.textGenerationModels.length > 0
+      ? provider.textGenerationModels
+      : provider.chatModels
   }
   return []
 }
