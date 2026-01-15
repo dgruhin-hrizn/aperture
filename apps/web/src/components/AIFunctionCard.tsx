@@ -133,6 +133,7 @@ export interface AIFunctionCardProps {
   onSave: (config: FunctionConfig) => Promise<void>
   requiredCapability?: 'toolCalling' | 'embeddings'
   compact?: boolean // For wizard mode
+  isSetup?: boolean // Use unauthenticated /api/setup/* endpoints during first-run
 }
 
 export function AIFunctionCard({
@@ -145,7 +146,11 @@ export function AIFunctionCard({
   onSave,
   requiredCapability,
   compact = false,
+  isSetup = false,
 }: AIFunctionCardProps) {
+  // Use setup endpoints during first-run (no auth), settings endpoints after
+  const apiBase = isSetup ? '/api/setup/ai' : '/api/settings/ai'
+  
   const [loadingProviders, setLoadingProviders] = useState(true)
   const [loading, setLoading] = useState(false)
   const [providers, setProviders] = useState<ProviderInfo[]>([])
@@ -189,17 +194,17 @@ export function AIFunctionCard({
   // Fetch providers
   useEffect(() => {
     setLoadingProviders(true)
-    fetch(`/api/settings/ai/providers?function=${functionType}`, { credentials: 'include' })
+    fetch(`${apiBase}/providers?function=${functionType}`, { credentials: 'include' })
       .then(res => res.json())
       .then(data => setProviders(data.providers || Object.values(PROVIDER_INFO)))
       .catch(() => setProviders(Object.values(PROVIDER_INFO)))
       .finally(() => setLoadingProviders(false))
-  }, [functionType])
+  }, [functionType, apiBase])
 
   // Load saved credentials for current provider on mount (if no apiKey in config)
   useEffect(() => {
     if (!config?.apiKey && provider) {
-      fetch(`/api/settings/ai/credentials/${provider}`, { credentials: 'include' })
+      fetch(`${apiBase}/credentials/${provider}`, { credentials: 'include' })
         .then(res => res.ok ? res.json() : null)
         .then(data => {
           if (data?.apiKey) setApiKey(data.apiKey)
@@ -207,12 +212,12 @@ export function AIFunctionCard({
         })
         .catch(() => {})
     }
-  }, []) // Only run once on mount
+  }, [apiBase]) // Run on mount and when apiBase changes
 
   // Fetch models when provider changes
   useEffect(() => {
     setLoading(true)
-    fetch(`/api/settings/ai/models?provider=${provider}&function=${functionType}`, { credentials: 'include' })
+    fetch(`${apiBase}/models?provider=${provider}&function=${functionType}`, { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         setModels(data.models || [])
@@ -229,7 +234,7 @@ export function AIFunctionCard({
       })
       .catch(() => setModels([]))
       .finally(() => setLoading(false))
-  }, [provider, functionType, config?.model])
+  }, [provider, functionType, config?.model, apiBase])
 
   // Set default base URL when switching providers
   useEffect(() => {
@@ -245,7 +250,7 @@ export function AIFunctionCard({
     
     // Fetch saved credentials for this provider
     try {
-      const res = await fetch(`/api/settings/ai/credentials/${newProvider}`, { credentials: 'include' })
+      const res = await fetch(`${apiBase}/credentials/${newProvider}`, { credentials: 'include' })
       if (res.ok) {
         const data = await res.json()
         setApiKey(data.apiKey || '')
@@ -264,7 +269,7 @@ export function AIFunctionCard({
     setTesting(true)
     setTestResult(null)
     try {
-      const res = await fetch('/api/settings/ai/test', {
+      const res = await fetch(`${apiBase}/test`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

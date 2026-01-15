@@ -44,23 +44,34 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
     textGeneration: null,
   })
 
-  // Fetch current AI config
+  // Fetch current AI config from each function endpoint (setup-safe)
   const fetchConfig = useCallback(async () => {
     try {
-      const res = await fetch('/api/settings/ai', { credentials: 'include' })
-      if (res.ok) {
-        const data = await res.json()
-        setConfig(data.config)
-        // If config exists, mark as tested
-        if (data.config?.embeddings) {
-          setTestResults(prev => ({ ...prev, embeddings: true }))
-        }
-        if (data.config?.chat) {
-          setTestResults(prev => ({ ...prev, chat: true }))
-        }
-        if (data.config?.textGeneration) {
-          setTestResults(prev => ({ ...prev, textGeneration: true }))
-        }
+      const [embeddingsRes, chatRes, textGenRes] = await Promise.all([
+        fetch('/api/setup/ai/embeddings', { credentials: 'include' }),
+        fetch('/api/setup/ai/chat', { credentials: 'include' }),
+        fetch('/api/setup/ai/textGeneration', { credentials: 'include' }),
+      ])
+      
+      const embeddingsData = embeddingsRes.ok ? await embeddingsRes.json() : { config: null }
+      const chatData = chatRes.ok ? await chatRes.json() : { config: null }
+      const textGenData = textGenRes.ok ? await textGenRes.json() : { config: null }
+      
+      setConfig({
+        embeddings: embeddingsData.config,
+        chat: chatData.config,
+        textGeneration: textGenData.config,
+      })
+      
+      // If config exists, mark as tested
+      if (embeddingsData.config) {
+        setTestResults(prev => ({ ...prev, embeddings: true }))
+      }
+      if (chatData.config) {
+        setTestResults(prev => ({ ...prev, chat: true }))
+      }
+      if (textGenData.config) {
+        setTestResults(prev => ({ ...prev, textGeneration: true }))
       }
     } catch {
       // Ignore
@@ -74,7 +85,7 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
   }, [fetchConfig])
 
   const handleSave = async (fn: AIFunction, fnConfig: FunctionConfig) => {
-    const res = await fetch(`/api/settings/ai/${fn}`, {
+    const res = await fetch(`/api/setup/ai/${fn}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -156,6 +167,7 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
           onSave={(c) => handleSave('embeddings', c)}
           requiredCapability="embeddings"
           compact
+          isSetup
         />
       </Box>
 
@@ -180,6 +192,7 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
           onSave={(c) => handleSave('chat', c)}
           requiredCapability="toolCalling"
           compact
+          isSetup
         />
 
         <AIFunctionCard
@@ -191,6 +204,7 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
           config={config?.textGeneration ?? null}
           onSave={(c) => handleSave('textGeneration', c)}
           compact
+          isSetup
         />
       </Box>
 
