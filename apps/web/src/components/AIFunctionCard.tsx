@@ -526,27 +526,68 @@ export function AIFunctionCard({
 
         {/* Ollama Instructions */}
         {provider === 'ollama' && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            <Typography variant="body2" sx={{ mb: 1 }}>
-              <strong>Install models on your Ollama server:</strong>
+          <Box sx={{ 
+            mb: 2, 
+            p: 2, 
+            borderRadius: 2, 
+            bgcolor: (theme) => alpha(theme.palette.info.main, 0.08),
+            border: 1,
+            borderColor: (theme) => alpha(theme.palette.info.main, 0.2),
+          }}>
+            <Typography variant="subtitle2" sx={{ mb: 1.5, color: 'info.main', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <ComputerIcon fontSize="small" />
+              Install models on your Ollama server
             </Typography>
-            <Box component="code" sx={{ 
-              display: 'block', 
-              bgcolor: 'background.default', 
-              p: 1, 
-              borderRadius: 1,
-              fontSize: '0.75rem',
-              fontFamily: 'monospace',
-              whiteSpace: 'pre-wrap'
-            }}>
-              {functionType === 'embeddings' 
-                ? '# Embedding models\nollama pull nomic-embed-text\nollama pull mxbai-embed-large\nollama pull nomic-embed-text-v2-moe  # multilingual'
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+              {(functionType === 'embeddings' 
+                ? [
+                    { cmd: 'ollama pull nomic-embed-text', note: 'recommended' },
+                    { cmd: 'ollama pull mxbai-embed-large', note: 'higher quality' },
+                    { cmd: 'ollama pull nomic-embed-text-v2-moe', note: 'multilingual' },
+                  ]
                 : functionType === 'chat'
-                ? '# Chat models (with tool calling)\nollama pull qwen3  # recommended\nollama pull firefunction-v2'
-                : '# Text generation models\nollama pull llama3.2\nollama pull llama3.1\nollama pull gemma3\nollama pull phi4'
-              }
+                ? [
+                    { cmd: 'ollama pull qwen3', note: 'recommended' },
+                    { cmd: 'ollama pull firefunction-v2', note: 'best for tools' },
+                  ]
+                : [
+                    { cmd: 'ollama pull llama3.2', note: null },
+                    { cmd: 'ollama pull llama3.1', note: null },
+                    { cmd: 'ollama pull gemma3', note: 'fast' },
+                    { cmd: 'ollama pull phi4', note: 'small & capable' },
+                  ]
+              ).map(({ cmd, note }) => (
+                <Box 
+                  key={cmd}
+                  sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between',
+                    bgcolor: 'background.paper',
+                    px: 1.5,
+                    py: 0.75,
+                    borderRadius: 1,
+                    fontFamily: 'monospace',
+                    fontSize: '0.8rem',
+                  }}
+                >
+                  <Box component="span" sx={{ color: 'text.primary' }}>{cmd}</Box>
+                  {note && (
+                    <Chip 
+                      label={note} 
+                      size="small" 
+                      variant="outlined"
+                      sx={{ 
+                        height: 20, 
+                        fontSize: '0.65rem',
+                        '& .MuiChip-label': { px: 1 }
+                      }} 
+                    />
+                  )}
+                </Box>
+              ))}
             </Box>
-          </Alert>
+          </Box>
         )}
 
         {/* Base URL */}
