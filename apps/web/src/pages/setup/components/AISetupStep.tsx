@@ -223,6 +223,29 @@ function FunctionConfigCard({
             />
           )}
 
+          {/* Ollama Instructions */}
+          {selectedProvider?.id === 'ollama' && (
+            <Alert severity="info" sx={{ mb: 1 }}>
+              <Typography variant="body2" sx={{ mb: 0.5 }}>
+                <strong>Install models on your Ollama server:</strong>
+              </Typography>
+              <Box component="code" sx={{ 
+                display: 'block', 
+                bgcolor: 'background.default', 
+                p: 1, 
+                borderRadius: 1,
+                fontSize: '0.7rem',
+                fontFamily: 'monospace',
+                whiteSpace: 'pre-wrap'
+              }}>
+                {functionType === 'embeddings' 
+                  ? 'ollama pull nomic-embed-text'
+                  : 'ollama pull llama3.2'
+                }
+              </Box>
+            </Alert>
+          )}
+
           {/* Base URL (if required) */}
           {selectedProvider?.requiresBaseUrl && (
             <TextField
@@ -240,7 +263,7 @@ function FunctionConfigCard({
               }
               helperText={
                 selectedProvider.id === 'ollama'
-                  ? 'Ollama server URL'
+                  ? 'Ollama server URL (make sure Ollama is running)'
                   : selectedProvider.id === 'lm-studio'
                   ? 'LM Studio server URL'
                   : 'Server base URL'

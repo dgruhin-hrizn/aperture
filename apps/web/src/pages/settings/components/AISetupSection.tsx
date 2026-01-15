@@ -475,6 +475,29 @@ function AIFunctionCard({
           />
         )}
 
+        {/* Ollama Instructions */}
+        {provider === 'ollama' && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              <strong>Install models on your Ollama server:</strong>
+            </Typography>
+            <Box component="code" sx={{ 
+              display: 'block', 
+              bgcolor: 'background.default', 
+              p: 1, 
+              borderRadius: 1,
+              fontSize: '0.75rem',
+              fontFamily: 'monospace',
+              whiteSpace: 'pre-wrap'
+            }}>
+              {functionType === 'embeddings' 
+                ? '# Embedding models\nollama pull nomic-embed-text\nollama pull mxbai-embed-large'
+                : '# Chat/Text models\nollama pull llama3.2\nollama pull mistral\nollama pull qwen2.5'
+              }
+            </Box>
+          </Alert>
+        )}
+
         {/* Base URL */}
         {providerInfo?.requiresBaseUrl && (
           <TextField
@@ -487,7 +510,7 @@ function AIFunctionCard({
             sx={{ mb: 2 }}
             helperText={
               provider === 'ollama' 
-                ? 'Make sure Ollama is running locally'
+                ? 'Make sure Ollama is running and accessible at this URL'
                 : 'OpenAI-compatible API endpoint'
             }
           />
