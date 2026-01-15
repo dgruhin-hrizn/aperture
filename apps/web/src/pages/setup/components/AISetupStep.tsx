@@ -10,8 +10,6 @@ import {
   Button,
   CircularProgress,
   Link,
-  Chip,
-  Divider,
 } from '@mui/material'
 import {
   OpenInNew as OpenInNewIcon,
@@ -105,9 +103,16 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
     goToStep('complete')
   }
 
-  // Check if at least embeddings is configured
+  // All 3 AI functions are required
   const hasEmbeddings = config?.embeddings?.provider && config?.embeddings?.model
-  const canContinue = hasEmbeddings
+  const hasChat = config?.chat?.provider && config?.chat?.model
+  const hasTextGen = config?.textGeneration?.provider && config?.textGeneration?.model
+  const canContinue = hasEmbeddings && hasChat && hasTextGen
+  
+  const missingConfigs: string[] = []
+  if (!hasEmbeddings) missingConfigs.push('Embeddings')
+  if (!hasChat) missingConfigs.push('Chat Assistant')
+  if (!hasTextGen) missingConfigs.push('Text Generation')
 
   if (loading) {
     return (
@@ -148,15 +153,8 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
         </Alert>
       )}
 
-      {/* Required: Embeddings */}
-      <Box sx={{ mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-          <Typography variant="subtitle2" color="text.secondary">
-            REQUIRED
-          </Typography>
-          <Chip label="Must configure to continue" size="small" color="primary" variant="outlined" />
-        </Box>
-        
+      {/* All AI Functions - each on its own row */}
+      <Box display="flex" flexDirection="column" gap={2} mb={3}>
         <AIFunctionCard
           functionType="embeddings"
           title="Embeddings"
@@ -169,19 +167,7 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
           compact
           isSetup
         />
-      </Box>
 
-      <Divider sx={{ my: 3 }}>
-        <Chip label="Optional" size="small" variant="outlined" />
-      </Divider>
-
-      {/* Optional: Chat & Text Generation */}
-      <Box 
-        display="grid" 
-        gridTemplateColumns={{ xs: '1fr', md: 'repeat(2, 1fr)' }} 
-        gap={2}
-        mb={3}
-      >
         <AIFunctionCard
           functionType="chat"
           title="Chat Assistant"
@@ -211,7 +197,7 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
       {!canContinue && (
         <Alert severity="warning" icon={<WarningIcon />} sx={{ mb: 3 }}>
           <Typography variant="body2">
-            You must configure and save <strong>Embeddings</strong> to continue. This is required for AI recommendations.
+            You must configure and test <strong>{missingConfigs.join(', ')}</strong> to continue.
           </Typography>
         </Alert>
       )}
