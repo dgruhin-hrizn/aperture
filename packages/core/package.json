@@ -56,7 +56,7 @@
     "@ai-sdk/openai": "^2.0.0",
     "@ai-sdk/openai-compatible": "^2.0.0",
     "ai": "^5.0.0",
-    "ollama-ai-provider": "^1.2.0",
+    "ollama-ai-provider-v2": "^2.0.0",
     "openai": "^4.77.0",
     "pg": "^8.13.1",
     "pino": "^9.5.0",
