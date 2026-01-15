@@ -49,6 +49,18 @@ import {
   // Job progress
   getJobProgress,
   getLastJobRuns,
+
+  // Multi-provider AI config (for setup endpoints)
+  getFunctionConfig,
+  setFunctionConfig,
+  testProviderConnection,
+  PROVIDERS,
+  getProvidersForFunction,
+  getModelsForFunction,
+  getSystemSetting,
+  setSystemSetting,
+  type AIFunction,
+  type ProviderType,
 } from '@aperture/core'
 import { requireAdmin } from '../plugins/auth.js'
 import { query, queryOne } from '../lib/db.js'
@@ -62,6 +74,8 @@ interface DiscoveredServer {
 
 interface SetupStatusResponse {
   needsSetup: boolean
+  isAdmin: boolean
+  canAccessSetup: boolean // true if needs setup OR user is admin
   configured: {
     mediaServer: boolean
     openai: boolean
@@ -106,15 +120,18 @@ async function requireSetupWritable(
 const setupRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * GET /api/setup/status
-   * Check if setup is needed (public endpoint)
+   * Check if setup is needed (public endpoint, but includes admin check)
    */
-  fastify.get<{ Reply: SetupStatusResponse }>('/api/setup/status', async (_request, reply) => {
+  fastify.get<{ Reply: SetupStatusResponse }>('/api/setup/status', async (request, reply) => {
     const setupComplete = await isSetupComplete()
+    const isAdmin = isAdminRequest(request)
     const mediaServerConfig = await getMediaServerConfig()
     const hasOpenAI = await hasOpenAIApiKey()
 
     return reply.send({
       needsSetup: !setupComplete,
+      isAdmin,
+      canAccessSetup: !setupComplete || isAdmin,
       configured: {
         mediaServer: mediaServerConfig.isConfigured,
         openai: hasOpenAI,
@@ -695,11 +712,11 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * GET /api/setup/users
    * Fetch users from media server using saved API key.
-   * ONLY available during first-run setup - returns 403 after setup is complete.
+   * Public during first-run, admin-only after setup is complete.
    */
-  fastify.get('/api/setup/users', async (_request, reply) => {
-    const complete = await isSetupComplete()
-    if (complete) {
+  fastify.get('/api/setup/users', async (request, reply) => {
+    const { complete, isAdmin } = await requireSetupWritable(request)
+    if (complete && !isAdmin) {
       return reply.status(403).send({
         error: 'Setup is complete. Manage users in Admin → Users.',
       })
@@ -776,11 +793,11 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * POST /api/setup/users/import
    * Import a user from media server into Aperture DB.
-   * ONLY available during first-run setup.
+   * Public during first-run, admin-only after setup is complete.
    */
   fastify.post<{ Body: SetupUserImportBody }>('/api/setup/users/import', async (request, reply) => {
-    const complete = await isSetupComplete()
-    if (complete) {
+    const { complete, isAdmin } = await requireSetupWritable(request)
+    if (complete && !isAdmin) {
       return reply.status(403).send({
         error: 'Setup is complete. Manage users in Admin → Users.',
       })
@@ -873,11 +890,11 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * POST /api/setup/users/enable
    * Update movies/series enabled status for an imported user.
-   * ONLY available during first-run setup.
+   * Public during first-run, admin-only after setup is complete.
    */
   fastify.post<{ Body: SetupUserEnableBody }>('/api/setup/users/enable', async (request, reply) => {
-    const complete = await isSetupComplete()
-    if (complete) {
+    const { complete, isAdmin } = await requireSetupWritable(request)
+    if (complete && !isAdmin) {
       return reply.status(403).send({
         error: 'Setup is complete. Manage users in Admin → Users.',
       })
@@ -1034,13 +1051,14 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
 
   /**
    * POST /api/setup/jobs/:name/run
-   * Run a job during first-time setup (no auth required, only works before setup is complete)
+   * Run a job during first-time setup.
+   * Public during first-run, admin-only after setup is complete.
    */
   fastify.post<{ Params: { name: string } }>(
     '/api/setup/jobs/:name/run',
     async (request, reply) => {
-      const complete = await isSetupComplete()
-      if (complete) {
+      const { complete, isAdmin } = await requireSetupWritable(request)
+      if (complete && !isAdmin) {
         return reply.status(403).send({
           error: 'Setup is already complete. Use admin job endpoints instead.',
         })
@@ -1083,13 +1101,14 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
 
   /**
    * GET /api/setup/jobs/progress/:jobId
-   * Get job progress during initial setup (no auth required, only works if setup not complete)
+   * Get job progress during initial setup.
+   * Public during first-run, admin-only after setup is complete.
    */
   fastify.get<{ Params: { jobId: string } }>(
     '/api/setup/jobs/progress/:jobId',
     async (request, reply) => {
-      const complete = await isSetupComplete()
-      if (complete) {
+      const { complete, isAdmin } = await requireSetupWritable(request)
+      if (complete && !isAdmin) {
         return reply.status(403).send({
           error: 'Setup is already complete. Use admin job endpoints instead.',
         })
@@ -1108,11 +1127,12 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
 
   /**
    * GET /api/setup/jobs/last-runs
-   * Get the last run for each job type (for restoring state after page refresh)
+   * Get the last run for each job type (for restoring state after page refresh).
+   * Public during first-run, admin-only after setup is complete.
    */
-  fastify.get('/api/setup/jobs/last-runs', async (_request, reply) => {
-    const complete = await isSetupComplete()
-    if (complete) {
+  fastify.get('/api/setup/jobs/last-runs', async (request, reply) => {
+    const { complete, isAdmin } = await requireSetupWritable(request)
+    if (complete && !isAdmin) {
       return reply.status(403).send({
         error: 'Setup is already complete. Use admin job endpoints instead.',
       })
@@ -1290,6 +1310,208 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.send({ success: true })
     }
   )
+
+  // =========================================================================
+  // AI Setup Endpoints (Public during first-run, admin-only after completion)
+  // =========================================================================
+
+  /**
+   * GET /api/setup/ai/providers
+   * Get available AI providers for a specific function
+   */
+  fastify.get<{
+    Querystring: { function?: string }
+  }>('/api/setup/ai/providers', async (request, reply) => {
+    const { complete, isAdmin } = await requireSetupWritable(request)
+    if (complete && !isAdmin) return reply.status(404).send({ error: 'Not Found' })
+
+    try {
+      const fn = request.query.function as AIFunction | undefined
+
+      if (fn) {
+        const providers = await getProvidersForFunction(fn)
+        return reply.send({ providers })
+      }
+
+      return reply.send({ providers: PROVIDERS })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get AI providers')
+      return reply.status(500).send({ error: 'Failed to get AI providers' })
+    }
+  })
+
+  /**
+   * GET /api/setup/ai/models
+   * Get available models for a specific provider and function
+   */
+  fastify.get<{
+    Querystring: { provider: string; function: string }
+  }>('/api/setup/ai/models', async (request, reply) => {
+    const { complete, isAdmin } = await requireSetupWritable(request)
+    if (complete && !isAdmin) return reply.status(404).send({ error: 'Not Found' })
+
+    try {
+      const { provider, function: fn } = request.query
+
+      if (!provider || !fn) {
+        return reply.status(400).send({ error: 'provider and function are required' })
+      }
+
+      const models = await getModelsForFunction(provider as ProviderType, fn as AIFunction)
+      return reply.send({ models })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get AI models')
+      return reply.status(500).send({ error: 'Failed to get AI models' })
+    }
+  })
+
+  /**
+   * GET /api/setup/ai/credentials/:provider
+   * Get credentials for a specific provider (includes API key for form population)
+   */
+  fastify.get<{ Params: { provider: string } }>('/api/setup/ai/credentials/:provider', async (request, reply) => {
+    const { complete, isAdmin } = await requireSetupWritable(request)
+    if (complete && !isAdmin) return reply.status(404).send({ error: 'Not Found' })
+
+    try {
+      const { provider } = request.params
+      const credentialsJson = await getSystemSetting('ai_provider_credentials')
+      const credentials = credentialsJson ? JSON.parse(credentialsJson) : {}
+      const providerCreds = credentials[provider] || {}
+
+      return reply.send({
+        provider,
+        apiKey: providerCreds.apiKey || '',
+        baseUrl: providerCreds.baseUrl || '',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get provider credentials')
+      return reply.status(500).send({ error: 'Failed to get provider credentials' })
+    }
+  })
+
+  /**
+   * GET /api/setup/ai/:function
+   * Get configuration for a specific AI function
+   */
+  fastify.get<{ Params: { function: string } }>('/api/setup/ai/:function', async (request, reply) => {
+    const { complete, isAdmin } = await requireSetupWritable(request)
+    if (complete && !isAdmin) return reply.status(404).send({ error: 'Not Found' })
+
+    try {
+      const fn = request.params.function as AIFunction
+
+      if (!['embeddings', 'chat', 'textGeneration'].includes(fn)) {
+        return reply.status(400).send({ error: 'Invalid function. Must be embeddings, chat, or textGeneration' })
+      }
+
+      const config = await getFunctionConfig(fn)
+      return reply.send({ config })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get AI function config')
+      return reply.status(500).send({ error: 'Failed to get AI function configuration' })
+    }
+  })
+
+  /**
+   * POST /api/setup/ai/test
+   * Test a specific provider/model configuration
+   */
+  fastify.post<{
+    Body: {
+      function: string
+      provider: string
+      model: string
+      apiKey?: string
+      baseUrl?: string
+    }
+  }>('/api/setup/ai/test', async (request, reply) => {
+    const { complete, isAdmin } = await requireSetupWritable(request)
+    if (complete && !isAdmin) return reply.status(404).send({ error: 'Not Found' })
+
+    try {
+      const { function: fn, provider, model, apiKey, baseUrl } = request.body
+
+      if (!fn || !provider || !model) {
+        return reply.status(400).send({ error: 'function, provider, and model are required' })
+      }
+
+      // If no API key provided, try to use the saved one from the config
+      let testApiKey = apiKey
+      let testBaseUrl = baseUrl
+      if (!testApiKey || !testBaseUrl) {
+        const savedConfig = await getFunctionConfig(fn as AIFunction)
+        if (savedConfig && savedConfig.provider === provider) {
+          testApiKey = testApiKey || savedConfig.apiKey
+          testBaseUrl = testBaseUrl || savedConfig.baseUrl
+        }
+      }
+
+      const result = await testProviderConnection(
+        {
+          provider: provider as ProviderType,
+          model,
+          apiKey: testApiKey,
+          baseUrl: testBaseUrl,
+        },
+        fn as AIFunction
+      )
+
+      return reply.send(result)
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to test AI provider')
+      return reply.status(500).send({ error: 'Failed to test AI provider' })
+    }
+  })
+
+  /**
+   * PATCH /api/setup/ai/:function
+   * Update configuration for a specific AI function
+   * Also saves credentials to the provider credentials store for reuse
+   */
+  fastify.patch<{
+    Params: { function: string }
+    Body: { provider: string; model: string; apiKey?: string; baseUrl?: string }
+  }>('/api/setup/ai/:function', async (request, reply) => {
+    const { complete, isAdmin } = await requireSetupWritable(request)
+    if (complete && !isAdmin) return reply.status(404).send({ error: 'Not Found' })
+
+    try {
+      const fn = request.params.function as AIFunction
+      const { provider, model, apiKey, baseUrl } = request.body
+
+      if (!['embeddings', 'chat', 'textGeneration'].includes(fn)) {
+        return reply.status(400).send({ error: 'Invalid function. Must be embeddings, chat, or textGeneration' })
+      }
+
+      // Save credentials to the provider credentials store for reuse
+      if (apiKey || baseUrl) {
+        const credentialsJson = await getSystemSetting('ai_provider_credentials')
+        const credentials = credentialsJson ? JSON.parse(credentialsJson) : {}
+
+        credentials[provider] = {
+          ...(credentials[provider] || {}),
+          ...(apiKey && { apiKey }),
+          ...(baseUrl && { baseUrl }),
+        }
+
+        await setSystemSetting('ai_provider_credentials', JSON.stringify(credentials), 'Stored credentials for AI providers')
+      }
+
+      await setFunctionConfig(fn, {
+        provider: provider as ProviderType,
+        model,
+        apiKey,
+        baseUrl,
+      })
+
+      const config = await getFunctionConfig(fn)
+      return reply.send({ config })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to update AI function config')
+      return reply.status(500).send({ error: 'Failed to update AI function configuration' })
+    }
+  })
 }
 
 export default setupRoutes

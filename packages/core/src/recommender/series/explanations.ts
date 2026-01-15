@@ -8,8 +8,8 @@
 
 import { query } from '../../lib/db.js'
 import { createChildLogger } from '../../lib/logger.js'
-import { getOpenAIClient } from '../../lib/openai.js'
-import { getTextGenerationModel } from '../../settings/systemSettings.js'
+import { getTextGenerationModelInstance } from '../../lib/ai-provider.js'
+import { generateText } from 'ai'
 
 const logger = createChildLogger('series-explanations')
 
@@ -241,14 +241,10 @@ async function generateBatchSeriesExplanations(
     .join('\n\n')
 
   try {
-    const model = await getTextGenerationModel()
-    const openai = await getOpenAIClient()
-    const response = await openai.chat.completions.create({
+    const model = await getTextGenerationModelInstance()
+    const { text } = await generateText({
       model,
-      messages: [
-        {
-          role: 'system',
-          content: `You are an expert TV curator writing personalized recommendation explanations for TV series. You have access to:
+      system: `You are an expert TV curator writing personalized recommendation explanations for TV series. You have access to:
 1. The user's taste profile and favorite series
 2. For each recommendation, the SPECIFIC watched series it's most similar to (via AI embedding analysis)
 
@@ -262,10 +258,7 @@ Write compelling 3-4 sentence explanations for each recommendation. Your explana
 CRITICAL: Each recommendation shows which of the user's watched series it's most similar to. USE THAT DATA - don't make up connections to random series.
 
 Format: Return JSON with an "explanations" array containing objects with "index" (1-based) and "explanation" fields.`,
-        },
-        {
-          role: 'user',
-          content: `=== USER'S TV TASTE PROFILE ===
+      prompt: `=== USER'S TV TASTE PROFILE ===
 ${userContext}
 
 === RECOMMENDED SERIES WITH SIMILARITY EVIDENCE ===
@@ -274,16 +267,13 @@ For each series below, I've included which of the user's watched series it's mos
 ${seriesListStr}
 
 Generate personalized explanations referencing the specific similar series shown for each recommendation.`,
-        },
-      ],
       temperature: 0.7,
-      max_tokens: 3000,
-      response_format: { type: 'json_object' },
+      maxOutputTokens: 3000,
     })
 
-    const content = response.choices[0]?.message?.content
+    const content = text
     if (!content) {
-      logger.warn('No response from OpenAI for series explanations')
+      logger.warn('No response from AI for series explanations')
       return seriesList.map((s) => ({
         seriesId: s.seriesId,
         explanation: generateFallbackSeriesExplanation(s),
@@ -303,7 +293,7 @@ Generate personalized explanations referencing the specific similar series shown
       }
     })
   } catch (error) {
-    logger.error({ error }, 'Failed to generate series explanations with OpenAI')
+    logger.error({ error }, 'Failed to generate series explanations')
     return seriesList.map((s) => ({
       seriesId: s.seriesId,
       explanation: generateFallbackSeriesExplanation(s),

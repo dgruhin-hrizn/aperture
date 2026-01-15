@@ -1,7 +1,7 @@
 import { createChildLogger } from '../lib/logger.js'
 import { query, queryOne } from '../lib/db.js'
-import { getOpenAIClient } from '../lib/openai.js'
-import { getEmbeddingModel } from '../settings/systemSettings.js'
+import { getEmbeddingModelInstance, getActiveEmbeddingModelId, getActiveEmbeddingTableName } from '../lib/ai-provider.js'
+import { embed } from 'ai'
 import { computeConnectionReasons, type ConnectionReason } from './reasons.js'
 
 const logger = createChildLogger('similarity')
@@ -165,14 +165,24 @@ export async function getSimilarMovies(
     studios: parseStudios(sourceMovie.studios),
   }
 
+  // Get the active embedding model
+  const modelId = await getActiveEmbeddingModelId()
+  if (!modelId) {
+    logger.warn('No embedding model configured')
+    return { center, connections: [] }
+  }
+
+  // Get the embedding table name
+  const tableName = await getActiveEmbeddingTableName('embeddings')
+
   // Get the embedding for the source movie
   const embeddingResult = await queryOne<{ embedding: string }>(
-    `SELECT embedding::text FROM embeddings WHERE movie_id = $1`,
-    [movieId]
+    `SELECT embedding::text FROM ${tableName} WHERE movie_id = $1 AND model = $2`,
+    [movieId, modelId]
   )
 
   if (!embeddingResult) {
-    logger.warn({ movieId }, 'No embedding found for movie')
+    logger.warn({ movieId, modelId }, 'No embedding found for movie')
     return { center, connections: [] }
   }
 
@@ -193,12 +203,12 @@ export async function getSimilarMovies(
     `SELECT m.id, m.title, m.year, m.poster_url, m.genres, m.directors, 
             m.actors, m.collection_name, m.keywords, m.studios,
             1 - (e.embedding <=> $1::halfvec) as similarity
-     FROM embeddings e
+     FROM ${tableName} e
      JOIN movies m ON m.id = e.movie_id
-     WHERE m.id != $2
+     WHERE m.id != $2 AND e.model = $3
      ORDER BY e.embedding <=> $1::halfvec
-     LIMIT $3`,
-    [embeddingResult.embedding, movieId, limit]
+     LIMIT $4`,
+    [embeddingResult.embedding, movieId, modelId, limit]
   )
 
   const connections: SimilarityConnection[] = similarMovies.rows.map((row) => {
@@ -276,14 +286,24 @@ export async function getSimilarSeries(
     studios: parseStudios(sourceSeries.studios),
   }
 
+  // Get the active embedding model
+  const modelId = await getActiveEmbeddingModelId()
+  if (!modelId) {
+    logger.warn('No embedding model configured')
+    return { center, connections: [] }
+  }
+
+  // Get the embedding table name
+  const tableName = await getActiveEmbeddingTableName('series_embeddings')
+
   // Get the embedding for the source series
   const embeddingResult = await queryOne<{ embedding: string }>(
-    `SELECT embedding::text FROM series_embeddings WHERE series_id = $1`,
-    [seriesId]
+    `SELECT embedding::text FROM ${tableName} WHERE series_id = $1 AND model = $2`,
+    [seriesId, modelId]
   )
 
   if (!embeddingResult) {
-    logger.warn({ seriesId }, 'No embedding found for series')
+    logger.warn({ seriesId, modelId }, 'No embedding found for series')
     return { center, connections: [] }
   }
 
@@ -304,12 +324,12 @@ export async function getSimilarSeries(
     `SELECT s.id, s.title, s.year, s.poster_url, s.genres, s.directors, 
             s.actors, s.network, s.keywords, s.studios,
             1 - (e.embedding <=> $1::halfvec) as similarity
-     FROM series_embeddings e
+     FROM ${tableName} e
      JOIN series s ON s.id = e.series_id
-     WHERE s.id != $2
+     WHERE s.id != $2 AND e.model = $3
      ORDER BY e.embedding <=> $1::halfvec
-     LIMIT $3`,
-    [embeddingResult.embedding, seriesId, limit]
+     LIMIT $4`,
+    [embeddingResult.embedding, seriesId, modelId, limit]
   )
 
   const connections: SimilarityConnection[] = similarSeries.rows.map((row) => {
@@ -866,16 +886,21 @@ export async function semanticSearch(
 
   logger.info({ searchQuery, type, limit }, 'Performing semantic search')
 
-  // Generate embedding for the search query
-  const client = await getOpenAIClient()
-  const model = await getEmbeddingModel()
+  // Get the active embedding model
+  const modelId = await getActiveEmbeddingModelId()
+  if (!modelId) {
+    logger.warn('No embedding model configured for semantic search')
+    return { query: searchQuery, results: [] }
+  }
 
-  const embeddingResponse = await client.embeddings.create({
+  // Generate embedding for the search query
+  const model = await getEmbeddingModelInstance()
+
+  const { embedding: queryEmbedding } = await embed({
     model,
-    input: searchQuery,
+    value: searchQuery,
   })
 
-  const queryEmbedding = embeddingResponse.data[0].embedding
   const embeddingVector = `[${queryEmbedding.join(',')}]`
 
   const results: Array<{ item: SimilarityItem; similarity: number }> = []
@@ -883,6 +908,7 @@ export async function semanticSearch(
   // Search movies
   if (type === 'movie' || type === 'both') {
     const movieLimit = type === 'both' ? Math.ceil(limit / 2) : limit
+    const movieTableName = await getActiveEmbeddingTableName('embeddings')
     
     const movieResults = await query<{
       id: string
@@ -900,11 +926,12 @@ export async function semanticSearch(
       `SELECT m.id, m.title, m.year, m.poster_url, m.genres, m.directors, 
               m.actors, m.collection_name, m.keywords, m.studios,
               1 - (e.embedding <=> $1::halfvec) as similarity
-       FROM embeddings e
+       FROM ${movieTableName} e
        JOIN movies m ON m.id = e.movie_id
+       WHERE e.model = $2
        ORDER BY e.embedding <=> $1::halfvec
-       LIMIT $2`,
-      [embeddingVector, movieLimit]
+       LIMIT $3`,
+      [embeddingVector, modelId, movieLimit]
     )
 
     for (const row of movieResults.rows) {
@@ -931,6 +958,7 @@ export async function semanticSearch(
   // Search series
   if (type === 'series' || type === 'both') {
     const seriesLimit = type === 'both' ? Math.floor(limit / 2) : limit
+    const seriesTableName = await getActiveEmbeddingTableName('series_embeddings')
     
     const seriesResults = await query<{
       id: string
@@ -948,11 +976,12 @@ export async function semanticSearch(
       `SELECT s.id, s.title, s.year, s.poster_url, s.genres, s.directors, 
               s.actors, s.network, s.keywords, s.studios,
               1 - (e.embedding <=> $1::halfvec) as similarity
-       FROM series_embeddings e
+       FROM ${seriesTableName} e
        JOIN series s ON s.id = e.series_id
+       WHERE e.model = $2
        ORDER BY e.embedding <=> $1::halfvec
-       LIMIT $2`,
-      [embeddingVector, seriesLimit]
+       LIMIT $3`,
+      [embeddingVector, modelId, seriesLimit]
     )
 
     for (const row of seriesResults.rows) {

@@ -1,6 +1,6 @@
 {
   "name": "@aperture/api",
-  "version": "0.4.2",
+  "version": "0.4.4-llm",
   "private": true,
   "type": "module",
   "scripts": {

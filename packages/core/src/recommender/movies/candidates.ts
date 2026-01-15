@@ -1,5 +1,6 @@
 import { createChildLogger } from '../../lib/logger.js'
 import { query, queryOne } from '../../lib/db.js'
+import { getActiveEmbeddingModelId, getActiveEmbeddingTableName } from '../../lib/ai-provider.js'
 import type { Candidate } from '../types.js'
 
 const logger = createChildLogger('recommender-candidates')
@@ -12,6 +13,16 @@ export async function getCandidates(
   maxParentalRating: number | null = null
 ): Promise<Candidate[]> {
   const vectorStr = `[${tasteProfile.join(',')}]`
+
+  // Get active embedding model
+  const modelId = await getActiveEmbeddingModelId()
+  if (!modelId) {
+    logger.warn('No embedding model configured for candidate generation')
+    return []
+  }
+
+  // Get the embedding table name
+  const tableName = await getActiveEmbeddingTableName('embeddings')
 
   // Check if any library configs exist
   const configCheck = await queryOne<{ count: string }>('SELECT COUNT(*) FROM library_config')
@@ -29,7 +40,7 @@ export async function getCandidates(
         ), 0) <= ${maxParentalRating})`
       : ''
 
-  // Use pgvector to find similar movies, filtered by enabled libraries and parental rating
+  // Use pgvector to find similar movies, filtered by enabled libraries, parental rating, and model
   const result = await query<{
     id: string
     title: string
@@ -41,9 +52,9 @@ export async function getCandidates(
     hasLibraryConfigs
       ? `SELECT m.id, m.title, m.year, m.genres, m.community_rating,
                 1 - (e.embedding <=> $1::halfvec) as similarity
-         FROM embeddings e
+         FROM ${tableName} e
          JOIN movies m ON m.id = e.movie_id
-         WHERE EXISTS (
+         WHERE e.model = $3 AND EXISTS (
            SELECT 1 FROM library_config lc 
            WHERE lc.provider_library_id = m.provider_library_id 
            AND lc.is_enabled = true
@@ -52,12 +63,12 @@ export async function getCandidates(
          LIMIT $2`
       : `SELECT m.id, m.title, m.year, m.genres, m.community_rating,
                 1 - (e.embedding <=> $1::halfvec) as similarity
-         FROM embeddings e
+         FROM ${tableName} e
          JOIN movies m ON m.id = e.movie_id
-         WHERE true${parentalFilter}
+         WHERE e.model = $3${parentalFilter}
          ORDER BY e.embedding <=> $1::halfvec
          LIMIT $2`,
-    [vectorStr, queryLimit]
+    [vectorStr, queryLimit, modelId]
   )
 
   // Filter out watched movies if not including them

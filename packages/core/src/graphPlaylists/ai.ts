@@ -3,9 +3,9 @@
  */
 
 import { createChildLogger } from '../lib/logger.js'
-import { getOpenAIClient } from '../lib/openai.js'
+import { getTextGenerationModelInstance } from '../lib/ai-provider.js'
+import { generateText } from 'ai'
 import { query } from '../lib/db.js'
-import { getTextGenerationModel } from '../settings/systemSettings.js'
 
 const logger = createChildLogger('graphPlaylists')
 
@@ -117,14 +117,10 @@ export async function generateGraphPlaylistName(
   }
 
   try {
-    const model = await getTextGenerationModel()
-    const openai = await getOpenAIClient()
-    const response = await openai.chat.completions.create({
+    const model = await getTextGenerationModelInstance()
+    const { text } = await generateText({
       model,
-      messages: [
-        {
-          role: 'system',
-          content: `You are a creative playlist naming expert. Generate a single catchy, memorable playlist name based on the provided movies/shows.
+      system: `You are a creative playlist naming expert. Generate a single catchy, memorable playlist name based on the provided movies/shows.
 
 Rules:
 - Keep it short (2-4 words max)
@@ -143,23 +139,17 @@ Examples of good names:
 - "Epic Quests" (adventure/fantasy)
 
 Return ONLY the playlist name, nothing else.`,
-        },
-        {
-          role: 'user',
-          content: context,
-        },
-      ],
+      prompt: context,
       temperature: 0.9,
-      max_tokens: 50,
+      maxOutputTokens: 50,
     })
 
-    const name = response.choices[0]?.message?.content?.trim()
-    if (!name) {
+    if (!text) {
       throw new Error('No response from AI')
     }
 
     // Remove quotes if AI added them
-    const cleanName = name.replace(/^["']|["']$/g, '')
+    const cleanName = text.trim().replace(/^["']|["']$/g, '')
     logger.info({ name: cleanName }, 'Generated graph playlist name')
     return cleanName
   } catch (error) {
@@ -194,14 +184,10 @@ export async function generateGraphPlaylistDescription(
   const mediaType = hasMovies && hasSeries ? 'movies and shows' : hasMovies ? 'movies' : 'shows'
 
   try {
-    const model = await getTextGenerationModel()
-    const openai = await getOpenAIClient()
-    const response = await openai.chat.completions.create({
+    const model = await getTextGenerationModelInstance()
+    const { text } = await generateText({
       model,
-      messages: [
-        {
-          role: 'system',
-          content: `You are a movie curator writing a brief playlist description. This playlist was created from a similarity graph exploration, so the items are connected by themes, genres, or creative relationships.
+      system: `You are a movie curator writing a brief playlist description. This playlist was created from a similarity graph exploration, so the items are connected by themes, genres, or creative relationships.
 
 Write 1-2 sentences that capture what makes this collection special.
 
@@ -219,23 +205,17 @@ Examples:
 - "A curated selection of mind-bending narratives from cinema's most innovative directors."
 
 Return ONLY the description, nothing else.`,
-        },
-        {
-          role: 'user',
-          content: context + nameContext,
-        },
-      ],
+      prompt: context + nameContext,
       temperature: 0.8,
-      max_tokens: 150,
+      maxOutputTokens: 150,
     })
 
-    const description = response.choices[0]?.message?.content?.trim()
-    if (!description) {
+    if (!text) {
       throw new Error('No response from AI')
     }
 
-    logger.info({ descriptionLength: description.length }, 'Generated graph playlist description')
-    return description
+    logger.info({ descriptionLength: text.length }, 'Generated graph playlist description')
+    return text.trim()
   } catch (error) {
     logger.error({ error }, 'Failed to generate graph playlist description')
     throw new Error('Failed to generate playlist description. Please try again.')

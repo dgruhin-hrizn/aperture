@@ -25,9 +25,44 @@ export type SetupStepId =
   | 'validate'
   | 'users'
   | 'topPicks'
-  | 'openai'
+  | 'aiSetup'
   | 'initialJobs'
   | 'complete'
+
+export type AIFunction = 'embeddings' | 'chat' | 'textGeneration'
+
+export interface AIFunctionConfig {
+  provider: string
+  model: string
+  apiKey?: string
+  baseUrl?: string
+}
+
+export interface AIConfig {
+  embeddings?: AIFunctionConfig | null
+  chat?: AIFunctionConfig | null
+  textGeneration?: AIFunctionConfig | null
+}
+
+export interface AIProviderOption {
+  id: string
+  name: string
+  description: string
+  requiresApiKey: boolean
+  requiresBaseUrl: boolean
+  defaultBaseUrl?: string
+  supportsEmbeddings: boolean
+  supportsChat: boolean
+  supportsTextGeneration: boolean
+}
+
+export interface AIModelOption {
+  id: string
+  name: string
+  description?: string
+  contextWindow?: number
+  dimensions?: number
+}
 
 export interface SetupProgress {
   completedSteps: SetupStepId[]
@@ -175,10 +210,10 @@ export interface SetupWizardState {
   usersError: string | null
   setupCompleteForUsers: boolean // True if API returned 403
 
-  // OpenAI
-  openaiKey: string
-  showOpenaiKey: boolean
-  existingOpenaiKey: string | null
+  // AI Configuration (multi-provider)
+  aiConfig: AIConfig
+  aiProviders: AIProviderOption[]
+  loadingAIConfig: boolean
 
   // Top Picks
   topPicks: TopPicksConfig
@@ -188,7 +223,7 @@ export interface SetupWizardState {
   saving: boolean
   error: string
   testSuccess: boolean
-  openaiTestSuccess: boolean
+  aiTestResults: Record<AIFunction, boolean | null>
   runningJobs: boolean
   jobLogs: string[]
   jobsProgress: JobProgress[]
@@ -229,11 +264,13 @@ export interface SetupWizardActions {
   toggleUserMovies: (providerUserId: string, enabled: boolean) => Promise<void>
   toggleUserSeries: (providerUserId: string, enabled: boolean) => Promise<void>
 
-  // OpenAI
-  setOpenaiKey: (key: string) => void
-  setShowOpenaiKey: (show: boolean) => void
-  handleTestOpenAI: () => Promise<void>
-  handleSaveOpenAI: () => Promise<void>
+  // AI Configuration (multi-provider)
+  loadAIConfig: () => Promise<void>
+  loadAIProviders: () => Promise<void>
+  setAIFunctionConfig: (fn: AIFunction, config: AIFunctionConfig | null) => void
+  testAIConnection: (fn: AIFunction) => Promise<boolean>
+  saveAIConfig: () => Promise<void>
+  getModelsForProvider: (providerId: string, fn: AIFunction) => Promise<AIModelOption[]>
 
   // Top Picks
   setTopPicks: React.Dispatch<React.SetStateAction<TopPicksConfig>>

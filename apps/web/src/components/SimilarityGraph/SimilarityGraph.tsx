@@ -27,6 +27,7 @@ interface SimilarityGraphProps {
   loadingStatus?: LoadingStatus
   onNodeClick?: (node: GraphNode) => void
   onNodeDoubleClick?: (node: GraphNode) => void
+  onNodeDetailsClick?: (node: GraphNode) => void
   compact?: boolean
   width?: number
   height?: number
@@ -38,6 +39,7 @@ export function SimilarityGraph({
   loadingStatus,
   onNodeClick,
   onNodeDoubleClick,
+  onNodeDetailsClick,
   compact = false,
   width: propWidth,
   height: propHeight,
@@ -52,6 +54,7 @@ export function SimilarityGraph({
   // Store callbacks in refs to prevent effect re-runs when parent re-renders
   const onNodeClickRef = useRef(onNodeClick)
   const onNodeDoubleClickRef = useRef(onNodeDoubleClick)
+  const onNodeDetailsClickRef = useRef(onNodeDetailsClick)
   
   // Keep refs updated with latest callbacks
   useEffect(() => {
@@ -61,6 +64,10 @@ export function SimilarityGraph({
   useEffect(() => {
     onNodeDoubleClickRef.current = onNodeDoubleClick
   }, [onNodeDoubleClick])
+  
+  useEffect(() => {
+    onNodeDetailsClickRef.current = onNodeDetailsClick
+  }, [onNodeDetailsClick])
   
   // Create a stable key for data to prevent unnecessary re-renders
   // Only re-render when actual node IDs change, not when object references change
@@ -282,6 +289,52 @@ export function SimilarityGraph({
       .attr('y', (d) => (d.isCenter ? centerNodeHeight : nodeHeight) / 2 + 26)
       .attr('fill', '#888')
       .attr('font-size', '8px')
+
+    // Details button (info icon) - top right corner, only on non-center nodes
+    if (onNodeDetailsClickRef.current) {
+      const detailsButtonGroup = nodes
+        .filter((d) => !d.isCenter)
+        .append('g')
+        .attr('class', 'details-button')
+        .attr('transform', (d) => {
+          const nw = d.isCenter ? centerNodeWidth : nodeWidth
+          const nh = d.isCenter ? centerNodeHeight : nodeHeight
+          return `translate(${nw / 2 - 16}, ${-nh / 2 + 8})`
+        })
+        .style('cursor', 'pointer')
+        .style('opacity', 0.7)
+        .on('mouseenter', function () {
+          d3.select(this).style('opacity', 1)
+        })
+        .on('mouseleave', function () {
+          d3.select(this).style('opacity', 0.7)
+        })
+        .on('click', (event, d) => {
+          event.stopPropagation()
+          onNodeDetailsClickRef.current?.(d)
+        })
+
+      // Button background circle
+      detailsButtonGroup
+        .append('circle')
+        .attr('r', 12)
+        .attr('fill', 'rgba(139, 92, 246, 0.9)')
+        .attr('stroke', '#fff')
+        .attr('stroke-width', 1.5)
+
+      // Info icon (letter "i")
+      detailsButtonGroup
+        .append('text')
+        .text('i')
+        .attr('text-anchor', 'middle')
+        .attr('dominant-baseline', 'central')
+        .attr('fill', '#fff')
+        .attr('font-size', '14px')
+        .attr('font-weight', 700)
+        .attr('font-family', 'Georgia, serif')
+        .attr('font-style', 'italic')
+        .style('pointer-events', 'none')
+    }
 
     // Pre-position nodes in a circle around center for smoother initial layout
     const centerNode = data.nodes.find(n => n.isCenter)

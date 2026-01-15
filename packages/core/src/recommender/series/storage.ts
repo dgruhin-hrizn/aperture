@@ -7,6 +7,7 @@
 
 import { query } from '../../lib/db.js'
 import { createChildLogger } from '../../lib/logger.js'
+import { getActiveEmbeddingModelId, getActiveEmbeddingTableName } from '../../lib/ai-provider.js'
 import type { SeriesCandidate, WatchedSeriesData } from './pipeline.js'
 
 const logger = createChildLogger('series-storage')
@@ -35,6 +36,16 @@ export async function storeSeriesEvidence(
   const watchedMap = new Map(watched.map((w) => [w.seriesId, w]))
   const watchedIds = watched.map((w) => w.seriesId)
 
+  // Get active embedding model
+  const modelId = await getActiveEmbeddingModelId()
+  if (!modelId) {
+    logger.info({ runId }, 'No embedding model configured, skipping evidence storage')
+    return
+  }
+
+  // Get the embedding table name
+  const tableName = await getActiveEmbeddingTableName('series_embeddings')
+
   // Get all evidence in a single query using LATERAL join
   const selectedIds = selected.map((s) => s.seriesId)
   const evidenceResult = await query<{
@@ -47,13 +58,13 @@ export async function storeSeriesEvidence(
      CROSS JOIN LATERAL (
        SELECT e2.series_id as similar_series_id,
               1 - (e2.embedding <=> e1.embedding) as similarity
-       FROM series_embeddings e1
-       JOIN series_embeddings e2 ON e2.series_id = ANY($2)
-       WHERE e1.series_id = sel.selected_series_id
+       FROM ${tableName} e1
+       JOIN ${tableName} e2 ON e2.series_id = ANY($2) AND e2.model = $3
+       WHERE e1.series_id = sel.selected_series_id AND e1.model = $3
        ORDER BY e2.embedding <=> e1.embedding
        LIMIT 3
      ) AS evidence`,
-    [selectedIds, watchedIds]
+    [selectedIds, watchedIds, modelId]
   )
 
   if (evidenceResult.rows.length === 0) {

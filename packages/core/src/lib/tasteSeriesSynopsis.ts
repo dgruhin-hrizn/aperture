@@ -7,8 +7,8 @@
 
 import { query, queryOne } from './db.js'
 import { createChildLogger } from './logger.js'
-import { getOpenAIClient } from './openai.js'
-import { getTextGenerationModel } from '../settings/systemSettings.js'
+import { getTextGenerationModelInstance, isAIFunctionConfigured } from './ai-provider.js'
+import { generateText } from 'ai'
 
 const logger = createChildLogger('taste-series-synopsis')
 
@@ -197,36 +197,13 @@ export async function generateSeriesTasteSynopsis(userId: string): Promise<Serie
     completedSeries: completedSeries.rows,
   })
 
-  // Generate synopsis with OpenAI
+  // Generate synopsis with AI provider
   let synopsis: string
-  try {
-    const model = await getTextGenerationModel()
-    const openai = await getOpenAIClient()
-    const response = await openai.chat.completions.create({
-      model,
-      messages: [
-        {
-          role: 'system',
-          content: `You are a friendly TV expert writing a personalized taste profile for a user's TV series preferences.
-Write in second person ("You love...", "Your taste tends toward...").
-Be warm, insightful, and specific. Reference actual shows they've watched when relevant.
-Keep it to 2-3 short paragraphs (about 100-150 words total).
-Don't be generic - make observations that feel personal and perceptive.
-Note their viewing habits: do they complete series or sample many? Do they prefer certain networks or eras?
-If they have eclectic taste, celebrate that. If they have focused preferences, dive deep into what that reveals.`,
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      temperature: 0.8,
-      max_tokens: 300,
-    })
-
-    synopsis = response.choices[0]?.message?.content || 'Unable to generate synopsis.'
-  } catch (error) {
-    logger.error({ error, userId }, 'Failed to generate series synopsis with OpenAI')
+  
+  // Check if text generation is configured
+  const isConfigured = await isAIFunctionConfigured('textGeneration')
+  if (!isConfigured) {
+    logger.warn({ userId }, 'Text generation not configured, using fallback synopsis')
     synopsis = buildFallbackSeriesSynopsis({
       seriesCount: Number(stats.series_count),
       episodeCount: Number(stats.episode_count),
@@ -234,6 +211,34 @@ If they have eclectic taste, celebrate that. If they have focused preferences, d
       favoriteNetworks,
       favoriteDecade,
     })
+  } else {
+    try {
+      const model = await getTextGenerationModelInstance()
+      const { text } = await generateText({
+        model,
+        system: `You are a friendly TV expert writing a personalized taste profile for a user's TV series preferences.
+Write in second person ("You love...", "Your taste tends toward...").
+Be warm, insightful, and specific. Reference actual shows they've watched when relevant.
+Keep it to 2-3 short paragraphs (about 100-150 words total).
+Don't be generic - make observations that feel personal and perceptive.
+Note their viewing habits: do they complete series or sample many? Do they prefer certain networks or eras?
+If they have eclectic taste, celebrate that. If they have focused preferences, dive deep into what that reveals.`,
+        prompt,
+        temperature: 0.8,
+        maxOutputTokens: 300,
+      })
+
+      synopsis = text || 'Unable to generate synopsis.'
+    } catch (error) {
+      logger.error({ error, userId }, 'Failed to generate series synopsis')
+      synopsis = buildFallbackSeriesSynopsis({
+        seriesCount: Number(stats.series_count),
+        episodeCount: Number(stats.episode_count),
+        topGenres,
+        favoriteNetworks,
+        favoriteDecade,
+      })
+    }
   }
 
   // Store the synopsis

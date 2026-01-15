@@ -6,7 +6,7 @@ export { AiRecsStep } from './AiRecsStep'
 export { ValidateStep } from './ValidateStep'
 export { UsersStep } from './UsersStep'
 export { TopPicksStep } from './TopPicksStep'
-export { OpenAIStep } from './OpenAIStep'
+export { AISetupStep } from './AISetupStep'
 export { InitialJobsStep } from './InitialJobsStep'
 export { CompleteStep } from './CompleteStep'
 
