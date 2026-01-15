@@ -543,6 +543,7 @@ export function AIFunctionCard({
                 ? [
                     { cmd: 'ollama pull nomic-embed-text', note: 'recommended' },
                     { cmd: 'ollama pull mxbai-embed-large', note: 'higher quality' },
+                    { cmd: 'ollama pull all-minilm', note: 'fast, lower quality' },
                     { cmd: 'ollama pull nomic-embed-text-v2-moe', note: 'multilingual' },
                   ]
                 : functionType === 'chat'
