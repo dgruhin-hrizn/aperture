@@ -245,6 +245,7 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
               loadingStatus={graphLoadingStatus || undefined}
               onNodeClick={handleNodeClick}
               onNodeDoubleClick={handleNodeDoubleClick}
+              onNodeDetailsClick={handleNodeDoubleClick}
               compact
             />
             <Box
@@ -252,7 +253,7 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
             >
               <GraphLegend compact />
               <Typography variant="caption" color="text.secondary">
-                Click a poster to explore • Double-click to view details
+                Click poster to explore • Click ⓘ for details
               </Typography>
             </Box>
           </Paper>
@@ -371,6 +372,7 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
                     }
                   }}
                   onNodeDoubleClick={handleNodeDoubleClick}
+                  onNodeDetailsClick={handleNodeDoubleClick}
                 />
               </Box>
               <Box
@@ -388,8 +390,7 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
               >
                 <GraphLegend />
                 <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
-                  Click a poster to explore • Double-click to view details • Drag to reposition •
-                  Scroll to zoom
+                  Click poster to explore • Click ⓘ for details • Drag to reposition • Scroll to zoom
                 </Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'block', sm: 'none' } }}>
                   Click to explore • Double-click for details
