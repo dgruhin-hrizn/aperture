@@ -102,7 +102,7 @@ export function SettingsPage() {
           {/* Setup Tab */}
           <TabPanel value={tabValue} index={0}>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-              <Button variant="outlined" onClick={() => navigate('/setup')}>
+              <Button variant="outlined" onClick={() => navigate('/setup', { state: { from: '/admin/settings' } })}>
                 Re-run Setup Wizard
               </Button>
             </Box>
