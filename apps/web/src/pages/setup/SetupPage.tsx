@@ -1,5 +1,8 @@
-import { Box, Card, CardContent, Stepper, Step, StepLabel, Typography } from '@mui/material'
+import { Box, Card, CardContent, Stepper, Step, StepLabel, Typography, IconButton, Tooltip } from '@mui/material'
+import CloseIcon from '@mui/icons-material/Close'
+import { useNavigate } from 'react-router-dom'
 import { useSetupWizard } from './hooks/useSetupWizard'
+import { useSetupStatus } from '../../hooks/useSetupStatus'
 import { STEP_ORDER } from './constants'
 import {
   RestoreStep,
@@ -19,7 +22,12 @@ const APP_VERSION = '0.4.2'
 
 export function SetupPage() {
   const wizard = useSetupWizard()
+  const { status } = useSetupStatus()
+  const navigate = useNavigate()
   const { activeStep, stepId } = wizard
+
+  // Show exit button only when admin is re-running setup (not during initial setup)
+  const isAdminRerun = status && !status.needsSetup && status.isAdmin
 
   const renderStepContent = () => {
     switch (stepId) {
@@ -93,6 +101,28 @@ export function SetupPage() {
           Aperture
         </Typography>
       </Box>
+
+      {/* Exit button for admin re-run - top right */}
+      {isAdminRerun && (
+        <Tooltip title="Exit Setup Wizard">
+          <IconButton
+            onClick={() => navigate('/settings')}
+            sx={{
+              position: 'fixed',
+              top: 20,
+              right: 24,
+              zIndex: 10,
+              color: 'text.secondary',
+              '&:hover': {
+                color: 'text.primary',
+                backgroundColor: 'action.hover',
+              },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </Tooltip>
+      )}
 
       {/* Version - bottom left */}
       <Typography
