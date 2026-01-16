@@ -453,9 +453,16 @@ Ratings sync bidirectionally:
 Once recommendations are generated and STRM files are synced:
 
 1. Open your **Emby or Jellyfin** app
-2. Look for a new library called **"AI Picks - YourUsername"**
+2. Look for a new library called **"AI Picks - YourUsername"** (or similar, depending on admin configuration)
 3. This library contains your personalized recommendations
 4. Play directly from here — it streams from your actual media files
 
 The library updates automatically when new recommendations are generated.
+
+### Library Features
+
+- **Excluded from Global Search** — AI recommendation libraries don't appear in search results, keeping your searches clean and showing only results from your main libraries
+- **Sorted by Date Added** — Newest recommendations appear first by default when you open the library
+- **No Duplicate Continue Watching** — Playing content from recommendation libraries won't create duplicate entries in your Continue Watching row
+- **Custom Posters** — Top recommendations display rank badges (🥇🥈🥉) on their posters
 
