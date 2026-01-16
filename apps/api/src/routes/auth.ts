@@ -216,7 +216,8 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     '/api/auth/me/preferences',
     { preHandler: requireAuth },
     async (request, reply) => {
-      const { updateUserUiPreferences, getUserUiPreferences, type UserUiPreferences } = await import('@aperture/core')
+      const { updateUserUiPreferences, getUserUiPreferences } = await import('@aperture/core')
+      type UserUiPreferences = Awaited<ReturnType<typeof getUserUiPreferences>>
       const body = request.body as Partial<UserUiPreferences>
       
       // Get current preferences for merging
