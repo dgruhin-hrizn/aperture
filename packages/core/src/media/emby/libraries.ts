@@ -67,21 +67,41 @@ export async function createVirtualLibrary(
   // Emby uses different collection type names
   const embyCollectionType = collectionType === 'movies' ? 'movies' : 'tvshows'
 
-  // Use curl directly - Node.js fetch has issues with Emby's library creation endpoint
-  // where CollectionType ends up as null despite correct parameters
-  const { exec } = await import('child_process')
-  const { promisify } = await import('util')
-  const execAsync = promisify(exec)
+  // Use Node's native http module instead of fetch - fetch (undici) has issues
+  // with Emby's library creation endpoint where CollectionType ends up as null
+  const http = await import('http')
+  const https = await import('https')
+  const { URL } = await import('url')
   
-  const curlUrl = `${provider.baseUrl}/Library/VirtualFolders?name=${encodeURIComponent(name)}&collectionType=${embyCollectionType}&paths=${encodeURIComponent(path)}&refreshLibrary=true`
-  const curlCmd = `curl -X POST "${curlUrl}" -H "X-Emby-Authorization: ${provider.getAuthHeader(apiKey)}" -H "Content-Type: application/json" --silent --fail`
+  const fullUrl = `${provider.baseUrl}/Library/VirtualFolders?name=${encodeURIComponent(name)}&collectionType=${embyCollectionType}&paths=${encodeURIComponent(path)}&refreshLibrary=true`
+  const parsedUrl = new URL(fullUrl)
+  const isHttps = parsedUrl.protocol === 'https:'
+  const httpModule = isHttps ? https : http
   
-  try {
-    await execAsync(curlCmd)
-  } catch (err) {
-    const error = err as Error & { stderr?: string }
-    throw new Error(`Failed to create library via curl: ${error.message || error.stderr || 'Unknown error'}`)
-  }
+  await new Promise<void>((resolve, reject) => {
+    const req = httpModule.request(
+      {
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || (isHttps ? 443 : 80),
+        path: parsedUrl.pathname + parsedUrl.search,
+        method: 'POST',
+        headers: {
+          'X-Emby-Authorization': provider.getAuthHeader(apiKey),
+          'Content-Type': 'application/json',
+        },
+      },
+      (res) => {
+        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+          resolve()
+        } else {
+          reject(new Error(`Emby API error: ${res.statusCode} ${res.statusMessage}`))
+        }
+      }
+    )
+    
+    req.on('error', (err) => reject(err))
+    req.end()
+  })
 
   // Get the created library to find its ID
   const libraries = await getLibraries(provider, apiKey)
