@@ -119,6 +119,7 @@ export function PlaylistCard({
             background: (theme) =>
               `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.dark, 0.2)} 100%)`,
             overflow: 'hidden',
+            borderRadius: '12px 12px 0 0',
           }}
         >
           {loadingPreview ? (

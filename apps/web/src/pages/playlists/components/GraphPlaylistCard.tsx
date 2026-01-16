@@ -121,6 +121,7 @@ export function GraphPlaylistCard({ playlist, onDelete, onView }: GraphPlaylistC
             background: (theme) =>
               `linear-gradient(135deg, ${alpha(theme.palette.secondary.main, 0.15)} 0%, ${alpha(theme.palette.primary.dark, 0.2)} 100%)`,
             overflow: 'hidden',
+            borderRadius: '12px 12px 0 0',
           }}
         >
           {loadingPreview ? (
