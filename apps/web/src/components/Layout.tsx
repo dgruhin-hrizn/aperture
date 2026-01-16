@@ -327,13 +327,25 @@ export function Layout() {
         elevation={0}
       >
         <Toolbar>
-          {/* Mobile: Logo and name */}
+          {/* Mobile: Hamburger on left */}
+          <IconButton
+            color="inherit"
+            edge="start"
+            onClick={handleDrawerToggle}
+            sx={{ display: { md: 'none' } }}
+          >
+            <MenuIcon />
+          </IconButton>
+
+          {/* Mobile: Centered logo and name */}
           <Box 
             sx={{ 
               display: { xs: 'flex', md: 'none' }, 
               alignItems: 'center', 
               gap: 1,
-              mr: 1,
+              position: 'absolute',
+              left: '50%',
+              transform: 'translateX(-50%)',
             }}
           >
             <Box
@@ -354,15 +366,6 @@ export function Layout() {
               Aperture
             </Typography>
           </Box>
-
-          <IconButton
-            color="inherit"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { md: 'none' } }}
-          >
-            <MenuIcon />
-          </IconButton>
 
           <Box sx={{ flexGrow: 1 }} />
 
