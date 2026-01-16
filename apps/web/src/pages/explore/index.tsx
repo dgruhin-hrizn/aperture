@@ -435,7 +435,7 @@ export function ExplorePage() {
           <TextField
             fullWidth
             size="small"
-            placeholder="Search your library..."
+            placeholder="Explore..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => {
