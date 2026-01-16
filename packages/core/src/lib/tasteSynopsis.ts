@@ -217,7 +217,9 @@ Write in second person ("You love...", "Your taste tends toward...").
 Be warm, insightful, and specific. Reference actual movies they've watched when relevant.
 Keep it to 2-3 short paragraphs (about 100-150 words total).
 Don't be generic - make observations that feel personal and perceptive.
-If they have eclectic taste, celebrate that. If they have focused preferences, dive deep into what that reveals.`,
+If they have eclectic taste, celebrate that. If they have focused preferences, dive deep into what that reveals.
+
+IMPORTANT: Write naturally without mentioning any numerical scores, weights, or ratings. Never say things like "score of 0.8" or "weight 1.63". Just describe their preferences in conversational language.`,
         prompt,
         temperature: 0.8,
         maxOutputTokens: 300,
@@ -443,7 +445,9 @@ Write in second person ("You love...", "Your taste tends toward...").
 Be warm, insightful, and specific. Reference actual movies they've watched when relevant.
 Keep it to 2-3 short paragraphs (about 100-150 words total).
 Don't be generic - make observations that feel personal and perceptive.
-If they have eclectic taste, celebrate that. If they have focused preferences, dive deep into what that reveals.`,
+If they have eclectic taste, celebrate that. If they have focused preferences, dive deep into what that reveals.
+
+IMPORTANT: Write naturally without mentioning any numerical scores, weights, or ratings. Never say things like "score of 0.8" or "weight 1.63". Just describe their preferences in conversational language.`,
       prompt,
       temperature: 0.8,
       maxOutputTokens: 300,
@@ -717,14 +721,14 @@ function buildSynopsisPrompt(data: {
     `Write a personalized taste profile that captures the FULL breadth of their preferences.`
   )
   lines.push(``)
-  lines.push(`When interpreting preference weights:`)
-  lines.push(`- Franchise scores near +1 = they LOVE this franchise, mention it prominently`)
-  lines.push(
-    `- Franchise scores near -1 = they AVOID this franchise, don't recommend similar content`
-  )
-  lines.push(`- Genre weights near 2 = strong preference, emphasize in profile`)
-  lines.push(`- Genre weights near 0 = they hide/avoid this genre`)
-  lines.push(`- Weights near neutral (0 for franchise, 1 for genre) = no strong feeling`)
+  lines.push(`Interpret their preferences naturally:`)
+  lines.push(`- High franchise scores = they love this franchise, mention it prominently`)
+  lines.push(`- Negative franchise scores = they avoid this, don't recommend similar content`)
+  lines.push(`- High genre weights = strong preference, emphasize in profile`)
+  lines.push(`- Low genre weights = they avoid this genre`)
+  lines.push(``)
+  lines.push(`CRITICAL: Never mention numerical scores, weights, or ratings in your output.`)
+  lines.push(`Write conversationally - say "you're a huge fan of" not "score of 0.9".`)
   lines.push(``)
   lines.push(`Weave their stated custom interests naturally into the profile.`)
   lines.push(`Mention specific movies by name when they exemplify patterns in their taste.`)
