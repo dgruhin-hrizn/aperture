@@ -281,7 +281,7 @@ export function MyWatchHistoryPage() {
   return (
     <Box>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3} flexWrap="wrap" gap={2}>
         <Box>
           <Box display="flex" alignItems="center" gap={2} mb={1}>
             <HistoryIcon sx={{ color: 'primary.main', fontSize: 32 }} />
@@ -293,6 +293,15 @@ export function MyWatchHistoryPage() {
             {moviePagination.total.toLocaleString()} movies • {seriesPagination.total.toLocaleString()} series watched
           </Typography>
         </Box>
+        <ToggleButtonGroup
+          value={viewMode}
+          exclusive
+          onChange={(_, v) => v && setViewMode(v)}
+          size="small"
+        >
+          <ToggleButton value="grid"><GridViewIcon fontSize="small" /></ToggleButton>
+          <ToggleButton value="list"><ViewListIcon fontSize="small" /></ToggleButton>
+        </ToggleButtonGroup>
       </Box>
 
       {/* Tabs */}
@@ -349,18 +358,7 @@ export function MyWatchHistoryPage() {
             <ToggleButton value="title">A-Z</ToggleButton>
           </ToggleButtonGroup>
         </Box>
-        <Box display="flex" alignItems="center" gap={1}>
-          {isLoading && <CircularProgress size={20} />}
-          <ToggleButtonGroup
-            value={viewMode}
-            exclusive
-            onChange={(_, v) => v && setViewMode(v)}
-            size="small"
-          >
-            <ToggleButton value="grid"><GridViewIcon fontSize="small" /></ToggleButton>
-            <ToggleButton value="list"><ViewListIcon fontSize="small" /></ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
+        {isLoading && <CircularProgress size={20} />}
       </Box>
 
       {/* Movies Tab Content */}

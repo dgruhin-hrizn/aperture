@@ -123,7 +123,7 @@ export function WatchingPage() {
             Track series you're currently watching and see upcoming episodes
           </Typography>
         </Box>
-        <Box display="flex" gap={1} flexWrap="wrap">
+        <Box display="flex" gap={1} flexWrap="wrap" alignItems="center">
           <Button
             variant="outlined"
             startIcon={<RefreshIcon />}
@@ -141,6 +141,19 @@ export function WatchingPage() {
           >
             Add Series
           </Button>
+          <ToggleButtonGroup
+            value={viewMode}
+            exclusive
+            onChange={(_, value) => value && setViewMode(value)}
+            size="small"
+          >
+            <ToggleButton value="grid">
+              <GridViewIcon fontSize="small" />
+            </ToggleButton>
+            <ToggleButton value="list">
+              <ViewListIcon fontSize="small" />
+            </ToggleButton>
+          </ToggleButtonGroup>
         </Box>
       </Box>
 
@@ -178,39 +191,23 @@ export function WatchingPage() {
             />
           </Box>
 
-          {/* View & Filter Controls */}
-          <Box display="flex" gap={2}>
-            <ToggleButtonGroup
-              value={filter}
-              exclusive
-              onChange={(_, value) => value && setFilter(value)}
-              size="small"
-            >
-              <ToggleButton value="all">
-                All
-              </ToggleButton>
-              <ToggleButton value="airing">
-                Airing
-              </ToggleButton>
-              <ToggleButton value="upcoming">
-                Upcoming
-              </ToggleButton>
-            </ToggleButtonGroup>
-
-            <ToggleButtonGroup
-              value={viewMode}
-              exclusive
-              onChange={(_, value) => value && setViewMode(value)}
-              size="small"
-            >
-              <ToggleButton value="grid">
-                <GridViewIcon fontSize="small" />
-              </ToggleButton>
-              <ToggleButton value="list">
-                <ViewListIcon fontSize="small" />
-              </ToggleButton>
-            </ToggleButtonGroup>
-          </Box>
+          {/* Filter Controls */}
+          <ToggleButtonGroup
+            value={filter}
+            exclusive
+            onChange={(_, value) => value && setFilter(value)}
+            size="small"
+          >
+            <ToggleButton value="all">
+              All
+            </ToggleButton>
+            <ToggleButton value="airing">
+              Airing
+            </ToggleButton>
+            <ToggleButton value="upcoming">
+              Upcoming
+            </ToggleButton>
+          </ToggleButtonGroup>
         </Box>
       )}
 

@@ -122,6 +122,15 @@ export function DiscoveryPage() {
         </Box>
 
         <Box display="flex" gap={1} alignItems="center">
+          <Button
+            variant="outlined"
+            startIcon={refreshing ? <CircularProgress size={16} /> : <RefreshIcon />}
+            onClick={handleRefresh}
+            disabled={refreshing}
+            size="small"
+          >
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
           <ToggleButtonGroup
             value={viewMode}
             exclusive
@@ -135,15 +144,6 @@ export function DiscoveryPage() {
               <ViewListIcon fontSize="small" />
             </ToggleButton>
           </ToggleButtonGroup>
-          <Button
-            variant="outlined"
-            startIcon={refreshing ? <CircularProgress size={16} /> : <RefreshIcon />}
-            onClick={handleRefresh}
-            disabled={refreshing}
-            size="small"
-          >
-            {refreshing ? 'Refreshing...' : 'Refresh'}
-          </Button>
         </Box>
       </Box>
 
