@@ -1127,10 +1127,7 @@ export async function buildGraphFromSemanticSearch(
     }
   }
 
-  logger.info(
-    { query: searchResults.query, discoveredCount },
-    'Discovered new content from seeds'
-  )
+  logger.info({ query: searchResults.query, discoveredCount }, 'Discovered new content from seeds')
 
   // ============================================================================
   // PHASE 2: Add SELECTIVE connections between seeds

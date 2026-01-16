@@ -155,10 +155,11 @@ export function GraphExplorer({
   )
 
   const handleClearSearch = useCallback(() => {
+    // Only clear local input state - don't propagate to parent
+    // This prevents graph re-render when just clearing the input
     setLocalSearchQuery('')
-    onSearchChange?.('')
     searchInputRef.current?.focus()
-  }, [onSearchChange])
+  }, [])
 
   const handleExampleClick = useCallback(
     (example: string) => {

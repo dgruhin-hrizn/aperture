@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo, memo } from 'react'
 import * as d3 from 'd3'
 import { Box, Typography, Fade, CircularProgress, Chip, Stack } from '@mui/material'
 import { getProxiedImageUrl } from '@aperture/ui'
@@ -33,7 +33,7 @@ interface SimilarityGraphProps {
   height?: number
 }
 
-export function SimilarityGraph({
+export const SimilarityGraph = memo(function SimilarityGraph({
   data,
   loading = false,
   loadingStatus,
@@ -730,7 +730,7 @@ export function SimilarityGraph({
       </Fade>
     </Box>
   )
-}
+})
 
 function truncateTitle(title: string, maxLength: number): string {
   if (title.length <= maxLength) return title
