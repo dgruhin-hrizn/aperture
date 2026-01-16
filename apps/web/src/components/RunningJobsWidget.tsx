@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Box,
   Typography,
@@ -75,7 +75,7 @@ export function RunningJobsWidget() {
 
   const open = Boolean(anchorEl)
 
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
     if (!user?.isAdmin) return
     
     try {
@@ -89,7 +89,7 @@ export function RunningJobsWidget() {
     } catch (error) {
       console.error('Failed to fetch active jobs:', error)
     }
-  }
+  }, [user?.isAdmin])
 
   useEffect(() => {
     if (!user?.isAdmin) return
@@ -102,7 +102,7 @@ export function RunningJobsWidget() {
         clearInterval(intervalRef.current)
       }
     }
-  }, [user?.isAdmin])
+  }, [user?.isAdmin, fetchJobs])
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(anchorEl ? null : event.currentTarget)
