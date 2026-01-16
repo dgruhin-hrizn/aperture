@@ -18,6 +18,7 @@ import {
   Menu,
   MenuItem,
   Divider,
+  Tooltip,
 } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
 import HomeIcon from '@mui/icons-material/Home'
@@ -39,6 +40,8 @@ import AddToQueueIcon from '@mui/icons-material/AddToQueue'
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined'
 import ExploreIcon from '@mui/icons-material/Explore'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
+import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import { useAuth } from '@/hooks/useAuth'
 import { WelcomeModal, useWelcomeModal } from './WelcomeModal'
 import { ExplorationConfigModal } from './ExplorationConfigModal'
@@ -46,6 +49,7 @@ import { RunningJobsWidget } from './RunningJobsWidget'
 import { GlobalSearch } from './GlobalSearch'
 
 const DRAWER_WIDTH = 260
+const DRAWER_WIDTH_COLLAPSED = 72
 
 // User-facing navigation items (shown to all users)
 const userMenuItems = [
@@ -72,12 +76,19 @@ export function Layout() {
   const location = useLocation()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const { user, logout } = useAuth()
   const { open: welcomeOpen, showWelcome, hideWelcome } = useWelcomeModal()
 
+  const drawerWidth = collapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH
+
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen)
+  }
+
+  const handleCollapseToggle = () => {
+    setCollapsed(!collapsed)
   }
 
   const handleNavClick = (path: string) => {
@@ -112,51 +123,71 @@ export function Layout() {
   const drawer = (
     <Box sx={{ overflow: 'auto', mt: 2, display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Logo */}
-      <Box px={3} mb={3}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Box
-            component="img"
-            src="/aperture.svg"
-            alt="Aperture"
-            sx={{ width: 40, height: 40 }}
-          />
-          <Typography
-            sx={{
-              fontFamily: '"Open Sans", sans-serif',
-              fontWeight: 600,
-              fontSize: '1.5rem',
-              color: 'text.primary',
-              letterSpacing: '-0.01em',
-            }}
-          >
-            Aperture
-          </Typography>
-        </Box>
+      <Box px={collapsed ? 2 : 3} mb={3} sx={{ display: 'flex', justifyContent: collapsed ? 'center' : 'flex-start' }}>
+        {collapsed ? (
+          <Tooltip title="Aperture" placement="right">
+            <Box
+              component="img"
+              src="/aperture.svg"
+              alt="Aperture"
+              sx={{ width: 40, height: 40 }}
+            />
+          </Tooltip>
+        ) : (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box
+              component="img"
+              src="/aperture.svg"
+              alt="Aperture"
+              sx={{ width: 40, height: 40 }}
+            />
+            <Typography
+              sx={{
+                fontFamily: '"Open Sans", sans-serif',
+                fontWeight: 600,
+                fontSize: '1.5rem',
+                color: 'text.primary',
+                letterSpacing: '-0.01em',
+              }}
+            >
+              Aperture
+            </Typography>
+          </Box>
+        )}
       </Box>
 
       {/* User Navigation */}
       <List>
         {userMenuItems.map((item) => (
           <ListItem key={item.text} disablePadding>
-            <ListItemButton
-              selected={isPathActive(item.path)}
-              onClick={() => handleNavClick(item.path)}
-            >
-              <ListItemIcon
+            <Tooltip title={collapsed ? item.text : ''} placement="right" arrow>
+              <ListItemButton
+                selected={isPathActive(item.path)}
+                onClick={() => handleNavClick(item.path)}
                 sx={{
-                  color: isPathActive(item.path) ? 'primary.main' : 'text.secondary',
-                  minWidth: 40,
+                  justifyContent: collapsed ? 'center' : 'flex-start',
+                  px: collapsed ? 2 : 3,
                 }}
               >
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText
-                primary={item.text}
-                primaryTypographyProps={{
-                  fontWeight: isPathActive(item.path) ? 600 : 400,
-                }}
-              />
-            </ListItemButton>
+                <ListItemIcon
+                  sx={{
+                    color: isPathActive(item.path) ? 'primary.main' : 'text.secondary',
+                    minWidth: collapsed ? 0 : 40,
+                    mr: collapsed ? 0 : 1,
+                  }}
+                >
+                  {item.icon}
+                </ListItemIcon>
+                {!collapsed && (
+                  <ListItemText
+                    primary={item.text}
+                    primaryTypographyProps={{
+                      fontWeight: isPathActive(item.path) ? 600 : 400,
+                    }}
+                  />
+                )}
+              </ListItemButton>
+            </Tooltip>
           </ListItem>
         ))}
       </List>
@@ -171,25 +202,34 @@ export function Layout() {
           <List>
             {adminMenuItems.map((item) => (
               <ListItem key={item.text} disablePadding>
-                <ListItemButton
-                  selected={isPathActive(item.path)}
-                  onClick={() => handleNavClick(item.path)}
-                >
-                  <ListItemIcon
+                <Tooltip title={collapsed ? item.text : ''} placement="right" arrow>
+                  <ListItemButton
+                    selected={isPathActive(item.path)}
+                    onClick={() => handleNavClick(item.path)}
                     sx={{
-                      color: isPathActive(item.path) ? 'primary.main' : 'text.secondary',
-                      minWidth: 40,
+                      justifyContent: collapsed ? 'center' : 'flex-start',
+                      px: collapsed ? 2 : 3,
                     }}
                   >
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={item.text}
-                    primaryTypographyProps={{
-                      fontWeight: isPathActive(item.path) ? 600 : 400,
-                    }}
-                  />
-                </ListItemButton>
+                    <ListItemIcon
+                      sx={{
+                        color: isPathActive(item.path) ? 'primary.main' : 'text.secondary',
+                        minWidth: collapsed ? 0 : 40,
+                        mr: collapsed ? 0 : 1,
+                      }}
+                    >
+                      {item.icon}
+                    </ListItemIcon>
+                    {!collapsed && (
+                      <ListItemText
+                        primary={item.text}
+                        primaryTypographyProps={{
+                          fontWeight: isPathActive(item.path) ? 600 : 400,
+                        }}
+                      />
+                    )}
+                  </ListItemButton>
+                </Tooltip>
               </ListItem>
             ))}
           </List>
@@ -197,7 +237,7 @@ export function Layout() {
       )}
 
       {/* Version at bottom */}
-      <Box px={3} py={2} sx={{ borderTop: 1, borderColor: 'divider' }}>
+      <Box px={collapsed ? 2 : 3} py={2} sx={{ borderTop: 1, borderColor: 'divider', textAlign: collapsed ? 'center' : 'left' }}>
         <Typography
           variant="caption"
           sx={{
@@ -207,7 +247,7 @@ export function Layout() {
             fontSize: '0.7rem',
           }}
         >
-          v0.4.7
+          {collapsed ? 'v0.4' : 'v0.4.7'}
         </Typography>
       </Box>
     </Box>
@@ -219,8 +259,12 @@ export function Layout() {
       <AppBar
         position="fixed"
         sx={{
-          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
-          ml: { md: `${DRAWER_WIDTH}px` },
+          width: { md: `calc(100% - ${drawerWidth}px)` },
+          ml: { md: `${drawerWidth}px` },
+          transition: theme.transitions.create(['width', 'margin'], {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.leavingScreen,
+          }),
         }}
         elevation={0}
       >
@@ -233,6 +277,17 @@ export function Layout() {
           >
             <MenuIcon />
           </IconButton>
+
+          {/* Collapse sidebar toggle (desktop only) */}
+          <Tooltip title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+            <IconButton
+              color="inherit"
+              onClick={handleCollapseToggle}
+              sx={{ mr: 2, display: { xs: 'none', md: 'flex' } }}
+            >
+              {collapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+            </IconButton>
+          </Tooltip>
 
           {/* Global Search */}
           <GlobalSearch />
@@ -308,7 +363,14 @@ export function Layout() {
       {/* Drawer */}
       <Box
         component="nav"
-        sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }}
+        sx={{ 
+          width: { md: drawerWidth }, 
+          flexShrink: { md: 0 },
+          transition: theme.transitions.create('width', {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.leavingScreen,
+          }),
+        }}
       >
         {/* Mobile drawer */}
         <Drawer
@@ -334,7 +396,12 @@ export function Layout() {
             display: { xs: 'none', md: 'block' },
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
-              width: DRAWER_WIDTH,
+              width: drawerWidth,
+              transition: theme.transitions.create('width', {
+                easing: theme.transitions.easing.sharp,
+                duration: theme.transitions.duration.leavingScreen,
+              }),
+              overflowX: 'hidden',
             },
           }}
           open
@@ -349,12 +416,16 @@ export function Layout() {
         sx={{
           flexGrow: 1,
           p: { xs: 2, sm: 3 },
-          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
+          width: { md: `calc(100% - ${drawerWidth}px)` },
           maxWidth: '100%',
           overflowX: 'hidden',
           mt: '64px',
           backgroundColor: 'background.default',
           minHeight: 'calc(100vh - 64px)',
+          transition: theme.transitions.create(['width', 'margin'], {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.leavingScreen,
+          }),
         }}
       >
         <Outlet />
