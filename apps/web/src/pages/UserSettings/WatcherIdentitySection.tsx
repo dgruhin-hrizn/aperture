@@ -971,7 +971,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
       </Grid>
 
       {/* Analyze button - below the 2-column section */}
-      <Box display="flex" justifyContent="flex-end">
+      <Paper sx={{ p: 2, borderRadius: 2, display: 'flex', justifyContent: 'flex-end' }}>
         <Box textAlign="right">
           <Button
             variant="contained"
@@ -989,7 +989,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
             Scans your watch history for franchises and genres
           </Typography>
         </Box>
-      </Box>
+      </Paper>
 
       {/* Section 3: Watch History Weights */}
       <Paper sx={{ p: 3, borderRadius: 2 }}>
