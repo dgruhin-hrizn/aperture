@@ -856,6 +856,8 @@ export async function getGraphForSource(
 export interface SemanticSearchOptions {
   type?: 'movie' | 'series' | 'both'
   limit?: number
+  hideWatched?: boolean
+  userId?: string
 }
 
 export interface SemanticSearchResult {
@@ -883,13 +885,13 @@ export async function semanticSearch(
   searchQuery: string,
   options: SemanticSearchOptions = {}
 ): Promise<SemanticSearchResult> {
-  const { type = 'both', limit = 20 } = options
+  const { type = 'both', limit = 20, hideWatched = false, userId } = options
 
   if (!searchQuery.trim()) {
     return { query: searchQuery, results: [] }
   }
 
-  logger.info({ searchQuery, type, limit }, 'Performing semantic search')
+  logger.info({ searchQuery, type, limit, hideWatched, userId: userId ? 'present' : 'absent' }, 'Performing semantic search')
 
   // Get the active embedding model
   const modelId = await getActiveEmbeddingModelId()
@@ -915,6 +917,19 @@ export async function semanticSearch(
     const movieLimit = type === 'both' ? Math.ceil(limit / 2) : limit
     const movieTableName = await getActiveEmbeddingTableName('embeddings')
 
+    // Build watched filter clause
+    const watchedFilter = hideWatched && userId
+      ? `AND NOT EXISTS (
+           SELECT 1 FROM watch_history wh 
+           WHERE wh.movie_id = m.id 
+             AND wh.user_id = $4 
+             AND wh.media_type = 'movie'
+         )`
+      : ''
+    const movieParams = hideWatched && userId
+      ? [embeddingVector, modelId, movieLimit, userId]
+      : [embeddingVector, modelId, movieLimit]
+
     const movieResults = await query<{
       id: string
       title: string
@@ -934,9 +949,10 @@ export async function semanticSearch(
        FROM ${movieTableName} e
        JOIN movies m ON m.id = e.movie_id
        WHERE e.model = $2
+       ${watchedFilter}
        ORDER BY e.embedding <=> $1::halfvec
        LIMIT $3`,
-      [embeddingVector, modelId, movieLimit]
+      movieParams
     )
 
     for (const row of movieResults.rows) {
@@ -965,6 +981,20 @@ export async function semanticSearch(
     const seriesLimit = type === 'both' ? Math.floor(limit / 2) : limit
     const seriesTableName = await getActiveEmbeddingTableName('series_embeddings')
 
+    // Build watched filter clause for series (checks if any episode was watched)
+    const seriesWatchedFilter = hideWatched && userId
+      ? `AND NOT EXISTS (
+           SELECT 1 FROM watch_history wh 
+           JOIN episodes ep ON ep.id = wh.episode_id
+           WHERE ep.series_id = s.id 
+             AND wh.user_id = $4 
+             AND wh.media_type = 'episode'
+         )`
+      : ''
+    const seriesParams = hideWatched && userId
+      ? [embeddingVector, modelId, seriesLimit, userId]
+      : [embeddingVector, modelId, seriesLimit]
+
     const seriesResults = await query<{
       id: string
       title: string
@@ -984,9 +1014,10 @@ export async function semanticSearch(
        FROM ${seriesTableName} e
        JOIN series s ON s.id = e.series_id
        WHERE e.model = $2
+       ${seriesWatchedFilter}
        ORDER BY e.embedding <=> $1::halfvec
        LIMIT $3`,
-      [embeddingVector, modelId, seriesLimit]
+      seriesParams
     )
 
     for (const row of seriesResults.rows) {

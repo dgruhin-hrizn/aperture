@@ -123,6 +123,7 @@ export function ExplorePage() {
   // State
   const [mediaFilter, setMediaFilter] = useState<MediaFilter>('both')
   const [crossMediaEnabled, setCrossMediaEnabled] = useState(false)
+  const [hideWatched, setHideWatched] = useState(true) // Default to hiding watched content
   const [searchQuery, setSearchQuery] = useState('')
   const [browseSectionOpen, setBrowseSectionOpen] = useState(true)
   const [recentSearches, setRecentSearches] = useState<string[]>([])
@@ -301,6 +302,7 @@ export function ExplorePage() {
         type: mediaFilter,
         limit: '20',
         graph: 'true',
+        hideWatched: hideWatched.toString(),
       })
 
       const response = await fetch(`/api/similarity/search?${params}`, {
@@ -323,7 +325,7 @@ export function ExplorePage() {
       stopSemanticLoadingProgress()
       setSemanticSearch({ query, loading: false, results: null })
     }
-  }, [mediaFilter, startSemanticLoadingProgress, stopSemanticLoadingProgress])
+  }, [mediaFilter, hideWatched, startSemanticLoadingProgress, stopSemanticLoadingProgress])
 
   // Handle browse source selection
   const handleBrowseSourceSelect = (source: GraphSource) => {
@@ -537,6 +539,23 @@ export function ExplorePage() {
             </ToggleButton>
             <ToggleButton value="both">Both</ToggleButton>
           </ToggleButtonGroup>
+
+          {/* Hide Watched Toggle */}
+          <FormControlLabel
+            control={
+              <Switch
+                size="small"
+                checked={hideWatched}
+                onChange={(e) => setHideWatched(e.target.checked)}
+              />
+            }
+            label={
+              <Typography variant="caption" color="text.secondary">
+                Hide watched
+              </Typography>
+            }
+            sx={{ mt: 1.5, ml: 0 }}
+          />
         </Box>
 
         <Divider />

@@ -148,11 +148,13 @@ const similarityRoutes: FastifyPluginAsync = async (fastify) => {
    * - type: Filter by type - 'movie', 'series', or 'both' (default: 'both')
    * - limit: Max results (default: 20)
    * - graph: If 'true', return graph data with connections (default: 'false')
+   * - hideWatched: If 'true', exclude previously watched content (default: 'false')
    */
   fastify.get<{
-    Querystring: { q?: string; type?: string; limit?: string; graph?: string }
+    Querystring: { q?: string; type?: string; limit?: string; graph?: string; hideWatched?: string }
   }>('/api/similarity/search', { preHandler: requireAuth }, async (request, reply) => {
-    const { q: searchQuery, type, limit: limitStr, graph } = request.query
+    const { q: searchQuery, type, limit: limitStr, graph, hideWatched: hideWatchedStr } = request.query
+    const currentUser = request.user as SessionUser
 
     if (!searchQuery || !searchQuery.trim()) {
       return reply.status(400).send({ error: 'Search query (q) is required' })
@@ -165,11 +167,14 @@ const similarityRoutes: FastifyPluginAsync = async (fastify) => {
       | 'both'
     const limit = limitStr ? parseInt(limitStr, 10) : 20
     const returnGraph = graph === 'true'
+    const hideWatched = hideWatchedStr === 'true'
 
     try {
       const searchResult = await semanticSearch(searchQuery, {
         type: searchType,
         limit,
+        hideWatched,
+        userId: currentUser.id,
       })
 
       if (returnGraph) {
