@@ -11,13 +11,17 @@ import {
   Tab,
   Chip,
   Snackbar,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material'
 import ExploreIcon from '@mui/icons-material/Explore'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
+import GridViewIcon from '@mui/icons-material/GridView'
+import ViewListIcon from '@mui/icons-material/ViewList'
 import { useDiscoveryData, useJellyseerrRequest } from './hooks'
-import { DiscoveryCard } from './components'
+import { DiscoveryCard, DiscoveryListItem } from './components'
 import type { DiscoveryCandidate, MediaType } from './types'
 
 export function DiscoveryPage() {
@@ -38,6 +42,7 @@ export function DiscoveryPage() {
   const { submitRequest, isRequesting } = useJellyseerrRequest()
 
   const [mediaType, setMediaType] = useState<MediaType>('movie')
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
@@ -116,15 +121,30 @@ export function DiscoveryPage() {
           </Typography>
         </Box>
 
-        <Button
-          variant="outlined"
-          startIcon={refreshing ? <CircularProgress size={16} /> : <RefreshIcon />}
-          onClick={handleRefresh}
-          disabled={refreshing}
-          size="small"
-        >
-          {refreshing ? 'Refreshing...' : 'Refresh'}
-        </Button>
+        <Box display="flex" gap={1} alignItems="center">
+          <ToggleButtonGroup
+            value={viewMode}
+            exclusive
+            onChange={(_, v) => v && setViewMode(v)}
+            size="small"
+          >
+            <ToggleButton value="grid">
+              <GridViewIcon fontSize="small" />
+            </ToggleButton>
+            <ToggleButton value="list">
+              <ViewListIcon fontSize="small" />
+            </ToggleButton>
+          </ToggleButtonGroup>
+          <Button
+            variant="outlined"
+            startIcon={refreshing ? <CircularProgress size={16} /> : <RefreshIcon />}
+            onClick={handleRefresh}
+            disabled={refreshing}
+            size="small"
+          >
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
+        </Box>
       </Box>
 
       {/* Tabs */}
@@ -218,7 +238,7 @@ export function DiscoveryPage() {
         <Alert severity="info" sx={{ borderRadius: 2 }}>
           No {mediaType === 'movie' ? 'movie' : 'series'} suggestions yet. Click "Refresh" to generate personalized recommendations based on your watch history.
         </Alert>
-      ) : (
+      ) : viewMode === 'grid' ? (
         <Grid container spacing={2}>
           {candidates.map((candidate) => (
             <Grid item xs={6} sm={4} md={3} lg={2} key={candidate.id}>
@@ -232,6 +252,19 @@ export function DiscoveryPage() {
             </Grid>
           ))}
         </Grid>
+      ) : (
+        <Box display="flex" flexDirection="column" gap={2}>
+          {candidates.map((candidate) => (
+            <DiscoveryListItem
+              key={candidate.id}
+              candidate={candidate}
+              canRequest={status?.requestEnabled ?? false}
+              onRequest={handleRequest}
+              isRequesting={isRequesting(candidate.tmdbId)}
+              cachedStatus={jellyseerrStatus[candidate.tmdbId]}
+            />
+          ))}
+        </Box>
       )}
 
       {/* Snackbar */}
