@@ -56,7 +56,8 @@ WORKDIR /app
 # Install dependencies:
 # - fontconfig: Sharp SVG text rendering (needed for poster overlays)
 # - postgresql-client: pg_dump and pg_restore for database backup/restore
-RUN apk add --no-cache fontconfig postgresql-client
+# - curl: for Emby API library creation (Node fetch has issues with Emby)
+RUN apk add --no-cache fontconfig postgresql-client curl
 
 # Add non-root user
 RUN addgroup --system --gid 1001 nodejs && \

@@ -2,10 +2,14 @@
  * Emby Libraries Module
  */
 
+import { exec } from 'child_process'
+import { promisify } from 'util'
 import type { Library, LibraryCreateResult } from '../types.js'
 import type { EmbyLibrary, EmbyLibraryResponse, EmbyUser } from './types.js'
 import type { EmbyProviderBase } from './base.js'
 import { logger } from './base.js'
+
+const execAsync = promisify(exec)
 
 export async function getLibraries(
   provider: EmbyProviderBase,
@@ -68,18 +72,23 @@ export async function createVirtualLibrary(
   // Emby uses different collection type names
   const embyCollectionType = collectionType === 'movies' ? 'movies' : 'tvshows'
 
-  // CRITICAL: Emby requires ALL params in QUERY STRING (not JSON body).
-  // Despite OpenAPI spec saying body is supported, using JSON body for
-  // CollectionType or Paths results in "mixed content" (CollectionType: null).
-  // ALSO: Must use encodeURIComponent (produces %20) NOT URLSearchParams (produces +)
-  const endpoint = `/Library/VirtualFolders?name=${encodeURIComponent(name)}&collectionType=${embyCollectionType}&paths=${encodeURIComponent(path)}&refreshLibrary=true`
-  logger.info({ endpoint, fullUrl: `${provider.baseUrl}${endpoint}` }, '🔥 DEBUG: Creating library')
+  // NUCLEAR OPTION: Use curl directly to bypass any Node.js fetch weirdness
+  // This exactly replicates the working curl command from terminal testing
+  const url = `${provider.baseUrl}/Library/VirtualFolders?api_key=${apiKey}&name=${encodeURIComponent(name)}&collectionType=${embyCollectionType}&paths=${encodeURIComponent(path)}&refreshLibrary=true`
+  logger.info({ url }, '🔥 DEBUG: Creating library via curl')
   
-  await provider.fetch(
-    endpoint,
-    apiKey,
-    { method: 'POST' }
-  )
+  try {
+    const { stdout, stderr } = await execAsync(`curl -s -X POST "${url}"`)
+    if (stderr) {
+      logger.warn({ stderr }, 'curl stderr')
+    }
+    if (stdout) {
+      logger.info({ stdout }, 'curl response')
+    }
+  } catch (err) {
+    logger.error({ err }, 'curl failed')
+    throw new Error(`Failed to create library via curl: ${err}`)
+  }
 
   // Get the created library to find its ID
   const libraries = await getLibraries(provider, apiKey)
