@@ -9,11 +9,6 @@ import { query, queryOne } from './db.js'
 import { createChildLogger } from './logger.js'
 import { getTextGenerationModelInstance, isAIFunctionConfigured } from './ai-provider.js'
 import { streamText } from 'ai'
-import {
-  getUserFranchisePreferences,
-  getUserGenreWeights,
-  getUserCustomInterests,
-} from '../taste-profile/index.js'
 import { getUserExcludedLibraries } from './libraryExclusions.js'
 import { analyzeMovieTaste, formatTasteProfileForAI } from './tasteAnalyzer.js'
 
@@ -45,13 +40,6 @@ interface GenreCount {
 interface DecadeCount {
   decade: string
   count: number
-}
-
-interface RecentMovie {
-  title: string
-  year: number | null
-  genres: string[]
-  community_rating: number | null
 }
 
 /**
@@ -234,7 +222,7 @@ export async function getTasteSynopsis(userId: string, maxAgeHours = 24): Promis
   // Generate new synopsis using streaming (consume and collect)
   const generator = streamTasteSynopsis(userId)
   let synopsis = ''
-  
+
   // Consume all chunks
   let result = await generator.next()
   while (!result.done) {
@@ -243,14 +231,14 @@ export async function getTasteSynopsis(userId: string, maxAgeHours = 24): Promis
     }
     result = await generator.next()
   }
-  
+
   // result.value now contains the final return value (stats)
   const stats = result.value
-  
+
   return {
     synopsis,
     updatedAt: new Date(),
-    stats: stats || await getQuickStats(userId),
+    stats: stats || (await getQuickStats(userId)),
   }
 }
 
@@ -318,150 +306,6 @@ async function getQuickStats(userId: string): Promise<TasteSynopsis['stats']> {
     favoriteDecade: decadeResults.rows[0]?.decade || null,
     recentFavorites: recentFavorites.rows.map((m) => m.title),
   }
-}
-
-interface FranchisePref {
-  franchiseName: string
-  preferenceScore: number
-  itemsWatched: number
-}
-
-interface GenrePref {
-  genre: string
-  weight: number
-}
-
-interface CustomInterest {
-  interestText: string
-}
-
-/**
- * Build the prompt for OpenAI
- */
-function buildSynopsisPrompt(data: {
-  totalWatched: number
-  avgRating: number
-  favoriteCount: number
-  topGenres: string[]
-  favoriteDecade: string | null
-  topFavorites: RecentMovie[]
-  mostRewatched: (RecentMovie & { play_count?: number })[]
-  diverseSample: RecentMovie[]
-  franchisePrefs?: FranchisePref[]
-  genrePrefs?: GenrePref[]
-  customInterests?: CustomInterest[]
-}): string {
-  const lines = [
-    `User's Complete Movie Watching Profile:`,
-    `- Total movies watched: ${data.totalWatched}`,
-    `- Movies marked as favorites: ${data.favoriteCount}`,
-    `- Average rating of watched movies: ${data.avgRating.toFixed(1)}/10`,
-    `- Top genres by watch count: ${data.topGenres.join(', ') || 'Diverse'}`,
-    `- Most watched decade: ${data.favoriteDecade || 'Various decades'}`,
-    ``,
-  ]
-
-  // Add user's explicit preferences as structured data
-  if (data.franchisePrefs && data.franchisePrefs.length > 0) {
-    lines.push(`USER'S FRANCHISE PREFERENCES (user-configured weights):`)
-    lines.push(`Scale: -1 (strongly avoid) to 0 (neutral) to +1 (strongly prefer)`)
-    lines.push(`\`\`\`json`)
-    lines.push(
-      JSON.stringify(
-        data.franchisePrefs
-          .filter((f) => Math.abs(f.preferenceScore) > 0.1) // Only include non-neutral
-          .sort((a, b) => b.preferenceScore - a.preferenceScore)
-          .slice(0, 15)
-          .map((f) => ({
-            franchise: f.franchiseName,
-            score: Number(f.preferenceScore.toFixed(2)),
-            watched: f.itemsWatched,
-          })),
-        null,
-        2
-      )
-    )
-    lines.push(`\`\`\``)
-    lines.push(``)
-  }
-
-  if (data.genrePrefs && data.genrePrefs.length > 0) {
-    lines.push(`USER'S GENRE PREFERENCES (user-configured weights):`)
-    lines.push(`Scale: 0 (hide/avoid) to 1 (neutral) to 2 (strongly boost)`)
-    lines.push(`\`\`\`json`)
-    lines.push(
-      JSON.stringify(
-        data.genrePrefs
-          .filter((g) => Math.abs(g.weight - 1) > 0.1) // Only include non-neutral (away from 1.0)
-          .sort((a, b) => b.weight - a.weight)
-          .slice(0, 15)
-          .map((g) => ({
-            genre: g.genre,
-            weight: Number(g.weight.toFixed(2)),
-          })),
-        null,
-        2
-      )
-    )
-    lines.push(`\`\`\``)
-    lines.push(``)
-  }
-
-  if (data.customInterests && data.customInterests.length > 0) {
-    lines.push(`USER'S STATED INTERESTS (in their own words):`)
-    for (const interest of data.customInterests.slice(0, 5)) {
-      lines.push(`- "${interest.interestText}"`)
-    }
-    lines.push(``)
-  }
-
-  if (data.topFavorites.length > 0) {
-    lines.push(`Movies they've marked as FAVORITES (these define their taste):`)
-    for (const movie of data.topFavorites.slice(0, 8)) {
-      lines.push(
-        `- "${movie.title}" (${movie.year || 'N/A'}) - ${movie.genres?.join(', ') || 'Unknown genre'}`
-      )
-    }
-    lines.push(``)
-  }
-
-  if (data.mostRewatched.length > 0) {
-    lines.push(`Most REWATCHED movies (high engagement = strong preference):`)
-    for (const movie of data.mostRewatched.slice(0, 6)) {
-      const playCount = movie.play_count ? ` [watched ${movie.play_count}x]` : ''
-      lines.push(
-        `- "${movie.title}" (${movie.year || 'N/A'})${playCount} - ${movie.genres?.join(', ') || 'Unknown genre'}`
-      )
-    }
-    lines.push(``)
-  }
-
-  lines.push(`Diverse sample across their watch history (represents full taste breadth):`)
-  for (const movie of data.diverseSample.slice(0, 12)) {
-    lines.push(
-      `- "${movie.title}" (${movie.year || 'N/A'}) - ${movie.genres?.join(', ') || 'Unknown genre'}`
-    )
-  }
-
-  lines.push(``)
-  lines.push(`INSTRUCTIONS:`)
-  lines.push(
-    `Write a personalized taste profile that captures the FULL breadth of their preferences.`
-  )
-  lines.push(``)
-  lines.push(`Interpret their preferences naturally:`)
-  lines.push(`- High franchise scores = they love this franchise, mention it prominently`)
-  lines.push(`- Negative franchise scores = they avoid this, don't recommend similar content`)
-  lines.push(`- High genre weights = strong preference, emphasize in profile`)
-  lines.push(`- Low genre weights = they avoid this genre`)
-  lines.push(``)
-  lines.push(`CRITICAL: Never mention numerical scores, weights, or ratings in your output.`)
-  lines.push(`Write conversationally - say "you're a huge fan of" not "score of 0.9".`)
-  lines.push(``)
-  lines.push(`Weave their stated custom interests naturally into the profile.`)
-  lines.push(`Mention specific movies by name when they exemplify patterns in their taste.`)
-
-  return lines.join('\n')
 }
 
 /**
