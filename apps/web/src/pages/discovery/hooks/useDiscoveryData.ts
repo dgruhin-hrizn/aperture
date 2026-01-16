@@ -6,7 +6,7 @@ export type JellyseerrStatusMap = Record<number, JellyseerrMediaStatus>
 
 // Cache configuration
 const CACHE_KEY = 'aperture_discovery_cache'
-const CACHE_VERSION = 1
+const CACHE_VERSION = 2 // Bumped to clear stale genre data
 const CACHE_TTL_MS = 60 * 60 * 1000 // 1 hour (discovery data changes less frequently)
 
 interface DiscoveryCache {
