@@ -53,7 +53,7 @@ export async function createVirtualLibrary(
   // Check if library with this name already exists
   const existingLibraries = await getLibraries(provider, apiKey)
   const existing = existingLibraries.find((lib) => lib.name === name)
-  
+
   if (existing) {
     // Library already exists - ensure settings are configured
     await setLibrarySortTitle(provider, apiKey, existing.id, name)
@@ -62,23 +62,19 @@ export async function createVirtualLibrary(
   }
 
   // CRITICAL: Must pass LibraryOptions.ContentType in JSON body for proper library type
-  await provider.fetch(
-    '/Library/VirtualFolders',
-    apiKey,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        Name: name,
-        CollectionType: collectionType,
-        Paths: [path],
-        RefreshLibrary: true,
-        LibraryOptions: {
-          ContentType: collectionType,
-        },
-      }),
-    }
-  )
+  await provider.fetch('/Library/VirtualFolders', apiKey, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      Name: name,
+      CollectionType: collectionType,
+      Paths: [path],
+      RefreshLibrary: true,
+      LibraryOptions: {
+        ContentType: collectionType,
+      },
+    }),
+  })
 
   // Get the created library to find its ID
   const libraries = await getLibraries(provider, apiKey)
@@ -90,7 +86,7 @@ export async function createVirtualLibrary(
 
   // Set forced sort name so library appears at top
   await setLibrarySortTitle(provider, apiKey, created.id, name)
-  
+
   // Exclude from global search - these are AI-curated libraries
   await setLibraryOptions(provider, apiKey, created.id, { excludeFromSearch: true })
 
@@ -112,23 +108,20 @@ async function setLibrarySortTitle(
 ): Promise<void> {
   // Prepend !!!!!! to sort title so library appears at top when sorted alphabetically
   const sortTitle = `!!!!!!${name}`
-  
+
   try {
     // Fetch the full item data (required by Jellyfin API for updates)
-    const item = await provider.fetch<Record<string, unknown>>(
-      `/Items/${libraryId}`,
-      apiKey
-    )
-    
+    const item = await provider.fetch<Record<string, unknown>>(`/Items/${libraryId}`, apiKey)
+
     // Update the sort name and lock it to prevent automatic overwrites
     item.ForcedSortName = sortTitle
-    
+
     // Merge with existing locked fields if any
     const existingLocked = Array.isArray(item.LockedFields) ? item.LockedFields : []
     if (!existingLocked.includes('SortName')) {
       item.LockedFields = [...existingLocked, 'SortName']
     }
-    
+
     // POST the full item back
     await provider.fetch(`/Items/${libraryId}`, apiKey, {
       method: 'POST',
@@ -197,7 +190,7 @@ export async function updateUserLibraryAccess(
 
   // Cast to Record to access all dynamic fields - API may have more fields than our type
   const currentPolicy = (user.Policy || {}) as Record<string, unknown>
-  
+
   // Create updated policy preserving all existing fields except the ones we're changing
   const updatedPolicy: Record<string, unknown> = {
     ...currentPolicy,
@@ -246,24 +239,27 @@ export async function setLibrarySortPreference(
     const displayPrefsId = item.DisplayPreferencesId || libraryId
 
     // Set display preferences for Jellyfin Web client
-    await provider.fetch(`/DisplayPreferences/${displayPrefsId}?UserId=${userId}&client=jellyfin-web`, apiKey, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        Id: displayPrefsId,
-        SortBy: sortBy,
-        SortOrder: sortOrder,
-        Client: 'jellyfin-web',
-        CustomPrefs: {},
-      }),
-    })
+    await provider.fetch(
+      `/DisplayPreferences/${displayPrefsId}?UserId=${userId}&client=jellyfin-web`,
+      apiKey,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          Id: displayPrefsId,
+          SortBy: sortBy,
+          SortOrder: sortOrder,
+          Client: 'jellyfin-web',
+          CustomPrefs: {},
+        }),
+      }
+    )
   } catch {
     // Non-fatal: library will still work, just won't have custom sort default
   }
 }
 
-// NOTE: hideLibraryItemsFromResume was removed in v0.4.7
+// NOTE: hideLibraryItemsFromResume was removed in v0.5.0
 // Instead of hiding items from Continue Watching via API, we now omit external IDs (IMDB/TMDB)
 // from NFO files. This prevents Jellyfin from linking Aperture items with originals, so playback
 // is tracked independently on each item - no duplicates in Continue Watching.
-

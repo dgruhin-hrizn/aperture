@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Box,
@@ -10,20 +10,27 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Pagination,
   Alert,
   Slider,
   Chip,
   Tabs,
   Tab,
+  ToggleButton,
+  ToggleButtonGroup,
+  CircularProgress,
+  Skeleton,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
+import GridViewIcon from '@mui/icons-material/GridView'
+import ViewListIcon from '@mui/icons-material/ViewList'
 import { MoviePoster } from '@aperture/ui'
 import { useUserRatings } from '../hooks/useUserRatings'
 import { useWatching } from '../hooks/useWatching'
+import { useViewMode } from '../hooks/useViewMode'
+import { BrowseMovieListItem, BrowseSeriesListItem } from './browse/components'
 
 interface Movie {
   id: string
@@ -58,6 +65,7 @@ export function BrowsePage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { getRating, setRating } = useUserRatings()
   const { isWatching, toggleWatching } = useWatching()
+  const { viewMode, setViewMode } = useViewMode('browse')
   
   const initialTab = searchParams.get('tab') === 'series' ? 1 : 0
   const [tabIndex, setTabIndex] = useState(initialTab)
@@ -67,28 +75,36 @@ export function BrowsePage() {
   const [movieGenres, setMovieGenres] = useState<string[]>([])
   const [collections, setCollections] = useState<Collection[]>([])
   const [moviesLoading, setMoviesLoading] = useState(true)
+  const [moviesLoadingMore, setMoviesLoadingMore] = useState(false)
   const [moviesError, setMoviesError] = useState<string | null>(null)
   const [movieSearch, setMovieSearch] = useState('')
   const [movieGenre, setMovieGenre] = useState('')
   const [collection, setCollection] = useState('')
   const [movieMinRtScore, setMovieMinRtScore] = useState<number>(0)
   const [moviePage, setMoviePage] = useState(1)
-  const [movieTotalPages, setMovieTotalPages] = useState(1)
+  const [movieHasMore, setMovieHasMore] = useState(true)
+  const [movieTotal, setMovieTotal] = useState(0)
   
   // Series state
   const [series, setSeries] = useState<Series[]>([])
   const [seriesGenres, setSeriesGenres] = useState<string[]>([])
   const [networks, setNetworks] = useState<string[]>([])
   const [seriesLoading, setSeriesLoading] = useState(true)
+  const [seriesLoadingMore, setSeriesLoadingMore] = useState(false)
   const [seriesError, setSeriesError] = useState<string | null>(null)
   const [seriesSearch, setSeriesSearch] = useState('')
   const [seriesGenre, setSeriesGenre] = useState('')
   const [network, setNetwork] = useState('')
   const [seriesMinRtScore, setSeriesMinRtScore] = useState<number>(0)
   const [seriesPage, setSeriesPage] = useState(1)
-  const [seriesTotalPages, setSeriesTotalPages] = useState(1)
+  const [seriesHasMore, setSeriesHasMore] = useState(true)
+  const [seriesTotal, setSeriesTotal] = useState(0)
   
   const pageSize = 24
+  const movieObserverRef = useRef<IntersectionObserver | null>(null)
+  const seriesObserverRef = useRef<IntersectionObserver | null>(null)
+  const movieLoadMoreRef = useRef<HTMLDivElement | null>(null)
+  const seriesLoadMoreRef = useRef<HTMLDivElement | null>(null)
 
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
     setTabIndex(newValue)
@@ -116,6 +132,20 @@ export function BrowsePage() {
     },
     [setRating]
   )
+
+  // Reset movies when filters change
+  const resetMovies = useCallback(() => {
+    setMovies([])
+    setMoviePage(1)
+    setMovieHasMore(true)
+  }, [])
+
+  // Reset series when filters change
+  const resetSeries = useCallback(() => {
+    setSeries([])
+    setSeriesPage(1)
+    setSeriesHasMore(true)
+  }, [])
 
   // Fetch movie filters
   useEffect(() => {
@@ -164,72 +194,188 @@ export function BrowsePage() {
   }, [])
 
   // Fetch movies
-  useEffect(() => {
-    const fetchMovies = async () => {
+  const fetchMovies = useCallback(async (page: number, append = false) => {
+    if (append) {
+      setMoviesLoadingMore(true)
+    } else {
       setMoviesLoading(true)
-      try {
-        const params = new URLSearchParams({
-          page: String(moviePage),
-          pageSize: String(pageSize),
-        })
-        if (movieSearch) params.set('search', movieSearch)
-        if (movieGenre) params.set('genre', movieGenre)
-        if (collection) params.set('collection', collection)
-        if (movieMinRtScore > 0) params.set('minRtScore', String(movieMinRtScore))
-
-        const response = await fetch(`/api/movies?${params}`, { credentials: 'include' })
-        if (response.ok) {
-          const data = await response.json()
-          setMovies(data.movies)
-          setMovieTotalPages(Math.ceil(data.total / pageSize))
-          setMoviesError(null)
-        } else {
-          setMoviesError('Failed to load movies')
-        }
-      } catch {
-        setMoviesError('Could not connect to server')
-      } finally {
-        setMoviesLoading(false)
-      }
     }
+    
+    try {
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(pageSize),
+      })
+      if (movieSearch) params.set('search', movieSearch)
+      if (movieGenre) params.set('genre', movieGenre)
+      if (collection) params.set('collection', collection)
+      if (movieMinRtScore > 0) params.set('minRtScore', String(movieMinRtScore))
 
-    const debounce = setTimeout(fetchMovies, movieSearch ? 300 : 0)
-    return () => clearTimeout(debounce)
-  }, [moviePage, movieSearch, movieGenre, collection, movieMinRtScore])
+      const response = await fetch(`/api/movies?${params}`, { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        if (append) {
+          setMovies(prev => [...prev, ...data.movies])
+        } else {
+          setMovies(data.movies)
+        }
+        setMovieTotal(data.total)
+        setMovieHasMore(data.movies.length === pageSize && (append ? movies.length + data.movies.length : data.movies.length) < data.total)
+        setMoviesError(null)
+      } else {
+        setMoviesError('Failed to load movies')
+      }
+    } catch {
+      setMoviesError('Could not connect to server')
+    } finally {
+      setMoviesLoading(false)
+      setMoviesLoadingMore(false)
+    }
+  }, [movieSearch, movieGenre, collection, movieMinRtScore, movies.length])
 
   // Fetch series
-  useEffect(() => {
-    const fetchSeries = async () => {
+  const fetchSeries = useCallback(async (page: number, append = false) => {
+    if (append) {
+      setSeriesLoadingMore(true)
+    } else {
       setSeriesLoading(true)
-      try {
-        const params = new URLSearchParams({
-          page: String(seriesPage),
-          pageSize: String(pageSize),
-        })
-        if (seriesSearch) params.set('search', seriesSearch)
-        if (seriesGenre) params.set('genre', seriesGenre)
-        if (network) params.set('network', network)
-        if (seriesMinRtScore > 0) params.set('minRtScore', String(seriesMinRtScore))
+    }
+    
+    try {
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(pageSize),
+      })
+      if (seriesSearch) params.set('search', seriesSearch)
+      if (seriesGenre) params.set('genre', seriesGenre)
+      if (network) params.set('network', network)
+      if (seriesMinRtScore > 0) params.set('minRtScore', String(seriesMinRtScore))
 
-        const response = await fetch(`/api/series?${params}`, { credentials: 'include' })
-        if (response.ok) {
-          const data = await response.json()
-          setSeries(data.series)
-          setSeriesTotalPages(Math.ceil(data.total / pageSize))
-          setSeriesError(null)
+      const response = await fetch(`/api/series?${params}`, { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        if (append) {
+          setSeries(prev => [...prev, ...data.series])
         } else {
-          setSeriesError('Failed to load series')
+          setSeries(data.series)
         }
-      } catch {
-        setSeriesError('Could not connect to server')
-      } finally {
-        setSeriesLoading(false)
+        setSeriesTotal(data.total)
+        setSeriesHasMore(data.series.length === pageSize && (append ? series.length + data.series.length : data.series.length) < data.total)
+        setSeriesError(null)
+      } else {
+        setSeriesError('Failed to load series')
       }
+    } catch {
+      setSeriesError('Could not connect to server')
+    } finally {
+      setSeriesLoading(false)
+      setSeriesLoadingMore(false)
+    }
+  }, [seriesSearch, seriesGenre, network, seriesMinRtScore, series.length])
+
+  // Initial movie fetch and filter changes
+  useEffect(() => {
+    resetMovies()
+    const debounce = setTimeout(() => fetchMovies(1, false), movieSearch ? 300 : 0)
+    return () => clearTimeout(debounce)
+  }, [movieSearch, movieGenre, collection, movieMinRtScore])
+
+  // Initial series fetch and filter changes
+  useEffect(() => {
+    resetSeries()
+    const debounce = setTimeout(() => fetchSeries(1, false), seriesSearch ? 300 : 0)
+    return () => clearTimeout(debounce)
+  }, [seriesSearch, seriesGenre, network, seriesMinRtScore])
+
+  // Infinite scroll for movies
+  useEffect(() => {
+    if (movieObserverRef.current) {
+      movieObserverRef.current.disconnect()
     }
 
-    const debounce = setTimeout(fetchSeries, seriesSearch ? 300 : 0)
-    return () => clearTimeout(debounce)
-  }, [seriesPage, seriesSearch, seriesGenre, network, seriesMinRtScore])
+    if (!movieHasMore || moviesLoading || moviesLoadingMore || tabIndex !== 0) return
+
+    movieObserverRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && movieHasMore && !moviesLoadingMore) {
+          const nextPage = moviePage + 1
+          setMoviePage(nextPage)
+          fetchMovies(nextPage, true)
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    if (movieLoadMoreRef.current) {
+      movieObserverRef.current.observe(movieLoadMoreRef.current)
+    }
+
+    return () => {
+      if (movieObserverRef.current) {
+        movieObserverRef.current.disconnect()
+      }
+    }
+  }, [movieHasMore, moviesLoading, moviesLoadingMore, tabIndex, moviePage, fetchMovies])
+
+  // Infinite scroll for series
+  useEffect(() => {
+    if (seriesObserverRef.current) {
+      seriesObserverRef.current.disconnect()
+    }
+
+    if (!seriesHasMore || seriesLoading || seriesLoadingMore || tabIndex !== 1) return
+
+    seriesObserverRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && seriesHasMore && !seriesLoadingMore) {
+          const nextPage = seriesPage + 1
+          setSeriesPage(nextPage)
+          fetchSeries(nextPage, true)
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    if (seriesLoadMoreRef.current) {
+      seriesObserverRef.current.observe(seriesLoadMoreRef.current)
+    }
+
+    return () => {
+      if (seriesObserverRef.current) {
+        seriesObserverRef.current.disconnect()
+      }
+    }
+  }, [seriesHasMore, seriesLoading, seriesLoadingMore, tabIndex, seriesPage, fetchSeries])
+
+  const renderMoviesSkeleton = () => (
+    viewMode === 'grid' ? (
+      <Grid container spacing={2}>
+        {Array.from({ length: 12 }).map((_, i) => (
+          <Grid item xs={6} sm={4} md={3} lg={2} key={i}>
+            <MoviePoster title="" loading responsive />
+          </Grid>
+        ))}
+      </Grid>
+    ) : (
+      <Box display="flex" flexDirection="column" gap={2}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Box key={i} display="flex" gap={2} bgcolor="background.paper" borderRadius={2} p={2}>
+            <Skeleton variant="rectangular" width={100} height={150} sx={{ borderRadius: 1 }} />
+            <Box flexGrow={1}>
+              <Skeleton variant="text" width="60%" height={30} />
+              <Skeleton variant="text" width="40%" height={20} sx={{ mb: 1 }} />
+              <Box display="flex" gap={0.5} mb={1}>
+                <Skeleton variant="rectangular" width={60} height={22} sx={{ borderRadius: 1 }} />
+                <Skeleton variant="rectangular" width={70} height={22} sx={{ borderRadius: 1 }} />
+              </Box>
+              <Skeleton variant="text" width="90%" />
+              <Skeleton variant="text" width="80%" />
+            </Box>
+          </Box>
+        ))}
+      </Box>
+    )
+  )
 
   const renderMoviesTab = () => (
     <>
@@ -238,10 +384,7 @@ export function BrowsePage() {
         <TextField
           placeholder="Search movies..."
           value={movieSearch}
-          onChange={(e) => {
-            setMovieSearch(e.target.value)
-            setMoviePage(1)
-          }}
+          onChange={(e) => setMovieSearch(e.target.value)}
           size="small"
           sx={{ width: { xs: '100%', sm: 250 } }}
           InputProps={{
@@ -258,10 +401,7 @@ export function BrowsePage() {
           <Select
             value={movieGenre}
             label="Genre"
-            onChange={(e) => {
-              setMovieGenre(e.target.value)
-              setMoviePage(1)
-            }}
+            onChange={(e) => setMovieGenre(e.target.value)}
           >
             <MenuItem value="">All Genres</MenuItem>
             {movieGenres.map((g) => (
@@ -278,10 +418,7 @@ export function BrowsePage() {
             <Select
               value={collection}
               label="Franchise"
-              onChange={(e) => {
-                setCollection(e.target.value)
-                setMoviePage(1)
-              }}
+              onChange={(e) => setCollection(e.target.value)}
             >
               <MenuItem value="">All Franchises</MenuItem>
               {collections.map((c) => (
@@ -299,10 +436,7 @@ export function BrowsePage() {
           </Typography>
           <Slider
             value={movieMinRtScore}
-            onChange={(_, value) => {
-              setMovieMinRtScore(value as number)
-              setMoviePage(1)
-            }}
+            onChange={(_, value) => setMovieMinRtScore(value as number)}
             min={0}
             max={100}
             step={10}
@@ -317,21 +451,21 @@ export function BrowsePage() {
               <Chip
                 label={movieGenre}
                 size="small"
-                onDelete={() => { setMovieGenre(''); setMoviePage(1) }}
+                onDelete={() => setMovieGenre('')}
               />
             )}
             {collection && (
               <Chip
                 label={collection}
                 size="small"
-                onDelete={() => { setCollection(''); setMoviePage(1) }}
+                onDelete={() => setCollection('')}
               />
             )}
             {movieMinRtScore > 0 && (
               <Chip
                 label={`RT ${movieMinRtScore}%+`}
                 size="small"
-                onDelete={() => { setMovieMinRtScore(0); setMoviePage(1) }}
+                onDelete={() => setMovieMinRtScore(0)}
               />
             )}
           </Box>
@@ -345,13 +479,7 @@ export function BrowsePage() {
       )}
 
       {moviesLoading ? (
-        <Grid container spacing={2}>
-          {Array.from({ length: 12 }).map((_, i) => (
-            <Grid item xs={6} sm={4} md={3} lg={2} key={i}>
-              <MoviePoster title="" loading responsive />
-            </Grid>
-          ))}
-        </Grid>
+        renderMoviesSkeleton()
       ) : movies.length === 0 ? (
         <Typography color="text.secondary">
           {movieSearch || movieGenre || collection || movieMinRtScore > 0
@@ -360,38 +488,87 @@ export function BrowsePage() {
         </Typography>
       ) : (
         <>
-          <Grid container spacing={2}>
-            {movies.map((movie) => (
-              <Grid item xs={6} sm={4} md={3} lg={2} key={movie.id}>
-                <MoviePoster
-                  title={movie.title}
-                  year={movie.year}
-                  posterUrl={movie.poster_url}
-                  rating={movie.community_rating}
-                  genres={movie.genres}
-                  overview={movie.overview}
+          {viewMode === 'grid' ? (
+            <Grid container spacing={2}>
+              {movies.map((movie) => (
+                <Grid item xs={6} sm={4} md={3} lg={2} key={movie.id}>
+                  <MoviePoster
+                    title={movie.title}
+                    year={movie.year}
+                    posterUrl={movie.poster_url}
+                    rating={movie.community_rating}
+                    genres={movie.genres}
+                    overview={movie.overview}
+                    userRating={getRating('movie', movie.id)}
+                    onRate={(rating) => handleRateMovie(movie.id, rating)}
+                    responsive
+                    onClick={() => navigate(`/movies/${movie.id}`)}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          ) : (
+            <Box display="flex" flexDirection="column" gap={2}>
+              {movies.map((movie) => (
+                <BrowseMovieListItem
+                  key={movie.id}
+                  movie={movie}
                   userRating={getRating('movie', movie.id)}
                   onRate={(rating) => handleRateMovie(movie.id, rating)}
-                  responsive
                   onClick={() => navigate(`/movies/${movie.id}`)}
                 />
-              </Grid>
-            ))}
-          </Grid>
-
-          {movieTotalPages > 1 && (
-            <Box display="flex" justifyContent="center" mt={4}>
-              <Pagination
-                count={movieTotalPages}
-                page={moviePage}
-                onChange={(_, value) => setMoviePage(value)}
-                color="primary"
-              />
+              ))}
             </Box>
           )}
+
+          {/* Load more trigger */}
+          <Box
+            ref={movieLoadMoreRef}
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            py={4}
+          >
+            {moviesLoadingMore && <CircularProgress size={32} />}
+            {!movieHasMore && movies.length > 0 && (
+              <Typography variant="body2" color="text.secondary">
+                Showing all {movieTotal.toLocaleString()} movies
+              </Typography>
+            )}
+          </Box>
         </>
       )}
     </>
+  )
+
+  const renderSeriesSkeleton = () => (
+    viewMode === 'grid' ? (
+      <Grid container spacing={2}>
+        {Array.from({ length: 12 }).map((_, i) => (
+          <Grid item xs={6} sm={4} md={3} lg={2} key={i}>
+            <MoviePoster title="" loading responsive />
+          </Grid>
+        ))}
+      </Grid>
+    ) : (
+      <Box display="flex" flexDirection="column" gap={2}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Box key={i} display="flex" gap={2} bgcolor="background.paper" borderRadius={2} p={2}>
+            <Skeleton variant="rectangular" width={100} height={150} sx={{ borderRadius: 1 }} />
+            <Box flexGrow={1}>
+              <Skeleton variant="text" width="60%" height={30} />
+              <Skeleton variant="text" width="40%" height={20} sx={{ mb: 1 }} />
+              <Box display="flex" gap={0.5} mb={1}>
+                <Skeleton variant="rectangular" width={60} height={22} sx={{ borderRadius: 1 }} />
+                <Skeleton variant="rectangular" width={70} height={22} sx={{ borderRadius: 1 }} />
+              </Box>
+              <Skeleton variant="text" width="90%" />
+              <Skeleton variant="text" width="80%" />
+            </Box>
+          </Box>
+        ))}
+      </Box>
+    )
   )
 
   const renderSeriesTab = () => (
@@ -401,10 +578,7 @@ export function BrowsePage() {
         <TextField
           placeholder="Search series..."
           value={seriesSearch}
-          onChange={(e) => {
-            setSeriesSearch(e.target.value)
-            setSeriesPage(1)
-          }}
+          onChange={(e) => setSeriesSearch(e.target.value)}
           size="small"
           sx={{ width: { xs: '100%', sm: 250 } }}
           InputProps={{
@@ -421,10 +595,7 @@ export function BrowsePage() {
           <Select
             value={seriesGenre}
             label="Genre"
-            onChange={(e) => {
-              setSeriesGenre(e.target.value)
-              setSeriesPage(1)
-            }}
+            onChange={(e) => setSeriesGenre(e.target.value)}
           >
             <MenuItem value="">All Genres</MenuItem>
             {seriesGenres.map((g) => (
@@ -440,10 +611,7 @@ export function BrowsePage() {
           <Select
             value={network}
             label="Network"
-            onChange={(e) => {
-              setNetwork(e.target.value)
-              setSeriesPage(1)
-            }}
+            onChange={(e) => setNetwork(e.target.value)}
           >
             <MenuItem value="">All Networks</MenuItem>
             {networks.map((n) => (
@@ -460,10 +628,7 @@ export function BrowsePage() {
           </Typography>
           <Slider
             value={seriesMinRtScore}
-            onChange={(_, value) => {
-              setSeriesMinRtScore(value as number)
-              setSeriesPage(1)
-            }}
+            onChange={(_, value) => setSeriesMinRtScore(value as number)}
             min={0}
             max={100}
             step={10}
@@ -478,21 +643,21 @@ export function BrowsePage() {
               <Chip
                 label={seriesGenre}
                 size="small"
-                onDelete={() => { setSeriesGenre(''); setSeriesPage(1) }}
+                onDelete={() => setSeriesGenre('')}
               />
             )}
             {network && (
               <Chip
                 label={network}
                 size="small"
-                onDelete={() => { setNetwork(''); setSeriesPage(1) }}
+                onDelete={() => setNetwork('')}
               />
             )}
             {seriesMinRtScore > 0 && (
               <Chip
                 label={`RT ${seriesMinRtScore}%+`}
                 size="small"
-                onDelete={() => { setSeriesMinRtScore(0); setSeriesPage(1) }}
+                onDelete={() => setSeriesMinRtScore(0)}
               />
             )}
           </Box>
@@ -506,13 +671,7 @@ export function BrowsePage() {
       )}
 
       {seriesLoading ? (
-        <Grid container spacing={2}>
-          {Array.from({ length: 12 }).map((_, i) => (
-            <Grid item xs={6} sm={4} md={3} lg={2} key={i}>
-              <MoviePoster title="" loading responsive />
-            </Grid>
-          ))}
-        </Grid>
+        renderSeriesSkeleton()
       ) : series.length === 0 ? (
         <Typography color="text.secondary">
           {seriesSearch || seriesGenre || network || seriesMinRtScore > 0
@@ -521,37 +680,58 @@ export function BrowsePage() {
         </Typography>
       ) : (
         <>
-          <Grid container spacing={2}>
-            {series.map((show) => (
-              <Grid item xs={6} sm={4} md={3} lg={2} key={show.id}>
-                <MoviePoster
-                  title={show.title}
-                  year={show.year}
-                  posterUrl={show.poster_url}
-                  rating={show.community_rating}
-                  genres={show.genres}
-                  overview={show.overview}
+          {viewMode === 'grid' ? (
+            <Grid container spacing={2}>
+              {series.map((show) => (
+                <Grid item xs={6} sm={4} md={3} lg={2} key={show.id}>
+                  <MoviePoster
+                    title={show.title}
+                    year={show.year}
+                    posterUrl={show.poster_url}
+                    rating={show.community_rating}
+                    genres={show.genres}
+                    overview={show.overview}
+                    userRating={getRating('series', show.id)}
+                    onRate={(rating) => handleRateSeries(show.id, rating)}
+                    isWatching={isWatching(show.id)}
+                    onWatchingToggle={() => toggleWatching(show.id)}
+                    responsive
+                    onClick={() => navigate(`/series/${show.id}`)}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          ) : (
+            <Box display="flex" flexDirection="column" gap={2}>
+              {series.map((show) => (
+                <BrowseSeriesListItem
+                  key={show.id}
+                  series={show}
                   userRating={getRating('series', show.id)}
                   onRate={(rating) => handleRateSeries(show.id, rating)}
                   isWatching={isWatching(show.id)}
                   onWatchingToggle={() => toggleWatching(show.id)}
-                  responsive
                   onClick={() => navigate(`/series/${show.id}`)}
                 />
-              </Grid>
-            ))}
-          </Grid>
-
-          {seriesTotalPages > 1 && (
-            <Box display="flex" justifyContent="center" mt={4}>
-              <Pagination
-                count={seriesTotalPages}
-                page={seriesPage}
-                onChange={(_, value) => setSeriesPage(value)}
-                color="primary"
-              />
+              ))}
             </Box>
           )}
+
+          {/* Load more trigger */}
+          <Box
+            ref={seriesLoadMoreRef}
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            py={4}
+          >
+            {seriesLoadingMore && <CircularProgress size={32} />}
+            {!seriesHasMore && series.length > 0 && (
+              <Typography variant="body2" color="text.secondary">
+                Showing all {seriesTotal.toLocaleString()} series
+              </Typography>
+            )}
+          </Box>
         </>
       )}
     </>
@@ -560,16 +740,32 @@ export function BrowsePage() {
   return (
     <Box>
       {/* Header */}
-      <Box mb={3}>
-        <Box display="flex" alignItems="center" gap={2} mb={1}>
-          <VideoLibraryIcon sx={{ color: 'primary.main', fontSize: 32 }} />
-          <Typography variant="h4" fontWeight={700}>
-            Browse
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3} flexWrap="wrap" gap={2}>
+        <Box>
+          <Box display="flex" alignItems="center" gap={2} mb={1}>
+            <VideoLibraryIcon sx={{ color: 'primary.main', fontSize: 32 }} />
+            <Typography variant="h4" fontWeight={700}>
+              Browse
+            </Typography>
+          </Box>
+          <Typography variant="body1" color="text.secondary">
+            Browse your synced media library • {tabIndex === 0 ? movieTotal.toLocaleString() : seriesTotal.toLocaleString()} {tabIndex === 0 ? 'movies' : 'series'}
           </Typography>
         </Box>
-        <Typography variant="body1" color="text.secondary">
-          Browse your synced media library
-        </Typography>
+
+        <ToggleButtonGroup
+          value={viewMode}
+          exclusive
+          onChange={(_, v) => v && setViewMode(v)}
+          size="small"
+        >
+          <ToggleButton value="grid">
+            <GridViewIcon fontSize="small" />
+          </ToggleButton>
+          <ToggleButton value="list">
+            <ViewListIcon fontSize="small" />
+          </ToggleButton>
+        </ToggleButtonGroup>
       </Box>
 
       {/* Tabs */}
