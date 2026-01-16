@@ -67,10 +67,21 @@ export async function createVirtualLibrary(
   // Emby uses different collection type names
   const embyCollectionType = collectionType === 'movies' ? 'movies' : 'tvshows'
 
+  // Use JSON body as per Emby OpenAPI spec (Library.AddVirtualFolder)
+  // Query params work in some cases but JSON body is the documented approach
   await provider.fetch(
-    `/Library/VirtualFolders?name=${encodeURIComponent(name)}&collectionType=${embyCollectionType}&paths=${encodeURIComponent(path)}&refreshLibrary=true`,
+    '/Library/VirtualFolders',
     apiKey,
-    { method: 'POST' }
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        Name: name,
+        CollectionType: embyCollectionType,
+        Paths: [path],
+        RefreshLibrary: true,
+      }),
+    }
   )
 
   // Get the created library to find its ID

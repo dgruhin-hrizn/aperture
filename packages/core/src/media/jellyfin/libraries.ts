@@ -61,11 +61,21 @@ export async function createVirtualLibrary(
     return { libraryId: existing.id, alreadyExists: true }
   }
 
-  // Jellyfin uses the same collection type names as our interface
+  // Use JSON body as per API spec (consistent with Emby)
+  // Query params work in some cases but JSON body is more reliable
   await provider.fetch(
-    `/Library/VirtualFolders?name=${encodeURIComponent(name)}&collectionType=${collectionType}&paths=${encodeURIComponent(path)}&refreshLibrary=true`,
+    '/Library/VirtualFolders',
     apiKey,
-    { method: 'POST' }
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        Name: name,
+        CollectionType: collectionType,
+        Paths: [path],
+        RefreshLibrary: true,
+      }),
+    }
   )
 
   // Get the created library to find its ID
