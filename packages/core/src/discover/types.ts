@@ -143,7 +143,7 @@ export interface RawCandidate {
   releaseYear: number | null
   posterPath: string | null
   backdropPath: string | null
-  genres: number[]
+  genres: { id: number; name: string }[]
   voteAverage: number
   voteCount: number
   popularity: number

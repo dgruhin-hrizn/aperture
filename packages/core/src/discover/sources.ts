@@ -105,7 +105,7 @@ async function fetchTmdbRecommendations(
             releaseYear: normalized.releaseYear,
             posterPath: normalized.posterPath,
             backdropPath: normalized.backdropPath,
-            genres: normalized.genres,
+            genres: normalized.genres.map(id => ({ id, name: '' })),
             voteAverage: normalized.voteAverage,
             voteCount: normalized.voteCount,
             popularity: normalized.popularity,
@@ -126,7 +126,7 @@ async function fetchTmdbRecommendations(
             releaseYear: normalized.releaseYear,
             posterPath: normalized.posterPath,
             backdropPath: normalized.backdropPath,
-            genres: normalized.genres,
+            genres: normalized.genres.map(id => ({ id, name: '' })),
             voteAverage: normalized.voteAverage,
             voteCount: normalized.voteCount,
             popularity: normalized.popularity,
@@ -195,7 +195,7 @@ async function fetchTmdbSimilar(
             releaseYear: normalized.releaseYear,
             posterPath: normalized.posterPath,
             backdropPath: normalized.backdropPath,
-            genres: normalized.genres,
+            genres: normalized.genres.map(id => ({ id, name: '' })),
             voteAverage: normalized.voteAverage,
             voteCount: normalized.voteCount,
             popularity: normalized.popularity,
@@ -216,7 +216,7 @@ async function fetchTmdbSimilar(
             releaseYear: normalized.releaseYear,
             posterPath: normalized.posterPath,
             backdropPath: normalized.backdropPath,
-            genres: normalized.genres,
+            genres: normalized.genres.map(id => ({ id, name: '' })),
             voteAverage: normalized.voteAverage,
             voteCount: normalized.voteCount,
             popularity: normalized.popularity,
@@ -263,7 +263,7 @@ async function fetchTmdbDiscover(
             releaseYear: normalized.releaseYear,
             posterPath: normalized.posterPath,
             backdropPath: normalized.backdropPath,
-            genres: normalized.genres,
+            genres: normalized.genres.map(id => ({ id, name: '' })),
             voteAverage: normalized.voteAverage,
             voteCount: normalized.voteCount,
             popularity: normalized.popularity,
@@ -291,7 +291,7 @@ async function fetchTmdbDiscover(
             releaseYear: normalized.releaseYear,
             posterPath: normalized.posterPath,
             backdropPath: normalized.backdropPath,
-            genres: normalized.genres,
+            genres: normalized.genres.map(id => ({ id, name: '' })),
             voteAverage: normalized.voteAverage,
             voteCount: normalized.voteCount,
             popularity: normalized.popularity,
@@ -508,7 +508,7 @@ interface EnrichedData {
   overview: string | null
   voteAverage: number
   voteCount: number
-  genres: number[]
+  genres: { id: number; name: string }[]
   castMembers: CastMember[]
   directors: string[]
   runtimeMinutes: number | null
@@ -576,7 +576,7 @@ async function enrichMissingData(
                 overview: details.overview,
                 voteAverage: details.vote_average,
                 voteCount: details.vote_count,
-                genres: details.genres?.map(g => g.id) || [],
+                genres: details.genres?.map(g => ({ id: g.id, name: g.name })) || [],
                 castMembers,
                 directors,
                 runtimeMinutes: details.runtime || null,
@@ -612,7 +612,7 @@ async function enrichMissingData(
                 overview: details.overview,
                 voteAverage: details.vote_average,
                 voteCount: details.vote_count,
-                genres: details.genres?.map(g => g.id) || [],
+                genres: details.genres?.map(g => ({ id: g.id, name: g.name })) || [],
                 castMembers,
                 directors,
                 runtimeMinutes: details.episode_run_time?.[0] || null,
