@@ -818,6 +818,8 @@ export {
   type WatchedItem as TasteProfileWatchedItem,
   REFRESH_INTERVAL_OPTIONS,
   DEFAULT_REFRESH_INTERVAL_DAYS,
+  MIN_FRANCHISE_ITEMS_OPTIONS,
+  DEFAULT_MIN_FRANCHISE_ITEMS,
 } from './taste-profile/index.js'
 
 export {

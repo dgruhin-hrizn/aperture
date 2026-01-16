@@ -2854,7 +2854,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       const userId = request.user!.id
       const mediaType = (request.query.mediaType || 'movie') as 'movie' | 'series'
 
-      const { getUserTasteData, REFRESH_INTERVAL_OPTIONS } = await import('@aperture/core')
+      const { getUserTasteData, REFRESH_INTERVAL_OPTIONS, MIN_FRANCHISE_ITEMS_OPTIONS } = await import('@aperture/core')
       const tasteData = await getUserTasteData(userId, mediaType)
 
       return reply.send({
@@ -2868,6 +2868,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
               userModifiedAt: tasteData.profile.userModifiedAt,
               isLocked: tasteData.profile.isLocked,
               refreshIntervalDays: tasteData.profile.refreshIntervalDays,
+              minFranchiseItems: tasteData.profile.minFranchiseItems,
               createdAt: tasteData.profile.createdAt,
             }
           : null,
@@ -2894,6 +2895,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
           createdAt: i.createdAt,
         })),
         refreshIntervalOptions: REFRESH_INTERVAL_OPTIONS,
+        minFranchiseItemsOptions: MIN_FRANCHISE_ITEMS_OPTIONS,
       })
     } catch (err) {
       fastify.log.error({ err }, 'Failed to get taste profile')
@@ -2922,7 +2924,11 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: 'mode must be "reset" or "merge"' })
       }
 
-      const { getUserTasteProfile, detectAndUpdateFranchises, detectAndUpdateGenres, getUserFranchisePreferences, getUserGenreWeights } = await import('@aperture/core')
+      const { getUserTasteProfile, detectAndUpdateFranchises, detectAndUpdateGenres, getUserFranchisePreferences, getUserGenreWeights, getStoredProfile, DEFAULT_MIN_FRANCHISE_ITEMS } = await import('@aperture/core')
+
+      // Get the user's minFranchiseItems setting
+      const storedProfile = await getStoredProfile(userId, mediaType)
+      const minFranchiseItems = storedProfile?.minFranchiseItems ?? DEFAULT_MIN_FRANCHISE_ITEMS
 
       // Force rebuild profile (embedding)
       const profile = await getUserTasteProfile(userId, mediaType, {
@@ -2930,8 +2936,8 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         skipLockCheck: true, // Allow rebuild even if locked (user explicitly requested)
       })
 
-      // Update franchise and genre detection with mode
-      const franchiseResult = await detectAndUpdateFranchises(userId, mediaType, { mode })
+      // Update franchise and genre detection with mode and minFranchiseItems
+      const franchiseResult = await detectAndUpdateFranchises(userId, mediaType, { mode, minFranchiseItems })
       const genreResult = await detectAndUpdateGenres(userId, mediaType, { mode })
 
       // Fetch the updated lists to return to the frontend (avoid full page re-render)
@@ -2983,21 +2989,21 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
 
   /**
    * PATCH /api/settings/taste-profile
-   * Update profile settings (lock, refresh interval)
+   * Update profile settings (lock, refresh interval, min franchise items)
    */
   fastify.patch<{
-    Body: { mediaType: 'movie' | 'series'; isLocked?: boolean; refreshIntervalDays?: number }
+    Body: { mediaType: 'movie' | 'series'; isLocked?: boolean; refreshIntervalDays?: number; minFranchiseItems?: number }
   }>('/api/settings/taste-profile', { preHandler: requireAuth }, async (request, reply) => {
     try {
       const userId = request.user!.id
-      const { mediaType, isLocked, refreshIntervalDays } = request.body
+      const { mediaType, isLocked, refreshIntervalDays, minFranchiseItems } = request.body
 
       if (!mediaType || !['movie', 'series'].includes(mediaType)) {
         return reply.status(400).send({ error: 'mediaType must be "movie" or "series"' })
       }
 
       // Validate refresh interval
-      const { REFRESH_INTERVAL_OPTIONS, updateProfileSettings } = await import('@aperture/core')
+      const { REFRESH_INTERVAL_OPTIONS, MIN_FRANCHISE_ITEMS_OPTIONS, updateProfileSettings } = await import('@aperture/core')
       if (
         refreshIntervalDays !== undefined &&
         !REFRESH_INTERVAL_OPTIONS.includes(refreshIntervalDays as 7 | 14 | 30 | 60 | 90 | 180 | 365)
@@ -3007,9 +3013,20 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         })
       }
 
+      // Validate min franchise items
+      if (
+        minFranchiseItems !== undefined &&
+        !MIN_FRANCHISE_ITEMS_OPTIONS.includes(minFranchiseItems as 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10)
+      ) {
+        return reply.status(400).send({
+          error: `minFranchiseItems must be one of: ${MIN_FRANCHISE_ITEMS_OPTIONS.join(', ')}`,
+        })
+      }
+
       await updateProfileSettings(userId, mediaType, {
         isLocked,
         refreshIntervalDays,
+        minFranchiseItems,
       })
 
       return reply.send({

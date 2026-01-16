@@ -362,6 +362,7 @@ export interface DetectionResult {
 
 export interface DetectionOptions {
   mode?: 'reset' | 'merge'
+  minFranchiseItems?: number // Minimum items watched to include franchise (default: 2)
 }
 
 /**
@@ -372,16 +373,24 @@ export async function detectAndUpdateFranchises(
   mediaType: MediaType,
   options: DetectionOptions = {}
 ): Promise<DetectionResult> {
-  const { mode = 'reset' } = options
-  logger.info({ userId, mediaType, mode }, 'Detecting franchises from watch history')
+  const { mode = 'reset', minFranchiseItems = 2 } = options
+  logger.info({ userId, mediaType, mode, minFranchiseItems }, 'Detecting franchises from watch history')
 
-  const franchiseStats =
+  const allFranchiseStats =
     mediaType === 'movie'
       ? await detectMovieFranchises(userId)
       : await detectSeriesFranchises(userId)
 
+  // Filter by minimum items watched
+  const franchiseStats = allFranchiseStats.filter((stat) => stat.itemsWatched >= minFranchiseItems)
+
+  logger.debug(
+    { userId, mediaType, total: allFranchiseStats.length, afterFilter: franchiseStats.length, minFranchiseItems },
+    'Filtered franchises by minimum items'
+  )
+
   if (franchiseStats.length === 0) {
-    logger.info({ userId, mediaType }, 'No franchises detected')
+    logger.info({ userId, mediaType }, 'No franchises detected (after filtering)')
     return { updated: 0, newItems: [] }
   }
 

@@ -54,6 +54,7 @@ interface TasteProfile {
   autoUpdatedAt: string | null
   isLocked: boolean
   refreshIntervalDays: number
+  minFranchiseItems: number
 }
 
 interface FranchisePreference {
@@ -80,6 +81,7 @@ interface TasteProfileData {
   genres: GenreWeight[]
   customInterests: CustomInterest[]
   refreshIntervalOptions: number[]
+  minFranchiseItemsOptions: number[]
 }
 
 interface ProfileStats {
@@ -136,6 +138,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
   
   // Editable states
   const [refreshInterval, setRefreshInterval] = useState(30)
+  const [minFranchiseItems, setMinFranchiseItems] = useState(2)
   const [isLocked, setIsLocked] = useState(false)
   const [interests, setInterests] = useState<string[]>([])
   const [interestInput, setInterestInput] = useState('')
@@ -182,6 +185,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
         const prefsData = await prefsResponse.json()
         setData(prefsData)
         setRefreshInterval(prefsData.profile?.refreshIntervalDays || 30)
+        setMinFranchiseItems(prefsData.profile?.minFranchiseItems || 2)
         setIsLocked(prefsData.profile?.isLocked || false)
         setInterests(prefsData.customInterests?.map((i: CustomInterest) => i.interestText) || [])
       }
@@ -299,7 +303,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mediaType, isLocked, refreshIntervalDays: refreshInterval }),
+        body: JSON.stringify({ mediaType, isLocked, refreshIntervalDays: refreshInterval, minFranchiseItems }),
       })
     } catch {
       // Silent fail
@@ -765,6 +769,40 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                 ? 'Identity is locked and won\'t update automatically'
                 : 'Automatically re-analyze your watch history to keep recommendations fresh'
               }
+            </Typography>
+          </Box>
+          
+          {/* Min Franchise Items */}
+          <Box
+            sx={{
+              bgcolor: 'background.default',
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 2,
+              p: 2,
+              minWidth: 180,
+            }}
+          >
+            <Box display="flex" alignItems="center" justifyContent="space-between" gap={2} mb={1}>
+              <Typography variant="body2" fontWeight={500}>Min Items</Typography>
+              <FormControl size="small" sx={{ minWidth: 70 }}>
+                <Select
+                  value={minFranchiseItems}
+                  onChange={(e) => {
+                    setMinFranchiseItems(e.target.value as number)
+                    setTimeout(handleSaveSettings, 100)
+                  }}
+                >
+                  {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
+                    <MenuItem key={value} value={value}>
+                      {value}+
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+            <Typography variant="caption" color="text.secondary">
+              Only show franchises with at least this many watched {isMovie ? 'movies' : 'episodes'}
             </Typography>
           </Box>
           

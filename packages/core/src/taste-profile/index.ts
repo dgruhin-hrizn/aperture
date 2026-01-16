@@ -95,6 +95,7 @@ export async function getStoredProfile(
     user_modified_at: Date | null
     is_locked: boolean
     refresh_interval_days: number
+    min_franchise_items: number
     created_at: Date
   }>(
     `SELECT * FROM user_taste_profiles WHERE user_id = $1 AND media_type = $2`,
@@ -113,6 +114,7 @@ export async function getStoredProfile(
     userModifiedAt: result.user_modified_at,
     isLocked: result.is_locked,
     refreshIntervalDays: result.refresh_interval_days,
+    minFranchiseItems: result.min_franchise_items,
     createdAt: result.created_at,
   }
 }
@@ -174,12 +176,12 @@ export async function storeTasteProfile(
 }
 
 /**
- * Update profile settings (lock, refresh interval)
+ * Update profile settings (lock, refresh interval, min franchise items)
  */
 export async function updateProfileSettings(
   userId: string,
   mediaType: MediaType,
-  settings: { isLocked?: boolean; refreshIntervalDays?: number }
+  settings: { isLocked?: boolean; refreshIntervalDays?: number; minFranchiseItems?: number }
 ): Promise<void> {
   const updates: string[] = []
   const values: (string | boolean | number)[] = [userId, mediaType]
@@ -194,6 +196,12 @@ export async function updateProfileSettings(
   if (settings.refreshIntervalDays !== undefined) {
     updates.push(`refresh_interval_days = $${paramIndex}`)
     values.push(settings.refreshIntervalDays)
+    paramIndex++
+  }
+
+  if (settings.minFranchiseItems !== undefined) {
+    updates.push(`min_franchise_items = $${paramIndex}`)
+    values.push(settings.minFranchiseItems)
     paramIndex++
   }
 
