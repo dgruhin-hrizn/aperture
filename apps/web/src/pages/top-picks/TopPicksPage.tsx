@@ -488,12 +488,14 @@ export function TopPicksPage() {
             </Typography>
           </Box>
           <Typography variant="body1" color="text.secondary">
-            Most popular content on your server
-            {config && ` in the last ${config.timeWindowDays} days`}
+            {config 
+              ? `Ranked by popularity based on watch activity from all users over the last ${config.timeWindowDays} days`
+              : 'Ranked by popularity based on watch activity from all users'
+            }
           </Typography>
           {config?.lastRefreshedAt && (
             <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
-              Last updated: {new Date(config.lastRefreshedAt).toLocaleDateString()}
+              Last refreshed: {new Date(config.lastRefreshedAt).toLocaleDateString()}
             </Typography>
           )}
         </Box>
