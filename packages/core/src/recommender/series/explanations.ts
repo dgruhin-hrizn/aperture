@@ -15,22 +15,30 @@ const logger = createChildLogger('series-explanations')
 
 /**
  * Get the appropriate batch size based on the text generation provider.
- * Providers with large context windows (OpenAI, Anthropic, Google, DeepSeek) use 10.
- * Providers with potentially smaller context windows (Ollama, Groq, OpenAI-compatible) use 5.
+ * Tiered by context window size to avoid hitting limits.
  */
 async function getExplanationBatchSize(): Promise<{ batchSize: number; maxTokens: number }> {
   const config = await getFunctionConfig('textGeneration')
   
+  if (!config) {
+    // Default conservative settings
+    return { batchSize: 3, maxTokens: 1000 }
+  }
+  
   // Large context providers: OpenAI (128K), Anthropic (200K), Google (1M+), DeepSeek (64K)
   const largeContextProviders = ['openai', 'anthropic', 'google', 'deepseek']
-  
-  if (config && largeContextProviders.includes(config.provider)) {
+  if (largeContextProviders.includes(config.provider)) {
     return { batchSize: 10, maxTokens: 3000 }
   }
   
-  // Smaller/variable context providers: Ollama (default 4K), Groq (8K), OpenAI-compatible (varies)
-  // Use smaller batch size to fit within limited context windows
-  return { batchSize: 5, maxTokens: 1500 }
+  // Medium context: Groq (8K context)
+  if (config.provider === 'groq') {
+    return { batchSize: 5, maxTokens: 1500 }
+  }
+  
+  // Small context: Ollama (default 4K), OpenAI-compatible (varies)
+  // Use conservative batch size to fit within limited context windows
+  return { batchSize: 3, maxTokens: 1000 }
 }
 
 export interface SeriesForExplanation {
@@ -303,9 +311,37 @@ Generate personalized explanations referencing the specific similar series shown
       }))
     }
 
-    // Parse the JSON response
-    const parsed = JSON.parse(content)
-    const explanations = Array.isArray(parsed) ? parsed : parsed.explanations || []
+    // Parse the JSON response - handle models that wrap in markdown or include preamble
+    let jsonContent = content.trim()
+    
+    // Extract JSON from markdown code blocks if present
+    const jsonBlockMatch = jsonContent.match(/```(?:json)?\s*([\s\S]*?)```/)
+    if (jsonBlockMatch) {
+      jsonContent = jsonBlockMatch[1].trim()
+    }
+    
+    // Try to find JSON object/array if there's other text around it
+    if (!jsonContent.startsWith('{') && !jsonContent.startsWith('[')) {
+      const jsonStart = jsonContent.search(/[\[{]/)
+      if (jsonStart !== -1) {
+        jsonContent = jsonContent.slice(jsonStart)
+      }
+    }
+    
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(jsonContent)
+    } catch (parseError) {
+      logger.warn(
+        { rawResponse: content.substring(0, 500), parseError: parseError instanceof Error ? parseError.message : String(parseError) },
+        'Failed to parse AI response as JSON, using fallbacks'
+      )
+      return seriesList.map((s) => ({
+        seriesId: s.seriesId,
+        explanation: generateFallbackSeriesExplanation(s),
+      }))
+    }
+    const explanations = Array.isArray(parsed) ? parsed : (parsed as { explanations?: unknown[] }).explanations || []
 
     // Map back to series IDs
     return seriesList.map((s, i) => {
@@ -316,7 +352,13 @@ Generate personalized explanations referencing the specific similar series shown
       }
     })
   } catch (error) {
-    logger.error({ error }, 'Failed to generate series explanations')
+    // Extract meaningful error information - AI SDK errors don't serialize well
+    const errorInfo = {
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : 'Unknown',
+      cause: error instanceof Error && error.cause ? String(error.cause) : undefined,
+    }
+    logger.error({ error: errorInfo }, 'Failed to generate series explanations')
     return seriesList.map((s) => ({
       seriesId: s.seriesId,
       explanation: generateFallbackSeriesExplanation(s),
