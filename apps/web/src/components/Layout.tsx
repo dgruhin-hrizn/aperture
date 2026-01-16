@@ -278,7 +278,10 @@ export function Layout() {
           justifyContent: collapsed ? 'center' : 'space-between',
         }}
       >
-        <Tooltip title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} placement="right">
+        <Tooltip 
+          title={collapsed ? 'Expand sidebar (v0.4.7)' : 'Collapse sidebar'} 
+          placement="right"
+        >
           <IconButton
             onClick={handleCollapseToggle}
             size="small"
