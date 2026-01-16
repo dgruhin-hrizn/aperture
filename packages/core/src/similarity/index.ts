@@ -1,6 +1,10 @@
 import { createChildLogger } from '../lib/logger.js'
 import { query, queryOne } from '../lib/db.js'
-import { getEmbeddingModelInstance, getActiveEmbeddingModelId, getActiveEmbeddingTableName } from '../lib/ai-provider.js'
+import {
+  getEmbeddingModelInstance,
+  getActiveEmbeddingModelId,
+  getActiveEmbeddingTableName,
+} from '../lib/ai-provider.js'
 import { embed } from 'ai'
 import { computeConnectionReasons, type ConnectionReason, type ConnectionType } from './reasons.js'
 
@@ -393,7 +397,7 @@ function getDynamicCollectionLimit(collectionSize: number): number {
  * At depth=1, shows direct connections.
  * At depth=2+, uses smart exclusion to break out of franchise bubbles.
  * Falls back to AI suggestions when stuck in a tight bubble.
- * 
+ *
  * If userId is provided, applies user preferences:
  * - fullFranchiseMode: Show entire franchise without collection limits
  * - hideWatched: Filter out already-watched content
@@ -411,20 +415,26 @@ export async function getSimilarWithDepth(
     : { fullFranchiseMode: false, hideWatched: false }
 
   // Get watched content IDs if hiding watched
-  const watchedIds: Set<string> = prefs.hideWatched && userId
-    ? itemType === 'movie'
-      ? await getUserWatchedMovieIds(userId)
-      : await getUserWatchedSeriesIds(userId)
-    : new Set()
+  const watchedIds: Set<string> =
+    prefs.hideWatched && userId
+      ? itemType === 'movie'
+        ? await getUserWatchedMovieIds(userId)
+        : await getUserWatchedSeriesIds(userId)
+      : new Set()
 
   logger.debug(
-    { userId, fullFranchiseMode: prefs.fullFranchiseMode, hideWatched: prefs.hideWatched, watchedCount: watchedIds.size },
+    {
+      userId,
+      fullFranchiseMode: prefs.fullFranchiseMode,
+      hideWatched: prefs.hideWatched,
+      watchedCount: watchedIds.size,
+    },
     'Similarity graph preferences'
   )
 
   // Calculate max nodes based on depth - prevents exponential explosion
   // depth=1: just center + limit = ~13 nodes
-  // depth=2: ~25 nodes  
+  // depth=2: ~25 nodes
   // depth=3: ~45 nodes (max for usable visualization)
   const maxNodes = depth === 1 ? limit + 1 : depth === 2 ? 25 : 45
 
@@ -486,10 +496,7 @@ export async function getSimilarWithDepth(
   // Helper to increment collection count
   const trackCollection = (collectionName: string | null) => {
     if (collectionName) {
-      collectionCounts.set(
-        collectionName,
-        (collectionCounts.get(collectionName) || 0) + 1
-      )
+      collectionCounts.set(collectionName, (collectionCounts.get(collectionName) || 0) + 1)
     }
   }
 
@@ -575,7 +582,10 @@ export async function getSimilarWithDepth(
   for (let currentDepth = 2; currentDepth <= depth; currentDepth++) {
     // Stop if we've hit the max nodes cap
     if (nodes.size >= maxNodes) {
-      logger.info({ currentDepth, nodeCount: nodes.size, maxNodes }, 'Stopping expansion - max nodes reached')
+      logger.info(
+        { currentDepth, nodeCount: nodes.size, maxNodes },
+        'Stopping expansion - max nodes reached'
+      )
       break
     }
 
@@ -587,7 +597,7 @@ export async function getSimilarWithDepth(
     for (const { id, type } of currentLevelIds) {
       // Stop if we've hit the max nodes cap
       if (nodes.size >= maxNodes) break
-      
+
       if (processedIds.has(id)) continue
       processedIds.add(id)
 
@@ -626,11 +636,11 @@ export async function getSimilarWithDepth(
             const validation = await validateConnection(sourceItem, conn.item, { useAI: true })
             if (!validation.isValid) {
               logger.debug(
-                { 
-                  source: sourceItem.title, 
-                  target: conn.item.title, 
+                {
+                  source: sourceItem.title,
+                  target: conn.item.title,
                   reason: validation.reason,
-                  cached: validation.fromCache
+                  cached: validation.fromCache,
                 },
                 'Connection rejected by validation'
               )
@@ -672,11 +682,10 @@ export async function getSimilarWithDepth(
 
       // AI ESCAPE: Get diverse recommendations
       try {
-        const diverseResult = await findDiverseContent(
-          centerResult.center,
-          allItems,
-          { limit: Math.max(4, limit - addedAtThisLevel), type: itemType }
-        )
+        const diverseResult = await findDiverseContent(centerResult.center, allItems, {
+          limit: Math.max(4, limit - addedAtThisLevel),
+          type: itemType,
+        })
 
         for (const item of diverseResult.items) {
           if (nodes.has(item.id)) continue
@@ -691,10 +700,7 @@ export async function getSimilarWithDepth(
           }
         }
 
-        logger.info(
-          { addedFromAI: diverseResult.items.length },
-          'Added diverse content from AI'
-        )
+        logger.info({ addedFromAI: diverseResult.items.length }, 'Added diverse content from AI')
       } catch (error) {
         logger.error({ error }, 'AI escape failed')
       }
@@ -862,15 +868,15 @@ export interface SemanticSearchResult {
 
 /**
  * Semantic search across library content using natural language queries.
- * 
+ *
  * This function embeds the search query using OpenAI and searches the
  * pre-computed content embeddings to find semantically similar items.
- * 
+ *
  * Example queries:
  * - "Psychological thrillers with twist endings"
  * - "Family-friendly animated movies"
  * - "Dark sci-fi series about AI"
- * 
+ *
  * Cost: ~$0.000003 per search (one embedding generation)
  */
 export async function semanticSearch(
@@ -908,7 +914,7 @@ export async function semanticSearch(
   if (type === 'movie' || type === 'both') {
     const movieLimit = type === 'both' ? Math.ceil(limit / 2) : limit
     const movieTableName = await getActiveEmbeddingTableName('embeddings')
-    
+
     const movieResults = await query<{
       id: string
       title: string
@@ -958,7 +964,7 @@ export async function semanticSearch(
   if (type === 'series' || type === 'both') {
     const seriesLimit = type === 'both' ? Math.floor(limit / 2) : limit
     const seriesTableName = await getActiveEmbeddingTableName('series_embeddings')
-    
+
     const seriesResults = await query<{
       id: string
       title: string
@@ -1032,7 +1038,7 @@ export async function buildGraphFromSemanticSearch(
     return { nodes: [], edges: [] }
   }
 
-  const items = searchResults.results.map(r => r.item)
+  const items = searchResults.results.map((r) => r.item)
   const nodes: Map<string, GraphNode> = new Map()
   const edges: GraphEdge[] = []
   const seenEdges = new Set<string>()
@@ -1051,7 +1057,12 @@ export async function buildGraphFromSemanticSearch(
   }
 
   // Helper to add edge without duplicates
-  const addEdge = (sourceId: string, targetId: string, similarity: number, reasons: ConnectionReason[]) => {
+  const addEdge = (
+    sourceId: string,
+    targetId: string,
+    similarity: number,
+    reasons: ConnectionReason[]
+  ) => {
     const edgeKey = [sourceId, targetId].sort().join('-')
     if (!seenEdges.has(edgeKey) && sourceId !== targetId) {
       seenEdges.add(edgeKey)
@@ -1065,24 +1076,30 @@ export async function buildGraphFromSemanticSearch(
   let aiSucceeded = false
   if (useAI && items.length >= 2) {
     const aiResult = await analyzeConnectionsWithAI(searchResults.query, items)
-    
+
     if (aiResult && aiResult.connections.length > 0) {
       // Add AI-discovered connections
       for (const conn of aiResult.connections) {
         const sourceItem = items[conn.from]
         const targetItem = items[conn.to]
-        
+
         if (sourceItem && targetItem) {
-          addEdge(sourceItem.id, targetItem.id, 0.85, [{
-            type: conn.type as ConnectionType,
-            value: conn.label,
-          }])
+          addEdge(sourceItem.id, targetItem.id, 0.85, [
+            {
+              type: conn.type as ConnectionType,
+              value: conn.label,
+            },
+          ])
         }
       }
-      
+
       aiSucceeded = true
       logger.info(
-        { query: searchResults.query, connections: aiResult.connections.length, edges: edges.length },
+        {
+          query: searchResults.query,
+          connections: aiResult.connections.length,
+          edges: edges.length,
+        },
         'Built graph with AI-analyzed connections'
       )
     }
@@ -1091,14 +1108,15 @@ export async function buildGraphFromSemanticSearch(
   // Fallback: use embedding similarity if AI failed
   if (!aiSucceeded && items.length >= 2) {
     logger.info({ query: searchResults.query }, 'Using embedding similarity fallback')
-    
+
     for (let i = 0; i < Math.min(items.length, 10); i++) {
       const item = items[i]
       try {
-        const similarResult = item.type === 'movie'
-          ? await getSimilarMovies(item.id, { limit: 20 })
-          : await getSimilarSeries(item.id, { limit: 20 })
-        
+        const similarResult =
+          item.type === 'movie'
+            ? await getSimilarMovies(item.id, { limit: 20 })
+            : await getSimilarSeries(item.id, { limit: 20 })
+
         for (const conn of similarResult.connections) {
           if (nodes.has(conn.item.id) && conn.item.id !== item.id && conn.similarity >= 0.55) {
             addEdge(item.id, conn.item.id, conn.similarity, [{ type: 'similarity' }])
@@ -1111,20 +1129,24 @@ export async function buildGraphFromSemanticSearch(
   }
 
   // Connect any orphan nodes
-  const unconnectedNodes = items.filter(item => !connectedNodes.has(item.id))
-  
+  const unconnectedNodes = items.filter((item) => !connectedNodes.has(item.id))
+
   if (unconnectedNodes.length > 0) {
-    logger.debug({ unconnectedCount: unconnectedNodes.length }, 'Connecting orphan nodes via embeddings')
-    
+    logger.debug(
+      { unconnectedCount: unconnectedNodes.length },
+      'Connecting orphan nodes via embeddings'
+    )
+
     for (const item of unconnectedNodes) {
       // Find the most similar connected node
       let bestMatch: { id: string; similarity: number } | null = null
-      
+
       try {
-        const similarResult = item.type === 'movie' 
-          ? await getSimilarMovies(item.id, { limit: 30 })
-          : await getSimilarSeries(item.id, { limit: 30 })
-        
+        const similarResult =
+          item.type === 'movie'
+            ? await getSimilarMovies(item.id, { limit: 30 })
+            : await getSimilarSeries(item.id, { limit: 30 })
+
         // Find the best match among our search results (prefer already-connected nodes)
         for (const conn of similarResult.connections) {
           if (nodes.has(conn.item.id) && conn.item.id !== item.id) {
@@ -1133,13 +1155,13 @@ export async function buildGraphFromSemanticSearch(
             }
           }
         }
-        
+
         if (bestMatch) {
           addEdge(item.id, bestMatch.id, bestMatch.similarity, [{ type: 'similarity' }])
         }
       } catch {
         // If embedding lookup fails, connect to first available node
-        const firstConnectedNode = items.find(i => i.id !== item.id && connectedNodes.has(i.id))
+        const firstConnectedNode = items.find((i) => i.id !== item.id && connectedNodes.has(i.id))
         if (firstConnectedNode) {
           addEdge(item.id, firstConnectedNode.id, 0.6, [{ type: 'similarity' }])
         }
@@ -1173,8 +1195,17 @@ interface AIGraphResponse {
   connections: Array<{
     from: number
     to: number
-    type: 'director' | 'actor' | 'collection' | 'genre' | 'keyword' | 'studio' | 'network' | 'similarity' | 'ai_diverse'
-    label: string  // e.g., "Christopher Nolan" or "Both explore dreams"
+    type:
+      | 'director'
+      | 'actor'
+      | 'collection'
+      | 'genre'
+      | 'keyword'
+      | 'studio'
+      | 'network'
+      | 'similarity'
+      | 'ai_diverse'
+    label: string // e.g., "Christopher Nolan" or "Both explore dreams"
   }>
 }
 
@@ -1186,34 +1217,43 @@ async function analyzeConnectionsWithAI(
   searchQuery: string,
   items: SimilarityItem[]
 ): Promise<AIGraphResponse | null> {
-  const { getChatModelInstance } = await import('../lib/ai-provider.js')
+  const { getExplorationModelInstance } = await import('../lib/ai-provider.js')
   const { generateText } = await import('ai')
-  
+
   let model
   try {
-    model = await getChatModelInstance()
+    model = await getExplorationModelInstance()
   } catch (error) {
-    logger.warn({ error }, 'No chat model available')
+    logger.warn({ error }, 'No exploration model available for graph generation')
     return null
   }
-  
+
   // Limit items to avoid token limits
   const limitedItems = items.slice(0, 15)
-  
+
   // Build detailed item list with metadata for AI to analyze
-  const itemList = limitedItems.map((item, idx) => {
-    const details = [
-      `${idx}. "${item.title}" (${item.year || '?'})`,
-      `   Genres: ${item.genres.slice(0, 4).join(', ') || 'unknown'}`,
-      `   Directors: ${item.directors.slice(0, 2).join(', ') || 'unknown'}`,
-      `   Actors: ${item.actors.slice(0, 3).map(a => a.name).join(', ') || 'unknown'}`,
-      item.collection_name ? `   Collection: ${item.collection_name}` : null,
-      item.network ? `   Network: ${item.network}` : null,
-      item.studios.length > 0 ? `   Studio: ${item.studios[0].name}` : null,
-    ].filter(Boolean).join('\n')
-    return details
-  }).join('\n\n')
-  
+  const itemList = limitedItems
+    .map((item, idx) => {
+      const details = [
+        `${idx}. "${item.title}" (${item.year || '?'})`,
+        `   Genres: ${item.genres.slice(0, 4).join(', ') || 'unknown'}`,
+        `   Directors: ${item.directors.slice(0, 2).join(', ') || 'unknown'}`,
+        `   Actors: ${
+          item.actors
+            .slice(0, 3)
+            .map((a) => a.name)
+            .join(', ') || 'unknown'
+        }`,
+        item.collection_name ? `   Collection: ${item.collection_name}` : null,
+        item.network ? `   Network: ${item.network}` : null,
+        item.studios.length > 0 ? `   Studio: ${item.studios[0].name}` : null,
+      ]
+        .filter(Boolean)
+        .join('\n')
+      return details
+    })
+    .join('\n\n')
+
   const prompt = `Analyze these "${searchQuery}" results and find ALL meaningful connections between them.
 
 ITEMS:
@@ -1251,27 +1291,39 @@ RESPOND WITH ONLY VALID JSON:
 
     // Extract JSON from response
     let jsonStr = text.trim()
-    
+
     // Remove markdown code blocks
     if (jsonStr.includes('```')) {
       const match = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/)
       if (match) jsonStr = match[1].trim()
     }
-    
+
     // Try to find JSON object
     const objMatch = jsonStr.match(/\{[\s\S]*\}/)
     if (objMatch) jsonStr = objMatch[0]
-    
+
     const response = JSON.parse(jsonStr) as AIGraphResponse
-    
+
     // Validate connections
-    const validTypes = ['director', 'actor', 'collection', 'genre', 'keyword', 'studio', 'network', 'similarity', 'ai_diverse']
-    response.connections = response.connections.filter(conn => {
+    const validTypes = [
+      'director',
+      'actor',
+      'collection',
+      'genre',
+      'keyword',
+      'studio',
+      'network',
+      'similarity',
+      'ai_diverse',
+    ]
+    response.connections = response.connections.filter((conn) => {
       return (
         typeof conn.from === 'number' &&
         typeof conn.to === 'number' &&
-        conn.from >= 0 && conn.from < limitedItems.length &&
-        conn.to >= 0 && conn.to < limitedItems.length &&
+        conn.from >= 0 &&
+        conn.from < limitedItems.length &&
+        conn.to >= 0 &&
+        conn.to < limitedItems.length &&
         conn.from !== conn.to &&
         validTypes.includes(conn.type)
       )
@@ -1281,7 +1333,7 @@ RESPOND WITH ONLY VALID JSON:
       { searchQuery, connections: response.connections.length },
       'AI analyzed connections'
     )
-    
+
     return response
   } catch (error) {
     logger.error({ error, searchQuery }, 'Failed to get AI graph analysis')
@@ -1525,7 +1577,7 @@ function parseStudios(studios: unknown): Array<{ name: string }> {
     return studios.map((s) => {
       if (typeof s === 'string') return { name: s }
       if (typeof s === 'object' && s !== null) {
-        return { name: (s as Record<string, unknown>).name as string || String(s) }
+        return { name: ((s as Record<string, unknown>).name as string) || String(s) }
       }
       return { name: String(s) }
     })
@@ -1553,4 +1605,3 @@ export {
   type DiverseResult,
   type ConnectionValidation,
 } from './diverse.js'
-

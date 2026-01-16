@@ -31,7 +31,7 @@ import {
   Warning as WarningIcon,
 } from '@mui/icons-material'
 
-export type AIFunction = 'embeddings' | 'chat' | 'textGeneration'
+export type AIFunction = 'embeddings' | 'chat' | 'textGeneration' | 'exploration'
 export type ProviderType = 'openai' | 'anthropic' | 'ollama' | 'groq' | 'google' | 'openai-compatible' | 'deepseek'
 
 export interface ModelInfo {

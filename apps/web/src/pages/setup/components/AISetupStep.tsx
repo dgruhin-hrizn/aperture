@@ -17,6 +17,7 @@ import {
   SmartToy as SmartToyIcon,
   AutoFixHigh as AutoFixHighIcon,
   Warning as WarningIcon,
+  Explore as ExploreIcon,
 } from '@mui/icons-material'
 import { AIFunctionCard, type FunctionConfig, type AIFunction } from '../../../components/AIFunctionCard'
 import type { SetupWizardContext } from '../types'
@@ -29,6 +30,7 @@ interface AIConfig {
   embeddings: FunctionConfig | null
   chat: FunctionConfig | null
   textGeneration: FunctionConfig | null
+  exploration: FunctionConfig | null
 }
 
 export function AISetupStep({ wizard }: AISetupStepProps) {
@@ -40,25 +42,29 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
     embeddings: null,
     chat: null,
     textGeneration: null,
+    exploration: null,
   })
 
   // Fetch current AI config from each function endpoint (setup-safe)
   const fetchConfig = useCallback(async () => {
     try {
-      const [embeddingsRes, chatRes, textGenRes] = await Promise.all([
+      const [embeddingsRes, chatRes, textGenRes, explorationRes] = await Promise.all([
         fetch('/api/setup/ai/embeddings', { credentials: 'include' }),
         fetch('/api/setup/ai/chat', { credentials: 'include' }),
         fetch('/api/setup/ai/textGeneration', { credentials: 'include' }),
+        fetch('/api/setup/ai/exploration', { credentials: 'include' }),
       ])
       
       const embeddingsData = embeddingsRes.ok ? await embeddingsRes.json() : { config: null }
       const chatData = chatRes.ok ? await chatRes.json() : { config: null }
       const textGenData = textGenRes.ok ? await textGenRes.json() : { config: null }
+      const explorationData = explorationRes.ok ? await explorationRes.json() : { config: null }
       
       setConfig({
         embeddings: embeddingsData.config,
         chat: chatData.config,
         textGeneration: textGenData.config,
+        exploration: explorationData.config,
       })
       
       // If config exists, mark as tested
@@ -70,6 +76,9 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
       }
       if (textGenData.config) {
         setTestResults(prev => ({ ...prev, textGeneration: true }))
+      }
+      if (explorationData.config) {
+        setTestResults(prev => ({ ...prev, exploration: true }))
       }
     } catch {
       // Ignore
@@ -103,16 +112,18 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
     goToStep('complete')
   }
 
-  // All 3 AI functions are required
+  // All 4 AI functions are required
   const hasEmbeddings = config?.embeddings?.provider && config?.embeddings?.model
   const hasChat = config?.chat?.provider && config?.chat?.model
   const hasTextGen = config?.textGeneration?.provider && config?.textGeneration?.model
-  const canContinue = hasEmbeddings && hasChat && hasTextGen
+  const hasExploration = config?.exploration?.provider && config?.exploration?.model
+  const canContinue = hasEmbeddings && hasChat && hasTextGen && hasExploration
   
   const missingConfigs: string[] = []
   if (!hasEmbeddings) missingConfigs.push('Embeddings')
   if (!hasChat) missingConfigs.push('Chat Assistant')
   if (!hasTextGen) missingConfigs.push('Text Generation')
+  if (!hasExploration) missingConfigs.push('Exploration')
 
   if (loading) {
     return (
@@ -153,8 +164,13 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
         </Alert>
       )}
 
-      {/* All AI Functions - each on its own row */}
-      <Box display="flex" flexDirection="column" gap={2} mb={3}>
+      {/* All AI Functions - 2x2 grid */}
+      <Box 
+        display="grid" 
+        gridTemplateColumns={{ xs: '1fr', md: 'repeat(2, 1fr)' }} 
+        gap={2} 
+        mb={3}
+      >
         <AIFunctionCard
           functionType="embeddings"
           title="Embeddings"
@@ -189,6 +205,18 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
           iconColor="#ff9800"
           config={config?.textGeneration ?? null}
           onSave={(c) => handleSave('textGeneration', c)}
+          compact
+          isSetup
+        />
+
+        <AIFunctionCard
+          functionType="exploration"
+          title="Exploration"
+          description="Powers the Explore page. A powerful model here enables conceptual searches like 'feel-good comedies'."
+          icon={<ExploreIcon />}
+          iconColor="#4caf50"
+          config={config?.exploration ?? null}
+          onSave={(c) => handleSave('exploration', c)}
           compact
           isSetup
         />

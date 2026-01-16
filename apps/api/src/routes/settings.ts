@@ -2088,6 +2088,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       embeddings?: { provider: ProviderType; model: string; apiKey?: string; baseUrl?: string }
       chat?: { provider: ProviderType; model: string; apiKey?: string; baseUrl?: string }
       textGeneration?: { provider: ProviderType; model: string; apiKey?: string; baseUrl?: string }
+      exploration?: { provider: ProviderType; model: string; apiKey?: string; baseUrl?: string }
     }
   }>('/api/settings/ai', { preHandler: requireAdmin }, async (request, reply) => {
     try {
@@ -2103,6 +2104,9 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         textGeneration: updates.textGeneration
           ? { ...currentConfig.textGeneration, ...updates.textGeneration }
           : currentConfig.textGeneration,
+        exploration: updates.exploration
+          ? { ...currentConfig.exploration, ...updates.exploration }
+          : currentConfig.exploration,
       }
 
       await setAIConfig(newConfig)
@@ -2150,12 +2154,16 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         textGeneration: {
           configured: capabilities.textGeneration.configured,
         },
+        exploration: {
+          configured: capabilities.exploration.configured,
+        },
         features: {
           semanticSearch: capabilities.embeddings.configured,
           chatWithTools: capabilities.chat.configured && (capabilities.chat.capabilities?.supportsToolCalling ?? false),
           basicChat: capabilities.chat.configured,
           recommendations: capabilities.embeddings.configured && capabilities.textGeneration.configured,
           explanations: capabilities.textGeneration.configured,
+          exploration: capabilities.exploration.configured && capabilities.embeddings.configured,
         },
         isFullyConfigured: capabilities.isFullyConfigured,
         isAnyConfigured: capabilities.isAnyConfigured,
@@ -2305,7 +2313,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     try {
       const aiConfig = await getAIConfig()
 
-      const [embeddingsPricing, chatPricing, textGenerationPricing] = await Promise.all([
+      const [embeddingsPricing, chatPricing, textGenerationPricing, explorationPricing] = await Promise.all([
         aiConfig.embeddings
           ? getPricingForModelAsync(aiConfig.embeddings.provider, aiConfig.embeddings.model, 'embeddings')
           : null,
@@ -2315,12 +2323,16 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         aiConfig.textGeneration
           ? getPricingForModelAsync(aiConfig.textGeneration.provider, aiConfig.textGeneration.model, 'textGeneration')
           : null,
+        aiConfig.exploration
+          ? getPricingForModelAsync(aiConfig.exploration.provider, aiConfig.exploration.model, 'exploration')
+          : null,
       ])
 
       return reply.send({
         embeddings: embeddingsPricing,
         chat: chatPricing,
         textGeneration: textGenerationPricing,
+        exploration: explorationPricing,
       })
     } catch (err) {
       fastify.log.error({ err }, 'Failed to get AI pricing')
@@ -2605,8 +2617,8 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       const fn = request.params.function as AIFunction
       const { provider, model, apiKey, baseUrl } = request.body
 
-      if (!['embeddings', 'chat', 'textGeneration'].includes(fn)) {
-        return reply.status(400).send({ error: 'Invalid function. Must be embeddings, chat, or textGeneration' })
+      if (!['embeddings', 'chat', 'textGeneration', 'exploration'].includes(fn)) {
+        return reply.status(400).send({ error: 'Invalid function. Must be embeddings, chat, textGeneration, or exploration' })
       }
 
       // Save credentials to the provider credentials store for reuse

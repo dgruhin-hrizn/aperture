@@ -51,6 +51,7 @@ export interface AIConfig {
   embeddings: ProviderConfig | null
   chat: ProviderConfig | null
   textGeneration: ProviderConfig | null
+  exploration: ProviderConfig | null
   migratedAt?: string
   migratedFrom?: string
 }
@@ -66,11 +67,13 @@ export interface AICapabilitiesStatus {
   embeddings: FunctionStatus
   chat: FunctionStatus
   textGeneration: FunctionStatus
+  exploration: FunctionStatus
   features: {
     semanticSearch: boolean
     chatWithTools: boolean
     recommendations: boolean
     explanations: boolean
+    exploration: boolean
   }
   limitations: string[]
   isFullyConfigured: boolean
@@ -104,7 +107,7 @@ export async function getAIConfig(): Promise<AIConfig> {
   }
 
   // No config at all - return unconfigured state
-  return { embeddings: null, chat: null, textGeneration: null }
+  return { embeddings: null, chat: null, textGeneration: null, exploration: null }
 }
 
 /**
@@ -114,7 +117,7 @@ export async function setAIConfig(config: AIConfig): Promise<void> {
   await setSystemSetting(
     'ai_config',
     JSON.stringify(config),
-    'Per-function AI provider configuration (embeddings, chat, textGeneration)'
+    'Per-function AI provider configuration (embeddings, chat, textGeneration, exploration)'
   )
   logger.info('AI configuration updated')
 
@@ -167,6 +170,13 @@ async function migrateFromLegacyOpenAI(): Promise<AIConfig> {
       ? {
           provider: 'openai',
           model: textGenModel,
+          apiKey,
+        }
+      : null,
+    exploration: apiKey
+      ? {
+          provider: 'openai',
+          model: 'gpt-4.1-mini', // Good default for JSON generation
           apiKey,
         }
       : null,
@@ -354,6 +364,27 @@ export async function getTextGenerationModelInstance(): Promise<LanguageModel> {
   return (provider as any)(modelId) as LanguageModel
 }
 
+/**
+ * Get an exploration model instance for the configured provider
+ * Used for semantic graph generation from conceptual inputs
+ */
+export async function getExplorationModelInstance(): Promise<LanguageModel> {
+  const config = await getFunctionConfig('exploration')
+
+  if (!config) {
+    throw new Error(
+      'Exploration provider is not configured. Please configure it in Settings > AI.'
+    )
+  }
+
+  const provider = createProviderInstance(config)
+  const modelId = config.model
+
+  // All providers use similar API for language models
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (provider as any)(modelId) as LanguageModel
+}
+
 // ============================================================================
 // Capability Checking
 // ============================================================================
@@ -387,6 +418,7 @@ export async function getAICapabilitiesStatus(): Promise<AICapabilitiesStatus> {
   const embeddings = getFunctionStatus('embeddings')
   const chat = getFunctionStatus('chat')
   const textGeneration = getFunctionStatus('textGeneration')
+  const exploration = getFunctionStatus('exploration')
 
   // Determine feature availability
   const features = {
@@ -394,6 +426,7 @@ export async function getAICapabilitiesStatus(): Promise<AICapabilitiesStatus> {
     chatWithTools: chat.configured && (chat.capabilities?.supportsToolCalling ?? false),
     recommendations: embeddings.configured && textGeneration.configured,
     explanations: textGeneration.configured,
+    exploration: exploration.configured && embeddings.configured,
   }
 
   // Build limitations list
@@ -409,15 +442,19 @@ export async function getAICapabilitiesStatus(): Promise<AICapabilitiesStatus> {
   if (!textGeneration.configured) {
     limitations.push('Text generation not configured - explanations and synopses unavailable')
   }
+  if (!exploration.configured) {
+    limitations.push('Exploration not configured - Explore page graph generation may not work optimally')
+  }
 
   return {
     embeddings,
     chat,
     textGeneration,
+    exploration,
     features,
     limitations,
-    isFullyConfigured: embeddings.configured && chat.configured && textGeneration.configured,
-    isAnyConfigured: embeddings.configured || chat.configured || textGeneration.configured,
+    isFullyConfigured: embeddings.configured && chat.configured && textGeneration.configured && exploration.configured,
+    isAnyConfigured: embeddings.configured || chat.configured || textGeneration.configured || exploration.configured,
   }
 }
 

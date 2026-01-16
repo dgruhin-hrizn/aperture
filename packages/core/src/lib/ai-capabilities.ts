@@ -46,6 +46,7 @@ export interface ProviderMetadata {
   supportsEmbeddings: boolean
   supportsChat: boolean
   supportsTextGeneration: boolean
+  supportsExploration: boolean
 
   // Required configuration
   requiresApiKey: boolean
@@ -56,9 +57,10 @@ export interface ProviderMetadata {
   embeddingModels: ModelMetadata[]
   chatModels: ModelMetadata[]
   textGenerationModels: ModelMetadata[]
+  explorationModels: ModelMetadata[]
 }
 
-export type AIFunction = 'embeddings' | 'chat' | 'textGeneration'
+export type AIFunction = 'embeddings' | 'chat' | 'textGeneration' | 'exploration'
 
 // ============================================================================
 // Provider Registry
@@ -77,6 +79,7 @@ export const PROVIDERS: ProviderMetadata[] = [
     supportsEmbeddings: true,
     supportsChat: true,
     supportsTextGeneration: true,
+    supportsExploration: true,
     requiresApiKey: true,
     requiresBaseUrl: false,
     embeddingModels: [
@@ -216,6 +219,7 @@ export const PROVIDERS: ProviderMetadata[] = [
       },
     ],
     textGenerationModels: [], // Same as chat models, populated dynamically
+    explorationModels: [], // Same as chat models, populated dynamically
   },
 
   {
@@ -226,6 +230,7 @@ export const PROVIDERS: ProviderMetadata[] = [
     supportsEmbeddings: false,
     supportsChat: true,
     supportsTextGeneration: true,
+    supportsExploration: true,
     requiresApiKey: true,
     requiresBaseUrl: false,
     embeddingModels: [],
@@ -266,6 +271,7 @@ export const PROVIDERS: ProviderMetadata[] = [
       },
     ],
     textGenerationModels: [],
+    explorationModels: [],
   },
 
   {
@@ -276,6 +282,7 @@ export const PROVIDERS: ProviderMetadata[] = [
     supportsEmbeddings: true,
     supportsChat: true,
     supportsTextGeneration: true,
+    supportsExploration: true,
     requiresApiKey: false,
     requiresBaseUrl: true,
     defaultBaseUrl: 'http://localhost:11434',
@@ -417,6 +424,7 @@ export const PROVIDERS: ProviderMetadata[] = [
         contextWindow: '16K',
       },
     ],
+    explorationModels: [],
   },
 
   {
@@ -427,12 +435,14 @@ export const PROVIDERS: ProviderMetadata[] = [
     supportsEmbeddings: true,
     supportsChat: true,
     supportsTextGeneration: true,
+    supportsExploration: true,
     requiresApiKey: false, // Optional
     requiresBaseUrl: true,
     defaultBaseUrl: 'http://localhost:1234/v1',
     embeddingModels: [], // Discovered dynamically
     chatModels: [], // Discovered dynamically
     textGenerationModels: [],
+    explorationModels: [],
     // Note: LM Studio, LocalAI, vLLM, text-generation-webui all use this
   },
 
@@ -447,6 +457,7 @@ export const PROVIDERS: ProviderMetadata[] = [
     supportsEmbeddings: false,
     supportsChat: true,
     supportsTextGeneration: true,
+    supportsExploration: true,
     requiresApiKey: true,
     requiresBaseUrl: false,
     embeddingModels: [],
@@ -499,6 +510,7 @@ export const PROVIDERS: ProviderMetadata[] = [
       },
     ],
     textGenerationModels: [],
+    explorationModels: [],
   },
 
   {
@@ -509,6 +521,7 @@ export const PROVIDERS: ProviderMetadata[] = [
     supportsEmbeddings: true,
     supportsChat: true,
     supportsTextGeneration: true,
+    supportsExploration: true,
     requiresApiKey: true,
     requiresBaseUrl: false,
     embeddingModels: [
@@ -565,6 +578,7 @@ export const PROVIDERS: ProviderMetadata[] = [
       },
     ],
     textGenerationModels: [],
+    explorationModels: [],
   },
 
   {
@@ -575,6 +589,7 @@ export const PROVIDERS: ProviderMetadata[] = [
     supportsEmbeddings: false,
     supportsChat: true,
     supportsTextGeneration: true,
+    supportsExploration: true,
     requiresApiKey: true,
     requiresBaseUrl: false,
     embeddingModels: [],
@@ -615,13 +630,17 @@ export const PROVIDERS: ProviderMetadata[] = [
       },
     ],
     textGenerationModels: [],
+    explorationModels: [],
   },
 ]
 
-// Populate textGenerationModels from chatModels (they're the same)
+// Populate textGenerationModels and explorationModels from chatModels (they're the same)
 for (const provider of PROVIDERS) {
   if (provider.textGenerationModels.length === 0 && provider.chatModels.length > 0) {
     provider.textGenerationModels = [...provider.chatModels]
+  }
+  if (provider.explorationModels.length === 0 && provider.chatModels.length > 0) {
+    provider.explorationModels = [...provider.chatModels]
   }
 }
 
@@ -652,7 +671,9 @@ export function getModel(
       ? provider.embeddingModels
       : functionType === 'chat'
         ? provider.chatModels
-        : provider.textGenerationModels
+        : functionType === 'exploration'
+          ? provider.explorationModels
+          : provider.textGenerationModels
 
   return models.find((m) => m.id === modelId)
 }
@@ -665,6 +686,7 @@ export function getProvidersForFunction(fn: AIFunction): ProviderMetadata[] {
     if (fn === 'embeddings') return p.supportsEmbeddings
     if (fn === 'chat') return p.supportsChat && p.chatModels.some((m) => m.capabilities.supportsToolCalling)
     if (fn === 'textGeneration') return p.supportsTextGeneration
+    if (fn === 'exploration') return p.supportsExploration
     return false
   })
 }
@@ -689,6 +711,12 @@ export function getModelsForFunction(providerId: string, fn: AIFunction): ModelM
     return provider.textGenerationModels.length > 0
       ? provider.textGenerationModels
       : provider.chatModels
+  }
+  if (fn === 'exploration') {
+    // Exploration needs structured output, prefer models with object generation
+    return provider.explorationModels.length > 0
+      ? provider.explorationModels.filter((m) => m.capabilities.supportsObjectGeneration)
+      : provider.chatModels.filter((m) => m.capabilities.supportsObjectGeneration)
   }
   return []
 }
