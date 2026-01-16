@@ -3,7 +3,6 @@ import {
   Box,
   Typography,
   Card,
-  CardContent,
   Button,
   Alert,
   CircularProgress,
@@ -20,7 +19,6 @@ import {
   Select,
   MenuItem,
   FormControl,
-  InputLabel,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -133,7 +131,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
   // Action states
   const [analyzing, setAnalyzing] = useState(false)
   const [generating, setGenerating] = useState(false)
-  const [savingSettings, setSavingSettings] = useState(false)
+  const [, setSavingSettings] = useState(false)
   const [savingSlider, setSavingSlider] = useState<string | null>(null)
   
   // Editable states
@@ -985,9 +983,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
           >
             {analyzing ? 'Analyzing...' : 'Analyze Watch History'}
           </Button>
-          <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
-            Scans your watch history for franchises and genres
-          </Typography>
+          
         </Box>
       </Paper>
 
