@@ -891,20 +891,20 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
             <Box display="flex" alignItems="center" gap={1} mb={1}>
               <VideoLibraryIcon sx={{ color: accentColor }} fontSize="small" />
               <Typography variant="h6" fontWeight={600}>
-                Watch History Sources
+                {isMovie ? 'Movie' : 'Series'} Library Sources
               </Typography>
             </Box>
             <Typography variant="body2" color="text.secondary" mb={2}>
-              Choose which libraries contribute to your taste profile.
+              Choose which {isMovie ? 'movie' : 'TV show'} libraries contribute to your taste profile.
             </Typography>
             
             {loadingLibraries ? (
               <Box display="flex" justifyContent="center" py={2}>
                 <CircularProgress size={24} />
               </Box>
-            ) : accessibleLibraries.length === 0 ? (
+            ) : accessibleLibraries.filter(l => l.collectionType === (isMovie ? 'movies' : 'tvshows')).length === 0 ? (
               <Typography variant="body2" color="text.secondary">
-                No libraries found. Your media server libraries will appear here.
+                No {isMovie ? 'movie' : 'TV show'} libraries found.
               </Typography>
             ) : (
               <Box 
@@ -924,7 +924,9 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                 }}
               >
                 <Grid container spacing={1}>
-                  {accessibleLibraries.map((library) => (
+                  {accessibleLibraries
+                    .filter(library => library.collectionType === (isMovie ? 'movies' : 'tvshows'))
+                    .map((library) => (
                     <Grid item xs={12} sm={6} key={library.id}>
                       <Box
                         sx={{
@@ -941,12 +943,10 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                         }}
                       >
                         <Box display="flex" alignItems="center" gap={1} minWidth={0} flex={1}>
-                          {library.collectionType === 'movies' ? (
+                          {isMovie ? (
                             <MovieIcon fontSize="small" color={library.isExcluded ? 'disabled' : 'action'} sx={{ flexShrink: 0 }} />
-                          ) : library.collectionType === 'tvshows' ? (
-                            <TvIcon fontSize="small" color={library.isExcluded ? 'disabled' : 'action'} sx={{ flexShrink: 0 }} />
                           ) : (
-                            <VideoLibraryIcon fontSize="small" color={library.isExcluded ? 'disabled' : 'action'} sx={{ flexShrink: 0 }} />
+                            <TvIcon fontSize="small" color={library.isExcluded ? 'disabled' : 'action'} sx={{ flexShrink: 0 }} />
                           )}
                           <Typography
                             variant="body2"
