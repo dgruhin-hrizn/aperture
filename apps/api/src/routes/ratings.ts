@@ -65,6 +65,117 @@ const ratingsRoutes: FastifyPluginAsync = async (fastify) => {
   )
 
   /**
+   * GET /api/ratings/disliked
+   * Get all disliked items (rating <= 3) for the current user
+   * Used for displaying disliked content in the AI Algorithm settings
+   */
+  fastify.get<{
+    Querystring: { type?: 'movie' | 'series' | 'all' }
+    Reply: {
+      movies: Array<{
+        id: string
+        title: string
+        year: number | null
+        posterUrl: string | null
+        rating: number
+      }>
+      series: Array<{
+        id: string
+        title: string
+        year: number | null
+        posterUrl: string | null
+        rating: number
+      }>
+      totalCount: number
+    }
+  }>(
+    '/api/ratings/disliked',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const user = request.user as SessionUser
+      const type = request.query.type || 'all'
+
+      const movies: Array<{
+        id: string
+        title: string
+        year: number | null
+        posterUrl: string | null
+        rating: number
+      }> = []
+
+      const series: Array<{
+        id: string
+        title: string
+        year: number | null
+        posterUrl: string | null
+        rating: number
+      }> = []
+
+      if (type === 'all' || type === 'movie') {
+        // Get disliked movies (rating 1-3)
+        const movieResult = await query<{
+          movie_id: string
+          rating: number
+          title: string
+          year: number | null
+          poster_url: string | null
+        }>(
+          `SELECT ur.movie_id, ur.rating, m.title, m.year, m.poster_url
+           FROM user_ratings ur
+           JOIN movies m ON m.id = ur.movie_id
+           WHERE ur.user_id = $1 AND ur.movie_id IS NOT NULL AND ur.rating <= 3
+           ORDER BY m.title ASC`,
+          [user.id]
+        )
+
+        for (const row of movieResult.rows) {
+          movies.push({
+            id: row.movie_id,
+            title: row.title,
+            year: row.year,
+            posterUrl: row.poster_url,
+            rating: row.rating,
+          })
+        }
+      }
+
+      if (type === 'all' || type === 'series') {
+        // Get disliked series (rating 1-3)
+        const seriesResult = await query<{
+          series_id: string
+          rating: number
+          title: string
+          year: number | null
+          poster_url: string | null
+        }>(
+          `SELECT ur.series_id, ur.rating, s.title, s.year, s.poster_url
+           FROM user_ratings ur
+           JOIN series s ON s.id = ur.series_id
+           WHERE ur.user_id = $1 AND ur.series_id IS NOT NULL AND ur.rating <= 3
+           ORDER BY s.title ASC`,
+          [user.id]
+        )
+
+        for (const row of seriesResult.rows) {
+          series.push({
+            id: row.series_id,
+            title: row.title,
+            year: row.year,
+            posterUrl: row.poster_url,
+            rating: row.rating,
+          })
+        }
+      }
+
+      return reply.send({
+        movies,
+        series,
+        totalCount: movies.length + series.length,
+      })
+    }
+  )
+
+  /**
    * GET /api/ratings/movie/:id
    * Get rating for a specific movie
    */

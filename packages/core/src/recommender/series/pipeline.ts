@@ -37,9 +37,13 @@ import {
   storeTasteProfile as storeNewTasteProfile,
   getFranchiseBoost,
   getGenreBoost,
+  getCustomInterestBoost,
   detectAndUpdateFranchises,
 } from '../../taste-profile/index.js'
 import { getItemFranchise } from '../../taste-profile/franchise.js'
+import { getDislikedSeriesIds } from './taste.js'
+import { loadConfigForUser } from '../config.js'
+import type { PipelineConfig } from '../types.js'
 
 const logger = createChildLogger('series-recommender')
 
@@ -75,46 +79,8 @@ export interface SeriesCandidate {
   finalScore: number
 }
 
-export interface SeriesPipelineConfig {
-  maxCandidates: number
-  selectedCount: number
-  similarityWeight: number
-  noveltyWeight: number
-  ratingWeight: number
-  diversityWeight: number
-  recentWatchLimit: number
-}
-
-const DEFAULT_CONFIG: SeriesPipelineConfig = {
-  maxCandidates: 150,
-  selectedCount: 12,
-  similarityWeight: 0.45,
-  noveltyWeight: 0.15,
-  ratingWeight: 0.25,
-  diversityWeight: 0.15,
-  recentWatchLimit: 100,
-}
-
-/**
- * Load series recommendation config from database
- */
-async function loadSeriesConfig(): Promise<SeriesPipelineConfig> {
-  try {
-    const { getRecommendationConfig } = await import('../../lib/recommendationConfig.js')
-    const config = await getRecommendationConfig()
-    return {
-      maxCandidates: config.series.maxCandidates,
-      selectedCount: config.series.selectedCount,
-      similarityWeight: config.series.similarityWeight,
-      noveltyWeight: config.series.noveltyWeight,
-      ratingWeight: config.series.ratingWeight,
-      diversityWeight: config.series.diversityWeight,
-      recentWatchLimit: config.series.recentWatchLimit,
-    }
-  } catch {
-    return DEFAULT_CONFIG
-  }
-}
+// Re-export PipelineConfig as SeriesPipelineConfig for backwards compatibility
+export type SeriesPipelineConfig = PipelineConfig
 
 /**
  * Get user's series watch history with engagement weighting
@@ -535,7 +501,8 @@ export async function generateSeriesRecommendationsForUser(
   user: SeriesUser,
   configOverrides: Partial<SeriesPipelineConfig> = {}
 ): Promise<{ runId: string; recommendations: SeriesCandidate[] }> {
-  const config = await loadSeriesConfig()
+  // Load user-specific config (applies user overrides if enabled, falls back to admin defaults)
+  const config = await loadConfigForUser(user.id, 'series')
   const cfg = { ...config, ...configOverrides }
   const startTime = Date.now()
 
@@ -613,19 +580,33 @@ export async function generateSeriesRecommendationsForUser(
     await storeSeriesTasteProfile(user.id, tasteProfile)
     logger.info({ userId: user.id }, '💾 Stored series taste profile (legacy)')
 
-    // 3. Get user's preference for including watched content
-    const userPrefs = await queryOne<{ include_watched: boolean }>(
-      `SELECT include_watched FROM user_preferences WHERE user_id = $1`,
+    // 3. Get user's preferences for including watched content and handling disliked content
+    const userPrefs = await queryOne<{ include_watched: boolean; settings: { dislikeBehavior?: string } | null }>(
+      `SELECT include_watched, settings FROM user_preferences WHERE user_id = $1`,
       [user.id]
     )
     const includeWatched = userPrefs?.include_watched ?? false
+    const dislikeBehavior = userPrefs?.settings?.dislikeBehavior ?? 'exclude'
+
+    // Get disliked series IDs if dislike_behavior is 'exclude'
+    const dislikedIds = dislikeBehavior === 'exclude' 
+      ? await getDislikedSeriesIds(user.id) 
+      : new Set<string>()
+    
+    if (dislikedIds.size > 0) {
+      logger.info(
+        { userId: user.id, dislikedCount: dislikedIds.size },
+        `📋 Found ${dislikedIds.size} disliked series to exclude`
+      )
+    }
 
     // Get ALL watched series IDs for filtering (not just recent ones used for taste profile)
     // This ensures we exclude ALL series the user has watched, not just the recentWatchLimit
-    let allWatchedIds: Set<string>
+    // Also exclude disliked series if dislike_behavior is 'exclude'
+    let excludeIds: Set<string>
     if (includeWatched) {
-      // If including watched, no need to query - just use empty set
-      allWatchedIds = new Set()
+      // Only exclude disliked series (not watched ones)
+      excludeIds = new Set(dislikedIds)
     } else {
       const allWatchedResult = await query<{ series_id: string }>(
         `SELECT DISTINCT e.series_id 
@@ -634,10 +615,13 @@ export async function generateSeriesRecommendationsForUser(
          WHERE wh.user_id = $1 AND wh.media_type = 'episode'`,
         [user.id]
       )
-      allWatchedIds = new Set(allWatchedResult.rows.map((r) => r.series_id))
+      excludeIds = new Set([
+        ...allWatchedResult.rows.map((r) => r.series_id),
+        ...dislikedIds,
+      ])
       logger.info(
-        { userId: user.id, totalWatched: allWatchedIds.size },
-        `📋 Loaded ${allWatchedIds.size} watched series to exclude`
+        { userId: user.id, totalWatched: allWatchedResult.rows.length, dislikedCount: dislikedIds.size, excludeTotal: excludeIds.size },
+        `📋 Loaded ${allWatchedResult.rows.length} watched + ${dislikedIds.size} disliked = ${excludeIds.size} series to exclude`
       )
     }
 
@@ -645,7 +629,7 @@ export async function generateSeriesRecommendationsForUser(
     logger.info({ userId: user.id }, '🔍 Finding candidate series...')
     const candidates = await getSeriesCandidates(
       tasteProfile,
-      allWatchedIds,
+      excludeIds,
       cfg.maxCandidates,
       includeWatched,
       user.maxParentalRating ?? null
@@ -665,10 +649,16 @@ export async function generateSeriesRecommendationsForUser(
     logger.info({ userId: user.id }, '📈 Scoring and ranking candidates...')
     const scoredCandidates = await scoreSeriesCandidates(candidates, watchedSeries, cfg)
 
-    // 5.5 Apply franchise and genre preference boosts
-    logger.info({ userId: user.id }, '🎯 Applying franchise and genre preference boosts...')
+    // 5.5 Apply franchise, genre, and custom interest preference boosts
+    logger.info({ userId: user.id }, '🎯 Applying preference boosts (franchise, genre, custom interests)...')
     let franchiseBoostCount = 0
     let genreBoostCount = 0
+    let interestBoostCount = 0
+    
+    // Get embeddings for top candidates to apply custom interest boost
+    // (only fetch for top 100 to limit performance impact)
+    const topCandidateIds = scoredCandidates.slice(0, 100).map((c) => c.seriesId)
+    const { getSeriesEmbedding } = await import('./embeddings.js')
     
     for (const candidate of scoredCandidates) {
       // Get franchise boost (1.0 = neutral, up to 1.5 for loved franchises)
@@ -678,9 +668,18 @@ export async function generateSeriesRecommendationsForUser(
       // Get genre boost (1.0 = neutral, 0.5-1.5 range)
       const genreBoost = await getGenreBoost(user.id, candidate.genres || [])
       
+      // Get custom interest boost (only for top candidates with embeddings)
+      let interestBoost = 1.0
+      if (topCandidateIds.includes(candidate.seriesId)) {
+        const embedding = await getSeriesEmbedding(candidate.seriesId)
+        if (embedding) {
+          interestBoost = await getCustomInterestBoost(user.id, embedding)
+        }
+      }
+      
       // Apply boosts to final score
       const originalScore = candidate.finalScore
-      candidate.finalScore = originalScore * franchiseBoost * genreBoost
+      candidate.finalScore = originalScore * franchiseBoost * genreBoost * interestBoost
       
       if (franchiseBoost !== 1.0) {
         franchiseBoostCount++
@@ -692,25 +691,36 @@ export async function generateSeriesRecommendationsForUser(
       if (genreBoost !== 1.0) {
         genreBoostCount++
       }
+      if (interestBoost !== 1.0) {
+        interestBoostCount++
+        logger.debug(
+          { title: candidate.title, interestBoost: interestBoost.toFixed(2) },
+          'Applied custom interest boost'
+        )
+      }
     }
     
     // Re-sort after applying boosts
     scoredCandidates.sort((a, b) => b.finalScore - a.finalScore)
     
     logger.info(
-      { userId: user.id, franchiseBoostCount, genreBoostCount },
-      `Applied ${franchiseBoostCount} franchise boosts and ${genreBoostCount} genre boosts`
+      { userId: user.id, franchiseBoostCount, genreBoostCount, interestBoostCount },
+      `Applied ${franchiseBoostCount} franchise, ${genreBoostCount} genre, ${interestBoostCount} interest boosts`
     )
 
     // 6. Apply diversity and select
+    // Use smart diversity adjustment if user hasn't set custom weights
+    const { getSmartDiversityWeight } = await import('../../lib/userAlgorithmSettings.js')
+    const effectiveDiversityWeight = await getSmartDiversityWeight(user.id, 'series', cfg.diversityWeight)
+    
     logger.info(
-      { userId: user.id, targetCount: cfg.selectedCount },
+      { userId: user.id, targetCount: cfg.selectedCount, diversityWeight: effectiveDiversityWeight },
       '🎲 Applying diversity and selecting...'
     )
     const { selected, selectedRanks } = applySeriesDiversityAndSelect(
       scoredCandidates,
       cfg.selectedCount,
-      cfg.diversityWeight
+      effectiveDiversityWeight
     )
 
     // Log selected series

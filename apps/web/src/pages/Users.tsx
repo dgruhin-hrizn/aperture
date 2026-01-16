@@ -36,6 +36,7 @@ import PersonAddIcon from '@mui/icons-material/PersonAdd'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import BlockIcon from '@mui/icons-material/Block'
 import RefreshIcon from '@mui/icons-material/Refresh'
+import SyncIcon from '@mui/icons-material/Sync'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import HistoryIcon from '@mui/icons-material/History'
 import RecommendIcon from '@mui/icons-material/Recommend'
@@ -79,6 +80,7 @@ export function UsersPage() {
   const [importing, setImporting] = useState<string | null>(null)
   // Track running jobs per user (userId -> job type)
   const [runningJobs, setRunningJobs] = useState<Map<string, string>>(new Map())
+  const [syncingUsers, setSyncingUsers] = useState(false)
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
@@ -128,6 +130,36 @@ export function UsersPage() {
     fetchProviderUsers()
     fetchGlobalAiConfig()
   }, [])
+
+  const handleSyncUsers = async () => {
+    setSyncingUsers(true)
+    try {
+      const response = await fetch('/api/jobs/sync-users/run', {
+        method: 'POST',
+        credentials: 'include',
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const result = data.result || {}
+        const message = `User sync complete: ${result.imported || 0} imported, ${result.updated || 0} updated`
+        setSnackbar({ open: true, message, severity: 'success' })
+        // Refresh the user list after sync
+        await fetchProviderUsers()
+      } else {
+        const errData = await response.json().catch(() => ({}))
+        setSnackbar({ 
+          open: true, 
+          message: errData.error || 'Failed to sync users', 
+          severity: 'error' 
+        })
+      }
+    } catch {
+      setSnackbar({ open: true, message: 'Failed to sync users', severity: 'error' })
+    } finally {
+      setSyncingUsers(false)
+    }
+  }
 
   const handleImportUser = async (providerUserId: string, enableAfterImport: boolean = false) => {
     setImporting(providerUserId)
@@ -400,18 +432,31 @@ export function UsersPage() {
   if (isMobile) {
     return (
       <Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1 }}>
           <Typography variant="body2" color="text.secondary">
             Manage {provider.charAt(0).toUpperCase() + provider.slice(1)} users
           </Typography>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={fetchProviderUsers}
-            startIcon={<RefreshIcon />}
-          >
-            Refresh
-          </Button>
+          <Stack direction="row" spacing={1}>
+            <Tooltip title="Sync new users from media server">
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleSyncUsers}
+                disabled={syncingUsers}
+                startIcon={syncingUsers ? <CircularProgress size={16} color="inherit" /> : <SyncIcon />}
+              >
+                {syncingUsers ? 'Syncing...' : 'Sync Users'}
+              </Button>
+            </Tooltip>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={fetchProviderUsers}
+              startIcon={<RefreshIcon />}
+            >
+              Refresh
+            </Button>
+          </Stack>
         </Box>
 
         <Stack spacing={2}>
@@ -675,18 +720,31 @@ export function UsersPage() {
   // Desktop table view
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1 }}>
         <Typography variant="body1" color="text.secondary">
           Manage {provider.charAt(0).toUpperCase() + provider.slice(1)} users and enable AI recommendations
         </Typography>
-        <Button
-          variant="outlined"
-          size="small"
-          onClick={fetchProviderUsers}
-          startIcon={<RefreshIcon />}
-        >
-          Refresh
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Tooltip title="Import new users and sync profile data (email, admin status) from media server">
+            <Button
+              variant="contained"
+              size="small"
+              onClick={handleSyncUsers}
+              disabled={syncingUsers}
+              startIcon={syncingUsers ? <CircularProgress size={16} color="inherit" /> : <SyncIcon />}
+            >
+              {syncingUsers ? 'Syncing...' : 'Sync Users'}
+            </Button>
+          </Tooltip>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={fetchProviderUsers}
+            startIcon={<RefreshIcon />}
+          >
+            Refresh
+          </Button>
+        </Stack>
       </Box>
 
       <TableContainer

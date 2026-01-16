@@ -1692,6 +1692,73 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   // =========================================================================
+  // User Include Watched Preference
+  // =========================================================================
+
+  /**
+   * GET /api/settings/user/include-watched
+   * Get current user's include watched preference
+   */
+  fastify.get('/api/settings/user/include-watched', async (request, reply) => {
+    try {
+      const userId = request.user?.id
+      if (!userId) {
+        return reply.status(401).send({ error: 'Not authenticated' })
+      }
+
+      const result = await queryOne<{ include_watched: boolean }>(
+        `SELECT COALESCE(include_watched, false) as include_watched FROM user_preferences WHERE user_id = $1`,
+        [userId]
+      )
+
+      return reply.send({
+        includeWatched: result?.include_watched ?? false,
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get include watched preference')
+      return reply.status(500).send({ error: 'Failed to get include watched preference' })
+    }
+  })
+
+  /**
+   * PUT /api/settings/user/include-watched
+   * Update current user's include watched preference
+   */
+  fastify.put<{
+    Body: {
+      includeWatched: boolean
+    }
+  }>('/api/settings/user/include-watched', async (request, reply) => {
+    try {
+      const userId = request.user?.id
+      if (!userId) {
+        return reply.status(401).send({ error: 'Not authenticated' })
+      }
+
+      const { includeWatched } = request.body
+      if (typeof includeWatched !== 'boolean') {
+        return reply.status(400).send({ error: 'includeWatched must be a boolean' })
+      }
+
+      // Upsert the preference
+      await query(
+        `INSERT INTO user_preferences (user_id, include_watched)
+         VALUES ($1, $2)
+         ON CONFLICT (user_id) DO UPDATE SET include_watched = EXCLUDED.include_watched`,
+        [userId, includeWatched]
+      )
+
+      return reply.send({
+        includeWatched,
+        message: 'Include watched preference saved',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to update include watched preference')
+      return reply.status(500).send({ error: 'Failed to update include watched preference' })
+    }
+  })
+
+  // =========================================================================
   // User Dislike Behavior Preference
   // =========================================================================
 

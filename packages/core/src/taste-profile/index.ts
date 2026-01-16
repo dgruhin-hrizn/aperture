@@ -656,3 +656,70 @@ export async function getGenreBoost(userId: string, genres: string[]): Promise<n
   return 0.5 + avgWeight * 0.5
 }
 
+/**
+ * Calculate cosine similarity between two vectors
+ */
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length) return 0
+  
+  let dotProduct = 0
+  let normA = 0
+  let normB = 0
+  
+  for (let i = 0; i < a.length; i++) {
+    dotProduct += a[i] * b[i]
+    normA += a[i] * a[i]
+    normB += b[i] * b[i]
+  }
+  
+  const denominator = Math.sqrt(normA) * Math.sqrt(normB)
+  return denominator === 0 ? 0 : dotProduct / denominator
+}
+
+/**
+ * Get custom interest boost for a candidate
+ * 
+ * Checks if the candidate's embedding is similar to any of the user's custom interests
+ * (e.g., "I love time travel stories", "space opera adventures")
+ * 
+ * @param userId - The user ID
+ * @param candidateEmbedding - The candidate's embedding vector
+ * @returns Boost multiplier: 1.0 (no boost) to 1.3 (strong match)
+ */
+export async function getCustomInterestBoost(
+  userId: string,
+  candidateEmbedding: number[]
+): Promise<number> {
+  const interests = await getUserCustomInterests(userId)
+  
+  // No custom interests = no boost
+  if (interests.length === 0) return 1.0
+  
+  // Filter to interests that have embeddings
+  const interestsWithEmbeddings = interests.filter((i) => i.embedding && i.embedding.length > 0)
+  if (interestsWithEmbeddings.length === 0) return 1.0
+  
+  // Find max similarity to any interest, weighted by user's interest weight
+  let maxWeightedSimilarity = 0
+  
+  for (const interest of interestsWithEmbeddings) {
+    if (!interest.embedding) continue
+    
+    const similarity = cosineSimilarity(candidateEmbedding, interest.embedding)
+    const weightedSimilarity = similarity * interest.weight
+    
+    if (weightedSimilarity > maxWeightedSimilarity) {
+      maxWeightedSimilarity = weightedSimilarity
+    }
+  }
+  
+  // Convert similarity to boost:
+  // - 0.7+ similarity = 1.3x boost (strong match)
+  // - 0.5-0.7 similarity = 1.15x boost (moderate match)
+  // - 0.3-0.5 similarity = 1.05x boost (weak match)
+  // - <0.3 similarity = 1.0x (no boost)
+  if (maxWeightedSimilarity >= 0.7) return 1.3
+  if (maxWeightedSimilarity >= 0.5) return 1.15
+  if (maxWeightedSimilarity >= 0.3) return 1.05
+  return 1.0
+}

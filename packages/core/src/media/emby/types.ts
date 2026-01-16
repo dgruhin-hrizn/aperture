@@ -23,6 +23,8 @@ export interface EmbyUser {
   }
   LastActivityDate?: string
   PrimaryImageTag?: string
+  // Emby Connect email (if user has Emby Connect linked)
+  ConnectUserName?: string
 }
 
 export interface EmbyLibrary {

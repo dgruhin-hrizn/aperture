@@ -21,6 +21,7 @@ export interface MediaServerUser {
   lastActivityDate?: string
   primaryImageTag?: string
   maxParentalRating?: number // NULL means unrestricted
+  email?: string // Email from Emby Connect or user configuration
 }
 
 export interface Library {

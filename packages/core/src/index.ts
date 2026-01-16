@@ -805,6 +805,8 @@ export {
   // Delete functions
   deleteFranchisePreference,
   deleteGenreWeight,
+  // Custom interest boost
+  getCustomInterestBoost,
   // Types
   type TasteProfile,
   type FranchisePreference,
@@ -837,3 +839,20 @@ export {
   calculateEngagementWeight,
 } from './taste-profile/builder.js'
 
+// User Algorithm Settings
+export {
+  getUserAlgorithmSettings,
+  setUserAlgorithmSettings,
+  resetUserAlgorithmSettings,
+  getEffectiveAlgorithmConfig,
+  normalizeWeights,
+  getAdminDefaultConfig,
+  type UserAlgorithmSettings,
+  type UserAlgorithmWeights,
+} from './lib/userAlgorithmSettings.js'
+
+// User Sync
+export {
+  syncUsersFromMediaServer,
+  type SyncUsersResult,
+} from './users/sync.js'

@@ -52,6 +52,8 @@ import {
   setJobStep,
   addLog,
   completeJob,
+  // User Sync
+  syncUsersFromMediaServer,
   type JobProgress,
   type ScheduleType,
 } from '@aperture/core'
@@ -75,6 +77,12 @@ interface JobInfo {
 const activeJobs: Map<string, string> = new Map()
 
 const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
+  // === User Sync Job ===
+  {
+    name: 'sync-users',
+    description: 'Sync users from media server (imports new users, updates email/admin status)',
+    cron: '*/30 * * * *', // Every 30 minutes
+  },
   // === Movie Jobs ===
   {
     name: 'sync-movies',
@@ -783,6 +791,20 @@ async function runJob(name: string, jobId: string): Promise<void> {
     logger.info({ job: name, jobId }, `🚀 Starting job: ${name}`)
 
     switch (name) {
+      case 'sync-users': {
+        const result = await syncUsersFromMediaServer(jobId)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            imported: result.imported,
+            updated: result.updated,
+            total: result.total,
+          },
+          `✅ User sync complete`
+        )
+        break
+      }
       case 'sync-movies': {
         const result = await syncMovies(jobId)
         logger.info(

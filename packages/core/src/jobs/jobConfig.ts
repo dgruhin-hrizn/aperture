@@ -39,6 +39,9 @@ const ENV_DEFAULTS: Record<
     dayOfWeek?: number
   }
 > = {
+  // === EVERY 30 MINUTES ===
+  'sync-users': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 0.5 },
+
   // === EVERY HOUR (staggered by 15 mins) ===
   'sync-series-watch-history': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 1 },
   'sync-watching-libraries': { scheduleType: 'interval', hour: 0, minute: 15, intervalHours: 1 },

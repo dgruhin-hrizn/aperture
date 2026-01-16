@@ -17,7 +17,7 @@ import {
 import { randomUUID } from 'crypto'
 
 // Import from modular files
-import { loadConfig } from '../config.js'
+import { loadConfigForUser } from '../config.js'
 import { getWatchHistory, buildTasteProfile as buildLegacyTasteProfile, storeTasteProfile as storeLegacyTasteProfile, getUserMovieRatings, getDislikedMovieIds } from './taste.js'
 import { getCandidates } from './candidates.js'
 import { scoreCandidates } from './scoring.js'
@@ -39,6 +39,7 @@ import {
   storeTasteProfile as storeNewTasteProfile,
   getFranchiseBoost,
   getGenreBoost,
+  getCustomInterestBoost,
   detectAndUpdateFranchises,
 } from '../../taste-profile/index.js'
 import { getItemFranchise } from '../../taste-profile/franchise.js'
@@ -73,8 +74,8 @@ export async function generateRecommendationsForUser(
   user: User,
   configOverrides: Partial<PipelineConfig> = {}
 ): Promise<{ runId: string; recommendations: Candidate[] }> {
-  // Load config from database
-  const dbConfig = await loadConfig()
+  // Load user-specific config (applies user overrides if enabled, falls back to admin defaults)
+  const dbConfig = await loadConfigForUser(user.id, 'movie')
   const cfg = { ...dbConfig, ...configOverrides }
   const startTime = Date.now()
 
@@ -229,10 +230,16 @@ export async function generateRecommendationsForUser(
     )
     const scoredCandidates = await scoreCandidates(candidates, watched, cfg)
 
-    // 4.5 Apply franchise and genre preference boosts
-    logger.info({ userId: user.id }, '🎯 Applying franchise and genre preference boosts...')
+    // 4.5 Apply franchise, genre, and custom interest preference boosts
+    logger.info({ userId: user.id }, '🎯 Applying preference boosts (franchise, genre, custom interests)...')
     let franchiseBoostCount = 0
     let genreBoostCount = 0
+    let interestBoostCount = 0
+    
+    // Get embeddings for top candidates to apply custom interest boost
+    // (only fetch for top 100 to limit performance impact)
+    const topCandidateIds = scoredCandidates.slice(0, 100).map((c) => c.id)
+    const { getMovieEmbedding } = await import('./embeddings.js')
     
     for (const candidate of scoredCandidates) {
       // Get franchise boost (1.0 = neutral, up to 1.5 for loved franchises)
@@ -242,9 +249,18 @@ export async function generateRecommendationsForUser(
       // Get genre boost (1.0 = neutral, 0.5-1.5 range)
       const genreBoost = await getGenreBoost(user.id, candidate.genres || [])
       
+      // Get custom interest boost (only for top candidates with embeddings)
+      let interestBoost = 1.0
+      if (topCandidateIds.includes(candidate.id)) {
+        const embedding = await getMovieEmbedding(candidate.id)
+        if (embedding) {
+          interestBoost = await getCustomInterestBoost(user.id, embedding)
+        }
+      }
+      
       // Apply boosts to final score
       const originalScore = candidate.finalScore
-      candidate.finalScore = originalScore * franchiseBoost * genreBoost
+      candidate.finalScore = originalScore * franchiseBoost * genreBoost * interestBoost
       
       if (franchiseBoost !== 1.0) {
         franchiseBoostCount++
@@ -256,14 +272,21 @@ export async function generateRecommendationsForUser(
       if (genreBoost !== 1.0) {
         genreBoostCount++
       }
+      if (interestBoost !== 1.0) {
+        interestBoostCount++
+        logger.debug(
+          { title: candidate.title, interestBoost: interestBoost.toFixed(2) },
+          'Applied custom interest boost'
+        )
+      }
     }
     
     // Re-sort after applying boosts
     scoredCandidates.sort((a, b) => b.finalScore - a.finalScore)
     
     logger.info(
-      { userId: user.id, franchiseBoostCount, genreBoostCount },
-      `Applied ${franchiseBoostCount} franchise boosts and ${genreBoostCount} genre boosts`
+      { userId: user.id, franchiseBoostCount, genreBoostCount, interestBoostCount },
+      `Applied ${franchiseBoostCount} franchise, ${genreBoostCount} genre, ${interestBoostCount} interest boosts`
     )
 
     // Log top candidates
@@ -283,14 +306,18 @@ export async function generateRecommendationsForUser(
     }
 
     // 5. Apply diversity boost and select final recommendations
+    // Use smart diversity adjustment if user hasn't set custom weights
+    const { getSmartDiversityWeight } = await import('../../lib/userAlgorithmSettings.js')
+    const effectiveDiversityWeight = await getSmartDiversityWeight(user.id, 'movie', cfg.diversityWeight)
+    
     logger.info(
-      { userId: user.id, targetCount: cfg.selectedCount },
+      { userId: user.id, targetCount: cfg.selectedCount, diversityWeight: effectiveDiversityWeight },
       '🎲 Applying diversity and selecting final recommendations...'
     )
     const { selected, selectedRanks } = applyDiversityAndSelect(
       scoredCandidates,
       cfg.selectedCount,
-      cfg.diversityWeight
+      effectiveDiversityWeight
     )
 
     // Log selected movies

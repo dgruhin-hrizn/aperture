@@ -3,6 +3,7 @@ import {
   Box,
   Typography,
   Card,
+  CardContent,
   Button,
   Alert,
   CircularProgress,
@@ -716,8 +717,9 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
       </Dialog>
 
       {/* Section 1: Identity Settings */}
-      <Paper sx={{ p: 3, borderRadius: 2 }}>
-        <Box display="flex" alignItems="center" justifyContent="space-between" mb={2.5}>
+      <Card sx={{ backgroundColor: 'background.default', borderRadius: 2 }}>
+        <CardContent>
+          <Box display="flex" alignItems="center" justifyContent="space-between" mb={2.5}>
           <Typography variant="h6" fontWeight={600}>
             Identity Settings
           </Typography>
@@ -859,19 +861,21 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
             </Box>
           </Grid>
         </Grid>
-      </Paper>
+        </CardContent>
+      </Card>
 
       {/* Section 2: Specific Interests & Watch History Sources (2 columns) */}
       <Grid container spacing={3}>
         {/* Left Column: Specific Interests */}
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3, borderRadius: 2, height: '100%' }}>
-            <Box display="flex" alignItems="center" gap={1} mb={1}>
-              <AutoAwesomeIcon sx={{ color: accentColor }} fontSize="small" />
-              <Typography variant="h6" fontWeight={600}>
-                Specific Interests
-              </Typography>
-            </Box>
+          <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, height: '100%' }}>
+            <CardContent>
+              <Box display="flex" alignItems="center" gap={1} mb={1}>
+                <AutoAwesomeIcon sx={{ color: accentColor }} fontSize="small" />
+                <Typography variant="h6" fontWeight={600}>
+                  Specific Interests
+                </Typography>
+              </Box>
             <Typography variant="body2" color="text.secondary" mb={2}>
               Add themes, styles, or content types you enjoy to improve recommendations.
             </Typography>
@@ -921,18 +925,20 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                 Examples: "Time travel stories", "Dark comedies", "Underdog sports dramas"
               </Typography>
             )}
-          </Paper>
+            </CardContent>
+          </Card>
         </Grid>
 
         {/* Right Column: Watch History Sources */}
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3, borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <Box display="flex" alignItems="center" gap={1} mb={1}>
-              <VideoLibraryIcon sx={{ color: accentColor }} fontSize="small" />
-              <Typography variant="h6" fontWeight={600}>
-                {isMovie ? 'Movie' : 'Series'} Library Sources
-              </Typography>
-            </Box>
+          <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <CardContent sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <Box display="flex" alignItems="center" gap={1} mb={1}>
+                <VideoLibraryIcon sx={{ color: accentColor }} fontSize="small" />
+                <Typography variant="h6" fontWeight={600}>
+                  {isMovie ? 'Movie' : 'Series'} Library Sources
+                </Typography>
+              </Box>
             <Typography variant="body2" color="text.secondary" mb={2}>
               Choose which {isMovie ? 'movie' : 'TV show'} libraries contribute to your taste profile.
             </Typography>
@@ -1026,12 +1032,14 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
             <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
               AI Picks and system libraries are automatically excluded.
             </Typography>
-          </Paper>
+            </CardContent>
+          </Card>
         </Grid>
       </Grid>
 
       {/* Analyze button - below the 2-column section */}
-      <Paper sx={{ p: 2, borderRadius: 2, display: 'flex', justifyContent: 'flex-end' }}>
+      <Card sx={{ backgroundColor: 'background.default', borderRadius: 2 }}>
+        <CardContent sx={{ display: 'flex', justifyContent: 'flex-end', py: 2, '&:last-child': { pb: 2 } }}>
         <Box textAlign="right">
           <Button
             variant="contained"
@@ -1047,10 +1055,12 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
           </Button>
           
         </Box>
-      </Paper>
+        </CardContent>
+      </Card>
 
       {/* Section 3: Watch History Weights */}
-      <Paper sx={{ p: 3, borderRadius: 2 }}>
+      <Card sx={{ backgroundColor: 'background.default', borderRadius: 2 }}>
+        <CardContent>
         <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
           <Typography variant="h6" fontWeight={600}>
             Watch History Weights
@@ -1415,11 +1425,13 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
             </Box>
           </Grid>
         </Grid>
-      </Paper>
+        </CardContent>
+      </Card>
 
       {/* Section 4: Identity Output */}
-      <Paper sx={{ p: 3, borderRadius: 2 }}>
-        <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}>
+      <Card sx={{ backgroundColor: 'background.default', borderRadius: 2 }}>
+        <CardContent>
+          <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}>
           <Box display="flex" alignItems="center" gap={2}>
             <Box
               sx={{
@@ -1582,7 +1594,8 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
             </Grid>
           </Grid>
         )}
-      </Paper>
+        </CardContent>
+      </Card>
     </Box>
   )
 }

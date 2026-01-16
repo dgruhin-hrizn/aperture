@@ -1239,5 +1239,261 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
       }
     }
   )
+
+  // =============================================================
+  // User Algorithm Settings
+  // =============================================================
+
+  /**
+   * GET /api/users/:id/algorithm-settings
+   * Get user's custom algorithm settings
+   */
+  fastify.get<{ Params: { id: string } }>(
+    '/api/users/:id/algorithm-settings',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { id } = request.params
+      const currentUser = request.user as SessionUser
+
+      if (id !== currentUser.id && !currentUser.isAdmin) {
+        return reply.status(403).send({ error: 'Forbidden' })
+      }
+
+      try {
+        const { 
+          getUserAlgorithmSettings, 
+          getAdminDefaultConfig 
+        } = await import('@aperture/core')
+        
+        const settings = await getUserAlgorithmSettings(id)
+        const movieDefaults = await getAdminDefaultConfig('movie')
+        const seriesDefaults = await getAdminDefaultConfig('series')
+
+        return reply.send({
+          settings: settings || { enabled: false },
+          defaults: {
+            movie: movieDefaults,
+            series: seriesDefaults,
+          },
+        })
+      } catch (error) {
+        fastify.log.error({ error, userId: id }, 'Failed to get algorithm settings')
+        return reply.status(500).send({ error: 'Failed to get algorithm settings' })
+      }
+    }
+  )
+
+  /**
+   * PATCH /api/users/:id/algorithm-settings
+   * Update user's custom algorithm settings
+   */
+  fastify.patch<{
+    Params: { id: string }
+    Body: {
+      enabled?: boolean
+      movie?: {
+        similarityWeight?: number
+        noveltyWeight?: number
+        ratingWeight?: number
+        diversityWeight?: number
+        recentWatchLimit?: number
+      }
+      series?: {
+        similarityWeight?: number
+        noveltyWeight?: number
+        ratingWeight?: number
+        diversityWeight?: number
+        recentWatchLimit?: number
+      }
+    }
+  }>(
+    '/api/users/:id/algorithm-settings',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { id } = request.params
+      const currentUser = request.user as SessionUser
+      const body = request.body
+
+      if (id !== currentUser.id && !currentUser.isAdmin) {
+        return reply.status(403).send({ error: 'Forbidden' })
+      }
+
+      try {
+        const { 
+          getUserAlgorithmSettings, 
+          setUserAlgorithmSettings
+        } = await import('@aperture/core')
+
+        // Get current settings to merge with
+        const current = await getUserAlgorithmSettings(id)
+        
+        // Store raw weights - normalization happens when config is used
+        const newSettings = {
+          enabled: body.enabled ?? current?.enabled ?? false,
+          movie: body.movie ? { ...current?.movie, ...body.movie } : current?.movie,
+          series: body.series ? { ...current?.series, ...body.series } : current?.series,
+        }
+
+        await setUserAlgorithmSettings(id, newSettings)
+
+        return reply.send({ success: true, settings: newSettings })
+      } catch (error) {
+        fastify.log.error({ error, userId: id }, 'Failed to update algorithm settings')
+        return reply.status(500).send({ error: 'Failed to update algorithm settings' })
+      }
+    }
+  )
+
+  /**
+   * POST /api/users/:id/algorithm-settings/reset
+   * Reset user's algorithm settings to admin defaults
+   */
+  fastify.post<{ Params: { id: string } }>(
+    '/api/users/:id/algorithm-settings/reset',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { id } = request.params
+      const currentUser = request.user as SessionUser
+
+      if (id !== currentUser.id && !currentUser.isAdmin) {
+        return reply.status(403).send({ error: 'Forbidden' })
+      }
+
+      try {
+        const { resetUserAlgorithmSettings } = await import('@aperture/core')
+        await resetUserAlgorithmSettings(id)
+        return reply.send({ success: true, message: 'Algorithm settings reset to defaults' })
+      } catch (error) {
+        fastify.log.error({ error, userId: id }, 'Failed to reset algorithm settings')
+        return reply.status(500).send({ error: 'Failed to reset algorithm settings' })
+      }
+    }
+  )
+
+  // =============================================================
+  // EMAIL SETTINGS
+  // =============================================================
+
+  /**
+   * GET /api/users/:id/email-settings
+   * Get user's email and notification settings
+   */
+  fastify.get<{ Params: { id: string } }>(
+    '/api/users/:id/email-settings',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { id } = request.params
+      const currentUser = request.user as SessionUser
+
+      if (id !== currentUser.id && !currentUser.isAdmin) {
+        return reply.status(403).send({ error: 'Forbidden' })
+      }
+
+      try {
+        const result = await queryOne<{
+          email: string | null
+          email_locked: boolean
+          email_notifications_enabled: boolean
+        }>(
+          `SELECT email, email_locked, email_notifications_enabled FROM users WHERE id = $1`,
+          [id]
+        )
+
+        if (!result) {
+          return reply.status(404).send({ error: 'User not found' })
+        }
+
+        return reply.send({
+          email: result.email,
+          emailLocked: result.email_locked,
+          emailNotificationsEnabled: result.email_notifications_enabled,
+        })
+      } catch (error) {
+        fastify.log.error({ error, userId: id }, 'Failed to get email settings')
+        return reply.status(500).send({ error: 'Failed to get email settings' })
+      }
+    }
+  )
+
+  /**
+   * PATCH /api/users/:id/email-settings
+   * Update user's email (locks it to prevent Emby sync overwrite)
+   */
+  fastify.patch<{
+    Params: { id: string }
+    Body: {
+      email?: string | null
+      emailNotificationsEnabled?: boolean
+    }
+  }>(
+    '/api/users/:id/email-settings',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { id } = request.params
+      const currentUser = request.user as SessionUser
+      const { email, emailNotificationsEnabled } = request.body
+
+      if (id !== currentUser.id && !currentUser.isAdmin) {
+        return reply.status(403).send({ error: 'Forbidden' })
+      }
+
+      try {
+        const updates: string[] = []
+        const values: (string | boolean | null)[] = []
+        let paramIndex = 1
+
+        if (email !== undefined) {
+          // When user manually sets email, lock it
+          updates.push(`email = $${paramIndex}`)
+          values.push(email)
+          paramIndex++
+          
+          if (email !== null && email.trim() !== '') {
+            updates.push(`email_locked = TRUE`)
+          } else {
+            // If clearing email, unlock so Emby can sync again
+            updates.push(`email_locked = FALSE`)
+          }
+        }
+
+        if (emailNotificationsEnabled !== undefined) {
+          updates.push(`email_notifications_enabled = $${paramIndex}`)
+          values.push(emailNotificationsEnabled)
+          paramIndex++
+        }
+
+        if (updates.length === 0) {
+          return reply.status(400).send({ error: 'No updates provided' })
+        }
+
+        updates.push('updated_at = NOW()')
+        values.push(id)
+
+        await query(
+          `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramIndex}`,
+          values
+        )
+
+        // Return updated settings
+        const result = await queryOne<{
+          email: string | null
+          email_locked: boolean
+          email_notifications_enabled: boolean
+        }>(
+          `SELECT email, email_locked, email_notifications_enabled FROM users WHERE id = $1`,
+          [id]
+        )
+
+        return reply.send({
+          email: result?.email,
+          emailLocked: result?.email_locked,
+          emailNotificationsEnabled: result?.email_notifications_enabled,
+        })
+      } catch (error) {
+        fastify.log.error({ error, userId: id }, 'Failed to update email settings')
+        return reply.status(500).send({ error: 'Failed to update email settings' })
+      }
+    }
+  )
 }
 
