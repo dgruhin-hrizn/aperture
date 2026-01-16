@@ -368,7 +368,6 @@ import {
   findDiverseContent,
   createAIDiverseReason,
   validateConnection,
-  getValidationCacheStats,
 } from './diverse.js'
 
 // Constants for bubble breaking
@@ -1021,7 +1020,7 @@ export async function semanticSearch(
 
 /**
  * Build graph data from semantic search results.
- * Uses AI to find structured connections with proper types matching our legend.
+ * Uses AI to analyze embedding results and generate structured connections.
  */
 export async function buildGraphFromSemanticSearch(
   searchResults: SemanticSearchResult,
@@ -1033,13 +1032,13 @@ export async function buildGraphFromSemanticSearch(
     return { nodes: [], edges: [] }
   }
 
+  const items = searchResults.results.map(r => r.item)
   const nodes: Map<string, GraphNode> = new Map()
   const edges: GraphEdge[] = []
   const seenEdges = new Set<string>()
   const connectedNodes = new Set<string>()
 
   // Add all search results as nodes
-  const items = searchResults.results.map(r => r.item)
   for (const item of items) {
     nodes.set(item.id, {
       id: item.id,
@@ -1062,40 +1061,37 @@ export async function buildGraphFromSemanticSearch(
     }
   }
 
-  // Use AI to find structured connections
+  // Use AI to analyze the items and find meaningful connections
   let aiSucceeded = false
   if (useAI && items.length >= 2) {
-    try {
-      const aiConnections = await findAIConnections(searchResults.query, items)
-
-      // Add AI-discovered connections with proper types
-      for (const conn of aiConnections) {
+    const aiResult = await analyzeConnectionsWithAI(searchResults.query, items)
+    
+    if (aiResult && aiResult.connections.length > 0) {
+      // Add AI-discovered connections
+      for (const conn of aiResult.connections) {
         const sourceItem = items[conn.from]
         const targetItem = items[conn.to]
         
         if (sourceItem && targetItem) {
           addEdge(sourceItem.id, targetItem.id, 0.85, [{
-            type: conn.type,
-            value: conn.reason,
+            type: conn.type as ConnectionType,
+            value: conn.label,
           }])
         }
       }
-
-      aiSucceeded = aiConnections.length > 0
+      
+      aiSucceeded = true
       logger.info(
-        { query: searchResults.query, aiConnections: aiConnections.length, edges: edges.length },
-        'Built graph with AI-structured connections'
+        { query: searchResults.query, connections: aiResult.connections.length, edges: edges.length },
+        'Built graph with AI-analyzed connections'
       )
-    } catch (error) {
-      logger.warn({ error }, 'AI connection finding failed')
     }
   }
 
-  // If AI failed or returned no connections, use embedding similarity for all items
+  // Fallback: use embedding similarity if AI failed
   if (!aiSucceeded && items.length >= 2) {
     logger.info({ query: searchResults.query }, 'Using embedding similarity fallback')
     
-    // Connect items based on embedding similarity
     for (let i = 0; i < Math.min(items.length, 10); i++) {
       const item = items[i]
       try {
@@ -1103,7 +1099,6 @@ export async function buildGraphFromSemanticSearch(
           ? await getSimilarMovies(item.id, { limit: 20 })
           : await getSimilarSeries(item.id, { limit: 20 })
         
-        // Find connections to other search results
         for (const conn of similarResult.connections) {
           if (nodes.has(conn.item.id) && conn.item.id !== item.id && conn.similarity >= 0.55) {
             addEdge(item.id, conn.item.id, conn.similarity, [{ type: 'similarity' }])
@@ -1115,7 +1110,7 @@ export async function buildGraphFromSemanticSearch(
     }
   }
 
-  // Find any unconnected nodes and connect them via embedding similarity
+  // Connect any orphan nodes
   const unconnectedNodes = items.filter(item => !connectedNodes.has(item.id))
   
   if (unconnectedNodes.length > 0) {
@@ -1172,23 +1167,25 @@ export async function buildGraphFromSemanticSearch(
 }
 
 /**
- * AI-generated connection between two items
+ * AI-generated graph data with items and connections
  */
-interface AIConnection {
-  from: number  // Index of source item
-  to: number    // Index of target item
-  type: ConnectionType
-  reason: string  // Brief explanation
+interface AIGraphResponse {
+  connections: Array<{
+    from: number
+    to: number
+    type: 'director' | 'actor' | 'collection' | 'genre' | 'keyword' | 'studio' | 'network' | 'similarity' | 'ai_diverse'
+    label: string  // e.g., "Christopher Nolan" or "Both explore dreams"
+  }>
 }
 
 /**
- * Use AI to find connections between search results.
- * Returns structured JSON with connection types matching our legend.
+ * Use AI to analyze items found via embeddings and generate structured connections.
+ * AI identifies WHY items are related based on their metadata.
  */
-async function findAIConnections(
+async function analyzeConnectionsWithAI(
   searchQuery: string,
   items: SimilarityItem[]
-): Promise<AIConnection[]> {
+): Promise<AIGraphResponse | null> {
   const { getChatModelInstance } = await import('../lib/ai-provider.js')
   const { generateText } = await import('ai')
   
@@ -1196,136 +1193,99 @@ async function findAIConnections(
   try {
     model = await getChatModelInstance()
   } catch (error) {
-    logger.warn({ error }, 'No chat model available for AI connections')
-    return []
+    logger.warn({ error }, 'No chat model available')
+    return null
   }
   
   // Limit items to avoid token limits
   const limitedItems = items.slice(0, 15)
   
-  // Build compact numbered item list
-  const itemList = limitedItems.map((i, idx) => 
-    `${idx}. ${i.title} (${i.year || '?'})`
-  ).join('\n')
+  // Build detailed item list with metadata for AI to analyze
+  const itemList = limitedItems.map((item, idx) => {
+    const details = [
+      `${idx}. "${item.title}" (${item.year || '?'})`,
+      `   Genres: ${item.genres.slice(0, 4).join(', ') || 'unknown'}`,
+      `   Directors: ${item.directors.slice(0, 2).join(', ') || 'unknown'}`,
+      `   Actors: ${item.actors.slice(0, 3).map(a => a.name).join(', ') || 'unknown'}`,
+      item.collection_name ? `   Collection: ${item.collection_name}` : null,
+      item.network ? `   Network: ${item.network}` : null,
+      item.studios.length > 0 ? `   Studio: ${item.studios[0].name}` : null,
+    ].filter(Boolean).join('\n')
+    return details
+  }).join('\n\n')
   
-  const connectionCount = Math.min(limitedItems.length * 2, 25)
-  
-  const prompt = `Find ${connectionCount} connections between these "${searchQuery}" results:
+  const prompt = `Analyze these "${searchQuery}" results and find ALL meaningful connections between them.
 
+ITEMS:
 ${itemList}
 
-Types: director, actor, genre, keyword, studio, similarity
+CONNECTION TYPES (use these exact values):
+- "director" = Same director (label: director name)
+- "actor" = Shared actor (label: actor name)
+- "collection" = Same franchise/collection (label: collection name)
+- "genre" = Matching genres (label: shared genre)
+- "keyword" = Shared themes/motifs (label: theme description)
+- "studio" = Same studio (label: studio name)
+- "network" = Same TV network (label: network name)
+- "similarity" = Similar tone/style (label: brief description)
+- "ai_diverse" = AI discovered thematic link (label: brief description)
 
-Return JSON array only:
-[{"from":0,"to":1,"type":"genre","reason":"romantic comedies"}]`
+Find ${Math.min(limitedItems.length * 2, 30)} connections. Every item should have at least 1 connection.
+Use actual shared metadata when possible (same director, same actor, etc.).
+
+RESPOND WITH ONLY VALID JSON:
+{"connections":[{"from":0,"to":1,"type":"director","label":"Christopher Nolan"},{"from":1,"to":2,"type":"genre","label":"Sci-Fi Thriller"}]}`
 
   try {
     const { text } = await generateText({
       model,
       prompt,
-      maxOutputTokens: 1500,
-      temperature: 0.4,
+      maxOutputTokens: 2000,
+      temperature: 0.3,
     })
 
     if (!text || text.trim().length === 0) {
-      logger.warn({ searchQuery }, 'AI returned empty response for connections')
-      return []
+      logger.warn({ searchQuery }, 'AI returned empty response')
+      return null
     }
 
-    // Parse JSON response
-    // Extract JSON from response (handle markdown code blocks, extra text)
+    // Extract JSON from response
     let jsonStr = text.trim()
     
     // Remove markdown code blocks
     if (jsonStr.includes('```')) {
       const match = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/)
-      if (match) {
-        jsonStr = match[1].trim()
-      }
+      if (match) jsonStr = match[1].trim()
     }
     
-    // Try to find JSON array in response
-    const arrayMatch = jsonStr.match(/\[[\s\S]*\]/)
-    if (arrayMatch) {
-      jsonStr = arrayMatch[0]
-    }
+    // Try to find JSON object
+    const objMatch = jsonStr.match(/\{[\s\S]*\}/)
+    if (objMatch) jsonStr = objMatch[0]
     
-    const connections = JSON.parse(jsonStr) as AIConnection[]
+    const response = JSON.parse(jsonStr) as AIGraphResponse
     
-    // Validate and filter connections
-    const validTypes: ConnectionType[] = ['director', 'actor', 'genre', 'keyword', 'studio', 'similarity']
-    const validConnections = connections.filter(conn => {
+    // Validate connections
+    const validTypes = ['director', 'actor', 'collection', 'genre', 'keyword', 'studio', 'network', 'similarity', 'ai_diverse']
+    response.connections = response.connections.filter(conn => {
       return (
         typeof conn.from === 'number' &&
         typeof conn.to === 'number' &&
         conn.from >= 0 && conn.from < limitedItems.length &&
         conn.to >= 0 && conn.to < limitedItems.length &&
         conn.from !== conn.to &&
-        validTypes.includes(conn.type as ConnectionType)
+        validTypes.includes(conn.type)
       )
     })
 
     logger.info(
-      { searchQuery, totalConnections: validConnections.length, itemCount: limitedItems.length },
-      'AI found connections'
+      { searchQuery, connections: response.connections.length },
+      'AI analyzed connections'
     )
     
-    return validConnections.map(conn => ({
-      ...conn,
-      // Map back to original items array indices if we limited
-      from: conn.from,
-      to: conn.to,
-    }))
+    return response
   } catch (error) {
-    logger.error({ error, searchQuery }, 'Failed to get AI connections')
-    return []
-  }
-}
-
-/**
- * Add edges based on embedding similarity between search results.
- * Lower threshold to ensure connectivity between items that matched the same search.
- */
-async function addEmbeddingSimilarityEdges(
-  searchResults: SemanticSearchResult,
-  nodes: Map<string, GraphNode>,
-  edges: GraphEdge[],
-  seenEdges: Set<string> = new Set()
-): Promise<void> {
-  // Lower threshold since items matched the same semantic search
-  const minSimilarity = 0.60
-
-  for (const result of searchResults.results) {
-    const sourceItem = result.item
-
-    let similarResult: SimilarityResult
-    try {
-      if (sourceItem.type === 'movie') {
-        similarResult = await getSimilarMovies(sourceItem.id, { limit: 30 })
-      } else {
-        similarResult = await getSimilarSeries(sourceItem.id, { limit: 30 })
-      }
-    } catch {
-      continue
-    }
-
-    for (const conn of similarResult.connections) {
-      if (!nodes.has(conn.item.id)) continue
-      if (conn.item.id === sourceItem.id) continue
-
-      const edgeKey = [sourceItem.id, conn.item.id].sort().join('-')
-      if (seenEdges.has(edgeKey)) continue
-      seenEdges.add(edgeKey)
-
-      if (conn.similarity >= minSimilarity) {
-        edges.push({
-          source: sourceItem.id,
-          target: conn.item.id,
-          similarity: conn.similarity,
-          reasons: [{ type: 'similarity' }],
-        })
-      }
-    }
+    logger.error({ error, searchQuery }, 'Failed to get AI graph analysis')
+    return null
   }
 }
 
