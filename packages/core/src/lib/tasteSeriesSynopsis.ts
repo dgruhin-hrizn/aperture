@@ -222,20 +222,12 @@ export async function generateSeriesTasteSynopsis(userId: string): Promise<Serie
       const model = await getTextGenerationModelInstance()
       const { text } = await generateText({
         model,
-        system: `Write a TV viewer personality profile using markdown formatting. Use ONLY genre names and abstract themes.
+        system: `Write a TV viewer personality profile. Use ONLY genre names and abstract themes - no specific titles.
 
-Format your response exactly like this:
+Write 2-3 flowing paragraphs about their viewing personality and habits, then end with 3-4 **bolded key traits** as bullet points.
 
-## Your Viewing Identity
-
-[2 paragraphs describing their personality, what draws them to series, their viewing habits, and emotional needs]
-
-### Key Traits
-- **[Trait 1]**: Brief explanation
-- **[Trait 2]**: Brief explanation  
-- **[Trait 3]**: Brief explanation
-
-Use second person ("You gravitate toward..."). Be insightful about their TV viewing personality.`,
+Use markdown: **bold** for emphasis on important characteristics, bullet points for traits.
+Write in second person ("You gravitate toward..."). Be insightful and personal.`,
         prompt: abstractPrompt,
         temperature: 0.4,
         maxOutputTokens: 400,
@@ -458,20 +450,12 @@ export async function* streamSeriesTasteSynopsis(userId: string): AsyncGenerator
     const model = await getTextGenerationModelInstance()
     const result = streamText({
       model,
-      system: `Write a TV viewer personality profile using markdown formatting. Use ONLY genre names and abstract themes.
+      system: `Write a TV viewer personality profile. Use ONLY genre names and abstract themes - no specific titles.
 
-Format your response exactly like this:
+Write 2-3 flowing paragraphs about their viewing personality and habits, then end with 3-4 **bolded key traits** as bullet points.
 
-## Your Viewing Identity
-
-[2 paragraphs describing their personality, what draws them to series, their viewing habits, and emotional needs]
-
-### Key Traits
-- **[Trait 1]**: Brief explanation
-- **[Trait 2]**: Brief explanation  
-- **[Trait 3]**: Brief explanation
-
-Use second person ("You gravitate toward..."). Be insightful about their TV viewing personality.`,
+Use markdown: **bold** for emphasis on important characteristics, bullet points for traits.
+Write in second person ("You gravitate toward..."). Be insightful and personal.`,
       prompt: abstractPrompt,
       temperature: 0.4,
       maxOutputTokens: 400,
