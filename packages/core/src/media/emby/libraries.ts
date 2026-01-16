@@ -2,14 +2,10 @@
  * Emby Libraries Module
  */
 
-import { exec } from 'child_process'
-import { promisify } from 'util'
 import type { Library, LibraryCreateResult } from '../types.js'
 import type { EmbyLibrary, EmbyLibraryResponse, EmbyUser } from './types.js'
 import type { EmbyProviderBase } from './base.js'
 import { logger } from './base.js'
-
-const execAsync = promisify(exec)
 
 export async function getLibraries(
   provider: EmbyProviderBase,
@@ -72,25 +68,15 @@ export async function createVirtualLibrary(
   // Emby uses different collection type names
   const embyCollectionType = collectionType === 'movies' ? 'movies' : 'tvshows'
 
-  // NUCLEAR OPTION: Use curl directly to bypass any Node.js fetch weirdness
-  // This exactly replicates the working curl command from terminal testing
-  // NOTE: Must also encode apostrophes as %27 - encodeURIComponent doesn't encode them
-  // but they break shell quoting when passed to curl
+  // Use the exact URL format that works from curl testing
+  // Encode apostrophes as %27 (encodeURIComponent doesn't encode them)
   const encodeName = encodeURIComponent(name).replace(/'/g, '%27')
   const encodePath = encodeURIComponent(path).replace(/'/g, '%27')
-  const url = `${provider.baseUrl}/Library/VirtualFolders?api_key=${apiKey}&name=${encodeName}&collectionType=${embyCollectionType}&paths=${encodePath}&refreshLibrary=true`
-  logger.info({ url }, '🔥 DEBUG: Creating library via curl')
+  const endpoint = `/Library/VirtualFolders?name=${encodeName}&collectionType=${embyCollectionType}&paths=${encodePath}&refreshLibrary=true`
   
-  try {
-    // Use -v for verbose output to debug what's actually being sent
-    const curlCmd = `curl -v -X POST "${url}" 2>&1`
-    logger.info({ curlCmd }, '🔥 DEBUG: Executing curl command')
-    const { stdout, stderr } = await execAsync(curlCmd)
-    logger.info({ stdout, stderr }, '🔥 DEBUG: curl full output')
-  } catch (err) {
-    logger.error({ err }, 'curl failed')
-    throw new Error(`Failed to create library via curl: ${err}`)
-  }
+  logger.info({ endpoint }, '📚 Creating library')
+  
+  await provider.fetch(endpoint, apiKey, { method: 'POST' })
 
   // Get the created library to find its ID
   const libraries = await getLibraries(provider, apiKey)
