@@ -12,7 +12,7 @@ import {
   Chip,
   Snackbar,
 } from '@mui/material'
-import HubOutlinedIcon from '@mui/icons-material/HubOutlined'
+import ExploreIcon from '@mui/icons-material/Explore'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
@@ -76,7 +76,7 @@ export function DiscoveryPage() {
     return (
       <Box>
         <Box display="flex" alignItems="center" gap={2} mb={3}>
-          <HubOutlinedIcon sx={{ color: 'primary.main', fontSize: 32 }} />
+          <ExploreIcon sx={{ color: 'primary.main', fontSize: 32 }} />
           <Typography variant="h4" fontWeight={700}>
             Discover
           </Typography>
@@ -106,7 +106,7 @@ export function DiscoveryPage() {
       <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3} flexWrap="wrap" gap={2}>
         <Box>
           <Box display="flex" alignItems="center" gap={2} mb={1}>
-            <HubOutlinedIcon sx={{ color: 'primary.main', fontSize: 32 }} />
+            <ExploreIcon sx={{ color: 'primary.main', fontSize: 32 }} />
             <Typography variant="h4" fontWeight={700}>
               Discover
             </Typography>

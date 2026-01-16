@@ -37,6 +37,7 @@ import SearchIcon from '@mui/icons-material/Search'
 import CollectionsIcon from '@mui/icons-material/Collections'
 import AddToQueueIcon from '@mui/icons-material/AddToQueue'
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined'
+import ExploreIcon from '@mui/icons-material/Explore'
 import { useAuth } from '@/hooks/useAuth'
 import { WelcomeModal, useWelcomeModal } from './WelcomeModal'
 import { ExplorationConfigModal } from './ExplorationConfigModal'
@@ -51,7 +52,7 @@ const userMenuItems = [
   { text: 'Search', icon: <SearchIcon />, path: '/search' },
   { text: 'Explore', icon: <HubOutlinedIcon />, path: '/explore' },
   { text: 'Recommendations', icon: <AutoAwesomeIcon />, path: '/recommendations' },
-  { text: 'Discover', icon: <HubOutlinedIcon />, path: '/discovery' },
+  { text: 'Discover', icon: <ExploreIcon />, path: '/discovery' },
   { text: "Shows You Watch", icon: <AddToQueueIcon />, path: '/watching' },
   { text: 'Top Pick Movies', icon: <WhatshotIcon />, path: '/top-picks/movies' },
   { text: 'Top Pick Series', icon: <TvIcon />, path: '/top-picks/series' },

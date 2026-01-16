@@ -13,7 +13,7 @@ import AddToQueueIcon from '@mui/icons-material/AddToQueue'
 import BusinessIcon from '@mui/icons-material/Business'
 import StreamIcon from '@mui/icons-material/Stream'
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney'
-import HubOutlinedIcon from '@mui/icons-material/HubOutlined'
+import ExploreIcon from '@mui/icons-material/Explore'
 import type { JobCategory } from './types'
 
 // Movie job categories
@@ -131,7 +131,7 @@ export const JOB_ICONS: Record<string, React.ReactNode> = {
   'sync-trakt-ratings': <SyncIcon />,
   'refresh-ai-pricing': <AttachMoneyIcon />,
   // Discovery jobs
-  'generate-discovery-suggestions': <HubOutlinedIcon />,
+  'generate-discovery-suggestions': <ExploreIcon />,
 }
 
 export const JOB_COLORS: Record<string, string> = {
