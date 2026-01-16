@@ -377,6 +377,13 @@ export function ExplorePage() {
     }
   }, [semanticSearch.query, handleSemanticSearch, startOver])
 
+  // Handle clearing the search (clears results too)
+  const handleSearchClear = useCallback(() => {
+    setSemanticSearch({ query: '', loading: false, results: null })
+    setFocusedItemId(null)
+    setFocusedItemType(null)
+  }, [])
+
   // Clear recent search
   const clearRecentSearch = (query: string) => {
     const updated = recentSearches.filter((s) => s !== query)
@@ -429,6 +436,7 @@ export function ExplorePage() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           onSearch={handleSemanticSearch}
+          onSearchClear={handleSearchClear}
           searchPlaceholder="Search by mood, theme, or description..."
           searchLoading={semanticSearch.loading}
           searchExamples={SEARCH_EXAMPLES}

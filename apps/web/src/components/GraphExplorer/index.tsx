@@ -64,6 +64,7 @@ export interface GraphExplorerProps {
   searchQuery?: string
   onSearchChange?: (query: string) => void
   onSearch?: (query: string) => void
+  onSearchClear?: () => void
   searchPlaceholder?: string
   searchLoading?: boolean
   searchExamples?: string[]
@@ -100,6 +101,7 @@ export function GraphExplorer({
   searchQuery = '',
   onSearchChange,
   onSearch,
+  onSearchClear,
   searchPlaceholder = 'Explore...',
   searchLoading = false,
   searchExamples,
@@ -155,11 +157,11 @@ export function GraphExplorer({
   )
 
   const handleClearSearch = useCallback(() => {
-    // Only clear local input state - don't propagate to parent
-    // This prevents graph re-render when just clearing the input
     setLocalSearchQuery('')
+    onSearchChange?.('')
+    onSearchClear?.()
     searchInputRef.current?.focus()
-  }, [])
+  }, [onSearchChange, onSearchClear])
 
   const handleExampleClick = useCallback(
     (example: string) => {
