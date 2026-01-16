@@ -8,6 +8,26 @@
 import type { Series, NfoGenerateOptions } from './types.js'
 
 /**
+ * Generate a unique fake provider ID that will never collide with real IDs.
+ * We use a deterministic hash based on the series' internal ID so rebuilding
+ * the library generates the same fake IDs (prevents Emby from detecting changes).
+ */
+function generateFakeProviderId(seriesId: string, prefix: string): string {
+  // Use a deterministic UUID based on the series ID and prefix
+  // This ensures the same series always gets the same fake IDs
+  const seed = `aperture-${prefix}-${seriesId}`
+  // Simple hash to make it deterministic
+  let hash = 0
+  for (let i = 0; i < seed.length; i++) {
+    const char = seed.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // Convert to 32bit integer
+  }
+  // Format as a fake ID: aperture + hash
+  return `aperture${Math.abs(hash).toString(36)}`
+}
+
+/**
  * Escape XML special characters
  */
 export function escapeXml(text: string): string {
@@ -206,16 +226,31 @@ export function generateSeriesNfoContent(
     }
   }
 
-  // NOTE: We intentionally DO NOT include external IDs (IMDB, TMDB, TVDB, TVMaze) in NFO files.
+  // Generate FAKE unique provider IDs that will never collide with real IDs.
   // 
-  // Why: When these IDs are present, Emby/Jellyfin links items together and syncs playback state.
+  // Why: When real IDs (IMDB/TMDB/TVDB) are present, Emby links items together and syncs playback state.
   // This causes BOTH the original AND Aperture copy to appear in "Continue Watching".
   // 
+  // By using fake IDs:
+  // 1. Emby won't try to fetch real IDs (provider fields are already populated)
+  // 2. The fake IDs will never match the original's real IDs (no linking)
+  // 3. <lockdata>true</lockdata> prevents Emby from "correcting" them
+  //
   // Why it's safe: When you play a STRM file, Emby tracks playback on the item that owns the
   // actual media file (the ORIGINAL), not the STRM. Our watch history sync only matches items
   // in our database tables (which only contain originals), so watch history stays accurate.
   //
   // Result: No duplicates in Continue Watching, and watch history works correctly.
+  
+  // Use the series' provider ID as seed if available, otherwise use title+year
+  const seriesSeed = series.id || `${series.title}-${series.year || 'unknown'}`
+  const fakeImdbId = generateFakeProviderId(seriesSeed, 'imdb')
+  const fakeTmdbId = generateFakeProviderId(seriesSeed, 'tmdb')
+  const fakeTvdbId = generateFakeProviderId(seriesSeed, 'tvdb')
+  
+  lines.push(`  <uniqueid type="imdb">${fakeImdbId}</uniqueid>`)
+  lines.push(`  <uniqueid type="tvdb" default="true">${fakeTvdbId}</uniqueid>`)
+  lines.push(`  <uniqueid type="tmdb">${fakeTmdbId}</uniqueid>`)
 
   // === Series Metadata ===
 
