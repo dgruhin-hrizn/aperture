@@ -14,7 +14,8 @@ export interface TasteProfile {
   userModifiedAt: Date | null
   isLocked: boolean
   refreshIntervalDays: number
-  minFranchiseItems: number // Minimum items watched to include a franchise (2-10)
+  minFranchiseItems: number // Minimum items watched to include a franchise (1-10)
+  minFranchiseSize: number // Minimum total items franchise must have in library (2-10)
   createdAt: Date
 }
 
@@ -92,9 +93,13 @@ export type RefreshIntervalDays = (typeof REFRESH_INTERVAL_OPTIONS)[number]
 
 export const DEFAULT_REFRESH_INTERVAL_DAYS = 30
 
-// Minimum franchise items options for the UI dropdown (2-10)
-export const MIN_FRANCHISE_ITEMS_OPTIONS = [2, 3, 4, 5, 6, 7, 8, 9, 10] as const
+// Minimum franchise watched items options for the UI dropdown (1-10)
+export const MIN_FRANCHISE_ITEMS_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const
 export type MinFranchiseItems = (typeof MIN_FRANCHISE_ITEMS_OPTIONS)[number]
+export const DEFAULT_MIN_FRANCHISE_ITEMS = 1
 
-export const DEFAULT_MIN_FRANCHISE_ITEMS = 2
+// Minimum franchise size (total in library) options for the UI dropdown (2-10)
+export const MIN_FRANCHISE_SIZE_OPTIONS = [2, 3, 4, 5, 6, 7, 8, 9, 10] as const
+export type MinFranchiseSize = (typeof MIN_FRANCHISE_SIZE_OPTIONS)[number]
+export const DEFAULT_MIN_FRANCHISE_SIZE = 2
 

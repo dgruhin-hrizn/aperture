@@ -362,7 +362,8 @@ export interface DetectionResult {
 
 export interface DetectionOptions {
   mode?: 'reset' | 'merge'
-  minFranchiseItems?: number // Minimum items watched to include franchise (default: 2)
+  minFranchiseItems?: number // Minimum items watched to include franchise (default: 1)
+  minFranchiseSize?: number // Minimum total items franchise must have in library (default: 2)
 }
 
 /**
@@ -373,20 +374,31 @@ export async function detectAndUpdateFranchises(
   mediaType: MediaType,
   options: DetectionOptions = {}
 ): Promise<DetectionResult> {
-  const { mode = 'reset', minFranchiseItems = 2 } = options
-  logger.info({ userId, mediaType, mode, minFranchiseItems }, 'Detecting franchises from watch history')
+  const { mode = 'reset', minFranchiseItems = 1, minFranchiseSize = 2 } = options
+  logger.info({ userId, mediaType, mode, minFranchiseItems, minFranchiseSize }, 'Detecting franchises from watch history')
 
   const allFranchiseStats =
     mediaType === 'movie'
       ? await detectMovieFranchises(userId)
       : await detectSeriesFranchises(userId)
 
-  // Filter by minimum items watched
-  const franchiseStats = allFranchiseStats.filter((stat) => stat.itemsWatched >= minFranchiseItems)
+  // Filter by both:
+  // 1. Minimum items watched from the franchise
+  // 2. Minimum total items the franchise has in the library
+  const franchiseStats = allFranchiseStats.filter(
+    (stat) => stat.itemsWatched >= minFranchiseItems && stat.totalInLibrary >= minFranchiseSize
+  )
 
   logger.debug(
-    { userId, mediaType, total: allFranchiseStats.length, afterFilter: franchiseStats.length, minFranchiseItems },
-    'Filtered franchises by minimum items'
+    { 
+      userId, 
+      mediaType, 
+      total: allFranchiseStats.length, 
+      afterFilter: franchiseStats.length, 
+      minFranchiseItems,
+      minFranchiseSize,
+    },
+    'Filtered franchises by minimum items and size'
   )
 
   if (franchiseStats.length === 0) {

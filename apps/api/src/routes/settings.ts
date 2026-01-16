@@ -2854,7 +2854,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       const userId = request.user!.id
       const mediaType = (request.query.mediaType || 'movie') as 'movie' | 'series'
 
-      const { getUserTasteData, REFRESH_INTERVAL_OPTIONS, MIN_FRANCHISE_ITEMS_OPTIONS } = await import('@aperture/core')
+      const { getUserTasteData, REFRESH_INTERVAL_OPTIONS, MIN_FRANCHISE_ITEMS_OPTIONS, MIN_FRANCHISE_SIZE_OPTIONS } = await import('@aperture/core')
       const tasteData = await getUserTasteData(userId, mediaType)
 
       return reply.send({
@@ -2869,6 +2869,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
               isLocked: tasteData.profile.isLocked,
               refreshIntervalDays: tasteData.profile.refreshIntervalDays,
               minFranchiseItems: tasteData.profile.minFranchiseItems,
+              minFranchiseSize: tasteData.profile.minFranchiseSize,
               createdAt: tasteData.profile.createdAt,
             }
           : null,
@@ -2896,6 +2897,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         })),
         refreshIntervalOptions: REFRESH_INTERVAL_OPTIONS,
         minFranchiseItemsOptions: MIN_FRANCHISE_ITEMS_OPTIONS,
+        minFranchiseSizeOptions: MIN_FRANCHISE_SIZE_OPTIONS,
       })
     } catch (err) {
       fastify.log.error({ err }, 'Failed to get taste profile')
@@ -2924,11 +2926,12 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: 'mode must be "reset" or "merge"' })
       }
 
-      const { getUserTasteProfile, detectAndUpdateFranchises, detectAndUpdateGenres, getUserFranchisePreferences, getUserGenreWeights, getStoredProfile, DEFAULT_MIN_FRANCHISE_ITEMS } = await import('@aperture/core')
+      const { getUserTasteProfile, detectAndUpdateFranchises, detectAndUpdateGenres, getUserFranchisePreferences, getUserGenreWeights, getStoredProfile, DEFAULT_MIN_FRANCHISE_ITEMS, DEFAULT_MIN_FRANCHISE_SIZE } = await import('@aperture/core')
 
-      // Get the user's minFranchiseItems setting
+      // Get the user's franchise filter settings
       const storedProfile = await getStoredProfile(userId, mediaType)
       const minFranchiseItems = storedProfile?.minFranchiseItems ?? DEFAULT_MIN_FRANCHISE_ITEMS
+      const minFranchiseSize = storedProfile?.minFranchiseSize ?? DEFAULT_MIN_FRANCHISE_SIZE
 
       // Force rebuild profile (embedding)
       const profile = await getUserTasteProfile(userId, mediaType, {
@@ -2936,8 +2939,8 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         skipLockCheck: true, // Allow rebuild even if locked (user explicitly requested)
       })
 
-      // Update franchise and genre detection with mode and minFranchiseItems
-      const franchiseResult = await detectAndUpdateFranchises(userId, mediaType, { mode, minFranchiseItems })
+      // Update franchise and genre detection with mode and franchise filters
+      const franchiseResult = await detectAndUpdateFranchises(userId, mediaType, { mode, minFranchiseItems, minFranchiseSize })
       const genreResult = await detectAndUpdateGenres(userId, mediaType, { mode })
 
       // Fetch the updated lists to return to the frontend (avoid full page re-render)
@@ -2989,21 +2992,21 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
 
   /**
    * PATCH /api/settings/taste-profile
-   * Update profile settings (lock, refresh interval, min franchise items)
+   * Update profile settings (lock, refresh interval, min franchise items/size)
    */
   fastify.patch<{
-    Body: { mediaType: 'movie' | 'series'; isLocked?: boolean; refreshIntervalDays?: number; minFranchiseItems?: number }
+    Body: { mediaType: 'movie' | 'series'; isLocked?: boolean; refreshIntervalDays?: number; minFranchiseItems?: number; minFranchiseSize?: number }
   }>('/api/settings/taste-profile', { preHandler: requireAuth }, async (request, reply) => {
     try {
       const userId = request.user!.id
-      const { mediaType, isLocked, refreshIntervalDays, minFranchiseItems } = request.body
+      const { mediaType, isLocked, refreshIntervalDays, minFranchiseItems, minFranchiseSize } = request.body
 
       if (!mediaType || !['movie', 'series'].includes(mediaType)) {
         return reply.status(400).send({ error: 'mediaType must be "movie" or "series"' })
       }
 
       // Validate refresh interval
-      const { REFRESH_INTERVAL_OPTIONS, MIN_FRANCHISE_ITEMS_OPTIONS, updateProfileSettings } = await import('@aperture/core')
+      const { REFRESH_INTERVAL_OPTIONS, MIN_FRANCHISE_ITEMS_OPTIONS, MIN_FRANCHISE_SIZE_OPTIONS, updateProfileSettings } = await import('@aperture/core')
       if (
         refreshIntervalDays !== undefined &&
         !REFRESH_INTERVAL_OPTIONS.includes(refreshIntervalDays as 7 | 14 | 30 | 60 | 90 | 180 | 365)
@@ -3016,10 +3019,20 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       // Validate min franchise items
       if (
         minFranchiseItems !== undefined &&
-        !MIN_FRANCHISE_ITEMS_OPTIONS.includes(minFranchiseItems as 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10)
+        !MIN_FRANCHISE_ITEMS_OPTIONS.includes(minFranchiseItems as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10)
       ) {
         return reply.status(400).send({
           error: `minFranchiseItems must be one of: ${MIN_FRANCHISE_ITEMS_OPTIONS.join(', ')}`,
+        })
+      }
+
+      // Validate min franchise size
+      if (
+        minFranchiseSize !== undefined &&
+        !MIN_FRANCHISE_SIZE_OPTIONS.includes(minFranchiseSize as 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10)
+      ) {
+        return reply.status(400).send({
+          error: `minFranchiseSize must be one of: ${MIN_FRANCHISE_SIZE_OPTIONS.join(', ')}`,
         })
       }
 
@@ -3027,6 +3040,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         isLocked,
         refreshIntervalDays,
         minFranchiseItems,
+        minFranchiseSize,
       })
 
       return reply.send({

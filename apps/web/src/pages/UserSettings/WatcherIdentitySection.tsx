@@ -55,6 +55,7 @@ interface TasteProfile {
   isLocked: boolean
   refreshIntervalDays: number
   minFranchiseItems: number
+  minFranchiseSize: number
 }
 
 interface FranchisePreference {
@@ -82,6 +83,7 @@ interface TasteProfileData {
   customInterests: CustomInterest[]
   refreshIntervalOptions: number[]
   minFranchiseItemsOptions: number[]
+  minFranchiseSizeOptions: number[]
 }
 
 interface ProfileStats {
@@ -138,7 +140,8 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
   
   // Editable states
   const [refreshInterval, setRefreshInterval] = useState(30)
-  const [minFranchiseItems, setMinFranchiseItems] = useState(2)
+  const [minFranchiseItems, setMinFranchiseItems] = useState(1)
+  const [minFranchiseSize, setMinFranchiseSize] = useState(2)
   const [isLocked, setIsLocked] = useState(false)
   const [interests, setInterests] = useState<string[]>([])
   const [interestInput, setInterestInput] = useState('')
@@ -185,7 +188,8 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
         const prefsData = await prefsResponse.json()
         setData(prefsData)
         setRefreshInterval(prefsData.profile?.refreshIntervalDays || 30)
-        setMinFranchiseItems(prefsData.profile?.minFranchiseItems || 2)
+        setMinFranchiseItems(prefsData.profile?.minFranchiseItems || 1)
+        setMinFranchiseSize(prefsData.profile?.minFranchiseSize || 2)
         setIsLocked(prefsData.profile?.isLocked || false)
         setInterests(prefsData.customInterests?.map((i: CustomInterest) => i.interestText) || [])
       }
@@ -303,7 +307,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mediaType, isLocked, refreshIntervalDays: refreshInterval, minFranchiseItems }),
+        body: JSON.stringify({ mediaType, isLocked, refreshIntervalDays: refreshInterval, minFranchiseItems, minFranchiseSize }),
       })
     } catch {
       // Silent fail
@@ -772,7 +776,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
             </Typography>
           </Box>
           
-          {/* Min Franchise Items */}
+          {/* Franchise Filters */}
           <Box
             sx={{
               bgcolor: 'background.default',
@@ -780,29 +784,54 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
               borderColor: 'divider',
               borderRadius: 2,
               p: 2,
-              minWidth: 180,
+              minWidth: 280,
             }}
           >
-            <Box display="flex" alignItems="center" justifyContent="space-between" gap={2} mb={1}>
-              <Typography variant="body2" fontWeight={500}>Min Items</Typography>
-              <FormControl size="small" sx={{ minWidth: 70 }}>
-                <Select
-                  value={minFranchiseItems}
-                  onChange={(e) => {
-                    setMinFranchiseItems(e.target.value as number)
-                    setTimeout(handleSaveSettings, 100)
-                  }}
-                >
-                  {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
-                    <MenuItem key={value} value={value}>
-                      {value}+
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+            <Typography variant="body2" fontWeight={500} mb={1.5}>Franchise Filters</Typography>
+            <Box display="flex" gap={2} mb={1}>
+              <Box flex={1}>
+                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+                  Min in library
+                </Typography>
+                <FormControl size="small" fullWidth>
+                  <Select
+                    value={minFranchiseSize}
+                    onChange={(e) => {
+                      setMinFranchiseSize(e.target.value as number)
+                      setTimeout(handleSaveSettings, 100)
+                    }}
+                  >
+                    {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
+                      <MenuItem key={value} value={value}>
+                        {value}+ {isMovie ? 'movies' : 'shows'}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+              <Box flex={1}>
+                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+                  Min watched
+                </Typography>
+                <FormControl size="small" fullWidth>
+                  <Select
+                    value={minFranchiseItems}
+                    onChange={(e) => {
+                      setMinFranchiseItems(e.target.value as number)
+                      setTimeout(handleSaveSettings, 100)
+                    }}
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
+                      <MenuItem key={value} value={value}>
+                        {value}+ watched
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
             </Box>
             <Typography variant="caption" color="text.secondary">
-              Only show franchises with at least this many watched {isMovie ? 'movies' : 'episodes'}
+              Include franchises with {minFranchiseSize}+ {isMovie ? 'movies' : 'shows'} where you've watched {minFranchiseItems}+
             </Typography>
           </Box>
           
