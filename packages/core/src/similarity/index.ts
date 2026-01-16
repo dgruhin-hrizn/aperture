@@ -6,7 +6,7 @@ import {
   getActiveEmbeddingTableName,
 } from '../lib/ai-provider.js'
 import { embed } from 'ai'
-import { computeConnectionReasons, type ConnectionReason, type ConnectionType } from './reasons.js'
+import { computeConnectionReasons, type ConnectionReason } from './reasons.js'
 
 const logger = createChildLogger('similarity')
 
@@ -1026,36 +1026,29 @@ export async function semanticSearch(
 
 /**
  * Build graph data from semantic search results.
- * Uses real metadata connections (director, actor, genre, etc.) as the primary source,
- * then supplements with AI for thematic connections and embedding similarity.
+ * Creates a branching graph that expands outward to discover more content.
+ *
+ * Strategy:
+ * 1. Search results become "seed" nodes (centers)
+ * 2. Each seed branches out to find NEW similar content not in the search
+ * 3. Minimal connections between seeds (only strong metadata matches)
+ * 4. Creates a spider-web that discovers more content
  */
 export async function buildGraphFromSemanticSearch(
   searchResults: SemanticSearchResult,
-  options: { useAI?: boolean } = {}
+  options: { useAI?: boolean; connectionsPerSeed?: number } = {}
 ): Promise<GraphData> {
-  const { useAI = true } = options
+  const { connectionsPerSeed = 3 } = options
 
   if (searchResults.results.length === 0) {
     return { nodes: [], edges: [] }
   }
 
-  const items = searchResults.results.map((r) => r.item)
+  const seedItems = searchResults.results.map((r) => r.item)
   const nodes: Map<string, GraphNode> = new Map()
   const edges: GraphEdge[] = []
   const seenEdges = new Set<string>()
-  const connectedNodes = new Set<string>()
-
-  // Add all search results as nodes
-  for (const item of items) {
-    nodes.set(item.id, {
-      id: item.id,
-      title: item.title,
-      year: item.year,
-      poster_url: item.poster_url,
-      type: item.type,
-      isCenter: true,
-    })
-  }
+  const seedIds = new Set(seedItems.map((s) => s.id))
 
   // Helper to add edge without duplicates
   const addEdge = (
@@ -1068,390 +1061,206 @@ export async function buildGraphFromSemanticSearch(
     if (!seenEdges.has(edgeKey) && sourceId !== targetId) {
       seenEdges.add(edgeKey)
       edges.push({ source: sourceId, target: targetId, similarity, reasons })
-      connectedNodes.add(sourceId)
-      connectedNodes.add(targetId)
+      return true
     }
+    return false
   }
 
-  // Helper to merge edge (add more reasons to existing edge)
-  const mergeOrAddEdge = (
-    sourceId: string,
-    targetId: string,
-    similarity: number,
-    reasons: ConnectionReason[]
-  ) => {
-    const edgeKey = [sourceId, targetId].sort().join('-')
-    if (seenEdges.has(edgeKey)) {
-      // Find and merge reasons into existing edge
-      const existingEdge = edges.find(
-        (e) =>
-          (e.source === sourceId && e.target === targetId) ||
-          (e.source === targetId && e.target === sourceId)
-      )
-      if (existingEdge) {
-        // Add new reason types that don't already exist
-        for (const reason of reasons) {
-          const exists = existingEdge.reasons.some((r) => r.type === reason.type)
-          if (!exists) {
-            existingEdge.reasons.push(reason)
-          }
-        }
-        // Update similarity if higher
-        if (similarity > existingEdge.similarity) {
-          existingEdge.similarity = similarity
-        }
-      }
-    } else {
-      addEdge(sourceId, targetId, similarity, reasons)
-    }
-  }
-
-  // ============================================================================
-  // PHASE 1: Compute real metadata-based connections
-  // This uses actual data (directors, actors, genres, keywords, studios, etc.)
-  // ============================================================================
-  logger.info({ query: searchResults.query, itemCount: items.length }, 'Computing metadata connections')
-
-  let metadataConnections = 0
-  const connectionsByType: Record<string, number> = {}
-
-  for (let i = 0; i < items.length; i++) {
-    for (let j = i + 1; j < items.length; j++) {
-      const source = items[i]
-      const target = items[j]
-
-      // Use the existing computeConnectionReasons function to find real metadata overlaps
-      const reasons = computeConnectionReasons(source, target)
-
-      // Only add edge if we found meaningful connections (not just generic "similarity")
-      const meaningfulReasons = reasons.filter((r) => r.type !== 'similarity')
-
-      if (meaningfulReasons.length > 0) {
-        // Calculate similarity based on connection strength
-        // More reasons = higher similarity
-        const baseSimilarity = 0.7
-        const bonusPerReason = 0.05
-        const similarity = Math.min(0.95, baseSimilarity + meaningfulReasons.length * bonusPerReason)
-
-        addEdge(source.id, target.id, similarity, meaningfulReasons)
-        metadataConnections++
-
-        // Track connection types for logging
-        for (const reason of meaningfulReasons) {
-          connectionsByType[reason.type] = (connectionsByType[reason.type] || 0) + 1
-        }
-      }
-    }
+  // Add all search results as CENTER nodes (seeds)
+  for (const item of seedItems) {
+    nodes.set(item.id, {
+      id: item.id,
+      title: item.title,
+      year: item.year,
+      poster_url: item.poster_url,
+      type: item.type,
+      isCenter: true, // Search results are the "centers"
+    })
   }
 
   logger.info(
-    {
-      query: searchResults.query,
-      metadataConnections,
-      connectionTypes: connectionsByType,
-      connectedNodes: connectedNodes.size,
-    },
-    'Metadata connections computed'
+    { query: searchResults.query, seedCount: seedItems.length, connectionsPerSeed },
+    'Building branching graph from semantic search'
   )
 
   // ============================================================================
-  // PHASE 2: Use AI to find additional thematic connections
-  // AI is especially good at finding thematic/stylistic connections not in metadata
+  // PHASE 1: Branch out from each seed to find NEW content
+  // This is the key change - we discover MORE movies, not just connect seeds
   // ============================================================================
-  if (useAI && items.length >= 2) {
-    // Only call AI for items that have fewer connections
-    const lowConnectivityItems = items.filter((item) => {
-      const itemEdges = edges.filter((e) => e.source === item.id || e.target === item.id)
-      return itemEdges.length < 2
-    })
+  let discoveredCount = 0
 
-    if (lowConnectivityItems.length > 0) {
-      logger.debug(
-        { lowConnectivityCount: lowConnectivityItems.length },
-        'Using AI to find additional thematic connections'
+  for (const seed of seedItems) {
+    try {
+      // Find similar items for this seed
+      const similarResult =
+        seed.type === 'movie'
+          ? await getSimilarMovies(seed.id, { limit: connectionsPerSeed * 3 })
+          : await getSimilarSeries(seed.id, { limit: connectionsPerSeed * 3 })
+
+      let addedForThisSeed = 0
+
+      for (const conn of similarResult.connections) {
+        if (addedForThisSeed >= connectionsPerSeed) break
+
+        // SKIP items that are already seeds - we want NEW content
+        if (seedIds.has(conn.item.id)) continue
+
+        // Add this discovered node if not already in graph
+        if (!nodes.has(conn.item.id)) {
+          nodes.set(conn.item.id, {
+            id: conn.item.id,
+            title: conn.item.title,
+            year: conn.item.year,
+            poster_url: conn.item.poster_url,
+            type: conn.item.type,
+            isCenter: false, // Discovered items are NOT centers
+          })
+          discoveredCount++
+        }
+
+        // Connect seed to discovered item
+        addEdge(seed.id, conn.item.id, conn.similarity, conn.reasons)
+        addedForThisSeed++
+      }
+    } catch (error) {
+      logger.debug({ seedId: seed.id, error }, 'Failed to get similar items for seed')
+    }
+  }
+
+  logger.info(
+    { query: searchResults.query, discoveredCount },
+    'Discovered new content from seeds'
+  )
+
+  // ============================================================================
+  // PHASE 2: Add SELECTIVE connections between seeds
+  // Only connect seeds that have STRONG metadata overlap (same director, collection, etc.)
+  // Avoid connecting everything to everything
+  // ============================================================================
+  let seedConnectionCount = 0
+  const maxSeedConnections = Math.min(seedItems.length, 5) // Limit seed-to-seed connections
+
+  for (let i = 0; i < seedItems.length && seedConnectionCount < maxSeedConnections; i++) {
+    for (let j = i + 1; j < seedItems.length && seedConnectionCount < maxSeedConnections; j++) {
+      const source = seedItems[i]
+      const target = seedItems[j]
+
+      const reasons = computeConnectionReasons(source, target)
+
+      // Only connect seeds if they have STRONG connections (director, actor, collection)
+      const strongReasons = reasons.filter(
+        (r) => r.type === 'director' || r.type === 'actor' || r.type === 'collection'
       )
 
-      const aiResult = await analyzeConnectionsWithAI(searchResults.query, items)
+      if (strongReasons.length > 0) {
+        if (addEdge(source.id, target.id, 0.85, strongReasons)) {
+          seedConnectionCount++
+        }
+      }
+    }
+  }
 
-      if (aiResult && aiResult.connections.length > 0) {
-        let aiConnectionsAdded = 0
-        for (const conn of aiResult.connections) {
-          const sourceItem = items[conn.from]
-          const targetItem = items[conn.to]
+  logger.info(
+    { query: searchResults.query, seedConnectionCount },
+    'Added selective seed-to-seed connections'
+  )
 
-          if (sourceItem && targetItem) {
-            // Only add AI connections if they don't duplicate existing connections
-            const edgeKey = [sourceItem.id, targetItem.id].sort().join('-')
-            if (!seenEdges.has(edgeKey)) {
-              addEdge(sourceItem.id, targetItem.id, 0.75, [
-                {
-                  type: conn.type as ConnectionType,
-                  value: conn.label,
-                },
-              ])
-              aiConnectionsAdded++
+  // ============================================================================
+  // PHASE 3: Connect discovered nodes that share strong metadata
+  // This creates interesting cross-connections in the outer ring
+  // ============================================================================
+  const discoveredItems = Array.from(nodes.values())
+    .filter((n) => !n.isCenter)
+    .slice(0, 20) // Limit to avoid O(n²) explosion
+
+  let crossConnectionCount = 0
+  const maxCrossConnections = Math.min(discoveredItems.length, 8)
+
+  for (let i = 0; i < discoveredItems.length && crossConnectionCount < maxCrossConnections; i++) {
+    const nodeA = discoveredItems[i]
+
+    // Find similar items for this discovered node
+    try {
+      const similarResult =
+        nodeA.type === 'movie'
+          ? await getSimilarMovies(nodeA.id, { limit: 10 })
+          : await getSimilarSeries(nodeA.id, { limit: 10 })
+
+      for (const conn of similarResult.connections) {
+        if (crossConnectionCount >= maxCrossConnections) break
+
+        // Only connect to other discovered nodes (not seeds)
+        if (nodes.has(conn.item.id) && !seedIds.has(conn.item.id) && conn.item.id !== nodeA.id) {
+          // Require meaningful connection (not just generic similarity)
+          const meaningfulReasons = conn.reasons.filter((r) => r.type !== 'similarity')
+          if (meaningfulReasons.length > 0) {
+            if (addEdge(nodeA.id, conn.item.id, conn.similarity, meaningfulReasons)) {
+              crossConnectionCount++
             }
           }
         }
-
-        logger.info(
-          { query: searchResults.query, aiConnectionsAdded },
-          'AI thematic connections added'
-        )
       }
+    } catch {
+      // Skip if lookup fails
     }
   }
 
+  logger.info(
+    { query: searchResults.query, crossConnectionCount },
+    'Added cross-connections between discovered items'
+  )
+
   // ============================================================================
-  // PHASE 3: Connect orphan nodes using embedding similarity
-  // Ensures every node has at least one connection
+  // PHASE 4: Ensure minimum connectivity for orphan seeds
+  // If a seed has no connections, find its best match
   // ============================================================================
-  const unconnectedNodes = items.filter((item) => !connectedNodes.has(item.id))
-
-  if (unconnectedNodes.length > 0) {
-    logger.debug(
-      { unconnectedCount: unconnectedNodes.length },
-      'Connecting orphan nodes via embeddings'
-    )
-
-    for (const item of unconnectedNodes) {
-      // Find the most similar connected node using embedding similarity
-      let bestMatch: { id: string; similarity: number; reasons: ConnectionReason[] } | null = null
-
+  for (const seed of seedItems) {
+    const hasConnection = edges.some((e) => e.source === seed.id || e.target === seed.id)
+    if (!hasConnection) {
+      // Find any similar item and add it
       try {
         const similarResult =
-          item.type === 'movie'
-            ? await getSimilarMovies(item.id, { limit: 30 })
-            : await getSimilarSeries(item.id, { limit: 30 })
+          seed.type === 'movie'
+            ? await getSimilarMovies(seed.id, { limit: 5 })
+            : await getSimilarSeries(seed.id, { limit: 5 })
 
-        // Find the best match among our search results (prefer already-connected nodes)
-        for (const conn of similarResult.connections) {
-          if (nodes.has(conn.item.id) && conn.item.id !== item.id) {
-            if (!bestMatch || conn.similarity > bestMatch.similarity) {
-              bestMatch = {
-                id: conn.item.id,
-                similarity: conn.similarity,
-                reasons: conn.reasons,
-              }
-            }
+        if (similarResult.connections.length > 0) {
+          const conn = similarResult.connections[0]
+
+          // Add the discovered node
+          if (!nodes.has(conn.item.id)) {
+            nodes.set(conn.item.id, {
+              id: conn.item.id,
+              title: conn.item.title,
+              year: conn.item.year,
+              poster_url: conn.item.poster_url,
+              type: conn.item.type,
+              isCenter: false,
+            })
           }
-        }
 
-        if (bestMatch) {
-          addEdge(item.id, bestMatch.id, bestMatch.similarity, bestMatch.reasons)
+          addEdge(seed.id, conn.item.id, conn.similarity, conn.reasons)
         }
       } catch {
-        // If embedding lookup fails, compute reasons manually and connect to nearest
-        const firstConnectedNode = items.find((i) => i.id !== item.id && connectedNodes.has(i.id))
-        if (firstConnectedNode) {
-          const reasons = computeConnectionReasons(item, firstConnectedNode)
-          addEdge(item.id, firstConnectedNode.id, 0.6, reasons)
-        }
+        // Skip if lookup fails
       }
-    }
-  }
-
-  // ============================================================================
-  // PHASE 4: Fallback - ensure minimum connectivity
-  // If still few connections, add embedding-based connections between all pairs
-  // ============================================================================
-  if (edges.length < items.length / 2 && items.length >= 2) {
-    logger.info({ query: searchResults.query, currentEdges: edges.length }, 'Adding more embedding connections')
-
-    for (let i = 0; i < Math.min(items.length, 10); i++) {
-      const item = items[i]
-      try {
-        const similarResult =
-          item.type === 'movie'
-            ? await getSimilarMovies(item.id, { limit: 20 })
-            : await getSimilarSeries(item.id, { limit: 20 })
-
-        for (const conn of similarResult.connections) {
-          if (nodes.has(conn.item.id) && conn.item.id !== item.id && conn.similarity >= 0.5) {
-            mergeOrAddEdge(item.id, conn.item.id, conn.similarity, conn.reasons)
-          }
-        }
-      } catch {
-        // Skip if no embedding
-      }
-    }
-  }
-
-  // If still no edges (unlikely), create a simple chain using computed reasons
-  if (edges.length === 0 && items.length >= 2) {
-    logger.warn('No connections found, creating fallback chain')
-    for (let i = 0; i < items.length - 1; i++) {
-      const reasons = computeConnectionReasons(items[i], items[i + 1])
-      addEdge(items[i].id, items[i + 1].id, 0.7, reasons)
     }
   }
 
   logger.info(
     {
       query: searchResults.query,
-      nodeCount: nodes.size,
-      edgeCount: edges.length,
-      avgConnectionsPerNode: edges.length > 0 ? (edges.length * 2) / nodes.size : 0,
+      totalNodes: nodes.size,
+      seedNodes: seedItems.length,
+      discoveredNodes: nodes.size - seedItems.length,
+      totalEdges: edges.length,
     },
-    'Built semantic search graph'
+    'Built branching semantic search graph'
   )
 
   return {
     nodes: Array.from(nodes.values()),
     edges,
-  }
-}
-
-/**
- * AI-generated graph data with items and connections
- */
-interface AIGraphResponse {
-  connections: Array<{
-    from: number
-    to: number
-    type:
-      | 'director'
-      | 'actor'
-      | 'collection'
-      | 'genre'
-      | 'keyword'
-      | 'studio'
-      | 'network'
-      | 'similarity'
-      | 'ai_diverse'
-    label: string // e.g., "Christopher Nolan" or "Both explore dreams"
-  }>
-}
-
-/**
- * Use AI to analyze items found via embeddings and generate structured connections.
- * AI identifies WHY items are related based on their metadata.
- */
-async function analyzeConnectionsWithAI(
-  searchQuery: string,
-  items: SimilarityItem[]
-): Promise<AIGraphResponse | null> {
-  const { getExplorationModelInstance } = await import('../lib/ai-provider.js')
-  const { generateText } = await import('ai')
-
-  let model
-  try {
-    model = await getExplorationModelInstance()
-  } catch (error) {
-    logger.warn({ error }, 'No exploration model available for graph generation')
-    return null
-  }
-
-  // Limit items to avoid token limits
-  const limitedItems = items.slice(0, 15)
-
-  // Build detailed item list with metadata for AI to analyze
-  const itemList = limitedItems
-    .map((item, idx) => {
-      const details = [
-        `${idx}. "${item.title}" (${item.year || '?'})`,
-        `   Genres: ${item.genres.slice(0, 4).join(', ') || 'unknown'}`,
-        `   Directors: ${item.directors.slice(0, 2).join(', ') || 'unknown'}`,
-        `   Actors: ${
-          item.actors
-            .slice(0, 3)
-            .map((a) => a.name)
-            .join(', ') || 'unknown'
-        }`,
-        item.collection_name ? `   Collection: ${item.collection_name}` : null,
-        item.network ? `   Network: ${item.network}` : null,
-        item.studios.length > 0 ? `   Studio: ${item.studios[0].name}` : null,
-      ]
-        .filter(Boolean)
-        .join('\n')
-      return details
-    })
-    .join('\n\n')
-
-  const prompt = `Analyze these "${searchQuery}" results and find ALL meaningful connections between them.
-
-ITEMS:
-${itemList}
-
-CONNECTION TYPES (use these exact values):
-- "director" = Same director (label: director name)
-- "actor" = Shared actor (label: actor name)
-- "collection" = Same franchise/collection (label: collection name)
-- "genre" = Matching genres (label: shared genre)
-- "keyword" = Shared themes/motifs (label: theme description)
-- "studio" = Same studio (label: studio name)
-- "network" = Same TV network (label: network name)
-- "similarity" = Similar tone/style (label: brief description)
-- "ai_diverse" = AI discovered thematic link (label: brief description)
-
-Find ${Math.min(limitedItems.length * 2, 30)} connections. Every item should have at least 1 connection.
-Use actual shared metadata when possible (same director, same actor, etc.).
-
-RESPOND WITH ONLY VALID JSON:
-{"connections":[{"from":0,"to":1,"type":"director","label":"Christopher Nolan"},{"from":1,"to":2,"type":"genre","label":"Sci-Fi Thriller"}]}`
-
-  try {
-    const { text } = await generateText({
-      model,
-      prompt,
-      maxOutputTokens: 2000,
-      temperature: 0.3,
-    })
-
-    if (!text || text.trim().length === 0) {
-      logger.warn({ searchQuery }, 'AI returned empty response')
-      return null
-    }
-
-    // Extract JSON from response
-    let jsonStr = text.trim()
-
-    // Remove markdown code blocks
-    if (jsonStr.includes('```')) {
-      const match = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/)
-      if (match) jsonStr = match[1].trim()
-    }
-
-    // Try to find JSON object
-    const objMatch = jsonStr.match(/\{[\s\S]*\}/)
-    if (objMatch) jsonStr = objMatch[0]
-
-    const response = JSON.parse(jsonStr) as AIGraphResponse
-
-    // Validate connections
-    const validTypes = [
-      'director',
-      'actor',
-      'collection',
-      'genre',
-      'keyword',
-      'studio',
-      'network',
-      'similarity',
-      'ai_diverse',
-    ]
-    response.connections = response.connections.filter((conn) => {
-      return (
-        typeof conn.from === 'number' &&
-        typeof conn.to === 'number' &&
-        conn.from >= 0 &&
-        conn.from < limitedItems.length &&
-        conn.to >= 0 &&
-        conn.to < limitedItems.length &&
-        conn.from !== conn.to &&
-        validTypes.includes(conn.type)
-      )
-    })
-
-    logger.info(
-      { searchQuery, connections: response.connections.length },
-      'AI analyzed connections'
-    )
-
-    return response
-  } catch (error) {
-    logger.error({ error, searchQuery }, 'Failed to get AI graph analysis')
-    return null
   }
 }
 
