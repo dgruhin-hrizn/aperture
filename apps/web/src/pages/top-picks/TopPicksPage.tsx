@@ -7,8 +7,6 @@ import {
   Skeleton,
   Alert,
   Chip,
-  Card,
-  CardContent,
   ToggleButton,
   ToggleButtonGroup,
   Tabs,
@@ -20,10 +18,10 @@ import TvIcon from '@mui/icons-material/Tv'
 import GridViewIcon from '@mui/icons-material/GridView'
 import ViewListIcon from '@mui/icons-material/ViewList'
 import PeopleIcon from '@mui/icons-material/People'
-import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import { MoviePoster, RankBadge } from '@aperture/ui'
 import { useUserRatings } from '../../hooks/useUserRatings'
 import { useWatching } from '../../hooks/useWatching'
+import { TopPicksMovieListItem, TopPicksSeriesListItem } from './components'
 
 interface PopularMovie {
   movieId: string
@@ -209,78 +207,12 @@ export function TopPicksPage() {
   const renderMoviesList = () => (
     <Box display="flex" flexDirection="column" gap={2}>
       {movies.map((movie) => (
-        <Card
+        <TopPicksMovieListItem
           key={movie.movieId}
-          sx={{
-            backgroundColor: 'background.paper',
-            borderRadius: 2,
-            cursor: 'pointer',
-            transition: 'transform 0.2s, box-shadow 0.2s',
-            '&:hover': {
-              transform: 'translateY(-2px)',
-              boxShadow: 4,
-            },
-          }}
-          onClick={() => navigate(`/movies/${movie.movieId}`)}
-        >
-          <CardContent sx={{ display: 'flex', gap: 3, p: 2 }}>
-            <RankBadge rank={movie.rank} size="xlarge" absolute={false} />
-            <Box
-              component="img"
-              src={movie.posterUrl || undefined}
-              alt={movie.title}
-              sx={{
-                width: 80,
-                height: 120,
-                objectFit: 'cover',
-                borderRadius: 1,
-                backgroundColor: 'grey.800',
-                flexShrink: 0,
-              }}
-            />
-            <Box flex={1} minWidth={0}>
-              <Typography variant="h6" fontWeight={600} noWrap>
-                {movie.title}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" mb={1}>
-                {movie.year} {movie.genres?.length > 0 && `• ${movie.genres.slice(0, 3).join(', ')}`}
-              </Typography>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden',
-                }}
-              >
-                {movie.overview || 'No description available.'}
-              </Typography>
-            </Box>
-            <Box 
-              display="flex" 
-              flexDirection="column" 
-              alignItems="flex-end" 
-              justifyContent="center"
-              gap={1}
-              flexShrink={0}
-            >
-              <Chip
-                icon={<PeopleIcon sx={{ fontSize: 16 }} />}
-                label={`${movie.uniqueViewers} viewers`}
-                size="small"
-                sx={{ backgroundColor: 'rgba(99, 102, 241, 0.2)' }}
-              />
-              <Chip
-                icon={<PlayArrowIcon sx={{ fontSize: 16 }} />}
-                label={movie.playCount <= 10 ? `${movie.playCount} plays` : '10+ plays'}
-                size="small"
-                variant="outlined"
-              />
-            </Box>
-          </CardContent>
-        </Card>
+          movie={movie}
+          userRating={getRating('movie', movie.movieId)}
+          onRate={(rating) => handleRateMovie(movie.movieId, rating)}
+        />
       ))}
     </Box>
   )
@@ -350,96 +282,12 @@ export function TopPicksPage() {
   const renderSeriesList = () => (
     <Box display="flex" flexDirection="column" gap={2}>
       {series.map((show) => (
-        <Card
+        <TopPicksSeriesListItem
           key={show.seriesId}
-          sx={{
-            backgroundColor: 'background.paper',
-            borderRadius: 2,
-            cursor: 'pointer',
-            transition: 'transform 0.2s, box-shadow 0.2s',
-            '&:hover': {
-              transform: 'translateY(-2px)',
-              boxShadow: 4,
-            },
-          }}
-          onClick={() => navigate(`/series/${show.seriesId}`)}
-        >
-          <CardContent sx={{ display: 'flex', gap: 3, p: 2 }}>
-            <RankBadge rank={show.rank} size="xlarge" absolute={false} />
-            <Box
-              component="img"
-              src={show.posterUrl || undefined}
-              alt={show.title}
-              sx={{
-                width: 80,
-                height: 120,
-                objectFit: 'cover',
-                borderRadius: 1,
-                backgroundColor: 'grey.800',
-                flexShrink: 0,
-              }}
-            />
-            <Box flex={1} minWidth={0}>
-              <Box display="flex" alignItems="center" gap={1}>
-                <Typography variant="h6" fontWeight={600} noWrap>
-                  {show.title}
-                </Typography>
-                {show.network && (
-                  <Chip 
-                    label={show.network} 
-                    size="small" 
-                    sx={{ 
-                      backgroundColor: 'rgba(139, 92, 246, 0.2)',
-                      fontSize: '0.7rem',
-                      height: 22,
-                    }} 
-                  />
-                )}
-              </Box>
-              <Typography variant="body2" color="text.secondary" mb={1}>
-                {show.year} {show.genres?.length > 0 && `• ${show.genres.slice(0, 3).join(', ')}`}
-              </Typography>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden',
-                }}
-              >
-                {show.overview || 'No description available.'}
-              </Typography>
-            </Box>
-            <Box 
-              display="flex" 
-              flexDirection="column" 
-              alignItems="flex-end" 
-              justifyContent="center"
-              gap={1}
-              flexShrink={0}
-            >
-              <Chip
-                icon={<PeopleIcon sx={{ fontSize: 16 }} />}
-                label={`${show.uniqueViewers} viewers`}
-                size="small"
-                sx={{ backgroundColor: 'rgba(139, 92, 246, 0.2)' }}
-              />
-              <Chip
-                icon={<PlayArrowIcon sx={{ fontSize: 16 }} />}
-                label={`${show.totalEpisodesWatched} episodes`}
-                size="small"
-                variant="outlined"
-              />
-              {show.avgCompletionRate > 0 && (
-                <Typography variant="caption" color="text.secondary">
-                  {Math.round(show.avgCompletionRate * 100)}% avg completion
-                </Typography>
-              )}
-            </Box>
-          </CardContent>
-        </Card>
+          series={show}
+          userRating={getRating('series', show.seriesId)}
+          onRate={(rating) => handleRateSeries(show.seriesId, rating)}
+        />
       ))}
     </Box>
   )
