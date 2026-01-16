@@ -22,7 +22,6 @@ import {
   Chip,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
-import RefreshIcon from '@mui/icons-material/Refresh'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
@@ -700,18 +699,6 @@ export function ExplorePage() {
               <Typography variant="caption">Show cross-media connections</Typography>
             }
           />
-        </Box>
-
-        {/* Spacer */}
-        <Box sx={{ flex: 1 }} />
-
-        {/* Refresh Button */}
-        <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
-          <Tooltip title="Refresh graph">
-            <IconButton size="small" onClick={() => refetch()}>
-              <RefreshIcon />
-            </IconButton>
-          </Tooltip>
         </Box>
       </Paper>
     </Box>

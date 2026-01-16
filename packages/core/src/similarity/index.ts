@@ -891,7 +891,10 @@ export async function semanticSearch(
     return { query: searchQuery, results: [] }
   }
 
-  logger.info({ searchQuery, type, limit, hideWatched, userId: userId ? 'present' : 'absent' }, 'Performing semantic search')
+  logger.info(
+    { searchQuery, type, limit, hideWatched, userId: userId ? 'present' : 'absent' },
+    'Performing semantic search'
+  )
 
   // Get the active embedding model
   const modelId = await getActiveEmbeddingModelId()
@@ -918,17 +921,19 @@ export async function semanticSearch(
     const movieTableName = await getActiveEmbeddingTableName('embeddings')
 
     // Build watched filter clause
-    const watchedFilter = hideWatched && userId
-      ? `AND NOT EXISTS (
+    const watchedFilter =
+      hideWatched && userId
+        ? `AND NOT EXISTS (
            SELECT 1 FROM watch_history wh 
            WHERE wh.movie_id = m.id 
              AND wh.user_id = $4 
              AND wh.media_type = 'movie'
          )`
-      : ''
-    const movieParams = hideWatched && userId
-      ? [embeddingVector, modelId, movieLimit, userId]
-      : [embeddingVector, modelId, movieLimit]
+        : ''
+    const movieParams =
+      hideWatched && userId
+        ? [embeddingVector, modelId, movieLimit, userId]
+        : [embeddingVector, modelId, movieLimit]
 
     const movieResults = await query<{
       id: string
@@ -982,18 +987,20 @@ export async function semanticSearch(
     const seriesTableName = await getActiveEmbeddingTableName('series_embeddings')
 
     // Build watched filter clause for series (checks if any episode was watched)
-    const seriesWatchedFilter = hideWatched && userId
-      ? `AND NOT EXISTS (
+    const seriesWatchedFilter =
+      hideWatched && userId
+        ? `AND NOT EXISTS (
            SELECT 1 FROM watch_history wh 
            JOIN episodes ep ON ep.id = wh.episode_id
            WHERE ep.series_id = s.id 
              AND wh.user_id = $4 
              AND wh.media_type = 'episode'
          )`
-      : ''
-    const seriesParams = hideWatched && userId
-      ? [embeddingVector, modelId, seriesLimit, userId]
-      : [embeddingVector, modelId, seriesLimit]
+        : ''
+    const seriesParams =
+      hideWatched && userId
+        ? [embeddingVector, modelId, seriesLimit, userId]
+        : [embeddingVector, modelId, seriesLimit]
 
     const seriesResults = await query<{
       id: string
