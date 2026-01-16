@@ -22,6 +22,32 @@ import type { Movie, ImageDownloadTask } from '../types.js'
 const logger = createChildLogger('strm-writer')
 
 /**
+ * Ensure user's STRM directory exists (without writing any files)
+ * This is used to create the folder BEFORE the library, so Emby sees an empty folder
+ * and uses our CollectionType instead of auto-detecting based on content
+ */
+export async function ensureUserDirectory(
+  userId: string,
+  providerUserId: string,
+  displayName: string
+): Promise<{ localPath: string; embyPath: string }> {
+  const config = await getConfig()
+  
+  const { getUserFolderName } = await import('../filenames.js')
+  const userFolder = getUserFolderName(displayName, providerUserId)
+  
+  const localPath = path.join(config.strmRoot, 'aperture', userFolder)
+  const embyPath = path.join(config.libraryPathPrefix, 'aperture', userFolder)
+  
+  // Create directory if it doesn't exist
+  await fs.mkdir(localPath, { recursive: true })
+  
+  logger.info({ userId, localPath, embyPath }, '📂 Ensured directory exists')
+  
+  return { localPath, embyPath }
+}
+
+/**
  * Write STRM files (or symlinks) for a user's movie recommendations
  */
 export async function writeStrmFilesForUser(
