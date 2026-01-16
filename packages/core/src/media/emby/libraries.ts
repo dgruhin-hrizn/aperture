@@ -67,22 +67,23 @@ export async function createVirtualLibrary(
   // Emby uses different collection type names
   const embyCollectionType = collectionType === 'movies' ? 'movies' : 'tvshows'
 
-  // CRITICAL: Must pass LibraryOptions.ContentType in JSON body for Emby to properly
-  // set the library type. Query params alone result in "mixed content" (CollectionType: null).
+  // CRITICAL: Emby requires name and collectionType in QUERY PARAMS (not JSON body)
+  // but paths must be in JSON body. Putting collectionType in JSON body results in
+  // "mixed content" libraries with CollectionType: null.
+  const queryParams = new URLSearchParams({
+    name,
+    collectionType: embyCollectionType,
+    refreshLibrary: 'true',
+  })
+  
   await provider.fetch(
-    '/Library/VirtualFolders',
+    `/Library/VirtualFolders?${queryParams.toString()}`,
     apiKey,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        Name: name,
-        CollectionType: embyCollectionType,
         Paths: [path],
-        RefreshLibrary: true,
-        LibraryOptions: {
-          ContentType: embyCollectionType,
-        },
       }),
     }
   )
