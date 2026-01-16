@@ -136,6 +136,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
   const [generating, setGenerating] = useState(false)
   const [, setSavingSettings] = useState(false)
   const [savingSlider, setSavingSlider] = useState<string | null>(null)
+  const justGeneratedRef = useRef(false)
   
   // Editable states
   const [refreshInterval, setRefreshInterval] = useState(30)
@@ -193,10 +194,12 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
         setInterests(prefsData.customInterests?.map((i: CustomInterest) => i.interestText) || [])
       }
       
-      if (profileResponse.ok) {
+      if (profileResponse.ok && !justGeneratedRef.current) {
         const profileData = await profileResponse.json()
         setProfileOutput(profileData)
       }
+      // Reset the flag after fetch completes
+      justGeneratedRef.current = false
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch data')
     } finally {
@@ -558,6 +561,8 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                     setStreamingText(fullText)
                   } else if (data.type === 'done' && data.stats) {
                     // Update profile output with final stats
+                    // Mark that we just generated to prevent fetchData from overwriting
+                    justGeneratedRef.current = true
                     setProfileOutput({
                       synopsis: fullText,
                       stats: data.stats,
