@@ -110,7 +110,13 @@ export function PlaylistCard({
       <CardActionArea
         onClick={handleCardClick}
         disabled={!hasPlaylist}
-        sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
+        sx={{ 
+          flexGrow: 1, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'stretch',
+          borderRadius: '12px 12px 0 0',
+        }}
       >
         <Box
           sx={{

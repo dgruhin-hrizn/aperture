@@ -112,7 +112,13 @@ export function GraphPlaylistCard({ playlist, onDelete, onView }: GraphPlaylistC
       <CardActionArea
         onClick={handleCardClick}
         disabled={!isClickable}
-        sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
+        sx={{ 
+          flexGrow: 1, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'stretch',
+          borderRadius: '12px 12px 0 0',
+        }}
       >
         <Box
           sx={{
