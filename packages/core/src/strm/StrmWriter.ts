@@ -124,6 +124,10 @@ export async function processStrmForAllUsers(
           addLog(actualJobId, 'debug', `  📚 Library already exists in media server: ${libraryResult.name}`)
         }
 
+        // TEMPORARY TEST: Skip file writing to test if CollectionType is set correctly
+        addLog(actualJobId, 'info', `  🧪 TEST MODE: Skipping STRM file writing`)
+        continue
+
         // Step 3: Now write STRM files (library already exists with correct type)
         const strmResult = await writeStrmFilesForUser(user.id, user.provider_user_id, displayName)
         addLog(actualJobId, 'debug', `  📝 STRM files written: ${strmResult.written} files at ${strmResult.localPath}`)
