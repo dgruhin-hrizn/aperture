@@ -711,87 +711,66 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
           Identity Settings
         </Typography>
         
+        {/* Top row - Auto-refresh + Status */}
         <Box display="flex" flexWrap="wrap" gap={3} alignItems="center" justifyContent="space-between">
-          {/* Left side - Controls */}
-          <Box display="flex" flexWrap="wrap" gap={3} alignItems="center">
-            {/* Analyze Button */}
-            <Box>
-              <Button
-                variant="contained"
-                startIcon={analyzing ? <CircularProgress size={18} color="inherit" /> : <HistoryIcon />}
-                onClick={handleAnalyzeClick}
-                disabled={analyzing}
-                sx={{ 
-                  bgcolor: accentColor,
-                  '&:hover': { bgcolor: accentColor, filter: 'brightness(1.1)' },
-                }}
-              >
-                {analyzing ? 'Analyzing...' : 'Analyze Watch History'}
-              </Button>
-              <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
-                Scans your watch history for franchises and genres
-              </Typography>
-            </Box>
-            
-            {/* Auto-refresh */}
-            <Box
-              sx={{
-                bgcolor: 'background.default',
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: 2,
-                p: 2,
-                minWidth: 200,
-              }}
-            >
-              <Box display="flex" alignItems="center" justifyContent="space-between" gap={2} mb={1}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={!isLocked}
-                      onChange={(e) => {
-                        setIsLocked(!e.target.checked)
-                        setTimeout(handleSaveSettings, 100)
-                      }}
-                      size="small"
-                    />
-                  }
-                  label={
-                    <Box display="flex" alignItems="center" gap={0.5}>
-                      {isLocked ? <LockIcon fontSize="small" /> : <LockOpenIcon fontSize="small" />}
-                      <Typography variant="body2" fontWeight={500}>Auto-refresh</Typography>
-                    </Box>
-                  }
-                  sx={{ m: 0 }}
-                />
-                {!isLocked && (
-                  <FormControl size="small" sx={{ minWidth: 100 }}>
-                    <Select
-                      value={refreshInterval}
-                      onChange={(e) => {
-                        setRefreshInterval(e.target.value as number)
-                        setTimeout(handleSaveSettings, 100)
-                      }}
-                    >
-                      {Object.entries(REFRESH_INTERVAL_LABELS).map(([value, label]) => (
-                        <MenuItem key={value} value={Number(value)}>
-                          {label}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                )}
-              </Box>
-              <Typography variant="caption" color="text.secondary">
-                {isLocked 
-                  ? 'Identity is locked and won\'t update automatically'
-                  : 'Automatically re-analyze your watch history to keep recommendations fresh'
+          {/* Auto-refresh */}
+          <Box
+            sx={{
+              bgcolor: 'background.default',
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 2,
+              p: 2,
+              minWidth: 200,
+            }}
+          >
+            <Box display="flex" alignItems="center" justifyContent="space-between" gap={2} mb={1}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={!isLocked}
+                    onChange={(e) => {
+                      setIsLocked(!e.target.checked)
+                      setTimeout(handleSaveSettings, 100)
+                    }}
+                    size="small"
+                  />
                 }
-              </Typography>
+                label={
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    {isLocked ? <LockIcon fontSize="small" /> : <LockOpenIcon fontSize="small" />}
+                    <Typography variant="body2" fontWeight={500}>Auto-refresh</Typography>
+                  </Box>
+                }
+                sx={{ m: 0 }}
+              />
+              {!isLocked && (
+                <FormControl size="small" sx={{ minWidth: 100 }}>
+                  <Select
+                    value={refreshInterval}
+                    onChange={(e) => {
+                      setRefreshInterval(e.target.value as number)
+                      setTimeout(handleSaveSettings, 100)
+                    }}
+                  >
+                    {Object.entries(REFRESH_INTERVAL_LABELS).map(([value, label]) => (
+                      <MenuItem key={value} value={Number(value)}>
+                        {label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
             </Box>
+            <Typography variant="caption" color="text.secondary">
+              {isLocked 
+                ? 'Identity is locked and won\'t update automatically'
+                : 'Automatically re-analyze your watch history to keep recommendations fresh'
+              }
+            </Typography>
           </Box>
           
-          {/* Right side - Status Widget */}
+          {/* Status Widget */}
           <Box
             sx={{
               bgcolor: 'background.default',
@@ -817,6 +796,27 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
             </Typography>
             <Typography variant="body2" fontWeight={600}>
               {formatDate(data?.profile?.autoUpdatedAt || null)}
+            </Typography>
+          </Box>
+        </Box>
+        
+        {/* Bottom row - Analyze button on the right */}
+        <Box display="flex" justifyContent="flex-end" mt={2}>
+          <Box textAlign="right">
+            <Button
+              variant="contained"
+              startIcon={analyzing ? <CircularProgress size={18} color="inherit" /> : <HistoryIcon />}
+              onClick={handleAnalyzeClick}
+              disabled={analyzing}
+              sx={{ 
+                bgcolor: accentColor,
+                '&:hover': { bgcolor: accentColor, filter: 'brightness(1.1)' },
+              }}
+            >
+              {analyzing ? 'Analyzing...' : 'Analyze Watch History'}
+            </Button>
+            <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
+              Scans your watch history for franchises and genres
             </Typography>
           </Box>
         </Box>
