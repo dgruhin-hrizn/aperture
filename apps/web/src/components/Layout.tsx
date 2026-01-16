@@ -327,6 +327,34 @@ export function Layout() {
         elevation={0}
       >
         <Toolbar>
+          {/* Mobile: Logo and name */}
+          <Box 
+            sx={{ 
+              display: { xs: 'flex', md: 'none' }, 
+              alignItems: 'center', 
+              gap: 1,
+              mr: 1,
+            }}
+          >
+            <Box
+              component="img"
+              src="/aperture.svg"
+              alt="Aperture"
+              sx={{ width: 28, height: 28 }}
+            />
+            <Typography
+              sx={{
+                fontFamily: '"Open Sans", sans-serif',
+                fontWeight: 600,
+                fontSize: '1.1rem',
+                color: 'text.primary',
+                letterSpacing: '-0.01em',
+              }}
+            >
+              Aperture
+            </Typography>
+          </Box>
+
           <IconButton
             color="inherit"
             edge="start"
