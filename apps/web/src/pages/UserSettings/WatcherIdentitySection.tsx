@@ -9,7 +9,6 @@ import {
   Slider,
   Chip,
   Switch,
-  FormControlLabel,
   Paper,
   Stack,
   Grid,
@@ -1102,7 +1101,9 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
               {/* Scrollable slider list */}
               <Box sx={{ maxHeight: 350, overflow: 'auto', pr: 1 }}>
                 {data?.franchises && data.franchises.length > 0 ? (
-                  data.franchises.map((franchise) => {
+                  [...data.franchises]
+                    .sort((a, b) => a.franchiseName.localeCompare(b.franchiseName))
+                    .map((franchise) => {
                     const isNew = newItems.franchises.includes(franchise.franchiseName)
                     return (
                       <Box 
@@ -1281,7 +1282,9 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
               {/* Scrollable slider list */}
               <Box sx={{ maxHeight: 350, overflow: 'auto', pr: 1 }}>
                 {data?.genres && data.genres.length > 0 ? (
-                  data.genres.map((genre) => {
+                  [...data.genres]
+                    .sort((a, b) => a.genre.localeCompare(b.genre))
+                    .map((genre) => {
                     const isNew = newItems.genres.includes(genre.genre)
                     return (
                       <Box 
