@@ -7,10 +7,30 @@
 
 import { query } from '../../lib/db.js'
 import { createChildLogger } from '../../lib/logger.js'
-import { getTextGenerationModelInstance } from '../../lib/ai-provider.js'
+import { getTextGenerationModelInstance, getFunctionConfig } from '../../lib/ai-provider.js'
 import { generateText } from 'ai'
 
 const logger = createChildLogger('explanations')
+
+/**
+ * Get the appropriate batch size based on the text generation provider.
+ * Providers with large context windows (OpenAI, Anthropic, Google, DeepSeek) use 10.
+ * Providers with potentially smaller context windows (Ollama, Groq, OpenAI-compatible) use 5.
+ */
+async function getExplanationBatchSize(): Promise<{ batchSize: number; maxTokens: number }> {
+  const config = await getFunctionConfig('textGeneration')
+  
+  // Large context providers: OpenAI (128K), Anthropic (200K), Google (1M+), DeepSeek (64K)
+  const largeContextProviders = ['openai', 'anthropic', 'google', 'deepseek']
+  
+  if (config && largeContextProviders.includes(config.provider)) {
+    return { batchSize: 10, maxTokens: 3000 }
+  }
+  
+  // Smaller/variable context providers: Ollama (default 4K), Groq (8K), OpenAI-compatible (varies)
+  // Use smaller batch size to fit within limited context windows
+  return { batchSize: 5, maxTokens: 1500 }
+}
 
 export interface MovieForExplanation {
   movieId: string
@@ -169,13 +189,15 @@ export async function generateExplanations(
     evidence: evidenceMap.get(r.movieId) || [],
   }))
 
-  // Generate explanations in batches
-  const batchSize = 10
+  // Generate explanations in batches - size depends on provider context window
+  const { batchSize, maxTokens } = await getExplanationBatchSize()
+  logger.info({ batchSize, maxTokens }, 'Using explanation batch settings based on provider')
+  
   const results: ExplanationResult[] = []
 
   for (let i = 0; i < moviesWithEvidence.length; i += batchSize) {
     const batch = moviesWithEvidence.slice(i, i + batchSize)
-    const batchResults = await generateBatchExplanations(batch, tasteContext)
+    const batchResults = await generateBatchExplanations(batch, tasteContext, maxTokens)
     results.push(...batchResults)
   }
 
@@ -185,7 +207,8 @@ export async function generateExplanations(
 
 async function generateBatchExplanations(
   movies: MovieWithEvidence[],
-  tasteContext: UserTasteContext
+  tasteContext: UserTasteContext,
+  maxOutputTokens: number = 3000
 ): Promise<ExplanationResult[]> {
   // Build user context string
   const userContextLines = [
@@ -256,7 +279,7 @@ ${movieList}
 
 Generate personalized explanations referencing the specific similar movies shown for each recommendation.`,
       temperature: 0.7,
-      maxOutputTokens: 3000,
+      maxOutputTokens,
     })
 
     const content = text
