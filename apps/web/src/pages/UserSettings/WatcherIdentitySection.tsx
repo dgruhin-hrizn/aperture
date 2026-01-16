@@ -852,7 +852,10 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                   maxHeight: 280, 
                   overflowY: 'auto', 
                   flex: 1,
-                  pr: 1,
+                  p: 1.5,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 1,
                   '&::-webkit-scrollbar': { width: 6 },
                   '&::-webkit-scrollbar-thumb': { 
                     bgcolor: 'divider', 
