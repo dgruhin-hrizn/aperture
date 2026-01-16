@@ -58,10 +58,12 @@ interface PopularSeries {
 }
 
 interface TopPicksConfig {
-  timeWindowDays: number
-  moviesCount?: number
-  seriesCount?: number
-  minUniqueViewers: number
+  moviesTimeWindowDays: number
+  seriesTimeWindowDays: number
+  moviesCount: number
+  seriesCount: number
+  moviesMinUniqueViewers: number
+  seriesMinUniqueViewers: number
   lastRefreshedAt: string | null
 }
 
@@ -489,7 +491,7 @@ export function TopPicksPage() {
           </Box>
           <Typography variant="body1" color="text.secondary">
             {config 
-              ? `Ranked by popularity based on watch activity from all users over the last ${config.timeWindowDays} days`
+              ? `Ranked by popularity based on watch activity from all users over the last ${tabIndex === 0 ? config.moviesTimeWindowDays : config.seriesTimeWindowDays} days`
               : 'Ranked by popularity based on watch activity from all users'
             }
           </Typography>
