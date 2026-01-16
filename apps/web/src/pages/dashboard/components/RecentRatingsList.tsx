@@ -20,17 +20,13 @@ interface RecentRatingsListProps {
   loading?: boolean
 }
 
-function formatRelativeTime(date: Date): string {
-  const now = new Date()
-  const diff = now.getTime() - new Date(date).getTime()
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(minutes / 60)
-  const days = Math.floor(hours / 24)
-
-  if (days > 0) return `${days}d ago`
-  if (hours > 0) return `${hours}h ago`
-  if (minutes > 0) return `${minutes}m ago`
-  return 'Just now'
+function formatRatedDate(date: Date): string {
+  const d = new Date(date)
+  return d.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
 }
 
 function HeartDisplay({ rating }: { rating: number }) {
@@ -184,7 +180,7 @@ export function RecentRatingsList({ ratings, loading }: RecentRatingsListProps) 
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 0.5 }}>
                 <HeartDisplay rating={item.rating} />
                 <Typography variant="caption" color="text.secondary">
-                  {formatRelativeTime(item.ratedAt)}
+                  Rated on {formatRatedDate(item.ratedAt)}
                 </Typography>
               </Box>
             </Box>
