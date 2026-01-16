@@ -292,16 +292,130 @@ export function ExplorePage() {
     (semanticSearch.query ? `"${semanticSearch.query}"` : 'Select a source')
 
   return (
-    <Box sx={{ display: 'flex', height: 'calc(100vh - 64px)' }}>
-      {/* Left Sidebar - Improved UX */}
+    <Box sx={{ display: 'flex', height: 'calc(100vh - 64px)', m: 0, p: 0 }}>
+      {/* Main Graph Area - Now on the left */}
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* Breadcrumb Navigation */}
+        {(navigationHistory.length > 0 || semanticSearch.query) && (
+          <Box
+            sx={{
+              px: 2,
+              py: 1,
+              borderBottom: 1,
+              borderColor: 'divider',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              bgcolor: 'rgba(139, 92, 246, 0.03)',
+            }}
+          >
+            <Tooltip title="Start over">
+              <IconButton size="small" onClick={handleStartOver} sx={{ color: 'primary.main' }}>
+                <HomeIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Breadcrumbs
+              separator={<NavigateNextIcon fontSize="small" />}
+              sx={{
+                '& .MuiBreadcrumbs-separator': { mx: 0.5 },
+                '& .MuiBreadcrumbs-li': { fontSize: '0.875rem' },
+              }}
+            >
+              {semanticSearch.query && (
+                <Typography variant="body2" color="text.secondary">
+                  Search: "{semanticSearch.query}"
+                </Typography>
+              )}
+              {navigationHistory.map((item, index) => (
+                <Link
+                  key={`${item.id}-${index}`}
+                  component="button"
+                  variant="body2"
+                  onClick={() => handleHistoryBack(index)}
+                  sx={{
+                    cursor: 'pointer',
+                    color: 'text.secondary',
+                    '&:hover': { color: 'primary.main' },
+                  }}
+                >
+                  {item.title}
+                </Link>
+              ))}
+              <Typography variant="body2" color="text.primary" fontWeight={500}>
+                {currentTitle}
+              </Typography>
+            </Breadcrumbs>
+          </Box>
+        )}
+
+        {/* Graph */}
+        <Box sx={{ flex: 1, position: 'relative' }}>
+          {!displayData && !loading ? (
+            <Box
+              sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 2,
+                color: 'text.secondary',
+              }}
+            >
+              <SearchIcon sx={{ fontSize: 64, opacity: 0.3 }} />
+              <Typography variant="h6">Discover Your Library</Typography>
+              <Typography variant="body2" textAlign="center" maxWidth={400}>
+                Search for content using natural language or select a browse category from the panel on the right.
+              </Typography>
+            </Box>
+          ) : (
+            <SimilarityGraph
+              data={displayData}
+              loading={loading}
+              loadingStatus={loadingStatus || undefined}
+              onNodeClick={handleNodeClick}
+              onNodeDoubleClick={handleNodeDoubleClick}
+            />
+          )}
+        </Box>
+
+        {/* Bottom Bar - Instructions */}
+        <Paper
+          sx={{
+            px: 2,
+            py: 1,
+            borderRadius: 0,
+            borderTop: 1,
+            borderColor: 'divider',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 3,
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            <strong>Click</strong> to explore connections
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            <strong>Double-click</strong> to view details
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            <strong>Drag</strong> to reposition
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            <strong>Scroll</strong> to zoom
+          </Typography>
+        </Paper>
+      </Box>
+
+      {/* Right Sidebar - Controls */}
       <Paper
         sx={{
-          width: 280,
+          width: 300,
           flexShrink: 0,
           display: 'flex',
           flexDirection: 'column',
           borderRadius: 0,
-          borderRight: 1,
+          borderLeft: 1,
           borderColor: 'divider',
           bgcolor: 'background.paper',
         }}
@@ -337,8 +451,33 @@ export function ExplorePage() {
                 '&:hover': { bgcolor: 'background.paper' },
               },
             }}
-            helperText="Try: 'Psychological thrillers', 'Family animation'"
           />
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, lineHeight: 1.4 }}>
+            Use natural language to find content by mood, theme, or description. Examples:
+          </Typography>
+          <Box sx={{ mt: 0.5, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            <Chip 
+              label="Psychological thrillers" 
+              size="small" 
+              variant="outlined"
+              onClick={() => { setSearchQuery('Psychological thrillers'); handleSemanticSearch('Psychological thrillers'); }}
+              sx={{ fontSize: '0.65rem', height: 22, cursor: 'pointer' }}
+            />
+            <Chip 
+              label="Feel-good comedies" 
+              size="small" 
+              variant="outlined"
+              onClick={() => { setSearchQuery('Feel-good comedies'); handleSemanticSearch('Feel-good comedies'); }}
+              sx={{ fontSize: '0.65rem', height: 22, cursor: 'pointer' }}
+            />
+            <Chip 
+              label="Mind-bending sci-fi" 
+              size="small" 
+              variant="outlined"
+              onClick={() => { setSearchQuery('Mind-bending sci-fi'); handleSemanticSearch('Mind-bending sci-fi'); }}
+              sx={{ fontSize: '0.65rem', height: 22, cursor: 'pointer' }}
+            />
+          </Box>
         </Box>
 
         {/* Quick Filters */}
@@ -524,121 +663,6 @@ export function ExplorePage() {
           </Tooltip>
         </Box>
       </Paper>
-
-      {/* Main Graph Area */}
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {/* Breadcrumb Navigation */}
-        {(navigationHistory.length > 0 || semanticSearch.query) && (
-          <Box
-            sx={{
-              px: 2,
-              py: 1,
-              borderBottom: 1,
-              borderColor: 'divider',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              bgcolor: 'rgba(139, 92, 246, 0.03)',
-            }}
-          >
-            <Tooltip title="Start over">
-              <IconButton size="small" onClick={handleStartOver} sx={{ color: 'primary.main' }}>
-                <HomeIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <Breadcrumbs
-              separator={<NavigateNextIcon fontSize="small" />}
-              sx={{
-                '& .MuiBreadcrumbs-separator': { mx: 0.5 },
-                '& .MuiBreadcrumbs-li': { fontSize: '0.875rem' },
-              }}
-            >
-              {semanticSearch.query && (
-                <Typography variant="body2" color="text.secondary">
-                  Search: "{semanticSearch.query}"
-                </Typography>
-              )}
-              {navigationHistory.map((item, index) => (
-                <Link
-                  key={`${item.id}-${index}`}
-                  component="button"
-                  variant="body2"
-                  onClick={() => handleHistoryBack(index)}
-                  sx={{
-                    cursor: 'pointer',
-                    color: 'text.secondary',
-                    '&:hover': { color: 'primary.main' },
-                  }}
-                >
-                  {item.title}
-                </Link>
-              ))}
-              <Typography variant="body2" color="text.primary" fontWeight={500}>
-                {currentTitle}
-              </Typography>
-            </Breadcrumbs>
-          </Box>
-        )}
-
-        {/* Graph */}
-        <Box sx={{ flex: 1, position: 'relative' }}>
-          {!displayData && !loading ? (
-            <Box
-              sx={{
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 2,
-                color: 'text.secondary',
-              }}
-            >
-              <SearchIcon sx={{ fontSize: 64, opacity: 0.3 }} />
-              <Typography variant="h6">Discover Your Library</Typography>
-              <Typography variant="body2" textAlign="center" maxWidth={400}>
-                Search for content like "psychological thrillers" or select a browse category to
-                explore connections in your library.
-              </Typography>
-            </Box>
-          ) : (
-            <SimilarityGraph
-              data={displayData}
-              loading={loading}
-              loadingStatus={loadingStatus || undefined}
-              onNodeClick={handleNodeClick}
-              onNodeDoubleClick={handleNodeDoubleClick}
-            />
-          )}
-        </Box>
-
-        {/* Bottom Bar - Instructions */}
-        <Paper
-          sx={{
-            px: 2,
-            py: 1,
-            borderRadius: 0,
-            borderTop: 1,
-            borderColor: 'divider',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 3,
-          }}
-        >
-          <Typography variant="caption" color="text.secondary">
-            <strong>Click</strong> to explore connections
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            <strong>Double-click</strong> to view details
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            <strong>Drag</strong> to reposition
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            <strong>Scroll</strong> to zoom
-          </Typography>
-        </Paper>
-      </Box>
     </Box>
   )
 }
