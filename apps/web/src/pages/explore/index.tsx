@@ -402,9 +402,6 @@ export function ExplorePage() {
     return 'Explore'
   }
 
-  // Determine if we should show initial state
-  const showInitialState = !displayData && !loading
-
   return (
     <Box 
       sx={{ 
@@ -415,51 +412,30 @@ export function ExplorePage() {
         width: { xs: 'calc(100% + 32px)', sm: 'calc(100% + 48px)' },
       }}
     >
-      {/* Main Graph Area - Uses GraphExplorer */}
+      {/* Main Graph Area - Always uses GraphExplorer */}
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {showInitialState ? (
-          // Initial empty state
-          <Box
-            sx={{
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 2,
-              color: 'text.secondary',
-            }}
-          >
-            <SearchIcon sx={{ fontSize: 64, opacity: 0.3 }} />
-            <Typography variant="h6">Discover Your Library</Typography>
-            <Typography variant="body2" textAlign="center" maxWidth={400}>
-              Search for content using natural language or select a browse category from the panel on the right.
-            </Typography>
-          </Box>
-        ) : (
-          <GraphExplorer
-            data={displayData}
-            loading={loading}
-            loadingStatus={loadingStatus}
-            title={getTitle()}
-            history={history}
-            onHistoryNavigate={handleHistoryNavigate}
-            onStartOver={handleStartOver}
-            onNodeClick={handleNodeClick}
-            onNodeDoubleClick={handleNodeDoubleClick}
-            onNodeDetailsClick={handleNodeDoubleClick}
-            showSearch
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            onSearch={handleSemanticSearch}
-            searchPlaceholder="Search by mood, theme, or description..."
-            searchLoading={semanticSearch.loading}
-            searchExamples={SEARCH_EXAMPLES}
-            showCreatePlaylist
-            showRefresh={!!selectedBrowseSource}
-            onRefresh={refetch}
-          />
-        )}
+        <GraphExplorer
+          data={displayData}
+          loading={loading}
+          loadingStatus={loadingStatus}
+          title={getTitle()}
+          history={history}
+          onHistoryNavigate={handleHistoryNavigate}
+          onStartOver={handleStartOver}
+          onNodeClick={handleNodeClick}
+          onNodeDoubleClick={handleNodeDoubleClick}
+          onNodeDetailsClick={handleNodeDoubleClick}
+          showSearch
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearch={handleSemanticSearch}
+          searchPlaceholder="Search by mood, theme, or description..."
+          searchLoading={semanticSearch.loading}
+          searchExamples={SEARCH_EXAMPLES}
+          showCreatePlaylist
+          showRefresh={!!selectedBrowseSource}
+          onRefresh={refetch}
+        />
       </Box>
 
       {/* Right Sidebar - Controls */}
@@ -477,59 +453,6 @@ export function ExplorePage() {
           overflowY: 'auto',
         }}
       >
-        {/* Search Box - Only show in initial state */}
-        {showInitialState && (
-          <Box sx={{ p: 2, bgcolor: 'rgba(139, 92, 246, 0.05)' }}>
-            <TextField
-              fullWidth
-              size="small"
-              placeholder="Explore..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && searchQuery.trim()) {
-                  handleSemanticSearch(searchQuery)
-                }
-              }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" color="primary" />
-                  </InputAdornment>
-                ),
-                endAdornment: semanticSearch.loading ? (
-                  <CircularProgress size={16} />
-                ) : searchQuery ? (
-                  <IconButton size="small" onClick={() => setSearchQuery('')}>
-                    <ClearIcon fontSize="small" />
-                  </IconButton>
-                ) : null,
-                sx: {
-                  bgcolor: 'background.paper',
-                  '&:hover': { bgcolor: 'background.paper' },
-                },
-              }}
-            />
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, lineHeight: 1.4 }}>
-              Use natural language to find content by mood, theme, or description.
-            </Typography>
-            <Box sx={{ mt: 0.5, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-              {SEARCH_EXAMPLES.map((example) => (
-                <Chip 
-                  key={example}
-                  label={example}
-                  size="small" 
-                  variant="outlined"
-                  onClick={() => { setSearchQuery(example); handleSemanticSearch(example); }}
-                  sx={{ fontSize: '0.65rem', height: 22, cursor: 'pointer' }}
-                />
-              ))}
-            </Box>
-          </Box>
-        )}
-
-        {showInitialState && <Divider />}
-
         {/* Quick Filters */}
         <Box sx={{ px: 2, py: 1.5 }}>
           <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
