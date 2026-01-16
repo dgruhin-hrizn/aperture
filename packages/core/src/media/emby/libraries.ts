@@ -5,6 +5,7 @@
 import type { Library, LibraryCreateResult } from '../types.js'
 import type { EmbyLibrary, EmbyLibraryResponse, EmbyUser } from './types.js'
 import type { EmbyProviderBase } from './base.js'
+import { logger } from './base.js'
 
 export async function getLibraries(
   provider: EmbyProviderBase,
@@ -77,8 +78,11 @@ export async function createVirtualLibrary(
     refreshLibrary: 'true',
   })
   
+  const endpoint = `/Library/VirtualFolders?${queryParams.toString()}`
+  logger.info({ endpoint, fullUrl: `${provider.baseUrl}${endpoint}` }, '🔥 DEBUG: Creating library')
+  
   await provider.fetch(
-    `/Library/VirtualFolders?${queryParams.toString()}`,
+    endpoint,
     apiKey,
     { method: 'POST' }
   )
