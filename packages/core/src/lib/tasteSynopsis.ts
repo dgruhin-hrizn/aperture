@@ -8,7 +8,7 @@
 import { query, queryOne } from './db.js'
 import { createChildLogger } from './logger.js'
 import { getTextGenerationModelInstance, isAIFunctionConfigured } from './ai-provider.js'
-import { generateText, streamText } from 'ai'
+import { streamText } from 'ai'
 import {
   getUserFranchisePreferences,
   getUserGenreWeights,
@@ -55,204 +55,6 @@ interface RecentMovie {
 }
 
 /**
- * Generate a taste synopsis for a user
- */
-export async function generateTasteSynopsis(userId: string): Promise<TasteSynopsis> {
-  logger.info({ userId }, 'Generating taste synopsis')
-
-  // Get user's excluded libraries to filter watch history
-  const excludedLibraryIds = await getUserExcludedLibraries(userId)
-  logger.debug({ userId, excludedLibraryIds }, 'Filtering taste synopsis by excluded libraries')
-
-  // Get watch history stats (filtered by excluded libraries)
-  const stats = await queryOne<WatchHistoryStats>(
-    `
-    SELECT 
-      COUNT(DISTINCT wh.movie_id) as total_watched,
-      AVG(m.community_rating) as avg_rating,
-      COUNT(CASE WHEN wh.is_favorite THEN 1 END) as favorite_count
-    FROM watch_history wh
-    JOIN movies m ON m.id = wh.movie_id
-    WHERE wh.user_id = $1
-      AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
-  `,
-    [userId, excludedLibraryIds]
-  )
-
-  if (!stats || stats.total_watched === 0) {
-    return {
-      synopsis:
-        "We're still getting to know you! Watch some movies and we'll build your taste profile.",
-      updatedAt: new Date(),
-      stats: {
-        totalWatched: 0,
-        topGenres: [],
-        avgRating: 0,
-        favoriteDecade: null,
-        recentFavorites: [],
-      },
-    }
-  }
-
-  // Get top genres (filtered by excluded libraries)
-  const genreResults = await query<GenreCount>(
-    `
-    SELECT unnest(m.genres) as genre, COUNT(*) as count
-    FROM watch_history wh
-    JOIN movies m ON m.id = wh.movie_id
-    WHERE wh.user_id = $1
-      AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
-    GROUP BY unnest(m.genres)
-    ORDER BY count DESC
-    LIMIT 5
-  `,
-    [userId, excludedLibraryIds]
-  )
-  const topGenres = genreResults.rows.map((r) => r.genre)
-
-  // Get favorite decade (filtered by excluded libraries)
-  const decadeResults = await query<DecadeCount>(
-    `
-    SELECT 
-      (FLOOR(m.year / 10) * 10)::TEXT || 's' as decade,
-      COUNT(*) as count
-    FROM watch_history wh
-    JOIN movies m ON m.id = wh.movie_id
-    WHERE wh.user_id = $1 AND m.year IS NOT NULL
-      AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
-    GROUP BY FLOOR(m.year / 10)
-    ORDER BY count DESC
-    LIMIT 1
-  `,
-    [userId, excludedLibraryIds]
-  )
-  const favoriteDecade = decadeResults.rows[0]?.decade || null
-
-  // Get top favorites - ordered by play count and favorite status (filtered by excluded libraries)
-  const topFavorites = await query<RecentMovie>(
-    `
-    SELECT m.title, m.year, m.genres, m.community_rating
-    FROM watch_history wh
-    JOIN movies m ON m.id = wh.movie_id
-    WHERE wh.user_id = $1 AND wh.is_favorite = true
-      AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
-    ORDER BY wh.play_count DESC, wh.last_played_at DESC NULLS LAST
-    LIMIT 10
-  `,
-    [userId, excludedLibraryIds]
-  )
-
-  // Get most rewatched movies (high engagement indicates strong preference, filtered by excluded libraries)
-  const mostRewatched = await query<RecentMovie & { play_count: number }>(
-    `
-    SELECT m.title, m.year, m.genres, m.community_rating, wh.play_count
-    FROM watch_history wh
-    JOIN movies m ON m.id = wh.movie_id
-    WHERE wh.user_id = $1 AND wh.play_count > 1
-      AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
-    ORDER BY wh.play_count DESC
-    LIMIT 10
-  `,
-    [userId, excludedLibraryIds]
-  )
-
-  // Get a diverse sample: mix of favorites, high play count, and some recent (filtered by excluded libraries)
-  // This ensures we capture the full breadth of taste
-  const diverseSample = await query<RecentMovie>(
-    `
-    WITH ranked AS (
-      SELECT m.title, m.year, m.genres, m.community_rating,
-             wh.is_favorite, wh.play_count, wh.last_played_at,
-             ROW_NUMBER() OVER (PARTITION BY m.genres[1] ORDER BY wh.play_count DESC) as genre_rank
-      FROM watch_history wh
-      JOIN movies m ON m.id = wh.movie_id
-      WHERE wh.user_id = $1
-        AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
-    )
-    SELECT title, year, genres, community_rating
-    FROM ranked
-    WHERE genre_rank <= 3
-    ORDER BY is_favorite DESC, play_count DESC
-    LIMIT 20
-  `,
-    [userId, excludedLibraryIds]
-  )
-
-  // Use embedding-powered taste analyzer for abstract profile
-  const tasteProfile = await analyzeMovieTaste(userId)
-  const abstractPrompt = formatTasteProfileForAI(tasteProfile, 'movie')
-  
-  logger.debug({ userId, diversity: tasteProfile.diversity }, 'Analyzed movie taste profile')
-
-  // Generate synopsis with AI provider
-  let synopsis: string
-
-  // Check if text generation is configured
-  const isConfigured = await isAIFunctionConfigured('textGeneration')
-  if (!isConfigured) {
-    logger.warn({ userId }, 'Text generation not configured, using fallback synopsis')
-    synopsis = buildFallbackSynopsis({
-      totalWatched: Number(stats.total_watched),
-      topGenres,
-      favoriteDecade,
-    })
-  } else {
-    try {
-      const model = await getTextGenerationModelInstance()
-      const { text } = await generateText({
-        model,
-        system: `Write a viewer personality profile. Use ONLY genre names and abstract themes - no specific titles.
-
-Write 2-3 flowing paragraphs, then end with 3-4 **bolded key traits** as bullet points.
-
-Use markdown: **bold** for emphasis on important characteristics, bullet points for traits.
-Write in second person ("You gravitate toward..."). Be insightful and personal.`,
-        prompt: abstractPrompt,
-        temperature: 0.4,
-        maxOutputTokens: 400,
-      })
-
-      synopsis = text || 'Unable to generate synopsis.'
-    } catch (error) {
-      logger.error({ error, userId }, 'Failed to generate synopsis')
-      synopsis = buildFallbackSynopsis({
-        totalWatched: Number(stats.total_watched),
-        topGenres,
-        favoriteDecade,
-      })
-    }
-  }
-
-  // Store the synopsis
-  const now = new Date()
-  await query(
-    `
-    INSERT INTO user_preferences (user_id, taste_synopsis, taste_synopsis_updated_at)
-    VALUES ($1, $2, $3)
-    ON CONFLICT (user_id) DO UPDATE SET
-      taste_synopsis = $2,
-      taste_synopsis_updated_at = $3,
-      updated_at = NOW()
-  `,
-    [userId, synopsis, now]
-  )
-
-  logger.info({ userId, synopsisLength: synopsis.length }, 'Taste synopsis generated')
-
-  return {
-    synopsis,
-    updatedAt: now,
-    stats: {
-      totalWatched: Number(stats.total_watched),
-      topGenres,
-      avgRating: Number(stats.avg_rating || 0),
-      favoriteDecade,
-      recentFavorites: topFavorites.rows.map((m) => m.title),
-    },
-  }
-}
-
-/**
  * Stream generate a taste synopsis for a user
  * Returns an async generator that yields text chunks
  */
@@ -263,7 +65,10 @@ export async function* streamTasteSynopsis(
 
   // Get user's excluded libraries to filter watch history
   const excludedLibraryIds = await getUserExcludedLibraries(userId)
-  logger.debug({ userId, excludedLibraryIds }, 'Filtering streaming taste synopsis by excluded libraries')
+  logger.debug(
+    { userId, excludedLibraryIds },
+    'Filtering streaming taste synopsis by excluded libraries'
+  )
 
   // Get watch history stats (filtered by excluded libraries)
   const stats = await queryOne<WatchHistoryStats>(
@@ -294,13 +99,23 @@ export async function* streamTasteSynopsis(
   // Use embedding-powered taste analyzer for abstract profile
   const tasteProfile = await analyzeMovieTaste(userId)
   const abstractPrompt = formatTasteProfileForAI(tasteProfile, 'movie')
-  
-  const topGenres = tasteProfile.genres.map(g => g.genre)
+
+  const topGenres = tasteProfile.genres.map((g) => g.genre)
   const favoriteDecade = tasteProfile.decades[0]?.decade || null
-  
+
   // Log the prompt being sent to verify no movie titles are included
-  logger.info({ userId, diversity: tasteProfile.diversity.description }, 'Streaming: Using embedding-powered taste analyzer')
-  logger.debug({ userId, promptLength: abstractPrompt.length, promptPreview: abstractPrompt.substring(0, 500) }, 'Taste analyzer prompt (no movie titles)')
+  logger.info(
+    { userId, diversity: tasteProfile.diversity.description },
+    'Streaming: Using embedding-powered taste analyzer'
+  )
+  logger.debug(
+    {
+      userId,
+      promptLength: abstractPrompt.length,
+      promptPreview: abstractPrompt.substring(0, 500),
+    },
+    'Taste analyzer prompt (no movie titles)'
+  )
 
   // Check if text generation is configured
   const isConfigured = await isAIFunctionConfigured('textGeneration')
@@ -416,8 +231,27 @@ export async function getTasteSynopsis(userId: string, maxAgeHours = 24): Promis
     }
   }
 
-  // Generate new synopsis
-  return generateTasteSynopsis(userId)
+  // Generate new synopsis using streaming (consume and collect)
+  const generator = streamTasteSynopsis(userId)
+  let synopsis = ''
+  
+  // Consume all chunks
+  let result = await generator.next()
+  while (!result.done) {
+    if (typeof result.value === 'string') {
+      synopsis += result.value
+    }
+    result = await generator.next()
+  }
+  
+  // result.value now contains the final return value (stats)
+  const stats = result.value
+  
+  return {
+    synopsis,
+    updatedAt: new Date(),
+    stats: stats || await getQuickStats(userId),
+  }
 }
 
 /**

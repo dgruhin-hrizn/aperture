@@ -247,7 +247,6 @@ export {
 
 // Taste Synopsis
 export {
-  generateTasteSynopsis,
   streamTasteSynopsis,
   getTasteSynopsis,
   type TasteSynopsis,
@@ -255,7 +254,6 @@ export {
 
 // Series Taste Synopsis
 export {
-  generateSeriesTasteSynopsis,
   streamSeriesTasteSynopsis,
   getSeriesTasteSynopsis,
   type SeriesTasteSynopsis,
