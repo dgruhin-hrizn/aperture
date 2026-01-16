@@ -82,13 +82,11 @@ export async function createVirtualLibrary(
   logger.info({ url }, '🔥 DEBUG: Creating library via curl')
   
   try {
-    const { stdout, stderr } = await execAsync(`curl -s -X POST "${url}"`)
-    if (stderr) {
-      logger.warn({ stderr }, 'curl stderr')
-    }
-    if (stdout) {
-      logger.info({ stdout }, 'curl response')
-    }
+    // Use -v for verbose output to debug what's actually being sent
+    const curlCmd = `curl -v -X POST "${url}" 2>&1`
+    logger.info({ curlCmd }, '🔥 DEBUG: Executing curl command')
+    const { stdout, stderr } = await execAsync(curlCmd)
+    logger.info({ stdout, stderr }, '🔥 DEBUG: curl full output')
   } catch (err) {
     logger.error({ err }, 'curl failed')
     throw new Error(`Failed to create library via curl: ${err}`)
