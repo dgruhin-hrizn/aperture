@@ -88,13 +88,8 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
   },
   {
     name: 'sync-movie-watch-history',
-    description: 'Sync movie watch history for all users (delta - only new plays)',
+    description: 'Sync watched movies from media server for all users',
     cron: process.env.SYNC_CRON || '0 3 * * *',
-  },
-  {
-    name: 'full-sync-movie-watch-history',
-    description: 'Full resync of movie watch history for all users',
-    cron: null,
   },
   {
     name: 'generate-movie-recommendations',
@@ -124,13 +119,8 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
   },
   {
     name: 'sync-series-watch-history',
-    description: 'Sync TV series watch history for all users (delta - only new plays)',
+    description: 'Sync watched episodes from media server for all users',
     cron: process.env.SYNC_CRON || '0 3 * * *',
-  },
-  {
-    name: 'full-sync-series-watch-history',
-    description: 'Full resync of TV series watch history for all users',
-    cron: null,
   },
   {
     name: 'generate-series-recommendations',
@@ -821,20 +811,6 @@ async function runJob(name: string, jobId: string): Promise<void> {
         break
       }
       case 'sync-movie-watch-history': {
-        const result = await syncWatchHistoryForAllUsers(jobId, false) // Delta sync
-        logger.info(
-          {
-            job: name,
-            jobId,
-            success: result.success,
-            failed: result.failed,
-            totalItems: result.totalItems,
-          },
-          `✅ Movie watch history sync complete (delta)`
-        )
-        break
-      }
-      case 'full-sync-movie-watch-history': {
         const result = await syncWatchHistoryForAllUsers(jobId, true) // Full sync
         logger.info(
           {
@@ -844,7 +820,7 @@ async function runJob(name: string, jobId: string): Promise<void> {
             failed: result.failed,
             totalItems: result.totalItems,
           },
-          `✅ Movie watch history sync complete (full resync)`
+          `✅ Movie watch history sync complete`
         )
         break
       }
@@ -919,20 +895,6 @@ async function runJob(name: string, jobId: string): Promise<void> {
         break
       }
       case 'sync-series-watch-history': {
-        const result = await syncSeriesWatchHistoryForAllUsers(jobId, false) // Delta sync
-        logger.info(
-          {
-            job: name,
-            jobId,
-            success: result.success,
-            failed: result.failed,
-            totalItems: result.totalItems,
-          },
-          `✅ Series watch history sync complete (delta)`
-        )
-        break
-      }
-      case 'full-sync-series-watch-history': {
         const result = await syncSeriesWatchHistoryForAllUsers(jobId, true) // Full sync
         logger.info(
           {
@@ -942,7 +904,7 @@ async function runJob(name: string, jobId: string): Promise<void> {
             failed: result.failed,
             totalItems: result.totalItems,
           },
-          `✅ Series watch history sync complete (full resync)`
+          `✅ Series watch history sync complete`
         )
         break
       }

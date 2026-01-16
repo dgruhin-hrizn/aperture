@@ -72,8 +72,6 @@ const ENV_DEFAULTS: Record<
   'refresh-ai-pricing': { scheduleType: 'weekly', hour: 0, minute: 0, dayOfWeek: 0 },
 
   // === MANUAL ONLY ===
-  'full-sync-movie-watch-history': { scheduleType: 'manual', hour: 0, minute: 0 },
-  'full-sync-series-watch-history': { scheduleType: 'manual', hour: 0, minute: 0 },
   'rebuild-movie-recommendations': { scheduleType: 'manual', hour: 0, minute: 0 },
 }
 
