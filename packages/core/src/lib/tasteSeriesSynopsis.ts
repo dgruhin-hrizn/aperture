@@ -254,7 +254,10 @@ Don't be generic - make observations that feel personal and perceptive.
 Note their viewing habits: do they complete series or sample many? Do they prefer certain networks or eras?
 If they have eclectic taste, celebrate that. If they have focused preferences, dive deep into what that reveals.
 
-IMPORTANT: Write naturally without mentioning any numerical scores, weights, or ratings. Never say things like "score of 0.8" or "weight 1.63". Just describe their preferences in conversational language.`,
+IMPORTANT RULES:
+- Write naturally without mentioning any numerical scores, weights, or ratings. Never say things like "score of 0.8" or "weight 1.63".
+- Do NOT make TV show recommendations. This is a profile of their taste, not a recommendation list.
+- Only reference shows they have actually watched, never suggest new ones to watch.`,
         prompt,
         temperature: 0.8,
         maxOutputTokens: 300,
@@ -510,7 +513,10 @@ Don't be generic - make observations that feel personal and perceptive.
 Note their viewing habits: do they complete series or sample many? Do they prefer certain networks or eras?
 If they have eclectic taste, celebrate that. If they have focused preferences, dive deep into what that reveals.
 
-IMPORTANT: Write naturally without mentioning any numerical scores, weights, or ratings. Never say things like "score of 0.8" or "weight 1.63". Just describe their preferences in conversational language.`,
+IMPORTANT RULES:
+- Write naturally without mentioning any numerical scores, weights, or ratings. Never say things like "score of 0.8" or "weight 1.63".
+- Do NOT make TV show recommendations. This is a profile of their taste, not a recommendation list.
+- Only reference shows they have actually watched, never suggest new ones to watch.`,
       prompt,
       temperature: 0.8,
       maxOutputTokens: 300,
