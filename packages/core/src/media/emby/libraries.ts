@@ -215,3 +215,44 @@ export async function refreshLibrary(
   await provider.fetch(`/Items/${libraryId}/Refresh`, apiKey, { method: 'POST' })
 }
 
+/**
+ * Set the default sort order for a library for a specific user
+ * This sets the DisplayPreferences so when the user first visits the library,
+ * it will be sorted by the specified field.
+ * Note: Emby Web caches sort preferences in localStorage after first visit,
+ * so this only affects the initial view.
+ */
+export async function setLibrarySortPreference(
+  provider: EmbyProviderBase,
+  apiKey: string,
+  userId: string,
+  libraryId: string,
+  sortBy: string = 'DateCreated',
+  sortOrder: 'Ascending' | 'Descending' = 'Descending'
+): Promise<void> {
+  try {
+    // Get the library item to find its DisplayPreferencesId
+    const item = await provider.fetch<{ DisplayPreferencesId?: string }>(
+      `/Users/${userId}/Items/${libraryId}`,
+      apiKey
+    )
+
+    const displayPrefsId = item.DisplayPreferencesId || libraryId
+
+    // Set display preferences for Emby Web client
+    await provider.fetch(`/DisplayPreferences/${displayPrefsId}?UserId=${userId}`, apiKey, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        Id: displayPrefsId,
+        SortBy: sortBy,
+        SortOrder: sortOrder,
+        Client: 'Emby Web',
+        CustomPrefs: {},
+      }),
+    })
+  } catch {
+    // Non-fatal: library will still work, just won't have custom sort default
+  }
+}
+

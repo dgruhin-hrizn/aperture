@@ -146,7 +146,7 @@ export async function getGenres(provider: EmbyProviderBase, apiKey: string): Pro
  * Emby requires posting the full item object back when updating metadata
  * 
  * Note: GET requires user context (/Users/{userId}/Items/{id})
- *       POST works with just /Items/{id}
+ *       POST uses /Items/{ItemId} with the item's Id from the response
  */
 export async function updatePlaylistOverview(
   provider: EmbyProviderBase,
@@ -164,19 +164,22 @@ export async function updatePlaylistOverview(
       `/Users/${userId}/Items/${playlistId}`,
       apiKey
     )
-    logger.debug({ itemName: item.Name, hasItem: !!item }, 'Fetched playlist item')
+    
+    // Use the item's actual Id for the POST (may differ from playlistId)
+    const itemId = (item.Id as string) || playlistId
+    logger.debug({ itemName: item.Name, itemId, playlistId }, 'Fetched playlist item')
 
     // Update the overview
     item.Overview = overview
 
-    // POST the full item back (doesn't need user context)
-    logger.debug({ endpoint: `/Items/${playlistId}` }, 'Posting updated item')
-    await provider.fetch(`/Items/${playlistId}`, apiKey, {
+    // POST the full item back using the item's Id
+    logger.debug({ endpoint: `/Items/${itemId}` }, 'Posting updated item')
+    await provider.fetch(`/Items/${itemId}`, apiKey, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(item),
     })
-    logger.info({ playlistId }, 'Successfully updated playlist overview')
+    logger.info({ playlistId, itemId }, 'Successfully updated playlist overview')
   } catch (err) {
     // Log the full error for debugging
     logger.error({ err, userId, playlistId }, 'Failed to set overview for playlist')

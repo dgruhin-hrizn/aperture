@@ -53,8 +53,15 @@ export async function grantTopPicksAccessToAllUsers(
       
       // If user has access to all folders, no need to update
       if (currentAccess.enableAllFolders) {
-        logger.debug({ userId: user.id, username: user.name }, 'User has access to all folders, skipping')
+        logger.debug({ userId: user.id, username: user.name }, 'User has access to all folders, skipping permission update')
         hasAllFolders++
+        // Still set sort preferences for users with all folder access
+        if (moviesLibrary?.id) {
+          await provider.setLibrarySortPreference(apiKey, user.id, moviesLibrary.id)
+        }
+        if (seriesLibrary?.id) {
+          await provider.setLibrarySortPreference(apiKey, user.id, seriesLibrary.id)
+        }
         continue
       }
 
@@ -83,6 +90,14 @@ export async function grantTopPicksAccessToAllUsers(
         updated++
       } else {
         alreadyHadAccess++
+      }
+
+      // Set sort preferences for Top Picks libraries (DateCreated descending)
+      if (moviesLibrary?.id) {
+        await provider.setLibrarySortPreference(apiKey, user.id, moviesLibrary.id)
+      }
+      if (seriesLibrary?.id) {
+        await provider.setLibrarySortPreference(apiKey, user.id, seriesLibrary.id)
       }
     } catch (err) {
       logger.error({ err, userId: user.id, username: user.name }, 'Failed to update library access')

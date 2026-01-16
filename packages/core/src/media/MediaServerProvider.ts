@@ -104,6 +104,18 @@ export interface MediaServerProvider {
    */
   refreshLibrary(apiKey: string, libraryId: string): Promise<void>
 
+  /**
+   * Set the default sort order for a library for a specific user
+   * This affects the initial view when the user first visits the library
+   */
+  setLibrarySortPreference(
+    apiKey: string,
+    userId: string,
+    libraryId: string,
+    sortBy?: string,
+    sortOrder?: 'Ascending' | 'Descending'
+  ): Promise<void>
+
   // =========================================================================
   // Items (Movies)
   // =========================================================================
