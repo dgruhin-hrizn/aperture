@@ -28,7 +28,6 @@ import {
   getJobProgress,
   getAllJobProgress,
   subscribeToJob,
-  subscribeToAllJobs,
   cancelJob,
   failJob,
   purgeMovieDatabase,
