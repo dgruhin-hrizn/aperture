@@ -18,7 +18,7 @@ import { randomUUID } from 'crypto'
 
 // Import from modular files
 import { loadConfig } from '../config.js'
-import { getWatchHistory, buildTasteProfile, storeTasteProfile, getUserMovieRatings, getDislikedMovieIds } from './taste.js'
+import { getWatchHistory, buildTasteProfile as buildLegacyTasteProfile, storeTasteProfile as storeLegacyTasteProfile, getUserMovieRatings, getDislikedMovieIds } from './taste.js'
 import { getCandidates } from './candidates.js'
 import { scoreCandidates } from './scoring.js'
 import { applyDiversityAndSelect } from './selection.js'
@@ -33,12 +33,24 @@ import {
 } from '../storage.js'
 import { syncWatchHistoryForUser } from './sync.js'
 
+// New taste profile system
+import {
+  getUserTasteProfile,
+  storeTasteProfile as storeNewTasteProfile,
+  getFranchiseBoost,
+  getGenreBoost,
+  detectAndUpdateFranchises,
+} from '../../taste-profile/index.js'
+import { getItemFranchise } from '../../taste-profile/franchise.js'
+
 // Re-export types
 export * from '../types.js'
 
 // Re-export functions for backwards compatibility
 export { loadConfig } from '../config.js'
-export { getWatchHistory, buildTasteProfile, storeTasteProfile, getUserMovieRatings, getDislikedMovieIds } from './taste.js'
+export { getWatchHistory, buildTasteProfile as buildLegacyTasteProfile, storeTasteProfile as storeLegacyTasteProfile, getUserMovieRatings, getDislikedMovieIds } from './taste.js'
+// Also export as original names for backwards compatibility
+export { buildTasteProfile, storeTasteProfile } from './taste.js'
 export { getCandidates } from './candidates.js'
 export { scoreCandidates } from './scoring.js'
 export { applyDiversityAndSelect } from './selection.js'
@@ -118,9 +130,28 @@ export async function generateRecommendationsForUser(
       return { runId, recommendations: [] }
     }
 
-    // 2. Build taste profile (weighted average of watched movie embeddings)
-    logger.info({ userId: user.id }, '🧠 Building taste profile from watch history...')
-    const tasteProfile = await buildTasteProfile(watched, userRatings.size > 0 ? userRatings : undefined)
+    // 2. Get or build taste profile using the new persistent system
+    logger.info({ userId: user.id }, '🧠 Getting taste profile...')
+    
+    // Try to get stored profile first (will rebuild if stale)
+    let storedProfile = await getUserTasteProfile(user.id, 'movie')
+    let tasteProfile: number[] | null = storedProfile?.embedding || null
+    
+    // If no stored profile or missing embedding, build using legacy method as fallback
+    if (!tasteProfile) {
+      logger.info({ userId: user.id }, '📊 No stored profile, building from watch history...')
+      tasteProfile = await buildLegacyTasteProfile(watched, userRatings.size > 0 ? userRatings : undefined)
+      
+      if (tasteProfile) {
+        // Store in new system
+        await storeNewTasteProfile(user.id, 'movie', tasteProfile)
+        // Also detect franchises
+        await detectAndUpdateFranchises(user.id, 'movie')
+        logger.info({ userId: user.id }, '💾 Stored new taste profile and detected franchises')
+      }
+    } else {
+      logger.info({ userId: user.id }, '✅ Using stored taste profile')
+    }
 
     if (!tasteProfile) {
       logger.warn(
@@ -131,11 +162,9 @@ export async function generateRecommendationsForUser(
       return { runId, recommendations: [] }
     }
 
-    logger.info({ userId: user.id }, '✅ Taste profile built successfully')
-
-    // Store taste profile
-    await storeTasteProfile(user.id, tasteProfile)
-    logger.info({ userId: user.id }, '💾 Stored taste profile')
+    // Also store in legacy location for backwards compatibility
+    await storeLegacyTasteProfile(user.id, tasteProfile)
+    logger.info({ userId: user.id }, '💾 Stored taste profile (legacy)')
 
     // 3. Get candidate movies (optionally including watched based on user preference)
     logger.info(
@@ -199,6 +228,43 @@ export async function generateRecommendationsForUser(
       'Using scoring weights'
     )
     const scoredCandidates = await scoreCandidates(candidates, watched, cfg)
+
+    // 4.5 Apply franchise and genre preference boosts
+    logger.info({ userId: user.id }, '🎯 Applying franchise and genre preference boosts...')
+    let franchiseBoostCount = 0
+    let genreBoostCount = 0
+    
+    for (const candidate of scoredCandidates) {
+      // Get franchise boost (1.0 = neutral, up to 1.5 for loved franchises)
+      const franchiseName = await getItemFranchise(candidate.id, 'movie')
+      const franchiseBoost = await getFranchiseBoost(user.id, franchiseName, 'movie')
+      
+      // Get genre boost (1.0 = neutral, 0.5-1.5 range)
+      const genreBoost = await getGenreBoost(user.id, candidate.genres || [])
+      
+      // Apply boosts to final score
+      const originalScore = candidate.finalScore
+      candidate.finalScore = originalScore * franchiseBoost * genreBoost
+      
+      if (franchiseBoost !== 1.0) {
+        franchiseBoostCount++
+        logger.debug(
+          { title: candidate.title, franchiseName, franchiseBoost: franchiseBoost.toFixed(2) },
+          'Applied franchise boost'
+        )
+      }
+      if (genreBoost !== 1.0) {
+        genreBoostCount++
+      }
+    }
+    
+    // Re-sort after applying boosts
+    scoredCandidates.sort((a, b) => b.finalScore - a.finalScore)
+    
+    logger.info(
+      { userId: user.id, franchiseBoostCount, genreBoostCount },
+      `Applied ${franchiseBoostCount} franchise boosts and ${genreBoostCount} genre boosts`
+    )
 
     // Log top candidates
     const top5 = scoredCandidates.slice(0, 5)

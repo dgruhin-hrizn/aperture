@@ -2838,6 +2838,354 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(500).send({ error: 'Failed to save studio logos configuration' })
     }
   })
+
+  // =========================================================================
+  // Taste Profile (User-specific)
+  // =========================================================================
+
+  /**
+   * GET /api/settings/taste-profile
+   * Get user's taste profile and preferences
+   */
+  fastify.get<{
+    Querystring: { mediaType?: 'movie' | 'series' }
+  }>('/api/settings/taste-profile', { preHandler: requireAuth }, async (request, reply) => {
+    try {
+      const userId = request.user!.id
+      const mediaType = (request.query.mediaType || 'movie') as 'movie' | 'series'
+
+      const { getUserTasteData, REFRESH_INTERVAL_OPTIONS } = await import('@aperture/core')
+      const tasteData = await getUserTasteData(userId, mediaType)
+
+      return reply.send({
+        profile: tasteData.profile
+          ? {
+              id: tasteData.profile.id,
+              mediaType: tasteData.profile.mediaType,
+              hasEmbedding: !!tasteData.profile.embedding,
+              embeddingModel: tasteData.profile.embeddingModel,
+              autoUpdatedAt: tasteData.profile.autoUpdatedAt,
+              userModifiedAt: tasteData.profile.userModifiedAt,
+              isLocked: tasteData.profile.isLocked,
+              refreshIntervalDays: tasteData.profile.refreshIntervalDays,
+              createdAt: tasteData.profile.createdAt,
+            }
+          : null,
+        franchises: tasteData.franchises.map((f) => ({
+          id: f.id,
+          franchiseName: f.franchiseName,
+          mediaType: f.mediaType,
+          preferenceScore: f.preferenceScore,
+          isUserSet: f.isUserSet,
+          itemsWatched: f.itemsWatched,
+          totalEngagement: f.totalEngagement,
+        })),
+        genres: tasteData.genres.map((g) => ({
+          id: g.id,
+          genre: g.genre,
+          weight: g.weight,
+          isUserSet: g.isUserSet,
+        })),
+        customInterests: tasteData.customInterests.map((i) => ({
+          id: i.id,
+          interestText: i.interestText,
+          hasEmbedding: !!i.embedding,
+          weight: i.weight,
+          createdAt: i.createdAt,
+        })),
+        refreshIntervalOptions: REFRESH_INTERVAL_OPTIONS,
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get taste profile')
+      return reply.status(500).send({ error: 'Failed to get taste profile' })
+    }
+  })
+
+  /**
+   * POST /api/settings/taste-profile/rebuild
+   * Force rebuild taste profile from watch history
+   * 
+   * @param mode - 'reset' to clear all and recalculate, 'merge' to only add new items
+   */
+  fastify.post<{
+    Body: { mediaType: 'movie' | 'series'; mode?: 'reset' | 'merge' }
+  }>('/api/settings/taste-profile/rebuild', { preHandler: requireAuth }, async (request, reply) => {
+    try {
+      const userId = request.user!.id
+      const { mediaType, mode = 'reset' } = request.body
+
+      if (!mediaType || !['movie', 'series'].includes(mediaType)) {
+        return reply.status(400).send({ error: 'mediaType must be "movie" or "series"' })
+      }
+
+      if (mode && !['reset', 'merge'].includes(mode)) {
+        return reply.status(400).send({ error: 'mode must be "reset" or "merge"' })
+      }
+
+      const { getUserTasteProfile, detectAndUpdateFranchises, detectAndUpdateGenres } = await import('@aperture/core')
+
+      // Force rebuild profile (embedding)
+      const profile = await getUserTasteProfile(userId, mediaType, {
+        forceRebuild: true,
+        skipLockCheck: true, // Allow rebuild even if locked (user explicitly requested)
+      })
+
+      // Update franchise and genre detection with mode
+      const franchiseResult = await detectAndUpdateFranchises(userId, mediaType, { mode })
+      const genreResult = await detectAndUpdateGenres(userId, mediaType, { mode })
+
+      return reply.send({
+        success: true,
+        profile: profile
+          ? {
+              id: profile.id,
+              mediaType: profile.mediaType,
+              hasEmbedding: !!profile.embedding,
+              autoUpdatedAt: profile.autoUpdatedAt,
+            }
+          : null,
+        franchisesUpdated: franchiseResult.updated,
+        genresUpdated: genreResult.updated,
+        newFranchises: franchiseResult.newItems,
+        newGenres: genreResult.newItems,
+        message: mode === 'merge' 
+          ? `Added ${franchiseResult.newItems.length} new franchises and ${genreResult.newItems.length} new genres`
+          : 'Taste profile rebuilt successfully',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to rebuild taste profile')
+      return reply.status(500).send({ error: 'Failed to rebuild taste profile' })
+    }
+  })
+
+  /**
+   * PATCH /api/settings/taste-profile
+   * Update profile settings (lock, refresh interval)
+   */
+  fastify.patch<{
+    Body: { mediaType: 'movie' | 'series'; isLocked?: boolean; refreshIntervalDays?: number }
+  }>('/api/settings/taste-profile', { preHandler: requireAuth }, async (request, reply) => {
+    try {
+      const userId = request.user!.id
+      const { mediaType, isLocked, refreshIntervalDays } = request.body
+
+      if (!mediaType || !['movie', 'series'].includes(mediaType)) {
+        return reply.status(400).send({ error: 'mediaType must be "movie" or "series"' })
+      }
+
+      // Validate refresh interval
+      const { REFRESH_INTERVAL_OPTIONS, updateProfileSettings } = await import('@aperture/core')
+      if (
+        refreshIntervalDays !== undefined &&
+        !REFRESH_INTERVAL_OPTIONS.includes(refreshIntervalDays as 7 | 14 | 30 | 60 | 90 | 180 | 365)
+      ) {
+        return reply.status(400).send({
+          error: `refreshIntervalDays must be one of: ${REFRESH_INTERVAL_OPTIONS.join(', ')}`,
+        })
+      }
+
+      await updateProfileSettings(userId, mediaType, {
+        isLocked,
+        refreshIntervalDays,
+      })
+
+      return reply.send({
+        success: true,
+        message: 'Profile settings updated',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to update profile settings')
+      return reply.status(500).send({ error: 'Failed to update profile settings' })
+    }
+  })
+
+  /**
+   * PUT /api/settings/taste-profile/franchises
+   * Update franchise preferences
+   */
+  fastify.put<{
+    Body: {
+      franchises: Array<{
+        franchiseName: string
+        mediaType: 'movie' | 'series' | 'both'
+        preferenceScore: number
+      }>
+    }
+  }>('/api/settings/taste-profile/franchises', { preHandler: requireAuth }, async (request, reply) => {
+    try {
+      const userId = request.user!.id
+      const { franchises } = request.body
+
+      if (!Array.isArray(franchises)) {
+        return reply.status(400).send({ error: 'franchises must be an array' })
+      }
+
+      const { setFranchisePreference } = await import('@aperture/core')
+
+      for (const franchise of franchises) {
+        if (
+          !franchise.franchiseName ||
+          !franchise.mediaType ||
+          franchise.preferenceScore === undefined
+        ) {
+          continue
+        }
+
+        // Validate preferenceScore is -1 to 1
+        if (franchise.preferenceScore < -1 || franchise.preferenceScore > 1) {
+          return reply.status(400).send({
+            error: `preferenceScore for "${franchise.franchiseName}" must be between -1 and 1`,
+          })
+        }
+
+        await setFranchisePreference(
+          userId,
+          franchise.franchiseName,
+          franchise.mediaType,
+          franchise.preferenceScore,
+          true // User-set
+        )
+      }
+
+      return reply.send({
+        success: true,
+        updated: franchises.length,
+        message: 'Franchise preferences updated',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to update franchise preferences')
+      return reply.status(500).send({ error: 'Failed to update franchise preferences' })
+    }
+  })
+
+  /**
+   * PUT /api/settings/taste-profile/genres
+   * Update genre weights
+   */
+  fastify.put<{
+    Body: {
+      genres: Array<{
+        genre: string
+        weight: number
+      }>
+    }
+  }>('/api/settings/taste-profile/genres', { preHandler: requireAuth }, async (request, reply) => {
+    try {
+      const userId = request.user!.id
+      const { genres } = request.body
+
+      if (!Array.isArray(genres)) {
+        return reply.status(400).send({ error: 'genres must be an array' })
+      }
+
+      const { setGenreWeight } = await import('@aperture/core')
+
+      for (const genre of genres) {
+        if (!genre.genre || genre.weight === undefined) {
+          continue
+        }
+
+        // Validate weight is 0 to 2
+        if (genre.weight < 0 || genre.weight > 2) {
+          return reply.status(400).send({
+            error: `weight for "${genre.genre}" must be between 0 and 2`,
+          })
+        }
+
+        await setGenreWeight(userId, genre.genre, genre.weight, true)
+      }
+
+      return reply.send({
+        success: true,
+        updated: genres.length,
+        message: 'Genre weights updated',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to update genre weights')
+      return reply.status(500).send({ error: 'Failed to update genre weights' })
+    }
+  })
+
+  /**
+   * POST /api/settings/taste-profile/interests
+   * Add a custom interest
+   */
+  fastify.post<{
+    Body: { interestText: string; weight?: number }
+  }>('/api/settings/taste-profile/interests', { preHandler: requireAuth }, async (request, reply) => {
+    try {
+      const userId = request.user!.id
+      const { interestText, weight = 1.0 } = request.body
+
+      if (!interestText || interestText.trim().length === 0) {
+        return reply.status(400).send({ error: 'interestText is required' })
+      }
+
+      if (interestText.length > 500) {
+        return reply.status(400).send({ error: 'interestText must be 500 characters or less' })
+      }
+
+      const { addCustomInterest, getEmbeddingModel, getEmbeddingModelInstance } = await import('@aperture/core')
+      const { embed } = await import('ai')
+
+      // Generate embedding for the interest
+      let embedding: number[] | undefined
+      let embeddingModel: string | undefined
+      try {
+        const modelId = await getEmbeddingModel()
+        if (modelId) {
+          const model = await getEmbeddingModelInstance()
+          const result = await embed({ model, value: interestText.trim() })
+          embedding = result.embedding
+          embeddingModel = modelId
+        }
+      } catch {
+        // Continue without embedding if it fails
+        fastify.log.warn('Failed to generate embedding for custom interest')
+      }
+
+      const interestId = await addCustomInterest(
+        userId,
+        interestText.trim(),
+        embedding,
+        embeddingModel,
+        weight
+      )
+
+      return reply.send({
+        success: true,
+        id: interestId,
+        message: 'Custom interest added',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to add custom interest')
+      return reply.status(500).send({ error: 'Failed to add custom interest' })
+    }
+  })
+
+  /**
+   * DELETE /api/settings/taste-profile/interests/:id
+   * Remove a custom interest
+   */
+  fastify.delete<{
+    Params: { id: string }
+  }>('/api/settings/taste-profile/interests/:id', { preHandler: requireAuth }, async (request, reply) => {
+    try {
+      const userId = request.user!.id
+      const { id } = request.params
+
+      const { removeCustomInterest } = await import('@aperture/core')
+      await removeCustomInterest(userId, id)
+
+      return reply.send({
+        success: true,
+        message: 'Custom interest removed',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to remove custom interest')
+      return reply.status(500).send({ error: 'Failed to remove custom interest' })
+    }
+  })
 }
 
 export default settingsRoutes

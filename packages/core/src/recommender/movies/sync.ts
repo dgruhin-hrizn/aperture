@@ -671,14 +671,21 @@ export async function syncWatchHistoryForUser(
 
   const watchedItems = await provider.getWatchHistory(apiKey, providerUserId, sinceDate)
 
-  // Get all movies we have in our database with their provider IDs
-  const allMovies = await query<{ id: string; provider_item_id: string }>(
-    'SELECT id, provider_item_id FROM movies WHERE provider_item_id IS NOT NULL'
+  // Get user's excluded library IDs
+  const { getUserExcludedLibraries } = await import('../../lib/libraryExclusions.js')
+  const excludedLibraryIds = await getUserExcludedLibraries(userId)
+  const excludedSet = new Set(excludedLibraryIds)
+
+  // Get all movies we have in our database with their provider IDs and library IDs
+  const allMovies = await query<{ id: string; provider_item_id: string; provider_library_id: string | null }>(
+    'SELECT id, provider_item_id, provider_library_id FROM movies WHERE provider_item_id IS NOT NULL'
   )
 
   const providerIdToMovieId = new Map<string, string>()
+  const providerIdToLibraryId = new Map<string, string | null>()
   for (const movie of allMovies.rows) {
     providerIdToMovieId.set(movie.provider_item_id, movie.id)
+    providerIdToLibraryId.set(movie.provider_item_id, movie.provider_library_id)
   }
 
   // Get current watch history for this user
@@ -688,7 +695,7 @@ export async function syncWatchHistoryForUser(
   )
   const existingMovieIds = new Set(existingHistory.rows.map((r) => r.movie_id))
 
-  // Prepare bulk data - filter to items we have in our database
+  // Prepare bulk data - filter to items we have in our database and not excluded
   const toSync: {
     movieId: string
     playCount: number
@@ -696,9 +703,17 @@ export async function syncWatchHistoryForUser(
     isFavorite: boolean
   }[] = []
 
+  let excludedCount = 0
   for (const item of watchedItems) {
     const movieId = providerIdToMovieId.get(item.movieId)
     if (movieId) {
+      // Check if movie's library is excluded
+      const libraryId = providerIdToLibraryId.get(item.movieId)
+      if (libraryId && excludedSet.has(libraryId)) {
+        excludedCount++
+        continue // Skip movies from excluded libraries
+      }
+      
       toSync.push({
         movieId,
         playCount: item.playCount,
@@ -706,6 +721,10 @@ export async function syncWatchHistoryForUser(
         isFavorite: item.isFavorite,
       })
     }
+  }
+  
+  if (excludedCount > 0) {
+    logger.debug({ userId, excludedCount }, 'Excluded watch history items from excluded libraries')
   }
 
   const syncedMovieIds = new Set<string>(toSync.map((t) => t.movieId))

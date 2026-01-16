@@ -23,11 +23,13 @@ import PersonIcon from '@mui/icons-material/Person'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
 import SaveIcon from '@mui/icons-material/Save'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
-import PsychologyIcon from '@mui/icons-material/Psychology'
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined'
+import FingerprintIcon from '@mui/icons-material/Fingerprint'
+import MovieIcon from '@mui/icons-material/Movie'
+import TvIcon from '@mui/icons-material/Tv'
 import { useAuth } from '@/hooks/useAuth'
 import { Breadcrumbs } from '@/components/Breadcrumbs'
-import { TasteProfileSection } from './UserSettings/TasteProfileSection'
+import { WatcherIdentitySection } from './UserSettings/WatcherIdentitySection'
 
 interface TabPanelProps {
   children?: React.ReactNode
@@ -54,6 +56,7 @@ interface AiExplanationPreference {
 export function UserSettingsPage() {
   const { user } = useAuth()
   const [tabValue, setTabValue] = useState(0)
+  const [identityMediaType, setIdentityMediaType] = useState<'movie' | 'series'>('movie')
 
   // User settings state
   const [defaultLibraryPrefix, setDefaultLibraryPrefix] = useState<string>('AI Picks - ')
@@ -449,7 +452,7 @@ export function UserSettingsPage() {
           }}
         >
           <Tab icon={<PersonIcon />} iconPosition="start" label="Profile" />
-          <Tab icon={<PsychologyIcon />} iconPosition="start" label="Taste Profile" />
+          <Tab icon={<FingerprintIcon />} iconPosition="start" label="Watcher Identity" />
           <Tab icon={<VideoLibraryIcon />} iconPosition="start" label="Preferences" />
         </Tabs>
 
@@ -523,9 +526,28 @@ export function UserSettingsPage() {
             </Card>
           </TabPanel>
 
-          {/* Taste Profile Tab */}
+          {/* Watcher Identity Tab */}
           <TabPanel value={tabValue} index={1}>
-            <TasteProfileSection />
+            {/* Sub-tabs for Movies/Series */}
+            <Tabs
+              value={identityMediaType}
+              onChange={(_, value) => setIdentityMediaType(value)}
+              sx={{
+                mb: 3,
+                borderBottom: 1,
+                borderColor: 'divider',
+                '& .MuiTab-root': {
+                  minHeight: 48,
+                  textTransform: 'none',
+                },
+              }}
+            >
+              <Tab icon={<MovieIcon />} label="Movies" value="movie" iconPosition="start" />
+              <Tab icon={<TvIcon />} label="TV Series" value="series" iconPosition="start" />
+            </Tabs>
+
+            {/* Unified Watcher Identity Section */}
+            <WatcherIdentitySection mediaType={identityMediaType} />
           </TabPanel>
 
           {/* Preferences Tab */}

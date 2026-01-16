@@ -8,7 +8,8 @@
 import { query, queryOne } from './db.js'
 import { createChildLogger } from './logger.js'
 import { getTextGenerationModelInstance, isAIFunctionConfigured } from './ai-provider.js'
-import { generateText } from 'ai'
+import { generateText, streamText } from 'ai'
+import { getUserFranchisePreferences, getUserGenreWeights, getUserCustomInterests } from '../taste-profile/index.js'
 
 const logger = createChildLogger('taste-series-synopsis')
 
@@ -183,6 +184,11 @@ export async function generateSeriesTasteSynopsis(userId: string): Promise<Serie
     LIMIT 10
   `, [userId])
 
+  // Fetch user's explicit preferences
+  const franchisePrefs = await getUserFranchisePreferences(userId, 'series')
+  const genreWeights = await getUserGenreWeights(userId)
+  const customInterests = await getUserCustomInterests(userId)
+
   // Build the prompt for OpenAI
   const prompt = buildSeriesSynopsisPrompt({
     seriesCount: Number(stats.series_count),
@@ -195,6 +201,18 @@ export async function generateSeriesTasteSynopsis(userId: string): Promise<Serie
     topSeries: topSeries.rows,
     seriesWithFavorites: seriesWithFavorites.rows,
     completedSeries: completedSeries.rows,
+    franchisePrefs: franchisePrefs.map(f => ({
+      franchiseName: f.franchiseName,
+      preferenceScore: f.preferenceScore,
+      itemsWatched: f.itemsWatched,
+    })),
+    genrePrefs: genreWeights.map(g => ({
+      genre: g.genre,
+      weight: g.weight,
+    })),
+    customInterests: customInterests.map(i => ({
+      interestText: i.interestText,
+    })),
   })
 
   // Generate synopsis with AI provider
@@ -266,6 +284,245 @@ If they have eclectic taste, celebrate that. If they have focused preferences, d
       favoriteNetworks,
       recentFavorites: topSeries.rows.slice(0, 5).map(s => s.title),
     },
+  }
+}
+
+/**
+ * Stream generate a series taste synopsis for a user
+ * Returns an async generator that yields text chunks
+ */
+export async function* streamSeriesTasteSynopsis(userId: string): AsyncGenerator<string, SeriesTasteSynopsis['stats'], void> {
+  logger.info({ userId }, 'Streaming series taste synopsis generation')
+
+  // Get watch history stats
+  const stats = await queryOne<SeriesWatchStats>(`
+    SELECT 
+      COUNT(DISTINCT e.series_id) as series_count,
+      COUNT(DISTINCT wh.episode_id) as episode_count,
+      AVG(s.community_rating) as avg_rating,
+      COUNT(CASE WHEN wh.is_favorite THEN 1 END) as favorite_count
+    FROM watch_history wh
+    JOIN episodes e ON e.id = wh.episode_id
+    JOIN series s ON s.id = e.series_id
+    WHERE wh.user_id = $1 AND wh.media_type = 'episode'
+  `, [userId])
+
+  if (!stats || stats.series_count === 0) {
+    yield "We're still getting to know your TV preferences! Watch some episodes and we'll build your series taste profile."
+    return {
+      totalSeriesStarted: 0,
+      totalEpisodesWatched: 0,
+      topGenres: [],
+      avgRating: 0,
+      favoriteDecade: null,
+      favoriteNetworks: [],
+      recentFavorites: [],
+    }
+  }
+
+  // Get top genres
+  const genreResults = await query<GenreCount>(`
+    SELECT unnest(s.genres) as genre, COUNT(DISTINCT e.series_id) as count
+    FROM watch_history wh
+    JOIN episodes e ON e.id = wh.episode_id
+    JOIN series s ON s.id = e.series_id
+    WHERE wh.user_id = $1 AND wh.media_type = 'episode'
+    GROUP BY unnest(s.genres)
+    ORDER BY count DESC
+    LIMIT 5
+  `, [userId])
+  const topGenres = genreResults.rows.map(r => r.genre)
+
+  // Get favorite networks
+  const networkResults = await query<NetworkCount>(`
+    SELECT s.network, COUNT(DISTINCT e.series_id) as count
+    FROM watch_history wh
+    JOIN episodes e ON e.id = wh.episode_id
+    JOIN series s ON s.id = e.series_id
+    WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND s.network IS NOT NULL
+    GROUP BY s.network
+    ORDER BY count DESC
+    LIMIT 3
+  `, [userId])
+  const favoriteNetworks = networkResults.rows.map(r => r.network)
+
+  // Get favorite decade
+  const decadeResults = await query<DecadeCount>(`
+    SELECT 
+      (FLOOR(s.year / 10) * 10)::TEXT || 's' as decade,
+      COUNT(DISTINCT e.series_id) as count
+    FROM watch_history wh
+    JOIN episodes e ON e.id = wh.episode_id
+    JOIN series s ON s.id = e.series_id
+    WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND s.year IS NOT NULL
+    GROUP BY FLOOR(s.year / 10)
+    ORDER BY count DESC
+    LIMIT 1
+  `, [userId])
+  const favoriteDecade = decadeResults.rows[0]?.decade || null
+
+  // Get most watched series
+  const topSeries = await query<WatchedSeries>(`
+    SELECT 
+      s.title, s.year, s.genres, s.community_rating, s.network,
+      COUNT(DISTINCT wh.episode_id) as episodes_watched,
+      s.total_episodes,
+      CASE WHEN s.total_episodes > 0 
+        THEN ROUND(COUNT(DISTINCT wh.episode_id)::numeric / s.total_episodes * 100)
+        ELSE NULL
+      END as completion_rate
+    FROM watch_history wh
+    JOIN episodes e ON e.id = wh.episode_id
+    JOIN series s ON s.id = e.series_id
+    WHERE wh.user_id = $1 AND wh.media_type = 'episode'
+    GROUP BY s.id, s.title, s.year, s.genres, s.community_rating, s.network, s.total_episodes
+    ORDER BY episodes_watched DESC
+    LIMIT 15
+  `, [userId])
+
+  // Get series with favorite episodes
+  const seriesWithFavorites = await query<{ title: string; favorite_count: number }>(`
+    SELECT s.title, COUNT(*) as favorite_count
+    FROM watch_history wh
+    JOIN episodes e ON e.id = wh.episode_id
+    JOIN series s ON s.id = e.series_id
+    WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND wh.is_favorite = true
+    GROUP BY s.id, s.title
+    ORDER BY favorite_count DESC
+    LIMIT 10
+  `, [userId])
+
+  // Get completed series
+  const completedSeries = await query<WatchedSeries>(`
+    SELECT 
+      s.title, s.year, s.genres, s.community_rating, s.network,
+      COUNT(DISTINCT wh.episode_id) as episodes_watched,
+      s.total_episodes,
+      ROUND(COUNT(DISTINCT wh.episode_id)::numeric / s.total_episodes * 100) as completion_rate
+    FROM watch_history wh
+    JOIN episodes e ON e.id = wh.episode_id
+    JOIN series s ON s.id = e.series_id
+    WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND s.total_episodes > 0
+    GROUP BY s.id, s.title, s.year, s.genres, s.community_rating, s.network, s.total_episodes
+    HAVING COUNT(DISTINCT wh.episode_id)::numeric / s.total_episodes >= 0.75
+    ORDER BY s.total_episodes DESC
+    LIMIT 10
+  `, [userId])
+
+  // Fetch user's explicit preferences
+  const franchisePrefs = await getUserFranchisePreferences(userId, 'series')
+  const genreWeights = await getUserGenreWeights(userId)
+  const customInterests = await getUserCustomInterests(userId)
+
+  // Build the prompt
+  const prompt = buildSeriesSynopsisPrompt({
+    seriesCount: Number(stats.series_count),
+    episodeCount: Number(stats.episode_count),
+    avgRating: Number(stats.avg_rating || 0),
+    favoriteCount: Number(stats.favorite_count),
+    topGenres,
+    favoriteNetworks,
+    favoriteDecade,
+    topSeries: topSeries.rows,
+    seriesWithFavorites: seriesWithFavorites.rows,
+    completedSeries: completedSeries.rows,
+    franchisePrefs: franchisePrefs.map(f => ({
+      franchiseName: f.franchiseName,
+      preferenceScore: f.preferenceScore,
+      itemsWatched: f.itemsWatched,
+    })),
+    genrePrefs: genreWeights.map(g => ({
+      genre: g.genre,
+      weight: g.weight,
+    })),
+    customInterests: customInterests.map(i => ({
+      interestText: i.interestText,
+    })),
+  })
+
+  // Check if text generation is configured
+  const isConfigured = await isAIFunctionConfigured('textGeneration')
+  if (!isConfigured) {
+    logger.warn({ userId }, 'Text generation not configured, using fallback synopsis')
+    const fallback = buildFallbackSeriesSynopsis({
+      seriesCount: Number(stats.series_count),
+      episodeCount: Number(stats.episode_count),
+      topGenres,
+      favoriteNetworks,
+      favoriteDecade,
+    })
+    yield fallback
+
+    // Store fallback
+    await query(`
+      INSERT INTO user_preferences (user_id, series_taste_synopsis, series_taste_synopsis_updated_at)
+      VALUES ($1, $2, NOW())
+      ON CONFLICT (user_id) DO UPDATE SET series_taste_synopsis = $2, series_taste_synopsis_updated_at = NOW()
+    `, [userId, fallback])
+
+    return {
+      totalSeriesStarted: Number(stats.series_count),
+      totalEpisodesWatched: Number(stats.episode_count),
+      topGenres,
+      avgRating: Number(stats.avg_rating || 0),
+      favoriteDecade,
+      favoriteNetworks,
+      recentFavorites: topSeries.rows.slice(0, 5).map(s => s.title),
+    }
+  }
+
+  // Stream with AI
+  let fullText = ''
+  try {
+    const model = await getTextGenerationModelInstance()
+    const result = streamText({
+      model,
+      system: `You are a friendly TV expert writing a personalized taste profile for a user's TV series preferences.
+Write in second person ("You love...", "Your taste tends toward...").
+Be warm, insightful, and specific. Reference actual shows they've watched when relevant.
+Keep it to 2-3 short paragraphs (about 100-150 words total).
+Don't be generic - make observations that feel personal and perceptive.
+Note their viewing habits: do they complete series or sample many? Do they prefer certain networks or eras?
+If they have eclectic taste, celebrate that. If they have focused preferences, dive deep into what that reveals.`,
+      prompt,
+      temperature: 0.8,
+      maxOutputTokens: 300,
+    })
+
+    for await (const chunk of result.textStream) {
+      fullText += chunk
+      yield chunk
+    }
+  } catch (error) {
+    logger.error({ error, userId }, 'Failed to stream series synopsis')
+    const fallback = buildFallbackSeriesSynopsis({
+      seriesCount: Number(stats.series_count),
+      episodeCount: Number(stats.episode_count),
+      topGenres,
+      favoriteNetworks,
+      favoriteDecade,
+    })
+    yield fallback
+    fullText = fallback
+  }
+
+  // Store the complete synopsis
+  await query(`
+    INSERT INTO user_preferences (user_id, series_taste_synopsis, series_taste_synopsis_updated_at)
+    VALUES ($1, $2, NOW())
+    ON CONFLICT (user_id) DO UPDATE SET series_taste_synopsis = $2, series_taste_synopsis_updated_at = NOW()
+  `, [userId, fullText])
+
+  logger.info({ userId, synopsisLength: fullText.length }, 'Series taste synopsis streamed')
+
+  return {
+    totalSeriesStarted: Number(stats.series_count),
+    totalEpisodesWatched: Number(stats.episode_count),
+    topGenres,
+    avgRating: Number(stats.avg_rating || 0),
+    favoriteDecade,
+    favoriteNetworks,
+    recentFavorites: topSeries.rows.slice(0, 5).map(s => s.title),
   }
 }
 
@@ -378,6 +635,21 @@ async function getSeriesQuickStats(userId: string): Promise<SeriesTasteSynopsis[
   }
 }
 
+interface FranchisePref {
+  franchiseName: string
+  preferenceScore: number
+  itemsWatched: number
+}
+
+interface GenrePref {
+  genre: string
+  weight: number
+}
+
+interface CustomInterest {
+  interestText: string
+}
+
 /**
  * Build the prompt for OpenAI
  */
@@ -392,6 +664,9 @@ function buildSeriesSynopsisPrompt(data: {
   topSeries: WatchedSeries[]
   seriesWithFavorites: Array<{ title: string; favorite_count: number }>
   completedSeries: WatchedSeries[]
+  franchisePrefs?: FranchisePref[]
+  genrePrefs?: GenrePref[]
+  customInterests?: CustomInterest[]
 }): string {
   const lines = [
     `User's Complete TV Series Watching Profile:`,
@@ -404,6 +679,60 @@ function buildSeriesSynopsisPrompt(data: {
     `- Most watched decade: ${data.favoriteDecade || 'Various decades'}`,
     ``,
   ]
+
+  // Add user's explicit preferences as structured data
+  if (data.franchisePrefs && data.franchisePrefs.length > 0) {
+    lines.push(`USER'S FRANCHISE PREFERENCES (user-configured weights):`)
+    lines.push(`Scale: -1 (strongly avoid) to 0 (neutral) to +1 (strongly prefer)`)
+    lines.push(`\`\`\`json`)
+    lines.push(
+      JSON.stringify(
+        data.franchisePrefs
+          .filter((f) => Math.abs(f.preferenceScore) > 0.1) // Only include non-neutral
+          .sort((a, b) => b.preferenceScore - a.preferenceScore)
+          .slice(0, 15)
+          .map((f) => ({
+            franchise: f.franchiseName,
+            score: Number(f.preferenceScore.toFixed(2)),
+            watched: f.itemsWatched,
+          })),
+        null,
+        2
+      )
+    )
+    lines.push(`\`\`\``)
+    lines.push(``)
+  }
+
+  if (data.genrePrefs && data.genrePrefs.length > 0) {
+    lines.push(`USER'S GENRE PREFERENCES (user-configured weights):`)
+    lines.push(`Scale: 0 (hide/avoid) to 1 (neutral) to 2 (strongly boost)`)
+    lines.push(`\`\`\`json`)
+    lines.push(
+      JSON.stringify(
+        data.genrePrefs
+          .filter((g) => Math.abs(g.weight - 1) > 0.1) // Only include non-neutral (away from 1.0)
+          .sort((a, b) => b.weight - a.weight)
+          .slice(0, 15)
+          .map((g) => ({
+            genre: g.genre,
+            weight: Number(g.weight.toFixed(2)),
+          })),
+        null,
+        2
+      )
+    )
+    lines.push(`\`\`\``)
+    lines.push(``)
+  }
+
+  if (data.customInterests && data.customInterests.length > 0) {
+    lines.push(`USER'S STATED INTERESTS (in their own words):`)
+    for (const interest of data.customInterests.slice(0, 5)) {
+      lines.push(`- "${interest.interestText}"`)
+    }
+    lines.push(``)
+  }
 
   if (data.topSeries.length > 0) {
     lines.push(`Most watched series (ranked by episode count):`)
@@ -431,7 +760,17 @@ function buildSeriesSynopsisPrompt(data: {
     lines.push(``)
   }
 
+  lines.push(`INSTRUCTIONS:`)
   lines.push(`Write a personalized taste profile that captures their TV viewing style.`)
+  lines.push(``)
+  lines.push(`When interpreting preference weights:`)
+  lines.push(`- Franchise scores near +1 = they LOVE this franchise, mention it prominently`)
+  lines.push(`- Franchise scores near -1 = they AVOID this franchise, don't recommend similar content`)
+  lines.push(`- Genre weights near 2 = strong preference, emphasize in profile`)
+  lines.push(`- Genre weights near 0 = they hide/avoid this genre`)
+  lines.push(`- Weights near neutral (0 for franchise, 1 for genre) = no strong feeling`)
+  lines.push(``)
+  lines.push(`Weave their stated custom interests naturally into the profile.`)
   lines.push(`Note patterns: Do they complete series or sample many? Prefer certain networks/eras?`)
   lines.push(`Mention specific shows by name when they exemplify patterns in their taste.`)
 

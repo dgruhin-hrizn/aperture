@@ -957,14 +957,24 @@ export async function syncSeriesWatchHistoryForUser(
 
   const watchedEpisodes = await provider.getSeriesWatchHistory(apiKey, providerUserId, sinceDate)
 
-  // Get all episodes we have in our database with their provider IDs
-  const allEpisodes = await query<{ id: string; provider_item_id: string }>(
-    'SELECT id, provider_item_id FROM episodes WHERE provider_item_id IS NOT NULL'
+  // Get user's excluded library IDs
+  const { getUserExcludedLibraries } = await import('../../lib/libraryExclusions.js')
+  const excludedLibraryIds = await getUserExcludedLibraries(userId)
+  const excludedSet = new Set(excludedLibraryIds)
+
+  // Get all episodes we have in our database with their provider IDs and series library IDs
+  const allEpisodes = await query<{ id: string; provider_item_id: string; provider_library_id: string | null }>(
+    `SELECT e.id, e.provider_item_id, s.provider_library_id 
+     FROM episodes e 
+     JOIN series s ON e.series_id = s.id 
+     WHERE e.provider_item_id IS NOT NULL`
   )
 
   const providerIdToEpisodeId = new Map<string, string>()
+  const providerIdToLibraryId = new Map<string, string | null>()
   for (const episode of allEpisodes.rows) {
     providerIdToEpisodeId.set(episode.provider_item_id, episode.id)
+    providerIdToLibraryId.set(episode.provider_item_id, episode.provider_library_id)
   }
 
   // Get current episode watch history for this user
@@ -974,7 +984,7 @@ export async function syncSeriesWatchHistoryForUser(
   )
   const existingEpisodeIds = new Set(existingHistory.rows.map((r) => r.episode_id))
 
-  // Prepare bulk data - filter to items we have in our database
+  // Prepare bulk data - filter to items we have in our database and not excluded
   const toSync: {
     episodeId: string
     playCount: number
@@ -982,9 +992,17 @@ export async function syncSeriesWatchHistoryForUser(
     isFavorite: boolean
   }[] = []
 
+  let excludedCount = 0
   for (const item of watchedEpisodes) {
     const episodeId = providerIdToEpisodeId.get(item.episodeId)
     if (episodeId) {
+      // Check if episode's series library is excluded
+      const libraryId = providerIdToLibraryId.get(item.episodeId)
+      if (libraryId && excludedSet.has(libraryId)) {
+        excludedCount++
+        continue // Skip episodes from excluded libraries
+      }
+      
       toSync.push({
         episodeId,
         playCount: item.playCount,
@@ -992,6 +1010,10 @@ export async function syncSeriesWatchHistoryForUser(
         isFavorite: item.isFavorite,
       })
     }
+  }
+  
+  if (excludedCount > 0) {
+    logger.debug({ userId, excludedCount }, 'Excluded episode watch history items from excluded libraries')
   }
 
   const syncedEpisodeIds = new Set<string>(toSync.map((t) => t.episodeId))

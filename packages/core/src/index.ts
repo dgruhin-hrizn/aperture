@@ -248,6 +248,7 @@ export {
 // Taste Synopsis
 export {
   generateTasteSynopsis,
+  streamTasteSynopsis,
   getTasteSynopsis,
   type TasteSynopsis,
 } from './lib/tasteSynopsis.js'
@@ -255,6 +256,7 @@ export {
 // Series Taste Synopsis
 export {
   generateSeriesTasteSynopsis,
+  streamSeriesTasteSynopsis,
   getSeriesTasteSynopsis,
   type SeriesTasteSynopsis,
 } from './lib/tasteSeriesSynopsis.js'
@@ -271,6 +273,17 @@ export {
   type UserSettings,
   type UserAiExplanationSettings,
 } from './lib/userSettings.js'
+
+// Library Exclusions
+export {
+  getUserExcludedLibraries,
+  setUserExcludedLibraries,
+  getUserAccessibleLibraries,
+  isLibraryExcluded,
+  getApertureLibraryIds,
+  toggleLibraryExclusion,
+  type AccessibleLibrary,
+} from './lib/libraryExclusions.js'
 
 // System Settings
 export {
@@ -765,4 +778,57 @@ export {
   type DiscoveryPipelineResult,
   DEFAULT_DISCOVERY_CONFIG,
 } from './discover/index.js'
+
+// Taste Profile System
+export {
+  // Profile retrieval and storage
+  getUserTasteProfile,
+  getStoredProfile,
+  getUserTasteData,
+  storeTasteProfile,
+  updateProfileSettings,
+  invalidateProfile,
+  isProfileStale,
+  // Franchise preferences
+  getUserFranchisePreferences,
+  setFranchisePreference,
+  bulkUpdateFranchisePreferences,
+  getFranchiseBoost,
+  // Genre weights
+  getUserGenreWeights,
+  setGenreWeight,
+  bulkUpdateGenreWeights,
+  getGenreBoost,
+  // Custom interests
+  getUserCustomInterests,
+  addCustomInterest,
+  removeCustomInterest,
+  updateCustomInterestEmbedding,
+  // Types
+  type TasteProfile,
+  type FranchisePreference,
+  type GenreWeight,
+  type CustomInterest,
+  type UserTasteData,
+  type ProfileBuildOptions,
+  type ProfileUpdateResult,
+  type WatchedItem as TasteProfileWatchedItem,
+  REFRESH_INTERVAL_OPTIONS,
+  DEFAULT_REFRESH_INTERVAL_DAYS,
+} from './taste-profile/index.js'
+
+export {
+  // Franchise detection
+  detectFranchiseFromTitle,
+  detectAndUpdateFranchises,
+  getItemFranchise,
+  // Genre detection
+  detectAndUpdateGenres,
+} from './taste-profile/franchise.js'
+
+export {
+  // Profile building
+  buildTasteProfile,
+  calculateEngagementWeight,
+} from './taste-profile/builder.js'
 

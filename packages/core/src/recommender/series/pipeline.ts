@@ -31,6 +31,16 @@ import {
 } from './explanations.js'
 import { syncSeriesWatchHistoryForUser } from './sync.js'
 
+// New taste profile system
+import {
+  getUserTasteProfile,
+  storeTasteProfile as storeNewTasteProfile,
+  getFranchiseBoost,
+  getGenreBoost,
+  detectAndUpdateFranchises,
+} from '../../taste-profile/index.js'
+import { getItemFranchise } from '../../taste-profile/franchise.js'
+
 const logger = createChildLogger('series-recommender')
 
 // Types
@@ -567,9 +577,28 @@ export async function generateSeriesRecommendationsForUser(
       return { runId, recommendations: [] }
     }
 
-    // 2. Build taste profile
-    logger.info({ userId: user.id }, '🧠 Building series taste profile...')
-    const tasteProfile = await buildSeriesTasteProfile(watchedSeries)
+    // 2. Get or build taste profile using the new persistent system
+    logger.info({ userId: user.id }, '🧠 Getting series taste profile...')
+    
+    // Try to get stored profile first (will rebuild if stale)
+    let storedProfile = await getUserTasteProfile(user.id, 'series')
+    let tasteProfile: number[] | null = storedProfile?.embedding || null
+    
+    // If no stored profile or missing embedding, build using legacy method as fallback
+    if (!tasteProfile) {
+      logger.info({ userId: user.id }, '📊 No stored profile, building from watch history...')
+      tasteProfile = await buildSeriesTasteProfile(watchedSeries)
+      
+      if (tasteProfile) {
+        // Store in new system
+        await storeNewTasteProfile(user.id, 'series', tasteProfile)
+        // Also detect franchises
+        await detectAndUpdateFranchises(user.id, 'series')
+        logger.info({ userId: user.id }, '💾 Stored new taste profile and detected franchises')
+      }
+    } else {
+      logger.info({ userId: user.id }, '✅ Using stored series taste profile')
+    }
 
     if (!tasteProfile) {
       logger.warn(
@@ -580,8 +609,9 @@ export async function generateSeriesRecommendationsForUser(
       return { runId, recommendations: [] }
     }
 
-    logger.info({ userId: user.id }, '✅ Series taste profile built successfully')
+    // Also store in legacy location for backwards compatibility
     await storeSeriesTasteProfile(user.id, tasteProfile)
+    logger.info({ userId: user.id }, '💾 Stored series taste profile (legacy)')
 
     // 3. Get user's preference for including watched content
     const userPrefs = await queryOne<{ include_watched: boolean }>(
@@ -634,6 +664,43 @@ export async function generateSeriesRecommendationsForUser(
     // 5. Score candidates
     logger.info({ userId: user.id }, '📈 Scoring and ranking candidates...')
     const scoredCandidates = await scoreSeriesCandidates(candidates, watchedSeries, cfg)
+
+    // 5.5 Apply franchise and genre preference boosts
+    logger.info({ userId: user.id }, '🎯 Applying franchise and genre preference boosts...')
+    let franchiseBoostCount = 0
+    let genreBoostCount = 0
+    
+    for (const candidate of scoredCandidates) {
+      // Get franchise boost (1.0 = neutral, up to 1.5 for loved franchises)
+      const franchiseName = await getItemFranchise(candidate.seriesId, 'series')
+      const franchiseBoost = await getFranchiseBoost(user.id, franchiseName, 'series')
+      
+      // Get genre boost (1.0 = neutral, 0.5-1.5 range)
+      const genreBoost = await getGenreBoost(user.id, candidate.genres || [])
+      
+      // Apply boosts to final score
+      const originalScore = candidate.finalScore
+      candidate.finalScore = originalScore * franchiseBoost * genreBoost
+      
+      if (franchiseBoost !== 1.0) {
+        franchiseBoostCount++
+        logger.debug(
+          { title: candidate.title, franchiseName, franchiseBoost: franchiseBoost.toFixed(2) },
+          'Applied franchise boost'
+        )
+      }
+      if (genreBoost !== 1.0) {
+        genreBoostCount++
+      }
+    }
+    
+    // Re-sort after applying boosts
+    scoredCandidates.sort((a, b) => b.finalScore - a.finalScore)
+    
+    logger.info(
+      { userId: user.id, franchiseBoostCount, genreBoostCount },
+      `Applied ${franchiseBoostCount} franchise boosts and ${genreBoostCount} genre boosts`
+    )
 
     // 6. Apply diversity and select
     logger.info(
