@@ -17,7 +17,7 @@ import {
   useTheme,
 } from '@mui/material'
 import {
-  Explore as ExploreIcon,
+  HubOutlined as HubOutlinedIcon,
   Settings as SettingsIcon,
   AutoAwesome as AutoAwesomeIcon,
 } from '@mui/icons-material'
@@ -123,7 +123,7 @@ export function ExplorationConfigModal({ open: controlledOpen, onClose }: Explor
             justifyContent: 'center',
           }}
         >
-          <ExploreIcon sx={{ fontSize: 32, color: 'success.main' }} />
+          <HubOutlinedIcon sx={{ fontSize: 32, color: 'success.main' }} />
         </Box>
         <Box>
           <Typography variant="h5" fontWeight={700}>
@@ -154,7 +154,7 @@ export function ExplorationConfigModal({ open: controlledOpen, onClose }: Explor
           </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-            <ExploreIcon sx={{ color: 'success.main', mt: 0.5 }} />
+            <HubOutlinedIcon sx={{ color: 'success.main', mt: 0.5 }} />
             <Box>
               <Typography variant="subtitle2" fontWeight={600}>
                 Better Graph Connections

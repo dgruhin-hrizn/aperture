@@ -45,7 +45,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
-import ExploreIcon from '@mui/icons-material/Explore'
+import HubOutlinedIcon from '@mui/icons-material/HubOutlined'
 
 interface ProviderUser {
   providerUserId: string
@@ -581,7 +581,7 @@ export function UsersPage() {
                       {/* Discovery toggles in a compact row */}
                       <Stack direction="row" alignItems="center" spacing={2} mb={1.5}>
                         <Stack direction="row" alignItems="center" spacing={1}>
-                          <ExploreIcon fontSize="small" color="action" />
+                          <HubOutlinedIcon fontSize="small" color="action" />
                           <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>Discover</Typography>
                           <Switch
                             checked={user.discoverEnabled}
@@ -592,7 +592,7 @@ export function UsersPage() {
                           />
                         </Stack>
                         <Stack direction="row" alignItems="center" spacing={1}>
-                          <ExploreIcon fontSize="small" color="action" />
+                          <HubOutlinedIcon fontSize="small" color="action" />
                           <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>Request</Typography>
                           <Switch
                             checked={user.discoverRequestEnabled}
@@ -772,7 +772,7 @@ export function UsersPage() {
               <TableCell align="center">
                 <Tooltip title="Show discovery suggestions for content not in library">
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
-                    <ExploreIcon fontSize="small" />
+                    <HubOutlinedIcon fontSize="small" />
                     Discover
                   </Box>
                 </Tooltip>
@@ -780,7 +780,7 @@ export function UsersPage() {
               <TableCell align="center">
                 <Tooltip title="Allow user to request discovered content via Jellyseerr">
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
-                    <ExploreIcon fontSize="small" />
+                    <HubOutlinedIcon fontSize="small" />
                     Request
                   </Box>
                 </Tooltip>

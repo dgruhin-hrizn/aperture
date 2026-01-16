@@ -20,7 +20,7 @@ import {
   AutoFixHigh as AutoFixHighIcon,
   Delete as DeleteIcon,
   Storage as StorageIcon,
-  Explore as ExploreIcon,
+  HubOutlined as HubOutlinedIcon,
 } from '@mui/icons-material'
 import { AIFunctionCard, type FunctionConfig, type AIFunction } from '../../../components/AIFunctionCard'
 import { CostEstimatorSection } from './CostEstimatorSection'
@@ -292,7 +292,7 @@ export function AISetupSection() {
           functionType="exploration"
           title="Exploration"
           description="Powers the Explore page. Uses AI to find meaningful connections from conceptual searches like 'feel-good comedies'."
-          icon={<ExploreIcon />}
+          icon={<HubOutlinedIcon />}
           iconColor="#4caf50"
           config={config?.exploration ?? null}
           onSave={(c) => handleSave('exploration', c)}

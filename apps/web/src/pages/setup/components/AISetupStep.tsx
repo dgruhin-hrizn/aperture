@@ -17,7 +17,7 @@ import {
   SmartToy as SmartToyIcon,
   AutoFixHigh as AutoFixHighIcon,
   Warning as WarningIcon,
-  Explore as ExploreIcon,
+  HubOutlined as HubOutlinedIcon,
 } from '@mui/icons-material'
 import { AIFunctionCard, type FunctionConfig, type AIFunction } from '../../../components/AIFunctionCard'
 import type { SetupWizardContext } from '../types'
@@ -213,7 +213,7 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
           functionType="exploration"
           title="Exploration"
           description="Powers the Explore page. A powerful model here enables conceptual searches like 'feel-good comedies'."
-          icon={<ExploreIcon />}
+          icon={<HubOutlinedIcon />}
           iconColor="#4caf50"
           config={config?.exploration ?? null}
           onSave={(c) => handleSave('exploration', c)}
