@@ -799,27 +799,6 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
             </Typography>
           </Box>
         </Box>
-        
-        {/* Bottom row - Analyze button on the right */}
-        <Box display="flex" justifyContent="flex-end" mt={2}>
-          <Box textAlign="right">
-            <Button
-              variant="contained"
-              startIcon={analyzing ? <CircularProgress size={18} color="inherit" /> : <HistoryIcon />}
-              onClick={handleAnalyzeClick}
-              disabled={analyzing}
-              sx={{ 
-                bgcolor: accentColor,
-                '&:hover': { bgcolor: accentColor, filter: 'brightness(1.1)' },
-              }}
-            >
-              {analyzing ? 'Analyzing...' : 'Analyze Watch History'}
-            </Button>
-            <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
-              Scans your watch history for franchises and genres
-            </Typography>
-          </Box>
-        </Box>
       </Paper>
 
       {/* Section 2: Specific Interests & Watch History Sources (2 columns) */}
@@ -990,6 +969,27 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
           </Paper>
         </Grid>
       </Grid>
+
+      {/* Analyze button - below the 2-column section */}
+      <Box display="flex" justifyContent="flex-end">
+        <Box textAlign="right">
+          <Button
+            variant="contained"
+            startIcon={analyzing ? <CircularProgress size={18} color="inherit" /> : <HistoryIcon />}
+            onClick={handleAnalyzeClick}
+            disabled={analyzing}
+            sx={{ 
+              bgcolor: accentColor,
+              '&:hover': { bgcolor: accentColor, filter: 'brightness(1.1)' },
+            }}
+          >
+            {analyzing ? 'Analyzing...' : 'Analyze Watch History'}
+          </Button>
+          <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
+            Scans your watch history for franchises and genres
+          </Typography>
+        </Box>
+      </Box>
 
       {/* Section 3: Watch History Weights */}
       <Paper sx={{ p: 3, borderRadius: 2 }}>
