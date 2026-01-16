@@ -713,157 +713,148 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
 
       {/* Section 1: Identity Settings */}
       <Paper sx={{ p: 3, borderRadius: 2 }}>
-        <Typography variant="h6" fontWeight={600} gutterBottom>
-          Identity Settings
-        </Typography>
-        
-        {/* Top row - Auto-refresh + Status */}
-        <Box display="flex" flexWrap="wrap" gap={3} alignItems="center" justifyContent="space-between">
-          {/* Auto-refresh */}
-          <Box
-            sx={{
-              bgcolor: 'background.default',
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 2,
-              p: 2,
-              minWidth: 200,
-            }}
-          >
-            <Box display="flex" alignItems="center" justifyContent="space-between" gap={2} mb={1}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={!isLocked}
-                    onChange={(e) => {
-                      setIsLocked(!e.target.checked)
-                      setTimeout(handleSaveSettings, 100)
-                    }}
-                    size="small"
-                  />
-                }
-                label={
-                  <Box display="flex" alignItems="center" gap={0.5}>
-                    {isLocked ? <LockIcon fontSize="small" /> : <LockOpenIcon fontSize="small" />}
-                    <Typography variant="body2" fontWeight={500}>Auto-refresh</Typography>
-                  </Box>
-                }
-                sx={{ m: 0 }}
-              />
-              {!isLocked && (
-                <FormControl size="small" sx={{ minWidth: 100 }}>
-                  <Select
-                    value={refreshInterval}
-                    onChange={(e) => {
-                      setRefreshInterval(e.target.value as number)
-                      setTimeout(handleSaveSettings, 100)
-                    }}
-                  >
-                    {Object.entries(REFRESH_INTERVAL_LABELS).map(([value, label]) => (
-                      <MenuItem key={value} value={Number(value)}>
-                        {label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              )}
-            </Box>
-            <Typography variant="caption" color="text.secondary">
-              {isLocked 
-                ? 'Identity is locked and won\'t update automatically'
-                : 'Automatically re-analyze your watch history to keep recommendations fresh'
-              }
-            </Typography>
-          </Box>
-          
-          {/* Franchise Filters */}
-          <Box
-            sx={{
-              bgcolor: 'background.default',
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 2,
-              p: 2,
-              minWidth: 280,
-            }}
-          >
-            <Typography variant="body2" fontWeight={500} mb={1.5}>Franchise Filters</Typography>
-            <Box display="flex" gap={2} mb={1}>
-              <Box flex={1}>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-                  Min in library
-                </Typography>
-                <FormControl size="small" fullWidth>
-                  <Select
-                    value={minFranchiseSize}
-                    onChange={(e) => {
-                      setMinFranchiseSize(e.target.value as number)
-                      setTimeout(handleSaveSettings, 100)
-                    }}
-                  >
-                    {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
-                      <MenuItem key={value} value={value}>
-                        {value}+ {isMovie ? 'movies' : 'shows'}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
-              <Box flex={1}>
-                <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-                  Min watched
-                </Typography>
-                <FormControl size="small" fullWidth>
-                  <Select
-                    value={minFranchiseItems}
-                    onChange={(e) => {
-                      setMinFranchiseItems(e.target.value as number)
-                      setTimeout(handleSaveSettings, 100)
-                    }}
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
-                      <MenuItem key={value} value={value}>
-                        {value}+ watched
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
-            </Box>
-            <Typography variant="caption" color="text.secondary">
-              Include franchises with {minFranchiseSize}+ {isMovie ? 'movies' : 'shows'} where you've watched {minFranchiseItems}+
-            </Typography>
-          </Box>
-          
-          {/* Status Widget */}
-          <Box
-            sx={{
-              bgcolor: 'background.default',
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 2,
-              p: 2,
-              minWidth: 160,
-              textAlign: 'center',
-            }}
-          >
+        <Box display="flex" alignItems="center" justifyContent="space-between" mb={2.5}>
+          <Typography variant="h6" fontWeight={600}>
+            Identity Settings
+          </Typography>
+          <Box display="flex" alignItems="center" gap={1}>
             <Chip
               size="small"
               label={data?.profile?.hasEmbedding ? 'Active' : 'Not Analyzed'}
               color={data?.profile?.hasEmbedding ? 'success' : 'warning'}
-              sx={{ mb: 1 }}
             />
             {data?.profile?.isLocked && (
-              <Chip size="small" icon={<LockIcon />} label="Locked" color="info" sx={{ ml: 1, mb: 1 }} />
+              <Chip size="small" icon={<LockIcon />} label="Locked" color="info" />
             )}
-            <Typography variant="caption" color="text.secondary" display="block">
-              Last analyzed
-            </Typography>
-            <Typography variant="body2" fontWeight={600}>
-              {formatDate(data?.profile?.autoUpdatedAt || null)}
-            </Typography>
+            {data?.profile?.autoUpdatedAt && (
+              <Typography variant="caption" color="text.secondary">
+                Analyzed {formatDate(data.profile.autoUpdatedAt)}
+              </Typography>
+            )}
           </Box>
         </Box>
+        
+        <Grid container spacing={2}>
+          {/* Auto-refresh Card */}
+          <Grid item xs={12} sm={6} md={4}>
+            <Box
+              sx={{
+                bgcolor: 'background.default',
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 2,
+                p: 2,
+                height: '100%',
+              }}
+            >
+              <Box display="flex" alignItems="center" gap={0.5} mb={1}>
+                {isLocked ? <LockIcon fontSize="small" color="action" /> : <LockOpenIcon fontSize="small" color="action" />}
+                <Typography variant="body2" fontWeight={600}>Auto-refresh</Typography>
+              </Box>
+              <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                <Switch
+                  checked={!isLocked}
+                  onChange={(e) => {
+                    setIsLocked(!e.target.checked)
+                    setTimeout(handleSaveSettings, 100)
+                  }}
+                  size="small"
+                />
+                {!isLocked && (
+                  <FormControl size="small" sx={{ minWidth: 100 }}>
+                    <Select
+                      value={refreshInterval}
+                      onChange={(e) => {
+                        setRefreshInterval(e.target.value as number)
+                        setTimeout(handleSaveSettings, 100)
+                      }}
+                    >
+                      {Object.entries(REFRESH_INTERVAL_LABELS).map(([value, label]) => (
+                        <MenuItem key={value} value={Number(value)}>
+                          {label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+              </Box>
+              <Typography variant="caption" color="text.secondary">
+                {isLocked 
+                  ? 'Identity locked - won\'t auto-update'
+                  : 'Re-analyzes watch history automatically'
+                }
+              </Typography>
+            </Box>
+          </Grid>
+          
+          {/* Franchise Size Filter */}
+          <Grid item xs={12} sm={6} md={4}>
+            <Box
+              sx={{
+                bgcolor: 'background.default',
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 2,
+                p: 2,
+                height: '100%',
+              }}
+            >
+              <Typography variant="body2" fontWeight={600} mb={1}>Min Franchise Size</Typography>
+              <FormControl size="small" fullWidth sx={{ mb: 1 }}>
+                <Select
+                  value={minFranchiseSize}
+                  onChange={(e) => {
+                    setMinFranchiseSize(e.target.value as number)
+                    setTimeout(handleSaveSettings, 100)
+                  }}
+                >
+                  {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
+                    <MenuItem key={value} value={value}>
+                      {value}+ {isMovie ? 'movies' : 'shows'} in library
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Typography variant="caption" color="text.secondary">
+                Only include franchises with at least {minFranchiseSize} {isMovie ? 'movies' : 'shows'} available
+              </Typography>
+            </Box>
+          </Grid>
+          
+          {/* Min Watched Filter */}
+          <Grid item xs={12} sm={6} md={4}>
+            <Box
+              sx={{
+                bgcolor: 'background.default',
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 2,
+                p: 2,
+                height: '100%',
+              }}
+            >
+              <Typography variant="body2" fontWeight={600} mb={1}>Min Watched</Typography>
+              <FormControl size="small" fullWidth sx={{ mb: 1 }}>
+                <Select
+                  value={minFranchiseItems}
+                  onChange={(e) => {
+                    setMinFranchiseItems(e.target.value as number)
+                    setTimeout(handleSaveSettings, 100)
+                  }}
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
+                    <MenuItem key={value} value={value}>
+                      {value}+ watched from franchise
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Typography variant="caption" color="text.secondary">
+                You must have watched at least {minFranchiseItems} from a franchise to include it
+              </Typography>
+            </Box>
+          </Grid>
+        </Grid>
       </Paper>
 
       {/* Section 2: Specific Interests & Watch History Sources (2 columns) */}
