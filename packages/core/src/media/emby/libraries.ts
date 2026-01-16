@@ -71,14 +71,8 @@ export async function createVirtualLibrary(
   // CRITICAL: Emby requires ALL params in QUERY STRING (not JSON body).
   // Despite OpenAPI spec saying body is supported, using JSON body for
   // CollectionType or Paths results in "mixed content" (CollectionType: null).
-  const queryParams = new URLSearchParams({
-    name,
-    collectionType: embyCollectionType,
-    paths: path,
-    refreshLibrary: 'true',
-  })
-  
-  const endpoint = `/Library/VirtualFolders?${queryParams.toString()}`
+  // ALSO: Must use encodeURIComponent (produces %20) NOT URLSearchParams (produces +)
+  const endpoint = `/Library/VirtualFolders?name=${encodeURIComponent(name)}&collectionType=${embyCollectionType}&paths=${encodeURIComponent(path)}&refreshLibrary=true`
   logger.info({ endpoint, fullUrl: `${provider.baseUrl}${endpoint}` }, '🔥 DEBUG: Creating library')
   
   await provider.fetch(
