@@ -136,6 +136,13 @@ export function ExplorePage() {
     initialFocusParsed?.type || initialType || null
   )
 
+  // Breadcrumb history for drill-down navigation (tracks across search and focused modes)
+  const [breadcrumbHistory, setBreadcrumbHistory] = useState<Array<{
+    id: string
+    title: string
+    type: 'movie' | 'series' | 'search'
+  }>>([])
+
   // Semantic search state
   const [semanticSearch, setSemanticSearch] = useState<SemanticSearchState>({
     query: '',
@@ -242,9 +249,7 @@ export function ExplorePage() {
     data: focusedData,
     loading: focusedLoading,
     loadingStatus: focusedLoadingStatus,
-    history,
     setFocusId,
-    goToHistoryIndex,
     startOver,
   } = useSimilarityData(focusedItemType || 'movie', focusedItemId, { limit: 15, depth: 3 })
 
@@ -334,16 +339,32 @@ export function ExplorePage() {
     (node: GraphNode) => {
       if (node.isCenter) return
 
-      // If we're in semantic search mode, switch to focused mode
-      if (semanticSearch.results) {
+      // Track the current state in breadcrumb history before navigating
+      if (semanticSearch.results && semanticSearch.query) {
+        // Coming from semantic search - add search as starting point
+        setBreadcrumbHistory([{
+          id: 'search',
+          title: `"${semanticSearch.query}"`,
+          type: 'search',
+        }])
         setSemanticSearch({ query: '', loading: false, results: null })
+      } else if (displayData?.nodes) {
+        // Coming from focused view - add current center to history
+        const centerNode = displayData.nodes.find(n => n.isCenter)
+        if (centerNode) {
+          setBreadcrumbHistory(prev => [...prev, {
+            id: centerNode.id,
+            title: centerNode.title,
+            type: centerNode.type,
+          }])
+        }
       }
 
       setFocusedItemId(node.id)
       setFocusedItemType(node.type)
       setFocusId(node.id, node.type)
     },
-    [semanticSearch.results, setFocusId]
+    [semanticSearch.results, semanticSearch.query, displayData, setFocusId]
   )
 
   const handleNodeDoubleClick = useCallback(
@@ -353,35 +374,48 @@ export function ExplorePage() {
     [navigate]
   )
 
-  // Handle history navigation
+  // Handle history navigation (breadcrumb click)
   const handleHistoryNavigate = useCallback(
     (index: number) => {
-      if (index === 0) {
-        startOver()
+      const item = breadcrumbHistory[index]
+      if (!item) return
+
+      if (item.type === 'search') {
+        // Go back to search results - re-run the search
+        const searchQuery = item.title.replace(/^"|"$/g, '') // Remove quotes
+        handleSemanticSearch(searchQuery)
+        setBreadcrumbHistory([])
       } else {
-        goToHistoryIndex(index)
+        // Go back to a specific item
+        setFocusedItemId(item.id)
+        setFocusedItemType(item.type)
+        setFocusId(item.id, item.type)
+        // Remove everything after this index
+        setBreadcrumbHistory(prev => prev.slice(0, index))
       }
     },
-    [goToHistoryIndex, startOver]
+    [breadcrumbHistory, handleSemanticSearch, setFocusId]
   )
 
-  // Handle start over
+  // Handle start over (home button)
   const handleStartOver = useCallback(() => {
-    if (semanticSearch.query) {
-      // Re-run the search
-      handleSemanticSearch(semanticSearch.query)
-    } else {
-      setFocusedItemId(null)
-      setFocusedItemType(null)
-      startOver()
+    // Check if first breadcrumb is a search
+    if (breadcrumbHistory.length > 0 && breadcrumbHistory[0].type === 'search') {
+      const searchQuery = breadcrumbHistory[0].title.replace(/^"|"$/g, '')
+      handleSemanticSearch(searchQuery)
     }
-  }, [semanticSearch.query, handleSemanticSearch, startOver])
+    setBreadcrumbHistory([])
+    setFocusedItemId(null)
+    setFocusedItemType(null)
+    startOver()
+  }, [breadcrumbHistory, handleSemanticSearch, startOver])
 
   // Handle clearing the search (clears results too)
   const handleSearchClear = useCallback(() => {
     setSemanticSearch({ query: '', loading: false, results: null })
     setFocusedItemId(null)
     setFocusedItemType(null)
+    setBreadcrumbHistory([])
   }, [])
 
   // Clear recent search
@@ -440,7 +474,7 @@ export function ExplorePage() {
           loading={loading}
           loadingStatus={loadingStatus}
           title={getTitle()}
-          history={history}
+          history={breadcrumbHistory}
           onHistoryNavigate={handleHistoryNavigate}
           onStartOver={handleStartOver}
           onNodeClick={handleNodeClick}

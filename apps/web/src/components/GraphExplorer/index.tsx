@@ -34,9 +34,15 @@ import {
   type GraphData,
   type GraphNode,
   type LoadingStatus,
-  type BreadcrumbItem,
 } from '../SimilarityGraph'
 import { CreatePlaylistDialog } from '../CreatePlaylistDialog'
+
+// Extended breadcrumb type that supports 'search' in addition to 'movie' | 'series'
+export interface GraphBreadcrumbItem {
+  id: string
+  title: string
+  type: 'movie' | 'series' | 'search'
+}
 
 export interface GraphExplorerProps {
   // Graph data
@@ -50,7 +56,7 @@ export interface GraphExplorerProps {
   itemCount?: number
 
   // Navigation history
-  history: BreadcrumbItem[]
+  history: GraphBreadcrumbItem[]
   onHistoryNavigate: (index: number) => void
   onStartOver: () => void
 
