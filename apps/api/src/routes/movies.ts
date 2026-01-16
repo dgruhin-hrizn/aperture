@@ -516,11 +516,11 @@ const moviesRoutes: FastifyPluginAsync = async (fastify) => {
       // Find similar movies using cosine similarity
       const result = await query(
         `SELECT m.id, m.title, m.year, m.poster_url, m.genres,
-                1 - (e.embedding <=> $1::vector) as similarity
+                1 - (e.embedding <=> $1::halfvec) as similarity
          FROM embeddings e
          JOIN movies m ON m.id = e.movie_id
          WHERE e.movie_id != $2
-         ORDER BY e.embedding <=> $1::vector
+         ORDER BY e.embedding <=> $1::halfvec
          LIMIT $3`,
         [embedding.embedding, id, limit]
       )
