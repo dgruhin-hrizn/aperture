@@ -38,6 +38,7 @@ import CollectionsIcon from '@mui/icons-material/Collections'
 import AddToQueueIcon from '@mui/icons-material/AddToQueue'
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined'
 import ExploreIcon from '@mui/icons-material/Explore'
+import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
 import { useAuth } from '@/hooks/useAuth'
 import { WelcomeModal, useWelcomeModal } from './WelcomeModal'
 import { ExplorationConfigModal } from './ExplorationConfigModal'
@@ -49,19 +50,13 @@ const DRAWER_WIDTH = 260
 // User-facing navigation items (shown to all users)
 const userMenuItems = [
   { text: 'Home', icon: <HomeIcon />, path: '/' },
-  { text: 'Search', icon: <SearchIcon />, path: '/search' },
-  { text: 'Explore', icon: <HubOutlinedIcon />, path: '/explore' },
   { text: 'Recommendations', icon: <AutoAwesomeIcon />, path: '/recommendations' },
-  { text: 'Discover', icon: <ExploreIcon />, path: '/discovery' },
-  { text: "Shows You Watch", icon: <AddToQueueIcon />, path: '/watching' },
-  { text: 'Top Pick Movies', icon: <WhatshotIcon />, path: '/top-picks/movies' },
-  { text: 'Top Pick Series', icon: <TvIcon />, path: '/top-picks/series' },
-  { text: 'Franchises', icon: <CollectionsIcon />, path: '/franchises' },
-  { text: 'Watch History', icon: <HistoryIcon />, path: '/history' },
-  { text: 'Watch Stats', icon: <InsightsIcon />, path: '/stats' },
-  { text: 'Browse Movies', icon: <MovieIcon />, path: '/movies' },
-  { text: 'Browse Series', icon: <TvIcon />, path: '/series' },
+  { text: 'Shows You Watch', icon: <AddToQueueIcon />, path: '/watching' },
+  { text: 'Top Picks', icon: <WhatshotIcon />, path: '/top-picks' },
   { text: 'Playlists', icon: <PlaylistPlayIcon />, path: '/playlists' },
+  { text: 'Explore', icon: <HubOutlinedIcon />, path: '/explore' },
+  { text: 'Discover', icon: <ExploreIcon />, path: '/discovery' },
+  { text: 'Browse', icon: <VideoLibraryIcon />, path: '/browse' },
 ]
 
 // Admin navigation items (shown only to admins)
