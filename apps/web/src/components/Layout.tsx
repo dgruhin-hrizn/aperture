@@ -40,8 +40,7 @@ import AddToQueueIcon from '@mui/icons-material/AddToQueue'
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined'
 import ExploreIcon from '@mui/icons-material/Explore'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
-import ChevronRightIcon from '@mui/icons-material/ChevronRight'
+import MenuOpenIcon from '@mui/icons-material/MenuOpen'
 import { useAuth } from '@/hooks/useAuth'
 import { WelcomeModal, useWelcomeModal } from './WelcomeModal'
 import { ExplorationConfigModal } from './ExplorationConfigModal'
@@ -267,19 +266,44 @@ export function Layout() {
         </>
       )}
 
-      {/* Version at bottom */}
-      <Box px={collapsed ? 2 : 3} py={2} sx={{ borderTop: 1, borderColor: 'divider', textAlign: collapsed ? 'center' : 'left' }}>
-        <Typography
-          variant="caption"
-          sx={{
-            color: 'text.secondary',
-            opacity: 0.6,
-            fontFamily: 'monospace',
-            fontSize: '0.7rem',
-          }}
-        >
-          {collapsed ? 'v0.4' : 'v0.4.7'}
-        </Typography>
+      {/* Collapse toggle and version at bottom */}
+      <Box 
+        px={collapsed ? 1 : 2} 
+        py={1.5} 
+        sx={{ 
+          borderTop: 1, 
+          borderColor: 'divider',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: collapsed ? 'center' : 'space-between',
+        }}
+      >
+        <Tooltip title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} placement="right">
+          <IconButton
+            onClick={handleCollapseToggle}
+            size="small"
+            sx={{ 
+              color: 'text.secondary',
+              transform: collapsed ? 'rotate(180deg)' : 'none',
+              transition: 'transform 0.2s',
+            }}
+          >
+            <MenuOpenIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        {!collapsed && (
+          <Typography
+            variant="caption"
+            sx={{
+              color: 'text.secondary',
+              opacity: 0.6,
+              fontFamily: 'monospace',
+              fontSize: '0.7rem',
+            }}
+          >
+            v0.4.7
+          </Typography>
+        )}
       </Box>
     </Box>
   )
@@ -308,17 +332,6 @@ export function Layout() {
           >
             <MenuIcon />
           </IconButton>
-
-          {/* Collapse sidebar toggle (desktop only) */}
-          <Tooltip title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
-            <IconButton
-              color="inherit"
-              onClick={handleCollapseToggle}
-              sx={{ mr: 2, display: { xs: 'none', md: 'flex' } }}
-            >
-              {collapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
-            </IconButton>
-          </Tooltip>
 
           {/* Global Search */}
           <GlobalSearch />
