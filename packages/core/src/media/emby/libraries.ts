@@ -67,41 +67,25 @@ export async function createVirtualLibrary(
   // Emby uses different collection type names
   const embyCollectionType = collectionType === 'movies' ? 'movies' : 'tvshows'
 
-  // Use Node's native http module with api_key query param (not header auth)
-  // This matches exactly how curl works when creating libraries
-  const http = await import('http')
-  const https = await import('https')
-  const { URL } = await import('url')
-  
-  // Use api_key query param for auth (same as working curl command)
-  const fullUrl = `${provider.baseUrl}/Library/VirtualFolders?name=${encodeURIComponent(name)}&collectionType=${embyCollectionType}&paths=${encodeURIComponent(path)}&refreshLibrary=true&api_key=${apiKey}`
-  const parsedUrl = new URL(fullUrl)
-  const isHttps = parsedUrl.protocol === 'https:'
-  const httpModule = isHttps ? https : http
-  
-  await new Promise<void>((resolve, reject) => {
-    const req = httpModule.request(
-      {
-        hostname: parsedUrl.hostname,
-        port: parsedUrl.port || (isHttps ? 443 : 80),
-        path: parsedUrl.pathname + parsedUrl.search,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+  // CRITICAL: Must pass LibraryOptions.ContentType in JSON body for Emby to properly
+  // set the library type. Query params alone result in "mixed content" (CollectionType: null).
+  await provider.fetch(
+    '/Library/VirtualFolders',
+    apiKey,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        Name: name,
+        CollectionType: embyCollectionType,
+        Paths: [path],
+        RefreshLibrary: true,
+        LibraryOptions: {
+          ContentType: embyCollectionType,
         },
-      },
-      (res) => {
-        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-          resolve()
-        } else {
-          reject(new Error(`Emby API error: ${res.statusCode} ${res.statusMessage}`))
-        }
-      }
-    )
-    
-    req.on('error', (err) => reject(err))
-    req.end()
-  })
+      }),
+    }
+  )
 
   // Get the created library to find its ID
   const libraries = await getLibraries(provider, apiKey)

@@ -61,8 +61,7 @@ export async function createVirtualLibrary(
     return { libraryId: existing.id, alreadyExists: true }
   }
 
-  // Use JSON body as per API spec (consistent with Emby)
-  // Query params work in some cases but JSON body is more reliable
+  // CRITICAL: Must pass LibraryOptions.ContentType in JSON body for proper library type
   await provider.fetch(
     '/Library/VirtualFolders',
     apiKey,
@@ -74,6 +73,9 @@ export async function createVirtualLibrary(
         CollectionType: collectionType,
         Paths: [path],
         RefreshLibrary: true,
+        LibraryOptions: {
+          ContentType: collectionType,
+        },
       }),
     }
   )
