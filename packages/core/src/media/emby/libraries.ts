@@ -57,8 +57,9 @@ export async function createVirtualLibrary(
   const existing = existingLibraries.find((lib) => lib.name === name)
   
   if (existing) {
-    // Library already exists - just use it and ensure sort title is set
+    // Library already exists - ensure settings are configured
     await setLibrarySortTitle(provider, apiKey, existing.id, name)
+    await setLibraryOptions(provider, apiKey, existing.id, { excludeFromSearch: true })
     return { libraryId: existing.id, alreadyExists: true }
   }
 
@@ -81,6 +82,9 @@ export async function createVirtualLibrary(
 
   // Set forced sort name so library appears at top
   await setLibrarySortTitle(provider, apiKey, created.id, name)
+  
+  // Exclude from global search - these are AI-curated libraries
+  await setLibraryOptions(provider, apiKey, created.id, { excludeFromSearch: true })
 
   return { libraryId: created.id, alreadyExists: false }
 }
@@ -126,6 +130,38 @@ async function setLibrarySortTitle(
   } catch {
     // Non-fatal: library will still work, just won't sort to top
     console.warn(`Failed to set sort title for library ${libraryId}`)
+  }
+}
+
+/**
+ * Set library options like ExcludeFromSearch
+ * @param provider - Emby provider instance
+ * @param apiKey - API key for authentication
+ * @param libraryId - Library ID
+ * @param options - Options to set
+ */
+async function setLibraryOptions(
+  provider: EmbyProviderBase,
+  apiKey: string,
+  libraryId: string,
+  options: { excludeFromSearch?: boolean }
+): Promise<void> {
+  try {
+    // Use the LibraryOptions endpoint to update library settings
+    // This excludes AI-generated libraries from global search results
+    await provider.fetch('/Library/VirtualFolders/LibraryOptions', apiKey, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        Id: libraryId,
+        LibraryOptions: {
+          ExcludeFromSearch: options.excludeFromSearch ?? false,
+        },
+      }),
+    })
+  } catch {
+    // Non-fatal: library will still work, just won't be excluded from search
+    console.warn(`Failed to set library options for library ${libraryId}`)
   }
 }
 
