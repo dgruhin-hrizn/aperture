@@ -1,6 +1,6 @@
 /**
  * User Settings Management
- * 
+ *
  * Per-user settings and preferences including custom library names.
  */
 
@@ -29,9 +29,49 @@ export interface PageViewModes {
   recommendations?: ViewMode
 }
 
+export type SortField =
+  | 'title'
+  | 'year'
+  | 'releaseDate'
+  | 'rating'
+  | 'rtScore'
+  | 'metacritic'
+  | 'runtime'
+  | 'added'
+  | 'seasons'
+export type SortOrder = 'asc' | 'desc'
+
+export interface BrowseSortPreference {
+  movies: { sortBy: SortField; sortOrder: SortOrder }
+  series: { sortBy: SortField; sortOrder: SortOrder }
+}
+
+export interface BrowseFilterPreset {
+  id: string
+  name: string
+  type: 'movies' | 'series'
+  filters: {
+    yearRange?: [number, number]
+    runtimeRange?: [number, number]
+    seasonsRange?: [number, number]
+    communityRating?: [number, number]
+    rtScore?: [number, number]
+    metacritic?: [number, number]
+    contentRatings?: string[]
+    resolutions?: string[]
+    status?: string[]
+    genre?: string
+    collection?: string
+    network?: string
+  }
+  createdAt: string
+}
+
 export interface UserUiPreferences {
   sidebarCollapsed?: boolean
   viewModes?: PageViewModes
+  browseSort?: BrowseSortPreference
+  browseFilterPresets?: BrowseFilterPreset[]
 }
 
 /**
@@ -54,10 +94,7 @@ export async function getUserSettings(userId: string): Promise<UserSettings> {
 
   // Create default settings if not exists
   if (!settings) {
-    await query(
-      `INSERT INTO user_settings (user_id) VALUES ($1) ON CONFLICT DO NOTHING`,
-      [userId]
-    )
+    await query(`INSERT INTO user_settings (user_id) VALUES ($1) ON CONFLICT DO NOTHING`, [userId])
     settings = await queryOne<{
       user_id: string
       library_name: string | null
@@ -102,10 +139,7 @@ export async function updateUserSettings(
   updates: { libraryName?: string | null; seriesLibraryName?: string | null }
 ): Promise<UserSettings> {
   // Ensure settings row exists
-  await query(
-    `INSERT INTO user_settings (user_id) VALUES ($1) ON CONFLICT DO NOTHING`,
-    [userId]
-  )
+  await query(`INSERT INTO user_settings (user_id) VALUES ($1) ON CONFLICT DO NOTHING`, [userId])
 
   // Update fields that were provided
   if (updates.libraryName !== undefined) {
@@ -121,7 +155,10 @@ export async function updateUserSettings(
       `UPDATE user_settings SET series_library_name = $1, updated_at = NOW() WHERE user_id = $2`,
       [updates.seriesLibraryName || null, userId]
     )
-    logger.info({ userId, seriesLibraryName: updates.seriesLibraryName }, 'Updated user series library name')
+    logger.info(
+      { userId, seriesLibraryName: updates.seriesLibraryName },
+      'Updated user series library name'
+    )
   }
 
   return getUserSettings(userId)
@@ -146,14 +183,15 @@ export interface UserAiExplanationSettings {
 /**
  * Get a user's AI explanation settings
  */
-export async function getUserAiExplanationSettings(userId: string): Promise<UserAiExplanationSettings> {
+export async function getUserAiExplanationSettings(
+  userId: string
+): Promise<UserAiExplanationSettings> {
   const row = await queryOne<{
     ai_explanation_override_allowed: boolean
     ai_explanation_enabled: boolean | null
-  }>(
-    `SELECT ai_explanation_override_allowed, ai_explanation_enabled FROM users WHERE id = $1`,
-    [userId]
-  )
+  }>(`SELECT ai_explanation_override_allowed, ai_explanation_enabled FROM users WHERE id = $1`, [
+    userId,
+  ])
 
   return {
     overrideAllowed: row?.ai_explanation_override_allowed ?? false,
@@ -188,10 +226,10 @@ export async function setUserAiExplanationPreference(
     throw new Error('AI explanation override not allowed for this user')
   }
 
-  await query(
-    `UPDATE users SET ai_explanation_enabled = $1, updated_at = NOW() WHERE id = $2`,
-    [enabled, userId]
-  )
+  await query(`UPDATE users SET ai_explanation_enabled = $1, updated_at = NOW() WHERE id = $2`, [
+    enabled,
+    userId,
+  ])
   logger.info({ userId, enabled }, 'Updated user AI explanation preference')
 }
 
@@ -202,28 +240,28 @@ export async function setUserAiExplanationPreference(
 export async function getEffectiveAiExplanationSetting(userId: string): Promise<boolean> {
   // Import here to avoid circular dependency
   const { getAiExplanationConfig } = await import('../settings/systemSettings.js')
-  
+
   // Get global config
   const globalConfig = await getAiExplanationConfig()
-  
+
   // If global override is not allowed, use global setting
   if (!globalConfig.userOverrideAllowed) {
     return globalConfig.enabled
   }
-  
+
   // Check if this user has override permission
   const userSettings = await getUserAiExplanationSettings(userId)
-  
+
   // If user doesn't have override permission, use global
   if (!userSettings.overrideAllowed) {
     return globalConfig.enabled
   }
-  
+
   // User has override permission - use their preference if set, otherwise global
   if (userSettings.enabled !== null) {
     return userSettings.enabled
   }
-  
+
   return globalConfig.enabled
 }
 
@@ -240,7 +278,7 @@ export interface TitleTemplateContext {
 
 /**
  * Process a library title template by replacing merge tags with actual values
- * 
+ *
  * Supported tags:
  * - {{username}} - User's display name
  * - {{type}} - Media type ('Movies' or 'TV Series')
@@ -248,20 +286,22 @@ export interface TitleTemplateContext {
  * - {{date}} - Date of last recommendation run (optional)
  */
 export function processLibraryTitle(template: string, context: TitleTemplateContext): string {
-  return template
-    .replace(/\{\{username\}\}/gi, context.username)
-    .replace(/\{\{type\}\}/gi, context.type)
-    .replace(/\{\{count\}\}/gi, context.count !== undefined ? String(context.count) : '')
-    .replace(/\{\{date\}\}/gi, context.date || '')
-    // Clean up any leftover empty segments (e.g., "Title -  " becomes "Title")
-    .replace(/\s+-\s*$/g, '')
-    .replace(/\s+\(\s*\)/g, '')
-    .trim()
+  return (
+    template
+      .replace(/\{\{username\}\}/gi, context.username)
+      .replace(/\{\{type\}\}/gi, context.type)
+      .replace(/\{\{count\}\}/gi, context.count !== undefined ? String(context.count) : '')
+      .replace(/\{\{date\}\}/gi, context.date || '')
+      // Clean up any leftover empty segments (e.g., "Title -  " becomes "Title")
+      .replace(/\s+-\s*$/g, '')
+      .replace(/\s+\(\s*\)/g, '')
+      .trim()
+  )
 }
 
 /**
  * Get the effective library title for a user
- * 
+ *
  * Priority:
  * 1. User's custom library name (if set)
  * 2. Global template with merge tags replaced
@@ -274,30 +314,28 @@ export async function getEffectiveLibraryTitle(
 ): Promise<string> {
   // Check for user's custom library name
   const settings = await getUserSettings(userId)
-  
+
   if (mediaType === 'movies' && settings.libraryName) {
     return settings.libraryName
   }
-  
+
   if (mediaType === 'series' && settings.seriesLibraryName) {
     return settings.seriesLibraryName
   }
-  
+
   // Use global template
   const { getLibraryTitleConfig } = await import('../settings/systemSettings.js')
   const titleConfig = await getLibraryTitleConfig()
-  
-  const template = mediaType === 'movies' 
-    ? titleConfig.moviesTemplate 
-    : titleConfig.seriesTemplate
-  
+
+  const template = mediaType === 'movies' ? titleConfig.moviesTemplate : titleConfig.seriesTemplate
+
   const context: TitleTemplateContext = {
     username: displayName,
     type: mediaType === 'movies' ? 'Movies' : 'TV Series',
     count,
     date: new Date().toISOString().split('T')[0],
   }
-  
+
   return processLibraryTitle(template, context)
 }
 
@@ -321,17 +359,34 @@ export async function updateUserUiPreferences(
   preferences: Partial<UserUiPreferences>
 ): Promise<UserUiPreferences> {
   // Ensure settings row exists
-  await query(
-    `INSERT INTO user_settings (user_id) VALUES ($1) ON CONFLICT DO NOTHING`,
-    [userId]
-  )
+  await query(`INSERT INTO user_settings (user_id) VALUES ($1) ON CONFLICT DO NOTHING`, [userId])
 
   // Get current settings_json
   const settings = await getUserSettings(userId)
   const currentUi = (settings.settingsJson?.ui as UserUiPreferences) || {}
-  
-  // Merge new preferences
-  const updatedUi = { ...currentUi, ...preferences }
+
+  // Deep merge nested objects
+  const updatedUi: UserUiPreferences = {
+    ...currentUi,
+    ...preferences,
+    // Deep merge viewModes
+    viewModes: preferences.viewModes
+      ? { ...currentUi.viewModes, ...preferences.viewModes }
+      : currentUi.viewModes,
+    // Deep merge browseSort
+    browseSort: preferences.browseSort
+      ? {
+          movies: { ...currentUi.browseSort?.movies, ...preferences.browseSort?.movies },
+          series: { ...currentUi.browseSort?.series, ...preferences.browseSort?.series },
+        }
+      : currentUi.browseSort,
+    // Replace browseFilterPresets entirely if provided (array operations handled separately)
+    browseFilterPresets:
+      preferences.browseFilterPresets !== undefined
+        ? preferences.browseFilterPresets
+        : currentUi.browseFilterPresets,
+  }
+
   const updatedSettingsJson = { ...settings.settingsJson, ui: updatedUi }
 
   // Update the settings_json column
@@ -344,3 +399,73 @@ export async function updateUserUiPreferences(
   return updatedUi
 }
 
+/**
+ * Add a new browse filter preset
+ */
+export async function addBrowseFilterPreset(
+  userId: string,
+  preset: Omit<BrowseFilterPreset, 'id' | 'createdAt'>
+): Promise<BrowseFilterPreset> {
+  const currentPrefs = await getUserUiPreferences(userId)
+  const presets = currentPrefs.browseFilterPresets || []
+
+  const newPreset: BrowseFilterPreset = {
+    ...preset,
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+  }
+
+  await updateUserUiPreferences(userId, {
+    browseFilterPresets: [...presets, newPreset],
+  })
+
+  logger.info(
+    { userId, presetId: newPreset.id, name: newPreset.name },
+    'Added browse filter preset'
+  )
+  return newPreset
+}
+
+/**
+ * Update a browse filter preset
+ */
+export async function updateBrowseFilterPreset(
+  userId: string,
+  presetId: string,
+  updates: Partial<Omit<BrowseFilterPreset, 'id' | 'createdAt'>>
+): Promise<BrowseFilterPreset | null> {
+  const currentPrefs = await getUserUiPreferences(userId)
+  const presets = currentPrefs.browseFilterPresets || []
+
+  const index = presets.findIndex((p) => p.id === presetId)
+  if (index === -1) return null
+
+  const updatedPreset = { ...presets[index], ...updates }
+  const updatedPresets = [...presets]
+  updatedPresets[index] = updatedPreset
+
+  await updateUserUiPreferences(userId, {
+    browseFilterPresets: updatedPresets,
+  })
+
+  logger.info({ userId, presetId }, 'Updated browse filter preset')
+  return updatedPreset
+}
+
+/**
+ * Delete a browse filter preset
+ */
+export async function deleteBrowseFilterPreset(userId: string, presetId: string): Promise<boolean> {
+  const currentPrefs = await getUserUiPreferences(userId)
+  const presets = currentPrefs.browseFilterPresets || []
+
+  const filtered = presets.filter((p) => p.id !== presetId)
+  if (filtered.length === presets.length) return false
+
+  await updateUserUiPreferences(userId, {
+    browseFilterPresets: filtered,
+  })
+
+  logger.info({ userId, presetId }, 'Deleted browse filter preset')
+  return true
+}

@@ -78,7 +78,7 @@ interface MoviesListResponse {
 const moviesRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * GET /api/movies
-   * List all movies with pagination
+   * List all movies with pagination, filtering, and sorting
    */
   fastify.get<{
     Querystring: {
@@ -90,13 +90,30 @@ const moviesRoutes: FastifyPluginAsync = async (fastify) => {
       minRtScore?: string
       showAll?: string
       hasAwards?: string
+      // New filter params
+      minYear?: string
+      maxYear?: string
+      contentRating?: string | string[]
+      minRuntime?: string
+      maxRuntime?: string
+      minCommunityRating?: string
+      minMetacritic?: string
+      resolution?: string | string[]
+      // Sort params
+      sortBy?: 'title' | 'year' | 'releaseDate' | 'rating' | 'rtScore' | 'metacritic' | 'runtime' | 'added'
+      sortOrder?: 'asc' | 'desc'
     }
     Reply: MoviesListResponse
   }>('/api/movies', { preHandler: requireAuth }, async (request, reply) => {
     const page = parseInt(request.query.page || '1', 10)
     const pageSize = Math.min(parseInt(request.query.pageSize || '50', 10), 100)
     const offset = (page - 1) * pageSize
-    const { search, genre, collection, minRtScore, showAll, hasAwards } = request.query
+    const { 
+      search, genre, collection, minRtScore, showAll, hasAwards,
+      minYear, maxYear, contentRating, minRuntime, maxRuntime,
+      minCommunityRating, minMetacritic, resolution,
+      sortBy = 'title', sortOrder = 'asc'
+    } = request.query
 
     // Check if library configs exist
     const configCheck = await queryOne<{ count: string }>(
@@ -150,12 +167,137 @@ const moviesRoutes: FastifyPluginAsync = async (fastify) => {
       whereClause += `awards_summary IS NOT NULL`
     }
 
+    // Year range filter
+    if (minYear) {
+      const year = parseInt(minYear, 10)
+      if (!isNaN(year)) {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `year >= $${paramIndex++}`
+        params.push(year)
+      }
+    }
+    if (maxYear) {
+      const year = parseInt(maxYear, 10)
+      if (!isNaN(year)) {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `year <= $${paramIndex++}`
+        params.push(year)
+      }
+    }
+
+    // Content rating filter (supports multiple values)
+    if (contentRating) {
+      const ratings = Array.isArray(contentRating) ? contentRating : [contentRating]
+      if (ratings.length > 0) {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `content_rating = ANY($${paramIndex++})`
+        params.push(ratings)
+      }
+    }
+
+    // Runtime filter
+    if (minRuntime) {
+      const runtime = parseInt(minRuntime, 10)
+      if (!isNaN(runtime)) {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `runtime_minutes >= $${paramIndex++}`
+        params.push(runtime)
+      }
+    }
+    if (maxRuntime) {
+      const runtime = parseInt(maxRuntime, 10)
+      if (!isNaN(runtime)) {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `runtime_minutes <= $${paramIndex++}`
+        params.push(runtime)
+      }
+    }
+
+    // Community rating filter
+    if (minCommunityRating) {
+      const rating = parseFloat(minCommunityRating)
+      if (!isNaN(rating)) {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `community_rating >= $${paramIndex++}`
+        params.push(rating)
+      }
+    }
+
+    // Metacritic filter
+    if (minMetacritic) {
+      const score = parseInt(minMetacritic, 10)
+      if (!isNaN(score)) {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `metacritic_score >= $${paramIndex++}`
+        params.push(score)
+      }
+    }
+
+    // Resolution filter (4K, 1080p, 720p, SD)
+    if (resolution) {
+      const resolutions = Array.isArray(resolution) ? resolution : [resolution]
+      if (resolutions.length > 0) {
+        const resConditions: string[] = []
+        for (const res of resolutions) {
+          switch (res) {
+            case '4K':
+              resConditions.push(`(video_resolution LIKE '3840%' OR video_resolution LIKE '2160%')`)
+              break
+            case '1080p':
+              resConditions.push(`video_resolution LIKE '1920x%' OR video_resolution LIKE '%x1080'`)
+              break
+            case '720p':
+              resConditions.push(`video_resolution LIKE '1280x%' OR video_resolution LIKE '%x720'`)
+              break
+            case 'SD':
+              resConditions.push(`(video_resolution LIKE '720x%' OR video_resolution LIKE '640x%' OR video_resolution LIKE '480x%')`)
+              break
+          }
+        }
+        if (resConditions.length > 0) {
+          whereClause += whereClause ? ' AND ' : ' WHERE '
+          whereClause += `(${resConditions.join(' OR ')})`
+        }
+      }
+    }
+
     // Get total count
     const countResult = await queryOne<{ count: string }>(
       `SELECT COUNT(*) as count FROM movies${whereClause}`,
       params
     )
     const total = parseInt(countResult?.count || '0', 10)
+
+    // Build ORDER BY clause
+    let orderClause = ''
+    const order = sortOrder === 'desc' ? 'DESC' : 'ASC'
+    const nullsPosition = sortOrder === 'desc' ? 'NULLS LAST' : 'NULLS LAST'
+    
+    switch (sortBy) {
+      case 'year':
+        orderClause = `year ${order} ${nullsPosition}, title ASC`
+        break
+      case 'releaseDate':
+        orderClause = `premiere_date ${order} ${nullsPosition}, title ASC`
+        break
+      case 'rating':
+        orderClause = `community_rating ${order} ${nullsPosition}, title ASC`
+        break
+      case 'rtScore':
+        orderClause = `rt_critic_score ${order} ${nullsPosition}, title ASC`
+        break
+      case 'metacritic':
+        orderClause = `metacritic_score ${order} ${nullsPosition}, title ASC`
+        break
+      case 'runtime':
+        orderClause = `runtime_minutes ${order} ${nullsPosition}, title ASC`
+        break
+      case 'added':
+        orderClause = `created_at ${order}, title ASC`
+        break
+      default:
+        orderClause = `title ${order}`
+    }
 
     // Get movies
     params.push(pageSize, offset)
@@ -164,7 +306,7 @@ const moviesRoutes: FastifyPluginAsync = async (fastify) => {
               community_rating, runtime_minutes, poster_url, backdrop_url, created_at, updated_at,
               rt_critic_score, awards_summary
        FROM movies${whereClause}
-       ORDER BY title ASC
+       ORDER BY ${orderClause}
        LIMIT $${paramIndex++} OFFSET $${paramIndex}`,
       params
     )
@@ -323,6 +465,98 @@ const moviesRoutes: FastifyPluginAsync = async (fastify) => {
 
     return reply.send({ 
       collections: result.rows.map((r) => ({ name: r.collection_name, count: parseInt(r.count, 10) })) 
+    })
+  })
+
+  /**
+   * GET /api/movies/content-ratings
+   * Get all unique content ratings with counts
+   */
+  fastify.get('/api/movies/content-ratings', { preHandler: requireAuth }, async (_request, reply) => {
+    const result = await query<{ content_rating: string; count: string }>(
+      `SELECT content_rating, COUNT(*) as count
+       FROM movies 
+       WHERE content_rating IS NOT NULL
+       GROUP BY content_rating
+       ORDER BY 
+         CASE content_rating
+           WHEN 'G' THEN 1
+           WHEN 'PG' THEN 2
+           WHEN 'PG-13' THEN 3
+           WHEN 'R' THEN 4
+           WHEN 'NC-17' THEN 5
+           WHEN 'TV-G' THEN 6
+           WHEN 'TV-PG' THEN 7
+           WHEN 'TV-14' THEN 8
+           WHEN 'TV-MA' THEN 9
+           ELSE 10
+         END`
+    )
+
+    return reply.send({ 
+      contentRatings: result.rows.map((r) => ({ rating: r.content_rating, count: parseInt(r.count, 10) })) 
+    })
+  })
+
+  /**
+   * GET /api/movies/resolutions
+   * Get video resolution categories with counts
+   */
+  fastify.get('/api/movies/resolutions', { preHandler: requireAuth }, async (_request, reply) => {
+    const result = await query<{ category: string; count: string }>(
+      `SELECT 
+        CASE 
+          WHEN video_resolution LIKE '3840%' OR video_resolution LIKE '2160%' OR video_resolution LIKE '%x2160' THEN '4K'
+          WHEN video_resolution LIKE '1920x%' OR video_resolution LIKE '%x1080' THEN '1080p'
+          WHEN video_resolution LIKE '1280x%' OR video_resolution LIKE '%x720' THEN '720p'
+          ELSE 'SD'
+        END as category,
+        COUNT(*) as count
+       FROM movies 
+       WHERE video_resolution IS NOT NULL
+       GROUP BY category
+       ORDER BY 
+         CASE category
+           WHEN '4K' THEN 1
+           WHEN '1080p' THEN 2
+           WHEN '720p' THEN 3
+           WHEN 'SD' THEN 4
+         END`
+    )
+
+    return reply.send({ 
+      resolutions: result.rows.map((r) => ({ resolution: r.category, count: parseInt(r.count, 10) })) 
+    })
+  })
+
+  /**
+   * GET /api/movies/filter-ranges
+   * Get min/max values for range filters
+   */
+  fastify.get('/api/movies/filter-ranges', { preHandler: requireAuth }, async (_request, reply) => {
+    const result = await queryOne<{
+      min_year: number
+      max_year: number
+      min_runtime: number
+      max_runtime: number
+      min_rating: number
+      max_rating: number
+    }>(
+      `SELECT 
+        MIN(year) as min_year,
+        MAX(year) as max_year,
+        MIN(runtime_minutes) as min_runtime,
+        MAX(runtime_minutes) as max_runtime,
+        MIN(community_rating) as min_rating,
+        MAX(community_rating) as max_rating
+       FROM movies 
+       WHERE year IS NOT NULL`
+    )
+
+    return reply.send({
+      year: { min: result?.min_year || 1900, max: result?.max_year || new Date().getFullYear() },
+      runtime: { min: result?.min_runtime || 0, max: result?.max_runtime || 300 },
+      rating: { min: result?.min_rating || 0, max: result?.max_rating || 10 }
     })
   })
 

@@ -270,11 +270,18 @@ export {
   getEffectiveAiExplanationSetting,
   getUserUiPreferences,
   updateUserUiPreferences,
+  addBrowseFilterPreset,
+  updateBrowseFilterPreset,
+  deleteBrowseFilterPreset,
   type UserSettings,
   type UserAiExplanationSettings,
   type UserUiPreferences,
   type ViewMode,
   type PageViewModes,
+  type SortField,
+  type SortOrder,
+  type BrowseSortPreference,
+  type BrowseFilterPreset,
 } from './lib/userSettings.js'
 
 // Library Exclusions
