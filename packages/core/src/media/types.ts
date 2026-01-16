@@ -24,7 +24,8 @@ export interface MediaServerUser {
 }
 
 export interface Library {
-  id: string
+  id: string // ItemId - for Items API (/Items/...)
+  virtualFolderId?: string // VirtualFolder Id - for library options API
   guid: string // Used for user permissions in Emby/Jellyfin
   name: string
   collectionType: string

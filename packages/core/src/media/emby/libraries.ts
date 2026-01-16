@@ -20,9 +20,10 @@ export async function getLibraries(
   const libraries = Array.isArray(response) ? response : response.Items || []
 
   return libraries.map((lib: EmbyLibrary) => ({
-    // Use Id for VirtualFolders API, fallback to ItemId for older Emby versions
-    id: lib.Id || lib.ItemId || '',
-    guid: lib.Guid || lib.Id || lib.ItemId || '', // GUID is used for user permissions
+    // ItemId is for Items API (/Items/...), Id is for VirtualFolders API
+    id: lib.ItemId || lib.Id || '',  // Primary ID for Items API
+    virtualFolderId: lib.Id || '',    // VirtualFolder ID for library options
+    guid: lib.Guid || lib.ItemId || lib.Id || '', // GUID is used for user permissions
     name: lib.Name,
     collectionType: lib.CollectionType,
     path: lib.Path,
@@ -60,7 +61,10 @@ export async function createVirtualLibrary(
   if (existing) {
     // Library already exists - ensure settings are configured
     await setLibrarySortTitle(provider, apiKey, existing.id, name)
-    await setLibraryOptions(provider, apiKey, existing.id, { excludeFromSearch: true })
+    // setLibraryOptions needs VirtualFolder Id, not ItemId
+    if (existing.virtualFolderId) {
+      await setLibraryOptions(provider, apiKey, existing.virtualFolderId, { excludeFromSearch: true })
+    }
     return { libraryId: existing.id, alreadyExists: true }
   }
 
@@ -84,8 +88,10 @@ export async function createVirtualLibrary(
   // Set forced sort name so library appears at top
   await setLibrarySortTitle(provider, apiKey, created.id, name)
   
-  // Exclude from global search - these are AI-curated libraries
-  await setLibraryOptions(provider, apiKey, created.id, { excludeFromSearch: true })
+  // Exclude from global search - setLibraryOptions needs VirtualFolder Id
+  if (created.virtualFolderId) {
+    await setLibraryOptions(provider, apiKey, created.virtualFolderId, { excludeFromSearch: true })
+  }
 
   return { libraryId: created.id, alreadyExists: false }
 }
