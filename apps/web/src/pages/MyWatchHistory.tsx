@@ -389,6 +389,8 @@ export function MyWatchHistoryPage() {
                           genres={item.genres}
                           rating={item.community_rating}
                           overview={item.overview}
+                          userRating={getRating('movie', item.movie_id)}
+                          onRate={(rating) => setRating('movie', item.movie_id, rating)}
                           responsive
                           onClick={() => navigate(`/movies/${item.movie_id}`)}
                         />
@@ -530,6 +532,8 @@ export function MyWatchHistoryPage() {
                             genres={item.genres}
                             rating={item.community_rating}
                             overview={item.overview}
+                            userRating={getRating('series', item.series_id)}
+                            onRate={(rating) => setRating('series', item.series_id, rating)}
                             responsive
                             hideRating
                             isWatching={isWatching(item.series_id)}
