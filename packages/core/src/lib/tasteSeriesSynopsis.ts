@@ -9,11 +9,6 @@ import { query, queryOne } from './db.js'
 import { createChildLogger } from './logger.js'
 import { getTextGenerationModelInstance, isAIFunctionConfigured } from './ai-provider.js'
 import { streamText } from 'ai'
-import {
-  getUserFranchisePreferences,
-  getUserGenreWeights,
-  getUserCustomInterests,
-} from '../taste-profile/index.js'
 import { getUserExcludedLibraries } from './libraryExclusions.js'
 import { analyzeSeriesTaste, formatTasteProfileForAI } from './tasteAnalyzer.js'
 
@@ -184,43 +179,6 @@ export async function* streamSeriesTasteSynopsis(
     GROUP BY s.id, s.title, s.year, s.genres, s.community_rating, s.network, s.total_episodes
     ORDER BY episodes_watched DESC
     LIMIT 15
-  `,
-    [userId, excludedLibraryIds]
-  )
-
-  // Get series with favorite episodes (filtered by excluded libraries)
-  const seriesWithFavorites = await query<{ title: string; favorite_count: number }>(
-    `
-    SELECT s.title, COUNT(*) as favorite_count
-    FROM watch_history wh
-    JOIN episodes e ON e.id = wh.episode_id
-    JOIN series s ON s.id = e.series_id
-    WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND wh.is_favorite = true
-      AND (CARDINALITY($2::text[]) = 0 OR s.provider_library_id::text != ALL($2::text[]))
-    GROUP BY s.id, s.title
-    ORDER BY favorite_count DESC
-    LIMIT 10
-  `,
-    [userId, excludedLibraryIds]
-  )
-
-  // Get completed series (filtered by excluded libraries)
-  const completedSeries = await query<WatchedSeries>(
-    `
-    SELECT 
-      s.title, s.year, s.genres, s.community_rating, s.network,
-      COUNT(DISTINCT wh.episode_id) as episodes_watched,
-      s.total_episodes,
-      ROUND(COUNT(DISTINCT wh.episode_id)::numeric / s.total_episodes * 100) as completion_rate
-    FROM watch_history wh
-    JOIN episodes e ON e.id = wh.episode_id
-    JOIN series s ON s.id = e.series_id
-    WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND s.total_episodes > 0
-      AND (CARDINALITY($2::text[]) = 0 OR s.provider_library_id::text != ALL($2::text[]))
-    GROUP BY s.id, s.title, s.year, s.genres, s.community_rating, s.network, s.total_episodes
-    HAVING COUNT(DISTINCT wh.episode_id)::numeric / s.total_episodes >= 0.75
-    ORDER BY s.total_episodes DESC
-    LIMIT 10
   `,
     [userId, excludedLibraryIds]
   )
@@ -484,152 +442,6 @@ async function getSeriesQuickStats(userId: string): Promise<SeriesTasteSynopsis[
     favoriteNetworks: networkResults.rows.map((r) => r.network),
     recentFavorites: recentFavorites.rows.map((s) => s.title),
   }
-}
-
-interface FranchisePref {
-  franchiseName: string
-  preferenceScore: number
-  itemsWatched: number
-}
-
-interface GenrePref {
-  genre: string
-  weight: number
-}
-
-interface CustomInterest {
-  interestText: string
-}
-
-/**
- * Build the prompt for OpenAI
- */
-function buildSeriesSynopsisPrompt(data: {
-  seriesCount: number
-  episodeCount: number
-  avgRating: number
-  favoriteCount: number
-  topGenres: string[]
-  favoriteNetworks: string[]
-  favoriteDecade: string | null
-  topSeries: WatchedSeries[]
-  seriesWithFavorites: Array<{ title: string; favorite_count: number }>
-  completedSeries: WatchedSeries[]
-  franchisePrefs?: FranchisePref[]
-  genrePrefs?: GenrePref[]
-  customInterests?: CustomInterest[]
-}): string {
-  const lines = [
-    `User's Complete TV Series Watching Profile:`,
-    `- Total series started: ${data.seriesCount}`,
-    `- Total episodes watched: ${data.episodeCount}`,
-    `- Episodes marked as favorites: ${data.favoriteCount}`,
-    `- Average rating of watched series: ${data.avgRating.toFixed(1)}/10`,
-    `- Top genres: ${data.topGenres.join(', ') || 'Diverse'}`,
-    `- Favorite networks: ${data.favoriteNetworks.join(', ') || 'Various'}`,
-    `- Most watched decade: ${data.favoriteDecade || 'Various decades'}`,
-    ``,
-  ]
-
-  // Add user's explicit preferences as structured data
-  if (data.franchisePrefs && data.franchisePrefs.length > 0) {
-    lines.push(`USER'S FRANCHISE PREFERENCES (user-configured weights):`)
-    lines.push(`Scale: -1 (strongly avoid) to 0 (neutral) to +1 (strongly prefer)`)
-    lines.push(`\`\`\`json`)
-    lines.push(
-      JSON.stringify(
-        data.franchisePrefs
-          .filter((f) => Math.abs(f.preferenceScore) > 0.1) // Only include non-neutral
-          .sort((a, b) => b.preferenceScore - a.preferenceScore)
-          .slice(0, 15)
-          .map((f) => ({
-            franchise: f.franchiseName,
-            score: Number(f.preferenceScore.toFixed(2)),
-            watched: f.itemsWatched,
-          })),
-        null,
-        2
-      )
-    )
-    lines.push(`\`\`\``)
-    lines.push(``)
-  }
-
-  if (data.genrePrefs && data.genrePrefs.length > 0) {
-    lines.push(`USER'S GENRE PREFERENCES (user-configured weights):`)
-    lines.push(`Scale: 0 (hide/avoid) to 1 (neutral) to 2 (strongly boost)`)
-    lines.push(`\`\`\`json`)
-    lines.push(
-      JSON.stringify(
-        data.genrePrefs
-          .filter((g) => Math.abs(g.weight - 1) > 0.1) // Only include non-neutral (away from 1.0)
-          .sort((a, b) => b.weight - a.weight)
-          .slice(0, 15)
-          .map((g) => ({
-            genre: g.genre,
-            weight: Number(g.weight.toFixed(2)),
-          })),
-        null,
-        2
-      )
-    )
-    lines.push(`\`\`\``)
-    lines.push(``)
-  }
-
-  if (data.customInterests && data.customInterests.length > 0) {
-    lines.push(`USER'S STATED INTERESTS (in their own words):`)
-    for (const interest of data.customInterests.slice(0, 5)) {
-      lines.push(`- "${interest.interestText}"`)
-    }
-    lines.push(``)
-  }
-
-  if (data.topSeries.length > 0) {
-    lines.push(`Most watched series (ranked by episode count):`)
-    for (const series of data.topSeries.slice(0, 10)) {
-      const completion = series.completion_rate ? ` (${series.completion_rate}% complete)` : ''
-      const network = series.network ? ` [${series.network}]` : ''
-      lines.push(
-        `- "${series.title}" (${series.year || 'N/A'}) - ${series.episodes_watched} episodes${completion}${network}`
-      )
-    }
-    lines.push(``)
-  }
-
-  if (data.completedSeries.length > 0) {
-    lines.push(`Series they've committed to (75%+ completion):`)
-    for (const series of data.completedSeries.slice(0, 6)) {
-      lines.push(`- "${series.title}" - ${series.genres?.join(', ') || 'Unknown genre'}`)
-    }
-    lines.push(``)
-  }
-
-  if (data.seriesWithFavorites.length > 0) {
-    lines.push(`Series with favorited episodes (emotional engagement):`)
-    for (const series of data.seriesWithFavorites.slice(0, 6)) {
-      lines.push(`- "${series.title}" - ${series.favorite_count} favorite episode(s)`)
-    }
-    lines.push(``)
-  }
-
-  lines.push(`INSTRUCTIONS:`)
-  lines.push(`Write a personalized taste profile that captures their TV viewing style.`)
-  lines.push(``)
-  lines.push(`Interpret their preferences naturally:`)
-  lines.push(`- High franchise scores = they love this franchise, mention it prominently`)
-  lines.push(`- Negative franchise scores = they avoid this, don't recommend similar content`)
-  lines.push(`- High genre weights = strong preference, emphasize in profile`)
-  lines.push(`- Low genre weights = they avoid this genre`)
-  lines.push(``)
-  lines.push(`CRITICAL: Never mention numerical scores, weights, or ratings in your output.`)
-  lines.push(`Write conversationally - say "you're a huge fan of" not "score of 0.9".`)
-  lines.push(``)
-  lines.push(`Weave their stated custom interests naturally into the profile.`)
-  lines.push(`Note patterns: Do they complete series or sample many? Prefer certain networks/eras?`)
-  lines.push(`Mention specific shows by name when they exemplify patterns in their taste.`)
-
-  return lines.join('\n')
 }
 
 /**
