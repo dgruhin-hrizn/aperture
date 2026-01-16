@@ -121,17 +121,29 @@ async function fetchParallel<T>(
 async function processSeriesBatch(
   seriesList: PreparedSeries[],
   existingProviderIds: Set<string>,
+  existingTitleYears: Map<string, string>,
   _jobId: string
 ): Promise<{ added: number; updated: number }> {
   // Separate into updates and inserts
   const toUpdate: PreparedSeries[] = []
   const toInsert: PreparedSeries[] = []
+  // Track series that need metadata update by title+year (different provider_item_id)
+  const toUpdateByTitleYear: PreparedSeries[] = []
 
   for (const ps of seriesList) {
     if (existingProviderIds.has(ps.series.id)) {
       toUpdate.push(ps)
     } else {
-      toInsert.push(ps)
+      // Check for duplicate by title + year
+      const key = `${ps.series.name?.toLowerCase()}|${ps.series.year}`
+      if (existingTitleYears.has(key)) {
+        // Series exists by title+year but different provider_item_id - update it
+        // This ensures metadata (posters, etc.) gets refreshed even if Emby ID changed
+        toUpdateByTitleYear.push(ps)
+      } else {
+        toInsert.push(ps)
+        existingTitleYears.set(key, ps.series.id)
+      }
     }
   }
 
@@ -228,6 +240,107 @@ async function processSeriesBatch(
       updated = result.rowCount || toUpdate.length
     } catch (err) {
       logger.error({ err, count: toUpdate.length }, 'Failed to bulk update series')
+    }
+  }
+
+  // Bulk UPDATE series matched by title+year (different provider_item_id)
+  // This ensures metadata like posters gets refreshed even when Emby/Jellyfin item IDs change
+  if (toUpdateByTitleYear.length > 0) {
+    try {
+      const result = await query(
+        `UPDATE series SET
+          provider_item_id = data.provider_item_id,
+          original_title = data.original_title,
+          sort_title = data.sort_title,
+          end_year = data.end_year,
+          genres = COALESCE(ARRAY(SELECT jsonb_array_elements_text(data.genres)), '{}'),
+          overview = data.overview,
+          tagline = data.tagline,
+          community_rating = data.community_rating,
+          critic_rating = data.critic_rating,
+          content_rating = data.content_rating,
+          status = data.status,
+          total_seasons = data.total_seasons,
+          total_episodes = data.total_episodes,
+          air_days = COALESCE(ARRAY(SELECT jsonb_array_elements_text(data.air_days)), '{}'),
+          network = data.network,
+          studios = data.studios,
+          directors = COALESCE(ARRAY(SELECT jsonb_array_elements_text(data.directors)), '{}'),
+          writers = COALESCE(ARRAY(SELECT jsonb_array_elements_text(data.writers)), '{}'),
+          actors = data.actors,
+          imdb_id = data.imdb_id,
+          tmdb_id = data.tmdb_id,
+          tvdb_id = data.tvdb_id,
+          tags = COALESCE(ARRAY(SELECT jsonb_array_elements_text(data.tags)), '{}'),
+          production_countries = COALESCE(ARRAY(SELECT jsonb_array_elements_text(data.production_countries)), '{}'),
+          awards = data.awards,
+          poster_url = data.poster_url,
+          backdrop_url = data.backdrop_url,
+          provider_library_id = data.provider_library_id,
+          updated_at = NOW()
+        FROM (
+          SELECT * FROM unnest(
+            $1::text[], $2::text[], $3::int[], $4::text[], $5::text[], $6::int[],
+            $7::jsonb[], $8::text[], $9::text[], $10::real[], $11::real[],
+            $12::text[], $13::text[], $14::int[], $15::int[], $16::jsonb[],
+            $17::text[], $18::jsonb[], $19::jsonb[], $20::jsonb[], $21::jsonb[],
+            $22::text[], $23::text[], $24::text[], $25::jsonb[], $26::jsonb[],
+            $27::text[], $28::text[], $29::text[], $30::text[]
+          ) AS t(
+            provider_item_id, title_lower, year, original_title, sort_title, end_year,
+            genres, overview, tagline, community_rating, critic_rating, content_rating,
+            status, total_seasons, total_episodes, air_days, network, studios,
+            directors, writers, actors, imdb_id, tmdb_id, tvdb_id, tags,
+            production_countries, awards, poster_url, backdrop_url, provider_library_id
+          )
+        ) AS data
+        WHERE LOWER(series.title) = data.title_lower AND series.year = data.year`,
+        [
+          toUpdateByTitleYear.map((ps) => ps.series.id),
+          toUpdateByTitleYear.map((ps) => ps.series.name?.toLowerCase()),
+          toUpdateByTitleYear.map((ps) => ps.series.year || null),
+          toUpdateByTitleYear.map((ps) => ps.series.originalTitle || null),
+          toUpdateByTitleYear.map((ps) => ps.series.sortName || null),
+          toUpdateByTitleYear.map((ps) => ps.series.endYear || null),
+          toUpdateByTitleYear.map((ps) => JSON.stringify(ps.series.genres || [])),
+          toUpdateByTitleYear.map((ps) => ps.series.overview || null),
+          toUpdateByTitleYear.map((ps) => ps.series.tagline || null),
+          toUpdateByTitleYear.map((ps) => clampRating(ps.series.communityRating)),
+          toUpdateByTitleYear.map((ps) => clampRating(ps.series.criticRating)),
+          toUpdateByTitleYear.map((ps) => ps.series.contentRating || null),
+          toUpdateByTitleYear.map((ps) => ps.series.status || null),
+          toUpdateByTitleYear.map((ps) => ps.series.totalSeasons || null),
+          toUpdateByTitleYear.map((ps) => ps.series.totalEpisodes || null),
+          toUpdateByTitleYear.map((ps) => JSON.stringify(ps.series.airDays || [])),
+          toUpdateByTitleYear.map((ps) => ps.series.network || null),
+          toUpdateByTitleYear.map((ps) => JSON.stringify(ps.series.studios || [])),
+          toUpdateByTitleYear.map((ps) => JSON.stringify(ps.series.directors || [])),
+          toUpdateByTitleYear.map((ps) => JSON.stringify(ps.series.writers || [])),
+          toUpdateByTitleYear.map((ps) => JSON.stringify(ps.series.actors || [])),
+          toUpdateByTitleYear.map((ps) => ps.series.imdbId || null),
+          toUpdateByTitleYear.map((ps) => ps.series.tmdbId || null),
+          toUpdateByTitleYear.map((ps) => ps.series.tvdbId || null),
+          toUpdateByTitleYear.map((ps) => JSON.stringify(ps.series.tags || [])),
+          toUpdateByTitleYear.map((ps) => JSON.stringify(ps.series.productionCountries || [])),
+          toUpdateByTitleYear.map((ps) => ps.series.awards || null),
+          toUpdateByTitleYear.map((ps) => ps.posterUrl),
+          toUpdateByTitleYear.map((ps) => ps.backdropUrl),
+          toUpdateByTitleYear.map((ps) => ps.libraryId),
+        ]
+      )
+      updated += result.rowCount || 0
+      // Also update provider IDs set so we don't process these again
+      for (const ps of toUpdateByTitleYear) {
+        existingProviderIds.add(ps.series.id)
+      }
+      if (toUpdateByTitleYear.length > 0) {
+        logger.info(
+          { count: result.rowCount, total: toUpdateByTitleYear.length },
+          'Updated series by title+year match (metadata refresh)'
+        )
+      }
+    } catch (err) {
+      logger.error({ err, count: toUpdateByTitleYear.length }, 'Failed to bulk update series by title+year')
     }
   }
 
@@ -622,10 +735,17 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
     // Pre-fetch existing data from database
     addLog(jobId, 'info', '🔍 Loading existing series and episodes from database...')
     const [existingSeriesResult, existingEpisodesResult] = await Promise.all([
-      query<{ provider_item_id: string }>('SELECT provider_item_id FROM series'),
+      query<{ provider_item_id: string; title: string; year: number | null }>('SELECT provider_item_id, title, year FROM series'),
       query<{ provider_item_id: string }>('SELECT provider_item_id FROM episodes'),
     ])
-    const existingSeriesIds = new Set(existingSeriesResult.rows.map((r) => r.provider_item_id))
+    const existingSeriesIds = new Set<string>()
+    const existingSeriesTitleYears = new Map<string, string>()
+    for (const s of existingSeriesResult.rows) {
+      existingSeriesIds.add(s.provider_item_id)
+      if (s.title && s.year) {
+        existingSeriesTitleYears.set(`${s.title.toLowerCase()}|${s.year}`, s.provider_item_id)
+      }
+    }
     const existingEpisodeIds = new Set(existingEpisodesResult.rows.map((r) => r.provider_item_id))
     addLog(
       jobId,
@@ -679,7 +799,7 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
       // Process in batches
       for (let i = 0; i < preparedSeries.length; i += DB_BATCH_SIZE) {
         const batch = preparedSeries.slice(i, i + DB_BATCH_SIZE)
-        const result = await processSeriesBatch(batch, existingSeriesIds, jobId)
+        const result = await processSeriesBatch(batch, existingSeriesIds, existingSeriesTitleYears, jobId)
         seriesAdded += result.added
         seriesUpdated += result.updated
         processedSeries += batch.length

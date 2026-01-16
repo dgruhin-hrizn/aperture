@@ -134,6 +134,8 @@ async function processMovieBatch(
   // Separate into updates and inserts
   const toUpdate: PreparedMovie[] = []
   const toInsert: PreparedMovie[] = []
+  // Track movies that need metadata update by title+year (different provider_item_id)
+  const toUpdateByTitleYear: PreparedMovie[] = []
 
   for (const pm of movies) {
     if (existingProviderIds.has(pm.movie.id)) {
@@ -141,7 +143,11 @@ async function processMovieBatch(
     } else {
       // Check for duplicate by title + year
       const key = `${pm.movie.name?.toLowerCase()}|${pm.movie.year}`
-      if (!existingTitleYears.has(key)) {
+      if (existingTitleYears.has(key)) {
+        // Movie exists by title+year but different provider_item_id - update it
+        // This ensures metadata (posters, etc.) gets refreshed even if Emby ID changed
+        toUpdateByTitleYear.push(pm)
+      } else {
         toInsert.push(pm)
         existingTitleYears.set(key, pm.movie.id)
       }
@@ -249,6 +255,112 @@ async function processMovieBatch(
       }
     } catch (err) {
       logger.error({ err, count: toUpdate.length }, 'Failed to bulk update movies')
+    }
+  }
+
+  // Bulk UPDATE movies matched by title+year (different provider_item_id)
+  // This ensures metadata like posters gets refreshed even when Emby/Jellyfin item IDs change
+  if (toUpdateByTitleYear.length > 0) {
+    try {
+      const result = await query(
+        `UPDATE movies SET
+          provider_item_id = data.provider_item_id,
+          original_title = data.original_title,
+          genres = COALESCE(ARRAY(SELECT jsonb_array_elements_text(data.genres)), '{}'),
+          overview = data.overview,
+          community_rating = data.community_rating,
+          critic_rating = data.critic_rating,
+          runtime_minutes = data.runtime_minutes,
+          path = data.path,
+          media_sources = data.media_sources,
+          poster_url = data.poster_url,
+          backdrop_url = data.backdrop_url,
+          provider_library_id = data.provider_library_id,
+          tagline = data.tagline,
+          content_rating = data.content_rating,
+          premiere_date = data.premiere_date,
+          studios = data.studios,
+          directors = COALESCE(ARRAY(SELECT jsonb_array_elements_text(data.directors)), '{}'),
+          writers = COALESCE(ARRAY(SELECT jsonb_array_elements_text(data.writers)), '{}'),
+          actors = data.actors,
+          imdb_id = data.imdb_id,
+          tmdb_id = data.tmdb_id,
+          tags = COALESCE(ARRAY(SELECT jsonb_array_elements_text(data.tags)), '{}'),
+          sort_title = data.sort_title,
+          production_countries = COALESCE(ARRAY(SELECT jsonb_array_elements_text(data.production_countries)), '{}'),
+          awards = data.awards,
+          video_resolution = data.video_resolution,
+          video_codec = data.video_codec,
+          audio_codec = data.audio_codec,
+          container = data.container,
+          updated_at = NOW()
+        FROM (
+          SELECT * FROM unnest(
+            $1::text[], $2::text[], $3::int[], $4::text[], $5::jsonb[],
+            $6::text[], $7::real[], $8::real[], $9::int[], $10::text[],
+            $11::jsonb[], $12::text[], $13::text[], $14::text[], $15::text[],
+            $16::text[], $17::date[], $18::jsonb[], $19::jsonb[], $20::jsonb[],
+            $21::jsonb[], $22::text[], $23::text[], $24::jsonb[], $25::text[],
+            $26::jsonb[], $27::text[], $28::text[], $29::text[], $30::text[], $31::text[]
+          ) AS t(
+            provider_item_id, title_lower, year, original_title, genres, overview,
+            community_rating, critic_rating, runtime_minutes, path, media_sources,
+            poster_url, backdrop_url, provider_library_id, tagline, content_rating,
+            premiere_date, studios, directors, writers, actors, imdb_id, tmdb_id,
+            tags, sort_title, production_countries, awards, video_resolution,
+            video_codec, audio_codec, container
+          )
+        ) AS data
+        WHERE LOWER(movies.title) = data.title_lower AND movies.year = data.year`,
+        [
+          toUpdateByTitleYear.map((pm) => pm.movie.id),
+          toUpdateByTitleYear.map((pm) => pm.movie.name?.toLowerCase()),
+          toUpdateByTitleYear.map((pm) => pm.movie.year || null),
+          toUpdateByTitleYear.map((pm) => pm.movie.originalTitle || null),
+          toUpdateByTitleYear.map((pm) => JSON.stringify(pm.movie.genres || [])),
+          toUpdateByTitleYear.map((pm) => pm.movie.overview || null),
+          toUpdateByTitleYear.map((pm) => clampRating(pm.movie.communityRating)),
+          toUpdateByTitleYear.map((pm) => clampRating(pm.movie.criticRating)),
+          toUpdateByTitleYear.map((pm) => pm.runtimeMinutes),
+          toUpdateByTitleYear.map((pm) => pm.movie.path || null),
+          toUpdateByTitleYear.map((pm) => JSON.stringify(pm.movie.mediaSources || [])),
+          toUpdateByTitleYear.map((pm) => pm.posterUrl),
+          toUpdateByTitleYear.map((pm) => pm.backdropUrl),
+          toUpdateByTitleYear.map((pm) => pm.libraryId),
+          toUpdateByTitleYear.map((pm) => pm.movie.tagline || null),
+          toUpdateByTitleYear.map((pm) => pm.movie.contentRating || null),
+          toUpdateByTitleYear.map((pm) =>
+            pm.movie.premiereDate ? pm.movie.premiereDate.split('T')[0] : null
+          ),
+          toUpdateByTitleYear.map((pm) => JSON.stringify(pm.movie.studios || [])),
+          toUpdateByTitleYear.map((pm) => JSON.stringify(pm.movie.directors || [])),
+          toUpdateByTitleYear.map((pm) => JSON.stringify(pm.movie.writers || [])),
+          toUpdateByTitleYear.map((pm) => JSON.stringify(pm.movie.actors || [])),
+          toUpdateByTitleYear.map((pm) => pm.movie.imdbId || null),
+          toUpdateByTitleYear.map((pm) => pm.movie.tmdbId || null),
+          toUpdateByTitleYear.map((pm) => JSON.stringify(pm.movie.tags || [])),
+          toUpdateByTitleYear.map((pm) => pm.movie.sortName || null),
+          toUpdateByTitleYear.map((pm) => JSON.stringify(pm.movie.productionCountries || [])),
+          toUpdateByTitleYear.map((pm) => pm.movie.awards || null),
+          toUpdateByTitleYear.map((pm) => pm.movie.videoResolution || null),
+          toUpdateByTitleYear.map((pm) => pm.movie.videoCodec || null),
+          toUpdateByTitleYear.map((pm) => pm.movie.audioCodec || null),
+          toUpdateByTitleYear.map((pm) => pm.movie.container || null),
+        ]
+      )
+      updated += result.rowCount || 0
+      // Also update provider IDs set so we don't process these again
+      for (const pm of toUpdateByTitleYear) {
+        existingProviderIds.add(pm.movie.id)
+      }
+      if (toUpdateByTitleYear.length > 0) {
+        logger.info(
+          { count: result.rowCount, total: toUpdateByTitleYear.length },
+          'Updated movies by title+year match (metadata refresh)'
+        )
+      }
+    } catch (err) {
+      logger.error({ err, count: toUpdateByTitleYear.length }, 'Failed to bulk update movies by title+year')
     }
   }
 
