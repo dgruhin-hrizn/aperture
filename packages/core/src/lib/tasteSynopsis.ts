@@ -309,7 +309,9 @@ export async function* streamTasteSynopsis(
   const topGenres = tasteProfile.genres.map(g => g.genre)
   const favoriteDecade = tasteProfile.decades[0]?.decade || null
   
-  logger.debug({ userId, diversity: tasteProfile.diversity }, 'Streaming: Analyzed movie taste profile')
+  // Log the prompt being sent to verify no movie titles are included
+  logger.info({ userId, diversity: tasteProfile.diversity.description }, 'Streaming: Using embedding-powered taste analyzer')
+  logger.debug({ userId, promptLength: abstractPrompt.length, promptPreview: abstractPrompt.substring(0, 500) }, 'Taste analyzer prompt (no movie titles)')
 
   // Check if text generation is configured
   const isConfigured = await isAIFunctionConfigured('textGeneration')
