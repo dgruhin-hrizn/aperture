@@ -70,8 +70,8 @@ export function DiscoveryDetailPopper({
     backdropFilter: 'blur(6px)',
     WebkitBackdropFilter: 'blur(6px)', // Safari support
     borderRadius: 2,
-    p: 3,
-    height: '100%',
+    p: { xs: 2, md: 3 },
+    height: { xs: 'auto', md: '100%' },
   }
 
   // Format source label
@@ -99,18 +99,21 @@ export function DiscoveryDetailPopper({
           backgroundColor: 'transparent',
           backgroundImage: 'none',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)',
-          overflow: 'hidden',
           borderRadius: 2,
+          // Allow scrolling on mobile
+          maxHeight: { xs: '90vh', md: '85vh' },
+          overflow: 'auto',
         },
       }}
     >
       <Box
         sx={{
           position: 'relative',
-          minHeight: 500,
+          minHeight: { xs: 'auto', md: 500 },
           backgroundImage: `url(${backdropUrl})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
+          backgroundAttachment: { xs: 'scroll', md: 'scroll' },
           '&::before': {
             content: '""',
             position: 'absolute',
@@ -119,16 +122,17 @@ export function DiscoveryDetailPopper({
           },
         }}
       >
-        {/* Close button */}
+        {/* Close button - sticky on mobile for better UX when scrolling */}
         <IconButton
           onClick={(e) => {
             e.stopPropagation()
             onClose()
           }}
           sx={{
-            position: 'absolute',
-            top: 16,
-            right: 16,
+            position: { xs: 'sticky', md: 'absolute' },
+            top: { xs: 8, md: 16 },
+            right: { xs: 8, md: 16 },
+            float: { xs: 'right', md: 'none' },
             zIndex: 10,
             backgroundColor: alpha('#000', 0.5),
             color: 'white',
@@ -138,7 +142,7 @@ export function DiscoveryDetailPopper({
           <CloseIcon />
         </IconButton>
 
-        <DialogContent sx={{ position: 'relative', zIndex: 1, py: 4 }}>
+        <DialogContent sx={{ position: 'relative', zIndex: 1, py: { xs: 2, md: 4 }, px: { xs: 2, md: 3 } }}>
           <Grid container spacing={3}>
             {/* Left Card - Media Info */}
             <Grid item xs={12} md={6}>
