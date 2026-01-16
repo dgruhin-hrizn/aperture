@@ -391,6 +391,20 @@ export function ExplorePage() {
     localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated))
   }
 
+  // Handle refresh - re-run current search or refetch browse source
+  const handleRefresh = useCallback(() => {
+    if (semanticSearch.query) {
+      // Re-run the semantic search
+      handleSemanticSearch(semanticSearch.query)
+    } else if (selectedBrowseSource) {
+      // Refetch browse source data
+      refetch()
+    }
+  }, [semanticSearch.query, handleSemanticSearch, selectedBrowseSource, refetch])
+
+  // Determine if refresh should be shown
+  const showRefreshButton = !!(semanticSearch.results || selectedBrowseSource || focusedItemId)
+
   // Get title for header
   const getTitle = () => {
     if (semanticSearch.query) {
@@ -441,8 +455,8 @@ export function ExplorePage() {
           searchLoading={semanticSearch.loading}
           searchExamples={SEARCH_EXAMPLES}
           showCreatePlaylist
-          showRefresh={!!selectedBrowseSource}
-          onRefresh={refetch}
+          showRefresh={showRefreshButton}
+          onRefresh={handleRefresh}
         />
       </Box>
 
