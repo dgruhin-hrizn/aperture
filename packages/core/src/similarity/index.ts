@@ -1035,6 +1035,7 @@ export async function buildGraphFromSemanticSearch(
 
   const nodes: Map<string, GraphNode> = new Map()
   const edges: GraphEdge[] = []
+  const seenEdges = new Set<string>()
 
   // Add all search results as nodes
   for (const result of searchResults.results) {
@@ -1048,7 +1049,28 @@ export async function buildGraphFromSemanticSearch(
     })
   }
 
+  // Helper to find item by fuzzy title match
+  const findItemByTitle = (title: string) => {
+    const normalizedSearch = normalizeTitle(title)
+    return searchResults.results.find(r => {
+      const normalizedItem = normalizeTitle(r.item.title)
+      return normalizedItem === normalizedSearch || 
+             normalizedItem.includes(normalizedSearch) ||
+             normalizedSearch.includes(normalizedItem)
+    })
+  }
+
+  // Helper to add edge without duplicates
+  const addEdge = (source: string, target: string, similarity: number, reasons: ConnectionReason[]) => {
+    const edgeKey = [source, target].sort().join('-')
+    if (!seenEdges.has(edgeKey)) {
+      seenEdges.add(edgeKey)
+      edges.push({ source, target, similarity, reasons })
+    }
+  }
+
   // Use AI to find meaningful thematic clusters among results
+  let aiEdgesAdded = 0
   if (useAI && searchResults.results.length >= 2) {
     try {
       const clusters = await findThematicClusters(
@@ -1064,42 +1086,33 @@ export async function buildGraphFromSemanticSearch(
             const item1 = cluster.items[i]
             const item2 = cluster.items[j]
             
-            // Find the actual items from results
-            const node1 = searchResults.results.find(r => 
-              r.item.title.toLowerCase() === item1.toLowerCase()
-            )
-            const node2 = searchResults.results.find(r => 
-              r.item.title.toLowerCase() === item2.toLowerCase()
-            )
+            // Find the actual items from results with fuzzy matching
+            const node1 = findItemByTitle(item1)
+            const node2 = findItemByTitle(item2)
 
-            if (node1 && node2) {
-              edges.push({
-                source: node1.item.id,
-                target: node2.item.id,
-                similarity: 0.85, // High similarity since AI grouped them
-                reasons: [{
-                  type: 'ai_diverse',
-                  value: cluster.theme,
-                }],
-              })
+            if (node1 && node2 && node1.item.id !== node2.item.id) {
+              addEdge(node1.item.id, node2.item.id, 0.85, [{
+                type: 'ai_diverse',
+                value: cluster.theme,
+              }])
+              aiEdgesAdded++
             }
           }
         }
       }
 
       logger.info(
-        { query: searchResults.query, clusters: clusters.length, edges: edges.length },
+        { query: searchResults.query, clusters: clusters.length, aiEdges: aiEdgesAdded },
         'Built graph with AI-discovered thematic clusters'
       )
     } catch (error) {
-      logger.warn({ error }, 'AI clustering failed, falling back to embedding similarity')
-      // Fallback to embedding-based connections
-      await addEmbeddingSimilarityEdges(searchResults, nodes, edges)
+      logger.warn({ error }, 'AI clustering failed')
     }
-  } else {
-    // Fallback without AI
-    await addEmbeddingSimilarityEdges(searchResults, nodes, edges)
   }
+
+  // Always add embedding-based connections as supplementary edges
+  // This ensures we always have some connectivity even if AI clustering is sparse
+  await addEmbeddingSimilarityEdges(searchResults, nodes, edges, seenEdges)
 
   logger.debug(
     { query: searchResults.query, nodeCount: nodes.size, edgeCount: edges.length },
@@ -1110,6 +1123,17 @@ export async function buildGraphFromSemanticSearch(
     nodes: Array.from(nodes.values()),
     edges,
   }
+}
+
+/**
+ * Normalize a title for fuzzy matching
+ */
+function normalizeTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '') // Remove punctuation
+    .replace(/\s+/g, ' ')    // Normalize whitespace
+    .trim()
 }
 
 /**
@@ -1185,15 +1209,17 @@ Only include titles that clearly fit a theme. A title can appear in multiple gro
 }
 
 /**
- * Fallback: add edges based on embedding similarity between search results
+ * Add edges based on embedding similarity between search results.
+ * Lower threshold to ensure connectivity between items that matched the same search.
  */
 async function addEmbeddingSimilarityEdges(
   searchResults: SemanticSearchResult,
   nodes: Map<string, GraphNode>,
-  edges: GraphEdge[]
+  edges: GraphEdge[],
+  seenEdges: Set<string> = new Set()
 ): Promise<void> {
-  const seenEdges = new Set<string>()
-  const minSimilarity = 0.75
+  // Lower threshold since items matched the same semantic search
+  const minSimilarity = 0.60
 
   for (const result of searchResults.results) {
     const sourceItem = result.item
@@ -1201,9 +1227,9 @@ async function addEmbeddingSimilarityEdges(
     let similarResult: SimilarityResult
     try {
       if (sourceItem.type === 'movie') {
-        similarResult = await getSimilarMovies(sourceItem.id, { limit: 20 })
+        similarResult = await getSimilarMovies(sourceItem.id, { limit: 30 })
       } else {
-        similarResult = await getSimilarSeries(sourceItem.id, { limit: 20 })
+        similarResult = await getSimilarSeries(sourceItem.id, { limit: 30 })
       }
     } catch {
       continue
