@@ -59,12 +59,12 @@ export async function createVirtualLibrary(
   const existing = existingLibraries.find((lib) => lib.name === name)
   
   if (existing) {
-    // Library already exists - just use it and ensure sort title is set
+    // Library already exists - ensure settings are configured
     await setLibrarySortTitle(provider, apiKey, existing.id, name)
-    // TODO: Re-enable once we verify setLibraryOptions doesn't affect CollectionType
-    // if (existing.virtualFolderId) {
-    //   await setLibraryOptions(provider, apiKey, existing.virtualFolderId, { excludeFromSearch: true })
-    // }
+    // Exclude from global search (merges with existing options to preserve ContentType etc)
+    if (existing.virtualFolderId) {
+      await setLibraryOptions(provider, apiKey, existing.virtualFolderId, { excludeFromSearch: true })
+    }
     return { libraryId: existing.id, alreadyExists: true }
   }
 
@@ -88,11 +88,10 @@ export async function createVirtualLibrary(
   // Set forced sort name so library appears at top
   await setLibrarySortTitle(provider, apiKey, created.id, name)
   
-  // TODO: Re-enable once we verify setLibraryOptions doesn't affect CollectionType
-  // Exclude from global search - setLibraryOptions needs VirtualFolder Id
-  // if (created.virtualFolderId) {
-  //   await setLibraryOptions(provider, apiKey, created.virtualFolderId, { excludeFromSearch: true })
-  // }
+  // Exclude from global search (merges with existing options to preserve ContentType etc)
+  if (created.virtualFolderId) {
+    await setLibraryOptions(provider, apiKey, created.virtualFolderId, { excludeFromSearch: true })
+  }
 
   return { libraryId: created.id, alreadyExists: false }
 }
@@ -144,10 +143,15 @@ async function setLibrarySortTitle(
 /**
  * Set library options like ExcludeFromSearch
  * Uses the VirtualFolders/LibraryOptions endpoint (requires Emby 4.9+)
+ * 
+ * IMPORTANT: This fetches existing options first and merges, because Emby's
+ * API replaces the entire LibraryOptions object. Sending partial options
+ * would wipe out all other settings including ContentType.
+ * 
  * @param provider - Emby provider instance
  * @param apiKey - API key for authentication
  * @param libraryId - VirtualFolder Id (from VirtualFolderInfo.Id, not ItemId)
- * @param options - Options to set
+ * @param options - Options to merge into existing options
  */
 async function setLibraryOptions(
   provider: EmbyProviderBase,
@@ -156,17 +160,28 @@ async function setLibraryOptions(
   options: { excludeFromSearch?: boolean }
 ): Promise<void> {
   try {
-    // Use the LibraryOptions endpoint to update library settings
-    // This excludes AI-generated libraries from global search results
-    // Requires Emby 4.9+ (ExcludeFromSearch not available in older versions)
+    // First, fetch existing library options to preserve all settings
+    const libraries = await provider.fetch<EmbyLibrary[]>('/Library/VirtualFolders', apiKey)
+    const library = libraries.find((lib) => lib.Id === libraryId)
+    
+    if (!library?.LibraryOptions) {
+      // Library not found or no options - skip silently
+      return
+    }
+    
+    // Merge our options into the existing LibraryOptions
+    const mergedOptions = {
+      ...library.LibraryOptions,
+      ExcludeFromSearch: options.excludeFromSearch ?? library.LibraryOptions.ExcludeFromSearch ?? false,
+    }
+    
+    // POST the full merged options back
     await provider.fetch('/Library/VirtualFolders/LibraryOptions', apiKey, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         Id: libraryId,
-        LibraryOptions: {
-          ExcludeFromSearch: options.excludeFromSearch ?? false,
-        },
+        LibraryOptions: mergedOptions,
       }),
     })
   } catch {

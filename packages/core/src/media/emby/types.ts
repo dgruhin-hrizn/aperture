@@ -33,6 +33,7 @@ export interface EmbyLibrary {
   CollectionType: string
   Path?: string
   RefreshStatus?: string
+  LibraryOptions?: Record<string, unknown> // Full library options object from Emby
 }
 
 export interface EmbyLibraryResponse {
