@@ -1063,6 +1063,7 @@ export async function buildGraphFromSemanticSearch(
   }
 
   // Use AI to find structured connections
+  let aiSucceeded = false
   if (useAI && items.length >= 2) {
     try {
       const aiConnections = await findAIConnections(searchResults.query, items)
@@ -1080,12 +1081,37 @@ export async function buildGraphFromSemanticSearch(
         }
       }
 
+      aiSucceeded = aiConnections.length > 0
       logger.info(
         { query: searchResults.query, aiConnections: aiConnections.length, edges: edges.length },
         'Built graph with AI-structured connections'
       )
     } catch (error) {
       logger.warn({ error }, 'AI connection finding failed')
+    }
+  }
+
+  // If AI failed or returned no connections, use embedding similarity for all items
+  if (!aiSucceeded && items.length >= 2) {
+    logger.info({ query: searchResults.query }, 'Using embedding similarity fallback')
+    
+    // Connect items based on embedding similarity
+    for (let i = 0; i < Math.min(items.length, 10); i++) {
+      const item = items[i]
+      try {
+        const similarResult = item.type === 'movie'
+          ? await getSimilarMovies(item.id, { limit: 20 })
+          : await getSimilarSeries(item.id, { limit: 20 })
+        
+        // Find connections to other search results
+        for (const conn of similarResult.connections) {
+          if (nodes.has(conn.item.id) && conn.item.id !== item.id && conn.similarity >= 0.55) {
+            addEdge(item.id, conn.item.id, conn.similarity, [{ type: 'similarity' }])
+          }
+        }
+      } catch {
+        // Skip if no embedding
+      }
     }
   }
 
@@ -1166,73 +1192,92 @@ async function findAIConnections(
   const { getChatModelInstance } = await import('../lib/ai-provider.js')
   const { generateText } = await import('ai')
   
-  const model = await getChatModelInstance()
+  let model
+  try {
+    model = await getChatModelInstance()
+  } catch (error) {
+    logger.warn({ error }, 'No chat model available for AI connections')
+    return []
+  }
   
-  // Build numbered item list for AI
-  const itemList = items.map((i, idx) => 
-    `${idx}: "${i.title}" (${i.year || '?'}) - Genres: ${i.genres.slice(0, 3).join(', ') || 'unknown'}`
+  // Limit items to avoid token limits
+  const limitedItems = items.slice(0, 15)
+  
+  // Build compact numbered item list
+  const itemList = limitedItems.map((i, idx) => 
+    `${idx}. ${i.title} (${i.year || '?'})`
   ).join('\n')
   
-  const prompt = `Analyze these titles that matched the search "${searchQuery}" and find meaningful connections between them.
+  const connectionCount = Math.min(limitedItems.length * 2, 25)
+  
+  const prompt = `Find ${connectionCount} connections between these "${searchQuery}" results:
 
-TITLES (use the index numbers):
 ${itemList}
 
-CONNECTION TYPES (use exactly these):
-- "director" = Same director or directorial style
-- "actor" = Shared cast member or acting style  
-- "genre" = Same genre or subgenre
-- "keyword" = Shared themes, motifs, or subject matter
-- "studio" = Same studio, production company, or cinematic universe
-- "similarity" = Similar tone, style, or audience appeal
+Types: director, actor, genre, keyword, studio, similarity
 
-Return a JSON array of connections. EVERY title should have at least 1-2 connections.
-Find ${Math.min(items.length * 2, 30)} connections total.
+Return JSON array only:
+[{"from":0,"to":1,"type":"genre","reason":"romantic comedies"}]`
 
-RESPOND WITH ONLY VALID JSON, no other text:
-[
-  {"from": 0, "to": 1, "type": "keyword", "reason": "both explore time loops"},
-  {"from": 0, "to": 2, "type": "genre", "reason": "psychological sci-fi"}
-]`
-
-  const { text } = await generateText({
-    model,
-    prompt,
-    maxOutputTokens: 1000,
-    temperature: 0.3,
-  })
-
-  // Parse JSON response
   try {
-    // Extract JSON from response (handle markdown code blocks)
+    const { text } = await generateText({
+      model,
+      prompt,
+      maxOutputTokens: 1500,
+      temperature: 0.4,
+    })
+
+    if (!text || text.trim().length === 0) {
+      logger.warn({ searchQuery }, 'AI returned empty response for connections')
+      return []
+    }
+
+    // Parse JSON response
+    // Extract JSON from response (handle markdown code blocks, extra text)
     let jsonStr = text.trim()
-    if (jsonStr.startsWith('```')) {
-      jsonStr = jsonStr.replace(/^```json?\n?/, '').replace(/\n?```$/, '')
+    
+    // Remove markdown code blocks
+    if (jsonStr.includes('```')) {
+      const match = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/)
+      if (match) {
+        jsonStr = match[1].trim()
+      }
+    }
+    
+    // Try to find JSON array in response
+    const arrayMatch = jsonStr.match(/\[[\s\S]*\]/)
+    if (arrayMatch) {
+      jsonStr = arrayMatch[0]
     }
     
     const connections = JSON.parse(jsonStr) as AIConnection[]
     
     // Validate and filter connections
+    const validTypes: ConnectionType[] = ['director', 'actor', 'genre', 'keyword', 'studio', 'similarity']
     const validConnections = connections.filter(conn => {
-      const validTypes: ConnectionType[] = ['director', 'actor', 'genre', 'keyword', 'studio', 'similarity']
       return (
         typeof conn.from === 'number' &&
         typeof conn.to === 'number' &&
-        conn.from >= 0 && conn.from < items.length &&
-        conn.to >= 0 && conn.to < items.length &&
+        conn.from >= 0 && conn.from < limitedItems.length &&
+        conn.to >= 0 && conn.to < limitedItems.length &&
         conn.from !== conn.to &&
         validTypes.includes(conn.type as ConnectionType)
       )
     })
 
     logger.info(
-      { searchQuery, totalConnections: validConnections.length, itemCount: items.length },
+      { searchQuery, totalConnections: validConnections.length, itemCount: limitedItems.length },
       'AI found connections'
     )
     
-    return validConnections
+    return validConnections.map(conn => ({
+      ...conn,
+      // Map back to original items array indices if we limited
+      from: conn.from,
+      to: conn.to,
+    }))
   } catch (error) {
-    logger.error({ error, response: text }, 'Failed to parse AI connections JSON')
+    logger.error({ error, searchQuery }, 'Failed to get AI connections')
     return []
   }
 }
