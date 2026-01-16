@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { query, queryOne } from '../lib/db.js'
 import { requireAuth } from '../plugins/auth.js'
+import { getSimilarMovies } from '@aperture/core'
 
 interface MovieRow {
   id: string
@@ -503,29 +504,24 @@ const moviesRoutes: FastifyPluginAsync = async (fastify) => {
       const { id } = request.params
       const limit = Math.min(parseInt(request.query.limit || '10', 10), 50)
 
-      // Get the movie's embedding
-      const embedding = await queryOne<{ embedding: string }>(
-        `SELECT embedding FROM embeddings WHERE movie_id = $1`,
-        [id]
-      )
+      try {
+        const result = await getSimilarMovies(id, { limit })
+        
+        // Transform to the expected response format
+        const similar = result.connections.map((conn) => ({
+          id: conn.item.id,
+          title: conn.item.title,
+          year: conn.item.year,
+          poster_url: conn.item.poster_url,
+          genres: conn.item.genres,
+          similarity: conn.similarity,
+        }))
 
-      if (!embedding) {
+        return reply.send({ similar })
+      } catch (error) {
+        // Movie not found or no embedding
         return reply.send({ similar: [], message: 'No embedding found for this movie' })
       }
-
-      // Find similar movies using cosine similarity
-      const result = await query(
-        `SELECT m.id, m.title, m.year, m.poster_url, m.genres,
-                1 - (e.embedding <=> $1::halfvec) as similarity
-         FROM embeddings e
-         JOIN movies m ON m.id = e.movie_id
-         WHERE e.movie_id != $2
-         ORDER BY e.embedding <=> $1::halfvec
-         LIMIT $3`,
-        [embedding.embedding, id, limit]
-      )
-
-      return reply.send({ similar: result.rows })
     }
   )
 }
