@@ -139,12 +139,24 @@ export async function* streamTasteSynopsis(
     const model = await getTextGenerationModelInstance()
     const result = streamText({
       model,
-      system: `Write a viewer personality profile. Use ONLY genre names and abstract themes - no specific titles.
+      system: `Write a viewer personality profile using this exact structure:
 
-Write 2-3 flowing paragraphs, then end with 3-4 **bolded key traits** as bullet points.
+### What Draws You In
+[1-2 paragraphs about what types of stories/themes attract them]
 
-Use markdown: **bold** for emphasis on important characteristics, bullet points for traits.
-Write in second person ("You gravitate toward..."). Be insightful and personal.`,
+### Your Viewing Style  
+[1 paragraph about how they watch - binge vs casual, rewatcher, etc.]
+
+### Core Traits
+- **[Trait Name]**: [Brief description]
+- **[Trait Name]**: [Brief description]
+- **[Trait Name]**: [Brief description]
+
+Rules:
+- Use ONLY genre names and abstract themes - never mention specific titles
+- Write in second person ("You gravitate toward...")
+- Use **bold** markdown for trait names
+- Keep it personal and insightful`,
       prompt: abstractPrompt,
       temperature: 0.4,
       maxOutputTokens: 400,
