@@ -13,8 +13,13 @@ export interface UserSettings {
   userId: string
   libraryName: string | null
   seriesLibraryName: string | null
+  settingsJson: Record<string, unknown>
   createdAt: Date
   updatedAt: Date
+}
+
+export interface UserUiPreferences {
+  sidebarCollapsed?: boolean
 }
 
 /**
@@ -26,10 +31,11 @@ export async function getUserSettings(userId: string): Promise<UserSettings> {
     user_id: string
     library_name: string | null
     series_library_name: string | null
+    settings_json: Record<string, unknown>
     created_at: Date
     updated_at: Date
   }>(
-    `SELECT user_id, library_name, series_library_name, created_at, updated_at
+    `SELECT user_id, library_name, series_library_name, settings_json, created_at, updated_at
      FROM user_settings WHERE user_id = $1`,
     [userId]
   )
@@ -44,10 +50,11 @@ export async function getUserSettings(userId: string): Promise<UserSettings> {
       user_id: string
       library_name: string | null
       series_library_name: string | null
+      settings_json: Record<string, unknown>
       created_at: Date
       updated_at: Date
     }>(
-      `SELECT user_id, library_name, series_library_name, created_at, updated_at
+      `SELECT user_id, library_name, series_library_name, settings_json, created_at, updated_at
        FROM user_settings WHERE user_id = $1`,
       [userId]
     )
@@ -59,6 +66,7 @@ export async function getUserSettings(userId: string): Promise<UserSettings> {
       userId,
       libraryName: null,
       seriesLibraryName: null,
+      settingsJson: {},
       createdAt: new Date(),
       updatedAt: new Date(),
     }
@@ -68,6 +76,7 @@ export async function getUserSettings(userId: string): Promise<UserSettings> {
     userId: settings.user_id,
     libraryName: settings.library_name,
     seriesLibraryName: settings.series_library_name,
+    settingsJson: settings.settings_json || {},
     createdAt: settings.created_at,
     updatedAt: settings.updated_at,
   }
@@ -278,5 +287,48 @@ export async function getEffectiveLibraryTitle(
   }
   
   return processLibraryTitle(template, context)
+}
+
+// ============================================================================
+// UI Preferences (stored in settings_json)
+// ============================================================================
+
+/**
+ * Get user UI preferences from settings_json
+ */
+export async function getUserUiPreferences(userId: string): Promise<UserUiPreferences> {
+  const settings = await getUserSettings(userId)
+  return (settings.settingsJson?.ui as UserUiPreferences) || {}
+}
+
+/**
+ * Update user UI preferences (merges with existing preferences)
+ */
+export async function updateUserUiPreferences(
+  userId: string,
+  preferences: Partial<UserUiPreferences>
+): Promise<UserUiPreferences> {
+  // Ensure settings row exists
+  await query(
+    `INSERT INTO user_settings (user_id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    [userId]
+  )
+
+  // Get current settings_json
+  const settings = await getUserSettings(userId)
+  const currentUi = (settings.settingsJson?.ui as UserUiPreferences) || {}
+  
+  // Merge new preferences
+  const updatedUi = { ...currentUi, ...preferences }
+  const updatedSettingsJson = { ...settings.settingsJson, ui: updatedUi }
+
+  // Update the settings_json column
+  await query(
+    `UPDATE user_settings SET settings_json = $1, updated_at = NOW() WHERE user_id = $2`,
+    [JSON.stringify(updatedSettingsJson), userId]
+  )
+
+  logger.info({ userId, preferences }, 'Updated user UI preferences')
+  return updatedUi
 }
 

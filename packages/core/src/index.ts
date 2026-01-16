@@ -268,8 +268,11 @@ export {
   setUserAiExplanationOverride,
   setUserAiExplanationPreference,
   getEffectiveAiExplanationSetting,
+  getUserUiPreferences,
+  updateUserUiPreferences,
   type UserSettings,
   type UserAiExplanationSettings,
+  type UserUiPreferences,
 } from './lib/userSettings.js'
 
 // Library Exclusions

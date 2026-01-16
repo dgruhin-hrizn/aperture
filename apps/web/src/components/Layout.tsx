@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   AppBar,
@@ -83,12 +83,43 @@ export function Layout() {
 
   const drawerWidth = collapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH
 
+  // Fetch user's sidebar preference on mount
+  useEffect(() => {
+    const fetchPreferences = async () => {
+      try {
+        const response = await fetch('/api/auth/me/preferences', { credentials: 'include' })
+        if (response.ok) {
+          const prefs = await response.json()
+          if (prefs.sidebarCollapsed !== undefined) {
+            setCollapsed(prefs.sidebarCollapsed)
+          }
+        }
+      } catch {
+        // Ignore errors, use default
+      }
+    }
+    fetchPreferences()
+  }, [])
+
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen)
   }
 
-  const handleCollapseToggle = () => {
-    setCollapsed(!collapsed)
+  const handleCollapseToggle = async () => {
+    const newCollapsed = !collapsed
+    setCollapsed(newCollapsed)
+    
+    // Persist preference to server
+    try {
+      await fetch('/api/auth/me/preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ sidebarCollapsed: newCollapsed }),
+      })
+    } catch {
+      // Ignore errors, state is already updated locally
+    }
   }
 
   const handleNavClick = (path: string) => {

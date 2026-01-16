@@ -195,6 +195,37 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   )
 
   /**
+   * GET /api/auth/me/preferences
+   * Get current user's UI preferences
+   */
+  fastify.get<{ Reply: { sidebarCollapsed?: boolean } }>(
+    '/api/auth/me/preferences',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { getUserUiPreferences } = await import('@aperture/core')
+      const preferences = await getUserUiPreferences(request.user!.id)
+      return reply.send(preferences)
+    }
+  )
+
+  /**
+   * PATCH /api/auth/me/preferences
+   * Update current user's UI preferences
+   */
+  fastify.patch<{
+    Body: { sidebarCollapsed?: boolean }
+    Reply: { sidebarCollapsed?: boolean }
+  }>(
+    '/api/auth/me/preferences',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { updateUserUiPreferences } = await import('@aperture/core')
+      const preferences = await updateUserUiPreferences(request.user!.id, request.body)
+      return reply.send(preferences)
+    }
+  )
+
+  /**
    * GET /api/auth/check
    * Check if user is authenticated (does not require auth, returns null if not)
    */
