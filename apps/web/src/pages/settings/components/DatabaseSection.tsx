@@ -256,6 +256,7 @@ export function DatabaseSection({
                 loop
                 muted
                 playsInline
+                controls
                 style={{
                   width: '100%',
                   height: 'auto',
