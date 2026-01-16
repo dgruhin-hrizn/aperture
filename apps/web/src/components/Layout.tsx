@@ -153,9 +153,20 @@ export function Layout() {
   const drawer = (
     <Box sx={{ overflow: 'auto', mt: 2, display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Logo */}
-      <Box px={collapsed ? 2 : 3} mb={3} sx={{ display: 'flex', justifyContent: collapsed ? 'center' : 'flex-start' }}>
+      <Box 
+        px={collapsed ? 2 : 3} 
+        mb={3} 
+        sx={{ 
+          display: 'flex', 
+          justifyContent: collapsed ? 'center' : 'flex-start',
+          cursor: 'pointer',
+          '&:hover': { opacity: 0.8 },
+          transition: 'opacity 0.2s',
+        }}
+        onClick={handleCollapseToggle}
+      >
         {collapsed ? (
-          <Tooltip title="Aperture" placement="right">
+          <Tooltip title="Expand sidebar" placement="right">
             <Box
               component="img"
               src="/aperture.svg"
