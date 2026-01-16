@@ -223,22 +223,23 @@ export async function generateTasteSynopsis(userId: string): Promise<TasteSynops
       const model = await getTextGenerationModelInstance()
       const { text } = await generateText({
         model,
-        system: `You are writing a viewer identity profile that captures WHO this person is as a movie watcher.
+        system: `You are writing an ABSTRACT viewer identity profile. This profile will be used by AI systems to understand user preferences.
 
-Write in second person ("You gravitate toward...", "You're drawn to...").
-Keep it to 2-3 short paragraphs (about 100-150 words total).
+STRICT RULES - VIOLATION OF THESE WILL CAUSE SYSTEM FAILURE:
+1. NEVER mention ANY specific movie titles (no "The Matrix", no "John Wick", etc.)
+2. NEVER mention franchise names (no "Marvel", no "Star Wars", no "Avengers")
+3. NEVER include a recommendations section
+4. NEVER use phrases like "we recommend" or "you might enjoy"
+5. NEVER mention years or ratings
 
-Focus on their TASTE CHARACTERISTICS, not specific movies:
-- What themes, moods, and storytelling styles appeal to them?
-- What emotional experiences do they seek from movies?
-- What patterns define their viewing preferences?
-- Are they adventurous or comfort-focused? Deep thinkers or thrill-seekers?
+INSTEAD, describe their taste using ONLY abstract characteristics:
+- Genres and sub-genres they prefer (action, sci-fi, comedy, etc.)
+- Themes that resonate (redemption, exploration, family bonds, etc.)
+- Storytelling styles (fast-paced, cerebral, character-driven, etc.)
+- Emotional experiences sought (thrills, laughter, inspiration, etc.)
+- Viewer personality (adventurous, nostalgic, comfort-seeker, etc.)
 
-IMPORTANT RULES:
-- Do NOT mention specific movie titles - describe taste abstractly
-- Do NOT mention numerical scores, weights, or ratings
-- Do NOT make recommendations
-- Write a profile that could be used by AI to understand this viewer`,
+Write 2-3 paragraphs (100-150 words) in second person ("You gravitate toward...").`,
         prompt,
         temperature: 0.8,
         maxOutputTokens: 300,
@@ -469,22 +470,23 @@ export async function* streamTasteSynopsis(
     const model = await getTextGenerationModelInstance()
     const result = streamText({
       model,
-      system: `You are writing a viewer identity profile that captures WHO this person is as a movie watcher.
+      system: `You are writing an ABSTRACT viewer identity profile. This profile will be used by AI systems to understand user preferences.
 
-Write in second person ("You gravitate toward...", "You're drawn to...").
-Keep it to 2-3 short paragraphs (about 100-150 words total).
+STRICT RULES - VIOLATION OF THESE WILL CAUSE SYSTEM FAILURE:
+1. NEVER mention ANY specific movie titles (no "The Matrix", no "John Wick", etc.)
+2. NEVER mention franchise names (no "Marvel", no "Star Wars", no "Avengers")
+3. NEVER include a recommendations section
+4. NEVER use phrases like "we recommend" or "you might enjoy"
+5. NEVER mention years or ratings
 
-Focus on their TASTE CHARACTERISTICS, not specific movies:
-- What themes, moods, and storytelling styles appeal to them?
-- What emotional experiences do they seek from movies?
-- What patterns define their viewing preferences?
-- Are they adventurous or comfort-focused? Deep thinkers or thrill-seekers?
+INSTEAD, describe their taste using ONLY abstract characteristics:
+- Genres and sub-genres they prefer (action, sci-fi, comedy, etc.)
+- Themes that resonate (redemption, exploration, family bonds, etc.)
+- Storytelling styles (fast-paced, cerebral, character-driven, etc.)
+- Emotional experiences sought (thrills, laughter, inspiration, etc.)
+- Viewer personality (adventurous, nostalgic, comfort-seeker, etc.)
 
-IMPORTANT RULES:
-- Do NOT mention specific movie titles - describe taste abstractly
-- Do NOT mention numerical scores, weights, or ratings
-- Do NOT make recommendations
-- Write a profile that could be used by AI to understand this viewer`,
+Write 2-3 paragraphs (100-150 words) in second person ("You gravitate toward...").`,
       prompt,
       temperature: 0.8,
       maxOutputTokens: 300,

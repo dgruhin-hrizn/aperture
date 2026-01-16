@@ -246,22 +246,23 @@ export async function generateSeriesTasteSynopsis(userId: string): Promise<Serie
       const model = await getTextGenerationModelInstance()
       const { text } = await generateText({
         model,
-        system: `You are writing a viewer identity profile that captures WHO this person is as a TV series watcher.
+        system: `You are writing an ABSTRACT viewer identity profile for TV series. This profile will be used by AI systems to understand user preferences.
 
-Write in second person ("You gravitate toward...", "You're drawn to...").
-Keep it to 2-3 short paragraphs (about 100-150 words total).
+STRICT RULES - VIOLATION OF THESE WILL CAUSE SYSTEM FAILURE:
+1. NEVER mention ANY specific TV show titles (no "Breaking Bad", no "Game of Thrones", etc.)
+2. NEVER mention franchise or universe names (no "Star Trek", no "Marvel", etc.)
+3. NEVER include a recommendations section
+4. NEVER use phrases like "we recommend" or "you might enjoy"
+5. NEVER mention years, networks, or ratings
 
-Focus on their TASTE CHARACTERISTICS, not specific shows:
-- What themes, moods, and storytelling styles appeal to them?
-- What emotional experiences do they seek from TV?
-- Do they prefer episodic or serialized storytelling? Long-running sagas or limited series?
-- Are they completionists or samplers? Binge-watchers or weekly viewers?
+INSTEAD, describe their taste using ONLY abstract characteristics:
+- Genres and sub-genres they prefer (drama, sci-fi, comedy, etc.)
+- Themes that resonate (power dynamics, family bonds, mystery, etc.)
+- Storytelling preferences (episodic vs serialized, slow-burn vs fast-paced)
+- Viewing habits (completionist, sampler, binge-watcher)
+- Emotional experiences sought (thrills, comfort, intellectual stimulation)
 
-IMPORTANT RULES:
-- Do NOT mention specific TV show titles - describe taste abstractly
-- Do NOT mention numerical scores, weights, or ratings
-- Do NOT make recommendations
-- Write a profile that could be used by AI to understand this viewer`,
+Write 2-3 paragraphs (100-150 words) in second person ("You gravitate toward...").`,
         prompt,
         temperature: 0.8,
         maxOutputTokens: 300,
@@ -509,22 +510,23 @@ export async function* streamSeriesTasteSynopsis(userId: string): AsyncGenerator
     const model = await getTextGenerationModelInstance()
     const result = streamText({
       model,
-      system: `You are writing a viewer identity profile that captures WHO this person is as a TV series watcher.
+      system: `You are writing an ABSTRACT viewer identity profile for TV series. This profile will be used by AI systems to understand user preferences.
 
-Write in second person ("You gravitate toward...", "You're drawn to...").
-Keep it to 2-3 short paragraphs (about 100-150 words total).
+STRICT RULES - VIOLATION OF THESE WILL CAUSE SYSTEM FAILURE:
+1. NEVER mention ANY specific TV show titles (no "Breaking Bad", no "Game of Thrones", etc.)
+2. NEVER mention franchise or universe names (no "Star Trek", no "Marvel", etc.)
+3. NEVER include a recommendations section
+4. NEVER use phrases like "we recommend" or "you might enjoy"
+5. NEVER mention years, networks, or ratings
 
-Focus on their TASTE CHARACTERISTICS, not specific shows:
-- What themes, moods, and storytelling styles appeal to them?
-- What emotional experiences do they seek from TV?
-- Do they prefer episodic or serialized storytelling? Long-running sagas or limited series?
-- Are they completionists or samplers? Binge-watchers or weekly viewers?
+INSTEAD, describe their taste using ONLY abstract characteristics:
+- Genres and sub-genres they prefer (drama, sci-fi, comedy, etc.)
+- Themes that resonate (power dynamics, family bonds, mystery, etc.)
+- Storytelling preferences (episodic vs serialized, slow-burn vs fast-paced)
+- Viewing habits (completionist, sampler, binge-watcher)
+- Emotional experiences sought (thrills, comfort, intellectual stimulation)
 
-IMPORTANT RULES:
-- Do NOT mention specific TV show titles - describe taste abstractly
-- Do NOT mention numerical scores, weights, or ratings
-- Do NOT make recommendations
-- Write a profile that could be used by AI to understand this viewer`,
+Write 2-3 paragraphs (100-150 words) in second person ("You gravitate toward...").`,
       prompt,
       temperature: 0.8,
       maxOutputTokens: 300,
