@@ -223,17 +223,22 @@ export async function generateTasteSynopsis(userId: string): Promise<TasteSynops
       const model = await getTextGenerationModelInstance()
       const { text } = await generateText({
         model,
-        system: `You are a friendly movie expert writing a personalized taste profile for a user. 
-Write in second person ("You love...", "Your taste tends toward...").
-Be warm, insightful, and specific. Reference actual movies they've watched when relevant.
+        system: `You are writing a viewer identity profile that captures WHO this person is as a movie watcher.
+
+Write in second person ("You gravitate toward...", "You're drawn to...").
 Keep it to 2-3 short paragraphs (about 100-150 words total).
-Don't be generic - make observations that feel personal and perceptive.
-If they have eclectic taste, celebrate that. If they have focused preferences, dive deep into what that reveals.
+
+Focus on their TASTE CHARACTERISTICS, not specific movies:
+- What themes, moods, and storytelling styles appeal to them?
+- What emotional experiences do they seek from movies?
+- What patterns define their viewing preferences?
+- Are they adventurous or comfort-focused? Deep thinkers or thrill-seekers?
 
 IMPORTANT RULES:
-- Write naturally without mentioning any numerical scores, weights, or ratings. Never say things like "score of 0.8" or "weight 1.63".
-- Do NOT make movie recommendations. This is a profile of their taste, not a recommendation list.
-- Only reference movies they have actually watched, never suggest new ones to watch.`,
+- Do NOT mention specific movie titles - describe taste abstractly
+- Do NOT mention numerical scores, weights, or ratings
+- Do NOT make recommendations
+- Write a profile that could be used by AI to understand this viewer`,
         prompt,
         temperature: 0.8,
         maxOutputTokens: 300,
@@ -464,17 +469,22 @@ export async function* streamTasteSynopsis(
     const model = await getTextGenerationModelInstance()
     const result = streamText({
       model,
-      system: `You are a friendly movie expert writing a personalized taste profile for a user. 
-Write in second person ("You love...", "Your taste tends toward...").
-Be warm, insightful, and specific. Reference actual movies they've watched when relevant.
+      system: `You are writing a viewer identity profile that captures WHO this person is as a movie watcher.
+
+Write in second person ("You gravitate toward...", "You're drawn to...").
 Keep it to 2-3 short paragraphs (about 100-150 words total).
-Don't be generic - make observations that feel personal and perceptive.
-If they have eclectic taste, celebrate that. If they have focused preferences, dive deep into what that reveals.
+
+Focus on their TASTE CHARACTERISTICS, not specific movies:
+- What themes, moods, and storytelling styles appeal to them?
+- What emotional experiences do they seek from movies?
+- What patterns define their viewing preferences?
+- Are they adventurous or comfort-focused? Deep thinkers or thrill-seekers?
 
 IMPORTANT RULES:
-- Write naturally without mentioning any numerical scores, weights, or ratings. Never say things like "score of 0.8" or "weight 1.63".
-- Do NOT make movie recommendations. This is a profile of their taste, not a recommendation list.
-- Only reference movies they have actually watched, never suggest new ones to watch.`,
+- Do NOT mention specific movie titles - describe taste abstractly
+- Do NOT mention numerical scores, weights, or ratings
+- Do NOT make recommendations
+- Write a profile that could be used by AI to understand this viewer`,
       prompt,
       temperature: 0.8,
       maxOutputTokens: 300,

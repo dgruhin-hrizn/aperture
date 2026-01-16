@@ -246,18 +246,22 @@ export async function generateSeriesTasteSynopsis(userId: string): Promise<Serie
       const model = await getTextGenerationModelInstance()
       const { text } = await generateText({
         model,
-        system: `You are a friendly TV expert writing a personalized taste profile for a user's TV series preferences.
-Write in second person ("You love...", "Your taste tends toward...").
-Be warm, insightful, and specific. Reference actual shows they've watched when relevant.
+        system: `You are writing a viewer identity profile that captures WHO this person is as a TV series watcher.
+
+Write in second person ("You gravitate toward...", "You're drawn to...").
 Keep it to 2-3 short paragraphs (about 100-150 words total).
-Don't be generic - make observations that feel personal and perceptive.
-Note their viewing habits: do they complete series or sample many? Do they prefer certain networks or eras?
-If they have eclectic taste, celebrate that. If they have focused preferences, dive deep into what that reveals.
+
+Focus on their TASTE CHARACTERISTICS, not specific shows:
+- What themes, moods, and storytelling styles appeal to them?
+- What emotional experiences do they seek from TV?
+- Do they prefer episodic or serialized storytelling? Long-running sagas or limited series?
+- Are they completionists or samplers? Binge-watchers or weekly viewers?
 
 IMPORTANT RULES:
-- Write naturally without mentioning any numerical scores, weights, or ratings. Never say things like "score of 0.8" or "weight 1.63".
-- Do NOT make TV show recommendations. This is a profile of their taste, not a recommendation list.
-- Only reference shows they have actually watched, never suggest new ones to watch.`,
+- Do NOT mention specific TV show titles - describe taste abstractly
+- Do NOT mention numerical scores, weights, or ratings
+- Do NOT make recommendations
+- Write a profile that could be used by AI to understand this viewer`,
         prompt,
         temperature: 0.8,
         maxOutputTokens: 300,
@@ -505,18 +509,22 @@ export async function* streamSeriesTasteSynopsis(userId: string): AsyncGenerator
     const model = await getTextGenerationModelInstance()
     const result = streamText({
       model,
-      system: `You are a friendly TV expert writing a personalized taste profile for a user's TV series preferences.
-Write in second person ("You love...", "Your taste tends toward...").
-Be warm, insightful, and specific. Reference actual shows they've watched when relevant.
+      system: `You are writing a viewer identity profile that captures WHO this person is as a TV series watcher.
+
+Write in second person ("You gravitate toward...", "You're drawn to...").
 Keep it to 2-3 short paragraphs (about 100-150 words total).
-Don't be generic - make observations that feel personal and perceptive.
-Note their viewing habits: do they complete series or sample many? Do they prefer certain networks or eras?
-If they have eclectic taste, celebrate that. If they have focused preferences, dive deep into what that reveals.
+
+Focus on their TASTE CHARACTERISTICS, not specific shows:
+- What themes, moods, and storytelling styles appeal to them?
+- What emotional experiences do they seek from TV?
+- Do they prefer episodic or serialized storytelling? Long-running sagas or limited series?
+- Are they completionists or samplers? Binge-watchers or weekly viewers?
 
 IMPORTANT RULES:
-- Write naturally without mentioning any numerical scores, weights, or ratings. Never say things like "score of 0.8" or "weight 1.63".
-- Do NOT make TV show recommendations. This is a profile of their taste, not a recommendation list.
-- Only reference shows they have actually watched, never suggest new ones to watch.`,
+- Do NOT mention specific TV show titles - describe taste abstractly
+- Do NOT mention numerical scores, weights, or ratings
+- Do NOT make recommendations
+- Write a profile that could be used by AI to understand this viewer`,
       prompt,
       temperature: 0.8,
       maxOutputTokens: 300,
