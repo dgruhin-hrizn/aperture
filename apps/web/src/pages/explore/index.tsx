@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Box,
@@ -58,6 +58,49 @@ interface SemanticSearchState {
   results: GraphData | null
 }
 
+// Loading phase messages for semantic search
+const SEMANTIC_SEARCH_PHASES = {
+  searching: {
+    messages: [
+      'Searching your library...',
+      'Finding matching content...',
+      'Analyzing your query...',
+    ],
+    details: [
+      'Generating query embedding',
+      'Comparing with library content',
+      'Ranking by relevance',
+    ],
+  },
+  clustering: {
+    messages: [
+      'AI discovering themes...',
+      'Finding thematic connections...',
+      'Grouping related content...',
+    ],
+    details: [
+      'Analyzing shared themes',
+      'Identifying clusters',
+      'Building meaningful connections',
+    ],
+  },
+  building: {
+    messages: [
+      'Building visualization...',
+      'Arranging results...',
+      'Finalizing graph...',
+    ],
+    details: [
+      'Calculating layout',
+      'Preparing display',
+    ],
+  },
+}
+
+function randomItem<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
 export function ExplorePage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -104,6 +147,69 @@ export function ExplorePage() {
     loading: false,
     results: null,
   })
+  const [semanticLoadingStatus, setSemanticLoadingStatus] = useState<LoadingStatus | null>(null)
+  const semanticLoadingTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const semanticPhaseStartRef = useRef<number>(0)
+
+  // Start semantic search loading animation
+  const startSemanticLoadingProgress = useCallback(() => {
+    semanticPhaseStartRef.current = Date.now()
+    setSemanticLoadingStatus({
+      phase: 'fetching',
+      message: randomItem(SEMANTIC_SEARCH_PHASES.searching.messages),
+      progress: 5,
+    })
+
+    semanticLoadingTimerRef.current = setInterval(() => {
+      const elapsed = Date.now() - semanticPhaseStartRef.current
+
+      setSemanticLoadingStatus(() => {
+        // Searching phase (0-2s, 0-30%)
+        if (elapsed < 2000) {
+          return {
+            phase: 'fetching',
+            message: randomItem(SEMANTIC_SEARCH_PHASES.searching.messages),
+            detail: randomItem(SEMANTIC_SEARCH_PHASES.searching.details),
+            progress: Math.min(30, 5 + (elapsed / 2000) * 25),
+          }
+        }
+        // AI Clustering phase (2-6s, 30-80%)
+        if (elapsed < 6000) {
+          const progress = 30 + ((elapsed - 2000) / 4000) * 50
+          return {
+            phase: 'validating',
+            message: randomItem(SEMANTIC_SEARCH_PHASES.clustering.messages),
+            detail: randomItem(SEMANTIC_SEARCH_PHASES.clustering.details),
+            progress: Math.min(80, progress),
+          }
+        }
+        // Building phase (6s+, 80-95%)
+        return {
+          phase: 'building',
+          message: randomItem(SEMANTIC_SEARCH_PHASES.building.messages),
+          detail: randomItem(SEMANTIC_SEARCH_PHASES.building.details),
+          progress: Math.min(95, 80 + ((elapsed - 6000) / 3000) * 15),
+        }
+      })
+    }, 300)
+  }, [])
+
+  const stopSemanticLoadingProgress = useCallback(() => {
+    if (semanticLoadingTimerRef.current) {
+      clearInterval(semanticLoadingTimerRef.current)
+      semanticLoadingTimerRef.current = null
+    }
+    setSemanticLoadingStatus(null)
+  }, [])
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (semanticLoadingTimerRef.current) {
+        clearInterval(semanticLoadingTimerRef.current)
+      }
+    }
+  }, [])
 
   // Load recent searches from localStorage
   useEffect(() => {
@@ -149,8 +255,12 @@ export function ExplorePage() {
 
   // Determine what data to display
   const getDisplayData = (): { data: GraphData | null; loading: boolean; loadingStatus: LoadingStatus | null } => {
+    // Semantic search takes priority when loading or has results
+    if (semanticSearch.loading) {
+      return { data: null, loading: true, loadingStatus: semanticLoadingStatus }
+    }
     if (semanticSearch.results) {
-      return { data: semanticSearch.results, loading: semanticSearch.loading, loadingStatus: semanticSearch.loading ? { phase: 'validating', message: 'Searching library...', progress: 50 } : null }
+      return { data: semanticSearch.results, loading: false, loadingStatus: null }
     }
     if (focusedItemId) {
       return { data: focusedData, loading: focusedLoading, loadingStatus: focusedLoadingStatus }
@@ -177,6 +287,7 @@ export function ExplorePage() {
     if (!query.trim()) return
 
     setSemanticSearch({ query, loading: true, results: null })
+    startSemanticLoadingProgress()
     saveRecentSearch(query)
 
     // Clear other states
@@ -202,6 +313,7 @@ export function ExplorePage() {
       }
 
       const result = await response.json()
+      stopSemanticLoadingProgress()
       setSemanticSearch({
         query,
         loading: false,
@@ -209,6 +321,7 @@ export function ExplorePage() {
       })
     } catch (error) {
       console.error('Semantic search failed:', error)
+      stopSemanticLoadingProgress()
       setSemanticSearch({ query, loading: false, results: null })
     }
   }
