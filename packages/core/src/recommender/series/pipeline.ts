@@ -29,6 +29,7 @@ import {
   storeSeriesExplanations,
   type SeriesForExplanation,
 } from './explanations.js'
+import { syncSeriesWatchHistoryForUser } from './sync.js'
 
 const logger = createChildLogger('series-recommender')
 
@@ -537,7 +538,18 @@ export async function generateSeriesRecommendationsForUser(
   logger.info({ runId }, '📝 Created series recommendation run record')
 
   try {
-    // 1. Get user's series watch history
+    // 0. Sync watch history from media server to ensure we have latest data
+    if (user.providerUserId) {
+      logger.info({ userId: user.id }, '🔄 Syncing series watch history before recommendations...')
+      try {
+        await syncSeriesWatchHistoryForUser(user.id, user.providerUserId)
+        logger.info({ userId: user.id }, '✅ Series watch history synced')
+      } catch (err) {
+        logger.warn({ err, userId: user.id }, '⚠️ Series watch history sync failed, continuing with existing data')
+      }
+    }
+
+    // 1. Get user's series watch history (now from synced data)
     logger.info({ userId: user.id }, '📊 Fetching series watch history...')
     const watchedSeries = await getSeriesWatchHistory(user.id, cfg.recentWatchLimit)
     logger.info(

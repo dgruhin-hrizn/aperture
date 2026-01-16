@@ -31,6 +31,7 @@ import {
   clearAllRecommendations,
   getMovieOverviews,
 } from '../storage.js'
+import { syncWatchHistoryForUser } from './sync.js'
 
 // Re-export types
 export * from '../types.js'
@@ -72,7 +73,18 @@ export async function generateRecommendationsForUser(
   logger.info({ runId }, '📝 Created recommendation run record')
 
   try {
-    // 0. Get user's recommendation preferences
+    // 0. Sync watch history from media server to ensure we have latest data
+    if (user.providerUserId) {
+      logger.info({ userId: user.id }, '🔄 Syncing watch history before recommendations...')
+      try {
+        await syncWatchHistoryForUser(user.id, user.providerUserId)
+        logger.info({ userId: user.id }, '✅ Watch history synced')
+      } catch (err) {
+        logger.warn({ err, userId: user.id }, '⚠️ Watch history sync failed, continuing with existing data')
+      }
+    }
+
+    // 1. Get user's recommendation preferences
     const userPrefs = await queryOne<{ include_watched: boolean; dislike_behavior: string }>(
       `SELECT include_watched, COALESCE(dislike_behavior, 'exclude') as dislike_behavior FROM user_preferences WHERE user_id = $1`,
       [user.id]
@@ -84,7 +96,7 @@ export async function generateRecommendationsForUser(
       `📋 User preferences: include_watched=${includeWatched}, dislike_behavior=${dislikeBehavior}`
     )
 
-    // 1. Get user's watch history and ratings
+    // 2. Get user's watch history and ratings (now from synced data)
     logger.info({ userId: user.id }, '📊 Fetching watch history and ratings...')
     const [watched, userRatings, dislikedIds] = await Promise.all([
       getWatchHistory(user.id, cfg.recentWatchLimit),
