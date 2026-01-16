@@ -59,7 +59,7 @@ export async function createVirtualLibrary(
   if (existing) {
     // Library already exists - ensure settings are configured
     await setLibrarySortTitle(provider, apiKey, existing.id, name)
-    await setLibraryOptions(provider, apiKey, existing.id, { excludeFromSearch: true })
+    await setLibraryOptions(provider, apiKey, name, { excludeFromSearch: true })
     return { libraryId: existing.id, alreadyExists: true }
   }
 
@@ -84,7 +84,7 @@ export async function createVirtualLibrary(
   await setLibrarySortTitle(provider, apiKey, created.id, name)
   
   // Exclude from global search - these are AI-curated libraries
-  await setLibraryOptions(provider, apiKey, created.id, { excludeFromSearch: true })
+  await setLibraryOptions(provider, apiKey, name, { excludeFromSearch: true })
 
   return { libraryId: created.id, alreadyExists: false }
 }
@@ -135,25 +135,27 @@ async function setLibrarySortTitle(
 
 /**
  * Set library options like ExcludeFromSearch
+ * Uses the VirtualFolders/LibraryOptions endpoint which requires the library name
  * @param provider - Emby provider instance
  * @param apiKey - API key for authentication
- * @param libraryId - Library ID
+ * @param libraryName - Library name (not ID - VirtualFolders API uses names)
  * @param options - Options to set
  */
 async function setLibraryOptions(
   provider: EmbyProviderBase,
   apiKey: string,
-  libraryId: string,
+  libraryName: string,
   options: { excludeFromSearch?: boolean }
 ): Promise<void> {
   try {
     // Use the LibraryOptions endpoint to update library settings
     // This excludes AI-generated libraries from global search results
+    // Note: VirtualFolders API uses library name, not numeric ID
     await provider.fetch('/Library/VirtualFolders/LibraryOptions', apiKey, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        Id: libraryId,
+        Id: libraryName,
         LibraryOptions: {
           ExcludeFromSearch: options.excludeFromSearch ?? false,
         },
@@ -161,7 +163,7 @@ async function setLibraryOptions(
     })
   } catch {
     // Non-fatal: library will still work, just won't be excluded from search
-    console.warn(`Failed to set library options for library ${libraryId}`)
+    // This may fail on older Emby versions that don't support this endpoint
   }
 }
 
