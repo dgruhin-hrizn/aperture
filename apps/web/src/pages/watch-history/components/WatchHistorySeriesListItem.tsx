@@ -194,7 +194,7 @@ export function WatchHistorySeriesListItem({
               <Box display="flex" alignItems="center" gap={0.5}>
                 <StarIcon sx={{ fontSize: 14, color: '#fbbf24' }} />
                 <Typography variant="body2" color="text.secondary">
-                  {series.community_rating.toFixed(1)}
+                  {Number(series.community_rating).toFixed(1)}
                 </Typography>
               </Box>
             )}
