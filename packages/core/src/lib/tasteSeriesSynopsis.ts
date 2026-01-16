@@ -222,26 +222,15 @@ export async function generateSeriesTasteSynopsis(userId: string): Promise<Serie
       const model = await getTextGenerationModelInstance()
       const { text } = await generateText({
         model,
-        system: `You are writing an ABSTRACT viewer identity profile for TV series based on analyzed taste data.
-This profile will be used by AI systems to understand user preferences.
+        system: `Write a TV viewer personality profile in 2 paragraphs. Use ONLY genre names and abstract themes.
 
-STRICT RULES:
-1. NEVER mention ANY specific TV show titles
-2. NEVER mention franchise or universe names  
-3. NEVER include recommendations
-4. NEVER mention years, networks, ratings, or numbers from the data
+Example output:
+"You're drawn to serialized dramas with complex character arcs. Sci-fi and mystery genres dominate your viewing, suggesting you enjoy puzzles and world-building. Your completion rate shows you're committed once invested. Action and comedy provide lighter viewing when you need a break from intense narratives."
 
-Based on the taste analysis provided, write a flowing 2-3 paragraph profile (100-150 words) that captures:
-- Their genre preferences in natural language
-- The themes and emotional experiences they seek
-- Their viewing personality and habits
-- Their storytelling style preferences
-
-Write in second person ("You gravitate toward...", "You're drawn to...").
-Make it feel personal and insightful, not like a data report.`,
+Write like that example - describe personality traits, genre preferences, and viewing habits. Use second person.`,
         prompt: abstractPrompt,
-        temperature: 0.7,
-        maxOutputTokens: 300,
+        temperature: 0.3,
+        maxOutputTokens: 250,
       })
 
       synopsis = text || 'Unable to generate synopsis.'
@@ -461,26 +450,15 @@ export async function* streamSeriesTasteSynopsis(userId: string): AsyncGenerator
     const model = await getTextGenerationModelInstance()
     const result = streamText({
       model,
-      system: `You are writing an ABSTRACT viewer identity profile for TV series based on analyzed taste data.
-This profile will be used by AI systems to understand user preferences.
+      system: `Write a TV viewer personality profile in 2 paragraphs. Use ONLY genre names and abstract themes.
 
-STRICT RULES:
-1. NEVER mention ANY specific TV show titles
-2. NEVER mention franchise or universe names  
-3. NEVER include recommendations
-4. NEVER mention years, networks, ratings, or numbers from the data
+Example output:
+"You're drawn to serialized dramas with complex character arcs. Sci-fi and mystery genres dominate your viewing, suggesting you enjoy puzzles and world-building. Your completion rate shows you're committed once invested. Action and comedy provide lighter viewing when you need a break from intense narratives."
 
-Based on the taste analysis provided, write a flowing 2-3 paragraph profile (100-150 words) that captures:
-- Their genre preferences in natural language
-- The themes and emotional experiences they seek
-- Their viewing personality and habits
-- Their storytelling style preferences
-
-Write in second person ("You gravitate toward...", "You're drawn to...").
-Make it feel personal and insightful, not like a data report.`,
+Write like that example - describe personality traits, genre preferences, and viewing habits. Use second person.`,
       prompt: abstractPrompt,
-      temperature: 0.7,
-      maxOutputTokens: 300,
+      temperature: 0.3,
+      maxOutputTokens: 250,
     })
 
     for await (const chunk of result.textStream) {
