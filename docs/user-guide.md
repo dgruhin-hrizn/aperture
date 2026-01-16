@@ -41,8 +41,10 @@ This guide covers all the features available to Aperture users.
 - [Watch History](#watch-history)
 - [Watch Stats](#watch-stats)
 - [User Settings](#user-settings)
+  - [Profile Tab](#profile-tab)
   - [Preferences Tab](#preferences-tab)
-  - [Taste Profile Tab](#taste-profile-tab)
+  - [AI Algorithm Tab](#ai-algorithm-tab)
+  - [Watcher Identity Tab](#watcher-identity-tab)
 - [Managing Watch History](#managing-watch-history)
 - [Trakt Integration](#trakt-integration)
 - [Virtual Libraries in Your Media Server](#virtual-libraries-in-your-media-server)
@@ -394,6 +396,16 @@ Navigate to **Watch Stats** in the sidebar for detailed analytics:
 
 Navigate to **Settings** (user icon in sidebar):
 
+### Profile Tab
+
+**Email Settings**
+- **Email Address** — Your email for notifications and account recovery
+- **Auto-sync** — If your Emby Connect username is an email, it syncs automatically
+- **Manual override** — Set your own email; it won't be overwritten by media server sync
+- **Email Notifications** — Toggle to opt in/out of email notifications
+
+> **Note**: Emby does not expose user emails via API. Only Emby Connect usernames that are valid email addresses sync automatically. You can always manually enter your email.
+
 ### Preferences Tab
 
 **Library Names**
@@ -410,13 +422,38 @@ Both library names are optional — leave empty to use the global default templa
 - **Hide Watched Content** — When ON, filters out already-watched items from similarity graphs
 - **Full Franchise Mode** — When ON, shows entire franchises without collection limits
 
-### Taste Profile Tab
+### AI Algorithm Tab
+
+Customize how your recommendations are generated:
+
+- **Movies Tab** — Adjust weights for movie recommendations
+- **Series Tab** — Adjust weights for series recommendations
+
+Available weights:
+
+| Weight | Description |
+|--------|-------------|
+| **Similarity** | How closely recommendations match your taste |
+| **Popularity** | Preference for widely-watched content |
+| **Recency** | Preference for newer releases |
+| **Rating** | Weight given to community ratings |
+| **Diversity** | Variety in the recommendation list |
+
+**How it works:**
+- Drag sliders to adjust each weight (0-100%)
+- Changes auto-save as you adjust
+- Weights are automatically normalized to sum to 100%
+- Your settings override the admin defaults
+
+### Watcher Identity Tab
 
 View your AI-generated taste profiles:
 
-- **Movie Taste** — A natural language description of your film preferences based on your watch history
-- **TV Taste** — A description of your series preferences
-- Click the **refresh button** to regenerate your profile with the latest watch data
+- **Movie Identity** — A natural language description of your film preferences based on your watch history
+- **TV Identity** — A description of your series preferences
+- **Franchise Weights** — Adjust how much each franchise influences your recommendations
+- **Genre Weights** — Fine-tune genre preferences
+- Click **Analyze Watch History** to rebuild your profile with the latest data
 
 ---
 

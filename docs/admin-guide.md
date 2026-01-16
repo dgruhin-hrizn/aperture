@@ -154,11 +154,14 @@ Run these jobs in order (wait for each to complete):
 
 Navigate to **Admin → Users**
 
-1. You'll see all users from your media server
-2. For each user you want to receive recommendations:
+1. Click **Sync Users** to import users from your media server (or wait for automatic sync every 30 minutes)
+2. You'll see all users from your media server
+3. For each user you want to receive recommendations:
    - Toggle **Movies** to enable movie recommendations
    - Toggle **Series** to enable TV series recommendations
-3. Users must have watch history for recommendations to work
+4. Users must have watch history for recommendations to work
+
+> **Tip**: The "Sync Users" button imports new users immediately and syncs email addresses from Emby Connect accounts.
 
 ### Step 5: Sync Watch History
 
@@ -198,6 +201,7 @@ Each job can be scheduled to run automatically:
 
 | Job | Default Schedule |
 |-----|------------------|
+| User Sync | Every 30 minutes |
 | Database Backup | Daily at 1 AM |
 | Library Scan | Daily at 2 AM |
 | Watch History | Every 2 hours |
@@ -240,6 +244,17 @@ Other settings:
 
 - **Recommendations per user** — How many titles to recommend (default: 50)
 - **Recent watch limit** — How many recent watches to analyze for taste (default: 100)
+
+### User Algorithm Overrides
+
+Users can customize their own algorithm weights in **User Settings → AI Algorithm**:
+
+- Users can adjust the same weights (Similarity, Popularity, Recency, Rating, Diversity)
+- User settings override admin defaults when set
+- Weights are automatically normalized to sum to 100% on the backend
+- Changes auto-save as users adjust sliders
+
+This allows personalization without requiring admin intervention for individual preferences.
 
 ---
 
