@@ -1,6 +1,6 @@
 import { createChildLogger } from '../lib/logger.js'
 import { query, queryOne } from '../lib/db.js'
-import { getChatModelInstance } from '../lib/ai-provider.js'
+import { getExplorationModelInstance } from '../lib/ai-provider.js'
 import { generateText } from 'ai'
 import type { SimilarityItem, SimilarityConnection } from './index.js'
 import type { ConnectionReason } from './reasons.js'
@@ -193,7 +193,7 @@ async function validateWithAI(
   target: SimilarityItem
 ): Promise<{ isValid: boolean; reason: string }> {
   try {
-    const model = await getChatModelInstance()
+    const model = await getExplorationModelInstance()
 
     const prompt = `Are these two movies thematically related enough to recommend together?
 
@@ -382,7 +382,7 @@ export async function findDiverseContent(
   )
 
   try {
-    const model = await getChatModelInstance()
+    const model = await getExplorationModelInstance()
 
     const prompt = `Given the ${type} "${centerItem.title}" (${centerItem.year || 'unknown year'}), which has these characteristics:
 - Genres: ${centerItem.genres.join(', ') || 'unknown'}

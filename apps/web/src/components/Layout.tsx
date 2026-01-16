@@ -39,6 +39,7 @@ import AddToQueueIcon from '@mui/icons-material/AddToQueue'
 import ExploreIcon from '@mui/icons-material/Explore'
 import { useAuth } from '@/hooks/useAuth'
 import { WelcomeModal, useWelcomeModal } from './WelcomeModal'
+import { ExplorationConfigModal } from './ExplorationConfigModal'
 import { RunningJobsWidget } from './RunningJobsWidget'
 import { GlobalSearch } from './GlobalSearch'
 
@@ -369,6 +370,9 @@ export function Layout() {
       
       {/* Welcome Modal - manually triggered from menu */}
       <WelcomeModal open={welcomeOpen} onClose={hideWelcome} />
+
+      {/* Exploration Config Modal - prompts admins to configure new AI provider */}
+      <ExplorationConfigModal />
     </Box>
   )
 }
