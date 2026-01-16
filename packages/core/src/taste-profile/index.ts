@@ -300,7 +300,8 @@ export async function setFranchisePreference(
 
 /**
  * Bulk update franchise preferences (from auto-detection)
- * @param clearFirst - If true, deletes all non-user-set franchises before inserting (for reset mode)
+ * @param clearFirst - If true, deletes ALL franchises before inserting (for reset mode)
+ *                     This includes user-set franchises since reset should start completely fresh
  */
 export async function bulkUpdateFranchisePreferences(
   userId: string,
@@ -313,14 +314,14 @@ export async function bulkUpdateFranchisePreferences(
   }>,
   clearFirst: boolean = false
 ): Promise<number> {
-  // In reset mode, clear all auto-detected franchises first
+  // In reset mode, clear ALL franchises (including user-set) to start fresh
+  // This ensures excluded libraries don't leave orphan preferences
   if (clearFirst) {
     await query(
-      `DELETE FROM user_franchise_preferences 
-       WHERE user_id = $1 AND is_user_set = false`,
+      `DELETE FROM user_franchise_preferences WHERE user_id = $1`,
       [userId]
     )
-    logger.debug({ userId }, 'Cleared auto-detected franchise preferences')
+    logger.debug({ userId }, 'Cleared all franchise preferences for reset')
   }
 
   let updated = 0
@@ -430,21 +431,22 @@ export async function setGenreWeight(
  */
 /**
  * Bulk update genre weights (from auto-detection)
- * @param clearFirst - If true, deletes all non-user-set genres before inserting (for reset mode)
+ * @param clearFirst - If true, deletes ALL genres before inserting (for reset mode)
+ *                     This includes user-set genres since reset should start completely fresh
  */
 export async function bulkUpdateGenreWeights(
   userId: string,
   genres: Array<{ genre: string; weight: number }>,
   clearFirst: boolean = false
 ): Promise<number> {
-  // In reset mode, clear all auto-detected genres first
+  // In reset mode, clear ALL genres (including user-set) to start fresh
+  // This ensures excluded libraries don't leave orphan preferences
   if (clearFirst) {
     await query(
-      `DELETE FROM user_genre_weights 
-       WHERE user_id = $1 AND is_user_set = false`,
+      `DELETE FROM user_genre_weights WHERE user_id = $1`,
       [userId]
     )
-    logger.debug({ userId }, 'Cleared auto-detected genre weights')
+    logger.debug({ userId }, 'Cleared all genre weights for reset')
   }
 
   let updated = 0
