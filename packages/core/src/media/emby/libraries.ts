@@ -59,26 +59,23 @@ export async function createVirtualLibrary(
   const existing = existingLibraries.find((lib) => lib.name === name)
   
   if (existing) {
-    // Library already exists - ensure settings are configured
+    // Library already exists - just use it and ensure sort title is set
     await setLibrarySortTitle(provider, apiKey, existing.id, name)
-    // setLibraryOptions needs VirtualFolder Id, not ItemId
-    if (existing.virtualFolderId) {
-      await setLibraryOptions(provider, apiKey, existing.virtualFolderId, { excludeFromSearch: true })
-    }
+    // TODO: Re-enable once we verify setLibraryOptions doesn't affect CollectionType
+    // if (existing.virtualFolderId) {
+    //   await setLibraryOptions(provider, apiKey, existing.virtualFolderId, { excludeFromSearch: true })
+    // }
     return { libraryId: existing.id, alreadyExists: true }
   }
 
   // Emby uses different collection type names
   const embyCollectionType = collectionType === 'movies' ? 'movies' : 'tvshows'
 
-  // Use api_key in query string and minimal headers - matches working curl behavior
-  const url = `${provider.baseUrl}/Library/VirtualFolders?api_key=${apiKey}&name=${encodeURIComponent(name)}&collectionType=${embyCollectionType}&paths=${encodeURIComponent(path)}&refreshLibrary=true`
-  
-  const response = await fetch(url, { method: 'POST' })
-  if (!response.ok) {
-    const text = await response.text()
-    throw new Error(`Failed to create library: ${response.status} ${text}`)
-  }
+  await provider.fetch(
+    `/Library/VirtualFolders?name=${encodeURIComponent(name)}&collectionType=${embyCollectionType}&paths=${encodeURIComponent(path)}&refreshLibrary=true`,
+    apiKey,
+    { method: 'POST' }
+  )
 
   // Get the created library to find its ID
   const libraries = await getLibraries(provider, apiKey)
@@ -91,10 +88,11 @@ export async function createVirtualLibrary(
   // Set forced sort name so library appears at top
   await setLibrarySortTitle(provider, apiKey, created.id, name)
   
+  // TODO: Re-enable once we verify setLibraryOptions doesn't affect CollectionType
   // Exclude from global search - setLibraryOptions needs VirtualFolder Id
-  if (created.virtualFolderId) {
-    await setLibraryOptions(provider, apiKey, created.virtualFolderId, { excludeFromSearch: true })
-  }
+  // if (created.virtualFolderId) {
+  //   await setLibraryOptions(provider, apiKey, created.virtualFolderId, { excludeFromSearch: true })
+  // }
 
   return { libraryId: created.id, alreadyExists: false }
 }
