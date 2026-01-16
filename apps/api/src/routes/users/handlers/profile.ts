@@ -310,18 +310,18 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
         const generator = streamTasteSynopsis(id)
         let stats = null
 
-        // Stream text chunks
-        for await (const chunk of generator) {
-          if (typeof chunk === 'string') {
-            reply.raw.write(`data: ${JSON.stringify({ type: 'text', content: chunk })}\n\n`)
+        // Stream text chunks and capture return value
+        // Note: for-await doesn't give access to return value, so we manually iterate
+        let result = await generator.next()
+        while (!result.done) {
+          if (typeof result.value === 'string') {
+            reply.raw.write(`data: ${JSON.stringify({ type: 'text', content: result.value })}\n\n`)
           }
+          result = await generator.next()
         }
-
-        // Get the final return value (stats)
-        const result = await generator.next()
-        if (result.value) {
-          stats = result.value
-        }
+        
+        // result.value now contains the generator's return value (stats)
+        stats = result.value
 
         // Send completion event with stats
         reply.raw.write(`data: ${JSON.stringify({ type: 'done', stats })}\n\n`)
@@ -398,18 +398,18 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
         const generator = streamSeriesTasteSynopsis(id)
         let stats = null
 
-        // Stream text chunks
-        for await (const chunk of generator) {
-          if (typeof chunk === 'string') {
-            reply.raw.write(`data: ${JSON.stringify({ type: 'text', content: chunk })}\n\n`)
+        // Stream text chunks and capture return value
+        // Note: for-await doesn't give access to return value, so we manually iterate
+        let result = await generator.next()
+        while (!result.done) {
+          if (typeof result.value === 'string') {
+            reply.raw.write(`data: ${JSON.stringify({ type: 'text', content: result.value })}\n\n`)
           }
+          result = await generator.next()
         }
-
-        // Get the final return value (stats)
-        const result = await generator.next()
-        if (result.value) {
-          stats = result.value
-        }
+        
+        // result.value now contains the generator's return value (stats)
+        stats = result.value
 
         // Send completion event with stats
         reply.raw.write(`data: ${JSON.stringify({ type: 'done', stats })}\n\n`)
