@@ -10,6 +10,7 @@ import { createChildLogger } from './logger.js'
 import { getTextGenerationModelInstance, isAIFunctionConfigured } from './ai-provider.js'
 import { generateText, streamText } from 'ai'
 import { getUserFranchisePreferences, getUserGenreWeights, getUserCustomInterests } from '../taste-profile/index.js'
+import { getUserExcludedLibraries } from './libraryExclusions.js'
 
 const logger = createChildLogger('taste-series-synopsis')
 
@@ -66,7 +67,11 @@ interface WatchedSeries {
 export async function generateSeriesTasteSynopsis(userId: string): Promise<SeriesTasteSynopsis> {
   logger.info({ userId }, 'Generating series taste synopsis')
 
-  // Get watch history stats
+  // Get user's excluded libraries to filter watch history
+  const excludedLibraryIds = await getUserExcludedLibraries(userId)
+  logger.debug({ userId, excludedLibraryIds }, 'Filtering series taste synopsis by excluded libraries')
+
+  // Get watch history stats (filtered by excluded libraries)
   const stats = await queryOne<SeriesWatchStats>(`
     SELECT 
       COUNT(DISTINCT e.series_id) as series_count,
@@ -77,7 +82,8 @@ export async function generateSeriesTasteSynopsis(userId: string): Promise<Serie
     JOIN episodes e ON e.id = wh.episode_id
     JOIN series s ON s.id = e.series_id
     WHERE wh.user_id = $1 AND wh.media_type = 'episode'
-  `, [userId])
+      AND (CARDINALITY($2::text[]) = 0 OR s.provider_library_id::text != ALL($2::text[]))
+  `, [userId, excludedLibraryIds])
 
   if (!stats || stats.series_count === 0) {
     return {
@@ -95,33 +101,35 @@ export async function generateSeriesTasteSynopsis(userId: string): Promise<Serie
     }
   }
 
-  // Get top genres
+  // Get top genres (filtered by excluded libraries)
   const genreResults = await query<GenreCount>(`
     SELECT unnest(s.genres) as genre, COUNT(DISTINCT e.series_id) as count
     FROM watch_history wh
     JOIN episodes e ON e.id = wh.episode_id
     JOIN series s ON s.id = e.series_id
     WHERE wh.user_id = $1 AND wh.media_type = 'episode'
+      AND (CARDINALITY($2::text[]) = 0 OR s.provider_library_id::text != ALL($2::text[]))
     GROUP BY unnest(s.genres)
     ORDER BY count DESC
     LIMIT 5
-  `, [userId])
+  `, [userId, excludedLibraryIds])
   const topGenres = genreResults.rows.map(r => r.genre)
 
-  // Get favorite networks
+  // Get favorite networks (filtered by excluded libraries)
   const networkResults = await query<NetworkCount>(`
     SELECT s.network, COUNT(DISTINCT e.series_id) as count
     FROM watch_history wh
     JOIN episodes e ON e.id = wh.episode_id
     JOIN series s ON s.id = e.series_id
     WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND s.network IS NOT NULL
+      AND (CARDINALITY($2::text[]) = 0 OR s.provider_library_id::text != ALL($2::text[]))
     GROUP BY s.network
     ORDER BY count DESC
     LIMIT 3
-  `, [userId])
+  `, [userId, excludedLibraryIds])
   const favoriteNetworks = networkResults.rows.map(r => r.network)
 
-  // Get favorite decade
+  // Get favorite decade (filtered by excluded libraries)
   const decadeResults = await query<DecadeCount>(`
     SELECT 
       (FLOOR(s.year / 10) * 10)::TEXT || 's' as decade,
@@ -130,13 +138,14 @@ export async function generateSeriesTasteSynopsis(userId: string): Promise<Serie
     JOIN episodes e ON e.id = wh.episode_id
     JOIN series s ON s.id = e.series_id
     WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND s.year IS NOT NULL
+      AND (CARDINALITY($2::text[]) = 0 OR s.provider_library_id::text != ALL($2::text[]))
     GROUP BY FLOOR(s.year / 10)
     ORDER BY count DESC
     LIMIT 1
-  `, [userId])
+  `, [userId, excludedLibraryIds])
   const favoriteDecade = decadeResults.rows[0]?.decade || null
 
-  // Get most watched series with completion rates
+  // Get most watched series with completion rates (filtered by excluded libraries)
   const topSeries = await query<WatchedSeries>(`
     SELECT 
       s.title, s.year, s.genres, s.community_rating, s.network,
@@ -150,24 +159,26 @@ export async function generateSeriesTasteSynopsis(userId: string): Promise<Serie
     JOIN episodes e ON e.id = wh.episode_id
     JOIN series s ON s.id = e.series_id
     WHERE wh.user_id = $1 AND wh.media_type = 'episode'
+      AND (CARDINALITY($2::text[]) = 0 OR s.provider_library_id::text != ALL($2::text[]))
     GROUP BY s.id, s.title, s.year, s.genres, s.community_rating, s.network, s.total_episodes
     ORDER BY episodes_watched DESC
     LIMIT 15
-  `, [userId])
+  `, [userId, excludedLibraryIds])
 
-  // Get series with favorite episodes
+  // Get series with favorite episodes (filtered by excluded libraries)
   const seriesWithFavorites = await query<{ title: string; favorite_count: number }>(`
     SELECT s.title, COUNT(*) as favorite_count
     FROM watch_history wh
     JOIN episodes e ON e.id = wh.episode_id
     JOIN series s ON s.id = e.series_id
     WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND wh.is_favorite = true
+      AND (CARDINALITY($2::text[]) = 0 OR s.provider_library_id::text != ALL($2::text[]))
     GROUP BY s.id, s.title
     ORDER BY favorite_count DESC
     LIMIT 10
-  `, [userId])
+  `, [userId, excludedLibraryIds])
 
-  // Get completed series (high engagement)
+  // Get completed series (high engagement, filtered by excluded libraries)
   const completedSeries = await query<WatchedSeries>(`
     SELECT 
       s.title, s.year, s.genres, s.community_rating, s.network,
@@ -178,11 +189,12 @@ export async function generateSeriesTasteSynopsis(userId: string): Promise<Serie
     JOIN episodes e ON e.id = wh.episode_id
     JOIN series s ON s.id = e.series_id
     WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND s.total_episodes > 0
+      AND (CARDINALITY($2::text[]) = 0 OR s.provider_library_id::text != ALL($2::text[]))
     GROUP BY s.id, s.title, s.year, s.genres, s.community_rating, s.network, s.total_episodes
     HAVING COUNT(DISTINCT wh.episode_id)::numeric / s.total_episodes >= 0.75
     ORDER BY s.total_episodes DESC
     LIMIT 10
-  `, [userId])
+  `, [userId, excludedLibraryIds])
 
   // Fetch user's explicit preferences
   const franchisePrefs = await getUserFranchisePreferences(userId, 'series')
@@ -296,7 +308,11 @@ IMPORTANT: Write naturally without mentioning any numerical scores, weights, or 
 export async function* streamSeriesTasteSynopsis(userId: string): AsyncGenerator<string, SeriesTasteSynopsis['stats'], void> {
   logger.info({ userId }, 'Streaming series taste synopsis generation')
 
-  // Get watch history stats
+  // Get user's excluded libraries to filter watch history
+  const excludedLibraryIds = await getUserExcludedLibraries(userId)
+  logger.debug({ userId, excludedLibraryIds }, 'Filtering streaming series taste synopsis by excluded libraries')
+
+  // Get watch history stats (filtered by excluded libraries)
   const stats = await queryOne<SeriesWatchStats>(`
     SELECT 
       COUNT(DISTINCT e.series_id) as series_count,
@@ -307,7 +323,8 @@ export async function* streamSeriesTasteSynopsis(userId: string): AsyncGenerator
     JOIN episodes e ON e.id = wh.episode_id
     JOIN series s ON s.id = e.series_id
     WHERE wh.user_id = $1 AND wh.media_type = 'episode'
-  `, [userId])
+      AND (CARDINALITY($2::text[]) = 0 OR s.provider_library_id::text != ALL($2::text[]))
+  `, [userId, excludedLibraryIds])
 
   if (!stats || stats.series_count === 0) {
     yield "We're still getting to know your TV preferences! Watch some episodes and we'll build your series taste profile."
@@ -322,33 +339,35 @@ export async function* streamSeriesTasteSynopsis(userId: string): AsyncGenerator
     }
   }
 
-  // Get top genres
+  // Get top genres (filtered by excluded libraries)
   const genreResults = await query<GenreCount>(`
     SELECT unnest(s.genres) as genre, COUNT(DISTINCT e.series_id) as count
     FROM watch_history wh
     JOIN episodes e ON e.id = wh.episode_id
     JOIN series s ON s.id = e.series_id
     WHERE wh.user_id = $1 AND wh.media_type = 'episode'
+      AND (CARDINALITY($2::text[]) = 0 OR s.provider_library_id::text != ALL($2::text[]))
     GROUP BY unnest(s.genres)
     ORDER BY count DESC
     LIMIT 5
-  `, [userId])
+  `, [userId, excludedLibraryIds])
   const topGenres = genreResults.rows.map(r => r.genre)
 
-  // Get favorite networks
+  // Get favorite networks (filtered by excluded libraries)
   const networkResults = await query<NetworkCount>(`
     SELECT s.network, COUNT(DISTINCT e.series_id) as count
     FROM watch_history wh
     JOIN episodes e ON e.id = wh.episode_id
     JOIN series s ON s.id = e.series_id
     WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND s.network IS NOT NULL
+      AND (CARDINALITY($2::text[]) = 0 OR s.provider_library_id::text != ALL($2::text[]))
     GROUP BY s.network
     ORDER BY count DESC
     LIMIT 3
-  `, [userId])
+  `, [userId, excludedLibraryIds])
   const favoriteNetworks = networkResults.rows.map(r => r.network)
 
-  // Get favorite decade
+  // Get favorite decade (filtered by excluded libraries)
   const decadeResults = await query<DecadeCount>(`
     SELECT 
       (FLOOR(s.year / 10) * 10)::TEXT || 's' as decade,
@@ -357,13 +376,14 @@ export async function* streamSeriesTasteSynopsis(userId: string): AsyncGenerator
     JOIN episodes e ON e.id = wh.episode_id
     JOIN series s ON s.id = e.series_id
     WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND s.year IS NOT NULL
+      AND (CARDINALITY($2::text[]) = 0 OR s.provider_library_id::text != ALL($2::text[]))
     GROUP BY FLOOR(s.year / 10)
     ORDER BY count DESC
     LIMIT 1
-  `, [userId])
+  `, [userId, excludedLibraryIds])
   const favoriteDecade = decadeResults.rows[0]?.decade || null
 
-  // Get most watched series
+  // Get most watched series (filtered by excluded libraries)
   const topSeries = await query<WatchedSeries>(`
     SELECT 
       s.title, s.year, s.genres, s.community_rating, s.network,
@@ -377,24 +397,26 @@ export async function* streamSeriesTasteSynopsis(userId: string): AsyncGenerator
     JOIN episodes e ON e.id = wh.episode_id
     JOIN series s ON s.id = e.series_id
     WHERE wh.user_id = $1 AND wh.media_type = 'episode'
+      AND (CARDINALITY($2::text[]) = 0 OR s.provider_library_id::text != ALL($2::text[]))
     GROUP BY s.id, s.title, s.year, s.genres, s.community_rating, s.network, s.total_episodes
     ORDER BY episodes_watched DESC
     LIMIT 15
-  `, [userId])
+  `, [userId, excludedLibraryIds])
 
-  // Get series with favorite episodes
+  // Get series with favorite episodes (filtered by excluded libraries)
   const seriesWithFavorites = await query<{ title: string; favorite_count: number }>(`
     SELECT s.title, COUNT(*) as favorite_count
     FROM watch_history wh
     JOIN episodes e ON e.id = wh.episode_id
     JOIN series s ON s.id = e.series_id
     WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND wh.is_favorite = true
+      AND (CARDINALITY($2::text[]) = 0 OR s.provider_library_id::text != ALL($2::text[]))
     GROUP BY s.id, s.title
     ORDER BY favorite_count DESC
     LIMIT 10
-  `, [userId])
+  `, [userId, excludedLibraryIds])
 
-  // Get completed series
+  // Get completed series (filtered by excluded libraries)
   const completedSeries = await query<WatchedSeries>(`
     SELECT 
       s.title, s.year, s.genres, s.community_rating, s.network,
@@ -405,11 +427,12 @@ export async function* streamSeriesTasteSynopsis(userId: string): AsyncGenerator
     JOIN episodes e ON e.id = wh.episode_id
     JOIN series s ON s.id = e.series_id
     WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND s.total_episodes > 0
+      AND (CARDINALITY($2::text[]) = 0 OR s.provider_library_id::text != ALL($2::text[]))
     GROUP BY s.id, s.title, s.year, s.genres, s.community_rating, s.network, s.total_episodes
     HAVING COUNT(DISTINCT wh.episode_id)::numeric / s.total_episodes >= 0.75
     ORDER BY s.total_episodes DESC
     LIMIT 10
-  `, [userId])
+  `, [userId, excludedLibraryIds])
 
   // Fetch user's explicit preferences
   const franchisePrefs = await getUserFranchisePreferences(userId, 'series')

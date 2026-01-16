@@ -14,6 +14,7 @@ import {
   getUserGenreWeights,
   getUserCustomInterests,
 } from '../taste-profile/index.js'
+import { getUserExcludedLibraries } from './libraryExclusions.js'
 
 const logger = createChildLogger('taste-synopsis')
 
@@ -58,7 +59,11 @@ interface RecentMovie {
 export async function generateTasteSynopsis(userId: string): Promise<TasteSynopsis> {
   logger.info({ userId }, 'Generating taste synopsis')
 
-  // Get watch history stats
+  // Get user's excluded libraries to filter watch history
+  const excludedLibraryIds = await getUserExcludedLibraries(userId)
+  logger.debug({ userId, excludedLibraryIds }, 'Filtering taste synopsis by excluded libraries')
+
+  // Get watch history stats (filtered by excluded libraries)
   const stats = await queryOne<WatchHistoryStats>(
     `
     SELECT 
@@ -68,8 +73,9 @@ export async function generateTasteSynopsis(userId: string): Promise<TasteSynops
     FROM watch_history wh
     JOIN movies m ON m.id = wh.movie_id
     WHERE wh.user_id = $1
+      AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
   `,
-    [userId]
+    [userId, excludedLibraryIds]
   )
 
   if (!stats || stats.total_watched === 0) {
@@ -87,22 +93,23 @@ export async function generateTasteSynopsis(userId: string): Promise<TasteSynops
     }
   }
 
-  // Get top genres
+  // Get top genres (filtered by excluded libraries)
   const genreResults = await query<GenreCount>(
     `
     SELECT unnest(m.genres) as genre, COUNT(*) as count
     FROM watch_history wh
     JOIN movies m ON m.id = wh.movie_id
     WHERE wh.user_id = $1
+      AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
     GROUP BY unnest(m.genres)
     ORDER BY count DESC
     LIMIT 5
   `,
-    [userId]
+    [userId, excludedLibraryIds]
   )
   const topGenres = genreResults.rows.map((r) => r.genre)
 
-  // Get favorite decade
+  // Get favorite decade (filtered by excluded libraries)
   const decadeResults = await query<DecadeCount>(
     `
     SELECT 
@@ -111,41 +118,44 @@ export async function generateTasteSynopsis(userId: string): Promise<TasteSynops
     FROM watch_history wh
     JOIN movies m ON m.id = wh.movie_id
     WHERE wh.user_id = $1 AND m.year IS NOT NULL
+      AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
     GROUP BY FLOOR(m.year / 10)
     ORDER BY count DESC
     LIMIT 1
   `,
-    [userId]
+    [userId, excludedLibraryIds]
   )
   const favoriteDecade = decadeResults.rows[0]?.decade || null
 
-  // Get top favorites - ordered by play count and favorite status, not just recent
+  // Get top favorites - ordered by play count and favorite status (filtered by excluded libraries)
   const topFavorites = await query<RecentMovie>(
     `
     SELECT m.title, m.year, m.genres, m.community_rating
     FROM watch_history wh
     JOIN movies m ON m.id = wh.movie_id
     WHERE wh.user_id = $1 AND wh.is_favorite = true
+      AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
     ORDER BY wh.play_count DESC, wh.last_played_at DESC NULLS LAST
     LIMIT 10
   `,
-    [userId]
+    [userId, excludedLibraryIds]
   )
 
-  // Get most rewatched movies (high engagement indicates strong preference)
+  // Get most rewatched movies (high engagement indicates strong preference, filtered by excluded libraries)
   const mostRewatched = await query<RecentMovie & { play_count: number }>(
     `
     SELECT m.title, m.year, m.genres, m.community_rating, wh.play_count
     FROM watch_history wh
     JOIN movies m ON m.id = wh.movie_id
     WHERE wh.user_id = $1 AND wh.play_count > 1
+      AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
     ORDER BY wh.play_count DESC
     LIMIT 10
   `,
-    [userId]
+    [userId, excludedLibraryIds]
   )
 
-  // Get a diverse sample: mix of favorites, high play count, and some recent
+  // Get a diverse sample: mix of favorites, high play count, and some recent (filtered by excluded libraries)
   // This ensures we capture the full breadth of taste
   const diverseSample = await query<RecentMovie>(
     `
@@ -156,6 +166,7 @@ export async function generateTasteSynopsis(userId: string): Promise<TasteSynops
       FROM watch_history wh
       JOIN movies m ON m.id = wh.movie_id
       WHERE wh.user_id = $1
+        AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
     )
     SELECT title, year, genres, community_rating
     FROM ranked
@@ -163,7 +174,7 @@ export async function generateTasteSynopsis(userId: string): Promise<TasteSynops
     ORDER BY is_favorite DESC, play_count DESC
     LIMIT 20
   `,
-    [userId]
+    [userId, excludedLibraryIds]
   )
 
   // Fetch user's explicit preferences
@@ -274,7 +285,11 @@ export async function* streamTasteSynopsis(
 ): AsyncGenerator<string, TasteSynopsis['stats'], void> {
   logger.info({ userId }, 'Streaming taste synopsis generation')
 
-  // Get watch history stats
+  // Get user's excluded libraries to filter watch history
+  const excludedLibraryIds = await getUserExcludedLibraries(userId)
+  logger.debug({ userId, excludedLibraryIds }, 'Filtering streaming taste synopsis by excluded libraries')
+
+  // Get watch history stats (filtered by excluded libraries)
   const stats = await queryOne<WatchHistoryStats>(
     `
     SELECT 
@@ -284,8 +299,9 @@ export async function* streamTasteSynopsis(
     FROM watch_history wh
     JOIN movies m ON m.id = wh.movie_id
     WHERE wh.user_id = $1
+      AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
   `,
-    [userId]
+    [userId, excludedLibraryIds]
   )
 
   if (!stats || stats.total_watched === 0) {
@@ -299,22 +315,23 @@ export async function* streamTasteSynopsis(
     }
   }
 
-  // Get top genres
+  // Get top genres (filtered by excluded libraries)
   const genreResults = await query<GenreCount>(
     `
     SELECT unnest(m.genres) as genre, COUNT(*) as count
     FROM watch_history wh
     JOIN movies m ON m.id = wh.movie_id
     WHERE wh.user_id = $1
+      AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
     GROUP BY unnest(m.genres)
     ORDER BY count DESC
     LIMIT 5
   `,
-    [userId]
+    [userId, excludedLibraryIds]
   )
   const topGenres = genreResults.rows.map((r) => r.genre)
 
-  // Get favorite decade
+  // Get favorite decade (filtered by excluded libraries)
   const decadeResults = await query<DecadeCount>(
     `
     SELECT 
@@ -323,41 +340,44 @@ export async function* streamTasteSynopsis(
     FROM watch_history wh
     JOIN movies m ON m.id = wh.movie_id
     WHERE wh.user_id = $1 AND m.year IS NOT NULL
+      AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
     GROUP BY FLOOR(m.year / 10)
     ORDER BY count DESC
     LIMIT 1
   `,
-    [userId]
+    [userId, excludedLibraryIds]
   )
   const favoriteDecade = decadeResults.rows[0]?.decade || null
 
-  // Get top favorites
+  // Get top favorites (filtered by excluded libraries)
   const topFavorites = await query<RecentMovie>(
     `
     SELECT m.title, m.year, m.genres, m.community_rating
     FROM watch_history wh
     JOIN movies m ON m.id = wh.movie_id
     WHERE wh.user_id = $1 AND wh.is_favorite = true
+      AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
     ORDER BY wh.play_count DESC, wh.last_played_at DESC NULLS LAST
     LIMIT 10
   `,
-    [userId]
+    [userId, excludedLibraryIds]
   )
 
-  // Get most rewatched movies
+  // Get most rewatched movies (filtered by excluded libraries)
   const mostRewatched = await query<RecentMovie & { play_count: number }>(
     `
     SELECT m.title, m.year, m.genres, m.community_rating, wh.play_count
     FROM watch_history wh
     JOIN movies m ON m.id = wh.movie_id
     WHERE wh.user_id = $1 AND wh.play_count > 1
+      AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
     ORDER BY wh.play_count DESC
     LIMIT 10
   `,
-    [userId]
+    [userId, excludedLibraryIds]
   )
 
-  // Get diverse sample
+  // Get diverse sample (filtered by excluded libraries)
   const diverseSample = await query<RecentMovie>(
     `
     WITH ranked AS (
@@ -367,6 +387,7 @@ export async function* streamTasteSynopsis(
       FROM watch_history wh
       JOIN movies m ON m.id = wh.movie_id
       WHERE wh.user_id = $1
+        AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
     )
     SELECT title, year, genres, community_rating
     FROM ranked
@@ -374,7 +395,7 @@ export async function* streamTasteSynopsis(
     ORDER BY is_favorite DESC, play_count DESC
     LIMIT 20
   `,
-    [userId]
+    [userId, excludedLibraryIds]
   )
 
   // Fetch user's explicit preferences
