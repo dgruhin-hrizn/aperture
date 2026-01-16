@@ -364,13 +364,13 @@ export function Layout() {
             <MenuIcon />
           </IconButton>
 
-          {/* Global Search */}
-          <GlobalSearch />
-
           <Box sx={{ flexGrow: 1 }} />
 
           {/* Running Jobs Widget (admin only) */}
           <RunningJobsWidget />
+
+          {/* Global Search */}
+          <GlobalSearch />
 
           {/* User menu */}
           {user && (
