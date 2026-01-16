@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { query, queryOne } from '../lib/db.js'
 import { requireAuth } from '../plugins/auth.js'
+import { getSimilarSeries } from '@aperture/core'
 
 interface SeriesRow {
   id: string
@@ -416,29 +417,25 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
       const { id } = request.params
       const limit = Math.min(parseInt(request.query.limit || '10', 10), 50)
 
-      // Get the series' embedding
-      const embedding = await queryOne<{ embedding: string }>(
-        `SELECT embedding FROM series_embeddings WHERE series_id = $1`,
-        [id]
-      )
+      try {
+        const result = await getSimilarSeries(id, { limit })
+        
+        // Transform to the expected response format
+        const similar = result.connections.map((conn) => ({
+          id: conn.item.id,
+          title: conn.item.title,
+          year: conn.item.year,
+          poster_url: conn.item.poster_url,
+          genres: conn.item.genres,
+          network: conn.item.network,
+          similarity: conn.similarity,
+        }))
 
-      if (!embedding) {
+        return reply.send({ similar })
+      } catch (error) {
+        // Series not found or no embedding
         return reply.send({ similar: [], message: 'No embedding found for this series' })
       }
-
-      // Find similar series using cosine similarity
-      const result = await query(
-        `SELECT s.id, s.title, s.year, s.poster_url, s.genres, s.network,
-                1 - (se.embedding <=> $1::halfvec) as similarity
-         FROM series_embeddings se
-         JOIN series s ON s.id = se.series_id
-         WHERE se.series_id != $2
-         ORDER BY se.embedding <=> $1::halfvec
-         LIMIT $3`,
-        [embedding.embedding, id, limit]
-      )
-
-      return reply.send({ similar: result.rows })
     }
   )
 }

@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { query, queryOne } from '../lib/db.js'
 import { requireAuth } from '../plugins/auth.js'
 import { embed } from 'ai'
-import { getEmbeddingModel, getOpenAIApiKey } from '@aperture/core'
+import { getEmbeddingModel, getOpenAIApiKey, getActiveEmbeddingTableName } from '@aperture/core'
 import { createOpenAI } from '@ai-sdk/openai'
 
 interface SearchResult {
@@ -171,8 +171,17 @@ const searchRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Get semantic embedding for query if enabled
     let queryEmbedding: number[] | null = null
+    let movieEmbeddingTable = 'embeddings_1536' // default fallback
+    let seriesEmbeddingTable = 'series_embeddings_1536' // default fallback
     if (useSemantic) {
       queryEmbedding = await getQueryEmbedding(searchQuery)
+      // Get the correct embedding table names based on configured model
+      try {
+        movieEmbeddingTable = await getActiveEmbeddingTableName('embeddings')
+        seriesEmbeddingTable = await getActiveEmbeddingTableName('series_embeddings')
+      } catch {
+        // Fall back to defaults if no embedding model configured
+      }
     }
 
     const allResults: SearchResult[] = []
@@ -193,7 +202,7 @@ const searchRoutes: FastifyPluginAsync = async (fastify) => {
           semantic_search AS (
             SELECT e.movie_id as id,
                    1 - (e.embedding <=> $${movieParams.length + 3}::halfvec) as semantic_sim
-            FROM embeddings e
+            FROM ${movieEmbeddingTable} e
             WHERE e.movie_id IN (SELECT id FROM text_search)
           )
           SELECT t.*, COALESCE(s.semantic_sim, 0) as semantic_similarity
@@ -280,7 +289,7 @@ const searchRoutes: FastifyPluginAsync = async (fastify) => {
           semantic_search AS (
             SELECT e.series_id as id,
                    1 - (e.embedding <=> $${seriesParams.length + 3}::halfvec) as semantic_sim
-            FROM series_embeddings e
+            FROM ${seriesEmbeddingTable} e
             WHERE e.series_id IN (SELECT id FROM text_search)
           )
           SELECT t.*, COALESCE(s.semantic_sim, 0) as semantic_similarity
