@@ -241,33 +241,29 @@ export function DatabaseSection({
           </DialogTitle>
           
           <DialogContent sx={{ pt: 3 }}>
-            {/* YouTube Video */}
+            {/* Warning Video */}
             <Box
               sx={{
-                position: 'relative',
                 width: '100%',
-                paddingBottom: '56.25%', // 16:9 aspect ratio
                 mb: 3,
                 borderRadius: 2,
                 overflow: 'hidden',
                 bgcolor: 'black',
               }}
             >
-              <iframe
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
                 style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
                   width: '100%',
-                  height: '100%',
-                  border: 'none',
+                  height: 'auto',
+                  display: 'block',
                 }}
-                src="https://www.youtube.com/embed/yNY6ZstdUdY?si=RCqN4ySknQt6imNH&autoplay=1"
-                title="Are you sure?"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                referrerPolicy="strict-origin-when-cross-origin"
-                allowFullScreen
-              />
+              >
+                <source src="/are_you_sure.mp4" type="video/mp4" />
+              </video>
             </Box>
             
             {/* Warning Text */}
