@@ -162,18 +162,6 @@ export async function refreshUserSeriesLibrary(userId: string): Promise<void> {
 
   await provider.refreshLibrary(apiKey, library.provider_library_id)
   logger.info({ userId, libraryId: library.provider_library_id }, 'Series library refreshed')
-
-  // Hide library items from Continue Watching for all users
-  // Small delay to let the scan start indexing items
-  await new Promise(resolve => setTimeout(resolve, 2000))
-  
-  const users = await provider.getUsers(apiKey)
-  for (const user of users) {
-    const result = await provider.hideLibraryItemsFromResume(apiKey, user.id, library.provider_library_id)
-    if (result.hidden > 0) {
-      logger.debug({ userId: user.id, hidden: result.hidden }, 'Hidden items from resume')
-    }
-  }
 }
 
 /**

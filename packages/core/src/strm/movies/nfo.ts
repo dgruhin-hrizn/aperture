@@ -57,6 +57,9 @@ export function generateNfoContent(
   const lines: string[] = [
     '<?xml version="1.0" encoding="utf-8"?>',
     '<movie>',
+    // Lock data prevents Emby from auto-fetching ProviderIds (IMDB/TMDB) from online sources
+    // This is critical for preventing duplicate Continue Watching entries
+    '  <lockdata>true</lockdata>',
     `  <title>${escapeXml(movie.title)}</title>`,
   ]
 
@@ -182,13 +185,16 @@ export function generateNfoContent(
     }
   }
 
-  // External IDs
-  if (movie.imdbId) {
-    lines.push(`  <uniqueid type="imdb">${escapeXml(movie.imdbId)}</uniqueid>`)
-  }
-  if (movie.tmdbId) {
-    lines.push(`  <uniqueid type="tmdb">${movie.tmdbId}</uniqueid>`)
-  }
+  // NOTE: We intentionally DO NOT include <uniqueid> elements (IMDB/TMDB IDs) in NFO files.
+  // 
+  // Why: When these IDs are present, Emby/Jellyfin links items together and syncs playback state.
+  // This causes BOTH the original AND Aperture copy to appear in "Continue Watching".
+  // 
+  // Why it's safe: When you play a STRM file, Emby tracks playback on the item that owns the
+  // actual media file (the ORIGINAL), not the STRM. Our watch history sync only matches items
+  // in our `movies` table (which only contains originals), so watch history stays accurate.
+  //
+  // Result: No duplicates in Continue Watching, and watch history works correctly.
 
   // File info (for display purposes)
   if (movie.videoResolution || movie.videoCodec || movie.audioCodec) {

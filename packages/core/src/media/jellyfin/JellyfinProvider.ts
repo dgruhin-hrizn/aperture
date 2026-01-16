@@ -35,7 +35,6 @@ import {
   updateUserLibraryAccess,
   refreshLibrary,
   setLibrarySortPreference,
-  hideLibraryItemsFromResume,
 } from './libraries.js'
 import { getMovies, getMovieById, getWatchHistory, markMovieUnplayed } from './movies.js'
 import {
@@ -133,14 +132,6 @@ export class JellyfinProvider extends JellyfinProviderBase implements MediaServe
     sortOrder?: 'Ascending' | 'Descending'
   ): Promise<void> {
     return setLibrarySortPreference(this, apiKey, userId, libraryId, sortBy, sortOrder)
-  }
-
-  async hideLibraryItemsFromResume(
-    apiKey: string,
-    userId: string,
-    libraryId: string
-  ): Promise<{ hidden: number; failed: number }> {
-    return hideLibraryItemsFromResume(this, apiKey, userId, libraryId)
   }
 
   // Movies

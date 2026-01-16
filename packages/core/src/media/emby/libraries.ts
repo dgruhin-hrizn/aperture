@@ -256,43 +256,8 @@ export async function setLibrarySortPreference(
   }
 }
 
-/**
- * Hide all items in a library from the Continue Watching / Resume section
- * This prevents AI recommendation library items from appearing in Continue Watching
- */
-export async function hideLibraryItemsFromResume(
-  provider: EmbyProviderBase,
-  apiKey: string,
-  userId: string,
-  libraryId: string
-): Promise<{ hidden: number; failed: number }> {
-  let hidden = 0
-  let failed = 0
-
-  try {
-    // Get all items in the library
-    const response = await provider.fetch<{ Items: Array<{ Id: string; Name: string }> }>(
-      `/Items?ParentId=${libraryId}&Recursive=true&Fields=Id`,
-      apiKey
-    )
-
-    // Hide each item from resume
-    for (const item of response.Items) {
-      try {
-        await provider.fetch(
-          `/Users/${userId}/Items/${item.Id}/HideFromResume?Hide=true`,
-          apiKey,
-          { method: 'POST' }
-        )
-        hidden++
-      } catch {
-        failed++
-      }
-    }
-  } catch {
-    // Failed to get items - non-fatal
-  }
-
-  return { hidden, failed }
-}
+// NOTE: hideLibraryItemsFromResume was removed in v0.4.7
+// Instead of hiding items from Continue Watching via API, we now omit external IDs (IMDB/TMDB)
+// from NFO files. This prevents Emby from linking Aperture items with originals, so playback
+// is tracked independently on each item - no duplicates in Continue Watching.
 

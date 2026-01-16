@@ -338,8 +338,27 @@ export async function writeStrmFilesForUser(
       // Create movie folder
       await fs.mkdir(movieFolderPath, { recursive: true })
 
-      // Create STRM file with original file path
+      // Clean up old symlinks if switching from symlink mode to STRM mode
+      // This prevents duplicate items in Emby (both .mp4 symlink and .strm file)
       const baseFilename = folderName
+      const possibleSymlinks = [
+        path.join(movieFolderPath, `${baseFilename}.mp4`),
+        path.join(movieFolderPath, `${baseFilename}.mkv`),
+        path.join(movieFolderPath, `${baseFilename}.avi`),
+      ]
+      for (const symlinkPath of possibleSymlinks) {
+        try {
+          const stat = await fs.lstat(symlinkPath)
+          if (stat.isSymbolicLink()) {
+            await fs.unlink(symlinkPath)
+            logger.info({ path: symlinkPath }, '🗑️ Removed old symlink (switched to STRM mode)')
+          }
+        } catch {
+          // File doesn't exist, which is fine
+        }
+      }
+
+      // Create STRM file with original file path
       const strmPath = path.join(movieFolderPath, `${baseFilename}.strm`)
       const strmContent = getStrmContent(originalPath)
       await fs.writeFile(strmPath, strmContent, 'utf-8')
