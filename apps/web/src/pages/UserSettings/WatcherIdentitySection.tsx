@@ -827,7 +827,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
 
         {/* Right Column: Watch History Sources */}
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3, borderRadius: 2, height: '100%' }}>
+          <Paper sx={{ p: 3, borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
             <Box display="flex" alignItems="center" gap={1} mb={1}>
               <VideoLibraryIcon sx={{ color: accentColor }} fontSize="small" />
               <Typography variant="h6" fontWeight={600}>
@@ -835,7 +835,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
               </Typography>
             </Box>
             <Typography variant="body2" color="text.secondary" mb={2}>
-              Choose which libraries contribute to your taste profile. Excluded libraries won't affect your recommendations.
+              Choose which libraries contribute to your taste profile.
             </Typography>
             
             {loadingLibraries ? (
@@ -847,63 +847,78 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                 No libraries found. Your media server libraries will appear here.
               </Typography>
             ) : (
-              <Stack spacing={1}>
-                {accessibleLibraries.map((library) => (
-                  <Box
-                    key={library.id}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      p: 1.5,
-                      borderRadius: 1,
-                      bgcolor: library.isExcluded ? 'action.disabledBackground' : 'action.hover',
-                      opacity: library.isExcluded ? 0.7 : 1,
-                      transition: 'all 0.2s',
-                    }}
-                  >
-                    <Box display="flex" alignItems="center" gap={1.5}>
-                      {library.collectionType === 'movies' ? (
-                        <MovieIcon fontSize="small" color={library.isExcluded ? 'disabled' : 'action'} />
-                      ) : library.collectionType === 'tvshows' ? (
-                        <TvIcon fontSize="small" color={library.isExcluded ? 'disabled' : 'action'} />
-                      ) : (
-                        <VideoLibraryIcon fontSize="small" color={library.isExcluded ? 'disabled' : 'action'} />
-                      )}
-                      <Box>
-                        <Typography
-                          variant="body2"
-                          fontWeight={500}
-                          sx={{ color: library.isExcluded ? 'text.disabled' : 'text.primary' }}
-                        >
-                          {library.name}
-                        </Typography>
-                        {library.collectionType && (
-                          <Typography variant="caption" color="text.secondary">
-                            {library.collectionType === 'tvshows' ? 'TV Shows' : 
-                             library.collectionType.charAt(0).toUpperCase() + library.collectionType.slice(1)}
+              <Box 
+                sx={{ 
+                  maxHeight: 280, 
+                  overflowY: 'auto', 
+                  flex: 1,
+                  pr: 1,
+                  '&::-webkit-scrollbar': { width: 6 },
+                  '&::-webkit-scrollbar-thumb': { 
+                    bgcolor: 'divider', 
+                    borderRadius: 3,
+                  },
+                }}
+              >
+                <Grid container spacing={1}>
+                  {accessibleLibraries.map((library) => (
+                    <Grid item xs={12} sm={6} key={library.id}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          p: 1.5,
+                          borderRadius: 1,
+                          border: '1px solid',
+                          borderColor: library.isExcluded ? 'divider' : accentColor,
+                          bgcolor: library.isExcluded ? 'action.disabledBackground' : 'background.paper',
+                          opacity: library.isExcluded ? 0.7 : 1,
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        <Box display="flex" alignItems="center" gap={1} minWidth={0} flex={1}>
+                          {library.collectionType === 'movies' ? (
+                            <MovieIcon fontSize="small" color={library.isExcluded ? 'disabled' : 'action'} sx={{ flexShrink: 0 }} />
+                          ) : library.collectionType === 'tvshows' ? (
+                            <TvIcon fontSize="small" color={library.isExcluded ? 'disabled' : 'action'} sx={{ flexShrink: 0 }} />
+                          ) : (
+                            <VideoLibraryIcon fontSize="small" color={library.isExcluded ? 'disabled' : 'action'} sx={{ flexShrink: 0 }} />
+                          )}
+                          <Typography
+                            variant="body2"
+                            fontWeight={500}
+                            noWrap
+                            sx={{ 
+                              color: library.isExcluded ? 'text.disabled' : 'text.primary',
+                              minWidth: 0,
+                            }}
+                          >
+                            {library.name}
                           </Typography>
-                        )}
+                        </Box>
+                        
+                        <Switch
+                          checked={!library.isExcluded}
+                          onChange={() => handleToggleLibrary(library.id, library.isExcluded)}
+                          disabled={savingLibrary === library.id}
+                          size="small"
+                          sx={{
+                            flexShrink: 0,
+                            ml: 0.5,
+                            '& .MuiSwitch-switchBase.Mui-checked': {
+                              color: accentColor,
+                            },
+                            '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                              backgroundColor: accentColor,
+                            },
+                          }}
+                        />
                       </Box>
-                    </Box>
-                    
-                    <Switch
-                      checked={!library.isExcluded}
-                      onChange={() => handleToggleLibrary(library.id, library.isExcluded)}
-                      disabled={savingLibrary === library.id}
-                      size="small"
-                      sx={{
-                        '& .MuiSwitch-switchBase.Mui-checked': {
-                          color: accentColor,
-                        },
-                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                          backgroundColor: accentColor,
-                        },
-                      }}
-                    />
-                  </Box>
-                ))}
-              </Stack>
+                    </Grid>
+                  ))}
+                </Grid>
+              </Box>
             )}
             
             <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
