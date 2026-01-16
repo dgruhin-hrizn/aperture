@@ -142,10 +142,10 @@ export async function* streamTasteSynopsis(
       system: `Write a viewer personality profile using this exact structure:
 
 ### What Draws You In
-[1-2 paragraphs about what types of stories/themes attract them]
+[1-2 paragraphs about genres, moods, and narrative styles they prefer]
 
 ### Your Viewing Style  
-[1 paragraph about how they watch - binge vs casual, rewatcher, etc.]
+[1 paragraph about viewing habits - rewatcher, completionist, etc.]
 
 ### Core Traits
 - **[Trait Name]**: [Brief description]
@@ -153,10 +153,10 @@ export async function* streamTasteSynopsis(
 - **[Trait Name]**: [Brief description]
 
 Rules:
-- Use ONLY genre names and abstract themes - never mention specific titles
+- Discuss ONLY genres, moods, pacing, and abstract narrative qualities
+- NEVER mention any movie or franchise names
 - Write in second person ("You gravitate toward...")
-- Use **bold** markdown for trait names
-- Keep it personal and insightful`,
+- Use **bold** markdown for trait names`,
       prompt: abstractPrompt,
       temperature: 0.4,
       maxOutputTokens: 400,
