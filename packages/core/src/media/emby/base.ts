@@ -26,11 +26,18 @@ export class EmbyProviderBase {
   }
 
   async fetch<T>(endpoint: string, apiKey: string, options: RequestInit = {}): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`
+    // Add api_key to query params (more reliable than header for some endpoints)
+    const separator = endpoint.includes('?') ? '&' : '?'
+    const url = `${this.baseUrl}${endpoint}${separator}api_key=${apiKey}`
+    
     const headers: Record<string, string> = {
       'X-Emby-Authorization': this.getAuthHeader(apiKey),
-      'Content-Type': 'application/json',
       ...((options.headers as Record<string, string>) || {}),
+    }
+    
+    // Only add Content-Type for requests with body
+    if (options.body) {
+      headers['Content-Type'] = 'application/json'
     }
 
     // Debug: log body if present (for troubleshooting library creation)
