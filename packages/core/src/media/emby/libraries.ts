@@ -74,7 +74,11 @@ export async function createVirtualLibrary(
 
   // NUCLEAR OPTION: Use curl directly to bypass any Node.js fetch weirdness
   // This exactly replicates the working curl command from terminal testing
-  const url = `${provider.baseUrl}/Library/VirtualFolders?api_key=${apiKey}&name=${encodeURIComponent(name)}&collectionType=${embyCollectionType}&paths=${encodeURIComponent(path)}&refreshLibrary=true`
+  // NOTE: Must also encode apostrophes as %27 - encodeURIComponent doesn't encode them
+  // but they break shell quoting when passed to curl
+  const encodeName = encodeURIComponent(name).replace(/'/g, '%27')
+  const encodePath = encodeURIComponent(path).replace(/'/g, '%27')
+  const url = `${provider.baseUrl}/Library/VirtualFolders?api_key=${apiKey}&name=${encodeName}&collectionType=${embyCollectionType}&paths=${encodePath}&refreshLibrary=true`
   logger.info({ url }, '🔥 DEBUG: Creating library via curl')
   
   try {
