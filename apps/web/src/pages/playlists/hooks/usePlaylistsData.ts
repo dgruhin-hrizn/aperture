@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { Channel, Movie, PlaylistItem, FormData, SnackbarState, GraphPlaylist } from '../types'
+import type { Channel, Movie, PlaylistItem, FormData, SnackbarState, GraphPlaylist, GraphPlaylistItem } from '../types'
 
 const initialFormData: FormData = {
   name: '',
@@ -37,6 +37,12 @@ export function usePlaylistsData() {
   const [loadingPlaylist, setLoadingPlaylist] = useState(false)
   const [removingItemId, setRemovingItemId] = useState<string | null>(null)
   const [addingMovieId, setAddingMovieId] = useState<string | null>(null)
+
+  // Graph playlist view state
+  const [graphPlaylistDialogOpen, setGraphPlaylistDialogOpen] = useState(false)
+  const [viewingGraphPlaylist, setViewingGraphPlaylist] = useState<GraphPlaylist | null>(null)
+  const [graphPlaylistItems, setGraphPlaylistItems] = useState<GraphPlaylistItem[]>([])
+  const [loadingGraphPlaylist, setLoadingGraphPlaylist] = useState(false)
 
   // Delete confirmation dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -356,6 +362,32 @@ export function usePlaylistsData() {
     }
   }
 
+  // Graph playlist view functions
+  const handleViewGraphPlaylist = async (playlist: GraphPlaylist) => {
+    setViewingGraphPlaylist(playlist)
+    setGraphPlaylistDialogOpen(true)
+    setLoadingGraphPlaylist(true)
+    setGraphPlaylistItems([])
+
+    try {
+      const response = await fetch(`/api/graph-playlists/${playlist.id}/items`, { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        setGraphPlaylistItems(data.items || [])
+      }
+    } catch {
+      setSnackbar({ open: true, message: 'Failed to load playlist', severity: 'error' })
+    } finally {
+      setLoadingGraphPlaylist(false)
+    }
+  }
+
+  const handleCloseGraphPlaylistDialog = () => {
+    setGraphPlaylistDialogOpen(false)
+    setViewingGraphPlaylist(null)
+    setGraphPlaylistItems([])
+  }
+
   return {
     // Data
     channels,
@@ -378,6 +410,11 @@ export function usePlaylistsData() {
     loadingPlaylist,
     removingItemId,
     addingMovieId,
+    // Graph playlist dialog state
+    graphPlaylistDialogOpen,
+    viewingGraphPlaylist,
+    graphPlaylistItems,
+    loadingGraphPlaylist,
     // Delete confirmation dialog state
     deleteDialogOpen,
     deletingPlaylist,
@@ -397,5 +434,7 @@ export function usePlaylistsData() {
     handleClosePlaylistDialog,
     handleRemoveFromPlaylist,
     handleAddToPlaylist,
+    handleViewGraphPlaylist,
+    handleCloseGraphPlaylistDialog,
   }
 }

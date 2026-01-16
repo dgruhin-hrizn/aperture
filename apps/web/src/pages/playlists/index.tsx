@@ -15,7 +15,7 @@ import {
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import { usePlaylistsData } from './hooks'
-import { PlaylistCard, GraphPlaylistCard, PlaylistDialog, PlaylistViewDialog, EmptyState } from './components'
+import { PlaylistCard, GraphPlaylistCard, PlaylistDialog, PlaylistViewDialog, GraphPlaylistViewDialog, EmptyState } from './components'
 
 export function PlaylistsPage() {
   const {
@@ -40,6 +40,11 @@ export function PlaylistsPage() {
     loadingPlaylist,
     removingItemId,
     addingMovieId,
+    // Graph playlist dialog state
+    graphPlaylistDialogOpen,
+    viewingGraphPlaylist,
+    graphPlaylistItems,
+    loadingGraphPlaylist,
     // Delete confirmation dialog state
     deleteDialogOpen,
     deletingPlaylist,
@@ -59,6 +64,8 @@ export function PlaylistsPage() {
     handleClosePlaylistDialog,
     handleRemoveFromPlaylist,
     handleAddToPlaylist,
+    handleViewGraphPlaylist,
+    handleCloseGraphPlaylistDialog,
   } = usePlaylistsData()
 
   if (loading) {
@@ -135,6 +142,7 @@ export function PlaylistsPage() {
               <GraphPlaylistCard
                 playlist={playlist}
                 onDelete={handleDeleteGraphPlaylist}
+                onView={handleViewGraphPlaylist}
               />
             </Grid>
           ))}
@@ -167,6 +175,15 @@ export function PlaylistsPage() {
         onClose={handleClosePlaylistDialog}
         onRemoveItem={handleRemoveFromPlaylist}
         onAddMovie={handleAddToPlaylist}
+      />
+
+      {/* Graph Playlist View Dialog */}
+      <GraphPlaylistViewDialog
+        open={graphPlaylistDialogOpen}
+        playlist={viewingGraphPlaylist}
+        items={graphPlaylistItems}
+        loading={loadingGraphPlaylist}
+        onClose={handleCloseGraphPlaylistDialog}
       />
 
       {/* Delete Confirmation Dialog */}
