@@ -67,22 +67,21 @@ export async function createVirtualLibrary(
   // Emby uses different collection type names
   const embyCollectionType = collectionType === 'movies' ? 'movies' : 'tvshows'
 
-  // Use JSON body as per Emby OpenAPI spec (Library.AddVirtualFolder)
-  // Query params work in some cases but JSON body is the documented approach
-  await provider.fetch(
-    '/Library/VirtualFolders',
-    apiKey,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        Name: name,
-        CollectionType: embyCollectionType,
-        Paths: [path],
-        RefreshLibrary: true,
-      }),
-    }
-  )
+  // Use curl directly - Node.js fetch has issues with Emby's library creation endpoint
+  // where CollectionType ends up as null despite correct parameters
+  const { exec } = await import('child_process')
+  const { promisify } = await import('util')
+  const execAsync = promisify(exec)
+  
+  const curlUrl = `${provider.baseUrl}/Library/VirtualFolders?name=${encodeURIComponent(name)}&collectionType=${embyCollectionType}&paths=${encodeURIComponent(path)}&refreshLibrary=true`
+  const curlCmd = `curl -X POST "${curlUrl}" -H "X-Emby-Authorization: ${provider.getAuthHeader(apiKey)}" -H "Content-Type: application/json" --silent --fail`
+  
+  try {
+    await execAsync(curlCmd)
+  } catch (err) {
+    const error = err as Error & { stderr?: string }
+    throw new Error(`Failed to create library via curl: ${error.message || error.stderr || 'Unknown error'}`)
+  }
 
   // Get the created library to find its ID
   const libraries = await getLibraries(provider, apiKey)
