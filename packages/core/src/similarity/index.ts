@@ -2,7 +2,7 @@ import { createChildLogger } from '../lib/logger.js'
 import { query, queryOne } from '../lib/db.js'
 import { getEmbeddingModelInstance, getActiveEmbeddingModelId, getActiveEmbeddingTableName } from '../lib/ai-provider.js'
 import { embed } from 'ai'
-import { computeConnectionReasons, type ConnectionReason } from './reasons.js'
+import { computeConnectionReasons, type ConnectionReason, type ConnectionType } from './reasons.js'
 
 const logger = createChildLogger('similarity')
 
@@ -1021,7 +1021,7 @@ export async function semanticSearch(
 
 /**
  * Build graph data from semantic search results.
- * Uses AI to identify thematic clusters and explain connections.
+ * Uses AI to find structured connections with proper types matching our legend.
  */
 export async function buildGraphFromSemanticSearch(
   searchResults: SemanticSearchResult,
@@ -1036,87 +1036,107 @@ export async function buildGraphFromSemanticSearch(
   const nodes: Map<string, GraphNode> = new Map()
   const edges: GraphEdge[] = []
   const seenEdges = new Set<string>()
+  const connectedNodes = new Set<string>()
 
   // Add all search results as nodes
-  for (const result of searchResults.results) {
-    nodes.set(result.item.id, {
-      id: result.item.id,
-      title: result.item.title,
-      year: result.item.year,
-      poster_url: result.item.poster_url,
-      type: result.item.type,
+  const items = searchResults.results.map(r => r.item)
+  for (const item of items) {
+    nodes.set(item.id, {
+      id: item.id,
+      title: item.title,
+      year: item.year,
+      poster_url: item.poster_url,
+      type: item.type,
       isCenter: true,
     })
   }
 
-  // Helper to find item by fuzzy title match
-  const findItemByTitle = (title: string) => {
-    const normalizedSearch = normalizeTitle(title)
-    return searchResults.results.find(r => {
-      const normalizedItem = normalizeTitle(r.item.title)
-      return normalizedItem === normalizedSearch || 
-             normalizedItem.includes(normalizedSearch) ||
-             normalizedSearch.includes(normalizedItem)
-    })
-  }
-
   // Helper to add edge without duplicates
-  const addEdge = (source: string, target: string, similarity: number, reasons: ConnectionReason[]) => {
-    const edgeKey = [source, target].sort().join('-')
-    if (!seenEdges.has(edgeKey)) {
+  const addEdge = (sourceId: string, targetId: string, similarity: number, reasons: ConnectionReason[]) => {
+    const edgeKey = [sourceId, targetId].sort().join('-')
+    if (!seenEdges.has(edgeKey) && sourceId !== targetId) {
       seenEdges.add(edgeKey)
-      edges.push({ source, target, similarity, reasons })
+      edges.push({ source: sourceId, target: targetId, similarity, reasons })
+      connectedNodes.add(sourceId)
+      connectedNodes.add(targetId)
     }
   }
 
-  // Use AI to find meaningful thematic clusters among results
-  let aiEdgesAdded = 0
-  if (useAI && searchResults.results.length >= 2) {
+  // Use AI to find structured connections
+  if (useAI && items.length >= 2) {
     try {
-      const clusters = await findThematicClusters(
-        searchResults.query,
-        searchResults.results.map(r => r.item)
-      )
+      const aiConnections = await findAIConnections(searchResults.query, items)
 
-      // Create edges between items in the same cluster
-      for (const cluster of clusters) {
-        // Connect all items in this cluster to each other
-        for (let i = 0; i < cluster.items.length; i++) {
-          for (let j = i + 1; j < cluster.items.length; j++) {
-            const item1 = cluster.items[i]
-            const item2 = cluster.items[j]
-            
-            // Find the actual items from results with fuzzy matching
-            const node1 = findItemByTitle(item1)
-            const node2 = findItemByTitle(item2)
-
-            if (node1 && node2 && node1.item.id !== node2.item.id) {
-              addEdge(node1.item.id, node2.item.id, 0.85, [{
-                type: 'ai_diverse',
-                value: cluster.theme,
-              }])
-              aiEdgesAdded++
-            }
-          }
+      // Add AI-discovered connections with proper types
+      for (const conn of aiConnections) {
+        const sourceItem = items[conn.from]
+        const targetItem = items[conn.to]
+        
+        if (sourceItem && targetItem) {
+          addEdge(sourceItem.id, targetItem.id, 0.85, [{
+            type: conn.type,
+            value: conn.reason,
+          }])
         }
       }
 
       logger.info(
-        { query: searchResults.query, clusters: clusters.length, aiEdges: aiEdgesAdded },
-        'Built graph with AI-discovered thematic clusters'
+        { query: searchResults.query, aiConnections: aiConnections.length, edges: edges.length },
+        'Built graph with AI-structured connections'
       )
     } catch (error) {
-      logger.warn({ error }, 'AI clustering failed')
+      logger.warn({ error }, 'AI connection finding failed')
     }
   }
 
-  // Always add embedding-based connections as supplementary edges
-  // This ensures we always have some connectivity even if AI clustering is sparse
-  await addEmbeddingSimilarityEdges(searchResults, nodes, edges, seenEdges)
+  // Find any unconnected nodes and connect them via embedding similarity
+  const unconnectedNodes = items.filter(item => !connectedNodes.has(item.id))
+  
+  if (unconnectedNodes.length > 0) {
+    logger.debug({ unconnectedCount: unconnectedNodes.length }, 'Connecting orphan nodes via embeddings')
+    
+    for (const item of unconnectedNodes) {
+      // Find the most similar connected node
+      let bestMatch: { id: string; similarity: number } | null = null
+      
+      try {
+        const similarResult = item.type === 'movie' 
+          ? await getSimilarMovies(item.id, { limit: 30 })
+          : await getSimilarSeries(item.id, { limit: 30 })
+        
+        // Find the best match among our search results (prefer already-connected nodes)
+        for (const conn of similarResult.connections) {
+          if (nodes.has(conn.item.id) && conn.item.id !== item.id) {
+            if (!bestMatch || conn.similarity > bestMatch.similarity) {
+              bestMatch = { id: conn.item.id, similarity: conn.similarity }
+            }
+          }
+        }
+        
+        if (bestMatch) {
+          addEdge(item.id, bestMatch.id, bestMatch.similarity, [{ type: 'similarity' }])
+        }
+      } catch {
+        // If embedding lookup fails, connect to first available node
+        const firstConnectedNode = items.find(i => i.id !== item.id && connectedNodes.has(i.id))
+        if (firstConnectedNode) {
+          addEdge(item.id, firstConnectedNode.id, 0.6, [{ type: 'similarity' }])
+        }
+      }
+    }
+  }
 
-  logger.debug(
+  // If still no edges (unlikely), create a simple chain
+  if (edges.length === 0 && items.length >= 2) {
+    logger.warn('No connections found, creating fallback chain')
+    for (let i = 0; i < items.length - 1; i++) {
+      addEdge(items[i].id, items[i + 1].id, 0.7, [{ type: 'similarity' }])
+    }
+  }
+
+  logger.info(
     { query: searchResults.query, nodeCount: nodes.size, edgeCount: edges.length },
-    'Built graph from semantic search'
+    'Built semantic search graph'
   )
 
   return {
@@ -1126,86 +1146,95 @@ export async function buildGraphFromSemanticSearch(
 }
 
 /**
- * Normalize a title for fuzzy matching
+ * AI-generated connection between two items
  */
-function normalizeTitle(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^\w\s]/g, '') // Remove punctuation
-    .replace(/\s+/g, ' ')    // Normalize whitespace
-    .trim()
+interface AIConnection {
+  from: number  // Index of source item
+  to: number    // Index of target item
+  type: ConnectionType
+  reason: string  // Brief explanation
 }
 
 /**
- * Use AI to find thematic clusters among search results.
- * Groups items by shared themes relevant to the search query.
+ * Use AI to find connections between search results.
+ * Returns structured JSON with connection types matching our legend.
  */
-async function findThematicClusters(
+async function findAIConnections(
   searchQuery: string,
   items: SimilarityItem[]
-): Promise<Array<{ theme: string; items: string[] }>> {
+): Promise<AIConnection[]> {
   const { getChatModelInstance } = await import('../lib/ai-provider.js')
   const { generateText } = await import('ai')
   
   const model = await getChatModelInstance()
   
-  const itemList = items.map(i => `- "${i.title}" (${i.year || '?'})`).join('\n')
+  // Build numbered item list for AI
+  const itemList = items.map((i, idx) => 
+    `${idx}: "${i.title}" (${i.year || '?'}) - Genres: ${i.genres.slice(0, 3).join(', ') || 'unknown'}`
+  ).join('\n')
   
-  const prompt = `Given the search query "${searchQuery}", group these titles by their shared thematic connections:
+  const prompt = `Analyze these titles that matched the search "${searchQuery}" and find meaningful connections between them.
 
+TITLES (use the index numbers):
 ${itemList}
 
-Identify 2-4 thematic groups where titles share something meaningful related to the search.
-For each group, provide a SHORT theme description (3-5 words) that explains WHY they're grouped.
+CONNECTION TYPES (use exactly these):
+- "director" = Same director or directorial style
+- "actor" = Shared cast member or acting style  
+- "genre" = Same genre or subgenre
+- "keyword" = Shared themes, motifs, or subject matter
+- "studio" = Same studio, production company, or cinematic universe
+- "similarity" = Similar tone, style, or audience appeal
 
-Format your response EXACTLY like this (no extra text):
-THEME: [theme description]
-- Title 1
-- Title 2
+Return a JSON array of connections. EVERY title should have at least 1-2 connections.
+Find ${Math.min(items.length * 2, 30)} connections total.
 
-THEME: [another theme]
-- Title 3
-- Title 4
-
-Only include titles that clearly fit a theme. A title can appear in multiple groups if it fits.`
+RESPOND WITH ONLY VALID JSON, no other text:
+[
+  {"from": 0, "to": 1, "type": "keyword", "reason": "both explore time loops"},
+  {"from": 0, "to": 2, "type": "genre", "reason": "psychological sci-fi"}
+]`
 
   const { text } = await generateText({
     model,
     prompt,
-    maxOutputTokens: 500,
+    maxOutputTokens: 1000,
     temperature: 0.3,
   })
 
-  // Parse the response
-  const clusters: Array<{ theme: string; items: string[] }> = []
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l)
-  
-  let currentCluster: { theme: string; items: string[] } | null = null
-  
-  for (const line of lines) {
-    if (line.toUpperCase().startsWith('THEME:')) {
-      if (currentCluster && currentCluster.items.length >= 2) {
-        clusters.push(currentCluster)
-      }
-      currentCluster = {
-        theme: line.replace(/^THEME:\s*/i, '').trim(),
-        items: [],
-      }
-    } else if (line.startsWith('-') && currentCluster) {
-      const title = line.replace(/^-\s*/, '').replace(/^"?/, '').replace(/"?\s*\([^)]*\)\s*$/, '').trim()
-      if (title) {
-        currentCluster.items.push(title)
-      }
+  // Parse JSON response
+  try {
+    // Extract JSON from response (handle markdown code blocks)
+    let jsonStr = text.trim()
+    if (jsonStr.startsWith('```')) {
+      jsonStr = jsonStr.replace(/^```json?\n?/, '').replace(/\n?```$/, '')
     }
-  }
-  
-  // Don't forget the last cluster
-  if (currentCluster && currentCluster.items.length >= 2) {
-    clusters.push(currentCluster)
-  }
+    
+    const connections = JSON.parse(jsonStr) as AIConnection[]
+    
+    // Validate and filter connections
+    const validConnections = connections.filter(conn => {
+      const validTypes: ConnectionType[] = ['director', 'actor', 'genre', 'keyword', 'studio', 'similarity']
+      return (
+        typeof conn.from === 'number' &&
+        typeof conn.to === 'number' &&
+        conn.from >= 0 && conn.from < items.length &&
+        conn.to >= 0 && conn.to < items.length &&
+        conn.from !== conn.to &&
+        validTypes.includes(conn.type as ConnectionType)
+      )
+    })
 
-  logger.debug({ searchQuery, clusters }, 'AI found thematic clusters')
-  return clusters
+    logger.info(
+      { searchQuery, totalConnections: validConnections.length, itemCount: items.length },
+      'AI found connections'
+    )
+    
+    return validConnections
+  } catch (error) {
+    logger.error({ error, response: text }, 'Failed to parse AI connections JSON')
+    return []
+  }
 }
 
 /**
