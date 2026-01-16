@@ -57,6 +57,8 @@ const userMenuItems = [
   { text: 'Explore', icon: <HubOutlinedIcon />, path: '/explore' },
   { text: 'Discover', icon: <ExploreIcon />, path: '/discovery' },
   { text: 'Browse', icon: <VideoLibraryIcon />, path: '/browse' },
+  { text: 'Watch History', icon: <HistoryIcon />, path: '/history' },
+  { text: 'Watch Stats', icon: <InsightsIcon />, path: '/stats' },
 ]
 
 // Admin navigation items (shown only to admins)
