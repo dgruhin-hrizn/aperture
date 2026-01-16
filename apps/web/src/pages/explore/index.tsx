@@ -292,7 +292,15 @@ export function ExplorePage() {
     (semanticSearch.query ? `"${semanticSearch.query}"` : 'Select a source')
 
   return (
-    <Box sx={{ display: 'flex', height: 'calc(100vh - 64px)', m: 0, p: 0 }}>
+    <Box 
+      sx={{ 
+        display: 'flex', 
+        height: 'calc(100vh - 64px)', 
+        // Break out of parent Layout padding
+        m: { xs: -2, sm: -3 },
+        width: { xs: 'calc(100% + 32px)', sm: 'calc(100% + 48px)' },
+      }}
+    >
       {/* Main Graph Area - Now on the left */}
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* Breadcrumb Navigation */}
@@ -418,6 +426,8 @@ export function ExplorePage() {
           borderLeft: 1,
           borderColor: 'divider',
           bgcolor: 'background.paper',
+          height: '100%',
+          overflowY: 'auto',
         }}
       >
         {/* Search Box - Prominent */}
