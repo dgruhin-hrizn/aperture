@@ -26,26 +26,14 @@ export class EmbyProviderBase {
   }
 
   async fetch<T>(endpoint: string, apiKey: string, options: RequestInit = {}): Promise<T> {
-    // Add api_key to query params (more reliable than header for some endpoints)
-    const separator = endpoint.includes('?') ? '&' : '?'
-    const url = `${this.baseUrl}${endpoint}${separator}api_key=${apiKey}`
-    
+    const url = `${this.baseUrl}${endpoint}`
     const headers: Record<string, string> = {
       'X-Emby-Authorization': this.getAuthHeader(apiKey),
+      'Content-Type': 'application/json',
       ...((options.headers as Record<string, string>) || {}),
     }
-    
-    // Only add Content-Type for requests with body
-    if (options.body) {
-      headers['Content-Type'] = 'application/json'
-    }
 
-    // Debug: log body if present (for troubleshooting library creation)
-    if (options.body) {
-      logger.debug({ method: options.method || 'GET', url, bodyPreview: String(options.body).substring(0, 200) }, '📡 Emby API Request (with body)')
-    } else {
-      logger.debug({ method: options.method || 'GET', url }, '📡 Emby API Request')
-    }
+    logger.debug({ method: options.method || 'GET', url }, '📡 Emby API Request')
 
     // Add 30 second timeout with AbortController
     const controller = new AbortController()
@@ -53,19 +41,12 @@ export class EmbyProviderBase {
 
     const startTime = Date.now()
     let response: Response
-    
-    // Build fetch options explicitly to ensure body is included
-    const fetchOptions: RequestInit = {
-      method: options.method || 'GET',
-      headers,
-      signal: controller.signal,
-    }
-    if (options.body) {
-      fetchOptions.body = options.body
-    }
-    
     try {
-      response = await fetch(url, fetchOptions)
+      response = await fetch(url, {
+        ...options,
+        headers,
+        signal: controller.signal,
+      })
     } catch (err) {
       clearTimeout(timeoutId)
       const duration = Date.now() - startTime

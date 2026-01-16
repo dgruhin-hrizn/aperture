@@ -5,7 +5,6 @@
 import type { Library, LibraryCreateResult } from '../types.js'
 import type { EmbyLibrary, EmbyLibraryResponse, EmbyUser } from './types.js'
 import type { EmbyProviderBase } from './base.js'
-import { logger } from './base.js'
 
 export async function getLibraries(
   provider: EmbyProviderBase,
@@ -68,15 +67,11 @@ export async function createVirtualLibrary(
   // Emby uses different collection type names
   const embyCollectionType = collectionType === 'movies' ? 'movies' : 'tvshows'
 
-  // Use the exact URL format that works from curl testing
-  // Encode apostrophes as %27 (encodeURIComponent doesn't encode them)
-  const encodeName = encodeURIComponent(name).replace(/'/g, '%27')
-  const encodePath = encodeURIComponent(path).replace(/'/g, '%27')
-  const endpoint = `/Library/VirtualFolders?name=${encodeName}&collectionType=${embyCollectionType}&paths=${encodePath}&refreshLibrary=true`
-  
-  logger.info({ endpoint }, '📚 Creating library')
-  
-  await provider.fetch(endpoint, apiKey, { method: 'POST' })
+  await provider.fetch(
+    `/Library/VirtualFolders?name=${encodeURIComponent(name)}&collectionType=${embyCollectionType}&paths=${encodeURIComponent(path)}&refreshLibrary=true`,
+    apiKey,
+    { method: 'POST' }
+  )
 
   // Get the created library to find its ID
   const libraries = await getLibraries(provider, apiKey)
