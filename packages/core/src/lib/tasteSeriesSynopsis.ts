@@ -222,15 +222,23 @@ export async function generateSeriesTasteSynopsis(userId: string): Promise<Serie
       const model = await getTextGenerationModelInstance()
       const { text } = await generateText({
         model,
-        system: `Write a TV viewer personality profile in 2 paragraphs. Use ONLY genre names and abstract themes.
+        system: `Write a TV viewer personality profile using markdown formatting. Use ONLY genre names and abstract themes.
 
-Example output:
-"You're drawn to serialized dramas with complex character arcs. Sci-fi and mystery genres dominate your viewing, suggesting you enjoy puzzles and world-building. Your completion rate shows you're committed once invested. Action and comedy provide lighter viewing when you need a break from intense narratives."
+Format your response exactly like this:
 
-Write like that example - describe personality traits, genre preferences, and viewing habits. Use second person.`,
+## Your Viewing Identity
+
+[2 paragraphs describing their personality, what draws them to series, their viewing habits, and emotional needs]
+
+### Key Traits
+- **[Trait 1]**: Brief explanation
+- **[Trait 2]**: Brief explanation  
+- **[Trait 3]**: Brief explanation
+
+Use second person ("You gravitate toward..."). Be insightful about their TV viewing personality.`,
         prompt: abstractPrompt,
-        temperature: 0.3,
-        maxOutputTokens: 250,
+        temperature: 0.4,
+        maxOutputTokens: 400,
       })
 
       synopsis = text || 'Unable to generate synopsis.'
@@ -450,15 +458,23 @@ export async function* streamSeriesTasteSynopsis(userId: string): AsyncGenerator
     const model = await getTextGenerationModelInstance()
     const result = streamText({
       model,
-      system: `Write a TV viewer personality profile in 2 paragraphs. Use ONLY genre names and abstract themes.
+      system: `Write a TV viewer personality profile using markdown formatting. Use ONLY genre names and abstract themes.
 
-Example output:
-"You're drawn to serialized dramas with complex character arcs. Sci-fi and mystery genres dominate your viewing, suggesting you enjoy puzzles and world-building. Your completion rate shows you're committed once invested. Action and comedy provide lighter viewing when you need a break from intense narratives."
+Format your response exactly like this:
 
-Write like that example - describe personality traits, genre preferences, and viewing habits. Use second person.`,
+## Your Viewing Identity
+
+[2 paragraphs describing their personality, what draws them to series, their viewing habits, and emotional needs]
+
+### Key Traits
+- **[Trait 1]**: Brief explanation
+- **[Trait 2]**: Brief explanation  
+- **[Trait 3]**: Brief explanation
+
+Use second person ("You gravitate toward..."). Be insightful about their TV viewing personality.`,
       prompt: abstractPrompt,
-      temperature: 0.3,
-      maxOutputTokens: 250,
+      temperature: 0.4,
+      maxOutputTokens: 400,
     })
 
     for await (const chunk of result.textStream) {

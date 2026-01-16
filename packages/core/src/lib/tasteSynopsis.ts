@@ -201,15 +201,23 @@ export async function generateTasteSynopsis(userId: string): Promise<TasteSynops
       const model = await getTextGenerationModelInstance()
       const { text } = await generateText({
         model,
-        system: `Write a viewer personality profile in 2 paragraphs. Use ONLY genre names and abstract themes. 
+        system: `Write a viewer personality profile using markdown formatting. Use ONLY genre names and abstract themes.
 
-Example output:
-"You're drawn to high-energy storytelling with sci-fi and action at the core. Complex worlds and fast-paced narratives keep you engaged. Comedy brings balance, and you appreciate wit alongside spectacle. Your viewing style suggests someone who seeks both intellectual stimulation and pure entertainment."
+Format your response exactly like this:
 
-Write like that example - describe personality traits, genre preferences, and emotional needs. Use second person.`,
+## Your Viewing Identity
+
+[2 paragraphs describing their personality, what draws them to content, and their emotional needs as a viewer]
+
+### Key Traits
+- **[Trait 1]**: Brief explanation
+- **[Trait 2]**: Brief explanation  
+- **[Trait 3]**: Brief explanation
+
+Use second person ("You gravitate toward..."). Be insightful about their viewer personality.`,
         prompt: abstractPrompt,
-        temperature: 0.3,
-        maxOutputTokens: 250,
+        temperature: 0.4,
+        maxOutputTokens: 400,
       })
 
       synopsis = text || 'Unable to generate synopsis.'
@@ -336,15 +344,23 @@ export async function* streamTasteSynopsis(
     const model = await getTextGenerationModelInstance()
     const result = streamText({
       model,
-      system: `Write a viewer personality profile in 2 paragraphs. Use ONLY genre names and abstract themes. 
+      system: `Write a viewer personality profile using markdown formatting. Use ONLY genre names and abstract themes.
 
-Example output:
-"You're drawn to high-energy storytelling with sci-fi and action at the core. Complex worlds and fast-paced narratives keep you engaged. Comedy brings balance, and you appreciate wit alongside spectacle. Your viewing style suggests someone who seeks both intellectual stimulation and pure entertainment."
+Format your response exactly like this:
 
-Write like that example - describe personality traits, genre preferences, and emotional needs. Use second person.`,
+## Your Viewing Identity
+
+[2 paragraphs describing their personality, what draws them to content, and their emotional needs as a viewer]
+
+### Key Traits
+- **[Trait 1]**: Brief explanation
+- **[Trait 2]**: Brief explanation  
+- **[Trait 3]**: Brief explanation
+
+Use second person ("You gravitate toward..."). Be insightful about their viewer personality.`,
       prompt: abstractPrompt,
-      temperature: 0.3,
-      maxOutputTokens: 250,
+      temperature: 0.4,
+      maxOutputTokens: 400,
     })
 
     for await (const chunk of result.textStream) {
