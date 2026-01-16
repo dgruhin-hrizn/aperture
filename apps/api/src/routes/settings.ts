@@ -2922,7 +2922,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: 'mode must be "reset" or "merge"' })
       }
 
-      const { getUserTasteProfile, detectAndUpdateFranchises, detectAndUpdateGenres } = await import('@aperture/core')
+      const { getUserTasteProfile, detectAndUpdateFranchises, detectAndUpdateGenres, getUserFranchisePreferences, getUserGenreWeights } = await import('@aperture/core')
 
       // Force rebuild profile (embedding)
       const profile = await getUserTasteProfile(userId, mediaType, {
@@ -2933,6 +2933,17 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       // Update franchise and genre detection with mode
       const franchiseResult = await detectAndUpdateFranchises(userId, mediaType, { mode })
       const genreResult = await detectAndUpdateGenres(userId, mediaType, { mode })
+
+      // Fetch the updated lists to return to the frontend (avoid full page re-render)
+      const [updatedFranchises, updatedGenres] = await Promise.all([
+        getUserFranchisePreferences(userId),
+        getUserGenreWeights(userId),
+      ])
+
+      // Filter franchises by mediaType
+      const filteredFranchises = updatedFranchises.filter(
+        (f) => f.mediaType === mediaType || f.mediaType === 'both'
+      )
 
       return reply.send({
         success: true,
@@ -2948,6 +2959,18 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         genresUpdated: genreResult.updated,
         newFranchises: franchiseResult.newItems,
         newGenres: genreResult.newItems,
+        // Return full updated lists for direct state update (no page re-render needed)
+        franchises: filteredFranchises.map((f) => ({
+          id: f.id,
+          franchiseName: f.franchiseName,
+          preferenceScore: f.preferenceScore,
+          itemsWatched: f.itemsWatched,
+        })),
+        genres: updatedGenres.map((g) => ({
+          id: g.id,
+          genre: g.genre,
+          weight: g.weight,
+        })),
         message: mode === 'merge' 
           ? `Added ${franchiseResult.newItems.length} new franchises and ${genreResult.newItems.length} new genres`
           : 'Taste profile rebuilt successfully',

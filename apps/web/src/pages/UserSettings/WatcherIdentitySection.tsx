@@ -268,6 +268,15 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
         })
       }
       
+      // Update lists directly from response (no full page re-render)
+      if (result.franchises || result.genres) {
+        setData(prev => prev ? {
+          ...prev,
+          franchises: result.franchises || prev.franchises,
+          genres: result.genres || prev.genres,
+        } : null)
+      }
+      
       if (mode === 'merge') {
         const newCount = (result.newFranchises?.length || 0) + (result.newGenres?.length || 0)
         setSuccess(newCount > 0 
@@ -277,8 +286,6 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
       } else {
         setSuccess(`Analysis complete! Found ${result.franchisesUpdated} franchises and ${result.genresUpdated || 0} genres.`)
       }
-      
-      await fetchData()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to analyze')
     } finally {
