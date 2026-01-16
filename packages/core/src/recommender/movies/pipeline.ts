@@ -75,9 +75,10 @@ export async function generateRecommendationsForUser(
   try {
     // 0. Sync watch history from media server to ensure we have latest data
     if (user.providerUserId) {
-      logger.info({ userId: user.id }, '🔄 Syncing watch history before recommendations...')
+      logger.info({ userId: user.id }, '🔄 Syncing watch history before recommendations (full sync)...')
       try {
-        await syncWatchHistoryForUser(user.id, user.providerUserId)
+        // Use full sync to catch any items that may have been missed by delta syncs
+        await syncWatchHistoryForUser(user.id, user.providerUserId, true)
         logger.info({ userId: user.id }, '✅ Watch history synced')
       } catch (err) {
         logger.warn({ err, userId: user.id }, '⚠️ Watch history sync failed, continuing with existing data')
