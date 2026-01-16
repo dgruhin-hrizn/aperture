@@ -1021,13 +1021,13 @@ export async function semanticSearch(
 
 /**
  * Build graph data from semantic search results.
- * Takes the search results and finds connections between them.
+ * Uses AI to identify thematic clusters and explain connections.
  */
 export async function buildGraphFromSemanticSearch(
   searchResults: SemanticSearchResult,
-  options: { connectionsPerNode?: number } = {}
+  options: { useAI?: boolean } = {}
 ): Promise<GraphData> {
-  const { connectionsPerNode = 2 } = options
+  const { useAI = true } = options
 
   if (searchResults.results.length === 0) {
     return { nodes: [], edges: [] }
@@ -1035,9 +1035,8 @@ export async function buildGraphFromSemanticSearch(
 
   const nodes: Map<string, GraphNode> = new Map()
   const edges: GraphEdge[] = []
-  const seenEdges = new Set<string>()
 
-  // Add all search results as center nodes
+  // Add all search results as nodes
   for (const result of searchResults.results) {
     nodes.set(result.item.id, {
       id: result.item.id,
@@ -1049,40 +1048,57 @@ export async function buildGraphFromSemanticSearch(
     })
   }
 
-  // Find connections between the result items
-  for (let i = 0; i < searchResults.results.length; i++) {
-    const sourceItem = searchResults.results[i].item
-    
-    // Get similar items to find connections
-    let similarResult: SimilarityResult
-    if (sourceItem.type === 'movie') {
-      similarResult = await getSimilarMovies(sourceItem.id, { limit: 10 })
-    } else {
-      similarResult = await getSimilarSeries(sourceItem.id, { limit: 10 })
-    }
+  // Use AI to find meaningful thematic clusters among results
+  if (useAI && searchResults.results.length >= 2) {
+    try {
+      const clusters = await findThematicClusters(
+        searchResults.query,
+        searchResults.results.map(r => r.item)
+      )
 
-    let addedConnections = 0
-    for (const conn of similarResult.connections) {
-      if (addedConnections >= connectionsPerNode) break
+      // Create edges between items in the same cluster
+      for (const cluster of clusters) {
+        // Connect all items in this cluster to each other
+        for (let i = 0; i < cluster.items.length; i++) {
+          for (let j = i + 1; j < cluster.items.length; j++) {
+            const item1 = cluster.items[i]
+            const item2 = cluster.items[j]
+            
+            // Find the actual items from results
+            const node1 = searchResults.results.find(r => 
+              r.item.title.toLowerCase() === item1.toLowerCase()
+            )
+            const node2 = searchResults.results.find(r => 
+              r.item.title.toLowerCase() === item2.toLowerCase()
+            )
 
-      // Prioritize connections to other search results
-      const isResultItem = nodes.has(conn.item.id)
-      
-      const edgeKey = [sourceItem.id, conn.item.id].sort().join('-')
-      if (seenEdges.has(edgeKey)) continue
-      seenEdges.add(edgeKey)
-
-      // Add edge to another search result
-      if (isResultItem) {
-        edges.push({
-          source: sourceItem.id,
-          target: conn.item.id,
-          similarity: conn.similarity,
-          reasons: conn.reasons,
-        })
-        addedConnections++
+            if (node1 && node2) {
+              edges.push({
+                source: node1.item.id,
+                target: node2.item.id,
+                similarity: 0.85, // High similarity since AI grouped them
+                reasons: [{
+                  type: 'ai_diverse',
+                  value: cluster.theme,
+                }],
+              })
+            }
+          }
+        }
       }
+
+      logger.info(
+        { query: searchResults.query, clusters: clusters.length, edges: edges.length },
+        'Built graph with AI-discovered thematic clusters'
+      )
+    } catch (error) {
+      logger.warn({ error }, 'AI clustering failed, falling back to embedding similarity')
+      // Fallback to embedding-based connections
+      await addEmbeddingSimilarityEdges(searchResults, nodes, edges)
     }
+  } else {
+    // Fallback without AI
+    await addEmbeddingSimilarityEdges(searchResults, nodes, edges)
   }
 
   logger.debug(
@@ -1093,6 +1109,123 @@ export async function buildGraphFromSemanticSearch(
   return {
     nodes: Array.from(nodes.values()),
     edges,
+  }
+}
+
+/**
+ * Use AI to find thematic clusters among search results.
+ * Groups items by shared themes relevant to the search query.
+ */
+async function findThematicClusters(
+  searchQuery: string,
+  items: SimilarityItem[]
+): Promise<Array<{ theme: string; items: string[] }>> {
+  const { getChatModelInstance } = await import('../lib/ai-provider.js')
+  const { generateText } = await import('ai')
+  
+  const model = await getChatModelInstance()
+  
+  const itemList = items.map(i => `- "${i.title}" (${i.year || '?'})`).join('\n')
+  
+  const prompt = `Given the search query "${searchQuery}", group these titles by their shared thematic connections:
+
+${itemList}
+
+Identify 2-4 thematic groups where titles share something meaningful related to the search.
+For each group, provide a SHORT theme description (3-5 words) that explains WHY they're grouped.
+
+Format your response EXACTLY like this (no extra text):
+THEME: [theme description]
+- Title 1
+- Title 2
+
+THEME: [another theme]
+- Title 3
+- Title 4
+
+Only include titles that clearly fit a theme. A title can appear in multiple groups if it fits.`
+
+  const { text } = await generateText({
+    model,
+    prompt,
+    maxOutputTokens: 500,
+    temperature: 0.3,
+  })
+
+  // Parse the response
+  const clusters: Array<{ theme: string; items: string[] }> = []
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l)
+  
+  let currentCluster: { theme: string; items: string[] } | null = null
+  
+  for (const line of lines) {
+    if (line.toUpperCase().startsWith('THEME:')) {
+      if (currentCluster && currentCluster.items.length >= 2) {
+        clusters.push(currentCluster)
+      }
+      currentCluster = {
+        theme: line.replace(/^THEME:\s*/i, '').trim(),
+        items: [],
+      }
+    } else if (line.startsWith('-') && currentCluster) {
+      const title = line.replace(/^-\s*/, '').replace(/^"?/, '').replace(/"?\s*\([^)]*\)\s*$/, '').trim()
+      if (title) {
+        currentCluster.items.push(title)
+      }
+    }
+  }
+  
+  // Don't forget the last cluster
+  if (currentCluster && currentCluster.items.length >= 2) {
+    clusters.push(currentCluster)
+  }
+
+  logger.debug({ searchQuery, clusters }, 'AI found thematic clusters')
+  return clusters
+}
+
+/**
+ * Fallback: add edges based on embedding similarity between search results
+ */
+async function addEmbeddingSimilarityEdges(
+  searchResults: SemanticSearchResult,
+  nodes: Map<string, GraphNode>,
+  edges: GraphEdge[]
+): Promise<void> {
+  const seenEdges = new Set<string>()
+  const minSimilarity = 0.75
+
+  for (const result of searchResults.results) {
+    const sourceItem = result.item
+
+    let similarResult: SimilarityResult
+    try {
+      if (sourceItem.type === 'movie') {
+        similarResult = await getSimilarMovies(sourceItem.id, { limit: 20 })
+      } else {
+        similarResult = await getSimilarSeries(sourceItem.id, { limit: 20 })
+      }
+    } catch {
+      continue
+    }
+
+    for (const conn of similarResult.connections) {
+      if (!nodes.has(conn.item.id)) continue
+      if (conn.item.id === sourceItem.id) continue
+
+      const edgeKey = [sourceItem.id, conn.item.id].sort().join('-')
+      if (seenEdges.has(edgeKey)) continue
+      seenEdges.add(edgeKey)
+
+      if (conn.similarity >= minSimilarity) {
+        edges.push({
+          source: sourceItem.id,
+          target: conn.item.id,
+          similarity: conn.similarity,
+          reasons: [{ type: 'similarity' }],
+        })
+      }
+    }
   }
 }
 
