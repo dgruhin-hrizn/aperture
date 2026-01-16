@@ -49,7 +49,7 @@ const DRAWER_WIDTH = 260
 
 // User-facing navigation items (shown to all users)
 const userMenuItems = [
-  { text: 'Home', icon: <HomeIcon />, path: '/' },
+  { text: 'Dashboard', icon: <HomeIcon />, path: '/' },
   { text: 'Recommendations', icon: <AutoAwesomeIcon />, path: '/recommendations' },
   { text: 'Shows You Watch', icon: <AddToQueueIcon />, path: '/watching' },
   { text: 'Top Picks', icon: <WhatshotIcon />, path: '/top-picks' },
