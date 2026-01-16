@@ -11,6 +11,7 @@ import { getTextGenerationModelInstance, isAIFunctionConfigured } from './ai-pro
 import { generateText, streamText } from 'ai'
 import { getUserFranchisePreferences, getUserGenreWeights, getUserCustomInterests } from '../taste-profile/index.js'
 import { getUserExcludedLibraries } from './libraryExclusions.js'
+import { analyzeSeriesTaste, formatTasteProfileForAI } from './tasteAnalyzer.js'
 
 const logger = createChildLogger('taste-series-synopsis')
 
@@ -196,36 +197,11 @@ export async function generateSeriesTasteSynopsis(userId: string): Promise<Serie
     LIMIT 10
   `, [userId, excludedLibraryIds])
 
-  // Fetch user's explicit preferences
-  const franchisePrefs = await getUserFranchisePreferences(userId, 'series')
-  const genreWeights = await getUserGenreWeights(userId)
-  const customInterests = await getUserCustomInterests(userId)
-
-  // Build the prompt for OpenAI
-  const prompt = buildSeriesSynopsisPrompt({
-    seriesCount: Number(stats.series_count),
-    episodeCount: Number(stats.episode_count),
-    avgRating: Number(stats.avg_rating || 0),
-    favoriteCount: Number(stats.favorite_count),
-    topGenres,
-    favoriteNetworks,
-    favoriteDecade,
-    topSeries: topSeries.rows,
-    seriesWithFavorites: seriesWithFavorites.rows,
-    completedSeries: completedSeries.rows,
-    franchisePrefs: franchisePrefs.map(f => ({
-      franchiseName: f.franchiseName,
-      preferenceScore: f.preferenceScore,
-      itemsWatched: f.itemsWatched,
-    })),
-    genrePrefs: genreWeights.map(g => ({
-      genre: g.genre,
-      weight: g.weight,
-    })),
-    customInterests: customInterests.map(i => ({
-      interestText: i.interestText,
-    })),
-  })
+  // Use embedding-powered taste analyzer for abstract profile
+  const tasteProfile = await analyzeSeriesTaste(userId)
+  const abstractPrompt = formatTasteProfileForAI(tasteProfile, 'series')
+  
+  logger.debug({ userId, diversity: tasteProfile.diversity }, 'Analyzed series taste profile')
 
   // Generate synopsis with AI provider
   let synopsis: string
@@ -246,25 +222,25 @@ export async function generateSeriesTasteSynopsis(userId: string): Promise<Serie
       const model = await getTextGenerationModelInstance()
       const { text } = await generateText({
         model,
-        system: `You are writing an ABSTRACT viewer identity profile for TV series. This profile will be used by AI systems to understand user preferences.
+        system: `You are writing an ABSTRACT viewer identity profile for TV series based on analyzed taste data.
+This profile will be used by AI systems to understand user preferences.
 
-STRICT RULES - VIOLATION OF THESE WILL CAUSE SYSTEM FAILURE:
-1. NEVER mention ANY specific TV show titles (no "Breaking Bad", no "Game of Thrones", etc.)
-2. NEVER mention franchise or universe names (no "Star Trek", no "Marvel", etc.)
-3. NEVER include a recommendations section
-4. NEVER use phrases like "we recommend" or "you might enjoy"
-5. NEVER mention years, networks, or ratings
+STRICT RULES:
+1. NEVER mention ANY specific TV show titles
+2. NEVER mention franchise or universe names  
+3. NEVER include recommendations
+4. NEVER mention years, networks, ratings, or numbers from the data
 
-INSTEAD, describe their taste using ONLY abstract characteristics:
-- Genres and sub-genres they prefer (drama, sci-fi, comedy, etc.)
-- Themes that resonate (power dynamics, family bonds, mystery, etc.)
-- Storytelling preferences (episodic vs serialized, slow-burn vs fast-paced)
-- Viewing habits (completionist, sampler, binge-watcher)
-- Emotional experiences sought (thrills, comfort, intellectual stimulation)
+Based on the taste analysis provided, write a flowing 2-3 paragraph profile (100-150 words) that captures:
+- Their genre preferences in natural language
+- The themes and emotional experiences they seek
+- Their viewing personality and habits
+- Their storytelling style preferences
 
-Write 2-3 paragraphs (100-150 words) in second person ("You gravitate toward...").`,
-        prompt,
-        temperature: 0.8,
+Write in second person ("You gravitate toward...", "You're drawn to...").
+Make it feel personal and insightful, not like a data report.`,
+        prompt: abstractPrompt,
+        temperature: 0.7,
         maxOutputTokens: 300,
       })
 
@@ -442,36 +418,11 @@ export async function* streamSeriesTasteSynopsis(userId: string): AsyncGenerator
     LIMIT 10
   `, [userId, excludedLibraryIds])
 
-  // Fetch user's explicit preferences
-  const franchisePrefs = await getUserFranchisePreferences(userId, 'series')
-  const genreWeights = await getUserGenreWeights(userId)
-  const customInterests = await getUserCustomInterests(userId)
-
-  // Build the prompt
-  const prompt = buildSeriesSynopsisPrompt({
-    seriesCount: Number(stats.series_count),
-    episodeCount: Number(stats.episode_count),
-    avgRating: Number(stats.avg_rating || 0),
-    favoriteCount: Number(stats.favorite_count),
-    topGenres,
-    favoriteNetworks,
-    favoriteDecade,
-    topSeries: topSeries.rows,
-    seriesWithFavorites: seriesWithFavorites.rows,
-    completedSeries: completedSeries.rows,
-    franchisePrefs: franchisePrefs.map(f => ({
-      franchiseName: f.franchiseName,
-      preferenceScore: f.preferenceScore,
-      itemsWatched: f.itemsWatched,
-    })),
-    genrePrefs: genreWeights.map(g => ({
-      genre: g.genre,
-      weight: g.weight,
-    })),
-    customInterests: customInterests.map(i => ({
-      interestText: i.interestText,
-    })),
-  })
+  // Use embedding-powered taste analyzer for abstract profile
+  const tasteProfile = await analyzeSeriesTaste(userId)
+  const abstractPrompt = formatTasteProfileForAI(tasteProfile, 'series')
+  
+  logger.debug({ userId, diversity: tasteProfile.diversity }, 'Streaming: Analyzed series taste profile')
 
   // Check if text generation is configured
   const isConfigured = await isAIFunctionConfigured('textGeneration')
@@ -500,7 +451,7 @@ export async function* streamSeriesTasteSynopsis(userId: string): AsyncGenerator
       avgRating: Number(stats.avg_rating || 0),
       favoriteDecade,
       favoriteNetworks,
-      recentFavorites: topSeries.rows.slice(0, 5).map(s => s.title),
+      recentFavorites: [],
     }
   }
 
@@ -510,25 +461,25 @@ export async function* streamSeriesTasteSynopsis(userId: string): AsyncGenerator
     const model = await getTextGenerationModelInstance()
     const result = streamText({
       model,
-      system: `You are writing an ABSTRACT viewer identity profile for TV series. This profile will be used by AI systems to understand user preferences.
+      system: `You are writing an ABSTRACT viewer identity profile for TV series based on analyzed taste data.
+This profile will be used by AI systems to understand user preferences.
 
-STRICT RULES - VIOLATION OF THESE WILL CAUSE SYSTEM FAILURE:
-1. NEVER mention ANY specific TV show titles (no "Breaking Bad", no "Game of Thrones", etc.)
-2. NEVER mention franchise or universe names (no "Star Trek", no "Marvel", etc.)
-3. NEVER include a recommendations section
-4. NEVER use phrases like "we recommend" or "you might enjoy"
-5. NEVER mention years, networks, or ratings
+STRICT RULES:
+1. NEVER mention ANY specific TV show titles
+2. NEVER mention franchise or universe names  
+3. NEVER include recommendations
+4. NEVER mention years, networks, ratings, or numbers from the data
 
-INSTEAD, describe their taste using ONLY abstract characteristics:
-- Genres and sub-genres they prefer (drama, sci-fi, comedy, etc.)
-- Themes that resonate (power dynamics, family bonds, mystery, etc.)
-- Storytelling preferences (episodic vs serialized, slow-burn vs fast-paced)
-- Viewing habits (completionist, sampler, binge-watcher)
-- Emotional experiences sought (thrills, comfort, intellectual stimulation)
+Based on the taste analysis provided, write a flowing 2-3 paragraph profile (100-150 words) that captures:
+- Their genre preferences in natural language
+- The themes and emotional experiences they seek
+- Their viewing personality and habits
+- Their storytelling style preferences
 
-Write 2-3 paragraphs (100-150 words) in second person ("You gravitate toward...").`,
-      prompt,
-      temperature: 0.8,
+Write in second person ("You gravitate toward...", "You're drawn to...").
+Make it feel personal and insightful, not like a data report.`,
+      prompt: abstractPrompt,
+      temperature: 0.7,
       maxOutputTokens: 300,
     })
 

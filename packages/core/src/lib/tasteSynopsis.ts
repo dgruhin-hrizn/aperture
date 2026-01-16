@@ -15,6 +15,7 @@ import {
   getUserCustomInterests,
 } from '../taste-profile/index.js'
 import { getUserExcludedLibraries } from './libraryExclusions.js'
+import { analyzeMovieTaste, formatTasteProfileForAI } from './tasteAnalyzer.js'
 
 const logger = createChildLogger('taste-synopsis')
 
@@ -177,34 +178,11 @@ export async function generateTasteSynopsis(userId: string): Promise<TasteSynops
     [userId, excludedLibraryIds]
   )
 
-  // Fetch user's explicit preferences
-  const franchisePrefs = await getUserFranchisePreferences(userId, 'movie')
-  const genreWeights = await getUserGenreWeights(userId)
-  const customInterests = await getUserCustomInterests(userId)
-
-  // Build the prompt for OpenAI
-  const prompt = buildSynopsisPrompt({
-    totalWatched: Number(stats.total_watched),
-    avgRating: Number(stats.avg_rating || 0),
-    favoriteCount: Number(stats.favorite_count),
-    topGenres,
-    favoriteDecade,
-    topFavorites: topFavorites.rows,
-    mostRewatched: mostRewatched.rows,
-    diverseSample: diverseSample.rows,
-    franchisePrefs: franchisePrefs.map((f) => ({
-      franchiseName: f.franchiseName,
-      preferenceScore: f.preferenceScore,
-      itemsWatched: f.itemsWatched,
-    })),
-    genrePrefs: genreWeights.map((g) => ({
-      genre: g.genre,
-      weight: g.weight,
-    })),
-    customInterests: customInterests.map((i) => ({
-      interestText: i.interestText,
-    })),
-  })
+  // Use embedding-powered taste analyzer for abstract profile
+  const tasteProfile = await analyzeMovieTaste(userId)
+  const abstractPrompt = formatTasteProfileForAI(tasteProfile, 'movie')
+  
+  logger.debug({ userId, diversity: tasteProfile.diversity }, 'Analyzed movie taste profile')
 
   // Generate synopsis with AI provider
   let synopsis: string
@@ -223,25 +201,25 @@ export async function generateTasteSynopsis(userId: string): Promise<TasteSynops
       const model = await getTextGenerationModelInstance()
       const { text } = await generateText({
         model,
-        system: `You are writing an ABSTRACT viewer identity profile. This profile will be used by AI systems to understand user preferences.
+        system: `You are writing an ABSTRACT viewer identity profile based on analyzed taste data.
+This profile will be used by AI systems to understand user preferences.
 
-STRICT RULES - VIOLATION OF THESE WILL CAUSE SYSTEM FAILURE:
-1. NEVER mention ANY specific movie titles (no "The Matrix", no "John Wick", etc.)
-2. NEVER mention franchise names (no "Marvel", no "Star Wars", no "Avengers")
-3. NEVER include a recommendations section
-4. NEVER use phrases like "we recommend" or "you might enjoy"
-5. NEVER mention years or ratings
+STRICT RULES:
+1. NEVER mention ANY specific movie/show titles
+2. NEVER mention franchise or universe names  
+3. NEVER include recommendations
+4. NEVER mention years, ratings, or numbers from the data
 
-INSTEAD, describe their taste using ONLY abstract characteristics:
-- Genres and sub-genres they prefer (action, sci-fi, comedy, etc.)
-- Themes that resonate (redemption, exploration, family bonds, etc.)
-- Storytelling styles (fast-paced, cerebral, character-driven, etc.)
-- Emotional experiences sought (thrills, laughter, inspiration, etc.)
-- Viewer personality (adventurous, nostalgic, comfort-seeker, etc.)
+Based on the taste analysis provided, write a flowing 2-3 paragraph profile (100-150 words) that captures:
+- Their genre preferences in natural language
+- The themes and emotional experiences they seek
+- Their viewing personality (adventurous, comfort-seeker, etc.)
+- Their storytelling style preferences
 
-Write 2-3 paragraphs (100-150 words) in second person ("You gravitate toward...").`,
-        prompt,
-        temperature: 0.8,
+Write in second person ("You gravitate toward...", "You're drawn to...").
+Make it feel personal and insightful, not like a data report.`,
+        prompt: abstractPrompt,
+        temperature: 0.7,
         maxOutputTokens: 300,
       })
 
@@ -324,117 +302,14 @@ export async function* streamTasteSynopsis(
     }
   }
 
-  // Get top genres (filtered by excluded libraries)
-  const genreResults = await query<GenreCount>(
-    `
-    SELECT unnest(m.genres) as genre, COUNT(*) as count
-    FROM watch_history wh
-    JOIN movies m ON m.id = wh.movie_id
-    WHERE wh.user_id = $1
-      AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
-    GROUP BY unnest(m.genres)
-    ORDER BY count DESC
-    LIMIT 5
-  `,
-    [userId, excludedLibraryIds]
-  )
-  const topGenres = genreResults.rows.map((r) => r.genre)
-
-  // Get favorite decade (filtered by excluded libraries)
-  const decadeResults = await query<DecadeCount>(
-    `
-    SELECT 
-      (FLOOR(m.year / 10) * 10)::TEXT || 's' as decade,
-      COUNT(*) as count
-    FROM watch_history wh
-    JOIN movies m ON m.id = wh.movie_id
-    WHERE wh.user_id = $1 AND m.year IS NOT NULL
-      AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
-    GROUP BY FLOOR(m.year / 10)
-    ORDER BY count DESC
-    LIMIT 1
-  `,
-    [userId, excludedLibraryIds]
-  )
-  const favoriteDecade = decadeResults.rows[0]?.decade || null
-
-  // Get top favorites (filtered by excluded libraries)
-  const topFavorites = await query<RecentMovie>(
-    `
-    SELECT m.title, m.year, m.genres, m.community_rating
-    FROM watch_history wh
-    JOIN movies m ON m.id = wh.movie_id
-    WHERE wh.user_id = $1 AND wh.is_favorite = true
-      AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
-    ORDER BY wh.play_count DESC, wh.last_played_at DESC NULLS LAST
-    LIMIT 10
-  `,
-    [userId, excludedLibraryIds]
-  )
-
-  // Get most rewatched movies (filtered by excluded libraries)
-  const mostRewatched = await query<RecentMovie & { play_count: number }>(
-    `
-    SELECT m.title, m.year, m.genres, m.community_rating, wh.play_count
-    FROM watch_history wh
-    JOIN movies m ON m.id = wh.movie_id
-    WHERE wh.user_id = $1 AND wh.play_count > 1
-      AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
-    ORDER BY wh.play_count DESC
-    LIMIT 10
-  `,
-    [userId, excludedLibraryIds]
-  )
-
-  // Get diverse sample (filtered by excluded libraries)
-  const diverseSample = await query<RecentMovie>(
-    `
-    WITH ranked AS (
-      SELECT m.title, m.year, m.genres, m.community_rating,
-             wh.is_favorite, wh.play_count, wh.last_played_at,
-             ROW_NUMBER() OVER (PARTITION BY m.genres[1] ORDER BY wh.play_count DESC) as genre_rank
-      FROM watch_history wh
-      JOIN movies m ON m.id = wh.movie_id
-      WHERE wh.user_id = $1
-        AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
-    )
-    SELECT title, year, genres, community_rating
-    FROM ranked
-    WHERE genre_rank <= 3
-    ORDER BY is_favorite DESC, play_count DESC
-    LIMIT 20
-  `,
-    [userId, excludedLibraryIds]
-  )
-
-  // Fetch user's explicit preferences
-  const franchisePrefs = await getUserFranchisePreferences(userId, 'movie')
-  const genreWeights = await getUserGenreWeights(userId)
-  const customInterests = await getUserCustomInterests(userId)
-
-  // Build the prompt with user preferences
-  const prompt = buildSynopsisPrompt({
-    totalWatched: Number(stats.total_watched),
-    avgRating: Number(stats.avg_rating || 0),
-    favoriteCount: Number(stats.favorite_count),
-    topGenres,
-    favoriteDecade,
-    topFavorites: topFavorites.rows,
-    mostRewatched: mostRewatched.rows,
-    diverseSample: diverseSample.rows,
-    franchisePrefs: franchisePrefs.map((f) => ({
-      franchiseName: f.franchiseName,
-      preferenceScore: f.preferenceScore,
-      itemsWatched: f.itemsWatched,
-    })),
-    genrePrefs: genreWeights.map((g) => ({
-      genre: g.genre,
-      weight: g.weight,
-    })),
-    customInterests: customInterests.map((i) => ({
-      interestText: i.interestText,
-    })),
-  })
+  // Use embedding-powered taste analyzer for abstract profile
+  const tasteProfile = await analyzeMovieTaste(userId)
+  const abstractPrompt = formatTasteProfileForAI(tasteProfile, 'movie')
+  
+  const topGenres = tasteProfile.genres.map(g => g.genre)
+  const favoriteDecade = tasteProfile.decades[0]?.decade || null
+  
+  logger.debug({ userId, diversity: tasteProfile.diversity }, 'Streaming: Analyzed movie taste profile')
 
   // Check if text generation is configured
   const isConfigured = await isAIFunctionConfigured('textGeneration')
@@ -460,7 +335,7 @@ export async function* streamTasteSynopsis(
       topGenres,
       avgRating: Number(stats.avg_rating || 0),
       favoriteDecade,
-      recentFavorites: topFavorites.rows.map((m) => m.title),
+      recentFavorites: [],
     }
   }
 
@@ -470,25 +345,25 @@ export async function* streamTasteSynopsis(
     const model = await getTextGenerationModelInstance()
     const result = streamText({
       model,
-      system: `You are writing an ABSTRACT viewer identity profile. This profile will be used by AI systems to understand user preferences.
+      system: `You are writing an ABSTRACT viewer identity profile based on analyzed taste data.
+This profile will be used by AI systems to understand user preferences.
 
-STRICT RULES - VIOLATION OF THESE WILL CAUSE SYSTEM FAILURE:
-1. NEVER mention ANY specific movie titles (no "The Matrix", no "John Wick", etc.)
-2. NEVER mention franchise names (no "Marvel", no "Star Wars", no "Avengers")
-3. NEVER include a recommendations section
-4. NEVER use phrases like "we recommend" or "you might enjoy"
-5. NEVER mention years or ratings
+STRICT RULES:
+1. NEVER mention ANY specific movie/show titles
+2. NEVER mention franchise or universe names  
+3. NEVER include recommendations
+4. NEVER mention years, ratings, or numbers from the data
 
-INSTEAD, describe their taste using ONLY abstract characteristics:
-- Genres and sub-genres they prefer (action, sci-fi, comedy, etc.)
-- Themes that resonate (redemption, exploration, family bonds, etc.)
-- Storytelling styles (fast-paced, cerebral, character-driven, etc.)
-- Emotional experiences sought (thrills, laughter, inspiration, etc.)
-- Viewer personality (adventurous, nostalgic, comfort-seeker, etc.)
+Based on the taste analysis provided, write a flowing 2-3 paragraph profile (100-150 words) that captures:
+- Their genre preferences in natural language
+- The themes and emotional experiences they seek
+- Their viewing personality (adventurous, comfort-seeker, etc.)
+- Their storytelling style preferences
 
-Write 2-3 paragraphs (100-150 words) in second person ("You gravitate toward...").`,
-      prompt,
-      temperature: 0.8,
+Write in second person ("You gravitate toward...", "You're drawn to...").
+Make it feel personal and insightful, not like a data report.`,
+      prompt: abstractPrompt,
+      temperature: 0.7,
       maxOutputTokens: 300,
     })
 
@@ -522,7 +397,7 @@ Write 2-3 paragraphs (100-150 words) in second person ("You gravitate toward..."
     topGenres,
     avgRating: Number(stats.avg_rating || 0),
     favoriteDecade,
-    recentFavorites: topFavorites.rows.map((m) => m.title),
+    recentFavorites: [],
   }
 }
 
