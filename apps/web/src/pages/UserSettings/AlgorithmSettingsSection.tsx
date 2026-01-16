@@ -771,7 +771,7 @@ export function AlgorithmSettingsSection({ userId }: Props) {
                         </Box>
                         <HeartRating
                           value={item.rating}
-                          onChange={(newRating) => handleRatingChange(item.id, newRating, 'movie')}
+                          onChange={(newRating) => newRating && handleRatingChange(item.id, newRating, 'movie')}
                           size="small"
                         />
                         <IconButton 
@@ -828,7 +828,7 @@ export function AlgorithmSettingsSection({ userId }: Props) {
                         </Box>
                         <HeartRating
                           value={item.rating}
-                          onChange={(newRating) => handleRatingChange(item.id, newRating, 'series')}
+                          onChange={(newRating) => newRating && handleRatingChange(item.id, newRating, 'series')}
                           size="small"
                         />
                         <IconButton 
