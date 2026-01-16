@@ -20,8 +20,9 @@ export async function getLibraries(
   const libraries = Array.isArray(response) ? response : response.Items || []
 
   return libraries.map((lib: EmbyLibrary) => ({
-    id: lib.ItemId || lib.Id || '',
-    guid: lib.Guid || lib.ItemId || lib.Id || '', // GUID is used for user permissions
+    // Use Id for VirtualFolders API, fallback to ItemId for older Emby versions
+    id: lib.Id || lib.ItemId || '',
+    guid: lib.Guid || lib.Id || lib.ItemId || '', // GUID is used for user permissions
     name: lib.Name,
     collectionType: lib.CollectionType,
     path: lib.Path,
@@ -59,7 +60,7 @@ export async function createVirtualLibrary(
   if (existing) {
     // Library already exists - ensure settings are configured
     await setLibrarySortTitle(provider, apiKey, existing.id, name)
-    await setLibraryOptions(provider, apiKey, name, { excludeFromSearch: true })
+    await setLibraryOptions(provider, apiKey, existing.id, { excludeFromSearch: true })
     return { libraryId: existing.id, alreadyExists: true }
   }
 
@@ -84,7 +85,7 @@ export async function createVirtualLibrary(
   await setLibrarySortTitle(provider, apiKey, created.id, name)
   
   // Exclude from global search - these are AI-curated libraries
-  await setLibraryOptions(provider, apiKey, name, { excludeFromSearch: true })
+  await setLibraryOptions(provider, apiKey, created.id, { excludeFromSearch: true })
 
   return { libraryId: created.id, alreadyExists: false }
 }
@@ -135,27 +136,27 @@ async function setLibrarySortTitle(
 
 /**
  * Set library options like ExcludeFromSearch
- * Uses the VirtualFolders/LibraryOptions endpoint which requires the library name
+ * Uses the VirtualFolders/LibraryOptions endpoint (requires Emby 4.9+)
  * @param provider - Emby provider instance
  * @param apiKey - API key for authentication
- * @param libraryName - Library name (not ID - VirtualFolders API uses names)
+ * @param libraryId - VirtualFolder Id (from VirtualFolderInfo.Id, not ItemId)
  * @param options - Options to set
  */
 async function setLibraryOptions(
   provider: EmbyProviderBase,
   apiKey: string,
-  libraryName: string,
+  libraryId: string,
   options: { excludeFromSearch?: boolean }
 ): Promise<void> {
   try {
     // Use the LibraryOptions endpoint to update library settings
     // This excludes AI-generated libraries from global search results
-    // Note: VirtualFolders API uses library name, not numeric ID
+    // Requires Emby 4.9+ (ExcludeFromSearch not available in older versions)
     await provider.fetch('/Library/VirtualFolders/LibraryOptions', apiKey, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        Id: libraryName,
+        Id: libraryId,
         LibraryOptions: {
           ExcludeFromSearch: options.excludeFromSearch ?? false,
         },
@@ -163,7 +164,7 @@ async function setLibraryOptions(
     })
   } catch {
     // Non-fatal: library will still work, just won't be excluded from search
-    // This may fail on older Emby versions that don't support this endpoint
+    // This fails silently on Emby < 4.9 which doesn't support ExcludeFromSearch
   }
 }
 
