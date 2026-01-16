@@ -3059,6 +3059,40 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   /**
+   * DELETE /api/settings/taste-profile/franchises/:franchiseName
+   * Delete a franchise preference
+   */
+  fastify.delete<{
+    Params: { franchiseName: string }
+    Querystring: { mediaType: 'movie' | 'series' | 'both' }
+  }>('/api/settings/taste-profile/franchises/:franchiseName', { preHandler: requireAuth }, async (request, reply) => {
+    try {
+      const userId = request.user!.id
+      const { franchiseName } = request.params
+      const { mediaType } = request.query
+
+      if (!franchiseName) {
+        return reply.status(400).send({ error: 'franchiseName is required' })
+      }
+
+      if (!mediaType || !['movie', 'series', 'both'].includes(mediaType)) {
+        return reply.status(400).send({ error: 'mediaType query param is required (movie, series, or both)' })
+      }
+
+      const { deleteFranchisePreference } = await import('@aperture/core')
+      const deleted = await deleteFranchisePreference(userId, decodeURIComponent(franchiseName), mediaType)
+
+      return reply.send({
+        success: deleted,
+        message: deleted ? 'Franchise deleted' : 'Franchise not found',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to delete franchise preference')
+      return reply.status(500).send({ error: 'Failed to delete franchise preference' })
+    }
+  })
+
+  /**
    * PUT /api/settings/taste-profile/genres
    * Update genre weights
    */
@@ -3103,6 +3137,34 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     } catch (err) {
       fastify.log.error({ err }, 'Failed to update genre weights')
       return reply.status(500).send({ error: 'Failed to update genre weights' })
+    }
+  })
+
+  /**
+   * DELETE /api/settings/taste-profile/genres/:genre
+   * Delete a genre weight
+   */
+  fastify.delete<{
+    Params: { genre: string }
+  }>('/api/settings/taste-profile/genres/:genre', { preHandler: requireAuth }, async (request, reply) => {
+    try {
+      const userId = request.user!.id
+      const { genre } = request.params
+
+      if (!genre) {
+        return reply.status(400).send({ error: 'genre is required' })
+      }
+
+      const { deleteGenreWeight } = await import('@aperture/core')
+      const deleted = await deleteGenreWeight(userId, decodeURIComponent(genre))
+
+      return reply.send({
+        success: deleted,
+        message: deleted ? 'Genre deleted' : 'Genre not found',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to delete genre weight')
+      return reply.status(500).send({ error: 'Failed to delete genre weight' })
     }
   })
 

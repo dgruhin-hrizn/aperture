@@ -419,17 +419,19 @@ export async function detectAndUpdateFranchises(
     newItems.push(...preferences.map((p) => p.franchiseName))
   }
 
-  // Update database
+  // Update database - clear first in reset mode to remove items from excluded libraries
+  const clearFirst = mode === 'reset'
   const updated = preferencesToUpdate.length > 0
-    ? await bulkUpdateFranchisePreferences(userId, preferencesToUpdate)
-    : 0
+    ? await bulkUpdateFranchisePreferences(userId, preferencesToUpdate, clearFirst)
+    : (clearFirst ? (await bulkUpdateFranchisePreferences(userId, [], true), 0) : 0)
 
   logger.info(
     { userId, mediaType, mode, detected: franchiseStats.length, updated, newItems: newItems.length },
     `Detected ${franchiseStats.length} franchises, updated ${updated}, new: ${newItems.length}`
   )
 
-  return { updated, newItems }
+  // Only return newItems for merge mode (for highlighting)
+  return { updated, newItems: mode === 'merge' ? newItems : [] }
 }
 
 // ============================================================================
@@ -794,17 +796,19 @@ export async function detectAndUpdateGenres(
     newItems.push(...genreWeights.map((g) => g.genre))
   }
 
-  // Update database
+  // Update database - clear first in reset mode to remove items from excluded libraries
+  const clearFirst = mode === 'reset'
   const updated = weightsToUpdate.length > 0
-    ? await bulkUpdateGenreWeights(userId, weightsToUpdate)
-    : 0
+    ? await bulkUpdateGenreWeights(userId, weightsToUpdate, clearFirst)
+    : (clearFirst ? (await bulkUpdateGenreWeights(userId, [], true), 0) : 0)
 
   logger.info(
     { userId, mediaType, mode, detected: genreStats.length, updated, newItems: newItems.length },
     `Detected ${genreStats.length} genres, updated ${updated}, new: ${newItems.length}`
   )
 
-  return { updated, newItems }
+  // Only return newItems for merge mode (for highlighting)
+  return { updated, newItems: mode === 'merge' ? newItems : [] }
 }
 
 /**

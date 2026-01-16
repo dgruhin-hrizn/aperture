@@ -804,6 +804,9 @@ export {
   addCustomInterest,
   removeCustomInterest,
   updateCustomInterestEmbedding,
+  // Delete functions
+  deleteFranchisePreference,
+  deleteGenreWeight,
   // Types
   type TasteProfile,
   type FranchisePreference,

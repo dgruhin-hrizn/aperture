@@ -25,6 +25,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  IconButton,
+  Tooltip,
 } from '@mui/material'
 import HistoryIcon from '@mui/icons-material/History'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
@@ -41,6 +43,7 @@ import RefreshIcon from '@mui/icons-material/Refresh'
 import AddIcon from '@mui/icons-material/Add'
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import Markdown from 'react-markdown'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -367,6 +370,56 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
     const element = refs.current[name]
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }
+
+  // Delete franchise
+  const handleDeleteFranchise = async (franchiseName: string) => {
+    // Optimistically remove from local state
+    setData(prev => prev ? {
+      ...prev,
+      franchises: prev.franchises.filter(f => f.franchiseName !== franchiseName)
+    } : null)
+    
+    // Also remove from new items if present
+    setNewItems(prev => ({
+      ...prev,
+      franchises: prev.franchises.filter(f => f !== franchiseName),
+    }))
+    
+    try {
+      await fetch(`/api/settings/taste-profile/franchises/${encodeURIComponent(franchiseName)}?mediaType=${mediaType}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+    } catch {
+      // Revert on error - refetch data
+      fetchData()
+    }
+  }
+
+  // Delete genre
+  const handleDeleteGenre = async (genre: string) => {
+    // Optimistically remove from local state
+    setData(prev => prev ? {
+      ...prev,
+      genres: prev.genres.filter(g => g.genre !== genre)
+    } : null)
+    
+    // Also remove from new items if present
+    setNewItems(prev => ({
+      ...prev,
+      genres: prev.genres.filter(g => g !== genre),
+    }))
+    
+    try {
+      await fetch(`/api/settings/taste-profile/genres/${encodeURIComponent(genre)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+    } catch {
+      // Revert on error - refetch data
+      fetchData()
     }
   }
 
@@ -1034,20 +1087,35 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                               />
                             )}
                           </Box>
-                          <Chip
-                            size="small"
-                            label={
-                              franchise.preferenceScore > 0.3 ? 'Boost' :
-                              franchise.preferenceScore < -0.3 ? 'Avoid' : 'Neutral'
-                            }
-                            sx={{
-                              bgcolor: franchise.preferenceScore > 0.3 ? 'success.main' :
-                                      franchise.preferenceScore < -0.3 ? 'error.main' : 'action.selected',
-                              color: Math.abs(franchise.preferenceScore) > 0.3 ? 'white' : 'text.primary',
-                              fontSize: '0.7rem',
-                              height: 20,
-                            }}
-                          />
+                          <Box display="flex" alignItems="center" gap={0.5}>
+                            <Chip
+                              size="small"
+                              label={
+                                franchise.preferenceScore > 0.3 ? 'Boost' :
+                                franchise.preferenceScore < -0.3 ? 'Avoid' : 'Neutral'
+                              }
+                              sx={{
+                                bgcolor: franchise.preferenceScore > 0.3 ? 'success.main' :
+                                        franchise.preferenceScore < -0.3 ? 'error.main' : 'action.selected',
+                                color: Math.abs(franchise.preferenceScore) > 0.3 ? 'white' : 'text.primary',
+                                fontSize: '0.7rem',
+                                height: 20,
+                              }}
+                            />
+                            <Tooltip title="Remove from list">
+                              <IconButton 
+                                size="small" 
+                                onClick={() => handleDeleteFranchise(franchise.franchiseName)}
+                                sx={{ 
+                                  p: 0.25,
+                                  opacity: 0.5,
+                                  '&:hover': { opacity: 1, color: 'error.main' }
+                                }}
+                              >
+                                <DeleteOutlineIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
                         </Box>
                         <Slider
                           value={franchise.preferenceScore}
@@ -1190,20 +1258,35 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                               />
                             )}
                           </Box>
-                          <Chip
-                            size="small"
-                            label={
-                              genre.weight > 1.3 ? 'Boost' :
-                              genre.weight < 0.7 ? 'Less' : 'Normal'
-                            }
-                            sx={{
-                              bgcolor: genre.weight > 1.3 ? 'info.main' :
-                                      genre.weight < 0.7 ? 'action.hover' : 'action.selected',
-                              color: genre.weight > 1.3 ? 'white' : 'text.primary',
-                              fontSize: '0.7rem',
-                              height: 20,
-                            }}
-                          />
+                          <Box display="flex" alignItems="center" gap={0.5}>
+                            <Chip
+                              size="small"
+                              label={
+                                genre.weight > 1.3 ? 'Boost' :
+                                genre.weight < 0.7 ? 'Less' : 'Normal'
+                              }
+                              sx={{
+                                bgcolor: genre.weight > 1.3 ? 'info.main' :
+                                        genre.weight < 0.7 ? 'action.hover' : 'action.selected',
+                                color: genre.weight > 1.3 ? 'white' : 'text.primary',
+                                fontSize: '0.7rem',
+                                height: 20,
+                              }}
+                            />
+                            <Tooltip title="Remove from list">
+                              <IconButton 
+                                size="small" 
+                                onClick={() => handleDeleteGenre(genre.genre)}
+                                sx={{ 
+                                  p: 0.25,
+                                  opacity: 0.5,
+                                  '&:hover': { opacity: 1, color: 'error.main' }
+                                }}
+                              >
+                                <DeleteOutlineIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
                         </Box>
                         <Slider
                           value={genre.weight}

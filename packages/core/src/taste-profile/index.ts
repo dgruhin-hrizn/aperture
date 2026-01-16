@@ -300,6 +300,7 @@ export async function setFranchisePreference(
 
 /**
  * Bulk update franchise preferences (from auto-detection)
+ * @param clearFirst - If true, deletes all non-user-set franchises before inserting (for reset mode)
  */
 export async function bulkUpdateFranchisePreferences(
   userId: string,
@@ -309,8 +310,19 @@ export async function bulkUpdateFranchisePreferences(
     preferenceScore: number
     itemsWatched: number
     totalEngagement: number
-  }>
+  }>,
+  clearFirst: boolean = false
 ): Promise<number> {
+  // In reset mode, clear all auto-detected franchises first
+  if (clearFirst) {
+    await query(
+      `DELETE FROM user_franchise_preferences 
+       WHERE user_id = $1 AND is_user_set = false`,
+      [userId]
+    )
+    logger.debug({ userId }, 'Cleared auto-detected franchise preferences')
+  }
+
   let updated = 0
 
   for (const franchise of franchises) {
@@ -338,6 +350,24 @@ export async function bulkUpdateFranchisePreferences(
   }
 
   return updated
+}
+
+/**
+ * Delete a franchise preference (user wants to remove it completely)
+ */
+export async function deleteFranchisePreference(
+  userId: string,
+  franchiseName: string,
+  mediaType: MediaType | 'both'
+): Promise<boolean> {
+  const result = await query(
+    `DELETE FROM user_franchise_preferences 
+     WHERE user_id = $1 AND franchise_name = $2 AND media_type = $3`,
+    [userId, franchiseName, mediaType]
+  )
+  
+  logger.info({ userId, franchiseName, mediaType }, 'Deleted franchise preference')
+  return (result.rowCount ?? 0) > 0
 }
 
 // ============================================================================
@@ -398,10 +428,25 @@ export async function setGenreWeight(
 /**
  * Bulk update genre weights
  */
+/**
+ * Bulk update genre weights (from auto-detection)
+ * @param clearFirst - If true, deletes all non-user-set genres before inserting (for reset mode)
+ */
 export async function bulkUpdateGenreWeights(
   userId: string,
-  genres: Array<{ genre: string; weight: number }>
+  genres: Array<{ genre: string; weight: number }>,
+  clearFirst: boolean = false
 ): Promise<number> {
+  // In reset mode, clear all auto-detected genres first
+  if (clearFirst) {
+    await query(
+      `DELETE FROM user_genre_weights 
+       WHERE user_id = $1 AND is_user_set = false`,
+      [userId]
+    )
+    logger.debug({ userId }, 'Cleared auto-detected genre weights')
+  }
+
   let updated = 0
 
   for (const { genre, weight } of genres) {
@@ -418,6 +463,22 @@ export async function bulkUpdateGenreWeights(
   }
 
   return updated
+}
+
+/**
+ * Delete a genre weight (user wants to remove it completely)
+ */
+export async function deleteGenreWeight(
+  userId: string,
+  genre: string
+): Promise<boolean> {
+  const result = await query(
+    `DELETE FROM user_genre_weights WHERE user_id = $1 AND genre = $2`,
+    [userId, genre]
+  )
+  
+  logger.info({ userId, genre }, 'Deleted genre weight')
+  return (result.rowCount ?? 0) > 0
 }
 
 // ============================================================================
