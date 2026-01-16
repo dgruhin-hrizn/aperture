@@ -441,10 +441,14 @@ export async function detectAndUpdateFranchises(
   }
 
   // Update database - clear first in reset mode to remove items from excluded libraries
+  // Pass mediaType so only that content type's franchises are cleared
   const clearFirst = mode === 'reset'
-  const updated = preferencesToUpdate.length > 0
-    ? await bulkUpdateFranchisePreferences(userId, preferencesToUpdate, clearFirst)
-    : (clearFirst ? (await bulkUpdateFranchisePreferences(userId, [], true), 0) : 0)
+  const updated =
+    preferencesToUpdate.length > 0
+      ? await bulkUpdateFranchisePreferences(userId, preferencesToUpdate, clearFirst, mediaType)
+      : clearFirst
+        ? (await bulkUpdateFranchisePreferences(userId, [], true, mediaType), 0)
+        : 0
 
   logger.info(
     { userId, mediaType, mode, detected: franchiseStats.length, updated, newItems: newItems.length },

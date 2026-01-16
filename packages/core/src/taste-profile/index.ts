@@ -316,8 +316,9 @@ export async function setFranchisePreference(
 
 /**
  * Bulk update franchise preferences (from auto-detection)
- * @param clearFirst - If true, deletes ALL franchises before inserting (for reset mode)
+ * @param clearFirst - If true, deletes franchises for the given mediaType before inserting (for reset mode)
  *                     This includes user-set franchises since reset should start completely fresh
+ * @param targetMediaType - The media type to clear when clearFirst is true (only clears that type)
  */
 export async function bulkUpdateFranchisePreferences(
   userId: string,
@@ -328,15 +329,20 @@ export async function bulkUpdateFranchisePreferences(
     itemsWatched: number
     totalEngagement: number
   }>,
-  clearFirst: boolean = false
+  clearFirst: boolean = false,
+  targetMediaType?: MediaType
 ): Promise<number> {
-  // In reset mode, clear ALL franchises (including user-set) to start fresh
+  // In reset mode, clear franchises for the target media type only
   // This ensures excluded libraries don't leave orphan preferences
-  if (clearFirst) {
+  if (clearFirst && targetMediaType) {
     await query(
-      `DELETE FROM user_franchise_preferences WHERE user_id = $1`,
-      [userId]
+      `DELETE FROM user_franchise_preferences WHERE user_id = $1 AND media_type = $2`,
+      [userId, targetMediaType]
     )
+    logger.debug({ userId, targetMediaType }, 'Cleared franchise preferences for media type')
+  } else if (clearFirst) {
+    // Fallback: clear all if no targetMediaType specified (legacy behavior)
+    await query(`DELETE FROM user_franchise_preferences WHERE user_id = $1`, [userId])
     logger.debug({ userId }, 'Cleared all franchise preferences for reset')
   }
 
