@@ -10,6 +10,7 @@ import {
   Tooltip,
   CircularProgress,
   alpha,
+  Skeleton,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import CheckIcon from '@mui/icons-material/Check'
@@ -286,10 +287,12 @@ export function DiscoveryCard({
           >
             {candidate.overview}
           </Typography>
-        ) : candidate.genres.length > 0 ? (
+        ) : candidate.genres.filter(g => g.name).length > 0 ? (
           <Typography variant="caption" color="text.secondary" noWrap display="block" mt={0.5}>
             {candidate.genres.filter(g => g.name).slice(0, 3).map(g => g.name).join(' • ')}
           </Typography>
+        ) : candidate.genres.length > 0 ? (
+          <Skeleton variant="text" width="70%" sx={{ mt: 0.5 }} />
         ) : null}
       </CardContent>
 

@@ -12,6 +12,7 @@ import {
   alpha,
   useTheme,
   LinearProgress,
+  Skeleton,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import CheckIcon from '@mui/icons-material/Check'
@@ -208,14 +209,31 @@ export function DiscoveryListItem({
           
           <Box display="flex" gap={0.5} flexWrap="wrap" mb={1}>
             {candidate.genres.slice(0, 4).map((genre) => (
-              <Chip
-                key={genre.id}
-                label={genre.name}
-                size="small"
-                variant="outlined"
-                sx={{ fontSize: '0.7rem', height: 22 }}
-              />
+              genre.name ? (
+                <Chip
+                  key={genre.id}
+                  label={genre.name}
+                  size="small"
+                  variant="outlined"
+                  sx={{ fontSize: '0.7rem', height: 22 }}
+                />
+              ) : (
+                <Skeleton
+                  key={genre.id}
+                  variant="rounded"
+                  width={60}
+                  height={22}
+                  sx={{ borderRadius: '16px' }}
+                />
+              )
             ))}
+            {candidate.genres.length === 0 && (
+              <>
+                <Skeleton variant="rounded" width={60} height={22} sx={{ borderRadius: '16px' }} />
+                <Skeleton variant="rounded" width={70} height={22} sx={{ borderRadius: '16px' }} />
+                <Skeleton variant="rounded" width={50} height={22} sx={{ borderRadius: '16px' }} />
+              </>
+            )}
           </Box>
           
           <Typography
