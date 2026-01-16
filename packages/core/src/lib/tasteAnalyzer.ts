@@ -52,20 +52,6 @@ export interface AbstractTasteProfile {
   storytellingStyles: string[]
 }
 
-// Predefined theme descriptors that we'll match against
-const THEME_DESCRIPTORS: Record<string, string[]> = {
-  'cerebral & thought-provoking': ['philosophical', 'mind-bending', 'existential', 'complex narrative'],
-  'high-octane action': ['explosive', 'adrenaline', 'stunts', 'combat', 'chase'],
-  'heartwarming & emotional': ['family bonds', 'friendship', 'redemption', 'tearjerker'],
-  'dark & gritty': ['noir', 'crime', 'underworld', 'morally ambiguous'],
-  'whimsical & fantastical': ['magic', 'fantasy', 'wonder', 'imagination'],
-  'suspenseful & thrilling': ['tension', 'mystery', 'twists', 'edge of seat'],
-  'lighthearted & fun': ['comedy', 'feel-good', 'escapism', 'humor'],
-  'epic & grand scale': ['sweeping', 'world-building', 'saga', 'ambitious'],
-  'intimate & character-driven': ['drama', 'relationships', 'personal journey', 'introspective'],
-  'nostalgic & classic': ['retro', 'timeless', 'beloved franchises', 'comfort viewing'],
-}
-
 /**
  * Analyze a user's movie taste using embeddings
  */
