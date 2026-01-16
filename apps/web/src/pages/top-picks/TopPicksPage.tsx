@@ -21,6 +21,7 @@ import PeopleIcon from '@mui/icons-material/People'
 import { MoviePoster, RankBadge } from '@aperture/ui'
 import { useUserRatings } from '../../hooks/useUserRatings'
 import { useWatching } from '../../hooks/useWatching'
+import { useViewMode } from '../../hooks/useViewMode'
 import { TopPicksMovieListItem, TopPicksSeriesListItem } from './components'
 
 interface PopularMovie {
@@ -81,7 +82,7 @@ export function TopPicksPage() {
   const [seriesLoading, setSeriesLoading] = useState(true)
   const [moviesError, setMoviesError] = useState<string | null>(null)
   const [seriesError, setSeriesError] = useState<string | null>(null)
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const { viewMode, setViewMode } = useViewMode('topPicks')
 
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
     setTabIndex(newValue)

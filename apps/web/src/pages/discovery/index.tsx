@@ -22,6 +22,7 @@ import GridViewIcon from '@mui/icons-material/GridView'
 import ViewListIcon from '@mui/icons-material/ViewList'
 import { useDiscoveryData, useJellyseerrRequest } from './hooks'
 import { DiscoveryCard, DiscoveryListItem } from './components'
+import { useViewMode } from '../../hooks/useViewMode'
 import type { DiscoveryCandidate, MediaType } from './types'
 
 export function DiscoveryPage() {
@@ -40,9 +41,9 @@ export function DiscoveryPage() {
   } = useDiscoveryData()
 
   const { submitRequest, isRequesting } = useJellyseerrRequest()
+  const { viewMode, setViewMode } = useViewMode('discovery')
 
   const [mediaType, setMediaType] = useState<MediaType>('movie')
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',

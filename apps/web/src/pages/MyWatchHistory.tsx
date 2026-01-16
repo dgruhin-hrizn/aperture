@@ -38,6 +38,7 @@ import { MoviePoster } from '@aperture/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { useWatching } from '@/hooks/useWatching'
 import { useUserRatings } from '@/hooks/useUserRatings'
+import { useViewMode } from '@/hooks/useViewMode'
 import { WatchHistoryMovieListItem, WatchHistorySeriesListItem } from './watch-history/components'
 
 interface MovieWatchHistoryItem {
@@ -98,7 +99,7 @@ export function MyWatchHistoryPage() {
   const [seriesSortBy, setSeriesSortBy] = useState<'recent' | 'plays' | 'title'>('recent')
   
   // Shared state
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const { viewMode, setViewMode } = useViewMode('watchHistory')
   const [searchQuery, setSearchQuery] = useState('')
 
   // Mark unwatched state

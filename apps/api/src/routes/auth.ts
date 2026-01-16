@@ -212,15 +212,28 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
    * PATCH /api/auth/me/preferences
    * Update current user's UI preferences
    */
-  fastify.patch<{
-    Body: { sidebarCollapsed?: boolean }
-    Reply: { sidebarCollapsed?: boolean }
-  }>(
+  fastify.patch(
     '/api/auth/me/preferences',
     { preHandler: requireAuth },
     async (request, reply) => {
-      const { updateUserUiPreferences } = await import('@aperture/core')
-      const preferences = await updateUserUiPreferences(request.user!.id, request.body)
+      const { updateUserUiPreferences, getUserUiPreferences } = await import('@aperture/core')
+      const body = request.body as { sidebarCollapsed?: boolean; viewModes?: Record<string, 'grid' | 'list'> }
+      
+      // For viewModes, we need to merge with existing viewModes to avoid overwriting other pages
+      if (body.viewModes) {
+        const currentPrefs = await getUserUiPreferences(request.user!.id)
+        const mergedViewModes = {
+          ...currentPrefs.viewModes,
+          ...body.viewModes,
+        } as Record<string, 'grid' | 'list'>
+        const preferences = await updateUserUiPreferences(request.user!.id, {
+          ...body,
+          viewModes: mergedViewModes,
+        })
+        return reply.send(preferences)
+      }
+      
+      const preferences = await updateUserUiPreferences(request.user!.id, body)
       return reply.send(preferences)
     }
   )

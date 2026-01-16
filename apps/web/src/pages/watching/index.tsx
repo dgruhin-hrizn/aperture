@@ -25,10 +25,10 @@ import GridViewIcon from '@mui/icons-material/GridView'
 import ViewListIcon from '@mui/icons-material/ViewList'
 import { useWatchingData } from './hooks'
 import { useUserRatings } from '../../hooks/useUserRatings'
+import { useViewMode } from '../../hooks/useViewMode'
 import { WatchingCard, WatchingListItem, AddSeriesDialog } from './components'
 
 type FilterType = 'all' | 'airing' | 'upcoming'
-type ViewMode = 'grid' | 'list'
 
 export function WatchingPage() {
   const { series, loading, error, refreshing, removeSeries, refreshLibrary, refetch } = useWatchingData()
@@ -40,7 +40,7 @@ export function WatchingPage() {
     severity: 'success',
   })
   const [filter, setFilter] = useState<FilterType>('upcoming')
-  const [viewMode, setViewMode] = useState<ViewMode>('list')
+  const { viewMode, setViewMode } = useViewMode('watching')
 
   const handleRemove = async (seriesId: string) => {
     try {

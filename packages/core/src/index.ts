@@ -273,6 +273,8 @@ export {
   type UserSettings,
   type UserAiExplanationSettings,
   type UserUiPreferences,
+  type ViewMode,
+  type PageViewModes,
 } from './lib/userSettings.js'
 
 // Library Exclusions

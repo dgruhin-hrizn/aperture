@@ -18,8 +18,20 @@ export interface UserSettings {
   updatedAt: Date
 }
 
+export type ViewMode = 'grid' | 'list'
+
+export interface PageViewModes {
+  discovery?: ViewMode
+  topPicks?: ViewMode
+  watchHistory?: ViewMode
+  watching?: ViewMode
+  browse?: ViewMode
+  recommendations?: ViewMode
+}
+
 export interface UserUiPreferences {
   sidebarCollapsed?: boolean
+  viewModes?: PageViewModes
 }
 
 /**
