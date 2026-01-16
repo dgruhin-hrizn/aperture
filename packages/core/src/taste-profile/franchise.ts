@@ -449,6 +449,15 @@ interface FranchiseStats {
  * Detect franchises from movie watch history
  */
 async function detectMovieFranchises(userId: string): Promise<FranchiseStats[]> {
+  // Get user's excluded library IDs
+  const { getUserExcludedLibraries } = await import('../lib/libraryExclusions.js')
+  const excludedLibraryIds = await getUserExcludedLibraries(userId)
+  
+  // Build library exclusion clause
+  const libraryExclusionClause = excludedLibraryIds.length > 0
+    ? `AND (m.provider_library_id IS NULL OR m.provider_library_id NOT IN (${excludedLibraryIds.map((_, i) => `$${i + 2}`).join(', ')}))`
+    : ''
+  
   // Get watched movies with their collection_name
   const watchedResult = await query<{
     collection_name: string | null
@@ -460,8 +469,9 @@ async function detectMovieFranchises(userId: string): Promise<FranchiseStats[]> 
      FROM watch_history wh
      JOIN movies m ON m.id = wh.movie_id
      LEFT JOIN user_ratings ur ON ur.movie_id = m.id AND ur.user_id = wh.user_id
-     WHERE wh.user_id = $1 AND wh.media_type = 'movie'`,
-    [userId]
+     WHERE wh.user_id = $1 AND wh.media_type = 'movie'
+     ${libraryExclusionClause}`,
+    [userId, ...excludedLibraryIds]
   )
 
   // Group by franchise
@@ -524,6 +534,15 @@ async function detectMovieFranchises(userId: string): Promise<FranchiseStats[]> 
  * Detect franchises from series watch history
  */
 async function detectSeriesFranchises(userId: string): Promise<FranchiseStats[]> {
+  // Get user's excluded library IDs
+  const { getUserExcludedLibraries } = await import('../lib/libraryExclusions.js')
+  const excludedLibraryIds = await getUserExcludedLibraries(userId)
+  
+  // Build HAVING clause for library exclusion (since we're using GROUP BY)
+  const libraryExclusionClause = excludedLibraryIds.length > 0
+    ? `HAVING MAX(s.provider_library_id) IS NULL OR MAX(s.provider_library_id) NOT IN (${excludedLibraryIds.map((_, i) => `$${i + 2}`).join(', ')})`
+    : ''
+  
   // Get watched series with episode counts
   const watchedResult = await query<{
     title: string
@@ -538,8 +557,9 @@ async function detectSeriesFranchises(userId: string): Promise<FranchiseStats[]>
      JOIN series s ON s.id = e.series_id
      LEFT JOIN user_ratings ur ON ur.series_id = s.id AND ur.user_id = wh.user_id
      WHERE wh.user_id = $1 AND wh.media_type = 'episode'
-     GROUP BY s.id, s.title`,
-    [userId]
+     GROUP BY s.id, s.title
+     ${libraryExclusionClause}`,
+    [userId, ...excludedLibraryIds]
   )
 
   // Group by franchise
@@ -791,6 +811,15 @@ export async function detectAndUpdateGenres(
  * Detect genres from movie watch history
  */
 async function detectMovieGenres(userId: string): Promise<GenreStats[]> {
+  // Get user's excluded library IDs
+  const { getUserExcludedLibraries } = await import('../lib/libraryExclusions.js')
+  const excludedLibraryIds = await getUserExcludedLibraries(userId)
+  
+  // Build library exclusion clause
+  const libraryExclusionClause = excludedLibraryIds.length > 0
+    ? `AND (m.provider_library_id IS NULL OR m.provider_library_id NOT IN (${excludedLibraryIds.map((_, i) => `$${i + 2}`).join(', ')}))`
+    : ''
+  
   const result = await query<{
     genres: string[]
     play_count: number
@@ -801,8 +830,9 @@ async function detectMovieGenres(userId: string): Promise<GenreStats[]> {
      FROM watch_history wh
      JOIN movies m ON m.id = wh.movie_id
      LEFT JOIN user_ratings ur ON ur.movie_id = m.id AND ur.user_id = wh.user_id
-     WHERE wh.user_id = $1 AND wh.media_type = 'movie'`,
-    [userId]
+     WHERE wh.user_id = $1 AND wh.media_type = 'movie'
+     ${libraryExclusionClause}`,
+    [userId, ...excludedLibraryIds]
   )
 
   return aggregateGenreStats(result.rows)
@@ -812,6 +842,15 @@ async function detectMovieGenres(userId: string): Promise<GenreStats[]> {
  * Detect genres from series watch history
  */
 async function detectSeriesGenres(userId: string): Promise<GenreStats[]> {
+  // Get user's excluded library IDs
+  const { getUserExcludedLibraries } = await import('../lib/libraryExclusions.js')
+  const excludedLibraryIds = await getUserExcludedLibraries(userId)
+  
+  // Build HAVING clause for library exclusion (since we're using GROUP BY)
+  const libraryExclusionClause = excludedLibraryIds.length > 0
+    ? `HAVING MAX(s.provider_library_id) IS NULL OR MAX(s.provider_library_id) NOT IN (${excludedLibraryIds.map((_, i) => `$${i + 2}`).join(', ')})`
+    : ''
+  
   const result = await query<{
     genres: string[]
     episodes_watched: number
@@ -827,8 +866,9 @@ async function detectSeriesGenres(userId: string): Promise<GenreStats[]> {
      JOIN series s ON s.id = e.series_id
      LEFT JOIN user_ratings ur ON ur.series_id = s.id AND ur.user_id = wh.user_id
      WHERE wh.user_id = $1 AND wh.media_type = 'episode'
-     GROUP BY s.id, s.genres`,
-    [userId]
+     GROUP BY s.id, s.genres
+     ${libraryExclusionClause}`,
+    [userId, ...excludedLibraryIds]
   )
 
   return aggregateGenreStats(
