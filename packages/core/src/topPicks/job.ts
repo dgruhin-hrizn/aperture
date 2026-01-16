@@ -365,6 +365,24 @@ export async function refreshTopPicks(
             addLog(jobId, 'warn', '⚠️ Series library scan timed out, collections may be incomplete')
           }
         }
+
+        // Hide Top Picks library items from Continue Watching for all users
+        addLog(jobId, 'info', '🙈 Hiding items from Continue Watching...')
+        const users = await provider.getUsers(apiKey)
+        let totalHidden = 0
+        for (const user of users) {
+          if (moviesLib) {
+            const result = await provider.hideLibraryItemsFromResume(apiKey, user.id, moviesLib.id)
+            totalHidden += result.hidden
+          }
+          if (seriesLib) {
+            const result = await provider.hideLibraryItemsFromResume(apiKey, user.id, seriesLib.id)
+            totalHidden += result.hidden
+          }
+        }
+        if (totalHidden > 0) {
+          addLog(jobId, 'info', `   ✅ Hidden ${totalHidden} items from Continue Watching`)
+        }
       }
     } else if (!apiKey) {
       addLog(jobId, 'warn', '⚠️ MEDIA_SERVER_API_KEY not set - skipping library management')

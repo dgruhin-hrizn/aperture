@@ -250,3 +250,43 @@ export async function setLibrarySortPreference(
   }
 }
 
+/**
+ * Hide all items in a library from the Continue Watching / Resume section
+ * This prevents AI recommendation library items from appearing in Continue Watching
+ */
+export async function hideLibraryItemsFromResume(
+  provider: JellyfinProviderBase,
+  apiKey: string,
+  userId: string,
+  libraryId: string
+): Promise<{ hidden: number; failed: number }> {
+  let hidden = 0
+  let failed = 0
+
+  try {
+    // Get all items in the library
+    const response = await provider.fetch<{ Items: Array<{ Id: string; Name: string }> }>(
+      `/Items?ParentId=${libraryId}&Recursive=true&Fields=Id`,
+      apiKey
+    )
+
+    // Hide each item from resume
+    for (const item of response.Items) {
+      try {
+        await provider.fetch(
+          `/Users/${userId}/Items/${item.Id}/HideFromResume?Hide=true`,
+          apiKey,
+          { method: 'POST' }
+        )
+        hidden++
+      } catch {
+        failed++
+      }
+    }
+  } catch {
+    // Failed to get items - non-fatal
+  }
+
+  return { hidden, failed }
+}
+

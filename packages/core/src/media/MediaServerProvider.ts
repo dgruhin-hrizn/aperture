@@ -116,6 +116,16 @@ export interface MediaServerProvider {
     sortOrder?: 'Ascending' | 'Descending'
   ): Promise<void>
 
+  /**
+   * Hide all items in a library from the Continue Watching / Resume section
+   * This prevents AI recommendation library items from appearing in Continue Watching
+   */
+  hideLibraryItemsFromResume(
+    apiKey: string,
+    userId: string,
+    libraryId: string
+  ): Promise<{ hidden: number; failed: number }>
+
   // =========================================================================
   // Items (Movies)
   // =========================================================================
