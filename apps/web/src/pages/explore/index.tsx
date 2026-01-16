@@ -20,8 +20,6 @@ import {
   Collapse,
   CircularProgress,
   Chip,
-  Breadcrumbs,
-  Link,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import RefreshIcon from '@mui/icons-material/Refresh'
@@ -34,10 +32,7 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import HistoryIcon from '@mui/icons-material/History'
 import ClearIcon from '@mui/icons-material/Clear'
-import HomeIcon from '@mui/icons-material/Home'
-import NavigateNextIcon from '@mui/icons-material/NavigateNext'
 import {
-  SimilarityGraph,
   useGraphData,
   useSimilarityData,
   type GraphNode,
@@ -45,12 +40,15 @@ import {
   type LoadingStatus,
 } from '../../components/SimilarityGraph'
 import { CONNECTION_COLORS, CONNECTION_LABELS, type ConnectionType } from '../../components/SimilarityGraph/types'
+import { GraphExplorer } from '../../components/GraphExplorer'
 
 type GraphSource = 'ai-movies' | 'ai-series' | 'watching' | 'top-movies' | 'top-series'
 type MediaFilter = 'movie' | 'series' | 'both'
 
 const RECENT_SEARCHES_KEY = 'aperture_recent_searches'
 const MAX_RECENT_SEARCHES = 5
+
+const SEARCH_EXAMPLES = ['Psychological thrillers', 'Feel-good comedies', 'Mind-bending sci-fi']
 
 interface SemanticSearchState {
   query: string
@@ -137,9 +135,6 @@ export function ExplorePage() {
   const [focusedItemType, setFocusedItemType] = useState<'movie' | 'series' | null>(
     initialFocusParsed?.type || initialType || null
   )
-  const [navigationHistory, setNavigationHistory] = useState<
-    Array<{ id: string; type: 'movie' | 'series'; title: string }>
-  >([])
 
   // Semantic search state
   const [semanticSearch, setSemanticSearch] = useState<SemanticSearchState>({
@@ -242,7 +237,7 @@ export function ExplorePage() {
     }
   )
 
-  // Fetch similarity data for a focused item
+  // Fetch similarity data for a focused item (with rabbit-hole navigation)
   const {
     data: focusedData,
     loading: focusedLoading,
@@ -251,7 +246,7 @@ export function ExplorePage() {
     setFocusId,
     goToHistoryIndex,
     startOver,
-  } = useSimilarityData(focusedItemType || 'movie', focusedItemId, { limit: 15 })
+  } = useSimilarityData(focusedItemType || 'movie', focusedItemId, { limit: 15, depth: 3 })
 
   // Determine what data to display
   const getDisplayData = (): { data: GraphData | null; loading: boolean; loadingStatus: LoadingStatus | null } => {
@@ -283,7 +278,7 @@ export function ExplorePage() {
   }, [focusedItemId, focusedItemType, setSearchParams, searchParams])
 
   // Handle semantic search
-  const handleSemanticSearch = async (query: string) => {
+  const handleSemanticSearch = useCallback(async (query: string) => {
     if (!query.trim()) return
 
     setSemanticSearch({ query, loading: true, results: null })
@@ -294,7 +289,6 @@ export function ExplorePage() {
     setFocusedItemId(null)
     setFocusedItemType(null)
     setSelectedBrowseSource(null)
-    setNavigationHistory([])
 
     try {
       const params = new URLSearchParams({
@@ -324,7 +318,7 @@ export function ExplorePage() {
       stopSemanticLoadingProgress()
       setSemanticSearch({ query, loading: false, results: null })
     }
-  }
+  }, [mediaFilter, startSemanticLoadingProgress, stopSemanticLoadingProgress])
 
   // Handle browse source selection
   const handleBrowseSourceSelect = (source: GraphSource) => {
@@ -332,7 +326,6 @@ export function ExplorePage() {
     setSemanticSearch({ query: '', loading: false, results: null })
     setFocusedItemId(null)
     setFocusedItemType(null)
-    setNavigationHistory([])
     setSearchQuery('')
   }
 
@@ -340,15 +333,6 @@ export function ExplorePage() {
   const handleNodeClick = useCallback(
     (node: GraphNode) => {
       if (node.isCenter) return
-
-      // Track history
-      const currentCenter = displayData?.nodes.find((n) => n.isCenter)
-      if (currentCenter) {
-        setNavigationHistory((prev) => [
-          ...prev,
-          { id: currentCenter.id, type: currentCenter.type, title: currentCenter.title },
-        ])
-      }
 
       // If we're in semantic search mode, switch to focused mode
       if (semanticSearch.results) {
@@ -359,7 +343,7 @@ export function ExplorePage() {
       setFocusedItemType(node.type)
       setFocusId(node.id, node.type)
     },
-    [displayData, semanticSearch.results, setFocusId]
+    [semanticSearch.results, setFocusId]
   )
 
   const handleNodeDoubleClick = useCallback(
@@ -369,19 +353,20 @@ export function ExplorePage() {
     [navigate]
   )
 
-  // Handle going back in history
-  const handleHistoryBack = (index: number) => {
-    const item = navigationHistory[index]
-    // Remove everything after this index
-    setNavigationHistory(navigationHistory.slice(0, index))
-    setFocusedItemId(item.id)
-    setFocusedItemType(item.type)
-    goToHistoryIndex(index)
-  }
+  // Handle history navigation
+  const handleHistoryNavigate = useCallback(
+    (index: number) => {
+      if (index === 0) {
+        startOver()
+      } else {
+        goToHistoryIndex(index)
+      }
+    },
+    [goToHistoryIndex, startOver]
+  )
 
   // Handle start over
-  const handleStartOver = () => {
-    setNavigationHistory([])
+  const handleStartOver = useCallback(() => {
     if (semanticSearch.query) {
       // Re-run the search
       handleSemanticSearch(semanticSearch.query)
@@ -390,7 +375,7 @@ export function ExplorePage() {
       setFocusedItemType(null)
       startOver()
     }
-  }
+  }, [semanticSearch.query, handleSemanticSearch, startOver])
 
   // Clear recent search
   const clearRecentSearch = (query: string) => {
@@ -399,10 +384,26 @@ export function ExplorePage() {
     localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated))
   }
 
-  // Get current title for breadcrumb
-  const currentTitle =
-    displayData?.nodes.find((n) => n.isCenter)?.title ||
-    (semanticSearch.query ? `"${semanticSearch.query}"` : 'Select a source')
+  // Get title for header
+  const getTitle = () => {
+    if (semanticSearch.query) {
+      return `Search: "${semanticSearch.query}"`
+    }
+    if (selectedBrowseSource) {
+      const sourceLabels: Record<GraphSource, string> = {
+        'ai-movies': 'My AI Movie Picks',
+        'ai-series': 'My AI Series Picks',
+        'watching': 'Shows You Watch',
+        'top-movies': 'Top Picks Movies',
+        'top-series': 'Top Picks Series',
+      }
+      return sourceLabels[selectedBrowseSource]
+    }
+    return 'Explore'
+  }
+
+  // Determine if we should show initial state
+  const showInitialState = !displayData && !loading
 
   return (
     <Box 
@@ -414,124 +415,57 @@ export function ExplorePage() {
         width: { xs: 'calc(100% + 32px)', sm: 'calc(100% + 48px)' },
       }}
     >
-      {/* Main Graph Area - Now on the left */}
+      {/* Main Graph Area - Uses GraphExplorer */}
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {/* Breadcrumb Navigation */}
-        {(navigationHistory.length > 0 || semanticSearch.query) && (
+        {showInitialState ? (
+          // Initial empty state
           <Box
             sx={{
-              px: 2,
-              py: 1,
-              borderBottom: 1,
-              borderColor: 'divider',
+              height: '100%',
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
-              gap: 1,
-              bgcolor: 'rgba(139, 92, 246, 0.03)',
+              justifyContent: 'center',
+              gap: 2,
+              color: 'text.secondary',
             }}
           >
-            <Tooltip title="Start over">
-              <IconButton size="small" onClick={handleStartOver} sx={{ color: 'primary.main' }}>
-                <HomeIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <Breadcrumbs
-              separator={<NavigateNextIcon fontSize="small" />}
-              sx={{
-                '& .MuiBreadcrumbs-separator': { mx: 0.5 },
-                '& .MuiBreadcrumbs-li': { fontSize: '0.875rem' },
-              }}
-            >
-              {semanticSearch.query && (
-                <Typography variant="body2" color="text.secondary">
-                  Search: "{semanticSearch.query}"
-                </Typography>
-              )}
-              {navigationHistory.map((item, index) => (
-                <Link
-                  key={`${item.id}-${index}`}
-                  component="button"
-                  variant="body2"
-                  onClick={() => handleHistoryBack(index)}
-                  sx={{
-                    cursor: 'pointer',
-                    color: 'text.secondary',
-                    '&:hover': { color: 'primary.main' },
-                  }}
-                >
-                  {item.title}
-                </Link>
-              ))}
-              <Typography variant="body2" color="text.primary" fontWeight={500}>
-                {currentTitle}
-              </Typography>
-            </Breadcrumbs>
+            <SearchIcon sx={{ fontSize: 64, opacity: 0.3 }} />
+            <Typography variant="h6">Discover Your Library</Typography>
+            <Typography variant="body2" textAlign="center" maxWidth={400}>
+              Search for content using natural language or select a browse category from the panel on the right.
+            </Typography>
           </Box>
+        ) : (
+          <GraphExplorer
+            data={displayData}
+            loading={loading}
+            loadingStatus={loadingStatus}
+            title={getTitle()}
+            history={history}
+            onHistoryNavigate={handleHistoryNavigate}
+            onStartOver={handleStartOver}
+            onNodeClick={handleNodeClick}
+            onNodeDoubleClick={handleNodeDoubleClick}
+            onNodeDetailsClick={handleNodeDoubleClick}
+            showSearch
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onSearch={handleSemanticSearch}
+            searchPlaceholder="Search by mood, theme, or description..."
+            searchLoading={semanticSearch.loading}
+            searchExamples={SEARCH_EXAMPLES}
+            showCreatePlaylist
+            showRefresh={!!selectedBrowseSource}
+            onRefresh={refetch}
+          />
         )}
-
-        {/* Graph */}
-        <Box sx={{ flex: 1, position: 'relative' }}>
-          {!displayData && !loading ? (
-            <Box
-              sx={{
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 2,
-                color: 'text.secondary',
-              }}
-            >
-              <SearchIcon sx={{ fontSize: 64, opacity: 0.3 }} />
-              <Typography variant="h6">Discover Your Library</Typography>
-              <Typography variant="body2" textAlign="center" maxWidth={400}>
-                Search for content using natural language or select a browse category from the panel on the right.
-              </Typography>
-            </Box>
-          ) : (
-            <SimilarityGraph
-              data={displayData}
-              loading={loading}
-              loadingStatus={loadingStatus || undefined}
-              onNodeClick={handleNodeClick}
-              onNodeDoubleClick={handleNodeDoubleClick}
-            />
-          )}
-        </Box>
-
-        {/* Bottom Bar - Instructions */}
-        <Paper
-          sx={{
-            px: 2,
-            py: 1,
-            borderRadius: 0,
-            borderTop: 1,
-            borderColor: 'divider',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 3,
-          }}
-        >
-          <Typography variant="caption" color="text.secondary">
-            <strong>Click</strong> to explore connections
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            <strong>Double-click</strong> to view details
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            <strong>Drag</strong> to reposition
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            <strong>Scroll</strong> to zoom
-          </Typography>
-        </Paper>
       </Box>
 
       {/* Right Sidebar - Controls */}
       <Paper
         sx={{
-          width: 300,
+          width: 280,
           flexShrink: 0,
           display: 'flex',
           flexDirection: 'column',
@@ -543,68 +477,64 @@ export function ExplorePage() {
           overflowY: 'auto',
         }}
       >
-        {/* Search Box - Prominent */}
-        <Box sx={{ p: 2, bgcolor: 'rgba(139, 92, 246, 0.05)' }}>
-          <TextField
-            fullWidth
-            size="small"
-            placeholder="Explore..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && searchQuery.trim()) {
-                handleSemanticSearch(searchQuery)
-              }
-            }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" color="primary" />
-                </InputAdornment>
-              ),
-              endAdornment: semanticSearch.loading ? (
-                <CircularProgress size={16} />
-              ) : searchQuery ? (
-                <IconButton size="small" onClick={() => setSearchQuery('')}>
-                  <ClearIcon fontSize="small" />
-                </IconButton>
-              ) : null,
-              sx: {
-                bgcolor: 'background.paper',
-                '&:hover': { bgcolor: 'background.paper' },
-              },
-            }}
-          />
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, lineHeight: 1.4 }}>
-            Use natural language to find content by mood, theme, or description. Examples:
-          </Typography>
-          <Box sx={{ mt: 0.5, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-            <Chip 
-              label="Psychological thrillers" 
-              size="small" 
-              variant="outlined"
-              onClick={() => { setSearchQuery('Psychological thrillers'); handleSemanticSearch('Psychological thrillers'); }}
-              sx={{ fontSize: '0.65rem', height: 22, cursor: 'pointer' }}
+        {/* Search Box - Only show in initial state */}
+        {showInitialState && (
+          <Box sx={{ p: 2, bgcolor: 'rgba(139, 92, 246, 0.05)' }}>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Explore..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && searchQuery.trim()) {
+                  handleSemanticSearch(searchQuery)
+                }
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" color="primary" />
+                  </InputAdornment>
+                ),
+                endAdornment: semanticSearch.loading ? (
+                  <CircularProgress size={16} />
+                ) : searchQuery ? (
+                  <IconButton size="small" onClick={() => setSearchQuery('')}>
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
+                ) : null,
+                sx: {
+                  bgcolor: 'background.paper',
+                  '&:hover': { bgcolor: 'background.paper' },
+                },
+              }}
             />
-            <Chip 
-              label="Feel-good comedies" 
-              size="small" 
-              variant="outlined"
-              onClick={() => { setSearchQuery('Feel-good comedies'); handleSemanticSearch('Feel-good comedies'); }}
-              sx={{ fontSize: '0.65rem', height: 22, cursor: 'pointer' }}
-            />
-            <Chip 
-              label="Mind-bending sci-fi" 
-              size="small" 
-              variant="outlined"
-              onClick={() => { setSearchQuery('Mind-bending sci-fi'); handleSemanticSearch('Mind-bending sci-fi'); }}
-              sx={{ fontSize: '0.65rem', height: 22, cursor: 'pointer' }}
-            />
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, lineHeight: 1.4 }}>
+              Use natural language to find content by mood, theme, or description.
+            </Typography>
+            <Box sx={{ mt: 0.5, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+              {SEARCH_EXAMPLES.map((example) => (
+                <Chip 
+                  key={example}
+                  label={example}
+                  size="small" 
+                  variant="outlined"
+                  onClick={() => { setSearchQuery(example); handleSemanticSearch(example); }}
+                  sx={{ fontSize: '0.65rem', height: 22, cursor: 'pointer' }}
+                />
+              ))}
+            </Box>
           </Box>
-        </Box>
+        )}
+
+        {showInitialState && <Divider />}
 
         {/* Quick Filters */}
         <Box sx={{ px: 2, py: 1.5 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+            Filter by type
+          </Typography>
           <ToggleButtonGroup
             value={mediaFilter}
             exclusive
