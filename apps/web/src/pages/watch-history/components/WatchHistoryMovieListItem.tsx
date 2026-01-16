@@ -20,7 +20,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import FavoriteIcon from '@mui/icons-material/Favorite'
-import { getProxiedImageUrl, FALLBACK_POSTER_URL } from '@aperture/ui'
+import { getProxiedImageUrl, FALLBACK_POSTER_URL, HeartRating } from '@aperture/ui'
 
 interface MovieWatchHistoryItem {
   movie_id: string
@@ -37,12 +37,16 @@ interface MovieWatchHistoryItem {
 
 interface WatchHistoryMovieListItemProps {
   movie: MovieWatchHistoryItem
+  userRating: number | null
+  onRate: (rating: number | null) => void
   canManage?: boolean
   onMarkUnwatched?: () => void
 }
 
 export function WatchHistoryMovieListItem({ 
   movie, 
+  userRating,
+  onRate,
   canManage,
   onMarkUnwatched,
 }: WatchHistoryMovieListItemProps) {
@@ -272,6 +276,12 @@ export function WatchHistoryMovieListItem({
 
         {/* Actions */}
         <Box display="flex" justifyContent="center" gap={1} alignItems="center">
+          <HeartRating
+            value={userRating}
+            onChange={(rating) => onRate(rating)}
+            size="small"
+          />
+          
           <Tooltip title="View details">
             <IconButton
               onClick={(e) => {

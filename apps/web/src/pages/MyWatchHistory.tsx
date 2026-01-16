@@ -37,6 +37,7 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import { MoviePoster } from '@aperture/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { useWatching } from '@/hooks/useWatching'
+import { useUserRatings } from '@/hooks/useUserRatings'
 import { WatchHistoryMovieListItem, WatchHistorySeriesListItem } from './watch-history/components'
 
 interface MovieWatchHistoryItem {
@@ -81,6 +82,7 @@ export function MyWatchHistoryPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { isWatching, toggleWatching } = useWatching()
+  const { getRating, setRating } = useUserRatings()
   const [tabValue, setTabValue] = useState(0) // 0 = Movies, 1 = Series
   
   // Movies state
@@ -465,6 +467,8 @@ export function MyWatchHistoryPage() {
                     <WatchHistoryMovieListItem
                       key={item.movie_id}
                       movie={item}
+                      userRating={getRating('movie', item.movie_id)}
+                      onRate={(rating) => setRating('movie', item.movie_id, rating)}
                       canManage={canManage}
                       onMarkUnwatched={() => setConfirmDialog({
                         open: true,
@@ -622,6 +626,8 @@ export function MyWatchHistoryPage() {
                     <WatchHistorySeriesListItem
                       key={item.series_id}
                       series={item}
+                      userRating={getRating('series', item.series_id)}
+                      onRate={(rating) => setRating('series', item.series_id, rating)}
                       canManage={canManage}
                       onMarkUnwatched={() => setConfirmDialog({
                         open: true,

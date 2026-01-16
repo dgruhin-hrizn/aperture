@@ -24,6 +24,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
 import GridViewIcon from '@mui/icons-material/GridView'
 import ViewListIcon from '@mui/icons-material/ViewList'
 import { useWatchingData } from './hooks'
+import { useUserRatings } from '../../hooks/useUserRatings'
 import { WatchingCard, WatchingListItem, AddSeriesDialog } from './components'
 
 type FilterType = 'all' | 'airing' | 'upcoming'
@@ -31,6 +32,7 @@ type ViewMode = 'grid' | 'list'
 
 export function WatchingPage() {
   const { series, loading, error, refreshing, removeSeries, refreshLibrary, refetch } = useWatchingData()
+  const { getRating, setRating } = useUserRatings()
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
@@ -261,7 +263,13 @@ export function WatchingPage() {
         /* List View */
         <Box display="flex" flexDirection="column" gap={2}>
           {filteredSeries.map((item) => (
-            <WatchingListItem key={item.id} series={item} onRemove={handleRemove} />
+            <WatchingListItem
+              key={item.id}
+              series={item}
+              userRating={getRating('series', item.seriesId)}
+              onRate={(rating) => setRating('series', item.seriesId, rating)}
+              onRemove={handleRemove}
+            />
           ))}
         </Box>
       ) : (

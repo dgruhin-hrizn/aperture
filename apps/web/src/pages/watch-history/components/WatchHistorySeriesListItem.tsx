@@ -21,7 +21,7 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import FavoriteIcon from '@mui/icons-material/Favorite'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
-import { getProxiedImageUrl, FALLBACK_POSTER_URL } from '@aperture/ui'
+import { getProxiedImageUrl, FALLBACK_POSTER_URL, HeartRating } from '@aperture/ui'
 
 interface SeriesWatchHistoryItem {
   series_id: string
@@ -40,14 +40,16 @@ interface SeriesWatchHistoryItem {
 
 interface WatchHistorySeriesListItemProps {
   series: SeriesWatchHistoryItem
+  userRating: number | null
+  onRate: (rating: number | null) => void
   canManage?: boolean
   onMarkUnwatched?: () => void
-  isWatching?: boolean
-  onWatchingToggle?: () => void
 }
 
 export function WatchHistorySeriesListItem({ 
   series, 
+  userRating,
+  onRate,
   canManage,
   onMarkUnwatched,
 }: WatchHistorySeriesListItemProps) {
@@ -288,6 +290,12 @@ export function WatchHistorySeriesListItem({
 
         {/* Actions */}
         <Box display="flex" justifyContent="center" gap={1} alignItems="center">
+          <HeartRating
+            value={userRating}
+            onChange={(rating) => onRate(rating)}
+            size="small"
+          />
+          
           <Tooltip title="View details">
             <IconButton
               onClick={(e) => {

@@ -23,11 +23,13 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline'
 import ScheduleIcon from '@mui/icons-material/Schedule'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
-import { getProxiedImageUrl, FALLBACK_POSTER_URL } from '@aperture/ui'
+import { getProxiedImageUrl, FALLBACK_POSTER_URL, HeartRating } from '@aperture/ui'
 import type { WatchingSeries, UpcomingEpisode } from '../hooks/useWatchingData'
 
 interface WatchingListItemProps {
   series: WatchingSeries
+  userRating: number | null
+  onRate: (rating: number | null) => void
   onRemove: (seriesId: string) => Promise<void>
 }
 
@@ -65,7 +67,7 @@ function getCountdownColor(days: number): string {
   return '#6b7280' // Later - gray
 }
 
-export function WatchingListItem({ series, onRemove }: WatchingListItemProps) {
+export function WatchingListItem({ series, userRating, onRate, onRemove }: WatchingListItemProps) {
   const theme = useTheme()
   const navigate = useNavigate()
 
@@ -202,6 +204,14 @@ export function WatchingListItem({ series, onRemove }: WatchingListItemProps) {
           </Box>
 
           {/* Remove button */}
+          <HeartRating
+            value={userRating}
+            onChange={(rating) => {
+              // Prevent card click when rating
+              onRate(rating)
+            }}
+            size="small"
+          />
           <Tooltip title="Remove from watching list">
             <IconButton
               size="small"
