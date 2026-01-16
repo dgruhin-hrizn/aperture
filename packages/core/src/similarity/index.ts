@@ -771,7 +771,7 @@ export async function getGraphForSource(
   const sourceLabels: Record<GraphSource, string> = {
     'ai-movies': 'AI Movie Picks',
     'ai-series': 'AI Series Picks',
-    'watching': 'Currently Watching',
+    watching: 'Currently Watching',
     'top-movies': 'Top Pick Movies',
     'top-series': 'Top Pick Series',
   }
