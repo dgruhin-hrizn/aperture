@@ -67,13 +67,14 @@ export async function createVirtualLibrary(
   // Emby uses different collection type names
   const embyCollectionType = collectionType === 'movies' ? 'movies' : 'tvshows'
 
-  // Use Node's native http module instead of fetch - fetch (undici) has issues
-  // with Emby's library creation endpoint where CollectionType ends up as null
+  // Use Node's native http module with api_key query param (not header auth)
+  // This matches exactly how curl works when creating libraries
   const http = await import('http')
   const https = await import('https')
   const { URL } = await import('url')
   
-  const fullUrl = `${provider.baseUrl}/Library/VirtualFolders?name=${encodeURIComponent(name)}&collectionType=${embyCollectionType}&paths=${encodeURIComponent(path)}&refreshLibrary=true`
+  // Use api_key query param for auth (same as working curl command)
+  const fullUrl = `${provider.baseUrl}/Library/VirtualFolders?name=${encodeURIComponent(name)}&collectionType=${embyCollectionType}&paths=${encodeURIComponent(path)}&refreshLibrary=true&api_key=${apiKey}`
   const parsedUrl = new URL(fullUrl)
   const isHttps = parsedUrl.protocol === 'https:'
   const httpModule = isHttps ? https : http
@@ -86,7 +87,6 @@ export async function createVirtualLibrary(
         path: parsedUrl.pathname + parsedUrl.search,
         method: 'POST',
         headers: {
-          'X-Emby-Authorization': provider.getAuthHeader(apiKey),
           'Content-Type': 'application/json',
         },
       },
