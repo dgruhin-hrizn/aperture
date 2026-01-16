@@ -65,13 +65,13 @@ const INITIAL_JOBS: Array<{ id: string; name: string; description: string; optio
   },
   {
     id: 'sync-movie-libraries',
-    name: 'Sync Movie Libraries',
-    description: 'Creating recommendation libraries in your media server',
+    name: 'Build Aperture Movie Libraries',
+    description: 'Creating AI recommendation movie libraries in your media server',
   },
   {
     id: 'sync-series-libraries',
-    name: 'Sync Series Libraries',
-    description: 'Creating recommendation libraries in your media server',
+    name: 'Build Aperture Series Libraries',
+    description: 'Creating AI recommendation series libraries in your media server',
   },
   {
     id: 'refresh-top-picks',

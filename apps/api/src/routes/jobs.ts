@@ -109,7 +109,7 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
   },
   {
     name: 'sync-movie-libraries',
-    description: 'Create AI recommendation movie libraries (STRM or symlinks)',
+    description: 'Build Aperture movie libraries with AI recommendations (STRM or symlinks)',
     cron: process.env.PERMS_CRON || '0 5 * * *',
   },
   // === Series Jobs ===
@@ -140,7 +140,7 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
   },
   {
     name: 'sync-series-libraries',
-    description: 'Create AI recommendation series libraries (STRM or symlinks)',
+    description: 'Build Aperture series libraries with AI recommendations (STRM or symlinks)',
     cron: process.env.PERMS_CRON || '0 5 * * *',
   },
   // === Top Picks Job ===

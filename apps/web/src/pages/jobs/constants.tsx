@@ -31,8 +31,8 @@ export const MOVIE_JOB_CATEGORIES: JobCategory[] = [
     jobs: ['generate-movie-embeddings', 'generate-movie-recommendations', 'rebuild-movie-recommendations'],
   },
   {
-    title: 'System',
-    description: 'Movie library file management',
+    title: 'Aperture Libraries',
+    description: 'Build AI recommendation libraries in your media server',
     color: '#6366f1',
     jobs: ['sync-movie-libraries'],
   },
@@ -53,8 +53,8 @@ export const SERIES_JOB_CATEGORIES: JobCategory[] = [
     jobs: ['generate-series-embeddings', 'generate-series-recommendations'],
   },
   {
-    title: 'System',
-    description: 'TV series library file management',
+    title: 'Aperture Libraries',
+    description: 'Build AI recommendation libraries in your media server',
     color: '#4f46e5',
     jobs: ['sync-series-libraries'],
   },
@@ -164,7 +164,18 @@ export const JOB_COLORS: Record<string, string> = {
   'generate-discovery-suggestions': '#ec4899',
 }
 
+// Custom display names for jobs that need special formatting
+const JOB_DISPLAY_NAMES: Record<string, string> = {
+  'sync-movie-libraries': 'Build Aperture Movie Libraries',
+  'sync-series-libraries': 'Build Aperture Series Libraries',
+}
+
 export function formatJobName(name: string): string {
+  // Check for custom display name first
+  if (JOB_DISPLAY_NAMES[name]) {
+    return JOB_DISPLAY_NAMES[name]
+  }
+  // Default: capitalize each word
   return name
     .split('-')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))

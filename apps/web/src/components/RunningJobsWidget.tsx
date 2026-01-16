@@ -39,13 +39,13 @@ const JOB_DISPLAY_NAMES: Record<string, string> = {
   'full-sync-watch-history': 'Full Watch History Sync',
   'generate-recommendations': 'Generating Recommendations',
   'rebuild-recommendations': 'Rebuilding Recommendations',
-  'sync-movie-libraries': 'Syncing Movie Libraries',
+  'sync-movie-libraries': 'Building Aperture Movie Libraries',
   'sync-series': 'Syncing Series',
   'generate-series-embeddings': 'Generating Series Embeddings',
   'sync-series-watch-history': 'Syncing Series History',
   'full-sync-series-watch-history': 'Full Series History Sync',
   'generate-series-recommendations': 'Generating Series Recommendations',
-  'sync-series-libraries': 'Syncing Series Libraries',
+  'sync-series-libraries': 'Building Aperture Series Libraries',
   'refresh-top-picks': 'Refreshing Top Picks',
 }
 
