@@ -387,7 +387,10 @@ export async function syncTraktRatings(userId: string): Promise<TraktSyncResult>
        SELECT $1, movie_id, rating, 'trakt'
        FROM unnest($2::uuid[], $3::int[]) AS t(movie_id, rating)
        ON CONFLICT (user_id, movie_id) WHERE movie_id IS NOT NULL
-       DO UPDATE SET rating = EXCLUDED.rating, source = 'trakt', updated_at = NOW()
+       DO UPDATE SET 
+         rating = EXCLUDED.rating, 
+         source = 'trakt', 
+         updated_at = CASE WHEN user_ratings.rating != EXCLUDED.rating THEN NOW() ELSE user_ratings.updated_at END
        RETURNING (xmax = 0) as is_insert`,
       [
         userId,
@@ -437,7 +440,10 @@ export async function syncTraktRatings(userId: string): Promise<TraktSyncResult>
        SELECT $1, series_id, rating, 'trakt'
        FROM unnest($2::uuid[], $3::int[]) AS t(series_id, rating)
        ON CONFLICT (user_id, series_id) WHERE series_id IS NOT NULL
-       DO UPDATE SET rating = EXCLUDED.rating, source = 'trakt', updated_at = NOW()
+       DO UPDATE SET 
+         rating = EXCLUDED.rating, 
+         source = 'trakt', 
+         updated_at = CASE WHEN user_ratings.rating != EXCLUDED.rating THEN NOW() ELSE user_ratings.updated_at END
        RETURNING (xmax = 0) as is_insert`,
       [
         userId,

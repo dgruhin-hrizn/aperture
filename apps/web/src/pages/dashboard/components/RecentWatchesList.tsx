@@ -13,6 +13,10 @@ interface WatchItem {
   posterUrl: string | null
   lastWatched: Date
   playCount: number
+  lastEpisode?: {
+    seasonNumber: number
+    episodeNumber: number
+  }
 }
 
 interface RecentWatchesListProps {
@@ -173,8 +177,9 @@ export function RecentWatchesList({ watches, loading }: RecentWatchesListProps) 
               </Typography>
               <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
                 {formatRelativeTime(item.lastWatched)}
-                {item.playCount > 1 && item.playCount <= 5 && ` · ${item.playCount}x`}
-                {item.playCount > 5 && ' · Rewatched'}
+                {item.lastEpisode && ` · S${item.lastEpisode.seasonNumber}E${item.lastEpisode.episodeNumber}`}
+                {item.type === 'movie' && item.playCount > 1 && item.playCount <= 5 && ` · ${item.playCount}x`}
+                {item.type === 'movie' && item.playCount > 5 && ' · Rewatched'}
               </Typography>
             </Box>
           </Box>
