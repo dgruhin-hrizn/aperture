@@ -47,6 +47,8 @@ export interface GraphNode {
   poster_url: string | null
   type: 'movie' | 'series'
   isCenter: boolean
+  isPrimary?: boolean
+  primaryLabel?: string
 }
 
 export interface GraphEdge {
@@ -765,13 +767,23 @@ export async function getGraphForSource(
     return { nodes: [], edges: [] }
   }
 
+  // Get source label for primary nodes
+  const sourceLabels: Record<GraphSource, string> = {
+    'ai-movies': 'AI Movie Picks',
+    'ai-series': 'AI Series Picks',
+    'watching': 'Currently Watching',
+    'top-movies': 'Top Pick Movies',
+    'top-series': 'Top Pick Series',
+  }
+  const sourceLabel = sourceLabels[source]
+
   // Build graph with center nodes and their connections
   const nodes: Map<string, GraphNode> = new Map()
   const edges: GraphEdge[] = []
   const seenEdges = new Set<string>()
 
-  // Add center nodes
-  for (const item of centerItems) {
+  // Add center nodes with primary labels
+  centerItems.forEach((item, index) => {
     nodes.set(item.id, {
       id: item.id,
       title: item.title,
@@ -779,8 +791,10 @@ export async function getGraphForSource(
       poster_url: item.poster_url,
       type: item.type,
       isCenter: true,
+      isPrimary: true,
+      primaryLabel: `#${index + 1} ${sourceLabel}`,
     })
-  }
+  })
 
   // Get connections for each center node
   for (const centerItem of centerItems) {

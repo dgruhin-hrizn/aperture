@@ -10,7 +10,10 @@ const NODE_WIDTH = 100
 const NODE_HEIGHT = 150
 const CENTER_NODE_WIDTH = 120
 const CENTER_NODE_HEIGHT = 180
+const PRIMARY_NODE_WIDTH = 110
+const PRIMARY_NODE_HEIGHT = 165
 const TITLE_HEIGHT = 32
+const PRIMARY_LABEL_HEIGHT = 16
 
 interface NodeConnectionInfo {
   node: GraphNode
@@ -165,6 +168,15 @@ export const SimilarityGraph = memo(function SimilarityGraph({
     const nodeHeight = compact ? NODE_HEIGHT * 0.8 : NODE_HEIGHT
     const centerNodeWidth = compact ? CENTER_NODE_WIDTH * 0.8 : CENTER_NODE_WIDTH
     const centerNodeHeight = compact ? CENTER_NODE_HEIGHT * 0.8 : CENTER_NODE_HEIGHT
+    const primaryNodeWidth = compact ? PRIMARY_NODE_WIDTH * 0.8 : PRIMARY_NODE_WIDTH
+    const primaryNodeHeight = compact ? PRIMARY_NODE_HEIGHT * 0.8 : PRIMARY_NODE_HEIGHT
+
+    // Helper function to get node dimensions
+    const getNodeWidth = (d: GraphNode) => d.isCenter ? centerNodeWidth : (d.isPrimary ? primaryNodeWidth : nodeWidth)
+    const getNodeHeight = (d: GraphNode) => d.isCenter ? centerNodeHeight : (d.isPrimary ? primaryNodeHeight : nodeHeight)
+    const getNodeTitleHeight = (d: GraphNode) => d.isPrimary && d.primaryLabel ? TITLE_HEIGHT + PRIMARY_LABEL_HEIGHT : TITLE_HEIGHT
+    const getNodeStroke = (d: GraphNode) => d.isCenter ? '#8B5CF6' : (d.isPrimary ? '#F59E0B' : '#333')
+    const getNodeStrokeWidth = (d: GraphNode) => d.isCenter ? 2 : (d.isPrimary ? 2 : 1)
 
     // Create zoom behavior
     const zoom = d3.zoom<SVGSVGElement, unknown>()
@@ -238,25 +250,25 @@ export const SimilarityGraph = memo(function SimilarityGraph({
     // Node background (card)
     nodes
       .append('rect')
-      .attr('width', (d) => (d.isCenter ? centerNodeWidth : nodeWidth))
-      .attr('height', (d) => (d.isCenter ? centerNodeHeight + TITLE_HEIGHT : nodeHeight + TITLE_HEIGHT))
-      .attr('x', (d) => -(d.isCenter ? centerNodeWidth : nodeWidth) / 2)
-      .attr('y', (d) => -(d.isCenter ? centerNodeHeight : nodeHeight) / 2)
+      .attr('width', (d) => getNodeWidth(d))
+      .attr('height', (d) => getNodeHeight(d) + getNodeTitleHeight(d))
+      .attr('x', (d) => -getNodeWidth(d) / 2)
+      .attr('y', (d) => -getNodeHeight(d) / 2)
       .attr('rx', 6)
       .attr('ry', 6)
       .attr('fill', '#1a1a2e')
-      .attr('stroke', (d) => (d.isCenter ? '#8B5CF6' : '#333'))
-      .attr('stroke-width', (d) => (d.isCenter ? 2 : 1))
+      .attr('stroke', (d) => getNodeStroke(d))
+      .attr('stroke-width', (d) => getNodeStrokeWidth(d))
 
     // Poster clip path
     nodes
       .append('clipPath')
       .attr('id', (d) => `clip-${d.id}`)
       .append('rect')
-      .attr('width', (d) => (d.isCenter ? centerNodeWidth - 8 : nodeWidth - 8))
-      .attr('height', (d) => (d.isCenter ? centerNodeHeight - 4 : nodeHeight - 4))
-      .attr('x', (d) => -(d.isCenter ? centerNodeWidth - 8 : nodeWidth - 8) / 2)
-      .attr('y', (d) => -(d.isCenter ? centerNodeHeight : nodeHeight) / 2 + 4)
+      .attr('width', (d) => getNodeWidth(d) - 8)
+      .attr('height', (d) => getNodeHeight(d) - 4)
+      .attr('x', (d) => -(getNodeWidth(d) - 8) / 2)
+      .attr('y', (d) => -getNodeHeight(d) / 2 + 4)
       .attr('rx', 4)
       .attr('ry', 4)
 
@@ -264,31 +276,42 @@ export const SimilarityGraph = memo(function SimilarityGraph({
     nodes
       .append('image')
       .attr('xlink:href', (d) => getProxiedImageUrl(d.poster_url, '/placeholder-poster.png'))
-      .attr('width', (d) => (d.isCenter ? centerNodeWidth - 8 : nodeWidth - 8))
-      .attr('height', (d) => (d.isCenter ? centerNodeHeight - 4 : nodeHeight - 4))
-      .attr('x', (d) => -(d.isCenter ? centerNodeWidth - 8 : nodeWidth - 8) / 2)
-      .attr('y', (d) => -(d.isCenter ? centerNodeHeight : nodeHeight) / 2 + 4)
+      .attr('width', (d) => getNodeWidth(d) - 8)
+      .attr('height', (d) => getNodeHeight(d) - 4)
+      .attr('x', (d) => -(getNodeWidth(d) - 8) / 2)
+      .attr('y', (d) => -getNodeHeight(d) / 2 + 4)
       .attr('clip-path', (d) => `url(#clip-${d.id})`)
       .attr('preserveAspectRatio', 'xMidYMid slice')
 
     // Title text
     nodes
       .append('text')
-      .text((d) => truncateTitle(d.title, d.isCenter ? 14 : 12))
+      .text((d) => truncateTitle(d.title, d.isCenter || d.isPrimary ? 14 : 12))
       .attr('text-anchor', 'middle')
-      .attr('y', (d) => (d.isCenter ? centerNodeHeight : nodeHeight) / 2 + 14)
+      .attr('y', (d) => getNodeHeight(d) / 2 + 14)
       .attr('fill', '#fff')
-      .attr('font-size', (d) => (d.isCenter ? '11px' : '9px'))
-      .attr('font-weight', (d) => (d.isCenter ? 600 : 400))
+      .attr('font-size', (d) => (d.isCenter || d.isPrimary ? '11px' : '9px'))
+      .attr('font-weight', (d) => (d.isCenter || d.isPrimary ? 600 : 400))
 
     // Year text
     nodes
       .append('text')
       .text((d) => (d.year ? `(${d.year})` : ''))
       .attr('text-anchor', 'middle')
-      .attr('y', (d) => (d.isCenter ? centerNodeHeight : nodeHeight) / 2 + 26)
+      .attr('y', (d) => getNodeHeight(d) / 2 + 26)
       .attr('fill', '#888')
       .attr('font-size', '8px')
+
+    // Primary label (for browse sources)
+    nodes
+      .filter((d) => !!(d.isPrimary && d.primaryLabel))
+      .append('text')
+      .text((d) => d.primaryLabel || '')
+      .attr('text-anchor', 'middle')
+      .attr('y', (d) => getNodeHeight(d) / 2 + 40)
+      .attr('fill', '#F59E0B')
+      .attr('font-size', '7px')
+      .attr('font-weight', 500)
 
     // Details button (info icon) - top right corner, only on non-center nodes
     if (onNodeDetailsClickRef.current) {
@@ -297,8 +320,8 @@ export const SimilarityGraph = memo(function SimilarityGraph({
         .append('g')
         .attr('class', 'details-button')
         .attr('transform', (d) => {
-          const nw = d.isCenter ? centerNodeWidth : nodeWidth
-          const nh = d.isCenter ? centerNodeHeight : nodeHeight
+          const nw = getNodeWidth(d)
+          const nh = getNodeHeight(d)
           return `translate(${nw / 2 - 16}, ${-nh / 2 + 8})`
         })
         .style('cursor', 'pointer')
@@ -377,7 +400,8 @@ export const SimilarityGraph = memo(function SimilarityGraph({
       .force('charge', d3.forceManyBody().strength(-650))
       .force('center', d3.forceCenter(width / 2, height / 2))
       .force('collision', d3.forceCollide().radius((d) => {
-        const nodeW = (d as GraphNode).isCenter ? centerNodeWidth : nodeWidth
+        const gn = d as GraphNode
+        const nodeW = gn.isCenter ? centerNodeWidth : (gn.isPrimary ? primaryNodeWidth : nodeWidth)
         return nodeW / 2 + 50
       }))
 
