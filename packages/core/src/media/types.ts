@@ -126,6 +126,13 @@ export interface WatchedItem {
   isFavorite: boolean
   lastPlayedDate?: string
   userRating?: number
+  /** Provider IDs for attribution detection (IMDB, TMDB, etc.) */
+  providerIds?: {
+    imdb?: string
+    tmdb?: string
+    tvdb?: string
+    [key: string]: string | undefined
+  }
 }
 
 export interface WatchedEpisode {
@@ -135,6 +142,13 @@ export interface WatchedEpisode {
   isFavorite: boolean
   lastPlayedDate?: string
   userRating?: number
+  /** Provider IDs for attribution detection (IMDB, TMDB, etc.) */
+  providerIds?: {
+    imdb?: string
+    tmdb?: string
+    tvdb?: string
+    [key: string]: string | undefined
+  }
 }
 
 export interface Series {

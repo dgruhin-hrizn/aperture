@@ -42,12 +42,14 @@ const ENV_DEFAULTS: Record<
   // === EVERY 30 MINUTES ===
   'sync-users': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 0.5 },
 
-  // === EVERY HOUR (staggered by 15 mins) ===
-  'sync-series-watch-history': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 1 },
-  'sync-watching-libraries': { scheduleType: 'interval', hour: 0, minute: 15, intervalHours: 1 },
+  // === EVERY 30 MINUTES (staggered by 10 mins) ===
+  // Watch history syncs more frequently to support the "Prevent Duplicate Continue Watching" feature
+  // which needs to detect plays on Aperture items and mark the originals as watched
+  'sync-movie-watch-history': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 0.5 },
+  'sync-series-watch-history': { scheduleType: 'interval', hour: 0, minute: 10, intervalHours: 0.5 },
 
-  // === EVERY 2 HOURS ===
-  'sync-movie-watch-history': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 2 },
+  // === EVERY HOUR ===
+  'sync-watching-libraries': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 1 },
 
   // === EVERY 3 HOURS (staggered by 10 mins) ===
   'sync-movies': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 3 },
@@ -262,9 +264,19 @@ export function formatSchedule(config: JobConfig): string {
 
     case 'interval': {
       const hours = config.scheduleIntervalHours ?? 1
+      // Handle fractional hours (e.g., 0.5 = 30 minutes)
+      const minutes = Math.round(hours * 60)
+      const isWholeHours = hours === Math.floor(hours)
+      
       // Show minute offset if non-zero (for staggered jobs)
       if (minute > 0) {
+        if (!isWholeHours) {
+          return `Every ${minutes} minutes at :${minute.toString().padStart(2, '0')}`
+        }
         return hours === 1 ? `Every hour at :${minute.toString().padStart(2, '0')}` : `Every ${hours} hours at :${minute.toString().padStart(2, '0')}`
+      }
+      if (!isWholeHours) {
+        return `Every ${minutes} minutes`
       }
       return hours === 1 ? 'Every hour' : `Every ${hours} hours`
     }

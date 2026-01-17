@@ -46,7 +46,7 @@ export function generateSeriesNfoContent(
     options = optionsOrIncludeImageUrls
   }
 
-  const { includeAiExplanation = true } = options
+  const { includeAiExplanation = true, prefixProviderIds = false } = options
   const lines: string[] = [
     '<?xml version="1.0" encoding="utf-8" standalone="yes"?>',
     '<tvshow>',
@@ -69,7 +69,8 @@ export function generateSeriesNfoContent(
     lines.push(`  <outline><![CDATA[${series.overview || plot}]]></outline>`)
   }
 
-  lines.push(`  <lockdata>false</lockdata>`)
+  // Lock data when using prefixed IDs to prevent Emby from "fixing" them
+  lines.push(`  <lockdata>${prefixProviderIds ? 'true' : 'false'}</lockdata>`)
 
   // Date added (for Emby sorting by "Date Added" - Rank 1 = newest)
   if (options.dateAdded) {
@@ -205,46 +206,65 @@ export function generateSeriesNfoContent(
   }
 
   // External IDs (legacy format for maximum compatibility)
+  // Optionally prefixed to prevent duplicate Continue Watching entries
   if (series.imdbId) {
-    lines.push(`  <imdb_id>${escapeXml(series.imdbId)}</imdb_id>`)
+    const imdbValue = prefixProviderIds ? `aperture-${series.imdbId}` : series.imdbId
+    lines.push(`  <imdb_id>${escapeXml(imdbValue)}</imdb_id>`)
   }
   if (series.tmdbId) {
-    lines.push(`  <tmdbid>${escapeXml(series.tmdbId)}</tmdbid>`)
+    const tmdbValue = prefixProviderIds ? `aperture-${series.tmdbId}` : series.tmdbId
+    lines.push(`  <tmdbid>${escapeXml(tmdbValue)}</tmdbid>`)
   }
   if (series.tvdbId) {
-    lines.push(`  <tvdbid>${escapeXml(series.tvdbId)}</tvdbid>`)
+    const tvdbValue = prefixProviderIds ? `aperture-${series.tvdbId}` : series.tvdbId
+    lines.push(`  <tvdbid>${escapeXml(tvdbValue)}</tvdbid>`)
   }
   if (series.tvmazeId) {
-    lines.push(`  <tvmazeid>${escapeXml(series.tvmazeId)}</tvmazeid>`)
+    const tvmazeValue = prefixProviderIds ? `aperture-${series.tvmazeId}` : series.tvmazeId
+    lines.push(`  <tvmazeid>${escapeXml(tvmazeValue)}</tvmazeid>`)
   }
 
   // === Unique IDs (standard format) ===
   if (series.imdbId) {
-    lines.push(`  <uniqueid type="imdb">${escapeXml(series.imdbId)}</uniqueid>`)
+    const imdbValue = prefixProviderIds ? `aperture-${series.imdbId}` : series.imdbId
+    lines.push(`  <uniqueid type="imdb">${escapeXml(imdbValue)}</uniqueid>`)
   }
   if (series.tvdbId) {
-    lines.push(`  <uniqueid type="tvdb" default="true">${escapeXml(series.tvdbId)}</uniqueid>`)
+    const tvdbValue = prefixProviderIds ? `aperture-${series.tvdbId}` : series.tvdbId
+    lines.push(`  <uniqueid type="tvdb" default="true">${escapeXml(tvdbValue)}</uniqueid>`)
   }
   if (series.tmdbId) {
-    lines.push(`  <uniqueid type="tmdb">${escapeXml(series.tmdbId)}</uniqueid>`)
+    const tmdbValue = prefixProviderIds ? `aperture-${series.tmdbId}` : series.tmdbId
+    lines.push(`  <uniqueid type="tmdb">${escapeXml(tmdbValue)}</uniqueid>`)
   }
   if (series.tvmazeId) {
-    lines.push(`  <uniqueid type="tvmaze">${escapeXml(series.tvmazeId)}</uniqueid>`)
+    const tvmazeValue = prefixProviderIds ? `aperture-${series.tvmazeId}` : series.tvmazeId
+    lines.push(`  <uniqueid type="tvmaze">${escapeXml(tvmazeValue)}</uniqueid>`)
   }
 
   // === Episode Guide (JSON format for cross-references) ===
+  // Also prefixed when enabled
   const episodeGuide: Record<string, string> = {}
-  if (series.imdbId) episodeGuide.imdb = series.imdbId
-  if (series.tvdbId) episodeGuide.tvdb = series.tvdbId
-  if (series.tmdbId) episodeGuide.tmdb = series.tmdbId
-  if (series.tvmazeId) episodeGuide.tvmaze = series.tvmazeId
+  if (series.imdbId) {
+    episodeGuide.imdb = prefixProviderIds ? `aperture-${series.imdbId}` : series.imdbId
+  }
+  if (series.tvdbId) {
+    episodeGuide.tvdb = prefixProviderIds ? `aperture-${series.tvdbId}` : series.tvdbId
+  }
+  if (series.tmdbId) {
+    episodeGuide.tmdb = prefixProviderIds ? `aperture-${series.tmdbId}` : series.tmdbId
+  }
+  if (series.tvmazeId) {
+    episodeGuide.tvmaze = prefixProviderIds ? `aperture-${series.tvmazeId}` : series.tvmazeId
+  }
   if (Object.keys(episodeGuide).length > 0) {
     lines.push(`  <episodeguide>${JSON.stringify(episodeGuide)}</episodeguide>`)
   }
 
   // === Series Metadata ===
   if (series.tvdbId) {
-    lines.push(`  <id>${escapeXml(series.tvdbId)}</id>`)
+    const tvdbValue = prefixProviderIds ? `aperture-${series.tvdbId}` : series.tvdbId
+    lines.push(`  <id>${escapeXml(tvdbValue)}</id>`)
   }
 
 

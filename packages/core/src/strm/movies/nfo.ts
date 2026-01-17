@@ -19,6 +19,8 @@ export interface NfoGenerateOptions {
   dateAdded?: Date
   /** Include AI explanation of why this was recommended (default: true) */
   includeAiExplanation?: boolean
+  /** Prefix provider IDs with "aperture-" to prevent duplicate Continue Watching entries */
+  prefixProviderIds?: boolean
 }
 
 /**
@@ -53,7 +55,7 @@ export function generateNfoContent(
     options = includeImageUrls
   }
   
-  const { includeAiExplanation = true } = options
+  const { includeAiExplanation = true, prefixProviderIds = false } = options
   const lines: string[] = [
     '<?xml version="1.0" encoding="utf-8"?>',
     '<movie>',
@@ -182,12 +184,19 @@ export function generateNfoContent(
     }
   }
 
-  // External IDs
+  // Lock data when using prefixed IDs to prevent Emby from "fixing" them
+  if (prefixProviderIds) {
+    lines.push(`  <lockdata>true</lockdata>`)
+  }
+
+  // External IDs (optionally prefixed to prevent duplicate Continue Watching)
   if (movie.imdbId) {
-    lines.push(`  <uniqueid type="imdb">${escapeXml(movie.imdbId)}</uniqueid>`)
+    const imdbValue = prefixProviderIds ? `aperture-${movie.imdbId}` : movie.imdbId
+    lines.push(`  <uniqueid type="imdb">${escapeXml(imdbValue)}</uniqueid>`)
   }
   if (movie.tmdbId) {
-    lines.push(`  <uniqueid type="tmdb">${movie.tmdbId}</uniqueid>`)
+    const tmdbValue = prefixProviderIds ? `aperture-${movie.tmdbId}` : String(movie.tmdbId)
+    lines.push(`  <uniqueid type="tmdb">${tmdbValue}</uniqueid>`)
   }
 
   // File info (for display purposes)

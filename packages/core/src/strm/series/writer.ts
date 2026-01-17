@@ -11,7 +11,7 @@ import path from 'path'
 import { createChildLogger } from '../../lib/logger.js'
 import { query, queryOne } from '../../lib/db.js'
 import { getConfig } from '../config.js'
-import { getAiRecsOutputConfig } from '../../settings/systemSettings.js'
+import { getAiRecsOutputConfig, getPreventDuplicateContinueWatchingConfig } from '../../settings/systemSettings.js'
 import { getMediaServerProvider } from '../../media/index.js'
 import { downloadImage } from '../images.js'
 import { generateSeriesNfoContent } from './nfo.js'
@@ -182,6 +182,13 @@ export async function writeSeriesStrmFilesForUser(
   const includeAiExplanation = await getEffectiveAiExplanationSetting(userId)
   logger.info({ userId, includeAiExplanation }, '🎯 AI explanation setting resolved')
 
+  // Check if duplicate Continue Watching prevention is enabled
+  const preventDuplicatesConfig = await getPreventDuplicateContinueWatchingConfig()
+  const prefixProviderIds = preventDuplicatesConfig.enabled
+  if (prefixProviderIds) {
+    logger.info('🔒 Duplicate Continue Watching prevention enabled - prefixing provider IDs')
+  }
+
   await fs.mkdir(localPath, { recursive: true })
 
   // Get user's latest series recommendations
@@ -344,6 +351,7 @@ export async function writeSeriesStrmFilesForUser(
       includeImageUrls: !config.downloadImages,
       dateAdded,
       includeAiExplanation,
+      prefixProviderIds,
     })
     await fs.writeFile(seriesNfoPath, nfoContent, 'utf-8')
     filesWritten++

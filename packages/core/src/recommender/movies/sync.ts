@@ -2,7 +2,7 @@ import { createChildLogger } from '../../lib/logger.js'
 import { query, queryOne } from '../../lib/db.js'
 import { getEnabledLibraryIds } from '../../lib/libraryConfig.js'
 import { getMediaServerProvider } from '../../media/index.js'
-import { getMediaServerApiKey, getMediaServerConfig } from '../../settings/systemSettings.js'
+import { getMediaServerApiKey, getMediaServerConfig, getPreventDuplicateContinueWatchingConfig } from '../../settings/systemSettings.js'
 import {
   createJobProgress,
   setJobStep,
@@ -643,6 +643,60 @@ export async function syncMovies(existingJobId?: string): Promise<SyncMoviesResu
   }
 }
 
+// ============================================================================
+// APERTURE-PREFIX DETECTION HELPERS
+// ============================================================================
+
+const APERTURE_PREFIX = 'aperture-'
+
+/**
+ * Check if a provider ID has the aperture- prefix
+ */
+function hasAperturePrefix(id: string | null | undefined): boolean {
+  return id?.startsWith(APERTURE_PREFIX) ?? false
+}
+
+/**
+ * Strip the aperture- prefix from an ID to get the real ID
+ */
+function stripAperturePrefix(id: string): string {
+  return id.startsWith(APERTURE_PREFIX) ? id.slice(APERTURE_PREFIX.length) : id
+}
+
+/**
+ * Find a movie by its external IMDB or TMDB ID
+ * Used for watch history attribution from Aperture items to originals
+ */
+async function findMovieByExternalId(
+  imdbId?: string,
+  tmdbId?: string
+): Promise<{ id: string; providerItemId: string } | null> {
+  if (!imdbId && !tmdbId) return null
+
+  // Try IMDB first, then TMDB
+  if (imdbId) {
+    const result = await queryOne<{ id: string; provider_item_id: string }>(
+      'SELECT id, provider_item_id FROM movies WHERE imdb_id = $1 LIMIT 1',
+      [imdbId]
+    )
+    if (result) {
+      return { id: result.id, providerItemId: result.provider_item_id }
+    }
+  }
+
+  if (tmdbId) {
+    const result = await queryOne<{ id: string; provider_item_id: string }>(
+      'SELECT id, provider_item_id FROM movies WHERE tmdb_id = $1 LIMIT 1',
+      [tmdbId]
+    )
+    if (result) {
+      return { id: result.id, providerItemId: result.provider_item_id }
+    }
+  }
+
+  return null
+}
+
 /**
  * Sync watch history for a specific user
  * @param fullSync - If true, performs a full sync regardless of last sync time
@@ -695,6 +749,10 @@ export async function syncWatchHistoryForUser(
   )
   const existingMovieIds = new Set(existingHistory.rows.map((r) => r.movie_id))
 
+  // Check if duplicate Continue Watching prevention is enabled
+  const preventDuplicatesConfig = await getPreventDuplicateContinueWatchingConfig()
+  const apertureAttributionEnabled = preventDuplicatesConfig.enabled
+
   // Prepare bulk data - filter to items we have in our database and not excluded
   const toSync: {
     movieId: string
@@ -703,9 +761,18 @@ export async function syncWatchHistoryForUser(
     isFavorite: boolean
   }[] = []
 
+  // Track aperture items that need attribution
+  const apertureAttributions: {
+    originalMovieId: string
+    originalProviderItemId: string
+  }[] = []
+
   let excludedCount = 0
+  let apertureItemsFound = 0
+
   for (const item of watchedItems) {
     const movieId = providerIdToMovieId.get(item.movieId)
+    
     if (movieId) {
       // Check if movie's library is excluded
       const libraryId = providerIdToLibraryId.get(item.movieId)
@@ -720,11 +787,59 @@ export async function syncWatchHistoryForUser(
         lastPlayedAt: item.lastPlayedDate ? new Date(item.lastPlayedDate) : null,
         isFavorite: item.isFavorite,
       })
+    } else if (apertureAttributionEnabled && item.providerIds) {
+      // Item not in our database - check if it's an Aperture item with prefixed IDs
+      const imdbId = item.providerIds.imdb
+      const tmdbId = item.providerIds.tmdb
+
+      // Check for aperture- prefix
+      if (hasAperturePrefix(imdbId) || hasAperturePrefix(tmdbId)) {
+        apertureItemsFound++
+
+        // Extract real IDs by stripping the prefix
+        const realImdbId = imdbId && hasAperturePrefix(imdbId) ? stripAperturePrefix(imdbId) : undefined
+        const realTmdbId = tmdbId && hasAperturePrefix(tmdbId) ? stripAperturePrefix(tmdbId) : undefined
+
+        // Find the original movie by real IDs
+        const originalMovie = await findMovieByExternalId(realImdbId, realTmdbId)
+        if (originalMovie) {
+          // Add to sync list for the ORIGINAL movie
+          toSync.push({
+            movieId: originalMovie.id,
+            playCount: item.playCount,
+            lastPlayedAt: item.lastPlayedDate ? new Date(item.lastPlayedDate) : null,
+            isFavorite: item.isFavorite,
+          })
+
+          // Track for marking as played in media server
+          apertureAttributions.push({
+            originalMovieId: originalMovie.id,
+            originalProviderItemId: originalMovie.providerItemId,
+          })
+
+          logger.debug(
+            { imdbId: realImdbId, tmdbId: realTmdbId, originalId: originalMovie.id },
+            '🔗 Attributed Aperture watch to original movie'
+          )
+        } else {
+          logger.debug(
+            { imdbId: realImdbId, tmdbId: realTmdbId },
+            '⚠️ Could not find original movie for Aperture item'
+          )
+        }
+      }
     }
   }
   
   if (excludedCount > 0) {
     logger.debug({ userId, excludedCount }, 'Excluded watch history items from excluded libraries')
+  }
+
+  if (apertureItemsFound > 0) {
+    logger.info(
+      { userId, apertureItemsFound, attributed: apertureAttributions.length },
+      '🔄 Processed Aperture items for watch history attribution'
+    )
   }
 
   const syncedMovieIds = new Set<string>(toSync.map((t) => t.movieId))
@@ -768,10 +883,32 @@ export async function syncWatchHistoryForUser(
     }
   }
 
+  // Mark original items as played in media server for Aperture attributions
+  if (apertureAttributions.length > 0) {
+    logger.info(
+      { userId, count: apertureAttributions.length },
+      '📺 Marking original movies as played in media server'
+    )
+    for (const attribution of apertureAttributions) {
+      try {
+        await provider.markMoviePlayed(apiKey, providerUserId, attribution.originalProviderItemId)
+        logger.debug(
+          { movieId: attribution.originalMovieId, providerItemId: attribution.originalProviderItemId },
+          '✅ Marked original movie as played'
+        )
+      } catch (err) {
+        logger.warn(
+          { err, movieId: attribution.originalMovieId, providerItemId: attribution.originalProviderItemId },
+          '⚠️ Failed to mark original movie as played'
+        )
+      }
+    }
+  }
+
   // Update user's last sync timestamp
   await query('UPDATE users SET watch_history_synced_at = NOW() WHERE id = $1', [userId])
 
-  logger.info({ userId, synced, removed, deltaSync: !fullSync }, 'Watch history sync completed')
+  logger.info({ userId, synced, removed, apertureAttributed: apertureAttributions.length, deltaSync: !fullSync }, 'Watch history sync completed')
   return { synced, removed }
 }
 

@@ -1272,6 +1272,50 @@ export async function testOMDbConnection(
 }
 
 // ============================================================================
+// Prevent Duplicate Continue Watching (Experimental)
+// ============================================================================
+
+export interface PreventDuplicateContinueWatchingConfig {
+  enabled: boolean
+}
+
+/**
+ * Get the "Prevent Duplicate Continue Watching" feature configuration.
+ *
+ * When enabled, Aperture prefixes provider IDs with `aperture-` to prevent
+ * Emby/Jellyfin from linking items to originals (which causes duplicate
+ * Continue Watching entries). Watch history is then attributed back to
+ * originals via the sync job.
+ */
+export async function getPreventDuplicateContinueWatchingConfig(): Promise<PreventDuplicateContinueWatchingConfig> {
+  const enabled = await getSystemSetting('prevent_duplicate_continue_watching')
+
+  return {
+    enabled: enabled === 'true', // Default to false (disabled)
+  }
+}
+
+/**
+ * Set the "Prevent Duplicate Continue Watching" feature configuration.
+ *
+ * WARNING: Changing this setting requires rebuilding libraries for the
+ * change to take effect.
+ */
+export async function setPreventDuplicateContinueWatchingConfig(
+  config: Partial<PreventDuplicateContinueWatchingConfig>
+): Promise<PreventDuplicateContinueWatchingConfig> {
+  if (config.enabled !== undefined) {
+    await setSystemSetting(
+      'prevent_duplicate_continue_watching',
+      String(config.enabled),
+      'Experimental: Prefix provider IDs to prevent duplicate Continue Watching entries'
+    )
+  }
+  logger.info({ config }, 'Prevent duplicate continue watching config updated')
+  return getPreventDuplicateContinueWatchingConfig()
+}
+
+// ============================================================================
 // Studio Logo Settings
 // ============================================================================
 

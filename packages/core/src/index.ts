@@ -359,6 +359,9 @@ export {
   // Studio logos settings
   getStudioLogosConfig,
   setStudioLogosConfig,
+  // Prevent duplicate continue watching (experimental)
+  getPreventDuplicateContinueWatchingConfig,
+  setPreventDuplicateContinueWatchingConfig,
   type SystemSetting,
   type EmbeddingModel,
   type TextGenerationModel,
@@ -374,6 +377,7 @@ export {
   type TMDbConfig,
   type OMDbConfig,
   type StudioLogosConfig,
+  type PreventDuplicateContinueWatchingConfig,
 } from './settings/systemSettings.js'
 
 // Top Picks

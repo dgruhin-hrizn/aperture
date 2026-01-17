@@ -36,13 +36,14 @@ import {
   refreshLibrary,
   setLibrarySortPreference,
 } from './libraries.js'
-import { getMovies, getMovieById, getWatchHistory, markMovieUnplayed } from './movies.js'
+import { getMovies, getMovieById, getWatchHistory, markMoviePlayed, markMovieUnplayed } from './movies.js'
 import {
   getSeries,
   getSeriesById,
   getEpisodes,
   getEpisodeById,
   getSeriesWatchHistory,
+  markEpisodePlayed,
   markEpisodeUnplayed,
   markSeasonUnplayed,
   markSeriesUnplayed,
@@ -244,6 +245,14 @@ export class EmbyProvider extends EmbyProviderBase implements MediaServerProvide
   }
 
   // Watch History Management
+  async markMoviePlayed(apiKey: string, userId: string, movieId: string): Promise<void> {
+    return markMoviePlayed(this, apiKey, userId, movieId)
+  }
+
+  async markEpisodePlayed(apiKey: string, userId: string, episodeId: string): Promise<void> {
+    return markEpisodePlayed(this, apiKey, userId, episodeId)
+  }
+
   async markMovieUnplayed(apiKey: string, userId: string, movieId: string): Promise<void> {
     return markMovieUnplayed(this, apiKey, userId, movieId)
   }

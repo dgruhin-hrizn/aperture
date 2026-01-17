@@ -316,6 +316,18 @@ export interface MediaServerProvider {
   // =========================================================================
 
   /**
+   * Mark a movie as watched/played
+   * Used for watch history attribution from Aperture items to originals
+   */
+  markMoviePlayed(apiKey: string, userId: string, movieId: string): Promise<void>
+
+  /**
+   * Mark an episode as watched/played
+   * Used for watch history attribution from Aperture items to originals
+   */
+  markEpisodePlayed(apiKey: string, userId: string, episodeId: string): Promise<void>
+
+  /**
    * Mark a movie as unwatched/unplayed
    */
   markMovieUnplayed(apiKey: string, userId: string, movieId: string): Promise<void>

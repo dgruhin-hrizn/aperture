@@ -111,7 +111,8 @@ export async function getWatchHistory(
     const params = new URLSearchParams({
       IncludeItemTypes: 'Movie',
       Recursive: 'true',
-      Fields: 'UserData',
+      // Include ProviderIds for aperture-prefix detection (watch history attribution)
+      Fields: 'UserData,ProviderIds',
       IsPlayed: 'true',
       UserId: userId,
       StartIndex: String(startIndex),
@@ -139,6 +140,11 @@ export async function getWatchHistory(
           playCount: item.UserData.PlayCount || 0,
           isFavorite: item.UserData.IsFavorite || false,
           lastPlayedDate: item.UserData.LastPlayedDate,
+          // Include provider IDs for aperture-prefix detection
+          providerIds: item.ProviderIds ? {
+            imdb: item.ProviderIds.Imdb,
+            tmdb: item.ProviderIds.Tmdb,
+          } : undefined,
         })
       }
     }
@@ -205,6 +211,28 @@ export async function getWatchHistory(
     'Watch history complete'
   )
   return allItems
+}
+
+/**
+ * Mark a movie as played/watched in Jellyfin
+ * This calls POST /Users/{UserId}/PlayedItems/{ItemId}
+ * Used for watch history attribution from Aperture items to originals
+ */
+export async function markMoviePlayed(
+  provider: JellyfinProviderBase,
+  apiKey: string,
+  userId: string,
+  movieProviderId: string
+): Promise<void> {
+  logger.info({ userId, movieProviderId }, 'Marking movie as played in Jellyfin')
+
+  await provider.fetch(
+    `/Users/${userId}/PlayedItems/${movieProviderId}`,
+    apiKey,
+    { method: 'POST' }
+  )
+
+  logger.info({ userId, movieProviderId }, 'Movie marked as played')
 }
 
 /**

@@ -76,6 +76,8 @@ export interface NfoGenerateOptions {
   dateAdded?: Date
   /** Include AI explanation of why this was recommended (default: true) */
   includeAiExplanation?: boolean
+  /** Prefix provider IDs with "aperture-" to prevent duplicate Continue Watching entries */
+  prefixProviderIds?: boolean
 }
 
 

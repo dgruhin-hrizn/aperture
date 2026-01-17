@@ -2,7 +2,7 @@ import { createChildLogger } from '../../lib/logger.js'
 import { query, queryOne } from '../../lib/db.js'
 import { getEnabledTvLibraryIds } from '../../lib/libraryConfig.js'
 import { getMediaServerProvider } from '../../media/index.js'
-import { getMediaServerApiKey, getMediaServerConfig } from '../../settings/systemSettings.js'
+import { getMediaServerApiKey, getMediaServerConfig, getPreventDuplicateContinueWatchingConfig } from '../../settings/systemSettings.js'
 import {
   createJobProgress,
   setJobStep,
@@ -926,6 +926,74 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
   }
 }
 
+// ============================================================================
+// APERTURE-PREFIX DETECTION HELPERS
+// ============================================================================
+
+const APERTURE_PREFIX = 'aperture-'
+
+/**
+ * Check if a provider ID has the aperture- prefix
+ */
+function hasAperturePrefix(id: string | null | undefined): boolean {
+  return id?.startsWith(APERTURE_PREFIX) ?? false
+}
+
+/**
+ * Strip the aperture- prefix from an ID to get the real ID
+ */
+function stripAperturePrefix(id: string): string {
+  return id.startsWith(APERTURE_PREFIX) ? id.slice(APERTURE_PREFIX.length) : id
+}
+
+/**
+ * Find an episode by external IDs of its series and episode metadata
+ * Used for watch history attribution from Aperture items to originals
+ */
+async function findEpisodeByExternalId(
+  imdbId?: string,
+  tmdbId?: string,
+  tvdbId?: string,
+  seasonNumber?: number,
+  episodeNumber?: number
+): Promise<{ id: string; providerItemId: string } | null> {
+  if ((!imdbId && !tmdbId && !tvdbId) || seasonNumber === undefined || episodeNumber === undefined) {
+    return null
+  }
+
+  // Find the series first, then the episode
+  let seriesId: string | null = null
+
+  if (tvdbId) {
+    const result = await queryOne<{ id: string }>('SELECT id FROM series WHERE tvdb_id = $1 LIMIT 1', [tvdbId])
+    if (result) seriesId = result.id
+  }
+
+  if (!seriesId && imdbId) {
+    const result = await queryOne<{ id: string }>('SELECT id FROM series WHERE imdb_id = $1 LIMIT 1', [imdbId])
+    if (result) seriesId = result.id
+  }
+
+  if (!seriesId && tmdbId) {
+    const result = await queryOne<{ id: string }>('SELECT id FROM series WHERE tmdb_id = $1 LIMIT 1', [tmdbId])
+    if (result) seriesId = result.id
+  }
+
+  if (!seriesId) return null
+
+  // Find the specific episode
+  const episode = await queryOne<{ id: string; provider_item_id: string }>(
+    'SELECT id, provider_item_id FROM episodes WHERE series_id = $1 AND season_number = $2 AND episode_number = $3 LIMIT 1',
+    [seriesId, seasonNumber, episodeNumber]
+  )
+
+  if (episode) {
+    return { id: episode.id, providerItemId: episode.provider_item_id }
+  }
+
+  return null
+}
+
 /**
  * Sync episode watch history for a specific user
  * @param fullSync - If true, performs a full sync regardless of last sync time
@@ -984,6 +1052,10 @@ export async function syncSeriesWatchHistoryForUser(
   )
   const existingEpisodeIds = new Set(existingHistory.rows.map((r) => r.episode_id))
 
+  // Check if duplicate Continue Watching prevention is enabled
+  const preventDuplicatesConfig = await getPreventDuplicateContinueWatchingConfig()
+  const apertureAttributionEnabled = preventDuplicatesConfig.enabled
+
   // Prepare bulk data - filter to items we have in our database and not excluded
   const toSync: {
     episodeId: string
@@ -992,9 +1064,18 @@ export async function syncSeriesWatchHistoryForUser(
     isFavorite: boolean
   }[] = []
 
+  // Track aperture items that need attribution
+  const apertureAttributions: {
+    originalEpisodeId: string
+    originalProviderItemId: string
+  }[] = []
+
   let excludedCount = 0
+  let apertureItemsFound = 0
+
   for (const item of watchedEpisodes) {
     const episodeId = providerIdToEpisodeId.get(item.episodeId)
+    
     if (episodeId) {
       // Check if episode's series library is excluded
       const libraryId = providerIdToLibraryId.get(item.episodeId)
@@ -1009,11 +1090,41 @@ export async function syncSeriesWatchHistoryForUser(
         lastPlayedAt: item.lastPlayedDate ? new Date(item.lastPlayedDate) : null,
         isFavorite: item.isFavorite,
       })
+    } else if (apertureAttributionEnabled && item.providerIds) {
+      // Item not in our database - check if it's an Aperture item with prefixed IDs
+      const imdbId = item.providerIds.imdb
+      const tmdbId = item.providerIds.tmdb
+      const tvdbId = item.providerIds.tvdb
+
+      // Check for aperture- prefix
+      if (hasAperturePrefix(imdbId) || hasAperturePrefix(tmdbId) || hasAperturePrefix(tvdbId)) {
+        apertureItemsFound++
+
+        // Extract real IDs by stripping the prefix
+        const realImdbId = imdbId && hasAperturePrefix(imdbId) ? stripAperturePrefix(imdbId) : undefined
+        const realTmdbId = tmdbId && hasAperturePrefix(tmdbId) ? stripAperturePrefix(tmdbId) : undefined
+        const realTvdbId = tvdbId && hasAperturePrefix(tvdbId) ? stripAperturePrefix(tvdbId) : undefined
+
+        // For series, we need season/episode numbers which we don't have in WatchedEpisode yet
+        // This is a limitation - for now, log that we detected it
+        // TODO: Extend WatchedEpisode to include season/episode numbers for proper attribution
+        logger.debug(
+          { imdbId: realImdbId, tmdbId: realTmdbId, tvdbId: realTvdbId },
+          '🔍 Detected Aperture episode (series attribution pending full implementation)'
+        )
+      }
     }
   }
   
   if (excludedCount > 0) {
     logger.debug({ userId, excludedCount }, 'Excluded episode watch history items from excluded libraries')
+  }
+
+  if (apertureItemsFound > 0) {
+    logger.info(
+      { userId, apertureItemsFound },
+      '🔄 Detected Aperture episodes (attribution not yet implemented for series)'
+    )
   }
 
   const syncedEpisodeIds = new Set<string>(toSync.map((t) => t.episodeId))

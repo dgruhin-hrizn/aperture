@@ -197,7 +197,8 @@ export async function getSeriesWatchHistory(
     const params = new URLSearchParams({
       IncludeItemTypes: 'Episode',
       Recursive: 'true',
-      Fields: 'UserData,UserDataPlayCount,UserDataLastPlayedDate,SeriesId',
+      // Include ProviderIds for aperture-prefix detection (watch history attribution)
+      Fields: 'UserData,UserDataPlayCount,UserDataLastPlayedDate,SeriesId,ProviderIds',
       IsPlayed: 'true',
       UserId: userId,
       StartIndex: String(startIndex),
@@ -226,6 +227,12 @@ export async function getSeriesWatchHistory(
           playCount: item.UserData.PlayCount || 0,
           isFavorite: item.UserData.IsFavorite || false,
           lastPlayedDate: item.UserData.LastPlayedDate,
+          // Include provider IDs for aperture-prefix detection
+          providerIds: item.ProviderIds ? {
+            imdb: item.ProviderIds.Imdb,
+            tmdb: item.ProviderIds.Tmdb,
+            tvdb: item.ProviderIds.Tvdb,
+          } : undefined,
         })
       }
     }
@@ -290,6 +297,28 @@ export async function getSeriesWatchHistory(
 
   logger.info({ userId, totalItems: allItems.length }, 'Series watch history complete')
   return allItems
+}
+
+/**
+ * Mark a single episode as played/watched in Jellyfin
+ * This calls POST /Users/{UserId}/PlayedItems/{ItemId}
+ * Used for watch history attribution from Aperture items to originals
+ */
+export async function markEpisodePlayed(
+  provider: JellyfinProviderBase,
+  apiKey: string,
+  userId: string,
+  episodeProviderId: string
+): Promise<void> {
+  logger.info({ userId, episodeProviderId }, 'Marking episode as played in Jellyfin')
+
+  await provider.fetch(
+    `/Users/${userId}/PlayedItems/${episodeProviderId}`,
+    apiKey,
+    { method: 'POST' }
+  )
+
+  logger.info({ userId, episodeProviderId }, 'Episode marked as played')
 }
 
 /**

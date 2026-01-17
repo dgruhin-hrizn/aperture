@@ -173,7 +173,8 @@ async function getWatchHistoryFromItems(
     const params = new URLSearchParams({
       IncludeItemTypes: 'Movie',
       Recursive: 'true',
-      Fields: 'UserData,UserDataPlayCount,UserDataLastPlayedDate',
+      // Include ProviderIds for aperture-prefix detection (watch history attribution)
+      Fields: 'UserData,UserDataPlayCount,UserDataLastPlayedDate,ProviderIds',
       IsPlayed: 'true',
       UserId: userId,
       StartIndex: String(startIndex),
@@ -201,6 +202,11 @@ async function getWatchHistoryFromItems(
           playCount: item.UserData.PlayCount || 0,
           isFavorite: item.UserData.IsFavorite || false,
           lastPlayedDate: item.UserData.LastPlayedDate,
+          // Include provider IDs for aperture-prefix detection
+          providerIds: item.ProviderIds ? {
+            imdb: item.ProviderIds.Imdb,
+            tmdb: item.ProviderIds.Tmdb,
+          } : undefined,
         })
       }
     }
@@ -387,6 +393,28 @@ export async function getWatchHistoryFromActivityLog(
 
   logger.info({ userId, totalWatched: watchedItems.length }, 'Watch history complete')
   return watchedItems
+}
+
+/**
+ * Mark a movie as played/watched in Emby
+ * This calls POST /Users/{UserId}/PlayedItems/{ItemId}
+ * Used for watch history attribution from Aperture items to originals
+ */
+export async function markMoviePlayed(
+  provider: EmbyProviderBase,
+  apiKey: string,
+  userId: string,
+  movieProviderId: string
+): Promise<void> {
+  logger.info({ userId, movieProviderId }, 'Marking movie as played in Emby')
+
+  await provider.fetch(
+    `/Users/${userId}/PlayedItems/${movieProviderId}`,
+    apiKey,
+    { method: 'POST' }
+  )
+
+  logger.info({ userId, movieProviderId }, 'Movie marked as played')
 }
 
 /**

@@ -40,6 +40,7 @@ import {
   BackupSection,
   PosterRepairSection,
   LegacyEmbeddingsSection,
+  PreventDuplicatesSection,
 } from './components'
 import { ApiErrorAlert } from '../../components/ApiErrorAlert'
 
@@ -201,6 +202,7 @@ export function SettingsPage() {
             <TabPanel value={aiSubTab} index={0}>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <OutputFormatSection />
+                <PreventDuplicatesSection />
                 <LibraryTitlesSection />
               </Box>
             </TabPanel>

@@ -75,6 +75,8 @@ import {
   getStudioLogosConfig,
   setStudioLogosConfig,
   getStudioLogoStats,
+  getPreventDuplicateContinueWatchingConfig,
+  setPreventDuplicateContinueWatchingConfig,
   type EmbeddingModel,
   type MediaServerType,
   type TextGenerationModel,
@@ -1464,6 +1466,53 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(500).send({ error: 'Failed to update output format configuration' })
     }
   })
+
+  // =========================================================================
+  // Prevent Duplicate Continue Watching Settings (Admin Only)
+  // =========================================================================
+
+  /**
+   * GET /api/settings/prevent-duplicate-continue-watching
+   * Get the prevent duplicate continue watching configuration
+   */
+  fastify.get(
+    '/api/settings/prevent-duplicate-continue-watching',
+    { preHandler: requireAdmin },
+    async (_request, reply) => {
+      try {
+        const config = await getPreventDuplicateContinueWatchingConfig()
+        return reply.send(config)
+      } catch (err) {
+        fastify.log.error({ err }, 'Failed to get prevent duplicate continue watching config')
+        return reply.status(500).send({ error: 'Failed to get configuration' })
+      }
+    }
+  )
+
+  /**
+   * PATCH /api/settings/prevent-duplicate-continue-watching
+   * Update the prevent duplicate continue watching configuration
+   */
+  fastify.patch<{
+    Body: {
+      enabled?: boolean
+    }
+  }>(
+    '/api/settings/prevent-duplicate-continue-watching',
+    { preHandler: requireAdmin },
+    async (request, reply) => {
+      try {
+        const config = await setPreventDuplicateContinueWatchingConfig(request.body)
+        return reply.send({
+          ...config,
+          message: 'Configuration updated. Remember to rebuild libraries for changes to take effect.',
+        })
+      } catch (err) {
+        fastify.log.error({ err }, 'Failed to update prevent duplicate continue watching config')
+        return reply.status(500).send({ error: 'Failed to update configuration' })
+      }
+    }
+  )
 
   // =========================================================================
   // AI Explanation Settings (Admin Only)

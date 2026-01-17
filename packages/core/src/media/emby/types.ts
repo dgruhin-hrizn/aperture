@@ -209,6 +209,12 @@ export interface EmbyEpisode {
     Type: string
     PrimaryImageTag?: string
   }>
+  ProviderIds?: {
+    Imdb?: string
+    Tmdb?: string
+    Tvdb?: string
+    [key: string]: string | undefined
+  }
   ImageTags?: {
     Primary?: string
   }
