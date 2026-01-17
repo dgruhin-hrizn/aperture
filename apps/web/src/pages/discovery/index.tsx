@@ -13,6 +13,10 @@ import {
   Snackbar,
   ToggleButton,
   ToggleButtonGroup,
+  IconButton,
+  Tooltip,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material'
 import ExploreIcon from '@mui/icons-material/Explore'
 import RefreshIcon from '@mui/icons-material/Refresh'
@@ -26,6 +30,8 @@ import { useViewMode } from '../../hooks/useViewMode'
 import type { DiscoveryCandidate, MediaType } from './types'
 
 export function DiscoveryPage() {
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const {
     status,
     movieCandidates,
@@ -109,20 +115,53 @@ export function DiscoveryPage() {
   return (
     <Box>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3} flexWrap="wrap" gap={2}>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
         <Box>
-          <Box display="flex" alignItems="center" gap={2} mb={1}>
+          <Box display="flex" alignItems="center" gap={2} mb={{ xs: 0, sm: 1 }}>
             <ExploreIcon sx={{ color: 'primary.main', fontSize: 32 }} />
             <Typography variant="h4" fontWeight={700}>
               Discover
             </Typography>
           </Box>
-          <Typography variant="body1" color="text.secondary">
-            AI-powered suggestions for content not in your library
-          </Typography>
+          {!isMobile && (
+            <Typography variant="body1" color="text.secondary">
+              AI-powered suggestions for content not in your library
+            </Typography>
+          )}
         </Box>
 
-        <Box display="flex" gap={1} alignItems="center">
+        {/* Grid/List toggle always in upper right */}
+        <ToggleButtonGroup
+          value={viewMode}
+          exclusive
+          onChange={(_, v) => v && setViewMode(v)}
+          size="small"
+        >
+          <ToggleButton value="grid">
+            <GridViewIcon fontSize="small" />
+          </ToggleButton>
+          <ToggleButton value="list">
+            <ViewListIcon fontSize="small" />
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
+
+      {/* Action buttons row */}
+      <Box display="flex" gap={1} mb={2}>
+        {isMobile ? (
+          <Tooltip title={refreshing ? 'Refreshing...' : 'Refresh'}>
+            <span>
+              <IconButton
+                onClick={handleRefresh}
+                disabled={refreshing}
+                size="small"
+                sx={{ border: 1, borderColor: 'divider' }}
+              >
+                {refreshing ? <CircularProgress size={18} /> : <RefreshIcon fontSize="small" />}
+              </IconButton>
+            </span>
+          </Tooltip>
+        ) : (
           <Button
             variant="outlined"
             startIcon={refreshing ? <CircularProgress size={16} /> : <RefreshIcon />}
@@ -132,20 +171,7 @@ export function DiscoveryPage() {
           >
             {refreshing ? 'Refreshing...' : 'Refresh'}
           </Button>
-          <ToggleButtonGroup
-            value={viewMode}
-            exclusive
-            onChange={(_, v) => v && setViewMode(v)}
-            size="small"
-          >
-            <ToggleButton value="grid">
-              <GridViewIcon fontSize="small" />
-            </ToggleButton>
-            <ToggleButton value="list">
-              <ViewListIcon fontSize="small" />
-            </ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
+        )}
       </Box>
 
       {/* Tabs */}
@@ -168,7 +194,7 @@ export function DiscoveryPage() {
                   sx={{
                     height: 20,
                     minWidth: 20,
-                    bgcolor: 'primary.main',
+                    bgcolor: '#6366f1',
                     color: 'white',
                     fontSize: '0.75rem',
                     '& .MuiChip-label': { px: 0.75 },
@@ -177,6 +203,10 @@ export function DiscoveryPage() {
               )}
             </Box>
           }
+          sx={{
+            color: mediaType === 'movie' ? '#6366f1' : 'text.secondary',
+            '&.Mui-selected': { color: '#6366f1' },
+          }}
         />
         <Tab
           value="series"
@@ -192,7 +222,7 @@ export function DiscoveryPage() {
                   sx={{
                     height: 20,
                     minWidth: 20,
-                    bgcolor: 'secondary.main',
+                    bgcolor: '#ec4899',
                     color: 'white',
                     fontSize: '0.75rem',
                     '& .MuiChip-label': { px: 0.75 },
@@ -201,6 +231,10 @@ export function DiscoveryPage() {
               )}
             </Box>
           }
+          sx={{
+            color: mediaType === 'series' ? '#ec4899' : 'text.secondary',
+            '&.Mui-selected': { color: '#ec4899' },
+          }}
         />
       </Tabs>
 

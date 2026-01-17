@@ -11,6 +11,8 @@ import {
   ToggleButtonGroup,
   Tabs,
   Tab,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material'
 import WhatshotIcon from '@mui/icons-material/Whatshot'
 import MovieIcon from '@mui/icons-material/Movie'
@@ -67,6 +69,8 @@ interface TopPicksConfig {
 }
 
 export function TopPicksPage() {
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const { getRating, setRating } = useUserRatings()
@@ -330,26 +334,31 @@ export function TopPicksPage() {
   return (
     <Box>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3} flexWrap="wrap" gap={2}>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
         <Box>
-          <Box display="flex" alignItems="center" gap={2} mb={1}>
+          <Box display="flex" alignItems="center" gap={2} mb={{ xs: 0, sm: 1 }}>
             <WhatshotIcon sx={{ color: '#f97316', fontSize: 32 }} />
             <Typography variant="h4" fontWeight={700}>
               Top Picks
             </Typography>
           </Box>
-          <Typography variant="body1" color="text.secondary">
-            {config 
-              ? `Ranked by popularity based on watch activity from all users over the last ${tabIndex === 0 ? config.moviesTimeWindowDays : config.seriesTimeWindowDays} days`
-              : 'Ranked by popularity based on watch activity from all users'
-            }
-          </Typography>
-          {config?.lastRefreshedAt && (
-            <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
-              Last refreshed: {new Date(config.lastRefreshedAt).toLocaleDateString()}
-            </Typography>
+          {!isMobile && (
+            <>
+              <Typography variant="body1" color="text.secondary">
+                {config 
+                  ? `Ranked by popularity based on watch activity from all users over the last ${tabIndex === 0 ? config.moviesTimeWindowDays : config.seriesTimeWindowDays} days`
+                  : 'Ranked by popularity based on watch activity from all users'
+                }
+              </Typography>
+              {config?.lastRefreshedAt && (
+                <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
+                  Last refreshed: {new Date(config.lastRefreshedAt).toLocaleDateString()}
+                </Typography>
+              )}
+            </>
           )}
         </Box>
+        {/* Grid/List toggle always in upper right */}
         <ToggleButtonGroup
           value={viewMode}
           exclusive

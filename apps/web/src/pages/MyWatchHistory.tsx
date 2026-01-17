@@ -25,6 +25,8 @@ import {
   Button,
   Tooltip,
   Snackbar,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material'
 import GridViewIcon from '@mui/icons-material/GridView'
 import ViewListIcon from '@mui/icons-material/ViewList'
@@ -34,6 +36,9 @@ import HistoryIcon from '@mui/icons-material/History'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
+import AccessTimeIcon from '@mui/icons-material/AccessTime'
+import TrendingUpIcon from '@mui/icons-material/TrendingUp'
+import SortByAlphaIcon from '@mui/icons-material/SortByAlpha'
 import { MoviePoster } from '@aperture/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { useWatching } from '@/hooks/useWatching'
@@ -81,6 +86,8 @@ interface WatchHistoryResponse<T> {
 
 export function MyWatchHistoryPage() {
   const navigate = useNavigate()
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const { user } = useAuth()
   const { isWatching, toggleWatching } = useWatching()
   const { getRating, setRating } = useUserRatings()
@@ -279,18 +286,21 @@ export function MyWatchHistoryPage() {
   return (
     <Box>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3} flexWrap="wrap" gap={2}>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
         <Box>
-          <Box display="flex" alignItems="center" gap={2} mb={1}>
+          <Box display="flex" alignItems="center" gap={2} mb={{ xs: 0, sm: 1 }}>
             <HistoryIcon sx={{ color: 'primary.main', fontSize: 32 }} />
             <Typography variant="h4" fontWeight={700}>
               Watch History
             </Typography>
           </Box>
-          <Typography variant="body1" color="text.secondary">
-            {moviePagination.total.toLocaleString()} movies • {seriesPagination.total.toLocaleString()} series watched
-          </Typography>
+          {!isMobile && (
+            <Typography variant="body1" color="text.secondary">
+              {moviePagination.total.toLocaleString()} movies • {seriesPagination.total.toLocaleString()} series watched
+            </Typography>
+          )}
         </Box>
+        {/* Grid/List toggle always in upper right */}
         <ToggleButtonGroup
           value={viewMode}
           exclusive
@@ -310,20 +320,28 @@ export function MyWatchHistoryPage() {
           sx={{
             '& .MuiTab-root': {
               textTransform: 'none',
-              fontWeight: 600,
-              fontSize: '0.95rem',
+              fontWeight: 500,
+              minHeight: 48,
             }
           }}
         >
           <Tab 
             icon={<MovieIcon />} 
             iconPosition="start" 
-            label={`Movies (${moviePagination.total.toLocaleString()})`} 
+            label={`Movies (${moviePagination.total.toLocaleString()})`}
+            sx={{
+              color: tabValue === 0 ? '#6366f1' : 'text.secondary',
+              '&.Mui-selected': { color: '#6366f1' },
+            }}
           />
           <Tab 
             icon={<TvIcon />} 
             iconPosition="start" 
-            label={`Series (${seriesPagination.total.toLocaleString()})`} 
+            label={`Series (${seriesPagination.total.toLocaleString()})`}
+            sx={{
+              color: tabValue === 1 ? '#ec4899' : 'text.secondary',
+              '&.Mui-selected': { color: '#ec4899' },
+            }}
           />
         </Tabs>
       </Box>
@@ -351,9 +369,18 @@ export function MyWatchHistoryPage() {
             onChange={tabValue === 0 ? handleMovieSortChange : handleSeriesSortChange}
             size="small"
           >
-            <ToggleButton value="recent">Recent</ToggleButton>
-            <ToggleButton value="plays">Most Played</ToggleButton>
-            <ToggleButton value="title">A-Z</ToggleButton>
+            <ToggleButton value="recent">
+              <AccessTimeIcon fontSize="small" sx={{ mr: isMobile ? 0 : 0.5 }} />
+              {!isMobile && 'Recent'}
+            </ToggleButton>
+            <ToggleButton value="plays">
+              <TrendingUpIcon fontSize="small" sx={{ mr: isMobile ? 0 : 0.5 }} />
+              {!isMobile && 'Most Played'}
+            </ToggleButton>
+            <ToggleButton value="title">
+              <SortByAlphaIcon fontSize="small" sx={{ mr: isMobile ? 0 : 0.5 }} />
+              {!isMobile && 'A-Z'}
+            </ToggleButton>
           </ToggleButtonGroup>
         </Box>
         {isLoading && <CircularProgress size={20} />}

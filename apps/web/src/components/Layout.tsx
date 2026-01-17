@@ -107,7 +107,7 @@ export function Layout() {
   const handleCollapseToggle = async () => {
     const newCollapsed = !collapsed
     setCollapsed(newCollapsed)
-    
+
     // Persist preference to server
     try {
       await fetch('/api/auth/me/preferences', {
@@ -153,11 +153,11 @@ export function Layout() {
   const drawer = (
     <Box sx={{ overflow: 'auto', mt: 2, display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Logo */}
-      <Box 
-        px={collapsed ? 2 : 3} 
-        mb={3} 
-        sx={{ 
-          display: 'flex', 
+      <Box
+        px={collapsed ? 2 : 3}
+        mb={3}
+        sx={{
+          display: 'flex',
           justifyContent: collapsed ? 'center' : 'flex-start',
           cursor: 'pointer',
           '&:hover': { opacity: 0.8 },
@@ -278,25 +278,25 @@ export function Layout() {
       )}
 
       {/* Collapse toggle and version at bottom */}
-      <Box 
-        px={collapsed ? 1 : 2} 
-        py={1.5} 
-        sx={{ 
-          borderTop: 1, 
+      <Box
+        px={collapsed ? 1 : 2}
+        py={1.5}
+        sx={{
+          borderTop: 1,
           borderColor: 'divider',
           display: 'flex',
           alignItems: 'center',
           justifyContent: collapsed ? 'center' : 'space-between',
         }}
       >
-        <Tooltip 
-          title={collapsed ? 'Expand sidebar (v0.5.0)' : 'Collapse sidebar'} 
+        <Tooltip
+          title={collapsed ? 'Expand sidebar (v0.5.1)' : 'Collapse sidebar'}
           placement="right"
         >
           <IconButton
             onClick={handleCollapseToggle}
             size="small"
-            sx={{ 
+            sx={{
               color: 'text.secondary',
               transform: collapsed ? 'rotate(180deg)' : 'none',
               transition: 'transform 0.2s',
@@ -315,7 +315,7 @@ export function Layout() {
               fontSize: '0.7rem',
             }}
           >
-            v0.5.0
+            v0.5.1
           </Typography>
         )}
       </Box>
@@ -349,10 +349,10 @@ export function Layout() {
           </IconButton>
 
           {/* Mobile: Centered logo and name */}
-          <Box 
-            sx={{ 
-              display: { xs: 'flex', md: 'none' }, 
-              alignItems: 'center', 
+          <Box
+            sx={{
+              display: { xs: 'flex', md: 'none' },
+              alignItems: 'center',
               gap: 1,
               position: 'absolute',
               left: '50%',
@@ -452,8 +452,8 @@ export function Layout() {
       {/* Drawer */}
       <Box
         component="nav"
-        sx={{ 
-          width: { md: drawerWidth }, 
+        sx={{
+          width: { md: drawerWidth },
           flexShrink: { md: 0 },
           transition: theme.transitions.create('width', {
             easing: theme.transitions.easing.sharp,
@@ -527,7 +527,7 @@ export function Layout() {
 
       {/* Welcome Modal - shows on first visit */}
       <WelcomeModal />
-      
+
       {/* Welcome Modal - manually triggered from menu */}
       <WelcomeModal open={welcomeOpen} onClose={hideWelcome} />
 

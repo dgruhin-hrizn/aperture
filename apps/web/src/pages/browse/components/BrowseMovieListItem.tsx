@@ -10,6 +10,7 @@ import {
   Tooltip,
   alpha,
   useTheme,
+  useMediaQuery,
 } from '@mui/material'
 import StarIcon from '@mui/icons-material/Star'
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
@@ -40,10 +41,15 @@ export function BrowseMovieListItem({
   onClick,
 }: BrowseMovieListItemProps) {
   const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
 
   const handleOpenTmdb = (e: React.MouseEvent) => {
     e.stopPropagation()
     window.open(`https://www.themoviedb.org/movie/${movie.id}`, '_blank')
+  }
+
+  const handleRatingClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
   }
 
   return (
@@ -53,25 +59,31 @@ export function BrowseMovieListItem({
         borderRadius: 2,
         transition: 'transform 0.2s, box-shadow 0.2s',
         '&:hover': {
-          transform: 'translateY(-2px)',
-          boxShadow: 4,
+          transform: { xs: 'none', md: 'translateY(-2px)' },
+          boxShadow: { xs: 1, md: 4 },
         },
         display: 'flex',
-        flexDirection: { xs: 'column', md: 'row' },
+        flexDirection: 'row',
         alignItems: 'stretch',
         overflow: 'hidden',
       }}
     >
       <CardActionArea
         onClick={onClick}
-        sx={{ display: 'flex', flexGrow: 1, alignItems: 'stretch' }}
+        sx={{
+          display: 'flex',
+          flexGrow: 1,
+          alignItems: 'stretch',
+          // On mobile, let the action area take full width
+          width: { xs: '100%', md: 'auto' },
+        }}
       >
-        {/* Poster Section */}
+        {/* Poster Section - fills card height */}
         <Box
           sx={{
             position: 'relative',
-            width: { xs: '100%', md: 100 },
-            height: { xs: 200, md: 150 },
+            width: { xs: 100, sm: 110, md: 120 },
+            alignSelf: 'stretch',
             flexShrink: 0,
             overflow: 'hidden',
             bgcolor: 'grey.900',
@@ -97,42 +109,64 @@ export function BrowseMovieListItem({
         </Box>
 
         {/* Content Section */}
-        <CardContent sx={{ flexGrow: 1, p: 2, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <Typography variant="h6" fontWeight={600} noWrap mb={0.5}>
+        <CardContent
+          sx={{
+            flexGrow: 1,
+            p: { xs: 1.5, md: 2 },
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            minWidth: 0, // Allow text truncation
+            '&:last-child': { pb: { xs: 1.5, md: 2 } },
+          }}
+        >
+          <Typography
+            variant={isMobile ? 'body1' : 'h6'}
+            fontWeight={600}
+            noWrap
+            mb={0.5}
+            sx={{ fontSize: { xs: '0.95rem', md: '1.25rem' } }}
+          >
             {movie.title}
           </Typography>
-          
-          <Box display="flex" alignItems="center" gap={1} mb={1}>
+
+          <Box display="flex" alignItems="center" gap={{ xs: 0.75, md: 1 }} mb={{ xs: 0.5, md: 1 }} flexWrap="wrap">
             {movie.year && (
               <Box display="flex" alignItems="center" gap={0.5}>
-                <CalendarTodayIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
-                <Typography variant="body2" color="text.secondary">
+                <CalendarTodayIcon sx={{ fontSize: { xs: 12, md: 14 }, color: 'text.secondary' }} />
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
                   {movie.year}
                 </Typography>
               </Box>
             )}
             {movie.community_rating && (
               <Box display="flex" alignItems="center" gap={0.5}>
-                <StarIcon sx={{ fontSize: 14, color: '#fbbf24' }} />
-                <Typography variant="body2" color="text.secondary">
+                <StarIcon sx={{ fontSize: { xs: 12, md: 14 }, color: '#fbbf24' }} />
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
                   {Number(movie.community_rating).toFixed(1)}
                 </Typography>
               </Box>
             )}
           </Box>
-          
-          <Box display="flex" gap={0.5} flexWrap="wrap" mb={1}>
-            {movie.genres.slice(0, 4).map((genre) => (
+
+          {/* Genres - fewer on mobile */}
+          <Box display="flex" gap={0.5} flexWrap="wrap" mb={{ xs: 0.5, md: 1 }}>
+            {movie.genres.slice(0, isMobile ? 2 : 4).map((genre) => (
               <Chip
                 key={genre}
                 label={genre}
                 size="small"
                 variant="outlined"
-                sx={{ fontSize: '0.7rem', height: 22 }}
+                sx={{
+                  fontSize: { xs: '0.65rem', md: '0.7rem' },
+                  height: { xs: 18, md: 22 },
+                  '& .MuiChip-label': { px: { xs: 0.75, md: 1 } },
+                }}
               />
             ))}
           </Box>
-          
+
+          {/* Overview - single line on mobile, 2 lines on desktop */}
           <Typography
             variant="body2"
             color="text.secondary"
@@ -141,59 +175,91 @@ export function BrowseMovieListItem({
               WebkitLineClamp: 2,
               WebkitBoxOrient: 'vertical',
               overflow: 'hidden',
+              fontSize: { xs: '0.75rem', md: '0.875rem' },
             }}
           >
             {movie.overview || 'No description available.'}
           </Typography>
+
+          {/* Mobile: Inline actions */}
+          {isMobile && (
+            <Box
+              display="flex"
+              alignItems="center"
+              gap={1}
+              mt={1}
+              onClick={handleRatingClick}
+            >
+              <HeartRating
+                value={userRating}
+                onChange={(rating) => onRate(rating)}
+                size="small"
+              />
+              <Tooltip title="View on TMDb">
+                <IconButton
+                  onClick={handleOpenTmdb}
+                  size="small"
+                  sx={{
+                    p: 0.5,
+                    backgroundColor: alpha(theme.palette.grey[500], 0.1),
+                    '&:hover': { backgroundColor: alpha(theme.palette.grey[500], 0.2) },
+                  }}
+                >
+                  <OpenInNewIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          )}
         </CardContent>
       </CardActionArea>
 
-      {/* Actions Panel */}
-      <Box
-        sx={{
-          width: { xs: '100%', md: 140 },
-          flexShrink: 0,
-          p: 2,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: { xs: 'stretch', md: 'center' },
-          textAlign: 'center',
-          borderLeft: { xs: 0, md: 1 },
-          borderTop: { xs: 1, md: 0 },
-          borderColor: 'divider',
-          bgcolor: 'background.default',
-          gap: 1.5,
-        }}
-      >
-        {/* User Rating */}
-        <Box>
-          <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-            Your Rating
-          </Typography>
-          <HeartRating
-            value={userRating}
-            onChange={(rating) => onRate(rating)}
-            size="small"
-          />
-        </Box>
-
-        {/* Actions */}
-        <Box display="flex" justifyContent="center" gap={1}>
-          <Tooltip title="View on TMDb">
-            <IconButton
-              onClick={handleOpenTmdb}
+      {/* Desktop: Actions Panel */}
+      {!isMobile && (
+        <Box
+          sx={{
+            width: 140,
+            flexShrink: 0,
+            p: 2,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            textAlign: 'center',
+            borderLeft: 1,
+            borderColor: 'divider',
+            bgcolor: 'background.default',
+            gap: 1.5,
+          }}
+        >
+          {/* User Rating */}
+          <Box>
+            <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+              Your Rating
+            </Typography>
+            <HeartRating
+              value={userRating}
+              onChange={(rating) => onRate(rating)}
               size="small"
-              sx={{
-                backgroundColor: alpha(theme.palette.grey[500], 0.1),
-                '&:hover': { backgroundColor: alpha(theme.palette.grey[500], 0.2) },
-              }}
-            >
-              <OpenInNewIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
+            />
+          </Box>
+
+          {/* Actions */}
+          <Box display="flex" justifyContent="center" gap={1}>
+            <Tooltip title="View on TMDb">
+              <IconButton
+                onClick={handleOpenTmdb}
+                size="small"
+                sx={{
+                  backgroundColor: alpha(theme.palette.grey[500], 0.1),
+                  '&:hover': { backgroundColor: alpha(theme.palette.grey[500], 0.2) },
+                }}
+              >
+                <OpenInNewIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
         </Box>
-      </Box>
+      )}
     </Card>
   )
 }

@@ -16,6 +16,10 @@ import {
   Chip,
   ToggleButtonGroup,
   ToggleButton,
+  IconButton,
+  Tooltip,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import RefreshIcon from '@mui/icons-material/Refresh'
@@ -31,6 +35,8 @@ import { WatchingCard, WatchingListItem, AddSeriesDialog } from './components'
 type FilterType = 'all' | 'airing' | 'upcoming'
 
 export function WatchingPage() {
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const { series, loading, error, refreshing, removeSeries, refreshLibrary, refetch } = useWatchingData()
   const { getRating, setRating } = useUserRatings()
   const [addDialogOpen, setAddDialogOpen] = useState(false)
@@ -109,40 +115,25 @@ export function WatchingPage() {
   return (
     <Box>
       {/* Header */}
-      <Box 
-        display="flex" 
-        flexDirection={{ xs: 'column', sm: 'row' }}
-        justifyContent="space-between" 
-        alignItems={{ xs: 'stretch', sm: 'flex-start' }}
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="flex-start"
         gap={2}
         mb={2}
       >
         <Box>
-          <Typography variant="h4" fontWeight={700} mb={0.5}>
+          <Typography variant="h4" fontWeight={700} mb={{ xs: 0, sm: 0.5 }}>
             Shows You Watch
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Track series you're currently watching and see upcoming episodes
-          </Typography>
+          {!isMobile && (
+            <Typography variant="body2" color="text.secondary">
+              Track series you're currently watching and see upcoming episodes
+            </Typography>
+          )}
         </Box>
-        <Box display="flex" gap={1} flexWrap="wrap" alignItems="center">
-          <Button
-            variant="outlined"
-            startIcon={<RefreshIcon />}
-            onClick={handleRefresh}
-            disabled={refreshing || series.length === 0}
-            size="small"
-          >
-            {refreshing ? 'Syncing...' : 'Sync to Emby'}
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setAddDialogOpen(true)}
-            size="small"
-          >
-            Add Series
-          </Button>
+        <Box display="flex" gap={1} alignItems="center">
+          {/* Grid/List toggle always in upper right */}
           <ToggleButtonGroup
             value={viewMode}
             exclusive
@@ -159,39 +150,91 @@ export function WatchingPage() {
         </Box>
       </Box>
 
+      {/* Action buttons row */}
+      <Box display="flex" gap={1} mb={2}>
+        {isMobile ? (
+          <>
+            <Tooltip title={refreshing ? 'Syncing...' : 'Sync to Emby'}>
+              <span>
+                <IconButton
+                  onClick={handleRefresh}
+                  disabled={refreshing || series.length === 0}
+                  size="small"
+                  sx={{ border: 1, borderColor: 'divider' }}
+                >
+                  <RefreshIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Add Series">
+              <IconButton
+                onClick={() => setAddDialogOpen(true)}
+                size="small"
+                color="primary"
+                sx={{ bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' } }}
+              >
+                <AddIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </>
+        ) : (
+          <>
+            <Button
+              variant="outlined"
+              startIcon={<RefreshIcon />}
+              onClick={handleRefresh}
+              disabled={refreshing || series.length === 0}
+              size="small"
+            >
+              {refreshing ? 'Syncing...' : 'Sync to Emby'}
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setAddDialogOpen(true)}
+              size="small"
+            >
+              Add Series
+            </Button>
+          </>
+        )}
+      </Box>
+
       {/* Stats & Controls */}
       {series.length > 0 && (
-        <Box 
-          display="flex" 
+        <Box
+          display="flex"
           flexDirection={{ xs: 'column', md: 'row' }}
-          justifyContent="space-between" 
+          justifyContent="space-between"
           alignItems={{ xs: 'stretch', md: 'center' }}
-          gap={2} 
+          gap={2}
           mb={3}
         >
-          {/* Stats */}
-          <Box display="flex" gap={1} flexWrap="wrap">
-            <Chip
-              icon={<TvIcon />}
-              label={`${series.length} Series`}
-              variant="outlined"
-              size="small"
-            />
-            <Chip
-              icon={<TvIcon />}
-              label={`${airingCount} Currently Airing`}
-              color="success"
-              variant="outlined"
-              size="small"
-            />
-            <Chip
-              icon={<CalendarTodayIcon />}
-              label={`${upcomingCount} with Upcoming`}
-              color="primary"
-              variant="outlined"
-              size="small"
-            />
-          </Box>
+          {/* Stats - hidden on mobile since counts are in tabs */}
+          {!isMobile && (
+            <Box display="flex" gap={1} flexWrap="wrap">
+              <Chip
+                icon={<TvIcon />}
+                label={`${series.length} Series`}
+                variant="outlined"
+                size="small"
+              />
+              <Chip
+                icon={<TvIcon />}
+                label={`${airingCount} Currently Airing`}
+                color="success"
+                variant="outlined"
+                size="small"
+              />
+              <Chip
+                icon={<CalendarTodayIcon />}
+                label={`${upcomingCount} with Upcoming`}
+                color="primary"
+                variant="outlined"
+                size="small"
+              />
+            </Box>
+          )}
 
           {/* Filter Controls */}
           <ToggleButtonGroup
@@ -199,15 +242,16 @@ export function WatchingPage() {
             exclusive
             onChange={(_, value) => value && setFilter(value)}
             size="small"
+            fullWidth={isMobile}
           >
             <ToggleButton value="all">
-              All
+              All ({series.length})
             </ToggleButton>
-            <ToggleButton value="airing">
-              Airing
+            <ToggleButton value="airing" sx={{ color: filter === 'airing' ? 'success.main' : undefined }}>
+              Airing ({airingCount})
             </ToggleButton>
-            <ToggleButton value="upcoming">
-              Upcoming
+            <ToggleButton value="upcoming" sx={{ color: filter === 'upcoming' ? 'primary.main' : undefined }}>
+              Upcoming ({upcomingCount})
             </ToggleButton>
           </ToggleButtonGroup>
         </Box>
