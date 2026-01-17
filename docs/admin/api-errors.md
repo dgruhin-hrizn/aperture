@@ -2,6 +2,8 @@
 
 Understanding and resolving integration error alerts.
 
+![Admin Settings - Integrations](../images/admin/admin-settings-setup-integrations.png)
+
 ## Accessing Errors
 
 Error alerts appear:

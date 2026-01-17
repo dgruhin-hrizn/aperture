@@ -2,6 +2,8 @@
 
 Shows You Watch is a curated list of TV series you're actively following, with upcoming episode tracking and progress information.
 
+![Shows You Watch Page](../images/features/shows-you-watch.png)
+
 ## Accessing Shows You Watch
 
 Navigate to **Shows You Watch** in the sidebar (TV icon).

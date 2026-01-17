@@ -2,6 +2,8 @@
 
 Protect your data with automatic and manual backups.
 
+![Admin Settings - System](../images/admin/admin-settings-system.png)
+
 ## Accessing Settings
 
 Navigate to **Admin → Settings → System** (Backup & Restore section)

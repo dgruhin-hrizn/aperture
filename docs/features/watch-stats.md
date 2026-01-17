@@ -2,6 +2,8 @@
 
 The Watch Stats page provides detailed analytics and insights about your viewing habits.
 
+![Watch Stats Page](../images/features/watch-stats.png)
+
 ## Accessing Watch Stats
 
 Navigate to **Watch Stats** in the sidebar (chart icon).

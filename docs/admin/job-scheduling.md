@@ -2,6 +2,8 @@
 
 Configure when background jobs run automatically.
 
+![Admin Jobs](../images/admin/admin-jobs.png)
+
 ## Accessing Schedules
 
 Navigate to **Admin → Jobs**, then click the **gear icon** on any job.

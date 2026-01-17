@@ -2,6 +2,8 @@
 
 Aperture uses a 10-heart rating system that's compatible with Trakt.tv and influences your AI recommendations.
 
+![Browse Movies with Ratings](../images/features/browse-movies-list.png)
+
 ## How Ratings Work
 
 ### The 10-Heart Scale

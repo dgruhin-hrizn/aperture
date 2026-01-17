@@ -2,6 +2,8 @@
 
 After completing the Setup Wizard, follow this checklist to get Aperture fully operational.
 
+![Admin Jobs](../images/admin/admin-jobs.png)
+
 ## Quick Start Checklist
 
 | Step | Action | Location |

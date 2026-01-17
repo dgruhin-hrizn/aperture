@@ -2,6 +2,8 @@
 
 Configure per-user settings and override permissions.
 
+![Admin Users](../images/admin/admin-users.png)
+
 ## Accessing Permissions
 
 Navigate to **Admin → Users → [User]**

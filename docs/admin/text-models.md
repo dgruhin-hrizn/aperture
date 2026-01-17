@@ -2,6 +2,8 @@
 
 Configure which AI model generates taste profiles and recommendation explanations.
 
+![Admin Settings - AI/LLM](../images/admin/admin-settings-ai-llm.png)
+
 ## Accessing Settings
 
 Navigate to **Admin → Settings → AI / LLM → Text Generation Model**

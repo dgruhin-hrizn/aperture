@@ -2,6 +2,8 @@
 
 Studio pages show catalogs for production studios and TV networks.
 
+![Series Detail with Network](../images/features/series-detail.png)
+
 ## Accessing Studio Pages
 
 Multiple ways to reach a studio page:

@@ -2,6 +2,8 @@
 
 Connect to the Open Movie Database (OMDb) for Rotten Tomatoes and Metacritic scores.
 
+![Admin Settings - Integrations](../images/admin/admin-settings-setup-integrations.png)
+
 ## Accessing Settings
 
 Navigate to **Admin → Settings → Setup → Integrations**

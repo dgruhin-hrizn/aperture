@@ -2,6 +2,8 @@
 
 Explore is an AI-powered semantic graph that lets you discover content through visual connections and relationships.
 
+![Explore Page](../images/features/explore.png)
+
 ## Accessing Explore
 
 Navigate to **Explore** in the sidebar (hub icon).

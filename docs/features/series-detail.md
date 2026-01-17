@@ -2,6 +2,8 @@
 
 The Series Detail page shows comprehensive information about a TV series.
 
+![Series Detail Page](../images/features/series-detail.png)
+
 ## Page Sections
 
 ### Header

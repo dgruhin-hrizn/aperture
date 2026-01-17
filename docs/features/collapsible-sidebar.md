@@ -2,6 +2,10 @@
 
 The sidebar can be collapsed to save screen space while maintaining quick navigation access.
 
+![Sidebar Expanded](../images/features/sidebar-expanded.png)
+
+![Sidebar Collapsed](../images/features/sidebar-collapsed.png)
+
 ## Collapsing the Sidebar
 
 ### Toggle Methods

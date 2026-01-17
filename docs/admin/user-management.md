@@ -2,6 +2,8 @@
 
 Manage users and control who receives AI recommendations.
 
+![Admin Users](../images/admin/admin-users.png)
+
 ## Accessing Users
 
 Navigate to **Admin → Users**

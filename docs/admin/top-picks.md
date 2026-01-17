@@ -2,6 +2,8 @@
 
 Configure global trending content libraries based on watch activity or external rankings.
 
+![Admin Settings - Top Picks](../images/admin/admin-settings-top-picks.png)
+
 ## Accessing Settings
 
 Navigate to **Admin → Settings → Top Picks**

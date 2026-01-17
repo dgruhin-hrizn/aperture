@@ -2,6 +2,8 @@
 
 Discovery helps you find movies and TV series that aren't in your library yet, with AI-powered suggestions and optional Jellyseerr integration for requesting content.
 
+![Discovery Page](../images/features/discovery.png)
+
 ## Accessing Discovery
 
 Navigate to **Discover** in the sidebar (compass icon).

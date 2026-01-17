@@ -2,6 +2,8 @@
 
 Configure path mappings between Aperture and your media server for symlinks and STRM files to work correctly.
 
+![Admin Settings - Media Server](../images/admin/admin-settings-setup-media.png)
+
 ## Accessing Settings
 
 Navigate to **Admin → Settings → Setup → Media Server** (File Locations section)

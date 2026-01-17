@@ -2,6 +2,8 @@
 
 Configure which media libraries Aperture analyzes for recommendations.
 
+![Admin Settings - Media Server](../images/admin/admin-settings-setup-media.png)
+
 ## Accessing Settings
 
 Navigate to **Admin → Settings → Setup → Media Server** (Libraries section)

@@ -2,6 +2,8 @@
 
 Configure how Aperture creates virtual libraries in your media server.
 
+![Admin Settings - AI Recommendations](../images/admin/admin-settings-ai-recommendations.png)
+
 ## Accessing Settings
 
 Navigate to **Admin → Settings → AI Recommendations → Output**

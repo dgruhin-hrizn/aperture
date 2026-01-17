@@ -2,6 +2,8 @@
 
 Profile settings manage your account information, email, and notification preferences.
 
+![User Settings - Profile](../../images/user-settings/user-settings-profile.png)
+
 ## Accessing Profile Settings
 
 1. Click your avatar in the top navigation bar

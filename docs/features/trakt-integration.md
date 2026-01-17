@@ -2,6 +2,8 @@
 
 Connect your Trakt.tv account to sync ratings, access personalized Discovery suggestions, and maintain a unified viewing history.
 
+![User Settings - Profile](../images/user-settings/user-settings-profile.png)
+
 ## What Is Trakt?
 
 [Trakt.tv](https://trakt.tv) is a platform that tracks what you watch across all your devices and services. Connecting Trakt to Aperture enables:

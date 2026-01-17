@@ -2,6 +2,8 @@
 
 The Browse page is your library explorer with powerful filtering, sorting, and organization tools.
 
+![Browse Movies Grid View](../images/features/browse-movies-grid.png)
+
 ## Page Layout
 
 ### Tabs
@@ -43,6 +45,8 @@ The filter bar contains quick-access filters:
 
 Click the **Filters** button to open the advanced filter panel:
 
+![Filters Panel](../images/features/browse-filters-open.png)
+
 #### For Movies
 
 | Filter | Description |
@@ -81,6 +85,8 @@ When filters are active:
 ## Sorting
 
 Click the **Sort** button to change the sort order:
+
+![Sort Options](../images/features/browse-sort-open.png)
 
 ### Sort Options
 

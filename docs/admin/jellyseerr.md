@@ -2,6 +2,8 @@
 
 Connect to Jellyseerr (or Overseerr) to enable content requests from the Discovery page.
 
+![Admin Settings - Integrations](../images/admin/admin-settings-setup-integrations.png)
+
 ## Accessing Settings
 
 Navigate to **Admin → Settings → Setup → Integrations**

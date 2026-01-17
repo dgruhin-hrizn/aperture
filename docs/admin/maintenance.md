@@ -2,6 +2,8 @@
 
 Tools for maintaining Aperture's data and fixing common issues.
 
+![Admin Settings - Maintenance](../images/admin/admin-settings-maintenance.png)
+
 ## Accessing Settings
 
 Navigate to **Admin → Settings → Maintenance**

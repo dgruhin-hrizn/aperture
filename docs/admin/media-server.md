@@ -2,6 +2,8 @@
 
 Configure the connection between Aperture and your Emby or Jellyfin server.
 
+![Admin Settings - Media Server](../images/admin/admin-settings-setup-media.png)
+
 ## Accessing Settings
 
 Navigate to **Admin → Settings → Setup → Media Server**

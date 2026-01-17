@@ -2,6 +2,8 @@
 
 Encore is Aperture's AI assistant that helps you find content through natural conversation.
 
+![Dashboard showing AI features](../images/features/dashboard.png)
+
 ## Accessing Encore
 
 Click the **sparkle button** (✨) in the bottom-right corner of any page.

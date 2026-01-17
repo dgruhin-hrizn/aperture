@@ -2,6 +2,8 @@
 
 Search across your entire library to find movies, series, people, and more.
 
+![Dashboard with Search](../images/features/dashboard.png)
+
 ## Accessing Search
 
 - Click the **search icon** (🔍) in the top navigation bar

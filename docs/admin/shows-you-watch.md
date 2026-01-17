@@ -2,6 +2,8 @@
 
 Configure the automatic tracking of ongoing series users are watching.
 
+![Admin Settings - Shows You Watch](../images/admin/admin-settings-shows-you-watch.png)
+
 ## Accessing Settings
 
 Navigate to **Admin → Settings → Shows You Watch**

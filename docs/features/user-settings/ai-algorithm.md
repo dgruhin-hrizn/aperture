@@ -2,6 +2,8 @@
 
 Customize how Aperture's AI generates your personalized recommendations by adjusting scoring weights.
 
+![User Settings - AI Algorithm](../../images/user-settings/user-settings-ai-algorithm.png)
+
 ## Accessing Algorithm Settings
 
 1. Click your avatar in the top navigation bar

@@ -2,6 +2,8 @@
 
 Background jobs power Aperture's core functionality, from syncing media to generating recommendations.
 
+![Admin Jobs](../images/admin/admin-jobs.png)
+
 ## Accessing Jobs
 
 Navigate to **Admin → Jobs**

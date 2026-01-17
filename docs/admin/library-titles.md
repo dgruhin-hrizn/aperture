@@ -2,6 +2,8 @@
 
 Configure default naming patterns for Aperture-created libraries.
 
+![Admin Settings - AI Recommendations](../images/admin/admin-settings-ai-recommendations.png)
+
 ## Accessing Settings
 
 Navigate to **Admin → Settings → AI Recommendations → Output**

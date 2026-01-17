@@ -2,6 +2,8 @@
 
 Similarity graphs appear on movie and series detail pages, showing related content in an interactive visualization.
 
+![Movie Detail Page](../images/features/movie-detail.png)
+
 ## Accessing Similarity Graphs
 
 1. Navigate to any movie or series detail page

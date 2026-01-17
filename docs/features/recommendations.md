@@ -2,6 +2,8 @@
 
 The Recommendations page shows AI-generated personalized suggestions based on your watch history and ratings.
 
+![Recommendations Page](../images/features/recommendations.png)
+
 ## Accessing Recommendations
 
 Navigate to **Recommendations** in the sidebar (sparkle icon).

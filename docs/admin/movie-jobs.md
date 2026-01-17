@@ -2,6 +2,8 @@
 
 Background jobs for syncing, processing, and building movie libraries.
 
+![Admin Jobs](../images/admin/admin-jobs.png)
+
 ## Job List
 
 | Job | Purpose |

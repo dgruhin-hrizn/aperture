@@ -2,6 +2,8 @@
 
 The Movie Detail page shows comprehensive information about a specific movie.
 
+![Movie Detail Page](../images/features/movie-detail.png)
+
 ## Page Sections
 
 ### Header

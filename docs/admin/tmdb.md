@@ -2,6 +2,8 @@
 
 Connect to The Movie Database (TMDb) for enhanced metadata enrichment.
 
+![Admin Settings - Integrations](../images/admin/admin-settings-setup-integrations.png)
+
 ## Accessing Settings
 
 Navigate to **Admin → Settings → Setup → Integrations**

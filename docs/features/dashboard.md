@@ -2,6 +2,8 @@
 
 The Dashboard is your personalized home screen showing AI recommendations, trending content, and recent activity.
 
+![Dashboard](../images/features/dashboard.png)
+
 ## Quick Stats Bar
 
 At the top, you'll see your viewing statistics:

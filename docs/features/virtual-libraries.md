@@ -2,6 +2,8 @@
 
 Virtual Libraries are special libraries that Aperture creates in your Emby or Jellyfin server, providing direct access to AI-curated content.
 
+![Admin Settings](../images/admin/admin-settings.png)
+
 ## What Are Virtual Libraries?
 
 Virtual libraries appear alongside your regular libraries but contain:

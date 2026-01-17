@@ -2,6 +2,8 @@
 
 Best practices for operating Aperture efficiently.
 
+![Admin Jobs](../images/admin/admin-jobs.png)
+
 ---
 
 ## Default Schedule

@@ -2,6 +2,8 @@
 
 Aperture integrates with several external services to enhance metadata, enable rating sync, and power discovery features.
 
+![Admin Settings - Integrations](../images/admin/admin-settings-setup-integrations.png)
+
 ## Accessing Settings
 
 Navigate to **Admin → Settings → Setup → Integrations**

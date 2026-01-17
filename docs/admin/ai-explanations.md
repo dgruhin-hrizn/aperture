@@ -2,6 +2,8 @@
 
 Configure whether AI-generated explanations appear with recommendations.
 
+![Admin Settings - AI Recommendations](../images/admin/admin-settings-ai-recommendations.png)
+
 ## Accessing Settings
 
 Navigate to **Admin → Settings → AI Recommendations → AI Features**

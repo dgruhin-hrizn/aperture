@@ -2,6 +2,8 @@
 
 Watcher Identity is an advanced settings section that shows your computed taste profile and allows fine-tuning of how your viewing history influences recommendations.
 
+![User Settings - Watcher Identity](../../images/user-settings/user-settings-watcher-identity.png)
+
 ## Accessing Watcher Identity
 
 1. Click your avatar in the top navigation bar
@@ -16,12 +18,12 @@ Watcher Identity analyzes your watch history to build a profile of your viewing 
 
 ### Components
 
-| Component | Purpose |
-|-----------|---------|
-| **Identity Profiles** | Abstract taste descriptions |
+| Component             | Purpose                          |
+| --------------------- | -------------------------------- |
+| **Identity Profiles** | Abstract taste descriptions      |
 | **Franchise Weights** | Influence of specific franchises |
-| **Genre Weights** | Influence of specific genres |
-| **History Sources** | Which libraries to consider |
+| **Genre Weights**     | Influence of specific genres     |
+| **History Sources**   | Which libraries to consider      |
 
 ---
 
@@ -53,6 +55,7 @@ Click **Analyze Watch History** to regenerate your identity:
 4. Updates franchise and genre weights
 
 **When to regenerate:**
+
 - After watching significant new content
 - After rating many items
 - If recommendations feel off
@@ -66,11 +69,11 @@ Click **Analyze Watch History** to regenerate your identity:
 
 Franchises detected from your watch history with their influence level:
 
-| Franchise | Weight | Meaning |
-|-----------|--------|---------|
-| Marvel Cinematic Universe | 0.8 | Strong influence |
-| Star Wars | 0.5 | Moderate influence |
-| James Bond | 0.3 | Mild influence |
+| Franchise                 | Weight | Meaning            |
+| ------------------------- | ------ | ------------------ |
+| Marvel Cinematic Universe | 0.8    | Strong influence   |
+| Star Wars                 | 0.5    | Moderate influence |
+| James Bond                | 0.3    | Mild influence     |
 
 ### How Weights Work
 
@@ -94,12 +97,12 @@ Click the **X** next to any franchise to remove it from consideration:
 
 ### Use Cases
 
-| Goal | Action |
-|------|--------|
-| Too many Marvel recommendations | Lower MCU weight |
-| Done with a franchise | Set weight to 0 or delete |
-| Want more of a series | Increase its weight |
-| Franchise was a one-time watch | Delete it |
+| Goal                            | Action                    |
+| ------------------------------- | ------------------------- |
+| Too many Marvel recommendations | Lower MCU weight          |
+| Done with a franchise           | Set weight to 0 or delete |
+| Want more of a series           | Increase its weight       |
+| Franchise was a one-time watch  | Delete it                 |
 
 ---
 
@@ -109,12 +112,12 @@ Click the **X** next to any franchise to remove it from consideration:
 
 Genres detected from your watch history with their influence:
 
-| Genre | Weight | Watch Count |
-|-------|--------|-------------|
-| Science Fiction | 0.9 | 45 movies |
-| Action | 0.7 | 32 movies |
-| Drama | 0.6 | 28 movies |
-| Comedy | 0.4 | 18 movies |
+| Genre           | Weight | Watch Count |
+| --------------- | ------ | ----------- |
+| Science Fiction | 0.9    | 45 movies   |
+| Action          | 0.7    | 32 movies   |
+| Drama           | 0.6    | 28 movies   |
+| Comedy          | 0.4    | 18 movies   |
 
 ### How Genre Weights Work
 
@@ -158,11 +161,11 @@ All your standard libraries are included:
 
 You may want to exclude:
 
-| Library | Why Exclude |
-|---------|-------------|
-| Kids library | Different taste than yours |
-| Shared library | Contains others' watches |
-| Documentary library | Want entertainment focus |
+| Library             | Why Exclude                |
+| ------------------- | -------------------------- |
+| Kids library        | Different taste than yours |
+| Shared library      | Contains others' watches   |
+| Documentary library | Want entertainment focus   |
 
 ### Setting Exclusions
 
@@ -187,16 +190,17 @@ Sets the minimum number of items watched to consider a franchise.
 ### Example
 
 If set to 3:
+
 - Watched 2 Marvel movies → Marvel not in franchise weights
 - Watched 3+ Marvel movies → Marvel appears in franchise weights
 
 ### Why Adjust
 
-| Setting | Effect |
-|---------|--------|
+| Setting         | Effect                                      |
+| --------------- | ------------------------------------------- |
 | **Lower (1-2)** | More franchises detected, some may be noise |
-| **Default (3)** | Balanced detection |
-| **Higher (5+)** | Only strong franchise engagement detected |
+| **Default (3)** | Balanced detection                          |
+| **Higher (5+)** | Only strong franchise engagement detected   |
 
 ---
 

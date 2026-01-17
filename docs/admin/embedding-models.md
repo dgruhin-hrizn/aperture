@@ -2,6 +2,8 @@
 
 Configure which AI model generates embeddings for similarity matching and recommendations.
 
+![Admin Settings - AI/LLM](../images/admin/admin-settings-ai-llm.png)
+
 ## Accessing Settings
 
 Navigate to **Admin → Settings → AI / LLM → Embedding Model**

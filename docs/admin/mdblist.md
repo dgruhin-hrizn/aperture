@@ -2,6 +2,8 @@
 
 Connect to MDBList for curated movie/TV lists and as a Top Picks popularity source.
 
+![Admin Settings - Integrations](../images/admin/admin-settings-setup-integrations.png)
+
 ## Accessing Settings
 
 Navigate to **Admin → Settings → Setup → Integrations**

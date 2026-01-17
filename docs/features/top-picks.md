@@ -2,6 +2,8 @@
 
 Top Picks shows trending content across all users on your server or from external ranking sources.
 
+![Top Picks Page](../images/features/top-picks.png)
+
 ## Accessing Top Picks
 
 Navigate to **Top Picks** in the sidebar (flame icon).

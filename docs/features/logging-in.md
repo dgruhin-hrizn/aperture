@@ -2,6 +2,8 @@
 
 Aperture uses your existing Emby or Jellyfin credentials — no separate account needed.
 
+![Login Screen](../images/features/login.png)
+
 ## How to Log In
 
 1. Open Aperture in your browser

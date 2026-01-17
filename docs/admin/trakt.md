@@ -2,6 +2,8 @@
 
 Connect Aperture to Trakt.tv for bidirectional rating sync and enhanced Discovery suggestions.
 
+![Admin Settings - Integrations](../images/admin/admin-settings-setup-integrations.png)
+
 ## Accessing Settings
 
 Navigate to **Admin → Settings → Setup → Integrations**

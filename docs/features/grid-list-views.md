@@ -2,6 +2,10 @@
 
 Most content pages offer two display modes: Grid View and List View. Your preference is saved per page.
 
+![Browse Grid View](../images/features/browse-movies-grid.png)
+
+![Browse List View](../images/features/browse-movies-list.png)
+
 ## Overview
 
 ### Where Views Are Available

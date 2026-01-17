@@ -2,6 +2,8 @@
 
 Person pages show filmographies for actors, directors, writers, and other crew members.
 
+![Movie Detail with Cast](../images/features/movie-detail.png)
+
 ## Accessing Person Pages
 
 Multiple ways to reach a person page:

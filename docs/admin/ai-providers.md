@@ -2,6 +2,8 @@
 
 Configure your AI/LLM provider for embeddings, recommendations, and the Encore chatbot.
 
+![Admin Settings - AI/LLM](../images/admin/admin-settings-ai-llm.png)
+
 ## Accessing Settings
 
 Navigate to **Admin → Settings → AI / LLM**

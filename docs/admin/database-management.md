@@ -2,6 +2,8 @@
 
 View database statistics and perform data management operations.
 
+![Admin Settings - System](../images/admin/admin-settings-system.png)
+
 ## Accessing Settings
 
 Navigate to **Admin → Settings → System** (Database section)

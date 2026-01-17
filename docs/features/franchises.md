@@ -2,6 +2,8 @@
 
 The Franchises page shows movie collections and series universes in your library.
 
+![Browse with Franchise Filter](../images/features/browse-movies-grid.png)
+
 ## What Are Franchises?
 
 Franchises are groups of related content:

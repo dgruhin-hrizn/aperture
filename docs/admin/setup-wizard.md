@@ -2,6 +2,8 @@
 
 The Setup Wizard guides you through initial Aperture configuration in 11 steps. It appears automatically on first access or can be re-run from Admin Settings.
 
+![Admin Overview](../images/admin/admin-overview.png)
+
 ## Accessing the Wizard
 
 - **First time:** Automatically shown when accessing Aperture

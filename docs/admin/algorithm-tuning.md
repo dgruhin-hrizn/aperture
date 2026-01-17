@@ -2,6 +2,8 @@
 
 Configure the recommendation algorithm weights and parameters.
 
+![Admin Settings - AI Recommendations](../images/admin/admin-settings-ai-recommendations.png)
+
 ## Accessing Settings
 
 Navigate to **Admin → Settings → AI Recommendations → Algorithm**

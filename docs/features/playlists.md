@@ -2,6 +2,8 @@
 
 Playlists allow you to create custom collections of movies and series for organization and tracking.
 
+![Playlists Page](../images/features/playlists.png)
+
 ## Accessing Playlists
 
 Navigate to **Playlists** in the sidebar (playlist icon).

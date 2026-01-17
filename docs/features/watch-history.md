@@ -2,6 +2,8 @@
 
 The Watch History page shows everything you've watched, with filtering and management options.
 
+![Watch History Page](../images/features/watch-history.png)
+
 ## Accessing Watch History
 
 Navigate to **Watch History** in the sidebar (clock icon).

@@ -2,6 +2,8 @@
 
 Preferences control how Aperture displays content and behaves for your account.
 
+![User Settings - Preferences](../../images/user-settings/user-settings-preferences.png)
+
 ## Accessing Preferences
 
 1. Click your avatar in the top navigation bar

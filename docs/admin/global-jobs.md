@@ -2,6 +2,8 @@
 
 Background jobs that span content types or handle system-wide functions.
 
+![Admin Jobs](../images/admin/admin-jobs.png)
+
 ## Job List
 
 | Job | Purpose |
