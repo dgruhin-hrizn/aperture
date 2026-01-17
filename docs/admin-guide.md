@@ -11,6 +11,12 @@ Start here if you're new to Aperture:
 1. [Setup Wizard](admin/setup-wizard.md) — 11-step initial configuration
 2. [Post-Setup Checklist](admin/post-setup-checklist.md) — Get recommendations running
 
+### Platform-Specific Guides
+
+| Platform | Guide |
+|----------|-------|
+| **Windows Docker Desktop** | [Windows Setup Guide](admin/windows-docker-desktop.md) — Docker Desktop + native Emby/Jellyfin |
+
 ---
 
 ## Setup Configuration
@@ -174,6 +180,7 @@ All admin documentation files:
 ### Setup
 - [admin/setup-wizard.md](admin/setup-wizard.md)
 - [admin/post-setup-checklist.md](admin/post-setup-checklist.md)
+- [admin/windows-docker-desktop.md](admin/windows-docker-desktop.md)
 - [admin/media-server.md](admin/media-server.md)
 - [admin/libraries.md](admin/libraries.md)
 - [admin/file-locations.md](admin/file-locations.md)

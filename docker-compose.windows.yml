@@ -1,0 +1,191 @@
+# =============================================================================
+# Aperture - Windows Docker Desktop (with Emby/Jellyfin running natively)
+# =============================================================================
+# Use this when:
+#   - You have Docker Desktop installed on Windows
+#   - Emby or Jellyfin is running directly on Windows (NOT in Docker)
+#   - Your media is on network shares (NAS) or local drives
+#
+# This configuration uses STRM mode - symlinks are NOT supported because
+# Aperture runs in a Linux container while your media server runs on Windows.
+# STRM files contain Windows paths that Emby reads and resolves directly.
+#
+# Quick start:
+#   1. Edit the REQUIRED settings below
+#   2. Open PowerShell, navigate to this folder
+#   3. Run: docker-compose -f docker-compose.windows.yml up -d
+#
+# Update to latest version:
+#   docker-compose -f docker-compose.windows.yml pull
+#   docker-compose -f docker-compose.windows.yml up -d
+#
+# =============================================================================
+# HOW IT WORKS
+# =============================================================================
+# ┌─────────────────────────────────────────────────────────────────┐
+# │  Windows PC                                                     │
+# │                                                                 │
+# │  ┌─────────────────┐     ┌─────────────────────────────────┐    │
+# │  │  Emby Server    │     │  Docker Desktop                 │    │
+# │  │  (native)       │     │  ┌─────────────────────────┐    │    │
+# │  │                 │◄────│──│  Aperture container     │    │    │
+# │  │  localhost:8096 │     │  │  uses:                  │    │    │
+# │  │                 │     │  │  host.docker.internal   │    │    │
+# │  └─────────────────┘     │  └─────────────────────────┘    │    │
+# │          │               └─────────────────────────────────┘    │
+# │          ▼                                                      │
+# │  ┌───────────────────────────────────────────────────────────┐  │
+# │  │  Media (Local or Network Shares)                          │  │
+# │  │  C:\Media\Movies\                                         │  │
+# │  │  D:\TV Shows\                                             │  │
+# │  │  \\NAS\Media\Movies\                                      │  │
+# │  │  M:\ApertureLibraries\  ← Aperture writes here            │  │
+# │  └───────────────────────────────────────────────────────────┘  │
+# └─────────────────────────────────────────────────────────────────┘
+#
+# KEY CONCEPT: Aperture only needs write access to ONE location for output.
+# It reads all media information from Emby's API - it doesn't need direct
+# access to your movies or TV shows. The STRM files it creates contain the
+# Windows paths that Emby already knows.
+#
+# =============================================================================
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: aperture-db
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: aperture
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U app -d aperture']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  app:
+    image: ghcr.io/dgruhin-hrizn/aperture:latest
+    container_name: aperture
+    user: root
+    environment:
+      NODE_ENV: production
+      PORT: 3456
+      DATABASE_URL: postgres://app:app@db:5432/aperture
+      RUN_MIGRATIONS_ON_START: 'true'
+      # =========================================================================
+      # REQUIRED: Set these before starting!
+      # =========================================================================
+      # Your Windows PC's IP address (find it with: ipconfig)
+      # Example: http://192.168.1.100:3456
+      APP_BASE_URL: http://YOUR_WINDOWS_IP:3456
+      # Session secret - MUST be a random string at least 32 characters
+      # Generate one at: https://randomkeygen.com/ (use "Fort Knox Passwords")
+      SESSION_SECRET: PASTE_YOUR_RANDOM_KEY_HERE
+      # Timezone for scheduled jobs (IANA format)
+      # Find yours at: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+      TZ: America/New_York
+    ports:
+      - '3456:3456'
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # ─────────────────────────────────────────────────────────────────────────
+      # VOLUME 1: Aperture Libraries Output
+      # ─────────────────────────────────────────────────────────────────────────
+      # This is where Aperture writes STRM files. You have two options:
+      #
+      # OPTION A: Local folder on Windows (simplest)
+      #   - C:\ApertureLibraries:/aperture-libraries
+      #
+      # OPTION B: Network share (if your Emby uses network paths)
+      #   For a share at M:\MediaNAS\ApertureLibraries, use:
+      #   - //YOUR_NAS_IP/MediaNAS/ApertureLibraries:/aperture-libraries
+      #   Or with the share name:
+      #   - //NAS_NAME/ShareName/ApertureLibraries:/aperture-libraries
+      #
+      # NOTE: Docker Desktop must have access to this path. For network shares,
+      # you may need to configure credentials in Docker Desktop settings.
+      #
+      - C:/ApertureLibraries:/aperture-libraries
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # VOLUME 2: Database Backups
+      # ─────────────────────────────────────────────────────────────────────────
+      # Automatic database backups are stored here. Daily backups run at 2 AM.
+      #
+      - C:/ApertureBackups:/backups
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # NO MEDIA MOUNT NEEDED!
+      # ─────────────────────────────────────────────────────────────────────────
+      # In STRM mode, Aperture gets all media information from Emby's API.
+      # The STRM files contain Windows paths (like D:\Movies\Film.mkv) that
+      # Emby reads and resolves directly. Aperture never touches your media.
+      #
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+
+# =============================================================================
+# SETUP WIZARD - IMPORTANT SETTINGS
+# =============================================================================
+# After starting Aperture, visit http://YOUR_WINDOWS_IP:3456
+#
+# In the Setup Wizard, use these settings:
+#
+#   MEDIA SERVER CONNECTION:
+#   ┌─────────────────────────────────────────────────────────────────────────┐
+#   │ Server URL:  http://host.docker.internal:8096                           │
+#   │              ^^^^^^^^^^^^^^^^^^^^^^^^^ This special hostname lets       │
+#   │              Docker containers reach the Windows host                   │
+#   └─────────────────────────────────────────────────────────────────────────┘
+#
+#   FILE LOCATIONS:
+#   ┌─────────────────────────────────────────────────────────────────────────┐
+#   │ Where does your media server see Aperture's libraries?                  │
+#   │                                                                         │
+#   │ Use the WINDOWS path to your ApertureLibraries folder:                  │
+#   │   - Local:   C:\ApertureLibraries\                                      │
+#   │   - Network: M:\MediaNAS\ApertureLibraries\  (as Windows sees it)       │
+#   └─────────────────────────────────────────────────────────────────────────┘
+#
+#   OUTPUT FORMAT:
+#   ┌─────────────────────────────────────────────────────────────────────────┐
+#   │ Movies Use Symlinks:  OFF (use STRM)                                    │
+#   │ Series Use Symlinks:  OFF (use STRM)                                    │
+#   │                                                                         │
+#   │ ⚠️  STRM mode is REQUIRED for Windows Docker Desktop!                   │
+#   │     Symlinks won't work across Linux container → Windows host           │
+#   └─────────────────────────────────────────────────────────────────────────┘
+#
+# =============================================================================
+# TROUBLESHOOTING
+# =============================================================================
+#
+# "Cannot connect to Emby" error?
+#   - Verify Emby is running: http://localhost:8096 in your browser
+#   - Use http://host.docker.internal:8096 (NOT localhost) in Aperture
+#   - Check Windows Firewall isn't blocking Docker
+#
+# "Permission denied" on network share?
+#   - Open Docker Desktop → Settings → Resources → File Sharing
+#   - Add the network path or ensure credentials are configured
+#   - For UNC paths, you may need to use IP instead of hostname
+#
+# Container won't start?
+#   - Ensure Docker Desktop is running
+#   - Check the Docker Desktop dashboard for error messages
+#   - Run: docker logs aperture
+#
+# STRM files not working in Emby?
+#   - Verify the "Aperture Libraries Path" in settings matches Windows path
+#   - Add the ApertureLibraries folder as a new library in Emby
+#   - Check a STRM file contains a valid Windows path (open with Notepad)
+#
+# =============================================================================
