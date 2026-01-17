@@ -1,6 +1,26 @@
 import type { Movie } from '../types.js'
 
 /**
+ * Generate a unique fake provider ID that will never collide with real IDs.
+ * We use a deterministic hash based on the movie's internal ID so rebuilding
+ * the library generates the same fake IDs (prevents Emby from detecting changes).
+ */
+function generateFakeProviderId(movieId: string, prefix: string): string {
+  // Use a deterministic UUID based on the movie ID and prefix
+  // This ensures the same movie always gets the same fake IDs
+  const seed = `aperture-${prefix}-${movieId}`
+  // Simple hash to make it deterministic
+  let hash = 0
+  for (let i = 0; i < seed.length; i++) {
+    const char = seed.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // Convert to 32bit integer
+  }
+  // Format as a fake IMDB-style ID: aperture + hash
+  return `aperture${Math.abs(hash).toString(36)}`
+}
+
+/**
  * Escape XML special characters
  */
 export function escapeXml(text: string): string {
@@ -57,6 +77,9 @@ export function generateNfoContent(
   const lines: string[] = [
     '<?xml version="1.0" encoding="utf-8"?>',
     '<movie>',
+    // Lock data prevents Emby from auto-fetching ProviderIds (IMDB/TMDB) from online sources
+    // This is critical for preventing duplicate Continue Watching entries
+    '  <lockdata>true</lockdata>',
     `  <title>${escapeXml(movie.title)}</title>`,
   ]
 
@@ -182,13 +205,29 @@ export function generateNfoContent(
     }
   }
 
-  // External IDs
-  if (movie.imdbId) {
-    lines.push(`  <uniqueid type="imdb">${escapeXml(movie.imdbId)}</uniqueid>`)
-  }
-  if (movie.tmdbId) {
-    lines.push(`  <uniqueid type="tmdb">${movie.tmdbId}</uniqueid>`)
-  }
+  // Generate FAKE unique provider IDs that will never collide with real IDs.
+  // 
+  // Why: When real IDs (IMDB/TMDB) are present, Emby links items together and syncs playback state.
+  // This causes BOTH the original AND Aperture copy to appear in "Continue Watching".
+  // 
+  // By using fake IDs:
+  // 1. Emby won't try to fetch real IDs (provider fields are already populated)
+  // 2. The fake IDs will never match the original's real IDs (no linking)
+  // 3. <lockdata>true</lockdata> prevents Emby from "correcting" them
+  //
+  // Why it's safe: When you play a STRM file, Emby tracks playback on the item that owns the
+  // actual media file (the ORIGINAL), not the STRM. Our watch history sync only matches items
+  // in our `movies` table (which only contains originals), so watch history stays accurate.
+  //
+  // Result: No duplicates in Continue Watching, and watch history works correctly.
+  
+  // Use the movie's provider ID as seed if available, otherwise use title+year
+  const movieSeed = movie.id || `${movie.title}-${movie.year || 'unknown'}`
+  const fakeImdbId = generateFakeProviderId(movieSeed, 'imdb')
+  const fakeTmdbId = generateFakeProviderId(movieSeed, 'tmdb')
+  
+  lines.push(`  <uniqueid type="imdb" default="true">${fakeImdbId}</uniqueid>`)
+  lines.push(`  <uniqueid type="tmdb">${fakeTmdbId}</uniqueid>`)
 
   // File info (for display purposes)
   if (movie.videoResolution || movie.videoCodec || movie.audioCodec) {

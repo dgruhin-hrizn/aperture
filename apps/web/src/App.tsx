@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth'
 import { WatchingProvider } from './hooks/useWatching'
 import { SetupProvider, useSetupStatus } from './hooks/useSetupStatus'
 import { UserRatingsProvider } from './hooks/useUserRatings'
+import { ViewModeProvider } from './hooks/useViewMode'
 import { Layout } from './components/Layout'
 import { AdminLayout } from './components/AdminLayout'
 import { AssistantModal } from './components/AssistantModal'
@@ -20,7 +21,8 @@ import { SeriesPage } from './pages/Series'
 import { MovieDetailPage, SeriesDetailPage } from './pages/media-detail'
 import { PlaylistsPage } from './pages/playlists'
 import { UserSettingsPage } from './pages/UserSettings'
-import { TopPicksMoviesPage, TopPicksSeriesPage } from './pages/top-picks'
+import { TopPicksMoviesPage, TopPicksSeriesPage, TopPicksPage } from './pages/top-picks'
+import { BrowsePage } from './pages/Browse'
 import { WatchStatsPage } from './pages/WatchStats'
 import { SearchPage } from './pages/Search'
 import { FranchisesPage } from './pages/Franchises'
@@ -86,12 +88,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   // Wrap with providers so state is available everywhere
   // Include AssistantModal for AI chat on all authenticated pages
   return (
-    <UserRatingsProvider>
-      <WatchingProvider>
-        {children}
-        <AssistantModal />
-      </WatchingProvider>
-    </UserRatingsProvider>
+    <ViewModeProvider>
+      <UserRatingsProvider>
+        <WatchingProvider>
+          {children}
+          <AssistantModal />
+        </WatchingProvider>
+      </UserRatingsProvider>
+    </ViewModeProvider>
   )
 }
 
@@ -147,22 +151,24 @@ function AppRoutes() {
         {/* User Routes */}
         <Route index element={<DashboardPage />} />
         <Route path="recommendations" element={<MyRecommendationsPage />} />
+        <Route path="watching" element={<WatchingPage />} />
+        <Route path="top-picks" element={<TopPicksPage />} />
         <Route path="top-picks/movies" element={<TopPicksMoviesPage />} />
         <Route path="top-picks/series" element={<TopPicksSeriesPage />} />
-        <Route path="history" element={<MyWatchHistoryPage />} />
-        <Route path="stats" element={<WatchStatsPage />} />
+        <Route path="playlists" element={<PlaylistsPage />} />
+        <Route path="explore" element={<ExplorePage />} />
+        <Route path="discovery" element={<DiscoveryPage />} />
+        <Route path="browse" element={<BrowsePage />} />
         <Route path="movies" element={<MoviesPage />} />
         <Route path="movies/:id" element={<MovieDetailPage />} />
         <Route path="series" element={<SeriesPage />} />
         <Route path="series/:id" element={<SeriesDetailPage />} />
-        <Route path="playlists" element={<PlaylistsPage />} />
+        <Route path="history" element={<MyWatchHistoryPage />} />
+        <Route path="stats" element={<WatchStatsPage />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="franchises" element={<FranchisesPage />} />
-        <Route path="watching" element={<WatchingPage />} />
         <Route path="person/:name" element={<PersonDetailPage />} />
         <Route path="studio/:name" element={<StudioDetailPage />} />
-        <Route path="explore" element={<ExplorePage />} />
-        <Route path="discovery" element={<DiscoveryPage />} />
         <Route path="settings" element={<UserSettingsPage />} />
 
         {/* Admin Routes - nested under AdminLayout */}

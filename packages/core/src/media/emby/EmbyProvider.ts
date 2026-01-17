@@ -34,6 +34,7 @@ import {
   getUserLibraryAccess,
   updateUserLibraryAccess,
   refreshLibrary,
+  setLibrarySortPreference,
 } from './libraries.js'
 import { getMovies, getMovieById, getWatchHistory, markMovieUnplayed } from './movies.js'
 import {
@@ -121,6 +122,16 @@ export class EmbyProvider extends EmbyProviderBase implements MediaServerProvide
 
   async refreshLibrary(apiKey: string, libraryId: string): Promise<void> {
     return refreshLibrary(this, apiKey, libraryId)
+  }
+
+  async setLibrarySortPreference(
+    apiKey: string,
+    userId: string,
+    libraryId: string,
+    sortBy?: string,
+    sortOrder?: 'Ascending' | 'Descending'
+  ): Promise<void> {
+    return setLibrarySortPreference(this, apiKey, userId, libraryId, sortBy, sortOrder)
   }
 
   // Movies

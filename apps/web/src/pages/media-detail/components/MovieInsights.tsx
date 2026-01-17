@@ -14,7 +14,7 @@ import {
 } from '@mui/material'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
-import ExploreIcon from '@mui/icons-material/Explore'
+import HubOutlinedIcon from '@mui/icons-material/HubOutlined'
 import ThumbUpIcon from '@mui/icons-material/ThumbUp'
 import ShuffleIcon from '@mui/icons-material/Shuffle'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
@@ -130,7 +130,7 @@ export function MovieInsights({ insights }: MovieInsightsProps) {
                 <Tooltip title="How different this is from what you usually watch - helps you discover new things" arrow>
                   <Paper sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <ExploreIcon sx={{ color: 'success.main', fontSize: 20 }} />
+                      <HubOutlinedIcon sx={{ color: 'success.main', fontSize: 20 }} />
                       <Typography variant="body2" fontWeight={600}>Discovery</Typography>
                     </Box>
                     <Typography variant="h4" fontWeight={700} color="success.main">
@@ -219,7 +219,7 @@ export function MovieInsights({ insights }: MovieInsightsProps) {
                       size="small"
                       variant="outlined"
                       sx={{ borderColor: 'info.main', color: 'info.main' }}
-                      icon={<ExploreIcon sx={{ color: 'info.main', fontSize: 16 }} />}
+                      icon={<HubOutlinedIcon sx={{ color: 'info.main', fontSize: 16 }} />}
                     />
                   ))}
                 </Box>

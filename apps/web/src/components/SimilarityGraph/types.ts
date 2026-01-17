@@ -25,6 +25,9 @@ export interface GraphNode {
   poster_url: string | null
   type: 'movie' | 'series'
   isCenter: boolean
+  // Primary node info (for browse sources like AI Picks, Top Picks)
+  isPrimary?: boolean
+  primaryLabel?: string // e.g., "#1 on AI Movie Picks", "#3 in Top Pick Movies"
   // D3 simulation properties
   x?: number
   y?: number

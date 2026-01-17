@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Box,
   Typography,
@@ -35,17 +35,15 @@ interface JobProgress {
 const JOB_DISPLAY_NAMES: Record<string, string> = {
   'sync-movies': 'Syncing Movies',
   'generate-embeddings': 'Generating Embeddings',
-  'sync-watch-history': 'Syncing Watch History',
-  'full-sync-watch-history': 'Full Watch History Sync',
+  'sync-movie-watch-history': 'Syncing Movie Watch History',
   'generate-recommendations': 'Generating Recommendations',
   'rebuild-recommendations': 'Rebuilding Recommendations',
-  'sync-movie-libraries': 'Syncing Movie Libraries',
+  'sync-movie-libraries': 'Building Aperture Movie Libraries',
   'sync-series': 'Syncing Series',
   'generate-series-embeddings': 'Generating Series Embeddings',
-  'sync-series-watch-history': 'Syncing Series History',
-  'full-sync-series-watch-history': 'Full Series History Sync',
+  'sync-series-watch-history': 'Syncing Series Watch History',
   'generate-series-recommendations': 'Generating Series Recommendations',
-  'sync-series-libraries': 'Syncing Series Libraries',
+  'sync-series-libraries': 'Building Aperture Series Libraries',
   'refresh-top-picks': 'Refreshing Top Picks',
 }
 
@@ -75,7 +73,7 @@ export function RunningJobsWidget() {
 
   const open = Boolean(anchorEl)
 
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
     if (!user?.isAdmin) return
     
     try {
@@ -89,7 +87,7 @@ export function RunningJobsWidget() {
     } catch (error) {
       console.error('Failed to fetch active jobs:', error)
     }
-  }
+  }, [user?.isAdmin])
 
   useEffect(() => {
     if (!user?.isAdmin) return
@@ -102,7 +100,7 @@ export function RunningJobsWidget() {
         clearInterval(intervalRef.current)
       }
     }
-  }, [user?.isAdmin])
+  }, [user?.isAdmin, fetchJobs])
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(anchorEl ? null : event.currentTarget)

@@ -6,6 +6,13 @@ import type { MediaServerUser } from '../types.js'
 import type { EmbyUser } from './types.js'
 import type { EmbyProviderBase } from './base.js'
 
+// Helper to check if a string looks like an email
+function isValidEmail(str: string | undefined): boolean {
+  if (!str) return false
+  // Basic email validation - must contain @ and have text before and after
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str)
+}
+
 export async function getUsers(
   provider: EmbyProviderBase,
   apiKey: string
@@ -21,6 +28,9 @@ export async function getUsers(
     lastActivityDate: user.LastActivityDate,
     primaryImageTag: user.PrimaryImageTag,
     maxParentalRating: user.Policy.MaxParentalRating,
+    // ConnectUserName is the Emby Connect username - only use if it looks like an email
+    // Note: Emby does NOT expose actual email addresses via API for privacy reasons
+    email: isValidEmail(user.ConnectUserName) ? user.ConnectUserName : undefined,
   }))
 }
 
@@ -40,6 +50,8 @@ export async function getUserById(
     lastActivityDate: user.LastActivityDate,
     primaryImageTag: user.PrimaryImageTag,
     maxParentalRating: user.Policy.MaxParentalRating,
+    // Only use ConnectUserName if it looks like an email
+    email: isValidEmail(user.ConnectUserName) ? user.ConnectUserName : undefined,
   }
 }
 

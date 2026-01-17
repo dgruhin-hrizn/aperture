@@ -386,14 +386,8 @@ export function MoviePoster({
         )}
       </Paper>
 
-      {/* Title and metadata below poster - only when not hovered */}
-      <Box 
-        mt={1}
-        sx={{
-          opacity: isHovered ? 0 : 1,
-          transition: 'opacity 0.2s ease',
-        }}
-      >
+      {/* Title and metadata below poster */}
+      <Box mt={1}>
         <Typography
           variant="body2"
           fontWeight={500}

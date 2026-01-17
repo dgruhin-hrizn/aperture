@@ -28,7 +28,6 @@ import {
   getJobProgress,
   getAllJobProgress,
   subscribeToJob,
-  subscribeToAllJobs,
   cancelJob,
   failJob,
   purgeMovieDatabase,
@@ -53,6 +52,8 @@ import {
   setJobStep,
   addLog,
   completeJob,
+  // User Sync
+  syncUsersFromMediaServer,
   type JobProgress,
   type ScheduleType,
 } from '@aperture/core'
@@ -76,6 +77,12 @@ interface JobInfo {
 const activeJobs: Map<string, string> = new Map()
 
 const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
+  // === User Sync Job ===
+  {
+    name: 'sync-users',
+    description: 'Sync users from media server (imports new users, updates email/admin status)',
+    cron: '*/30 * * * *', // Every 30 minutes
+  },
   // === Movie Jobs ===
   {
     name: 'sync-movies',
@@ -89,13 +96,8 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
   },
   {
     name: 'sync-movie-watch-history',
-    description: 'Sync movie watch history for all users (delta - only new plays)',
+    description: 'Sync watched movies from media server for all users',
     cron: process.env.SYNC_CRON || '0 3 * * *',
-  },
-  {
-    name: 'full-sync-movie-watch-history',
-    description: 'Full resync of movie watch history for all users',
-    cron: null,
   },
   {
     name: 'generate-movie-recommendations',
@@ -109,7 +111,7 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
   },
   {
     name: 'sync-movie-libraries',
-    description: 'Create AI recommendation movie libraries (STRM or symlinks)',
+    description: 'Build Aperture movie libraries with AI recommendations (STRM or symlinks)',
     cron: process.env.PERMS_CRON || '0 5 * * *',
   },
   // === Series Jobs ===
@@ -125,13 +127,8 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
   },
   {
     name: 'sync-series-watch-history',
-    description: 'Sync TV series watch history for all users (delta - only new plays)',
+    description: 'Sync watched episodes from media server for all users',
     cron: process.env.SYNC_CRON || '0 3 * * *',
-  },
-  {
-    name: 'full-sync-series-watch-history',
-    description: 'Full resync of TV series watch history for all users',
-    cron: null,
   },
   {
     name: 'generate-series-recommendations',
@@ -140,7 +137,7 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
   },
   {
     name: 'sync-series-libraries',
-    description: 'Create AI recommendation series libraries (STRM or symlinks)',
+    description: 'Build Aperture series libraries with AI recommendations (STRM or symlinks)',
     cron: process.env.PERMS_CRON || '0 5 * * *',
   },
   // === Top Picks Job ===
@@ -228,7 +225,7 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
     // Create new job ID and run
     const jobId = randomUUID()
     activeJobs.set(jobName, jobId)
-    
+
     try {
       await runJob(jobName, jobId)
     } finally {
@@ -429,80 +426,85 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
       scheduleIntervalHours?: number | null
       isEnabled?: boolean
     }
-  }>(
-    '/api/jobs/:name/config',
-    { preHandler: requireAdmin },
-    async (request, reply) => {
-      const { name } = request.params
-      const updates = request.body
+  }>('/api/jobs/:name/config', { preHandler: requireAdmin }, async (request, reply) => {
+    const { name } = request.params
+    const updates = request.body
 
-      if (!getValidJobNames().includes(name)) {
-        return reply.status(404).send({ error: 'Job not found' })
-      }
+    if (!getValidJobNames().includes(name)) {
+      return reply.status(404).send({ error: 'Job not found' })
+    }
 
-      // Validate schedule type
-      if (updates.scheduleType && !['daily', 'weekly', 'interval', 'manual'].includes(updates.scheduleType)) {
-        return reply.status(400).send({ error: 'Invalid schedule type. Must be: daily, weekly, interval, or manual' })
-      }
+    // Validate schedule type
+    if (
+      updates.scheduleType &&
+      !['daily', 'weekly', 'interval', 'manual'].includes(updates.scheduleType)
+    ) {
+      return reply
+        .status(400)
+        .send({ error: 'Invalid schedule type. Must be: daily, weekly, interval, or manual' })
+    }
 
-      // Validate hour (0-23)
-      if (updates.scheduleHour !== undefined && updates.scheduleHour !== null) {
-        if (updates.scheduleHour < 0 || updates.scheduleHour > 23) {
-          return reply.status(400).send({ error: 'Hour must be between 0 and 23' })
-        }
-      }
-
-      // Validate minute (0-59)
-      if (updates.scheduleMinute !== undefined && updates.scheduleMinute !== null) {
-        if (updates.scheduleMinute < 0 || updates.scheduleMinute > 59) {
-          return reply.status(400).send({ error: 'Minute must be between 0 and 59' })
-        }
-      }
-
-      // Validate day of week (0-6)
-      if (updates.scheduleDayOfWeek !== undefined && updates.scheduleDayOfWeek !== null) {
-        if (updates.scheduleDayOfWeek < 0 || updates.scheduleDayOfWeek > 6) {
-          return reply.status(400).send({ error: 'Day of week must be between 0 (Sunday) and 6 (Saturday)' })
-        }
-      }
-
-      // Validate interval hours
-      if (updates.scheduleIntervalHours !== undefined && updates.scheduleIntervalHours !== null) {
-        if (![1, 2, 3, 4, 6, 8, 12].includes(updates.scheduleIntervalHours)) {
-          return reply.status(400).send({ error: 'Interval hours must be one of: 1, 2, 3, 4, 6, 8, 12' })
-        }
-      }
-
-      try {
-        const config = await setJobConfig(name, updates)
-        logger.info({ job: name, config: updates }, 'Job config updated')
-
-        // Refresh the scheduler for this job
-        try {
-          await refreshJobSchedule(name)
-        } catch (schedErr) {
-          logger.error({ err: schedErr, job: name }, 'Failed to refresh job schedule')
-        }
-
-        return reply.send({
-          config: {
-            jobName: config.jobName,
-            scheduleType: config.scheduleType,
-            scheduleHour: config.scheduleHour,
-            scheduleMinute: config.scheduleMinute,
-            scheduleDayOfWeek: config.scheduleDayOfWeek,
-            scheduleIntervalHours: config.scheduleIntervalHours,
-            isEnabled: config.isEnabled,
-            formatted: formatSchedule(config),
-          },
-          message: 'Job configuration updated',
-        })
-      } catch (err) {
-        logger.error({ err, job: name }, 'Failed to update job config')
-        return reply.status(500).send({ error: 'Failed to update job configuration' })
+    // Validate hour (0-23)
+    if (updates.scheduleHour !== undefined && updates.scheduleHour !== null) {
+      if (updates.scheduleHour < 0 || updates.scheduleHour > 23) {
+        return reply.status(400).send({ error: 'Hour must be between 0 and 23' })
       }
     }
-  )
+
+    // Validate minute (0-59)
+    if (updates.scheduleMinute !== undefined && updates.scheduleMinute !== null) {
+      if (updates.scheduleMinute < 0 || updates.scheduleMinute > 59) {
+        return reply.status(400).send({ error: 'Minute must be between 0 and 59' })
+      }
+    }
+
+    // Validate day of week (0-6)
+    if (updates.scheduleDayOfWeek !== undefined && updates.scheduleDayOfWeek !== null) {
+      if (updates.scheduleDayOfWeek < 0 || updates.scheduleDayOfWeek > 6) {
+        return reply
+          .status(400)
+          .send({ error: 'Day of week must be between 0 (Sunday) and 6 (Saturday)' })
+      }
+    }
+
+    // Validate interval hours
+    if (updates.scheduleIntervalHours !== undefined && updates.scheduleIntervalHours !== null) {
+      if (![1, 2, 3, 4, 6, 8, 12].includes(updates.scheduleIntervalHours)) {
+        return reply
+          .status(400)
+          .send({ error: 'Interval hours must be one of: 1, 2, 3, 4, 6, 8, 12' })
+      }
+    }
+
+    try {
+      const config = await setJobConfig(name, updates)
+      logger.info({ job: name, config: updates }, 'Job config updated')
+
+      // Refresh the scheduler for this job
+      try {
+        await refreshJobSchedule(name)
+      } catch (schedErr) {
+        logger.error({ err: schedErr, job: name }, 'Failed to refresh job schedule')
+      }
+
+      return reply.send({
+        config: {
+          jobName: config.jobName,
+          scheduleType: config.scheduleType,
+          scheduleHour: config.scheduleHour,
+          scheduleMinute: config.scheduleMinute,
+          scheduleDayOfWeek: config.scheduleDayOfWeek,
+          scheduleIntervalHours: config.scheduleIntervalHours,
+          isEnabled: config.isEnabled,
+          formatted: formatSchedule(config),
+        },
+        message: 'Job configuration updated',
+      })
+    } catch (err) {
+      logger.error({ err, job: name }, 'Failed to update job config')
+      return reply.status(500).send({ error: 'Failed to update job configuration' })
+    }
+  })
 
   /**
    * GET /api/jobs/:name
@@ -566,7 +568,7 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
       reply.raw.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
+        Connection: 'keep-alive',
         'Access-Control-Allow-Origin': '*',
       })
 
@@ -604,7 +606,11 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
         }
 
         // Close connection when job completes, fails, or is cancelled
-        if (progress.status === 'completed' || progress.status === 'failed' || progress.status === 'cancelled') {
+        if (
+          progress.status === 'completed' ||
+          progress.status === 'failed' ||
+          progress.status === 'cancelled'
+        ) {
           setTimeout(() => {
             clearInterval(heartbeat)
             unsubscribe()
@@ -648,10 +654,14 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/jobs/scheduler/status
    * Get scheduler status (which jobs are scheduled)
    */
-  fastify.get('/api/jobs/scheduler/status', { preHandler: requireAdmin }, async (_request, reply) => {
-    const status = getSchedulerStatus()
-    return reply.send(status)
-  })
+  fastify.get(
+    '/api/jobs/scheduler/status',
+    { preHandler: requireAdmin },
+    async (_request, reply) => {
+      const status = getSchedulerStatus()
+      return reply.send(status)
+    }
+  )
 
   // =========================================================================
   // Job History Routes
@@ -714,35 +724,43 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/jobs/enrichment/status
    * Get enrichment run status - detects incomplete/interrupted runs
    */
-  fastify.get('/api/jobs/enrichment/status', { preHandler: requireAdmin }, async (_request, reply) => {
-    try {
-      const status = await getIncompleteEnrichmentRun()
-      return reply.send(status)
-    } catch (err) {
-      logger.error({ err }, 'Failed to get enrichment status')
-      return reply.status(500).send({ error: 'Failed to get enrichment status' })
+  fastify.get(
+    '/api/jobs/enrichment/status',
+    { preHandler: requireAdmin },
+    async (_request, reply) => {
+      try {
+        const status = await getIncompleteEnrichmentRun()
+        return reply.send(status)
+      } catch (err) {
+        logger.error({ err }, 'Failed to get enrichment status')
+        return reply.status(500).send({ error: 'Failed to get enrichment status' })
+      }
     }
-  })
+  )
 
   /**
    * POST /api/jobs/enrichment/clear-interrupted
    * Clear/acknowledge an interrupted enrichment run
    * Allows the user to reset the state so they can run enrichment again
    */
-  fastify.post('/api/jobs/enrichment/clear-interrupted', { preHandler: requireAdmin }, async (_request, reply) => {
-    try {
-      const cleared = await clearInterruptedEnrichmentRun()
-      if (cleared) {
-        logger.info('Cleared interrupted enrichment run')
-        return reply.send({ message: 'Interrupted enrichment run cleared', cleared: true })
-      } else {
-        return reply.send({ message: 'No interrupted run to clear', cleared: false })
+  fastify.post(
+    '/api/jobs/enrichment/clear-interrupted',
+    { preHandler: requireAdmin },
+    async (_request, reply) => {
+      try {
+        const cleared = await clearInterruptedEnrichmentRun()
+        if (cleared) {
+          logger.info('Cleared interrupted enrichment run')
+          return reply.send({ message: 'Interrupted enrichment run cleared', cleared: true })
+        } else {
+          return reply.send({ message: 'No interrupted run to clear', cleared: false })
+        }
+      } catch (err) {
+        logger.error({ err }, 'Failed to clear interrupted enrichment run')
+        return reply.status(500).send({ error: 'Failed to clear interrupted enrichment run' })
       }
-    } catch (err) {
-      logger.error({ err }, 'Failed to clear interrupted enrichment run')
-      return reply.status(500).send({ error: 'Failed to clear interrupted enrichment run' })
     }
-  })
+  )
 
   // =========================================================================
   // Database Purge Routes
@@ -763,7 +781,6 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
     { preHandler: requireAdmin },
     executePurge
   )
-
 }
 
 // Job execution - calls actual implementations from @aperture/core
@@ -774,226 +791,272 @@ async function runJob(name: string, jobId: string): Promise<void> {
     logger.info({ job: name, jobId }, `🚀 Starting job: ${name}`)
 
     switch (name) {
+      case 'sync-users': {
+        const result = await syncUsersFromMediaServer(jobId)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            imported: result.imported,
+            updated: result.updated,
+            total: result.total,
+          },
+          `✅ User sync complete`
+        )
+        break
+      }
       case 'sync-movies': {
         const result = await syncMovies(jobId)
-        logger.info({
-          job: name,
-          jobId,
-          added: result.added,
-          updated: result.updated,
-          total: result.total,
-        }, `✅ Movie sync complete`)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            added: result.added,
+            updated: result.updated,
+            total: result.total,
+          },
+          `✅ Movie sync complete`
+        )
         break
       }
       case 'generate-movie-embeddings': {
         const result = await generateMissingEmbeddings(jobId)
-        logger.info({
-          job: name,
-          jobId,
-          generated: result.generated,
-          failed: result.failed,
-        }, `✅ Movie embeddings complete`)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            generated: result.generated,
+            failed: result.failed,
+          },
+          `✅ Movie embeddings complete`
+        )
         break
       }
       case 'sync-movie-watch-history': {
-        const result = await syncWatchHistoryForAllUsers(jobId, false) // Delta sync
-        logger.info({
-          job: name,
-          jobId,
-          success: result.success,
-          failed: result.failed,
-          totalItems: result.totalItems,
-        }, `✅ Movie watch history sync complete (delta)`)
-        break
-      }
-      case 'full-sync-movie-watch-history': {
         const result = await syncWatchHistoryForAllUsers(jobId, true) // Full sync
-        logger.info({
-          job: name,
-          jobId,
-          success: result.success,
-          failed: result.failed,
-          totalItems: result.totalItems,
-        }, `✅ Movie watch history sync complete (full resync)`)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            success: result.success,
+            failed: result.failed,
+            totalItems: result.totalItems,
+          },
+          `✅ Movie watch history sync complete`
+        )
         break
       }
       case 'generate-movie-recommendations': {
         const result = await generateRecommendationsForAllUsers(jobId)
-        logger.info({
-          job: name,
-          jobId,
-          success: result.success,
-          failed: result.failed,
-        }, `✅ Movie recommendations complete`)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            success: result.success,
+            failed: result.failed,
+          },
+          `✅ Movie recommendations complete`
+        )
         break
       }
       case 'rebuild-movie-recommendations': {
         const result = await clearAndRebuildAllRecommendations(jobId)
-        logger.info({
-          job: name,
-          jobId,
-          cleared: result.cleared,
-          success: result.success,
-          failed: result.failed,
-        }, `✅ Movie recommendations rebuilt`)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            cleared: result.cleared,
+            success: result.success,
+            failed: result.failed,
+          },
+          `✅ Movie recommendations rebuilt`
+        )
         break
       }
       case 'sync-movie-libraries': {
         const result = await processStrmForAllUsers(jobId)
-        logger.info({
-          job: name,
-          jobId,
-          success: result.success,
-          failed: result.failed,
-        }, `✅ Movie libraries sync complete`)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            success: result.success,
+            failed: result.failed,
+          },
+          `✅ Movie libraries sync complete`
+        )
         break
       }
       // === Series Jobs ===
       case 'sync-series': {
         const result = await syncSeries(jobId)
-        logger.info({
-          job: name,
-          jobId,
-          seriesAdded: result.seriesAdded,
-          seriesUpdated: result.seriesUpdated,
-          episodesAdded: result.episodesAdded,
-          episodesUpdated: result.episodesUpdated,
-        }, `✅ Series sync complete`)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            seriesAdded: result.seriesAdded,
+            seriesUpdated: result.seriesUpdated,
+            episodesAdded: result.episodesAdded,
+            episodesUpdated: result.episodesUpdated,
+          },
+          `✅ Series sync complete`
+        )
         break
       }
       case 'generate-series-embeddings': {
         const result = await generateMissingSeriesEmbeddings(jobId)
-        logger.info({
-          job: name,
-          jobId,
-          seriesGenerated: result.seriesGenerated,
-          episodesGenerated: result.episodesGenerated,
-          failed: result.failed,
-        }, `✅ Series embeddings complete`)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            seriesGenerated: result.seriesGenerated,
+            episodesGenerated: result.episodesGenerated,
+            failed: result.failed,
+          },
+          `✅ Series embeddings complete`
+        )
         break
       }
       case 'sync-series-watch-history': {
-        const result = await syncSeriesWatchHistoryForAllUsers(jobId, false) // Delta sync
-        logger.info({
-          job: name,
-          jobId,
-          success: result.success,
-          failed: result.failed,
-          totalItems: result.totalItems,
-        }, `✅ Series watch history sync complete (delta)`)
-        break
-      }
-      case 'full-sync-series-watch-history': {
         const result = await syncSeriesWatchHistoryForAllUsers(jobId, true) // Full sync
-        logger.info({
-          job: name,
-          jobId,
-          success: result.success,
-          failed: result.failed,
-          totalItems: result.totalItems,
-        }, `✅ Series watch history sync complete (full resync)`)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            success: result.success,
+            failed: result.failed,
+            totalItems: result.totalItems,
+          },
+          `✅ Series watch history sync complete`
+        )
         break
       }
       case 'generate-series-recommendations': {
         const result = await generateSeriesRecommendationsForAllUsers(jobId)
-        logger.info({
-          job: name,
-          jobId,
-          success: result.success,
-          failed: result.failed,
-        }, `✅ Series recommendations complete`)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            success: result.success,
+            failed: result.failed,
+          },
+          `✅ Series recommendations complete`
+        )
         break
       }
       case 'sync-series-libraries': {
         const result = await processSeriesStrmForAllUsers(jobId)
-        logger.info({
-          job: name,
-          jobId,
-          success: result.success,
-          failed: result.failed,
-        }, `✅ Series libraries sync complete`)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            success: result.success,
+            failed: result.failed,
+          },
+          `✅ Series libraries sync complete`
+        )
         break
       }
       // === Top Picks Job ===
       case 'refresh-top-picks': {
         const result = await refreshTopPicks(jobId)
-        logger.info({
-          job: name,
-          jobId,
-          moviesCount: result.moviesCount,
-          seriesCount: result.seriesCount,
-          usersUpdated: result.usersUpdated,
-        }, `✅ Top Picks refresh complete`)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            moviesCount: result.moviesCount,
+            seriesCount: result.seriesCount,
+            usersUpdated: result.usersUpdated,
+          },
+          `✅ Top Picks refresh complete`
+        )
         break
       }
       // === Trakt Sync Job ===
       case 'sync-trakt-ratings': {
         const result = await syncAllTraktRatings(jobId)
-        logger.info({
-          job: name,
-          jobId,
-          usersProcessed: result.usersProcessed,
-          ratingsImported: result.ratingsImported,
-          errors: result.errors,
-        }, `✅ Trakt ratings sync complete`)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            usersProcessed: result.usersProcessed,
+            ratingsImported: result.ratingsImported,
+            errors: result.errors,
+          },
+          `✅ Trakt ratings sync complete`
+        )
         break
       }
       // === Watching Libraries Job ===
       case 'sync-watching-libraries': {
         const result = await processWatchingLibrariesForAllUsers(jobId)
-        logger.info({
-          job: name,
-          jobId,
-          success: result.success,
-          failed: result.failed,
-          users: result.users.length,
-        }, `✅ Watching libraries sync complete`)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            success: result.success,
+            failed: result.failed,
+            users: result.users.length,
+          },
+          `✅ Watching libraries sync complete`
+        )
         break
       }
       // === Assistant Suggestions Job ===
       case 'refresh-assistant-suggestions': {
         const result = await refreshAssistantSuggestions(jobId)
-        logger.info({
-          job: name,
-          jobId,
-          usersProcessed: result.usersProcessed,
-          errors: result.errors,
-        }, `✅ Assistant suggestions refresh complete`)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            usersProcessed: result.usersProcessed,
+            errors: result.errors,
+          },
+          `✅ Assistant suggestions refresh complete`
+        )
         break
       }
       // === Metadata Enrichment Job ===
       case 'enrich-metadata': {
         const result = await enrichMetadata(jobId)
-        logger.info({
-          job: name,
-          jobId,
-          moviesEnriched: result.moviesEnriched,
-          seriesEnriched: result.seriesEnriched,
-          collectionsCreated: result.collectionsCreated,
-        }, `✅ Metadata enrichment complete`)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            moviesEnriched: result.moviesEnriched,
+            seriesEnriched: result.seriesEnriched,
+            collectionsCreated: result.collectionsCreated,
+          },
+          `✅ Metadata enrichment complete`
+        )
         break
       }
       // === Studio Logo Enrichment Job ===
       case 'enrich-studio-logos': {
         const result = await enrichStudioLogos(jobId)
-        logger.info({
-          job: name,
-          jobId,
-          studiosEnriched: result.studiosEnriched,
-          networksEnriched: result.networksEnriched,
-          logosPushedToEmby: result.logosPushedToEmby,
-        }, `✅ Studio logo enrichment complete`)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            studiosEnriched: result.studiosEnriched,
+            networksEnriched: result.networksEnriched,
+            logosPushedToEmby: result.logosPushedToEmby,
+          },
+          `✅ Studio logo enrichment complete`
+        )
         break
       }
       // === MDBList Enrichment Job ===
       case 'enrich-mdblist': {
         const result = await enrichMDBListMetadata(jobId)
-        logger.info({
-          job: name,
-          jobId,
-          moviesEnriched: result.moviesEnriched,
-          seriesEnriched: result.seriesEnriched,
-        }, `✅ MDBList enrichment complete`)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            moviesEnriched: result.moviesEnriched,
+            seriesEnriched: result.seriesEnriched,
+          },
+          `✅ MDBList enrichment complete`
+        )
         break
       }
       // === Database Backup Job ===
@@ -1002,75 +1065,92 @@ async function runJob(name: string, jobId: string): Promise<void> {
         if (!result.success) {
           throw new Error(result.error || 'Backup failed')
         }
-        logger.info({
-          job: name,
-          jobId,
-          filename: result.filename,
-          sizeBytes: result.sizeBytes,
-          duration: result.duration,
-        }, `✅ Database backup complete`)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            filename: result.filename,
+            sizeBytes: result.sizeBytes,
+            duration: result.duration,
+          },
+          `✅ Database backup complete`
+        )
         break
       }
       // === AI Pricing Cache Job ===
       case 'refresh-ai-pricing': {
         createJobProgress(jobId, 'refresh-ai-pricing', 2)
-        
+
         // Step 1: Check current status
         setJobStep(jobId, 0, 'Checking cache status')
         const statusBefore = await getPricingCacheStatus()
-        addLog(jobId, 'info', `Current cache: ${statusBefore.cached ? `${statusBefore.modelCount} models` : 'empty'}${statusBefore.isStale ? ' (stale)' : ''}`)
-        
+        addLog(
+          jobId,
+          'info',
+          `Current cache: ${statusBefore.cached ? `${statusBefore.modelCount} models` : 'empty'}${statusBefore.isStale ? ' (stale)' : ''}`
+        )
+
         // Step 2: Refresh from API
         setJobStep(jobId, 1, 'Fetching pricing data from Helicone API')
         addLog(jobId, 'info', '🔄 Fetching latest pricing data...')
-        
+
         await refreshPricingCache()
-        
+
         const statusAfter = await getPricingCacheStatus()
         addLog(jobId, 'info', `✅ Loaded ${statusAfter.modelCount} model pricing entries`)
-        
+
         completeJob(jobId, {
           modelCount: statusAfter.modelCount,
           fetchedAt: statusAfter.fetchedAt?.toISOString(),
           cached: statusAfter.cached,
         })
-        
-        logger.info({
-          job: name,
-          jobId,
-          cached: statusAfter.cached,
-          modelCount: statusAfter.modelCount,
-          fetchedAt: statusAfter.fetchedAt,
-        }, `✅ AI pricing cache refreshed`)
+
+        logger.info(
+          {
+            job: name,
+            jobId,
+            cached: statusAfter.cached,
+            modelCount: statusAfter.modelCount,
+            fetchedAt: statusAfter.fetchedAt,
+          },
+          `✅ AI pricing cache refreshed`
+        )
         break
       }
       // === Discovery Suggestions Job ===
       case 'generate-discovery-suggestions': {
         createJobProgress(jobId, 'generate-discovery-suggestions', 2)
-        
+
         // Step 1: Check prerequisites
         setJobStep(jobId, 0, 'Checking prerequisites')
         addLog(jobId, 'info', '🔍 Checking Jellyseerr configuration and user enablement...')
-        
+
         const result = await generateDiscoveryForAllUsers(DEFAULT_DISCOVERY_CONFIG, jobId)
-        
+
         if (result.success === 0 && result.failed === 0) {
-          addLog(jobId, 'warn', '⚠️ No users have discovery enabled. Enable discovery for users in Admin → Users.')
+          addLog(
+            jobId,
+            'warn',
+            '⚠️ No users have discovery enabled. Enable discovery for users in Admin → Users.'
+          )
         }
-        
+
         // Step 2: Complete
         setJobStep(jobId, 1, 'Complete')
         completeJob(jobId, {
           success: result.success,
           failed: result.failed,
         })
-        
-        logger.info({
-          job: name,
-          jobId,
-          success: result.success,
-          failed: result.failed,
-        }, `✅ Discovery suggestions generation complete`)
+
+        logger.info(
+          {
+            job: name,
+            jobId,
+            success: result.success,
+            failed: result.failed,
+          },
+          `✅ Discovery suggestions generation complete`
+        )
         break
       }
       default:
@@ -1099,10 +1179,7 @@ async function runJob(name: string, jobId: string): Promise<void> {
  * GET /api/admin/purge/stats
  * Get current database stats before purge
  */
-async function getPurgeStats(
-  request: FastifyRequest,
-  reply: FastifyReply
-): Promise<void> {
+async function getPurgeStats(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   try {
     const stats = await getMovieDatabaseStats()
     reply.send({ stats })
@@ -1123,8 +1200,8 @@ async function executePurge(
   const { confirm } = request.body
 
   if (!confirm) {
-    return reply.status(400).send({ 
-      error: 'Purge requires confirmation. Send { confirm: true } to proceed.' 
+    return reply.status(400).send({
+      error: 'Purge requires confirmation. Send { confirm: true } to proceed.',
     })
   }
 
@@ -1132,10 +1209,10 @@ async function executePurge(
     logger.warn('🗑️ Admin initiated movie database purge')
     const result = await purgeMovieDatabase()
     logger.info({ result }, '✅ Movie database purge complete')
-    reply.send({ 
-      success: true, 
+    reply.send({
+      success: true,
       message: 'Movie database purged successfully',
-      result 
+      result,
     })
   } catch (err) {
     logger.error({ err }, 'Failed to purge movie database')

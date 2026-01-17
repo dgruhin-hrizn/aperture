@@ -1,11 +1,14 @@
 import { createChildLogger } from '../lib/logger.js'
 import { getRecommendationConfig } from '../lib/recommendationConfig.js'
+import { getEffectiveAlgorithmConfig } from '../lib/userAlgorithmSettings.js'
 import { FALLBACK_CONFIG, type PipelineConfig } from './types.js'
 
 const logger = createChildLogger('recommender-config')
 
 /**
  * Get movie configuration from database (with fallback)
+ * 
+ * @deprecated Use loadConfigForUser for user-specific config
  */
 export async function loadConfig(): Promise<PipelineConfig> {
   try {
@@ -27,6 +30,8 @@ export async function loadConfig(): Promise<PipelineConfig> {
 
 /**
  * Get series configuration from database (with fallback)
+ * 
+ * @deprecated Use loadConfigForUser for user-specific config
  */
 export async function loadSeriesConfig(): Promise<PipelineConfig> {
   try {
@@ -47,5 +52,31 @@ export async function loadSeriesConfig(): Promise<PipelineConfig> {
       selectedCount: 12, // Default series recommendation count
       recentWatchLimit: 100, // More episodes for taste profile
     }
+  }
+}
+
+/**
+ * Get configuration for a specific user
+ * 
+ * This is the preferred method - it automatically:
+ * 1. Loads admin-configured defaults
+ * 2. Applies user-specific overrides if enabled
+ * 3. Falls back gracefully on errors
+ * 
+ * @param userId - The user ID to load config for
+ * @param mediaType - 'movie' or 'series'
+ */
+export async function loadConfigForUser(
+  userId: string,
+  mediaType: 'movie' | 'series'
+): Promise<PipelineConfig> {
+  try {
+    const config = await getEffectiveAlgorithmConfig(userId, mediaType)
+    logger.debug({ userId, mediaType }, 'Loaded user-specific algorithm config')
+    return config
+  } catch (err) {
+    logger.warn({ err, userId, mediaType }, 'Failed to load user config, falling back to defaults')
+    // Fall back to basic load functions
+    return mediaType === 'movie' ? loadConfig() : loadSeriesConfig()
   }
 }

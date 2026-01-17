@@ -11,12 +11,6 @@ import {
   Chip,
   Pagination,
   CircularProgress,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   InputAdornment,
   Tabs,
@@ -40,9 +34,12 @@ import HistoryIcon from '@mui/icons-material/History'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
-import { MoviePoster, getProxiedImageUrl, FALLBACK_POSTER_URL } from '@aperture/ui'
+import { MoviePoster } from '@aperture/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { useWatching } from '@/hooks/useWatching'
+import { useUserRatings } from '@/hooks/useUserRatings'
+import { useViewMode } from '@/hooks/useViewMode'
+import { WatchHistoryMovieListItem, WatchHistorySeriesListItem } from './watch-history/components'
 
 interface MovieWatchHistoryItem {
   movie_id: string
@@ -86,6 +83,7 @@ export function MyWatchHistoryPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { isWatching, toggleWatching } = useWatching()
+  const { getRating, setRating } = useUserRatings()
   const [tabValue, setTabValue] = useState(0) // 0 = Movies, 1 = Series
   
   // Movies state
@@ -101,7 +99,7 @@ export function MyWatchHistoryPage() {
   const [seriesSortBy, setSeriesSortBy] = useState<'recent' | 'plays' | 'title'>('recent')
   
   // Shared state
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const { viewMode, setViewMode } = useViewMode('watchHistory')
   const [searchQuery, setSearchQuery] = useState('')
 
   // Mark unwatched state
@@ -281,7 +279,7 @@ export function MyWatchHistoryPage() {
   return (
     <Box>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3} flexWrap="wrap" gap={2}>
         <Box>
           <Box display="flex" alignItems="center" gap={2} mb={1}>
             <HistoryIcon sx={{ color: 'primary.main', fontSize: 32 }} />
@@ -293,6 +291,15 @@ export function MyWatchHistoryPage() {
             {moviePagination.total.toLocaleString()} movies • {seriesPagination.total.toLocaleString()} series watched
           </Typography>
         </Box>
+        <ToggleButtonGroup
+          value={viewMode}
+          exclusive
+          onChange={(_, v) => v && setViewMode(v)}
+          size="small"
+        >
+          <ToggleButton value="grid"><GridViewIcon fontSize="small" /></ToggleButton>
+          <ToggleButton value="list"><ViewListIcon fontSize="small" /></ToggleButton>
+        </ToggleButtonGroup>
       </Box>
 
       {/* Tabs */}
@@ -349,18 +356,7 @@ export function MyWatchHistoryPage() {
             <ToggleButton value="title">A-Z</ToggleButton>
           </ToggleButtonGroup>
         </Box>
-        <Box display="flex" alignItems="center" gap={1}>
-          {isLoading && <CircularProgress size={20} />}
-          <ToggleButtonGroup
-            value={viewMode}
-            exclusive
-            onChange={(_, v) => v && setViewMode(v)}
-            size="small"
-          >
-            <ToggleButton value="grid"><GridViewIcon fontSize="small" /></ToggleButton>
-            <ToggleButton value="list"><ViewListIcon fontSize="small" /></ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
+        {isLoading && <CircularProgress size={20} />}
       </Box>
 
       {/* Movies Tab Content */}
@@ -394,6 +390,8 @@ export function MyWatchHistoryPage() {
                           genres={item.genres}
                           rating={item.community_rating}
                           overview={item.overview}
+                          userRating={getRating('movie', item.movie_id)}
+                          onRate={(rating) => setRating('movie', item.movie_id, rating)}
                           responsive
                           onClick={() => navigate(`/movies/${item.movie_id}`)}
                         />
@@ -467,107 +465,23 @@ export function MyWatchHistoryPage() {
 
               {/* List View */}
               {viewMode === 'list' && (
-                <TableContainer>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Movie</TableCell>
-                        <TableCell align="center">Plays</TableCell>
-                        <TableCell align="center">Rating</TableCell>
-                        <TableCell align="right">Last Watched</TableCell>
-                        {canManage && <TableCell align="center" width={50}></TableCell>}
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {filteredMovies.map((item) => (
-                        <TableRow 
-                          key={item.movie_id} 
-                          hover 
-                          sx={{ cursor: 'pointer' }}
-                          onClick={() => navigate(`/movies/${item.movie_id}`)}
-                        >
-                          <TableCell>
-                            <Box display="flex" alignItems="center" gap={2}>
-                              <Box
-                                component="img"
-                                src={getProxiedImageUrl(item.poster_url)}
-                                alt={item.title}
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement
-                                  target.src = FALLBACK_POSTER_URL
-                                }}
-                                sx={{
-                                  width: 40,
-                                  height: 60,
-                                  objectFit: 'cover',
-                                  borderRadius: 0.5,
-                                  backgroundColor: 'grey.800',
-                                }}
-                              />
-                              <Box>
-                                <Typography variant="body2" fontWeight={500}>
-                                  {item.title}
-                                  {item.is_favorite && (
-                                    <FavoriteIcon sx={{ ml: 0.5, fontSize: 14, color: 'error.main', verticalAlign: 'middle' }} />
-                                  )}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                  {item.year} • {item.genres?.slice(0, 2).join(', ')}
-                                </Typography>
-                              </Box>
-                            </Box>
-                          </TableCell>
-                          <TableCell align="center">
-                            <Chip 
-                              label={item.play_count <= 5 ? item.play_count : '5+'} 
-                              size="small" 
-                              color={item.play_count > 3 ? 'primary' : 'default'}
-                              variant={item.play_count > 1 ? 'filled' : 'outlined'}
-                            />
-                          </TableCell>
-                          <TableCell align="center">
-                            {item.community_rating ? (
-                              <Typography variant="body2">
-                                {Number(item.community_rating).toFixed(1)}
-                              </Typography>
-                            ) : (
-                              <Typography variant="caption" color="text.disabled">—</Typography>
-                            )}
-                          </TableCell>
-                          <TableCell align="right">
-                            <Typography variant="body2" color="text.secondary">
-                              {formatDate(item.last_played_at)}
-                            </Typography>
-                          </TableCell>
-                          {canManage && (
-                            <TableCell align="center">
-                              <Tooltip title="Mark as unwatched">
-                                <IconButton
-                                  size="small"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setConfirmDialog({
-                                      open: true,
-                                      type: 'movie',
-                                      id: item.movie_id,
-                                      title: item.title
-                                    })
-                                  }}
-                                  sx={{
-                                    color: 'text.secondary',
-                                    '&:hover': { color: 'error.main' },
-                                  }}
-                                >
-                                  <VisibilityOffIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+                <Box display="flex" flexDirection="column" gap={2}>
+                  {filteredMovies.map((item) => (
+                    <WatchHistoryMovieListItem
+                      key={item.movie_id}
+                      movie={item}
+                      userRating={getRating('movie', item.movie_id)}
+                      onRate={(rating) => setRating('movie', item.movie_id, rating)}
+                      canManage={canManage}
+                      onMarkUnwatched={() => setConfirmDialog({
+                        open: true,
+                        type: 'movie',
+                        id: item.movie_id,
+                        title: item.title
+                      })}
+                    />
+                  ))}
+                </Box>
               )}
 
               {/* Pagination */}
@@ -619,6 +533,8 @@ export function MyWatchHistoryPage() {
                             genres={item.genres}
                             rating={item.community_rating}
                             overview={item.overview}
+                            userRating={getRating('series', item.series_id)}
+                            onRate={(rating) => setRating('series', item.series_id, rating)}
                             responsive
                             hideRating
                             isWatching={isWatching(item.series_id)}
@@ -710,127 +626,23 @@ export function MyWatchHistoryPage() {
 
               {/* List View */}
               {viewMode === 'list' && (
-                <TableContainer>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Series</TableCell>
-                        <TableCell align="center">Progress</TableCell>
-                        <TableCell align="center">Rating</TableCell>
-                        <TableCell align="right">Last Watched</TableCell>
-                        {canManage && <TableCell align="center" width={50}></TableCell>}
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {filteredSeries.map((item) => (
-                        <TableRow 
-                          key={item.series_id} 
-                          hover 
-                          sx={{ cursor: 'pointer' }}
-                          onClick={() => navigate(`/series/${item.series_id}`)}
-                        >
-                          <TableCell>
-                            <Box display="flex" alignItems="center" gap={2}>
-                              <Box
-                                component="img"
-                                src={getProxiedImageUrl(item.poster_url)}
-                                alt={item.title}
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement
-                                  target.src = FALLBACK_POSTER_URL
-                                }}
-                                sx={{
-                                  width: 40,
-                                  height: 60,
-                                  objectFit: 'cover',
-                                  borderRadius: 0.5,
-                                  backgroundColor: 'grey.800',
-                                }}
-                              />
-                              <Box>
-                                <Typography variant="body2" fontWeight={500}>
-                                  {item.title}
-                                  {item.is_favorite && (
-                                    <FavoriteIcon sx={{ ml: 0.5, fontSize: 14, color: 'error.main', verticalAlign: 'middle' }} />
-                                  )}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                  {item.year} • {item.genres?.slice(0, 2).join(', ')}
-                                </Typography>
-                              </Box>
-                            </Box>
-                          </TableCell>
-                          <TableCell align="center">
-                            <Box sx={{ minWidth: 120 }}>
-                              <Box display="flex" justifyContent="space-between" alignItems="center">
-                                <Typography variant="caption" color="text.secondary">
-                                  {item.episodes_watched} / {item.total_episodes}
-                                </Typography>
-                                <Chip
-                                  label={`${Math.round((item.episodes_watched / item.total_episodes) * 100)}%`}
-                                  size="small"
-                                  color={item.episodes_watched === item.total_episodes ? 'success' : 'default'}
-                                  variant={item.episodes_watched === item.total_episodes ? 'filled' : 'outlined'}
-                                  sx={{ height: 20, fontSize: '0.7rem' }}
-                                />
-                              </Box>
-                              <LinearProgress
-                                variant="determinate"
-                                value={Math.min((item.episodes_watched / item.total_episodes) * 100, 100)}
-                                sx={{
-                                  height: 4,
-                                  borderRadius: 1,
-                                  mt: 0.5,
-                                  '& .MuiLinearProgress-bar': {
-                                    backgroundColor: item.episodes_watched === item.total_episodes ? 'success.main' : 'primary.main',
-                                  },
-                                }}
-                              />
-                            </Box>
-                          </TableCell>
-                          <TableCell align="center">
-                            {item.community_rating ? (
-                              <Typography variant="body2">
-                                {Number(item.community_rating).toFixed(1)}
-                              </Typography>
-                            ) : (
-                              <Typography variant="caption" color="text.disabled">—</Typography>
-                            )}
-                          </TableCell>
-                          <TableCell align="right">
-                            <Typography variant="body2" color="text.secondary">
-                              {formatDate(item.last_played_at)}
-                            </Typography>
-                          </TableCell>
-                          {canManage && (
-                            <TableCell align="center">
-                              <Tooltip title="Mark all episodes as unwatched">
-                                <IconButton
-                                  size="small"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setConfirmDialog({
-                                      open: true,
-                                      type: 'series',
-                                      id: item.series_id,
-                                      title: item.title
-                                    })
-                                  }}
-                                  sx={{
-                                    color: 'text.secondary',
-                                    '&:hover': { color: 'error.main' },
-                                  }}
-                                >
-                                  <VisibilityOffIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+                <Box display="flex" flexDirection="column" gap={2}>
+                  {filteredSeries.map((item) => (
+                    <WatchHistorySeriesListItem
+                      key={item.series_id}
+                      series={item}
+                      userRating={getRating('series', item.series_id)}
+                      onRate={(rating) => setRating('series', item.series_id, rating)}
+                      canManage={canManage}
+                      onMarkUnwatched={() => setConfirmDialog({
+                        open: true,
+                        type: 'series',
+                        id: item.series_id,
+                        title: item.title
+                      })}
+                    />
+                  ))}
+                </Box>
               )}
 
               {/* Pagination */}

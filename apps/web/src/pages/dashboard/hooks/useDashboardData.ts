@@ -36,6 +36,10 @@ interface DashboardRecentWatch {
   posterUrl: string | null
   lastWatched: Date
   playCount: number
+  lastEpisode?: {
+    seasonNumber: number
+    episodeNumber: number
+  }
 }
 
 interface DashboardRecentRating {

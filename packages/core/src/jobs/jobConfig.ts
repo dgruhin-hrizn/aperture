@@ -39,6 +39,9 @@ const ENV_DEFAULTS: Record<
     dayOfWeek?: number
   }
 > = {
+  // === EVERY 30 MINUTES ===
+  'sync-users': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 0.5 },
+
   // === EVERY HOUR (staggered by 15 mins) ===
   'sync-series-watch-history': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 1 },
   'sync-watching-libraries': { scheduleType: 'interval', hour: 0, minute: 15, intervalHours: 1 },
@@ -72,8 +75,6 @@ const ENV_DEFAULTS: Record<
   'refresh-ai-pricing': { scheduleType: 'weekly', hour: 0, minute: 0, dayOfWeek: 0 },
 
   // === MANUAL ONLY ===
-  'full-sync-movie-watch-history': { scheduleType: 'manual', hour: 0, minute: 0 },
-  'full-sync-series-watch-history': { scheduleType: 'manual', hour: 0, minute: 0 },
   'rebuild-movie-recommendations': { scheduleType: 'manual', hour: 0, minute: 0 },
 }
 

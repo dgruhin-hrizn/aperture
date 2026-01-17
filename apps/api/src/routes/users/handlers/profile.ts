@@ -3,9 +3,7 @@ import { query, queryOne } from '../../../lib/db.js'
 import { requireAuth, type SessionUser } from '../../../plugins/auth.js'
 import { 
   getTasteSynopsis, 
-  generateTasteSynopsis,
   getSeriesTasteSynopsis,
-  generateSeriesTasteSynopsis,
   getMediaServerProvider,
   getMediaServerConfig,
   getMediaServerApiKey
@@ -285,7 +283,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
 
   /**
    * POST /api/users/:id/taste-profile/regenerate
-   * Force regenerate user's taste synopsis
+   * Force regenerate user's taste synopsis (streaming)
    */
   fastify.post<{ Params: { id: string } }>(
     '/api/users/:id/taste-profile/regenerate',
@@ -300,11 +298,43 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
       }
 
       try {
-        const profile = await generateTasteSynopsis(id)
-        return reply.send(profile)
+        const { streamTasteSynopsis } = await import('@aperture/core')
+        
+        // Set up SSE headers for streaming
+        reply.raw.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        })
+
+        const generator = streamTasteSynopsis(id)
+        let stats = null
+
+        // Stream text chunks and capture return value
+        // Note: for-await doesn't give access to return value, so we manually iterate
+        let result = await generator.next()
+        while (!result.done) {
+          if (typeof result.value === 'string') {
+            reply.raw.write(`data: ${JSON.stringify({ type: 'text', content: result.value })}\n\n`)
+          }
+          result = await generator.next()
+        }
+        
+        // result.value now contains the generator's return value (stats)
+        stats = result.value
+
+        // Send completion event with stats
+        reply.raw.write(`data: ${JSON.stringify({ type: 'done', stats })}\n\n`)
+        reply.raw.end()
       } catch (error) {
         fastify.log.error({ error, userId: id }, 'Failed to regenerate taste profile')
-        return reply.status(500).send({ error: 'Failed to regenerate taste profile' })
+        // If headers already sent, just end the stream
+        if (reply.raw.headersSent) {
+          reply.raw.write(`data: ${JSON.stringify({ type: 'error', message: 'Failed to generate' })}\n\n`)
+          reply.raw.end()
+        } else {
+          return reply.status(500).send({ error: 'Failed to regenerate taste profile' })
+        }
       }
     }
   )
@@ -341,7 +371,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
 
   /**
    * POST /api/users/:id/series-taste-profile/regenerate
-   * Force regenerate user's series taste synopsis
+   * Force regenerate user's series taste synopsis (streaming)
    */
   fastify.post<{ Params: { id: string } }>(
     '/api/users/:id/series-taste-profile/regenerate',
@@ -356,11 +386,43 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
       }
 
       try {
-        const profile = await generateSeriesTasteSynopsis(id)
-        return reply.send(profile)
+        const { streamSeriesTasteSynopsis } = await import('@aperture/core')
+        
+        // Set up SSE headers for streaming
+        reply.raw.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        })
+
+        const generator = streamSeriesTasteSynopsis(id)
+        let stats = null
+
+        // Stream text chunks and capture return value
+        // Note: for-await doesn't give access to return value, so we manually iterate
+        let result = await generator.next()
+        while (!result.done) {
+          if (typeof result.value === 'string') {
+            reply.raw.write(`data: ${JSON.stringify({ type: 'text', content: result.value })}\n\n`)
+          }
+          result = await generator.next()
+        }
+        
+        // result.value now contains the generator's return value (stats)
+        stats = result.value
+
+        // Send completion event with stats
+        reply.raw.write(`data: ${JSON.stringify({ type: 'done', stats })}\n\n`)
+        reply.raw.end()
       } catch (error) {
         fastify.log.error({ error, userId: id }, 'Failed to regenerate series taste profile')
-        return reply.status(500).send({ error: 'Failed to regenerate series taste profile' })
+        // If headers already sent, just end the stream
+        if (reply.raw.headersSent) {
+          reply.raw.write(`data: ${JSON.stringify({ type: 'error', message: 'Failed to generate' })}\n\n`)
+          reply.raw.end()
+        } else {
+          return reply.status(500).send({ error: 'Failed to regenerate series taste profile' })
+        }
       }
     }
   )
@@ -1073,6 +1135,363 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
       } catch (error) {
         fastify.log.error({ error, userId: id, seriesId }, 'Failed to mark series as unwatched')
         return reply.status(500).send({ error: 'Failed to mark series as unwatched' })
+      }
+    }
+  )
+
+  // ============================================================================
+  // Library Exclusions
+  // ============================================================================
+
+  /**
+   * GET /api/users/:id/accessible-libraries
+   * Get libraries accessible to the user (excluding Aperture-created ones)
+   */
+  fastify.get<{ Params: { id: string } }>(
+    '/api/users/:id/accessible-libraries',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { id } = request.params
+      const currentUser = request.user as SessionUser
+
+      // Users can only access their own settings unless admin
+      if (id !== currentUser.id && !currentUser.isAdmin) {
+        return reply.status(403).send({ error: 'Forbidden' })
+      }
+
+      try {
+        const { getUserAccessibleLibraries } = await import('@aperture/core')
+        const libraries = await getUserAccessibleLibraries(id)
+        return reply.send({ libraries })
+      } catch (error) {
+        fastify.log.error({ error, userId: id }, 'Failed to get accessible libraries')
+        return reply.status(500).send({ error: 'Failed to get accessible libraries' })
+      }
+    }
+  )
+
+  /**
+   * PUT /api/users/:id/excluded-libraries
+   * Set the libraries to exclude from watch history
+   */
+  fastify.put<{
+    Params: { id: string }
+    Body: { excludedLibraryIds: string[] }
+  }>(
+    '/api/users/:id/excluded-libraries',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { id } = request.params
+      const { excludedLibraryIds } = request.body
+      const currentUser = request.user as SessionUser
+
+      // Users can only modify their own settings unless admin
+      if (id !== currentUser.id && !currentUser.isAdmin) {
+        return reply.status(403).send({ error: 'Forbidden' })
+      }
+
+      if (!Array.isArray(excludedLibraryIds)) {
+        return reply.status(400).send({ error: 'excludedLibraryIds must be an array' })
+      }
+
+      try {
+        const { setUserExcludedLibraries } = await import('@aperture/core')
+        await setUserExcludedLibraries(id, excludedLibraryIds)
+        return reply.send({ success: true })
+      } catch (error) {
+        fastify.log.error({ error, userId: id }, 'Failed to set excluded libraries')
+        return reply.status(500).send({ error: 'Failed to set excluded libraries' })
+      }
+    }
+  )
+
+  /**
+   * PATCH /api/users/:id/excluded-libraries/:libraryId
+   * Toggle a single library's exclusion status
+   */
+  fastify.patch<{
+    Params: { id: string; libraryId: string }
+    Body: { excluded: boolean }
+  }>(
+    '/api/users/:id/excluded-libraries/:libraryId',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { id, libraryId } = request.params
+      const { excluded } = request.body
+      const currentUser = request.user as SessionUser
+
+      // Users can only modify their own settings unless admin
+      if (id !== currentUser.id && !currentUser.isAdmin) {
+        return reply.status(403).send({ error: 'Forbidden' })
+      }
+
+      if (typeof excluded !== 'boolean') {
+        return reply.status(400).send({ error: 'excluded must be a boolean' })
+      }
+
+      try {
+        const { toggleLibraryExclusion } = await import('@aperture/core')
+        await toggleLibraryExclusion(id, libraryId, excluded)
+        return reply.send({ success: true, libraryId, excluded })
+      } catch (error) {
+        fastify.log.error({ error, userId: id, libraryId }, 'Failed to toggle library exclusion')
+        return reply.status(500).send({ error: 'Failed to toggle library exclusion' })
+      }
+    }
+  )
+
+  // =============================================================
+  // User Algorithm Settings
+  // =============================================================
+
+  /**
+   * GET /api/users/:id/algorithm-settings
+   * Get user's custom algorithm settings
+   */
+  fastify.get<{ Params: { id: string } }>(
+    '/api/users/:id/algorithm-settings',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { id } = request.params
+      const currentUser = request.user as SessionUser
+
+      if (id !== currentUser.id && !currentUser.isAdmin) {
+        return reply.status(403).send({ error: 'Forbidden' })
+      }
+
+      try {
+        const { 
+          getUserAlgorithmSettings, 
+          getAdminDefaultConfig 
+        } = await import('@aperture/core')
+        
+        const settings = await getUserAlgorithmSettings(id)
+        const movieDefaults = await getAdminDefaultConfig('movie')
+        const seriesDefaults = await getAdminDefaultConfig('series')
+
+        return reply.send({
+          settings: settings || { enabled: false },
+          defaults: {
+            movie: movieDefaults,
+            series: seriesDefaults,
+          },
+        })
+      } catch (error) {
+        fastify.log.error({ error, userId: id }, 'Failed to get algorithm settings')
+        return reply.status(500).send({ error: 'Failed to get algorithm settings' })
+      }
+    }
+  )
+
+  /**
+   * PATCH /api/users/:id/algorithm-settings
+   * Update user's custom algorithm settings
+   */
+  fastify.patch<{
+    Params: { id: string }
+    Body: {
+      enabled?: boolean
+      movie?: {
+        similarityWeight?: number
+        noveltyWeight?: number
+        ratingWeight?: number
+        diversityWeight?: number
+        recentWatchLimit?: number
+      }
+      series?: {
+        similarityWeight?: number
+        noveltyWeight?: number
+        ratingWeight?: number
+        diversityWeight?: number
+        recentWatchLimit?: number
+      }
+    }
+  }>(
+    '/api/users/:id/algorithm-settings',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { id } = request.params
+      const currentUser = request.user as SessionUser
+      const body = request.body
+
+      if (id !== currentUser.id && !currentUser.isAdmin) {
+        return reply.status(403).send({ error: 'Forbidden' })
+      }
+
+      try {
+        const { 
+          getUserAlgorithmSettings, 
+          setUserAlgorithmSettings
+        } = await import('@aperture/core')
+
+        // Get current settings to merge with
+        const current = await getUserAlgorithmSettings(id)
+        
+        // Store raw weights - normalization happens when config is used
+        const newSettings = {
+          enabled: body.enabled ?? current?.enabled ?? false,
+          movie: body.movie ? { ...current?.movie, ...body.movie } : current?.movie,
+          series: body.series ? { ...current?.series, ...body.series } : current?.series,
+        }
+
+        await setUserAlgorithmSettings(id, newSettings)
+
+        return reply.send({ success: true, settings: newSettings })
+      } catch (error) {
+        fastify.log.error({ error, userId: id }, 'Failed to update algorithm settings')
+        return reply.status(500).send({ error: 'Failed to update algorithm settings' })
+      }
+    }
+  )
+
+  /**
+   * POST /api/users/:id/algorithm-settings/reset
+   * Reset user's algorithm settings to admin defaults
+   */
+  fastify.post<{ Params: { id: string } }>(
+    '/api/users/:id/algorithm-settings/reset',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { id } = request.params
+      const currentUser = request.user as SessionUser
+
+      if (id !== currentUser.id && !currentUser.isAdmin) {
+        return reply.status(403).send({ error: 'Forbidden' })
+      }
+
+      try {
+        const { resetUserAlgorithmSettings } = await import('@aperture/core')
+        await resetUserAlgorithmSettings(id)
+        return reply.send({ success: true, message: 'Algorithm settings reset to defaults' })
+      } catch (error) {
+        fastify.log.error({ error, userId: id }, 'Failed to reset algorithm settings')
+        return reply.status(500).send({ error: 'Failed to reset algorithm settings' })
+      }
+    }
+  )
+
+  // =============================================================
+  // EMAIL SETTINGS
+  // =============================================================
+
+  /**
+   * GET /api/users/:id/email-settings
+   * Get user's email and notification settings
+   */
+  fastify.get<{ Params: { id: string } }>(
+    '/api/users/:id/email-settings',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { id } = request.params
+      const currentUser = request.user as SessionUser
+
+      if (id !== currentUser.id && !currentUser.isAdmin) {
+        return reply.status(403).send({ error: 'Forbidden' })
+      }
+
+      try {
+        const result = await queryOne<{
+          email: string | null
+          email_locked: boolean
+          email_notifications_enabled: boolean
+        }>(
+          `SELECT email, email_locked, email_notifications_enabled FROM users WHERE id = $1`,
+          [id]
+        )
+
+        if (!result) {
+          return reply.status(404).send({ error: 'User not found' })
+        }
+
+        return reply.send({
+          email: result.email,
+          emailLocked: result.email_locked,
+          emailNotificationsEnabled: result.email_notifications_enabled,
+        })
+      } catch (error) {
+        fastify.log.error({ error, userId: id }, 'Failed to get email settings')
+        return reply.status(500).send({ error: 'Failed to get email settings' })
+      }
+    }
+  )
+
+  /**
+   * PATCH /api/users/:id/email-settings
+   * Update user's email (locks it to prevent Emby sync overwrite)
+   */
+  fastify.patch<{
+    Params: { id: string }
+    Body: {
+      email?: string | null
+      emailNotificationsEnabled?: boolean
+    }
+  }>(
+    '/api/users/:id/email-settings',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { id } = request.params
+      const currentUser = request.user as SessionUser
+      const { email, emailNotificationsEnabled } = request.body
+
+      if (id !== currentUser.id && !currentUser.isAdmin) {
+        return reply.status(403).send({ error: 'Forbidden' })
+      }
+
+      try {
+        const updates: string[] = []
+        const values: (string | boolean | null)[] = []
+        let paramIndex = 1
+
+        if (email !== undefined) {
+          // When user manually sets email, lock it
+          updates.push(`email = $${paramIndex}`)
+          values.push(email)
+          paramIndex++
+          
+          if (email !== null && email.trim() !== '') {
+            updates.push(`email_locked = TRUE`)
+          } else {
+            // If clearing email, unlock so Emby can sync again
+            updates.push(`email_locked = FALSE`)
+          }
+        }
+
+        if (emailNotificationsEnabled !== undefined) {
+          updates.push(`email_notifications_enabled = $${paramIndex}`)
+          values.push(emailNotificationsEnabled)
+          paramIndex++
+        }
+
+        if (updates.length === 0) {
+          return reply.status(400).send({ error: 'No updates provided' })
+        }
+
+        updates.push('updated_at = NOW()')
+        values.push(id)
+
+        await query(
+          `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramIndex}`,
+          values
+        )
+
+        // Return updated settings
+        const result = await queryOne<{
+          email: string | null
+          email_locked: boolean
+          email_notifications_enabled: boolean
+        }>(
+          `SELECT email, email_locked, email_notifications_enabled FROM users WHERE id = $1`,
+          [id]
+        )
+
+        return reply.send({
+          email: result?.email,
+          emailLocked: result?.email_locked,
+          emailNotificationsEnabled: result?.email_notifications_enabled,
+        })
+      } catch (error) {
+        fastify.log.error({ error, userId: id }, 'Failed to update email settings')
+        return reply.status(500).send({ error: 'Failed to update email settings' })
       }
     }
   )

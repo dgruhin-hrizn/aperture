@@ -1,6 +1,6 @@
 # Aperture
 
-[![Version](https://img.shields.io/badge/version-0.4.6-blue.svg)](https://github.com/dgruhin-hrizn/aperture/releases)
+[![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)](https://github.com/dgruhin-hrizn/aperture/releases)
 [![Docker Image](https://img.shields.io/badge/docker-ghcr.io%2Fdgruhin--hrizn%2Faperture-blue?logo=docker)](https://github.com/dgruhin-hrizn/aperture/pkgs/container/aperture)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -45,15 +45,19 @@ docker-compose -f docker-compose.[your-platform].yml up -d
 
 ### 5. Complete the Setup Wizard
 
-Open `http://YOUR_SERVER_IP:3456` and follow the guided setup:
+Open `http://YOUR_SERVER_IP:3456` and follow the 11-step guided setup:
 
-1. Connect to your Emby/Jellyfin server
-2. Select source libraries
-3. Configure AI recommendations
-4. Select users
-5. (Optional) Enable Top Picks
-6. Enter OpenAI API key
-7. Run initial sync
+1. **Restore** (Optional) — Restore from an existing backup if migrating
+2. **Media Server** — Connect to your Emby/Jellyfin server
+3. **Source Libraries** — Select which libraries to analyze
+4. **File Locations** — Configure path mappings for symlinks/STRM
+5. **AI Recommendations** — Configure library naming and cover images
+6. **Validate** — Verify output configuration and paths
+7. **Users** — Select which users receive recommendations
+8. **Top Picks** (Optional) — Configure global trending libraries
+9. **AI / LLM** — Enter your OpenAI API key (or configure Ollama/other providers)
+10. **Initial Jobs** — Run first-time sync with real-time progress
+11. **Complete** — Review summary and next steps
 
 ### 6. Log in
 

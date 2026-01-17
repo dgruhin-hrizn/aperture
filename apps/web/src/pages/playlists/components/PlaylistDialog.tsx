@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import {
   Dialog,
-  DialogTitle,
   DialogContent,
   DialogActions,
   Box,
@@ -13,14 +12,21 @@ import {
   CircularProgress,
   InputAdornment,
   Avatar,
-  Stack,
   Tooltip,
   Button,
+  alpha,
+  useTheme,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import CloseIcon from '@mui/icons-material/Close'
 import MovieIcon from '@mui/icons-material/Movie'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
+import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay'
+import CategoryIcon from '@mui/icons-material/Category'
+import TuneIcon from '@mui/icons-material/Tune'
+import TitleIcon from '@mui/icons-material/Title'
+import DescriptionIcon from '@mui/icons-material/Description'
+import AddIcon from '@mui/icons-material/Add'
 import { getProxiedImageUrl } from '@aperture/ui'
 import type { Channel, Movie, FormData, SnackbarState } from '../types'
 
@@ -51,6 +57,8 @@ export function PlaylistDialog({
   onAddExampleMovie,
   onRemoveExampleMovie,
 }: PlaylistDialogProps) {
+  const theme = useTheme()
+
   // Movie search state
   const [movieSearch, setMovieSearch] = useState('')
   const [movieSearchResults, setMovieSearchResults] = useState<Movie[]>([])
@@ -221,15 +229,163 @@ export function PlaylistDialog({
     }
   }
 
+  // AI button component for consistency
+  const AIButton = ({
+    onClick,
+    loading,
+    disabled,
+    tooltip,
+  }: {
+    onClick: () => void
+    loading: boolean
+    disabled: boolean
+    tooltip: string
+  }) => (
+    <Tooltip title={tooltip}>
+      <span>
+        <IconButton
+          size="small"
+          onClick={onClick}
+          disabled={loading || disabled}
+          sx={{
+            bgcolor: alpha(theme.palette.primary.main, 0.1),
+            color: 'primary.main',
+            '&:hover': {
+              bgcolor: 'primary.main',
+              color: 'white',
+            },
+            '&.Mui-disabled': {
+              bgcolor: alpha(theme.palette.action.disabled, 0.1),
+            },
+            transition: 'all 0.2s',
+          }}
+        >
+          {loading ? (
+            <CircularProgress size={18} color="inherit" />
+          ) : (
+            <AutoAwesomeIcon fontSize="small" />
+          )}
+        </IconButton>
+      </span>
+    </Tooltip>
+  )
+
+  // Section wrapper for consistent styling
+  const Section = ({
+    icon,
+    title,
+    subtitle,
+    children,
+    aiButton,
+  }: {
+    icon: React.ReactNode
+    title: string
+    subtitle?: string
+    children: React.ReactNode
+    aiButton?: React.ReactNode
+  }) => (
+    <Box
+      sx={{
+        p: 2,
+        borderRadius: 2,
+        bgcolor: alpha(theme.palette.background.default, 0.5),
+        border: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+      }}
+    >
+      <Box display="flex" alignItems="flex-start" justifyContent="space-between" mb={1.5}>
+        <Box display="flex" alignItems="center" gap={1.5}>
+          <Box
+            sx={{
+              width: 32,
+              height: 32,
+              borderRadius: 1,
+              bgcolor: alpha(theme.palette.primary.main, 0.15),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'primary.main',
+            }}
+          >
+            {icon}
+          </Box>
+          <Box>
+            <Typography variant="subtitle2" fontWeight={600}>
+              {title}
+            </Typography>
+            {subtitle && (
+              <Typography variant="caption" color="text.secondary">
+                {subtitle}
+              </Typography>
+            )}
+          </Box>
+        </Box>
+        {aiButton}
+      </Box>
+      {children}
+    </Box>
+  )
+
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{editingChannel ? 'Edit Playlist' : 'New Playlist'}</DialogTitle>
-      <DialogContent>
-        {/* Step 1: Genre Multi-Select */}
-        <Box mt={1}>
-          <Typography variant="subtitle2" gutterBottom color="primary">
-            1. Select Genres
-          </Typography>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 3,
+          overflow: 'hidden',
+          bgcolor: 'background.paper',
+        },
+      }}
+    >
+      {/* Gradient Header */}
+      <Box
+        sx={{
+          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.15)} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`,
+          p: 3,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <Box display="flex" alignItems="center" gap={2}>
+          <Box
+            sx={{
+              width: 48,
+              height: 48,
+              borderRadius: 2,
+              bgcolor: alpha(theme.palette.primary.main, 0.2),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <PlaylistPlayIcon sx={{ fontSize: 28, color: 'primary.main' }} />
+          </Box>
+          <Box>
+            <Typography variant="h5" fontWeight={700}>
+              {editingChannel ? 'Edit Playlist' : 'New Playlist'}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {editingChannel
+                ? 'Update your playlist settings'
+                : 'Create a personalized recommendation playlist'}
+            </Typography>
+          </Box>
+        </Box>
+        <IconButton onClick={onClose} sx={{ color: 'text.secondary' }}>
+          <CloseIcon />
+        </IconButton>
+      </Box>
+
+      <DialogContent sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {/* Genres Section */}
+        <Section
+          icon={<CategoryIcon fontSize="small" />}
+          title="Genres"
+          subtitle="Select genres to match"
+        >
           <Autocomplete
             multiple
             filterSelectedOptions
@@ -237,15 +393,16 @@ export function PlaylistDialog({
             value={formData.genreFilters}
             onChange={(_, newValue) => setFormData({ ...formData, genreFilters: newValue })}
             loading={loadingGenres}
+            size="small"
             renderInput={(params) => (
               <TextField
                 {...params}
-                placeholder={formData.genreFilters.length === 0 ? 'Select genres...' : ''}
+                placeholder={formData.genreFilters.length === 0 ? 'Search genres...' : ''}
                 InputProps={{
                   ...params.InputProps,
                   endAdornment: (
                     <>
-                      {loadingGenres ? <CircularProgress color="inherit" size={20} /> : null}
+                      {loadingGenres ? <CircularProgress color="inherit" size={18} /> : null}
                       {params.InputProps.endAdornment}
                     </>
                   ),
@@ -254,32 +411,36 @@ export function PlaylistDialog({
             )}
             renderTags={(value, getTagProps) =>
               value.map((option, index) => (
-                <Chip variant="outlined" label={option} size="small" {...getTagProps({ index })} key={option} />
+                <Chip
+                  variant="filled"
+                  label={option}
+                  size="small"
+                  {...getTagProps({ index })}
+                  key={option}
+                  sx={{ bgcolor: alpha(theme.palette.primary.main, 0.15) }}
+                />
               ))
             }
           />
-        </Box>
+        </Section>
 
-        {/* Step 2: Example Movies */}
-        <Box mt={3}>
-          <Typography variant="subtitle2" gutterBottom color="primary">
-            2. Add Example Movies
-          </Typography>
-          <Typography variant="caption" color="text.secondary" display="block" mb={1}>
-            Movies that define this playlist's vibe
-          </Typography>
-
+        {/* Example Movies Section */}
+        <Section
+          icon={<MovieIcon fontSize="small" />}
+          title="Seed Movies"
+          subtitle="Movies that define this playlist's vibe"
+        >
           {/* Movie Search */}
           <TextField
             fullWidth
             size="small"
-            placeholder="Search for movies..."
+            placeholder="Search for movies to add..."
             value={movieSearch}
             onChange={(e) => setMovieSearch(e.target.value)}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
+                  <SearchIcon fontSize="small" color="action" />
                 </InputAdornment>
               ),
               endAdornment: searchingMovies ? (
@@ -295,11 +456,10 @@ export function PlaylistDialog({
             <Box
               sx={{
                 mt: 1,
-                maxHeight: 200,
+                maxHeight: 180,
                 overflow: 'auto',
-                border: 1,
-                borderColor: 'divider',
                 borderRadius: 1,
+                bgcolor: 'background.default',
               }}
             >
               {movieSearchResults.map((movie) => (
@@ -308,168 +468,199 @@ export function PlaylistDialog({
                   sx={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 1,
+                    gap: 1.5,
                     p: 1,
                     cursor: 'pointer',
-                    '&:hover': { backgroundColor: 'action.hover' },
+                    borderRadius: 1,
+                    '&:hover': { bgcolor: 'action.hover' },
                   }}
                   onClick={() => handleAddMovie(movie)}
                 >
-                  <Avatar src={getProxiedImageUrl(movie.poster_url)} variant="rounded" sx={{ width: 32, height: 48 }}>
+                  <Avatar
+                    src={getProxiedImageUrl(movie.poster_url)}
+                    variant="rounded"
+                    sx={{ width: 36, height: 54 }}
+                  >
                     <MovieIcon fontSize="small" />
                   </Avatar>
-                  <Box>
-                    <Typography variant="body2">{movie.title}</Typography>
+                  <Box flex={1}>
+                    <Typography variant="body2" fontWeight={500}>
+                      {movie.title}
+                    </Typography>
                     {movie.year && (
                       <Typography variant="caption" color="text.secondary">
                         {movie.year}
                       </Typography>
                     )}
                   </Box>
+                  <IconButton size="small" color="primary">
+                    <AddIcon fontSize="small" />
+                  </IconButton>
                 </Box>
               ))}
             </Box>
           )}
 
-          {/* Selected Movies */}
+          {/* Selected Movies - Visual Strip */}
           {formData.exampleMovies.length > 0 && (
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 2 }}>
+            <Box
+              sx={{
+                mt: 2,
+                display: 'flex',
+                gap: 1,
+                overflowX: 'auto',
+                pb: 1,
+                '&::-webkit-scrollbar': { height: 4 },
+                '&::-webkit-scrollbar-track': { bgcolor: 'transparent' },
+                '&::-webkit-scrollbar-thumb': {
+                  bgcolor: alpha(theme.palette.text.primary, 0.2),
+                  borderRadius: 2,
+                },
+              }}
+            >
               {formData.exampleMovies.map((movie) => (
-                <Chip
-                  key={movie.id}
-                  avatar={
-                    <Avatar src={getProxiedImageUrl(movie.poster_url)}>
-                      <MovieIcon fontSize="small" />
-                    </Avatar>
-                  }
-                  label={`${movie.title}${movie.year ? ` (${movie.year})` : ''}`}
-                  onDelete={() => onRemoveExampleMovie(movie.id)}
-                  deleteIcon={<CloseIcon />}
-                  sx={{ mb: 1 }}
-                />
+                <Tooltip key={movie.id} title={`${movie.title}${movie.year ? ` (${movie.year})` : ''}`}>
+                  <Box
+                    sx={{
+                      position: 'relative',
+                      flexShrink: 0,
+                      width: 52,
+                      height: 78,
+                      borderRadius: 1,
+                      overflow: 'hidden',
+                      cursor: 'pointer',
+                      '&:hover .remove-btn': { opacity: 1 },
+                    }}
+                    onClick={() => onRemoveExampleMovie(movie.id)}
+                  >
+                    {movie.poster_url ? (
+                      <img
+                        src={getProxiedImageUrl(movie.poster_url)}
+                        alt={movie.title}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <Box
+                        sx={{
+                          width: '100%',
+                          height: '100%',
+                          bgcolor: 'action.hover',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <MovieIcon sx={{ color: 'text.disabled' }} />
+                      </Box>
+                    )}
+                    <Box
+                      className="remove-btn"
+                      sx={{
+                        position: 'absolute',
+                        inset: 0,
+                        bgcolor: 'rgba(0,0,0,0.6)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        opacity: 0,
+                        transition: 'opacity 0.2s',
+                      }}
+                    >
+                      <CloseIcon sx={{ color: 'white', fontSize: 20 }} />
+                    </Box>
+                  </Box>
+                </Tooltip>
               ))}
-            </Stack>
+            </Box>
           )}
-        </Box>
+        </Section>
 
-        {/* Step 3: Text Preferences */}
-        <Box mt={3}>
-          <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
-            <Typography variant="subtitle2" color="primary">
-              3. Text Preferences (Optional)
-            </Typography>
-            <Tooltip title="Generate AI preferences based on your taste profile, genres, and example movies">
-              <span>
-                <IconButton
-                  size="small"
-                  color="primary"
-                  onClick={handleGenerateAIPreferences}
-                  disabled={generatingAIPreferences || !canGenerate}
-                  sx={{
-                    '&:hover': { backgroundColor: 'primary.main', color: 'white' },
-                  }}
-                >
-                  {generatingAIPreferences ? (
-                    <CircularProgress size={20} color="inherit" />
-                  ) : (
-                    <AutoAwesomeIcon fontSize="small" />
-                  )}
-                </IconButton>
-              </span>
-            </Tooltip>
-          </Box>
-          <TextField
-            fullWidth
-            multiline
-            rows={3}
-            value={formData.textPreferences}
-            onChange={(e) => setFormData({ ...formData, textPreferences: e.target.value })}
-            placeholder="e.g., Dark atmosphere, morally complex characters, twist endings..."
-            helperText="Describe what you want. Click ✨ to auto-generate."
-          />
-        </Box>
-
-        {/* Step 4: Name */}
-        <Box mt={3}>
-          <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
-            <Typography variant="subtitle2" color="primary">
-              4. Playlist Name
-            </Typography>
-            <Tooltip title="Generate a creative name based on genres, movies, and preferences">
-              <span>
-                <IconButton
-                  size="small"
-                  color="primary"
-                  onClick={handleGenerateAIName}
-                  disabled={generatingAIName || !canGenerate}
-                  sx={{
-                    '&:hover': { backgroundColor: 'primary.main', color: 'white' },
-                  }}
-                >
-                  {generatingAIName ? (
-                    <CircularProgress size={20} color="inherit" />
-                  ) : (
-                    <AutoAwesomeIcon fontSize="small" />
-                  )}
-                </IconButton>
-              </span>
-            </Tooltip>
-          </Box>
-          <TextField
-            fullWidth
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="e.g., Neon Noir Nights"
-            helperText="A catchy name for your playlist. Click ✨ to auto-generate."
-          />
-        </Box>
-
-        {/* Step 5: Description */}
-        <Box mt={3}>
-          <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
-            <Typography variant="subtitle2" color="primary">
-              5. Description (Optional)
-            </Typography>
-            <Tooltip title="Generate a description based on your playlist">
-              <span>
-                <IconButton
-                  size="small"
-                  color="primary"
-                  onClick={handleGenerateAIDescription}
-                  disabled={generatingAIDescription || !canGenerate}
-                  sx={{
-                    '&:hover': { backgroundColor: 'primary.main', color: 'white' },
-                  }}
-                >
-                  {generatingAIDescription ? (
-                    <CircularProgress size={20} color="inherit" />
-                  ) : (
-                    <AutoAwesomeIcon fontSize="small" />
-                  )}
-                </IconButton>
-              </span>
-            </Tooltip>
-          </Box>
+        {/* Text Preferences Section */}
+        <Section
+          icon={<TuneIcon fontSize="small" />}
+          title="Preferences"
+          subtitle="Describe your ideal recommendations"
+          aiButton={
+            <AIButton
+              onClick={handleGenerateAIPreferences}
+              loading={generatingAIPreferences}
+              disabled={!canGenerate}
+              tooltip="Generate preferences with AI based on genres & movies"
+            />
+          }
+        >
           <TextField
             fullWidth
             multiline
             rows={2}
+            size="small"
+            value={formData.textPreferences}
+            onChange={(e) => setFormData({ ...formData, textPreferences: e.target.value })}
+            placeholder="e.g., Dark atmosphere, morally complex characters, twist endings..."
+          />
+        </Section>
+
+        {/* Name Section */}
+        <Section
+          icon={<TitleIcon fontSize="small" />}
+          title="Playlist Name"
+          aiButton={
+            <AIButton
+              onClick={handleGenerateAIName}
+              loading={generatingAIName}
+              disabled={!canGenerate}
+              tooltip="Generate a creative name with AI"
+            />
+          }
+        >
+          <TextField
+            fullWidth
+            size="small"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            placeholder="e.g., Neon Noir Nights"
+          />
+        </Section>
+
+        {/* Description Section */}
+        <Section
+          icon={<DescriptionIcon fontSize="small" />}
+          title="Description"
+          subtitle="Optional"
+          aiButton={
+            <AIButton
+              onClick={handleGenerateAIDescription}
+              loading={generatingAIDescription}
+              disabled={!canGenerate}
+              tooltip="Generate a description with AI"
+            />
+          }
+        >
+          <TextField
+            fullWidth
+            multiline
+            rows={2}
+            size="small"
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             placeholder="A curated collection of..."
-            helperText="Brief description for your playlist. Click ✨ to auto-generate."
           />
-        </Box>
+        </Section>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={onSubmit} disabled={!formData.name}>
-          {editingChannel ? 'Save' : 'Create'}
+
+      <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
+        <Button onClick={onClose} variant="outlined" color="inherit">
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          onClick={onSubmit}
+          disabled={!formData.name}
+          startIcon={<PlaylistPlayIcon />}
+        >
+          {editingChannel ? 'Save Changes' : 'Create Playlist'}
         </Button>
       </DialogActions>
     </Dialog>
   )
 }
-
-
-

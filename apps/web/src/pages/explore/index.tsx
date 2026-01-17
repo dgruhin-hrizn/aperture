@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Box,
@@ -20,11 +20,8 @@ import {
   Collapse,
   CircularProgress,
   Chip,
-  Breadcrumbs,
-  Link,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
-import RefreshIcon from '@mui/icons-material/Refresh'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
@@ -34,10 +31,7 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import HistoryIcon from '@mui/icons-material/History'
 import ClearIcon from '@mui/icons-material/Clear'
-import HomeIcon from '@mui/icons-material/Home'
-import NavigateNextIcon from '@mui/icons-material/NavigateNext'
 import {
-  SimilarityGraph,
   useGraphData,
   useSimilarityData,
   type GraphNode,
@@ -45,6 +39,7 @@ import {
   type LoadingStatus,
 } from '../../components/SimilarityGraph'
 import { CONNECTION_COLORS, CONNECTION_LABELS, type ConnectionType } from '../../components/SimilarityGraph/types'
+import { GraphExplorer } from '../../components/GraphExplorer'
 
 type GraphSource = 'ai-movies' | 'ai-series' | 'watching' | 'top-movies' | 'top-series'
 type MediaFilter = 'movie' | 'series' | 'both'
@@ -52,10 +47,55 @@ type MediaFilter = 'movie' | 'series' | 'both'
 const RECENT_SEARCHES_KEY = 'aperture_recent_searches'
 const MAX_RECENT_SEARCHES = 5
 
+const SEARCH_EXAMPLES = ['Psychological thrillers', 'Feel-good comedies', 'Mind-bending sci-fi']
+
 interface SemanticSearchState {
   query: string
   loading: boolean
   results: GraphData | null
+}
+
+// Loading phase messages for semantic search
+const SEMANTIC_SEARCH_PHASES = {
+  searching: {
+    messages: [
+      'Searching your library...',
+      'Finding matching content...',
+      'Analyzing your query...',
+    ],
+    details: [
+      'Generating query embedding',
+      'Comparing with library content',
+      'Ranking by relevance',
+    ],
+  },
+  clustering: {
+    messages: [
+      'AI discovering themes...',
+      'Finding thematic connections...',
+      'Grouping related content...',
+    ],
+    details: [
+      'Analyzing shared themes',
+      'Identifying clusters',
+      'Building meaningful connections',
+    ],
+  },
+  building: {
+    messages: [
+      'Building visualization...',
+      'Arranging results...',
+      'Finalizing graph...',
+    ],
+    details: [
+      'Calculating layout',
+      'Preparing display',
+    ],
+  },
+}
+
+function randomItem<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)]
 }
 
 export function ExplorePage() {
@@ -82,6 +122,7 @@ export function ExplorePage() {
   // State
   const [mediaFilter, setMediaFilter] = useState<MediaFilter>('both')
   const [crossMediaEnabled, setCrossMediaEnabled] = useState(false)
+  const [hideWatched, setHideWatched] = useState(true) // Default to hiding watched content
   const [searchQuery, setSearchQuery] = useState('')
   const [browseSectionOpen, setBrowseSectionOpen] = useState(true)
   const [recentSearches, setRecentSearches] = useState<string[]>([])
@@ -94,9 +135,13 @@ export function ExplorePage() {
   const [focusedItemType, setFocusedItemType] = useState<'movie' | 'series' | null>(
     initialFocusParsed?.type || initialType || null
   )
-  const [navigationHistory, setNavigationHistory] = useState<
-    Array<{ id: string; type: 'movie' | 'series'; title: string }>
-  >([])
+
+  // Breadcrumb history for drill-down navigation (tracks across search and focused modes)
+  const [breadcrumbHistory, setBreadcrumbHistory] = useState<Array<{
+    id: string
+    title: string
+    type: 'movie' | 'series' | 'search'
+  }>>([])
 
   // Semantic search state
   const [semanticSearch, setSemanticSearch] = useState<SemanticSearchState>({
@@ -104,6 +149,69 @@ export function ExplorePage() {
     loading: false,
     results: null,
   })
+  const [semanticLoadingStatus, setSemanticLoadingStatus] = useState<LoadingStatus | null>(null)
+  const semanticLoadingTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const semanticPhaseStartRef = useRef<number>(0)
+
+  // Start semantic search loading animation
+  const startSemanticLoadingProgress = useCallback(() => {
+    semanticPhaseStartRef.current = Date.now()
+    setSemanticLoadingStatus({
+      phase: 'fetching',
+      message: randomItem(SEMANTIC_SEARCH_PHASES.searching.messages),
+      progress: 5,
+    })
+
+    semanticLoadingTimerRef.current = setInterval(() => {
+      const elapsed = Date.now() - semanticPhaseStartRef.current
+
+      setSemanticLoadingStatus(() => {
+        // Searching phase (0-2s, 0-30%)
+        if (elapsed < 2000) {
+          return {
+            phase: 'fetching',
+            message: randomItem(SEMANTIC_SEARCH_PHASES.searching.messages),
+            detail: randomItem(SEMANTIC_SEARCH_PHASES.searching.details),
+            progress: Math.min(30, 5 + (elapsed / 2000) * 25),
+          }
+        }
+        // AI Clustering phase (2-6s, 30-80%)
+        if (elapsed < 6000) {
+          const progress = 30 + ((elapsed - 2000) / 4000) * 50
+          return {
+            phase: 'validating',
+            message: randomItem(SEMANTIC_SEARCH_PHASES.clustering.messages),
+            detail: randomItem(SEMANTIC_SEARCH_PHASES.clustering.details),
+            progress: Math.min(80, progress),
+          }
+        }
+        // Building phase (6s+, 80-95%)
+        return {
+          phase: 'building',
+          message: randomItem(SEMANTIC_SEARCH_PHASES.building.messages),
+          detail: randomItem(SEMANTIC_SEARCH_PHASES.building.details),
+          progress: Math.min(95, 80 + ((elapsed - 6000) / 3000) * 15),
+        }
+      })
+    }, 300)
+  }, [])
+
+  const stopSemanticLoadingProgress = useCallback(() => {
+    if (semanticLoadingTimerRef.current) {
+      clearInterval(semanticLoadingTimerRef.current)
+      semanticLoadingTimerRef.current = null
+    }
+    setSemanticLoadingStatus(null)
+  }, [])
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (semanticLoadingTimerRef.current) {
+        clearInterval(semanticLoadingTimerRef.current)
+      }
+    }
+  }, [])
 
   // Load recent searches from localStorage
   useEffect(() => {
@@ -136,21 +244,23 @@ export function ExplorePage() {
     }
   )
 
-  // Fetch similarity data for a focused item
+  // Fetch similarity data for a focused item (with rabbit-hole navigation)
   const {
     data: focusedData,
     loading: focusedLoading,
     loadingStatus: focusedLoadingStatus,
-    history,
     setFocusId,
-    goToHistoryIndex,
     startOver,
-  } = useSimilarityData(focusedItemType || 'movie', focusedItemId, { limit: 15 })
+  } = useSimilarityData(focusedItemType || 'movie', focusedItemId, { limit: 15, depth: 3 })
 
   // Determine what data to display
   const getDisplayData = (): { data: GraphData | null; loading: boolean; loadingStatus: LoadingStatus | null } => {
+    // Semantic search takes priority when loading or has results
+    if (semanticSearch.loading) {
+      return { data: null, loading: true, loadingStatus: semanticLoadingStatus }
+    }
     if (semanticSearch.results) {
-      return { data: semanticSearch.results, loading: semanticSearch.loading, loadingStatus: semanticSearch.loading ? { phase: 'validating', message: 'Searching library...', progress: 50 } : null }
+      return { data: semanticSearch.results, loading: false, loadingStatus: null }
     }
     if (focusedItemId) {
       return { data: focusedData, loading: focusedLoading, loadingStatus: focusedLoadingStatus }
@@ -173,17 +283,17 @@ export function ExplorePage() {
   }, [focusedItemId, focusedItemType, setSearchParams, searchParams])
 
   // Handle semantic search
-  const handleSemanticSearch = async (query: string) => {
+  const handleSemanticSearch = useCallback(async (query: string) => {
     if (!query.trim()) return
 
     setSemanticSearch({ query, loading: true, results: null })
+    startSemanticLoadingProgress()
     saveRecentSearch(query)
 
     // Clear other states
     setFocusedItemId(null)
     setFocusedItemType(null)
     setSelectedBrowseSource(null)
-    setNavigationHistory([])
 
     try {
       const params = new URLSearchParams({
@@ -191,6 +301,7 @@ export function ExplorePage() {
         type: mediaFilter,
         limit: '20',
         graph: 'true',
+        hideWatched: hideWatched.toString(),
       })
 
       const response = await fetch(`/api/similarity/search?${params}`, {
@@ -202,6 +313,7 @@ export function ExplorePage() {
       }
 
       const result = await response.json()
+      stopSemanticLoadingProgress()
       setSemanticSearch({
         query,
         loading: false,
@@ -209,9 +321,10 @@ export function ExplorePage() {
       })
     } catch (error) {
       console.error('Semantic search failed:', error)
+      stopSemanticLoadingProgress()
       setSemanticSearch({ query, loading: false, results: null })
     }
-  }
+  }, [mediaFilter, hideWatched, startSemanticLoadingProgress, stopSemanticLoadingProgress])
 
   // Handle browse source selection
   const handleBrowseSourceSelect = (source: GraphSource) => {
@@ -219,7 +332,6 @@ export function ExplorePage() {
     setSemanticSearch({ query: '', loading: false, results: null })
     setFocusedItemId(null)
     setFocusedItemType(null)
-    setNavigationHistory([])
     setSearchQuery('')
   }
 
@@ -228,25 +340,32 @@ export function ExplorePage() {
     (node: GraphNode) => {
       if (node.isCenter) return
 
-      // Track history
-      const currentCenter = displayData?.nodes.find((n) => n.isCenter)
-      if (currentCenter) {
-        setNavigationHistory((prev) => [
-          ...prev,
-          { id: currentCenter.id, type: currentCenter.type, title: currentCenter.title },
-        ])
-      }
-
-      // If we're in semantic search mode, switch to focused mode
-      if (semanticSearch.results) {
+      // Track the current state in breadcrumb history before navigating
+      if (semanticSearch.results && semanticSearch.query) {
+        // Coming from semantic search - add search as starting point
+        setBreadcrumbHistory([{
+          id: 'search',
+          title: `"${semanticSearch.query}"`,
+          type: 'search',
+        }])
         setSemanticSearch({ query: '', loading: false, results: null })
+      } else if (displayData?.nodes) {
+        // Coming from focused view - add current center to history
+        const centerNode = displayData.nodes.find(n => n.isCenter)
+        if (centerNode) {
+          setBreadcrumbHistory(prev => [...prev, {
+            id: centerNode.id,
+            title: centerNode.title,
+            type: centerNode.type,
+          }])
+        }
       }
 
       setFocusedItemId(node.id)
       setFocusedItemType(node.type)
       setFocusId(node.id, node.type)
     },
-    [displayData, semanticSearch.results, setFocusId]
+    [semanticSearch.results, semanticSearch.query, displayData, setFocusId]
   )
 
   const handleNodeDoubleClick = useCallback(
@@ -256,28 +375,49 @@ export function ExplorePage() {
     [navigate]
   )
 
-  // Handle going back in history
-  const handleHistoryBack = (index: number) => {
-    const item = navigationHistory[index]
-    // Remove everything after this index
-    setNavigationHistory(navigationHistory.slice(0, index))
-    setFocusedItemId(item.id)
-    setFocusedItemType(item.type)
-    goToHistoryIndex(index)
-  }
+  // Handle history navigation (breadcrumb click)
+  const handleHistoryNavigate = useCallback(
+    (index: number) => {
+      const item = breadcrumbHistory[index]
+      if (!item) return
 
-  // Handle start over
-  const handleStartOver = () => {
-    setNavigationHistory([])
-    if (semanticSearch.query) {
-      // Re-run the search
-      handleSemanticSearch(semanticSearch.query)
-    } else {
-      setFocusedItemId(null)
-      setFocusedItemType(null)
-      startOver()
+      if (item.type === 'search') {
+        // Go back to search results - re-run the search
+        const searchQuery = item.title.replace(/^"|"$/g, '') // Remove quotes
+        handleSemanticSearch(searchQuery)
+        setBreadcrumbHistory([])
+      } else {
+        // Go back to a specific item
+        setFocusedItemId(item.id)
+        setFocusedItemType(item.type)
+        setFocusId(item.id, item.type)
+        // Remove everything after this index
+        setBreadcrumbHistory(prev => prev.slice(0, index))
+      }
+    },
+    [breadcrumbHistory, handleSemanticSearch, setFocusId]
+  )
+
+  // Handle start over (home button)
+  const handleStartOver = useCallback(() => {
+    // Check if first breadcrumb is a search
+    if (breadcrumbHistory.length > 0 && breadcrumbHistory[0].type === 'search') {
+      const searchQuery = breadcrumbHistory[0].title.replace(/^"|"$/g, '')
+      handleSemanticSearch(searchQuery)
     }
-  }
+    setBreadcrumbHistory([])
+    setFocusedItemId(null)
+    setFocusedItemType(null)
+    startOver()
+  }, [breadcrumbHistory, handleSemanticSearch, startOver])
+
+  // Handle clearing the search (clears results too)
+  const handleSearchClear = useCallback(() => {
+    setSemanticSearch({ query: '', loading: false, results: null })
+    setFocusedItemId(null)
+    setFocusedItemType(null)
+    setBreadcrumbHistory([])
+  }, [])
 
   // Clear recent search
   const clearRecentSearch = (query: string) => {
@@ -286,14 +426,76 @@ export function ExplorePage() {
     localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated))
   }
 
-  // Get current title for breadcrumb
-  const currentTitle =
-    displayData?.nodes.find((n) => n.isCenter)?.title ||
-    (semanticSearch.query ? `"${semanticSearch.query}"` : 'Select a source')
+  // Handle refresh - re-run current search or refetch browse source
+  const handleRefresh = useCallback(() => {
+    if (semanticSearch.query) {
+      // Re-run the semantic search
+      handleSemanticSearch(semanticSearch.query)
+    } else if (selectedBrowseSource) {
+      // Refetch browse source data
+      refetch()
+    }
+  }, [semanticSearch.query, handleSemanticSearch, selectedBrowseSource, refetch])
+
+  // Determine if refresh should be shown
+  const showRefreshButton = !!(semanticSearch.results || selectedBrowseSource || focusedItemId)
+
+  // Get title for header
+  const getTitle = () => {
+    if (semanticSearch.query) {
+      return `Search: "${semanticSearch.query}"`
+    }
+    if (selectedBrowseSource) {
+      const sourceLabels: Record<GraphSource, string> = {
+        'ai-movies': 'My AI Movie Picks',
+        'ai-series': 'My AI Series Picks',
+        'watching': 'Shows You Watch',
+        'top-movies': 'Top Picks Movies',
+        'top-series': 'Top Picks Series',
+      }
+      return sourceLabels[selectedBrowseSource]
+    }
+    return 'Explore'
+  }
 
   return (
-    <Box sx={{ display: 'flex', height: 'calc(100vh - 64px)' }}>
-      {/* Left Sidebar - Improved UX */}
+    <Box 
+      sx={{ 
+        display: 'flex', 
+        height: 'calc(100vh - 64px)', 
+        // Break out of parent Layout padding
+        m: { xs: -2, sm: -3 },
+        width: { xs: 'calc(100% + 32px)', sm: 'calc(100% + 48px)' },
+      }}
+    >
+      {/* Main Graph Area - Always uses GraphExplorer */}
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <GraphExplorer
+          data={displayData}
+          loading={loading}
+          loadingStatus={loadingStatus}
+          title={getTitle()}
+          history={breadcrumbHistory}
+          onHistoryNavigate={handleHistoryNavigate}
+          onStartOver={handleStartOver}
+          onNodeClick={handleNodeClick}
+          onNodeDoubleClick={handleNodeDoubleClick}
+          onNodeDetailsClick={handleNodeDoubleClick}
+          showSearch
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearch={handleSemanticSearch}
+          onSearchClear={handleSearchClear}
+          searchPlaceholder="Search by mood, theme, or description..."
+          searchLoading={semanticSearch.loading}
+          searchExamples={SEARCH_EXAMPLES}
+          showCreatePlaylist
+          showRefresh={showRefreshButton}
+          onRefresh={handleRefresh}
+        />
+      </Box>
+
+      {/* Right Sidebar - Controls */}
       <Paper
         sx={{
           width: 280,
@@ -301,48 +503,18 @@ export function ExplorePage() {
           display: 'flex',
           flexDirection: 'column',
           borderRadius: 0,
-          borderRight: 1,
+          borderLeft: 1,
           borderColor: 'divider',
           bgcolor: 'background.paper',
+          height: '100%',
+          overflowY: 'auto',
         }}
       >
-        {/* Search Box - Prominent */}
-        <Box sx={{ p: 2, bgcolor: 'rgba(139, 92, 246, 0.05)' }}>
-          <TextField
-            fullWidth
-            size="small"
-            placeholder="Search your library..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && searchQuery.trim()) {
-                handleSemanticSearch(searchQuery)
-              }
-            }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" color="primary" />
-                </InputAdornment>
-              ),
-              endAdornment: semanticSearch.loading ? (
-                <CircularProgress size={16} />
-              ) : searchQuery ? (
-                <IconButton size="small" onClick={() => setSearchQuery('')}>
-                  <ClearIcon fontSize="small" />
-                </IconButton>
-              ) : null,
-              sx: {
-                bgcolor: 'background.paper',
-                '&:hover': { bgcolor: 'background.paper' },
-              },
-            }}
-            helperText="Try: 'Psychological thrillers', 'Family animation'"
-          />
-        </Box>
-
         {/* Quick Filters */}
         <Box sx={{ px: 2, py: 1.5 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+            Filter by type
+          </Typography>
           <ToggleButtonGroup
             value={mediaFilter}
             exclusive
@@ -366,6 +538,23 @@ export function ExplorePage() {
             </ToggleButton>
             <ToggleButton value="both">Both</ToggleButton>
           </ToggleButtonGroup>
+
+          {/* Hide Watched Toggle */}
+          <FormControlLabel
+            control={
+              <Switch
+                size="small"
+                checked={hideWatched}
+                onChange={(e) => setHideWatched(e.target.checked)}
+              />
+            }
+            label={
+              <Typography variant="caption" color="text.secondary">
+                Hide watched
+              </Typography>
+            }
+            sx={{ mt: 1.5, ml: 0 }}
+          />
         </Box>
 
         <Divider />
@@ -511,134 +700,7 @@ export function ExplorePage() {
             }
           />
         </Box>
-
-        {/* Spacer */}
-        <Box sx={{ flex: 1 }} />
-
-        {/* Refresh Button */}
-        <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
-          <Tooltip title="Refresh graph">
-            <IconButton size="small" onClick={() => refetch()}>
-              <RefreshIcon />
-            </IconButton>
-          </Tooltip>
-        </Box>
       </Paper>
-
-      {/* Main Graph Area */}
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {/* Breadcrumb Navigation */}
-        {(navigationHistory.length > 0 || semanticSearch.query) && (
-          <Box
-            sx={{
-              px: 2,
-              py: 1,
-              borderBottom: 1,
-              borderColor: 'divider',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              bgcolor: 'rgba(139, 92, 246, 0.03)',
-            }}
-          >
-            <Tooltip title="Start over">
-              <IconButton size="small" onClick={handleStartOver} sx={{ color: 'primary.main' }}>
-                <HomeIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <Breadcrumbs
-              separator={<NavigateNextIcon fontSize="small" />}
-              sx={{
-                '& .MuiBreadcrumbs-separator': { mx: 0.5 },
-                '& .MuiBreadcrumbs-li': { fontSize: '0.875rem' },
-              }}
-            >
-              {semanticSearch.query && (
-                <Typography variant="body2" color="text.secondary">
-                  Search: "{semanticSearch.query}"
-                </Typography>
-              )}
-              {navigationHistory.map((item, index) => (
-                <Link
-                  key={`${item.id}-${index}`}
-                  component="button"
-                  variant="body2"
-                  onClick={() => handleHistoryBack(index)}
-                  sx={{
-                    cursor: 'pointer',
-                    color: 'text.secondary',
-                    '&:hover': { color: 'primary.main' },
-                  }}
-                >
-                  {item.title}
-                </Link>
-              ))}
-              <Typography variant="body2" color="text.primary" fontWeight={500}>
-                {currentTitle}
-              </Typography>
-            </Breadcrumbs>
-          </Box>
-        )}
-
-        {/* Graph */}
-        <Box sx={{ flex: 1, position: 'relative' }}>
-          {!displayData && !loading ? (
-            <Box
-              sx={{
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 2,
-                color: 'text.secondary',
-              }}
-            >
-              <SearchIcon sx={{ fontSize: 64, opacity: 0.3 }} />
-              <Typography variant="h6">Discover Your Library</Typography>
-              <Typography variant="body2" textAlign="center" maxWidth={400}>
-                Search for content like "psychological thrillers" or select a browse category to
-                explore connections in your library.
-              </Typography>
-            </Box>
-          ) : (
-            <SimilarityGraph
-              data={displayData}
-              loading={loading}
-              loadingStatus={loadingStatus || undefined}
-              onNodeClick={handleNodeClick}
-              onNodeDoubleClick={handleNodeDoubleClick}
-            />
-          )}
-        </Box>
-
-        {/* Bottom Bar - Instructions */}
-        <Paper
-          sx={{
-            px: 2,
-            py: 1,
-            borderRadius: 0,
-            borderTop: 1,
-            borderColor: 'divider',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 3,
-          }}
-        >
-          <Typography variant="caption" color="text.secondary">
-            <strong>Click</strong> to explore connections
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            <strong>Double-click</strong> to view details
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            <strong>Drag</strong> to reposition
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            <strong>Scroll</strong> to zoom
-          </Typography>
-        </Paper>
-      </Box>
     </Box>
   )
 }

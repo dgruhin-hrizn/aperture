@@ -505,6 +505,25 @@ export async function writeSeriesStrmFilesForUser(
             logger.warn({ series: series.title, episode: episode.title }, 'No file path for episode, skipping')
             continue
           }
+
+          // Clean up old symlinks if switching from symlink mode to STRM mode
+          const possibleSymlinks = [
+            path.join(seasonFolderPath, `${episodeFilename}.mp4`),
+            path.join(seasonFolderPath, `${episodeFilename}.mkv`),
+            path.join(seasonFolderPath, `${episodeFilename}.avi`),
+          ]
+          for (const symlinkPath of possibleSymlinks) {
+            try {
+              const stat = await fs.lstat(symlinkPath)
+              if (stat.isSymbolicLink()) {
+                await fs.unlink(symlinkPath)
+                logger.info({ path: symlinkPath }, '🗑️ Removed old episode symlink (switched to STRM mode)')
+              }
+            } catch {
+              // File doesn't exist, which is fine
+            }
+          }
+
           const strmPath = path.join(seasonFolderPath, `${episodeFilename}.strm`)
           await fs.writeFile(strmPath, episode.path, 'utf-8')
           filesWritten++

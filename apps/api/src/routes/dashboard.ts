@@ -38,6 +38,10 @@ interface DashboardRecentWatch {
   posterUrl: string | null
   lastWatched: Date
   playCount: number
+  lastEpisode?: {
+    seasonNumber: number
+    episodeNumber: number
+  }
 }
 
 interface DashboardRecentRating {
@@ -86,7 +90,8 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
           series_watched: string
           ratings_count: string
           watch_time_minutes: string
-        }>(`
+        }>(
+          `
           SELECT 
             COALESCE((
               SELECT COUNT(DISTINCT movie_id) 
@@ -108,7 +113,9 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
               JOIN movies m ON m.id = wh.movie_id
               WHERE wh.user_id = $1 AND wh.movie_id IS NOT NULL
             ), 0) as watch_time_minutes
-        `, [user.id]),
+        `,
+          [user.id]
+        ),
 
         // Movie recommendations (top 12)
         query<{
@@ -118,7 +125,8 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
           poster_url: string | null
           genres: string[]
           final_score: number | null
-        }>(`
+        }>(
+          `
           SELECT 
             rc.movie_id,
             m.title,
@@ -136,7 +144,9 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
             AND rc.movie_id IS NOT NULL
           ORDER BY rr.created_at DESC, rc.selected_rank ASC
           LIMIT 12
-        `, [user.id]),
+        `,
+          [user.id]
+        ),
 
         // Series recommendations (top 12)
         query<{
@@ -146,7 +156,8 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
           poster_url: string | null
           genres: string[]
           final_score: number | null
-        }>(`
+        }>(
+          `
           SELECT 
             rc.series_id,
             s.title,
@@ -164,7 +175,9 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
             AND rc.series_id IS NOT NULL
           ORDER BY rr.created_at DESC, rc.selected_rank ASC
           LIMIT 12
-        `, [user.id]),
+        `,
+          [user.id]
+        ),
 
         // Top movies (top 12)
         query<{
@@ -175,7 +188,8 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
           genres: string[]
           popularity_score: number
           rank: number
-        }>(`
+        }>(
+          `
           WITH movie_popularity AS (
             SELECT 
               m.id as movie_id,
@@ -203,7 +217,9 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
           FROM movie_popularity
           ORDER BY rank
           LIMIT 12
-        `, []),
+        `,
+          []
+        ),
 
         // Top series (top 12)
         query<{
@@ -214,7 +230,8 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
           genres: string[]
           popularity_score: number
           rank: number
-        }>(`
+        }>(
+          `
           WITH series_popularity AS (
             SELECT 
               s.id as series_id,
@@ -243,7 +260,9 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
           FROM series_popularity
           ORDER BY rank
           LIMIT 12
-        `, []),
+        `,
+          []
+        ),
 
         // Recent movie watches (3)
         query<{
@@ -253,7 +272,8 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
           poster_url: string | null
           last_played_at: Date
           play_count: number
-        }>(`
+        }>(
+          `
           SELECT 
             m.id as movie_id,
             m.title,
@@ -263,35 +283,61 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
             wh.play_count
           FROM watch_history wh
           JOIN movies m ON m.id = wh.movie_id
-          WHERE wh.user_id = $1 AND wh.movie_id IS NOT NULL
-          ORDER BY wh.last_played_at DESC
+          WHERE wh.user_id = $1 
+            AND wh.movie_id IS NOT NULL
+            AND wh.last_played_at IS NOT NULL
+          ORDER BY wh.last_played_at DESC NULLS LAST
           LIMIT 3
-        `, [user.id]),
+        `,
+          [user.id]
+        ),
 
-        // Recent series watches (3)
+        // Recent series watches (3) - includes last watched episode info
         query<{
           series_id: string
           title: string
           year: number | null
           poster_url: string | null
           last_played_at: Date
-          total_plays: number
-        }>(`
+          play_count: number
+          season_number: number
+          episode_number: number
+        }>(
+          `
+          WITH ranked_watches AS (
+            SELECT 
+              s.id as series_id,
+              s.title,
+              s.year,
+              s.poster_url,
+              wh.last_played_at,
+              wh.play_count,
+              e.season_number,
+              e.episode_number,
+              ROW_NUMBER() OVER (PARTITION BY s.id ORDER BY wh.last_played_at DESC) as rn
+            FROM watch_history wh
+            JOIN episodes e ON e.id = wh.episode_id
+            JOIN series s ON s.id = e.series_id
+            WHERE wh.user_id = $1 
+              AND wh.episode_id IS NOT NULL
+              AND wh.last_played_at IS NOT NULL
+          )
           SELECT 
-            s.id as series_id,
-            s.title,
-            s.year,
-            s.poster_url,
-            MAX(wh.last_played_at) as last_played_at,
-            SUM(wh.play_count)::int as total_plays
-          FROM watch_history wh
-          JOIN episodes e ON e.id = wh.episode_id
-          JOIN series s ON s.id = e.series_id
-          WHERE wh.user_id = $1 AND wh.episode_id IS NOT NULL
-          GROUP BY s.id, s.title, s.year, s.poster_url
-          ORDER BY MAX(wh.last_played_at) DESC
+            series_id,
+            title,
+            year,
+            poster_url,
+            last_played_at,
+            play_count,
+            season_number,
+            episode_number
+          FROM ranked_watches
+          WHERE rn = 1
+          ORDER BY last_played_at DESC
           LIMIT 3
-        `, [user.id]),
+        `,
+          [user.id]
+        ),
 
         // Recent ratings (5)
         query<{
@@ -303,7 +349,8 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
           title: string
           year: number | null
           poster_url: string | null
-        }>(`
+        }>(
+          `
           (
             SELECT 
               ur.id,
@@ -335,7 +382,9 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
           )
           ORDER BY updated_at DESC
           LIMIT 5
-        `, [user.id]),
+        `,
+          [user.id]
+        ),
       ])
 
       // Build stats
@@ -418,17 +467,20 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
         year: r.year,
         posterUrl: r.poster_url,
         lastWatched: r.last_played_at,
-        playCount: r.total_plays,
+        playCount: r.play_count,
+        lastEpisode: {
+          seasonNumber: r.season_number,
+          episodeNumber: r.episode_number,
+        },
       }))
-      const recentWatches: DashboardRecentWatch[] = [
-        ...recentMovieWatches,
-        ...recentSeriesWatches,
-      ].sort((a, b) => new Date(b.lastWatched).getTime() - new Date(a.lastWatched).getTime()).slice(0, 6)
+      const recentWatches: DashboardRecentWatch[] = [...recentMovieWatches, ...recentSeriesWatches]
+        .sort((a, b) => new Date(b.lastWatched).getTime() - new Date(a.lastWatched).getTime())
+        .slice(0, 6)
 
       // Build recent ratings
       const recentRatings: DashboardRecentRating[] = recentRatingsResult.rows.map((r) => ({
         id: r.movie_id || r.series_id || r.id,
-        type: r.movie_id ? 'movie' as const : 'series' as const,
+        type: r.movie_id ? ('movie' as const) : ('series' as const),
         title: r.title,
         year: r.year,
         posterUrl: r.poster_url,
@@ -448,4 +500,3 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
 }
 
 export default dashboardRoutes
-

@@ -28,7 +28,7 @@ import {
   Button,
 } from '@mui/material'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
-import ExploreIcon from '@mui/icons-material/Explore'
+import HubOutlinedIcon from '@mui/icons-material/HubOutlined'
 import SaveIcon from '@mui/icons-material/Save'
 import GridViewIcon from '@mui/icons-material/GridView'
 import ViewListIcon from '@mui/icons-material/ViewList'
@@ -302,7 +302,7 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
       <Card variant="outlined" sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-            <ExploreIcon sx={{ color: '#ec4899' }} />
+            <HubOutlinedIcon sx={{ color: '#ec4899' }} />
             Discovery Permissions
           </Typography>
           

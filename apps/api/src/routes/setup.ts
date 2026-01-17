@@ -1453,8 +1453,8 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
     try {
       const fn = request.params.function as AIFunction
 
-      if (!['embeddings', 'chat', 'textGeneration'].includes(fn)) {
-        return reply.status(400).send({ error: 'Invalid function. Must be embeddings, chat, or textGeneration' })
+      if (!['embeddings', 'chat', 'textGeneration', 'exploration'].includes(fn)) {
+        return reply.status(400).send({ error: 'Invalid function. Must be embeddings, chat, textGeneration, or exploration' })
       }
 
       const config = await getFunctionConfig(fn)
@@ -1532,8 +1532,8 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
       const fn = request.params.function as AIFunction
       const { provider, model, apiKey, baseUrl } = request.body
 
-      if (!['embeddings', 'chat', 'textGeneration'].includes(fn)) {
-        return reply.status(400).send({ error: 'Invalid function. Must be embeddings, chat, or textGeneration' })
+      if (!['embeddings', 'chat', 'textGeneration', 'exploration'].includes(fn)) {
+        return reply.status(400).send({ error: 'Invalid function. Must be embeddings, chat, textGeneration, or exploration' })
       }
 
       // Save credentials to the provider credentials store for reuse

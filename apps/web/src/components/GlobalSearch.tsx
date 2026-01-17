@@ -22,7 +22,6 @@ import {
 import SearchIcon from '@mui/icons-material/Search'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
-import KeyboardIcon from '@mui/icons-material/Keyboard'
 import CloseIcon from '@mui/icons-material/Close'
 import { getProxiedImageUrl } from '@aperture/ui'
 
@@ -177,48 +176,13 @@ export function GlobalSearch() {
     <>
       {/* Search trigger button in header */}
       <Tooltip title="Search (⌘K)">
-        <Box
+        <IconButton
           onClick={() => setOpen(true)}
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            px: 2,
-            py: 1,
-            mr: 2,
-            borderRadius: 2,
-            bgcolor: alpha(theme.palette.common.white, 0.1),
-            cursor: 'pointer',
-            transition: 'background-color 0.2s',
-            '&:hover': {
-              bgcolor: alpha(theme.palette.common.white, 0.15),
-            },
-          }}
+          color="inherit"
+          sx={{ opacity: 0.8 }}
         >
-          <SearchIcon sx={{ fontSize: 20, opacity: 0.7 }} />
-          <Typography
-            variant="body2"
-            sx={{ opacity: 0.7, display: { xs: 'none', sm: 'block' } }}
-          >
-            Search...
-          </Typography>
-          <Box
-            sx={{
-              display: { xs: 'none', md: 'flex' },
-              alignItems: 'center',
-              gap: 0.5,
-              px: 0.75,
-              py: 0.25,
-              borderRadius: 1,
-              bgcolor: alpha(theme.palette.common.white, 0.15),
-            }}
-          >
-            <KeyboardIcon sx={{ fontSize: 14, opacity: 0.6 }} />
-            <Typography variant="caption" sx={{ opacity: 0.6 }}>
-              K
-            </Typography>
-          </Box>
-        </Box>
+          <SearchIcon />
+        </IconButton>
       </Tooltip>
 
       {/* Search Dialog */}

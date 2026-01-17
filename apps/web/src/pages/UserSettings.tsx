@@ -23,11 +23,18 @@ import PersonIcon from '@mui/icons-material/Person'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
 import SaveIcon from '@mui/icons-material/Save'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
-import PsychologyIcon from '@mui/icons-material/Psychology'
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined'
+import FingerprintIcon from '@mui/icons-material/Fingerprint'
+import MovieIcon from '@mui/icons-material/Movie'
+import TvIcon from '@mui/icons-material/Tv'
+import TuneIcon from '@mui/icons-material/Tune'
+import TextFieldsIcon from '@mui/icons-material/TextFields'
+import VisibilityIcon from '@mui/icons-material/Visibility'
+import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 import { useAuth } from '@/hooks/useAuth'
 import { Breadcrumbs } from '@/components/Breadcrumbs'
-import { TasteProfileSection } from './UserSettings/TasteProfileSection'
+import { WatcherIdentitySection } from './UserSettings/WatcherIdentitySection'
+import { AlgorithmSettingsSection } from './UserSettings/AlgorithmSettingsSection'
 
 interface TabPanelProps {
   children?: React.ReactNode
@@ -54,6 +61,7 @@ interface AiExplanationPreference {
 export function UserSettingsPage() {
   const { user } = useAuth()
   const [tabValue, setTabValue] = useState(0)
+  const [identityMediaType, setIdentityMediaType] = useState<'movie' | 'series'>('movie')
 
   // User settings state
   const [defaultLibraryPrefix, setDefaultLibraryPrefix] = useState<string>('AI Picks - ')
@@ -101,6 +109,15 @@ export function UserSettingsPage() {
   const [syncingTrakt, setSyncingTrakt] = useState(false)
   const [traktMessage, setTraktMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
+  // Email settings state
+  const [email, setEmail] = useState<string>('')
+  const [originalEmail, setOriginalEmail] = useState<string>('') // Track original to detect changes
+  const [emailLocked, setEmailLocked] = useState(false)
+  const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(true)
+  const [loadingEmail, setLoadingEmail] = useState(false)
+  const [savingEmail, setSavingEmail] = useState(false)
+  const [emailSuccess, setEmailSuccess] = useState<string | null>(null)
+
   useEffect(() => {
     fetchUserSettings()
     fetchAiExplanationPref()
@@ -108,6 +125,7 @@ export function UserSettingsPage() {
     fetchIncludeWatched()
     fetchSimilarityPrefs()
     fetchTraktStatus()
+    fetchEmailSettings()
     
     // Check for Trakt callback params
     const params = new URLSearchParams(window.location.hash.split('?')[1] || '')
@@ -408,6 +426,67 @@ export function UserSettingsPage() {
     }
   }
 
+  const fetchEmailSettings = async () => {
+    if (!user?.id) return
+    setLoadingEmail(true)
+    try {
+      const response = await fetch(`/api/users/${user.id}/email-settings`, { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        const emailValue = data.email || ''
+        setEmail(emailValue)
+        setOriginalEmail(emailValue) // Track original value
+        setEmailLocked(data.emailLocked || false)
+        setEmailNotificationsEnabled(data.emailNotificationsEnabled ?? true)
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setLoadingEmail(false)
+    }
+  }
+
+  const saveEmailSettings = async (newEmail?: string, newNotificationsEnabled?: boolean) => {
+    if (!user?.id) return
+    
+    // Skip save if email hasn't changed
+    if (newEmail !== undefined && newEmail.trim() === originalEmail) {
+      return
+    }
+    
+    setSavingEmail(true)
+    try {
+      const body: { email?: string | null; emailNotificationsEnabled?: boolean } = {}
+      if (newEmail !== undefined) {
+        body.email = newEmail.trim() || null
+      }
+      if (newNotificationsEnabled !== undefined) {
+        body.emailNotificationsEnabled = newNotificationsEnabled
+      }
+
+      const response = await fetch(`/api/users/${user.id}/email-settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body),
+      })
+      if (response.ok) {
+        const data = await response.json()
+        const emailValue = data.email || ''
+        setEmail(emailValue)
+        setOriginalEmail(emailValue) // Update original after successful save
+        setEmailLocked(data.emailLocked || false)
+        setEmailNotificationsEnabled(data.emailNotificationsEnabled ?? true)
+        setEmailSuccess('Email settings saved')
+        setTimeout(() => setEmailSuccess(null), 3000)
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setSavingEmail(false)
+    }
+  }
+
   return (
     <Box>
       {/* Header */}
@@ -449,7 +528,8 @@ export function UserSettingsPage() {
           }}
         >
           <Tab icon={<PersonIcon />} iconPosition="start" label="Profile" />
-          <Tab icon={<PsychologyIcon />} iconPosition="start" label="Taste Profile" />
+          <Tab icon={<FingerprintIcon />} iconPosition="start" label="Watcher Identity" />
+          <Tab icon={<TuneIcon />} iconPosition="start" label="AI Algorithm" />
           <Tab icon={<VideoLibraryIcon />} iconPosition="start" label="Preferences" />
         </Tabs>
 
@@ -517,27 +597,129 @@ export function UserSettingsPage() {
                 />
 
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
-                  Profile information is synced from your media server and cannot be edited here.
+                  Profile information above is synced from your media server.
                 </Typography>
+
+                <Divider sx={{ my: 3 }} />
+
+                {/* Email Section */}
+                <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                  Email & Notifications
+                </Typography>
+
+                {emailSuccess && (
+                  <Alert severity="success" sx={{ mb: 2 }} onClose={() => setEmailSuccess(null)}>
+                    {emailSuccess}
+                  </Alert>
+                )}
+
+                {loadingEmail ? (
+                  <Box display="flex" justifyContent="center" py={2}>
+                    <CircularProgress size={24} />
+                  </Box>
+                ) : (
+                  <>
+                    <TextField
+                      label="Email Address"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      fullWidth
+                      margin="normal"
+                      size="small"
+                      placeholder="Enter your email for notifications"
+                      helperText={
+                        emailLocked 
+                          ? 'You have set a custom email (not synced from Emby)'
+                          : 'Synced from Emby Connect. Edit to override.'
+                      }
+                      InputProps={{
+                        endAdornment: savingEmail ? (
+                          <CircularProgress size={16} />
+                        ) : null,
+                      }}
+                      onBlur={() => saveEmailSettings(email)}
+                    />
+
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={emailNotificationsEnabled}
+                          onChange={(e) => {
+                            setEmailNotificationsEnabled(e.target.checked)
+                            saveEmailSettings(undefined, e.target.checked)
+                          }}
+                          disabled={savingEmail}
+                        />
+                      }
+                      label={
+                        <Box>
+                          <Typography variant="body2">
+                            Email Notifications
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Receive email notifications about your recommendations
+                          </Typography>
+                        </Box>
+                      }
+                      sx={{ mt: 1, alignItems: 'flex-start' }}
+                    />
+                  </>
+                )}
               </CardContent>
             </Card>
           </TabPanel>
 
-          {/* Taste Profile Tab */}
+          {/* Watcher Identity Tab */}
           <TabPanel value={tabValue} index={1}>
-            <TasteProfileSection />
+            {/* Sub-tabs for Movies/Series */}
+            {(() => {
+              const identityAccentColor = identityMediaType === 'movie' ? '#6366f1' : '#ec4899'
+              return (
+                <Tabs
+                  value={identityMediaType}
+                  onChange={(_, value) => setIdentityMediaType(value)}
+                  sx={{
+                    mb: 3,
+                    borderBottom: 1,
+                    borderColor: 'divider',
+                    '& .MuiTab-root': {
+                      minHeight: 48,
+                      textTransform: 'none',
+                    },
+                    '& .MuiTabs-indicator': {
+                      backgroundColor: identityAccentColor,
+                    },
+                    '& .Mui-selected': {
+                      color: `${identityAccentColor} !important`,
+                    },
+                  }}
+                >
+                  <Tab icon={<MovieIcon />} label="Movies" value="movie" iconPosition="start" />
+                  <Tab icon={<TvIcon />} label="TV Series" value="series" iconPosition="start" />
+                </Tabs>
+              )
+            })()}
+
+            {/* Unified Watcher Identity Section */}
+            <WatcherIdentitySection mediaType={identityMediaType} />
+          </TabPanel>
+
+          {/* AI Algorithm Tab */}
+          <TabPanel value={tabValue} index={2}>
+            {user && <AlgorithmSettingsSection userId={user.id} />}
           </TabPanel>
 
           {/* Preferences Tab */}
-          <TabPanel value={tabValue} index={2}>
+          <TabPanel value={tabValue} index={3}>
             <Grid container spacing={3}>
               {/* AI Library Names */}
               <Grid item xs={12} lg={6}>
                 <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, height: '100%' }}>
                   <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      AI Library Names
-                    </Typography>
+                    <Box display="flex" alignItems="center" gap={1} mb={1}>
+                      <TextFieldsIcon color="primary" />
+                      <Typography variant="h6">AI Library Names</Typography>
+                    </Box>
                     <Typography variant="body2" color="text.secondary" mb={3}>
                       Customize how your AI recommendations libraries appear in your media server.
                     </Typography>
@@ -713,9 +895,10 @@ export function UserSettingsPage() {
               <Grid item xs={12} lg={6}>
                 <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, height: '100%' }}>
                   <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Watched Content in Recommendations
-                    </Typography>
+                    <Box display="flex" alignItems="center" gap={1} mb={1}>
+                      <VisibilityIcon color="primary" />
+                      <Typography variant="h6">Watched Content in Recommendations</Typography>
+                    </Box>
                     <Typography variant="body2" color="text.secondary" mb={3}>
                       Choose whether to include content you've already watched in your AI recommendations.
                     </Typography>
@@ -770,9 +953,10 @@ export function UserSettingsPage() {
               <Grid item xs={12} lg={6}>
                 <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, height: '100%' }}>
                   <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Disliked Content Behavior
-                    </Typography>
+                    <Box display="flex" alignItems="center" gap={1} mb={1}>
+                      <ThumbDownIcon color="primary" />
+                      <Typography variant="h6">Disliked Content Behavior</Typography>
+                    </Box>
                     <Typography variant="body2" color="text.secondary" mb={3}>
                       Choose how content you've rated 1-3 hearts should be handled in recommendations.
                     </Typography>

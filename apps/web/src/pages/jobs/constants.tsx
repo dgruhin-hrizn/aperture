@@ -20,9 +20,9 @@ import type { JobCategory } from './types'
 export const MOVIE_JOB_CATEGORIES: JobCategory[] = [
   {
     title: 'Sync',
-    description: 'Keep your movie library in sync',
+    description: 'Sync movies and watch history from your media server',
     color: '#3b82f6',
-    jobs: ['sync-movies', 'sync-movie-watch-history', 'full-sync-movie-watch-history'],
+    jobs: ['sync-movies', 'sync-movie-watch-history'],
   },
   {
     title: 'AI Processing',
@@ -31,8 +31,8 @@ export const MOVIE_JOB_CATEGORIES: JobCategory[] = [
     jobs: ['generate-movie-embeddings', 'generate-movie-recommendations', 'rebuild-movie-recommendations'],
   },
   {
-    title: 'System',
-    description: 'Movie library file management',
+    title: 'Aperture Libraries',
+    description: 'Build AI recommendation libraries in your media server',
     color: '#6366f1',
     jobs: ['sync-movie-libraries'],
   },
@@ -42,9 +42,9 @@ export const MOVIE_JOB_CATEGORIES: JobCategory[] = [
 export const SERIES_JOB_CATEGORIES: JobCategory[] = [
   {
     title: 'Sync',
-    description: 'Keep your TV series library in sync',
+    description: 'Sync series and watch history from your media server',
     color: '#0891b2',
-    jobs: ['sync-series', 'sync-series-watch-history', 'full-sync-series-watch-history'],
+    jobs: ['sync-series', 'sync-series-watch-history'],
   },
   {
     title: 'AI Processing',
@@ -53,8 +53,8 @@ export const SERIES_JOB_CATEGORIES: JobCategory[] = [
     jobs: ['generate-series-embeddings', 'generate-series-recommendations'],
   },
   {
-    title: 'System',
-    description: 'TV series library file management',
+    title: 'Aperture Libraries',
+    description: 'Build AI recommendation libraries in your media server',
     color: '#4f46e5',
     jobs: ['sync-series-libraries'],
   },
@@ -113,7 +113,6 @@ export const JOB_ICONS: Record<string, React.ReactNode> = {
   'sync-movies': <MovieIcon />,
   'generate-movie-embeddings': <PsychologyIcon />,
   'sync-movie-watch-history': <HistoryIcon />,
-  'full-sync-movie-watch-history': <AutorenewIcon />,
   'generate-movie-recommendations': <RecommendIcon />,
   'rebuild-movie-recommendations': <AutorenewIcon />,
   'sync-movie-libraries': <FolderIcon />,
@@ -121,7 +120,6 @@ export const JOB_ICONS: Record<string, React.ReactNode> = {
   'sync-series': <TvIcon />,
   'generate-series-embeddings': <PsychologyIcon />,
   'sync-series-watch-history': <HistoryIcon />,
-  'full-sync-series-watch-history': <AutorenewIcon />,
   'generate-series-recommendations': <RecommendIcon />,
   'sync-series-libraries': <FolderIcon />,
   // Global jobs
@@ -141,7 +139,6 @@ export const JOB_COLORS: Record<string, string> = {
   'sync-movies': '#3b82f6',
   'generate-movie-embeddings': '#a855f7',
   'sync-movie-watch-history': '#f59e0b',
-  'full-sync-movie-watch-history': '#dc2626',
   'generate-movie-recommendations': '#22c55e',
   'rebuild-movie-recommendations': '#8b5cf6',
   'sync-movie-libraries': '#6366f1',
@@ -149,7 +146,6 @@ export const JOB_COLORS: Record<string, string> = {
   'sync-series': '#0891b2',
   'generate-series-embeddings': '#c026d3',
   'sync-series-watch-history': '#ea580c',
-  'full-sync-series-watch-history': '#dc2626',
   'generate-series-recommendations': '#16a34a',
   'sync-series-libraries': '#4f46e5',
   // Global jobs
@@ -164,7 +160,18 @@ export const JOB_COLORS: Record<string, string> = {
   'generate-discovery-suggestions': '#ec4899',
 }
 
+// Custom display names for jobs that need special formatting
+const JOB_DISPLAY_NAMES: Record<string, string> = {
+  'sync-movie-libraries': 'Build Aperture Movie Libraries',
+  'sync-series-libraries': 'Build Aperture Series Libraries',
+}
+
 export function formatJobName(name: string): string {
+  // Check for custom display name first
+  if (JOB_DISPLAY_NAMES[name]) {
+    return JOB_DISPLAY_NAMES[name]
+  }
+  // Default: capitalize each word
   return name
     .split('-')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))

@@ -247,14 +247,14 @@ export {
 
 // Taste Synopsis
 export {
-  generateTasteSynopsis,
+  streamTasteSynopsis,
   getTasteSynopsis,
   type TasteSynopsis,
 } from './lib/tasteSynopsis.js'
 
 // Series Taste Synopsis
 export {
-  generateSeriesTasteSynopsis,
+  streamSeriesTasteSynopsis,
   getSeriesTasteSynopsis,
   type SeriesTasteSynopsis,
 } from './lib/tasteSeriesSynopsis.js'
@@ -268,9 +268,32 @@ export {
   setUserAiExplanationOverride,
   setUserAiExplanationPreference,
   getEffectiveAiExplanationSetting,
+  getUserUiPreferences,
+  updateUserUiPreferences,
+  addBrowseFilterPreset,
+  updateBrowseFilterPreset,
+  deleteBrowseFilterPreset,
   type UserSettings,
   type UserAiExplanationSettings,
+  type UserUiPreferences,
+  type ViewMode,
+  type PageViewModes,
+  type SortField,
+  type SortOrder,
+  type BrowseSortPreference,
+  type BrowseFilterPreset,
 } from './lib/userSettings.js'
+
+// Library Exclusions
+export {
+  getUserExcludedLibraries,
+  setUserExcludedLibraries,
+  getUserAccessibleLibraries,
+  isLibraryExcluded,
+  getApertureLibraryIds,
+  toggleLibraryExclusion,
+  type AccessibleLibrary,
+} from './lib/libraryExclusions.js'
 
 // System Settings
 export {
@@ -766,3 +789,82 @@ export {
   DEFAULT_DISCOVERY_CONFIG,
 } from './discover/index.js'
 
+// Taste Profile System
+export {
+  // Profile retrieval and storage
+  getUserTasteProfile,
+  getStoredProfile,
+  getUserTasteData,
+  storeTasteProfile,
+  updateProfileSettings,
+  invalidateProfile,
+  isProfileStale,
+  // Franchise preferences
+  getUserFranchisePreferences,
+  setFranchisePreference,
+  bulkUpdateFranchisePreferences,
+  getFranchiseBoost,
+  // Genre weights
+  getUserGenreWeights,
+  setGenreWeight,
+  bulkUpdateGenreWeights,
+  getGenreBoost,
+  // Custom interests
+  getUserCustomInterests,
+  addCustomInterest,
+  removeCustomInterest,
+  updateCustomInterestEmbedding,
+  // Delete functions
+  deleteFranchisePreference,
+  deleteGenreWeight,
+  // Custom interest boost
+  getCustomInterestBoost,
+  // Types
+  type TasteProfile,
+  type FranchisePreference,
+  type GenreWeight,
+  type CustomInterest,
+  type UserTasteData,
+  type ProfileBuildOptions,
+  type ProfileUpdateResult,
+  type WatchedItem as TasteProfileWatchedItem,
+  REFRESH_INTERVAL_OPTIONS,
+  DEFAULT_REFRESH_INTERVAL_DAYS,
+  MIN_FRANCHISE_ITEMS_OPTIONS,
+  DEFAULT_MIN_FRANCHISE_ITEMS,
+  MIN_FRANCHISE_SIZE_OPTIONS,
+  DEFAULT_MIN_FRANCHISE_SIZE,
+} from './taste-profile/index.js'
+
+export {
+  // Franchise detection
+  detectFranchiseFromTitle,
+  detectAndUpdateFranchises,
+  getItemFranchise,
+  // Genre detection
+  detectAndUpdateGenres,
+} from './taste-profile/franchise.js'
+
+export {
+  // Profile building
+  buildTasteProfile,
+  calculateEngagementWeight,
+} from './taste-profile/builder.js'
+
+// User Algorithm Settings
+export {
+  getUserAlgorithmSettings,
+  setUserAlgorithmSettings,
+  resetUserAlgorithmSettings,
+  getEffectiveAlgorithmConfig,
+  normalizeWeights,
+  getAdminDefaultConfig,
+  type UserAlgorithmSettings,
+  type UserAlgorithmWeights,
+} from './lib/userAlgorithmSettings.js'
+
+// User Sync
+export {
+  syncUsersFromMediaServer,
+  type SyncUsersResult,
+} from './users/sync.js'

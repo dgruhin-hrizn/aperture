@@ -20,6 +20,7 @@ import {
   AutoFixHigh as AutoFixHighIcon,
   Delete as DeleteIcon,
   Storage as StorageIcon,
+  HubOutlined as HubOutlinedIcon,
 } from '@mui/icons-material'
 import { AIFunctionCard, type FunctionConfig, type AIFunction } from '../../../components/AIFunctionCard'
 import { CostEstimatorSection } from './CostEstimatorSection'
@@ -28,6 +29,7 @@ interface AIConfig {
   embeddings: FunctionConfig | null
   chat: FunctionConfig | null
   textGeneration: FunctionConfig | null
+  exploration: FunctionConfig | null
 }
 
 interface EmbeddingSet {
@@ -243,15 +245,15 @@ export function AISetupSection() {
           AI Provider Configuration
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Configure AI providers for different features. Aperture recommends using OpenAI for all three functions, 
+          Configure AI providers for different features. Aperture recommends using OpenAI for all four functions, 
           but feel free to explore other providers and models.
         </Typography>
       </Box>
 
-      {/* Function Cards */}
+      {/* Function Cards - 2x2 grid */}
       <Box 
         display="grid" 
-        gridTemplateColumns={{ xs: '1fr', lg: 'repeat(3, 1fr)' }} 
+        gridTemplateColumns={{ xs: '1fr', md: 'repeat(2, 1fr)' }} 
         gap={3}
       >
         <AIFunctionCard
@@ -284,6 +286,16 @@ export function AISetupSection() {
           iconColor="#ff9800"
           config={config?.textGeneration ?? null}
           onSave={(c) => handleSave('textGeneration', c)}
+        />
+
+        <AIFunctionCard
+          functionType="exploration"
+          title="Exploration"
+          description="Powers the Explore page. Uses AI to find meaningful connections from conceptual searches like 'feel-good comedies'."
+          icon={<HubOutlinedIcon />}
+          iconColor="#4caf50"
+          config={config?.exploration ?? null}
+          onSave={(c) => handleSave('exploration', c)}
         />
       </Box>
 

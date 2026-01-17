@@ -17,8 +17,8 @@ import {
 import { randomUUID } from 'crypto'
 
 // Import from modular files
-import { loadConfig } from '../config.js'
-import { getWatchHistory, buildTasteProfile, storeTasteProfile, getUserMovieRatings, getDislikedMovieIds } from './taste.js'
+import { loadConfigForUser } from '../config.js'
+import { getWatchHistory, buildTasteProfile as buildLegacyTasteProfile, storeTasteProfile as storeLegacyTasteProfile, getUserMovieRatings, getDislikedMovieIds } from './taste.js'
 import { getCandidates } from './candidates.js'
 import { scoreCandidates } from './scoring.js'
 import { applyDiversityAndSelect } from './selection.js'
@@ -31,13 +31,27 @@ import {
   clearAllRecommendations,
   getMovieOverviews,
 } from '../storage.js'
+import { syncWatchHistoryForUser } from './sync.js'
+
+// New taste profile system
+import {
+  getUserTasteProfile,
+  storeTasteProfile as storeNewTasteProfile,
+  getFranchiseBoost,
+  getGenreBoost,
+  getCustomInterestBoost,
+  detectAndUpdateFranchises,
+} from '../../taste-profile/index.js'
+import { getItemFranchise } from '../../taste-profile/franchise.js'
 
 // Re-export types
 export * from '../types.js'
 
 // Re-export functions for backwards compatibility
 export { loadConfig } from '../config.js'
-export { getWatchHistory, buildTasteProfile, storeTasteProfile, getUserMovieRatings, getDislikedMovieIds } from './taste.js'
+export { getWatchHistory, buildTasteProfile as buildLegacyTasteProfile, storeTasteProfile as storeLegacyTasteProfile, getUserMovieRatings, getDislikedMovieIds } from './taste.js'
+// Also export as original names for backwards compatibility
+export { buildTasteProfile, storeTasteProfile } from './taste.js'
 export { getCandidates } from './candidates.js'
 export { scoreCandidates } from './scoring.js'
 export { applyDiversityAndSelect } from './selection.js'
@@ -60,8 +74,8 @@ export async function generateRecommendationsForUser(
   user: User,
   configOverrides: Partial<PipelineConfig> = {}
 ): Promise<{ runId: string; recommendations: Candidate[] }> {
-  // Load config from database
-  const dbConfig = await loadConfig()
+  // Load user-specific config (applies user overrides if enabled, falls back to admin defaults)
+  const dbConfig = await loadConfigForUser(user.id, 'movie')
   const cfg = { ...dbConfig, ...configOverrides }
   const startTime = Date.now()
 
@@ -72,7 +86,19 @@ export async function generateRecommendationsForUser(
   logger.info({ runId }, '📝 Created recommendation run record')
 
   try {
-    // 0. Get user's recommendation preferences
+    // 0. Sync watch history from media server to ensure we have latest data
+    if (user.providerUserId) {
+      logger.info({ userId: user.id }, '🔄 Syncing watch history before recommendations (full sync)...')
+      try {
+        // Use full sync to catch any items that may have been missed by delta syncs
+        await syncWatchHistoryForUser(user.id, user.providerUserId, true)
+        logger.info({ userId: user.id }, '✅ Watch history synced')
+      } catch (err) {
+        logger.warn({ err, userId: user.id }, '⚠️ Watch history sync failed, continuing with existing data')
+      }
+    }
+
+    // 1. Get user's recommendation preferences
     const userPrefs = await queryOne<{ include_watched: boolean; dislike_behavior: string }>(
       `SELECT include_watched, COALESCE(dislike_behavior, 'exclude') as dislike_behavior FROM user_preferences WHERE user_id = $1`,
       [user.id]
@@ -84,7 +110,7 @@ export async function generateRecommendationsForUser(
       `📋 User preferences: include_watched=${includeWatched}, dislike_behavior=${dislikeBehavior}`
     )
 
-    // 1. Get user's watch history and ratings
+    // 2. Get user's watch history and ratings (now from synced data)
     logger.info({ userId: user.id }, '📊 Fetching watch history and ratings...')
     const [watched, userRatings, dislikedIds] = await Promise.all([
       getWatchHistory(user.id, cfg.recentWatchLimit),
@@ -105,9 +131,28 @@ export async function generateRecommendationsForUser(
       return { runId, recommendations: [] }
     }
 
-    // 2. Build taste profile (weighted average of watched movie embeddings)
-    logger.info({ userId: user.id }, '🧠 Building taste profile from watch history...')
-    const tasteProfile = await buildTasteProfile(watched, userRatings.size > 0 ? userRatings : undefined)
+    // 2. Get or build taste profile using the new persistent system
+    logger.info({ userId: user.id }, '🧠 Getting taste profile...')
+    
+    // Try to get stored profile first (will rebuild if stale)
+    let storedProfile = await getUserTasteProfile(user.id, 'movie')
+    let tasteProfile: number[] | null = storedProfile?.embedding || null
+    
+    // If no stored profile or missing embedding, build using legacy method as fallback
+    if (!tasteProfile) {
+      logger.info({ userId: user.id }, '📊 No stored profile, building from watch history...')
+      tasteProfile = await buildLegacyTasteProfile(watched, userRatings.size > 0 ? userRatings : undefined)
+      
+      if (tasteProfile) {
+        // Store in new system
+        await storeNewTasteProfile(user.id, 'movie', tasteProfile)
+        // Also detect franchises
+        await detectAndUpdateFranchises(user.id, 'movie')
+        logger.info({ userId: user.id }, '💾 Stored new taste profile and detected franchises')
+      }
+    } else {
+      logger.info({ userId: user.id }, '✅ Using stored taste profile')
+    }
 
     if (!tasteProfile) {
       logger.warn(
@@ -118,11 +163,9 @@ export async function generateRecommendationsForUser(
       return { runId, recommendations: [] }
     }
 
-    logger.info({ userId: user.id }, '✅ Taste profile built successfully')
-
-    // Store taste profile
-    await storeTasteProfile(user.id, tasteProfile)
-    logger.info({ userId: user.id }, '💾 Stored taste profile')
+    // Also store in legacy location for backwards compatibility
+    await storeLegacyTasteProfile(user.id, tasteProfile)
+    logger.info({ userId: user.id }, '💾 Stored taste profile (legacy)')
 
     // 3. Get candidate movies (optionally including watched based on user preference)
     logger.info(
@@ -187,6 +230,65 @@ export async function generateRecommendationsForUser(
     )
     const scoredCandidates = await scoreCandidates(candidates, watched, cfg)
 
+    // 4.5 Apply franchise, genre, and custom interest preference boosts
+    logger.info({ userId: user.id }, '🎯 Applying preference boosts (franchise, genre, custom interests)...')
+    let franchiseBoostCount = 0
+    let genreBoostCount = 0
+    let interestBoostCount = 0
+    
+    // Get embeddings for top candidates to apply custom interest boost
+    // (only fetch for top 100 to limit performance impact)
+    const topCandidateIds = scoredCandidates.slice(0, 100).map((c) => c.id)
+    const { getMovieEmbedding } = await import('./embeddings.js')
+    
+    for (const candidate of scoredCandidates) {
+      // Get franchise boost (1.0 = neutral, up to 1.5 for loved franchises)
+      const franchiseName = await getItemFranchise(candidate.id, 'movie')
+      const franchiseBoost = await getFranchiseBoost(user.id, franchiseName, 'movie')
+      
+      // Get genre boost (1.0 = neutral, 0.5-1.5 range)
+      const genreBoost = await getGenreBoost(user.id, candidate.genres || [])
+      
+      // Get custom interest boost (only for top candidates with embeddings)
+      let interestBoost = 1.0
+      if (topCandidateIds.includes(candidate.id)) {
+        const embedding = await getMovieEmbedding(candidate.id)
+        if (embedding) {
+          interestBoost = await getCustomInterestBoost(user.id, embedding)
+        }
+      }
+      
+      // Apply boosts to final score
+      const originalScore = candidate.finalScore
+      candidate.finalScore = originalScore * franchiseBoost * genreBoost * interestBoost
+      
+      if (franchiseBoost !== 1.0) {
+        franchiseBoostCount++
+        logger.debug(
+          { title: candidate.title, franchiseName, franchiseBoost: franchiseBoost.toFixed(2) },
+          'Applied franchise boost'
+        )
+      }
+      if (genreBoost !== 1.0) {
+        genreBoostCount++
+      }
+      if (interestBoost !== 1.0) {
+        interestBoostCount++
+        logger.debug(
+          { title: candidate.title, interestBoost: interestBoost.toFixed(2) },
+          'Applied custom interest boost'
+        )
+      }
+    }
+    
+    // Re-sort after applying boosts
+    scoredCandidates.sort((a, b) => b.finalScore - a.finalScore)
+    
+    logger.info(
+      { userId: user.id, franchiseBoostCount, genreBoostCount, interestBoostCount },
+      `Applied ${franchiseBoostCount} franchise, ${genreBoostCount} genre, ${interestBoostCount} interest boosts`
+    )
+
     // Log top candidates
     const top5 = scoredCandidates.slice(0, 5)
     for (const c of top5) {
@@ -204,14 +306,18 @@ export async function generateRecommendationsForUser(
     }
 
     // 5. Apply diversity boost and select final recommendations
+    // Use smart diversity adjustment if user hasn't set custom weights
+    const { getSmartDiversityWeight } = await import('../../lib/userAlgorithmSettings.js')
+    const effectiveDiversityWeight = await getSmartDiversityWeight(user.id, 'movie', cfg.diversityWeight)
+    
     logger.info(
-      { userId: user.id, targetCount: cfg.selectedCount },
+      { userId: user.id, targetCount: cfg.selectedCount, diversityWeight: effectiveDiversityWeight },
       '🎲 Applying diversity and selecting final recommendations...'
     )
     const { selected, selectedRanks } = applyDiversityAndSelect(
       scoredCandidates,
       cfg.selectedCount,
-      cfg.diversityWeight
+      effectiveDiversityWeight
     )
 
     // Log selected movies

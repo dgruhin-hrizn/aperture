@@ -8,6 +8,26 @@
 import type { Series, NfoGenerateOptions } from './types.js'
 
 /**
+ * Generate a unique fake provider ID that will never collide with real IDs.
+ * We use a deterministic hash based on the series' internal ID so rebuilding
+ * the library generates the same fake IDs (prevents Emby from detecting changes).
+ */
+function generateFakeProviderId(seriesId: string, prefix: string): string {
+  // Use a deterministic UUID based on the series ID and prefix
+  // This ensures the same series always gets the same fake IDs
+  const seed = `aperture-${prefix}-${seriesId}`
+  // Simple hash to make it deterministic
+  let hash = 0
+  for (let i = 0; i < seed.length; i++) {
+    const char = seed.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // Convert to 32bit integer
+  }
+  // Format as a fake ID: aperture + hash
+  return `aperture${Math.abs(hash).toString(36)}`
+}
+
+/**
  * Escape XML special characters
  */
 export function escapeXml(text: string): string {
@@ -69,8 +89,9 @@ export function generateSeriesNfoContent(
     lines.push(`  <outline><![CDATA[${series.overview || plot}]]></outline>`)
   }
 
-  // Lock data
-  lines.push(`  <lockdata>false</lockdata>`)
+  // Lock data - prevents Emby from auto-fetching ProviderIds (IMDB/TMDB/TVDB) from online sources
+  // This is critical for preventing duplicate Continue Watching entries
+  lines.push(`  <lockdata>true</lockdata>`)
 
   // Date added (for Emby sorting by "Date Added" - Rank 1 = newest)
   if (options.dateAdded) {
@@ -205,48 +226,33 @@ export function generateSeriesNfoContent(
     }
   }
 
-  // === External IDs (as separate elements for compatibility) ===
-  if (series.imdbId) {
-    lines.push(`  <imdb_id>${escapeXml(series.imdbId)}</imdb_id>`)
-  }
-  if (series.tmdbId) {
-    lines.push(`  <tmdbid>${escapeXml(series.tmdbId)}</tmdbid>`)
-  }
-  if (series.tvdbId) {
-    lines.push(`  <tvdbid>${escapeXml(series.tvdbId)}</tvdbid>`)
-  }
-  if (series.tvmazeId) {
-    lines.push(`  <tvmazeid>${escapeXml(series.tvmazeId)}</tvmazeid>`)
-  }
-
-  // === Unique IDs (standard format) ===
-  if (series.imdbId) {
-    lines.push(`  <uniqueid type="imdb">${escapeXml(series.imdbId)}</uniqueid>`)
-  }
-  if (series.tvdbId) {
-    lines.push(`  <uniqueid type="tvdb" default="true">${escapeXml(series.tvdbId)}</uniqueid>`)
-  }
-  if (series.tmdbId) {
-    lines.push(`  <uniqueid type="tmdb">${escapeXml(series.tmdbId)}</uniqueid>`)
-  }
-  if (series.tvmazeId) {
-    lines.push(`  <uniqueid type="tvmaze">${escapeXml(series.tvmazeId)}</uniqueid>`)
-  }
-
-  // === Episode Guide (JSON format for cross-references) ===
-  const episodeGuide: Record<string, string> = {}
-  if (series.imdbId) episodeGuide.imdb = series.imdbId
-  if (series.tvdbId) episodeGuide.tvdb = series.tvdbId
-  if (series.tmdbId) episodeGuide.tmdb = series.tmdbId
-  if (series.tvmazeId) episodeGuide.tvmaze = series.tvmazeId
-  if (Object.keys(episodeGuide).length > 0) {
-    lines.push(`  <episodeguide>${JSON.stringify(episodeGuide)}</episodeguide>`)
-  }
+  // Generate FAKE unique provider IDs that will never collide with real IDs.
+  // 
+  // Why: When real IDs (IMDB/TMDB/TVDB) are present, Emby links items together and syncs playback state.
+  // This causes BOTH the original AND Aperture copy to appear in "Continue Watching".
+  // 
+  // By using fake IDs:
+  // 1. Emby won't try to fetch real IDs (provider fields are already populated)
+  // 2. The fake IDs will never match the original's real IDs (no linking)
+  // 3. <lockdata>true</lockdata> prevents Emby from "correcting" them
+  //
+  // Why it's safe: When you play a STRM file, Emby tracks playback on the item that owns the
+  // actual media file (the ORIGINAL), not the STRM. Our watch history sync only matches items
+  // in our database tables (which only contain originals), so watch history stays accurate.
+  //
+  // Result: No duplicates in Continue Watching, and watch history works correctly.
+  
+  // Use the series' provider ID as seed if available, otherwise use title+year
+  const seriesSeed = series.id || `${series.title}-${series.year || 'unknown'}`
+  const fakeImdbId = generateFakeProviderId(seriesSeed, 'imdb')
+  const fakeTmdbId = generateFakeProviderId(seriesSeed, 'tmdb')
+  const fakeTvdbId = generateFakeProviderId(seriesSeed, 'tvdb')
+  
+  lines.push(`  <uniqueid type="imdb">${fakeImdbId}</uniqueid>`)
+  lines.push(`  <uniqueid type="tvdb" default="true">${fakeTvdbId}</uniqueid>`)
+  lines.push(`  <uniqueid type="tmdb">${fakeTmdbId}</uniqueid>`)
 
   // === Series Metadata ===
-  if (series.tvdbId) {
-    lines.push(`  <id>${escapeXml(series.tvdbId)}</id>`)
-  }
 
   // Season/episode counts
   if (series.totalSeasons) {

@@ -139,6 +139,7 @@ export async function ensureUserSeriesLibrary(
 
 /**
  * Refresh a user's AI TV library in the media server
+ * Also hides library items from Continue Watching for all users
  */
 export async function refreshUserSeriesLibrary(userId: string): Promise<void> {
   const provider = await getMediaServerProvider()
@@ -177,9 +178,9 @@ export async function updateUserSeriesLibraryPermissions(
     throw new Error('MEDIA_SERVER_API_KEY is required')
   }
 
-  // Get user's AI series library GUID
-  const library = await queryOne<{ provider_library_guid: string }>(
-    `SELECT provider_library_guid FROM strm_libraries
+  // Get user's AI series library
+  const library = await queryOne<{ provider_library_id: string; provider_library_guid: string }>(
+    `SELECT provider_library_id, provider_library_guid FROM strm_libraries
      WHERE user_id = $1 AND media_type = 'series'`,
     [userId]
   )
@@ -192,9 +193,14 @@ export async function updateUserSeriesLibraryPermissions(
   // Get the user's current library access from the media server
   const currentAccess = await provider.getUserLibraryAccess(apiKey, providerUserId)
 
-  // If user has access to all folders, no need to modify
+  // If user has access to all folders, no need to modify permissions
+  // but still set sort preference
   if (currentAccess.enableAllFolders) {
     logger.debug({ userId }, 'User has access to all folders, skipping permission update')
+    // Set sort preference for this library (DateCreated descending)
+    if (library.provider_library_id) {
+      await provider.setLibrarySortPreference(apiKey, providerUserId, library.provider_library_id)
+    }
     return
   }
 
@@ -209,5 +215,10 @@ export async function updateUserSeriesLibraryPermissions(
 
   await provider.updateUserLibraryAccess(apiKey, providerUserId, updatedFolders)
   logger.info({ userId, libraryGuid: library.provider_library_guid }, 'Added AI series library to user permissions')
+
+  // Set sort preference for this library (DateCreated descending)
+  if (library.provider_library_id) {
+    await provider.setLibrarySortPreference(apiKey, providerUserId, library.provider_library_id)
+  }
 }
 

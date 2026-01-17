@@ -499,6 +499,34 @@ async function matchMDBListMoviesToLibrary(
     [imdbIds, tmdbIds]
   )
 
+  // Get local watch stats for these movies (supplementary data)
+  const movieIds = result.rows.map(r => r.id)
+  const statsResult = await query<{
+    movie_id: string
+    unique_viewers: string
+    play_count: string
+  }>(
+    `
+    SELECT 
+      movie_id,
+      COUNT(DISTINCT user_id) as unique_viewers,
+      COUNT(*) as play_count
+    FROM watch_history
+    WHERE movie_id = ANY($1)
+    GROUP BY movie_id
+  `,
+    [movieIds]
+  )
+
+  // Build stats lookup
+  const statsMap = new Map<string, { uniqueViewers: number; playCount: number }>()
+  for (const row of statsResult.rows) {
+    statsMap.set(row.movie_id, {
+      uniqueViewers: parseInt(row.unique_viewers),
+      playCount: parseInt(row.play_count),
+    })
+  }
+
   // Build lookup maps
   const movieByImdb = new Map<string, (typeof result.rows)[0]>()
   const movieByTmdb = new Map<string, (typeof result.rows)[0]>()
@@ -521,6 +549,7 @@ async function matchMDBListMoviesToLibrary(
     }
 
     if (movie) {
+      const stats = statsMap.get(movie.id) || { uniqueViewers: 0, playCount: 0 }
       movies.push({
         movieId: movie.id,
         title: movie.title,
@@ -531,9 +560,9 @@ async function matchMDBListMoviesToLibrary(
         genres: movie.genres || [],
         communityRating: movie.community_rating ? parseFloat(movie.community_rating) : null,
         path: movie.path,
-        uniqueViewers: 0, // Not applicable for MDBList source
-        playCount: 0,
-        completionRate: 0,
+        uniqueViewers: stats.uniqueViewers,
+        playCount: stats.playCount,
+        completionRate: stats.playCount > 0 ? 1.0 : 0,
         popularityScore: 1000 - rank, // Higher score for items earlier in sorted list
         rank: rank++, // Array position = sorted rank (NOT item.rank which is original list position)
       })
@@ -582,6 +611,35 @@ async function matchMDBListSeriesToLibrary(
     [imdbIds, tmdbIds, tvdbIds]
   )
 
+  // Get local watch stats for these series (supplementary data)
+  const seriesIds = result.rows.map(r => r.id)
+  const statsResult = await query<{
+    series_id: string
+    unique_viewers: string
+    total_episodes_watched: string
+  }>(
+    `
+    SELECT 
+      e.series_id,
+      COUNT(DISTINCT wh.user_id) as unique_viewers,
+      COUNT(DISTINCT wh.episode_id) as total_episodes_watched
+    FROM watch_history wh
+    JOIN episodes e ON e.id = wh.episode_id
+    WHERE e.series_id = ANY($1)
+    GROUP BY e.series_id
+  `,
+    [seriesIds]
+  )
+
+  // Build stats lookup
+  const statsMap = new Map<string, { uniqueViewers: number; totalEpisodesWatched: number }>()
+  for (const row of statsResult.rows) {
+    statsMap.set(row.series_id, {
+      uniqueViewers: parseInt(row.unique_viewers),
+      totalEpisodesWatched: parseInt(row.total_episodes_watched),
+    })
+  }
+
   const seriesByImdb = new Map<string, (typeof result.rows)[0]>()
   const seriesByTmdb = new Map<string, (typeof result.rows)[0]>()
   const seriesByTvdb = new Map<string, (typeof result.rows)[0]>()
@@ -602,6 +660,7 @@ async function matchMDBListSeriesToLibrary(
     if (!s && item.tvdbid) s = seriesByTvdb.get(String(item.tvdbid))
 
     if (s) {
+      const stats = statsMap.get(s.id) || { uniqueViewers: 0, totalEpisodesWatched: 0 }
       series.push({
         seriesId: s.id,
         title: s.title,
@@ -612,9 +671,9 @@ async function matchMDBListSeriesToLibrary(
         genres: s.genres || [],
         communityRating: s.community_rating ? parseFloat(s.community_rating) : null,
         network: s.network,
-        uniqueViewers: 0,
-        totalEpisodesWatched: 0,
-        avgCompletionRate: 0,
+        uniqueViewers: stats.uniqueViewers,
+        totalEpisodesWatched: stats.totalEpisodesWatched,
+        avgCompletionRate: stats.totalEpisodesWatched > 0 ? 0.5 : 0, // Approximate since we don't have per-user data here
         popularityScore: 1000 - rank, // Higher score for items earlier in sorted list
         rank: rank++, // Array position = sorted rank (NOT item.rank which is original list position)
       })

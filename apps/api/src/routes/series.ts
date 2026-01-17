@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { query, queryOne } from '../lib/db.js'
 import { requireAuth } from '../plugins/auth.js'
+import { getSimilarSeries } from '@aperture/core'
 
 interface SeriesRow {
   id: string
@@ -69,7 +70,7 @@ interface SeriesListResponse {
 const seriesRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * GET /api/series
-   * List all series with pagination
+   * List all series with pagination, filtering, and sorting
    */
   fastify.get<{
     Querystring: {
@@ -82,13 +83,29 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
       minRtScore?: string
       showAll?: string
       hasAwards?: string
+      // New filter params
+      minYear?: string
+      maxYear?: string
+      contentRating?: string | string[]
+      minSeasons?: string
+      maxSeasons?: string
+      minCommunityRating?: string
+      minMetacritic?: string
+      // Sort params
+      sortBy?: 'title' | 'year' | 'rating' | 'rtScore' | 'metacritic' | 'seasons' | 'added'
+      sortOrder?: 'asc' | 'desc'
     }
     Reply: SeriesListResponse
   }>('/api/series', { preHandler: requireAuth }, async (request, reply) => {
     const page = parseInt(request.query.page || '1', 10)
     const pageSize = Math.min(parseInt(request.query.pageSize || '50', 10), 100)
     const offset = (page - 1) * pageSize
-    const { search, genre, network, status, minRtScore, showAll, hasAwards } = request.query
+    const { 
+      search, genre, network, status, minRtScore, showAll, hasAwards,
+      minYear, maxYear, contentRating, minSeasons, maxSeasons,
+      minCommunityRating, minMetacritic,
+      sortBy = 'title', sortOrder = 'asc'
+    } = request.query
 
     // Check if library configs exist
     const configCheck = await queryOne<{ count: string }>(
@@ -130,8 +147,10 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
 
     if (status) {
       whereClause += whereClause ? ' AND ' : ' WHERE '
+      // Map user-friendly status names to database values
+      const statusValue = status === 'Airing' ? 'Continuing' : status
       whereClause += `status = $${paramIndex++}`
-      params.push(status)
+      params.push(statusValue)
     }
 
     if (minRtScore) {
@@ -148,12 +167,106 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
       whereClause += `awards_summary IS NOT NULL`
     }
 
+    // Year range filter
+    if (minYear) {
+      const year = parseInt(minYear, 10)
+      if (!isNaN(year)) {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `year >= $${paramIndex++}`
+        params.push(year)
+      }
+    }
+    if (maxYear) {
+      const year = parseInt(maxYear, 10)
+      if (!isNaN(year)) {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `year <= $${paramIndex++}`
+        params.push(year)
+      }
+    }
+
+    // Content rating filter (supports multiple values)
+    if (contentRating) {
+      const ratings = Array.isArray(contentRating) ? contentRating : [contentRating]
+      if (ratings.length > 0) {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `content_rating = ANY($${paramIndex++})`
+        params.push(ratings)
+      }
+    }
+
+    // Seasons filter
+    if (minSeasons) {
+      const seasons = parseInt(minSeasons, 10)
+      if (!isNaN(seasons)) {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `total_seasons >= $${paramIndex++}`
+        params.push(seasons)
+      }
+    }
+    if (maxSeasons) {
+      const seasons = parseInt(maxSeasons, 10)
+      if (!isNaN(seasons)) {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `total_seasons <= $${paramIndex++}`
+        params.push(seasons)
+      }
+    }
+
+    // Community rating filter
+    if (minCommunityRating) {
+      const rating = parseFloat(minCommunityRating)
+      if (!isNaN(rating)) {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `community_rating >= $${paramIndex++}`
+        params.push(rating)
+      }
+    }
+
+    // Metacritic filter
+    if (minMetacritic) {
+      const score = parseInt(minMetacritic, 10)
+      if (!isNaN(score)) {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `metacritic_score >= $${paramIndex++}`
+        params.push(score)
+      }
+    }
+
     // Get total count
     const countResult = await queryOne<{ count: string }>(
       `SELECT COUNT(*) as count FROM series${whereClause}`,
       params
     )
     const total = parseInt(countResult?.count || '0', 10)
+
+    // Build ORDER BY clause
+    let orderClause = ''
+    const order = sortOrder === 'desc' ? 'DESC' : 'ASC'
+    const nullsPosition = 'NULLS LAST'
+    
+    switch (sortBy) {
+      case 'year':
+        orderClause = `year ${order} ${nullsPosition}, title ASC`
+        break
+      case 'rating':
+        orderClause = `community_rating ${order} ${nullsPosition}, title ASC`
+        break
+      case 'rtScore':
+        orderClause = `rt_critic_score ${order} ${nullsPosition}, title ASC`
+        break
+      case 'metacritic':
+        orderClause = `metacritic_score ${order} ${nullsPosition}, title ASC`
+        break
+      case 'seasons':
+        orderClause = `total_seasons ${order} ${nullsPosition}, title ASC`
+        break
+      case 'added':
+        orderClause = `created_at ${order}, title ASC`
+        break
+      default:
+        orderClause = `title ${order}`
+    }
 
     // Get series
     params.push(pageSize, offset)
@@ -163,7 +276,7 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
               poster_url, backdrop_url, created_at, updated_at,
               rt_critic_score, awards_summary
        FROM series${whereClause}
-       ORDER BY title ASC
+       ORDER BY ${orderClause}
        LIMIT $${paramIndex++} OFFSET $${paramIndex}`,
       params
     )
@@ -359,6 +472,68 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   /**
+   * GET /api/series/content-ratings
+   * Get all unique content ratings with counts
+   */
+  fastify.get('/api/series/content-ratings', { preHandler: requireAuth }, async (_request, reply) => {
+    const result = await query<{ content_rating: string; count: string }>(
+      `SELECT content_rating, COUNT(*) as count
+       FROM series 
+       WHERE content_rating IS NOT NULL
+       GROUP BY content_rating
+       ORDER BY 
+         CASE content_rating
+           WHEN 'TV-G' THEN 1
+           WHEN 'TV-Y' THEN 2
+           WHEN 'TV-Y7' THEN 3
+           WHEN 'TV-PG' THEN 4
+           WHEN 'TV-14' THEN 5
+           WHEN 'TV-MA' THEN 6
+           WHEN 'G' THEN 7
+           WHEN 'PG' THEN 8
+           WHEN 'PG-13' THEN 9
+           WHEN 'R' THEN 10
+           ELSE 11
+         END`
+    )
+
+    return reply.send({ 
+      contentRatings: result.rows.map((r) => ({ rating: r.content_rating, count: parseInt(r.count, 10) })) 
+    })
+  })
+
+  /**
+   * GET /api/series/filter-ranges
+   * Get min/max values for range filters
+   */
+  fastify.get('/api/series/filter-ranges', { preHandler: requireAuth }, async (_request, reply) => {
+    const result = await queryOne<{
+      min_year: number
+      max_year: number
+      min_seasons: number
+      max_seasons: number
+      min_rating: number
+      max_rating: number
+    }>(
+      `SELECT 
+        MIN(year) as min_year,
+        MAX(year) as max_year,
+        MIN(total_seasons) as min_seasons,
+        MAX(total_seasons) as max_seasons,
+        MIN(community_rating) as min_rating,
+        MAX(community_rating) as max_rating
+       FROM series 
+       WHERE year IS NOT NULL`
+    )
+
+    return reply.send({
+      year: { min: result?.min_year || 1950, max: result?.max_year || new Date().getFullYear() },
+      seasons: { min: result?.min_seasons || 1, max: result?.max_seasons || 30 },
+      rating: { min: result?.min_rating || 0, max: result?.max_rating || 10 }
+    })
+  })
+
+  /**
    * GET /api/series/:id/episodes
    * Get all episodes for a series, grouped by season
    */
@@ -416,29 +591,25 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
       const { id } = request.params
       const limit = Math.min(parseInt(request.query.limit || '10', 10), 50)
 
-      // Get the series' embedding
-      const embedding = await queryOne<{ embedding: string }>(
-        `SELECT embedding FROM series_embeddings WHERE series_id = $1`,
-        [id]
-      )
+      try {
+        const result = await getSimilarSeries(id, { limit })
+        
+        // Transform to the expected response format
+        const similar = result.connections.map((conn) => ({
+          id: conn.item.id,
+          title: conn.item.title,
+          year: conn.item.year,
+          poster_url: conn.item.poster_url,
+          genres: conn.item.genres,
+          network: conn.item.network,
+          similarity: conn.similarity,
+        }))
 
-      if (!embedding) {
+        return reply.send({ similar })
+      } catch (error) {
+        // Series not found or no embedding
         return reply.send({ similar: [], message: 'No embedding found for this series' })
       }
-
-      // Find similar series using cosine similarity
-      const result = await query(
-        `SELECT s.id, s.title, s.year, s.poster_url, s.genres, s.network,
-                1 - (se.embedding <=> $1::halfvec) as similarity
-         FROM series_embeddings se
-         JOIN series s ON s.id = se.series_id
-         WHERE se.series_id != $2
-         ORDER BY se.embedding <=> $1::halfvec
-         LIMIT $3`,
-        [embedding.embedding, id, limit]
-      )
-
-      return reply.send({ similar: result.rows })
     }
   )
 }

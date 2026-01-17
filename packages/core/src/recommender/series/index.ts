@@ -45,3 +45,7 @@ export {
   syncSeriesWatchHistoryForAllUsers,
 } from './sync.js'
 
+export {
+  getUserSeriesRatings,
+  getDislikedSeriesIds,
+} from './taste.js'

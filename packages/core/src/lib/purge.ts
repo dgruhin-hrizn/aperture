@@ -1,5 +1,6 @@
 import { query, transaction } from './db.js'
 import { createChildLogger } from './logger.js'
+import { VALID_EMBEDDING_DIMENSIONS } from './ai-provider.js'
 
 const logger = createChildLogger('purge')
 
@@ -91,19 +92,46 @@ export async function purgeMovieDatabase(): Promise<PurgeResult> {
     result.watchHistoryDeleted = watchResult.rowCount || 0
     logger.info(`Deleted ${result.watchHistoryDeleted} watch history records`)
 
-    // 10. Delete episode embeddings (FK to episodes)
-    const episodeEmbeddingsResult = await client.query('DELETE FROM episode_embeddings')
-    result.episodeEmbeddingsDeleted = episodeEmbeddingsResult.rowCount || 0
+    // 10. Delete episode embeddings from all dimension-specific tables (FK to episodes)
+    let episodeEmbeddingsDeleted = 0
+    for (const dim of VALID_EMBEDDING_DIMENSIONS) {
+      const res = await client.query(`DELETE FROM episode_embeddings_${dim}`)
+      episodeEmbeddingsDeleted += res.rowCount || 0
+    }
+    // Also try legacy table if it exists
+    try {
+      const legacyRes = await client.query('DELETE FROM episode_embeddings_legacy')
+      episodeEmbeddingsDeleted += legacyRes.rowCount || 0
+    } catch { /* table may not exist */ }
+    result.episodeEmbeddingsDeleted = episodeEmbeddingsDeleted
     logger.info(`Deleted ${result.episodeEmbeddingsDeleted} episode embeddings`)
 
-    // 11. Delete series embeddings (FK to series)
-    const seriesEmbeddingsResult = await client.query('DELETE FROM series_embeddings')
-    result.seriesEmbeddingsDeleted = seriesEmbeddingsResult.rowCount || 0
+    // 11. Delete series embeddings from all dimension-specific tables (FK to series)
+    let seriesEmbeddingsDeleted = 0
+    for (const dim of VALID_EMBEDDING_DIMENSIONS) {
+      const res = await client.query(`DELETE FROM series_embeddings_${dim}`)
+      seriesEmbeddingsDeleted += res.rowCount || 0
+    }
+    // Also try legacy table if it exists
+    try {
+      const legacyRes = await client.query('DELETE FROM series_embeddings_legacy')
+      seriesEmbeddingsDeleted += legacyRes.rowCount || 0
+    } catch { /* table may not exist */ }
+    result.seriesEmbeddingsDeleted = seriesEmbeddingsDeleted
     logger.info(`Deleted ${result.seriesEmbeddingsDeleted} series embeddings`)
 
-    // 12. Delete movie embeddings (FK to movies)
-    const movieEmbeddingsResult = await client.query('DELETE FROM embeddings')
-    result.movieEmbeddingsDeleted = movieEmbeddingsResult.rowCount || 0
+    // 12. Delete movie embeddings from all dimension-specific tables (FK to movies)
+    let movieEmbeddingsDeleted = 0
+    for (const dim of VALID_EMBEDDING_DIMENSIONS) {
+      const res = await client.query(`DELETE FROM embeddings_${dim}`)
+      movieEmbeddingsDeleted += res.rowCount || 0
+    }
+    // Also try legacy table if it exists
+    try {
+      const legacyRes = await client.query('DELETE FROM embeddings_legacy')
+      movieEmbeddingsDeleted += legacyRes.rowCount || 0
+    } catch { /* table may not exist */ }
+    result.movieEmbeddingsDeleted = movieEmbeddingsDeleted
     logger.info(`Deleted ${result.movieEmbeddingsDeleted} movie embeddings`)
 
     // 13. Delete episodes (FK to series)
@@ -147,6 +175,25 @@ export interface DatabaseStats {
 }
 
 /**
+ * Count embeddings across all dimension-specific tables
+ */
+async function countAllEmbeddings(baseTable: 'embeddings' | 'series_embeddings' | 'episode_embeddings'): Promise<number> {
+  let total = 0
+  for (const dim of VALID_EMBEDDING_DIMENSIONS) {
+    try {
+      const result = await query<{ count: string }>(`SELECT COUNT(*) FROM ${baseTable}_${dim}`)
+      total += parseInt(result.rows[0]?.count || '0', 10)
+    } catch { /* table may not exist */ }
+  }
+  // Also check legacy table
+  try {
+    const result = await query<{ count: string }>(`SELECT COUNT(*) FROM ${baseTable}_legacy`)
+    total += parseInt(result.rows[0]?.count || '0', 10)
+  } catch { /* table may not exist */ }
+  return total
+}
+
+/**
  * Get current database stats for display before purge
  */
 export async function getMovieDatabaseStats(): Promise<DatabaseStats> {
@@ -167,9 +214,9 @@ export async function getMovieDatabaseStats(): Promise<DatabaseStats> {
     query<{ count: string }>('SELECT COUNT(*) FROM movies'),
     query<{ count: string }>('SELECT COUNT(*) FROM series'),
     query<{ count: string }>('SELECT COUNT(*) FROM episodes'),
-    query<{ count: string }>('SELECT COUNT(*) FROM embeddings'),
-    query<{ count: string }>('SELECT COUNT(*) FROM series_embeddings'),
-    query<{ count: string }>('SELECT COUNT(*) FROM episode_embeddings'),
+    countAllEmbeddings('embeddings'),
+    countAllEmbeddings('series_embeddings'),
+    countAllEmbeddings('episode_embeddings'),
     query<{ count: string }>('SELECT COUNT(*) FROM watch_history'),
     query<{ count: string }>('SELECT COUNT(*) FROM user_ratings'),
     query<{ count: string }>('SELECT COUNT(*) FROM recommendation_candidates'),
@@ -182,9 +229,9 @@ export async function getMovieDatabaseStats(): Promise<DatabaseStats> {
     movies: parseInt(movies.rows[0]?.count || '0', 10),
     series: parseInt(series.rows[0]?.count || '0', 10),
     episodes: parseInt(episodes.rows[0]?.count || '0', 10),
-    movieEmbeddings: parseInt(movieEmbeddings.rows[0]?.count || '0', 10),
-    seriesEmbeddings: parseInt(seriesEmbeddings.rows[0]?.count || '0', 10),
-    episodeEmbeddings: parseInt(episodeEmbeddings.rows[0]?.count || '0', 10),
+    movieEmbeddings, // Already a number from countAllEmbeddings
+    seriesEmbeddings, // Already a number from countAllEmbeddings
+    episodeEmbeddings, // Already a number from countAllEmbeddings
     watchHistory: parseInt(watchHistory.rows[0]?.count || '0', 10),
     userRatings: parseInt(userRatings.rows[0]?.count || '0', 10),
     recommendations: parseInt(recommendations.rows[0]?.count || '0', 10),

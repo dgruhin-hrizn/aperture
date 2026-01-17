@@ -195,6 +195,123 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   )
 
   /**
+   * GET /api/auth/me/preferences
+   * Get current user's UI preferences
+   */
+  fastify.get<{ Reply: { sidebarCollapsed?: boolean } }>(
+    '/api/auth/me/preferences',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { getUserUiPreferences } = await import('@aperture/core')
+      const preferences = await getUserUiPreferences(request.user!.id)
+      return reply.send(preferences)
+    }
+  )
+
+  /**
+   * PATCH /api/auth/me/preferences
+   * Update current user's UI preferences
+   */
+  fastify.patch(
+    '/api/auth/me/preferences',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { updateUserUiPreferences, getUserUiPreferences } = await import('@aperture/core')
+      type UserUiPreferences = Awaited<ReturnType<typeof getUserUiPreferences>>
+      const body = request.body as Partial<UserUiPreferences>
+      
+      // Get current preferences for merging
+      const currentPrefs = await getUserUiPreferences(request.user!.id)
+      
+      // Build the update object with proper merging
+      const updates: Partial<UserUiPreferences> = { ...body }
+      
+      // For viewModes, merge with existing to avoid overwriting other pages
+      if (body.viewModes) {
+        updates.viewModes = {
+          ...currentPrefs.viewModes,
+          ...body.viewModes,
+        }
+      }
+      
+      // For browseSort, merge with existing to preserve other media type settings
+      if (body.browseSort) {
+        updates.browseSort = {
+          movies: body.browseSort.movies || currentPrefs.browseSort?.movies || { sortBy: 'title', sortOrder: 'asc' },
+          series: body.browseSort.series || currentPrefs.browseSort?.series || { sortBy: 'title', sortOrder: 'asc' },
+        }
+      }
+      
+      const preferences = await updateUserUiPreferences(request.user!.id, updates)
+      return reply.send(preferences)
+    }
+  )
+
+  /**
+   * POST /api/auth/me/filter-presets
+   * Create a new filter preset
+   */
+  fastify.post(
+    '/api/auth/me/filter-presets',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { addBrowseFilterPreset } = await import('@aperture/core')
+      const body = request.body as { name: string; type: 'movies' | 'series'; filters: Record<string, unknown> }
+      
+      const preset = await addBrowseFilterPreset(request.user!.id, {
+        name: body.name,
+        type: body.type,
+        filters: body.filters,
+      })
+      
+      return reply.status(201).send(preset)
+    }
+  )
+
+  /**
+   * PATCH /api/auth/me/filter-presets/:id
+   * Update a filter preset
+   */
+  fastify.patch<{ Params: { id: string } }>(
+    '/api/auth/me/filter-presets/:id',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { updateBrowseFilterPreset } = await import('@aperture/core')
+      const { id } = request.params
+      const body = request.body as { name?: string; filters?: Record<string, unknown> }
+      
+      const preset = await updateBrowseFilterPreset(request.user!.id, id, body)
+      
+      if (!preset) {
+        return reply.status(404).send({ error: 'Preset not found' })
+      }
+      
+      return reply.send(preset)
+    }
+  )
+
+  /**
+   * DELETE /api/auth/me/filter-presets/:id
+   * Delete a filter preset
+   */
+  fastify.delete<{ Params: { id: string } }>(
+    '/api/auth/me/filter-presets/:id',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { deleteBrowseFilterPreset } = await import('@aperture/core')
+      const { id } = request.params
+      
+      const deleted = await deleteBrowseFilterPreset(request.user!.id, id)
+      
+      if (!deleted) {
+        return reply.status(404).send({ error: 'Preset not found' })
+      }
+      
+      return reply.status(204).send()
+    }
+  )
+
+  /**
    * GET /api/auth/check
    * Check if user is authenticated (does not require auth, returns null if not)
    */

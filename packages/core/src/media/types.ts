@@ -21,10 +21,12 @@ export interface MediaServerUser {
   lastActivityDate?: string
   primaryImageTag?: string
   maxParentalRating?: number // NULL means unrestricted
+  email?: string // Email from Emby Connect or user configuration
 }
 
 export interface Library {
-  id: string
+  id: string // ItemId - for Items API (/Items/...)
+  virtualFolderId?: string // VirtualFolder Id - for library options API
   guid: string // Used for user permissions in Emby/Jellyfin
   name: string
   collectionType: string

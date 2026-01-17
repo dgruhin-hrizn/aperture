@@ -8,6 +8,8 @@ import { createChildLogger } from '../lib/logger.js'
 import { query, queryOne } from '../lib/db.js'
 import { getActiveEmbeddingTableName, getCurrentEmbeddingDimensions } from '../lib/ai-provider.js'
 import type { MediaType, RawCandidate, ScoredCandidate, DiscoveryConfig } from './types.js'
+import { getUserFranchisePreferences } from '../taste-profile/index.js'
+import { detectFranchiseFromTitle } from '../taste-profile/franchise.js'
 
 const logger = createChildLogger('discover:scorer')
 
@@ -148,6 +150,16 @@ export async function scoreCandidates(
     }
   }
 
+  // Get user's franchise preferences for boosting
+  // Note: Genre weights are not applied here since discovery uses TMDb genre IDs, not names
+  const franchisePrefs = await getUserFranchisePreferences(userId, mediaType)
+  
+  // Build franchise lookup map
+  const franchiseScoreMap = new Map<string, number>()
+  for (const pref of franchisePrefs) {
+    franchiseScoreMap.set(pref.franchiseName.toLowerCase(), pref.preferenceScore)
+  }
+
   // Score each candidate
   const scoredCandidates: ScoredCandidate[] = candidates.map(candidate => {
     // Calculate similarity score
@@ -163,13 +175,27 @@ export async function scoreCandidates(
     const recencyScore = calculateRecencyScore(candidate)
     const sourceScore = calculateSourceScore(candidate)
 
-    // Calculate final score as weighted average
-    const finalScore = (
+    // Calculate base score as weighted average
+    let finalScore = (
       similarityScore * config.similarityWeight +
       popularityScore * config.popularityWeight +
       recencyScore * config.recencyWeight +
       sourceScore * 0.1 // Small boost for source quality
     )
+    
+    // Apply franchise preference boost
+    let franchiseBoost = 1.0
+    const detectedFranchise = detectFranchiseFromTitle(candidate.title)
+    if (detectedFranchise) {
+      const prefScore = franchiseScoreMap.get(detectedFranchise.toLowerCase())
+      if (prefScore !== undefined) {
+        // Convert -1 to 1 preference score to 0.5x to 1.5x multiplier
+        franchiseBoost = 1.0 + prefScore * 0.5
+      }
+    }
+    
+    // Apply franchise boost to final score
+    finalScore *= franchiseBoost
 
     return {
       ...candidate,

@@ -6,10 +6,7 @@ import type { Library, LibraryCreateResult } from '../types.js'
 import type { EmbyLibrary, EmbyLibraryResponse, EmbyUser } from './types.js'
 import type { EmbyProviderBase } from './base.js'
 
-export async function getLibraries(
-  provider: EmbyProviderBase,
-  apiKey: string
-): Promise<Library[]> {
+export async function getLibraries(provider: EmbyProviderBase, apiKey: string): Promise<Library[]> {
   // Emby returns an array directly, not { Items: [...] }
   const response = await provider.fetch<EmbyLibrary[] | EmbyLibraryResponse>(
     '/Library/VirtualFolders',
@@ -20,7 +17,9 @@ export async function getLibraries(
   const libraries = Array.isArray(response) ? response : response.Items || []
 
   return libraries.map((lib: EmbyLibrary) => ({
-    id: lib.ItemId || lib.Id || '',
+    // ItemId is for Items API (/Items/...), Id is for VirtualFolders API
+    id: lib.ItemId || lib.Id || '', // Primary ID for Items API
+    virtualFolderId: lib.Id || '', // VirtualFolder ID for library options
     guid: lib.Guid || lib.ItemId || lib.Id || '', // GUID is used for user permissions
     name: lib.Name,
     collectionType: lib.CollectionType,
@@ -55,10 +54,16 @@ export async function createVirtualLibrary(
   // Check if library with this name already exists
   const existingLibraries = await getLibraries(provider, apiKey)
   const existing = existingLibraries.find((lib) => lib.name === name)
-  
+
   if (existing) {
-    // Library already exists - just use it and ensure sort title is set
+    // Library already exists - ensure settings are configured
     await setLibrarySortTitle(provider, apiKey, existing.id, name)
+    // Exclude from global search (merges with existing options to preserve ContentType etc)
+    if (existing.virtualFolderId) {
+      await setLibraryOptions(provider, apiKey, existing.virtualFolderId, {
+        excludeFromSearch: true,
+      })
+    }
     return { libraryId: existing.id, alreadyExists: true }
   }
 
@@ -82,6 +87,11 @@ export async function createVirtualLibrary(
   // Set forced sort name so library appears at top
   await setLibrarySortTitle(provider, apiKey, created.id, name)
 
+  // Exclude from global search (merges with existing options to preserve ContentType etc)
+  if (created.virtualFolderId) {
+    await setLibraryOptions(provider, apiKey, created.virtualFolderId, { excludeFromSearch: true })
+  }
+
   return { libraryId: created.id, alreadyExists: false }
 }
 
@@ -100,23 +110,20 @@ async function setLibrarySortTitle(
 ): Promise<void> {
   // Prepend !!!!!! to sort title so library appears at top when sorted alphabetically
   const sortTitle = `!!!!!!${name}`
-  
+
   try {
     // Fetch the full item data (required by Emby API for updates)
-    const item = await provider.fetch<Record<string, unknown>>(
-      `/Items/${libraryId}`,
-      apiKey
-    )
-    
+    const item = await provider.fetch<Record<string, unknown>>(`/Items/${libraryId}`, apiKey)
+
     // Update the sort name and lock it to prevent automatic overwrites
     item.ForcedSortName = sortTitle
-    
+
     // Merge with existing locked fields if any
     const existingLocked = Array.isArray(item.LockedFields) ? item.LockedFields : []
     if (!existingLocked.includes('SortName')) {
       item.LockedFields = [...existingLocked, 'SortName']
     }
-    
+
     // POST the full item back
     await provider.fetch(`/Items/${libraryId}`, apiKey, {
       method: 'POST',
@@ -126,6 +133,57 @@ async function setLibrarySortTitle(
   } catch {
     // Non-fatal: library will still work, just won't sort to top
     console.warn(`Failed to set sort title for library ${libraryId}`)
+  }
+}
+
+/**
+ * Set library options like ExcludeFromSearch
+ * Uses the VirtualFolders/LibraryOptions endpoint (requires Emby 4.9+)
+ *
+ * IMPORTANT: This fetches existing options first and merges, because Emby's
+ * API replaces the entire LibraryOptions object. Sending partial options
+ * would wipe out all other settings including ContentType.
+ *
+ * @param provider - Emby provider instance
+ * @param apiKey - API key for authentication
+ * @param libraryId - VirtualFolder Id (from VirtualFolderInfo.Id, not ItemId)
+ * @param options - Options to merge into existing options
+ */
+async function setLibraryOptions(
+  provider: EmbyProviderBase,
+  apiKey: string,
+  libraryId: string,
+  options: { excludeFromSearch?: boolean }
+): Promise<void> {
+  try {
+    // First, fetch existing library options to preserve all settings
+    const libraries = await provider.fetch<EmbyLibrary[]>('/Library/VirtualFolders', apiKey)
+    const library = libraries.find((lib) => lib.Id === libraryId)
+
+    if (!library?.LibraryOptions) {
+      // Library not found or no options - skip silently
+      return
+    }
+
+    // Merge our options into the existing LibraryOptions
+    const mergedOptions = {
+      ...library.LibraryOptions,
+      ExcludeFromSearch:
+        options.excludeFromSearch ?? library.LibraryOptions.ExcludeFromSearch ?? false,
+    }
+
+    // POST the full merged options back
+    await provider.fetch('/Library/VirtualFolders/LibraryOptions', apiKey, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        Id: libraryId,
+        LibraryOptions: mergedOptions,
+      }),
+    })
+  } catch {
+    // Non-fatal: library will still work, just won't be excluded from search
+    // This fails silently on Emby < 4.9 which doesn't support ExcludeFromSearch
   }
 }
 
@@ -152,7 +210,7 @@ export async function updateUserLibraryAccess(
 
   // Cast to Record to access all dynamic fields - API may have more fields than our type
   const currentPolicy = (user.Policy || {}) as Record<string, unknown>
-  
+
   // Create updated policy preserving all existing fields except the ones we're changing
   const updatedPolicy: Record<string, unknown> = {
     ...currentPolicy,
@@ -176,3 +234,48 @@ export async function refreshLibrary(
   await provider.fetch(`/Items/${libraryId}/Refresh`, apiKey, { method: 'POST' })
 }
 
+/**
+ * Set the default sort order for a library for a specific user
+ * This sets the DisplayPreferences so when the user first visits the library,
+ * it will be sorted by the specified field.
+ * Note: Emby Web caches sort preferences in localStorage after first visit,
+ * so this only affects the initial view.
+ */
+export async function setLibrarySortPreference(
+  provider: EmbyProviderBase,
+  apiKey: string,
+  userId: string,
+  libraryId: string,
+  sortBy: string = 'DateCreated',
+  sortOrder: 'Ascending' | 'Descending' = 'Descending'
+): Promise<void> {
+  try {
+    // Get the library item to find its DisplayPreferencesId
+    const item = await provider.fetch<{ DisplayPreferencesId?: string }>(
+      `/Users/${userId}/Items/${libraryId}`,
+      apiKey
+    )
+
+    const displayPrefsId = item.DisplayPreferencesId || libraryId
+
+    // Set display preferences for Emby Web client
+    await provider.fetch(`/DisplayPreferences/${displayPrefsId}?UserId=${userId}`, apiKey, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        Id: displayPrefsId,
+        SortBy: sortBy,
+        SortOrder: sortOrder,
+        Client: 'Emby Web',
+        CustomPrefs: {},
+      }),
+    })
+  } catch {
+    // Non-fatal: library will still work, just won't have custom sort default
+  }
+}
+
+// NOTE: hideLibraryItemsFromResume was removed in v0.5.0
+// Instead of hiding items from Continue Watching via API, we now omit external IDs (IMDB/TMDB)
+// from NFO files. This prevents Emby from linking Aperture items with originals, so playback
+// is tracked independently on each item - no duplicates in Continue Watching.

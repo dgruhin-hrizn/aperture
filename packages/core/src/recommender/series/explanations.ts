@@ -8,10 +8,38 @@
 
 import { query } from '../../lib/db.js'
 import { createChildLogger } from '../../lib/logger.js'
-import { getTextGenerationModelInstance } from '../../lib/ai-provider.js'
+import { getTextGenerationModelInstance, getFunctionConfig } from '../../lib/ai-provider.js'
 import { generateText } from 'ai'
 
 const logger = createChildLogger('series-explanations')
+
+/**
+ * Get the appropriate batch size based on the text generation provider.
+ * Tiered by context window size to avoid hitting limits.
+ */
+async function getExplanationBatchSize(): Promise<{ batchSize: number; maxTokens: number }> {
+  const config = await getFunctionConfig('textGeneration')
+
+  if (!config) {
+    // Default conservative settings
+    return { batchSize: 3, maxTokens: 1000 }
+  }
+
+  // Large context providers: OpenAI (128K), Anthropic (200K), Google (1M+), DeepSeek (64K)
+  const largeContextProviders = ['openai', 'anthropic', 'google', 'deepseek']
+  if (largeContextProviders.includes(config.provider)) {
+    return { batchSize: 10, maxTokens: 3000 }
+  }
+
+  // Medium context: Groq (8K context)
+  if (config.provider === 'groq') {
+    return { batchSize: 5, maxTokens: 1500 }
+  }
+
+  // Small context: Ollama (default 4K), OpenAI-compatible (varies)
+  // Use conservative batch size to fit within limited context windows
+  return { batchSize: 3, maxTokens: 1000 }
+}
 
 export interface SeriesForExplanation {
   seriesId: string
@@ -178,13 +206,15 @@ export async function generateSeriesExplanations(
     evidence: evidenceMap.get(r.seriesId) || [],
   }))
 
-  // Generate explanations in batches
-  const batchSize = 10
+  // Generate explanations in batches - size depends on provider context window
+  const { batchSize, maxTokens } = await getExplanationBatchSize()
+  logger.info({ batchSize, maxTokens }, 'Using explanation batch settings based on provider')
+
   const results: SeriesExplanationResult[] = []
 
   for (let i = 0; i < seriesWithEvidence.length; i += batchSize) {
     const batch = seriesWithEvidence.slice(i, i + batchSize)
-    const batchResults = await generateBatchSeriesExplanations(batch, tasteContext)
+    const batchResults = await generateBatchSeriesExplanations(batch, tasteContext, maxTokens)
     results.push(...batchResults)
   }
 
@@ -194,7 +224,8 @@ export async function generateSeriesExplanations(
 
 async function generateBatchSeriesExplanations(
   seriesList: SeriesWithEvidence[],
-  tasteContext: UserSeriesTasteContext
+  tasteContext: UserSeriesTasteContext,
+  maxOutputTokens: number = 3000
 ): Promise<SeriesExplanationResult[]> {
   // Build user context string
   const userContextLines = [
@@ -203,7 +234,10 @@ async function generateBatchSeriesExplanations(
     `Most watched series:`,
     ...tasteContext.favoriteSeries
       .slice(0, 10)
-      .map((s) => `- "${s.title}" (${s.year || 'N/A'}) - ${s.genres.join(', ')}${s.network ? ` on ${s.network}` : ''}`),
+      .map(
+        (s) =>
+          `- "${s.title}" (${s.year || 'N/A'}) - ${s.genres.join(', ')}${s.network ? ` on ${s.network}` : ''}`
+      ),
   ]
 
   if (tasteContext.tasteSynopsis) {
@@ -268,7 +302,7 @@ ${seriesListStr}
 
 Generate personalized explanations referencing the specific similar series shown for each recommendation.`,
       temperature: 0.7,
-      maxOutputTokens: 3000,
+      maxOutputTokens,
     })
 
     const content = text
@@ -280,20 +314,61 @@ Generate personalized explanations referencing the specific similar series shown
       }))
     }
 
-    // Parse the JSON response
-    const parsed = JSON.parse(content)
-    const explanations = Array.isArray(parsed) ? parsed : parsed.explanations || []
+    // Parse the JSON response - handle models that wrap in markdown or include preamble
+    let jsonContent = content.trim()
+
+    // Extract JSON from markdown code blocks if present
+    const jsonBlockMatch = jsonContent.match(/```(?:json)?\s*([\s\S]*?)```/)
+    if (jsonBlockMatch) {
+      jsonContent = jsonBlockMatch[1].trim()
+    }
+
+    // Try to find JSON object/array if there's other text around it
+    if (!jsonContent.startsWith('{') && !jsonContent.startsWith('[')) {
+      const jsonStart = jsonContent.search(/[[{]/)
+      if (jsonStart !== -1) {
+        jsonContent = jsonContent.slice(jsonStart)
+      }
+    }
+
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(jsonContent)
+    } catch (parseError) {
+      logger.warn(
+        {
+          rawResponse: content.substring(0, 500),
+          parseError: parseError instanceof Error ? parseError.message : String(parseError),
+        },
+        'Failed to parse AI response as JSON, using fallbacks'
+      )
+      return seriesList.map((s) => ({
+        seriesId: s.seriesId,
+        explanation: generateFallbackSeriesExplanation(s),
+      }))
+    }
+    const explanations = Array.isArray(parsed)
+      ? parsed
+      : (parsed as { explanations?: unknown[] }).explanations || []
 
     // Map back to series IDs
     return seriesList.map((s, i) => {
-      const found = explanations.find((e: { index: number; explanation: string }) => e.index === i + 1)
+      const found = explanations.find(
+        (e: { index: number; explanation: string }) => e.index === i + 1
+      )
       return {
         seriesId: s.seriesId,
         explanation: found?.explanation || generateFallbackSeriesExplanation(s),
       }
     })
   } catch (error) {
-    logger.error({ error }, 'Failed to generate series explanations')
+    // Extract meaningful error information - AI SDK errors don't serialize well
+    const errorInfo = {
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : 'Unknown',
+      cause: error instanceof Error && error.cause ? String(error.cause) : undefined,
+    }
+    logger.error({ error: errorInfo }, 'Failed to generate series explanations')
     return seriesList.map((s) => ({
       seriesId: s.seriesId,
       explanation: generateFallbackSeriesExplanation(s),
@@ -346,14 +421,8 @@ export async function storeSeriesExplanations(
      SET ai_explanation = t.explanation
      FROM unnest($2::uuid[], $3::text[]) AS t(series_id, explanation)
      WHERE rc.run_id = $1 AND rc.series_id = t.series_id AND rc.is_selected = true`,
-    [
-      runId,
-      explanations.map((e) => e.seriesId),
-      explanations.map((e) => e.explanation),
-    ]
+    [runId, explanations.map((e) => e.seriesId), explanations.map((e) => e.explanation)]
   )
 
   logger.info({ runId, count: explanations.length }, 'Stored series AI explanations')
 }
-
-

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   AppBar,
@@ -18,6 +18,7 @@ import {
   Menu,
   MenuItem,
   Divider,
+  Tooltip,
 } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
 import HomeIcon from '@mui/icons-material/Home'
@@ -36,30 +37,31 @@ import InsightsIcon from '@mui/icons-material/Insights'
 import SearchIcon from '@mui/icons-material/Search'
 import CollectionsIcon from '@mui/icons-material/Collections'
 import AddToQueueIcon from '@mui/icons-material/AddToQueue'
+import HubOutlinedIcon from '@mui/icons-material/HubOutlined'
 import ExploreIcon from '@mui/icons-material/Explore'
+import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
+import MenuOpenIcon from '@mui/icons-material/MenuOpen'
 import { useAuth } from '@/hooks/useAuth'
 import { WelcomeModal, useWelcomeModal } from './WelcomeModal'
+import { ExplorationConfigModal } from './ExplorationConfigModal'
 import { RunningJobsWidget } from './RunningJobsWidget'
 import { GlobalSearch } from './GlobalSearch'
 
 const DRAWER_WIDTH = 260
+const DRAWER_WIDTH_COLLAPSED = 72
 
 // User-facing navigation items (shown to all users)
 const userMenuItems = [
-  { text: 'Home', icon: <HomeIcon />, path: '/' },
-  { text: 'Search', icon: <SearchIcon />, path: '/search' },
-  { text: 'Explore', icon: <ExploreIcon />, path: '/explore' },
+  { text: 'Dashboard', icon: <HomeIcon />, path: '/' },
   { text: 'Recommendations', icon: <AutoAwesomeIcon />, path: '/recommendations' },
+  { text: 'Shows You Watch', icon: <AddToQueueIcon />, path: '/watching' },
+  { text: 'Top Picks', icon: <WhatshotIcon />, path: '/top-picks' },
+  { text: 'Playlists', icon: <PlaylistPlayIcon />, path: '/playlists' },
+  { text: 'Explore', icon: <HubOutlinedIcon />, path: '/explore' },
   { text: 'Discover', icon: <ExploreIcon />, path: '/discovery' },
-  { text: "Shows You Watch", icon: <AddToQueueIcon />, path: '/watching' },
-  { text: 'Top Pick Movies', icon: <WhatshotIcon />, path: '/top-picks/movies' },
-  { text: 'Top Pick Series', icon: <TvIcon />, path: '/top-picks/series' },
-  { text: 'Franchises', icon: <CollectionsIcon />, path: '/franchises' },
+  { text: 'Browse', icon: <VideoLibraryIcon />, path: '/browse' },
   { text: 'Watch History', icon: <HistoryIcon />, path: '/history' },
   { text: 'Watch Stats', icon: <InsightsIcon />, path: '/stats' },
-  { text: 'Browse Movies', icon: <MovieIcon />, path: '/movies' },
-  { text: 'Browse Series', icon: <TvIcon />, path: '/series' },
-  { text: 'Playlists', icon: <PlaylistPlayIcon />, path: '/playlists' },
 ]
 
 // Admin navigation items (shown only to admins)
@@ -73,12 +75,50 @@ export function Layout() {
   const location = useLocation()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const { user, logout } = useAuth()
   const { open: welcomeOpen, showWelcome, hideWelcome } = useWelcomeModal()
 
+  const drawerWidth = collapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH
+
+  // Fetch user's sidebar preference on mount
+  useEffect(() => {
+    const fetchPreferences = async () => {
+      try {
+        const response = await fetch('/api/auth/me/preferences', { credentials: 'include' })
+        if (response.ok) {
+          const prefs = await response.json()
+          if (prefs.sidebarCollapsed !== undefined) {
+            setCollapsed(prefs.sidebarCollapsed)
+          }
+        }
+      } catch {
+        // Ignore errors, use default
+      }
+    }
+    fetchPreferences()
+  }, [])
+
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen)
+  }
+
+  const handleCollapseToggle = async () => {
+    const newCollapsed = !collapsed
+    setCollapsed(newCollapsed)
+    
+    // Persist preference to server
+    try {
+      await fetch('/api/auth/me/preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ sidebarCollapsed: newCollapsed }),
+      })
+    } catch {
+      // Ignore errors, state is already updated locally
+    }
   }
 
   const handleNavClick = (path: string) => {
@@ -113,54 +153,82 @@ export function Layout() {
   const drawer = (
     <Box sx={{ overflow: 'auto', mt: 2, display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Logo */}
-      <Box px={3} mb={3}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
-          <Box
-            component="img"
-            src="/aperture.svg"
-            alt="Aperture"
-            sx={{ width: 28, height: 28 }}
-          />
-          <Typography
-            sx={{
-              fontFamily: '"Open Sans", sans-serif',
-              fontWeight: 600,
-              fontSize: '1.25rem',
-              color: 'text.primary',
-              letterSpacing: '-0.01em',
-            }}
-          >
-            Aperture
-          </Typography>
-        </Box>
-        <Typography variant="caption" color="text.secondary" sx={{ pl: 5.5 }}>
-          AI Movie Recommendations
-        </Typography>
+      <Box 
+        px={collapsed ? 2 : 3} 
+        mb={3} 
+        sx={{ 
+          display: 'flex', 
+          justifyContent: collapsed ? 'center' : 'flex-start',
+          cursor: 'pointer',
+          '&:hover': { opacity: 0.8 },
+          transition: 'opacity 0.2s',
+        }}
+        onClick={handleCollapseToggle}
+      >
+        {collapsed ? (
+          <Tooltip title="Expand sidebar" placement="right">
+            <Box
+              component="img"
+              src="/aperture.svg"
+              alt="Aperture"
+              sx={{ width: 40, height: 40 }}
+            />
+          </Tooltip>
+        ) : (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box
+              component="img"
+              src="/aperture.svg"
+              alt="Aperture"
+              sx={{ width: 40, height: 40 }}
+            />
+            <Typography
+              sx={{
+                fontFamily: '"Open Sans", sans-serif',
+                fontWeight: 600,
+                fontSize: '1.5rem',
+                color: 'text.primary',
+                letterSpacing: '-0.01em',
+              }}
+            >
+              Aperture
+            </Typography>
+          </Box>
+        )}
       </Box>
 
       {/* User Navigation */}
       <List>
         {userMenuItems.map((item) => (
           <ListItem key={item.text} disablePadding>
-            <ListItemButton
-              selected={isPathActive(item.path)}
-              onClick={() => handleNavClick(item.path)}
-            >
-              <ListItemIcon
+            <Tooltip title={collapsed ? item.text : ''} placement="right" arrow>
+              <ListItemButton
+                selected={isPathActive(item.path)}
+                onClick={() => handleNavClick(item.path)}
                 sx={{
-                  color: isPathActive(item.path) ? 'primary.main' : 'text.secondary',
-                  minWidth: 40,
+                  justifyContent: collapsed ? 'center' : 'flex-start',
+                  px: collapsed ? 2 : 3,
                 }}
               >
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText
-                primary={item.text}
-                primaryTypographyProps={{
-                  fontWeight: isPathActive(item.path) ? 600 : 400,
-                }}
-              />
-            </ListItemButton>
+                <ListItemIcon
+                  sx={{
+                    color: isPathActive(item.path) ? 'primary.main' : 'text.secondary',
+                    minWidth: collapsed ? 0 : 40,
+                    mr: collapsed ? 0 : 1,
+                  }}
+                >
+                  {item.icon}
+                </ListItemIcon>
+                {!collapsed && (
+                  <ListItemText
+                    primary={item.text}
+                    primaryTypographyProps={{
+                      fontWeight: isPathActive(item.path) ? 600 : 400,
+                    }}
+                  />
+                )}
+              </ListItemButton>
+            </Tooltip>
           </ListItem>
         ))}
       </List>
@@ -175,44 +243,81 @@ export function Layout() {
           <List>
             {adminMenuItems.map((item) => (
               <ListItem key={item.text} disablePadding>
-                <ListItemButton
-                  selected={isPathActive(item.path)}
-                  onClick={() => handleNavClick(item.path)}
-                >
-                  <ListItemIcon
+                <Tooltip title={collapsed ? item.text : ''} placement="right" arrow>
+                  <ListItemButton
+                    selected={isPathActive(item.path)}
+                    onClick={() => handleNavClick(item.path)}
                     sx={{
-                      color: isPathActive(item.path) ? 'primary.main' : 'text.secondary',
-                      minWidth: 40,
+                      justifyContent: collapsed ? 'center' : 'flex-start',
+                      px: collapsed ? 2 : 3,
                     }}
                   >
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={item.text}
-                    primaryTypographyProps={{
-                      fontWeight: isPathActive(item.path) ? 600 : 400,
-                    }}
-                  />
-                </ListItemButton>
+                    <ListItemIcon
+                      sx={{
+                        color: isPathActive(item.path) ? 'primary.main' : 'text.secondary',
+                        minWidth: collapsed ? 0 : 40,
+                        mr: collapsed ? 0 : 1,
+                      }}
+                    >
+                      {item.icon}
+                    </ListItemIcon>
+                    {!collapsed && (
+                      <ListItemText
+                        primary={item.text}
+                        primaryTypographyProps={{
+                          fontWeight: isPathActive(item.path) ? 600 : 400,
+                        }}
+                      />
+                    )}
+                  </ListItemButton>
+                </Tooltip>
               </ListItem>
             ))}
           </List>
         </>
       )}
 
-      {/* Version at bottom */}
-      <Box px={3} py={2} sx={{ borderTop: 1, borderColor: 'divider' }}>
-        <Typography
-          variant="caption"
-          sx={{
-            color: 'text.secondary',
-            opacity: 0.6,
-            fontFamily: 'monospace',
-            fontSize: '0.7rem',
-          }}
+      {/* Collapse toggle and version at bottom */}
+      <Box 
+        px={collapsed ? 1 : 2} 
+        py={1.5} 
+        sx={{ 
+          borderTop: 1, 
+          borderColor: 'divider',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: collapsed ? 'center' : 'space-between',
+        }}
+      >
+        <Tooltip 
+          title={collapsed ? 'Expand sidebar (v0.5.0)' : 'Collapse sidebar'} 
+          placement="right"
         >
-          v0.4.6
-        </Typography>
+          <IconButton
+            onClick={handleCollapseToggle}
+            size="small"
+            sx={{ 
+              color: 'text.secondary',
+              transform: collapsed ? 'rotate(180deg)' : 'none',
+              transition: 'transform 0.2s',
+            }}
+          >
+            <MenuOpenIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        {!collapsed && (
+          <Typography
+            variant="caption"
+            sx={{
+              color: 'text.secondary',
+              opacity: 0.6,
+              fontFamily: 'monospace',
+              fontSize: '0.7rem',
+            }}
+          >
+            v0.5.0
+          </Typography>
+        )}
       </Box>
     </Box>
   )
@@ -223,28 +328,63 @@ export function Layout() {
       <AppBar
         position="fixed"
         sx={{
-          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
-          ml: { md: `${DRAWER_WIDTH}px` },
+          width: { md: `calc(100% - ${drawerWidth}px)` },
+          ml: { md: `${drawerWidth}px` },
+          transition: theme.transitions.create(['width', 'margin'], {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.leavingScreen,
+          }),
         }}
         elevation={0}
       >
         <Toolbar>
+          {/* Mobile: Hamburger on left */}
           <IconButton
             color="inherit"
             edge="start"
             onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { md: 'none' } }}
+            sx={{ display: { md: 'none' } }}
           >
             <MenuIcon />
           </IconButton>
 
-          {/* Global Search */}
-          <GlobalSearch />
+          {/* Mobile: Centered logo and name */}
+          <Box 
+            sx={{ 
+              display: { xs: 'flex', md: 'none' }, 
+              alignItems: 'center', 
+              gap: 1,
+              position: 'absolute',
+              left: '50%',
+              transform: 'translateX(-50%)',
+            }}
+          >
+            <Box
+              component="img"
+              src="/aperture.svg"
+              alt="Aperture"
+              sx={{ width: 28, height: 28 }}
+            />
+            <Typography
+              sx={{
+                fontFamily: '"Open Sans", sans-serif',
+                fontWeight: 600,
+                fontSize: '1.1rem',
+                color: 'text.primary',
+                letterSpacing: '-0.01em',
+              }}
+            >
+              Aperture
+            </Typography>
+          </Box>
 
           <Box sx={{ flexGrow: 1 }} />
 
           {/* Running Jobs Widget (admin only) */}
           <RunningJobsWidget />
+
+          {/* Global Search */}
+          <GlobalSearch />
 
           {/* User menu */}
           {user && (
@@ -312,7 +452,14 @@ export function Layout() {
       {/* Drawer */}
       <Box
         component="nav"
-        sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }}
+        sx={{ 
+          width: { md: drawerWidth }, 
+          flexShrink: { md: 0 },
+          transition: theme.transitions.create('width', {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.leavingScreen,
+          }),
+        }}
       >
         {/* Mobile drawer */}
         <Drawer
@@ -324,7 +471,12 @@ export function Layout() {
             display: { xs: 'block', md: 'none' },
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
-              width: DRAWER_WIDTH,
+              width: drawerWidth,
+              transition: theme.transitions.create('width', {
+                easing: theme.transitions.easing.sharp,
+                duration: theme.transitions.duration.leavingScreen,
+              }),
+              overflowX: 'hidden',
             },
           }}
         >
@@ -338,7 +490,12 @@ export function Layout() {
             display: { xs: 'none', md: 'block' },
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
-              width: DRAWER_WIDTH,
+              width: drawerWidth,
+              transition: theme.transitions.create('width', {
+                easing: theme.transitions.easing.sharp,
+                duration: theme.transitions.duration.leavingScreen,
+              }),
+              overflowX: 'hidden',
             },
           }}
           open
@@ -353,12 +510,16 @@ export function Layout() {
         sx={{
           flexGrow: 1,
           p: { xs: 2, sm: 3 },
-          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
+          width: { md: `calc(100% - ${drawerWidth}px)` },
           maxWidth: '100%',
           overflowX: 'hidden',
           mt: '64px',
           backgroundColor: 'background.default',
           minHeight: 'calc(100vh - 64px)',
+          transition: theme.transitions.create(['width', 'margin'], {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.leavingScreen,
+          }),
         }}
       >
         <Outlet />
@@ -369,6 +530,9 @@ export function Layout() {
       
       {/* Welcome Modal - manually triggered from menu */}
       <WelcomeModal open={welcomeOpen} onClose={hideWelcome} />
+
+      {/* Exploration Config Modal - prompts admins to configure new AI provider */}
+      <ExplorationConfigModal />
     </Box>
   )
 }

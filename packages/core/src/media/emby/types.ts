@@ -23,6 +23,8 @@ export interface EmbyUser {
   }
   LastActivityDate?: string
   PrimaryImageTag?: string
+  // Emby Connect email (if user has Emby Connect linked)
+  ConnectUserName?: string
 }
 
 export interface EmbyLibrary {
@@ -33,6 +35,7 @@ export interface EmbyLibrary {
   CollectionType: string
   Path?: string
   RefreshStatus?: string
+  LibraryOptions?: Record<string, unknown> // Full library options object from Emby
 }
 
 export interface EmbyLibraryResponse {

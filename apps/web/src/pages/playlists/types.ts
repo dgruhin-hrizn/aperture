@@ -55,4 +55,12 @@ export interface GraphPlaylist {
   updatedAt: string
 }
 
+export interface GraphPlaylistItem {
+  id: string
+  title: string
+  year: number | null
+  posterUrl: string | null
+  type: 'movie' | 'series'
+}
+
 

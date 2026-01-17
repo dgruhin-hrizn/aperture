@@ -1,6 +1,10 @@
 import { createChildLogger } from '../lib/logger.js'
 import { query, queryOne } from '../lib/db.js'
-import { getEmbeddingModelInstance, getActiveEmbeddingModelId, getActiveEmbeddingTableName } from '../lib/ai-provider.js'
+import {
+  getEmbeddingModelInstance,
+  getActiveEmbeddingModelId,
+  getActiveEmbeddingTableName,
+} from '../lib/ai-provider.js'
 import { embed } from 'ai'
 import { computeConnectionReasons, type ConnectionReason } from './reasons.js'
 
@@ -43,6 +47,8 @@ export interface GraphNode {
   poster_url: string | null
   type: 'movie' | 'series'
   isCenter: boolean
+  isPrimary?: boolean
+  primaryLabel?: string
 }
 
 export interface GraphEdge {
@@ -368,7 +374,6 @@ import {
   findDiverseContent,
   createAIDiverseReason,
   validateConnection,
-  getValidationCacheStats,
 } from './diverse.js'
 
 // Constants for bubble breaking
@@ -394,7 +399,7 @@ function getDynamicCollectionLimit(collectionSize: number): number {
  * At depth=1, shows direct connections.
  * At depth=2+, uses smart exclusion to break out of franchise bubbles.
  * Falls back to AI suggestions when stuck in a tight bubble.
- * 
+ *
  * If userId is provided, applies user preferences:
  * - fullFranchiseMode: Show entire franchise without collection limits
  * - hideWatched: Filter out already-watched content
@@ -412,20 +417,26 @@ export async function getSimilarWithDepth(
     : { fullFranchiseMode: false, hideWatched: false }
 
   // Get watched content IDs if hiding watched
-  const watchedIds: Set<string> = prefs.hideWatched && userId
-    ? itemType === 'movie'
-      ? await getUserWatchedMovieIds(userId)
-      : await getUserWatchedSeriesIds(userId)
-    : new Set()
+  const watchedIds: Set<string> =
+    prefs.hideWatched && userId
+      ? itemType === 'movie'
+        ? await getUserWatchedMovieIds(userId)
+        : await getUserWatchedSeriesIds(userId)
+      : new Set()
 
   logger.debug(
-    { userId, fullFranchiseMode: prefs.fullFranchiseMode, hideWatched: prefs.hideWatched, watchedCount: watchedIds.size },
+    {
+      userId,
+      fullFranchiseMode: prefs.fullFranchiseMode,
+      hideWatched: prefs.hideWatched,
+      watchedCount: watchedIds.size,
+    },
     'Similarity graph preferences'
   )
 
   // Calculate max nodes based on depth - prevents exponential explosion
   // depth=1: just center + limit = ~13 nodes
-  // depth=2: ~25 nodes  
+  // depth=2: ~25 nodes
   // depth=3: ~45 nodes (max for usable visualization)
   const maxNodes = depth === 1 ? limit + 1 : depth === 2 ? 25 : 45
 
@@ -487,10 +498,7 @@ export async function getSimilarWithDepth(
   // Helper to increment collection count
   const trackCollection = (collectionName: string | null) => {
     if (collectionName) {
-      collectionCounts.set(
-        collectionName,
-        (collectionCounts.get(collectionName) || 0) + 1
-      )
+      collectionCounts.set(collectionName, (collectionCounts.get(collectionName) || 0) + 1)
     }
   }
 
@@ -576,7 +584,10 @@ export async function getSimilarWithDepth(
   for (let currentDepth = 2; currentDepth <= depth; currentDepth++) {
     // Stop if we've hit the max nodes cap
     if (nodes.size >= maxNodes) {
-      logger.info({ currentDepth, nodeCount: nodes.size, maxNodes }, 'Stopping expansion - max nodes reached')
+      logger.info(
+        { currentDepth, nodeCount: nodes.size, maxNodes },
+        'Stopping expansion - max nodes reached'
+      )
       break
     }
 
@@ -588,7 +599,7 @@ export async function getSimilarWithDepth(
     for (const { id, type } of currentLevelIds) {
       // Stop if we've hit the max nodes cap
       if (nodes.size >= maxNodes) break
-      
+
       if (processedIds.has(id)) continue
       processedIds.add(id)
 
@@ -627,11 +638,11 @@ export async function getSimilarWithDepth(
             const validation = await validateConnection(sourceItem, conn.item, { useAI: true })
             if (!validation.isValid) {
               logger.debug(
-                { 
-                  source: sourceItem.title, 
-                  target: conn.item.title, 
+                {
+                  source: sourceItem.title,
+                  target: conn.item.title,
                   reason: validation.reason,
-                  cached: validation.fromCache
+                  cached: validation.fromCache,
                 },
                 'Connection rejected by validation'
               )
@@ -673,11 +684,10 @@ export async function getSimilarWithDepth(
 
       // AI ESCAPE: Get diverse recommendations
       try {
-        const diverseResult = await findDiverseContent(
-          centerResult.center,
-          allItems,
-          { limit: Math.max(4, limit - addedAtThisLevel), type: itemType }
-        )
+        const diverseResult = await findDiverseContent(centerResult.center, allItems, {
+          limit: Math.max(4, limit - addedAtThisLevel),
+          type: itemType,
+        })
 
         for (const item of diverseResult.items) {
           if (nodes.has(item.id)) continue
@@ -692,10 +702,7 @@ export async function getSimilarWithDepth(
           }
         }
 
-        logger.info(
-          { addedFromAI: diverseResult.items.length },
-          'Added diverse content from AI'
-        )
+        logger.info({ addedFromAI: diverseResult.items.length }, 'Added diverse content from AI')
       } catch (error) {
         logger.error({ error }, 'AI escape failed')
       }
@@ -760,13 +767,23 @@ export async function getGraphForSource(
     return { nodes: [], edges: [] }
   }
 
+  // Get source label for primary nodes
+  const sourceLabels: Record<GraphSource, string> = {
+    'ai-movies': 'AI Movie Picks',
+    'ai-series': 'AI Series Picks',
+    watching: 'Currently Watching',
+    'top-movies': 'Top Pick Movies',
+    'top-series': 'Top Pick Series',
+  }
+  const sourceLabel = sourceLabels[source]
+
   // Build graph with center nodes and their connections
   const nodes: Map<string, GraphNode> = new Map()
   const edges: GraphEdge[] = []
   const seenEdges = new Set<string>()
 
-  // Add center nodes
-  for (const item of centerItems) {
+  // Add center nodes with primary labels
+  centerItems.forEach((item, index) => {
     nodes.set(item.id, {
       id: item.id,
       title: item.title,
@@ -774,8 +791,10 @@ export async function getGraphForSource(
       poster_url: item.poster_url,
       type: item.type,
       isCenter: true,
+      isPrimary: true,
+      primaryLabel: `#${index + 1} ${sourceLabel}`,
     })
-  }
+  })
 
   // Get connections for each center node
   for (const centerItem of centerItems) {
@@ -851,6 +870,8 @@ export async function getGraphForSource(
 export interface SemanticSearchOptions {
   type?: 'movie' | 'series' | 'both'
   limit?: number
+  hideWatched?: boolean
+  userId?: string
 }
 
 export interface SemanticSearchResult {
@@ -863,28 +884,31 @@ export interface SemanticSearchResult {
 
 /**
  * Semantic search across library content using natural language queries.
- * 
+ *
  * This function embeds the search query using OpenAI and searches the
  * pre-computed content embeddings to find semantically similar items.
- * 
+ *
  * Example queries:
  * - "Psychological thrillers with twist endings"
  * - "Family-friendly animated movies"
  * - "Dark sci-fi series about AI"
- * 
+ *
  * Cost: ~$0.000003 per search (one embedding generation)
  */
 export async function semanticSearch(
   searchQuery: string,
   options: SemanticSearchOptions = {}
 ): Promise<SemanticSearchResult> {
-  const { type = 'both', limit = 20 } = options
+  const { type = 'both', limit = 20, hideWatched = false, userId } = options
 
   if (!searchQuery.trim()) {
     return { query: searchQuery, results: [] }
   }
 
-  logger.info({ searchQuery, type, limit }, 'Performing semantic search')
+  logger.info(
+    { searchQuery, type, limit, hideWatched, userId: userId ? 'present' : 'absent' },
+    'Performing semantic search'
+  )
 
   // Get the active embedding model
   const modelId = await getActiveEmbeddingModelId()
@@ -909,7 +933,22 @@ export async function semanticSearch(
   if (type === 'movie' || type === 'both') {
     const movieLimit = type === 'both' ? Math.ceil(limit / 2) : limit
     const movieTableName = await getActiveEmbeddingTableName('embeddings')
-    
+
+    // Build watched filter clause
+    const watchedFilter =
+      hideWatched && userId
+        ? `AND NOT EXISTS (
+           SELECT 1 FROM watch_history wh 
+           WHERE wh.movie_id = m.id 
+             AND wh.user_id = $4 
+             AND wh.media_type = 'movie'
+         )`
+        : ''
+    const movieParams =
+      hideWatched && userId
+        ? [embeddingVector, modelId, movieLimit, userId]
+        : [embeddingVector, modelId, movieLimit]
+
     const movieResults = await query<{
       id: string
       title: string
@@ -929,9 +968,10 @@ export async function semanticSearch(
        FROM ${movieTableName} e
        JOIN movies m ON m.id = e.movie_id
        WHERE e.model = $2
+       ${watchedFilter}
        ORDER BY e.embedding <=> $1::halfvec
        LIMIT $3`,
-      [embeddingVector, modelId, movieLimit]
+      movieParams
     )
 
     for (const row of movieResults.rows) {
@@ -959,7 +999,23 @@ export async function semanticSearch(
   if (type === 'series' || type === 'both') {
     const seriesLimit = type === 'both' ? Math.floor(limit / 2) : limit
     const seriesTableName = await getActiveEmbeddingTableName('series_embeddings')
-    
+
+    // Build watched filter clause for series (checks if any episode was watched)
+    const seriesWatchedFilter =
+      hideWatched && userId
+        ? `AND NOT EXISTS (
+           SELECT 1 FROM watch_history wh 
+           JOIN episodes ep ON ep.id = wh.episode_id
+           WHERE ep.series_id = s.id 
+             AND wh.user_id = $4 
+             AND wh.media_type = 'episode'
+         )`
+        : ''
+    const seriesParams =
+      hideWatched && userId
+        ? [embeddingVector, modelId, seriesLimit, userId]
+        : [embeddingVector, modelId, seriesLimit]
+
     const seriesResults = await query<{
       id: string
       title: string
@@ -979,9 +1035,10 @@ export async function semanticSearch(
        FROM ${seriesTableName} e
        JOIN series s ON s.id = e.series_id
        WHERE e.model = $2
+       ${seriesWatchedFilter}
        ORDER BY e.embedding <=> $1::halfvec
        LIMIT $3`,
-      [embeddingVector, modelId, seriesLimit]
+      seriesParams
     )
 
     for (const row of seriesResults.rows) {
@@ -1021,73 +1078,233 @@ export async function semanticSearch(
 
 /**
  * Build graph data from semantic search results.
- * Takes the search results and finds connections between them.
+ * Creates a branching graph that expands outward to discover more content.
+ *
+ * Strategy:
+ * 1. Search results become "seed" nodes (centers)
+ * 2. Each seed branches out to find NEW similar content not in the search
+ * 3. Minimal connections between seeds (only strong metadata matches)
+ * 4. Creates a spider-web that discovers more content
  */
 export async function buildGraphFromSemanticSearch(
   searchResults: SemanticSearchResult,
-  options: { connectionsPerNode?: number } = {}
+  options: { useAI?: boolean; connectionsPerSeed?: number } = {}
 ): Promise<GraphData> {
-  const { connectionsPerNode = 2 } = options
+  const { connectionsPerSeed = 3 } = options
 
   if (searchResults.results.length === 0) {
     return { nodes: [], edges: [] }
   }
 
+  const seedItems = searchResults.results.map((r) => r.item)
   const nodes: Map<string, GraphNode> = new Map()
   const edges: GraphEdge[] = []
   const seenEdges = new Set<string>()
+  const seedIds = new Set(seedItems.map((s) => s.id))
 
-  // Add all search results as center nodes
-  for (const result of searchResults.results) {
-    nodes.set(result.item.id, {
-      id: result.item.id,
-      title: result.item.title,
-      year: result.item.year,
-      poster_url: result.item.poster_url,
-      type: result.item.type,
-      isCenter: true,
+  // Helper to add edge without duplicates
+  const addEdge = (
+    sourceId: string,
+    targetId: string,
+    similarity: number,
+    reasons: ConnectionReason[]
+  ) => {
+    const edgeKey = [sourceId, targetId].sort().join('-')
+    if (!seenEdges.has(edgeKey) && sourceId !== targetId) {
+      seenEdges.add(edgeKey)
+      edges.push({ source: sourceId, target: targetId, similarity, reasons })
+      return true
+    }
+    return false
+  }
+
+  // Add all search results as CENTER nodes (seeds)
+  for (const item of seedItems) {
+    nodes.set(item.id, {
+      id: item.id,
+      title: item.title,
+      year: item.year,
+      poster_url: item.poster_url,
+      type: item.type,
+      isCenter: true, // Search results are the "centers"
     })
   }
 
-  // Find connections between the result items
-  for (let i = 0; i < searchResults.results.length; i++) {
-    const sourceItem = searchResults.results[i].item
-    
-    // Get similar items to find connections
-    let similarResult: SimilarityResult
-    if (sourceItem.type === 'movie') {
-      similarResult = await getSimilarMovies(sourceItem.id, { limit: 10 })
-    } else {
-      similarResult = await getSimilarSeries(sourceItem.id, { limit: 10 })
+  logger.info(
+    { query: searchResults.query, seedCount: seedItems.length, connectionsPerSeed },
+    'Building branching graph from semantic search'
+  )
+
+  // ============================================================================
+  // PHASE 1: Branch out from each seed to find NEW content
+  // This is the key change - we discover MORE movies, not just connect seeds
+  // ============================================================================
+  let discoveredCount = 0
+
+  for (const seed of seedItems) {
+    try {
+      // Find similar items for this seed
+      const similarResult =
+        seed.type === 'movie'
+          ? await getSimilarMovies(seed.id, { limit: connectionsPerSeed * 3 })
+          : await getSimilarSeries(seed.id, { limit: connectionsPerSeed * 3 })
+
+      let addedForThisSeed = 0
+
+      for (const conn of similarResult.connections) {
+        if (addedForThisSeed >= connectionsPerSeed) break
+
+        // SKIP items that are already seeds - we want NEW content
+        if (seedIds.has(conn.item.id)) continue
+
+        // Add this discovered node if not already in graph
+        if (!nodes.has(conn.item.id)) {
+          nodes.set(conn.item.id, {
+            id: conn.item.id,
+            title: conn.item.title,
+            year: conn.item.year,
+            poster_url: conn.item.poster_url,
+            type: conn.item.type,
+            isCenter: false, // Discovered items are NOT centers
+          })
+          discoveredCount++
+        }
+
+        // Connect seed to discovered item
+        addEdge(seed.id, conn.item.id, conn.similarity, conn.reasons)
+        addedForThisSeed++
+      }
+    } catch (error) {
+      logger.debug({ seedId: seed.id, error }, 'Failed to get similar items for seed')
     }
+  }
 
-    let addedConnections = 0
-    for (const conn of similarResult.connections) {
-      if (addedConnections >= connectionsPerNode) break
+  logger.info({ query: searchResults.query, discoveredCount }, 'Discovered new content from seeds')
 
-      // Prioritize connections to other search results
-      const isResultItem = nodes.has(conn.item.id)
-      
-      const edgeKey = [sourceItem.id, conn.item.id].sort().join('-')
-      if (seenEdges.has(edgeKey)) continue
-      seenEdges.add(edgeKey)
+  // ============================================================================
+  // PHASE 2: Add SELECTIVE connections between seeds
+  // Only connect seeds that have STRONG metadata overlap (same director, collection, etc.)
+  // Avoid connecting everything to everything
+  // ============================================================================
+  let seedConnectionCount = 0
+  const maxSeedConnections = Math.min(seedItems.length, 5) // Limit seed-to-seed connections
 
-      // Add edge to another search result
-      if (isResultItem) {
-        edges.push({
-          source: sourceItem.id,
-          target: conn.item.id,
-          similarity: conn.similarity,
-          reasons: conn.reasons,
-        })
-        addedConnections++
+  for (let i = 0; i < seedItems.length && seedConnectionCount < maxSeedConnections; i++) {
+    for (let j = i + 1; j < seedItems.length && seedConnectionCount < maxSeedConnections; j++) {
+      const source = seedItems[i]
+      const target = seedItems[j]
+
+      const reasons = computeConnectionReasons(source, target)
+
+      // Only connect seeds if they have STRONG connections (director, actor, collection)
+      const strongReasons = reasons.filter(
+        (r) => r.type === 'director' || r.type === 'actor' || r.type === 'collection'
+      )
+
+      if (strongReasons.length > 0) {
+        if (addEdge(source.id, target.id, 0.85, strongReasons)) {
+          seedConnectionCount++
+        }
       }
     }
   }
 
-  logger.debug(
-    { query: searchResults.query, nodeCount: nodes.size, edgeCount: edges.length },
-    'Built graph from semantic search'
+  logger.info(
+    { query: searchResults.query, seedConnectionCount },
+    'Added selective seed-to-seed connections'
+  )
+
+  // ============================================================================
+  // PHASE 3: Connect discovered nodes that share strong metadata
+  // This creates interesting cross-connections in the outer ring
+  // ============================================================================
+  const discoveredItems = Array.from(nodes.values())
+    .filter((n) => !n.isCenter)
+    .slice(0, 20) // Limit to avoid O(n²) explosion
+
+  let crossConnectionCount = 0
+  const maxCrossConnections = Math.min(discoveredItems.length, 8)
+
+  for (let i = 0; i < discoveredItems.length && crossConnectionCount < maxCrossConnections; i++) {
+    const nodeA = discoveredItems[i]
+
+    // Find similar items for this discovered node
+    try {
+      const similarResult =
+        nodeA.type === 'movie'
+          ? await getSimilarMovies(nodeA.id, { limit: 10 })
+          : await getSimilarSeries(nodeA.id, { limit: 10 })
+
+      for (const conn of similarResult.connections) {
+        if (crossConnectionCount >= maxCrossConnections) break
+
+        // Only connect to other discovered nodes (not seeds)
+        if (nodes.has(conn.item.id) && !seedIds.has(conn.item.id) && conn.item.id !== nodeA.id) {
+          // Require meaningful connection (not just generic similarity)
+          const meaningfulReasons = conn.reasons.filter((r) => r.type !== 'similarity')
+          if (meaningfulReasons.length > 0) {
+            if (addEdge(nodeA.id, conn.item.id, conn.similarity, meaningfulReasons)) {
+              crossConnectionCount++
+            }
+          }
+        }
+      }
+    } catch {
+      // Skip if lookup fails
+    }
+  }
+
+  logger.info(
+    { query: searchResults.query, crossConnectionCount },
+    'Added cross-connections between discovered items'
+  )
+
+  // ============================================================================
+  // PHASE 4: Ensure minimum connectivity for orphan seeds
+  // If a seed has no connections, find its best match
+  // ============================================================================
+  for (const seed of seedItems) {
+    const hasConnection = edges.some((e) => e.source === seed.id || e.target === seed.id)
+    if (!hasConnection) {
+      // Find any similar item and add it
+      try {
+        const similarResult =
+          seed.type === 'movie'
+            ? await getSimilarMovies(seed.id, { limit: 5 })
+            : await getSimilarSeries(seed.id, { limit: 5 })
+
+        if (similarResult.connections.length > 0) {
+          const conn = similarResult.connections[0]
+
+          // Add the discovered node
+          if (!nodes.has(conn.item.id)) {
+            nodes.set(conn.item.id, {
+              id: conn.item.id,
+              title: conn.item.title,
+              year: conn.item.year,
+              poster_url: conn.item.poster_url,
+              type: conn.item.type,
+              isCenter: false,
+            })
+          }
+
+          addEdge(seed.id, conn.item.id, conn.similarity, conn.reasons)
+        }
+      } catch {
+        // Skip if lookup fails
+      }
+    }
+  }
+
+  logger.info(
+    {
+      query: searchResults.query,
+      totalNodes: nodes.size,
+      seedNodes: seedItems.length,
+      discoveredNodes: nodes.size - seedItems.length,
+      totalEdges: edges.length,
+    },
+    'Built branching semantic search graph'
   )
 
   return {
@@ -1332,7 +1549,7 @@ function parseStudios(studios: unknown): Array<{ name: string }> {
     return studios.map((s) => {
       if (typeof s === 'string') return { name: s }
       if (typeof s === 'object' && s !== null) {
-        return { name: (s as Record<string, unknown>).name as string || String(s) }
+        return { name: ((s as Record<string, unknown>).name as string) || String(s) }
       }
       return { name: String(s) }
     })
@@ -1360,4 +1577,3 @@ export {
   type DiverseResult,
   type ConnectionValidation,
 } from './diverse.js'
-

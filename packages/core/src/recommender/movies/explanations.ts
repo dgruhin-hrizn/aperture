@@ -7,10 +7,38 @@
 
 import { query } from '../../lib/db.js'
 import { createChildLogger } from '../../lib/logger.js'
-import { getTextGenerationModelInstance } from '../../lib/ai-provider.js'
+import { getTextGenerationModelInstance, getFunctionConfig } from '../../lib/ai-provider.js'
 import { generateText } from 'ai'
 
 const logger = createChildLogger('explanations')
+
+/**
+ * Get the appropriate batch size based on the text generation provider.
+ * Tiered by context window size to avoid hitting limits.
+ */
+async function getExplanationBatchSize(): Promise<{ batchSize: number; maxTokens: number }> {
+  const config = await getFunctionConfig('textGeneration')
+
+  if (!config) {
+    // Default conservative settings
+    return { batchSize: 3, maxTokens: 1000 }
+  }
+
+  // Large context providers: OpenAI (128K), Anthropic (200K), Google (1M+), DeepSeek (64K)
+  const largeContextProviders = ['openai', 'anthropic', 'google', 'deepseek']
+  if (largeContextProviders.includes(config.provider)) {
+    return { batchSize: 10, maxTokens: 3000 }
+  }
+
+  // Medium context: Groq (8K context)
+  if (config.provider === 'groq') {
+    return { batchSize: 5, maxTokens: 1500 }
+  }
+
+  // Small context: Ollama (default 4K), OpenAI-compatible (varies)
+  // Use conservative batch size to fit within limited context windows
+  return { batchSize: 3, maxTokens: 1000 }
+}
 
 export interface MovieForExplanation {
   movieId: string
@@ -169,13 +197,15 @@ export async function generateExplanations(
     evidence: evidenceMap.get(r.movieId) || [],
   }))
 
-  // Generate explanations in batches
-  const batchSize = 10
+  // Generate explanations in batches - size depends on provider context window
+  const { batchSize, maxTokens } = await getExplanationBatchSize()
+  logger.info({ batchSize, maxTokens }, 'Using explanation batch settings based on provider')
+
   const results: ExplanationResult[] = []
 
   for (let i = 0; i < moviesWithEvidence.length; i += batchSize) {
     const batch = moviesWithEvidence.slice(i, i + batchSize)
-    const batchResults = await generateBatchExplanations(batch, tasteContext)
+    const batchResults = await generateBatchExplanations(batch, tasteContext, maxTokens)
     results.push(...batchResults)
   }
 
@@ -185,7 +215,8 @@ export async function generateExplanations(
 
 async function generateBatchExplanations(
   movies: MovieWithEvidence[],
-  tasteContext: UserTasteContext
+  tasteContext: UserTasteContext,
+  maxOutputTokens: number = 3000
 ): Promise<ExplanationResult[]> {
   // Build user context string
   const userContextLines = [
@@ -256,7 +287,7 @@ ${movieList}
 
 Generate personalized explanations referencing the specific similar movies shown for each recommendation.`,
       temperature: 0.7,
-      maxOutputTokens: 3000,
+      maxOutputTokens,
     })
 
     const content = text
@@ -268,20 +299,61 @@ Generate personalized explanations referencing the specific similar movies shown
       }))
     }
 
-    // Parse the JSON response
-    const parsed = JSON.parse(content)
-    const explanations = Array.isArray(parsed) ? parsed : parsed.explanations || []
+    // Parse the JSON response - handle models that wrap in markdown or include preamble
+    let jsonContent = content.trim()
+
+    // Extract JSON from markdown code blocks if present
+    const jsonBlockMatch = jsonContent.match(/```(?:json)?\s*([\s\S]*?)```/)
+    if (jsonBlockMatch) {
+      jsonContent = jsonBlockMatch[1].trim()
+    }
+
+    // Try to find JSON object/array if there's other text around it
+    if (!jsonContent.startsWith('{') && !jsonContent.startsWith('[')) {
+      const jsonStart = jsonContent.search(/[[{]/)
+      if (jsonStart !== -1) {
+        jsonContent = jsonContent.slice(jsonStart)
+      }
+    }
+
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(jsonContent)
+    } catch (parseError) {
+      logger.warn(
+        {
+          rawResponse: content.substring(0, 500),
+          parseError: parseError instanceof Error ? parseError.message : String(parseError),
+        },
+        'Failed to parse AI response as JSON, using fallbacks'
+      )
+      return movies.map((m) => ({
+        movieId: m.movieId,
+        explanation: generateFallbackExplanation(m),
+      }))
+    }
+    const explanations = Array.isArray(parsed)
+      ? parsed
+      : (parsed as { explanations?: unknown[] }).explanations || []
 
     // Map back to movie IDs
     return movies.map((m, i) => {
-      const found = explanations.find((e: { index: number; explanation: string }) => e.index === i + 1)
+      const found = explanations.find(
+        (e: { index: number; explanation: string }) => e.index === i + 1
+      )
       return {
         movieId: m.movieId,
         explanation: found?.explanation || generateFallbackExplanation(m),
       }
     })
   } catch (error) {
-    logger.error({ error }, 'Failed to generate explanations')
+    // Extract meaningful error information - AI SDK errors don't serialize well
+    const errorInfo = {
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : 'Unknown',
+      cause: error instanceof Error && error.cause ? String(error.cause) : undefined,
+    }
+    logger.error({ error: errorInfo }, 'Failed to generate explanations')
     return movies.map((m) => ({
       movieId: m.movieId,
       explanation: generateFallbackExplanation(m),
@@ -322,7 +394,10 @@ function generateFallbackExplanation(movie: MovieWithEvidence): string {
  * Store explanations in the database
  * OPTIMIZED: Uses bulk UPDATE with unnest() instead of N individual queries
  */
-export async function storeExplanations(runId: string, explanations: ExplanationResult[]): Promise<void> {
+export async function storeExplanations(
+  runId: string,
+  explanations: ExplanationResult[]
+): Promise<void> {
   if (explanations.length === 0) return
 
   // Bulk UPDATE using unnest and a subquery
@@ -331,11 +406,7 @@ export async function storeExplanations(runId: string, explanations: Explanation
      SET ai_explanation = t.explanation
      FROM unnest($2::uuid[], $3::text[]) AS t(movie_id, explanation)
      WHERE rc.run_id = $1 AND rc.movie_id = t.movie_id AND rc.is_selected = true`,
-    [
-      runId,
-      explanations.map((e) => e.movieId),
-      explanations.map((e) => e.explanation),
-    ]
+    [runId, explanations.map((e) => e.movieId), explanations.map((e) => e.explanation)]
   )
 
   logger.info({ runId, count: explanations.length }, 'Stored AI explanations')

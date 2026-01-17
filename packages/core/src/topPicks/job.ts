@@ -365,6 +365,7 @@ export async function refreshTopPicks(
             addLog(jobId, 'warn', '⚠️ Series library scan timed out, collections may be incomplete')
           }
         }
+
       }
     } else if (!apiKey) {
       addLog(jobId, 'warn', '⚠️ MEDIA_SERVER_API_KEY not set - skipping library management')

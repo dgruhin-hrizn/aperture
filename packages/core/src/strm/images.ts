@@ -16,7 +16,12 @@ export async function downloadImage(task: ImageDownloadTask): Promise<boolean> {
     const startTime = Date.now()
     const response = await fetch(task.url)
     if (!response.ok) {
-      logger.warn({ url: task.url, status: response.status, filename }, '❌ Failed to download image')
+      if (response.status === 404) {
+        // 404 is normal - not all items have all artwork types (banner, logo, clearart, thumb)
+        logger.debug({ filename, status: response.status }, `⏭️ Skipping ${filename} - source item does not have this artwork`)
+      } else {
+        logger.warn({ url: task.url, status: response.status, filename }, '❌ Failed to download image')
+      }
       return false
     }
     let buffer: Buffer = Buffer.from(await response.arrayBuffer())

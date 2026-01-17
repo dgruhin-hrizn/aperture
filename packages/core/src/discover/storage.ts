@@ -206,7 +206,7 @@ export async function storeDiscoveryCandidates(
           c.source, c.sourceMediaId ?? null,
           c.title, c.originalTitle, c.releaseYear,
           c.posterPath, c.backdropPath, c.overview,
-          JSON.stringify(c.genres.map(g => typeof g === 'number' ? { id: g, name: '' } : g)),
+          JSON.stringify(c.genres),
           c.voteAverage, c.voteCount, JSON.stringify(c.scoreBreakdown),
           JSON.stringify(c.castMembers ?? []),
           c.directors ?? [],
