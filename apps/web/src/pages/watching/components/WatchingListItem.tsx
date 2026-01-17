@@ -14,11 +14,12 @@ import {
   Tooltip,
   alpha,
   useTheme,
+  useMediaQuery,
   LinearProgress,
 } from '@mui/material'
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
-import TvIcon from '@mui/icons-material/Tv'
+import StarIcon from '@mui/icons-material/Star'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline'
 import ScheduleIcon from '@mui/icons-material/Schedule'
@@ -69,6 +70,7 @@ function getCountdownColor(days: number): string {
 
 export function WatchingListItem({ series, userRating, onRate, onRemove }: WatchingListItemProps) {
   const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const navigate = useNavigate()
 
   const handleClick = () => {
@@ -78,6 +80,10 @@ export function WatchingListItem({ series, userRating, onRate, onRemove }: Watch
   const handleRemoveClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     onRemove(series.seriesId)
+  }
+
+  const handleRatingClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
   }
 
   const upcoming = series.upcomingEpisode
@@ -90,17 +96,17 @@ export function WatchingListItem({ series, userRating, onRate, onRemove }: Watch
       onClick={handleClick}
       sx={{
         display: 'flex',
-        gap: { xs: 2, md: 3 },
-        p: 2,
+        gap: { xs: 0, md: 3 },
         bgcolor: 'background.paper',
-        borderRadius: 3,
+        borderRadius: 2,
         cursor: 'pointer',
+        overflow: 'hidden',
         transition: 'all 0.2s ease',
         border: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
         '&:hover': {
-          transform: 'translateY(-2px)',
-          boxShadow: `0 8px 30px ${alpha(theme.palette.common.black, 0.15)}`,
-          borderColor: alpha(theme.palette.primary.main, 0.3),
+          transform: { xs: 'none', md: 'translateY(-2px)' },
+          boxShadow: { xs: 1, md: `0 8px 30px ${alpha(theme.palette.common.black, 0.15)}` },
+          borderColor: { xs: undefined, md: alpha(theme.palette.primary.main, 0.3) },
         },
       }}
     >
@@ -109,9 +115,8 @@ export function WatchingListItem({ series, userRating, onRate, onRemove }: Watch
         sx={{
           position: 'relative',
           flexShrink: 0,
-          width: { xs: 80, sm: 100 },
-          height: { xs: 120, sm: 150 },
-          borderRadius: 2,
+          width: { xs: 100, sm: 110, md: 120 },
+          alignSelf: 'stretch',
           overflow: 'hidden',
         }}
       >
@@ -147,7 +152,7 @@ export function WatchingListItem({ series, userRating, onRate, onRemove }: Watch
             sx={{
               color: 'white',
               fontWeight: 700,
-              fontSize: '0.65rem',
+              fontSize: { xs: '0.55rem', md: '0.65rem' },
               textTransform: 'uppercase',
               display: 'flex',
               alignItems: 'center',
@@ -157,12 +162,12 @@ export function WatchingListItem({ series, userRating, onRate, onRemove }: Watch
           >
             {isAiring ? (
               <>
-                <PlayArrowIcon sx={{ fontSize: 12 }} />
+                <PlayArrowIcon sx={{ fontSize: { xs: 10, md: 12 } }} />
                 Airing
               </>
             ) : (
               <>
-                <CheckCircleIcon sx={{ fontSize: 12 }} />
+                <CheckCircleIcon sx={{ fontSize: { xs: 10, md: 12 } }} />
                 {series.status || 'Ended'}
               </>
             )}
@@ -171,20 +176,44 @@ export function WatchingListItem({ series, userRating, onRate, onRemove }: Watch
       </Box>
 
       {/* Main Content */}
-      <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+      <Box
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          p: { xs: 1.5, md: 2 },
+        }}
+      >
         {/* Title Row */}
         <Box display="flex" alignItems="flex-start" justifyContent="space-between" gap={1}>
-          <Box minWidth={0}>
-            <Typography variant="h6" fontWeight={700} noWrap>
+          <Box minWidth={0} flex={1}>
+            <Typography
+              variant={isMobile ? 'body1' : 'h6'}
+              fontWeight={700}
+              noWrap
+              sx={{ fontSize: { xs: '0.95rem', md: '1.25rem' } }}
+            >
               {series.title}
             </Typography>
-            <Box display="flex" alignItems="center" gap={1} flexWrap="wrap" mt={0.5}>
+            <Box display="flex" alignItems="center" gap={{ xs: 0.75, md: 1 }} flexWrap="wrap" mt={0.5}>
               {series.year && (
-                <Typography variant="body2" color="text.secondary">
-                  {series.year}
-                </Typography>
+                <Box display="flex" alignItems="center" gap={0.5}>
+                  <CalendarTodayIcon sx={{ fontSize: { xs: 12, md: 14 }, color: 'text.secondary' }} />
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
+                    {series.year}
+                  </Typography>
+                </Box>
               )}
-              {series.network && (
+              {series.communityRating && (
+                <Box display="flex" alignItems="center" gap={0.5}>
+                  <StarIcon sx={{ fontSize: { xs: 12, md: 14 }, color: '#fbbf24' }} />
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
+                    {Number(series.communityRating).toFixed(1)}
+                  </Typography>
+                </Box>
+              )}
+              {series.network && !isMobile && (
                 <>
                   <Typography variant="body2" color="text.secondary">•</Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -193,55 +222,54 @@ export function WatchingListItem({ series, userRating, onRate, onRemove }: Watch
                 </>
               )}
               {series.totalSeasons && (
-                <>
-                  <Typography variant="body2" color="text.secondary">•</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {series.totalSeasons} Season{series.totalSeasons !== 1 ? 's' : ''}
-                  </Typography>
-                </>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
+                  • {series.totalSeasons} Season{series.totalSeasons !== 1 ? 's' : ''}
+                </Typography>
               )}
             </Box>
           </Box>
 
-          {/* Remove button */}
-          <HeartRating
-            value={userRating}
-            onChange={(rating) => {
-              // Prevent card click when rating
-              onRate(rating)
-            }}
-            size="small"
-          />
-          <Tooltip title="Remove from watching list">
-            <IconButton
-              size="small"
-              onClick={handleRemoveClick}
-              sx={{
-                color: 'text.secondary',
-                '&:hover': {
-                  color: 'error.main',
-                  bgcolor: alpha(theme.palette.error.main, 0.1),
-                },
-              }}
-            >
-              <RemoveCircleOutlineIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          {/* Desktop: Rating and Remove button */}
+          {!isMobile && (
+            <Box display="flex" alignItems="center" gap={1} onClick={handleRatingClick}>
+              <HeartRating
+                value={userRating}
+                onChange={(rating) => onRate(rating)}
+                size="small"
+              />
+              <Tooltip title="Remove from watching list">
+                <IconButton
+                  size="small"
+                  onClick={handleRemoveClick}
+                  sx={{
+                    color: 'text.secondary',
+                    '&:hover': {
+                      color: 'error.main',
+                      bgcolor: alpha(theme.palette.error.main, 0.1),
+                    },
+                  }}
+                >
+                  <RemoveCircleOutlineIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          )}
         </Box>
 
         {/* Genres */}
         {series.genres && series.genres.length > 0 && (
-          <Box display="flex" gap={0.5} flexWrap="wrap" mt={1}>
-            {series.genres.slice(0, 4).map((genre) => (
+          <Box display="flex" gap={0.5} flexWrap="wrap" mt={{ xs: 0.5, md: 1 }}>
+            {series.genres.slice(0, isMobile ? 2 : 4).map((genre) => (
               <Chip
                 key={genre}
                 label={genre}
                 size="small"
                 sx={{
-                  height: 22,
-                  fontSize: '0.7rem',
+                  height: { xs: 18, md: 22 },
+                  fontSize: { xs: '0.65rem', md: '0.7rem' },
                   bgcolor: alpha(theme.palette.primary.main, 0.1),
                   color: 'text.secondary',
+                  '& .MuiChip-label': { px: { xs: 0.75, md: 1 } },
                 }}
               />
             ))}
@@ -254,158 +282,205 @@ export function WatchingListItem({ series, userRating, onRate, onRemove }: Watch
             variant="body2"
             color="text.secondary"
             sx={{
-              mt: 1,
+              mt: { xs: 0.5, md: 1 },
               display: '-webkit-box',
               WebkitLineClamp: 2,
               WebkitBoxOrient: 'vertical',
               overflow: 'hidden',
               lineHeight: 1.5,
+              fontSize: { xs: '0.75rem', md: '0.875rem' },
             }}
           >
             {series.overview}
           </Typography>
         )}
 
-        {/* Spacer */}
-        <Box flex={1} />
-      </Box>
-
-      {/* Upcoming Episode Section */}
-      <Box
-        sx={{
-          flexShrink: 0,
-          width: { xs: '100%', md: 280 },
-          display: { xs: 'none', sm: 'flex' },
-          flexDirection: 'column',
-          gap: 1,
-          p: 2,
-          borderRadius: 2,
-          bgcolor: upcoming
-            ? alpha(countdownColor || theme.palette.primary.main, 0.08)
-            : alpha(theme.palette.grey[500], 0.08),
-          border: `1px solid ${alpha(upcoming ? countdownColor || theme.palette.primary.main : theme.palette.grey[500], 0.2)}`,
-        }}
-      >
-        {upcoming ? (
-          <>
-            {/* Countdown badge */}
-            <Box display="flex" alignItems="center" justifyContent="space-between">
+        {/* Mobile: Upcoming episode badge + actions */}
+        {isMobile && (
+          <Box display="flex" alignItems="center" justifyContent="space-between" mt={1} onClick={handleRatingClick}>
+            <Box display="flex" alignItems="center" gap={1}>
+              <HeartRating
+                value={userRating}
+                onChange={(rating) => onRate(rating)}
+                size="small"
+              />
+              <Tooltip title="Remove from watching list">
+                <IconButton
+                  size="small"
+                  onClick={handleRemoveClick}
+                  sx={{
+                    p: 0.5,
+                    color: 'text.secondary',
+                    '&:hover': {
+                      color: 'error.main',
+                      bgcolor: alpha(theme.palette.error.main, 0.1),
+                    },
+                  }}
+                >
+                  <RemoveCircleOutlineIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+            </Box>
+            {upcoming && (
               <Box
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 0.75,
-                  px: 1.5,
-                  py: 0.5,
-                  borderRadius: 2,
+                  gap: 0.5,
+                  px: 1,
+                  py: 0.25,
+                  borderRadius: 1,
                   bgcolor: alpha(countdownColor!, 0.15),
                 }}
               >
-                <ScheduleIcon sx={{ fontSize: 16, color: countdownColor }} />
-                <Typography
-                  variant="caption"
-                  sx={{ fontWeight: 700, color: countdownColor, textTransform: 'uppercase' }}
-                >
+                <ScheduleIcon sx={{ fontSize: 12, color: countdownColor }} />
+                <Typography variant="caption" sx={{ fontWeight: 600, color: countdownColor, fontSize: '0.65rem' }}>
                   {formatAirDate(upcoming.airDate)}
                 </Typography>
               </Box>
-              <Chip
-                label={upcoming.source.toUpperCase()}
-                size="small"
-                sx={{
-                  height: 18,
-                  fontSize: '0.6rem',
-                  fontWeight: 600,
-                  bgcolor: alpha(theme.palette.text.secondary, 0.1),
-                }}
-              />
-            </Box>
-
-            {/* Episode info */}
-            <Box>
-              <Typography variant="subtitle2" fontWeight={700} color="text.primary">
-                {formatEpisodeNumber(upcoming)}
-              </Typography>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden',
-                }}
-              >
-                {upcoming.title}
-              </Typography>
-            </Box>
-
-            {/* Progress bar for countdown */}
-            {daysUntil !== null && daysUntil >= 0 && daysUntil <= 7 && (
-              <Box>
-                <LinearProgress
-                  variant="determinate"
-                  value={Math.max(0, 100 - (daysUntil / 7) * 100)}
-                  sx={{
-                    height: 4,
-                    borderRadius: 2,
-                    bgcolor: alpha(countdownColor!, 0.15),
-                    '& .MuiLinearProgress-bar': {
-                      bgcolor: countdownColor,
-                      borderRadius: 2,
-                    },
-                  }}
-                />
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                  {daysUntil === 0 ? 'Airs today!' : `${daysUntil} day${daysUntil !== 1 ? 's' : ''} to go`}
-                </Typography>
-              </Box>
-            )}
-          </>
-        ) : isAiring ? (
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '100%',
-              textAlign: 'center',
-              py: 2,
-            }}
-          >
-            <AccessTimeIcon sx={{ fontSize: 28, color: 'text.disabled', mb: 1 }} />
-            <Typography variant="caption" color="text.secondary">
-              No episode data available
-            </Typography>
-            <Typography variant="caption" color="text.disabled">
-              Check back soon
-            </Typography>
-          </Box>
-        ) : (
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '100%',
-              textAlign: 'center',
-              py: 2,
-            }}
-          >
-            <CheckCircleIcon sx={{ fontSize: 28, color: 'text.disabled', mb: 1 }} />
-            <Typography variant="caption" color="text.secondary">
-              Series Complete
-            </Typography>
-            {series.totalEpisodes && (
-              <Typography variant="caption" color="text.disabled">
-                {series.totalEpisodes} episodes
-              </Typography>
             )}
           </Box>
         )}
       </Box>
+
+      {/* Desktop: Upcoming Episode Section */}
+      {!isMobile && (
+        <Box
+          sx={{
+            flexShrink: 0,
+            width: 280,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1,
+            p: 2,
+            borderLeft: 1,
+            borderColor: 'divider',
+            bgcolor: upcoming
+              ? alpha(countdownColor || theme.palette.primary.main, 0.08)
+              : alpha(theme.palette.grey[500], 0.08),
+          }}
+        >
+          {upcoming ? (
+            <>
+              {/* Countdown badge */}
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.75,
+                    px: 1.5,
+                    py: 0.5,
+                    borderRadius: 2,
+                    bgcolor: alpha(countdownColor!, 0.15),
+                  }}
+                >
+                  <ScheduleIcon sx={{ fontSize: 16, color: countdownColor }} />
+                  <Typography
+                    variant="caption"
+                    sx={{ fontWeight: 700, color: countdownColor, textTransform: 'uppercase' }}
+                  >
+                    {formatAirDate(upcoming.airDate)}
+                  </Typography>
+                </Box>
+                <Chip
+                  label={upcoming.source.toUpperCase()}
+                  size="small"
+                  sx={{
+                    height: 18,
+                    fontSize: '0.6rem',
+                    fontWeight: 600,
+                    bgcolor: alpha(theme.palette.text.secondary, 0.1),
+                  }}
+                />
+              </Box>
+
+              {/* Episode info */}
+              <Box>
+                <Typography variant="subtitle2" fontWeight={700} color="text.primary">
+                  {formatEpisodeNumber(upcoming)}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {upcoming.title}
+                </Typography>
+              </Box>
+
+              {/* Progress bar for countdown */}
+              {daysUntil !== null && daysUntil >= 0 && daysUntil <= 7 && (
+                <Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={Math.max(0, 100 - (daysUntil / 7) * 100)}
+                    sx={{
+                      height: 4,
+                      borderRadius: 2,
+                      bgcolor: alpha(countdownColor!, 0.15),
+                      '& .MuiLinearProgress-bar': {
+                        bgcolor: countdownColor,
+                        borderRadius: 2,
+                      },
+                    }}
+                  />
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                    {daysUntil === 0 ? 'Airs today!' : `${daysUntil} day${daysUntil !== 1 ? 's' : ''} to go`}
+                  </Typography>
+                </Box>
+              )}
+            </>
+          ) : isAiring ? (
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100%',
+                textAlign: 'center',
+                py: 2,
+              }}
+            >
+              <AccessTimeIcon sx={{ fontSize: 28, color: 'text.disabled', mb: 1 }} />
+              <Typography variant="caption" color="text.secondary">
+                No episode data available
+              </Typography>
+              <Typography variant="caption" color="text.disabled">
+                Check back soon
+              </Typography>
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100%',
+                textAlign: 'center',
+                py: 2,
+              }}
+            >
+              <CheckCircleIcon sx={{ fontSize: 28, color: 'text.disabled', mb: 1 }} />
+              <Typography variant="caption" color="text.secondary">
+                Series Complete
+              </Typography>
+              {series.totalEpisodes && (
+                <Typography variant="caption" color="text.disabled">
+                  {series.totalEpisodes} episodes
+                </Typography>
+              )}
+            </Box>
+          )}
+        </Box>
+      )}
     </Box>
   )
 }
