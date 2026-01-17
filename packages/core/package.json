@@ -55,6 +55,7 @@
     "@ai-sdk/groq": "^2.0.0",
     "@ai-sdk/openai": "^2.0.0",
     "@ai-sdk/openai-compatible": "^2.0.0",
+    "@openrouter/ai-sdk-provider": "^1.5.4",
     "ai": "^5.0.0",
     "ai-sdk-ollama": "2.2.0",
     "openai": "^4.77.0",

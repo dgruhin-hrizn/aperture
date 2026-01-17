@@ -39,7 +39,7 @@ import {
 } from '@mui/icons-material'
 
 export type AIFunction = 'embeddings' | 'chat' | 'textGeneration' | 'exploration'
-export type ProviderType = 'openai' | 'anthropic' | 'ollama' | 'groq' | 'google' | 'openai-compatible' | 'deepseek'
+export type ProviderType = 'openai' | 'anthropic' | 'ollama' | 'groq' | 'google' | 'openai-compatible' | 'deepseek' | 'openrouter'
 
 export interface ModelInfo {
   id: string
@@ -62,6 +62,7 @@ export interface ProviderInfo {
   requiresBaseUrl: boolean
   defaultBaseUrl?: string
   website?: string
+  logoPath?: string
 }
 
 export interface FunctionConfig {
@@ -79,6 +80,7 @@ export const PROVIDER_INFO: Record<ProviderType, ProviderInfo> = {
     requiresApiKey: true,
     requiresBaseUrl: false,
     website: 'https://platform.openai.com/api-keys',
+    logoPath: '/openai.svg',
   },
   anthropic: {
     id: 'anthropic',
@@ -87,6 +89,7 @@ export const PROVIDER_INFO: Record<ProviderType, ProviderInfo> = {
     requiresApiKey: true,
     requiresBaseUrl: false,
     website: 'https://console.anthropic.com',
+    logoPath: '/claude.svg',
   },
   groq: {
     id: 'groq',
@@ -95,6 +98,7 @@ export const PROVIDER_INFO: Record<ProviderType, ProviderInfo> = {
     requiresApiKey: true,
     requiresBaseUrl: false,
     website: 'https://console.groq.com',
+    logoPath: '/groq.svg',
   },
   google: {
     id: 'google',
@@ -103,6 +107,7 @@ export const PROVIDER_INFO: Record<ProviderType, ProviderInfo> = {
     requiresApiKey: true,
     requiresBaseUrl: false,
     website: 'https://makersuite.google.com/app/apikey',
+    logoPath: '/gemini.svg',
   },
   deepseek: {
     id: 'deepseek',
@@ -111,6 +116,7 @@ export const PROVIDER_INFO: Record<ProviderType, ProviderInfo> = {
     requiresApiKey: true,
     requiresBaseUrl: false,
     website: 'https://platform.deepseek.com',
+    logoPath: '/deepseek.svg',
   },
   ollama: {
     id: 'ollama',
@@ -120,6 +126,7 @@ export const PROVIDER_INFO: Record<ProviderType, ProviderInfo> = {
     requiresBaseUrl: true,
     defaultBaseUrl: 'http://localhost:11434',
     website: 'https://ollama.ai',
+    logoPath: '/ollama.svg',
   },
   'openai-compatible': {
     id: 'openai-compatible',
@@ -128,6 +135,15 @@ export const PROVIDER_INFO: Record<ProviderType, ProviderInfo> = {
     requiresApiKey: false,
     requiresBaseUrl: true,
     defaultBaseUrl: 'http://localhost:1234/v1',
+  },
+  openrouter: {
+    id: 'openrouter',
+    name: 'OpenRouter',
+    type: 'cloud',
+    requiresApiKey: true,
+    requiresBaseUrl: false,
+    website: 'https://openrouter.ai/keys',
+    logoPath: '/openrouter.svg',
   },
 }
 
@@ -190,7 +206,7 @@ export function AIFunctionCard({
   const isConfigured = Boolean(config)
   const providerInfo = PROVIDER_INFO[provider]
   const selectedModel = models.find(m => m.id === model)
-  const supportsCustomModels = provider === 'ollama' || provider === 'openai-compatible'
+  const supportsCustomModels = provider === 'ollama' || provider === 'openai-compatible' || provider === 'openrouter'
 
   // Sync form state when config prop changes (e.g., loaded from DB)
   useEffect(() => {
@@ -536,18 +552,33 @@ export function AIFunctionCard({
                   <CircularProgress size={16} sx={{ mr: 1 }} /> Loading...
                 </MenuItem>
               )}
-              {[...providers].sort((a, b) => a.name.localeCompare(b.name)).map((p) => (
-                <MenuItem key={p.id} value={p.id}>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    {p.type === 'self-hosted' ? (
-                      <ComputerIcon fontSize="small" />
-                    ) : (
-                      <CloudIcon fontSize="small" />
-                    )}
-                    {p.name}
-                  </Box>
-                </MenuItem>
-              ))}
+              {[...providers].sort((a, b) => a.name.localeCompare(b.name)).map((p) => {
+                const info = PROVIDER_INFO[p.id as ProviderType]
+                return (
+                  <MenuItem key={p.id} value={p.id}>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      {info?.logoPath ? (
+                        <Box
+                          component="img"
+                          src={info.logoPath}
+                          alt={p.name}
+                          sx={{ 
+                            width: 20, 
+                            height: 20, 
+                            objectFit: 'contain',
+                            filter: (theme) => theme.palette.mode === 'dark' ? 'brightness(0) invert(1)' : 'none',
+                          }}
+                        />
+                      ) : p.type === 'self-hosted' ? (
+                        <ComputerIcon fontSize="small" />
+                      ) : (
+                        <CloudIcon fontSize="small" />
+                      )}
+                      {p.name}
+                    </Box>
+                  </MenuItem>
+                )
+              })}
             </Select>
           </FormControl>
 
@@ -857,8 +888,9 @@ export function AIFunctionCard({
         <DialogTitle>Add Custom Model</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Enter the exact model name as it appears on your {provider === 'ollama' ? 'Ollama server' : 'OpenAI-compatible server'}.
+            Enter the exact model name as it appears on your {provider === 'ollama' ? 'Ollama server' : provider === 'openrouter' ? 'OpenRouter account' : 'OpenAI-compatible server'}.
             {provider === 'ollama' && ' You can find model names at ollama.com/library.'}
+            {provider === 'openrouter' && ' You can find model names at openrouter.ai/models (e.g., anthropic/claude-3.5-sonnet, openai/gpt-4o).'}
           </Typography>
           <TextField
             autoFocus
@@ -871,7 +903,7 @@ export function AIFunctionCard({
             }}
             fullWidth
             size="small"
-            placeholder={provider === 'ollama' ? 'e.g., llama3.3:70b, mixtral:8x22b' : 'Enter model name'}
+            placeholder={provider === 'ollama' ? 'e.g., llama3.3:70b, mixtral:8x22b' : provider === 'openrouter' ? 'e.g., anthropic/claude-3.5-sonnet' : 'Enter model name'}
             disabled={dialogTesting}
             sx={{ mb: 2 }}
           />
@@ -893,7 +925,7 @@ export function AIFunctionCard({
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, color: 'text.secondary' }}>
               <CircularProgress size={20} />
               <Typography variant="body2">
-                Validating model... This may take a moment for {provider === 'ollama' ? 'Ollama' : 'local'} models.
+                Validating model... This may take a moment{provider === 'ollama' ? ' for Ollama models' : ''}.
               </Typography>
             </Box>
           )}

@@ -1438,12 +1438,12 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: 'provider, function, and modelId are required' })
       }
 
-      if (provider !== 'ollama' && provider !== 'openai-compatible') {
-        return reply.status(400).send({ error: 'Custom models are only supported for ollama and openai-compatible providers' })
+      if (provider !== 'ollama' && provider !== 'openai-compatible' && provider !== 'openrouter') {
+        return reply.status(400).send({ error: 'Custom models are only supported for ollama, openai-compatible, and openrouter providers' })
       }
 
       const customModel = await addCustomModel(
-        provider as 'ollama' | 'openai-compatible',
+        provider as 'ollama' | 'openai-compatible' | 'openrouter',
         fn as AIFunction,
         modelId
       )
@@ -1472,12 +1472,12 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: 'provider, function, and modelId are required' })
       }
 
-      if (provider !== 'ollama' && provider !== 'openai-compatible') {
-        return reply.status(400).send({ error: 'Custom models are only supported for ollama and openai-compatible providers' })
+      if (provider !== 'ollama' && provider !== 'openai-compatible' && provider !== 'openrouter') {
+        return reply.status(400).send({ error: 'Custom models are only supported for ollama, openai-compatible, and openrouter providers' })
       }
 
       const deleted = await deleteCustomModel(
-        provider as 'ollama' | 'openai-compatible',
+        provider as 'ollama' | 'openai-compatible' | 'openrouter',
         fn as AIFunction,
         modelId
       )

@@ -12,6 +12,7 @@ import { ollama, createOllama } from 'ai-sdk-ollama'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createGroq } from '@ai-sdk/groq'
 import { createDeepSeek } from '@ai-sdk/deepseek'
+import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import type { LanguageModel, EmbeddingModel } from 'ai'
 import { getSystemSetting, setSystemSetting } from '../settings/systemSettings.js'
 import { createChildLogger } from './logger.js'
@@ -41,6 +42,7 @@ export type ProviderType =
   | 'groq'
   | 'google'
   | 'deepseek'
+  | 'openrouter'
 
 export interface ProviderConfig {
   provider: ProviderType
@@ -265,6 +267,12 @@ function createProviderInstance(providerConfig: ProviderConfig): unknown {
 
     case 'deepseek':
       instance = createDeepSeek({
+        apiKey: providerConfig.apiKey,
+      })
+      break
+
+    case 'openrouter':
+      instance = createOpenRouter({
         apiKey: providerConfig.apiKey,
       })
       break
@@ -693,7 +701,7 @@ export async function getOpenAIApiKeyLegacy(): Promise<string | null> {
  */
 export interface CustomModel {
   id: number
-  provider: 'ollama' | 'openai-compatible'
+  provider: 'ollama' | 'openai-compatible' | 'openrouter'
   functionType: AIFunction
   modelId: string
   createdAt: Date
@@ -706,8 +714,8 @@ export async function getCustomModels(
   providerId: string,
   fn: AIFunction
 ): Promise<CustomModel[]> {
-  // Only Ollama and OpenAI-compatible support custom models
-  if (providerId !== 'ollama' && providerId !== 'openai-compatible') {
+  // Only Ollama, OpenAI-compatible, and OpenRouter support custom models
+  if (providerId !== 'ollama' && providerId !== 'openai-compatible' && providerId !== 'openrouter') {
     return []
   }
 
@@ -715,7 +723,7 @@ export async function getCustomModels(
   
   const result = await query<{
     id: number
-    provider: 'ollama' | 'openai-compatible'
+    provider: 'ollama' | 'openai-compatible' | 'openrouter'
     function_type: string
     model_id: string
     created_at: Date
@@ -737,10 +745,10 @@ export async function getCustomModels(
 }
 
 /**
- * Add a custom model for Ollama or OpenAI-compatible provider
+ * Add a custom model for Ollama, OpenAI-compatible, or OpenRouter provider
  */
 export async function addCustomModel(
-  providerId: 'ollama' | 'openai-compatible',
+  providerId: 'ollama' | 'openai-compatible' | 'openrouter',
   fn: AIFunction,
   modelId: string
 ): Promise<CustomModel> {
@@ -748,7 +756,7 @@ export async function addCustomModel(
   
   const result = await queryOne<{
     id: number
-    provider: 'ollama' | 'openai-compatible'
+    provider: 'ollama' | 'openai-compatible' | 'openrouter'
     function_type: string
     model_id: string
     created_at: Date
@@ -779,7 +787,7 @@ export async function addCustomModel(
  * Delete a custom model
  */
 export async function deleteCustomModel(
-  providerId: 'ollama' | 'openai-compatible',
+  providerId: 'ollama' | 'openai-compatible' | 'openrouter',
   fn: AIFunction,
   modelId: string
 ): Promise<boolean> {
