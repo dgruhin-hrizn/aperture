@@ -21,6 +21,11 @@ import {
   CircularProgress,
   Link,
   alpha,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  ListItemSecondaryAction,
 } from '@mui/material'
 import {
   Visibility as VisibilityIcon,
@@ -29,6 +34,8 @@ import {
   Cloud as CloudIcon,
   Computer as ComputerIcon,
   Warning as WarningIcon,
+  Delete as DeleteIcon,
+  Add as AddIcon,
 } from '@mui/icons-material'
 
 export type AIFunction = 'embeddings' | 'chat' | 'textGeneration' | 'exploration'
@@ -44,6 +51,7 @@ export interface ModelInfo {
     supportsToolCalling: boolean
     supportsEmbeddings: boolean
   }
+  isCustom?: boolean
 }
 
 export interface ProviderInfo {
@@ -159,14 +167,16 @@ export function AIFunctionCard({
   // Form state
   const [provider, setProvider] = useState<ProviderType>(config?.provider || 'openai')
   const [model, setModel] = useState(config?.model || '')
-  const [customModel, setCustomModel] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [baseUrl, setBaseUrl] = useState(config?.baseUrl || '')
   const [showApiKey, setShowApiKey] = useState(false)
   const [initialized, setInitialized] = useState(false)
   
-  const isCustomModel = model === '__custom__'
-  const effectiveModel = isCustomModel ? customModel : model
+  // Custom model dialog state
+  const [addModelDialogOpen, setAddModelDialogOpen] = useState(false)
+  const [newModelName, setNewModelName] = useState('')
+  const [addingModel, setAddingModel] = useState(false)
+  const [deletingModel, setDeletingModel] = useState<string | null>(null)
   
   // Status
   const [saving, setSaving] = useState(false)
@@ -178,26 +188,17 @@ export function AIFunctionCard({
   const isConfigured = Boolean(config)
   const providerInfo = PROVIDER_INFO[provider]
   const selectedModel = models.find(m => m.id === model)
+  const supportsCustomModels = provider === 'ollama' || provider === 'openai-compatible'
 
   // Sync form state when config prop changes (e.g., loaded from DB)
   useEffect(() => {
     if (config && !initialized) {
       if (config.provider) setProvider(config.provider)
-      if (config.model) {
-        // Check if the model is a known model or a custom one
-        const isKnownModel = models.some(m => m.id === config.model)
-        if (isKnownModel || models.length === 0) {
-          setModel(config.model)
-        } else {
-          // It's a custom model
-          setModel('__custom__')
-          setCustomModel(config.model)
-        }
-      }
+      if (config.model) setModel(config.model)
       if (config.baseUrl) setBaseUrl(config.baseUrl)
       setInitialized(true)
     }
-  }, [config, initialized, models])
+  }, [config, initialized])
   
   // Check capability warning
   const hasCapabilityWarning = requiredCapability === 'toolCalling' && 
@@ -290,7 +291,7 @@ export function AIFunctionCard({
         body: JSON.stringify({
           function: functionType,
           provider,
-          model: effectiveModel,
+          model,
           apiKey: apiKey || undefined,
           baseUrl: baseUrl || undefined,
         }),
@@ -307,7 +308,7 @@ export function AIFunctionCard({
   const handleSave = async () => {
     const newConfig: FunctionConfig = {
       provider,
-      model: effectiveModel,
+      model,
       apiKey: apiKey || undefined,
       baseUrl: baseUrl || undefined,
     }
@@ -324,6 +325,96 @@ export function AIFunctionCard({
       setError(err instanceof Error ? err.message : 'Failed to save')
     } finally {
       setSaving(false)
+    }
+  }
+
+  // Refresh models list
+  const refreshModels = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`${apiBase}/models?provider=${provider}&function=${functionType}`, { credentials: 'include' })
+      const data = await res.json()
+      setModels(data.models || [])
+    } catch {
+      // Ignore
+    } finally {
+      setLoading(false)
+    }
+  }, [apiBase, provider, functionType])
+
+  // Add custom model
+  const handleAddCustomModel = async () => {
+    if (!newModelName.trim()) return
+    
+    setAddingModel(true)
+    setError(null)
+    try {
+      const res = await fetch(`${apiBase}/custom-models`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          provider,
+          function: functionType,
+          modelId: newModelName.trim(),
+        }),
+      })
+      
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to add custom model')
+      }
+      
+      // Refresh models list and select the new model
+      await refreshModels()
+      setModel(newModelName.trim())
+      setAddModelDialogOpen(false)
+      setNewModelName('')
+      setSuccess(`Custom model "${newModelName.trim()}" added!`)
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add custom model')
+    } finally {
+      setAddingModel(false)
+    }
+  }
+
+  // Delete custom model
+  const handleDeleteCustomModel = async (modelId: string, e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent selecting the model
+    
+    setDeletingModel(modelId)
+    setError(null)
+    try {
+      const res = await fetch(`${apiBase}/custom-models`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          provider,
+          function: functionType,
+          modelId,
+        }),
+      })
+      
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to delete custom model')
+      }
+      
+      // If the deleted model was selected, clear selection
+      if (model === modelId) {
+        setModel('')
+      }
+      
+      // Refresh models list
+      await refreshModels()
+      setSuccess(`Custom model "${modelId}" deleted`)
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete custom model')
+    } finally {
+      setDeletingModel(null)
     }
   }
 
@@ -425,13 +516,15 @@ export function AIFunctionCard({
           <FormControl size="small" fullWidth>
             <InputLabel>Model</InputLabel>
             <Select
-              value={!loading && (models.length > 0 || model === '__custom__') ? model : ''}
+              value={!loading && models.length > 0 ? model : ''}
               label="Model"
               onChange={(e) => {
-                setModel(e.target.value)
-                setTestResult(null)
-                if (e.target.value !== '__custom__') {
-                  setCustomModel('')
+                const value = e.target.value
+                if (value === '__add_custom__') {
+                  setAddModelDialogOpen(true)
+                } else {
+                  setModel(value)
+                  setTestResult(null)
                 }
               }}
               disabled={loading || loadingProviders || providers.length === 0}
@@ -442,12 +535,13 @@ export function AIFunctionCard({
                   <CircularProgress size={16} sx={{ mr: 1 }} /> Loading models...
                 </MenuItem>
               )}
-              {!loading && !loadingProviders && models.length === 0 && (
+              {!loading && !loadingProviders && models.length === 0 && !supportsCustomModels && (
                 <MenuItem value="" disabled>
                   No models available
                 </MenuItem>
               )}
-              {[...models].sort((a, b) => a.name.localeCompare(b.name)).map((m) => (
+              {/* Built-in models */}
+              {[...models].filter(m => !m.isCustom).sort((a, b) => a.name.localeCompare(b.name)).map((m) => (
                 <MenuItem key={m.id} value={m.id}>
                   <Box>
                     <Typography variant="body2">{m.name}</Typography>
@@ -459,35 +553,68 @@ export function AIFunctionCard({
                   </Box>
                 </MenuItem>
               ))}
-              {/* Custom model option for self-hosted providers */}
-              {(provider === 'ollama' || provider === 'openai-compatible') && (
-                <MenuItem value="__custom__" sx={{ borderTop: 1, borderColor: 'divider', mt: 1 }}>
-                  <Box>
-                    <Typography variant="body2">Custom Model...</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Enter any model name manually
-                    </Typography>
+              {/* Custom models with delete button */}
+              {models.filter(m => m.isCustom).length > 0 && (
+                <MenuItem disabled sx={{ borderTop: 1, borderColor: 'divider', mt: 1, opacity: 0.7 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Custom Models
+                  </Typography>
+                </MenuItem>
+              )}
+              {models.filter(m => m.isCustom).sort((a, b) => a.name.localeCompare(b.name)).map((m) => (
+                <MenuItem key={m.id} value={m.id} sx={{ pr: 6 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontStyle: 'italic' }}>{m.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Custom model
+                      </Typography>
+                    </Box>
+                    <ListItemSecondaryAction>
+                      <IconButton
+                        edge="end"
+                        size="small"
+                        onClick={(e) => handleDeleteCustomModel(m.id, e)}
+                        disabled={deletingModel === m.id}
+                        sx={{ 
+                          opacity: 0.6,
+                          '&:hover': { opacity: 1, color: 'error.main' }
+                        }}
+                      >
+                        {deletingModel === m.id ? (
+                          <CircularProgress size={16} />
+                        ) : (
+                          <DeleteIcon fontSize="small" />
+                        )}
+                      </IconButton>
+                    </ListItemSecondaryAction>
+                  </Box>
+                </MenuItem>
+              ))}
+              {/* Add custom model option for self-hosted providers */}
+              {supportsCustomModels && (
+                <MenuItem 
+                  value="__add_custom__" 
+                  sx={{ 
+                    borderTop: 1, 
+                    borderColor: 'divider', 
+                    mt: 1,
+                    color: 'primary.main',
+                  }}
+                >
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <AddIcon fontSize="small" />
+                    <Box>
+                      <Typography variant="body2">Add Custom Model...</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Enter any model name manually
+                      </Typography>
+                    </Box>
                   </Box>
                 </MenuItem>
               )}
             </Select>
           </FormControl>
-
-          {/* Custom model text input */}
-          {isCustomModel && (
-            <TextField
-              label="Custom Model Name"
-              value={customModel}
-              onChange={(e) => {
-                setCustomModel(e.target.value)
-                setTestResult(null)
-              }}
-              size="small"
-              fullWidth
-              placeholder={provider === 'ollama' ? 'e.g., llama3.3:70b, mixtral:8x22b' : 'Enter model name'}
-              helperText={provider === 'ollama' ? 'Enter the exact model name from ollama.com/library' : 'Enter the model identifier'}
-            />
-          )}
         </Box>
 
         {/* Model Info Chips */}
@@ -659,7 +786,7 @@ export function AIFunctionCard({
             variant="outlined"
             size="small"
             onClick={handleTest}
-            disabled={testing || !effectiveModel}
+            disabled={testing || !model}
           >
             {testing ? <CircularProgress size={16} /> : 'Test'}
           </Button>
@@ -667,12 +794,62 @@ export function AIFunctionCard({
             variant="contained"
             size="small"
             onClick={handleSave}
-            disabled={saving || !effectiveModel}
+            disabled={saving || !model}
           >
             {saving ? <CircularProgress size={16} /> : 'Save'}
           </Button>
         </Box>
       </CardContent>
+
+      {/* Add Custom Model Dialog */}
+      <Dialog 
+        open={addModelDialogOpen} 
+        onClose={() => {
+          setAddModelDialogOpen(false)
+          setNewModelName('')
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Add Custom Model</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Enter the exact model name as it appears on your {provider === 'ollama' ? 'Ollama server' : 'OpenAI-compatible server'}.
+            {provider === 'ollama' && ' You can find model names at ollama.com/library.'}
+          </Typography>
+          <TextField
+            autoFocus
+            label="Model Name"
+            value={newModelName}
+            onChange={(e) => setNewModelName(e.target.value)}
+            fullWidth
+            size="small"
+            placeholder={provider === 'ollama' ? 'e.g., llama3.3:70b, mixtral:8x22b' : 'Enter model name'}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && newModelName.trim()) {
+                handleAddCustomModel()
+              }
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => {
+              setAddModelDialogOpen(false)
+              setNewModelName('')
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleAddCustomModel}
+            variant="contained"
+            disabled={!newModelName.trim() || addingModel}
+          >
+            {addingModel ? <CircularProgress size={16} /> : 'Add Model'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Card>
   )
 }

@@ -33,6 +33,9 @@ export interface ModelMetadata {
   inputCostPerMillion?: number
   outputCostPerMillion?: number
   notes?: string
+  
+  // Custom models (added by user for Ollama/OpenAI-compatible)
+  isCustom?: boolean
 }
 
 export interface ProviderMetadata {

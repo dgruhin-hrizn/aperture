@@ -21,8 +21,10 @@ import {
   getDefaultModel,
   validateCapabilityForFeature,
   getEmbeddingDimensions,
+  getModelsForFunction,
   type AIFunction,
   type ModelCapabilities,
+  type ModelMetadata,
 } from './ai-capabilities.js'
 
 const logger = createChildLogger('ai-provider')
@@ -680,6 +682,155 @@ export async function getOpenAIApiKeyLegacy(): Promise<string | null> {
 
   // Fall back to legacy setting
   return getSystemSetting('openai_api_key')
+}
+
+// ============================================================================
+// Custom Models (Ollama & OpenAI-Compatible)
+// ============================================================================
+
+/**
+ * Custom model stored in the database
+ */
+export interface CustomModel {
+  id: number
+  provider: 'ollama' | 'openai-compatible'
+  functionType: AIFunction
+  modelId: string
+  createdAt: Date
+}
+
+/**
+ * Get custom models for a specific provider and function
+ */
+export async function getCustomModels(
+  providerId: string,
+  fn: AIFunction
+): Promise<CustomModel[]> {
+  // Only Ollama and OpenAI-compatible support custom models
+  if (providerId !== 'ollama' && providerId !== 'openai-compatible') {
+    return []
+  }
+
+  const { query } = await import('./db.js')
+  
+  const result = await query<{
+    id: number
+    provider: 'ollama' | 'openai-compatible'
+    function_type: string
+    model_id: string
+    created_at: Date
+  }>(
+    `SELECT id, provider, function_type, model_id, created_at 
+     FROM custom_ai_models 
+     WHERE provider = $1 AND function_type = $2
+     ORDER BY model_id`,
+    [providerId, fn]
+  )
+
+  return result.rows.map(row => ({
+    id: row.id,
+    provider: row.provider,
+    functionType: row.function_type as AIFunction,
+    modelId: row.model_id,
+    createdAt: row.created_at,
+  }))
+}
+
+/**
+ * Add a custom model for Ollama or OpenAI-compatible provider
+ */
+export async function addCustomModel(
+  providerId: 'ollama' | 'openai-compatible',
+  fn: AIFunction,
+  modelId: string
+): Promise<CustomModel> {
+  const { queryOne } = await import('./db.js')
+  
+  const result = await queryOne<{
+    id: number
+    provider: 'ollama' | 'openai-compatible'
+    function_type: string
+    model_id: string
+    created_at: Date
+  }>(
+    `INSERT INTO custom_ai_models (provider, function_type, model_id)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (provider, function_type, model_id) DO UPDATE SET model_id = EXCLUDED.model_id
+     RETURNING id, provider, function_type, model_id, created_at`,
+    [providerId, fn, modelId]
+  )
+
+  if (!result) {
+    throw new Error('Failed to add custom model')
+  }
+
+  logger.info({ provider: providerId, function: fn, model: modelId }, 'Added custom AI model')
+
+  return {
+    id: result.id,
+    provider: result.provider,
+    functionType: result.function_type as AIFunction,
+    modelId: result.model_id,
+    createdAt: result.created_at,
+  }
+}
+
+/**
+ * Delete a custom model
+ */
+export async function deleteCustomModel(
+  providerId: 'ollama' | 'openai-compatible',
+  fn: AIFunction,
+  modelId: string
+): Promise<boolean> {
+  const { query } = await import('./db.js')
+  
+  const result = await query(
+    `DELETE FROM custom_ai_models 
+     WHERE provider = $1 AND function_type = $2 AND model_id = $3`,
+    [providerId, fn, modelId]
+  )
+
+  const deleted = (result.rowCount ?? 0) > 0
+  if (deleted) {
+    logger.info({ provider: providerId, function: fn, model: modelId }, 'Deleted custom AI model')
+  }
+  return deleted
+}
+
+/**
+ * Get models for a provider/function including custom models from the database.
+ * Use this instead of getModelsForFunction when you need custom models included.
+ */
+export async function getModelsForFunctionWithCustom(
+  providerId: string,
+  fn: AIFunction
+): Promise<ModelMetadata[]> {
+  // Get built-in models
+  const builtInModels = getModelsForFunction(providerId, fn)
+
+  // Get custom models from database (only for ollama and openai-compatible)
+  const customModels = await getCustomModels(providerId, fn)
+
+  // Convert custom models to ModelMetadata format
+  const customModelMetadata: ModelMetadata[] = customModels.map(cm => ({
+    id: cm.modelId,
+    name: cm.modelId, // Use the model ID as the name
+    description: 'Custom model',
+    capabilities: {
+      supportsToolCalling: fn === 'chat', // Assume custom chat models support tools
+      supportsToolStreaming: fn === 'chat',
+      supportsObjectGeneration: fn !== 'embeddings',
+      supportsEmbeddings: fn === 'embeddings',
+    },
+    quality: 'standard' as const,
+    costTier: 'free' as const,
+    // Mark as custom for UI
+    isCustom: true,
+  }))
+
+  // Return built-in models first, then custom models
+  return [...builtInModels, ...customModelMetadata]
 }
 
 // ============================================================================
