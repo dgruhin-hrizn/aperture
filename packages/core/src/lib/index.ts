@@ -49,9 +49,14 @@ export {
   getEmbeddingDimensions,
   getProvidersForFunction,
   getModelsForFunction,
+  getModelsForFunctionWithCustom,
   getPricingForModel,
   getPricingForModelAsync,
   PROVIDERS,
+  // Custom models (Ollama & OpenAI-compatible)
+  getCustomModels,
+  addCustomModel,
+  deleteCustomModel,
   // Pricing cache
   getPricingData,
   findModelPricing,
@@ -70,4 +75,5 @@ export {
   type FunctionPricing,
   type ValidEmbeddingDimension,
   type LegacyEmbeddingsInfo,
+  type CustomModel,
 } from './ai-provider.js'

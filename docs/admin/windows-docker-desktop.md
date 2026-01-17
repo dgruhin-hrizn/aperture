@@ -116,6 +116,7 @@ Look for your **IPv4 Address** (e.g., `192.168.1.100`).
 
 1. Go to [randomkeygen.com](https://randomkeygen.com/)
 2. Copy a **Fort Knox Password** (or any 32+ character random string)
+3. **Important:** When pasting into the YAML file, keep the quotes around the value!
 
 ### Get Your Emby/Jellyfin API Key
 
@@ -183,7 +184,8 @@ services:
       # REQUIRED: Set these values!
       # =========================================================================
       APP_BASE_URL: http://YOUR_WINDOWS_IP:3456
-      SESSION_SECRET: PASTE_YOUR_RANDOM_KEY_HERE
+      # ⚠️  IMPORTANT: Keep the quotes! Special characters like # break YAML without them.
+      SESSION_SECRET: 'PASTE_YOUR_RANDOM_KEY_HERE'
     ports:
       - '3456:3456'
     depends_on:
@@ -207,7 +209,7 @@ Open the file in Notepad and update:
 | Setting | What to Change |
 |---------|---------------|
 | `APP_BASE_URL` | Replace `YOUR_WINDOWS_IP` with your actual IP (e.g., `http://192.168.1.100:3456`) |
-| `SESSION_SECRET` | Paste your random key from Step 3 |
+| `SESSION_SECRET` | Paste your random key from Step 3 — **keep the quotes!** |
 | `TZ` | Your timezone in IANA format (e.g., `Europe/London`, `America/Los_Angeles`) |
 | Volume paths | Adjust `C:/ApertureLibraries` and `C:/ApertureBackups` if using different locations |
 
@@ -400,6 +402,25 @@ docker-compose up -d
 3. Run: `docker logs aperture` for error details
 4. Verify all paths exist and are accessible
 
+### "SESSION_SECRET must contain at least 32 characters" error
+
+This is usually caused by special characters in your session secret, not the length!
+
+**The Problem:** YAML interprets `#` as the start of a comment. If your generated key contains `#`, everything after it is ignored.
+
+For example, this key:
+```yaml
+SESSION_SECRET: abc123xyz#789qwerty456asdf123zzzz
+```
+YAML sees only `abc123xyz` (9 characters) because `#789qwerty...` is treated as a comment.
+
+**The Fix:** Always wrap your SESSION_SECRET in quotes:
+```yaml
+SESSION_SECRET: 'your-secret-key-here-with-any#special$chars!'
+```
+
+Single quotes (`'`) or double quotes (`"`) both work.
+
 ### STRM files not working
 
 1. Open a STRM file with Notepad — verify it contains a valid Windows path
@@ -458,7 +479,7 @@ services:
       RUN_MIGRATIONS_ON_START: 'true'
       TZ: Europe/Amsterdam
       APP_BASE_URL: http://192.168.1.100:3456
-      SESSION_SECRET: xK9#mP2$vL5nQ8wR3tY6uI0oA7sD4fG1hJ
+      SESSION_SECRET: 'xK9#mP2$vL5nQ8wR3tY6uI0oA7sD4fG1hJ'
     ports:
       - '3456:3456'
     depends_on:

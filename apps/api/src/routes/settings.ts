@@ -54,10 +54,13 @@ import {
   testProviderConnection,
   PROVIDERS,
   getProvidersForFunction,
-  getModelsForFunction,
+  getModelsForFunctionWithCustom,
   getPricingForModelAsync,
   refreshPricingCache,
   getPricingCacheStatus,
+  // Custom models
+  addCustomModel,
+  deleteCustomModel,
   // System settings
   getSystemSetting,
   setSystemSetting,
@@ -2352,6 +2355,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * GET /api/settings/ai/models
    * Get available models for a specific provider and function
+   * Includes custom models for Ollama and OpenAI-compatible providers
    */
   fastify.get<{
     Querystring: { provider: string; function: string }
@@ -2363,11 +2367,77 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: 'provider and function are required' })
       }
 
-      const models = await getModelsForFunction(provider as ProviderType, fn as AIFunction)
+      const models = await getModelsForFunctionWithCustom(provider as ProviderType, fn as AIFunction)
       return reply.send({ models })
     } catch (err) {
       fastify.log.error({ err }, 'Failed to get AI models')
       return reply.status(500).send({ error: 'Failed to get AI models' })
+    }
+  })
+
+  /**
+   * POST /api/settings/ai/custom-models
+   * Add a custom model for Ollama or OpenAI-compatible provider
+   */
+  fastify.post<{
+    Body: { provider: string; function: string; modelId: string }
+  }>('/api/settings/ai/custom-models', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const { provider, function: fn, modelId } = request.body
+
+      if (!provider || !fn || !modelId) {
+        return reply.status(400).send({ error: 'provider, function, and modelId are required' })
+      }
+
+      if (provider !== 'ollama' && provider !== 'openai-compatible' && provider !== 'openrouter') {
+        return reply.status(400).send({ error: 'Custom models are only supported for ollama, openai-compatible, and openrouter providers' })
+      }
+
+      const customModel = await addCustomModel(
+        provider as 'ollama' | 'openai-compatible' | 'openrouter',
+        fn as AIFunction,
+        modelId
+      )
+
+      return reply.send({ success: true, model: customModel })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to add custom model')
+      return reply.status(500).send({ error: 'Failed to add custom model' })
+    }
+  })
+
+  /**
+   * DELETE /api/settings/ai/custom-models
+   * Delete a custom model
+   */
+  fastify.delete<{
+    Body: { provider: string; function: string; modelId: string }
+  }>('/api/settings/ai/custom-models', { preHandler: requireAdmin }, async (request, reply) => {
+    try {
+      const { provider, function: fn, modelId } = request.body
+
+      if (!provider || !fn || !modelId) {
+        return reply.status(400).send({ error: 'provider, function, and modelId are required' })
+      }
+
+      if (provider !== 'ollama' && provider !== 'openai-compatible' && provider !== 'openrouter') {
+        return reply.status(400).send({ error: 'Custom models are only supported for ollama, openai-compatible, and openrouter providers' })
+      }
+
+      const deleted = await deleteCustomModel(
+        provider as 'ollama' | 'openai-compatible' | 'openrouter',
+        fn as AIFunction,
+        modelId
+      )
+
+      if (!deleted) {
+        return reply.status(404).send({ error: 'Custom model not found' })
+      }
+
+      return reply.send({ success: true })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to delete custom model')
+      return reply.status(500).send({ error: 'Failed to delete custom model' })
     }
   })
 
