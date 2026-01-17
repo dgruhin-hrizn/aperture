@@ -1,6 +1,6 @@
-# Playlists & Channels
+# Playlists
 
-Playlists allow you to create custom collections of movies and series. Channels are special playlists that become virtual libraries in your media server.
+Playlists allow you to create custom collections of movies and series for organization and tracking.
 
 ## Accessing Playlists
 
@@ -46,7 +46,7 @@ Each playlist card shows:
 
 | Element | Description |
 |---------|-------------|
-| **Poster Collage** | Preview of 4 items in the playlist |
+| **Poster Collage** | Preview of up to 4 items in the playlist |
 | **Title** | Playlist name |
 | **Count** | Number of items |
 | **Type Badge** | Manual or Graph |
@@ -59,7 +59,6 @@ Hover over a card to see:
 - **View** — Open the playlist
 - **Edit** — Modify the playlist
 - **Delete** — Remove the playlist
-- **Create Channel** — Convert to virtual library
 
 ---
 
@@ -108,7 +107,7 @@ Multiple ways to add content:
 In edit mode:
 
 - Drag and drop items
-- Items play in this order when viewed as a channel
+- Items maintain their order
 
 ### Removing Items
 
@@ -133,42 +132,6 @@ Click a playlist to see all items in a grid:
 - Titles and years
 - Your ratings
 - Watch status
-
-### Playing
-
-If viewing as a channel in your media server:
-
-- Items play in playlist order
-- Perfect for movie marathons
-- Use shuffle for variety
-
----
-
-## Converting to Channels
-
-Transform a playlist into a virtual library:
-
-### How to Convert
-
-1. Open the playlist
-2. Click **Create Channel**
-3. Choose visibility options
-4. Confirm
-
-### What Happens
-
-- A new library appears in Emby/Jellyfin
-- Contains all playlist items
-- Updates when you modify the playlist
-- See [Virtual Libraries](virtual-libraries.md) for details
-
-### Channel Options
-
-| Option | Effect |
-|--------|--------|
-| **Name** | Library name in media server |
-| **Visibility** | Who can see the channel |
-| **Auto-update** | Sync changes from playlist |
 
 ---
 
@@ -203,7 +166,6 @@ Graph playlists can be edited like manual ones:
 - Add or remove items
 - Reorder content
 - Edit name/description
-- Convert to channel
 
 ---
 
@@ -226,13 +188,7 @@ Graph playlists can be edited like manual ones:
 
 - Use descriptive names
 - Add descriptions for future reference
-- Create channels for frequently-used playlists
-
-### Sharing
-
-- Channels can be visible to other users
-- Great for family movie nights
-- Admins can create server-wide channels
+- Group related content together
 
 ### Maintenance
 

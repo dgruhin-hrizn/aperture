@@ -196,4 +196,4 @@ Your admin configures server-wide defaults. Some may be user-configurable.
 
 ---
 
-**Next:** [Playlists & Channels](playlists.md)
+**Next:** [Playlists](playlists.md)

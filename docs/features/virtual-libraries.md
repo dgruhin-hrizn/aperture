@@ -9,9 +9,8 @@ Virtual libraries appear alongside your regular libraries but contain:
 - AI recommendations
 - Top picks
 - Shows you watch
-- Custom channels (from playlists)
 
-They use **STRM files** to reference your actual media without duplicating content.
+They use **STRM files** or **symlinks** to reference your actual media without duplicating content.
 
 ---
 
@@ -49,23 +48,13 @@ Personal tracking library:
 
 Named per-user: "Shows You Watch - YourName"
 
-### Custom Channels
-
-Libraries created from playlists:
-
-| Library | Contents |
-|---------|----------|
-| **[Custom Name]** | Items from your playlist |
-
-You control the name and contents.
-
 ---
 
 ## How They Work
 
 ### STRM Technology
 
-Virtual libraries use STRM (stream) files:
+Virtual libraries can use STRM (stream) files:
 
 1. Aperture creates small .strm files
 2. Each file points to your actual media
@@ -77,6 +66,19 @@ Virtual libraries use STRM (stream) files:
 - Original quality maintained
 - Instant library creation
 
+### Symlinks (Alternative)
+
+Admins can also choose symlinks:
+
+1. Aperture creates symbolic links
+2. Links point to original files
+3. Media server treats them as regular files
+
+**Benefits:**
+- Native playback support
+- Better compatibility with some clients
+- Original file metadata preserved
+
 ### Automatic Updates
 
 Virtual libraries update automatically:
@@ -86,7 +88,6 @@ Virtual libraries update automatically:
 | AI Recommendations | When recommendation job runs |
 | Top Picks | When popularity is recalculated |
 | Shows You Watch | When you watch episodes |
-| Channels | When source playlist changes |
 
 ---
 
@@ -108,7 +109,6 @@ Content in virtual libraries is also accessible from Aperture:
 - Recommendations page → AI recommendations library
 - Top Picks page → Top Picks library
 - Shows You Watch page → Shows You Watch library
-- Playlists page → Channel libraries
 
 ---
 
@@ -146,21 +146,11 @@ Your personal libraries (recommendations, shows you watch) are:
 
 ### Shared Libraries
 
-Top Picks and some channels may be:
+Top Picks libraries are:
 
 - Visible to all users
 - Based on server-wide data
 - Managed by admins
-
-### Channel Visibility
-
-When creating channels from playlists:
-
-| Option | Who Sees It |
-|--------|-------------|
-| **Private** | Only you |
-| **Shared** | All users |
-| **Selected** | Chosen users |
 
 ---
 
@@ -173,7 +163,6 @@ Content in virtual libraries maintains meaningful order:
 | AI Recommendations | By recommendation rank |
 | Top Picks | By popularity rank |
 | Shows You Watch | By next episode date |
-| Channels | By playlist order |
 
 Your media server may override with its own sorting, but Aperture provides optimal default order.
 
@@ -181,7 +170,7 @@ Your media server may override with its own sorting, but Aperture provides optim
 
 ## Storage Location
 
-STRM files are stored in a configured location:
+STRM files or symlinks are stored in a configured location:
 
 ### Default Location
 
@@ -194,11 +183,9 @@ Configured by your admin during setup:
 │       ├── ai-picks-movies/
 │       ├── ai-picks-series/
 │       └── shows-you-watch/
-├── shared/
-│   ├── top-movies/
-│   └── top-series/
-└── channels/
-    └── custom-channel-name/
+└── shared/
+    ├── top-movies/
+    └── top-series/
 ```
 
 ### File Structure
@@ -217,7 +204,7 @@ Each STRM file is tiny (~100 bytes):
 ### Library Not Appearing
 
 1. Check if the job ran successfully
-2. Verify STRM path is accessible
+2. Verify STRM/symlink path is accessible
 3. Rescan libraries in your media server
 4. Ask admin to check configuration
 
@@ -242,7 +229,8 @@ Admins configure virtual libraries in Settings:
 
 | Setting | Effect |
 |---------|--------|
-| **STRM Path** | Where files are created |
+| **Output Format** | STRM files or symlinks |
+| **Output Path** | Where files are created |
 | **Library Names** | Default naming patterns |
 | **Enable/Disable** | Which library types to create |
 | **User Permissions** | Who gets personal libraries |

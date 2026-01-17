@@ -69,7 +69,7 @@ Find new content and explore connections.
 Manage your viewing and create collections.
 
 18. [Shows You Watch](features/shows-you-watch.md) - Track ongoing series
-19. [Playlists & Channels](features/playlists.md) - Custom collections
+19. [Playlists](features/playlists.md) - Custom collections
 20. [Virtual Libraries](features/virtual-libraries.md) - AI-created libraries in your media server
 
 ---
