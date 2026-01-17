@@ -177,6 +177,8 @@ export function AIFunctionCard({
   const [newModelName, setNewModelName] = useState('')
   const [addingModel, setAddingModel] = useState(false)
   const [deletingModel, setDeletingModel] = useState<string | null>(null)
+  const [dialogTesting, setDialogTesting] = useState(false)
+  const [dialogTestResult, setDialogTestResult] = useState<{ success: boolean; error?: string } | null>(null)
   
   // Status
   const [saving, setSaving] = useState(false)
@@ -342,9 +344,37 @@ export function AIFunctionCard({
     }
   }, [apiBase, provider, functionType])
 
-  // Add custom model
-  const handleAddCustomModel = async () => {
+  // Test custom model in dialog
+  const handleTestCustomModel = async () => {
     if (!newModelName.trim()) return
+    
+    setDialogTesting(true)
+    setDialogTestResult(null)
+    try {
+      const res = await fetch(`${apiBase}/test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          function: functionType,
+          provider,
+          model: newModelName.trim(),
+          apiKey: apiKey || undefined,
+          baseUrl: baseUrl || undefined,
+        }),
+      })
+      const data = await res.json()
+      setDialogTestResult(data)
+    } catch {
+      setDialogTestResult({ success: false, error: 'Connection failed' })
+    } finally {
+      setDialogTesting(false)
+    }
+  }
+
+  // Add custom model (only after successful test)
+  const handleAddCustomModel = async () => {
+    if (!newModelName.trim() || !dialogTestResult?.success) return
     
     setAddingModel(true)
     setError(null)
@@ -370,6 +400,7 @@ export function AIFunctionCard({
       setModel(newModelName.trim())
       setAddModelDialogOpen(false)
       setNewModelName('')
+      setDialogTestResult(null)
       setSuccess(`Custom model "${newModelName.trim()}" added!`)
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
@@ -377,6 +408,13 @@ export function AIFunctionCard({
     } finally {
       setAddingModel(false)
     }
+  }
+  
+  // Close dialog and reset state
+  const handleCloseDialog = () => {
+    setAddModelDialogOpen(false)
+    setNewModelName('')
+    setDialogTestResult(null)
   }
 
   // Delete custom model
@@ -529,6 +567,14 @@ export function AIFunctionCard({
               }}
               disabled={loading || loadingProviders || providers.length === 0}
               displayEmpty
+              renderValue={(selected) => {
+                if (!selected) return ''
+                const selectedModelInfo = models.find(m => m.id === selected)
+                if (selectedModelInfo?.isCustom) {
+                  return <Typography variant="body2" sx={{ fontStyle: 'italic' }}>{selectedModelInfo.name}</Typography>
+                }
+                return selectedModelInfo?.name || selected
+              }}
             >
               {(loading || loadingProviders) && (
                 <MenuItem value="" disabled>
@@ -804,10 +850,7 @@ export function AIFunctionCard({
       {/* Add Custom Model Dialog */}
       <Dialog 
         open={addModelDialogOpen} 
-        onClose={() => {
-          setAddModelDialogOpen(false)
-          setNewModelName('')
-        }}
+        onClose={handleCloseDialog}
         maxWidth="sm"
         fullWidth
       >
@@ -821,30 +864,58 @@ export function AIFunctionCard({
             autoFocus
             label="Model Name"
             value={newModelName}
-            onChange={(e) => setNewModelName(e.target.value)}
+            onChange={(e) => {
+              setNewModelName(e.target.value)
+              // Reset test result when model name changes
+              setDialogTestResult(null)
+            }}
             fullWidth
             size="small"
             placeholder={provider === 'ollama' ? 'e.g., llama3.3:70b, mixtral:8x22b' : 'Enter model name'}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && newModelName.trim()) {
-                handleAddCustomModel()
-              }
-            }}
+            disabled={dialogTesting}
+            sx={{ mb: 2 }}
           />
+          
+          {/* Test Result */}
+          {dialogTestResult && (
+            <Alert 
+              severity={dialogTestResult.success ? 'success' : 'error'} 
+              sx={{ mb: 2 }}
+            >
+              {dialogTestResult.success 
+                ? 'Model validated successfully!' 
+                : `Validation failed: ${dialogTestResult.error}`}
+            </Alert>
+          )}
+          
+          {/* Testing indicator */}
+          {dialogTesting && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, color: 'text.secondary' }}>
+              <CircularProgress size={20} />
+              <Typography variant="body2">
+                Validating model... This may take a moment for {provider === 'ollama' ? 'Ollama' : 'local'} models.
+              </Typography>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
           <Button 
-            onClick={() => {
-              setAddModelDialogOpen(false)
-              setNewModelName('')
-            }}
+            onClick={handleCloseDialog}
+            disabled={dialogTesting || addingModel}
           >
             Cancel
           </Button>
           <Button 
+            onClick={handleTestCustomModel}
+            variant="outlined"
+            disabled={!newModelName.trim() || dialogTesting || addingModel}
+          >
+            {dialogTesting ? <CircularProgress size={16} /> : 'Test'}
+          </Button>
+          <Button 
             onClick={handleAddCustomModel}
             variant="contained"
-            disabled={!newModelName.trim() || addingModel}
+            disabled={!newModelName.trim() || !dialogTestResult?.success || addingModel}
           >
             {addingModel ? <CircularProgress size={16} /> : 'Add Model'}
           </Button>
