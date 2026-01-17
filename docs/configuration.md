@@ -27,19 +27,24 @@ We provide pre-configured docker-compose files for common platforms:
 | **Unraid** | [`docker-compose.unraid.yml`](https://github.com/dgruhin-hrizn/aperture/blob/main/docker-compose.unraid.yml) | `/mnt/user/` paths |
 | **QNAP** | [`docker-compose.qnap.yml`](https://github.com/dgruhin-hrizn/aperture/blob/main/docker-compose.qnap.yml) | qnet driver with static IPs |
 | **Synology** | [`docker-compose.synology.yml`](https://github.com/dgruhin-hrizn/aperture/blob/main/docker-compose.synology.yml) | `/volume1/` paths, optional macvlan |
+| **Windows** | [`docker-compose.windows.yml`](https://github.com/dgruhin-hrizn/aperture/blob/main/docker-compose.windows.yml) | Docker Desktop + native Emby, STRM mode |
 | **Linux/Other** | [`docker-compose.prod.yml`](https://github.com/dgruhin-hrizn/aperture/blob/main/docker-compose.prod.yml) | Generic production setup |
 
 Download the file for your platform and edit the required values (IP address, session secret, paths).
 
+> **Windows Users**: If you're running Emby/Jellyfin directly on Windows (not in Docker) with Docker Desktop for Aperture, see the [Windows Docker Desktop Setup Guide](admin/windows-docker-desktop.md) for detailed instructions.
+
 ### Volume Mounts
 
-Aperture requires **3 volume mounts**:
+Aperture requires **2-3 volume mounts** depending on your setup:
 
 1. **Aperture Libraries** (`/aperture-libraries`) — Where recommendations are written
 2. **Backups** (`/backups`) — Database backup storage
-3. **Media Library** (`/media`) — Read-only access to your media files
+3. **Media Library** (`/media`) — Read-only access to your media files *(not needed for STRM mode)*
 
 The recommended setup is to create the ApertureLibraries folder **inside** your existing media share.
+
+> **Note**: In STRM mode (required for Windows Docker Desktop), Aperture reads media paths from your media server's API and doesn't need direct filesystem access to your media files.
 
 ### Why Inside Your Media Share?
 

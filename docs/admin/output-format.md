@@ -55,6 +55,7 @@ When played, the media server reads this path and plays the referenced file.
 - Different Docker containers
 - No shared filesystem
 - Uncertain about symlinks
+- **Windows Docker Desktop** — STRM is required when Aperture runs in Docker while Emby/Jellyfin runs natively on Windows (symlinks can't cross the Linux container boundary)
 
 ---
 
@@ -155,27 +156,7 @@ Both formats create NFO metadata files:
 ### Special NFO Settings
 
 Aperture NFOs include:
-- **lockdata=true** — Prevents media server from overwriting
-- **No external IDs** — Prevents duplicate Continue Watching
-
----
-
-## Continue Watching Fix
-
-A key feature of Aperture's output:
-
-### The Problem
-
-Without special handling, watching a recommendation creates duplicate Continue Watching entries (original + STRM copy).
-
-### The Solution
-
-Aperture's NFO files:
-1. Omit external IDs (IMDb, TMDb)
-2. Set lockdata to prevent ID fetching
-3. Media server can't link STRM to original
-
-Result: Only original appears in Continue Watching.
+- **Real external IDs** — Uses actual IMDb/TMDb/TVDB IDs for proper tracking and linking
 
 ---
 
