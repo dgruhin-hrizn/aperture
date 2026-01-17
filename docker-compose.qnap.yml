@@ -118,7 +118,8 @@ services:
       APP_BASE_URL: http://192.168.0.134:3456
       # Session secret - MUST be a random string at least 32 characters
       # Generate one at: https://randomkeygen.com/ (use "Fort Knox Passwords")
-      SESSION_SECRET: PASTE_YOUR_RANDOM_KEY_HERE
+      # ⚠️  IMPORTANT: Keep the quotes! Special characters like # break YAML without them.
+      SESSION_SECRET: 'PASTE_YOUR_RANDOM_KEY_HERE'
     ports:
       - '3456:3456'
     depends_on:

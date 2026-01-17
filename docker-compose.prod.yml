@@ -66,8 +66,9 @@ services:
       # Your server's IP address or hostname
       APP_BASE_URL: http://YOUR_SERVER_IP:3456
       # Session secret - MUST be a random string at least 32 characters
-      # Generate one at: https://randomkeygen.com/ (use "JWT Secrets" for type)
-      SESSION_SECRET: PASTE_YOUR_RANDOM_KEY_HERE
+      # Generate one at: https://randomkeygen.com/ (use "Fort Knox Passwords")
+      # ⚠️  IMPORTANT: Keep the quotes! Special characters like # break YAML without them.
+      SESSION_SECRET: 'PASTE_YOUR_RANDOM_KEY_HERE'
     ports:
       - '3456:3456'
     depends_on:
