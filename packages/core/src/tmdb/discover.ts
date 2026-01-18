@@ -274,6 +274,7 @@ export function normalizeMovieResult(movie: TMDbMovieResult): {
   tmdbId: number
   title: string
   originalTitle: string
+  originalLanguage: string
   overview: string | null
   releaseYear: number | null
   posterPath: string | null
@@ -287,6 +288,7 @@ export function normalizeMovieResult(movie: TMDbMovieResult): {
     tmdbId: movie.id,
     title: movie.title,
     originalTitle: movie.original_title,
+    originalLanguage: movie.original_language,
     overview: movie.overview,
     releaseYear: extractYear(movie.release_date),
     posterPath: movie.poster_path,
@@ -305,6 +307,7 @@ export function normalizeTVResult(tv: TMDbTVResult): {
   tmdbId: number
   title: string
   originalTitle: string
+  originalLanguage: string
   overview: string | null
   releaseYear: number | null
   posterPath: string | null
@@ -318,6 +321,7 @@ export function normalizeTVResult(tv: TMDbTVResult): {
     tmdbId: tv.id,
     title: tv.name,
     originalTitle: tv.original_name,
+    originalLanguage: tv.original_language,
     overview: tv.overview,
     releaseYear: extractYear(tv.first_air_date),
     posterPath: tv.poster_path,

@@ -28,6 +28,7 @@ export interface DiscoveryCandidate {
   sourceMediaId: number | null
   title: string
   originalTitle: string | null
+  originalLanguage: string | null
   releaseYear: number | null
   posterPath: string | null
   backdropPath: string | null
@@ -88,5 +89,13 @@ export interface DiscoveryRequest {
   statusMessage: string | null
   createdAt: string
   updatedAt: string
+}
+
+export interface DiscoveryFilterOptions {
+  languages?: string[]
+  genreIds?: number[]
+  yearStart?: number
+  yearEnd?: number
+  minSimilarity?: number
 }
 

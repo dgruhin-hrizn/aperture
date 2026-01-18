@@ -1,8 +1,32 @@
-import { useState, useEffect, useCallback } from 'react'
-import type { DiscoveryCandidate, DiscoveryRun, DiscoveryStatus, MediaType, JellyseerrMediaStatus } from '../types'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import type { DiscoveryCandidate, DiscoveryRun, DiscoveryStatus, MediaType, JellyseerrMediaStatus, DiscoveryFilterOptions } from '../types'
 
 // Jellyseerr status for candidates (keyed by TMDb ID)
 export type JellyseerrStatusMap = Record<number, JellyseerrMediaStatus>
+
+// Build query string from filter options
+function buildFilterQueryString(filters: DiscoveryFilterOptions): string {
+  const params = new URLSearchParams()
+  
+  if (filters.languages && filters.languages.length > 0) {
+    params.set('languages', filters.languages.join(','))
+  }
+  if (filters.genreIds && filters.genreIds.length > 0) {
+    params.set('genres', filters.genreIds.join(','))
+  }
+  if (filters.yearStart !== undefined) {
+    params.set('yearStart', filters.yearStart.toString())
+  }
+  if (filters.yearEnd !== undefined) {
+    params.set('yearEnd', filters.yearEnd.toString())
+  }
+  if (filters.minSimilarity !== undefined && filters.minSimilarity > 0) {
+    params.set('minSimilarity', filters.minSimilarity.toString())
+  }
+  
+  const qs = params.toString()
+  return qs ? `?${qs}` : ''
+}
 
 // Cache configuration
 const CACHE_KEY = 'aperture_discovery_cache'
@@ -50,7 +74,7 @@ function invalidateCache() {
   localStorage.removeItem(CACHE_KEY)
 }
 
-export function useDiscoveryData() {
+export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
   const [status, setStatus] = useState<DiscoveryStatus | null>(null)
   const [movieCandidates, setMovieCandidates] = useState<DiscoveryCandidate[]>([])
   const [seriesCandidates, setSeriesCandidates] = useState<DiscoveryCandidate[]>([])
@@ -60,6 +84,11 @@ export function useDiscoveryData() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  // Track if this is the first load (for caching logic)
+  const isFirstLoad = useRef(true)
+  // Track current filters for comparison
+  const filtersRef = useRef(filters)
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -107,9 +136,10 @@ export function useDiscoveryData() {
     }
   }, [])
 
-  const fetchCandidates = useCallback(async (mediaType: MediaType): Promise<{ candidates: DiscoveryCandidate[]; run: DiscoveryRun | null } | null> => {
+  const fetchCandidates = useCallback(async (mediaType: MediaType, filterOpts: DiscoveryFilterOptions = {}): Promise<{ candidates: DiscoveryCandidate[]; run: DiscoveryRun | null } | null> => {
     try {
-      const response = await fetch(`/api/discovery/${mediaType === 'movie' ? 'movies' : 'series'}`, {
+      const queryString = buildFilterQueryString(filterOpts)
+      const response = await fetch(`/api/discovery/${mediaType === 'movie' ? 'movies' : 'series'}${queryString}`, {
         credentials: 'include',
       })
       if (response.ok) {
@@ -189,48 +219,67 @@ export function useDiscoveryData() {
     }))
   }, [])
 
+  // Check if filters have changed
+  const filtersChanged = JSON.stringify(filters) !== JSON.stringify(filtersRef.current)
+  if (filtersChanged) {
+    filtersRef.current = filters
+  }
+
   useEffect(() => {
     const load = async () => {
-      setLoading(true)
+      // Only use cache if no filters are applied and it's the first load
+      const hasFilters = (filters.languages && filters.languages.length > 0) ||
+                        (filters.genreIds && filters.genreIds.length > 0) ||
+                        filters.yearStart !== undefined ||
+                        filters.yearEnd !== undefined ||
+                        (filters.minSimilarity !== undefined && filters.minSimilarity > 0)
       
-      // Try to load from cache first
-      const cached = loadCache()
-      if (cached) {
-        setMovieCandidates(cached.movieCandidates)
-        setSeriesCandidates(cached.seriesCandidates)
-        setMovieRun(cached.movieRun)
-        setSeriesRun(cached.seriesRun)
-        if (cached.status) setStatus(cached.status)
-        setLoading(false)
-        
-        // Fetch Jellyseerr status for cached candidates (always fresh)
-        const allCandidates = [...cached.movieCandidates, ...cached.seriesCandidates]
-        if (allCandidates.length > 0) {
-          fetchJellyseerrStatus(allCandidates)
+      // Try to load from cache first (only if no filters and first load)
+      if (isFirstLoad.current && !hasFilters) {
+        const cached = loadCache()
+        if (cached) {
+          setMovieCandidates(cached.movieCandidates)
+          setSeriesCandidates(cached.seriesCandidates)
+          setMovieRun(cached.movieRun)
+          setSeriesRun(cached.seriesRun)
+          if (cached.status) setStatus(cached.status)
+          setLoading(false)
+          isFirstLoad.current = false
+          
+          // Fetch Jellyseerr status for cached candidates (always fresh)
+          const allCandidates = [...cached.movieCandidates, ...cached.seriesCandidates]
+          if (allCandidates.length > 0) {
+            fetchJellyseerrStatus(allCandidates)
+          }
+          return
         }
-        return
       }
       
-      // No valid cache, fetch from server
+      setLoading(true)
+      
+      // Fetch from server with filters
       const [newStatus, movieResult, seriesResult] = await Promise.all([
         fetchStatus(),
-        fetchCandidates('movie'),
-        fetchCandidates('series'),
+        fetchCandidates('movie', filters),
+        fetchCandidates('series', filters),
       ])
       
-      // Save to cache
-      saveCache({
-        movieCandidates: movieResult?.candidates || [],
-        seriesCandidates: seriesResult?.candidates || [],
-        movieRun: movieResult?.run || null,
-        seriesRun: seriesResult?.run || null,
-        status: newStatus,
-      })
+      // Only save to cache if no filters are applied
+      if (!hasFilters) {
+        saveCache({
+          movieCandidates: movieResult?.candidates || [],
+          seriesCandidates: seriesResult?.candidates || [],
+          movieRun: movieResult?.run || null,
+          seriesRun: seriesResult?.run || null,
+          status: newStatus,
+        })
+      }
       
+      isFirstLoad.current = false
       setLoading(false)
     }
     load()
-  }, [fetchStatus, fetchCandidates, fetchJellyseerrStatus])
+  }, [fetchStatus, fetchCandidates, fetchJellyseerrStatus, filters])
 
   return {
     status,

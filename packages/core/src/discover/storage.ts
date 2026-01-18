@@ -14,6 +14,7 @@ import type {
   ScoredCandidate,
   DiscoveryRunStatus,
   DiscoveryRequestStatus,
+  DiscoveryFilterOptions,
 } from './types.js'
 
 const logger = createChildLogger('discover:storage')
@@ -187,7 +188,7 @@ export async function storeDiscoveryCandidates(
           run_id, user_id, media_type, tmdb_id, imdb_id, rank,
           final_score, similarity_score, popularity_score, recency_score, source_score,
           source, source_media_id,
-          title, original_title, release_year,
+          title, original_title, original_language, release_year,
           poster_path, backdrop_path, overview,
           genres, vote_average, vote_count, score_breakdown,
           cast_members, directors, runtime_minutes, tagline
@@ -195,16 +196,16 @@ export async function storeDiscoveryCandidates(
           $1, $2, $3, $4, $5, $6,
           $7, $8, $9, $10, $11,
           $12, $13,
-          $14, $15, $16,
-          $17, $18, $19,
-          $20, $21, $22, $23,
-          $24, $25, $26, $27
+          $14, $15, $16, $17,
+          $18, $19, $20,
+          $21, $22, $23, $24,
+          $25, $26, $27, $28
         )`,
         [
           runId, userId, mediaType, c.tmdbId, c.imdbId, i + 1,
           c.finalScore, c.similarityScore, c.popularityScore, c.recencyScore, c.sourceScore,
           c.source, c.sourceMediaId ?? null,
-          c.title, c.originalTitle, c.releaseYear,
+          c.title, c.originalTitle, c.originalLanguage ?? null, c.releaseYear,
           c.posterPath, c.backdropPath, c.overview,
           JSON.stringify(c.genres),
           c.voteAverage, c.voteCount, JSON.stringify(c.scoreBreakdown),
@@ -225,18 +226,69 @@ export async function storeDiscoveryCandidates(
 }
 
 /**
- * Get discovery candidates for a user
+ * Get discovery candidates for a user with real-time library filtering
  */
 export async function getDiscoveryCandidates(
   userId: string,
   mediaType: MediaType,
-  options: {
-    limit?: number
-    offset?: number
-  } = {}
+  options: DiscoveryFilterOptions = {}
 ): Promise<DiscoveryCandidate[]> {
   const limit = options.limit ?? 50
   const offset = options.offset ?? 0
+
+  // Build dynamic WHERE clause for filters
+  const conditions: string[] = ['dc.user_id = $1', 'dc.media_type = $2']
+  const params: (string | number | string[])[] = [userId, mediaType]
+  let paramIndex = 3
+
+  // Real-time library exclusion - exclude items that are now in the library
+  // This fixes the bug where items added after discovery generation still appear
+  const libraryTable = mediaType === 'movie' ? 'movies' : 'series'
+  conditions.push(`NOT EXISTS (
+    SELECT 1 FROM ${libraryTable} lib WHERE lib.tmdb_id = dc.tmdb_id::text
+  )`)
+
+  // Language filter
+  if (options.languages && options.languages.length > 0) {
+    conditions.push(`dc.original_language = ANY($${paramIndex}::text[])`)
+    params.push(options.languages)
+    paramIndex++
+  }
+
+  // Genre filter - check if any of the requested genres exist in the genres JSONB array
+  if (options.genreIds && options.genreIds.length > 0) {
+    // Use JSONB containment to check if any genre ID matches
+    const genreConditions = options.genreIds.map((_: number, i: number) => 
+      `dc.genres @> $${paramIndex + i}::jsonb`
+    )
+    conditions.push(`(${genreConditions.join(' OR ')})`)
+    for (const genreId of options.genreIds) {
+      params.push(JSON.stringify([{ id: genreId }]))
+      paramIndex++
+    }
+  }
+
+  // Year range filter
+  if (options.yearStart !== undefined) {
+    conditions.push(`dc.release_year >= $${paramIndex}`)
+    params.push(options.yearStart)
+    paramIndex++
+  }
+  if (options.yearEnd !== undefined) {
+    conditions.push(`dc.release_year <= $${paramIndex}`)
+    params.push(options.yearEnd)
+    paramIndex++
+  }
+
+  // Minimum similarity threshold filter
+  if (options.minSimilarity !== undefined && options.minSimilarity > 0) {
+    conditions.push(`dc.similarity_score >= $${paramIndex}`)
+    params.push(options.minSimilarity)
+    paramIndex++
+  }
+
+  // Add pagination params
+  params.push(limit, offset)
 
   const result = await query<{
     id: string
@@ -255,6 +307,7 @@ export async function getDiscoveryCandidates(
     source_media_id: number | null
     title: string
     original_title: string | null
+    original_language: string | null
     release_year: number | null
     poster_path: string | null
     backdrop_path: string | null
@@ -269,11 +322,11 @@ export async function getDiscoveryCandidates(
     tagline: string | null
     created_at: Date
   }>(
-    `SELECT * FROM discovery_candidates 
-     WHERE user_id = $1 AND media_type = $2
-     ORDER BY rank ASC
-     LIMIT $3 OFFSET $4`,
-    [userId, mediaType, limit, offset]
+    `SELECT dc.* FROM discovery_candidates dc
+     WHERE ${conditions.join(' AND ')}
+     ORDER BY dc.rank ASC
+     LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+    params
   )
 
   return result.rows.map(row => ({
@@ -293,6 +346,7 @@ export async function getDiscoveryCandidates(
     sourceMediaId: row.source_media_id,
     title: row.title,
     originalTitle: row.original_title,
+    originalLanguage: row.original_language,
     releaseYear: row.release_year,
     posterPath: row.poster_path,
     backdropPath: row.backdrop_path,
@@ -310,16 +364,66 @@ export async function getDiscoveryCandidates(
 }
 
 /**
- * Get count of discovery candidates for a user
+ * Get count of discovery candidates for a user with real-time library filtering
  */
 export async function getDiscoveryCandidateCount(
   userId: string,
-  mediaType: MediaType
+  mediaType: MediaType,
+  options: Omit<DiscoveryFilterOptions, 'limit' | 'offset'> = {}
 ): Promise<number> {
+  // Build dynamic WHERE clause for filters (same logic as getDiscoveryCandidates)
+  const conditions: string[] = ['dc.user_id = $1', 'dc.media_type = $2']
+  const params: (string | number | string[])[] = [userId, mediaType]
+  let paramIndex = 3
+
+  // Real-time library exclusion
+  const libraryTable = mediaType === 'movie' ? 'movies' : 'series'
+  conditions.push(`NOT EXISTS (
+    SELECT 1 FROM ${libraryTable} lib WHERE lib.tmdb_id = dc.tmdb_id::text
+  )`)
+
+  // Language filter
+  if (options.languages && options.languages.length > 0) {
+    conditions.push(`dc.original_language = ANY($${paramIndex}::text[])`)
+    params.push(options.languages)
+    paramIndex++
+  }
+
+  // Genre filter
+  if (options.genreIds && options.genreIds.length > 0) {
+    const genreConditions = options.genreIds.map((_: number, i: number) => 
+      `dc.genres @> $${paramIndex + i}::jsonb`
+    )
+    conditions.push(`(${genreConditions.join(' OR ')})`)
+    for (const genreId of options.genreIds) {
+      params.push(JSON.stringify([{ id: genreId }]))
+      paramIndex++
+    }
+  }
+
+  // Year range filter
+  if (options.yearStart !== undefined) {
+    conditions.push(`dc.release_year >= $${paramIndex}`)
+    params.push(options.yearStart)
+    paramIndex++
+  }
+  if (options.yearEnd !== undefined) {
+    conditions.push(`dc.release_year <= $${paramIndex}`)
+    params.push(options.yearEnd)
+    paramIndex++
+  }
+
+  // Minimum similarity threshold filter
+  if (options.minSimilarity !== undefined && options.minSimilarity > 0) {
+    conditions.push(`dc.similarity_score >= $${paramIndex}`)
+    params.push(options.minSimilarity)
+    paramIndex++
+  }
+
   const result = await queryOne<{ count: string }>(
-    `SELECT COUNT(*) as count FROM discovery_candidates 
-     WHERE user_id = $1 AND media_type = $2`,
-    [userId, mediaType]
+    `SELECT COUNT(*) as count FROM discovery_candidates dc
+     WHERE ${conditions.join(' AND ')}`,
+    params
   )
 
   return parseInt(result?.count ?? '0', 10)

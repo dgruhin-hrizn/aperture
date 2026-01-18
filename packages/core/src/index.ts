@@ -789,6 +789,7 @@ export {
   type DiscoveryRequest,
   type DiscoveryUser,
   type DiscoveryConfig,
+  type DiscoveryFilterOptions,
   type RawCandidate,
   type ScoredCandidate,
   type DiscoveryPipelineResult,
