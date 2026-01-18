@@ -30,6 +30,10 @@ export async function buildServer(options: ServerOptions = {}): Promise<any> {
         return
       }
 
+      // Helper to normalize URLs for comparison (remove trailing slash)
+      const normalizeUrl = (url: string) => url.replace(/\/$/, '')
+      const normalizedOrigin = normalizeUrl(origin)
+
       // In development, allow localhost origins and configured external domains
       if (process.env.NODE_ENV !== 'production') {
         const allowedOrigins = [
@@ -41,9 +45,9 @@ export async function buildServer(options: ServerOptions = {}): Promise<any> {
         // Also allow APP_BASE_URL in development for external access
         const appBaseUrl = process.env.APP_BASE_URL
         if (appBaseUrl) {
-          allowedOrigins.push(appBaseUrl)
+          allowedOrigins.push(normalizeUrl(appBaseUrl))
         }
-        if (allowedOrigins.includes(origin)) {
+        if (allowedOrigins.some(allowed => normalizedOrigin === normalizeUrl(allowed))) {
           cb(null, true)
           return
         }
@@ -51,11 +55,13 @@ export async function buildServer(options: ServerOptions = {}): Promise<any> {
 
       // In production, check against APP_BASE_URL
       const appBaseUrl = process.env.APP_BASE_URL
-      if (appBaseUrl && origin === appBaseUrl) {
+      if (appBaseUrl && normalizedOrigin === normalizeUrl(appBaseUrl)) {
         cb(null, true)
         return
       }
 
+      // Log the rejected origin for debugging
+      logger.warn({ origin, appBaseUrl }, 'CORS request rejected - origin not allowed')
       cb(new Error('Not allowed by CORS'), false)
     },
     credentials: true,

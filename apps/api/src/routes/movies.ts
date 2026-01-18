@@ -514,7 +514,7 @@ const moviesRoutes: FastifyPluginAsync = async (fastify) => {
         COUNT(*) as count
        FROM movies 
        WHERE video_resolution IS NOT NULL
-       GROUP BY category
+       GROUP BY 1
        ORDER BY 
          CASE category
            WHEN '4K' THEN 1
