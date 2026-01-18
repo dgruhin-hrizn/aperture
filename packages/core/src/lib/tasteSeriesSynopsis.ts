@@ -296,12 +296,11 @@ Rules:
 }
 
 /**
- * Get existing series synopsis or generate a new one if stale/missing
+ * Get existing series synopsis - never auto-regenerates on page load.
+ * Background job handles periodic refresh based on user's refresh_interval_days setting.
+ * User can manually regenerate via streamSeriesTasteSynopsis().
  */
-export async function getSeriesTasteSynopsis(
-  userId: string,
-  maxAgeHours = 24
-): Promise<SeriesTasteSynopsis> {
+export async function getSeriesTasteSynopsis(userId: string): Promise<SeriesTasteSynopsis> {
   // Check for existing synopsis
   const existing = await queryOne<{
     series_taste_synopsis: string | null
@@ -315,132 +314,113 @@ export async function getSeriesTasteSynopsis(
     [userId]
   )
 
-  const now = new Date()
-  const maxAge = maxAgeHours * 60 * 60 * 1000 // Convert hours to ms
+  // Get stats for display (always needed)
+  const stats = await getSeriesQuickStats(userId)
 
-  // Return existing if fresh enough
-  if (
-    existing?.series_taste_synopsis &&
-    existing.series_taste_synopsis_updated_at &&
-    now.getTime() - new Date(existing.series_taste_synopsis_updated_at).getTime() < maxAge
-  ) {
-    // Get stats for display
-    const stats = await getSeriesQuickStats(userId)
+  // Return existing synopsis if available
+  if (existing?.series_taste_synopsis) {
     return {
       synopsis: existing.series_taste_synopsis,
-      updatedAt: new Date(existing.series_taste_synopsis_updated_at),
+      updatedAt: existing.series_taste_synopsis_updated_at
+        ? new Date(existing.series_taste_synopsis_updated_at)
+        : new Date(),
       stats,
     }
   }
 
-  // Generate new synopsis using streaming (consume and collect)
-  const generator = streamSeriesTasteSynopsis(userId)
-  let synopsis = ''
-
-  // Consume all chunks
-  let result = await generator.next()
-  while (!result.done) {
-    if (typeof result.value === 'string') {
-      synopsis += result.value
-    }
-    result = await generator.next()
-  }
-
-  // result.value now contains the final return value (stats)
-  const stats = result.value
-
+  // No synopsis yet - return empty, let user click "Generate Identity"
   return {
-    synopsis,
+    synopsis: '',
     updatedAt: new Date(),
-    stats: stats || (await getSeriesQuickStats(userId)),
+    stats,
   }
 }
 
 /**
  * Get quick stats without regenerating synopsis
+ * Uses a single CTE query instead of 5 sequential queries for better performance
  */
 async function getSeriesQuickStats(userId: string): Promise<SeriesTasteSynopsis['stats']> {
-  const stats = await queryOne<SeriesWatchStats>(
+  const result = await queryOne<{
+    series_count: string
+    episode_count: string
+    avg_rating: string | null
+    top_genres: string[] | null
+    favorite_networks: string[] | null
+    favorite_decade: string | null
+    recent_favorites: string[] | null
+  }>(
     `
+    WITH watched_series AS (
+      SELECT DISTINCT ON (s.id)
+        s.id, s.title, s.genres, s.community_rating, s.year, s.network,
+        wh.is_favorite
+      FROM watch_history wh
+      JOIN episodes e ON e.id = wh.episode_id
+      JOIN series s ON s.id = e.series_id
+      WHERE wh.user_id = $1 AND wh.media_type = 'episode'
+    ),
+    episode_counts AS (
+      SELECT COUNT(DISTINCT wh.episode_id) as episode_count
+      FROM watch_history wh
+      WHERE wh.user_id = $1 AND wh.media_type = 'episode'
+    ),
+    stats AS (
+      SELECT 
+        COUNT(*) as series_count,
+        AVG(community_rating) as avg_rating
+      FROM watched_series
+    ),
+    genres AS (
+      SELECT unnest(genres) as genre, COUNT(*) as cnt
+      FROM watched_series
+      GROUP BY 1
+      ORDER BY cnt DESC
+      LIMIT 5
+    ),
+    networks AS (
+      SELECT network, COUNT(*) as cnt
+      FROM watched_series
+      WHERE network IS NOT NULL
+      GROUP BY 1
+      ORDER BY cnt DESC
+      LIMIT 3
+    ),
+    decades AS (
+      SELECT (FLOOR(year / 10) * 10)::TEXT || 's' as decade, COUNT(*) as cnt
+      FROM watched_series
+      WHERE year IS NOT NULL
+      GROUP BY 1
+      ORDER BY cnt DESC
+      LIMIT 1
+    ),
+    favorites AS (
+      SELECT title
+      FROM watched_series
+      WHERE is_favorite = true OR community_rating >= 7
+      ORDER BY title
+      LIMIT 5
+    )
     SELECT 
-      COUNT(DISTINCT e.series_id) as series_count,
-      COUNT(DISTINCT wh.episode_id) as episode_count,
-      AVG(s.community_rating) as avg_rating,
-      COUNT(CASE WHEN wh.is_favorite THEN 1 END) as favorite_count
-    FROM watch_history wh
-    JOIN episodes e ON e.id = wh.episode_id
-    JOIN series s ON s.id = e.series_id
-    WHERE wh.user_id = $1 AND wh.media_type = 'episode'
-  `,
-    [userId]
-  )
-
-  const genreResults = await query<GenreCount>(
-    `
-    SELECT unnest(s.genres) as genre, COUNT(DISTINCT e.series_id) as count
-    FROM watch_history wh
-    JOIN episodes e ON e.id = wh.episode_id
-    JOIN series s ON s.id = e.series_id
-    WHERE wh.user_id = $1 AND wh.media_type = 'episode'
-    GROUP BY unnest(s.genres)
-    ORDER BY count DESC
-    LIMIT 5
-  `,
-    [userId]
-  )
-
-  const networkResults = await query<NetworkCount>(
-    `
-    SELECT s.network, COUNT(DISTINCT e.series_id) as count
-    FROM watch_history wh
-    JOIN episodes e ON e.id = wh.episode_id
-    JOIN series s ON s.id = e.series_id
-    WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND s.network IS NOT NULL
-    GROUP BY s.network
-    ORDER BY count DESC
-    LIMIT 3
-  `,
-    [userId]
-  )
-
-  const decadeResults = await query<DecadeCount>(
-    `
-    SELECT 
-      (FLOOR(s.year / 10) * 10)::TEXT || 's' as decade,
-      COUNT(DISTINCT e.series_id) as count
-    FROM watch_history wh
-    JOIN episodes e ON e.id = wh.episode_id
-    JOIN series s ON s.id = e.series_id
-    WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND s.year IS NOT NULL
-    GROUP BY FLOOR(s.year / 10)
-    ORDER BY count DESC
-    LIMIT 1
-  `,
-    [userId]
-  )
-
-  const recentFavorites = await query<{ title: string }>(
-    `
-    SELECT DISTINCT s.title
-    FROM watch_history wh
-    JOIN episodes e ON e.id = wh.episode_id
-    JOIN series s ON s.id = e.series_id
-    WHERE wh.user_id = $1 AND wh.media_type = 'episode' 
-      AND (wh.is_favorite = true OR s.community_rating >= 7)
-    ORDER BY s.title
-    LIMIT 5
+      (SELECT series_count FROM stats) as series_count,
+      (SELECT episode_count FROM episode_counts) as episode_count,
+      (SELECT avg_rating FROM stats) as avg_rating,
+      (SELECT ARRAY_AGG(genre) FROM genres) as top_genres,
+      (SELECT ARRAY_AGG(network) FROM networks) as favorite_networks,
+      (SELECT decade FROM decades) as favorite_decade,
+      (SELECT ARRAY_AGG(title) FROM favorites) as recent_favorites
   `,
     [userId]
   )
 
   return {
-    totalSeriesStarted: Number(stats?.series_count || 0),
-    totalEpisodesWatched: Number(stats?.episode_count || 0),
-    topGenres: genreResults.rows.map((r) => r.genre),
-    avgRating: Number(stats?.avg_rating || 0),
-    favoriteDecade: decadeResults.rows[0]?.decade || null,
-    favoriteNetworks: networkResults.rows.map((r) => r.network),
-    recentFavorites: recentFavorites.rows.map((s) => s.title),
+    totalSeriesStarted: Number(result?.series_count || 0),
+    totalEpisodesWatched: Number(result?.episode_count || 0),
+    topGenres: result?.top_genres || [],
+    avgRating: Number(result?.avg_rating || 0),
+    favoriteDecade: result?.favorite_decade || null,
+    favoriteNetworks: result?.favorite_networks || [],
+    recentFavorites: result?.recent_favorites || [],
   }
 }
 
