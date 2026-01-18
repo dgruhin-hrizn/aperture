@@ -21,6 +21,7 @@ function parseFilterParams(queryParams: {
   limit?: string
   offset?: string
   languages?: string
+  includeUnknownLanguage?: string
   genres?: string
   yearStart?: string
   yearEnd?: string
@@ -34,6 +35,12 @@ function parseFilterParams(queryParams: {
   // Languages: comma-separated ISO 639-1 codes (e.g., "en,ko,ja")
   if (queryParams.languages) {
     options.languages = queryParams.languages.split(',').map(l => l.trim()).filter(Boolean)
+  }
+
+  // Include content with unknown language (default: true)
+  // Only set to false if explicitly passed as 'false' or '0'
+  if (queryParams.includeUnknownLanguage !== undefined) {
+    options.includeUnknownLanguage = queryParams.includeUnknownLanguage !== 'false' && queryParams.includeUnknownLanguage !== '0'
   }
 
   // Genres: comma-separated genre IDs (e.g., "28,12,878")
@@ -79,6 +86,7 @@ const discoveryRoutes: FastifyPluginAsync = async (fastify) => {
       limit?: string
       offset?: string
       languages?: string
+      includeUnknownLanguage?: string
       genres?: string
       yearStart?: string
       yearEnd?: string
@@ -135,6 +143,7 @@ const discoveryRoutes: FastifyPluginAsync = async (fastify) => {
       limit?: string
       offset?: string
       languages?: string
+      includeUnknownLanguage?: string
       genres?: string
       yearStart?: string
       yearEnd?: string

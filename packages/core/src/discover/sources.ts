@@ -537,9 +537,11 @@ async function enrichMissingData(
   candidates: RawCandidate[],
   mediaType: MediaType
 ): Promise<RawCandidate[]> {
-  // Find candidates missing poster paths, IMDb IDs, or cast/crew info
-  // For simplicity, we'll enrich all candidates that don't have cast info yet
-  const needsEnrichment = candidates.filter(c => !c.posterPath || !c.imdbId || !c.castMembers?.length)
+  // Find candidates missing poster paths, IMDb IDs, original language, or cast/crew info
+  // This ensures Trakt candidates (which lack language) get enriched from TMDb
+  const needsEnrichment = candidates.filter(c => 
+    !c.posterPath || !c.imdbId || !c.castMembers?.length || !c.originalLanguage
+  )
   
   if (needsEnrichment.length === 0) {
     return candidates

@@ -2,6 +2,8 @@ import React from 'react'
 import {
   Box,
   FormControl,
+  FormControlLabel,
+  Checkbox,
   InputLabel,
   Select,
   MenuItem,
@@ -125,6 +127,13 @@ export function DiscoveryFilters({ filters, onFiltersChange, yearRange }: Discov
     })
   }
 
+  const handleIncludeUnknownLanguageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    onFiltersChange({
+      ...filters,
+      includeUnknownLanguage: event.target.checked,
+    })
+  }
+
   const activeFilterCount = [
     filters.languages?.length ?? 0,
     filters.genreIds?.length ?? 0,
@@ -185,30 +194,50 @@ export function DiscoveryFilters({ filters, onFiltersChange, yearRange }: Discov
             useFlexGap
           >
             {/* Language Filter */}
-            <FormControl size="small" sx={{ minWidth: 150, flex: isMobile ? 1 : '0 0 auto' }}>
-              <InputLabel id="language-filter-label">Language</InputLabel>
-              <Select
-                labelId="language-filter-label"
-                multiple
-                value={filters.languages || []}
-                onChange={handleLanguageChange}
-                input={<OutlinedInput label="Language" />}
-                renderValue={(selected) => (
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {(selected as string[]).map((code) => {
-                      const lang = LANGUAGES.find(l => l.code === code)
-                      return <Chip key={code} label={lang?.name || code} size="small" />
-                    })}
-                  </Box>
-                )}
-              >
-                {LANGUAGES.map((lang) => (
-                  <MenuItem key={lang.code} value={lang.code}>
-                    {lang.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Box sx={{ flex: isMobile ? 1 : '0 0 auto' }}>
+              <FormControl size="small" sx={{ minWidth: 150, width: '100%' }}>
+                <InputLabel id="language-filter-label">Language</InputLabel>
+                <Select
+                  labelId="language-filter-label"
+                  multiple
+                  value={filters.languages || []}
+                  onChange={handleLanguageChange}
+                  input={<OutlinedInput label="Language" />}
+                  renderValue={(selected) => (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {(selected as string[]).map((code) => {
+                        const lang = LANGUAGES.find(l => l.code === code)
+                        return <Chip key={code} label={lang?.name || code} size="small" />
+                      })}
+                    </Box>
+                  )}
+                >
+                  {LANGUAGES.map((lang) => (
+                    <MenuItem key={lang.code} value={lang.code}>
+                      {lang.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              {/* Include Unknown Language checkbox - only show when language filter is active */}
+              {filters.languages && filters.languages.length > 0 && (
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={filters.includeUnknownLanguage !== false}
+                      onChange={handleIncludeUnknownLanguageChange}
+                    />
+                  }
+                  label={
+                    <Typography variant="caption" color="text.secondary">
+                      Include unknown
+                    </Typography>
+                  }
+                  sx={{ mt: 0.5, ml: 0 }}
+                />
+              )}
+            </Box>
 
             {/* Genre Filter */}
             <FormControl size="small" sx={{ minWidth: 150, flex: isMobile ? 1 : '0 0 auto' }}>
