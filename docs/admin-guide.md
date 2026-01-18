@@ -17,6 +17,12 @@ Start here if you're new to Aperture:
 |----------|-------|
 | **Windows Docker Desktop** | [Windows Setup Guide](admin/windows-docker-desktop.md) — Docker Desktop + native Emby/Jellyfin |
 
+### Advanced Deployment
+
+| Topic | Guide |
+|-------|-------|
+| **External Database** | [External PostgreSQL](admin/external-database.md) — Use your own PostgreSQL server |
+
 ---
 
 ## Setup Configuration
@@ -224,5 +230,6 @@ All admin documentation files:
 - [admin/maintenance.md](admin/maintenance.md)
 - [admin/backup-restore.md](admin/backup-restore.md)
 - [admin/database-management.md](admin/database-management.md)
+- [admin/external-database.md](admin/external-database.md)
 - [admin/api-errors.md](admin/api-errors.md)
 - [admin/recommended-workflow.md](admin/recommended-workflow.md)
