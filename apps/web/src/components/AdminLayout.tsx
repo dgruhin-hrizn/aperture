@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Box,
@@ -6,6 +6,8 @@ import {
   Tab,
   Typography,
   Paper,
+  Chip,
+  Stack,
 } from '@mui/material'
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import DashboardIcon from '@mui/icons-material/Dashboard'
@@ -30,6 +32,29 @@ const adminTabs: AdminTab[] = [
 export function AdminLayout() {
   const navigate = useNavigate()
   const location = useLocation()
+  const [runningJobsCount, setRunningJobsCount] = useState(0)
+
+  // Fetch running jobs count
+  const fetchRunningJobsCount = useCallback(async () => {
+    try {
+      const response = await fetch('/api/jobs/active', { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        const running = (data.jobs || []).filter(
+          (j: { status: string }) => j.status === 'running'
+        ).length
+        setRunningJobsCount(running)
+      }
+    } catch {
+      // Silently fail - count will stay at 0
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchRunningJobsCount()
+    const interval = setInterval(fetchRunningJobsCount, 3000)
+    return () => clearInterval(interval)
+  }, [fetchRunningJobsCount])
 
   // Determine active tab based on current path
   const getActiveTab = () => {
@@ -111,7 +136,27 @@ export function AdminLayout() {
               key={tab.path}
               icon={tab.icon}
               iconPosition="start"
-              label={tab.label}
+              label={
+                tab.path === '/admin/jobs' && runningJobsCount > 0 ? (
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <span>{tab.label}</span>
+                    <Chip
+                      label={runningJobsCount}
+                      size="small"
+                      sx={{
+                        height: 20,
+                        minWidth: 20,
+                        bgcolor: 'primary.main',
+                        color: 'white',
+                        fontSize: '0.75rem',
+                        '& .MuiChip-label': { px: 0.75 },
+                      }}
+                    />
+                  </Stack>
+                ) : (
+                  tab.label
+                )
+              }
               sx={{
                 gap: 1,
                 '& .MuiSvgIcon-root': {
