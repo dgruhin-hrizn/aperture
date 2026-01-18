@@ -319,6 +319,19 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     if (request.user) {
       return reply.send({ authenticated: true, user: request.user })
     }
+    
+    // If there was a session error (e.g., SESSION_SECRET changed, DB issue),
+    // clear the invalid cookie and let the frontend know
+    if (request.sessionError) {
+      clearSessionCookie(reply)
+      return reply.send({ 
+        authenticated: false, 
+        user: null,
+        sessionError: true,
+        message: 'Your session was invalid. This can happen if the server was reconfigured. Please log in again.'
+      })
+    }
+    
     return reply.send({ authenticated: false, user: null })
   })
 }

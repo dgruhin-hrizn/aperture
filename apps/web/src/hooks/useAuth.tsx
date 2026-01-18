@@ -15,9 +15,11 @@ interface User {
 interface AuthContextType {
   user: User | null
   loading: boolean
+  sessionError: string | null
   login: (username: string, password: string) => Promise<void>
   logout: () => Promise<void>
   checkAuth: () => Promise<void>
+  clearSessionError: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -25,6 +27,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [sessionError, setSessionError] = useState<string | null>(null)
 
   const checkAuth = useCallback(async () => {
     try {
@@ -36,8 +39,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const data = await response.json()
         if (data.authenticated) {
           setUser(data.user)
+          setSessionError(null)
         } else {
           setUser(null)
+          // Check if there was a session error (e.g., SESSION_SECRET changed)
+          if (data.sessionError && data.message) {
+            setSessionError(data.message)
+          }
         }
       } else {
         setUser(null)
@@ -47,6 +55,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false)
     }
+  }, [])
+  
+  const clearSessionError = useCallback(() => {
+    setSessionError(null)
   }, [])
 
   useEffect(() => {
@@ -82,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, checkAuth }}>
+    <AuthContext.Provider value={{ user, loading, sessionError, login, logout, checkAuth, clearSessionError }}>
       {children}
     </AuthContext.Provider>
   )

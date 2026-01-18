@@ -14,13 +14,20 @@ import { useAuth } from '@/hooks/useAuth'
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const { login, user } = useAuth()
+  const { login, user, sessionError, clearSessionError } = useAuth()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [allowPasswordlessLogin, setAllowPasswordlessLogin] = useState(false)
   const [loadingOptions, setLoadingOptions] = useState(true)
+  
+  // Clear session error when user starts typing
+  useEffect(() => {
+    if ((username || password) && sessionError) {
+      clearSessionError()
+    }
+  }, [username, password, sessionError, clearSessionError])
 
   // Fetch login options on mount
   useEffect(() => {
@@ -104,6 +111,12 @@ export function LoginPage() {
               Sign in with your media server credentials
             </Typography>
           </Box>
+
+          {sessionError && (
+            <Alert severity="warning" sx={{ mb: 3 }}>
+              {sessionError}
+            </Alert>
+          )}
 
           {error && (
             <Alert severity="error" sx={{ mb: 3 }}>
