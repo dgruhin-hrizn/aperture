@@ -191,7 +191,8 @@ export async function storeDiscoveryCandidates(
           title, original_title, original_language, release_year,
           poster_path, backdrop_path, overview,
           genres, vote_average, vote_count, score_breakdown,
-          cast_members, directors, runtime_minutes, tagline
+          cast_members, directors, runtime_minutes, tagline,
+          is_enriched
         ) VALUES (
           $1, $2, $3, $4, $5, $6,
           $7, $8, $9, $10, $11,
@@ -199,7 +200,8 @@ export async function storeDiscoveryCandidates(
           $14, $15, $16, $17,
           $18, $19, $20,
           $21, $22, $23, $24,
-          $25, $26, $27, $28
+          $25, $26, $27, $28,
+          $29
         )`,
         [
           runId, userId, mediaType, c.tmdbId, c.imdbId, i + 1,
@@ -213,6 +215,7 @@ export async function storeDiscoveryCandidates(
           c.directors ?? [],
           c.runtimeMinutes ?? null,
           c.tagline ?? null,
+          c.isEnriched ?? false,
         ]
       )
       stored++
@@ -326,6 +329,7 @@ export async function getDiscoveryCandidates(
     directors: string[] | null
     runtime_minutes: number | null
     tagline: string | null
+    is_enriched: boolean
     created_at: Date
   }>(
     `SELECT dc.* FROM discovery_candidates dc
@@ -365,6 +369,7 @@ export async function getDiscoveryCandidates(
     directors: row.directors || [],
     runtimeMinutes: row.runtime_minutes,
     tagline: row.tagline,
+    isEnriched: row.is_enriched ?? true, // Default to true for backwards compatibility
     createdAt: row.created_at,
   }))
 }

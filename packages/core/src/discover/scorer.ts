@@ -210,17 +210,16 @@ export async function scoreCandidates(
         recency: recencyScore,
         source: sourceScore,
       },
+      // isEnriched will be set by the pipeline after lazy enrichment
+      isEnriched: false,
     }
   })
 
   // Sort by final score descending
   scoredCandidates.sort((a, b) => b.finalScore - a.finalScore)
 
-  // Limit to max suggestions
-  const limited = scoredCandidates.slice(0, config.maxSuggestionsPerUser)
-
-  // Assign ranks
-  limited.forEach((c, i) => {
+  // Assign ranks (to all candidates, not limited)
+  scoredCandidates.forEach((c, i) => {
     (c as ScoredCandidate & { rank: number }).rank = i + 1
   })
 
@@ -228,11 +227,12 @@ export async function scoreCandidates(
     userId,
     mediaType,
     inputCount: candidates.length,
-    outputCount: limited.length,
-    topScore: limited[0]?.finalScore.toFixed(3),
-    bottomScore: limited[limited.length - 1]?.finalScore.toFixed(3),
+    outputCount: scoredCandidates.length,
+    topScore: scoredCandidates[0]?.finalScore.toFixed(3),
+    bottomScore: scoredCandidates[scoredCandidates.length - 1]?.finalScore.toFixed(3),
   }, 'Scored and ranked candidates')
 
-  return limited
+  // Return all scored candidates - limiting is done in the pipeline
+  return scoredCandidates
 }
 

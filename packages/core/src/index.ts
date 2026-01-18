@@ -761,6 +761,7 @@ export {
   getDiscoveryEnabledUsers,
   // Sources
   fetchAllCandidates,
+  fetchFilteredCandidates,
   hasDiscoverySources,
   // Filter
   filterCandidates,
@@ -795,6 +796,7 @@ export {
   type RawCandidate,
   type ScoredCandidate,
   type DiscoveryPipelineResult,
+  type DynamicFetchFilters,
   DEFAULT_DISCOVERY_CONFIG,
 } from './discover/index.js'
 

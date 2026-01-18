@@ -79,6 +79,10 @@ function invalidateCache() {
   localStorage.removeItem(CACHE_KEY)
 }
 
+// Minimum target count before triggering expansion
+const TARGET_DISPLAY_COUNT = 50
+const EXPANSION_THRESHOLD = 25 // Trigger expansion when below this count
+
 export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
   const [status, setStatus] = useState<DiscoveryStatus | null>(null)
   const [movieCandidates, setMovieCandidates] = useState<DiscoveryCandidate[]>([])
@@ -88,12 +92,15 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
   const [jellyseerrStatus, setJellyseerrStatus] = useState<JellyseerrStatusMap>({})
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [expanding, setExpanding] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
   // Track if this is the first load (for caching logic)
   const isFirstLoad = useRef(true)
   // Track current filters for comparison
   const filtersRef = useRef(filters)
+  // Track if we've already tried to expand for current filters
+  const expansionAttemptedRef = useRef<string>('')
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -224,10 +231,88 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
     }))
   }, [])
 
+  /**
+   * Expand discovery by dynamically fetching more candidates matching current filters
+   * This is called automatically when the filtered count drops below threshold
+   */
+  const expandDiscovery = useCallback(async (mediaType: MediaType, currentCandidates: DiscoveryCandidate[]) => {
+    // Don't expand if already expanding or if we have enough candidates
+    if (expanding || currentCandidates.length >= EXPANSION_THRESHOLD) {
+      return null
+    }
+
+    // Create a key to track if we've already attempted expansion for these filters
+    const expansionKey = `${mediaType}-${JSON.stringify(filters)}`
+    if (expansionAttemptedRef.current === expansionKey) {
+      return null // Already attempted for this filter combination
+    }
+
+    setExpanding(true)
+    expansionAttemptedRef.current = expansionKey
+
+    try {
+      // Get existing TMDb IDs to exclude from expansion
+      const existingTmdbIds = currentCandidates.map(c => c.tmdbId)
+
+      const response = await fetch(`/api/discovery/${mediaType === 'movie' ? 'movies' : 'series'}/expand`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          languages: filters.languages,
+          genreIds: filters.genreIds,
+          yearStart: filters.yearStart,
+          yearEnd: filters.yearEnd,
+          excludeTmdbIds: existingTmdbIds,
+          targetCount: TARGET_DISPLAY_COUNT - currentCandidates.length,
+        }),
+      })
+
+      if (!response.ok) {
+        console.error('Failed to expand discovery')
+        return null
+      }
+
+      const data = await response.json()
+      const newCandidates = data.candidates || []
+
+      if (newCandidates.length === 0) {
+        return null
+      }
+
+      // Merge new candidates with existing ones
+      const merged = [...currentCandidates, ...newCandidates]
+      
+      // Sort by finalScore descending
+      merged.sort((a, b) => b.finalScore - a.finalScore)
+
+      // Update state based on media type
+      if (mediaType === 'movie') {
+        setMovieCandidates(merged)
+      } else {
+        setSeriesCandidates(merged)
+      }
+
+      // Fetch Jellyseerr status for new candidates
+      if (newCandidates.length > 0) {
+        await fetchJellyseerrStatus(newCandidates)
+      }
+
+      return { candidates: merged, added: newCandidates.length }
+    } catch (err) {
+      console.error('Error expanding discovery:', err)
+      return null
+    } finally {
+      setExpanding(false)
+    }
+  }, [expanding, filters, fetchJellyseerrStatus])
+
   // Check if filters have changed
   const filtersChanged = JSON.stringify(filters) !== JSON.stringify(filtersRef.current)
   if (filtersChanged) {
     filtersRef.current = filters
+    // Reset expansion tracking when filters change
+    expansionAttemptedRef.current = ''
   }
 
   useEffect(() => {
@@ -286,6 +371,31 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
     load()
   }, [fetchStatus, fetchCandidates, fetchJellyseerrStatus, filters])
 
+  // Auto-expand when filters result in low candidate count
+  useEffect(() => {
+    const checkAndExpand = async () => {
+      // Only expand if filters are active and count is low
+      const hasFilters = (filters.languages && filters.languages.length > 0) ||
+                        (filters.genreIds && filters.genreIds.length > 0) ||
+                        filters.yearStart !== undefined ||
+                        filters.yearEnd !== undefined
+
+      if (!hasFilters || loading) return
+
+      // Check movies
+      if (movieCandidates.length > 0 && movieCandidates.length < EXPANSION_THRESHOLD) {
+        await expandDiscovery('movie', movieCandidates)
+      }
+
+      // Check series
+      if (seriesCandidates.length > 0 && seriesCandidates.length < EXPANSION_THRESHOLD) {
+        await expandDiscovery('series', seriesCandidates)
+      }
+    }
+    
+    checkAndExpand()
+  }, [filters, loading, movieCandidates.length, seriesCandidates.length, expandDiscovery])
+
   return {
     status,
     movieCandidates,
@@ -295,9 +405,11 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
     jellyseerrStatus,
     loading,
     refreshing,
+    expanding,
     error,
     refresh,
     markAsRequested,
+    expandDiscovery,
   }
 }
 

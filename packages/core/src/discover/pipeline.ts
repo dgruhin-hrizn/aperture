@@ -6,7 +6,7 @@
 
 import { createChildLogger } from '../lib/logger.js'
 import { query, queryOne } from '../lib/db.js'
-import { fetchAllCandidates } from './sources.js'
+import { fetchAllCandidates, enrichFullData } from './sources.js'
 import { filterCandidates } from './filter.js'
 import { scoreCandidates } from './scorer.js'
 import {
@@ -20,6 +20,7 @@ import type {
   DiscoveryConfig,
   DiscoveryPipelineResult,
   DiscoveryUser,
+  ScoredCandidate,
   DEFAULT_DISCOVERY_CONFIG,
 } from './types.js'
 
@@ -27,6 +28,7 @@ const logger = createChildLogger('discover:pipeline')
 
 /**
  * Generate discovery suggestions for a single user
+ * Uses lazy enrichment: only top candidates get full metadata (cast, crew, etc.)
  */
 export async function generateDiscoveryForUser(
   user: DiscoveryUser,
@@ -42,9 +44,10 @@ export async function generateDiscoveryForUser(
   const runId = await createDiscoveryRun(user.id, mediaType, runType)
   
   try {
-    // Step 1: Fetch candidates from all sources
+    // Step 1: Fetch candidates from all sources (with basic enrichment only)
+    // This is faster because we skip full cast/crew enrichment at this stage
     logger.info({ userId: user.id }, 'Fetching candidates from sources...')
-    const rawCandidates = await fetchAllCandidates(user.id, mediaType, config)
+    const rawCandidates = await fetchAllCandidates(user.id, mediaType, config, { skipEnrichment: true })
     
     await updateDiscoveryRunStats(runId, { candidatesFetched: rawCandidates.length })
     
@@ -84,15 +87,64 @@ export async function generateDiscoveryForUser(
       }
     }
 
-    // Step 3: Score and rank candidates
+    // Step 3: Score and rank candidates (quick scoring without full metadata)
     logger.info({ userId: user.id }, 'Scoring candidates...')
-    const scoredCandidates = await scoreCandidates(user.id, mediaType, filteredCandidates, config)
+    const allScoredCandidates = await scoreCandidates(user.id, mediaType, filteredCandidates, config)
     
-    await updateDiscoveryRunStats(runId, { candidatesScored: scoredCandidates.length })
+    // Step 4: Limit to maxTotalCandidates for storage
+    const maxTotal = config.maxTotalCandidates || 200
+    const candidatesToStore = allScoredCandidates.slice(0, maxTotal)
+    
+    await updateDiscoveryRunStats(runId, { candidatesScored: candidatesToStore.length })
 
-    // Step 4: Store results
+    // Step 5: Lazy enrichment - only enrich top candidates with full metadata
+    // This saves 60-80% of API calls compared to enriching all candidates
+    const maxEnriched = config.maxEnrichedCandidates || 75
+    const candidatesToEnrich = candidatesToStore.slice(0, maxEnriched)
+    const candidatesToSkipEnrichment = candidatesToStore.slice(maxEnriched)
+    
+    logger.info({ 
+      userId: user.id, 
+      toEnrich: candidatesToEnrich.length,
+      toSkip: candidatesToSkipEnrichment.length 
+    }, 'Enriching top candidates with full metadata...')
+    
+    // Enrich top candidates with full metadata (cast, crew, runtime, tagline)
+    // enrichFullData returns RawCandidate[], so we need to merge back with scored data
+    const enrichedRawCandidates = await enrichFullData(candidatesToEnrich, mediaType)
+    
+    // Create a map of enriched data by tmdbId
+    const enrichedMap = new Map(enrichedRawCandidates.map(c => [c.tmdbId, c]))
+    
+    // Mark enriched vs non-enriched candidates, preserving scoring data
+    const finalCandidates: ScoredCandidate[] = [
+      // For enriched candidates, merge the raw enriched data with the scoring data
+      ...candidatesToEnrich.map(scored => {
+        const enriched = enrichedMap.get(scored.tmdbId)
+        return {
+          ...scored,
+          // Merge enriched data (cast, crew, runtime, tagline, etc.)
+          castMembers: enriched?.castMembers ?? scored.castMembers,
+          directors: enriched?.directors ?? scored.directors,
+          runtimeMinutes: enriched?.runtimeMinutes ?? scored.runtimeMinutes,
+          tagline: enriched?.tagline ?? scored.tagline,
+          imdbId: enriched?.imdbId ?? scored.imdbId,
+          posterPath: enriched?.posterPath ?? scored.posterPath,
+          backdropPath: enriched?.backdropPath ?? scored.backdropPath,
+          overview: enriched?.overview ?? scored.overview,
+          originalLanguage: enriched?.originalLanguage ?? scored.originalLanguage,
+          isEnriched: true,
+        }
+      }),
+      ...candidatesToSkipEnrichment.map(c => ({ ...c, isEnriched: false })),
+    ]
+    
+    // Re-sort by score after enrichment (scores shouldn't change, but ensure order)
+    finalCandidates.sort((a, b) => b.finalScore - a.finalScore)
+
+    // Step 6: Store results
     logger.info({ userId: user.id }, 'Storing candidates...')
-    const storedCount = await storeDiscoveryCandidates(runId, user.id, scoredCandidates, mediaType)
+    const storedCount = await storeDiscoveryCandidates(runId, user.id, finalCandidates, mediaType)
     
     await updateDiscoveryRunStats(runId, { candidatesStored: storedCount })
 
@@ -106,17 +158,18 @@ export async function generateDiscoveryForUser(
       mediaType,
       candidatesFetched: rawCandidates.length,
       candidatesFiltered: filteredCandidates.length,
-      candidatesScored: scoredCandidates.length,
+      candidatesScored: candidatesToStore.length,
+      candidatesEnriched: candidatesToEnrich.length,
       candidatesStored: storedCount,
       durationMs,
     }, 'Discovery generation complete')
 
     return {
       runId,
-      candidates: scoredCandidates,
+      candidates: finalCandidates,
       candidatesFetched: rawCandidates.length,
       candidatesFiltered: filteredCandidates.length,
-      candidatesScored: scoredCandidates.length,
+      candidatesScored: candidatesToStore.length,
       candidatesStored: storedCount,
       durationMs,
     }

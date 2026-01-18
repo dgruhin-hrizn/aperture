@@ -19,7 +19,10 @@ export {
 // Sources
 export {
   fetchAllCandidates,
+  fetchFilteredCandidates,
+  enrichFullData,
   hasDiscoverySources,
+  type DynamicFetchFilters,
 } from './sources.js'
 
 // Filter

@@ -691,12 +691,14 @@ async function enrichMissingData(
 }
 
 /**
- * Fetch all candidates from enabled sources
+ * Fetch all candidates from enabled sources (without full enrichment)
+ * Returns candidates with basic data - enrichment should be done separately after scoring
  */
 export async function fetchAllCandidates(
   userId: string,
   mediaType: MediaType,
-  config: DiscoveryConfig
+  config: DiscoveryConfig,
+  options: { skipEnrichment?: boolean } = {}
 ): Promise<RawCandidate[]> {
   logger.info({ userId, mediaType }, 'Fetching candidates from all sources')
 
@@ -740,11 +742,110 @@ export async function fetchAllCandidates(
     total: allCandidates.length,
   }, 'Fetched candidates from all sources')
 
-  // Enrich candidates missing poster paths or IMDb IDs (e.g., from Trakt)
+  // If skipping enrichment (for faster pipeline), return raw candidates
+  // Enrichment will be done later for only top candidates
+  if (options.skipEnrichment) {
+    // Still do basic enrichment for Trakt candidates that lack poster/language
+    const basicEnriched = await enrichBasicData(allCandidates, mediaType)
+    return basicEnriched
+  }
+
+  // Full enrichment (legacy behavior)
   const enrichedCandidates = await enrichMissingData(allCandidates, mediaType)
 
   return enrichedCandidates
 }
+
+/**
+ * Basic enrichment - only fetch essential display data (poster, language)
+ * This is fast since we can skip cast/crew/runtime which require additional API calls
+ */
+async function enrichBasicData(
+  candidates: RawCandidate[],
+  mediaType: MediaType
+): Promise<RawCandidate[]> {
+  // Only enrich candidates missing poster or language (typically from Trakt)
+  const needsBasicEnrichment = candidates.filter(c => 
+    !c.posterPath || !c.originalLanguage
+  )
+  
+  if (needsBasicEnrichment.length === 0) {
+    return candidates
+  }
+
+  logger.info({ mediaType, count: needsBasicEnrichment.length }, 'Basic enriching candidates (poster/language only)')
+
+  // Create a map for quick lookup
+  const enrichmentMap = new Map<number, { posterPath?: string; backdropPath?: string; originalLanguage?: string; overview?: string }>()
+
+  // Batch fetch with higher concurrency since we're only fetching details (no credits)
+  const batchSize = 10
+  for (let i = 0; i < needsBasicEnrichment.length; i += batchSize) {
+    const batch = needsBasicEnrichment.slice(i, i + batchSize)
+    
+    const results = await Promise.all(
+      batch.map(async (candidate) => {
+        try {
+          if (mediaType === 'movie') {
+            const details = await getMovieDetails(candidate.tmdbId)
+            if (details) {
+              return {
+                tmdbId: candidate.tmdbId,
+                posterPath: details.poster_path,
+                backdropPath: details.backdrop_path,
+                originalLanguage: details.original_language,
+                overview: details.overview,
+              }
+            }
+          } else {
+            const details = await getTVDetails(candidate.tmdbId)
+            if (details) {
+              return {
+                tmdbId: candidate.tmdbId,
+                posterPath: details.poster_path,
+                backdropPath: details.backdrop_path,
+                originalLanguage: details.original_language,
+                overview: details.overview,
+              }
+            }
+          }
+          return null
+        } catch (err) {
+          logger.debug({ tmdbId: candidate.tmdbId, err }, 'Failed to basic enrich candidate')
+          return null
+        }
+      })
+    )
+
+    for (const result of results) {
+      if (result) {
+        enrichmentMap.set(result.tmdbId, result)
+      }
+    }
+  }
+
+  // Apply enrichment to candidates
+  return candidates.map(candidate => {
+    const enriched = enrichmentMap.get(candidate.tmdbId)
+    if (enriched) {
+      return {
+        ...candidate,
+        posterPath: candidate.posterPath || enriched.posterPath || null,
+        backdropPath: candidate.backdropPath || enriched.backdropPath || null,
+        originalLanguage: candidate.originalLanguage || enriched.originalLanguage || null,
+        overview: candidate.overview || enriched.overview || null,
+      }
+    }
+    return candidate
+  })
+}
+
+/**
+ * Full enrichment for top candidates - adds cast, crew, runtime, tagline
+ * This is slow but provides rich metadata for display
+ * Export for use in pipeline after scoring
+ */
+export { enrichMissingData as enrichFullData }
 
 /**
  * Check if any discovery sources are available
@@ -756,3 +857,127 @@ export async function hasDiscoverySources(): Promise<boolean> {
   return true
 }
 
+/**
+ * Filter options for dynamic fetching
+ */
+export interface DynamicFetchFilters {
+  languages?: string[]
+  genreIds?: number[]
+  yearStart?: number
+  yearEnd?: number
+  excludeTmdbIds?: number[]
+  limit?: number
+}
+
+/**
+ * Fetch additional candidates dynamically based on filter criteria
+ * Used when the stored pool doesn't have enough results after filtering
+ */
+export async function fetchFilteredCandidates(
+  mediaType: MediaType,
+  filters: DynamicFetchFilters
+): Promise<RawCandidate[]> {
+  const candidates: RawCandidate[] = []
+  const limit = filters.limit || 50
+  const excludeSet = new Set(filters.excludeTmdbIds || [])
+
+  logger.info({ mediaType, filters }, 'Fetching filtered candidates dynamically')
+
+  try {
+    // For single language, use TMDb's language filter
+    // For multiple languages, we'll need to make multiple requests
+    const languagesToFetch = filters.languages?.length ? filters.languages : [undefined]
+    
+    for (const language of languagesToFetch) {
+      if (candidates.length >= limit) break
+
+      if (mediaType === 'movie') {
+        const result = await discoverMovies({
+          sortBy: 'popularity.desc',
+          withGenres: filters.genreIds,
+          withOriginalLanguage: language,
+          releaseDateGte: filters.yearStart ? `${filters.yearStart}-01-01` : undefined,
+          releaseDateLte: filters.yearEnd ? `${filters.yearEnd}-12-31` : undefined,
+          minVoteCount: 20,
+          minVoteAverage: 5.0,
+          page: 1,
+        })
+
+        if (result?.results) {
+          for (const movie of result.results) {
+            if (excludeSet.has(movie.id)) continue
+            if (candidates.length >= limit) break
+            
+            const normalized = normalizeMovieResult(movie)
+            candidates.push({
+              tmdbId: normalized.tmdbId,
+              imdbId: null,
+              title: normalized.title,
+              originalTitle: normalized.originalTitle,
+              originalLanguage: normalized.originalLanguage,
+              overview: movie.overview,
+              releaseYear: normalized.releaseYear,
+              posterPath: normalized.posterPath,
+              backdropPath: normalized.backdropPath,
+              genres: normalized.genres.map(id => ({ id, name: '' })),
+              voteAverage: normalized.voteAverage,
+              voteCount: normalized.voteCount,
+              popularity: normalized.popularity,
+              source: 'tmdb_discover' as DiscoverySource,
+            })
+          }
+        }
+      } else {
+        const result = await discoverTV({
+          sortBy: 'popularity.desc',
+          withGenres: filters.genreIds,
+          withOriginalLanguage: language,
+          firstAirDateGte: filters.yearStart ? `${filters.yearStart}-01-01` : undefined,
+          firstAirDateLte: filters.yearEnd ? `${filters.yearEnd}-12-31` : undefined,
+          minVoteCount: 20,
+          minVoteAverage: 5.0,
+          page: 1,
+        })
+
+        if (result?.results) {
+          for (const tv of result.results) {
+            if (excludeSet.has(tv.id)) continue
+            if (candidates.length >= limit) break
+            
+            const normalized = normalizeTVResult(tv)
+            candidates.push({
+              tmdbId: normalized.tmdbId,
+              imdbId: null,
+              title: normalized.title,
+              originalTitle: normalized.originalTitle,
+              originalLanguage: normalized.originalLanguage,
+              overview: tv.overview,
+              releaseYear: normalized.releaseYear,
+              posterPath: normalized.posterPath,
+              backdropPath: normalized.backdropPath,
+              genres: normalized.genres.map(id => ({ id, name: '' })),
+              voteAverage: normalized.voteAverage,
+              voteCount: normalized.voteCount,
+              popularity: normalized.popularity,
+              source: 'tmdb_discover' as DiscoverySource,
+            })
+          }
+        }
+      }
+    }
+
+    // Basic enrichment for display (poster, language)
+    const enriched = await enrichBasicData(candidates, mediaType)
+
+    logger.info({ 
+      mediaType, 
+      count: enriched.length,
+      filters 
+    }, 'Fetched filtered candidates')
+
+    return enriched
+  } catch (err) {
+    logger.error({ err, mediaType, filters }, 'Failed to fetch filtered candidates')
+    return []
+  }
+}

@@ -13,7 +13,13 @@ import {
   getLatestDiscoveryRun,
   regenerateUserDiscovery,
   isJellyseerrConfigured,
+  fetchFilteredCandidates,
+  scoreCandidates,
+  filterCandidates,
+  DEFAULT_DISCOVERY_CONFIG,
   type DiscoveryFilterOptions,
+  type DynamicFetchFilters,
+  type MediaType,
 } from '@aperture/core'
 
 // Helper to parse filter query params
@@ -259,6 +265,132 @@ const discoveryRoutes: FastifyPluginAsync = async (fastify) => {
         const error = err instanceof Error ? err.message : 'Unknown error'
         fastify.log.error({ err, userId: currentUser.id }, 'Failed to regenerate series discovery')
         return reply.status(500).send({ error: `Failed to regenerate: ${error}` })
+      }
+    }
+  )
+
+  /**
+   * POST /api/discovery/:mediaType/expand
+   * Dynamically fetch additional candidates when filters reduce results below target
+   * This fetches from TMDb with the same filter criteria to fill the pool
+   */
+  fastify.post<{
+    Params: { mediaType: string }
+    Body: {
+      languages?: string[]
+      genreIds?: number[]
+      yearStart?: number
+      yearEnd?: number
+      excludeTmdbIds?: number[]
+      targetCount?: number
+    }
+  }>(
+    '/api/discovery/:mediaType/expand',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const currentUser = request.user as SessionUser
+      const { mediaType } = request.params
+      const { languages, genreIds, yearStart, yearEnd, excludeTmdbIds, targetCount } = request.body
+
+      // Validate media type
+      if (mediaType !== 'movies' && mediaType !== 'series') {
+        return reply.status(400).send({ error: 'Invalid media type' })
+      }
+
+      // Convert route mediaType to core MediaType
+      const coreMediaType: MediaType = mediaType === 'movies' ? 'movie' : 'series'
+
+      // Check if user has discovery enabled
+      const userSettings = await queryOne<{ discover_enabled: boolean }>(
+        `SELECT discover_enabled FROM users WHERE id = $1`,
+        [currentUser.id]
+      )
+
+      if (!userSettings?.discover_enabled) {
+        return reply.status(403).send({ error: 'Discovery not enabled for your account' })
+      }
+
+      try {
+        // Build filter options for dynamic fetching
+        const filters: DynamicFetchFilters = {
+          languages,
+          genreIds,
+          yearStart,
+          yearEnd,
+          excludeTmdbIds: excludeTmdbIds || [],
+          limit: targetCount || DEFAULT_DISCOVERY_CONFIG.targetDisplayCount,
+        }
+
+        // Fetch filtered candidates from TMDb
+        const rawCandidates = await fetchFilteredCandidates(coreMediaType, filters)
+
+        if (rawCandidates.length === 0) {
+          return reply.send({
+            candidates: [],
+            message: 'No additional candidates found matching filters',
+          })
+        }
+
+        // Filter out library and watched content
+        const filteredCandidates = await filterCandidates(currentUser.id, coreMediaType, rawCandidates)
+
+        if (filteredCandidates.length === 0) {
+          return reply.send({
+            candidates: [],
+            message: 'All found candidates are already in library or watched',
+          })
+        }
+
+        // Score the candidates (quick scoring without embeddings)
+        const scoredCandidates = await scoreCandidates(
+          currentUser.id,
+          coreMediaType,
+          filteredCandidates,
+          DEFAULT_DISCOVERY_CONFIG
+        )
+
+        // Return the scored candidates (frontend will merge with existing)
+        return reply.send({
+          candidates: scoredCandidates.map((c, index) => ({
+            id: `dynamic-${c.tmdbId}`,
+            runId: null,
+            userId: currentUser.id,
+            mediaType: coreMediaType,
+            tmdbId: c.tmdbId,
+            imdbId: c.imdbId,
+            rank: index + 1,
+            finalScore: c.finalScore,
+            similarityScore: c.similarityScore,
+            popularityScore: c.popularityScore,
+            recencyScore: c.recencyScore,
+            sourceScore: c.sourceScore,
+            source: c.source,
+            sourceMediaId: c.sourceMediaId ?? null,
+            title: c.title,
+            originalTitle: c.originalTitle,
+            originalLanguage: c.originalLanguage,
+            releaseYear: c.releaseYear,
+            posterPath: c.posterPath,
+            backdropPath: c.backdropPath,
+            overview: c.overview,
+            genres: c.genres,
+            voteAverage: c.voteAverage,
+            voteCount: c.voteCount,
+            scoreBreakdown: c.scoreBreakdown,
+            castMembers: c.castMembers || [],
+            directors: c.directors || [],
+            runtimeMinutes: c.runtimeMinutes ?? null,
+            tagline: c.tagline ?? null,
+            isEnriched: false,
+            isDynamic: true, // Flag to indicate dynamically fetched
+            createdAt: new Date(),
+          })),
+          count: scoredCandidates.length,
+        })
+      } catch (err) {
+        const error = err instanceof Error ? err.message : 'Unknown error'
+        fastify.log.error({ err, userId: currentUser.id, mediaType }, 'Failed to expand discovery')
+        return reply.status(500).send({ error: `Failed to expand: ${error}` })
       }
     }
   )

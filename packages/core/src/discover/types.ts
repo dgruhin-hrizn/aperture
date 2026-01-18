@@ -58,11 +58,13 @@ export interface DiscoveryCandidate {
   voteAverage: number | null
   voteCount: number | null
   scoreBreakdown: Record<string, number>
-  // Cast/crew metadata for detail popper
+  // Cast/crew metadata for detail popper (only for enriched candidates)
   castMembers: CastMember[]
   directors: string[]
   runtimeMinutes: number | null
   tagline: string | null
+  // Whether this candidate has been fully enriched with metadata
+  isEnriched: boolean
   createdAt: Date
 }
 
@@ -110,8 +112,13 @@ export interface DiscoveryUser {
 export interface DiscoveryConfig {
   // How many candidates to fetch from each source
   maxCandidatesPerSource: number
-  // How many final suggestions to store per user
-  maxSuggestionsPerUser: number
+  // Maximum total candidates to store (before filtering)
+  maxTotalCandidates: number
+  // How many candidates to enrich with full metadata (cast, directors, etc.)
+  // Only the top N scored candidates get enriched to save API calls
+  maxEnrichedCandidates: number
+  // Target number of results to display after filtering
+  targetDisplayCount: number
   // Minimum vote count for TMDb discover
   minVoteCount: number
   // Minimum vote average for TMDb discover
@@ -125,8 +132,10 @@ export interface DiscoveryConfig {
 }
 
 export const DEFAULT_DISCOVERY_CONFIG: DiscoveryConfig = {
-  maxCandidatesPerSource: 100,
-  maxSuggestionsPerUser: 50,
+  maxCandidatesPerSource: 50,
+  maxTotalCandidates: 200,
+  maxEnrichedCandidates: 75,
+  targetDisplayCount: 50,
   minVoteCount: 50,
   minVoteAverage: 5.0,
   similarityWeight: 0.5,
@@ -165,6 +174,8 @@ export interface ScoredCandidate extends RawCandidate {
   recencyScore: number
   sourceScore: number
   scoreBreakdown: Record<string, number>
+  // Whether this candidate has been fully enriched with metadata
+  isEnriched: boolean
 }
 
 export interface DiscoveryPipelineResult {
