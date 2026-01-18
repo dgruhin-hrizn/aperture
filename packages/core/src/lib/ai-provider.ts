@@ -520,7 +520,7 @@ export async function getActiveEmbeddingModelId(): Promise<string | null> {
  * Valid embedding dimensions supported by the system.
  * Each dimension has a corresponding table (e.g., embeddings_768, embeddings_3072)
  */
-export const VALID_EMBEDDING_DIMENSIONS = [256, 384, 512, 768, 1024, 1536, 3072] as const
+export const VALID_EMBEDDING_DIMENSIONS = [256, 384, 512, 768, 1024, 1536, 3072, 4096] as const
 
 export type ValidEmbeddingDimension = (typeof VALID_EMBEDDING_DIMENSIONS)[number]
 
@@ -704,6 +704,7 @@ export interface CustomModel {
   provider: 'ollama' | 'openai-compatible' | 'openrouter'
   functionType: AIFunction
   modelId: string
+  embeddingDimensions?: number  // Only for embeddings function
   createdAt: Date
 }
 
@@ -726,9 +727,10 @@ export async function getCustomModels(
     provider: 'ollama' | 'openai-compatible' | 'openrouter'
     function_type: string
     model_id: string
+    embedding_dimensions: number | null
     created_at: Date
   }>(
-    `SELECT id, provider, function_type, model_id, created_at 
+    `SELECT id, provider, function_type, model_id, embedding_dimensions, created_at 
      FROM custom_ai_models 
      WHERE provider = $1 AND function_type = $2
      ORDER BY model_id`,
@@ -740,6 +742,7 @@ export async function getCustomModels(
     provider: row.provider,
     functionType: row.function_type as AIFunction,
     modelId: row.model_id,
+    embeddingDimensions: row.embedding_dimensions ?? undefined,
     createdAt: row.created_at,
   }))
 }
@@ -750,7 +753,8 @@ export async function getCustomModels(
 export async function addCustomModel(
   providerId: 'ollama' | 'openai-compatible' | 'openrouter',
   fn: AIFunction,
-  modelId: string
+  modelId: string,
+  embeddingDimensions?: number
 ): Promise<CustomModel> {
   const { queryOne } = await import('./db.js')
   
@@ -759,26 +763,30 @@ export async function addCustomModel(
     provider: 'ollama' | 'openai-compatible' | 'openrouter'
     function_type: string
     model_id: string
+    embedding_dimensions: number | null
     created_at: Date
   }>(
-    `INSERT INTO custom_ai_models (provider, function_type, model_id)
-     VALUES ($1, $2, $3)
-     ON CONFLICT (provider, function_type, model_id) DO UPDATE SET model_id = EXCLUDED.model_id
-     RETURNING id, provider, function_type, model_id, created_at`,
-    [providerId, fn, modelId]
+    `INSERT INTO custom_ai_models (provider, function_type, model_id, embedding_dimensions)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (provider, function_type, model_id) DO UPDATE SET 
+       model_id = EXCLUDED.model_id,
+       embedding_dimensions = EXCLUDED.embedding_dimensions
+     RETURNING id, provider, function_type, model_id, embedding_dimensions, created_at`,
+    [providerId, fn, modelId, embeddingDimensions ?? null]
   )
 
   if (!result) {
     throw new Error('Failed to add custom model')
   }
 
-  logger.info({ provider: providerId, function: fn, model: modelId }, 'Added custom AI model')
+  logger.info({ provider: providerId, function: fn, model: modelId, embeddingDimensions }, 'Added custom AI model')
 
   return {
     id: result.id,
     provider: result.provider,
     functionType: result.function_type as AIFunction,
     modelId: result.model_id,
+    embeddingDimensions: result.embedding_dimensions ?? undefined,
     createdAt: result.created_at,
   }
 }
@@ -833,6 +841,8 @@ export async function getModelsForFunctionWithCustom(
     },
     quality: 'standard' as const,
     costTier: 'free' as const,
+    // Include embedding dimensions for custom embedding models
+    embeddingDimensions: cm.embeddingDimensions,
     // Mark as custom for UI
     isCustom: true,
   }))
