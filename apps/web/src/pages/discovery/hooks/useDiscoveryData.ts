@@ -10,6 +10,11 @@ function buildFilterQueryString(filters: DiscoveryFilterOptions): string {
   
   if (filters.languages && filters.languages.length > 0) {
     params.set('languages', filters.languages.join(','))
+    // Include unknown language setting (only relevant when filtering by language)
+    // Default is true, so only pass when explicitly set to false
+    if (filters.includeUnknownLanguage === false) {
+      params.set('includeUnknownLanguage', 'false')
+    }
   }
   if (filters.genreIds && filters.genreIds.length > 0) {
     params.set('genres', filters.genreIds.join(','))

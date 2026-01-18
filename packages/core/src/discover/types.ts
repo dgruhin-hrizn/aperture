@@ -185,6 +185,8 @@ export interface DiscoveryFilterOptions {
   offset?: number
   // Filter by original language (ISO 639-1 codes, e.g., 'en', 'ko', 'ja')
   languages?: string[]
+  // Include content with unknown/NULL language when filtering (default: true)
+  includeUnknownLanguage?: boolean
   // Filter by genre IDs
   genreIds?: number[]
   // Filter by year range

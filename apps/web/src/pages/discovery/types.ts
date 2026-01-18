@@ -93,6 +93,8 @@ export interface DiscoveryRequest {
 
 export interface DiscoveryFilterOptions {
   languages?: string[]
+  // Include content with unknown/NULL language when filtering (default: true)
+  includeUnknownLanguage?: boolean
   genreIds?: number[]
   yearStart?: number
   yearEnd?: number

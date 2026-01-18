@@ -250,7 +250,13 @@ export async function getDiscoveryCandidates(
 
   // Language filter
   if (options.languages && options.languages.length > 0) {
-    conditions.push(`dc.original_language = ANY($${paramIndex}::text[])`)
+    // Default to including unknown language content when filtering
+    const includeUnknown = options.includeUnknownLanguage !== false
+    if (includeUnknown) {
+      conditions.push(`(dc.original_language = ANY($${paramIndex}::text[]) OR dc.original_language IS NULL)`)
+    } else {
+      conditions.push(`dc.original_language = ANY($${paramIndex}::text[])`)
+    }
     params.push(options.languages)
     paramIndex++
   }
@@ -384,7 +390,13 @@ export async function getDiscoveryCandidateCount(
 
   // Language filter
   if (options.languages && options.languages.length > 0) {
-    conditions.push(`dc.original_language = ANY($${paramIndex}::text[])`)
+    // Default to including unknown language content when filtering
+    const includeUnknown = options.includeUnknownLanguage !== false
+    if (includeUnknown) {
+      conditions.push(`(dc.original_language = ANY($${paramIndex}::text[]) OR dc.original_language IS NULL)`)
+    } else {
+      conditions.push(`dc.original_language = ANY($${paramIndex}::text[])`)
+    }
     params.push(options.languages)
     paramIndex++
   }

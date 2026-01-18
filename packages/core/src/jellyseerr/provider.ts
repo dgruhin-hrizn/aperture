@@ -268,8 +268,24 @@ export async function createRequest(
     is4k: options.is4k,
   }
 
-  if (mediaType === 'tv' && options.seasons) {
-    body.seasons = options.seasons
+  // For TV shows, Jellyseerr requires the seasons array
+  // If not provided, fetch the show details and request all seasons
+  if (mediaType === 'tv') {
+    if (options.seasons && options.seasons.length > 0) {
+      body.seasons = options.seasons
+    } else {
+      // Fetch TV details to get the number of seasons
+      const tvDetails = await getTVDetails(tmdbId)
+      if (tvDetails && tvDetails.numberOfSeasons && tvDetails.numberOfSeasons > 0) {
+        // Request all seasons (1 through numberOfSeasons)
+        body.seasons = Array.from({ length: tvDetails.numberOfSeasons }, (_, i) => i + 1)
+        logger.info({ tmdbId, seasons: body.seasons }, 'Requesting all seasons for TV show')
+      } else {
+        // Fallback: request season 1 if we can't determine the number of seasons
+        body.seasons = [1]
+        logger.warn({ tmdbId }, 'Could not determine number of seasons, requesting season 1 only')
+      }
+    }
   }
 
   const result = await jellyseerrRequest<JellyseerrRequestResponse>('/request', {
