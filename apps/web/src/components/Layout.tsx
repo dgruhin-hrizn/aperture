@@ -290,7 +290,7 @@ export function Layout() {
         }}
       >
         <Tooltip
-          title={collapsed ? 'Expand sidebar (v0.5.3)' : 'Collapse sidebar'}
+          title={collapsed ? 'Expand sidebar (v0.5.4)' : 'Collapse sidebar'}
           placement="right"
         >
           <IconButton
@@ -315,7 +315,7 @@ export function Layout() {
               fontSize: '0.7rem',
             }}
           >
-            v0.5.3
+            v0.5.4
           </Typography>
         )}
       </Box>
