@@ -18,6 +18,7 @@ declare module 'fastify' {
   interface FastifyRequest {
     user?: SessionUser
     sessionId?: string
+    sessionError?: boolean
   }
 }
 
@@ -110,13 +111,25 @@ async function getSessionUser(sessionId: string): Promise<SessionUser | null> {
 }
 
 const authPlugin: FastifyPluginAsync = async (fastify) => {
+  // Track if session validation failed (for error messaging)
+  fastify.decorateRequest('sessionError', false)
+
   // Add hook to parse session from cookie
   fastify.addHook('onRequest', async (request) => {
     const sessionId = request.cookies[SESSION_COOKIE_NAME]
 
     if (sessionId) {
       request.sessionId = sessionId
-      request.user = (await getSessionUser(sessionId)) || undefined
+      try {
+        request.user = (await getSessionUser(sessionId)) || undefined
+      } catch (err) {
+        // Log error but don't crash the request - this allows static files to load
+        // even if there's a database issue. Protected routes will still fail properly
+        // via requireAuth middleware.
+        fastify.log.warn({ err, sessionId: sessionId.substring(0, 8) + '...' }, 'Failed to get session user')
+        request.user = undefined
+        request.sessionError = true
+      }
     }
   })
 }
