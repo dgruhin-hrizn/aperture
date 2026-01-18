@@ -39,7 +39,7 @@ import {
 } from '@mui/icons-material'
 
 export type AIFunction = 'embeddings' | 'chat' | 'textGeneration' | 'exploration'
-export type ProviderType = 'openai' | 'anthropic' | 'ollama' | 'groq' | 'google' | 'openai-compatible' | 'deepseek' | 'openrouter'
+export type ProviderType = 'openai' | 'anthropic' | 'ollama' | 'groq' | 'google' | 'openai-compatible' | 'deepseek' | 'openrouter' | 'huggingface'
 
 export interface ModelInfo {
   id: string
@@ -145,6 +145,15 @@ export const PROVIDER_INFO: Record<ProviderType, ProviderInfo> = {
     website: 'https://openrouter.ai/keys',
     logoPath: '/openrouter.svg',
   },
+  huggingface: {
+    id: 'huggingface',
+    name: 'Hugging Face',
+    type: 'cloud',
+    requiresApiKey: true,
+    requiresBaseUrl: false,
+    website: 'https://huggingface.co/settings/tokens',
+    logoPath: '/huggingface.svg',
+  },
 }
 
 export interface AIFunctionCardProps {
@@ -191,10 +200,14 @@ export function AIFunctionCard({
   // Custom model dialog state
   const [addModelDialogOpen, setAddModelDialogOpen] = useState(false)
   const [newModelName, setNewModelName] = useState('')
+  const [newModelEmbeddingDimensions, setNewModelEmbeddingDimensions] = useState<number | ''>('')
   const [addingModel, setAddingModel] = useState(false)
   const [deletingModel, setDeletingModel] = useState<string | null>(null)
   const [dialogTesting, setDialogTesting] = useState(false)
   const [dialogTestResult, setDialogTestResult] = useState<{ success: boolean; error?: string } | null>(null)
+  
+  // Valid embedding dimensions
+  const VALID_EMBEDDING_DIMENSIONS = [256, 384, 512, 768, 1024, 1536, 3072, 4096]
   
   // Status
   const [saving, setSaving] = useState(false)
@@ -206,7 +219,7 @@ export function AIFunctionCard({
   const isConfigured = Boolean(config)
   const providerInfo = PROVIDER_INFO[provider]
   const selectedModel = models.find(m => m.id === model)
-  const supportsCustomModels = provider === 'ollama' || provider === 'openai-compatible' || provider === 'openrouter'
+  const supportsCustomModels = provider === 'ollama' || provider === 'openai-compatible' || provider === 'openrouter' || provider === 'huggingface'
 
   // Sync form state when config prop changes (e.g., loaded from DB)
   useEffect(() => {
@@ -391,6 +404,8 @@ export function AIFunctionCard({
   // Add custom model (only after successful test)
   const handleAddCustomModel = async () => {
     if (!newModelName.trim() || !dialogTestResult?.success) return
+    // For embeddings, require dimension selection
+    if (functionType === 'embeddings' && !newModelEmbeddingDimensions) return
     
     setAddingModel(true)
     setError(null)
@@ -403,6 +418,9 @@ export function AIFunctionCard({
           provider,
           function: functionType,
           modelId: newModelName.trim(),
+          ...(functionType === 'embeddings' && newModelEmbeddingDimensions && {
+            embeddingDimensions: newModelEmbeddingDimensions,
+          }),
         }),
       })
       
@@ -416,6 +434,7 @@ export function AIFunctionCard({
       setModel(newModelName.trim())
       setAddModelDialogOpen(false)
       setNewModelName('')
+      setNewModelEmbeddingDimensions('')
       setDialogTestResult(null)
       setSuccess(`Custom model "${newModelName.trim()}" added!`)
       setTimeout(() => setSuccess(null), 3000)
@@ -430,6 +449,7 @@ export function AIFunctionCard({
   const handleCloseDialog = () => {
     setAddModelDialogOpen(false)
     setNewModelName('')
+    setNewModelEmbeddingDimensions('')
     setDialogTestResult(null)
   }
 
@@ -888,9 +908,10 @@ export function AIFunctionCard({
         <DialogTitle>Add Custom Model</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Enter the exact model name as it appears on your {provider === 'ollama' ? 'Ollama server' : provider === 'openrouter' ? 'OpenRouter account' : 'OpenAI-compatible server'}.
+            Enter the exact model name as it appears on your {provider === 'ollama' ? 'Ollama server' : provider === 'openrouter' ? 'OpenRouter account' : provider === 'huggingface' ? 'Hugging Face Hub' : 'OpenAI-compatible server'}.
             {provider === 'ollama' && ' You can find model names at ollama.com/library.'}
             {provider === 'openrouter' && ' You can find model names at openrouter.ai/models (e.g., anthropic/claude-3.5-sonnet, openai/gpt-4o).'}
+            {provider === 'huggingface' && ' You can find model names at huggingface.co/models (e.g., meta-llama/Llama-3.3-70B-Instruct, deepseek-ai/DeepSeek-V3-0324).'}
           </Typography>
           <TextField
             autoFocus
@@ -903,10 +924,58 @@ export function AIFunctionCard({
             }}
             fullWidth
             size="small"
-            placeholder={provider === 'ollama' ? 'e.g., llama3.3:70b, mixtral:8x22b' : provider === 'openrouter' ? 'e.g., anthropic/claude-3.5-sonnet' : 'Enter model name'}
+            placeholder={provider === 'ollama' ? 'e.g., llama3.3:70b, mixtral:8x22b' : provider === 'openrouter' ? 'e.g., anthropic/claude-3.5-sonnet' : provider === 'huggingface' ? 'e.g., meta-llama/Llama-3.3-70B-Instruct' : 'Enter model name'}
             disabled={dialogTesting}
             sx={{ mb: 2 }}
           />
+          
+          {/* Embedding Dimensions Dropdown - only for embeddings function */}
+          {functionType === 'embeddings' && (
+            <>
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                  Vector Dimension Must Match Model Output
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1.5 }}>
+                  The embedding dimension you select <strong>must exactly match</strong> the number of dimensions your model outputs. 
+                  If these don't match, embedding generation will fail or produce incorrect results.
+                </Typography>
+                <Typography variant="body2" component="div">
+                  <strong>Common dimensions:</strong>
+                  <Box component="ul" sx={{ mt: 0.5, mb: 0, pl: 2 }}>
+                    <li>384 — granite-embedding-30m-english, all-MiniLM-L6-v2</li>
+                    <li>768 — nomic-embed-text, snowflake-arctic-embed-m, e5-base-v2</li>
+                    <li>1024 — mxbai-embed-large, snowflake-arctic-embed-l, voyage-multilingual-2</li>
+                    <li>1536 — OpenAI text-embedding-3-small, text-embedding-ada-002</li>
+                    <li>3072 — OpenAI text-embedding-3-large</li>
+                    <li>4096 — nv-embed-v2, larger custom models</li>
+                  </Box>
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic' }}>
+                  Check your model's documentation to find the correct dimension.
+                </Typography>
+              </Alert>
+              
+              <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                <InputLabel>Embedding Dimensions *</InputLabel>
+                <Select
+                  value={newModelEmbeddingDimensions}
+                  label="Embedding Dimensions *"
+                  onChange={(e) => setNewModelEmbeddingDimensions(e.target.value as number | '')}
+                  disabled={dialogTesting}
+                >
+                  <MenuItem value="" disabled>
+                    <em>Select dimensions</em>
+                  </MenuItem>
+                  {VALID_EMBEDDING_DIMENSIONS.map((dim) => (
+                    <MenuItem key={dim} value={dim}>
+                      {dim} dimensions
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </>
+          )}
           
           {/* Test Result */}
           {dialogTestResult && (
@@ -947,7 +1016,12 @@ export function AIFunctionCard({
           <Button 
             onClick={handleAddCustomModel}
             variant="contained"
-            disabled={!newModelName.trim() || !dialogTestResult?.success || addingModel}
+            disabled={
+              !newModelName.trim() || 
+              !dialogTestResult?.success || 
+              addingModel ||
+              (functionType === 'embeddings' && !newModelEmbeddingDimensions)
+            }
           >
             {addingModel ? <CircularProgress size={16} /> : 'Add Model'}
           </Button>

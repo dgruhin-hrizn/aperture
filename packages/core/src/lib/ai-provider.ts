@@ -13,6 +13,7 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createGroq } from '@ai-sdk/groq'
 import { createDeepSeek } from '@ai-sdk/deepseek'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
+import { createHuggingFace } from '@ai-sdk/huggingface'
 import type { LanguageModel, EmbeddingModel } from 'ai'
 import { getSystemSetting, setSystemSetting } from '../settings/systemSettings.js'
 import { createChildLogger } from './logger.js'
@@ -43,6 +44,7 @@ export type ProviderType =
   | 'google'
   | 'deepseek'
   | 'openrouter'
+  | 'huggingface'
 
 export interface ProviderConfig {
   provider: ProviderType
@@ -271,14 +273,20 @@ function createProviderInstance(providerConfig: ProviderConfig): unknown {
       })
       break
 
-    case 'openrouter':
-      instance = createOpenRouter({
-        apiKey: providerConfig.apiKey,
-      })
-      break
+      case 'openrouter':
+        instance = createOpenRouter({
+          apiKey: providerConfig.apiKey,
+        })
+        break
 
-    default:
-      throw new Error(`Unknown provider: ${providerConfig.provider}`)
+      case 'huggingface':
+        instance = createHuggingFace({
+          apiKey: providerConfig.apiKey,
+        })
+        break
+
+      default:
+        throw new Error(`Unknown provider: ${providerConfig.provider}`)
   }
 
   cachedProviders.set(cacheKey, instance)
@@ -319,6 +327,14 @@ export async function getEmbeddingModelInstance(): Promise<EmbeddingModel<string
       return (provider as any).textEmbeddingModel(modelId)
 
     case 'openai-compatible':
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (provider as any).textEmbeddingModel(modelId)
+
+    case 'openrouter':
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (provider as any).embedding(modelId)
+
+    case 'huggingface':
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return (provider as any).textEmbeddingModel(modelId)
 
@@ -520,7 +536,7 @@ export async function getActiveEmbeddingModelId(): Promise<string | null> {
  * Valid embedding dimensions supported by the system.
  * Each dimension has a corresponding table (e.g., embeddings_768, embeddings_3072)
  */
-export const VALID_EMBEDDING_DIMENSIONS = [256, 384, 512, 768, 1024, 1536, 3072] as const
+export const VALID_EMBEDDING_DIMENSIONS = [256, 384, 512, 768, 1024, 1536, 3072, 4096] as const
 
 export type ValidEmbeddingDimension = (typeof VALID_EMBEDDING_DIMENSIONS)[number]
 
@@ -701,9 +717,10 @@ export async function getOpenAIApiKeyLegacy(): Promise<string | null> {
  */
 export interface CustomModel {
   id: number
-  provider: 'ollama' | 'openai-compatible' | 'openrouter'
+  provider: 'ollama' | 'openai-compatible' | 'openrouter' | 'huggingface'
   functionType: AIFunction
   modelId: string
+  embeddingDimensions?: number  // Only for embeddings function
   createdAt: Date
 }
 
@@ -723,12 +740,13 @@ export async function getCustomModels(
   
   const result = await query<{
     id: number
-    provider: 'ollama' | 'openai-compatible' | 'openrouter'
+    provider: 'ollama' | 'openai-compatible' | 'openrouter' | 'huggingface'
     function_type: string
     model_id: string
+    embedding_dimensions: number | null
     created_at: Date
   }>(
-    `SELECT id, provider, function_type, model_id, created_at 
+    `SELECT id, provider, function_type, model_id, embedding_dimensions, created_at 
      FROM custom_ai_models 
      WHERE provider = $1 AND function_type = $2
      ORDER BY model_id`,
@@ -740,45 +758,51 @@ export async function getCustomModels(
     provider: row.provider,
     functionType: row.function_type as AIFunction,
     modelId: row.model_id,
+    embeddingDimensions: row.embedding_dimensions ?? undefined,
     createdAt: row.created_at,
   }))
 }
 
 /**
- * Add a custom model for Ollama, OpenAI-compatible, or OpenRouter provider
+ * Add a custom model for Ollama, OpenAI-compatible, OpenRouter, or HuggingFace provider
  */
 export async function addCustomModel(
-  providerId: 'ollama' | 'openai-compatible' | 'openrouter',
+  providerId: 'ollama' | 'openai-compatible' | 'openrouter' | 'huggingface',
   fn: AIFunction,
-  modelId: string
+  modelId: string,
+  embeddingDimensions?: number
 ): Promise<CustomModel> {
   const { queryOne } = await import('./db.js')
   
   const result = await queryOne<{
     id: number
-    provider: 'ollama' | 'openai-compatible' | 'openrouter'
+    provider: 'ollama' | 'openai-compatible' | 'openrouter' | 'huggingface'
     function_type: string
     model_id: string
+    embedding_dimensions: number | null
     created_at: Date
   }>(
-    `INSERT INTO custom_ai_models (provider, function_type, model_id)
-     VALUES ($1, $2, $3)
-     ON CONFLICT (provider, function_type, model_id) DO UPDATE SET model_id = EXCLUDED.model_id
-     RETURNING id, provider, function_type, model_id, created_at`,
-    [providerId, fn, modelId]
+    `INSERT INTO custom_ai_models (provider, function_type, model_id, embedding_dimensions)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (provider, function_type, model_id) DO UPDATE SET 
+       model_id = EXCLUDED.model_id,
+       embedding_dimensions = EXCLUDED.embedding_dimensions
+     RETURNING id, provider, function_type, model_id, embedding_dimensions, created_at`,
+    [providerId, fn, modelId, embeddingDimensions ?? null]
   )
 
   if (!result) {
     throw new Error('Failed to add custom model')
   }
 
-  logger.info({ provider: providerId, function: fn, model: modelId }, 'Added custom AI model')
+  logger.info({ provider: providerId, function: fn, model: modelId, embeddingDimensions }, 'Added custom AI model')
 
   return {
     id: result.id,
     provider: result.provider,
     functionType: result.function_type as AIFunction,
     modelId: result.model_id,
+    embeddingDimensions: result.embedding_dimensions ?? undefined,
     createdAt: result.created_at,
   }
 }
@@ -787,7 +811,7 @@ export async function addCustomModel(
  * Delete a custom model
  */
 export async function deleteCustomModel(
-  providerId: 'ollama' | 'openai-compatible' | 'openrouter',
+  providerId: 'ollama' | 'openai-compatible' | 'openrouter' | 'huggingface',
   fn: AIFunction,
   modelId: string
 ): Promise<boolean> {
@@ -833,6 +857,8 @@ export async function getModelsForFunctionWithCustom(
     },
     quality: 'standard' as const,
     costTier: 'free' as const,
+    // Include embedding dimensions for custom embedding models
+    embeddingDimensions: cm.embeddingDimensions,
     // Mark as custom for UI
     isCustom: true,
   }))

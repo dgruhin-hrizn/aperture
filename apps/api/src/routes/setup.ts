@@ -62,6 +62,7 @@ import {
   // Custom models
   addCustomModel,
   deleteCustomModel,
+  VALID_EMBEDDING_DIMENSIONS,
   type AIFunction,
   type ProviderType,
 } from '@aperture/core'
@@ -1423,29 +1424,42 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
 
   /**
    * POST /api/setup/ai/custom-models
-   * Add a custom model for Ollama or OpenAI-compatible provider
+   * Add a custom model for Ollama, OpenAI-compatible, or OpenRouter provider
    */
   fastify.post<{
-    Body: { provider: string; function: string; modelId: string }
+    Body: { provider: string; function: string; modelId: string; embeddingDimensions?: number }
   }>('/api/setup/ai/custom-models', async (request, reply) => {
     const { complete, isAdmin } = await requireSetupWritable(request)
     if (complete && !isAdmin) return reply.status(404).send({ error: 'Not Found' })
 
     try {
-      const { provider, function: fn, modelId } = request.body
+      const { provider, function: fn, modelId, embeddingDimensions } = request.body
 
       if (!provider || !fn || !modelId) {
         return reply.status(400).send({ error: 'provider, function, and modelId are required' })
       }
 
-      if (provider !== 'ollama' && provider !== 'openai-compatible' && provider !== 'openrouter') {
-        return reply.status(400).send({ error: 'Custom models are only supported for ollama, openai-compatible, and openrouter providers' })
+      if (provider !== 'ollama' && provider !== 'openai-compatible' && provider !== 'openrouter' && provider !== 'huggingface') {
+        return reply.status(400).send({ error: 'Custom models are only supported for ollama, openai-compatible, openrouter, and huggingface providers' })
+      }
+
+      // Validate embedding dimensions for embeddings function
+      if (fn === 'embeddings') {
+        if (!embeddingDimensions) {
+          return reply.status(400).send({ error: 'embeddingDimensions is required for embedding models' })
+        }
+        if (!VALID_EMBEDDING_DIMENSIONS.includes(embeddingDimensions as typeof VALID_EMBEDDING_DIMENSIONS[number])) {
+          return reply.status(400).send({ 
+            error: `Invalid embedding dimensions. Supported: ${VALID_EMBEDDING_DIMENSIONS.join(', ')}` 
+          })
+        }
       }
 
       const customModel = await addCustomModel(
-        provider as 'ollama' | 'openai-compatible' | 'openrouter',
+        provider as 'ollama' | 'openai-compatible' | 'openrouter' | 'huggingface',
         fn as AIFunction,
-        modelId
+        modelId,
+        fn === 'embeddings' ? embeddingDimensions : undefined
       )
 
       return reply.send({ success: true, model: customModel })
@@ -1472,12 +1486,12 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: 'provider, function, and modelId are required' })
       }
 
-      if (provider !== 'ollama' && provider !== 'openai-compatible' && provider !== 'openrouter') {
-        return reply.status(400).send({ error: 'Custom models are only supported for ollama, openai-compatible, and openrouter providers' })
+      if (provider !== 'ollama' && provider !== 'openai-compatible' && provider !== 'openrouter' && provider !== 'huggingface') {
+        return reply.status(400).send({ error: 'Custom models are only supported for ollama, openai-compatible, openrouter, and huggingface providers' })
       }
 
       const deleted = await deleteCustomModel(
-        provider as 'ollama' | 'openai-compatible' | 'openrouter',
+        provider as 'ollama' | 'openai-compatible' | 'openrouter' | 'huggingface',
         fn as AIFunction,
         modelId
       )

@@ -897,6 +897,24 @@ export const PROVIDERS: ProviderMetadata[] = [
     textGenerationModels: [],
     explorationModels: [],
   },
+
+  {
+    id: 'huggingface',
+    name: 'Hugging Face',
+    type: 'cloud',
+    website: 'https://huggingface.co',
+    logoPath: '/huggingface.svg',
+    supportsEmbeddings: true,
+    supportsChat: true,
+    supportsTextGeneration: true,
+    supportsExploration: true,
+    requiresApiKey: true,
+    requiresBaseUrl: false,
+    embeddingModels: [],      // Custom models only - user adds their own
+    chatModels: [],           // Custom models only - user adds their own
+    textGenerationModels: [],
+    explorationModels: [],
+  },
 ]
 
 // Populate textGenerationModels and explorationModels from chatModels (they're the same)
