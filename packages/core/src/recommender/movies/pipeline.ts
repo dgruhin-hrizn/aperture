@@ -515,7 +515,7 @@ export async function clearAndRebuildAllRecommendations(existingJobId?: string):
   jobId: string
 }> {
   const jobId = existingJobId || randomUUID()
-  createJobProgress(jobId, 'rebuild-movie-recommendations', 3)
+  createJobProgress(jobId, 'full-reset-movie-recommendations', 3)
 
   try {
     // Step 1: Count existing

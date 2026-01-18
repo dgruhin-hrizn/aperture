@@ -12,6 +12,7 @@ import {
   generateMissingSeriesEmbeddings,
   syncSeriesWatchHistoryForAllUsers,
   generateSeriesRecommendationsForAllUsers,
+  clearAndRebuildAllSeriesRecommendations,
   processSeriesStrmForAllUsers,
   // Top Picks
   refreshTopPicks,
@@ -71,6 +72,7 @@ interface JobInfo {
   lastRun: Date | null
   status: 'idle' | 'running' | 'failed'
   currentJobId?: string
+  manualOnly?: boolean
 }
 
 // Track active job IDs per job type
@@ -105,9 +107,10 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
     cron: process.env.RECS_CRON || '0 4 * * *',
   },
   {
-    name: 'rebuild-movie-recommendations',
-    description: 'Clear all movie recommendations and rebuild',
+    name: 'full-reset-movie-recommendations',
+    description: 'Deletes ALL movie recommendations, then rebuilds from scratch. Use after major algorithm or embedding model changes.',
     cron: null,
+    manualOnly: true,
   },
   {
     name: 'sync-movie-libraries',
@@ -134,6 +137,12 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
     name: 'generate-series-recommendations',
     description: 'Generate AI TV series recommendations for users',
     cron: process.env.RECS_CRON || '0 4 * * *',
+  },
+  {
+    name: 'full-reset-series-recommendations',
+    description: 'Deletes ALL series recommendations, then rebuilds from scratch. Use after major algorithm or embedding model changes.',
+    cron: null,
+    manualOnly: true,
   },
   {
     name: 'sync-series-libraries',
@@ -859,7 +868,7 @@ async function runJob(name: string, jobId: string): Promise<void> {
         )
         break
       }
-      case 'rebuild-movie-recommendations': {
+      case 'full-reset-movie-recommendations': {
         const result = await clearAndRebuildAllRecommendations(jobId)
         logger.info(
           {
@@ -869,7 +878,7 @@ async function runJob(name: string, jobId: string): Promise<void> {
             success: result.success,
             failed: result.failed,
           },
-          `✅ Movie recommendations rebuilt`
+          `✅ Movie recommendations fully reset`
         )
         break
       }
@@ -940,6 +949,20 @@ async function runJob(name: string, jobId: string): Promise<void> {
             failed: result.failed,
           },
           `✅ Series recommendations complete`
+        )
+        break
+      }
+      case 'full-reset-series-recommendations': {
+        const result = await clearAndRebuildAllSeriesRecommendations(jobId)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            cleared: result.cleared,
+            success: result.success,
+            failed: result.failed,
+          },
+          `✅ Series recommendations fully reset`
         )
         break
       }

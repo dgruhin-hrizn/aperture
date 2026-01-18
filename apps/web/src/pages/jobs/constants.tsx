@@ -28,7 +28,7 @@ export const MOVIE_JOB_CATEGORIES: JobCategory[] = [
     title: 'AI Processing',
     description: 'Machine learning tasks for movies',
     color: '#8b5cf6',
-    jobs: ['generate-movie-embeddings', 'generate-movie-recommendations', 'rebuild-movie-recommendations'],
+    jobs: ['generate-movie-embeddings', 'generate-movie-recommendations', 'full-reset-movie-recommendations'],
   },
   {
     title: 'Aperture Libraries',
@@ -50,7 +50,7 @@ export const SERIES_JOB_CATEGORIES: JobCategory[] = [
     title: 'AI Processing',
     description: 'Machine learning tasks for TV series',
     color: '#7c3aed',
-    jobs: ['generate-series-embeddings', 'generate-series-recommendations'],
+    jobs: ['generate-series-embeddings', 'generate-series-recommendations', 'full-reset-series-recommendations'],
   },
   {
     title: 'Aperture Libraries',
@@ -114,13 +114,14 @@ export const JOB_ICONS: Record<string, React.ReactNode> = {
   'generate-movie-embeddings': <PsychologyIcon />,
   'sync-movie-watch-history': <HistoryIcon />,
   'generate-movie-recommendations': <RecommendIcon />,
-  'rebuild-movie-recommendations': <AutorenewIcon />,
+  'full-reset-movie-recommendations': <AutorenewIcon />,
   'sync-movie-libraries': <FolderIcon />,
   // TV Series jobs
   'sync-series': <TvIcon />,
   'generate-series-embeddings': <PsychologyIcon />,
   'sync-series-watch-history': <HistoryIcon />,
   'generate-series-recommendations': <RecommendIcon />,
+  'full-reset-series-recommendations': <AutorenewIcon />,
   'sync-series-libraries': <FolderIcon />,
   // Global jobs
   'enrich-metadata': <AutoFixHighIcon />,
@@ -140,13 +141,14 @@ export const JOB_COLORS: Record<string, string> = {
   'generate-movie-embeddings': '#a855f7',
   'sync-movie-watch-history': '#f59e0b',
   'generate-movie-recommendations': '#22c55e',
-  'rebuild-movie-recommendations': '#8b5cf6',
+  'full-reset-movie-recommendations': '#8b5cf6',
   'sync-movie-libraries': '#6366f1',
   // TV Series jobs
   'sync-series': '#0891b2',
   'generate-series-embeddings': '#c026d3',
   'sync-series-watch-history': '#ea580c',
   'generate-series-recommendations': '#16a34a',
+  'full-reset-series-recommendations': '#7c3aed',
   'sync-series-libraries': '#4f46e5',
   // Global jobs
   'enrich-metadata': '#10b981',
@@ -164,6 +166,8 @@ export const JOB_COLORS: Record<string, string> = {
 const JOB_DISPLAY_NAMES: Record<string, string> = {
   'sync-movie-libraries': 'Build Aperture Movie Libraries',
   'sync-series-libraries': 'Build Aperture Series Libraries',
+  'full-reset-movie-recommendations': 'Full Reset Movie Recommendations',
+  'full-reset-series-recommendations': 'Full Reset Series Recommendations',
 }
 
 export function formatJobName(name: string): string {

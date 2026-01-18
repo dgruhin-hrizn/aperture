@@ -75,6 +75,7 @@ export interface Job {
   }
   schedule?: JobSchedule | null
   lastRun?: JobLastRun | null
+  manualOnly?: boolean
 }
 
 export interface JobCategory {

@@ -19,6 +19,7 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import type { ScheduleType, JobSchedule } from '../types'
 import { formatJobName } from '../constants'
 
@@ -27,6 +28,7 @@ interface JobConfigDialogProps {
   onClose: () => void
   jobName: string
   currentSchedule: JobSchedule | null | undefined
+  manualOnly?: boolean
   onSave: (schedule: {
     scheduleType: ScheduleType
     scheduleHour: number | null
@@ -67,6 +69,7 @@ export function JobConfigDialog({
   onClose,
   jobName,
   currentSchedule,
+  manualOnly = false,
   onSave,
 }: JobConfigDialogProps) {
   const [scheduleType, setScheduleType] = useState<ScheduleType>('daily')
@@ -117,6 +120,7 @@ export function JobConfigDialog({
   }
 
   const getPreviewText = (): string => {
+    if (manualOnly) return 'Manual only - this job cannot be scheduled'
     if (!isEnabled) return 'Job is disabled'
     
     switch (scheduleType) {
@@ -140,32 +144,51 @@ export function JobConfigDialog({
       </DialogTitle>
       <DialogContent>
         <Stack spacing={3} sx={{ mt: 1 }}>
+          {/* Manual-Only Warning */}
+          {manualOnly && (
+            <Alert 
+              severity="warning" 
+              icon={<WarningAmberIcon />}
+              sx={{ 
+                '& .MuiAlert-message': { width: '100%' }
+              }}
+            >
+              <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                Manual-Only Job
+              </Typography>
+              <Typography variant="body2">
+                This job deletes all existing data before rebuilding. It cannot be scheduled and must be run manually. Use only after major algorithm changes, embedding model changes, or if recommendations appear corrupted.
+              </Typography>
+            </Alert>
+          )}
+
           {/* Enable/Disable Toggle */}
           <FormControlLabel
+            disabled={manualOnly}
             control={
               <Switch
-                checked={isEnabled}
+                checked={manualOnly ? false : isEnabled}
                 onChange={(e) => setIsEnabled(e.target.checked)}
                 color="primary"
               />
             }
             label={
-              <Typography variant="body1" fontWeight={500}>
+              <Typography variant="body1" fontWeight={500} color={manualOnly ? 'text.disabled' : 'text.primary'}>
                 Enable automatic scheduling
               </Typography>
             }
           />
 
           {/* Schedule Type */}
-          <FormControl disabled={!isEnabled}>
+          <FormControl disabled={!isEnabled || manualOnly}>
             <FormLabel sx={{ mb: 1, fontWeight: 500 }}>Run Frequency</FormLabel>
             <RadioGroup
-              value={scheduleType}
+              value={manualOnly ? 'manual' : scheduleType}
               onChange={(e) => setScheduleType(e.target.value as ScheduleType)}
             >
-              <FormControlLabel value="daily" control={<Radio />} label="Daily" />
-              <FormControlLabel value="weekly" control={<Radio />} label="Weekly" />
-              <FormControlLabel value="interval" control={<Radio />} label="Every X hours" />
+              <FormControlLabel value="daily" control={<Radio />} label="Daily" disabled={manualOnly} />
+              <FormControlLabel value="weekly" control={<Radio />} label="Weekly" disabled={manualOnly} />
+              <FormControlLabel value="interval" control={<Radio />} label="Every X hours" disabled={manualOnly} />
               <FormControlLabel value="manual" control={<Radio />} label="Manual only" />
             </RadioGroup>
           </FormControl>

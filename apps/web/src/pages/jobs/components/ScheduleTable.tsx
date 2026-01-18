@@ -25,6 +25,7 @@ import HistoryIcon from '@mui/icons-material/History'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorIcon from '@mui/icons-material/Error'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
+import BlockIcon from '@mui/icons-material/Block'
 import { JOB_ICONS, JOB_COLORS, formatJobName } from '../constants'
 import type { Job, JobSchedule } from '../types'
 
@@ -396,6 +397,7 @@ export function ScheduleTable({
         <TableBody>
           {sortedJobs.map((job) => {
             const isManual = job.schedule?.type === 'manual'
+            const isManualOnly = job.manualOnly === true
             const isEnabled = job.schedule?.isEnabled ?? true
             const isRunning = job.status === 'running'
             
@@ -409,12 +411,18 @@ export function ScheduleTable({
               >
                 {/* Enabled Toggle */}
                 <TableCell>
-                  <Switch
-                    size="small"
-                    checked={isEnabled && !isManual}
-                    disabled={isManual}
-                    onChange={(e) => onToggleEnabled(job.name, e.target.checked)}
-                  />
+                  {isManualOnly ? (
+                    <Tooltip title="This job cannot be scheduled">
+                      <BlockIcon fontSize="small" sx={{ color: 'text.disabled', ml: 1 }} />
+                    </Tooltip>
+                  ) : (
+                    <Switch
+                      size="small"
+                      checked={isEnabled && !isManual}
+                      disabled={isManual}
+                      onChange={(e) => onToggleEnabled(job.name, e.target.checked)}
+                    />
+                  )}
                 </TableCell>
                 
                 {/* Job Name */}
@@ -431,8 +439,8 @@ export function ScheduleTable({
                 
                 {/* Schedule Type */}
                 <TableCell>
-                  <Typography variant="body2" color="text.secondary">
-                    {job.schedule?.formatted || 'Manual only'}
+                  <Typography variant="body2" color={isManualOnly ? 'warning.main' : 'text.secondary'}>
+                    {isManualOnly ? 'Manual only (cannot schedule)' : (job.schedule?.formatted || 'Manual only')}
                   </Typography>
                 </TableCell>
                 
@@ -513,7 +521,7 @@ export function ScheduleTable({
                         <PlayArrowIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="Schedule settings">
+                    <Tooltip title={isManualOnly ? "View job info (cannot schedule)" : "Schedule settings"}>
                       <IconButton
                         size="small"
                         onClick={() => onConfigClick(job.name)}

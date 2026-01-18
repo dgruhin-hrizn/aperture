@@ -146,6 +146,7 @@ export {
   regenerateUserSeriesRecommendations,
   clearUserSeriesRecommendations,
   clearAllSeriesRecommendations,
+  clearAndRebuildAllSeriesRecommendations,
   type SeriesUser,
   type SeriesCandidate,
   type SeriesPipelineConfig,
