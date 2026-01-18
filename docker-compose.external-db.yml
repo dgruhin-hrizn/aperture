@@ -1,0 +1,144 @@
+# =============================================================================
+# Aperture - External Database Docker Compose
+# =============================================================================
+# Use this for deployment when you want to use your OWN PostgreSQL database
+# instead of the built-in container. This is for advanced users who:
+#   - Already have a PostgreSQL server they want to use
+#   - Want to use a managed database service (e.g., AWS RDS, Supabase)
+#   - Need to share the database across multiple services
+#
+# ⚠️  IMPORTANT: Your PostgreSQL MUST have the pgvector extension installed!
+#     Standard PostgreSQL does NOT include pgvector. See docs for setup.
+#
+# Quick start:
+#   1. Set up your PostgreSQL database with pgvector (see docs)
+#   2. Update DATABASE_URL below with your connection string
+#   3. docker-compose -f docker-compose.external-db.yml up -d
+#
+# Documentation: docs/admin/external-database.md
+#
+# =============================================================================
+# DATABASE REQUIREMENTS
+# =============================================================================
+# Your external PostgreSQL must meet these requirements:
+#
+#   1. PostgreSQL 14 or higher (16+ recommended)
+#   2. pgvector extension installed and available
+#   3. pgcrypto extension available (usually included by default)
+#   4. A dedicated database for Aperture (e.g., "aperture")
+#   5. A user with full privileges on that database
+#
+# Aperture will automatically:
+#   - Create the required extensions (vector, pgcrypto)
+#   - Run all database migrations on startup
+#   - Keep your schema up to date on version upgrades
+#
+# =============================================================================
+
+services:
+  app:
+    image: ghcr.io/dgruhin-hrizn/aperture:latest
+    container_name: aperture
+    # Run as root to avoid permission issues with bind mounts on Unraid/NAS
+    user: root
+    environment:
+      NODE_ENV: production
+      PORT: 3456
+      # =========================================================================
+      # DATABASE CONNECTION - REQUIRED!
+      # =========================================================================
+      # Format: postgres://USER:PASSWORD@HOST:PORT/DATABASE
+      #
+      # Examples:
+      #   - Local server:    postgres://aperture:secretpass@192.168.1.100:5432/aperture
+      #   - Docker network:  postgres://user:pass@postgres-container:5432/aperture
+      #   - With SSL:        postgres://user:pass@host:5432/aperture?sslmode=require
+      #
+      # ⚠️  IMPORTANT: Keep the quotes! Special characters in passwords break YAML.
+      #
+      DATABASE_URL: 'postgres://YOUR_USER:YOUR_PASSWORD@YOUR_HOST:5432/aperture'
+      RUN_MIGRATIONS_ON_START: 'true'
+      # Timezone for scheduled jobs (IANA format)
+      TZ: America/New_York
+      # =========================================================================
+      # REQUIRED: Set these before starting!
+      # =========================================================================
+      # Your server's IP address or hostname
+      APP_BASE_URL: http://YOUR_SERVER_IP:3456
+      # Session secret - MUST be a random string at least 32 characters
+      # Generate one at: https://randomkeygen.com/ (use "Fort Knox Passwords")
+      # ⚠️  IMPORTANT: Keep the quotes! Special characters like # break YAML without them.
+      SESSION_SECRET: 'PASTE_YOUR_RANDOM_KEY_HERE'
+    ports:
+      - '3456:3456'
+    # Note: No depends_on since database is external
+    volumes:
+      # ─────────────────────────────────────────────────────────────────────────
+      # VOLUME 1: Aperture Libraries Output
+      # ─────────────────────────────────────────────────────────────────────────
+      # IMPORTANT: Create this folder INSIDE your media share!
+      #
+      # Why inside? Because your media server already has your media share
+      # mounted, so it will automatically see this folder too. No need to add
+      # another mount to Emby/Jellyfin!
+      #
+      # Example:
+      #   - Host folder:     /mnt/user/Media/ApertureLibraries
+      #   - Emby sees it at: /mnt/ApertureLibraries (automatically!)
+      #
+      - /mnt/user/Media/ApertureLibraries:/aperture-libraries
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # VOLUME 2: Database Backups (Optional with External DB)
+      # ─────────────────────────────────────────────────────────────────────────
+      # Aperture can still create backups using pg_dump, but you may prefer
+      # to use your own backup solution for an external database.
+      #
+      # If you want Aperture's backup feature:
+      #   - Host folder:     /mnt/user/appdata/aperture/backups
+      #
+      - /mnt/user/appdata/aperture/backups:/backups
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # VOLUME 3: Your Media Library (read-only access)
+      # ─────────────────────────────────────────────────────────────────────────
+      # Aperture needs to read your media files to create symlinks.
+      # Mount the SAME media folder that your media server uses.
+      # Read-only (:ro) is fine - Aperture only reads, never writes here.
+      #
+      - /mnt/user/Media:/media:ro
+    restart: unless-stopped
+
+# =============================================================================
+# SETUP WIZARD
+# =============================================================================
+# After starting Aperture, visit http://YOUR_SERVER_IP:3456 to complete setup.
+# The wizard will ask for two paths:
+#
+#   1. Media Server Path Prefix: /mnt/
+#      (How Emby sees your files - check Media Info on any movie)
+#
+#   2. Aperture Libraries Path: /mnt/ApertureLibraries/
+#      (Just your prefix + the folder name you created)
+#
+# =============================================================================
+# TROUBLESHOOTING
+# =============================================================================
+# Container won't start or crashes immediately?
+#   - Check that DATABASE_URL is correct and the database is reachable
+#   - Verify pgvector extension is installed on your PostgreSQL server
+#   - Check container logs: docker logs aperture
+#
+# "extension vector does not exist" error?
+#   - Your PostgreSQL doesn't have pgvector installed
+#   - See docs/admin/external-database.md for installation instructions
+#
+# Connection refused errors?
+#   - Ensure your PostgreSQL allows connections from Docker network
+#   - Check firewall rules and PostgreSQL's pg_hba.conf
+#   - Verify the host is reachable from inside the container
+#
+# SSL connection errors?
+#   - Add ?sslmode=require or ?sslmode=disable to DATABASE_URL as needed
+#
+# =============================================================================
