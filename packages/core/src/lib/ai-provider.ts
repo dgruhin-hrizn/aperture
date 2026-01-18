@@ -515,7 +515,18 @@ export async function getCurrentEmbeddingDimensions(): Promise<number | undefine
   const config = await getFunctionConfig('embeddings')
   if (!config) return undefined
 
-  return getEmbeddingDimensions(config.provider, config.model)
+  // First try built-in models
+  const builtInDimensions = getEmbeddingDimensions(config.provider, config.model)
+  if (builtInDimensions) return builtInDimensions
+
+  // Check custom models from database
+  const customModels = await getCustomModels(config.provider, 'embeddings')
+  const customModel = customModels.find(m => m.modelId === config.model)
+  if (customModel?.embeddingDimensions) {
+    return customModel.embeddingDimensions
+  }
+
+  return undefined
 }
 
 /**
