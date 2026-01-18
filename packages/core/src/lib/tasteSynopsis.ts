@@ -32,16 +32,6 @@ interface WatchHistoryStats {
   favorite_count: number
 }
 
-interface GenreCount {
-  genre: string
-  count: number
-}
-
-interface DecadeCount {
-  decade: string
-  count: number
-}
-
 /**
  * Stream generate a taste synopsis for a user
  * Returns an async generator that yields text chunks
@@ -197,9 +187,11 @@ Rules:
 }
 
 /**
- * Get existing synopsis or generate a new one if stale/missing
+ * Get existing synopsis - never auto-regenerates on page load.
+ * Background job handles periodic refresh based on user's refresh_interval_days setting.
+ * User can manually regenerate via streamTasteSynopsis().
  */
-export async function getTasteSynopsis(userId: string, maxAgeHours = 24): Promise<TasteSynopsis> {
+export async function getTasteSynopsis(userId: string): Promise<TasteSynopsis> {
   // Check for existing synopsis
   const existing = await queryOne<{
     taste_synopsis: string | null
@@ -213,110 +205,92 @@ export async function getTasteSynopsis(userId: string, maxAgeHours = 24): Promis
     [userId]
   )
 
-  const now = new Date()
-  const maxAge = maxAgeHours * 60 * 60 * 1000 // Convert hours to ms
+  // Get stats for display (always needed)
+  const stats = await getQuickStats(userId)
 
-  // Return existing if fresh enough
-  if (
-    existing?.taste_synopsis &&
-    existing.taste_synopsis_updated_at &&
-    now.getTime() - new Date(existing.taste_synopsis_updated_at).getTime() < maxAge
-  ) {
-    // Get stats for display
-    const stats = await getQuickStats(userId)
+  // Return existing synopsis if available
+  if (existing?.taste_synopsis) {
     return {
       synopsis: existing.taste_synopsis,
-      updatedAt: new Date(existing.taste_synopsis_updated_at),
+      updatedAt: existing.taste_synopsis_updated_at 
+        ? new Date(existing.taste_synopsis_updated_at) 
+        : new Date(),
       stats,
     }
   }
 
-  // Generate new synopsis using streaming (consume and collect)
-  const generator = streamTasteSynopsis(userId)
-  let synopsis = ''
-
-  // Consume all chunks
-  let result = await generator.next()
-  while (!result.done) {
-    if (typeof result.value === 'string') {
-      synopsis += result.value
-    }
-    result = await generator.next()
-  }
-
-  // result.value now contains the final return value (stats)
-  const stats = result.value
-
+  // No synopsis yet - return empty, let user click "Generate Identity"
   return {
-    synopsis,
+    synopsis: '',
     updatedAt: new Date(),
-    stats: stats || (await getQuickStats(userId)),
+    stats,
   }
 }
 
 /**
  * Get quick stats without regenerating synopsis
+ * Uses a single CTE query instead of 4 sequential queries for better performance
  */
 async function getQuickStats(userId: string): Promise<TasteSynopsis['stats']> {
-  const stats = await queryOne<WatchHistoryStats>(
+  const result = await queryOne<{
+    total_watched: string
+    avg_rating: string | null
+    top_genres: string[] | null
+    favorite_decade: string | null
+    recent_favorites: string[] | null
+  }>(
     `
+    WITH watched_movies AS (
+      SELECT m.id, m.genres, m.community_rating, m.year, m.title, 
+             wh.is_favorite, wh.last_played_at
+      FROM watch_history wh
+      JOIN movies m ON m.id = wh.movie_id
+      WHERE wh.user_id = $1
+    ),
+    stats AS (
+      SELECT 
+        COUNT(DISTINCT id) as total_watched,
+        AVG(community_rating) as avg_rating
+      FROM watched_movies
+    ),
+    genres AS (
+      SELECT unnest(genres) as genre, COUNT(*) as cnt
+      FROM watched_movies
+      GROUP BY 1
+      ORDER BY cnt DESC
+      LIMIT 5
+    ),
+    decades AS (
+      SELECT (FLOOR(year / 10) * 10)::TEXT || 's' as decade, COUNT(*) as cnt
+      FROM watched_movies
+      WHERE year IS NOT NULL
+      GROUP BY 1
+      ORDER BY cnt DESC
+      LIMIT 1
+    ),
+    favorites AS (
+      SELECT title
+      FROM watched_movies
+      WHERE is_favorite = true OR community_rating >= 7
+      ORDER BY last_played_at DESC NULLS LAST
+      LIMIT 5
+    )
     SELECT 
-      COUNT(DISTINCT wh.movie_id) as total_watched,
-      AVG(m.community_rating) as avg_rating,
-      COUNT(CASE WHEN wh.is_favorite THEN 1 END) as favorite_count
-    FROM watch_history wh
-    JOIN movies m ON m.id = wh.movie_id
-    WHERE wh.user_id = $1
-  `,
-    [userId]
-  )
-
-  const genreResults = await query<GenreCount>(
-    `
-    SELECT unnest(m.genres) as genre, COUNT(*) as count
-    FROM watch_history wh
-    JOIN movies m ON m.id = wh.movie_id
-    WHERE wh.user_id = $1
-    GROUP BY unnest(m.genres)
-    ORDER BY count DESC
-    LIMIT 5
-  `,
-    [userId]
-  )
-
-  const decadeResults = await query<DecadeCount>(
-    `
-    SELECT 
-      (FLOOR(m.year / 10) * 10)::TEXT || 's' as decade,
-      COUNT(*) as count
-    FROM watch_history wh
-    JOIN movies m ON m.id = wh.movie_id
-    WHERE wh.user_id = $1 AND m.year IS NOT NULL
-    GROUP BY FLOOR(m.year / 10)
-    ORDER BY count DESC
-    LIMIT 1
-  `,
-    [userId]
-  )
-
-  const recentFavorites = await query<{ title: string }>(
-    `
-    SELECT m.title
-    FROM watch_history wh
-    JOIN movies m ON m.id = wh.movie_id
-    WHERE wh.user_id = $1 AND (wh.is_favorite = true OR m.community_rating >= 7)
-    ORDER BY wh.last_played_at DESC NULLS LAST
-    LIMIT 5
+      (SELECT total_watched FROM stats) as total_watched,
+      (SELECT avg_rating FROM stats) as avg_rating,
+      (SELECT ARRAY_AGG(genre) FROM genres) as top_genres,
+      (SELECT decade FROM decades) as favorite_decade,
+      (SELECT ARRAY_AGG(title) FROM favorites) as recent_favorites
   `,
     [userId]
   )
 
   return {
-    totalWatched: Number(stats?.total_watched || 0),
-    topGenres: genreResults.rows.map((r) => r.genre),
-    avgRating: Number(stats?.avg_rating || 0),
-    favoriteDecade: decadeResults.rows[0]?.decade || null,
-    recentFavorites: recentFavorites.rows.map((m) => m.title),
+    totalWatched: Number(result?.total_watched || 0),
+    topGenres: result?.top_genres || [],
+    avgRating: Number(result?.avg_rating || 0),
+    favoriteDecade: result?.favorite_decade || null,
+    recentFavorites: result?.recent_favorites || [],
   }
 }
 
