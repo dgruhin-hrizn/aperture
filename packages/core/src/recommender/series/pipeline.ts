@@ -557,8 +557,12 @@ export async function generateSeriesRecommendationsForUser(
       tasteProfile = await buildSeriesTasteProfile(watchedSeries)
       
       if (tasteProfile) {
-        // Store in new system
-        await storeNewTasteProfile(user.id, 'series', tasteProfile)
+        // Get current embedding model to store with profile
+        const { getActiveEmbeddingModelId } = await import('../../lib/ai-provider.js')
+        const currentModelId = await getActiveEmbeddingModelId()
+        
+        // Store in new system with embedding model info
+        await storeNewTasteProfile(user.id, 'series', tasteProfile, currentModelId || undefined)
         // Also detect franchises
         await detectAndUpdateFranchises(user.id, 'series')
         logger.info({ userId: user.id }, '💾 Stored new taste profile and detected franchises')

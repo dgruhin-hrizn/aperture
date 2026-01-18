@@ -49,8 +49,33 @@ export async function getUserTasteProfile(
   const existing = await getStoredProfile(userId, mediaType)
 
   if (existing) {
-    // Check if rebuild is needed
-    const needsRebuild = forceRebuild || isProfileStale(existing)
+    // Check if rebuild is needed due to staleness
+    let needsRebuild = forceRebuild || isProfileStale(existing)
+
+    // Also check if embedding model has changed (dimension mismatch prevention)
+    // If the embedding exists, verify it matches the current model
+    if (!needsRebuild && existing.embedding) {
+      const { getActiveEmbeddingModelId } = await import('../lib/ai-provider.js')
+      const currentModelId = await getActiveEmbeddingModelId()
+      
+      if (currentModelId) {
+        // If we have no stored model info, we should rebuild to track it properly
+        // If the model changed, we definitely need to rebuild
+        if (!existing.embeddingModel) {
+          logger.info(
+            { userId, mediaType, newModel: currentModelId },
+            'Profile missing embedding model info, rebuilding to ensure dimension compatibility'
+          )
+          needsRebuild = true
+        } else if (currentModelId !== existing.embeddingModel) {
+          logger.info(
+            { userId, mediaType, oldModel: existing.embeddingModel, newModel: currentModelId },
+            'Embedding model changed, profile needs rebuild to match new dimensions'
+          )
+          needsRebuild = true
+        }
+      }
+    }
 
     if (!needsRebuild) {
       return existing
@@ -71,7 +96,11 @@ export async function getUserTasteProfile(
   const newProfile = await buildTasteProfile(userId, mediaType)
 
   if (newProfile) {
-    await storeTasteProfile(userId, mediaType, newProfile)
+    // Get current embedding model to store with profile
+    const { getActiveEmbeddingModelId } = await import('../lib/ai-provider.js')
+    const currentModelId = await getActiveEmbeddingModelId()
+    
+    await storeTasteProfile(userId, mediaType, newProfile, currentModelId || undefined)
     return await getStoredProfile(userId, mediaType)
   }
 
