@@ -49,6 +49,7 @@ export interface DiscoveryCandidate {
   sourceMediaId: number | null
   title: string
   originalTitle: string | null
+  originalLanguage: string | null
   releaseYear: number | null
   posterPath: string | null
   backdropPath: string | null
@@ -139,6 +140,7 @@ export interface RawCandidate {
   imdbId: string | null
   title: string
   originalTitle: string | null
+  originalLanguage: string | null
   overview: string | null
   releaseYear: number | null
   posterPath: string | null
@@ -175,3 +177,19 @@ export interface DiscoveryPipelineResult {
   durationMs: number
 }
 
+/**
+ * Filter options for retrieving discovery candidates
+ */
+export interface DiscoveryFilterOptions {
+  limit?: number
+  offset?: number
+  // Filter by original language (ISO 639-1 codes, e.g., 'en', 'ko', 'ja')
+  languages?: string[]
+  // Filter by genre IDs
+  genreIds?: number[]
+  // Filter by year range
+  yearStart?: number
+  yearEnd?: number
+  // Minimum similarity score (0-1)
+  minSimilarity?: number
+}

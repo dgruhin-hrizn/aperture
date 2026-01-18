@@ -12,7 +12,7 @@ Background jobs for syncing, processing, and building movie libraries.
 | **sync-movie-watch-history** | Import what users have watched |
 | **generate-movie-embeddings** | Create AI vectors |
 | **generate-movie-recommendations** | Create personalized picks |
-| **rebuild-movie-recommendations** | Full recommendation reset |
+| **full-reset-movie-recommendations** | Delete all + rebuild (manual only) |
 | **sync-movie-libraries** | Build virtual libraries |
 
 ---
@@ -154,17 +154,20 @@ Uses settings from Admin → Settings → AI Recommendations:
 
 ---
 
-## rebuild-movie-recommendations
+## full-reset-movie-recommendations
 
-Complete recommendation reset and rebuild.
+**⚠️ Manual Only** - This job cannot be scheduled and must be run manually.
+
+Complete recommendation reset: **deletes ALL existing movie recommendations** for all users, then rebuilds from scratch.
 
 ### Difference from Regular
 
-| Regular | Rebuild |
+| Generate (Regular) | Full Reset |
 |---------|---------|
-| Updates existing | Deletes all first |
+| Updates existing | **Deletes all first** |
 | Incremental | Full regeneration |
 | Faster | Slower |
+| Can be scheduled | **Manual only** |
 
 ### When to Use
 
@@ -175,7 +178,7 @@ Complete recommendation reset and rebuild.
 
 ### Warning
 
-Removes all existing recommendations before rebuilding. In-progress during this time.
+⚠️ **Destructive operation**: Removes ALL existing movie recommendations before rebuilding. Users will have no recommendations until the job completes.
 
 ---
 

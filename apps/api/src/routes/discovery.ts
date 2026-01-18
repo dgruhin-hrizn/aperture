@@ -13,22 +13,83 @@ import {
   getLatestDiscoveryRun,
   regenerateUserDiscovery,
   isJellyseerrConfigured,
+  type DiscoveryFilterOptions,
 } from '@aperture/core'
+
+// Helper to parse filter query params
+function parseFilterParams(queryParams: {
+  limit?: string
+  offset?: string
+  languages?: string
+  genres?: string
+  yearStart?: string
+  yearEnd?: string
+  minSimilarity?: string
+}): DiscoveryFilterOptions {
+  const options: DiscoveryFilterOptions = {
+    limit: Math.min(parseInt(queryParams.limit || '50', 10), 100),
+    offset: parseInt(queryParams.offset || '0', 10),
+  }
+
+  // Languages: comma-separated ISO 639-1 codes (e.g., "en,ko,ja")
+  if (queryParams.languages) {
+    options.languages = queryParams.languages.split(',').map(l => l.trim()).filter(Boolean)
+  }
+
+  // Genres: comma-separated genre IDs (e.g., "28,12,878")
+  if (queryParams.genres) {
+    options.genreIds = queryParams.genres.split(',').map(g => parseInt(g.trim(), 10)).filter(id => !isNaN(id))
+  }
+
+  // Year range
+  if (queryParams.yearStart) {
+    const year = parseInt(queryParams.yearStart, 10)
+    if (!isNaN(year)) options.yearStart = year
+  }
+  if (queryParams.yearEnd) {
+    const year = parseInt(queryParams.yearEnd, 10)
+    if (!isNaN(year)) options.yearEnd = year
+  }
+
+  // Minimum similarity threshold (0-1)
+  if (queryParams.minSimilarity) {
+    const sim = parseFloat(queryParams.minSimilarity)
+    if (!isNaN(sim) && sim >= 0 && sim <= 1) options.minSimilarity = sim
+  }
+
+  return options
+}
 
 const discoveryRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * GET /api/discovery/movies
    * Get discovery suggestions for movies not in the library
+   * 
+   * Query params:
+   * - limit: number (max 100)
+   * - offset: number
+   * - languages: comma-separated ISO 639-1 codes (e.g., "en,ko")
+   * - genres: comma-separated TMDb genre IDs (e.g., "28,12")
+   * - yearStart: minimum release year
+   * - yearEnd: maximum release year
+   * - minSimilarity: minimum similarity score (0-1)
    */
   fastify.get<{
-    Querystring: { limit?: string; offset?: string }
+    Querystring: {
+      limit?: string
+      offset?: string
+      languages?: string
+      genres?: string
+      yearStart?: string
+      yearEnd?: string
+      minSimilarity?: string
+    }
   }>(
     '/api/discovery/movies',
     { preHandler: requireAuth },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
-      const limit = Math.min(parseInt(request.query.limit || '50', 10), 100)
-      const offset = parseInt(request.query.offset || '0', 10)
+      const filterOptions = parseFilterParams(request.query)
 
       // Check if user has discovery enabled
       const user = await queryOne<{ discover_enabled: boolean }>(
@@ -46,18 +107,18 @@ const discoveryRoutes: FastifyPluginAsync = async (fastify) => {
       // Get latest run
       const run = await getLatestDiscoveryRun(currentUser.id, 'movie')
 
-      // Get candidates
-      const candidates = await getDiscoveryCandidates(currentUser.id, 'movie', { limit, offset })
-      const total = await getDiscoveryCandidateCount(currentUser.id, 'movie')
+      // Get candidates with filters
+      const candidates = await getDiscoveryCandidates(currentUser.id, 'movie', filterOptions)
+      const total = await getDiscoveryCandidateCount(currentUser.id, 'movie', filterOptions)
 
       return reply.send({
         run,
         candidates,
         pagination: {
           total,
-          limit,
-          offset,
-          hasMore: offset + candidates.length < total,
+          limit: filterOptions.limit!,
+          offset: filterOptions.offset!,
+          hasMore: filterOptions.offset! + candidates.length < total,
         },
       })
     }
@@ -66,16 +127,25 @@ const discoveryRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * GET /api/discovery/series
    * Get discovery suggestions for series not in the library
+   * 
+   * Query params: same as /movies
    */
   fastify.get<{
-    Querystring: { limit?: string; offset?: string }
+    Querystring: {
+      limit?: string
+      offset?: string
+      languages?: string
+      genres?: string
+      yearStart?: string
+      yearEnd?: string
+      minSimilarity?: string
+    }
   }>(
     '/api/discovery/series',
     { preHandler: requireAuth },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
-      const limit = Math.min(parseInt(request.query.limit || '50', 10), 100)
-      const offset = parseInt(request.query.offset || '0', 10)
+      const filterOptions = parseFilterParams(request.query)
 
       // Check if user has discovery enabled
       const user = await queryOne<{ discover_enabled: boolean }>(
@@ -93,18 +163,18 @@ const discoveryRoutes: FastifyPluginAsync = async (fastify) => {
       // Get latest run
       const run = await getLatestDiscoveryRun(currentUser.id, 'series')
 
-      // Get candidates
-      const candidates = await getDiscoveryCandidates(currentUser.id, 'series', { limit, offset })
-      const total = await getDiscoveryCandidateCount(currentUser.id, 'series')
+      // Get candidates with filters
+      const candidates = await getDiscoveryCandidates(currentUser.id, 'series', filterOptions)
+      const total = await getDiscoveryCandidateCount(currentUser.id, 'series', filterOptions)
 
       return reply.send({
         run,
         candidates,
         pagination: {
           total,
-          limit,
-          offset,
-          hasMore: offset + candidates.length < total,
+          limit: filterOptions.limit!,
+          offset: filterOptions.offset!,
+          hasMore: filterOptions.offset! + candidates.length < total,
         },
       })
     }

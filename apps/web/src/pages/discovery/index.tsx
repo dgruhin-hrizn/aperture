@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import {
   Box,
   Typography,
@@ -25,13 +25,43 @@ import TvIcon from '@mui/icons-material/Tv'
 import GridViewIcon from '@mui/icons-material/GridView'
 import ViewListIcon from '@mui/icons-material/ViewList'
 import { useDiscoveryData, useJellyseerrRequest } from './hooks'
-import { DiscoveryCard, DiscoveryListItem } from './components'
+import { DiscoveryCard, DiscoveryFilters, DiscoveryListItem } from './components'
 import { useViewMode } from '../../hooks/useViewMode'
-import type { DiscoveryCandidate, MediaType } from './types'
+import type { DiscoveryCandidate, DiscoveryFilterOptions, MediaType } from './types'
+
+// Local storage key for persisting filter preferences
+const FILTERS_STORAGE_KEY = 'aperture_discovery_filters'
+
+function loadFiltersFromStorage(): DiscoveryFilterOptions {
+  try {
+    const stored = localStorage.getItem(FILTERS_STORAGE_KEY)
+    if (stored) {
+      return JSON.parse(stored)
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return {}
+}
+
+function saveFiltersToStorage(filters: DiscoveryFilterOptions) {
+  try {
+    localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters))
+  } catch {
+    // Storage full or unavailable
+  }
+}
 
 export function DiscoveryPage() {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  
+  // Filter state - persisted to localStorage
+  const [filters, setFilters] = useState<DiscoveryFilterOptions>(() => loadFiltersFromStorage())
+  
+  // Memoize filters to avoid unnecessary re-renders
+  const stableFilters = useMemo(() => filters, [JSON.stringify(filters)])
+  
   const {
     status,
     movieCandidates,
@@ -44,7 +74,7 @@ export function DiscoveryPage() {
     error,
     refresh,
     markAsRequested,
-  } = useDiscoveryData()
+  } = useDiscoveryData(stableFilters)
 
   const { submitRequest, isRequesting } = useJellyseerrRequest()
   const { viewMode, setViewMode } = useViewMode('discovery')
@@ -55,6 +85,12 @@ export function DiscoveryPage() {
     message: '',
     severity: 'success',
   })
+
+  // Handle filter changes with localStorage persistence
+  const handleFiltersChange = useCallback((newFilters: DiscoveryFilterOptions) => {
+    setFilters(newFilters)
+    saveFiltersToStorage(newFilters)
+  }, [])
 
   const candidates = mediaType === 'movie' ? movieCandidates : seriesCandidates
   const run = mediaType === 'movie' ? movieRun : seriesRun
@@ -237,6 +273,12 @@ export function DiscoveryPage() {
           }}
         />
       </Tabs>
+
+      {/* Filters */}
+      <DiscoveryFilters
+        filters={filters}
+        onFiltersChange={handleFiltersChange}
+      />
 
       {/* Run Info */}
       {run && run.createdAt && (

@@ -73,6 +73,7 @@ export interface TMDbMovieDetails {
   imdb_id: string | null
   title: string
   original_title: string
+  original_language: string
   overview: string | null
   tagline: string | null
   poster_path: string | null
@@ -107,6 +108,7 @@ export interface TMDbTVDetails {
   id: number
   name: string
   original_name: string
+  original_language: string
   overview: string | null
   tagline: string | null
   poster_path: string | null

@@ -182,26 +182,25 @@ Messages include serialized tool invocations so historical conversations display
 
 ### Movie Jobs
 
-| Job                             | Description                            | Schedule     |
-| ------------------------------- | -------------------------------------- | ------------ |
-| `sync-movies`                   | Sync movies from media server          | Configurable |
-| `generate-movie-embeddings`     | Generate AI embeddings                 | Manual       |
-| `sync-movie-watch-history`      | Delta sync of watch history            | Configurable |
-| `full-sync-movie-watch-history` | Full resync of watch history           | Manual       |
-| `generate-movie-recommendations`| Generate personalized picks            | Configurable |
-| `rebuild-movie-recommendations` | Clear and rebuild all recommendations  | Manual       |
-| `sync-movie-libraries`          | Create movie libraries (STRM/symlinks) | Configurable |
+| Job                                  | Description                            | Schedule     |
+| ------------------------------------ | -------------------------------------- | ------------ |
+| `sync-movies`                        | Sync movies from media server          | Configurable |
+| `generate-movie-embeddings`          | Generate AI embeddings                 | Configurable |
+| `sync-movie-watch-history`           | Delta sync of watch history            | Configurable |
+| `generate-movie-recommendations`     | Generate personalized picks            | Configurable |
+| `full-reset-movie-recommendations`   | Delete all + rebuild (destructive)     | Manual only  |
+| `sync-movie-libraries`               | Create movie libraries (STRM/symlinks) | Configurable |
 
 ### Series Jobs
 
-| Job                               | Description                             | Schedule     |
-| --------------------------------- | --------------------------------------- | ------------ |
-| `sync-series`                     | Sync TV series and episodes             | Configurable |
-| `generate-series-embeddings`      | Generate AI embeddings                  | Manual       |
-| `sync-series-watch-history`       | Delta sync of watch history             | Configurable |
-| `full-sync-series-watch-history`  | Full resync of watch history            | Manual       |
-| `generate-series-recommendations` | Generate personalized picks             | Configurable |
-| `sync-series-libraries`           | Create series libraries (STRM/symlinks) | Configurable |
+| Job                                  | Description                             | Schedule     |
+| ------------------------------------ | --------------------------------------- | ------------ |
+| `sync-series`                        | Sync TV series and episodes             | Configurable |
+| `generate-series-embeddings`         | Generate AI embeddings                  | Configurable |
+| `sync-series-watch-history`          | Delta sync of watch history             | Configurable |
+| `generate-series-recommendations`    | Generate personalized picks             | Configurable |
+| `full-reset-series-recommendations`  | Delete all + rebuild (destructive)      | Manual only  |
+| `sync-series-libraries`              | Create series libraries (STRM/symlinks) | Configurable |
 
 ### Global Jobs
 

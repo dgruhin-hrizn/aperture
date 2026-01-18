@@ -557,8 +557,12 @@ export async function generateSeriesRecommendationsForUser(
       tasteProfile = await buildSeriesTasteProfile(watchedSeries)
       
       if (tasteProfile) {
-        // Store in new system
-        await storeNewTasteProfile(user.id, 'series', tasteProfile)
+        // Get current embedding model to store with profile
+        const { getActiveEmbeddingModelId } = await import('../../lib/ai-provider.js')
+        const currentModelId = await getActiveEmbeddingModelId()
+        
+        // Store in new system with embedding model info
+        await storeNewTasteProfile(user.id, 'series', tasteProfile, currentModelId || undefined)
         // Also detect franchises
         await detectAndUpdateFranchises(user.id, 'series')
         logger.info({ userId: user.id }, '💾 Stored new taste profile and detected franchises')
@@ -902,6 +906,82 @@ export async function clearUserSeriesRecommendations(userId: string): Promise<vo
 export async function clearAllSeriesRecommendations(): Promise<void> {
   await query(`DELETE FROM recommendation_runs WHERE media_type = 'series'`)
   logger.info('Cleared all series recommendations')
+}
+
+/**
+ * Clear and rebuild series recommendations for all users (admin function)
+ */
+export async function clearAndRebuildAllSeriesRecommendations(existingJobId?: string): Promise<{
+  cleared: number
+  success: number
+  failed: number
+  jobId: string
+}> {
+  const jobId = existingJobId || randomUUID()
+  createJobProgress(jobId, 'full-reset-series-recommendations', 3)
+
+  try {
+    // Step 1: Count existing
+    setJobStep(jobId, 0, 'Counting existing series recommendations')
+    const countResult = await queryOne<{ count: string }>(
+      `SELECT COUNT(*) FROM recommendation_runs WHERE media_type = 'series'`
+    )
+    const existingCount = parseInt(countResult?.count || '0', 10)
+    addLog(jobId, 'info', `📊 Found ${existingCount} existing series recommendation runs`)
+
+    // Step 2: Clear all
+    setJobStep(jobId, 1, 'Clearing all series recommendations')
+    addLog(jobId, 'info', '🗑️ Clearing all series recommendation data...')
+    await clearAllSeriesRecommendations()
+    addLog(jobId, 'info', '✅ All series recommendations cleared')
+
+    // Step 3: Regenerate for all users
+    setJobStep(jobId, 2, 'Regenerating series recommendations')
+    const result = await query<{
+      id: string
+      username: string
+      provider_user_id: string
+      max_parental_rating: number | null
+    }>(
+      `SELECT id, username, provider_user_id, max_parental_rating FROM users WHERE is_enabled = true AND series_enabled = true`
+    )
+    const users = result.rows
+    addLog(jobId, 'info', `👥 Regenerating for ${users.length} enabled user(s)`)
+
+    let success = 0
+    let failed = 0
+
+    for (let i = 0; i < users.length; i++) {
+      const user = users[i]
+      updateJobProgress(jobId, i, users.length, user.username)
+
+      try {
+        addLog(jobId, 'info', `🧠 Generating for ${user.username}...`)
+        await generateSeriesRecommendationsForUser({
+          id: user.id,
+          username: user.username,
+          providerUserId: user.provider_user_id,
+          maxParentalRating: user.max_parental_rating,
+        })
+        success++
+        addLog(jobId, 'info', `✅ Done: ${user.username}`)
+      } catch (err) {
+        const error = err instanceof Error ? err.message : 'Unknown error'
+        addLog(jobId, 'error', `❌ ${user.username}: ${error}`)
+        failed++
+      }
+    }
+
+    updateJobProgress(jobId, users.length, users.length)
+    const finalResult = { cleared: existingCount, success, failed, jobId }
+    completeJob(jobId, finalResult)
+    return finalResult
+  } catch (err) {
+    const error = err instanceof Error ? err.message : 'Unknown error'
+    addLog(jobId, 'error', `❌ Job failed: ${error}`)
+    failJob(jobId, error)
+    throw err
+  }
 }
 
 /**

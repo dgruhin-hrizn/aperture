@@ -101,6 +101,7 @@ async function fetchTmdbRecommendations(
             imdbId: null,
             title: normalized.title,
             originalTitle: normalized.originalTitle,
+            originalLanguage: normalized.originalLanguage,
             overview: movie.overview,
             releaseYear: normalized.releaseYear,
             posterPath: normalized.posterPath,
@@ -122,6 +123,7 @@ async function fetchTmdbRecommendations(
             imdbId: null,
             title: normalized.title,
             originalTitle: normalized.originalTitle,
+            originalLanguage: normalized.originalLanguage,
             overview: tv.overview,
             releaseYear: normalized.releaseYear,
             posterPath: normalized.posterPath,
@@ -191,6 +193,7 @@ async function fetchTmdbSimilar(
             imdbId: null,
             title: normalized.title,
             originalTitle: normalized.originalTitle,
+            originalLanguage: normalized.originalLanguage,
             overview: movie.overview,
             releaseYear: normalized.releaseYear,
             posterPath: normalized.posterPath,
@@ -212,6 +215,7 @@ async function fetchTmdbSimilar(
             imdbId: null,
             title: normalized.title,
             originalTitle: normalized.originalTitle,
+            originalLanguage: normalized.originalLanguage,
             overview: tv.overview,
             releaseYear: normalized.releaseYear,
             posterPath: normalized.posterPath,
@@ -259,6 +263,7 @@ async function fetchTmdbDiscover(
             imdbId: null,
             title: normalized.title,
             originalTitle: normalized.originalTitle,
+            originalLanguage: normalized.originalLanguage,
             overview: movie.overview,
             releaseYear: normalized.releaseYear,
             posterPath: normalized.posterPath,
@@ -287,6 +292,7 @@ async function fetchTmdbDiscover(
             imdbId: null,
             title: normalized.title,
             originalTitle: normalized.originalTitle,
+            originalLanguage: normalized.originalLanguage,
             overview: tv.overview,
             releaseYear: normalized.releaseYear,
             posterPath: normalized.posterPath,
@@ -330,6 +336,7 @@ async function fetchTraktTrending(
           imdbId: item.movie.ids.imdb || null,
           title: item.movie.title,
           originalTitle: null,
+          originalLanguage: null, // Will be enriched from TMDb
           overview: null,
           releaseYear: item.movie.year,
           posterPath: null,
@@ -350,6 +357,7 @@ async function fetchTraktTrending(
           imdbId: item.show.ids.imdb || null,
           title: item.show.title,
           originalTitle: null,
+          originalLanguage: null, // Will be enriched from TMDb
           overview: null,
           releaseYear: item.show.year,
           posterPath: null,
@@ -392,6 +400,7 @@ async function fetchTraktPopular(
           imdbId: movie.ids.imdb || null,
           title: movie.title,
           originalTitle: null,
+          originalLanguage: null, // Will be enriched from TMDb
           overview: null,
           releaseYear: movie.year,
           posterPath: null,
@@ -412,6 +421,7 @@ async function fetchTraktPopular(
           imdbId: show.ids.imdb || null,
           title: show.title,
           originalTitle: null,
+          originalLanguage: null, // Will be enriched from TMDb
           overview: null,
           releaseYear: show.year,
           posterPath: null,
@@ -460,6 +470,7 @@ async function fetchTraktRecommendations(
           imdbId: movie.ids?.imdb || null,
           title: movie.title,
           originalTitle: null,
+          originalLanguage: null, // Will be enriched from TMDb
           overview: null,
           releaseYear: movie.year,
           posterPath: null,
@@ -482,6 +493,7 @@ async function fetchTraktRecommendations(
           imdbId: show.ids?.imdb || null,
           title: show.title,
           originalTitle: null,
+          originalLanguage: null, // Will be enriched from TMDb
           overview: null,
           releaseYear: show.year,
           posterPath: null,
@@ -503,6 +515,7 @@ async function fetchTraktRecommendations(
 
 interface EnrichedData {
   imdbId: string | null
+  originalLanguage: string | null
   posterPath: string | null
   backdropPath: string | null
   overview: string | null
@@ -571,6 +584,7 @@ async function enrichMissingData(
               return {
                 tmdbId: candidate.tmdbId,
                 imdbId: details.imdb_id,
+                originalLanguage: details.original_language,
                 posterPath: details.poster_path,
                 backdropPath: details.backdrop_path,
                 overview: details.overview,
@@ -607,6 +621,7 @@ async function enrichMissingData(
               return {
                 tmdbId: candidate.tmdbId,
                 imdbId: externalIds?.imdb_id || null,
+                originalLanguage: details.original_language,
                 posterPath: details.poster_path,
                 backdropPath: details.backdrop_path,
                 overview: details.overview,
@@ -631,6 +646,7 @@ async function enrichMissingData(
       if (result) {
         enrichmentMap.set(result.tmdbId, {
           imdbId: result.imdbId,
+          originalLanguage: result.originalLanguage,
           posterPath: result.posterPath,
           backdropPath: result.backdropPath,
           overview: result.overview,
@@ -655,6 +671,7 @@ async function enrichMissingData(
       return {
         ...candidate,
         imdbId: enriched.imdbId ?? candidate.imdbId,
+        originalLanguage: enriched.originalLanguage ?? candidate.originalLanguage,
         posterPath: enriched.posterPath ?? candidate.posterPath,
         backdropPath: enriched.backdropPath ?? candidate.backdropPath,
         overview: enriched.overview ?? candidate.overview,

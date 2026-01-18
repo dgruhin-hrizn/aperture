@@ -144,8 +144,12 @@ export async function generateRecommendationsForUser(
       tasteProfile = await buildLegacyTasteProfile(watched, userRatings.size > 0 ? userRatings : undefined)
       
       if (tasteProfile) {
-        // Store in new system
-        await storeNewTasteProfile(user.id, 'movie', tasteProfile)
+        // Get current embedding model to store with profile
+        const { getActiveEmbeddingModelId } = await import('../../lib/ai-provider.js')
+        const currentModelId = await getActiveEmbeddingModelId()
+        
+        // Store in new system with embedding model info
+        await storeNewTasteProfile(user.id, 'movie', tasteProfile, currentModelId || undefined)
         // Also detect franchises
         await detectAndUpdateFranchises(user.id, 'movie')
         logger.info({ userId: user.id }, '💾 Stored new taste profile and detected franchises')
@@ -511,7 +515,7 @@ export async function clearAndRebuildAllRecommendations(existingJobId?: string):
   jobId: string
 }> {
   const jobId = existingJobId || randomUUID()
-  createJobProgress(jobId, 'rebuild-movie-recommendations', 3)
+  createJobProgress(jobId, 'full-reset-movie-recommendations', 3)
 
   try {
     // Step 1: Count existing

@@ -12,6 +12,7 @@ Background jobs for syncing, processing, and building TV series libraries.
 | **sync-series-watch-history** | Import what users have watched |
 | **generate-series-embeddings** | Create AI vectors |
 | **generate-series-recommendations** | Create personalized picks |
+| **full-reset-series-recommendations** | Delete all + rebuild (manual only) |
 | **sync-series-libraries** | Build virtual libraries |
 
 ---
@@ -150,6 +151,34 @@ Create personalized picks for each user.
 - **Scheduled:** Weekly
 - **Manual:** After algorithm changes
 - **Prerequisites:** embeddings, watch history
+
+---
+
+## full-reset-series-recommendations
+
+**⚠️ Manual Only** - This job cannot be scheduled and must be run manually.
+
+Complete recommendation reset: **deletes ALL existing series recommendations** for all users, then rebuilds from scratch.
+
+### Difference from Regular
+
+| Generate (Regular) | Full Reset |
+|---------|---------|
+| Updates existing | **Deletes all first** |
+| Incremental | Full regeneration |
+| Faster | Slower |
+| Can be scheduled | **Manual only** |
+
+### When to Use
+
+- After major algorithm changes
+- After changing embedding model
+- If recommendations seem corrupted
+- After significant library changes
+
+### Warning
+
+⚠️ **Destructive operation**: Removes ALL existing series recommendations before rebuilding. Users will have no recommendations until the job completes.
 
 ---
 
