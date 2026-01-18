@@ -36,6 +36,11 @@ import type { MediaType, RawCandidate, DiscoverySource, DiscoveryConfig, CastMem
 
 const logger = createChildLogger('discover:sources')
 
+// Pagination and rate limiting constants
+const MAX_PAGES_PER_SOURCE = 10       // Fetch up to 10 pages (200 items) per source
+const EXPANSION_MAX_PAGES = 5         // Dynamic expansion fetches 5 pages (100 items)
+const PAGE_DELAY_MS = 50              // 50ms delay between page fetches for rate limiting
+
 /**
  * Fetch candidates from TMDb recommendations (based on user's watched content)
  */
@@ -89,12 +94,18 @@ async function fetchTmdbRecommendations(
     return []
   }
 
-  // Fetch recommendations for each watched item
-  for (const tmdbId of tmdbIds.slice(0, 5)) {
+  // Fetch recommendations for each watched item (more pages for better coverage)
+  const pagesPerItem = Math.ceil(MAX_PAGES_PER_SOURCE / tmdbIds.length)
+  const itemsPerSource = Math.ceil(config.maxCandidatesPerSource / tmdbIds.length)
+  
+  for (const tmdbId of tmdbIds.slice(0, 10)) {
+    if (candidates.length >= config.maxCandidatesPerSource) break
+    
     try {
       if (mediaType === 'movie') {
-        const results = await getMovieRecommendationsBatch(tmdbId, 2)
-        for (const movie of results.slice(0, config.maxCandidatesPerSource / 5)) {
+        const results = await getMovieRecommendationsBatch(tmdbId, pagesPerItem)
+        for (const movie of results.slice(0, itemsPerSource)) {
+          if (candidates.length >= config.maxCandidatesPerSource) break
           const normalized = normalizeMovieResult(movie)
           candidates.push({
             tmdbId: normalized.tmdbId,
@@ -115,8 +126,9 @@ async function fetchTmdbRecommendations(
           })
         }
       } else {
-        const results = await getTVRecommendationsBatch(tmdbId, 2)
-        for (const tv of results.slice(0, config.maxCandidatesPerSource / 5)) {
+        const results = await getTVRecommendationsBatch(tmdbId, pagesPerItem)
+        for (const tv of results.slice(0, itemsPerSource)) {
+          if (candidates.length >= config.maxCandidatesPerSource) break
           const normalized = normalizeTVResult(tv)
           candidates.push({
             tmdbId: normalized.tmdbId,
@@ -182,11 +194,18 @@ async function fetchTmdbSimilar(
     return []
   }
 
-  for (const tmdbId of tmdbIds.slice(0, 5)) {
+  // Fetch more pages for better coverage
+  const pagesPerItem = Math.ceil(MAX_PAGES_PER_SOURCE / tmdbIds.length)
+  const itemsPerSource = Math.ceil(config.maxCandidatesPerSource / tmdbIds.length)
+  
+  for (const tmdbId of tmdbIds.slice(0, 10)) {
+    if (candidates.length >= config.maxCandidatesPerSource) break
+    
     try {
       if (mediaType === 'movie') {
-        const results = await getSimilarMoviesBatch(tmdbId, 2)
-        for (const movie of results.slice(0, config.maxCandidatesPerSource / 5)) {
+        const results = await getSimilarMoviesBatch(tmdbId, pagesPerItem)
+        for (const movie of results.slice(0, itemsPerSource)) {
+          if (candidates.length >= config.maxCandidatesPerSource) break
           const normalized = normalizeMovieResult(movie)
           candidates.push({
             tmdbId: normalized.tmdbId,
@@ -207,8 +226,9 @@ async function fetchTmdbSimilar(
           })
         }
       } else {
-        const results = await getSimilarTVBatch(tmdbId, 2)
-        for (const tv of results.slice(0, config.maxCandidatesPerSource / 5)) {
+        const results = await getSimilarTVBatch(tmdbId, pagesPerItem)
+        for (const tv of results.slice(0, itemsPerSource)) {
+          if (candidates.length >= config.maxCandidatesPerSource) break
           const normalized = normalizeTVResult(tv)
           candidates.push({
             tmdbId: normalized.tmdbId,
@@ -239,24 +259,34 @@ async function fetchTmdbSimilar(
 
 /**
  * Fetch candidates from TMDb Discover (general popular content)
+ * Fetches multiple pages for better coverage
  */
 async function fetchTmdbDiscover(
   mediaType: MediaType,
   config: DiscoveryConfig
 ): Promise<RawCandidate[]> {
   const candidates: RawCandidate[] = []
+  const seenIds = new Set<number>()
 
   try {
-    if (mediaType === 'movie') {
-      const result = await discoverMovies({
-        sortBy: 'popularity.desc',
-        minVoteCount: config.minVoteCount,
-        minVoteAverage: config.minVoteAverage,
-        page: 1,
-      })
+    for (let page = 1; page <= MAX_PAGES_PER_SOURCE; page++) {
+      if (candidates.length >= config.maxCandidatesPerSource) break
       
-      if (result?.results) {
-        for (const movie of result.results.slice(0, config.maxCandidatesPerSource)) {
+      if (mediaType === 'movie') {
+        const result = await discoverMovies({
+          sortBy: 'popularity.desc',
+          minVoteCount: config.minVoteCount,
+          minVoteAverage: config.minVoteAverage,
+          page,
+        })
+        
+        if (!result?.results || result.results.length === 0) break
+        
+        for (const movie of result.results) {
+          if (candidates.length >= config.maxCandidatesPerSource) break
+          if (seenIds.has(movie.id)) continue
+          seenIds.add(movie.id)
+          
           const normalized = normalizeMovieResult(movie)
           candidates.push({
             tmdbId: normalized.tmdbId,
@@ -275,17 +305,21 @@ async function fetchTmdbDiscover(
             source: 'tmdb_discover',
           })
         }
-      }
-    } else {
-      const result = await discoverTV({
-        sortBy: 'popularity.desc',
-        minVoteCount: config.minVoteCount,
-        minVoteAverage: config.minVoteAverage,
-        page: 1,
-      })
-      
-      if (result?.results) {
-        for (const tv of result.results.slice(0, config.maxCandidatesPerSource)) {
+      } else {
+        const result = await discoverTV({
+          sortBy: 'popularity.desc',
+          minVoteCount: config.minVoteCount,
+          minVoteAverage: config.minVoteAverage,
+          page,
+        })
+        
+        if (!result?.results || result.results.length === 0) break
+        
+        for (const tv of result.results) {
+          if (candidates.length >= config.maxCandidatesPerSource) break
+          if (seenIds.has(tv.id)) continue
+          seenIds.add(tv.id)
+          
           const normalized = normalizeTVResult(tv)
           candidates.push({
             tmdbId: normalized.tmdbId,
@@ -304,6 +338,11 @@ async function fetchTmdbDiscover(
             source: 'tmdb_discover',
           })
         }
+      }
+      
+      // Rate limiting between pages
+      if (page < MAX_PAGES_PER_SOURCE && candidates.length < config.maxCandidatesPerSource) {
+        await new Promise(r => setTimeout(r, PAGE_DELAY_MS))
       }
     }
   } catch (err) {
@@ -776,7 +815,7 @@ async function enrichBasicData(
   logger.info({ mediaType, count: needsBasicEnrichment.length }, 'Basic enriching candidates (poster/language only)')
 
   // Create a map for quick lookup
-  const enrichmentMap = new Map<number, { posterPath?: string; backdropPath?: string; originalLanguage?: string; overview?: string }>()
+  const enrichmentMap = new Map<number, { posterPath: string | null; backdropPath: string | null; originalLanguage: string; overview: string | null }>()
 
   // Batch fetch with higher concurrency since we're only fetching details (no credits)
   const batchSize = 10
@@ -872,16 +911,18 @@ export interface DynamicFetchFilters {
 /**
  * Fetch additional candidates dynamically based on filter criteria
  * Used when the stored pool doesn't have enough results after filtering
+ * Fetches multiple pages for better coverage
  */
 export async function fetchFilteredCandidates(
   mediaType: MediaType,
   filters: DynamicFetchFilters
 ): Promise<RawCandidate[]> {
   const candidates: RawCandidate[] = []
-  const limit = filters.limit || 50
+  const limit = filters.limit || 100  // Default to 100 items (5 pages)
   const excludeSet = new Set(filters.excludeTmdbIds || [])
+  const seenIds = new Set<number>()
 
-  logger.info({ mediaType, filters }, 'Fetching filtered candidates dynamically')
+  logger.info({ mediaType, filters, limit }, 'Fetching filtered candidates dynamically')
 
   try {
     // For single language, use TMDb's language filter
@@ -891,23 +932,30 @@ export async function fetchFilteredCandidates(
     for (const language of languagesToFetch) {
       if (candidates.length >= limit) break
 
-      if (mediaType === 'movie') {
-        const result = await discoverMovies({
-          sortBy: 'popularity.desc',
-          withGenres: filters.genreIds,
-          withOriginalLanguage: language,
-          releaseDateGte: filters.yearStart ? `${filters.yearStart}-01-01` : undefined,
-          releaseDateLte: filters.yearEnd ? `${filters.yearEnd}-12-31` : undefined,
-          minVoteCount: 20,
-          minVoteAverage: 5.0,
-          page: 1,
-        })
+      // Fetch multiple pages per language
+      for (let page = 1; page <= EXPANSION_MAX_PAGES; page++) {
+        if (candidates.length >= limit) break
 
-        if (result?.results) {
+        if (mediaType === 'movie') {
+          const result = await discoverMovies({
+            sortBy: 'popularity.desc',
+            withGenres: filters.genreIds,
+            withOriginalLanguage: language,
+            releaseDateGte: filters.yearStart ? `${filters.yearStart}-01-01` : undefined,
+            releaseDateLte: filters.yearEnd ? `${filters.yearEnd}-12-31` : undefined,
+            minVoteCount: 20,
+            minVoteAverage: 5.0,
+            page,
+          })
+
+          if (!result?.results || result.results.length === 0) break
+
           for (const movie of result.results) {
             if (excludeSet.has(movie.id)) continue
+            if (seenIds.has(movie.id)) continue
             if (candidates.length >= limit) break
             
+            seenIds.add(movie.id)
             const normalized = normalizeMovieResult(movie)
             candidates.push({
               tmdbId: normalized.tmdbId,
@@ -926,24 +974,26 @@ export async function fetchFilteredCandidates(
               source: 'tmdb_discover' as DiscoverySource,
             })
           }
-        }
-      } else {
-        const result = await discoverTV({
-          sortBy: 'popularity.desc',
-          withGenres: filters.genreIds,
-          withOriginalLanguage: language,
-          firstAirDateGte: filters.yearStart ? `${filters.yearStart}-01-01` : undefined,
-          firstAirDateLte: filters.yearEnd ? `${filters.yearEnd}-12-31` : undefined,
-          minVoteCount: 20,
-          minVoteAverage: 5.0,
-          page: 1,
-        })
+        } else {
+          const result = await discoverTV({
+            sortBy: 'popularity.desc',
+            withGenres: filters.genreIds,
+            withOriginalLanguage: language,
+            firstAirDateGte: filters.yearStart ? `${filters.yearStart}-01-01` : undefined,
+            firstAirDateLte: filters.yearEnd ? `${filters.yearEnd}-12-31` : undefined,
+            minVoteCount: 20,
+            minVoteAverage: 5.0,
+            page,
+          })
 
-        if (result?.results) {
+          if (!result?.results || result.results.length === 0) break
+
           for (const tv of result.results) {
             if (excludeSet.has(tv.id)) continue
+            if (seenIds.has(tv.id)) continue
             if (candidates.length >= limit) break
             
+            seenIds.add(tv.id)
             const normalized = normalizeTVResult(tv)
             candidates.push({
               tmdbId: normalized.tmdbId,
@@ -962,6 +1012,11 @@ export async function fetchFilteredCandidates(
               source: 'tmdb_discover' as DiscoverySource,
             })
           }
+        }
+
+        // Rate limiting between pages
+        if (page < EXPANSION_MAX_PAGES && candidates.length < limit) {
+          await new Promise(r => setTimeout(r, PAGE_DELAY_MS))
         }
       }
     }

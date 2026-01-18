@@ -81,7 +81,7 @@ function invalidateCache() {
 
 // Minimum target count before triggering expansion
 const TARGET_DISPLAY_COUNT = 50
-const EXPANSION_THRESHOLD = 25 // Trigger expansion when below this count
+const EXPANSION_THRESHOLD = 20 // Trigger expansion when below this count
 
 export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
   const [status, setStatus] = useState<DiscoveryStatus | null>(null)
@@ -101,6 +101,8 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
   const filtersRef = useRef(filters)
   // Track if we've already tried to expand for current filters
   const expansionAttemptedRef = useRef<string>('')
+  // Track expanding state via ref for use in callbacks (avoids stale closure)
+  const expandingRef = useRef(false)
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -236,23 +238,32 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
    * This is called automatically when the filtered count drops below threshold
    */
   const expandDiscovery = useCallback(async (mediaType: MediaType, currentCandidates: DiscoveryCandidate[]) => {
-    // Don't expand if already expanding or if we have enough candidates
-    if (expanding || currentCandidates.length >= EXPANSION_THRESHOLD) {
+    // Create a key to track if we've already attempted expansion for these filters
+    const expansionKey = `${mediaType}-${JSON.stringify(filters)}`
+    
+    // Don't expand if already expanding, already attempted, or have enough candidates
+    if (expandingRef.current) {
+      console.log('[Discovery] Already expanding, skipping')
+      return null
+    }
+    if (currentCandidates.length >= EXPANSION_THRESHOLD) {
+      return null
+    }
+    if (expansionAttemptedRef.current === expansionKey) {
+      console.log('[Discovery] Already attempted for this filter combination, skipping')
       return null
     }
 
-    // Create a key to track if we've already attempted expansion for these filters
-    const expansionKey = `${mediaType}-${JSON.stringify(filters)}`
-    if (expansionAttemptedRef.current === expansionKey) {
-      return null // Already attempted for this filter combination
-    }
-
-    setExpanding(true)
+    // Mark as attempted BEFORE starting to prevent race conditions
     expansionAttemptedRef.current = expansionKey
+    expandingRef.current = true
+    setExpanding(true)
 
     try {
       // Get existing TMDb IDs to exclude from expansion
       const existingTmdbIds = currentCandidates.map(c => c.tmdbId)
+
+      console.log('[Discovery] Expanding with filters:', { mediaType, filters, excludeCount: existingTmdbIds.length })
 
       const response = await fetch(`/api/discovery/${mediaType === 'movie' ? 'movies' : 'series'}/expand`, {
         method: 'POST',
@@ -269,14 +280,18 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
       })
 
       if (!response.ok) {
-        console.error('Failed to expand discovery')
+        const errorText = await response.text()
+        console.error('[Discovery] Expand failed:', response.status, errorText)
         return null
       }
 
       const data = await response.json()
       const newCandidates = data.candidates || []
 
+      console.log('[Discovery] Expand returned', newCandidates.length, 'candidates')
+
       if (newCandidates.length === 0) {
+        console.log('[Discovery] No new candidates found, expansion complete')
         return null
       }
 
@@ -301,11 +316,17 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
       return { candidates: merged, added: newCandidates.length }
     } catch (err) {
       console.error('Error expanding discovery:', err)
+      // Reset attempted ref on error so user can retry
+      expansionAttemptedRef.current = ''
       return null
     } finally {
+      expandingRef.current = false
       setExpanding(false)
     }
-  }, [expanding, filters, fetchJellyseerrStatus])
+    // Note: We intentionally don't include `expanding` in deps to prevent callback recreation
+    // The `expanding` check uses a ref pattern internally
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, fetchJellyseerrStatus])
 
   // Check if filters have changed
   const filtersChanged = JSON.stringify(filters) !== JSON.stringify(filtersRef.current)
@@ -380,15 +401,19 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
                         filters.yearStart !== undefined ||
                         filters.yearEnd !== undefined
 
-      if (!hasFilters || loading) return
+      if (!hasFilters || loading) {
+        return
+      }
 
       // Check movies
       if (movieCandidates.length > 0 && movieCandidates.length < EXPANSION_THRESHOLD) {
+        console.log(`[Discovery] Movie count (${movieCandidates.length}) below threshold (${EXPANSION_THRESHOLD}), expanding...`)
         await expandDiscovery('movie', movieCandidates)
       }
 
       // Check series
       if (seriesCandidates.length > 0 && seriesCandidates.length < EXPANSION_THRESHOLD) {
+        console.log(`[Discovery] Series count (${seriesCandidates.length}) below threshold (${EXPANSION_THRESHOLD}), expanding...`)
         await expandDiscovery('series', seriesCandidates)
       }
     }

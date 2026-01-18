@@ -132,9 +132,9 @@ export interface DiscoveryConfig {
 }
 
 export const DEFAULT_DISCOVERY_CONFIG: DiscoveryConfig = {
-  maxCandidatesPerSource: 50,
-  maxTotalCandidates: 200,
-  maxEnrichedCandidates: 75,
+  maxCandidatesPerSource: 200,   // 10 pages × 20 items per source
+  maxTotalCandidates: 1000,      // 5x more for better filter coverage
+  maxEnrichedCandidates: 150,    // 2x more with full metadata
   targetDisplayCount: 50,
   minVoteCount: 50,
   minVoteAverage: 5.0,
