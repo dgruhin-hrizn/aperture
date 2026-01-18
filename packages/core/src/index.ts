@@ -740,6 +740,7 @@ export {
   type JellyseerrSearchItem,
   type JellyseerrMovieDetails,
   type JellyseerrTVDetails,
+  type JellyseerrSeason,
   type JellyseerrMediaStatus,
   type JellyseerrRequestStatus,
   type JellyseerrRequestBody,

@@ -19,6 +19,7 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import { RankBadge } from '@aperture/ui'
 import { DiscoveryDetailPopper } from './DiscoveryDetailPopper'
+import { SeasonSelectModal, type SeasonInfo } from './SeasonSelectModal'
 import type { DiscoveryCandidate, JellyseerrMediaStatus } from '../types'
 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w500'
@@ -27,9 +28,10 @@ const FALLBACK_POSTER = '/NO_POSTER_FOUND.png'
 interface DiscoveryCardProps {
   candidate: DiscoveryCandidate
   canRequest: boolean
-  onRequest: (candidate: DiscoveryCandidate) => Promise<void>
+  onRequest: (candidate: DiscoveryCandidate, seasons?: number[]) => Promise<void>
   isRequesting: boolean
   cachedStatus?: JellyseerrMediaStatus
+  fetchTVDetails?: (tmdbId: number) => Promise<{ seasons: SeasonInfo[]; title: string; posterPath?: string } | null>
 }
 
 export function DiscoveryCard({
@@ -38,10 +40,16 @@ export function DiscoveryCard({
   onRequest,
   isRequesting,
   cachedStatus,
+  fetchTVDetails,
 }: DiscoveryCardProps) {
   const [hovering, setHovering] = useState(false)
   const [imageError, setImageError] = useState(false)
   const [detailOpen, setDetailOpen] = useState(false)
+  
+  // Season selection modal state
+  const [seasonModalOpen, setSeasonModalOpen] = useState(false)
+  const [seasonModalLoading, setSeasonModalLoading] = useState(false)
+  const [seasonData, setSeasonData] = useState<{ seasons: SeasonInfo[]; title: string; posterPath?: string } | null>(null)
 
   const posterUrl = candidate.posterPath && !imageError
     ? `${TMDB_IMAGE_BASE}${candidate.posterPath}`
@@ -72,8 +80,22 @@ export function DiscoveryCard({
   const handleRequest = async (e: React.MouseEvent) => {
     e.stopPropagation()
     if (!isRequesting && !isRequested && canRequest) {
-      await onRequest(candidate)
+      // For series, open the season selection modal
+      if (candidate.mediaType === 'series' && fetchTVDetails) {
+        setSeasonModalLoading(true)
+        setSeasonModalOpen(true)
+        const details = await fetchTVDetails(candidate.tmdbId)
+        setSeasonData(details)
+        setSeasonModalLoading(false)
+      } else {
+        // For movies, request directly
+        await onRequest(candidate)
+      }
     }
+  }
+
+  const handleSeasonSubmit = async (seasons: number[]) => {
+    await onRequest(candidate, seasons)
   }
 
   // IMDb URL if available, fallback to TMDb
@@ -99,7 +121,7 @@ export function DiscoveryCard({
           boxShadow: (theme) => `0 12px 24px ${alpha(theme.palette.common.black, 0.3)}`,
         },
       }}
-      onClick={() => window.open(primaryUrl, '_blank')}
+      onClick={() => !seasonModalOpen && window.open(primaryUrl, '_blank')}
     >
       {/* Poster */}
       <Box sx={{ position: 'relative', aspectRatio: '2/3' }}>
@@ -301,6 +323,20 @@ export function DiscoveryCard({
         candidate={candidate}
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
+      />
+
+      {/* Season Selection Modal (for series) */}
+      <SeasonSelectModal
+        open={seasonModalOpen}
+        onClose={() => {
+          setSeasonModalOpen(false)
+          setSeasonData(null)
+        }}
+        onSubmit={handleSeasonSubmit}
+        title={seasonData?.title || candidate.title}
+        posterPath={seasonData?.posterPath || candidate.posterPath}
+        seasons={seasonData?.seasons || []}
+        loading={seasonModalLoading}
       />
     </Card>
   )

@@ -7,6 +7,7 @@ import {
   isJellyseerrConfigured,
   testJellyseerrConnection,
   getJellyseerrMediaStatus,
+  getJellyseerrTVDetails,
   batchGetJellyseerrMediaStatus,
   createJellyseerrRequest,
   getJellyseerrRequestStatus,
@@ -152,6 +153,40 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
         apertureRequest: existingRequest,
         canRequest,
       })
+    }
+  )
+
+  /**
+   * GET /api/jellyseerr/tv/:tmdbId
+   * Get TV show details with season information for the season selection modal
+   */
+  fastify.get<{
+    Params: { tmdbId: string }
+  }>(
+    '/api/jellyseerr/tv/:tmdbId',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { tmdbId } = request.params
+
+      // Check if Jellyseerr is configured
+      if (!await isJellyseerrConfigured()) {
+        return reply.status(503).send({
+          error: 'Jellyseerr not configured',
+          message: 'Content requests are not available',
+        })
+      }
+
+      // Fetch TV details from Jellyseerr
+      const tvDetails = await getJellyseerrTVDetails(parseInt(tmdbId, 10))
+
+      if (!tvDetails) {
+        return reply.status(404).send({
+          error: 'TV show not found',
+          message: 'Could not fetch TV show details from Jellyseerr',
+        })
+      }
+
+      return reply.send(tvDetails)
     }
   )
 

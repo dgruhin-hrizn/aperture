@@ -76,7 +76,7 @@ export function DiscoveryPage() {
     markAsRequested,
   } = useDiscoveryData(stableFilters)
 
-  const { submitRequest, isRequesting } = useJellyseerrRequest()
+  const { submitRequest, isRequesting, fetchTVDetails } = useJellyseerrRequest()
   const { viewMode, setViewMode } = useViewMode('discovery')
 
   const [mediaType, setMediaType] = useState<MediaType>('movie')
@@ -104,12 +104,13 @@ export function DiscoveryPage() {
     }
   }
 
-  const handleRequest = useCallback(async (candidate: DiscoveryCandidate) => {
+  const handleRequest = useCallback(async (candidate: DiscoveryCandidate, seasons?: number[]) => {
     const result = await submitRequest(
       candidate.tmdbId,
       candidate.mediaType,
       candidate.title,
-      candidate.id
+      candidate.id,
+      seasons // Pass seasons for TV series requests
     )
     if (result.success) {
       markAsRequested(candidate.tmdbId)
@@ -325,6 +326,7 @@ export function DiscoveryPage() {
                 onRequest={handleRequest}
                 isRequesting={isRequesting(candidate.tmdbId)}
                 cachedStatus={jellyseerrStatus[candidate.tmdbId]}
+                fetchTVDetails={fetchTVDetails}
               />
             </Grid>
           ))}
@@ -339,6 +341,7 @@ export function DiscoveryPage() {
               onRequest={handleRequest}
               isRequesting={isRequesting(candidate.tmdbId)}
               cachedStatus={jellyseerrStatus[candidate.tmdbId]}
+              fetchTVDetails={fetchTVDetails}
             />
           ))}
         </Box>
