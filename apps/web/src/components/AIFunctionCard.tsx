@@ -39,7 +39,7 @@ import {
 } from '@mui/icons-material'
 
 export type AIFunction = 'embeddings' | 'chat' | 'textGeneration' | 'exploration'
-export type ProviderType = 'openai' | 'anthropic' | 'ollama' | 'groq' | 'google' | 'openai-compatible' | 'deepseek' | 'openrouter'
+export type ProviderType = 'openai' | 'anthropic' | 'ollama' | 'groq' | 'google' | 'openai-compatible' | 'deepseek' | 'openrouter' | 'huggingface'
 
 export interface ModelInfo {
   id: string
@@ -145,6 +145,15 @@ export const PROVIDER_INFO: Record<ProviderType, ProviderInfo> = {
     website: 'https://openrouter.ai/keys',
     logoPath: '/openrouter.svg',
   },
+  huggingface: {
+    id: 'huggingface',
+    name: 'Hugging Face',
+    type: 'cloud',
+    requiresApiKey: true,
+    requiresBaseUrl: false,
+    website: 'https://huggingface.co/settings/tokens',
+    logoPath: '/huggingface.svg',
+  },
 }
 
 export interface AIFunctionCardProps {
@@ -210,7 +219,7 @@ export function AIFunctionCard({
   const isConfigured = Boolean(config)
   const providerInfo = PROVIDER_INFO[provider]
   const selectedModel = models.find(m => m.id === model)
-  const supportsCustomModels = provider === 'ollama' || provider === 'openai-compatible' || provider === 'openrouter'
+  const supportsCustomModels = provider === 'ollama' || provider === 'openai-compatible' || provider === 'openrouter' || provider === 'huggingface'
 
   // Sync form state when config prop changes (e.g., loaded from DB)
   useEffect(() => {
@@ -899,9 +908,10 @@ export function AIFunctionCard({
         <DialogTitle>Add Custom Model</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Enter the exact model name as it appears on your {provider === 'ollama' ? 'Ollama server' : provider === 'openrouter' ? 'OpenRouter account' : 'OpenAI-compatible server'}.
+            Enter the exact model name as it appears on your {provider === 'ollama' ? 'Ollama server' : provider === 'openrouter' ? 'OpenRouter account' : provider === 'huggingface' ? 'Hugging Face Hub' : 'OpenAI-compatible server'}.
             {provider === 'ollama' && ' You can find model names at ollama.com/library.'}
             {provider === 'openrouter' && ' You can find model names at openrouter.ai/models (e.g., anthropic/claude-3.5-sonnet, openai/gpt-4o).'}
+            {provider === 'huggingface' && ' You can find model names at huggingface.co/models (e.g., meta-llama/Llama-3.3-70B-Instruct, deepseek-ai/DeepSeek-V3-0324).'}
           </Typography>
           <TextField
             autoFocus
@@ -914,7 +924,7 @@ export function AIFunctionCard({
             }}
             fullWidth
             size="small"
-            placeholder={provider === 'ollama' ? 'e.g., llama3.3:70b, mixtral:8x22b' : provider === 'openrouter' ? 'e.g., anthropic/claude-3.5-sonnet' : 'Enter model name'}
+            placeholder={provider === 'ollama' ? 'e.g., llama3.3:70b, mixtral:8x22b' : provider === 'openrouter' ? 'e.g., anthropic/claude-3.5-sonnet' : provider === 'huggingface' ? 'e.g., meta-llama/Llama-3.3-70B-Instruct' : 'Enter model name'}
             disabled={dialogTesting}
             sx={{ mb: 2 }}
           />

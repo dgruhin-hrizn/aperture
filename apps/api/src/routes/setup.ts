@@ -1439,8 +1439,8 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: 'provider, function, and modelId are required' })
       }
 
-      if (provider !== 'ollama' && provider !== 'openai-compatible' && provider !== 'openrouter') {
-        return reply.status(400).send({ error: 'Custom models are only supported for ollama, openai-compatible, and openrouter providers' })
+      if (provider !== 'ollama' && provider !== 'openai-compatible' && provider !== 'openrouter' && provider !== 'huggingface') {
+        return reply.status(400).send({ error: 'Custom models are only supported for ollama, openai-compatible, openrouter, and huggingface providers' })
       }
 
       // Validate embedding dimensions for embeddings function
@@ -1456,7 +1456,7 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const customModel = await addCustomModel(
-        provider as 'ollama' | 'openai-compatible' | 'openrouter',
+        provider as 'ollama' | 'openai-compatible' | 'openrouter' | 'huggingface',
         fn as AIFunction,
         modelId,
         fn === 'embeddings' ? embeddingDimensions : undefined
@@ -1486,12 +1486,12 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: 'provider, function, and modelId are required' })
       }
 
-      if (provider !== 'ollama' && provider !== 'openai-compatible' && provider !== 'openrouter') {
-        return reply.status(400).send({ error: 'Custom models are only supported for ollama, openai-compatible, and openrouter providers' })
+      if (provider !== 'ollama' && provider !== 'openai-compatible' && provider !== 'openrouter' && provider !== 'huggingface') {
+        return reply.status(400).send({ error: 'Custom models are only supported for ollama, openai-compatible, openrouter, and huggingface providers' })
       }
 
       const deleted = await deleteCustomModel(
-        provider as 'ollama' | 'openai-compatible' | 'openrouter',
+        provider as 'ollama' | 'openai-compatible' | 'openrouter' | 'huggingface',
         fn as AIFunction,
         modelId
       )

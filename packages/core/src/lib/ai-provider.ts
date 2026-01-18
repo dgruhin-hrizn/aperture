@@ -13,6 +13,7 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createGroq } from '@ai-sdk/groq'
 import { createDeepSeek } from '@ai-sdk/deepseek'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
+import { createHuggingFace } from '@ai-sdk/huggingface'
 import type { LanguageModel, EmbeddingModel } from 'ai'
 import { getSystemSetting, setSystemSetting } from '../settings/systemSettings.js'
 import { createChildLogger } from './logger.js'
@@ -43,6 +44,7 @@ export type ProviderType =
   | 'google'
   | 'deepseek'
   | 'openrouter'
+  | 'huggingface'
 
 export interface ProviderConfig {
   provider: ProviderType
@@ -271,14 +273,20 @@ function createProviderInstance(providerConfig: ProviderConfig): unknown {
       })
       break
 
-    case 'openrouter':
-      instance = createOpenRouter({
-        apiKey: providerConfig.apiKey,
-      })
-      break
+      case 'openrouter':
+        instance = createOpenRouter({
+          apiKey: providerConfig.apiKey,
+        })
+        break
 
-    default:
-      throw new Error(`Unknown provider: ${providerConfig.provider}`)
+      case 'huggingface':
+        instance = createHuggingFace({
+          apiKey: providerConfig.apiKey,
+        })
+        break
+
+      default:
+        throw new Error(`Unknown provider: ${providerConfig.provider}`)
   }
 
   cachedProviders.set(cacheKey, instance)
@@ -319,6 +327,14 @@ export async function getEmbeddingModelInstance(): Promise<EmbeddingModel<string
       return (provider as any).textEmbeddingModel(modelId)
 
     case 'openai-compatible':
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (provider as any).textEmbeddingModel(modelId)
+
+    case 'openrouter':
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (provider as any).embedding(modelId)
+
+    case 'huggingface':
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return (provider as any).textEmbeddingModel(modelId)
 
@@ -701,7 +717,7 @@ export async function getOpenAIApiKeyLegacy(): Promise<string | null> {
  */
 export interface CustomModel {
   id: number
-  provider: 'ollama' | 'openai-compatible' | 'openrouter'
+  provider: 'ollama' | 'openai-compatible' | 'openrouter' | 'huggingface'
   functionType: AIFunction
   modelId: string
   embeddingDimensions?: number  // Only for embeddings function
@@ -724,7 +740,7 @@ export async function getCustomModels(
   
   const result = await query<{
     id: number
-    provider: 'ollama' | 'openai-compatible' | 'openrouter'
+    provider: 'ollama' | 'openai-compatible' | 'openrouter' | 'huggingface'
     function_type: string
     model_id: string
     embedding_dimensions: number | null
@@ -748,10 +764,10 @@ export async function getCustomModels(
 }
 
 /**
- * Add a custom model for Ollama, OpenAI-compatible, or OpenRouter provider
+ * Add a custom model for Ollama, OpenAI-compatible, OpenRouter, or HuggingFace provider
  */
 export async function addCustomModel(
-  providerId: 'ollama' | 'openai-compatible' | 'openrouter',
+  providerId: 'ollama' | 'openai-compatible' | 'openrouter' | 'huggingface',
   fn: AIFunction,
   modelId: string,
   embeddingDimensions?: number
@@ -760,7 +776,7 @@ export async function addCustomModel(
   
   const result = await queryOne<{
     id: number
-    provider: 'ollama' | 'openai-compatible' | 'openrouter'
+    provider: 'ollama' | 'openai-compatible' | 'openrouter' | 'huggingface'
     function_type: string
     model_id: string
     embedding_dimensions: number | null
@@ -795,7 +811,7 @@ export async function addCustomModel(
  * Delete a custom model
  */
 export async function deleteCustomModel(
-  providerId: 'ollama' | 'openai-compatible' | 'openrouter',
+  providerId: 'ollama' | 'openai-compatible' | 'openrouter' | 'huggingface',
   fn: AIFunction,
   modelId: string
 ): Promise<boolean> {
