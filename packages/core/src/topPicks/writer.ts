@@ -13,6 +13,7 @@ import { getConfig } from '../strm/config.js'
 import { downloadImage } from '../strm/images.js'
 import { sanitizeFilename } from '../strm/filenames.js'
 import { getTopPicksConfig } from './config.js'
+import { getPreventDuplicateContinueWatchingConfig } from '../settings/systemSettings.js'
 import {
   symlinkArtwork,
   symlinkSubtitles,
@@ -85,7 +86,7 @@ function generateSortingPlaceholderNfo(seriesTitle: string, rank: number): strin
  * Generate NFO content for a Top Picks movie
  * Format matches Emby/Jellyfin movie.nfo specification
  */
-function generateTopPicksMovieNfo(movie: TopPicksMovie, dateAdded: Date): string {
+function generateTopPicksMovieNfo(movie: TopPicksMovie, dateAdded: Date, usePrefixedProviderIds: boolean = false): string {
   // Zero-pad rank for proper alphabetical sorting (01, 02, ... 10)
   const rankPrefix = String(movie.rank).padStart(2, '0')
 
@@ -101,7 +102,7 @@ function generateTopPicksMovieNfo(movie: TopPicksMovie, dateAdded: Date): string
     lines.push(`  <outline><![CDATA[${movie.tagline}]]></outline>`)
   }
 
-  lines.push(`  <lockdata>false</lockdata>`)
+  lines.push(`  <lockdata>${usePrefixedProviderIds ? 'true' : 'false'}</lockdata>`)
   lines.push(`  <dateadded>${dateAdded.toISOString().slice(0, 19).replace('T', ' ')}</dateadded>`)
   lines.push(`  <title>${escapeXml(movie.title)}</title>`)
 
@@ -168,10 +169,12 @@ function generateTopPicksMovieNfo(movie: TopPicksMovie, dateAdded: Date): string
 
   // External IDs as separate elements
   if (movie.imdbId) {
-    lines.push(`  <imdbid>${escapeXml(movie.imdbId)}</imdbid>`)
+    const imdbId = usePrefixedProviderIds ? `aperture-${movie.imdbId}` : movie.imdbId
+    lines.push(`  <imdbid>${escapeXml(imdbId)}</imdbid>`)
   }
   if (movie.tmdbId) {
-    lines.push(`  <tmdbid>${escapeXml(movie.tmdbId)}</tmdbid>`)
+    const tmdbId = usePrefixedProviderIds ? `aperture-${movie.tmdbId}` : movie.tmdbId
+    lines.push(`  <tmdbid>${escapeXml(tmdbId)}</tmdbid>`)
   }
 
   // Premiere/release date
@@ -223,17 +226,21 @@ function generateTopPicksMovieNfo(movie: TopPicksMovie, dateAdded: Date): string
 
   // Unique IDs
   if (movie.imdbId) {
-    lines.push(`  <uniqueid type="imdb">${escapeXml(movie.imdbId)}</uniqueid>`)
+    const imdbId = usePrefixedProviderIds ? `aperture-${movie.imdbId}` : movie.imdbId
+    lines.push(`  <uniqueid type="imdb">${escapeXml(imdbId)}</uniqueid>`)
   }
   if (movie.tmdbId) {
-    lines.push(`  <uniqueid type="tmdb">${escapeXml(movie.tmdbId)}</uniqueid>`)
+    const tmdbId = usePrefixedProviderIds ? `aperture-${movie.tmdbId}` : movie.tmdbId
+    lines.push(`  <uniqueid type="tmdb">${escapeXml(tmdbId)}</uniqueid>`)
   }
 
   // Primary ID
   if (movie.imdbId) {
-    lines.push(`  <id>${escapeXml(movie.imdbId)}</id>`)
+    const imdbId = usePrefixedProviderIds ? `aperture-${movie.imdbId}` : movie.imdbId
+    lines.push(`  <id>${escapeXml(imdbId)}</id>`)
   } else if (movie.tmdbId) {
-    lines.push(`  <id>${escapeXml(movie.tmdbId)}</id>`)
+    const tmdbId = usePrefixedProviderIds ? `aperture-${movie.tmdbId}` : movie.tmdbId
+    lines.push(`  <id>${escapeXml(tmdbId)}</id>`)
   }
 
   // Tags
@@ -254,7 +261,8 @@ function generateTopPicksSeriesNfo(
     totalEpisodes?: number | null
     endYear?: number | null
   },
-  dateAdded: Date
+  dateAdded: Date,
+  usePrefixedProviderIds: boolean = false
 ): string {
   // Zero-pad rank for proper alphabetical sorting (01, 02, ... 10)
   const rankPrefix = String(series.rank).padStart(2, '0')
@@ -266,7 +274,7 @@ function generateTopPicksSeriesNfo(
     lines.push(`  <plot><![CDATA[${series.overview}]]></plot>`)
   }
 
-  lines.push(`  <lockdata>false</lockdata>`)
+  lines.push(`  <lockdata>${usePrefixedProviderIds ? 'true' : 'false'}</lockdata>`)
   lines.push(`  <dateadded>${dateAdded.toISOString().slice(0, 19).replace('T', ' ')}</dateadded>`)
   lines.push(`  <title>${escapeXml(series.title)}</title>`)
 
@@ -313,10 +321,12 @@ function generateTopPicksSeriesNfo(
 
   // External IDs as both uniqueid and legacy elements
   if (series.imdbId) {
-    lines.push(`  <imdb_id>${escapeXml(series.imdbId)}</imdb_id>`)
+    const imdbId = usePrefixedProviderIds ? `aperture-${series.imdbId}` : series.imdbId
+    lines.push(`  <imdb_id>${escapeXml(imdbId)}</imdb_id>`)
   }
   if (series.tmdbId) {
-    lines.push(`  <tmdbid>${escapeXml(series.tmdbId)}</tmdbid>`)
+    const tmdbId = usePrefixedProviderIds ? `aperture-${series.tmdbId}` : series.tmdbId
+    lines.push(`  <tmdbid>${escapeXml(tmdbId)}</tmdbid>`)
   }
 
   // Year range (premiered year is from series.year, end year from endYear)
@@ -355,14 +365,17 @@ function generateTopPicksSeriesNfo(
 
   // Unique IDs
   if (series.tvdbId) {
-    lines.push(`  <uniqueid type="tvdb" default="true">${escapeXml(series.tvdbId)}</uniqueid>`)
-    lines.push(`  <tvdbid>${escapeXml(series.tvdbId)}</tvdbid>`)
+    const tvdbId = usePrefixedProviderIds ? `aperture-${series.tvdbId}` : series.tvdbId
+    lines.push(`  <uniqueid type="tvdb" default="true">${escapeXml(tvdbId)}</uniqueid>`)
+    lines.push(`  <tvdbid>${escapeXml(tvdbId)}</tvdbid>`)
   }
   if (series.imdbId) {
-    lines.push(`  <uniqueid type="imdb">${escapeXml(series.imdbId)}</uniqueid>`)
+    const imdbId = usePrefixedProviderIds ? `aperture-${series.imdbId}` : series.imdbId
+    lines.push(`  <uniqueid type="imdb">${escapeXml(imdbId)}</uniqueid>`)
   }
   if (series.tmdbId) {
-    lines.push(`  <uniqueid type="tmdb">${escapeXml(series.tmdbId)}</uniqueid>`)
+    const tmdbId = usePrefixedProviderIds ? `aperture-${series.tmdbId}` : series.tmdbId
+    lines.push(`  <uniqueid type="tmdb">${escapeXml(tmdbId)}</uniqueid>`)
   }
 
   // Status
@@ -475,6 +488,8 @@ export async function writeTopPicksMovies(
 ): Promise<{ written: number; localPath: string; embyPath: string }> {
   const config = await getConfig()
   const topPicksConfig = await getTopPicksConfig()
+  const preventDuplicatesConfig = await getPreventDuplicateContinueWatchingConfig()
+  const preventDuplicates = preventDuplicatesConfig.enabled
   const startTime = Date.now()
   const useSymlinks = topPicksConfig.moviesUseSymlinks
 
@@ -646,7 +661,7 @@ export async function writeTopPicksMovies(
 
       // Write NFO file inside the movie folder (use standard 'movie.nfo' name for Emby compatibility)
       const nfoPath = path.join(movieFolderPath, 'movie.nfo')
-      const nfoContent = generateTopPicksMovieNfo(movie, dateAdded)
+      const nfoContent = generateTopPicksMovieNfo(movie, dateAdded, preventDuplicates)
       await fs.writeFile(nfoPath, nfoContent, 'utf-8')
 
       // Download poster with Top Picks badge (poster.jpg in folder)
@@ -708,7 +723,7 @@ export async function writeTopPicksMovies(
 
       // Write NFO file
       const nfoPath = path.join(localPath, `${baseFilename}.nfo`)
-      const nfoContent = generateTopPicksMovieNfo(movie, dateAdded)
+      const nfoContent = generateTopPicksMovieNfo(movie, dateAdded, preventDuplicates)
       await fs.writeFile(nfoPath, nfoContent, 'utf-8')
 
       // Download poster with Top Picks badge
@@ -754,6 +769,8 @@ export async function writeTopPicksSeries(
 ): Promise<{ written: number; localPath: string; embyPath: string }> {
   const config = await getConfig()
   const topPicksConfig = await getTopPicksConfig()
+  const preventDuplicatesConfig = await getPreventDuplicateContinueWatchingConfig()
+  const preventDuplicates = preventDuplicatesConfig.enabled
   const startTime = Date.now()
   const useSymlinks = topPicksConfig.seriesUseSymlinks
 
@@ -935,7 +952,8 @@ export async function writeTopPicksSeries(
         totalEpisodes: dbSeries.total_episodes,
         endYear: dbSeries.end_year,
       },
-      dateAdded
+      dateAdded,
+      preventDuplicates
     )
     await fs.writeFile(nfoPath, nfoContent, 'utf-8')
 

@@ -21,7 +21,7 @@ import { getConfig } from '../strm/config.js'
 import { sanitizeFilename } from '../strm/filenames.js'
 import { downloadImage } from '../strm/images.js'
 import { symlinkArtwork, SERIES_SKIP_FILES } from '../strm/artwork.js'
-import { getWatchingLibraryConfig } from '../settings/systemSettings.js'
+import { getWatchingLibraryConfig, getPreventDuplicateContinueWatchingConfig } from '../settings/systemSettings.js'
 import type { ImageDownloadTask } from '../strm/types.js'
 import {
   createJobProgress,
@@ -97,7 +97,7 @@ function escapeXml(input: string): string {
  * Uses the stable `addedAt` timestamp (when user added the series) rather than
  * current time, to prevent unnecessary library metadata refreshes.
  */
-function generateWatchingSeriesNfo(series: WatchingSeries): string {
+function generateWatchingSeriesNfo(series: WatchingSeries, usePrefixedProviderIds: boolean = false): string {
   const lines = ['<?xml version="1.0" encoding="utf-8" standalone="yes"?>', '<tvshow>']
 
   // Plot with CDATA for special characters
@@ -105,7 +105,7 @@ function generateWatchingSeriesNfo(series: WatchingSeries): string {
     lines.push(`  <plot><![CDATA[${series.overview}]]></plot>`)
   }
 
-  lines.push(`  <lockdata>false</lockdata>`)
+  lines.push(`  <lockdata>${usePrefixedProviderIds ? 'true' : 'false'}</lockdata>`)
   // Use stable addedAt date instead of current time to avoid triggering metadata refreshes
   const dateAdded =
     series.addedAt instanceof Date
@@ -163,10 +163,12 @@ function generateWatchingSeriesNfo(series: WatchingSeries): string {
 
   // External IDs
   if (series.imdbId) {
-    lines.push(`  <imdb_id>${escapeXml(series.imdbId)}</imdb_id>`)
+    const imdbId = usePrefixedProviderIds ? `aperture-${series.imdbId}` : series.imdbId
+    lines.push(`  <imdb_id>${escapeXml(imdbId)}</imdb_id>`)
   }
   if (series.tmdbId) {
-    lines.push(`  <tmdbid>${escapeXml(series.tmdbId)}</tmdbid>`)
+    const tmdbId = usePrefixedProviderIds ? `aperture-${series.tmdbId}` : series.tmdbId
+    lines.push(`  <tmdbid>${escapeXml(tmdbId)}</tmdbid>`)
   }
 
   // Premiered year
@@ -200,14 +202,17 @@ function generateWatchingSeriesNfo(series: WatchingSeries): string {
 
   // Unique IDs
   if (series.tvdbId) {
-    lines.push(`  <uniqueid type="tvdb" default="true">${escapeXml(series.tvdbId)}</uniqueid>`)
-    lines.push(`  <tvdbid>${escapeXml(series.tvdbId)}</tvdbid>`)
+    const tvdbId = usePrefixedProviderIds ? `aperture-${series.tvdbId}` : series.tvdbId
+    lines.push(`  <uniqueid type="tvdb" default="true">${escapeXml(tvdbId)}</uniqueid>`)
+    lines.push(`  <tvdbid>${escapeXml(tvdbId)}</tvdbid>`)
   }
   if (series.imdbId) {
-    lines.push(`  <uniqueid type="imdb">${escapeXml(series.imdbId)}</uniqueid>`)
+    const imdbId = usePrefixedProviderIds ? `aperture-${series.imdbId}` : series.imdbId
+    lines.push(`  <uniqueid type="imdb">${escapeXml(imdbId)}</uniqueid>`)
   }
   if (series.tmdbId) {
-    lines.push(`  <uniqueid type="tmdb">${escapeXml(series.tmdbId)}</uniqueid>`)
+    const tmdbId = usePrefixedProviderIds ? `aperture-${series.tmdbId}` : series.tmdbId
+    lines.push(`  <uniqueid type="tmdb">${escapeXml(tmdbId)}</uniqueid>`)
   }
 
   // Status
@@ -251,6 +256,8 @@ export async function writeWatchingSeriesForUser(
 }> {
   const config = await getConfig()
   const watchingConfig = await getWatchingLibraryConfig()
+  const preventDuplicatesConfig = await getPreventDuplicateContinueWatchingConfig()
+  const preventDuplicates = preventDuplicatesConfig.enabled
   const useSymlinks = watchingConfig.useSymlinks
   const startTime = Date.now()
 
@@ -430,7 +437,7 @@ export async function writeWatchingSeriesForUser(
 
     // Write tvshow.nfo ONLY if content has changed (preserves file timestamps)
     const nfoPath = path.join(seriesPath, 'tvshow.nfo')
-    const nfoContent = generateWatchingSeriesNfo(series)
+    const nfoContent = generateWatchingSeriesNfo(series, preventDuplicates)
     const nfoChanged = await writeFileIfChanged(nfoPath, nfoContent)
 
     if (!isNewSeries && !nfoChanged) {
