@@ -32,7 +32,15 @@ import {
   isTraktConfigured,
   getUserTraktTokens,
 } from '../trakt/index.js'
-import type { MediaType, RawCandidate, DiscoverySource, DiscoveryConfig, CastMember } from './types.js'
+import type { 
+  MediaType, 
+  RawCandidate, 
+  DiscoverySource, 
+  DiscoveryConfig, 
+  CastMember,
+  GlobalFetchResult,
+  PersonalizedFetchResult,
+} from './types.js'
 
 const logger = createChildLogger('discover:sources')
 
@@ -729,9 +737,148 @@ async function enrichMissingData(
   })
 }
 
+// ============================================================================
+// Two-Phase Fetching (Shared Pool Architecture)
+// ============================================================================
+
+/**
+ * Fetch global candidates - TMDb Discover, Trakt Trending, Trakt Popular
+ * These are shared across all users and should be fetched ONCE per job
+ */
+export async function fetchGlobalCandidates(
+  mediaType: MediaType,
+  config: DiscoveryConfig
+): Promise<GlobalFetchResult> {
+  logger.info({ mediaType }, 'Fetching global candidates for shared pool')
+
+  // Fetch global sources in parallel
+  const [tmdbDiscover, traktTrending, traktPopular] = await Promise.all([
+    fetchTmdbDiscover(mediaType, config),
+    fetchTraktTrending(mediaType, config),
+    fetchTraktPopular(mediaType, config),
+  ])
+
+  // Combine all candidates
+  const allCandidates = [...tmdbDiscover, ...traktTrending, ...traktPopular]
+
+  // Deduplicate by TMDB ID, keeping the first occurrence
+  const seenIds = new Set<number>()
+  const uniqueCandidates: RawCandidate[] = []
+  for (const candidate of allCandidates) {
+    if (!seenIds.has(candidate.tmdbId)) {
+      seenIds.add(candidate.tmdbId)
+      uniqueCandidates.push(candidate)
+    }
+  }
+
+  logger.info({
+    mediaType,
+    sources: {
+      tmdbDiscover: tmdbDiscover.length,
+      traktTrending: traktTrending.length,
+      traktPopular: traktPopular.length,
+    },
+    totalFetched: allCandidates.length,
+    uniqueCount: uniqueCandidates.length,
+  }, 'Fetched global candidates')
+
+  return {
+    candidates: uniqueCandidates,
+    sources: {
+      tmdbDiscover: tmdbDiscover.length,
+      traktTrending: traktTrending.length,
+      traktPopular: traktPopular.length,
+    },
+    totalFetched: allCandidates.length,
+    uniqueCount: uniqueCandidates.length,
+  }
+}
+
+/**
+ * Fetch personalized candidates for a specific user
+ * TMDb Recommendations, TMDb Similar, Trakt Recommendations (if authed)
+ */
+export async function fetchPersonalizedCandidates(
+  userId: string,
+  mediaType: MediaType,
+  config: DiscoveryConfig
+): Promise<PersonalizedFetchResult> {
+  logger.info({ userId, mediaType }, 'Fetching personalized candidates')
+
+  // Fetch personalized sources in parallel
+  const [tmdbRecommendations, tmdbSimilar, traktRecommendations] = await Promise.all([
+    fetchTmdbRecommendations(userId, mediaType, config),
+    fetchTmdbSimilar(userId, mediaType, config),
+    fetchTraktRecommendations(userId, mediaType, config),
+  ])
+
+  const allCandidates = [
+    ...tmdbRecommendations,
+    ...tmdbSimilar,
+    ...traktRecommendations,
+  ]
+
+  logger.info({
+    userId,
+    mediaType,
+    sources: {
+      tmdbRecommendations: tmdbRecommendations.length,
+      tmdbSimilar: tmdbSimilar.length,
+      traktRecommendations: traktRecommendations.length,
+    },
+    totalFetched: allCandidates.length,
+  }, 'Fetched personalized candidates')
+
+  return {
+    candidates: allCandidates,
+    sources: {
+      tmdbRecommendations: tmdbRecommendations.length,
+      tmdbSimilar: tmdbSimilar.length,
+      traktRecommendations: traktRecommendations.length,
+    },
+    totalFetched: allCandidates.length,
+  }
+}
+
+/**
+ * Merge personalized candidates with pool candidates
+ * Personalzied candidates take precedence (override pool entries by tmdbId)
+ */
+export function mergeWithPool(
+  personalizedCandidates: RawCandidate[],
+  poolCandidates: RawCandidate[]
+): RawCandidate[] {
+  const merged: RawCandidate[] = []
+  const seenIds = new Set<number>()
+
+  // Add personalized first (they take precedence)
+  for (const candidate of personalizedCandidates) {
+    if (!seenIds.has(candidate.tmdbId)) {
+      seenIds.add(candidate.tmdbId)
+      merged.push(candidate)
+    }
+  }
+
+  // Add pool candidates that aren't already included
+  for (const candidate of poolCandidates) {
+    if (!seenIds.has(candidate.tmdbId)) {
+      seenIds.add(candidate.tmdbId)
+      merged.push(candidate)
+    }
+  }
+
+  return merged
+}
+
+// ============================================================================
+// Legacy: All-in-one Fetching (for backwards compatibility)
+// ============================================================================
+
 /**
  * Fetch all candidates from enabled sources (without full enrichment)
  * Returns candidates with basic data - enrichment should be done separately after scoring
+ * 
+ * @deprecated Use fetchGlobalCandidates + fetchPersonalizedCandidates for better performance
  */
 export async function fetchAllCandidates(
   userId: string,
@@ -799,7 +946,7 @@ export async function fetchAllCandidates(
  * Basic enrichment - only fetch essential display data (poster, language)
  * This is fast since we can skip cast/crew/runtime which require additional API calls
  */
-async function enrichBasicData(
+export async function enrichBasicData(
   candidates: RawCandidate[],
   mediaType: MediaType
 ): Promise<RawCandidate[]> {

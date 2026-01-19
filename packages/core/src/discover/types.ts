@@ -15,6 +15,15 @@ export type DiscoverySource =
   | 'trakt_recommendations'
   | 'mdblist'
 
+// Global sources are fetched once and shared across all users
+export type GlobalDiscoverySource = 'tmdb_discover' | 'trakt_trending' | 'trakt_popular'
+
+// Personalized sources are fetched per-user based on their watch history
+export type PersonalizedDiscoverySource = 'tmdb_recommendations' | 'tmdb_similar' | 'trakt_recommendations'
+
+export const GLOBAL_SOURCES: GlobalDiscoverySource[] = ['tmdb_discover', 'trakt_trending', 'trakt_popular']
+export const PERSONALIZED_SOURCES: PersonalizedDiscoverySource[] = ['tmdb_recommendations', 'tmdb_similar', 'trakt_recommendations']
+
 export type DiscoveryRunStatus = 'running' | 'completed' | 'failed'
 
 export type DiscoveryRequestStatus = 
@@ -205,4 +214,67 @@ export interface DiscoveryFilterOptions {
   yearEnd?: number
   // Minimum similarity score (0-1)
   minSimilarity?: number
+}
+
+// ============================================================================
+// Pool Types (Shared Candidate Storage)
+// ============================================================================
+
+/**
+ * A candidate in the shared discovery pool
+ * Contains metadata that can be shared across all users
+ */
+export interface PoolCandidate {
+  id: string
+  mediaType: MediaType
+  tmdbId: number
+  imdbId: string | null
+  title: string
+  originalTitle: string | null
+  originalLanguage: string | null
+  releaseYear: number | null
+  posterPath: string | null
+  backdropPath: string | null
+  overview: string | null
+  genres: { id: number; name: string }[]
+  voteAverage: number | null
+  voteCount: number | null
+  popularity: number | null
+  // Enrichment data
+  castMembers: CastMember[] | null
+  directors: string[] | null
+  runtimeMinutes: number | null
+  tagline: string | null
+  isEnriched: boolean
+  // Which global sources included this candidate
+  sources: GlobalDiscoverySource[]
+  createdAt: Date
+  updatedAt: Date
+}
+
+/**
+ * Result of fetching global candidates for the pool
+ */
+export interface GlobalFetchResult {
+  candidates: RawCandidate[]
+  sources: {
+    tmdbDiscover: number
+    traktTrending: number
+    traktPopular: number
+  }
+  totalFetched: number
+  uniqueCount: number
+}
+
+/**
+ * Result of fetching personalized candidates for a user
+ */
+export interface PersonalizedFetchResult {
+  candidates: RawCandidate[]
+  sources: {
+    tmdbRecommendations: number
+    tmdbSimilar: number
+    traktRecommendations: number
+  }
+  totalFetched: number
 }
