@@ -28,6 +28,7 @@ import similarityRoutes from './similarity.js'
 import { graphPlaylistRoutes } from './graphPlaylists.js'
 import discoveryRoutes from './discovery.js'
 import jellyseerrRoutes from './jellyseerr.js'
+import apiKeysRoutes from './apiKeys.js'
 
 const routes: FastifyPluginAsync = async (fastify) => {
   // Register health check routes
@@ -116,6 +117,9 @@ const routes: FastifyPluginAsync = async (fastify) => {
 
   // Register Jellyseerr routes (content requests)
   await fastify.register(jellyseerrRoutes)
+
+  // Register API keys routes
+  await fastify.register(apiKeysRoutes)
 }
 
 export default routes

@@ -75,6 +75,24 @@ interface MoviesListResponse {
   pageSize: number
 }
 
+// OpenAPI movie schema
+const movieSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'string', format: 'uuid' },
+    providerItemId: { type: 'string' },
+    title: { type: 'string' },
+    originalTitle: { type: 'string', nullable: true },
+    year: { type: 'integer', nullable: true },
+    genres: { type: 'array', items: { type: 'string' } },
+    overview: { type: 'string', nullable: true },
+    communityRating: { type: 'number', nullable: true },
+    runtimeMinutes: { type: 'integer', nullable: true },
+    posterUrl: { type: 'string', nullable: true },
+    backdropUrl: { type: 'string', nullable: true },
+  },
+}
+
 const moviesRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * GET /api/movies
@@ -104,7 +122,45 @@ const moviesRoutes: FastifyPluginAsync = async (fastify) => {
       sortOrder?: 'asc' | 'desc'
     }
     Reply: MoviesListResponse
-  }>('/api/movies', { preHandler: requireAuth }, async (request, reply) => {
+  }>(
+    '/api/movies',
+    {
+      preHandler: requireAuth,
+      schema: {
+        tags: ['movies'],
+        summary: 'List movies',
+        description: 'Get a paginated list of movies with filtering and sorting',
+        querystring: {
+          type: 'object',
+          properties: {
+            page: { type: 'string', description: 'Page number (default: 1)' },
+            pageSize: { type: 'string', description: 'Items per page (max: 100, default: 50)' },
+            search: { type: 'string', description: 'Search by title' },
+            genre: { type: 'string', description: 'Filter by genre' },
+            collection: { type: 'string', description: 'Filter by collection name' },
+            minRtScore: { type: 'string', description: 'Minimum Rotten Tomatoes score' },
+            showAll: { type: 'string', description: 'Include movies from all libraries' },
+            hasAwards: { type: 'string', description: 'Only movies with awards' },
+            minYear: { type: 'string', description: 'Minimum release year' },
+            maxYear: { type: 'string', description: 'Maximum release year' },
+            sortBy: { type: 'string', enum: ['title', 'year', 'releaseDate', 'rating', 'rtScore', 'metacritic', 'runtime', 'added'] },
+            sortOrder: { type: 'string', enum: ['asc', 'desc'] },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              movies: { type: 'array', items: movieSchema },
+              total: { type: 'integer', description: 'Total number of movies matching filters' },
+              page: { type: 'integer', description: 'Current page number' },
+              pageSize: { type: 'integer', description: 'Items per page' },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
     const page = parseInt(request.query.page || '1', 10)
     const pageSize = Math.min(parseInt(request.query.pageSize || '50', 10), 100)
     const offset = (page - 1) * pageSize

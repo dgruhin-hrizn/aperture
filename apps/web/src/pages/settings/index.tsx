@@ -40,6 +40,7 @@ import {
   BackupSection,
   PosterRepairSection,
   LegacyEmbeddingsSection,
+  ApiKeysSection,
 } from './components'
 import { ApiErrorAlert } from '../../components/ApiErrorAlert'
 
@@ -255,6 +256,9 @@ export function SettingsPage() {
           {/* System Tab */}
           <TabPanel value={tabValue} index={6}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {/* API Keys */}
+              <ApiKeysSection />
+
               {/* Database Backup & Restore */}
               <BackupSection />
 

@@ -1,11 +1,16 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import cookie from '@fastify/cookie'
+import swagger from '@fastify/swagger'
+import swaggerUI from '@fastify/swagger-ui'
 import { createLogger } from './lib/logger.js'
 import requestIdPlugin from './plugins/requestId.js'
 import authPlugin from './plugins/auth.js'
 import staticPlugin from './plugins/static.js'
 import routes from './routes/index.js'
+
+// Get version from package.json
+const API_VERSION = '0.5.8'
 
 export interface ServerOptions {
   logger?: boolean
@@ -84,6 +89,73 @@ export async function buildServer(options: ServerOptions = {}): Promise<any> {
 
   // Register request ID plugin
   await fastify.register(requestIdPlugin)
+
+  // Register Swagger/OpenAPI documentation
+  await fastify.register(swagger, {
+    openapi: {
+      info: {
+        title: 'Aperture API',
+        description: 'AI-powered media recommendation engine for Emby and Jellyfin. Use API keys for programmatic access.',
+        version: API_VERSION,
+        contact: {
+          name: 'Aperture',
+          url: 'https://github.com/aperture-media/aperture',
+        },
+        license: {
+          name: 'MIT',
+          url: 'https://opensource.org/licenses/MIT',
+        },
+      },
+      externalDocs: {
+        url: 'https://github.com/aperture-media/aperture/docs',
+        description: 'Documentation',
+      },
+      servers: [
+        {
+          url: appBaseUrl || 'http://localhost:3456',
+          description: 'Aperture Server',
+        },
+      ],
+      tags: [
+        { name: 'auth', description: 'Authentication endpoints' },
+        { name: 'api-keys', description: 'API key management' },
+        { name: 'movies', description: 'Movie endpoints' },
+        { name: 'series', description: 'TV series endpoints' },
+        { name: 'recommendations', description: 'AI-powered recommendations' },
+        { name: 'users', description: 'User management' },
+        { name: 'jobs', description: 'Background job management' },
+        { name: 'settings', description: 'System settings' },
+        { name: 'health', description: 'Health check endpoints' },
+      ],
+      components: {
+        securitySchemes: {
+          apiKeyAuth: {
+            type: 'apiKey',
+            in: 'header',
+            name: 'X-API-Key',
+            description: 'API key for authentication. Create keys in Settings > System > API Keys.',
+          },
+        },
+      },
+      security: [{ apiKeyAuth: [] }],
+    },
+  })
+
+  // Register Swagger UI at /openapi
+  await fastify.register(swaggerUI, {
+    routePrefix: '/openapi',
+    uiConfig: {
+      docExpansion: 'list',
+      deepLinking: true,
+      displayRequestDuration: true,
+      filter: true,
+      syntaxHighlight: {
+        activate: true,
+        theme: 'monokai',
+      },
+    },
+    staticCSP: true,
+  })
 
   // Register auth plugin
   await fastify.register(authPlugin)

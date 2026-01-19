@@ -879,3 +879,23 @@ export {
   syncUsersFromMediaServer,
   type SyncUsersResult,
 } from './users/sync.js'
+
+// API Keys
+export {
+  createApiKey,
+  validateApiKey,
+  listApiKeys,
+  listAllApiKeys,
+  getApiKey,
+  revokeApiKey,
+  deleteApiKey,
+  updateApiKey,
+  deleteAllUserApiKeys,
+  isApiKeyExpired,
+  isApiKeyRevoked,
+  getApiKeyStatus,
+  EXPIRATION_OPTIONS,
+  type ApiKey,
+  type ApiKeyWithUser,
+  type CreateApiKeyResult,
+} from './apiKeys.js'
