@@ -18,7 +18,7 @@ import {
   CompleteStep,
 } from './components'
 
-const APP_VERSION = '0.5.8'
+const APP_VERSION = '0.6.0'
 
 export function SetupPage() {
   const wizard = useSetupWizard()

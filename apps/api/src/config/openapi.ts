@@ -11,7 +11,7 @@ import type { FastifySwaggerUiOptions } from '@fastify/swagger-ui'
 // API Information
 // =============================================================================
 
-const API_VERSION = '0.5.8'
+const API_VERSION = '0.6.0'
 
 const apiInfo = {
   title: 'Aperture API',
@@ -48,8 +48,8 @@ All errors return JSON with an \`error\` field:
     url: 'https://github.com/dgruhin-hrizn/aperture',
   },
   license: {
-    name: 'MIT',
-    url: 'https://opensource.org/licenses/MIT',
+    name: 'AGPL-3.0',
+    url: 'https://www.gnu.org/licenses/agpl-3.0.html',
   },
 }
 
