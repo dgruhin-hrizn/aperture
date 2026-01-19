@@ -25,30 +25,8 @@ export const moviesComponentSchemas = {
 // =============================================================================
 
 const MovieRef = { $ref: 'Movie#' }
-const MovieDetailRef = { $ref: 'MovieDetail#' }
 const SimilarMovieRef = { $ref: 'SimilarMovie#' }
 const ErrorRef = { $ref: 'Error#' }
-
-// =============================================================================
-// Local Schemas
-// =============================================================================
-
-const movieSchema = {
-  type: 'object' as const,
-  properties: {
-    id: { type: 'string' as const, format: 'uuid' },
-    providerItemId: { type: 'string' as const },
-    title: { type: 'string' as const },
-    originalTitle: { type: 'string' as const, nullable: true },
-    year: { type: 'integer' as const, nullable: true },
-    genres: { type: 'array' as const, items: { type: 'string' as const } },
-    overview: { type: 'string' as const, nullable: true },
-    communityRating: { type: 'number' as const, nullable: true },
-    runtimeMinutes: { type: 'integer' as const, nullable: true },
-    posterUrl: { type: 'string' as const, nullable: true },
-    backdropUrl: { type: 'string' as const, nullable: true },
-  },
-}
 
 // =============================================================================
 // List Movies Schema
@@ -89,22 +67,7 @@ export const listMoviesSchema = {
       },
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      description: 'Paginated list of movies',
-      properties: {
-        movies: { 
-          type: 'array' as const, 
-          items: movieSchema,
-          description: 'Array of movie objects'
-        },
-        total: { type: 'integer' as const, description: 'Total number of movies matching filters' },
-        page: { type: 'integer' as const, description: 'Current page number' },
-        pageSize: { type: 'integer' as const, description: 'Items per page' },
-      },
-    },
-  },
+  // Note: response schema removed to allow DB snake_case fields to pass through without serialization
 }
 
 // =============================================================================
@@ -122,10 +85,7 @@ export const getMovieSchema = {
     },
     required: ['id'] as string[],
   },
-  response: {
-    200: MovieDetailRef,
-    404: ErrorRef,
-  },
+  // Note: response schema removed to allow DB snake_case fields to pass through without serialization
 }
 
 // =============================================================================

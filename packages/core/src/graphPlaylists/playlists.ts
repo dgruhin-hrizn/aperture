@@ -231,10 +231,20 @@ export async function deleteGraphPlaylist(playlistId: string, userId: string): P
   logger.info({ playlistId }, 'Graph playlist deleted')
 }
 
+export interface GraphPlaylistItem {
+  id: string // Aperture UUID
+  playlistItemId: string
+  title: string
+  year: number | null
+  posterUrl: string | null
+  runtime: number | null
+  type: 'movie' | 'series'
+}
+
 /**
- * Get playlist items from media server
+ * Get playlist items from media server and enrich with Aperture UUIDs
  */
-export async function getGraphPlaylistItems(playlistId: string, userId: string) {
+export async function getGraphPlaylistItems(playlistId: string, userId: string): Promise<GraphPlaylistItem[]> {
   const playlist = await getGraphPlaylist(playlistId)
 
   if (!playlist) {
@@ -252,6 +262,60 @@ export async function getGraphPlaylistItems(playlistId: string, userId: string) 
     throw new Error('Media server API key is not configured')
   }
 
-  return provider.getPlaylistItems(apiKey, playlist.mediaServerPlaylistId)
+  // Get items from media server
+  const mediaServerItems = await provider.getPlaylistItems(apiKey, playlist.mediaServerPlaylistId)
+  
+  if (mediaServerItems.length === 0) {
+    return []
+  }
+
+  // Extract media server item IDs
+  const providerItemIds = mediaServerItems.map(item => item.id)
+
+  // Look up Aperture UUIDs for movies
+  const moviesResult = await query<{ id: string; provider_item_id: string }>(
+    'SELECT id, provider_item_id FROM movies WHERE provider_item_id = ANY($1)',
+    [providerItemIds]
+  )
+  const movieMap = new Map(moviesResult.rows.map(m => [m.provider_item_id, m.id]))
+
+  // Look up Aperture UUIDs for series
+  const seriesResult = await query<{ id: string; provider_item_id: string }>(
+    'SELECT id, provider_item_id FROM series WHERE provider_item_id = ANY($1)',
+    [providerItemIds]
+  )
+  const seriesMap = new Map(seriesResult.rows.map(s => [s.provider_item_id, s.id]))
+
+  // Enrich items with Aperture UUIDs and type
+  return mediaServerItems
+    .map(item => {
+      const movieId = movieMap.get(item.id)
+      const seriesId = seriesMap.get(item.id)
+      
+      if (movieId) {
+        return {
+          id: movieId,
+          playlistItemId: item.playlistItemId,
+          title: item.title,
+          year: item.year,
+          posterUrl: item.posterUrl,
+          runtime: item.runtime,
+          type: 'movie' as const,
+        }
+      } else if (seriesId) {
+        return {
+          id: seriesId,
+          playlistItemId: item.playlistItemId,
+          title: item.title,
+          year: item.year,
+          posterUrl: item.posterUrl,
+          runtime: item.runtime,
+          type: 'series' as const,
+        }
+      }
+      // Item not found in Aperture DB - skip it
+      return null
+    })
+    .filter((item): item is GraphPlaylistItem => item !== null)
 }
 

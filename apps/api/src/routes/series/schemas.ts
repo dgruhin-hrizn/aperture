@@ -66,22 +66,7 @@ export const listSeriesSchema = {
       },
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      description: 'Paginated list of series',
-      properties: {
-        series: { 
-          type: 'array' as const, 
-          items: SeriesRef,
-          description: 'Array of series objects'
-        },
-        total: { type: 'integer' as const, description: 'Total number of series matching filters' },
-        page: { type: 'integer' as const, description: 'Current page number' },
-        pageSize: { type: 'integer' as const, description: 'Items per page' },
-      },
-    },
-  },
+  // Note: response schema removed to allow DB snake_case fields to pass through without serialization
 }
 
 // =============================================================================
@@ -99,46 +84,7 @@ export const getSeriesSchema = {
     },
     required: ['id'] as string[],
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      description: 'Full series details',
-      properties: {
-        id: { type: 'string' as const, format: 'uuid' },
-        title: { type: 'string' as const },
-        originalTitle: { type: 'string' as const, nullable: true },
-        year: { type: 'integer' as const, nullable: true, description: 'First air year' },
-        endYear: { type: 'integer' as const, nullable: true, description: 'Last air year (null if ongoing)' },
-        genres: { type: 'array' as const, items: { type: 'string' as const } },
-        overview: { type: 'string' as const, nullable: true },
-        tagline: { type: 'string' as const, nullable: true },
-        status: { type: 'string' as const, nullable: true, description: 'Continuing, Ended, etc.' },
-        network: { type: 'string' as const, nullable: true },
-        totalSeasons: { type: 'integer' as const, nullable: true },
-        totalEpisodes: { type: 'integer' as const, nullable: true },
-        communityRating: { type: 'number' as const, nullable: true },
-        contentRating: { type: 'string' as const, nullable: true },
-        posterUrl: { type: 'string' as const, nullable: true },
-        backdropUrl: { type: 'string' as const, nullable: true },
-        // Cast & Crew
-        actors: { type: 'array' as const, nullable: true, items: { type: 'object' as const } },
-        directors: { type: 'array' as const, nullable: true, items: { type: 'string' as const } },
-        writers: { type: 'array' as const, nullable: true, items: { type: 'string' as const } },
-        studios: { type: 'array' as const, nullable: true, items: { type: 'string' as const } },
-        // External IDs
-        imdbId: { type: 'string' as const, nullable: true },
-        tmdbId: { type: 'string' as const, nullable: true },
-        tvdbId: { type: 'string' as const, nullable: true },
-        // Enrichment scores
-        rtCriticScore: { type: 'integer' as const, nullable: true },
-        rtAudienceScore: { type: 'integer' as const, nullable: true },
-        metacriticScore: { type: 'integer' as const, nullable: true },
-        letterboxdScore: { type: 'number' as const, nullable: true },
-        keywords: { type: 'array' as const, nullable: true, items: { type: 'string' as const } },
-      },
-    },
-    404: ErrorRef,
-  },
+  // Note: response schema removed to allow DB snake_case fields to pass through without serialization
 }
 
 // =============================================================================

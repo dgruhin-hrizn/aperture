@@ -14,6 +14,7 @@ export {
   deleteGraphPlaylist,
   getGraphPlaylistItems,
   type GraphPlaylist,
+  type GraphPlaylistItem,
   type CreateGraphPlaylistInput,
 } from './playlists.js'
 
