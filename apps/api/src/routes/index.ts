@@ -29,6 +29,7 @@ import graphPlaylistRoutes from './graphPlaylists/index.js'
 import discoveryRoutes from './discovery/index.js'
 import jellyseerrRoutes from './jellyseerr/index.js'
 import apiKeysRoutes from './apiKeys/index.js'
+import logoRoutes from './logo/index.js'
 
 const routes: FastifyPluginAsync = async (fastify) => {
   // Register health check routes
@@ -120,6 +121,9 @@ const routes: FastifyPluginAsync = async (fastify) => {
 
   // Register API keys routes
   await fastify.register(apiKeysRoutes)
+
+  // Register logo route (for Swagger UI branding)
+  await fastify.register(logoRoutes)
 }
 
 export default routes

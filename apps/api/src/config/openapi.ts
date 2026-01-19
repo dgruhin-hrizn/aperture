@@ -495,6 +495,25 @@ export function getSwaggerConfig(appBaseUrl: string): FastifyDynamicSwaggerOptio
 // Swagger UI Configuration Export
 // =============================================================================
 
+// Aperture logo SVG - exported for use in logo route
+export const apertureLogoSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="45" fill="none" stroke="url(#grad)" stroke-width="4"/>
+  <path d="M50 15 L65 35 L85 50 L65 65 L50 85 L35 65 L15 50 L35 35 Z" fill="url(#grad)" opacity="0.9"/>
+  <circle cx="50" cy="50" r="12" fill="#1a1a2e"/>
+</svg>`
+
+// Custom CSS to style Swagger UI with Aperture branding
+const customCss = `
+  .topbar-wrapper img { content: url("/api/logo.svg"); }
+  .topbar-wrapper .link::after { content: "Aperture API"; margin-left: 8px; font-size: 1.5em; font-weight: bold; }
+`
+
 export const swaggerUIConfig: FastifySwaggerUiOptions = {
   routePrefix: '/openapi',
   uiConfig: {
@@ -518,10 +537,13 @@ export const swaggerUIConfig: FastifySwaggerUiOptions = {
       next()
     },
   },
-  staticCSP: true,
-  transformStaticCSP: (header) => header,
+  staticCSP: false,
   transformSpecification: (swaggerObject) => {
     return swaggerObject
   },
   transformSpecificationClone: true,
+  theme: {
+    title: 'Aperture API',
+    css: [{ filename: 'theme.css', content: customCss }],
+  },
 }
