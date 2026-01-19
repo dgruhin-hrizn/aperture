@@ -45,7 +45,7 @@ All errors return JSON with an \`error\` field:
   version: API_VERSION,
   contact: {
     name: 'Aperture',
-    url: 'https://github.com/aperture-media/aperture',
+    url: 'https://github.com/dgruhin-hrizn/aperture',
   },
   license: {
     name: 'MIT',
@@ -58,7 +58,7 @@ All errors return JSON with an \`error\` field:
 // =============================================================================
 
 const externalDocs = {
-  url: 'https://github.com/aperture-media/aperture/tree/main/docs',
+  url: 'https://github.com/dgruhin-hrizn/aperture/tree/main/docs',
   description: 'Full Documentation',
 }
 
