@@ -22,6 +22,12 @@ export async function buildServer(options: ServerOptions = {}): Promise<any> {
     loggerInstance: options.logger !== false ? logger : undefined,
     requestIdHeader: 'x-request-id',
     requestIdLogLabel: 'requestId',
+    ajv: {
+      customOptions: {
+        // Allow OpenAPI 'example' keyword in schemas for documentation
+        keywords: ['example'],
+      },
+    },
   })
 
   // Register CORS

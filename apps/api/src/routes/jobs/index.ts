@@ -25,10 +25,16 @@ import {
   registerEnrichmentHandlers,
   registerPurgeHandlers,
 } from './handlers/index.js'
+import { jobComponentSchemas } from './schemas.js'
 
 const logger = createChildLogger('jobs-api')
 
 const jobsRoutes: FastifyPluginAsync = async (fastify) => {
+  // Register component schemas for $ref usage
+  for (const [name, schema] of Object.entries(jobComponentSchemas)) {
+    fastify.addSchema({ $id: name, ...schema })
+  }
+  
   // Set up the job executor for the scheduler
   setJobExecutor(async (jobName: string) => {
     const jobDef = jobDefinitions.find((j) => j.name === jobName)
