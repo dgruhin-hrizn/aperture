@@ -67,45 +67,45 @@ const externalDocs = {
 // =============================================================================
 
 const tags = [
-  // Core functionality
-  { name: 'health', description: 'Health check and monitoring endpoints' },
+  // === Setup & Authentication (First Priority) ===
   { name: 'auth', description: 'Authentication endpoints' },
   { name: 'setup', description: 'Initial setup and configuration wizard' },
+  { name: 'settings', description: 'System configuration and settings' },
   
-  // API management
-  { name: 'api-keys', description: 'API key creation and management' },
-  { name: 'api-errors', description: 'Error tracking and diagnostics' },
+  // === Health & Monitoring ===
+  { name: 'health', description: 'Health check and monitoring endpoints' },
   
-  // Media browsing
+  // === User Management ===
+  { name: 'users', description: 'User accounts and profiles' },
+  { name: 'dashboard', description: 'User dashboard and statistics' },
+  { name: 'ratings', description: 'User ratings and reviews' },
+  { name: 'watching', description: 'Currently watching and progress tracking' },
+  
+  // === Media Library ===
   { name: 'movies', description: 'Movie library and metadata' },
   { name: 'series', description: 'TV series library and metadata' },
   { name: 'search', description: 'Search across all content' },
   { name: 'media', description: 'Media files and proxy endpoints' },
   
-  // AI features
+  // === AI & Recommendations ===
   { name: 'recommendations', description: 'AI-powered personalized recommendations' },
   { name: 'ai-assistant', description: 'AI chat assistant for media discovery' },
   { name: 'discovery', description: 'Content discovery and suggestions' },
   { name: 'similarity', description: 'Similar content and graph exploration' },
   { name: 'top-picks', description: 'Top rated and trending content' },
   
-  // User management
-  { name: 'users', description: 'User accounts and profiles' },
-  { name: 'dashboard', description: 'User dashboard and statistics' },
-  { name: 'watching', description: 'Currently watching and progress tracking' },
-  { name: 'ratings', description: 'User ratings and reviews' },
-  
-  // Playlists & collections
+  // === Playlists & Channels ===
   { name: 'playlists', description: 'Playlist management' },
   { name: 'channels', description: 'Channel management' },
   
-  // Administration
+  // === Administration ===
   { name: 'admin', description: 'Administrative functions' },
   { name: 'jobs', description: 'Background job management and scheduling' },
-  { name: 'settings', description: 'System configuration and settings' },
   { name: 'backup', description: 'Database backup and restore' },
+  { name: 'api-keys', description: 'API key creation and management' },
+  { name: 'api-errors', description: 'Error tracking and diagnostics' },
   
-  // Integrations
+  // === Integrations ===
   { name: 'trakt', description: 'Trakt.tv integration' },
   { name: 'jellyseerr', description: 'Jellyseerr/Overseerr integration' },
   { name: 'mdblist', description: 'MDBList integration' },
