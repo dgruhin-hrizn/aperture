@@ -81,49 +81,224 @@ const externalDocs = {
 // Tags (organized by domain)
 // =============================================================================
 
+const DOCS_BASE = 'https://github.com/dgruhin-hrizn/aperture/blob/main/docs'
+
 const tags = [
   // === Setup & Authentication (First Priority) ===
-  { name: 'auth', description: 'Authentication endpoints' },
-  { name: 'setup', description: 'Initial setup and configuration wizard' },
-  { name: 'settings', description: 'System configuration and settings' },
-  
+  {
+    name: 'auth',
+    description: 'Authentication via media server credentials. Handles login/logout, session management, and user UI preferences.',
+    externalDocs: {
+      description: 'Logging In Guide',
+      url: `${DOCS_BASE}/features/logging-in.md`,
+    },
+  },
+  {
+    name: 'setup',
+    description: 'Initial setup wizard for first-time configuration. Guides through media server connection, library selection, and AI provider setup. Admin only.',
+    externalDocs: {
+      description: 'Setup Wizard Guide',
+      url: `${DOCS_BASE}/admin/setup-wizard.md`,
+    },
+  },
+  {
+    name: 'settings',
+    description: 'System configuration including media server, AI providers, recommendation algorithm tuning, and integration settings. Most endpoints are admin only.',
+    externalDocs: {
+      description: 'Integrations Overview',
+      url: `${DOCS_BASE}/admin/integrations-overview.md`,
+    },
+  },
+
   // === Health & Monitoring ===
-  { name: 'health', description: 'Health check and monitoring endpoints' },
-  
+  {
+    name: 'health',
+    description: 'Health check and monitoring endpoints. Returns server status, version info, and dependency health.',
+  },
+
   // === User Management ===
-  { name: 'users', description: 'User accounts and profiles' },
-  { name: 'dashboard', description: 'User dashboard and statistics' },
-  { name: 'ratings', description: 'User ratings and reviews' },
-  { name: 'watching', description: 'Currently watching and progress tracking' },
-  
+  {
+    name: 'users',
+    description: 'User account management including profiles, permissions, and admin user operations. Admin endpoints require admin privileges.',
+    externalDocs: {
+      description: 'User Management Guide',
+      url: `${DOCS_BASE}/admin/user-management.md`,
+    },
+  },
+  {
+    name: 'dashboard',
+    description: 'User dashboard data including watch statistics, recent activity, and personalized metrics.',
+    externalDocs: {
+      description: 'Dashboard Features',
+      url: `${DOCS_BASE}/features/dashboard.md`,
+    },
+  },
+  {
+    name: 'ratings',
+    description: 'User ratings (1-10 scale) for movies and series. Ratings influence recommendation algorithm and can sync with Trakt.',
+    externalDocs: {
+      description: 'Ratings Guide',
+      url: `${DOCS_BASE}/features/ratings.md`,
+    },
+  },
+  {
+    name: 'watching',
+    description: 'Currently watching content and watch progress tracking. Synced from media server watch history.',
+    externalDocs: {
+      description: 'Watch History',
+      url: `${DOCS_BASE}/features/watch-history.md`,
+    },
+  },
+
   // === Media Library ===
-  { name: 'movies', description: 'Movie library and metadata' },
-  { name: 'series', description: 'TV series library and metadata' },
-  { name: 'search', description: 'Search across all content' },
-  { name: 'media', description: 'Media files and proxy endpoints' },
-  
+  {
+    name: 'movies',
+    description: 'Movie library browsing, filtering, and metadata. Includes genres, collections/franchises, and enriched data from TMDb/OMDb.',
+    externalDocs: {
+      description: 'Movie Details',
+      url: `${DOCS_BASE}/features/movie-detail.md`,
+    },
+  },
+  {
+    name: 'series',
+    description: 'TV series library with seasons, episodes, and metadata. Includes enriched data and watch progress per episode.',
+    externalDocs: {
+      description: 'Series Details',
+      url: `${DOCS_BASE}/features/series-detail.md`,
+    },
+  },
+  {
+    name: 'search',
+    description: 'Global search across movies, series, and people. Supports fuzzy matching and filters.',
+    externalDocs: {
+      description: 'Global Search',
+      url: `${DOCS_BASE}/features/global-search.md`,
+    },
+  },
+  {
+    name: 'media',
+    description: 'Media file proxying and image endpoints. Proxies requests to Emby/Jellyfin for posters, backdrops, and streaming URLs.',
+  },
+
   // === AI & Recommendations ===
-  { name: 'recommendations', description: 'AI-powered personalized recommendations' },
-  { name: 'ai-assistant', description: 'AI chat assistant for media discovery' },
-  { name: 'discovery', description: 'Content discovery and suggestions' },
-  { name: 'similarity', description: 'Similar content and graph exploration' },
-  { name: 'top-picks', description: 'Top rated and trending content' },
-  
+  {
+    name: 'recommendations',
+    description: 'AI-powered personalized recommendations using semantic similarity. Requires embeddings to be generated. Supports configurable algorithm weights for similarity, novelty, ratings, and diversity.',
+    externalDocs: {
+      description: 'Recommendations Guide',
+      url: `${DOCS_BASE}/features/recommendations.md`,
+    },
+  },
+  {
+    name: 'ai-assistant',
+    description: 'AI chat assistant for conversational media discovery. Uses configured chat model to answer questions about your library and provide recommendations.',
+    externalDocs: {
+      description: 'AI Assistant Guide',
+      url: `${DOCS_BASE}/features/ai-assistant.md`,
+    },
+  },
+  {
+    name: 'discovery',
+    description: 'Content discovery features including curated suggestions, genre exploration, and mood-based browsing.',
+    externalDocs: {
+      description: 'Discovery Features',
+      url: `${DOCS_BASE}/features/discovery.md`,
+    },
+  },
+  {
+    name: 'similarity',
+    description: 'Similar content lookup and interactive similarity graph exploration. Uses AI embeddings to find semantically similar movies/series.',
+    externalDocs: {
+      description: 'Similarity Graphs',
+      url: `${DOCS_BASE}/features/similarity-graphs.md`,
+    },
+  },
+  {
+    name: 'top-picks',
+    description: 'Curated top picks generated per user based on their taste profile. Refreshed on configurable schedule.',
+    externalDocs: {
+      description: 'Top Picks Guide',
+      url: `${DOCS_BASE}/features/top-picks.md`,
+    },
+  },
+
   // === Playlists & Channels ===
-  { name: 'playlists', description: 'Playlist management' },
-  { name: 'channels', description: 'Channel management' },
-  
+  {
+    name: 'playlists',
+    description: 'User playlist creation and management. Playlists can be synced to media server.',
+    externalDocs: {
+      description: 'Playlists Guide',
+      url: `${DOCS_BASE}/features/playlists.md`,
+    },
+  },
+  {
+    name: 'channels',
+    description: 'Channel management for organizing content into themed collections.',
+  },
+
   // === Administration ===
-  { name: 'admin', description: 'Administrative functions' },
-  { name: 'jobs', description: 'Background job management and scheduling' },
-  { name: 'backup', description: 'Database backup and restore' },
-  { name: 'api-keys', description: 'API key creation and management' },
-  { name: 'api-errors', description: 'Error tracking and diagnostics' },
-  
+  {
+    name: 'admin',
+    description: 'Administrative functions including system status, database management, and global settings. All endpoints require admin privileges.',
+    externalDocs: {
+      description: 'Admin Guide',
+      url: `${DOCS_BASE}/admin-guide.md`,
+    },
+  },
+  {
+    name: 'jobs',
+    description: 'Background job management including library sync, enrichment, embedding generation, and recommendation runs. View status, trigger manually, or configure schedules. Admin only.',
+    externalDocs: {
+      description: 'Jobs Overview',
+      url: `${DOCS_BASE}/admin/jobs-overview.md`,
+    },
+  },
+  {
+    name: 'backup',
+    description: 'Database backup and restore functionality. Create snapshots, download backups, and restore from previous states. Admin only.',
+    externalDocs: {
+      description: 'Backup & Restore Guide',
+      url: `${DOCS_BASE}/admin/backup-restore.md`,
+    },
+  },
+  {
+    name: 'api-keys',
+    description: 'API key creation and management for programmatic access. Keys are prefixed with `apt_` and can have expiration dates. Admin only.',
+  },
+  {
+    name: 'api-errors',
+    description: 'Error tracking and diagnostics. View recent API errors, stack traces, and error patterns for debugging. Admin only.',
+    externalDocs: {
+      description: 'API Errors Guide',
+      url: `${DOCS_BASE}/admin/api-errors.md`,
+    },
+  },
+
   // === Integrations ===
-  { name: 'trakt', description: 'Trakt.tv integration' },
-  { name: 'jellyseerr', description: 'Jellyseerr/Overseerr integration' },
-  { name: 'mdblist', description: 'MDBList integration' },
+  {
+    name: 'trakt',
+    description: 'Trakt.tv integration for syncing watch history, ratings, and watchlists. Requires Trakt account connection.',
+    externalDocs: {
+      description: 'Trakt Integration',
+      url: `${DOCS_BASE}/features/trakt-integration.md`,
+    },
+  },
+  {
+    name: 'jellyseerr',
+    description: 'Jellyseerr/Overseerr integration for requesting new content. Shows request status on movie/series pages.',
+    externalDocs: {
+      description: 'Jellyseerr Setup',
+      url: `${DOCS_BASE}/admin/jellyseerr.md`,
+    },
+  },
+  {
+    name: 'mdblist',
+    description: 'MDBList integration for additional ratings and list imports. Provides Trakt, IMDb, and community list data.',
+    externalDocs: {
+      description: 'MDBList Setup',
+      url: `${DOCS_BASE}/admin/mdblist.md`,
+    },
+  },
 ]
 
 // =============================================================================

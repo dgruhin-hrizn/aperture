@@ -1,38 +1,50 @@
 /**
  * Watching (Shows You Watch) OpenAPI Schemas
+ * 
+ * "Shows You Watch" feature for tracking currently-watching series.
+ * Creates a virtual library in the media server for easy access.
  */
 
 export const watchingSchemas = {
   // Upcoming episode
   UpcomingEpisode: {
     type: 'object',
+    description: 'Information about the next upcoming episode',
     properties: {
-      seasonNumber: { type: 'integer' },
-      episodeNumber: { type: 'integer' },
-      title: { type: 'string' },
-      airDate: { type: 'string', format: 'date' },
-      source: { type: 'string', enum: ['emby', 'tmdb'] },
+      seasonNumber: { type: 'integer', description: 'Season number' },
+      episodeNumber: { type: 'integer', description: 'Episode number' },
+      title: { type: 'string', description: 'Episode title' },
+      airDate: { type: 'string', format: 'date', description: 'Air date (YYYY-MM-DD)' },
+      source: { type: 'string', enum: ['emby', 'tmdb'], description: 'Where the air date came from' },
+    },
+    example: {
+      seasonNumber: 2,
+      episodeNumber: 5,
+      title: 'The Next Episode',
+      airDate: '2024-02-15',
+      source: 'tmdb',
     },
   },
 
   // Watching series item
   WatchingSeries: {
     type: 'object',
+    description: 'A series in the watching list with upcoming episode info',
     properties: {
-      id: { type: 'string', format: 'uuid' },
-      seriesId: { type: 'string', format: 'uuid' },
+      id: { type: 'string', format: 'uuid', description: 'Watching entry ID' },
+      seriesId: { type: 'string', format: 'uuid', description: 'Series ID' },
       title: { type: 'string' },
-      year: { type: 'integer', nullable: true },
+      year: { type: 'integer', nullable: true, description: 'First air year' },
       posterUrl: { type: 'string', nullable: true },
       backdropUrl: { type: 'string', nullable: true },
       genres: { type: 'array', items: { type: 'string' } },
       overview: { type: 'string', nullable: true },
       communityRating: { type: 'number', nullable: true },
       network: { type: 'string', nullable: true },
-      status: { type: 'string', nullable: true },
+      status: { type: 'string', nullable: true, description: 'Series status (Continuing, Ended)' },
       totalSeasons: { type: 'integer', nullable: true },
       totalEpisodes: { type: 'integer', nullable: true },
-      addedAt: { type: 'string', format: 'date-time' },
+      addedAt: { type: 'string', format: 'date-time', description: 'When added to watching list' },
       upcomingEpisode: { $ref: 'UpcomingEpisode#' },
     },
   },
@@ -40,9 +52,10 @@ export const watchingSchemas = {
   // Watching list response
   WatchingListResponse: {
     type: 'object',
+    description: 'List of series being watched',
     properties: {
       series: { type: 'array', items: { $ref: 'WatchingSeries#' } },
-      total: { type: 'integer' },
+      total: { type: 'integer', description: 'Total number of series being watched' },
     },
   },
 } as const
@@ -51,24 +64,50 @@ export const watchingSchemas = {
 export const getWatchingSchema = {
   tags: ['watching'],
   summary: 'Get watching list',
-  description: 'List user\'s watching series with upcoming episode info',
+  description: 'Get the user\'s "Shows You Watch" list with upcoming episode information. Series are sorted by upcoming air dates.',
+  response: {
+    200: { $ref: 'WatchingListResponse#' },
+  },
 }
 
 export const getWatchingIdsSchema = {
   tags: ['watching'],
   summary: 'Get watching series IDs',
-  description: 'Get list of series IDs the user is watching (for quick UI checks)',
+  description: 'Get just the series IDs the user is watching. Useful for quick UI checks without fetching full details.',
+  response: {
+    200: {
+      type: 'object',
+      properties: {
+        ids: { type: 'array', items: { type: 'string', format: 'uuid' } },
+      },
+    },
+  },
 }
 
 export const addToWatchingSchema = {
   tags: ['watching'],
   summary: 'Add to watching',
-  description: 'Add series to user\'s watching list',
+  description: 'Add a series to the user\'s "Shows You Watch" list. The virtual library in the media server will be updated.',
   params: {
     type: 'object',
     required: ['seriesId'],
     properties: {
-      seriesId: { type: 'string', format: 'uuid' },
+      seriesId: { type: 'string', format: 'uuid', description: 'Series ID to add' },
+    },
+  },
+  response: {
+    200: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+      },
+    },
+    404: {
+      type: 'object',
+      properties: {
+        error: { type: 'string', example: 'Series not found' },
+      },
     },
   },
 }
@@ -76,12 +115,20 @@ export const addToWatchingSchema = {
 export const removeFromWatchingSchema = {
   tags: ['watching'],
   summary: 'Remove from watching',
-  description: 'Remove series from user\'s watching list',
+  description: 'Remove a series from the user\'s "Shows You Watch" list.',
   params: {
     type: 'object',
     required: ['seriesId'],
     properties: {
-      seriesId: { type: 'string', format: 'uuid' },
+      seriesId: { type: 'string', format: 'uuid', description: 'Series ID to remove' },
+    },
+  },
+  response: {
+    200: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+      },
     },
   },
 }
@@ -89,18 +136,35 @@ export const removeFromWatchingSchema = {
 export const refreshWatchingSchema = {
   tags: ['watching'],
   summary: 'Refresh watching library',
-  description: 'Regenerate user\'s watching library in Emby',
+  description: 'Regenerate the user\'s "Shows You Watch" virtual library in the media server. Use this if the library gets out of sync.',
+  response: {
+    200: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+      },
+    },
+  },
 }
 
 export const checkWatchingSchema = {
   tags: ['watching'],
   summary: 'Check if watching',
-  description: 'Check if a specific series is in user\'s watching list',
+  description: 'Check if a specific series is in the user\'s watching list.',
   params: {
     type: 'object',
     required: ['seriesId'],
     properties: {
-      seriesId: { type: 'string', format: 'uuid' },
+      seriesId: { type: 'string', format: 'uuid', description: 'Series ID to check' },
+    },
+  },
+  response: {
+    200: {
+      type: 'object',
+      properties: {
+        isWatching: { type: 'boolean', description: 'Whether the series is in the watching list' },
+      },
     },
   },
 }

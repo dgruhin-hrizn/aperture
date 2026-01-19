@@ -2,9 +2,7 @@
  * Settings OpenAPI Schemas
  * 
  * All OpenAPI/Swagger schema definitions for settings endpoints.
- * Note: Response schemas are omitted to avoid TypeScript inference issues
- * with error status codes. The endpoints still work correctly for OpenAPI
- * documentation via tags, summary, description, body, and params.
+ * Admin endpoints are marked with "(admin only)" in descriptions.
  */
 
 // =============================================================================
@@ -14,25 +12,65 @@
 export const mediaServerInfoSchema = {
   tags: ['settings'],
   summary: 'Get media server info',
-  description: 'Get public media server information for frontend use (play buttons, deep links). Available to all authenticated users.',
+  description: 'Get public media server information for frontend use (play buttons, deep links). Available to all authenticated users. Returns server type, base URL, and server name.',
+  response: {
+    200: {
+      type: 'object' as const,
+      properties: {
+        type: { type: 'string' as const, enum: ['emby', 'jellyfin'], description: 'Media server type' },
+        baseUrl: { type: 'string' as const, description: 'Server base URL for building play links' },
+        serverName: { type: 'string' as const, nullable: true, description: 'Server display name' },
+      },
+      example: {
+        type: 'jellyfin',
+        baseUrl: 'http://192.168.1.100:8096',
+        serverName: 'Home Server',
+      },
+    },
+  },
 }
 
 export const mediaServerConfigSchema = {
   tags: ['settings'],
   summary: 'Get media server configuration',
-  description: 'Get media server configuration details (admin only). API key is not exposed, only indicates if set.',
+  description: 'Get media server configuration details (admin only). API key is not exposed for security, only indicates if one is configured.',
+  response: {
+    200: {
+      type: 'object' as const,
+      properties: {
+        type: { type: 'string' as const, enum: ['emby', 'jellyfin'], nullable: true },
+        baseUrl: { type: 'string' as const, nullable: true },
+        hasApiKey: { type: 'boolean' as const, description: 'Whether an API key is configured' },
+        isConfigured: { type: 'boolean' as const, description: 'Whether media server is fully configured' },
+      },
+    },
+  },
 }
 
 export const updateMediaServerConfigSchema = {
   tags: ['settings'],
   summary: 'Update media server configuration',
-  description: 'Update media server connection settings including type, URL, and API key (admin only).',
+  description: 'Update media server connection settings including type, URL, and API key (admin only). After updating, use the test endpoint to verify connectivity.',
   body: {
     type: 'object' as const,
     properties: {
-      type: { type: 'string' as const, enum: ['emby', 'jellyfin'], description: 'Server type' },
-      baseUrl: { type: 'string' as const, description: 'Server base URL (e.g., http://localhost:8096)' },
-      apiKey: { type: 'string' as const, description: 'API key for server access' },
+      type: { type: 'string' as const, enum: ['emby', 'jellyfin'], description: 'Server type (Emby or Jellyfin)' },
+      baseUrl: { type: 'string' as const, description: 'Server base URL including protocol and port', example: 'http://localhost:8096' },
+      apiKey: { type: 'string' as const, description: 'API key for server access. Generate from server admin settings.' },
+    },
+    example: {
+      type: 'jellyfin',
+      baseUrl: 'http://192.168.1.100:8096',
+      apiKey: 'your-api-key-here',
+    },
+  },
+  response: {
+    200: {
+      type: 'object' as const,
+      properties: {
+        success: { type: 'boolean' as const },
+        message: { type: 'string' as const },
+      },
     },
   },
 }
@@ -58,14 +96,25 @@ export const updateMediaServerSecuritySchema = {
 export const testMediaServerSchema = {
   tags: ['settings'],
   summary: 'Test media server connection',
-  description: 'Test connection to media server with provided or saved credentials (admin only).',
+  description: 'Test connection to media server with provided or saved credentials (admin only). Use this to verify configuration before saving.',
   body: {
     type: 'object' as const,
     properties: {
-      type: { type: 'string' as const, enum: ['emby', 'jellyfin'] },
-      baseUrl: { type: 'string' as const },
-      apiKey: { type: 'string' as const },
-      useSavedCredentials: { type: 'boolean' as const, description: 'Use saved credentials instead of provided ones' },
+      type: { type: 'string' as const, enum: ['emby', 'jellyfin'], description: 'Server type to test' },
+      baseUrl: { type: 'string' as const, description: 'Server URL to test', example: 'http://localhost:8096' },
+      apiKey: { type: 'string' as const, description: 'API key to test' },
+      useSavedCredentials: { type: 'boolean' as const, description: 'If true, ignores other fields and tests saved credentials', default: false },
+    },
+  },
+  response: {
+    200: {
+      type: 'object' as const,
+      properties: {
+        success: { type: 'boolean' as const },
+        serverName: { type: 'string' as const, nullable: true, description: 'Server name if connection successful' },
+        version: { type: 'string' as const, nullable: true, description: 'Server version' },
+        error: { type: 'string' as const, nullable: true, description: 'Error message if connection failed' },
+      },
     },
   },
 }
@@ -125,18 +174,33 @@ export const recommendationConfigSchema = {
 export const updateRecommendationConfigSchema = {
   tags: ['settings'],
   summary: 'Update recommendation configuration',
-  description: 'Update recommendation algorithm weights and settings for movies or series (admin only).',
+  description: 'Update recommendation algorithm weights and settings for movies or series (admin only). Weights should sum to 1.0 for best results.',
   body: {
     type: 'object' as const,
     properties: {
-      enabled: { type: 'boolean' as const },
-      maxCandidates: { type: 'integer' as const, minimum: 10, maximum: 1000 },
-      selectedCount: { type: 'integer' as const, minimum: 1, maximum: 100 },
-      recentWatchLimit: { type: 'integer' as const, minimum: 1 },
-      similarityWeight: { type: 'number' as const, minimum: 0, maximum: 1 },
-      noveltyWeight: { type: 'number' as const, minimum: 0, maximum: 1 },
-      ratingWeight: { type: 'number' as const, minimum: 0, maximum: 1 },
-      diversityWeight: { type: 'number' as const, minimum: 0, maximum: 1 },
+      enabled: { type: 'boolean' as const, description: 'Enable/disable recommendations for this media type' },
+      maxCandidates: { type: 'integer' as const, minimum: 10, maximum: 1000, description: 'Maximum candidates to evaluate (higher = more accurate but slower)', example: 500 },
+      selectedCount: { type: 'integer' as const, minimum: 1, maximum: 100, description: 'Number of recommendations to select', example: 20 },
+      recentWatchLimit: { type: 'integer' as const, minimum: 1, description: 'Number of recent watches to consider for similarity', example: 50 },
+      similarityWeight: { type: 'number' as const, minimum: 0, maximum: 1, description: 'Weight for semantic similarity to watched content (0-1)', example: 0.4 },
+      noveltyWeight: { type: 'number' as const, minimum: 0, maximum: 1, description: 'Weight for content novelty/freshness (0-1)', example: 0.2 },
+      ratingWeight: { type: 'number' as const, minimum: 0, maximum: 1, description: 'Weight for critic/community ratings (0-1)', example: 0.2 },
+      diversityWeight: { type: 'number' as const, minimum: 0, maximum: 1, description: 'Weight for genre diversity in results (0-1)', example: 0.2 },
+    },
+    example: {
+      similarityWeight: 0.4,
+      noveltyWeight: 0.2,
+      ratingWeight: 0.2,
+      diversityWeight: 0.2,
+    },
+  },
+  response: {
+    200: {
+      type: 'object' as const,
+      properties: {
+        success: { type: 'boolean' as const },
+        message: { type: 'string' as const },
+      },
     },
   },
 }
@@ -170,16 +234,29 @@ export const userSettingsSchema = {
 export const updateUserSettingsSchema = {
   tags: ['settings'],
   summary: 'Update user settings',
-  description: 'Update current user preferences.',
+  description: 'Update current user preferences. Only provided fields are updated (partial update).',
   body: {
     type: 'object' as const,
     properties: {
-      defaultTab: { type: 'string' as const },
-      theme: { type: 'string' as const, enum: ['light', 'dark', 'system'] },
-      enableAnimations: { type: 'boolean' as const },
-      cardSize: { type: 'string' as const, enum: ['small', 'medium', 'large'] },
-      showPlotSummaries: { type: 'boolean' as const },
-      enableSpoilerProtection: { type: 'boolean' as const },
+      defaultTab: { type: 'string' as const, description: 'Default tab to show on dashboard', example: 'movies' },
+      theme: { type: 'string' as const, enum: ['light', 'dark', 'system'], description: 'UI theme preference' },
+      enableAnimations: { type: 'boolean' as const, description: 'Enable UI animations' },
+      cardSize: { type: 'string' as const, enum: ['small', 'medium', 'large'], description: 'Poster card size in grid views' },
+      showPlotSummaries: { type: 'boolean' as const, description: 'Show plot summaries on cards' },
+      enableSpoilerProtection: { type: 'boolean' as const, description: 'Hide spoilers for unwatched content' },
+    },
+    example: {
+      theme: 'dark',
+      cardSize: 'medium',
+      enableAnimations: true,
+    },
+  },
+  response: {
+    200: {
+      type: 'object' as const,
+      properties: {
+        success: { type: 'boolean' as const },
+      },
     },
   },
 }
@@ -400,12 +477,26 @@ export const dislikeBehaviorSchema = {
 export const updateDislikeBehaviorSchema = {
   tags: ['settings'],
   summary: 'Update dislike behavior preference',
-  description: 'Set how disliked content affects recommendations.',
+  description: 'Set how disliked content affects recommendations. "exclude" removes them entirely, "reduce" lowers their score, "ignore" has no effect.',
   body: {
     type: 'object' as const,
     properties: {
-      behavior: { type: 'string' as const, enum: ['exclude', 'reduce', 'ignore'] },
-      reductionFactor: { type: 'number' as const, minimum: 0, maximum: 1 },
+      behavior: { 
+        type: 'string' as const, 
+        enum: ['exclude', 'reduce', 'ignore'],
+        description: 'How to handle disliked content: exclude (never recommend), reduce (lower score), ignore (no effect)'
+      },
+      reductionFactor: { 
+        type: 'number' as const, 
+        minimum: 0, 
+        maximum: 1,
+        description: 'Score multiplier when behavior is "reduce" (0.5 = half score)',
+        example: 0.3
+      },
+    },
+    example: {
+      behavior: 'reduce',
+      reductionFactor: 0.3,
     },
   },
 }

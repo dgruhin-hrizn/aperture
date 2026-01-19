@@ -35,39 +35,56 @@ const ErrorRef = { $ref: 'Error#' }
 export const listMoviesSchema = {
   tags: ['movies'],
   summary: 'List movies',
-  description: 'Get a paginated list of movies with filtering and sorting options.',
+  description: 'Get a paginated list of movies with filtering and sorting options. By default, only movies from enabled libraries are returned unless `showAll=true`.',
   querystring: {
     type: 'object' as const,
     properties: {
-      page: { type: 'string' as const, description: 'Page number (default: 1)' },
-      pageSize: { type: 'string' as const, description: 'Items per page (max: 100, default: 50)' },
-      search: { type: 'string' as const, description: 'Search by title' },
-      genre: { type: 'string' as const, description: 'Filter by genre' },
-      collection: { type: 'string' as const, description: 'Filter by collection/franchise name' },
-      minRtScore: { type: 'string' as const, description: 'Minimum Rotten Tomatoes critic score (0-100)' },
-      showAll: { type: 'string' as const, description: 'Include movies from all libraries (true/false)' },
-      hasAwards: { type: 'string' as const, description: 'Only movies with awards (true/false)' },
-      minYear: { type: 'string' as const, description: 'Minimum release year' },
-      maxYear: { type: 'string' as const, description: 'Maximum release year' },
-      contentRating: { type: 'string' as const, description: 'Filter by content rating (G, PG, PG-13, R, etc.)' },
-      minRuntime: { type: 'string' as const, description: 'Minimum runtime in minutes' },
-      maxRuntime: { type: 'string' as const, description: 'Maximum runtime in minutes' },
-      minCommunityRating: { type: 'string' as const, description: 'Minimum community rating (0-10)' },
-      minMetacritic: { type: 'string' as const, description: 'Minimum Metacritic score (0-100)' },
-      resolution: { type: 'string' as const, description: 'Filter by resolution (4K, 1080p, 720p, SD)' },
+      page: { type: 'string' as const, description: 'Page number', default: '1', example: '1' },
+      pageSize: { type: 'string' as const, description: 'Items per page (1-100)', default: '50', example: '25' },
+      search: { type: 'string' as const, description: 'Search by title (case-insensitive, partial match)', example: 'matrix' },
+      genre: { type: 'string' as const, description: 'Filter by genre (exact match)', example: 'Action' },
+      collection: { type: 'string' as const, description: 'Filter by collection/franchise name', example: 'The Matrix Collection' },
+      minRtScore: { type: 'string' as const, description: 'Minimum Rotten Tomatoes critic score (0-100)', example: '75' },
+      showAll: { type: 'string' as const, enum: ['true', 'false'], description: 'Include movies from all libraries, not just enabled ones', default: 'false' },
+      hasAwards: { type: 'string' as const, enum: ['true', 'false'], description: 'Only movies with awards/nominations', default: 'false' },
+      minYear: { type: 'string' as const, description: 'Minimum release year', example: '2000' },
+      maxYear: { type: 'string' as const, description: 'Maximum release year', example: '2024' },
+      contentRating: { type: 'string' as const, description: 'Filter by content rating. Can pass multiple comma-separated values.', example: 'PG-13,R' },
+      minRuntime: { type: 'string' as const, description: 'Minimum runtime in minutes', example: '90' },
+      maxRuntime: { type: 'string' as const, description: 'Maximum runtime in minutes', example: '180' },
+      minCommunityRating: { type: 'string' as const, description: 'Minimum community rating (0-10)', example: '7.0' },
+      minMetacritic: { type: 'string' as const, description: 'Minimum Metacritic score (0-100)', example: '70' },
+      resolution: { type: 'string' as const, description: 'Filter by resolution. Can pass multiple comma-separated values.', example: '4K,1080p' },
       sortBy: { 
         type: 'string' as const, 
         enum: ['title', 'year', 'releaseDate', 'rating', 'rtScore', 'metacritic', 'runtime', 'added'],
-        description: 'Field to sort by'
+        description: 'Field to sort by: title (alphabetical), year (release year), releaseDate (premiere date), rating (community rating), rtScore (Rotten Tomatoes), metacritic, runtime (duration), added (date added to library)',
+        default: 'title'
       },
       sortOrder: { 
         type: 'string' as const, 
         enum: ['asc', 'desc'],
-        description: 'Sort direction'
+        description: 'Sort direction: asc (ascending/A-Z/oldest first) or desc (descending/Z-A/newest first)',
+        default: 'asc'
       },
     },
   },
-  // Note: response schema removed to allow DB snake_case fields to pass through without serialization
+  response: {
+    200: {
+      type: 'object' as const,
+      description: 'Paginated list of movies',
+      properties: {
+        movies: {
+          type: 'array' as const,
+          items: MovieRef,
+          description: 'Array of movie objects',
+        },
+        total: { type: 'integer' as const, description: 'Total number of movies matching filters', example: 1234 },
+        page: { type: 'integer' as const, description: 'Current page number', example: 1 },
+        pageSize: { type: 'integer' as const, description: 'Number of items per page', example: 50 },
+      },
+    },
+  },
 }
 
 // =============================================================================
@@ -77,15 +94,21 @@ export const listMoviesSchema = {
 export const getMovieSchema = {
   tags: ['movies'],
   summary: 'Get movie by ID',
-  description: 'Retrieve a single movie with full metadata including cast, crew, ratings, and enrichment data from TMDb, OMDb, and MDBList.',
+  description: 'Retrieve a single movie with full metadata including cast, crew, ratings, and enrichment data from TMDb, OMDb, and MDBList. Returns 404 if movie not found.',
   params: {
     type: 'object' as const,
     properties: {
-      id: { type: 'string' as const, format: 'uuid', description: 'Movie ID' },
+      id: { type: 'string' as const, format: 'uuid', description: 'Unique movie identifier (UUID)', example: '123e4567-e89b-12d3-a456-426614174000' },
     },
     required: ['id'] as string[],
   },
-  // Note: response schema removed to allow DB snake_case fields to pass through without serialization
+  response: {
+    200: {
+      description: 'Movie details with full metadata',
+      $ref: 'MovieDetail#',
+    },
+    404: ErrorRef,
+  },
 }
 
 // =============================================================================
@@ -335,15 +358,16 @@ export const franchisesSchema = {
   querystring: {
     type: 'object' as const,
     properties: {
-      page: { type: 'string' as const, description: 'Page number (default: 1)' },
-      pageSize: { type: 'string' as const, description: 'Items per page (max: 50, default: 20)' },
-      search: { type: 'string' as const, description: 'Search franchise names' },
+      page: { type: 'string' as const, description: 'Page number', default: '1', example: '1' },
+      pageSize: { type: 'string' as const, description: 'Items per page (1-50)', default: '20', example: '20' },
+      search: { type: 'string' as const, description: 'Search franchise names (case-insensitive)', example: 'Marvel' },
       sortBy: { 
         type: 'string' as const, 
         enum: ['name', 'total', 'progress', 'unwatched'], 
-        description: 'Sort field (default: total)' 
+        description: 'Sort field: name (alphabetical), total (most movies), progress (completion %), unwatched (most remaining)',
+        default: 'total'
       },
-      showCompleted: { type: 'string' as const, description: 'Include completed franchises (default: true)' },
+      showCompleted: { type: 'string' as const, enum: ['true', 'false'], description: 'Include fully-watched franchises', default: 'true' },
     },
   },
   response: {
@@ -395,18 +419,18 @@ export const franchisesSchema = {
 export const similarMoviesSchema = {
   tags: ['similarity'],
   summary: 'Get similar movies',
-  description: 'Find movies similar to the specified movie using AI-powered semantic similarity based on embeddings. Results are ranked by similarity score.',
+  description: 'Find movies similar to the specified movie using AI-powered semantic similarity based on embeddings. Results are ranked by similarity score (0-1, higher is more similar). Requires embeddings to be generated.',
   params: {
     type: 'object' as const,
     properties: {
-      id: { type: 'string' as const, format: 'uuid', description: 'Movie ID' },
+      id: { type: 'string' as const, format: 'uuid', description: 'Source movie ID to find similar movies for', example: '123e4567-e89b-12d3-a456-426614174000' },
     },
     required: ['id'] as string[],
   },
   querystring: {
     type: 'object' as const,
     properties: {
-      limit: { type: 'string' as const, description: 'Maximum results to return (default: 10, max: 50)' },
+      limit: { type: 'string' as const, description: 'Maximum results to return (1-50)', default: '10', example: '20' },
     },
   },
   response: {

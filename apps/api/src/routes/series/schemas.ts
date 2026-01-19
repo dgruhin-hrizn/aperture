@@ -34,39 +34,56 @@ const ErrorRef = { $ref: 'Error#' }
 export const listSeriesSchema = {
   tags: ['series'],
   summary: 'List series',
-  description: 'Get a paginated list of TV series with filtering and sorting options.',
+  description: 'Get a paginated list of TV series with filtering and sorting options. By default, only series from enabled libraries are returned unless `showAll=true`.',
   querystring: {
     type: 'object' as const,
     properties: {
-      page: { type: 'string' as const, description: 'Page number (default: 1)' },
-      pageSize: { type: 'string' as const, description: 'Items per page (max: 100, default: 50)' },
-      search: { type: 'string' as const, description: 'Search by title' },
-      genre: { type: 'string' as const, description: 'Filter by genre' },
-      network: { type: 'string' as const, description: 'Filter by network (e.g., HBO, Netflix, AMC)' },
-      status: { type: 'string' as const, description: 'Filter by status (Continuing, Ended)' },
-      minRtScore: { type: 'string' as const, description: 'Minimum Rotten Tomatoes critic score (0-100)' },
-      showAll: { type: 'string' as const, description: 'Include series from all libraries (true/false)' },
-      hasAwards: { type: 'string' as const, description: 'Only series with awards (true/false)' },
-      minYear: { type: 'string' as const, description: 'Minimum first air year' },
-      maxYear: { type: 'string' as const, description: 'Maximum first air year' },
-      contentRating: { type: 'string' as const, description: 'Filter by content rating (TV-G, TV-PG, TV-14, TV-MA)' },
-      minSeasons: { type: 'string' as const, description: 'Minimum number of seasons' },
-      maxSeasons: { type: 'string' as const, description: 'Maximum number of seasons' },
-      minCommunityRating: { type: 'string' as const, description: 'Minimum community rating (0-10)' },
-      minMetacritic: { type: 'string' as const, description: 'Minimum Metacritic score (0-100)' },
+      page: { type: 'string' as const, description: 'Page number', default: '1', example: '1' },
+      pageSize: { type: 'string' as const, description: 'Items per page (1-100)', default: '50', example: '25' },
+      search: { type: 'string' as const, description: 'Search by title (case-insensitive, partial match)', example: 'breaking' },
+      genre: { type: 'string' as const, description: 'Filter by genre (exact match)', example: 'Drama' },
+      network: { type: 'string' as const, description: 'Filter by network/streaming service', example: 'HBO' },
+      status: { type: 'string' as const, enum: ['Continuing', 'Ended'], description: 'Filter by series status' },
+      minRtScore: { type: 'string' as const, description: 'Minimum Rotten Tomatoes critic score (0-100)', example: '80' },
+      showAll: { type: 'string' as const, enum: ['true', 'false'], description: 'Include series from all libraries, not just enabled ones', default: 'false' },
+      hasAwards: { type: 'string' as const, enum: ['true', 'false'], description: 'Only series with awards/nominations', default: 'false' },
+      minYear: { type: 'string' as const, description: 'Minimum first air year', example: '2010' },
+      maxYear: { type: 'string' as const, description: 'Maximum first air year', example: '2024' },
+      contentRating: { type: 'string' as const, description: 'Filter by content rating. Can pass multiple comma-separated values.', example: 'TV-MA,TV-14' },
+      minSeasons: { type: 'string' as const, description: 'Minimum number of seasons', example: '2' },
+      maxSeasons: { type: 'string' as const, description: 'Maximum number of seasons', example: '10' },
+      minCommunityRating: { type: 'string' as const, description: 'Minimum community rating (0-10)', example: '8.0' },
+      minMetacritic: { type: 'string' as const, description: 'Minimum Metacritic score (0-100)', example: '75' },
       sortBy: { 
         type: 'string' as const, 
         enum: ['title', 'year', 'rating', 'rtScore', 'metacritic', 'seasons', 'added'],
-        description: 'Field to sort by'
+        description: 'Field to sort by: title (alphabetical), year (first air year), rating (community rating), rtScore (Rotten Tomatoes), metacritic, seasons (season count), added (date added)',
+        default: 'title'
       },
       sortOrder: { 
         type: 'string' as const, 
         enum: ['asc', 'desc'],
-        description: 'Sort direction'
+        description: 'Sort direction: asc (ascending/A-Z/oldest first) or desc (descending/Z-A/newest first)',
+        default: 'asc'
       },
     },
   },
-  // Note: response schema removed to allow DB snake_case fields to pass through without serialization
+  response: {
+    200: {
+      type: 'object' as const,
+      description: 'Paginated list of series',
+      properties: {
+        series: {
+          type: 'array' as const,
+          items: SeriesRef,
+          description: 'Array of series objects',
+        },
+        total: { type: 'integer' as const, description: 'Total number of series matching filters', example: 456 },
+        page: { type: 'integer' as const, description: 'Current page number', example: 1 },
+        pageSize: { type: 'integer' as const, description: 'Number of items per page', example: 50 },
+      },
+    },
+  },
 }
 
 // =============================================================================
@@ -76,15 +93,21 @@ export const listSeriesSchema = {
 export const getSeriesSchema = {
   tags: ['series'],
   summary: 'Get series by ID',
-  description: 'Retrieve a single series with full metadata including cast, crew, ratings, and enrichment data from TMDb, OMDb, and MDBList.',
+  description: 'Retrieve a single series with full metadata including cast, crew, ratings, seasons, and enrichment data from TMDb, OMDb, and MDBList. Returns 404 if series not found.',
   params: {
     type: 'object' as const,
     properties: {
-      id: { type: 'string' as const, format: 'uuid', description: 'Series ID' },
+      id: { type: 'string' as const, format: 'uuid', description: 'Unique series identifier (UUID)', example: '789e4567-e89b-12d3-a456-426614174002' },
     },
     required: ['id'] as string[],
   },
-  // Note: response schema removed to allow DB snake_case fields to pass through without serialization
+  response: {
+    200: {
+      description: 'Series details with full metadata',
+      $ref: 'Series#',
+    },
+    404: ErrorRef,
+  },
 }
 
 // =============================================================================
@@ -147,11 +170,11 @@ export const watchStatsSchema = {
 export const episodesSchema = {
   tags: ['series'],
   summary: 'Get series episodes',
-  description: 'Get all episodes for a series, grouped by season. Includes episode details like title, overview, ratings, and air dates.',
+  description: 'Get all episodes for a series, grouped by season. Includes episode details like title, overview, ratings, air dates, and watch progress.',
   params: {
     type: 'object' as const,
     properties: {
-      id: { type: 'string' as const, format: 'uuid', description: 'Series ID' },
+      id: { type: 'string' as const, format: 'uuid', description: 'Series ID to get episodes for', example: '789e4567-e89b-12d3-a456-426614174002' },
     },
     required: ['id'] as string[],
   },
@@ -335,18 +358,18 @@ export const filterRangesSchema = {
 export const similarSeriesSchema = {
   tags: ['similarity'],
   summary: 'Get similar series',
-  description: 'Find series similar to the specified series using AI-powered semantic similarity based on embeddings. Results are ranked by similarity score.',
+  description: 'Find series similar to the specified series using AI-powered semantic similarity based on embeddings. Results are ranked by similarity score (0-1, higher is more similar). Requires embeddings to be generated.',
   params: {
     type: 'object' as const,
     properties: {
-      id: { type: 'string' as const, format: 'uuid', description: 'Series ID' },
+      id: { type: 'string' as const, format: 'uuid', description: 'Source series ID to find similar series for', example: '789e4567-e89b-12d3-a456-426614174002' },
     },
     required: ['id'] as string[],
   },
   querystring: {
     type: 'object' as const,
     properties: {
-      limit: { type: 'string' as const, description: 'Maximum results to return (default: 10, max: 50)' },
+      limit: { type: 'string' as const, description: 'Maximum results to return (1-50)', default: '10', example: '20' },
     },
   },
   response: {
