@@ -28,26 +28,57 @@ const JOB_NAMES = [
 // =============================================================================
 
 export const jobComponentSchemas = {
-  // Job definition
+  // Job definition - matches actual response from list.ts handler
   Job: {
     type: 'object' as const,
     description: 'Background job definition with status and schedule',
     properties: {
       name: { type: 'string' as const, description: 'Unique job identifier', example: 'sync-movies' },
-      displayName: { type: 'string' as const, description: 'Human-readable job name', example: 'Sync Movies' },
       description: { type: 'string' as const, description: 'What this job does' },
       category: { type: 'string' as const, enum: ['sync', 'enrich', 'embed', 'recommendations', 'discovery'], description: 'Job category' },
-      isEnabled: { type: 'boolean' as const, description: 'Whether the job is enabled' },
-      isRunning: { type: 'boolean' as const, description: 'Whether the job is currently running' },
-      scheduleType: { type: 'string' as const, enum: ['daily', 'weekly', 'interval', 'manual'], description: 'Schedule type' },
-      scheduleHour: { type: 'integer' as const, nullable: true, description: 'Hour to run (0-23) for daily/weekly schedules' },
-      scheduleMinute: { type: 'integer' as const, nullable: true, description: 'Minute to run (0-59)' },
-      scheduleDayOfWeek: { type: 'integer' as const, nullable: true, description: 'Day of week (0=Sunday) for weekly schedules' },
-      scheduleIntervalHours: { type: 'integer' as const, nullable: true, description: 'Interval in hours for interval schedules' },
-      nextRunAt: { type: 'string' as const, format: 'date-time', nullable: true, description: 'Next scheduled run time' },
-      lastRunAt: { type: 'string' as const, format: 'date-time', nullable: true, description: 'Last run time' },
-      lastRunStatus: { type: 'string' as const, enum: ['success', 'failed', 'cancelled'], nullable: true, description: 'Last run status' },
-      lastRunDurationMs: { type: 'integer' as const, nullable: true, description: 'Last run duration in milliseconds' },
+      manualOnly: { type: 'boolean' as const, description: 'Whether this job can only be run manually' },
+      status: { type: 'string' as const, enum: ['running', 'idle'], description: 'Current job status' },
+      currentJobId: { type: 'string' as const, format: 'uuid', nullable: true, description: 'ID of currently running job' },
+      schedule: {
+        type: 'object' as const,
+        nullable: true,
+        description: 'Schedule configuration',
+        properties: {
+          type: { type: 'string' as const, enum: ['daily', 'weekly', 'interval', 'manual'], description: 'Schedule type' },
+          hour: { type: 'integer' as const, nullable: true, description: 'Hour to run (0-23)' },
+          minute: { type: 'integer' as const, nullable: true, description: 'Minute to run (0-59)' },
+          dayOfWeek: { type: 'integer' as const, nullable: true, description: 'Day of week (0=Sunday)' },
+          intervalHours: { type: 'integer' as const, nullable: true, description: 'Interval in hours' },
+          isEnabled: { type: 'boolean' as const, description: 'Whether schedule is enabled' },
+          formatted: { type: 'string' as const, description: 'Human-readable schedule description' },
+        },
+      },
+      progress: {
+        type: 'object' as const,
+        nullable: true,
+        description: 'Current progress if running',
+        properties: {
+          overallProgress: { type: 'number' as const, description: 'Progress percentage (0-100)' },
+          currentStep: { type: 'string' as const, nullable: true, description: 'Current step description' },
+          itemsProcessed: { type: 'integer' as const, description: 'Items processed so far' },
+          itemsTotal: { type: 'integer' as const, description: 'Total items to process' },
+        },
+      },
+      lastRun: {
+        type: 'object' as const,
+        nullable: true,
+        description: 'Last run information',
+        properties: {
+          id: { type: 'string' as const, format: 'uuid', description: 'Run ID' },
+          status: { type: 'string' as const, enum: ['running', 'completed', 'failed', 'cancelled'], description: 'Run status' },
+          startedAt: { type: 'string' as const, format: 'date-time', description: 'When the run started' },
+          completedAt: { type: 'string' as const, format: 'date-time', nullable: true, description: 'When the run completed' },
+          durationMs: { type: 'integer' as const, nullable: true, description: 'Duration in milliseconds' },
+          itemsProcessed: { type: 'integer' as const, nullable: true, description: 'Number of items processed' },
+          itemsTotal: { type: 'integer' as const, nullable: true, description: 'Total items to process' },
+          errorMessage: { type: 'string' as const, nullable: true, description: 'Error message if failed' },
+        },
+      },
     },
   },
 

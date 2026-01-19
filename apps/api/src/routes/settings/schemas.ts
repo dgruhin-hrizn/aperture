@@ -38,10 +38,26 @@ export const mediaServerConfigSchema = {
     200: {
       type: 'object' as const,
       properties: {
-        type: { type: 'string' as const, enum: ['emby', 'jellyfin'], nullable: true },
-        baseUrl: { type: 'string' as const, nullable: true },
-        hasApiKey: { type: 'boolean' as const, description: 'Whether an API key is configured' },
-        isConfigured: { type: 'boolean' as const, description: 'Whether media server is fully configured' },
+        config: {
+          type: 'object' as const,
+          properties: {
+            type: { type: 'string' as const, enum: ['emby', 'jellyfin'], nullable: true },
+            baseUrl: { type: 'string' as const, nullable: true },
+            hasApiKey: { type: 'boolean' as const, description: 'Whether an API key is configured' },
+            isConfigured: { type: 'boolean' as const, description: 'Whether media server is fully configured' },
+          },
+        },
+        serverTypes: {
+          type: 'array' as const,
+          items: {
+            type: 'object' as const,
+            properties: {
+              value: { type: 'string' as const },
+              label: { type: 'string' as const },
+            },
+          },
+          description: 'Available media server types',
+        },
       },
     },
     500: {
@@ -644,9 +660,9 @@ export const aiProvidersSchema = {
   querystring: {
     type: 'object' as const,
     properties: {
-      function: { type: 'string' as const, enum: ['embedding', 'text_generation', 'chat_assistant'] },
+      function: { type: 'string' as const, enum: ['embeddings', 'chat', 'textGeneration', 'exploration'] },
     },
-    required: ['function'] as string[],
+    // function is optional - if not provided, returns all providers
   },
 }
 
@@ -658,7 +674,7 @@ export const aiModelsSchema = {
     type: 'object' as const,
     properties: {
       provider: { type: 'string' as const },
-      function: { type: 'string' as const, enum: ['embedding', 'text_generation', 'chat_assistant'] },
+      function: { type: 'string' as const, enum: ['embeddings', 'chat', 'textGeneration', 'exploration'] },
     },
     required: ['provider', 'function'] as string[],
   },
