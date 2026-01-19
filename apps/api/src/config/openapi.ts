@@ -25,10 +25,11 @@ Use API keys for programmatic access to the Aperture API.
 ### Creating an API Key
 
 1. Log in to Aperture as an **admin user**
-2. Click the **gear icon** (⚙️) in the top-right corner to open Settings
-3. Navigate to the **System** tab
-4. Scroll down to the **API Keys** section
-5. Click **Create API Key**, give it a name, and copy the generated key
+2. Go to **Admin → Settings** (or navigate to \`/admin/settings\`)
+3. Click the **System** tab (last tab on the right)
+4. In the **API Keys** section at the top, click **Create API Key**
+5. Give your key a name, select an expiration (or never), and click **Create**
+6. **Copy the key immediately** — it will only be shown once!
 
 > **Note:** API keys are only shown once when created. Store them securely!
 
