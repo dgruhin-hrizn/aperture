@@ -41,7 +41,7 @@ export function JobProgressSection({
               {getElapsedTime(progress.startedAt)}
             </Typography>
             <Chip
-              label={`${progress.overallProgress}%`}
+              label={`${progress.overallProgress ?? 0}%`}
               size="small"
               sx={{
                 bgcolor: `${jobColor}22`,
@@ -56,7 +56,7 @@ export function JobProgressSection({
         {/* Progress Bar */}
         <LinearProgress
           variant="determinate"
-          value={progress.overallProgress}
+          value={progress.overallProgress ?? 0}
           sx={{
             height: 6,
             borderRadius: 3,

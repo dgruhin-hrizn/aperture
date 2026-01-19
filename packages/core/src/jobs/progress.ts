@@ -79,8 +79,10 @@ export function setJobStep(jobId: string, stepIndex: number, stepName: string, i
   progress.itemsTotal = itemsTotal
   progress.currentItem = undefined
 
-  // Calculate overall progress based on steps
-  progress.overallProgress = Math.round((stepIndex / progress.totalSteps) * 100)
+  // Calculate overall progress based on steps (guard against division by zero)
+  progress.overallProgress = progress.totalSteps > 0
+    ? Math.round((stepIndex / progress.totalSteps) * 100)
+    : 0
 
   emitProgress(jobId, progress)
   addLog(jobId, 'info', `📍 Step ${stepIndex + 1}/${progress.totalSteps}: ${stepName}`)
@@ -106,17 +108,29 @@ export function updateJobProgress(
     progress.currentItem = currentItem
   }
 
-  // Calculate step progress
+  // Calculate step progress (guard against division by zero)
   if (progress.itemsTotal > 0) {
     progress.stepProgress = Math.round((itemsProcessed / progress.itemsTotal) * 100)
+  } else {
+    progress.stepProgress = 0
   }
 
   // Calculate overall progress (step progress contributes to overall)
-  const stepContribution = 100 / progress.totalSteps
-  const stepProgressContribution = (progress.stepProgress / 100) * stepContribution
-  progress.overallProgress = Math.round(
-    (progress.currentStepIndex / progress.totalSteps) * 100 + stepProgressContribution
-  )
+  // Guard against division by zero
+  if (progress.totalSteps > 0) {
+    const stepContribution = 100 / progress.totalSteps
+    const stepProgressContribution = (progress.stepProgress / 100) * stepContribution
+    progress.overallProgress = Math.round(
+      (progress.currentStepIndex / progress.totalSteps) * 100 + stepProgressContribution
+    )
+  } else {
+    progress.overallProgress = 0
+  }
+
+  // Ensure overallProgress is never NaN or negative
+  if (isNaN(progress.overallProgress) || progress.overallProgress < 0) {
+    progress.overallProgress = 0
+  }
 
   emitProgress(jobId, progress)
 }
