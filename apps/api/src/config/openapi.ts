@@ -20,13 +20,27 @@ AI-powered media recommendation engine for Emby and Jellyfin.
 
 ## Authentication
 
-Use API keys for programmatic access. Create and manage keys in **Settings > System > API Keys**.
+Use API keys for programmatic access to the Aperture API.
 
-Include your API key in the \`X-API-Key\` header:
+### Creating an API Key
 
-\`\`\`
+1. Log in to Aperture as an **admin user**
+2. Click the **gear icon** (⚙️) in the top-right corner to open Settings
+3. Navigate to the **System** tab
+4. Scroll down to the **API Keys** section
+5. Click **Create API Key**, give it a name, and copy the generated key
+
+> **Note:** API keys are only shown once when created. Store them securely!
+
+### Using Your API Key
+
+Include your API key in the \`X-API-Key\` header with every request:
+
+\`\`\`bash
 curl -H "X-API-Key: apt_your_key_here" https://your-server/api/movies
 \`\`\`
+
+All API keys are prefixed with \`apt_\` for easy identification.
 
 ## Rate Limits
 
