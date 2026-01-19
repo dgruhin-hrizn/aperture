@@ -18,7 +18,7 @@ export function registerAiHandlers(fastify: FastifyInstance) {
     }
   }>(
     '/api/channels/ai-preferences',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["playlists"] } },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
       const { genres, exampleMovieIds } = request.body
@@ -50,7 +50,7 @@ export function registerAiHandlers(fastify: FastifyInstance) {
     }
   }>(
     '/api/channels/ai-name',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["playlists"] } },
     async (request, reply) => {
       const { genres, exampleMovieIds, textPreferences } = request.body
 
@@ -82,7 +82,7 @@ export function registerAiHandlers(fastify: FastifyInstance) {
     }
   }>(
     '/api/channels/ai-description',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["playlists"] } },
     async (request, reply) => {
       const { genres, exampleMovieIds, textPreferences, playlistName } = request.body
 

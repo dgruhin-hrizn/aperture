@@ -246,7 +246,7 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/jobs
    * List all jobs with their status and schedule config
    */
-  fastify.get('/api/jobs', { preHandler: requireAdmin }, async (_request, reply) => {
+  fastify.get('/api/jobs', { preHandler: requireAdmin, schema: { tags: ['jobs'] } }, async (_request, reply) => {
     // Get all job configs from database
     const jobConfigs = await getAllJobConfigs()
     const configMap = new Map(jobConfigs.map((c) => [c.jobName, c]))
@@ -309,7 +309,7 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post<{ Params: { name: string } }>(
     '/api/jobs/:name/run',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['jobs'] } },
     async (request, reply) => {
       const { name } = request.params
 
@@ -355,7 +355,7 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post<{ Params: { name: string } }>(
     '/api/jobs/:name/cancel',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['jobs'] } },
     async (request, reply) => {
       const { name } = request.params
 
@@ -393,7 +393,7 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { name: string } }>(
     '/api/jobs/:name/config',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['jobs'] } },
     async (request, reply) => {
       const { name } = request.params
 
@@ -435,7 +435,7 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
       scheduleIntervalHours?: number | null
       isEnabled?: boolean
     }
-  }>('/api/jobs/:name/config', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/jobs/:name/config', { preHandler: requireAdmin, schema: { tags: ['jobs'] } }, async (request, reply) => {
     const { name } = request.params
     const updates = request.body
 
@@ -521,7 +521,7 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { name: string } }>(
     '/api/jobs/:name',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['jobs'] } },
     async (request, reply) => {
       const { name } = request.params
 
@@ -547,7 +547,7 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { jobId: string } }>(
     '/api/jobs/progress/:jobId',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['jobs'] } },
     async (request, reply) => {
       const { jobId } = request.params
       const progress = getJobProgress(jobId)
@@ -566,7 +566,7 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { jobId: string } }>(
     '/api/jobs/progress/stream/:jobId',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['jobs'] } },
     async (request, reply) => {
       const { jobId } = request.params
 
@@ -654,7 +654,7 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/jobs/active
    * Get all active/running jobs
    */
-  fastify.get('/api/jobs/active', { preHandler: requireAdmin }, async (_request, reply) => {
+  fastify.get('/api/jobs/active', { preHandler: requireAdmin, schema: { tags: ['jobs'] } }, async (_request, reply) => {
     const allProgress = getAllJobProgress()
     return reply.send({ jobs: allProgress })
   })
@@ -665,7 +665,7 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get(
     '/api/jobs/scheduler/status',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['jobs'] } },
     async (_request, reply) => {
       const status = getSchedulerStatus()
       return reply.send(status)
@@ -682,7 +682,7 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Querystring: { limit?: string } }>(
     '/api/jobs/history',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['jobs'] } },
     async (request, reply) => {
       const limit = request.query.limit ? parseInt(request.query.limit, 10) : 50
       const history = await getJobRunHistory(undefined, limit)
@@ -696,7 +696,7 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { name: string }; Querystring: { limit?: string } }>(
     '/api/jobs/:name/history',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['jobs'] } },
     async (request, reply) => {
       const { name } = request.params
       const limit = request.query.limit ? parseInt(request.query.limit, 10) : 50
@@ -715,7 +715,7 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/jobs/last-runs
    * Get the last run for each job type
    */
-  fastify.get('/api/jobs/last-runs', { preHandler: requireAdmin }, async (_request, reply) => {
+  fastify.get('/api/jobs/last-runs', { preHandler: requireAdmin, schema: { tags: ['jobs'] } }, async (_request, reply) => {
     const lastRuns = await getLastJobRuns()
     // Convert Map to object for JSON serialization
     const lastRunsObj: Record<string, unknown> = {}
@@ -735,7 +735,7 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get(
     '/api/jobs/enrichment/status',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['jobs'] } },
     async (_request, reply) => {
       try {
         const status = await getIncompleteEnrichmentRun()
@@ -754,7 +754,7 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post(
     '/api/jobs/enrichment/clear-interrupted',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['jobs'] } },
     async (_request, reply) => {
       try {
         const cleared = await clearInterruptedEnrichmentRun()
@@ -779,7 +779,7 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/admin/purge/stats
    * Get current database stats before purge
    */
-  fastify.get('/api/admin/purge/stats', { preHandler: requireAdmin }, getPurgeStats)
+  fastify.get('/api/admin/purge/stats', { preHandler: requireAdmin, schema: { tags: ['admin'] } }, getPurgeStats)
 
   /**
    * POST /api/admin/purge/movies
@@ -787,7 +787,7 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post<{ Body: { confirm: boolean } }>(
     '/api/admin/purge/movies',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['admin'] } },
     executePurge
   )
 }

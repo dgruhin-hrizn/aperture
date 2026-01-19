@@ -27,7 +27,7 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get(
     '/api/jellyseerr/config',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ["jellyseerr"] } },
     async (request, reply) => {
       const config = await getJellyseerrConfig()
       
@@ -53,7 +53,7 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
     }
   }>(
     '/api/jellyseerr/config',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ["jellyseerr"] } },
     async (request, reply) => {
       const { url, apiKey, enabled } = request.body
 
@@ -82,7 +82,7 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
     }
   }>(
     '/api/jellyseerr/test',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ["jellyseerr"] } },
     async (request, reply) => {
       const { url, apiKey } = request.body || {}
 
@@ -105,7 +105,7 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { mediaType: string; tmdbId: string }
   }>(
     '/api/jellyseerr/status/:mediaType/:tmdbId',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["jellyseerr"] } },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
       const { mediaType, tmdbId } = request.params
@@ -164,7 +164,7 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { tmdbId: string }
   }>(
     '/api/jellyseerr/tv/:tmdbId',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["jellyseerr"] } },
     async (request, reply) => {
       const { tmdbId } = request.params
 
@@ -204,7 +204,7 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
     }
   }>(
     '/api/jellyseerr/request',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["jellyseerr"] } },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
       const { tmdbId, mediaType, title, discoveryCandidateId, seasons } = request.body
@@ -287,7 +287,7 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
     Querystring: { mediaType?: string; status?: string; limit?: string }
   }>(
     '/api/jellyseerr/requests',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["jellyseerr"] } },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
       const { mediaType, status, limit } = request.query
@@ -312,7 +312,7 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
     }
   }>(
     '/api/jellyseerr/status/batch',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["jellyseerr"] } },
     async (request, reply) => {
       const { items } = request.body
 
@@ -362,7 +362,7 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { requestId: string }
   }>(
     '/api/jellyseerr/request/:requestId/status',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["jellyseerr"] } },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
       const { requestId } = request.params

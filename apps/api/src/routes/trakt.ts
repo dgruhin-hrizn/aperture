@@ -45,7 +45,7 @@ const traktRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/trakt/config
    * Get Trakt configuration (admin only)
    */
-  fastify.get('/api/trakt/config', { preHandler: requireAdmin }, async (_request, reply) => {
+  fastify.get('/api/trakt/config', { preHandler: requireAdmin, schema: { tags: ['trakt'] } }, async (_request, reply) => {
     try {
       const config = await getTraktConfig()
       const configured = await isTraktConfigured()
@@ -72,7 +72,7 @@ const traktRoutes: FastifyPluginAsync = async (fastify) => {
       clientSecret?: string
       redirectUri?: string
     }
-  }>('/api/trakt/config', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/trakt/config', { preHandler: requireAdmin, schema: { tags: ['trakt'] } }, async (request, reply) => {
     try {
       const { clientId, clientSecret, redirectUri } = request.body
 
@@ -102,7 +102,7 @@ const traktRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/trakt/status
    * Get current user's Trakt connection status
    */
-  fastify.get('/api/trakt/status', { preHandler: requireAuth }, async (request, reply) => {
+  fastify.get('/api/trakt/status', { preHandler: requireAuth, schema: { tags: ['trakt'] } }, async (request, reply) => {
     try {
       const user = request.user as SessionUser
       const configured = await isTraktConfigured()
@@ -132,7 +132,7 @@ const traktRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/trakt/auth-url
    * Get Trakt OAuth authorization URL
    */
-  fastify.get('/api/trakt/auth-url', { preHandler: requireAuth }, async (request, reply) => {
+  fastify.get('/api/trakt/auth-url', { preHandler: requireAuth, schema: { tags: ['trakt'] } }, async (request, reply) => {
     try {
       const user = request.user as SessionUser
       const configured = await isTraktConfigured()
@@ -168,7 +168,7 @@ const traktRoutes: FastifyPluginAsync = async (fastify) => {
       state?: string
       error?: string
     }
-  }>('/api/trakt/callback', async (request, reply) => {
+  }>('/api/trakt/callback', { schema: { tags: ['trakt'], security: [] } }, async (request, reply) => {
     try {
       const { code, state, error } = request.query
 
@@ -218,7 +218,7 @@ const traktRoutes: FastifyPluginAsync = async (fastify) => {
    * POST /api/trakt/disconnect
    * Disconnect Trakt from current user's account
    */
-  fastify.post('/api/trakt/disconnect', { preHandler: requireAuth }, async (request, reply) => {
+  fastify.post('/api/trakt/disconnect', { preHandler: requireAuth, schema: { tags: ['trakt'] } }, async (request, reply) => {
     try {
       const user = request.user as SessionUser
       
@@ -238,7 +238,7 @@ const traktRoutes: FastifyPluginAsync = async (fastify) => {
    * POST /api/trakt/sync
    * Sync ratings from Trakt for current user
    */
-  fastify.post('/api/trakt/sync', { preHandler: requireAuth }, async (request, reply) => {
+  fastify.post('/api/trakt/sync', { preHandler: requireAuth, schema: { tags: ['trakt'] } }, async (request, reply) => {
     try {
       const user = request.user as SessionUser
       

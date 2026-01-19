@@ -11,7 +11,7 @@ export function registerConversationHandlers(fastify: FastifyInstance) {
    * GET /api/assistant/conversations
    * List user's conversations
    */
-  fastify.get('/api/assistant/conversations', { preHandler: requireAuth }, async (request, reply) => {
+  fastify.get('/api/assistant/conversations', { preHandler: requireAuth, schema: { tags: ["ai-assistant"] } }, async (request, reply) => {
     const user = request.user as SessionUser
 
     const conversations = await query<ConversationRow>(
@@ -32,7 +32,7 @@ export function registerConversationHandlers(fastify: FastifyInstance) {
    */
   fastify.post<{ Body: { title?: string } }>(
     '/api/assistant/conversations',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["ai-assistant"] } },
     async (request, reply) => {
       const user = request.user as SessionUser
       const { title = 'New Chat' } = request.body || {}
@@ -54,7 +54,7 @@ export function registerConversationHandlers(fastify: FastifyInstance) {
    */
   fastify.get<{ Params: { id: string } }>(
     '/api/assistant/conversations/:id',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["ai-assistant"] } },
     async (request, reply) => {
       try {
         const user = request.user as SessionUser
@@ -99,7 +99,7 @@ export function registerConversationHandlers(fastify: FastifyInstance) {
    */
   fastify.patch<{ Params: { id: string }; Body: { title: string } }>(
     '/api/assistant/conversations/:id',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["ai-assistant"] } },
     async (request, reply) => {
       const user = request.user as SessionUser
       const { id } = request.params
@@ -127,7 +127,7 @@ export function registerConversationHandlers(fastify: FastifyInstance) {
    */
   fastify.delete<{ Params: { id: string } }>(
     '/api/assistant/conversations/:id',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["ai-assistant"] } },
     async (request, reply) => {
       const user = request.user as SessionUser
       const { id } = request.params
@@ -155,7 +155,7 @@ export function registerConversationHandlers(fastify: FastifyInstance) {
     Body: { messages: Array<{ role: string; content: string; toolInvocations?: unknown[] }> }
   }>(
     '/api/assistant/conversations/:id/messages',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["ai-assistant"] } },
     async (request, reply) => {
       const user = request.user as SessionUser
       const { id } = request.params

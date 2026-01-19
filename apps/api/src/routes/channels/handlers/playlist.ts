@@ -16,7 +16,7 @@ export function registerPlaylistHandlers(fastify: FastifyInstance) {
    */
   fastify.post<{ Params: { id: string } }>(
     '/api/channels/:id/generate',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["playlists"] } },
     async (request, reply) => {
       const { id } = request.params
       const currentUser = request.user as SessionUser
@@ -54,7 +54,7 @@ export function registerPlaylistHandlers(fastify: FastifyInstance) {
    */
   fastify.get<{ Params: { id: string } }>(
     '/api/channels/:id/items',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["playlists"] } },
     async (request, reply) => {
       const { id } = request.params
       const currentUser = request.user as SessionUser
@@ -102,7 +102,7 @@ export function registerPlaylistHandlers(fastify: FastifyInstance) {
    */
   fastify.delete<{ Params: { id: string; entryId: string } }>(
     '/api/channels/:id/items/:entryId',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["playlists"] } },
     async (request, reply) => {
       const { id, entryId } = request.params
       const currentUser = request.user as SessionUser
@@ -143,7 +143,7 @@ export function registerPlaylistHandlers(fastify: FastifyInstance) {
    */
   fastify.post<{ Params: { id: string }; Body: { itemIds: string[] } }>(
     '/api/channels/:id/items',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["playlists"] } },
     async (request, reply) => {
       const { id } = request.params
       const { itemIds } = request.body

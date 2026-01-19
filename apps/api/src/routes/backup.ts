@@ -30,7 +30,7 @@ const backupRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get(
     '/api/backup/config',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['backup'] } },
     async (_request, reply) => {
       try {
         const config = await getBackupConfig()
@@ -60,7 +60,7 @@ const backupRoutes: FastifyPluginAsync = async (fastify) => {
       backupPath?: string
       retentionCount?: number
     }
-  }>('/api/backup/config', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/backup/config', { preHandler: requireAdmin, schema: { tags: ['backup'] } }, async (request, reply) => {
     try {
       const { backupPath, retentionCount } = request.body
 
@@ -105,7 +105,7 @@ const backupRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get(
     '/api/backup/list',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['backup'] } },
     async (_request, reply) => {
       try {
         const backups = await listBackups()
@@ -138,7 +138,7 @@ const backupRoutes: FastifyPluginAsync = async (fastify) => {
     Querystring: { sync?: string }
   }>(
     '/api/backup/create',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['backup'] } },
     async (request, reply) => {
       try {
         const sync = request.query.sync === 'true'
@@ -191,7 +191,7 @@ const backupRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post<{
     Params: { jobId: string }
-  }>('/api/backup/cancel/:jobId', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/backup/cancel/:jobId', { preHandler: requireAdmin, schema: { tags: ['backup'] } }, async (request, reply) => {
     try {
       const { jobId } = request.params
 
@@ -228,7 +228,7 @@ const backupRoutes: FastifyPluginAsync = async (fastify) => {
       confirmText?: string
     }
     Querystring: { sync?: string }
-  }>('/api/backup/restore', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/backup/restore', { preHandler: requireAdmin, schema: { tags: ['backup'] } }, async (request, reply) => {
     try {
       const { filename, createPreRestoreBackup = true, confirmText } = request.body
       const sync = request.query.sync === 'true'
@@ -302,7 +302,7 @@ const backupRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.delete<{
     Params: { filename: string }
-  }>('/api/backup/:filename', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/backup/:filename', { preHandler: requireAdmin, schema: { tags: ['backup'] } }, async (request, reply) => {
     try {
       const { filename } = request.params
 
@@ -333,7 +333,7 @@ const backupRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{
     Params: { filename: string }
-  }>('/api/backup/download/:filename', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/backup/download/:filename', { preHandler: requireAdmin, schema: { tags: ['backup'] } }, async (request, reply) => {
     try {
       const { filename } = request.params
 
@@ -367,7 +367,7 @@ const backupRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post(
     '/api/backup/upload',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['backup'] } },
     async (request, reply) => {
       try {
         const data = await request.file()
@@ -433,7 +433,7 @@ const backupRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/setup/backup/list
    * List available backups during setup (no auth required)
    */
-  fastify.get('/api/setup/backup/list', async (_request, reply) => {
+  fastify.get('/api/setup/backup/list', { schema: { tags: ['setup'], security: [] } }, async (_request, reply) => {
     try {
       const backups = await listBackups()
 
@@ -458,7 +458,7 @@ const backupRoutes: FastifyPluginAsync = async (fastify) => {
    * POST /api/setup/backup/upload
    * Upload a backup file during setup (no auth required)
    */
-  fastify.post('/api/setup/backup/upload', async (request, reply) => {
+  fastify.post('/api/setup/backup/upload', { schema: { tags: ['setup'], security: [] } }, async (request, reply) => {
     try {
       const data = await request.file()
       if (!data) {
@@ -524,7 +524,7 @@ const backupRoutes: FastifyPluginAsync = async (fastify) => {
       confirmText?: string
     }
     Querystring: { sync?: string }
-  }>('/api/setup/backup/restore', async (request, reply) => {
+  }>('/api/setup/backup/restore', { schema: { tags: ['setup'], security: [] } }, async (request, reply) => {
     try {
       const { filename, confirmText } = request.body
       const sync = request.query.sync === 'true'

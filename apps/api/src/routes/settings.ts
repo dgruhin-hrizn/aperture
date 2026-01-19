@@ -94,7 +94,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * Get media server info for frontend (URL for play links)
    * Note: Does not require admin - all authenticated users can use play buttons
    */
-  fastify.get('/api/settings/media-server', async (_request, reply) => {
+  fastify.get('/api/settings/media-server', { schema: { tags: ['settings'] } }, async (_request, reply) => {
     const config = await getMediaServerConfig()
     const baseUrl = config.baseUrl || ''
     const serverType = config.type || 'emby'
@@ -139,7 +139,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get(
     '/api/settings/media-server/config',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['settings'] } },
     async (_request, reply) => {
       try {
         const config = await getMediaServerConfig()
@@ -172,7 +172,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       baseUrl?: string
       apiKey?: string
     }
-  }>('/api/settings/media-server/config', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/media-server/config', { preHandler: requireAdmin, schema: { tags: ['settings'] } }, async (request, reply) => {
     try {
       const { type, baseUrl, apiKey } = request.body
 
@@ -220,7 +220,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get(
     '/api/settings/media-server/security',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['settings'] } },
     async (_request, reply) => {
       try {
         const allowPasswordlessLogin = await getSystemSetting('allow_passwordless_login')
@@ -242,7 +242,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     Body: {
       allowPasswordlessLogin?: boolean
     }
-  }>('/api/settings/media-server/security', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/media-server/security', { preHandler: requireAdmin, schema: { tags: ['settings'] } }, async (request, reply) => {
     try {
       const { allowPasswordlessLogin } = request.body
 
@@ -275,7 +275,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       apiKey?: string
       useSavedCredentials?: boolean
     }
-  }>('/api/settings/media-server/test', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/media-server/test', { preHandler: requireAdmin, schema: { tags: ['settings'] } }, async (request, reply) => {
     try {
       const { type, baseUrl, apiKey, useSavedCredentials } = request.body
 
@@ -326,7 +326,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/genres
    * Get all available movie genres from the media server
    */
-  fastify.get('/api/genres', async (_request, reply) => {
+  fastify.get('/api/genres', { schema: { tags: ['settings'] } }, async (_request, reply) => {
     try {
       const config = await getMediaServerConfig()
 
@@ -352,7 +352,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/settings/libraries
    * Get all library configurations from database
    */
-  fastify.get('/api/settings/libraries', { preHandler: requireAdmin }, async (request, reply) => {
+  fastify.get('/api/settings/libraries', { preHandler: requireAdmin, schema: { tags: ['settings'] } }, async (request, reply) => {
     try {
       const configs = await getLibraryConfigs()
       return reply.send({ libraries: configs })
@@ -369,7 +369,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post(
     '/api/settings/libraries/sync',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['settings'] } },
     async (request, reply) => {
       try {
         const config = await getMediaServerConfig()
@@ -418,7 +418,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.patch<{
     Params: { id: string }
     Body: { isEnabled: boolean }
-  }>('/api/settings/libraries/:id', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/libraries/:id', { preHandler: requireAdmin, schema: { tags: ['settings'] } }, async (request, reply) => {
     try {
       const { id } = request.params
       const { isEnabled } = request.body
@@ -447,7 +447,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get(
     '/api/settings/libraries/available',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['settings'] } },
     async (request, reply) => {
       try {
         const config = await getMediaServerConfig()
@@ -488,7 +488,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get(
     '/api/settings/recommendations',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['settings'] } },
     async (request, reply) => {
       try {
         const config = await getRecommendationConfig()
@@ -536,7 +536,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     Body: Partial<MediaTypeConfig>
   }>(
     '/api/settings/recommendations/movies',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['settings'] } },
     async (request, reply) => {
       try {
         const updates = request.body
@@ -564,7 +564,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     Body: Partial<MediaTypeConfig>
   }>(
     '/api/settings/recommendations/series',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['settings'] } },
     async (request, reply) => {
       try {
         const updates = request.body
@@ -590,7 +590,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post(
     '/api/settings/recommendations/movies/reset',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['settings'] } },
     async (request, reply) => {
       try {
         const config = await resetMovieRecommendationConfig()
@@ -610,7 +610,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post(
     '/api/settings/recommendations/series/reset',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['settings'] } },
     async (request, reply) => {
       try {
         const config = await resetSeriesRecommendationConfig()
@@ -653,7 +653,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/settings/cost-inputs
    * Get all values needed for cost estimation with source information
    */
-  fastify.get('/api/settings/cost-inputs', { preHandler: requireAdmin }, async (request, reply) => {
+  fastify.get('/api/settings/cost-inputs', { preHandler: requireAdmin, schema: { tags: ['settings'] } }, async (request, reply) => {
     try {
       // Get recommendation config
       const recConfig = await getRecommendationConfig()
@@ -835,7 +835,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       weeklyEpisodesAdded?: number
       weeklyChatMessagesPerUser?: number
     }
-  }>('/api/settings/cost-inputs/estimates', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/cost-inputs/estimates', { preHandler: requireAdmin, schema: { tags: ['settings'] } }, async (request, reply) => {
     try {
       const { weeklyMoviesAdded, weeklyShowsAdded, weeklyEpisodesAdded, weeklyChatMessagesPerUser } = request.body
 
@@ -879,7 +879,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/settings/user
    * Get current user's settings
    */
-  fastify.get('/api/settings/user', async (request, reply) => {
+  fastify.get('/api/settings/user', { schema: { tags: ['settings'] } }, async (request, reply) => {
     try {
       const userId = request.user?.id
       if (!userId) {
@@ -910,7 +910,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       libraryName?: string | null
       seriesLibraryName?: string | null
     }
-  }>('/api/settings/user', async (request, reply) => {
+  }>('/api/settings/user', { schema: { tags: ['settings'] } }, async (request, reply) => {
     try {
       const userId = request.user?.id
       if (!userId) {
@@ -963,7 +963,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get(
     '/api/settings/embedding-model',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['settings'] } },
     async (_request, reply) => {
       try {
         const currentModel = await getEmbeddingModel()
@@ -1021,7 +1021,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.patch<{
     Body: { model: string }
-  }>('/api/settings/embedding-model', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/embedding-model', { preHandler: requireAdmin, schema: { tags: ['settings'] } }, async (request, reply) => {
     try {
       const { model } = request.body
 
@@ -1056,7 +1056,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get(
     '/api/settings/text-generation-model',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['settings'] } },
     async (_request, reply) => {
       try {
         const currentModel = await getTextGenerationModel()
@@ -1131,7 +1131,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     Body: { model: string }
   }>(
     '/api/settings/text-generation-model',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['settings'] } },
     async (request, reply) => {
       try {
         const { model } = request.body
@@ -1168,7 +1168,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get(
     '/api/settings/chat-assistant-model',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['settings'] } },
     async (_request, reply) => {
       try {
         const currentModel = await getChatAssistantModel()
@@ -1190,7 +1190,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.patch<{
     Body: { model: string }
-  }>('/api/settings/chat-assistant-model', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/chat-assistant-model', { preHandler: requireAdmin, schema: { tags: ['settings'] } }, async (request, reply) => {
     try {
       const { model } = request.body
 
@@ -1222,7 +1222,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/settings/top-picks
    * Get current Top Picks configuration including library info
    */
-  fastify.get('/api/settings/top-picks', { preHandler: requireAdmin }, async (_request, reply) => {
+  fastify.get('/api/settings/top-picks', { preHandler: requireAdmin, schema: { tags: ['settings'] } }, async (_request, reply) => {
     try {
       const { getTopPicksConfig, getTopPicksLibraries } = await import('@aperture/core')
       const config = await getTopPicksConfig()
@@ -1300,7 +1300,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       hybridLocalWeight?: number
       hybridMdblistWeight?: number
     }
-  }>('/api/settings/top-picks', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/top-picks', { preHandler: requireAdmin, schema: { tags: ['settings'] } }, async (request, reply) => {
     try {
       const { updateTopPicksConfig } = await import('@aperture/core')
       const config = await updateTopPicksConfig(request.body)
@@ -1317,7 +1317,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post(
     '/api/settings/top-picks/reset',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['settings'] } },
     async (_request, reply) => {
       try {
         const { resetTopPicksConfig } = await import('@aperture/core')
@@ -1343,7 +1343,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     }
   }>(
     '/api/settings/top-picks/preview',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['settings'] } },
     async (request, reply) => {
       try {
         const { getTopPicksPreviewCounts } = await import('@aperture/core')
@@ -1362,7 +1362,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post(
     '/api/settings/top-picks/refresh',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['settings'] } },
     async (_request, reply) => {
       try {
         const { refreshTopPicks } = await import('@aperture/core')
@@ -1388,7 +1388,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get(
     '/api/settings/ai-recs/output',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['settings'] } },
     async (_request, reply) => {
       try {
         const config = await getAiRecsOutputConfig()
@@ -1411,7 +1411,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       moviesUseSymlinks?: boolean
       seriesUseSymlinks?: boolean
     }
-  }>('/api/settings/ai-recs/output', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/ai-recs/output', { preHandler: requireAdmin, schema: { tags: ['settings'] } }, async (request, reply) => {
     try {
       const config = await setAiRecsOutputConfig(request.body)
       return reply.send({
@@ -1432,7 +1432,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get(
     '/api/settings/output-format',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['settings'] } },
     async (_request, reply) => {
       try {
         const config = await getAiRecsOutputConfig()
@@ -1452,7 +1452,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       moviesUseSymlinks?: boolean
       seriesUseSymlinks?: boolean
     }
-  }>('/api/settings/output-format', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/output-format', { preHandler: requireAdmin, schema: { tags: ['settings'] } }, async (request, reply) => {
     try {
       const config = await setAiRecsOutputConfig(request.body)
       return reply.send({
@@ -1475,7 +1475,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get(
     '/api/settings/ai-explanation',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['settings'] } },
     async (_request, reply) => {
       try {
         const config = await getAiExplanationConfig()
@@ -1496,7 +1496,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       enabled?: boolean
       userOverrideAllowed?: boolean
     }
-  }>('/api/settings/ai-explanation', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/ai-explanation', { preHandler: requireAdmin, schema: { tags: ['settings'] } }, async (request, reply) => {
     try {
       const config = await setAiExplanationConfig(request.body)
       return reply.send({
@@ -1517,7 +1517,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     Params: { userId: string }
   }>(
     '/api/settings/ai-explanation/user/:userId',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ["settings"] } },
     async (request, reply) => {
       try {
         const { userId } = request.params
@@ -1548,7 +1548,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     }
   }>(
     '/api/settings/ai-explanation/user/:userId',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ['settings'] } },
     async (request, reply) => {
       try {
         const { userId } = request.params
@@ -1582,7 +1582,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/settings/user/ai-explanation
    * Get current user's AI explanation preference
    */
-  fastify.get('/api/settings/user/ai-explanation', async (request, reply) => {
+  fastify.get('/api/settings/user/ai-explanation', { schema: { tags: ['settings'] } }, async (request, reply) => {
     try {
       const userId = request.user?.id
       if (!userId) {
@@ -1662,7 +1662,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/settings/watching
    * Get watching library configuration
    */
-  fastify.get('/api/settings/watching', { preHandler: requireAdmin }, async (_request, reply) => {
+  fastify.get('/api/settings/watching', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (_request, reply) => {
     try {
       const config = await getWatchingLibraryConfig()
       return reply.send(config)
@@ -1681,7 +1681,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       enabled?: boolean
       useSymlinks?: boolean
     }
-  }>('/api/settings/watching', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/watching', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const config = await setWatchingLibraryConfig(request.body)
       return reply.send({
@@ -1929,7 +1929,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get(
     '/api/settings/library-titles',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ["settings"] } },
     async (_request, reply) => {
       try {
         const config = await getLibraryTitleConfig()
@@ -1958,7 +1958,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       moviesTemplate?: string
       seriesTemplate?: string
     }
-  }>('/api/settings/library-titles', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/library-titles', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const { moviesTemplate, seriesTemplate } = request.body
 
@@ -2004,7 +2004,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get(
     '/api/settings/strm-libraries',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ["settings"] } },
     async (_request, reply) => {
       try {
         const result = await query<{
@@ -2064,7 +2064,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/settings/openai
    * Get OpenAI configuration status
    */
-  fastify.get('/api/settings/openai', { preHandler: requireAdmin }, async (_request, reply) => {
+  fastify.get('/api/settings/openai', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (_request, reply) => {
     try {
       const hasKey = await hasOpenAIApiKey()
       return reply.send({
@@ -2083,7 +2083,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.patch<{
     Body: { apiKey: string }
-  }>('/api/settings/openai', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/openai', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const { apiKey } = request.body
 
@@ -2118,7 +2118,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post(
     '/api/settings/openai/test',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ["settings"] } },
     async (_request, reply) => {
       try {
         const result = await testOpenAIConnection()
@@ -2138,7 +2138,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/settings/ai
    * Get full AI configuration for all functions
    */
-  fastify.get('/api/settings/ai', { preHandler: requireAdmin }, async (_request, reply) => {
+  fastify.get('/api/settings/ai', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (_request, reply) => {
     try {
       const config = await getAIConfig()
       const capabilities = await getAICapabilitiesStatus()
@@ -2160,7 +2160,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       textGeneration?: { provider: ProviderType; model: string; apiKey?: string; baseUrl?: string }
       exploration?: { provider: ProviderType; model: string; apiKey?: string; baseUrl?: string }
     }
-  }>('/api/settings/ai', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/ai', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const currentConfig = await getAIConfig()
       const updates = request.body
@@ -2192,7 +2192,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/settings/ai/capabilities
    * Get AI capabilities status for each function (Admin - full details)
    */
-  fastify.get('/api/settings/ai/capabilities', { preHandler: requireAdmin }, async (_request, reply) => {
+  fastify.get('/api/settings/ai/capabilities', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (_request, reply) => {
     try {
       const capabilities = await getAICapabilitiesStatus()
       return reply.send(capabilities)
@@ -2206,7 +2206,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/settings/ai/features
    * Get AI feature availability status (User accessible - no sensitive info)
    */
-  fastify.get('/api/settings/ai/features', { preHandler: requireAuth }, async (_request, reply) => {
+  fastify.get('/api/settings/ai/features', { preHandler: requireAuth, schema: { tags: ["settings"] } }, async (_request, reply) => {
     try {
       const capabilities = await getAICapabilitiesStatus()
       
@@ -2248,7 +2248,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/settings/ai/credentials
    * Get saved credentials for all providers (API keys are masked)
    */
-  fastify.get('/api/settings/ai/credentials', { preHandler: requireAdmin }, async (_request, reply) => {
+  fastify.get('/api/settings/ai/credentials', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (_request, reply) => {
     try {
       const credentialsJson = await getSystemSetting('ai_provider_credentials')
       const credentials = credentialsJson ? JSON.parse(credentialsJson) : {}
@@ -2274,7 +2274,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/settings/ai/credentials/:provider
    * Get credentials for a specific provider (includes API key for form population)
    */
-  fastify.get<{ Params: { provider: string } }>('/api/settings/ai/credentials/:provider', { preHandler: requireAdmin }, async (request, reply) => {
+  fastify.get<{ Params: { provider: string } }>('/api/settings/ai/credentials/:provider', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const { provider } = request.params
       const credentialsJson = await getSystemSetting('ai_provider_credentials')
@@ -2299,7 +2299,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put<{ 
     Params: { provider: string }
     Body: { apiKey?: string; baseUrl?: string }
-  }>('/api/settings/ai/credentials/:provider', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/ai/credentials/:provider', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const { provider } = request.params
       const { apiKey, baseUrl } = request.body
@@ -2334,7 +2334,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{
     Querystring: { function?: string }
-  }>('/api/settings/ai/providers', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/ai/providers', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const fn = request.query.function as AIFunction | undefined
 
@@ -2359,7 +2359,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{
     Querystring: { provider: string; function: string }
-  }>('/api/settings/ai/models', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/ai/models', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const { provider, function: fn } = request.query
 
@@ -2381,7 +2381,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post<{
     Body: { provider: string; function: string; modelId: string; embeddingDimensions?: number }
-  }>('/api/settings/ai/custom-models', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/ai/custom-models', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const { provider, function: fn, modelId, embeddingDimensions } = request.body
 
@@ -2425,7 +2425,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.delete<{
     Body: { provider: string; function: string; modelId: string }
-  }>('/api/settings/ai/custom-models', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/ai/custom-models', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const { provider, function: fn, modelId } = request.body
 
@@ -2459,7 +2459,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * Get pricing info for all configured AI functions
    * Uses dynamic pricing from Helicone API (cached daily)
    */
-  fastify.get('/api/settings/ai/pricing', { preHandler: requireAdmin }, async (_request, reply) => {
+  fastify.get('/api/settings/ai/pricing', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (_request, reply) => {
     try {
       const aiConfig = await getAIConfig()
 
@@ -2494,7 +2494,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/settings/ai/pricing/status
    * Get the status of the pricing cache
    */
-  fastify.get('/api/settings/ai/pricing/status', { preHandler: requireAdmin }, async (_request, reply) => {
+  fastify.get('/api/settings/ai/pricing/status', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (_request, reply) => {
     try {
       const status = await getPricingCacheStatus()
       return reply.send(status)
@@ -2508,7 +2508,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * POST /api/settings/ai/pricing/refresh
    * Force refresh the pricing cache from Helicone API
    */
-  fastify.post('/api/settings/ai/pricing/refresh', { preHandler: requireAdmin }, async (_request, reply) => {
+  fastify.post('/api/settings/ai/pricing/refresh', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (_request, reply) => {
     try {
       await refreshPricingCache()
       const status = await getPricingCacheStatus()
@@ -2524,7 +2524,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * List all embedding sets (grouped by model) with counts and dimensions
    * Queries all dimension-specific tables (embeddings_256, embeddings_384, etc.)
    */
-  fastify.get('/api/settings/ai/embeddings/sets', { preHandler: requireAdmin }, async (_request, reply) => {
+  fastify.get('/api/settings/ai/embeddings/sets', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (_request, reply) => {
     try {
       // Build UNION ALL queries across all dimension tables
       const movieUnions = VALID_EMBEDDING_DIMENSIONS.map(d => 
@@ -2598,7 +2598,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * Delete a specific embedding set by model name
    * Deletes from all dimension-specific tables
    */
-  fastify.delete<{ Params: { model: string } }>('/api/settings/ai/embeddings/sets/:model', { preHandler: requireAdmin }, async (request, reply) => {
+  fastify.delete<{ Params: { model: string } }>('/api/settings/ai/embeddings/sets/:model', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (request, reply) => {
     const { model } = request.params
     const decodedModel = decodeURIComponent(model)
     
@@ -2648,7 +2648,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * POST /api/settings/ai/embeddings/clear
    * Clear all embeddings from all dimension-specific tables
    */
-  fastify.post('/api/settings/ai/embeddings/clear', { preHandler: requireAdmin }, async (_request, reply) => {
+  fastify.post('/api/settings/ai/embeddings/clear', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (_request, reply) => {
     try {
       // Clear all dimension-specific embedding tables
       for (const dim of VALID_EMBEDDING_DIMENSIONS) {
@@ -2669,7 +2669,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/settings/ai/embeddings/legacy
    * Check if legacy embedding tables exist (from before multi-dimension migration)
    */
-  fastify.get('/api/settings/ai/embeddings/legacy', { preHandler: requireAdmin }, async (_request, reply) => {
+  fastify.get('/api/settings/ai/embeddings/legacy', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (_request, reply) => {
     try {
       const legacyInfo = await checkLegacyEmbeddingsExist()
       return reply.send(legacyInfo)
@@ -2683,7 +2683,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * DELETE /api/settings/ai/embeddings/legacy
    * Drop legacy embedding tables (embeddings_legacy, series_embeddings_legacy, episode_embeddings_legacy)
    */
-  fastify.delete('/api/settings/ai/embeddings/legacy', { preHandler: requireAdmin }, async (_request, reply) => {
+  fastify.delete('/api/settings/ai/embeddings/legacy', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (_request, reply) => {
     try {
       // First check if legacy tables exist
       const legacyInfo = await checkLegacyEmbeddingsExist()
@@ -2718,7 +2718,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       apiKey?: string
       baseUrl?: string
     }
-  }>('/api/settings/ai/test', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/ai/test', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const { function: fn, provider, model, apiKey, baseUrl } = request.body
 
@@ -2762,7 +2762,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.patch<{
     Params: { function: string }
     Body: { provider: string; model: string; apiKey?: string; baseUrl?: string }
-  }>('/api/settings/ai/:function', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/ai/:function', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const fn = request.params.function as AIFunction
       const { provider, model, apiKey, baseUrl } = request.body
@@ -2808,7 +2808,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/settings/tmdb
    * Get TMDb configuration status
    */
-  fastify.get('/api/settings/tmdb', { preHandler: requireAdmin }, async (_request, reply) => {
+  fastify.get('/api/settings/tmdb', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (_request, reply) => {
     try {
       const config = await getTMDbConfig()
       return reply.send({
@@ -2828,7 +2828,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.patch<{
     Body: { apiKey?: string; enabled?: boolean }
-  }>('/api/settings/tmdb', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/tmdb', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const { apiKey, enabled } = request.body
 
@@ -2857,7 +2857,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post<{
     Body?: { apiKey?: string }
-  }>('/api/settings/tmdb/test', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/tmdb/test', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const apiKey = request.body?.apiKey
       const result = await testTMDbConnection(apiKey)
@@ -2876,7 +2876,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/settings/omdb
    * Get OMDb configuration status
    */
-  fastify.get('/api/settings/omdb', { preHandler: requireAdmin }, async (_request, reply) => {
+  fastify.get('/api/settings/omdb', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (_request, reply) => {
     try {
       const config = await getOMDbConfig()
       return reply.send({
@@ -2897,7 +2897,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.patch<{
     Body: { apiKey?: string; enabled?: boolean; paidTier?: boolean }
-  }>('/api/settings/omdb', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/omdb', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const { apiKey, enabled, paidTier } = request.body
 
@@ -2927,7 +2927,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post<{
     Body?: { apiKey?: string }
-  }>('/api/settings/omdb/test', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/omdb/test', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const apiKey = request.body?.apiKey
       const result = await testOMDbConnection(apiKey)
@@ -2946,7 +2946,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/settings/studio-logos
    * Get studio logos configuration and stats
    */
-  fastify.get('/api/settings/studio-logos', { preHandler: requireAdmin }, async (_request, reply) => {
+  fastify.get('/api/settings/studio-logos', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (_request, reply) => {
     try {
       const [config, stats] = await Promise.all([
         getStudioLogosConfig(),
@@ -2973,7 +2973,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.patch<{
     Body: { pushToEmby?: boolean }
-  }>('/api/settings/studio-logos', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/settings/studio-logos', { preHandler: requireAdmin, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const { pushToEmby } = request.body
 
@@ -2999,7 +2999,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{
     Querystring: { mediaType?: 'movie' | 'series' }
-  }>('/api/settings/taste-profile', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/api/settings/taste-profile', { preHandler: requireAuth, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const userId = request.user!.id
       const mediaType = (request.query.mediaType || 'movie') as 'movie' | 'series'
@@ -3063,7 +3063,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post<{
     Body: { mediaType: 'movie' | 'series'; mode?: 'reset' | 'merge' }
-  }>('/api/settings/taste-profile/rebuild', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/api/settings/taste-profile/rebuild', { preHandler: requireAuth, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const userId = request.user!.id
       const { mediaType, mode = 'reset' } = request.body
@@ -3146,7 +3146,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.patch<{
     Body: { mediaType: 'movie' | 'series'; isLocked?: boolean; refreshIntervalDays?: number; minFranchiseItems?: number; minFranchiseSize?: number }
-  }>('/api/settings/taste-profile', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/api/settings/taste-profile', { preHandler: requireAuth, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const userId = request.user!.id
       const { mediaType, isLocked, refreshIntervalDays, minFranchiseItems, minFranchiseSize } = request.body
@@ -3215,7 +3215,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         preferenceScore: number
       }>
     }
-  }>('/api/settings/taste-profile/franchises', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/api/settings/taste-profile/franchises', { preHandler: requireAuth, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const userId = request.user!.id
       const { franchises } = request.body
@@ -3269,7 +3269,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete<{
     Params: { franchiseName: string }
     Querystring: { mediaType: 'movie' | 'series' | 'both' }
-  }>('/api/settings/taste-profile/franchises/:franchiseName', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/api/settings/taste-profile/franchises/:franchiseName', { preHandler: requireAuth, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const userId = request.user!.id
       const { franchiseName } = request.params
@@ -3307,7 +3307,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
         weight: number
       }>
     }
-  }>('/api/settings/taste-profile/genres', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/api/settings/taste-profile/genres', { preHandler: requireAuth, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const userId = request.user!.id
       const { genres } = request.body
@@ -3350,7 +3350,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.delete<{
     Params: { genre: string }
-  }>('/api/settings/taste-profile/genres/:genre', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/api/settings/taste-profile/genres/:genre', { preHandler: requireAuth, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const userId = request.user!.id
       const { genre } = request.params
@@ -3378,7 +3378,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post<{
     Body: { interestText: string; weight?: number }
-  }>('/api/settings/taste-profile/interests', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/api/settings/taste-profile/interests', { preHandler: requireAuth, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const userId = request.user!.id
       const { interestText, weight = 1.0 } = request.body
@@ -3435,7 +3435,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.delete<{
     Params: { id: string }
-  }>('/api/settings/taste-profile/interests/:id', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/api/settings/taste-profile/interests/:id', { preHandler: requireAuth, schema: { tags: ["settings"] } }, async (request, reply) => {
     try {
       const userId = request.user!.id
       const { id } = request.params

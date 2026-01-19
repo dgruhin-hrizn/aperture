@@ -18,7 +18,7 @@ const maintenanceRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post(
     '/api/maintenance/posters/scan',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ["admin"] } },
     async (_request, reply) => {
       try {
         fastify.log.info('Starting scan for missing posters')
@@ -59,7 +59,7 @@ const maintenanceRoutes: FastifyPluginAsync = async (fastify) => {
     }
   }>(
     '/api/maintenance/posters/repair',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ["admin"] } },
     async (request, reply) => {
       try {
         const { items } = request.body

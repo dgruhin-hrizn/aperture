@@ -1272,7 +1272,7 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post(
     '/api/admin/setup/run-initial-jobs',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ["setup"] } },
     async (_request, reply) => {
       const jobs = [
         'sync-movies',
@@ -1321,7 +1321,7 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get(
     '/api/admin/setup/progress',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ["setup"] } },
     async (_request, reply) => {
       const progress = await getSetupProgress()
       const mediaServerConfig = await getMediaServerConfig()
@@ -1348,7 +1348,7 @@ const setupRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Body: SetupProgressBody }>(
     '/api/admin/setup/progress',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ["setup"] } },
     async (request, reply) => {
       const { currentStep, completedStep, reset } = request.body || {}
       if (reset) {

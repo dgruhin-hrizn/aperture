@@ -62,7 +62,7 @@ const watchingRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{
     Reply: { series: WatchingSeriesResponse[]; total: number }
-  }>('/api/watching', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/api/watching', { preHandler: requireAuth, schema: { tags: ["watching"] } }, async (request, reply) => {
     const userId = request.user!.id
 
     // Get user's watching series
@@ -118,7 +118,7 @@ const watchingRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{
     Reply: { seriesIds: string[] }
-  }>('/api/watching/ids', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/api/watching/ids', { preHandler: requireAuth, schema: { tags: ["watching"] } }, async (request, reply) => {
     const userId = request.user!.id
 
     const result = await query<{ series_id: string }>(
@@ -136,7 +136,7 @@ const watchingRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post<{
     Params: { seriesId: string }
     Reply: { success: boolean; message: string }
-  }>('/api/watching/:seriesId', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/api/watching/:seriesId', { preHandler: requireAuth, schema: { tags: ["watching"] } }, async (request, reply) => {
     const userId = request.user!.id
     const { seriesId } = request.params
 
@@ -178,7 +178,7 @@ const watchingRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete<{
     Params: { seriesId: string }
     Reply: { success: boolean; message: string }
-  }>('/api/watching/:seriesId', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/api/watching/:seriesId', { preHandler: requireAuth, schema: { tags: ["watching"] } }, async (request, reply) => {
     const userId = request.user!.id
     const { seriesId } = request.params
 
@@ -202,7 +202,7 @@ const watchingRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post<{
     Reply: { success: boolean; message: string; written: number; libraryCreated: boolean }
-  }>('/api/watching/refresh', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/api/watching/refresh', { preHandler: requireAuth, schema: { tags: ["watching"] } }, async (request, reply) => {
     const user = request.user!
 
     try {
@@ -238,7 +238,7 @@ const watchingRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Params: { seriesId: string }
     Reply: { isWatching: boolean }
-  }>('/api/watching/check/:seriesId', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/api/watching/check/:seriesId', { preHandler: requireAuth, schema: { tags: ["watching"] } }, async (request, reply) => {
     const userId = request.user!.id
     const { seriesId } = request.params
 

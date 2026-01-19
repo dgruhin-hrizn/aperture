@@ -8,7 +8,7 @@ export function registerCrudHandlers(fastify: FastifyInstance) {
    * GET /api/channels
    * List user's channels
    */
-  fastify.get('/api/channels', { preHandler: requireAuth }, async (request, reply) => {
+  fastify.get('/api/channels', { preHandler: requireAuth, schema: { tags: ["playlists"] } }, async (request, reply) => {
     const currentUser = request.user as SessionUser
 
     const result = await query<ChannelRow>(
@@ -25,7 +25,7 @@ export function registerCrudHandlers(fastify: FastifyInstance) {
    */
   fastify.post<{ Body: ChannelCreateBody }>(
     '/api/channels',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["playlists"] } },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
       const { name, description, genreFilters, textPreferences, exampleMovieIds, isPinnedRow } =
@@ -60,7 +60,7 @@ export function registerCrudHandlers(fastify: FastifyInstance) {
    */
   fastify.get<{ Params: { id: string } }>(
     '/api/channels/:id',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["playlists"] } },
     async (request, reply) => {
       const { id } = request.params
       const currentUser = request.user as SessionUser
@@ -94,7 +94,7 @@ export function registerCrudHandlers(fastify: FastifyInstance) {
    */
   fastify.put<{ Params: { id: string }; Body: ChannelUpdateBody }>(
     '/api/channels/:id',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["playlists"] } },
     async (request, reply) => {
       const { id } = request.params
       const currentUser = request.user as SessionUser
@@ -168,7 +168,7 @@ export function registerCrudHandlers(fastify: FastifyInstance) {
    */
   fastify.delete<{ Params: { id: string } }>(
     '/api/channels/:id',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["playlists"] } },
     async (request, reply) => {
       const { id } = request.params
       const currentUser = request.user as SessionUser

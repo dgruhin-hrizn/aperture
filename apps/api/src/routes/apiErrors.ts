@@ -29,7 +29,7 @@ const apiErrorsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get(
     '/api/errors',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["api-errors"] } },
     async (_request, reply) => {
       try {
         const errors = await getActiveApiErrors()
@@ -61,7 +61,7 @@ const apiErrorsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get(
     '/api/errors/summary',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["api-errors"] } },
     async (_request, reply) => {
       try {
         const summary = await getErrorSummary()
@@ -79,7 +79,7 @@ const apiErrorsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { provider: string } }>(
     '/api/errors/:provider',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["api-errors"] } },
     async (request, reply) => {
       const { provider } = request.params
       
@@ -118,7 +118,7 @@ const apiErrorsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post<{ Params: { id: string } }>(
     '/api/errors/:id/dismiss',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["api-errors"] } },
     async (request, reply) => {
       const { id } = request.params
       
@@ -138,7 +138,7 @@ const apiErrorsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post<{ Params: { provider: string } }>(
     '/api/errors/:provider/dismiss-all',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["api-errors"] } },
     async (request, reply) => {
       const { provider } = request.params
       
@@ -164,7 +164,7 @@ const apiErrorsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post(
     '/api/errors/cleanup',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ["api-errors"] } },
     async (_request, reply) => {
       try {
         const count = await cleanupOldErrors()

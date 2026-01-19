@@ -41,7 +41,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
    * Get login options (whether passwordless login is allowed)
    * Public endpoint - no authentication required
    */
-  fastify.get('/api/auth/login-options', async (_request, reply) => {
+  fastify.get('/api/auth/login-options', { schema: { tags: ['auth'], security: [] } }, async (_request, reply) => {
     const allowPasswordlessLogin = await getSystemSetting('allow_passwordless_login')
     return reply.send({
       allowPasswordlessLogin: allowPasswordlessLogin === 'true',
@@ -54,6 +54,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post<{ Body: LoginBody; Reply: LoginResponse }>(
     '/api/auth/login',
+    { schema: { tags: ['auth'], security: [] } },
     async (request, reply) => {
       const { username, password } = request.body
 
@@ -172,7 +173,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
    * POST /api/auth/logout
    * End current session
    */
-  fastify.post('/api/auth/logout', async (request, reply) => {
+  fastify.post('/api/auth/logout', { schema: { tags: ['auth'] } }, async (request, reply) => {
     if (request.sessionId) {
       await deleteSession(request.sessionId)
     }
@@ -188,7 +189,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Reply: MeResponse }>(
     '/api/auth/me',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['auth'] } },
     async (request, reply) => {
       return reply.send({ user: request.user! })
     }
@@ -200,7 +201,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Reply: { sidebarCollapsed?: boolean } }>(
     '/api/auth/me/preferences',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['auth'] } },
     async (request, reply) => {
       const { getUserUiPreferences } = await import('@aperture/core')
       const preferences = await getUserUiPreferences(request.user!.id)
@@ -214,7 +215,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.patch(
     '/api/auth/me/preferences',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['auth'] } },
     async (request, reply) => {
       const { updateUserUiPreferences, getUserUiPreferences } = await import('@aperture/core')
       type UserUiPreferences = Awaited<ReturnType<typeof getUserUiPreferences>>
@@ -253,7 +254,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post(
     '/api/auth/me/filter-presets',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['auth'] } },
     async (request, reply) => {
       const { addBrowseFilterPreset } = await import('@aperture/core')
       const body = request.body as { name: string; type: 'movies' | 'series'; filters: Record<string, unknown> }
@@ -274,7 +275,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.patch<{ Params: { id: string } }>(
     '/api/auth/me/filter-presets/:id',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['auth'] } },
     async (request, reply) => {
       const { updateBrowseFilterPreset } = await import('@aperture/core')
       const { id } = request.params
@@ -296,7 +297,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.delete<{ Params: { id: string } }>(
     '/api/auth/me/filter-presets/:id',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['auth'] } },
     async (request, reply) => {
       const { deleteBrowseFilterPreset } = await import('@aperture/core')
       const { id } = request.params
@@ -315,7 +316,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/auth/check
    * Check if user is authenticated (does not require auth, returns null if not)
    */
-  fastify.get('/api/auth/check', async (request, reply) => {
+  fastify.get('/api/auth/check', { schema: { tags: ['auth'], security: [] } }, async (request, reply) => {
     if (request.user) {
       return reply.send({ authenticated: true, user: request.user })
     }

@@ -22,7 +22,7 @@ export async function graphPlaylistRoutes(fastify: FastifyInstance) {
     }
   }>(
     '/api/graph-playlists/ai-name',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["playlists"] } },
     async (request, reply) => {
       const { movieIds, seriesIds } = request.body
 
@@ -52,7 +52,7 @@ export async function graphPlaylistRoutes(fastify: FastifyInstance) {
     }
   }>(
     '/api/graph-playlists/ai-description',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["playlists"] } },
     async (request, reply) => {
       const { movieIds, seriesIds, name } = request.body
 
@@ -89,7 +89,7 @@ export async function graphPlaylistRoutes(fastify: FastifyInstance) {
     }
   }>(
     '/api/graph-playlists',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["playlists"] } },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
       const { name, description, movieIds, seriesIds, sourceItemId, sourceItemType } = request.body
@@ -141,7 +141,7 @@ export async function graphPlaylistRoutes(fastify: FastifyInstance) {
    */
   fastify.get(
     '/api/graph-playlists',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["playlists"] } },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
 
@@ -163,7 +163,7 @@ export async function graphPlaylistRoutes(fastify: FastifyInstance) {
     Params: { id: string }
   }>(
     '/api/graph-playlists/:id',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["playlists"] } },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
       const { id } = request.params
@@ -195,7 +195,7 @@ export async function graphPlaylistRoutes(fastify: FastifyInstance) {
     Params: { id: string }
   }>(
     '/api/graph-playlists/:id/items',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["playlists"] } },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
       const { id } = request.params
@@ -219,7 +219,7 @@ export async function graphPlaylistRoutes(fastify: FastifyInstance) {
     Params: { id: string }
   }>(
     '/api/graph-playlists/:id',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["playlists"] } },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
       const { id } = request.params

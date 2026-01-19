@@ -50,7 +50,7 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { name: string } }>(
     '/api/discover/person/:name',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["discovery"] } },
     async (request, reply) => {
       const { name } = request.params
       const decodedName = decodeURIComponent(name)
@@ -183,7 +183,7 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { name: string } }>(
     '/api/discover/studio/:name',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["discovery"] } },
     async (request, reply) => {
       const { name } = request.params
       const decodedName = decodeURIComponent(name)

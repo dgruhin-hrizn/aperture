@@ -24,7 +24,7 @@ const mdblistRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/mdblist/config
    * Get MDBList configuration (without exposing the full API key)
    */
-  fastify.get('/api/mdblist/config', { preHandler: requireAdmin }, async (_request, reply) => {
+  fastify.get('/api/mdblist/config', { preHandler: requireAdmin, schema: { tags: ["mdblist"] } }, async (_request, reply) => {
     try {
       const config = await getMDBListConfig()
       const configured = await isMDBListConfigured()
@@ -52,7 +52,7 @@ const mdblistRoutes: FastifyPluginAsync = async (fastify) => {
       enabled?: boolean
       supporterTier?: boolean
     }
-  }>('/api/mdblist/config', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/mdblist/config', { preHandler: requireAdmin, schema: { tags: ["mdblist"] } }, async (request, reply) => {
     try {
       const { apiKey, enabled, supporterTier } = request.body
 
@@ -86,7 +86,7 @@ const mdblistRoutes: FastifyPluginAsync = async (fastify) => {
     Body: {
       apiKey?: string
     }
-  }>('/api/mdblist/test', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/mdblist/test', { preHandler: requireAdmin, schema: { tags: ["mdblist"] } }, async (request, reply) => {
     try {
       const { apiKey } = request.body
       const result = await testMDBListConnection(apiKey)
@@ -125,7 +125,7 @@ const mdblistRoutes: FastifyPluginAsync = async (fastify) => {
       mediatype?: 'movie' | 'show'
       limit?: string
     }
-  }>('/api/mdblist/lists/top', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/mdblist/lists/top', { preHandler: requireAdmin, schema: { tags: ["mdblist"] } }, async (request, reply) => {
     try {
       const configured = await isMDBListConfigured()
       if (!configured) {
@@ -154,7 +154,7 @@ const mdblistRoutes: FastifyPluginAsync = async (fastify) => {
     Querystring: {
       mediatype?: 'movie' | 'show'
     }
-  }>('/api/mdblist/lists/mine', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/mdblist/lists/mine', { preHandler: requireAdmin, schema: { tags: ["mdblist"] } }, async (request, reply) => {
     try {
       const configured = await isMDBListConfigured()
       if (!configured) {
@@ -185,7 +185,7 @@ const mdblistRoutes: FastifyPluginAsync = async (fastify) => {
       q: string
       mediatype?: 'movie' | 'show'
     }
-  }>('/api/mdblist/lists/search', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/mdblist/lists/search', { preHandler: requireAdmin, schema: { tags: ["mdblist"] } }, async (request, reply) => {
     try {
       const configured = await isMDBListConfigured()
       if (!configured) {
@@ -214,7 +214,7 @@ const mdblistRoutes: FastifyPluginAsync = async (fastify) => {
     Params: {
       id: string
     }
-  }>('/api/mdblist/lists/:id', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/mdblist/lists/:id', { preHandler: requireAdmin, schema: { tags: ["mdblist"] } }, async (request, reply) => {
     try {
       const configured = await isMDBListConfigured()
       if (!configured) {
@@ -247,7 +247,7 @@ const mdblistRoutes: FastifyPluginAsync = async (fastify) => {
     Params: {
       id: string
     }
-  }>('/api/mdblist/lists/:id/counts', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/mdblist/lists/:id/counts', { preHandler: requireAdmin, schema: { tags: ["mdblist"] } }, async (request, reply) => {
     try {
       const configured = await isMDBListConfigured()
       if (!configured) {
@@ -284,7 +284,7 @@ const mdblistRoutes: FastifyPluginAsync = async (fastify) => {
       limit?: string
       offset?: string
     }
-  }>('/api/mdblist/lists/:id/items', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/mdblist/lists/:id/items', { preHandler: requireAdmin, schema: { tags: ["mdblist"] } }, async (request, reply) => {
     try {
       const configured = await isMDBListConfigured()
       if (!configured) {
@@ -321,7 +321,7 @@ const mdblistRoutes: FastifyPluginAsync = async (fastify) => {
       mediatype?: 'movie' | 'show'
       sort?: string
     }
-  }>('/api/mdblist/lists/:id/library-match', { preHandler: requireAdmin }, async (request, reply) => {
+  }>('/api/mdblist/lists/:id/library-match', { preHandler: requireAdmin, schema: { tags: ["mdblist"] } }, async (request, reply) => {
     try {
       const configured = await isMDBListConfigured()
       if (!configured) {
@@ -458,7 +458,7 @@ const mdblistRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/mdblist/sort-options
    * Get available sort options for MDBList items
    */
-  fastify.get('/api/mdblist/sort-options', { preHandler: requireAdmin }, async (_request, reply) => {
+  fastify.get('/api/mdblist/sort-options', { preHandler: requireAdmin, schema: { tags: ["mdblist"] } }, async (_request, reply) => {
     return reply.send({ options: MDBLIST_SORT_OPTIONS })
   })
 }

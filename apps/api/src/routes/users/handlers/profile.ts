@@ -19,7 +19,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
     Querystring: { page?: string; pageSize?: string; sortBy?: string }
   }>(
     '/api/users/:id/watch-history',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id } = request.params
       const currentUser = request.user as SessionUser
@@ -94,7 +94,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
     Querystring: { page?: string; pageSize?: string; sortBy?: string }
   }>(
     '/api/users/:id/series-watch-history',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id } = request.params
       const currentUser = request.user as SessionUser
@@ -176,7 +176,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
    */
   fastify.get<{ Params: { id: string } }>(
     '/api/users/:id/preferences',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id } = request.params
       const currentUser = request.user as SessionUser
@@ -200,7 +200,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
    */
   fastify.get<{ Params: { id: string } }>(
     '/api/users/:id/stats',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id } = request.params
       const currentUser = request.user as SessionUser
@@ -261,7 +261,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
    */
   fastify.get<{ Params: { id: string } }>(
     '/api/users/:id/taste-profile',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id } = request.params
       const currentUser = request.user as SessionUser
@@ -287,7 +287,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
    */
   fastify.post<{ Params: { id: string } }>(
     '/api/users/:id/taste-profile/regenerate',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id } = request.params
       const currentUser = request.user as SessionUser
@@ -349,7 +349,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
    */
   fastify.get<{ Params: { id: string } }>(
     '/api/users/:id/series-taste-profile',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id } = request.params
       const currentUser = request.user as SessionUser
@@ -375,7 +375,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
    */
   fastify.post<{ Params: { id: string } }>(
     '/api/users/:id/series-taste-profile/regenerate',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id } = request.params
       const currentUser = request.user as SessionUser
@@ -437,7 +437,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
    */
   fastify.get<{ Params: { id: string } }>(
     '/api/users/:id/watch-stats',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id } = request.params
       const currentUser = request.user as SessionUser
@@ -880,7 +880,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
     Params: { id: string; movieId: string }
   }>(
     '/api/users/:id/watch-history/movies/:movieId',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id, movieId } = request.params
       const currentUser = request.user as SessionUser
@@ -946,7 +946,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
     Params: { id: string; episodeId: string }
   }>(
     '/api/users/:id/watch-history/episodes/:episodeId',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id, episodeId } = request.params
       const currentUser = request.user as SessionUser
@@ -1007,7 +1007,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
     Params: { id: string; seriesId: string; seasonNumber: string }
   }>(
     '/api/users/:id/watch-history/series/:seriesId/seasons/:seasonNumber',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id, seriesId, seasonNumber } = request.params
       const currentUser = request.user as SessionUser
@@ -1079,7 +1079,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
     Params: { id: string; seriesId: string }
   }>(
     '/api/users/:id/watch-history/series/:seriesId',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id, seriesId } = request.params
       const currentUser = request.user as SessionUser
@@ -1149,7 +1149,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
    */
   fastify.get<{ Params: { id: string } }>(
     '/api/users/:id/accessible-libraries',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id } = request.params
       const currentUser = request.user as SessionUser
@@ -1179,7 +1179,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
     Body: { excludedLibraryIds: string[] }
   }>(
     '/api/users/:id/excluded-libraries',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id } = request.params
       const { excludedLibraryIds } = request.body
@@ -1214,7 +1214,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
     Body: { excluded: boolean }
   }>(
     '/api/users/:id/excluded-libraries/:libraryId',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id, libraryId } = request.params
       const { excluded } = request.body
@@ -1250,7 +1250,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
    */
   fastify.get<{ Params: { id: string } }>(
     '/api/users/:id/algorithm-settings',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id } = request.params
       const currentUser = request.user as SessionUser
@@ -1308,7 +1308,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
     }
   }>(
     '/api/users/:id/algorithm-settings',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id } = request.params
       const currentUser = request.user as SessionUser
@@ -1350,7 +1350,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
    */
   fastify.post<{ Params: { id: string } }>(
     '/api/users/:id/algorithm-settings/reset',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id } = request.params
       const currentUser = request.user as SessionUser
@@ -1380,7 +1380,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
    */
   fastify.get<{ Params: { id: string } }>(
     '/api/users/:id/email-settings',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id } = request.params
       const currentUser = request.user as SessionUser
@@ -1427,7 +1427,7 @@ export function registerProfileHandlers(fastify: FastifyInstance) {
     }
   }>(
     '/api/users/:id/email-settings',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id } = request.params
       const currentUser = request.user as SessionUser

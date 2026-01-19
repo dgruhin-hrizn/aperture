@@ -28,7 +28,7 @@ const similarityRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Params: { id: string }
     Querystring: { limit?: string; depth?: string }
-  }>('/api/similarity/movie/:id', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/api/similarity/movie/:id', { preHandler: requireAuth, schema: { tags: ["similarity"] } }, async (request, reply) => {
     const { id } = request.params
     const currentUser = request.user as SessionUser
     const limit = request.query.limit ? parseInt(request.query.limit, 10) : 12
@@ -67,7 +67,7 @@ const similarityRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Params: { id: string }
     Querystring: { limit?: string; depth?: string }
-  }>('/api/similarity/series/:id', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/api/similarity/series/:id', { preHandler: requireAuth, schema: { tags: ["similarity"] } }, async (request, reply) => {
     const { id } = request.params
     const currentUser = request.user as SessionUser
     const limit = request.query.limit ? parseInt(request.query.limit, 10) : 12
@@ -105,7 +105,7 @@ const similarityRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Params: { source: string }
     Querystring: { limit?: string; crossMedia?: string }
-  }>('/api/similarity/graph/:source', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/api/similarity/graph/:source', { preHandler: requireAuth, schema: { tags: ["similarity"] } }, async (request, reply) => {
     const { source } = request.params
     const currentUser = request.user as SessionUser
 
@@ -152,7 +152,7 @@ const similarityRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{
     Querystring: { q?: string; type?: string; limit?: string; graph?: string; hideWatched?: string }
-  }>('/api/similarity/search', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/api/similarity/search', { preHandler: requireAuth, schema: { tags: ["similarity"] } }, async (request, reply) => {
     const { q: searchQuery, type, limit: limitStr, graph, hideWatched: hideWatchedStr } = request.query
     const currentUser = request.user as SessionUser
 
@@ -199,7 +199,7 @@ const similarityRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/similarity/colors
    * Get the color scheme for connection types
    */
-  fastify.get('/api/similarity/colors', { preHandler: requireAuth }, async (_request, reply) => {
+  fastify.get('/api/similarity/colors', { preHandler: requireAuth, schema: { tags: ["similarity"] } }, async (_request, reply) => {
     return reply.send(CONNECTION_COLORS)
   })
 
@@ -207,7 +207,7 @@ const similarityRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/similarity/validation-cache/stats
    * Get statistics about the AI validation cache
    */
-  fastify.get('/api/similarity/validation-cache/stats', { preHandler: requireAuth }, async (_request, reply) => {
+  fastify.get('/api/similarity/validation-cache/stats', { preHandler: requireAuth, schema: { tags: ["similarity"] } }, async (_request, reply) => {
     const stats = await getValidationCacheStats()
     return reply.send(stats)
   })

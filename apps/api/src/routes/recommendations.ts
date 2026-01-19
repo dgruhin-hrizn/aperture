@@ -69,7 +69,7 @@ const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { userId: string }; Querystring: { runId?: string } }>(
     '/api/recommendations/:userId',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['recommendations'] } },
     async (request, reply) => {
       const { userId } = request.params
       const { runId } = request.query
@@ -149,7 +149,7 @@ const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { userId: string }; Querystring: { runId?: string } }>(
     '/api/recommendations/:userId/series',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['recommendations'] } },
     async (request, reply) => {
       const { userId } = request.params
       const { runId } = request.query
@@ -229,7 +229,7 @@ const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { userId: string }; Querystring: { limit?: string } }>(
     '/api/recommendations/:userId/history',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['recommendations'] } },
     async (request, reply) => {
       const { userId } = request.params
       const limit = Math.min(parseInt(request.query.limit || '10', 10), 50)
@@ -257,7 +257,7 @@ const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { userId: string; candidateId: string } }>(
     '/api/recommendations/:userId/candidates/:candidateId/evidence',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['recommendations'] } },
     async (request, reply) => {
       const { userId, candidateId } = request.params
       const currentUser = request.user as SessionUser
@@ -307,7 +307,7 @@ const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post<{ Params: { userId: string } }>(
     '/api/recommendations/:userId/regenerate',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['recommendations'] } },
     async (request, reply) => {
       const { userId } = request.params
       const currentUser = request.user as SessionUser
@@ -338,7 +338,7 @@ const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post<{ Params: { userId: string } }>(
     '/api/recommendations/:userId/series/regenerate',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['recommendations'] } },
     async (request, reply) => {
       const { userId } = request.params
       const currentUser = request.user as SessionUser
@@ -369,7 +369,7 @@ const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { userId: string; movieId: string } }>(
     '/api/recommendations/:userId/movie/:movieId/insights',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['recommendations'] } },
     async (request, reply) => {
       const { userId, movieId } = request.params
       const currentUser = request.user as SessionUser
@@ -507,7 +507,7 @@ const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { userId: string } }>(
     '/api/recommendations/:userId/preferences',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['recommendations'] } },
     async (request, reply) => {
       const { userId } = request.params
       const currentUser = request.user as SessionUser
@@ -554,7 +554,7 @@ const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
     }
   }>(
     '/api/recommendations/:userId/preferences',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['recommendations'] } },
     async (request, reply) => {
       const { userId } = request.params
       const currentUser = request.user as SessionUser

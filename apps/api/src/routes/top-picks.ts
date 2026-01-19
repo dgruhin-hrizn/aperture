@@ -55,7 +55,7 @@ const topPicksRoutes: FastifyPluginAsync = async (fastify) => {
       movies: PopularMovieResponse[]
       config: TopPicksConfigResponse
     }
-  }>('/api/top-picks/movies', { preHandler: requireAuth }, async (_request, reply) => {
+  }>('/api/top-picks/movies', { preHandler: requireAuth, schema: { tags: ["top-picks"] } }, async (_request, reply) => {
     try {
       const { getTopMovies, getTopPicksConfig } = await import('@aperture/core')
       
@@ -91,7 +91,7 @@ const topPicksRoutes: FastifyPluginAsync = async (fastify) => {
       series: PopularSeriesResponse[]
       config: TopPicksConfigResponse
     }
-  }>('/api/top-picks/series', { preHandler: requireAuth }, async (_request, reply) => {
+  }>('/api/top-picks/series', { preHandler: requireAuth, schema: { tags: ["top-picks"] } }, async (_request, reply) => {
     try {
       const { getTopSeries, getTopPicksConfig } = await import('@aperture/core')
       

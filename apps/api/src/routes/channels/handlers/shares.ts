@@ -10,7 +10,7 @@ export function registerSharesHandlers(fastify: FastifyInstance) {
    */
   fastify.get<{ Params: { id: string } }>(
     '/api/channels/:id/shares',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["playlists"] } },
     async (request, reply) => {
       const { id } = request.params
       const currentUser = request.user as SessionUser
@@ -43,7 +43,7 @@ export function registerSharesHandlers(fastify: FastifyInstance) {
    */
   fastify.post<{ Params: { id: string }; Body: { userId: string } }>(
     '/api/channels/:id/shares',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["playlists"] } },
     async (request, reply) => {
       const { id } = request.params
       const { userId } = request.body
@@ -84,7 +84,7 @@ export function registerSharesHandlers(fastify: FastifyInstance) {
    */
   fastify.delete<{ Params: { id: string; userId: string } }>(
     '/api/channels/:id/shares/:userId',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["playlists"] } },
     async (request, reply) => {
       const { id, userId } = request.params
       const currentUser = request.user as SessionUser

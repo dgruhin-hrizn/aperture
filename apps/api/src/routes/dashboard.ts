@@ -69,7 +69,7 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Reply: DashboardResponse }>(
     '/api/dashboard',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["dashboard"] } },
     async (request, reply) => {
       const user = request.user as SessionUser
 

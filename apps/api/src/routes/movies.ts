@@ -381,7 +381,7 @@ const moviesRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { id: string }; Reply: MovieDetailRow }>(
     '/api/movies/:id',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['movies'] } },
     async (request, reply) => {
       const { id } = request.params
 
@@ -410,7 +410,7 @@ const moviesRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { id: string } }>(
     '/api/movies/:id/watch-stats',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['movies'] } },
     async (request, reply) => {
       const { id } = request.params
 
@@ -479,7 +479,7 @@ const moviesRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/movies/genres
    * Get all unique genres
    */
-  fastify.get('/api/movies/genres', { preHandler: requireAuth }, async (_request, reply) => {
+  fastify.get('/api/movies/genres', { preHandler: requireAuth, schema: { tags: ['movies'] } }, async (_request, reply) => {
     const result = await query<{ genre: string }>(
       `SELECT DISTINCT unnest(genres) as genre FROM movies ORDER BY genre`
     )
@@ -491,7 +491,7 @@ const moviesRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/movies/keywords
    * Get all unique keywords (from TMDb enrichment)
    */
-  fastify.get('/api/movies/keywords', { preHandler: requireAuth }, async (_request, reply) => {
+  fastify.get('/api/movies/keywords', { preHandler: requireAuth, schema: { tags: ['movies'] } }, async (_request, reply) => {
     const result = await query<{ keyword: string; count: string }>(
       `SELECT unnest(keywords) as keyword, COUNT(*) as count
        FROM movies WHERE keywords IS NOT NULL AND array_length(keywords, 1) > 0
@@ -510,7 +510,7 @@ const moviesRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/movies/collections
    * Get all collections/franchises
    */
-  fastify.get('/api/movies/collections', { preHandler: requireAuth }, async (_request, reply) => {
+  fastify.get('/api/movies/collections', { preHandler: requireAuth, schema: { tags: ['movies'] } }, async (_request, reply) => {
     const result = await query<{ collection_name: string; count: string }>(
       `SELECT collection_name, COUNT(*) as count
        FROM movies 
@@ -528,7 +528,7 @@ const moviesRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/movies/content-ratings
    * Get all unique content ratings with counts
    */
-  fastify.get('/api/movies/content-ratings', { preHandler: requireAuth }, async (_request, reply) => {
+  fastify.get('/api/movies/content-ratings', { preHandler: requireAuth, schema: { tags: ['movies'] } }, async (_request, reply) => {
     const result = await query<{ content_rating: string; count: string }>(
       `SELECT content_rating, COUNT(*) as count
        FROM movies 
@@ -558,7 +558,7 @@ const moviesRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/movies/resolutions
    * Get video resolution categories with counts
    */
-  fastify.get('/api/movies/resolutions', { preHandler: requireAuth }, async (_request, reply) => {
+  fastify.get('/api/movies/resolutions', { preHandler: requireAuth, schema: { tags: ['movies'] } }, async (_request, reply) => {
     const result = await query<{ category: string; count: string }>(
       `SELECT 
         CASE 
@@ -589,7 +589,7 @@ const moviesRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/movies/filter-ranges
    * Get min/max values for range filters
    */
-  fastify.get('/api/movies/filter-ranges', { preHandler: requireAuth }, async (_request, reply) => {
+  fastify.get('/api/movies/filter-ranges', { preHandler: requireAuth, schema: { tags: ['movies'] } }, async (_request, reply) => {
     const result = await queryOne<{
       min_year: number
       max_year: number
@@ -628,7 +628,7 @@ const moviesRoutes: FastifyPluginAsync = async (fastify) => {
       sortBy?: 'name' | 'total' | 'progress' | 'unwatched'
       showCompleted?: string
     }
-  }>('/api/movies/franchises', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/api/movies/franchises', { preHandler: requireAuth, schema: { tags: ['movies'] } }, async (request, reply) => {
     const userId = request.user?.id
     const page = Math.max(1, parseInt(request.query.page || '1', 10))
     const pageSize = Math.min(Math.max(1, parseInt(request.query.pageSize || '20', 10)), 50)
@@ -789,7 +789,7 @@ const moviesRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { id: string }; Querystring: { limit?: string } }>(
     '/api/movies/:id/similar',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['similarity'] } },
     async (request, reply) => {
       const { id } = request.params
       const limit = Math.min(parseInt(request.query.limit || '10', 10), 50)

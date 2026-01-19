@@ -30,7 +30,7 @@ const ratingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Reply: RatingsListResponse }>(
     '/api/ratings',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['ratings'] } },
     async (request, reply) => {
       const user = request.user as SessionUser
 
@@ -90,7 +90,7 @@ const ratingsRoutes: FastifyPluginAsync = async (fastify) => {
     }
   }>(
     '/api/ratings/disliked',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['ratings'] } },
     async (request, reply) => {
       const user = request.user as SessionUser
       const type = request.query.type || 'all'
@@ -181,7 +181,7 @@ const ratingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { id: string } }>(
     '/api/ratings/movie/:id',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['ratings'] } },
     async (request, reply) => {
       const user = request.user as SessionUser
       const { id } = request.params
@@ -201,7 +201,7 @@ const ratingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { id: string } }>(
     '/api/ratings/series/:id',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['ratings'] } },
     async (request, reply) => {
       const user = request.user as SessionUser
       const { id } = request.params
@@ -221,7 +221,7 @@ const ratingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post<{ Params: { id: string }; Body: { rating: number } }>(
     '/api/ratings/movie/:id',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['ratings'] } },
     async (request, reply) => {
       const user = request.user as SessionUser
       const { id } = request.params
@@ -266,7 +266,7 @@ const ratingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post<{ Params: { id: string }; Body: { rating: number } }>(
     '/api/ratings/series/:id',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['ratings'] } },
     async (request, reply) => {
       const user = request.user as SessionUser
       const { id } = request.params
@@ -311,7 +311,7 @@ const ratingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.delete<{ Params: { id: string } }>(
     '/api/ratings/movie/:id',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['ratings'] } },
     async (request, reply) => {
       const user = request.user as SessionUser
       const { id } = request.params
@@ -338,7 +338,7 @@ const ratingsRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.delete<{ Params: { id: string } }>(
     '/api/ratings/series/:id',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['ratings'] } },
     async (request, reply) => {
       const user = request.user as SessionUser
       const { id } = request.params
@@ -374,7 +374,7 @@ const ratingsRoutes: FastifyPluginAsync = async (fastify) => {
     }
   }>(
     '/api/ratings/bulk',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['ratings'] } },
     async (request, reply) => {
       const user = request.user as SessionUser
       const { ratings } = request.body

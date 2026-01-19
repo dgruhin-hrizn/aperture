@@ -100,7 +100,7 @@ const discoveryRoutes: FastifyPluginAsync = async (fastify) => {
     }
   }>(
     '/api/discovery/movies',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["discovery"] } },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
       const filterOptions = parseFilterParams(request.query)
@@ -157,7 +157,7 @@ const discoveryRoutes: FastifyPluginAsync = async (fastify) => {
     }
   }>(
     '/api/discovery/series',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["discovery"] } },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
       const filterOptions = parseFilterParams(request.query)
@@ -201,7 +201,7 @@ const discoveryRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post(
     '/api/discovery/refresh/movies',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["discovery"] } },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
 
@@ -238,7 +238,7 @@ const discoveryRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post(
     '/api/discovery/refresh/series',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["discovery"] } },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
 
@@ -286,7 +286,7 @@ const discoveryRoutes: FastifyPluginAsync = async (fastify) => {
     }
   }>(
     '/api/discovery/:mediaType/expand',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["discovery"] } },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
       const { mediaType } = request.params
@@ -401,7 +401,7 @@ const discoveryRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get(
     '/api/discovery/status',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["discovery"] } },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
 
@@ -451,7 +451,7 @@ const discoveryRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get(
     '/api/discovery/prerequisites',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ["discovery"] } },
     async (_request, reply) => {
       // Check Jellyseerr configuration
       const jellyseerrConfigured = await isJellyseerrConfigured()

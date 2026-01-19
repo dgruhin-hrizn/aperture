@@ -24,7 +24,7 @@ export function registerSuggestionsHandler(fastify: FastifyInstance) {
    * GET /api/assistant/suggestions
    * Get pre-generated personalized suggestion prompts for the user
    */
-  fastify.get('/api/assistant/suggestions', { preHandler: requireAuth }, async (request, reply) => {
+  fastify.get('/api/assistant/suggestions', { preHandler: requireAuth, schema: { tags: ["ai-assistant"] } }, async (request, reply) => {
     const user = request.user as SessionUser
 
     try {

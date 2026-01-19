@@ -96,7 +96,7 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
       sortOrder?: 'asc' | 'desc'
     }
     Reply: SeriesListResponse
-  }>('/api/series', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/api/series', { preHandler: requireAuth, schema: { tags: ['series'] } }, async (request, reply) => {
     const page = parseInt(request.query.page || '1', 10)
     const pageSize = Math.min(parseInt(request.query.pageSize || '50', 10), 100)
     const offset = (page - 1) * pageSize
@@ -295,7 +295,7 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { id: string }; Reply: SeriesDetailRow }>(
     '/api/series/:id',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['series'] } },
     async (request, reply) => {
       const { id } = request.params
 
@@ -325,7 +325,7 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { id: string } }>(
     '/api/series/:id/watch-stats',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['series'] } },
     async (request, reply) => {
       const { id } = request.params
 
@@ -432,7 +432,7 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/series/genres
    * Get all unique genres
    */
-  fastify.get('/api/series/genres', { preHandler: requireAuth }, async (_request, reply) => {
+  fastify.get('/api/series/genres', { preHandler: requireAuth, schema: { tags: ['series'] } }, async (_request, reply) => {
     const result = await query<{ genre: string }>(
       `SELECT DISTINCT unnest(genres) as genre FROM series ORDER BY genre`
     )
@@ -444,7 +444,7 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/series/networks
    * Get all unique networks
    */
-  fastify.get('/api/series/networks', { preHandler: requireAuth }, async (_request, reply) => {
+  fastify.get('/api/series/networks', { preHandler: requireAuth, schema: { tags: ['series'] } }, async (_request, reply) => {
     const result = await query<{ network: string }>(
       `SELECT DISTINCT network FROM series WHERE network IS NOT NULL ORDER BY network`
     )
@@ -456,7 +456,7 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/series/keywords
    * Get all unique keywords (from TMDb enrichment)
    */
-  fastify.get('/api/series/keywords', { preHandler: requireAuth }, async (_request, reply) => {
+  fastify.get('/api/series/keywords', { preHandler: requireAuth, schema: { tags: ['series'] } }, async (_request, reply) => {
     const result = await query<{ keyword: string; count: string }>(
       `SELECT unnest(keywords) as keyword, COUNT(*) as count
        FROM series WHERE keywords IS NOT NULL AND array_length(keywords, 1) > 0
@@ -475,7 +475,7 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/series/content-ratings
    * Get all unique content ratings with counts
    */
-  fastify.get('/api/series/content-ratings', { preHandler: requireAuth }, async (_request, reply) => {
+  fastify.get('/api/series/content-ratings', { preHandler: requireAuth, schema: { tags: ['series'] } }, async (_request, reply) => {
     const result = await query<{ content_rating: string; count: string }>(
       `SELECT content_rating, COUNT(*) as count
        FROM series 
@@ -506,7 +506,7 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/series/filter-ranges
    * Get min/max values for range filters
    */
-  fastify.get('/api/series/filter-ranges', { preHandler: requireAuth }, async (_request, reply) => {
+  fastify.get('/api/series/filter-ranges', { preHandler: requireAuth, schema: { tags: ['series'] } }, async (_request, reply) => {
     const result = await queryOne<{
       min_year: number
       max_year: number
@@ -539,7 +539,7 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { id: string } }>(
     '/api/series/:id/episodes',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['series'] } },
     async (request, reply) => {
       const { id } = request.params
 
@@ -586,7 +586,7 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { id: string }; Querystring: { limit?: string } }>(
     '/api/series/:id/similar',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ['similarity'] } },
     async (request, reply) => {
       const { id } = request.params
       const limit = Math.min(parseInt(request.query.limit || '10', 10), 50)

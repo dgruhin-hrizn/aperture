@@ -10,7 +10,7 @@ export function registerListHandlers(fastify: FastifyInstance) {
    */
   fastify.get<{ Reply: UserListResponse }>(
     '/api/users',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ["users"] } },
     async (_request, reply) => {
       const result = await query<UserRow>(
         `SELECT id, username, display_name, provider, provider_user_id, is_admin, is_enabled, movies_enabled, series_enabled, discover_enabled, discover_request_enabled, can_manage_watch_history, created_at, updated_at
@@ -31,7 +31,7 @@ export function registerListHandlers(fastify: FastifyInstance) {
    */
   fastify.get<{ Params: { id: string }; Reply: UserRow }>(
     '/api/users/:id',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id } = request.params
       const currentUser = request.user as SessionUser
@@ -61,7 +61,7 @@ export function registerListHandlers(fastify: FastifyInstance) {
    */
   fastify.put<{ Params: { id: string }; Body: UserUpdateBody; Reply: UserRow }>(
     '/api/users/:id',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id } = request.params
       const { displayName, isEnabled, moviesEnabled, seriesEnabled, discoverEnabled, discoverRequestEnabled, canManageWatchHistory } = request.body

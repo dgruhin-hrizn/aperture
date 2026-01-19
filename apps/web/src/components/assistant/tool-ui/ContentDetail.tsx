@@ -10,6 +10,7 @@ import FavoriteIcon from '@mui/icons-material/Favorite'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import { useNavigate } from 'react-router-dom'
+import { getProxiedImageUrl } from '@aperture/ui'
 import type { ContentDetailData } from './types'
 
 interface ContentDetailProps {
@@ -51,7 +52,7 @@ export function ContentDetail({ data }: ContentDetailProps) {
           {data.image ? (
             <Box
               component="img"
-              src={data.image}
+              src={getProxiedImageUrl(data.image)}
               alt={data.name}
               sx={{
                 width: '100%',

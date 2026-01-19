@@ -81,7 +81,7 @@ const searchRoutes: FastifyPluginAsync = async (fastify) => {
       semantic?: string // 'true' to enable semantic search
     }
     Reply: SearchResponse
-  }>('/api/search', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/api/search', { preHandler: requireAuth, schema: { tags: ["search"] } }, async (request, reply) => {
     const {
       q: searchQuery,
       type = 'all',
@@ -390,7 +390,7 @@ const searchRoutes: FastifyPluginAsync = async (fastify) => {
       q: string
       limit?: string
     }
-  }>('/api/search/suggestions', { preHandler: requireAuth }, async (request, reply) => {
+  }>('/api/search/suggestions', { preHandler: requireAuth, schema: { tags: ["search"] } }, async (request, reply) => {
     const { q: searchQuery, limit: limitStr } = request.query
 
     if (!searchQuery || searchQuery.trim().length < 2) {
@@ -441,7 +441,7 @@ const searchRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/search/filters
    * Get available filter options
    */
-  fastify.get('/api/search/filters', { preHandler: requireAuth }, async (_request, reply) => {
+  fastify.get('/api/search/filters', { preHandler: requireAuth, schema: { tags: ["search"] } }, async (_request, reply) => {
     // Get unique genres from both movies and series
     const genreResults = await query<{ genre: string; count: string }>(
       `SELECT genre, SUM(count)::text as count FROM (
