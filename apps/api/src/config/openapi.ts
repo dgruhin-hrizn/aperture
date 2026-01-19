@@ -523,27 +523,10 @@ export const apertureLogoSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox=
   <circle cx="50" cy="50" r="12" fill="#1a1a2e"/>
 </svg>`
 
-// Custom CSS to style Swagger UI with Aperture branding and light mode default
+// Custom CSS to style Swagger UI with Aperture branding
 const customCss = `
   .topbar-wrapper img { content: url("/api/logo.svg"); }
   .topbar-wrapper .link::after { content: "Aperture API"; margin-left: 8px; font-size: 1.5em; font-weight: bold; }
-  
-  /* Force light mode by default */
-  body { background: #fafafa !important; }
-  .swagger-ui { color: #3b4151 !important; }
-  .swagger-ui .topbar { background-color: #fff !important; }
-  .swagger-ui .info .title { color: #3b4151 !important; }
-  .swagger-ui .scheme-container { background: #fff !important; box-shadow: 0 1px 2px 0 rgba(0,0,0,.15) !important; }
-  .swagger-ui section.models { border: 1px solid rgba(59,65,81,.3) !important; }
-  .swagger-ui .model-box { background: rgba(0,0,0,.1) !important; }
-  .swagger-ui .opblock-tag { color: #3b4151 !important; border-bottom: 1px solid rgba(59,65,81,.3) !important; }
-  .swagger-ui .opblock { background: rgba(0,0,0,.02) !important; border: 1px solid #000 !important; }
-  .swagger-ui .opblock .opblock-summary-description { color: #3b4151 !important; }
-  .swagger-ui .opblock .opblock-section-header { background: hsla(0,0%,100%,.8) !important; }
-  .swagger-ui input[type=email], .swagger-ui input[type=file], .swagger-ui input[type=password], .swagger-ui input[type=search], .swagger-ui input[type=text], .swagger-ui textarea { background: #fff !important; border: 1px solid #d9d9d9 !important; color: #3b4151 !important; }
-  .swagger-ui select { background: #fff !important; border: 1px solid #d9d9d9 !important; color: #3b4151 !important; }
-  .swagger-ui .markdown p, .swagger-ui .markdown pre, .swagger-ui .renderedMarkdown p, .swagger-ui .renderedMarkdown pre { color: #3b4151 !important; }
-  .swagger-ui table thead tr td, .swagger-ui table thead tr th { color: #3b4151 !important; border-bottom: 1px solid rgba(59,65,81,.2) !important; }
 `
 
 export const swaggerUIConfig: FastifySwaggerUiOptions = {
