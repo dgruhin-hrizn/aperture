@@ -13,6 +13,7 @@ const logger = createChildLogger('trakt')
 const TRAKT_API_BASE = 'https://api.trakt.tv'
 const TRAKT_AUTH_URL = 'https://trakt.tv/oauth/authorize'
 const TRAKT_TOKEN_URL = 'https://api.trakt.tv/oauth/token'
+const REQUEST_TIMEOUT_MS = 30000 // 30 second timeout
 
 /**
  * Get Trakt configuration from system settings
@@ -91,6 +92,7 @@ export async function exchangeCodeForTokens(code: string): Promise<TraktTokens |
         redirect_uri: config.redirectUri,
         grant_type: 'authorization_code',
       }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
 
     if (!response.ok) {
@@ -138,6 +140,7 @@ export async function refreshTokens(refreshToken: string): Promise<TraktTokens |
         redirect_uri: config.redirectUri,
         grant_type: 'refresh_token',
       }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
 
     if (!response.ok) {
@@ -179,6 +182,7 @@ export async function getTraktUser(accessToken: string): Promise<TraktUser | nul
         'trakt-api-key': config.clientId,
         Authorization: `Bearer ${accessToken}`,
       },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
 
     if (!response.ok) {
@@ -213,6 +217,7 @@ export async function getTraktRatings(
         'trakt-api-key': config.clientId,
         Authorization: `Bearer ${accessToken}`,
       },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
 
     if (!response.ok) {
@@ -587,6 +592,7 @@ export async function pushRatingToTrakt(
         Authorization: `Bearer ${tokens.accessToken}`,
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
 
     if (!response.ok) {
@@ -670,6 +676,7 @@ export async function removeRatingFromTrakt(
         Authorization: `Bearer ${tokens.accessToken}`,
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
 
     if (!response.ok) {

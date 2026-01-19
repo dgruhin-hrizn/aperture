@@ -12,7 +12,7 @@ export function registerProviderHandlers(fastify: FastifyInstance) {
    */
   fastify.get(
     '/api/users/provider',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ["users"] } },
     async (_request, reply) => {
       const apiKey = await getMediaServerApiKey()
       if (!apiKey) {
@@ -78,7 +78,7 @@ export function registerProviderHandlers(fastify: FastifyInstance) {
    */
   fastify.post<{ Body: { providerUserId: string; isEnabled?: boolean; moviesEnabled?: boolean; seriesEnabled?: boolean } }>(
     '/api/users/import',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { providerUserId, isEnabled = false, moviesEnabled, seriesEnabled } = request.body
 

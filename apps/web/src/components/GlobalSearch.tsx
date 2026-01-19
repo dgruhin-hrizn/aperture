@@ -54,7 +54,7 @@ export function GlobalSearch() {
   const [results, setResults] = useState<SearchResult[]>([])
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([])
   const [loading, setLoading] = useState(false)
-  const [selectedIndex, setSelectedIndex] = useState(0)
+  const [selectedIndex, setSelectedIndex] = useState(-1)
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -86,7 +86,7 @@ export function GlobalSearch() {
     setQuery('')
     setResults([])
     setSuggestions([])
-    setSelectedIndex(0)
+    setSelectedIndex(-1)
   }, [])
 
   const handleSearch = useCallback(async (searchQuery: string) => {
@@ -117,7 +117,7 @@ export function GlobalSearch() {
       if (resultsRes.ok) {
         const data = await resultsRes.json()
         setResults(data.results)
-        setSelectedIndex(0)
+        setSelectedIndex(-1)
       }
     } catch {
       // Ignore search errors
@@ -151,6 +151,13 @@ export function GlobalSearch() {
     [navigate, handleClose]
   )
 
+  const handleViewAllResults = useCallback(() => {
+    if (query.trim()) {
+      navigate(`/search?q=${encodeURIComponent(query)}`)
+      handleClose()
+    }
+  }, [navigate, handleClose, query])
+
   const handleKeyboardNav = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === 'ArrowDown') {
@@ -158,19 +165,18 @@ export function GlobalSearch() {
         setSelectedIndex((prev) => Math.min(prev + 1, results.length - 1))
       } else if (e.key === 'ArrowUp') {
         e.preventDefault()
-        setSelectedIndex((prev) => Math.max(prev - 1, 0))
-      } else if (e.key === 'Enter' && results.length > 0) {
+        setSelectedIndex((prev) => Math.max(prev - 1, -1))
+      } else if (e.key === 'Enter' && query.trim()) {
         e.preventDefault()
-        handleResultClick(results[selectedIndex])
+        if (selectedIndex >= 0 && selectedIndex < results.length) {
+          handleResultClick(results[selectedIndex])
+        } else {
+          handleViewAllResults()
+        }
       }
     },
-    [results, selectedIndex, handleResultClick]
+    [results, selectedIndex, handleResultClick, handleViewAllResults, query]
   )
-
-  const handleViewAllResults = () => {
-    navigate(`/search?q=${encodeURIComponent(query)}`)
-    handleClose()
-  }
 
   return (
     <>
@@ -274,7 +280,7 @@ export function GlobalSearch() {
                       onClick={() => handleResultClick(result)}
                       sx={{
                         cursor: 'pointer',
-                        bgcolor: index === selectedIndex ? alpha(theme.palette.primary.main, 0.1) : 'transparent',
+                        bgcolor: selectedIndex >= 0 && index === selectedIndex ? alpha(theme.palette.primary.main, 0.1) : 'transparent',
                         '&:hover': {
                           bgcolor: alpha(theme.palette.primary.main, 0.08),
                         },

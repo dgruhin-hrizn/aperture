@@ -19,7 +19,15 @@ export {
 // Sources
 export {
   fetchAllCandidates,
+  fetchFilteredCandidates,
+  enrichFullData,
+  enrichBasicData,
   hasDiscoverySources,
+  // Two-phase fetching (shared pool architecture)
+  fetchGlobalCandidates,
+  fetchPersonalizedCandidates,
+  mergeWithPool,
+  type DynamicFetchFilters,
 } from './sources.js'
 
 // Filter
@@ -48,5 +56,13 @@ export {
   updateDiscoveryRequestStatus,
   getDiscoveryRequests,
   hasExistingRequest,
+  // Pool storage (shared candidates)
+  upsertPoolCandidates,
+  getPoolCandidates,
+  getPoolCandidateByTmdbId,
+  updatePoolCandidateEnrichment,
+  getUnenrichedPoolCandidates,
+  clearOldPoolEntries,
+  poolCandidateToRaw,
 } from './storage.js'
 

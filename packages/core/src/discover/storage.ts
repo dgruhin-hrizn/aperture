@@ -15,6 +15,10 @@ import type {
   DiscoveryRunStatus,
   DiscoveryRequestStatus,
   DiscoveryFilterOptions,
+  PoolCandidate,
+  RawCandidate,
+  GlobalDiscoverySource,
+  GLOBAL_SOURCES,
 } from './types.js'
 
 const logger = createChildLogger('discover:storage')
@@ -157,6 +161,364 @@ export async function getLatestDiscoveryRun(
 }
 
 // ============================================================================
+// Discovery Pool (Shared Candidates)
+// ============================================================================
+
+/**
+ * Upsert candidates into the shared discovery pool
+ * Global candidates are shared across all users to avoid duplicate storage
+ */
+export async function upsertPoolCandidates(
+  mediaType: MediaType,
+  candidates: RawCandidate[]
+): Promise<{ inserted: number; updated: number }> {
+  if (candidates.length === 0) return { inserted: 0, updated: 0 }
+
+  let inserted = 0
+  let updated = 0
+
+  for (const c of candidates) {
+    try {
+      // Check if candidate already exists
+      const existing = await queryOne<{ id: string; sources: string[] }>(
+        `SELECT id, sources FROM discovery_pool WHERE media_type = $1 AND tmdb_id = $2`,
+        [mediaType, c.tmdbId]
+      )
+
+      if (existing) {
+        // Update existing - merge sources and update metadata if better
+        const existingSources = existing.sources || []
+        const newSources = [...new Set([...existingSources, c.source])]
+        
+        await query(
+          `UPDATE discovery_pool SET
+            sources = $3,
+            title = COALESCE(NULLIF($4, ''), title),
+            original_title = COALESCE($5, original_title),
+            original_language = COALESCE($6, original_language),
+            release_year = COALESCE($7, release_year),
+            poster_path = COALESCE($8, poster_path),
+            backdrop_path = COALESCE($9, backdrop_path),
+            overview = COALESCE(NULLIF($10, ''), overview),
+            genres = CASE WHEN $11::jsonb != '[]'::jsonb THEN $11::jsonb ELSE genres END,
+            vote_average = COALESCE($12, vote_average),
+            vote_count = COALESCE($13, vote_count),
+            popularity = COALESCE($14, popularity),
+            updated_at = NOW()
+          WHERE id = $1 AND media_type = $2`,
+          [
+            existing.id, mediaType, newSources,
+            c.title, c.originalTitle, c.originalLanguage, c.releaseYear,
+            c.posterPath, c.backdropPath, c.overview,
+            JSON.stringify(c.genres || []),
+            c.voteAverage, c.voteCount, c.popularity,
+          ]
+        )
+        updated++
+      } else {
+        // Insert new
+        await query(
+          `INSERT INTO discovery_pool (
+            media_type, tmdb_id, imdb_id, sources,
+            title, original_title, original_language, release_year,
+            poster_path, backdrop_path, overview,
+            genres, vote_average, vote_count, popularity
+          ) VALUES (
+            $1, $2, $3, $4,
+            $5, $6, $7, $8,
+            $9, $10, $11,
+            $12, $13, $14, $15
+          )`,
+          [
+            mediaType, c.tmdbId, c.imdbId, [c.source],
+            c.title, c.originalTitle, c.originalLanguage, c.releaseYear,
+            c.posterPath, c.backdropPath, c.overview,
+            JSON.stringify(c.genres || []),
+            c.voteAverage, c.voteCount, c.popularity,
+          ]
+        )
+        inserted++
+      }
+    } catch (err) {
+      logger.warn({ err, tmdbId: c.tmdbId, title: c.title }, 'Failed to upsert pool candidate')
+    }
+  }
+
+  logger.info({ mediaType, inserted, updated, total: candidates.length }, 'Upserted pool candidates')
+  return { inserted, updated }
+}
+
+/**
+ * Get all candidates from the pool for a media type
+ */
+export async function getPoolCandidates(
+  mediaType: MediaType
+): Promise<PoolCandidate[]> {
+  const result = await query<{
+    id: string
+    media_type: MediaType
+    tmdb_id: number
+    imdb_id: string | null
+    title: string
+    original_title: string | null
+    original_language: string | null
+    release_year: number | null
+    poster_path: string | null
+    backdrop_path: string | null
+    overview: string | null
+    genres: { id: number; name: string }[]
+    vote_average: string | null
+    vote_count: number | null
+    popularity: string | null
+    cast_members: { id: number; name: string; character: string; profilePath: string | null }[] | null
+    directors: string[] | null
+    runtime_minutes: number | null
+    tagline: string | null
+    is_enriched: boolean
+    sources: string[]
+    created_at: Date
+    updated_at: Date
+  }>(
+    `SELECT * FROM discovery_pool WHERE media_type = $1 ORDER BY popularity DESC NULLS LAST`,
+    [mediaType]
+  )
+
+  return result.rows.map(row => ({
+    id: row.id,
+    mediaType: row.media_type,
+    tmdbId: row.tmdb_id,
+    imdbId: row.imdb_id,
+    title: row.title,
+    originalTitle: row.original_title,
+    originalLanguage: row.original_language,
+    releaseYear: row.release_year,
+    posterPath: row.poster_path,
+    backdropPath: row.backdrop_path,
+    overview: row.overview,
+    genres: row.genres || [],
+    voteAverage: row.vote_average ? parseFloat(row.vote_average) : null,
+    voteCount: row.vote_count,
+    popularity: row.popularity ? parseFloat(row.popularity) : null,
+    castMembers: row.cast_members,
+    directors: row.directors,
+    runtimeMinutes: row.runtime_minutes,
+    tagline: row.tagline,
+    isEnriched: row.is_enriched,
+    sources: row.sources as GlobalDiscoverySource[],
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }))
+}
+
+/**
+ * Get pool candidate by TMDb ID
+ */
+export async function getPoolCandidateByTmdbId(
+  mediaType: MediaType,
+  tmdbId: number
+): Promise<PoolCandidate | null> {
+  const result = await queryOne<{
+    id: string
+    media_type: MediaType
+    tmdb_id: number
+    imdb_id: string | null
+    title: string
+    original_title: string | null
+    original_language: string | null
+    release_year: number | null
+    poster_path: string | null
+    backdrop_path: string | null
+    overview: string | null
+    genres: { id: number; name: string }[]
+    vote_average: string | null
+    vote_count: number | null
+    popularity: string | null
+    cast_members: { id: number; name: string; character: string; profilePath: string | null }[] | null
+    directors: string[] | null
+    runtime_minutes: number | null
+    tagline: string | null
+    is_enriched: boolean
+    sources: string[]
+    created_at: Date
+    updated_at: Date
+  }>(
+    `SELECT * FROM discovery_pool WHERE media_type = $1 AND tmdb_id = $2`,
+    [mediaType, tmdbId]
+  )
+
+  if (!result) return null
+
+  return {
+    id: result.id,
+    mediaType: result.media_type,
+    tmdbId: result.tmdb_id,
+    imdbId: result.imdb_id,
+    title: result.title,
+    originalTitle: result.original_title,
+    originalLanguage: result.original_language,
+    releaseYear: result.release_year,
+    posterPath: result.poster_path,
+    backdropPath: result.backdrop_path,
+    overview: result.overview,
+    genres: result.genres || [],
+    voteAverage: result.vote_average ? parseFloat(result.vote_average) : null,
+    voteCount: result.vote_count,
+    popularity: result.popularity ? parseFloat(result.popularity) : null,
+    castMembers: result.cast_members,
+    directors: result.directors,
+    runtimeMinutes: result.runtime_minutes,
+    tagline: result.tagline,
+    isEnriched: result.is_enriched,
+    sources: result.sources as GlobalDiscoverySource[],
+    createdAt: result.created_at,
+    updatedAt: result.updated_at,
+  }
+}
+
+/**
+ * Mark pool candidates as enriched and update their metadata
+ */
+export async function updatePoolCandidateEnrichment(
+  poolId: string,
+  enrichmentData: {
+    castMembers?: { id: number; name: string; character: string; profilePath: string | null }[]
+    directors?: string[]
+    runtimeMinutes?: number | null
+    tagline?: string | null
+    imdbId?: string | null
+  }
+): Promise<void> {
+  await query(
+    `UPDATE discovery_pool SET
+      cast_members = COALESCE($2, cast_members),
+      directors = COALESCE($3, directors),
+      runtime_minutes = COALESCE($4, runtime_minutes),
+      tagline = COALESCE($5, tagline),
+      imdb_id = COALESCE($6, imdb_id),
+      is_enriched = TRUE,
+      updated_at = NOW()
+    WHERE id = $1`,
+    [
+      poolId,
+      enrichmentData.castMembers ? JSON.stringify(enrichmentData.castMembers) : null,
+      enrichmentData.directors || null,
+      enrichmentData.runtimeMinutes ?? null,
+      enrichmentData.tagline ?? null,
+      enrichmentData.imdbId ?? null,
+    ]
+  )
+}
+
+/**
+ * Get pool candidates that need enrichment
+ */
+export async function getUnenrichedPoolCandidates(
+  mediaType: MediaType,
+  limit: number = 100
+): Promise<PoolCandidate[]> {
+  const result = await query<{
+    id: string
+    media_type: MediaType
+    tmdb_id: number
+    imdb_id: string | null
+    title: string
+    original_title: string | null
+    original_language: string | null
+    release_year: number | null
+    poster_path: string | null
+    backdrop_path: string | null
+    overview: string | null
+    genres: { id: number; name: string }[]
+    vote_average: string | null
+    vote_count: number | null
+    popularity: string | null
+    cast_members: { id: number; name: string; character: string; profilePath: string | null }[] | null
+    directors: string[] | null
+    runtime_minutes: number | null
+    tagline: string | null
+    is_enriched: boolean
+    sources: string[]
+    created_at: Date
+    updated_at: Date
+  }>(
+    `SELECT * FROM discovery_pool 
+     WHERE media_type = $1 AND is_enriched = FALSE
+     ORDER BY popularity DESC NULLS LAST
+     LIMIT $2`,
+    [mediaType, limit]
+  )
+
+  return result.rows.map(row => ({
+    id: row.id,
+    mediaType: row.media_type,
+    tmdbId: row.tmdb_id,
+    imdbId: row.imdb_id,
+    title: row.title,
+    originalTitle: row.original_title,
+    originalLanguage: row.original_language,
+    releaseYear: row.release_year,
+    posterPath: row.poster_path,
+    backdropPath: row.backdrop_path,
+    overview: row.overview,
+    genres: row.genres || [],
+    voteAverage: row.vote_average ? parseFloat(row.vote_average) : null,
+    voteCount: row.vote_count,
+    popularity: row.popularity ? parseFloat(row.popularity) : null,
+    castMembers: row.cast_members,
+    directors: row.directors,
+    runtimeMinutes: row.runtime_minutes,
+    tagline: row.tagline,
+    isEnriched: row.is_enriched,
+    sources: row.sources as GlobalDiscoverySource[],
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }))
+}
+
+/**
+ * Clear old pool entries (for maintenance)
+ */
+export async function clearOldPoolEntries(
+  mediaType: MediaType,
+  olderThanDays: number = 30
+): Promise<number> {
+  const result = await query(
+    `DELETE FROM discovery_pool 
+     WHERE media_type = $1 AND updated_at < NOW() - INTERVAL '1 day' * $2`,
+    [mediaType, olderThanDays]
+  )
+
+  logger.info({ mediaType, deleted: result.rowCount, olderThanDays }, 'Cleared old pool entries')
+  return result.rowCount ?? 0
+}
+
+/**
+ * Convert pool candidate to raw candidate format for scoring
+ */
+export function poolCandidateToRaw(pool: PoolCandidate): RawCandidate {
+  return {
+    tmdbId: pool.tmdbId,
+    imdbId: pool.imdbId,
+    title: pool.title,
+    originalTitle: pool.originalTitle,
+    originalLanguage: pool.originalLanguage,
+    overview: pool.overview,
+    releaseYear: pool.releaseYear,
+    posterPath: pool.posterPath,
+    backdropPath: pool.backdropPath,
+    genres: pool.genres,
+    voteAverage: pool.voteAverage ?? 0,
+    voteCount: pool.voteCount ?? 0,
+    popularity: pool.popularity ?? 0,
+    source: pool.sources[0] || 'tmdb_discover', // Use first source
+    castMembers: pool.castMembers ?? undefined,
+    directors: pool.directors ?? undefined,
+    runtimeMinutes: pool.runtimeMinutes,
+    tagline: pool.tagline,
+  }
+}
+
+// ============================================================================
 // Discovery Candidates
 // ============================================================================
 
@@ -191,7 +553,8 @@ export async function storeDiscoveryCandidates(
           title, original_title, original_language, release_year,
           poster_path, backdrop_path, overview,
           genres, vote_average, vote_count, score_breakdown,
-          cast_members, directors, runtime_minutes, tagline
+          cast_members, directors, runtime_minutes, tagline,
+          is_enriched
         ) VALUES (
           $1, $2, $3, $4, $5, $6,
           $7, $8, $9, $10, $11,
@@ -199,7 +562,8 @@ export async function storeDiscoveryCandidates(
           $14, $15, $16, $17,
           $18, $19, $20,
           $21, $22, $23, $24,
-          $25, $26, $27, $28
+          $25, $26, $27, $28,
+          $29
         )`,
         [
           runId, userId, mediaType, c.tmdbId, c.imdbId, i + 1,
@@ -213,6 +577,7 @@ export async function storeDiscoveryCandidates(
           c.directors ?? [],
           c.runtimeMinutes ?? null,
           c.tagline ?? null,
+          c.isEnriched ?? false,
         ]
       )
       stored++
@@ -326,6 +691,7 @@ export async function getDiscoveryCandidates(
     directors: string[] | null
     runtime_minutes: number | null
     tagline: string | null
+    is_enriched: boolean
     created_at: Date
   }>(
     `SELECT dc.* FROM discovery_candidates dc
@@ -365,6 +731,7 @@ export async function getDiscoveryCandidates(
     directors: row.directors || [],
     runtimeMinutes: row.runtime_minutes,
     tagline: row.tagline,
+    isEnriched: row.is_enriched ?? true, // Default to true for backwards compatibility
     createdAt: row.created_at,
   }))
 }

@@ -1,56 +1,14 @@
 /**
  * Search and similarity tools with Tool UI output schemas
  */
-import { tool, embed, generateObject } from 'ai'
+import { tool, embed } from 'ai'
 import { nullSafe } from './utils.js'
 import { z } from 'zod'
-import { getTextGenerationModelInstance, getActiveEmbeddingTableName } from '@aperture/core'
+import { getActiveEmbeddingTableName } from '@aperture/core'
 import { query, queryOne } from '../../../lib/db.js'
 import { buildPlayLink } from '../helpers/mediaServer.js'
 import type { ContentItem } from '../schemas/index.js'
 import type { ToolContext, MovieResult, SeriesResult } from '../types.js'
-
-/**
- * AI-powered semantic search query generator
- * The AI knows what content is about - let it describe what to search for!
- */
-async function generateSearchQuery(
-  title: string,
-  type: 'movie' | 'series'
-): Promise<string> {
-  try {
-    const model = await getTextGenerationModelInstance()
-    const { object } = await generateObject({
-      model,
-      schema: z.object({
-        searchQuery: z.string().describe('A specific description for semantic search'),
-      }),
-      prompt: `You know about "${title}" (${type}). Write a SPECIFIC semantic search query to find truly SIMILAR content.
-
-Be SPECIFIC about:
-1. Core plot elements (what actually happens in the story)
-2. Specific themes (not just "drama" but "corporate conspiracy", "identity crisis", etc.)
-3. Tone combination (dark comedy + social satire, not just "comedy")
-4. Setting/world (dystopian suburb, underground lab, small town mystery, etc.)
-5. What makes it unique vs generic films
-
-DO NOT be vague. DO NOT just list genres.
-
-WRONG (too vague): "Sci-fi comedy about experiments and dark themes."
-RIGHT (specific): "Government conspiracy involving human cloning in Black neighborhoods. Social satire blending blaxploitation homage with sci-fi mystery. Characters discover they're part of a sinister experiment."
-
-WRONG: "Drama about family and relationships."
-RIGHT: "Multigenerational Korean immigrant family running a convenience store. Cultural identity clash, language barriers, and the American dream's cost."
-
-Now write a SPECIFIC search query for "${title}":`,
-    })
-    console.log(`[generateSearchQuery] "${title}" → "${object.searchQuery}"`)
-    return object.searchQuery
-  } catch (err) {
-    console.error('[generateSearchQuery] Error:', err)
-    return title // Fallback to just the title
-  }
-}
 
 // Helper to format content item for Tool UI
 function formatContentItem(
@@ -587,15 +545,22 @@ export function createSearchTools(ctx: ToolContext) {
             foundTitle = movie.title
             foundType = 'movie'
 
-            // AI-POWERED SEMANTIC SEARCH
-            // The AI KNOWS what this movie is about - let it describe what to search for!
-            const searchQuery = await generateSearchQuery(movie.title, 'movie')
+            // Get the stored embedding for this movie (same approach as details page)
+            const movieEmbeddingTable = await getActiveEmbeddingTableName('embeddings')
+            const embeddingResult = await queryOne<{ embedding: string }>(
+              `SELECT embedding::text FROM ${movieEmbeddingTable} WHERE movie_id = $1 AND model = $2`,
+              [movie.id, modelId]
+            )
 
-            const { embedding: queryEmbedding } = await embed({
-              model: ctx.embeddingModel,
-              value: searchQuery,
-            })
-            const embeddingStr = `[${queryEmbedding.join(',')}]`
+            if (!embeddingResult) {
+              return {
+                id: `similar-error-${Date.now()}`,
+                items: [],
+                description: `"${movie.title}" doesn't have embeddings generated yet. Run the embedding job first.`,
+              }
+            }
+
+            const embeddingStr = embeddingResult.embedding
 
             const watchedFilter = excludeWatched
               ? `AND m.id NOT IN (SELECT movie_id FROM watch_history WHERE user_id = $4 AND movie_id IS NOT NULL)`
@@ -604,10 +569,9 @@ export function createSearchTools(ctx: ToolContext) {
               ? [movie.id, modelId, embeddingStr, ctx.userId, limit]
               : [movie.id, modelId, embeddingStr, limit]
 
-            const movieSimilarTable = await getActiveEmbeddingTableName('embeddings')
             const similar = await query<MovieResult & { provider_item_id?: string }>(
               `SELECT m.id, m.title, m.year, m.genres, m.community_rating, m.poster_url, m.provider_item_id
-               FROM ${movieSimilarTable} e JOIN movies m ON m.id = e.movie_id
+               FROM ${movieEmbeddingTable} e JOIN movies m ON m.id = e.movie_id
                WHERE e.movie_id != $1 AND e.model = $2 ${watchedFilter}
                ORDER BY e.embedding <=> $3::halfvec 
                LIMIT ${excludeWatched ? '$5' : '$4'}`,
@@ -622,20 +586,22 @@ export function createSearchTools(ctx: ToolContext) {
             foundTitle = series.title
             foundType = 'series'
 
-            // AI-POWERED SEMANTIC SEARCH
-            // The AI KNOWS what this show is about - let it describe what to search for!
-            // This is smarter than matching embeddings because:
-            // - AI uses world knowledge, not just our DB's potentially wrong genre tags
-            // - AI understands tone, themes, audience - not just surface features
+            // Get the stored embedding for this series (same approach as details page)
+            const seriesEmbeddingTable = await getActiveEmbeddingTableName('series_embeddings')
+            const embeddingResult = await queryOne<{ embedding: string }>(
+              `SELECT embedding::text FROM ${seriesEmbeddingTable} WHERE series_id = $1 AND model = $2`,
+              [series.id, modelId]
+            )
 
-            const searchQuery = await generateSearchQuery(series.title, 'series')
+            if (!embeddingResult) {
+              return {
+                id: `similar-error-${Date.now()}`,
+                items: [],
+                description: `"${series.title}" doesn't have embeddings generated yet. Run the embedding job first.`,
+              }
+            }
 
-            // Generate embedding from AI's semantic description
-            const { embedding: queryEmbedding } = await embed({
-              model: ctx.embeddingModel,
-              value: searchQuery,
-            })
-            const embeddingStr = `[${queryEmbedding.join(',')}]`
+            const embeddingStr = embeddingResult.embedding
 
             const watchedFilter = excludeWatched
               ? `AND s.id NOT IN (
@@ -649,10 +615,9 @@ export function createSearchTools(ctx: ToolContext) {
               ? [series.id, modelId, embeddingStr, ctx.userId, limit]
               : [series.id, modelId, embeddingStr, limit]
 
-            const seriesSimilarTable = await getActiveEmbeddingTableName('series_embeddings')
             const similar = await query<SeriesResult & { provider_item_id?: string }>(
               `SELECT s.id, s.title, s.year, s.genres, s.network, s.community_rating, s.poster_url, s.provider_item_id
-               FROM ${seriesSimilarTable} se 
+               FROM ${seriesEmbeddingTable} se 
                JOIN series s ON s.id = se.series_id
                WHERE se.series_id != $1 
                  AND se.model = $2 

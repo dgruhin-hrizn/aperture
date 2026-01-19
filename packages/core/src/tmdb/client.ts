@@ -14,6 +14,7 @@ const logger = createChildLogger('tmdb')
 const RATE_LIMIT_DELAY_MS = 25 // ~40 requests per second (TMDb allows ~50)
 const MAX_RETRIES = 3
 const RETRY_DELAY_MS = 1000
+const REQUEST_TIMEOUT_MS = 30000 // 30 second timeout
 
 // Simple rate limiter
 let lastRequestTime = 0
@@ -62,6 +63,7 @@ export async function tmdbRequest<T>(
         headers: {
           Accept: 'application/json',
         },
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       })
 
       if (response.status === 429) {
@@ -92,6 +94,12 @@ export async function tmdbRequest<T>(
       onLog?.('tmdb', endpoint, 'success')
       return data
     } catch (err) {
+      // Don't retry timeout errors
+      if (err instanceof Error && err.name === 'TimeoutError') {
+        logger.error({ endpoint }, 'TMDb API request timed out')
+        onLog?.('tmdb', endpoint, 'error', 'Request timed out')
+        return null
+      }
       if (attempt === MAX_RETRIES) {
         logger.error({ err, endpoint }, 'TMDb API request failed after retries')
         onLog?.('tmdb', endpoint, 'error', err instanceof Error ? err.message : 'Unknown error')

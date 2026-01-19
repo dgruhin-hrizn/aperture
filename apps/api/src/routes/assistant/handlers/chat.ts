@@ -96,7 +96,7 @@ function createToolBufferingStream(): TransformStream<Uint8Array, Uint8Array> {
 export function registerChatHandler(fastify: FastifyInstance) {
   fastify.post<{ Body: ChatBody }>(
     '/api/assistant/chat',
-    { preHandler: requireAuth },
+    { preHandler: requireAuth, schema: { tags: ["ai-assistant"] } },
     async (request: FastifyRequest<{ Body: ChatBody }>, reply: FastifyReply) => {
       const user = request.user as SessionUser
       const { messages } = request.body

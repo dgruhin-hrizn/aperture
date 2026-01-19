@@ -1,6 +1,6 @@
 {
   "name": "@aperture/api",
-  "version": "0.5.8",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -18,6 +18,8 @@
     "@fastify/cors": "^10.0.1",
     "@fastify/multipart": "^9.3.0",
     "@fastify/static": "^8.0.3",
+    "@fastify/swagger": "^9.4.2",
+    "@fastify/swagger-ui": "^5.2.1",
     "ai": "^5.0.0",
     "fastify": "^5.2.0",
     "fastify-plugin": "^5.0.1",

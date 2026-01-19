@@ -21,7 +21,7 @@ export function registerJobHandlers(fastify: FastifyInstance) {
    */
   fastify.post<{ Params: { id: string } }>(
     '/api/users/:id/sync-history',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id } = request.params
 
@@ -60,7 +60,7 @@ export function registerJobHandlers(fastify: FastifyInstance) {
    */
   fastify.post<{ Params: { id: string } }>(
     '/api/users/:id/generate-recommendations',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id } = request.params
 
@@ -105,7 +105,7 @@ export function registerJobHandlers(fastify: FastifyInstance) {
    */
   fastify.post<{ Params: { id: string } }>(
     '/api/users/:id/update-strm',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id } = request.params
 
@@ -157,7 +157,7 @@ export function registerJobHandlers(fastify: FastifyInstance) {
    */
   fastify.post<{ Params: { id: string } }>(
     '/api/users/:id/run-all',
-    { preHandler: requireAdmin },
+    { preHandler: requireAdmin, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id } = request.params
 

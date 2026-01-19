@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify'
 import fp from 'fastify-plugin'
 import { query, queryOne } from '../lib/db.js'
+import { validateApiKey } from '@aperture/core'
 
 export interface SessionUser {
   id: string
@@ -19,6 +20,10 @@ declare module 'fastify' {
     user?: SessionUser
     sessionId?: string
     sessionError?: boolean
+    /** True if the request was authenticated via API key */
+    isApiKeyAuth?: boolean
+    /** The API key ID if authenticated via API key */
+    apiKeyId?: string
   }
 }
 
@@ -113,9 +118,39 @@ async function getSessionUser(sessionId: string): Promise<SessionUser | null> {
 const authPlugin: FastifyPluginAsync = async (fastify) => {
   // Track if session validation failed (for error messaging)
   fastify.decorateRequest('sessionError', false)
+  fastify.decorateRequest('isApiKeyAuth', false)
+  fastify.decorateRequest('apiKeyId', undefined)
 
-  // Add hook to parse session from cookie
+  // Add hook to parse authentication from API key or session cookie
   fastify.addHook('onRequest', async (request) => {
+    // First, check for API key authentication (takes precedence)
+    const apiKey = request.headers['x-api-key'] as string | undefined
+    if (apiKey) {
+      try {
+        const apiKeyUser = await validateApiKey(apiKey)
+        if (apiKeyUser) {
+          // Build SessionUser from API key user data
+          request.user = {
+            id: apiKeyUser.userId,
+            username: apiKeyUser.username,
+            displayName: apiKeyUser.displayName,
+            provider: 'emby', // API key users don't have a provider context, default to emby
+            providerUserId: '',
+            isAdmin: apiKeyUser.isAdmin,
+            isEnabled: apiKeyUser.isEnabled,
+            canManageWatchHistory: apiKeyUser.canManageWatchHistory,
+            avatarUrl: `/api/users/${apiKeyUser.userId}/avatar`,
+          }
+          request.isApiKeyAuth = true
+          request.apiKeyId = apiKeyUser.id
+          return // Skip session cookie check
+        }
+      } catch (err) {
+        fastify.log.warn({ err, keyPrefix: apiKey.substring(0, 8) }, 'Failed to validate API key')
+      }
+    }
+
+    // Fall back to session cookie authentication
     const sessionId = request.cookies[SESSION_COOKIE_NAME]
 
     if (sessionId) {

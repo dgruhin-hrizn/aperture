@@ -24,6 +24,10 @@ export default defineConfig({
         target: 'http://localhost:3456',
         changeOrigin: true,
       },
+      '/openapi': {
+        target: 'http://localhost:3456',
+        changeOrigin: true,
+      },
     },
     // Watch for changes in workspace packages
     watch: {

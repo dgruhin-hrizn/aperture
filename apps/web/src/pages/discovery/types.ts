@@ -42,6 +42,10 @@ export interface DiscoveryCandidate {
   directors: string[]
   runtimeMinutes: number | null
   tagline: string | null
+  // Whether this candidate has full metadata (cast, crew, etc.)
+  isEnriched?: boolean
+  // Whether this was dynamically fetched (not from stored pool)
+  isDynamic?: boolean
   createdAt: string
 }
 

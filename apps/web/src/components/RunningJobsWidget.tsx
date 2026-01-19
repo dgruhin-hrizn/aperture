@@ -117,9 +117,18 @@ export function RunningJobsWidget() {
   const recentJobs = jobs.filter(j => j.status !== 'running').slice(0, 5)
   const hasRunningJobs = runningJobs.length > 0
 
-  // Calculate combined progress
+  // Calculate combined progress (guard against NaN and undefined)
   const combinedProgress = runningJobs.length > 0
-    ? Math.round(runningJobs.reduce((sum, job) => sum + job.overallProgress, 0) / runningJobs.length)
+    ? (() => {
+        const sum = runningJobs.reduce((acc, job) => {
+          const progress = typeof job.overallProgress === 'number' && !isNaN(job.overallProgress) 
+            ? job.overallProgress 
+            : 0
+          return acc + progress
+        }, 0)
+        const avg = Math.round(sum / runningJobs.length)
+        return isNaN(avg) ? 0 : avg
+      })()
     : 0
 
   // Get the primary job name to display
@@ -268,7 +277,7 @@ export function RunningJobsWidget() {
                         <Box display="flex" alignItems="center" gap={1}>
                           <LinearProgress
                             variant="determinate"
-                            value={job.overallProgress}
+                            value={job.overallProgress || 0}
                             sx={{
                               flex: 1,
                               height: 6,
@@ -286,7 +295,7 @@ export function RunningJobsWidget() {
                             }}
                           />
                           <Typography variant="caption" fontWeight={600} sx={{ minWidth: 36, textAlign: 'right' }}>
-                            {Math.round(job.overallProgress)}%
+                            {Math.round(job.overallProgress || 0)}%
                           </Typography>
                         </Box>
                       </Box>

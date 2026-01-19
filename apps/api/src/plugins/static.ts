@@ -36,8 +36,12 @@ const staticPlugin: FastifyPluginAsync = async (fastify) => {
 
   // SPA fallback - serve index.html for non-API routes
   fastify.setNotFoundHandler(async (request, reply) => {
-    // Don't intercept API routes
-    if (request.url.startsWith('/api') || request.url.startsWith('/health')) {
+    // Don't intercept API routes, health checks, or OpenAPI docs
+    if (
+      request.url.startsWith('/api') ||
+      request.url.startsWith('/health') ||
+      request.url.startsWith('/openapi')
+    ) {
       return reply.status(404).send({ error: 'Not Found' })
     }
 

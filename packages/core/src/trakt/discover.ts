@@ -22,6 +22,7 @@ import type {
 const logger = createChildLogger('trakt:discover')
 
 const TRAKT_API_BASE = 'https://api.trakt.tv'
+const REQUEST_TIMEOUT_MS = 30000 // 30 second timeout
 
 /**
  * Make a request to the Trakt API (no auth required for public endpoints)
@@ -50,6 +51,7 @@ async function traktPublicRequest<T>(
         'trakt-api-version': '2',
         'trakt-api-key': config.clientId,
       },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
 
     if (!response.ok) {
@@ -59,7 +61,11 @@ async function traktPublicRequest<T>(
 
     return (await response.json()) as T
   } catch (err) {
-    logger.error({ err, endpoint }, 'Error making Trakt request')
+    if (err instanceof Error && err.name === 'TimeoutError') {
+      logger.error({ endpoint }, 'Trakt API request timed out')
+    } else {
+      logger.error({ err, endpoint }, 'Error making Trakt request')
+    }
     return null
   }
 }
@@ -91,6 +97,7 @@ async function traktAuthRequest<T>(
         'trakt-api-key': config.clientId,
         Authorization: `Bearer ${accessToken}`,
       },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
 
     if (!response.ok) {
@@ -100,7 +107,11 @@ async function traktAuthRequest<T>(
 
     return (await response.json()) as T
   } catch (err) {
-    logger.error({ err, endpoint }, 'Error making Trakt authenticated request')
+    if (err instanceof Error && err.name === 'TimeoutError') {
+      logger.error({ endpoint }, 'Trakt authenticated API request timed out')
+    } else {
+      logger.error({ err, endpoint }, 'Error making Trakt authenticated request')
+    }
     return null
   }
 }

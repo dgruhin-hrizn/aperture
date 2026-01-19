@@ -15,6 +15,15 @@ export type DiscoverySource =
   | 'trakt_recommendations'
   | 'mdblist'
 
+// Global sources are fetched once and shared across all users
+export type GlobalDiscoverySource = 'tmdb_discover' | 'trakt_trending' | 'trakt_popular'
+
+// Personalized sources are fetched per-user based on their watch history
+export type PersonalizedDiscoverySource = 'tmdb_recommendations' | 'tmdb_similar' | 'trakt_recommendations'
+
+export const GLOBAL_SOURCES: GlobalDiscoverySource[] = ['tmdb_discover', 'trakt_trending', 'trakt_popular']
+export const PERSONALIZED_SOURCES: PersonalizedDiscoverySource[] = ['tmdb_recommendations', 'tmdb_similar', 'trakt_recommendations']
+
 export type DiscoveryRunStatus = 'running' | 'completed' | 'failed'
 
 export type DiscoveryRequestStatus = 
@@ -58,11 +67,13 @@ export interface DiscoveryCandidate {
   voteAverage: number | null
   voteCount: number | null
   scoreBreakdown: Record<string, number>
-  // Cast/crew metadata for detail popper
+  // Cast/crew metadata for detail popper (only for enriched candidates)
   castMembers: CastMember[]
   directors: string[]
   runtimeMinutes: number | null
   tagline: string | null
+  // Whether this candidate has been fully enriched with metadata
+  isEnriched: boolean
   createdAt: Date
 }
 
@@ -110,8 +121,13 @@ export interface DiscoveryUser {
 export interface DiscoveryConfig {
   // How many candidates to fetch from each source
   maxCandidatesPerSource: number
-  // How many final suggestions to store per user
-  maxSuggestionsPerUser: number
+  // Maximum total candidates to store (before filtering)
+  maxTotalCandidates: number
+  // How many candidates to enrich with full metadata (cast, directors, etc.)
+  // Only the top N scored candidates get enriched to save API calls
+  maxEnrichedCandidates: number
+  // Target number of results to display after filtering
+  targetDisplayCount: number
   // Minimum vote count for TMDb discover
   minVoteCount: number
   // Minimum vote average for TMDb discover
@@ -125,8 +141,10 @@ export interface DiscoveryConfig {
 }
 
 export const DEFAULT_DISCOVERY_CONFIG: DiscoveryConfig = {
-  maxCandidatesPerSource: 100,
-  maxSuggestionsPerUser: 50,
+  maxCandidatesPerSource: 200,   // 10 pages × 20 items per source
+  maxTotalCandidates: 1000,      // 5x more for better filter coverage
+  maxEnrichedCandidates: 150,    // 2x more with full metadata
+  targetDisplayCount: 50,
   minVoteCount: 50,
   minVoteAverage: 5.0,
   similarityWeight: 0.5,
@@ -165,6 +183,8 @@ export interface ScoredCandidate extends RawCandidate {
   recencyScore: number
   sourceScore: number
   scoreBreakdown: Record<string, number>
+  // Whether this candidate has been fully enriched with metadata
+  isEnriched: boolean
 }
 
 export interface DiscoveryPipelineResult {
@@ -194,4 +214,67 @@ export interface DiscoveryFilterOptions {
   yearEnd?: number
   // Minimum similarity score (0-1)
   minSimilarity?: number
+}
+
+// ============================================================================
+// Pool Types (Shared Candidate Storage)
+// ============================================================================
+
+/**
+ * A candidate in the shared discovery pool
+ * Contains metadata that can be shared across all users
+ */
+export interface PoolCandidate {
+  id: string
+  mediaType: MediaType
+  tmdbId: number
+  imdbId: string | null
+  title: string
+  originalTitle: string | null
+  originalLanguage: string | null
+  releaseYear: number | null
+  posterPath: string | null
+  backdropPath: string | null
+  overview: string | null
+  genres: { id: number; name: string }[]
+  voteAverage: number | null
+  voteCount: number | null
+  popularity: number | null
+  // Enrichment data
+  castMembers: CastMember[] | null
+  directors: string[] | null
+  runtimeMinutes: number | null
+  tagline: string | null
+  isEnriched: boolean
+  // Which global sources included this candidate
+  sources: GlobalDiscoverySource[]
+  createdAt: Date
+  updatedAt: Date
+}
+
+/**
+ * Result of fetching global candidates for the pool
+ */
+export interface GlobalFetchResult {
+  candidates: RawCandidate[]
+  sources: {
+    tmdbDiscover: number
+    traktTrending: number
+    traktPopular: number
+  }
+  totalFetched: number
+  uniqueCount: number
+}
+
+/**
+ * Result of fetching personalized candidates for a user
+ */
+export interface PersonalizedFetchResult {
+  candidates: RawCandidate[]
+  sources: {
+    tmdbRecommendations: number
+    tmdbSimilar: number
+    traktRecommendations: number
+  }
+  totalFetched: number
 }

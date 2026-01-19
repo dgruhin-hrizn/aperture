@@ -740,6 +740,7 @@ export {
   type JellyseerrSearchItem,
   type JellyseerrMovieDetails,
   type JellyseerrTVDetails,
+  type JellyseerrSeason,
   type JellyseerrMediaStatus,
   type JellyseerrRequestStatus,
   type JellyseerrRequestBody,
@@ -760,6 +761,7 @@ export {
   getDiscoveryEnabledUsers,
   // Sources
   fetchAllCandidates,
+  fetchFilteredCandidates,
   hasDiscoverySources,
   // Filter
   filterCandidates,
@@ -794,6 +796,7 @@ export {
   type RawCandidate,
   type ScoredCandidate,
   type DiscoveryPipelineResult,
+  type DynamicFetchFilters,
   DEFAULT_DISCOVERY_CONFIG,
 } from './discover/index.js'
 
@@ -876,3 +879,23 @@ export {
   syncUsersFromMediaServer,
   type SyncUsersResult,
 } from './users/sync.js'
+
+// API Keys
+export {
+  createApiKey,
+  validateApiKey,
+  listApiKeys,
+  listAllApiKeys,
+  getApiKey,
+  revokeApiKey,
+  deleteApiKey,
+  updateApiKey,
+  deleteAllUserApiKeys,
+  isApiKeyExpired,
+  isApiKeyRevoked,
+  getApiKeyStatus,
+  EXPIRATION_OPTIONS,
+  type ApiKey,
+  type ApiKeyWithUser,
+  type CreateApiKeyResult,
+} from './apiKeys.js'

@@ -17,6 +17,8 @@ import {
   Tooltip,
   useTheme,
   useMediaQuery,
+  LinearProgress,
+  Fade,
 } from '@mui/material'
 import ExploreIcon from '@mui/icons-material/Explore'
 import RefreshIcon from '@mui/icons-material/Refresh'
@@ -55,13 +57,15 @@ function saveFiltersToStorage(filters: DiscoveryFilterOptions) {
 export function DiscoveryPage() {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
-  
+
   // Filter state - persisted to localStorage
   const [filters, setFilters] = useState<DiscoveryFilterOptions>(() => loadFiltersFromStorage())
-  
-  // Memoize filters to avoid unnecessary re-renders
-  const stableFilters = useMemo(() => filters, [JSON.stringify(filters)])
-  
+
+  // Memoize filters to avoid unnecessary re-renders (deep comparison via JSON key)
+  const filtersKey = JSON.stringify(filters)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const stableFilters = useMemo(() => filters, [filtersKey])
+
   const {
     status,
     movieCandidates,
@@ -71,12 +75,13 @@ export function DiscoveryPage() {
     jellyseerrStatus,
     loading,
     refreshing,
+    expanding,
     error,
     refresh,
     markAsRequested,
   } = useDiscoveryData(stableFilters)
 
-  const { submitRequest, isRequesting } = useJellyseerrRequest()
+  const { submitRequest, isRequesting, fetchTVDetails } = useJellyseerrRequest()
   const { viewMode, setViewMode } = useViewMode('discovery')
 
   const [mediaType, setMediaType] = useState<MediaType>('movie')
@@ -104,12 +109,13 @@ export function DiscoveryPage() {
     }
   }
 
-  const handleRequest = useCallback(async (candidate: DiscoveryCandidate) => {
+  const handleRequest = useCallback(async (candidate: DiscoveryCandidate, seasons?: number[]) => {
     const result = await submitRequest(
       candidate.tmdbId,
       candidate.mediaType,
       candidate.title,
-      candidate.id
+      candidate.id,
+      seasons // Pass seasons for TV series requests
     )
     if (result.success) {
       markAsRequested(candidate.tmdbId)
@@ -325,6 +331,7 @@ export function DiscoveryPage() {
                 onRequest={handleRequest}
                 isRequesting={isRequesting(candidate.tmdbId)}
                 cachedStatus={jellyseerrStatus[candidate.tmdbId]}
+                fetchTVDetails={fetchTVDetails}
               />
             </Grid>
           ))}
@@ -339,10 +346,30 @@ export function DiscoveryPage() {
               onRequest={handleRequest}
               isRequesting={isRequesting(candidate.tmdbId)}
               cachedStatus={jellyseerrStatus[candidate.tmdbId]}
+              fetchTVDetails={fetchTVDetails}
             />
           ))}
         </Box>
       )}
+
+      {/* Expanding indicator - shown when dynamically fetching more candidates */}
+      <Fade in={expanding} timeout={300}>
+        <Box sx={{ mt: 3 }}>
+          <Box display="flex" alignItems="center" justifyContent="center" gap={2} mb={1}>
+            <CircularProgress size={20} />
+            <Typography variant="body2" color="text.secondary">
+              Finding more content matching your filters...
+            </Typography>
+          </Box>
+          <LinearProgress
+            sx={{
+              borderRadius: 1,
+              height: 4,
+              bgcolor: 'action.hover',
+            }}
+          />
+        </Box>
+      </Fade>
 
       {/* Snackbar */}
       <Snackbar

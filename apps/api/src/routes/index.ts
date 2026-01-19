@@ -1,33 +1,35 @@
 import type { FastifyPluginAsync } from 'fastify'
-import healthRoutes from './health.js'
-import setupRoutes from './setup.js'
+import healthRoutes from './health/index.js'
+import setupRoutes from './setup/index.js'
 import apiRoutes from './api.js'
-import authRoutes from './auth.js'
+import authRoutes from './auth/index.js'
 import usersRoutes from './users/index.js'
-import moviesRoutes from './movies.js'
-import seriesRoutes from './series.js'
-import ratingsRoutes from './ratings.js'
-import recommendationsRoutes from './recommendations.js'
+import moviesRoutes from './movies/index.js'
+import seriesRoutes from './series/index.js'
+import ratingsRoutes from './ratings/index.js'
+import recommendationsRoutes from './recommendations/index.js'
 import channelsRoutes from './channels/index.js'
-import jobsRoutes from './jobs.js'
-import settingsRoutes from './settings.js'
-import topPicksRoutes from './top-picks.js'
-import traktRoutes from './trakt.js'
-import mdblistRoutes from './mdblist.js'
-import dashboardRoutes from './dashboard.js'
-import imageRoutes from './images.js'
-import mediaProxyRoutes from './media-proxy.js'
+import jobsRoutes from './jobs/index.js'
+import settingsRoutes from './settings/index.js'
+import topPicksRoutes from './top-picks/index.js'
+import traktRoutes from './trakt/index.js'
+import mdblistRoutes from './mdblist/index.js'
+import dashboardRoutes from './dashboard/index.js'
+import imageRoutes from './images/index.js'
+import mediaProxyRoutes from './media-proxy/index.js'
 import assistantRoutes from './assistant/index.js'
-import searchRoutes from './search.js'
-import discoverRoutes from './discover.js'
-import watchingRoutes from './watching.js'
-import backupRoutes from './backup.js'
-import maintenanceRoutes from './maintenance.js'
-import apiErrorsRoutes from './apiErrors.js'
-import similarityRoutes from './similarity.js'
-import { graphPlaylistRoutes } from './graphPlaylists.js'
-import discoveryRoutes from './discovery.js'
-import jellyseerrRoutes from './jellyseerr.js'
+import searchRoutes from './search/index.js'
+import discoverRoutes from './discover/index.js'
+import watchingRoutes from './watching/index.js'
+import backupRoutes from './backup/index.js'
+import maintenanceRoutes from './maintenance/index.js'
+import apiErrorsRoutes from './apiErrors/index.js'
+import similarityRoutes from './similarity/index.js'
+import graphPlaylistRoutes from './graphPlaylists/index.js'
+import discoveryRoutes from './discovery/index.js'
+import jellyseerrRoutes from './jellyseerr/index.js'
+import apiKeysRoutes from './apiKeys/index.js'
+import logoRoutes from './logo/index.js'
 
 const routes: FastifyPluginAsync = async (fastify) => {
   // Register health check routes
@@ -116,6 +118,12 @@ const routes: FastifyPluginAsync = async (fastify) => {
 
   // Register Jellyseerr routes (content requests)
   await fastify.register(jellyseerrRoutes)
+
+  // Register API keys routes
+  await fastify.register(apiKeysRoutes)
+
+  // Register logo route (for Swagger UI branding)
+  await fastify.register(logoRoutes)
 }
 
 export default routes

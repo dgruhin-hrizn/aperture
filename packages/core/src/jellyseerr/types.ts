@@ -100,6 +100,21 @@ export interface JellyseerrMovieDetails {
   mediaInfo?: JellyseerrMediaInfo
 }
 
+/**
+ * Season information from Jellyseerr TV details
+ */
+export interface JellyseerrSeason {
+  id: number
+  seasonNumber: number
+  episodeCount: number
+  airDate?: string
+  name: string
+  overview?: string
+  posterPath?: string
+  // Per-season status (available from mediaInfo.seasons in Jellyseerr)
+  status?: JellyseerrMediaStatus
+}
+
 export interface JellyseerrTVDetails {
   id: number
   name: string
@@ -116,6 +131,8 @@ export interface JellyseerrTVDetails {
   genres: { id: number; name: string }[]
   networks: { id: number; name: string; logoPath?: string }[]
   mediaInfo?: JellyseerrMediaInfo
+  // Detailed season information
+  seasons?: JellyseerrSeason[]
 }
 
 export interface JellyseerrRequestBody {

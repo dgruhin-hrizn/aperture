@@ -1,8 +1,46 @@
 import { useState, useCallback } from 'react'
 import type { MediaType, JellyseerrMediaStatus } from '../types'
+import type { SeasonInfo } from '../components/SeasonSelectModal'
+
+// TV details response from Jellyseerr API
+export interface TVDetailsResponse {
+  id: number
+  name: string
+  originalName: string
+  overview?: string
+  posterPath?: string
+  backdropPath?: string
+  firstAirDate?: string
+  lastAirDate?: string
+  numberOfSeasons?: number
+  numberOfEpisodes?: number
+  voteAverage?: number
+  voteCount?: number
+  genres: { id: number; name: string }[]
+  networks: { id: number; name: string; logoPath?: string }[]
+  mediaInfo?: {
+    id: number
+    status: number
+    requests?: Array<{
+      id: number
+      status: number
+    }>
+  }
+  seasons?: Array<{
+    id: number
+    seasonNumber: number
+    episodeCount: number
+    airDate?: string
+    name: string
+    overview?: string
+    posterPath?: string
+    status?: number
+  }>
+}
 
 export function useJellyseerrRequest() {
   const [requesting, setRequesting] = useState<number | null>(null)
+  const [fetchingDetails, setFetchingDetails] = useState<number | null>(null)
   const [statusCache, setStatusCache] = useState<Map<string, JellyseerrMediaStatus>>(new Map())
 
   const getMediaStatus = useCallback(async (tmdbId: number, mediaType: MediaType): Promise<JellyseerrMediaStatus | null> => {
@@ -28,11 +66,61 @@ export function useJellyseerrRequest() {
     }
   }, [statusCache])
 
+  /**
+   * Fetch TV details including season information for the season selection modal
+   */
+  const fetchTVDetails = useCallback(async (tmdbId: number): Promise<{ 
+    seasons: SeasonInfo[]
+    title: string
+    posterPath?: string
+  } | null> => {
+    setFetchingDetails(tmdbId)
+    try {
+      const response = await fetch(`/api/jellyseerr/tv/${tmdbId}`, {
+        credentials: 'include',
+      })
+      
+      if (!response.ok) {
+        console.error('Failed to fetch TV details')
+        return null
+      }
+
+      const data: TVDetailsResponse = await response.json()
+      
+      // Transform seasons to SeasonInfo format
+      const seasons: SeasonInfo[] = (data.seasons || []).map(s => ({
+        id: s.id,
+        seasonNumber: s.seasonNumber,
+        episodeCount: s.episodeCount,
+        airDate: s.airDate,
+        name: s.name || (s.seasonNumber === 0 ? 'Specials' : `Season ${s.seasonNumber}`),
+        overview: s.overview,
+        posterPath: s.posterPath,
+        status: s.status ?? 1, // Default to 'unknown' if not set
+      }))
+
+      // Sort seasons by number (specials first, then 1, 2, 3...)
+      seasons.sort((a, b) => a.seasonNumber - b.seasonNumber)
+
+      return {
+        seasons,
+        title: data.name,
+        posterPath: data.posterPath,
+      }
+    } catch (err) {
+      console.error('Error fetching TV details:', err)
+      return null
+    } finally {
+      setFetchingDetails(null)
+    }
+  }, [])
+
   const submitRequest = useCallback(async (
     tmdbId: number,
     mediaType: MediaType,
     title: string,
-    discoveryCandidateId?: string
+    discoveryCandidateId?: string,
+    seasons?: number[] // Optional seasons array for TV requests
   ): Promise<{ success: boolean; error?: string }> => {
     setRequesting(tmdbId)
     try {
@@ -45,6 +133,7 @@ export function useJellyseerrRequest() {
           mediaType,
           title,
           discoveryCandidateId,
+          seasons, // Pass seasons to the API
         }),
       })
 
@@ -75,6 +164,7 @@ export function useJellyseerrRequest() {
   }, [])
 
   const isRequesting = useCallback((tmdbId: number) => requesting === tmdbId, [requesting])
+  const isFetchingDetails = useCallback((tmdbId: number) => fetchingDetails === tmdbId, [fetchingDetails])
 
   const getCachedStatus = useCallback((tmdbId: number, mediaType: MediaType) => {
     return statusCache.get(`${mediaType}-${tmdbId}`)
@@ -82,8 +172,10 @@ export function useJellyseerrRequest() {
 
   return {
     getMediaStatus,
+    fetchTVDetails,
     submitRequest,
     isRequesting,
+    isFetchingDetails,
     getCachedStatus,
     requesting,
   }

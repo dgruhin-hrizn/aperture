@@ -8,7 +8,7 @@ import InfoIcon from '@mui/icons-material/Info'
 import StarIcon from '@mui/icons-material/Star'
 import FavoriteIcon from '@mui/icons-material/Favorite'
 import { useNavigate } from 'react-router-dom'
-import { RankBadge } from '@aperture/ui'
+import { RankBadge, getProxiedImageUrl } from '@aperture/ui'
 import type { ContentItem } from './types'
 
 interface ContentCardProps {
@@ -72,7 +72,7 @@ export function ContentCard({ item, onPlay }: ContentCardProps) {
         {item.image ? (
           <Box
             component="img"
-            src={item.image}
+            src={getProxiedImageUrl(item.image)}
             alt={item.name}
             sx={{
               width: '100%',

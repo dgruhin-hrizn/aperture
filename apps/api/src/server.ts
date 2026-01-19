@@ -1,11 +1,14 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import cookie from '@fastify/cookie'
+import swagger from '@fastify/swagger'
+import swaggerUI from '@fastify/swagger-ui'
 import { createLogger } from './lib/logger.js'
 import requestIdPlugin from './plugins/requestId.js'
 import authPlugin from './plugins/auth.js'
 import staticPlugin from './plugins/static.js'
 import routes from './routes/index.js'
+import { getSwaggerConfig, swaggerUIConfig } from './config/openapi.js'
 
 export interface ServerOptions {
   logger?: boolean
@@ -19,6 +22,12 @@ export async function buildServer(options: ServerOptions = {}): Promise<any> {
     loggerInstance: options.logger !== false ? logger : undefined,
     requestIdHeader: 'x-request-id',
     requestIdLogLabel: 'requestId',
+    ajv: {
+      customOptions: {
+        // Allow OpenAPI 'example' keyword in schemas for documentation
+        keywords: ['example'],
+      },
+    },
   })
 
   // Register CORS
@@ -84,6 +93,10 @@ export async function buildServer(options: ServerOptions = {}): Promise<any> {
 
   // Register request ID plugin
   await fastify.register(requestIdPlugin)
+
+  // Register Swagger/OpenAPI documentation
+  await fastify.register(swagger, getSwaggerConfig(appBaseUrl))
+  await fastify.register(swaggerUI, swaggerUIConfig)
 
   // Register auth plugin
   await fastify.register(authPlugin)
