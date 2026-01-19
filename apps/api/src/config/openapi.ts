@@ -517,7 +517,7 @@ const customCss = `
 export const swaggerUIConfig: FastifySwaggerUiOptions = {
   routePrefix: '/openapi',
   uiConfig: {
-    docExpansion: 'list',
+    docExpansion: 'none',
     deepLinking: true,
     displayRequestDuration: true,
     filter: true,
