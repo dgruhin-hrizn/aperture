@@ -60,7 +60,7 @@ import {
 } from '@aperture/core'
 import { randomUUID } from 'crypto'
 import { setJobExecutor, refreshJobSchedule, getSchedulerStatus } from '../lib/scheduler.js'
-import { syncAllTraktRatings } from './trakt.js'
+import { syncAllTraktRatings } from './trakt/index.js'
 import { refreshAssistantSuggestions } from './assistant/jobs/refreshSuggestions.js'
 
 const logger = createChildLogger('jobs-api')

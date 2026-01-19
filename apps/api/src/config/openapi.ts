@@ -125,33 +125,346 @@ const securitySchemes = {
 }
 
 // =============================================================================
-// Common Response Schemas
+// Shared Component Schemas
 // =============================================================================
 
-const commonSchemas = {
+// Export schemas so they can be imported in route files
+export const schemas = {
+  // ---------------------------------------------------------------------------
+  // Common Response Schemas
+  // ---------------------------------------------------------------------------
   Error: {
     type: 'object' as const,
     properties: {
       error: { type: 'string' as const, description: 'Error message' },
     },
-    required: ['error'],
+    required: ['error'] as string[],
+    example: {
+      error: 'Movie not found',
+    },
   },
+
   Success: {
     type: 'object' as const,
     properties: {
       success: { type: 'boolean' as const },
       message: { type: 'string' as const },
     },
+    example: {
+      success: true,
+      message: 'Operation completed successfully',
+    },
   },
+
   Pagination: {
     type: 'object' as const,
     properties: {
-      page: { type: 'integer' as const, description: 'Current page number' },
-      pageSize: { type: 'integer' as const, description: 'Items per page' },
-      total: { type: 'integer' as const, description: 'Total number of items' },
+      page: { type: 'integer' as const, description: 'Current page number', example: 1 },
+      pageSize: { type: 'integer' as const, description: 'Items per page', example: 50 },
+      total: { type: 'integer' as const, description: 'Total number of items', example: 1234 },
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // Movie Schemas
+  // ---------------------------------------------------------------------------
+  Movie: {
+    type: 'object' as const,
+    properties: {
+      id: { type: 'string' as const, format: 'uuid', description: 'Unique movie identifier' },
+      providerItemId: { type: 'string' as const, description: 'ID from Emby/Jellyfin' },
+      title: { type: 'string' as const, description: 'Movie title' },
+      originalTitle: { type: 'string' as const, nullable: true, description: 'Original language title' },
+      year: { type: 'integer' as const, nullable: true, description: 'Release year' },
+      genres: { type: 'array' as const, items: { type: 'string' as const }, description: 'Genre list' },
+      overview: { type: 'string' as const, nullable: true, description: 'Plot summary' },
+      communityRating: { type: 'number' as const, nullable: true, description: 'Rating from 0-10' },
+      runtimeMinutes: { type: 'integer' as const, nullable: true, description: 'Runtime in minutes' },
+      posterUrl: { type: 'string' as const, nullable: true, description: 'Poster image URL' },
+      backdropUrl: { type: 'string' as const, nullable: true, description: 'Backdrop image URL' },
+      rtCriticScore: { type: 'integer' as const, nullable: true, description: 'Rotten Tomatoes critic score' },
+      awardsSummary: { type: 'string' as const, nullable: true, description: 'Awards and nominations' },
+    },
+    example: {
+      id: '123e4567-e89b-12d3-a456-426614174000',
+      providerItemId: '12345',
+      title: 'The Matrix',
+      originalTitle: null,
+      year: 1999,
+      genres: ['Action', 'Sci-Fi'],
+      overview: 'A computer hacker learns about the true nature of reality.',
+      communityRating: 8.7,
+      runtimeMinutes: 136,
+      posterUrl: '/api/images/movie/123/poster',
+      backdropUrl: '/api/images/movie/123/backdrop',
+      rtCriticScore: 83,
+      awardsSummary: 'Won 4 Oscars',
+    },
+  },
+
+  MovieDetail: {
+    type: 'object' as const,
+    description: 'Full movie details including cast, crew, and enrichment data',
+    properties: {
+      id: { type: 'string' as const, format: 'uuid' },
+      title: { type: 'string' as const },
+      originalTitle: { type: 'string' as const, nullable: true },
+      year: { type: 'integer' as const, nullable: true },
+      genres: { type: 'array' as const, items: { type: 'string' as const } },
+      overview: { type: 'string' as const, nullable: true },
+      communityRating: { type: 'number' as const, nullable: true },
+      runtimeMinutes: { type: 'integer' as const, nullable: true },
+      posterUrl: { type: 'string' as const, nullable: true },
+      backdropUrl: { type: 'string' as const, nullable: true },
+      // Cast & Crew
+      actors: {
+        type: 'array' as const,
+        nullable: true,
+        items: {
+          type: 'object' as const,
+          properties: {
+            name: { type: 'string' as const },
+            role: { type: 'string' as const, nullable: true },
+            thumb: { type: 'string' as const, nullable: true },
+          },
+        },
+      },
+      directors: { type: 'array' as const, nullable: true, items: { type: 'string' as const } },
+      writers: { type: 'array' as const, nullable: true, items: { type: 'string' as const } },
+      studios: {
+        type: 'array' as const,
+        nullable: true,
+        items: {
+          type: 'object' as const,
+          properties: {
+            id: { type: 'string' as const, nullable: true },
+            name: { type: 'string' as const },
+          },
+        },
+      },
+      // External IDs
+      imdbId: { type: 'string' as const, nullable: true, description: 'IMDb ID (e.g., tt0133093)' },
+      tmdbId: { type: 'string' as const, nullable: true, description: 'TMDb ID' },
+      // Enrichment scores
+      rtCriticScore: { type: 'integer' as const, nullable: true, description: 'Rotten Tomatoes critic score (0-100)' },
+      rtAudienceScore: { type: 'integer' as const, nullable: true, description: 'Rotten Tomatoes audience score (0-100)' },
+      metacriticScore: { type: 'integer' as const, nullable: true, description: 'Metacritic score (0-100)' },
+      letterboxdScore: { type: 'number' as const, nullable: true, description: 'Letterboxd rating (0-5)' },
+      // Collections
+      collectionId: { type: 'string' as const, nullable: true },
+      collectionName: { type: 'string' as const, nullable: true, description: 'Franchise name (e.g., "The Matrix Collection")' },
+      // Keywords
+      keywords: { type: 'array' as const, nullable: true, items: { type: 'string' as const } },
+    },
+  },
+
+  SimilarMovie: {
+    type: 'object' as const,
+    properties: {
+      id: { type: 'string' as const, format: 'uuid' },
+      title: { type: 'string' as const },
+      year: { type: 'integer' as const, nullable: true },
+      posterUrl: { type: 'string' as const, nullable: true },
+      genres: { type: 'array' as const, items: { type: 'string' as const } },
+      similarity: { type: 'number' as const, description: 'Similarity score from 0-1' },
+    },
+    example: {
+      id: '456e4567-e89b-12d3-a456-426614174001',
+      title: 'Inception',
+      year: 2010,
+      posterUrl: '/api/images/movie/456/poster',
+      genres: ['Action', 'Sci-Fi', 'Thriller'],
+      similarity: 0.87,
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // Series Schemas
+  // ---------------------------------------------------------------------------
+  Series: {
+    type: 'object' as const,
+    properties: {
+      id: { type: 'string' as const, format: 'uuid', description: 'Unique series identifier' },
+      providerItemId: { type: 'string' as const, description: 'ID from Emby/Jellyfin' },
+      title: { type: 'string' as const, description: 'Series title' },
+      originalTitle: { type: 'string' as const, nullable: true },
+      year: { type: 'integer' as const, nullable: true, description: 'First air year' },
+      endYear: { type: 'integer' as const, nullable: true, description: 'Last air year (null if ongoing)' },
+      genres: { type: 'array' as const, items: { type: 'string' as const } },
+      overview: { type: 'string' as const, nullable: true },
+      communityRating: { type: 'number' as const, nullable: true },
+      status: { type: 'string' as const, nullable: true, description: 'Continuing, Ended, etc.' },
+      totalSeasons: { type: 'integer' as const, nullable: true },
+      totalEpisodes: { type: 'integer' as const, nullable: true },
+      network: { type: 'string' as const, nullable: true, description: 'Original network/streaming service' },
+      posterUrl: { type: 'string' as const, nullable: true },
+      backdropUrl: { type: 'string' as const, nullable: true },
+    },
+    example: {
+      id: '789e4567-e89b-12d3-a456-426614174002',
+      providerItemId: '67890',
+      title: 'Breaking Bad',
+      originalTitle: null,
+      year: 2008,
+      endYear: 2013,
+      genres: ['Drama', 'Crime', 'Thriller'],
+      overview: 'A high school chemistry teacher turned methamphetamine manufacturer.',
+      communityRating: 9.5,
+      status: 'Ended',
+      totalSeasons: 5,
+      totalEpisodes: 62,
+      network: 'AMC',
+      posterUrl: '/api/images/series/789/poster',
+      backdropUrl: '/api/images/series/789/backdrop',
+    },
+  },
+
+  Episode: {
+    type: 'object' as const,
+    properties: {
+      id: { type: 'string' as const, format: 'uuid' },
+      seasonNumber: { type: 'integer' as const },
+      episodeNumber: { type: 'integer' as const },
+      title: { type: 'string' as const },
+      overview: { type: 'string' as const, nullable: true },
+      premiereDate: { type: 'string' as const, format: 'date', nullable: true },
+      runtimeMinutes: { type: 'integer' as const, nullable: true },
+      communityRating: { type: 'number' as const, nullable: true },
+      posterUrl: { type: 'string' as const, nullable: true },
+    },
+    example: {
+      id: 'abc4567-e89b-12d3-a456-426614174003',
+      seasonNumber: 1,
+      episodeNumber: 1,
+      title: 'Pilot',
+      overview: 'Walter White, a chemistry teacher, discovers he has cancer.',
+      premiereDate: '2008-01-20',
+      runtimeMinutes: 58,
+      communityRating: 9.0,
+      posterUrl: '/api/images/episode/abc/poster',
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // User & Auth Schemas
+  // ---------------------------------------------------------------------------
+  User: {
+    type: 'object' as const,
+    properties: {
+      id: { type: 'string' as const, format: 'uuid' },
+      username: { type: 'string' as const },
+      displayName: { type: 'string' as const, nullable: true },
+      provider: { type: 'string' as const, enum: ['emby', 'jellyfin'] },
+      isAdmin: { type: 'boolean' as const },
+      isEnabled: { type: 'boolean' as const },
+      avatarUrl: { type: 'string' as const, nullable: true },
+    },
+    example: {
+      id: 'def4567-e89b-12d3-a456-426614174004',
+      username: 'john_doe',
+      displayName: 'John Doe',
+      provider: 'jellyfin',
+      isAdmin: false,
+      isEnabled: true,
+      avatarUrl: '/api/users/def4567/avatar',
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // Recommendation Schemas
+  // ---------------------------------------------------------------------------
+  Recommendation: {
+    type: 'object' as const,
+    properties: {
+      id: { type: 'string' as const, format: 'uuid', description: 'Recommendation candidate ID' },
+      movieId: { type: 'string' as const, format: 'uuid', nullable: true },
+      seriesId: { type: 'string' as const, format: 'uuid', nullable: true },
+      rank: { type: 'integer' as const, description: 'Position in recommendation list' },
+      isSelected: { type: 'boolean' as const },
+      finalScore: { type: 'number' as const, description: 'Combined recommendation score' },
+      similarityScore: { type: 'number' as const, nullable: true },
+      noveltyScore: { type: 'number' as const, nullable: true },
+      ratingScore: { type: 'number' as const, nullable: true },
+      diversityScore: { type: 'number' as const, nullable: true },
+      movie: { $ref: '#/components/schemas/Movie' },
+    },
+  },
+
+  RecommendationRun: {
+    type: 'object' as const,
+    properties: {
+      id: { type: 'string' as const, format: 'uuid' },
+      userId: { type: 'string' as const, format: 'uuid' },
+      runType: { type: 'string' as const },
+      mediaType: { type: 'string' as const, enum: ['movie', 'series'] },
+      candidateCount: { type: 'integer' as const },
+      selectedCount: { type: 'integer' as const },
+      durationMs: { type: 'integer' as const, nullable: true },
+      status: { type: 'string' as const, enum: ['running', 'completed', 'failed'] },
+      createdAt: { type: 'string' as const, format: 'date-time' },
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // Rating Schema
+  // ---------------------------------------------------------------------------
+  Rating: {
+    type: 'object' as const,
+    properties: {
+      id: { type: 'string' as const, format: 'uuid' },
+      movieId: { type: 'string' as const, format: 'uuid', nullable: true },
+      seriesId: { type: 'string' as const, format: 'uuid', nullable: true },
+      rating: { type: 'integer' as const, minimum: 1, maximum: 10, description: 'Rating from 1-10' },
+      source: { type: 'string' as const, description: 'Where the rating came from (manual, trakt, etc.)' },
+      createdAt: { type: 'string' as const, format: 'date-time' },
+      updatedAt: { type: 'string' as const, format: 'date-time' },
+      // Joined fields
+      title: { type: 'string' as const, nullable: true },
+      year: { type: 'integer' as const, nullable: true },
+      posterUrl: { type: 'string' as const, nullable: true },
+    },
+    example: {
+      id: 'ghi4567-e89b-12d3-a456-426614174005',
+      movieId: '123e4567-e89b-12d3-a456-426614174000',
+      seriesId: null,
+      rating: 9,
+      source: 'manual',
+      createdAt: '2024-01-15T10:30:00Z',
+      updatedAt: '2024-01-15T10:30:00Z',
+      title: 'The Matrix',
+      year: 1999,
+      posterUrl: '/api/images/movie/123/poster',
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // Search Schemas
+  // ---------------------------------------------------------------------------
+  SearchResult: {
+    type: 'object' as const,
+    properties: {
+      type: { type: 'string' as const, enum: ['movie', 'series', 'person'] },
+      id: { type: 'string' as const, format: 'uuid' },
+      title: { type: 'string' as const },
+      year: { type: 'integer' as const, nullable: true },
+      posterUrl: { type: 'string' as const, nullable: true },
+      overview: { type: 'string' as const, nullable: true },
+      genres: { type: 'array' as const, items: { type: 'string' as const }, nullable: true },
+    },
+    example: {
+      type: 'movie',
+      id: '123e4567-e89b-12d3-a456-426614174000',
+      title: 'The Matrix',
+      year: 1999,
+      posterUrl: '/api/images/movie/123/poster',
+      overview: 'A computer hacker learns about the true nature of reality.',
+      genres: ['Action', 'Sci-Fi'],
     },
   },
 }
+
+// Alias for backwards compatibility
+const commonSchemas = schemas
 
 // =============================================================================
 // Swagger Configuration Export
