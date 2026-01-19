@@ -50,18 +50,18 @@ import { GlobalSearch } from './GlobalSearch'
 const DRAWER_WIDTH = 260
 const DRAWER_WIDTH_COLLAPSED = 72
 
-// User-facing navigation items (shown to all users)
-const userMenuItems = [
-  { text: 'Dashboard', icon: <HomeIcon />, path: '/' },
-  { text: 'Recommendations', icon: <AutoAwesomeIcon />, path: '/recommendations' },
-  { text: 'Shows You Watch', icon: <AddToQueueIcon />, path: '/watching' },
-  { text: 'Top Picks', icon: <WhatshotIcon />, path: '/top-picks' },
-  { text: 'Playlists', icon: <PlaylistPlayIcon />, path: '/playlists' },
-  { text: 'Explore', icon: <HubOutlinedIcon />, path: '/explore' },
-  { text: 'Discover', icon: <ExploreIcon />, path: '/discovery' },
-  { text: 'Browse', icon: <VideoLibraryIcon />, path: '/browse' },
-  { text: 'Watch History', icon: <HistoryIcon />, path: '/history' },
-  { text: 'Watch Stats', icon: <InsightsIcon />, path: '/stats' },
+// Base user-facing navigation items (some may be conditionally hidden)
+const baseUserMenuItems = [
+  { text: 'Dashboard', icon: <HomeIcon />, path: '/', feature: null },
+  { text: 'Recommendations', icon: <AutoAwesomeIcon />, path: '/recommendations', feature: null },
+  { text: 'Shows You Watch', icon: <AddToQueueIcon />, path: '/watching', feature: 'watching' },
+  { text: 'Top Picks', icon: <WhatshotIcon />, path: '/top-picks', feature: null },
+  { text: 'Playlists', icon: <PlaylistPlayIcon />, path: '/playlists', feature: null },
+  { text: 'Explore', icon: <HubOutlinedIcon />, path: '/explore', feature: null },
+  { text: 'Discover', icon: <ExploreIcon />, path: '/discovery', feature: null },
+  { text: 'Browse', icon: <VideoLibraryIcon />, path: '/browse', feature: null },
+  { text: 'Watch History', icon: <HistoryIcon />, path: '/history', feature: null },
+  { text: 'Watch Stats', icon: <InsightsIcon />, path: '/stats', feature: null },
 ]
 
 // Admin navigation items (shown only to admins)
@@ -77,10 +77,19 @@ export function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+  const [watchingEnabled, setWatchingEnabled] = useState(true) // Default to true until we know
   const { user, logout } = useAuth()
   const { open: welcomeOpen, showWelcome, hideWelcome } = useWelcomeModal()
 
   const drawerWidth = collapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH
+
+  // Filter menu items based on feature flags
+  const userMenuItems = baseUserMenuItems.filter(item => {
+    if (item.feature === 'watching' && !watchingEnabled) {
+      return false
+    }
+    return true
+  })
 
   // Fetch user's sidebar preference on mount
   useEffect(() => {
@@ -98,6 +107,22 @@ export function Layout() {
       }
     }
     fetchPreferences()
+  }, [])
+
+  // Fetch watching library config to check if feature is enabled
+  useEffect(() => {
+    const fetchWatchingConfig = async () => {
+      try {
+        const response = await fetch('/api/settings/watching', { credentials: 'include' })
+        if (response.ok) {
+          const config = await response.json()
+          setWatchingEnabled(config.enabled ?? true)
+        }
+      } catch {
+        // Ignore errors, default to showing the menu item
+      }
+    }
+    fetchWatchingConfig()
   }, [])
 
   const handleDrawerToggle = () => {
