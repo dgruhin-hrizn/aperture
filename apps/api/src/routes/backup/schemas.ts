@@ -46,6 +46,12 @@ const getConfig = {
   description: 'Get current backup configuration including storage path, retention settings, and backup statistics (admin only).',
   response: {
     200: { $ref: 'BackupConfig#' },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
   },
 }
 
@@ -102,6 +108,12 @@ const listBackups = {
         totalSizeFormatted: { type: 'string' as const, description: 'Human-readable total size' },
       },
     },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
   },
 }
 
@@ -134,6 +146,12 @@ const createBackup = {
       type: 'object' as const,
       properties: {
         error: { type: 'string' as const, example: 'Backup already in progress' },
+      },
+    },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
       },
     },
   },
@@ -204,6 +222,12 @@ const restoreBackup = {
       type: 'object' as const,
       properties: {
         error: { type: 'string' as const, example: 'Confirmation text required' },
+      },
+    },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
       },
     },
   },
@@ -283,6 +307,12 @@ const uploadBackup = {
         error: { type: 'string' as const, example: 'Invalid file format' },
       },
     },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
   },
 }
 
@@ -302,6 +332,12 @@ const setupListBackups = {
         backups: { type: 'array' as const, items: { $ref: 'BackupFile#' } },
       },
     },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
   },
 }
 
@@ -317,6 +353,18 @@ const setupUploadBackup = {
       properties: {
         success: { type: 'boolean' as const },
         filename: { type: 'string' as const },
+      },
+    },
+    400: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
       },
     },
   },
@@ -347,6 +395,18 @@ const setupRestoreBackup = {
       properties: {
         success: { type: 'boolean' as const },
         message: { type: 'string' as const },
+      },
+    },
+    400: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
       },
     },
   },

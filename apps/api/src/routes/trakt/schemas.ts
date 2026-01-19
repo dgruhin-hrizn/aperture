@@ -72,6 +72,12 @@ export const getTraktConfigSchema = {
   description: 'Get Trakt API configuration including client ID and redirect URI (admin only). Client secret is never exposed.',
   response: {
     200: { $ref: 'TraktConfig#' },
+    500: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
+      },
+    },
   },
 }
 
@@ -100,6 +106,12 @@ export const updateTraktConfigSchema = {
         message: { type: 'string' },
       },
     },
+    500: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
+      },
+    },
   },
 }
 
@@ -109,6 +121,12 @@ export const getTraktStatusSchema = {
   description: 'Get current user\'s Trakt connection status including username and last sync time.',
   response: {
     200: { $ref: 'TraktStatus#' },
+    500: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
+      },
+    },
   },
 }
 
@@ -130,6 +148,12 @@ export const getTraktAuthUrlSchema = {
       type: 'object',
       properties: {
         error: { type: 'string', example: 'Trakt integration not configured' },
+      },
+    },
+    500: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
       },
     },
   },
@@ -166,6 +190,12 @@ export const disconnectTraktSchema = {
         message: { type: 'string', example: 'Trakt account disconnected' },
       },
     },
+    500: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
+      },
+    },
   },
 }
 
@@ -179,6 +209,12 @@ export const syncTraktSchema = {
       type: 'object',
       properties: {
         error: { type: 'string', example: 'Trakt account not connected' },
+      },
+    },
+    500: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
       },
     },
   },

@@ -175,6 +175,18 @@ export const refreshDiscoverySchema = {
         seriesRunId: { type: 'string', format: 'uuid', nullable: true },
       },
     },
+    403: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
+      },
+    },
+    500: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
+      },
+    },
   },
 }
 
@@ -206,6 +218,24 @@ export const expandDiscoverySchema = {
       properties: {
         candidates: { type: 'array', items: { $ref: 'DiscoveryCandidate#' } },
         generated: { type: 'integer', description: 'Number of new candidates generated' },
+      },
+    },
+    400: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
+      },
+    },
+    403: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
+      },
+    },
+    500: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
       },
     },
   },

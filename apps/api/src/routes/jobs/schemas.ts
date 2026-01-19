@@ -460,6 +460,12 @@ const getEnrichmentStatus = {
         },
       },
     },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
   },
 }
 
@@ -473,6 +479,12 @@ const clearInterrupted = {
       properties: {
         success: { type: 'boolean' as const },
         message: { type: 'string' as const, example: 'Interrupted run cleared' },
+      },
+    },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
       },
     },
   },
@@ -496,6 +508,12 @@ const getPurgeStats = {
         embeddings: { type: 'integer' as const, description: 'Number of embeddings' },
         recommendations: { type: 'integer' as const, description: 'Number of recommendation runs' },
         watchHistory: { type: 'integer' as const, description: 'Number of watch history entries' },
+      },
+    },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
       },
     },
   },
@@ -535,6 +553,12 @@ const purgeMovies = {
       type: 'object' as const,
       properties: {
         error: { type: 'string' as const, example: 'Confirmation required' },
+      },
+    },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
       },
     },
   },

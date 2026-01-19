@@ -159,6 +159,12 @@ export const getMDBListConfigSchema = {
   description: 'Get MDBList integration configuration (admin only). API key is masked.',
   response: {
     200: { $ref: 'MDBListConfig#' },
+    500: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
+      },
+    },
   },
 }
 

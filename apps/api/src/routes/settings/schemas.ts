@@ -44,6 +44,12 @@ export const mediaServerConfigSchema = {
         isConfigured: { type: 'boolean' as const, description: 'Whether media server is fully configured' },
       },
     },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
   },
 }
 

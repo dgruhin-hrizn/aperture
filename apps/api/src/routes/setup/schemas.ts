@@ -44,6 +44,12 @@ const getProgress = {
         config: { type: 'object' as const, description: 'Current configuration snapshot' },
       },
     },
+    404: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
   },
 }
 
@@ -102,6 +108,12 @@ const getMediaServerTypes = {
         },
       },
     },
+    404: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
   },
 }
 
@@ -124,6 +136,12 @@ const discoverServers = {
             },
           },
         },
+      },
+    },
+    404: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
       },
     },
   },
@@ -190,6 +208,18 @@ const getMediaServerSecurity = {
         allowPasswordlessLogin: { type: 'boolean' as const, description: 'Whether passwordless login is allowed' },
       },
     },
+    404: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
   },
 }
 
@@ -208,6 +238,12 @@ const updateMediaServerSecurity = {
       type: 'object' as const,
       properties: {
         success: { type: 'boolean' as const },
+      },
+    },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
       },
     },
   },
@@ -238,6 +274,18 @@ const getLibraries = {
             },
           },
         },
+      },
+    },
+    400: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
+    404: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
       },
     },
   },
@@ -279,6 +327,12 @@ const setLibraries = {
         enabledCount: { type: 'integer' as const, description: 'Number of enabled libraries' },
       },
     },
+    400: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
   },
 }
 
@@ -298,6 +352,12 @@ const getAiRecsOutput = {
         strmPath: { type: 'string' as const, nullable: true, description: 'Path for STRM file output' },
         posterFormat: { type: 'string' as const, enum: ['png', 'jpg', 'webp'], description: 'Poster image format' },
         posterQuality: { type: 'integer' as const, description: 'Poster quality (1-100)' },
+      },
+    },
+    404: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
       },
     },
   },
@@ -336,6 +396,12 @@ const getOutputConfig = {
       properties: {
         outputPath: { type: 'string' as const, description: 'Base output path' },
         useSymlinks: { type: 'boolean' as const, description: 'Whether to use symlinks instead of copies' },
+      },
+    },
+    404: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
       },
     },
   },
@@ -381,6 +447,18 @@ const detectPaths = {
             },
           },
         },
+      },
+    },
+    400: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
+    404: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
       },
     },
   },
@@ -468,6 +546,12 @@ const getTopPicksConfig = {
         },
       },
     },
+    404: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
   },
 }
 
@@ -531,6 +615,24 @@ const getUsers = {
         },
       },
     },
+    400: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
+    403: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
   },
 }
 
@@ -553,6 +655,12 @@ const importUser = {
       properties: {
         success: { type: 'boolean' as const },
         userId: { type: 'string' as const, format: 'uuid', description: 'New Aperture user ID' },
+      },
+    },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
       },
     },
   },
@@ -616,6 +724,12 @@ const getOpenAI = {
       type: 'object' as const,
       properties: {
         hasApiKey: { type: 'boolean' as const },
+      },
+    },
+    404: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
       },
     },
   },
@@ -717,6 +831,12 @@ const getLastRuns = {
         },
       },
     },
+    403: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
   },
 }
 
@@ -736,6 +856,18 @@ const completeSetup = {
         message: { type: 'string' as const, example: 'Setup complete! You can now log in.' },
       },
     },
+    400: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
+    404: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
   },
 }
 
@@ -753,6 +885,12 @@ const adminRunInitialJobs = {
       properties: {
         success: { type: 'boolean' as const },
         message: { type: 'string' as const },
+      },
+    },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
       },
     },
   },
