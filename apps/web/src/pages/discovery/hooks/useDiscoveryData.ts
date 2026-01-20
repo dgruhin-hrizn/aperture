@@ -349,20 +349,35 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
       if (isFirstLoad.current && !hasFilters) {
         const cached = loadCache()
         if (cached) {
-          setMovieCandidates(cached.movieCandidates)
-          setSeriesCandidates(cached.seriesCandidates)
-          setMovieRun(cached.movieRun)
-          setSeriesRun(cached.seriesRun)
-          if (cached.status) setStatus(cached.status)
-          setLoading(false)
-          isFirstLoad.current = false
+          // Always fetch fresh status to check if discovery has been refreshed
+          const freshStatus = await fetchStatus()
           
-          // Fetch Jellyseerr status for cached candidates (always fresh)
-          const allCandidates = [...cached.movieCandidates, ...cached.seriesCandidates]
-          if (allCandidates.length > 0) {
-            fetchJellyseerrStatus(allCandidates)
+          // Compare run IDs - if server has newer runs, invalidate cache
+          const cacheStale = freshStatus && (
+            (freshStatus.movieRun?.id && freshStatus.movieRun.id !== cached.movieRun?.id) ||
+            (freshStatus.seriesRun?.id && freshStatus.seriesRun.id !== cached.seriesRun?.id)
+          )
+          
+          if (!cacheStale) {
+            // Cache is still valid, use it
+            setMovieCandidates(cached.movieCandidates)
+            setSeriesCandidates(cached.seriesCandidates)
+            setMovieRun(cached.movieRun)
+            setSeriesRun(cached.seriesRun)
+            if (cached.status) setStatus(cached.status)
+            setLoading(false)
+            isFirstLoad.current = false
+            
+            // Fetch Jellyseerr status for cached candidates (always fresh)
+            const allCandidates = [...cached.movieCandidates, ...cached.seriesCandidates]
+            if (allCandidates.length > 0) {
+              fetchJellyseerrStatus(allCandidates)
+            }
+            return
           }
-          return
+          
+          // Cache is stale, invalidate and continue to fetch fresh data
+          invalidateCache()
         }
       }
       
