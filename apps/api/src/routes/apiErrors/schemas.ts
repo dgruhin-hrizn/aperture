@@ -58,23 +58,12 @@ export const getErrorsSchema = {
   tags: ['api-errors'],
   summary: 'Get all errors',
   description: 'Get all active (non-dismissed) API errors. Admin only.',
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        errors: { type: 'array', items: { $ref: 'ApiError#' } },
-      },
-    },
-  },
 }
 
 export const getErrorSummarySchema = {
   tags: ['api-errors'],
   summary: 'Get error summary',
   description: 'Get a summary of active errors for dashboard display. Admin only.',
-  response: {
-    200: { $ref: 'ErrorSummary#' },
-  },
 }
 
 export const getProviderErrorsSchema = {
@@ -92,14 +81,6 @@ export const getProviderErrorsSchema = {
       },
     },
   },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        errors: { type: 'array', items: { $ref: 'ApiError#' } },
-      },
-    },
-  },
 }
 
 export const dismissErrorSchema = {
@@ -111,14 +92,6 @@ export const dismissErrorSchema = {
     required: ['id'],
     properties: {
       id: { type: 'string', format: 'uuid', description: 'Error ID to dismiss' },
-    },
-  },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean' },
-      },
     },
   },
 }
@@ -134,28 +107,10 @@ export const dismissProviderErrorsSchema = {
       provider: { type: 'string', enum: ['openai', 'tmdb', 'trakt', 'mdblist', 'omdb'] },
     },
   },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean' },
-        dismissed: { type: 'integer', description: 'Number of errors dismissed' },
-      },
-    },
-  },
 }
 
 export const cleanupErrorsSchema = {
   tags: ['api-errors'],
   summary: 'Cleanup old errors',
   description: 'Permanently delete old dismissed errors from the database. Admin only.',
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean' },
-        deleted: { type: 'integer', description: 'Number of errors deleted' },
-      },
-    },
-  },
 }

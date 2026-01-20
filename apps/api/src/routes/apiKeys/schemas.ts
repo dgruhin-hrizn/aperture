@@ -78,9 +78,6 @@ export const listApiKeysSchema = {
       includeRevoked: { type: 'string', enum: ['true', 'false'], description: 'Include revoked keys' },
     },
   },
-  response: {
-    200: { $ref: 'ApiKeysListResponse#' },
-  },
 }
 
 export const createApiKeySchema = {
@@ -88,9 +85,6 @@ export const createApiKeySchema = {
   summary: 'Create API key',
   description: 'Create a new API key. The plaintext key is only returned once - make sure to save it.',
   body: { $ref: 'CreateApiKeyRequest#' },
-  response: {
-    201: { $ref: 'CreatedApiKeyResponse#' },
-  },
 }
 
 export const getApiKeySchema = {
@@ -102,12 +96,6 @@ export const getApiKeySchema = {
     required: ['id'],
     properties: {
       id: { type: 'string', format: 'uuid', description: 'API key ID' },
-    },
-  },
-  response: {
-    200: {
-      type: 'object',
-      properties: { apiKey: { $ref: 'ApiKey#' } },
     },
   },
 }
@@ -124,12 +112,6 @@ export const updateApiKeySchema = {
     },
   },
   body: { $ref: 'UpdateApiKeyRequest#' },
-  response: {
-    200: {
-      type: 'object',
-      properties: { apiKey: { $ref: 'ApiKey#' } },
-    },
-  },
 }
 
 export const deleteApiKeySchema = {
@@ -149,27 +131,10 @@ export const deleteApiKeySchema = {
       permanent: { type: 'string', enum: ['true', 'false'], description: 'Permanently delete instead of revoke' },
     },
   },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean' },
-        message: { type: 'string' },
-      },
-    },
-  },
 }
 
 export const getExpirationOptionsSchema = {
   tags: ['api-keys'],
   summary: 'Get expiration options',
   description: 'Get the list of available expiration options for API key creation',
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        options: { type: 'array', items: { $ref: 'ExpirationOption#' } },
-      },
-    },
-  },
 }

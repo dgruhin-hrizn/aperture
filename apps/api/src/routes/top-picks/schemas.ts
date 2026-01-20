@@ -78,28 +78,10 @@ export const getTopMoviesSchema = {
   tags: ['top-picks'],
   summary: 'Get top movies',
   description: 'Get globally popular movies based on watch history across all users. Results are cached and refreshed periodically.',
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        movies: { type: 'array', items: { $ref: 'PopularMovie#' } },
-        config: { $ref: 'TopPicksConfig#' },
-      },
-    },
-  },
 }
 
 export const getTopSeriesSchema = {
   tags: ['top-picks'],
   summary: 'Get top series',
   description: 'Get globally popular TV series based on watch history across all users. Results are cached and refreshed periodically.',
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        series: { type: 'array', items: { $ref: 'PopularSeries#' } },
-        config: { $ref: 'TopPicksConfig#' },
-      },
-    },
-  },
 }

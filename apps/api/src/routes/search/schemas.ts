@@ -166,9 +166,6 @@ export const searchSchema = {
       semantic: { type: 'string', enum: ['true', 'false'], description: 'Enable AI semantic search for meaning-based matching. Requires embeddings.', default: 'false' },
     },
   },
-  response: {
-    200: { $ref: 'SearchResponse#' },
-  },
 }
 
 export const searchSuggestionsSchema = {
@@ -183,21 +180,10 @@ export const searchSuggestionsSchema = {
       limit: { type: 'string', description: 'Maximum suggestions to return (1-20)', default: '10', example: '5' },
     },
   },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        suggestions: { type: 'array', items: { $ref: 'SearchSuggestion#' }, description: 'Matching title suggestions' },
-      },
-    },
-  },
 }
 
 export const searchFiltersSchema = {
   tags: ['search'],
   summary: 'Get search filter options',
   description: 'Get available filter options for building search UI including genres, collections, networks, and year ranges.',
-  response: {
-    200: { $ref: 'SearchFilterOptions#' },
-  },
 }

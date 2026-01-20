@@ -70,15 +70,6 @@ export const getTraktConfigSchema = {
   tags: ['trakt'],
   summary: 'Get Trakt configuration',
   description: 'Get Trakt API configuration including client ID and redirect URI (admin only). Client secret is never exposed.',
-  response: {
-    200: { $ref: 'TraktConfig#' },
-    500: {
-      type: 'object',
-      properties: {
-        error: { type: 'string' },
-      },
-    },
-  },
 }
 
 export const updateTraktConfigSchema = {
@@ -99,65 +90,18 @@ export const updateTraktConfigSchema = {
       redirectUri: 'http://aperture.local:3000/api/trakt/callback',
     },
   },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        configured: { type: 'boolean', description: 'Whether Trakt is now fully configured' },
-        message: { type: 'string' },
-      },
-    },
-    500: {
-      type: 'object',
-      properties: {
-        error: { type: 'string' },
-      },
-    },
-  },
 }
 
 export const getTraktStatusSchema = {
   tags: ['trakt'],
   summary: 'Get Trakt connection status',
   description: 'Get current user\'s Trakt connection status including username and last sync time.',
-  response: {
-    200: { $ref: 'TraktStatus#' },
-    500: {
-      type: 'object',
-      properties: {
-        error: { type: 'string' },
-      },
-    },
-  },
 }
 
 export const getTraktAuthUrlSchema = {
   tags: ['trakt'],
   summary: 'Get Trakt authorization URL',
   description: 'Get the OAuth authorization URL to redirect user to Trakt for account linking. User should be redirected to this URL.',
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        url: { type: 'string', description: 'Trakt OAuth authorization URL' },
-      },
-      example: {
-        url: 'https://trakt.tv/oauth/authorize?client_id=xxx&redirect_uri=xxx&response_type=code',
-      },
-    },
-    400: {
-      type: 'object',
-      properties: {
-        error: { type: 'string', example: 'Trakt integration not configured' },
-      },
-    },
-    500: {
-      type: 'object',
-      properties: {
-        error: { type: 'string' },
-      },
-    },
-  },
 }
 
 export const traktCallbackSchema = {
@@ -172,51 +116,16 @@ export const traktCallbackSchema = {
       state: { type: 'string', description: 'State parameter for CSRF protection' },
     },
   },
-  response: {
-    302: {
-      description: 'Redirects to frontend with success/error status',
-    },
-  },
 }
 
 export const disconnectTraktSchema = {
   tags: ['trakt'],
   summary: 'Disconnect Trakt',
   description: 'Disconnect Trakt from current user\'s account. This removes the OAuth tokens but keeps any synced ratings.',
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean' },
-        message: { type: 'string', example: 'Trakt account disconnected' },
-      },
-    },
-    500: {
-      type: 'object',
-      properties: {
-        error: { type: 'string' },
-      },
-    },
-  },
 }
 
 export const syncTraktSchema = {
   tags: ['trakt'],
   summary: 'Sync Trakt ratings',
   description: 'Sync ratings from Trakt for current user. Imports new ratings and updates existing ones. Requires Trakt account to be connected.',
-  response: {
-    200: { $ref: 'TraktSyncResult#' },
-    400: {
-      type: 'object',
-      properties: {
-        error: { type: 'string', example: 'Trakt account not connected' },
-      },
-    },
-    500: {
-      type: 'object',
-      properties: {
-        error: { type: 'string' },
-      },
-    },
-  },
 }

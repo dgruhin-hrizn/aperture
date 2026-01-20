@@ -102,9 +102,6 @@ export const getRatingsSchema = {
   tags: ['ratings'],
   summary: 'Get all ratings',
   description: 'Get all ratings for the current user',
-  response: {
-    200: { $ref: 'RatingsListResponse#' },
-  },
 }
 
 export const getDislikedSchema = {
@@ -116,9 +113,6 @@ export const getDislikedSchema = {
     properties: {
       type: { type: 'string', enum: ['movie', 'series', 'all'] },
     },
-  },
-  response: {
-    200: { $ref: 'DislikedResponse#' },
   },
 }
 
@@ -133,9 +127,6 @@ export const getMovieRatingSchema = {
       id: { type: 'string', format: 'uuid' },
     },
   },
-  response: {
-    200: { $ref: 'SingleRatingResponse#' },
-  },
 }
 
 export const getSeriesRatingSchema = {
@@ -148,9 +139,6 @@ export const getSeriesRatingSchema = {
     properties: {
       id: { type: 'string', format: 'uuid' },
     },
-  },
-  response: {
-    200: { $ref: 'SingleRatingResponse#' },
   },
 }
 
@@ -171,15 +159,6 @@ export const rateMovieSchema = {
     required: ['rating'],
     properties: {
       rating: { type: 'integer', minimum: 1, maximum: 10 },
-    },
-  },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean' },
-        rating: { type: 'integer' },
-      },
     },
   },
 }
@@ -203,15 +182,6 @@ export const rateSeriesSchema = {
       rating: { type: 'integer', minimum: 1, maximum: 10 },
     },
   },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean' },
-        rating: { type: 'integer' },
-      },
-    },
-  },
 }
 
 export const deleteMovieRatingSchema = {
@@ -223,14 +193,6 @@ export const deleteMovieRatingSchema = {
     required: ['id'],
     properties: {
       id: { type: 'string', format: 'uuid' },
-    },
-  },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean' },
-      },
     },
   },
 }
@@ -246,14 +208,6 @@ export const deleteSeriesRatingSchema = {
       id: { type: 'string', format: 'uuid' },
     },
   },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean' },
-      },
-    },
-  },
 }
 
 export const bulkRatingsSchema = {
@@ -261,7 +215,4 @@ export const bulkRatingsSchema = {
   summary: 'Bulk upsert ratings',
   description: 'Bulk upsert ratings (used by Trakt sync)',
   body: { $ref: 'BulkRatingsRequest#' },
-  response: {
-    200: { $ref: 'BulkRatingsResponse#' },
-  },
 }

@@ -97,7 +97,4 @@ export const getDashboardSchema = {
   tags: ['dashboard'],
   summary: 'Get dashboard data',
   description: 'Get aggregated dashboard data for the current user including stats, recommendations, top picks, recent watches, and recent ratings',
-  response: {
-    200: { $ref: 'DashboardResponse#' },
-  },
 }
