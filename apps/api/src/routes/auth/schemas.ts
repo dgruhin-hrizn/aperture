@@ -199,6 +199,7 @@ export const updatePreferencesSchema = {
   description: 'Update the current user\'s UI preferences. Only provided fields are updated (partial update).',
   body: {
     type: 'object',
+    additionalProperties: true,
     description: 'Preferences to update (partial)',
     properties: {
       sidebarCollapsed: { type: 'boolean', description: 'Whether the sidebar should be collapsed' },
@@ -220,6 +221,7 @@ export const createFilterPresetSchema = {
   description: 'Create a new saved filter preset for quick access when browsing.',
   body: {
     type: 'object',
+    additionalProperties: true,
     required: ['name', 'type', 'filters'],
     properties: {
       name: { type: 'string', description: 'Preset name', minLength: 1, maxLength: 100, example: 'High Rated Action' },
@@ -248,6 +250,7 @@ export const updateFilterPresetSchema = {
   },
   body: {
     type: 'object',
+    additionalProperties: true,
     properties: {
       name: { type: 'string', description: 'New preset name', minLength: 1, maxLength: 100 },
       filters: { type: 'object', additionalProperties: true, description: 'New filter configuration' },

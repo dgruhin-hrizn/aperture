@@ -81,6 +81,7 @@ const updateProgress = {
   description: 'Update wizard progress for resume support. Tracks which steps have been completed.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       currentStep: { type: 'string' as const, nullable: true, description: 'Current step being worked on' },
       completedStep: { type: 'string' as const, description: 'Step that was just completed' },
@@ -175,6 +176,7 @@ const testMediaServer = {
   description: 'Test connection to a media server with provided credentials. Use this to verify settings before saving.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     required: ['type', 'baseUrl', 'apiKey'] as string[],
     properties: {
       type: { type: 'string' as const, enum: ['emby', 'jellyfin'], description: 'Server type' },
@@ -201,6 +203,7 @@ const saveMediaServer = {
   description: 'Save media server configuration during setup. Should test connection first.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     required: ['type', 'baseUrl', 'apiKey'] as string[],
     properties: {
       type: { type: 'string' as const, enum: ['emby', 'jellyfin'], description: 'Server type' },
@@ -251,6 +254,7 @@ const updateMediaServerSecurity = {
   description: 'Update media server security settings. Passwordless login is useful for trusted networks.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       allowPasswordlessLogin: { type: 'boolean' as const, description: 'Allow users without passwords to log in' },
     },
@@ -319,6 +323,7 @@ const setLibraries = {
   description: 'Enable or disable libraries for recommendation processing. Only enabled libraries are synced and included in recommendations.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     required: ['libraries'] as string[],
     properties: {
       libraries: {
@@ -391,6 +396,7 @@ const setAiRecsOutput = {
   description: 'Configure how AI recommendations are output. Poster mode creates virtual library images, STRM mode creates playable files.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       format: { type: 'string' as const, enum: ['poster', 'strm', 'both', 'none'], description: 'Output format' },
       strmPath: { type: 'string' as const, description: 'Path for STRM file output' },
@@ -435,6 +441,7 @@ const setOutputConfig = {
   description: 'Configure output paths for recommendations. Symlinks are more efficient but require the media server to access the same filesystem.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       outputPath: { type: 'string' as const, description: 'Base output path for recommendation files' },
       useSymlinks: { type: 'boolean' as const, description: 'Use symlinks instead of file copies' },
@@ -492,6 +499,7 @@ const validate = {
   description: 'Run validation checks to ensure setup is correct. Tests file access, path mappings, and connectivity.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       useSymlinks: { type: 'boolean' as const, description: 'Test symlink creation' },
     },
@@ -583,6 +591,7 @@ const setTopPicksConfig = {
   description: 'Configure Top Picks feature during setup. Top Picks shows highly-rated unwatched content.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       movies: {
         type: 'object' as const,
@@ -664,6 +673,7 @@ const importUser = {
   description: 'Import a user from media server into Aperture. Can enable/disable recommendations per media type.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     required: ['providerUserId'] as string[],
     properties: {
       providerUserId: { type: 'string' as const, description: 'User ID from media server' },
@@ -694,6 +704,7 @@ const enableUser = {
   description: 'Enable or disable recommendations for an imported user.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     required: ['apertureUserId'] as string[],
     properties: {
       apertureUserId: { type: 'string' as const, format: 'uuid', description: 'Aperture user ID' },
@@ -721,6 +732,7 @@ const testOpenAI = {
   description: 'Test OpenAI API connection with provided key. Legacy endpoint - prefer /ai/test.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     required: ['apiKey'] as string[],
     properties: {
       apiKey: { type: 'string' as const, description: 'OpenAI API key to test' },
@@ -763,6 +775,7 @@ const saveOpenAI = {
   description: 'Save OpenAI API key during setup. Legacy endpoint - prefer /ai/credentials.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     required: ['apiKey'] as string[],
     properties: {
       apiKey: { type: 'string' as const, description: 'OpenAI API key' },
@@ -939,6 +952,7 @@ const adminUpdateProgress = {
   description: 'Update setup progress for admin re-run.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       currentStep: { type: 'string' as const, nullable: true },
       completedStep: { type: 'string' as const },
@@ -1033,6 +1047,7 @@ const addCustomModel = {
   description: 'Add a custom AI model definition for providers that support custom models (e.g., Ollama, LM Studio).',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     required: ['provider', 'function', 'modelId'] as string[],
     properties: {
       provider: { type: 'string' as const, description: 'Provider ID' },
@@ -1063,6 +1078,7 @@ const deleteCustomModel = {
   description: 'Delete a custom AI model definition.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     required: ['provider', 'function', 'modelId'] as string[],
     properties: {
       provider: { type: 'string' as const },
@@ -1132,6 +1148,7 @@ const testAIProvider = {
   description: 'Test connection to an AI provider with specific model and credentials.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     required: ['function', 'provider', 'model'] as string[],
     properties: {
       function: { type: 'string' as const, enum: ['embedding', 'text_generation', 'chat_assistant'] },
@@ -1166,6 +1183,7 @@ const updateAIFunctionConfig = {
   },
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     required: ['provider', 'model'] as string[],
     properties: {
       provider: { type: 'string' as const },

@@ -174,6 +174,7 @@ export const updateMDBListConfigSchema = {
   description: 'Update MDBList API settings (admin only). Get API key from https://mdblist.com/preferences/',
   body: {
     type: 'object',
+    additionalProperties: true,
     properties: {
       apiKey: { type: 'string', description: 'MDBList API key from your account settings' },
       enabled: { type: 'boolean', description: 'Enable/disable integration' },
@@ -202,6 +203,7 @@ export const testMDBListSchema = {
   description: 'Test MDBList API connection and get account info (admin only).',
   body: {
     type: 'object',
+    additionalProperties: true,
     properties: {
       apiKey: { type: 'string', description: 'API key to test (optional, uses saved if not provided)' },
     },

@@ -62,6 +62,7 @@ const updateConfig = {
   description: 'Update backup storage path and retention settings (admin only). Changing the path does not move existing backups.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       backupPath: { 
         type: 'string' as const, 
@@ -197,6 +198,7 @@ const restoreBackup = {
   description: 'Restore database from a backup file. WARNING: This will replace all current data. Optionally creates a pre-restore backup for safety. Requires confirmation text "RESTORE" to proceed. Admin only.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     required: ['filename'] as string[],
     properties: {
       filename: { type: 'string' as const, description: 'Backup filename to restore', example: 'aperture-backup-2024-01-15-103000.sql.gz' },
@@ -393,6 +395,7 @@ const setupRestoreBackup = {
   description: 'Restore from a backup during initial setup. No authentication required. Only available when setup is not complete.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     required: ['filename'] as string[],
     properties: {
       filename: { type: 'string' as const, description: 'Backup filename to restore' },

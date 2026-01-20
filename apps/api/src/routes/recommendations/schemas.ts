@@ -368,6 +368,7 @@ const updatePreferences = {
   },
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     description: 'Preferences to update (partial)',
     properties: {
       includeWatched: { type: 'boolean' as const, description: 'Include already-watched content in recommendations' },

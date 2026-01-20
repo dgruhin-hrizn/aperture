@@ -81,6 +81,7 @@ export const updateMediaServerConfigSchema = {
   description: 'Update media server connection settings including type, URL, and API key (admin only). After updating, use the test endpoint to verify connectivity.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       type: { type: 'string' as const, enum: ['emby', 'jellyfin'], description: 'Server type (Emby or Jellyfin)' },
       baseUrl: { type: 'string' as const, description: 'Server base URL including protocol and port', example: 'http://localhost:8096' },
@@ -137,6 +138,7 @@ export const updateMediaServerSecuritySchema = {
   description: 'Update media server security settings (admin only).',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       allowPasswordlessLogin: { type: 'boolean' as const, description: 'Allow users without passwords to log in' },
     },
@@ -164,6 +166,7 @@ export const testMediaServerSchema = {
   description: 'Test connection to media server with provided or saved credentials (admin only). Use this to verify configuration before saving.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       type: { type: 'string' as const, enum: ['emby', 'jellyfin'], description: 'Server type to test' },
       baseUrl: { type: 'string' as const, description: 'Server URL to test', example: 'http://localhost:8096' },
@@ -264,6 +267,7 @@ export const updateLibrarySchema = {
   },
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       isEnabled: { type: 'boolean' as const, description: 'Whether library is enabled' },
     },
@@ -301,9 +305,10 @@ export const updateRecommendationConfigSchema = {
   description: 'Update recommendation algorithm weights and settings for movies or series (admin only). Weights should sum to 1.0 for best results.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       enabled: { type: 'boolean' as const, description: 'Enable/disable recommendations for this media type' },
-      maxCandidates: { type: 'integer' as const, minimum: 10, maximum: 1000, description: 'Maximum candidates to evaluate (higher = more accurate but slower)', example: 500 },
+      maxCandidates: { type: 'integer' as const, minimum: 10, description: 'Maximum candidates to evaluate. Use a very large number (e.g., 999999999) for unlimited.', example: 500 },
       selectedCount: { type: 'integer' as const, minimum: 1, maximum: 100, description: 'Number of recommendations to select', example: 20 },
       recentWatchLimit: { type: 'integer' as const, minimum: 1, description: 'Number of recent watches to consider for similarity', example: 50 },
       similarityWeight: { type: 'number' as const, minimum: 0, maximum: 1, description: 'Weight for semantic similarity to watched content (0-1)', example: 0.4 },
@@ -361,6 +366,7 @@ export const updateUserSettingsSchema = {
   description: 'Update current user preferences. Only provided fields are updated (partial update).',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       defaultTab: { type: 'string' as const, description: 'Default tab to show on dashboard', example: 'movies' },
       theme: { type: 'string' as const, enum: ['light', 'dark', 'system'], description: 'UI theme preference' },
@@ -401,6 +407,7 @@ export const updateEmbeddingModelSchema = {
   description: 'Set the embedding model to use for content similarity (admin only). Changing models requires re-embedding all content.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       model: { type: 'string' as const, description: 'Model ID to use' },
     },
@@ -420,6 +427,7 @@ export const updateTextGenerationModelSchema = {
   description: 'Set the text generation model to use for explanations and descriptions (admin only).',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       model: { type: 'string' as const },
     },
@@ -439,6 +447,7 @@ export const updateChatAssistantModelSchema = {
   description: 'Set the chat assistant model to use for AI conversations (admin only).',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       model: { type: 'string' as const },
     },
@@ -462,17 +471,63 @@ export const updateTopPicksConfigSchema = {
   description: 'Update Top Picks feature settings for movies and/or series (admin only).',
   body: {
     type: 'object' as const,
+    additionalProperties: true, // Allow all properties - handler validates what it needs
     properties: {
-      movies: {
-        type: 'object' as const,
-        properties: {
-          enabled: { type: 'boolean' as const },
-          scheduleType: { type: 'string' as const, enum: ['daily', 'weekly', 'interval', 'manual'] },
-          intervalHours: { type: 'integer' as const },
-          itemCount: { type: 'integer' as const, minimum: 1, maximum: 50 },
-        },
-      },
-      series: { type: 'object' as const },
+      isEnabled: { type: 'boolean' as const, description: 'Enable/disable Top Picks feature' },
+      // Popularity sources
+      moviesPopularitySource: { type: 'string' as const, description: 'Source for movie popularity data' },
+      seriesPopularitySource: { type: 'string' as const, description: 'Source for series popularity data' },
+      moviesHybridExternalSource: { type: 'string' as const, description: 'External source for hybrid mode (movies)' },
+      seriesHybridExternalSource: { type: 'string' as const, description: 'External source for hybrid mode (series)' },
+      // Time windows and thresholds
+      moviesTimeWindowDays: { type: 'integer' as const, minimum: 1, description: 'Time window in days for movie popularity' },
+      seriesTimeWindowDays: { type: 'integer' as const, minimum: 1, description: 'Time window in days for series popularity' },
+      moviesMinUniqueViewers: { type: 'integer' as const, minimum: 1, description: 'Minimum unique viewers for movies' },
+      seriesMinUniqueViewers: { type: 'integer' as const, minimum: 1, description: 'Minimum unique viewers for series' },
+      // List size
+      moviesUseAllMatches: { type: 'boolean' as const, description: 'Use all matching movies instead of limiting count' },
+      seriesUseAllMatches: { type: 'boolean' as const, description: 'Use all matching series instead of limiting count' },
+      moviesCount: { type: 'integer' as const, minimum: 1, description: 'Number of movies to show' },
+      seriesCount: { type: 'integer' as const, minimum: 1, description: 'Number of series to show' },
+      // Algorithm weights (0-1)
+      uniqueViewersWeight: { type: 'number' as const, minimum: 0, maximum: 1, description: 'Weight for unique viewers (0-1)' },
+      playCountWeight: { type: 'number' as const, minimum: 0, maximum: 1, description: 'Weight for play count (0-1)' },
+      completionWeight: { type: 'number' as const, minimum: 0, maximum: 1, description: 'Weight for completion rate (0-1)' },
+      hybridLocalWeight: { type: 'number' as const, minimum: 0, maximum: 1, description: 'Weight for local data in hybrid mode (0-1)' },
+      hybridExternalWeight: { type: 'number' as const, minimum: 0, maximum: 1, description: 'Weight for external data in hybrid mode (0-1)' },
+      // Output configuration
+      moviesLibraryEnabled: { type: 'boolean' as const },
+      moviesCollectionEnabled: { type: 'boolean' as const },
+      moviesPlaylistEnabled: { type: 'boolean' as const },
+      seriesLibraryEnabled: { type: 'boolean' as const },
+      seriesCollectionEnabled: { type: 'boolean' as const },
+      seriesPlaylistEnabled: { type: 'boolean' as const },
+      moviesLibraryName: { type: 'string' as const },
+      seriesLibraryName: { type: 'string' as const },
+      moviesCollectionName: { type: 'string' as const },
+      seriesCollectionName: { type: 'string' as const },
+      moviesUseSymlinks: { type: 'boolean' as const },
+      seriesUseSymlinks: { type: 'boolean' as const },
+      // MDBList configuration
+      mdblistMoviesListId: { type: ['integer', 'null'] as const },
+      mdblistSeriesListId: { type: ['integer', 'null'] as const },
+      mdblistMoviesListName: { type: ['string', 'null'] as const },
+      mdblistSeriesListName: { type: ['string', 'null'] as const },
+      mdblistMoviesSort: { type: 'string' as const },
+      mdblistSeriesSort: { type: 'string' as const },
+      // Auto-request configuration
+      moviesAutoRequestEnabled: { type: 'boolean' as const },
+      moviesAutoRequestLimit: { type: 'integer' as const, minimum: 1 },
+      seriesAutoRequestEnabled: { type: 'boolean' as const },
+      seriesAutoRequestLimit: { type: 'integer' as const, minimum: 1 },
+      autoRequestCron: { type: 'string' as const },
+      // Language filters
+      moviesLanguages: { type: 'array' as const, items: { type: 'string' as const } },
+      seriesLanguages: { type: 'array' as const, items: { type: 'string' as const } },
+      moviesIncludeUnknownLanguage: { type: 'boolean' as const },
+      seriesIncludeUnknownLanguage: { type: 'boolean' as const },
+      // Schedule
+      refreshCron: { type: 'string' as const },
     },
   },
 }
@@ -493,6 +548,7 @@ export const updateAiRecsOutputConfigSchema = {
   description: 'Update how AI recommendations are output (admin only).',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       format: { type: 'string' as const, enum: ['poster', 'strm', 'both', 'none'] },
       strmPath: { type: 'string' as const },
@@ -514,6 +570,7 @@ export const updateAiExplanationConfigSchema = {
   description: 'Update system-wide AI explanation settings (admin only).',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       enabled: { type: 'boolean' as const },
       allowUserOverride: { type: 'boolean' as const },
@@ -538,6 +595,7 @@ export const updateUserAiExplanationSchema = {
   description: 'Update current user AI explanation preference (if override is allowed).',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       enabled: { type: 'boolean' as const },
     },
@@ -561,6 +619,7 @@ export const updateWatchingLibraryConfigSchema = {
   description: 'Update configuration for the "Shows You Watch" library feature (admin only).',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       enabled: { type: 'boolean' as const },
       movieLibraryName: { type: 'string' as const },
@@ -585,6 +644,7 @@ export const updateIncludeWatchedSchema = {
   description: 'Set whether to include already-watched content in recommendations.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       movies: { type: 'boolean' as const },
       series: { type: 'boolean' as const },
@@ -604,6 +664,7 @@ export const updateDislikeBehaviorSchema = {
   description: 'Set how disliked content affects recommendations. "exclude" removes them entirely, "reduce" lowers their score, "ignore" has no effect.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       behavior: { 
         type: 'string' as const, 
@@ -637,6 +698,7 @@ export const updateSimilarityPrefsSchema = {
   description: 'Update user preferences for similarity graph display.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       minSimilarity: { type: 'number' as const, minimum: 0, maximum: 1 },
       maxResults: { type: 'integer' as const, minimum: 1, maximum: 100 },
@@ -661,6 +723,7 @@ export const updateLibraryTitleConfigSchema = {
   description: 'Update templates for generating recommendation library names (admin only).',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       movieTemplate: { type: 'string' as const },
       seriesTemplate: { type: 'string' as const },
@@ -694,6 +757,7 @@ export const updateOpenaiConfigSchema = {
   description: 'Update OpenAI API key. Use /api/settings/ai for multi-provider config (admin only).',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       apiKey: { type: 'string' as const },
     },
@@ -748,6 +812,7 @@ export const updateAiCredentialSchema = {
   },
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       apiKey: { type: 'string' as const },
       baseUrl: { type: 'string' as const },
@@ -788,6 +853,7 @@ export const testAiProviderSchema = {
   description: 'Test connection to an AI provider using provided or saved credentials (admin only).',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       provider: { type: 'string' as const, description: 'Provider ID' },
       apiKey: { type: 'string' as const, description: 'API key to test (optional, uses saved if not provided)' },
@@ -803,6 +869,7 @@ export const addCustomModelSchema = {
   description: 'Add a custom AI model definition (admin only).',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       provider: { type: 'string' as const },
       modelId: { type: 'string' as const },
@@ -909,6 +976,7 @@ export const updateTmdbConfigSchema = {
   description: 'Update TMDb API key (admin only).',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       apiKey: { type: 'string' as const, description: 'TMDb API key (v3)' },
     },
@@ -921,6 +989,7 @@ export const testTmdbSchema = {
   description: 'Test TMDb API connection with provided or saved key (admin only).',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       apiKey: { type: 'string' as const, description: 'API key to test (optional)' },
     },
@@ -939,6 +1008,7 @@ export const updateOmdbConfigSchema = {
   description: 'Update OMDb API key (admin only).',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       apiKey: { type: 'string' as const, description: 'OMDb API key' },
     },
@@ -951,6 +1021,7 @@ export const testOmdbSchema = {
   description: 'Test OMDb API connection with provided or saved key (admin only).',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       apiKey: { type: 'string' as const, description: 'API key to test (optional)' },
     },
@@ -969,6 +1040,7 @@ export const updateStudioLogosConfigSchema = {
   description: 'Update studio logos feature configuration (admin only).',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       enabled: { type: 'boolean' as const },
       tmdbEnabled: { type: 'boolean' as const },
@@ -1005,6 +1077,7 @@ export const addTasteProfileItemSchema = {
   description: 'Add a movie or series to taste profile as like or dislike.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       movieId: { type: 'string' as const, format: 'uuid' },
       seriesId: { type: 'string' as const, format: 'uuid' },
@@ -1027,6 +1100,7 @@ export const updateTasteProfileItemSchema = {
   },
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       isLike: { type: 'boolean' as const },
     },
@@ -1063,6 +1137,7 @@ export const addCustomInterestSchema = {
   description: 'Add a custom interest description for recommendation personalization.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       description: { type: 'string' as const, description: 'Interest description' },
       weight: { type: 'number' as const, minimum: 0, maximum: 1, description: 'Interest weight' },
@@ -1084,6 +1159,7 @@ export const updateCustomInterestSchema = {
   },
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     properties: {
       description: { type: 'string' as const },
       weight: { type: 'number' as const, minimum: 0, maximum: 1 },
