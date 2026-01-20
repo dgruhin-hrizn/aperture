@@ -646,7 +646,8 @@ async function processEpisodeBatch(
         ]
       )
       // xmax = 0 means true insert, xmax > 0 means it was an update due to conflict
-      const trueInserts = result.rows.filter(r => r.xmax === '0').length
+      // PostgreSQL returns xmax as a string, convert to number for comparison
+      const trueInserts = result.rows.filter(r => Number(r.xmax) === 0).length
       const upsertUpdates = result.rows.length - trueInserts
       added = trueInserts
       updated += upsertUpdates  // Add upsert updates to the update count
