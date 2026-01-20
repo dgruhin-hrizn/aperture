@@ -462,17 +462,63 @@ export const updateTopPicksConfigSchema = {
   description: 'Update Top Picks feature settings for movies and/or series (admin only).',
   body: {
     type: 'object' as const,
+    additionalProperties: true, // Allow all properties - handler validates what it needs
     properties: {
-      movies: {
-        type: 'object' as const,
-        properties: {
-          enabled: { type: 'boolean' as const },
-          scheduleType: { type: 'string' as const, enum: ['daily', 'weekly', 'interval', 'manual'] },
-          intervalHours: { type: 'integer' as const },
-          itemCount: { type: 'integer' as const, minimum: 1, maximum: 50 },
-        },
-      },
-      series: { type: 'object' as const },
+      isEnabled: { type: 'boolean' as const, description: 'Enable/disable Top Picks feature' },
+      // Popularity sources
+      moviesPopularitySource: { type: 'string' as const, description: 'Source for movie popularity data' },
+      seriesPopularitySource: { type: 'string' as const, description: 'Source for series popularity data' },
+      moviesHybridExternalSource: { type: 'string' as const, description: 'External source for hybrid mode (movies)' },
+      seriesHybridExternalSource: { type: 'string' as const, description: 'External source for hybrid mode (series)' },
+      // Time windows and thresholds
+      moviesTimeWindowDays: { type: 'integer' as const, minimum: 1, description: 'Time window in days for movie popularity' },
+      seriesTimeWindowDays: { type: 'integer' as const, minimum: 1, description: 'Time window in days for series popularity' },
+      moviesMinUniqueViewers: { type: 'integer' as const, minimum: 1, description: 'Minimum unique viewers for movies' },
+      seriesMinUniqueViewers: { type: 'integer' as const, minimum: 1, description: 'Minimum unique viewers for series' },
+      // List size
+      moviesUseAllMatches: { type: 'boolean' as const, description: 'Use all matching movies instead of limiting count' },
+      seriesUseAllMatches: { type: 'boolean' as const, description: 'Use all matching series instead of limiting count' },
+      moviesCount: { type: 'integer' as const, minimum: 1, description: 'Number of movies to show' },
+      seriesCount: { type: 'integer' as const, minimum: 1, description: 'Number of series to show' },
+      // Algorithm weights (0-1)
+      uniqueViewersWeight: { type: 'number' as const, minimum: 0, maximum: 1, description: 'Weight for unique viewers (0-1)' },
+      playCountWeight: { type: 'number' as const, minimum: 0, maximum: 1, description: 'Weight for play count (0-1)' },
+      completionWeight: { type: 'number' as const, minimum: 0, maximum: 1, description: 'Weight for completion rate (0-1)' },
+      hybridLocalWeight: { type: 'number' as const, minimum: 0, maximum: 1, description: 'Weight for local data in hybrid mode (0-1)' },
+      hybridExternalWeight: { type: 'number' as const, minimum: 0, maximum: 1, description: 'Weight for external data in hybrid mode (0-1)' },
+      // Output configuration
+      moviesLibraryEnabled: { type: 'boolean' as const },
+      moviesCollectionEnabled: { type: 'boolean' as const },
+      moviesPlaylistEnabled: { type: 'boolean' as const },
+      seriesLibraryEnabled: { type: 'boolean' as const },
+      seriesCollectionEnabled: { type: 'boolean' as const },
+      seriesPlaylistEnabled: { type: 'boolean' as const },
+      moviesLibraryName: { type: 'string' as const },
+      seriesLibraryName: { type: 'string' as const },
+      moviesCollectionName: { type: 'string' as const },
+      seriesCollectionName: { type: 'string' as const },
+      moviesUseSymlinks: { type: 'boolean' as const },
+      seriesUseSymlinks: { type: 'boolean' as const },
+      // MDBList configuration
+      mdblistMoviesListId: { type: ['integer', 'null'] as const },
+      mdblistSeriesListId: { type: ['integer', 'null'] as const },
+      mdblistMoviesListName: { type: ['string', 'null'] as const },
+      mdblistSeriesListName: { type: ['string', 'null'] as const },
+      mdblistMoviesSort: { type: 'string' as const },
+      mdblistSeriesSort: { type: 'string' as const },
+      // Auto-request configuration
+      moviesAutoRequestEnabled: { type: 'boolean' as const },
+      moviesAutoRequestLimit: { type: 'integer' as const, minimum: 1 },
+      seriesAutoRequestEnabled: { type: 'boolean' as const },
+      seriesAutoRequestLimit: { type: 'integer' as const, minimum: 1 },
+      autoRequestCron: { type: 'string' as const },
+      // Language filters
+      moviesLanguages: { type: 'array' as const, items: { type: 'string' as const } },
+      seriesLanguages: { type: 'array' as const, items: { type: 'string' as const } },
+      moviesIncludeUnknownLanguage: { type: 'boolean' as const },
+      seriesIncludeUnknownLanguage: { type: 'boolean' as const },
+      // Schedule
+      refreshCron: { type: 'string' as const },
     },
   },
 }
