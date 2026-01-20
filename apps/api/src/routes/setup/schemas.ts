@@ -519,7 +519,7 @@ const getAIFunctionConfig = {
     type: 'object' as const,
     required: ['function'] as string[],
     properties: {
-      function: { type: 'string' as const, enum: ['embedding', 'text_generation', 'chat_assistant'] },
+      function: { type: 'string' as const, enum: ['embeddings', 'chat', 'textGeneration', 'exploration'] },
     },
   },
 }
@@ -533,7 +533,7 @@ const testAIProvider = {
     additionalProperties: true,
     required: ['function', 'provider', 'model'] as string[],
     properties: {
-      function: { type: 'string' as const, enum: ['embedding', 'text_generation', 'chat_assistant'] },
+      function: { type: 'string' as const, enum: ['embeddings', 'chat', 'textGeneration', 'exploration'] },
       provider: { type: 'string' as const },
       model: { type: 'string' as const },
       apiKey: { type: 'string' as const, description: 'API key to test (optional, uses saved if not provided)' },
@@ -550,7 +550,7 @@ const updateAIFunctionConfig = {
     type: 'object' as const,
     required: ['function'] as string[],
     properties: {
-      function: { type: 'string' as const, enum: ['embedding', 'text_generation', 'chat_assistant'] },
+      function: { type: 'string' as const, enum: ['embeddings', 'chat', 'textGeneration', 'exploration'] },
     },
   },
   body: {
