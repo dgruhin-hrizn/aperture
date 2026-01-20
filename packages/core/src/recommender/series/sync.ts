@@ -515,9 +515,12 @@ async function processEpisodeBatch(
     insertMap.set(key, pe)
   }
   const deduplicatedInserts = Array.from(insertMap.values())
+  // Count how many were dropped due to deduplication (multiple versions of same episode)
+  const deduplicatedCount = toInsert.length - deduplicatedInserts.length
 
   let added = 0
-  let updated = 0
+  // Start with deduplicated count as "updated" since they're alternate versions of existing episodes
+  let updated = deduplicatedCount
 
   // Bulk UPDATE existing episodes
   // Note: Array columns (directors, writers) are passed as JSONB
