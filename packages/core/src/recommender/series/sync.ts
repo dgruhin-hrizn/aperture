@@ -916,6 +916,12 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
               continue
             }
 
+            // Skip episodes with null season or episode numbers (extras, bonus content, etc.)
+            // These can't be inserted into the DB due to NOT NULL constraints
+            if (episode.seasonNumber == null || episode.episodeNumber == null) {
+              continue
+            }
+
             const seriesDbId = providerToDbSeriesId.get(episode.seriesId)
             if (!seriesDbId) continue // Series not in DB
 
