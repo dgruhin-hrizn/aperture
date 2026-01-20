@@ -285,6 +285,7 @@ export function MediaServerSection() {
                 <InputAdornment position="end">
                   {config?.hasApiKey && !apiKey && (
                     <Chip 
+                      key="saved-chip"
                       label="Saved" 
                       size="small" 
                       color="success" 
@@ -293,6 +294,7 @@ export function MediaServerSection() {
                     />
                   )}
                   <IconButton
+                    key="visibility-toggle"
                     onClick={() => setShowApiKey(!showApiKey)}
                     edge="end"
                     size="small"

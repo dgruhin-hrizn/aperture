@@ -226,7 +226,7 @@ export async function runJob(name: string, jobId: string): Promise<void> {
         )
         break
       }
-      // === Top Picks Job ===
+      // === Top Picks Jobs ===
       case 'refresh-top-picks': {
         const result = await refreshTopPicks(jobId)
         logger.info(
@@ -238,6 +238,22 @@ export async function runJob(name: string, jobId: string): Promise<void> {
             usersUpdated: result.usersUpdated,
           },
           `✅ Top Picks refresh complete`
+        )
+        break
+      }
+      case 'auto-request-top-picks': {
+        const { runAutoRequestJob } = await import('@aperture/core')
+        const result = await runAutoRequestJob(jobId)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            moviesRequested: result.moviesRequested,
+            seriesRequested: result.seriesRequested,
+            moviesSkipped: result.moviesSkipped,
+            seriesSkipped: result.seriesSkipped,
+          },
+          `✅ Auto-request Top Picks complete`
         )
         break
       }

@@ -52,8 +52,8 @@ export const mediaServerConfigSchema = {
           items: {
             type: 'object' as const,
             properties: {
-              value: { type: 'string' as const },
-              label: { type: 'string' as const },
+              id: { type: 'string' as const },
+              name: { type: 'string' as const },
             },
           },
           description: 'Available media server types',
@@ -705,7 +705,7 @@ export const addCustomModelSchema = {
       provider: { type: 'string' as const },
       modelId: { type: 'string' as const },
       displayName: { type: 'string' as const },
-      function: { type: 'string' as const, enum: ['embedding', 'text_generation', 'chat_assistant'] },
+      function: { type: 'string' as const, enum: ['embeddings', 'chat', 'textGeneration', 'exploration'] },
       contextWindow: { type: 'integer' as const },
       inputPrice: { type: 'number' as const },
       outputPrice: { type: 'number' as const },

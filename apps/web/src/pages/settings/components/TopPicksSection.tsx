@@ -21,10 +21,7 @@ import {
   AccordionSummary,
   AccordionDetails,
   Divider,
-  Radio,
-  RadioGroup,
   FormControl,
-  FormLabel,
   Select,
   MenuItem,
   Collapse,
@@ -32,8 +29,11 @@ import {
   ListItem,
   ListItemText,
   InputLabel,
+  OutlinedInput,
 } from '@mui/material'
 import { MDBListSelector } from './MDBListSelector'
+import { TopPicksPreviewModal } from './TopPicksPreviewModal'
+import { LibraryMatchPreview } from './LibraryMatchPreview'
 import SaveIcon from '@mui/icons-material/Save'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import RestoreIcon from '@mui/icons-material/Restore'
@@ -57,8 +57,77 @@ import HomeIcon from '@mui/icons-material/Home'
 import MergeIcon from '@mui/icons-material/Merge'
 import { ImageUpload } from '../../../components/ImageUpload'
 import { DEFAULT_LIBRARY_IMAGES } from '../../setup/constants'
+import TranslateIcon from '@mui/icons-material/Translate'
 
-type PopularitySource = 'local' | 'mdblist' | 'hybrid'
+// ISO 639-1 language code to display name mapping
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: 'English',
+  es: 'Spanish',
+  fr: 'French',
+  de: 'German',
+  it: 'Italian',
+  pt: 'Portuguese',
+  ja: 'Japanese',
+  ko: 'Korean',
+  zh: 'Chinese',
+  ru: 'Russian',
+  ar: 'Arabic',
+  hi: 'Hindi',
+  nl: 'Dutch',
+  sv: 'Swedish',
+  da: 'Danish',
+  no: 'Norwegian',
+  fi: 'Finnish',
+  pl: 'Polish',
+  tr: 'Turkish',
+  th: 'Thai',
+  id: 'Indonesian',
+  vi: 'Vietnamese',
+  cs: 'Czech',
+  el: 'Greek',
+  he: 'Hebrew',
+  hu: 'Hungarian',
+  ro: 'Romanian',
+  uk: 'Ukrainian',
+  bn: 'Bengali',
+  ta: 'Tamil',
+  te: 'Telugu',
+  ml: 'Malayalam',
+  mr: 'Marathi',
+  gu: 'Gujarati',
+  kn: 'Kannada',
+  pa: 'Punjabi',
+  tl: 'Tagalog',
+  ms: 'Malay',
+  fa: 'Persian',
+  ur: 'Urdu',
+  cn: 'Cantonese',
+}
+
+// Common languages for quick selection
+const COMMON_LANGUAGES = ['en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'ko', 'zh', 'ru']
+
+function getLanguageName(code: string): string {
+  return LANGUAGE_NAMES[code] || code.toUpperCase()
+}
+
+// All available popularity sources
+type PopularitySource = 
+  | 'emby_history'      // Local watch history (renamed from 'local')
+  | 'tmdb_popular'      // TMDB most popular
+  | 'tmdb_trending_day' // TMDB trending today
+  | 'tmdb_trending_week'// TMDB trending this week
+  | 'tmdb_top_rated'    // TMDB highest rated
+  | 'mdblist'           // User-selected MDBList
+  | 'hybrid'            // Local + one external source
+
+// External sources that can be used in hybrid mode
+type HybridExternalSource = 
+  | 'tmdb_popular'
+  | 'tmdb_trending_day'
+  | 'tmdb_trending_week'
+  | 'tmdb_top_rated'
+  | 'mdblist'
 
 interface TopPicksConfig {
   isEnabled: boolean
@@ -68,12 +137,14 @@ interface TopPicksConfig {
   moviesMinUniqueViewers: number
   moviesUseAllMatches: boolean
   moviesCount: number
+  moviesHybridExternalSource: HybridExternalSource
   // Series-specific settings
   seriesPopularitySource: PopularitySource
   seriesTimeWindowDays: number
   seriesMinUniqueViewers: number
   seriesUseAllMatches: boolean
   seriesCount: number
+  seriesHybridExternalSource: HybridExternalSource
   // Shared weights
   uniqueViewersWeight: number
   playCountWeight: number
@@ -106,7 +177,18 @@ interface TopPicksConfig {
   mdblistSeriesSort: string
   // Hybrid mode weights
   hybridLocalWeight: number
-  hybridMdblistWeight: number
+  hybridExternalWeight: number
+  // Auto-request settings
+  moviesAutoRequestEnabled: boolean
+  moviesAutoRequestLimit: number
+  seriesAutoRequestEnabled: boolean
+  seriesAutoRequestLimit: number
+  autoRequestCron: string
+  // Language filters
+  moviesLanguages: string[]
+  moviesIncludeUnknownLanguage: boolean
+  seriesLanguages: string[]
+  seriesIncludeUnknownLanguage: boolean
 }
 
 interface PreviewCounts {
@@ -149,6 +231,40 @@ const SORT_OPTIONS: SortOption[] = [
   { value: 'metacritic', label: 'Metacritic' },
 ]
 
+// Source options for dropdown
+interface SourceOption {
+  value: PopularitySource
+  label: string
+  description: string
+  icon: 'home' | 'tmdb' | 'mdblist' | 'hybrid'
+  requiresMdblist?: boolean
+}
+
+const SOURCE_OPTIONS: SourceOption[] = [
+  { value: 'emby_history', label: 'Local Watch History', description: 'Based on what your users are watching', icon: 'home' },
+  { value: 'tmdb_popular', label: 'TMDB Popular', description: 'Most popular movies/series on TMDB', icon: 'tmdb' },
+  { value: 'tmdb_trending_day', label: 'TMDB Trending (Today)', description: "What's trending today on TMDB", icon: 'tmdb' },
+  { value: 'tmdb_trending_week', label: 'TMDB Trending (Week)', description: "What's trending this week on TMDB", icon: 'tmdb' },
+  { value: 'tmdb_top_rated', label: 'TMDB Top Rated', description: 'Highest rated on TMDB', icon: 'tmdb' },
+  { value: 'mdblist', label: 'MDBList', description: 'Custom curated list from MDBList', icon: 'mdblist', requiresMdblist: true },
+  { value: 'hybrid', label: 'Hybrid (Local + External)', description: 'Blend local watch history with an external source', icon: 'hybrid' },
+]
+
+// External sources for hybrid mode
+interface HybridSourceOption {
+  value: HybridExternalSource
+  label: string
+  requiresMdblist?: boolean
+}
+
+const HYBRID_EXTERNAL_OPTIONS: HybridSourceOption[] = [
+  { value: 'tmdb_popular', label: 'TMDB Popular' },
+  { value: 'tmdb_trending_day', label: 'TMDB Trending (Today)' },
+  { value: 'tmdb_trending_week', label: 'TMDB Trending (Week)' },
+  { value: 'tmdb_top_rated', label: 'TMDB Top Rated' },
+  { value: 'mdblist', label: 'MDBList', requiresMdblist: true },
+]
+
 const RECOMMENDED_DIMENSIONS = {
   width: 1920,
   height: 1080,
@@ -188,6 +304,10 @@ export function TopPicksSection() {
   const [moviesMatchExpanded, setMoviesMatchExpanded] = useState(false)
   const [seriesMatchExpanded, setSeriesMatchExpanded] = useState(false)
 
+  // Preview modal state
+  const [previewModalOpen, setPreviewModalOpen] = useState(false)
+  const [previewModalMediaType, setPreviewModalMediaType] = useState<'movies' | 'series'>('movies')
+
   // Fetch MDBList item counts when list selection changes
   const fetchListCounts = useCallback(async (listId: number | null, type: 'movies' | 'series') => {
     if (!listId) {
@@ -208,7 +328,7 @@ export function TopPicksSection() {
     }
   }, [])
 
-  // Fetch library match when list selection or sort changes
+  // Fetch library match for MDBList sources
   const fetchLibraryMatch = useCallback(async (listId: number | null, type: 'movies' | 'series', sort: string) => {
     if (!listId) {
       if (type === 'movies') setMoviesLibraryMatch(null)
@@ -237,6 +357,71 @@ export function TopPicksSection() {
     }
   }, [])
 
+  // Fetch source preview for any source type (TMDB, MDBList, etc.)
+  const fetchSourcePreview = useCallback(async (
+    type: 'movies' | 'series',
+    source: PopularitySource,
+    hybridExternalSource?: HybridExternalSource,
+    mdblistListId?: number | null,
+    mdblistSort?: string,
+    languages?: string[],
+    includeUnknownLanguage?: boolean
+  ) => {
+    // Skip for emby_history - no external source to preview
+    if (source === 'emby_history') {
+      if (type === 'movies') setMoviesLibraryMatch(null)
+      else setSeriesLibraryMatch(null)
+      return
+    }
+
+    // For MDBList, use the existing endpoint (it's faster)
+    if (source === 'mdblist' && mdblistListId) {
+      fetchLibraryMatch(mdblistListId, type, mdblistSort || 'score')
+      return
+    }
+
+    // For TMDB sources or hybrid mode, use the preview endpoint
+    if (type === 'movies') setMoviesMatchLoading(true)
+    else setSeriesMatchLoading(true)
+
+    try {
+      const response = await fetch('/api/top-picks/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          mediaType: type,
+          source,
+          hybridExternalSource,
+          mdblistListId,
+          mdblistSort,
+          limit: 100,
+          languages: languages || [],
+          includeUnknownLanguage: includeUnknownLanguage ?? true,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const result: LibraryMatchResult = {
+          total: data.matched.length + data.missing.length,
+          matched: data.matched.length,
+          missing: data.missing.map((item: { title: string; year: number | null }) => ({
+            title: item.title,
+            year: item.year,
+          })),
+        }
+        if (type === 'movies') setMoviesLibraryMatch(result)
+        else setSeriesLibraryMatch(result)
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      if (type === 'movies') setMoviesMatchLoading(false)
+      else setSeriesMatchLoading(false)
+    }
+  }, [fetchLibraryMatch])
+
   // Fetch counts when list IDs change
   useEffect(() => {
     if (config?.mdblistMoviesListId) {
@@ -254,28 +439,70 @@ export function TopPicksSection() {
     }
   }, [config?.mdblistSeriesListId, fetchListCounts])
 
-  // Fetch library match when list ID or sort changes (debounced)
+  // Fetch source preview when source or related settings change (debounced)
   useEffect(() => {
-    if (!config?.mdblistMoviesListId) {
+    if (!config) return
+    
+    const source = config.moviesPopularitySource
+    // Skip emby_history - nothing to preview
+    if (source === 'emby_history') {
       setMoviesLibraryMatch(null)
       return
     }
+    
     const timeout = setTimeout(() => {
-      fetchLibraryMatch(config.mdblistMoviesListId, 'movies', config.mdblistMoviesSort || 'score')
+      fetchSourcePreview(
+        'movies',
+        source,
+        config.moviesHybridExternalSource,
+        config.mdblistMoviesListId,
+        config.mdblistMoviesSort,
+        config.moviesLanguages,
+        config.moviesIncludeUnknownLanguage
+      )
     }, 500)
     return () => clearTimeout(timeout)
-  }, [config?.mdblistMoviesListId, config?.mdblistMoviesSort, fetchLibraryMatch])
+  }, [
+    config?.moviesPopularitySource,
+    config?.moviesHybridExternalSource,
+    config?.mdblistMoviesListId,
+    config?.mdblistMoviesSort,
+    config?.moviesLanguages,
+    config?.moviesIncludeUnknownLanguage,
+    fetchSourcePreview
+  ])
 
   useEffect(() => {
-    if (!config?.mdblistSeriesListId) {
+    if (!config) return
+    
+    const source = config.seriesPopularitySource
+    // Skip emby_history - nothing to preview
+    if (source === 'emby_history') {
       setSeriesLibraryMatch(null)
       return
     }
+    
     const timeout = setTimeout(() => {
-      fetchLibraryMatch(config.mdblistSeriesListId, 'series', config.mdblistSeriesSort || 'score')
+      fetchSourcePreview(
+        'series',
+        source,
+        config.seriesHybridExternalSource,
+        config.mdblistSeriesListId,
+        config.mdblistSeriesSort,
+        config.seriesLanguages,
+        config.seriesIncludeUnknownLanguage
+      )
     }, 500)
     return () => clearTimeout(timeout)
-  }, [config?.mdblistSeriesListId, config?.mdblistSeriesSort, fetchLibraryMatch])
+  }, [
+    config?.seriesPopularitySource,
+    config?.seriesHybridExternalSource,
+    config?.mdblistSeriesListId,
+    config?.mdblistSeriesSort,
+    config?.seriesLanguages,
+    config?.seriesIncludeUnknownLanguage,
+    fetchSourcePreview
+  ])
 
   // Fetch images - override defaults only if custom images exist
   const fetchImages = useCallback(async () => {
@@ -387,8 +614,10 @@ export function TopPicksSection() {
 
   // Fetch preview counts (debounced)
   const fetchPreviewCounts = useCallback(async (cfg: TopPicksConfig) => {
-    // Only fetch if using local or hybrid mode
-    if (cfg.moviesPopularitySource === 'mdblist' && cfg.seriesPopularitySource === 'mdblist') {
+    // Only fetch if using emby_history or hybrid mode (needs local watch history data)
+    const needsLocalMovies = cfg.moviesPopularitySource === 'emby_history' || cfg.moviesPopularitySource === 'hybrid'
+    const needsLocalSeries = cfg.seriesPopularitySource === 'emby_history' || cfg.seriesPopularitySource === 'hybrid'
+    if (!needsLocalMovies && !needsLocalSeries) {
       setPreviewCounts(null)
       return
     }
@@ -520,6 +749,18 @@ export function TopPicksSection() {
     setHasChanges(true)
   }
 
+  // Helper to get readable source name
+  const getSourceName = (source: PopularitySource): string => {
+    const option = SOURCE_OPTIONS.find(o => o.value === source)
+    return option?.label || source
+  }
+
+  // Open preview modal for a media type
+  const openPreviewModal = (mediaType: 'movies' | 'series') => {
+    setPreviewModalMediaType(mediaType)
+    setPreviewModalOpen(true)
+  }
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" py={8}>
@@ -606,55 +847,69 @@ export function TopPicksSection() {
               </Typography>
 
           {/* Data Source */}
-          <FormControl component="fieldset" disabled={!config.isEnabled} sx={{ mb: 3, width: '100%' }}>
-            <FormLabel sx={{ mb: 1, fontWeight: 500 }}>Data Source</FormLabel>
-            <RadioGroup
-              row
+          <FormControl fullWidth disabled={!config.isEnabled} sx={{ mb: 3 }}>
+            <InputLabel id="movies-source-label">Data Source</InputLabel>
+            <Select
+              labelId="movies-source-label"
+              label="Data Source"
               value={config.moviesPopularitySource}
               onChange={(e) => updateConfig({ moviesPopularitySource: e.target.value as PopularitySource })}
             >
-              <FormControlLabel
-                value="local"
-                control={<Radio size="small" />}
-                label={
-                  <Box display="flex" alignItems="center" gap={0.5}>
-                    <HomeIcon fontSize="small" />
-                    <Typography variant="body2">Local Watch History</Typography>
+              {SOURCE_OPTIONS.map((opt) => (
+                <MenuItem 
+                  key={opt.value} 
+                  value={opt.value}
+                  disabled={opt.requiresMdblist && !mdblistConfigured}
+                >
+                  <Box>
+                    <Typography variant="body2">{opt.label}</Typography>
+                    <Typography variant="caption" color="text.secondary">{opt.description}</Typography>
                   </Box>
-                }
-              />
-              <FormControlLabel
-                value="mdblist"
-                control={<Radio size="small" />}
-                disabled={!mdblistConfigured}
-                label={
-                  <Box display="flex" alignItems="center" gap={0.5}>
-                    <PublicIcon fontSize="small" color={mdblistConfigured ? 'inherit' : 'disabled'} />
-                    <Typography variant="body2" color={mdblistConfigured ? 'inherit' : 'text.disabled'}>MDBList</Typography>
-                  </Box>
-                }
-              />
-              <FormControlLabel
-                value="hybrid"
-                control={<Radio size="small" />}
-                disabled={!mdblistConfigured}
-                label={
-                  <Box display="flex" alignItems="center" gap={0.5}>
-                    <MergeIcon fontSize="small" color={mdblistConfigured ? 'inherit' : 'disabled'} />
-                    <Typography variant="body2" color={mdblistConfigured ? 'inherit' : 'text.disabled'}>Hybrid</Typography>
-                  </Box>
-                }
-              />
-            </RadioGroup>
-            {!mdblistConfigured && (
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-                Configure MDBList in Settings → Integrations to enable MDBList and Hybrid options.
-              </Typography>
-            )}
+                </MenuItem>
+              ))}
+            </Select>
           </FormControl>
 
-          {/* MDBList Selector (for mdblist or hybrid) */}
-          {(config.moviesPopularitySource === 'mdblist' || config.moviesPopularitySource === 'hybrid') && mdblistConfigured && (
+          {/* Hybrid External Source Selector */}
+          {config.moviesPopularitySource === 'hybrid' && (
+            <FormControl fullWidth disabled={!config.isEnabled} sx={{ mb: 3 }}>
+              <InputLabel id="movies-hybrid-source-label">External Source to Blend</InputLabel>
+              <Select
+                labelId="movies-hybrid-source-label"
+                label="External Source to Blend"
+                value={config.moviesHybridExternalSource || 'tmdb_popular'}
+                onChange={(e) => updateConfig({ moviesHybridExternalSource: e.target.value as HybridExternalSource })}
+              >
+                {HYBRID_EXTERNAL_OPTIONS.map((opt) => (
+                  <MenuItem 
+                    key={opt.value} 
+                    value={opt.value}
+                    disabled={opt.requiresMdblist && !mdblistConfigured}
+                  >
+                    {opt.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+
+          {/* Library Match Preview for TMDB sources */}
+          {(config.moviesPopularitySource.startsWith('tmdb_') || 
+            (config.moviesPopularitySource === 'hybrid' && config.moviesHybridExternalSource?.startsWith('tmdb_'))) && (
+            <Box sx={{ mb: 3 }}>
+              <LibraryMatchPreview
+                loading={moviesMatchLoading}
+                data={moviesLibraryMatch}
+                expanded={moviesMatchExpanded}
+                onExpandToggle={() => setMoviesMatchExpanded(!moviesMatchExpanded)}
+                onOpenPreview={() => openPreviewModal('movies')}
+              />
+            </Box>
+          )}
+
+          {/* MDBList Selector (for mdblist source or hybrid with mdblist) */}
+          {((config.moviesPopularitySource === 'mdblist') || 
+            (config.moviesPopularitySource === 'hybrid' && config.moviesHybridExternalSource === 'mdblist')) && mdblistConfigured && (
             <Box sx={{ mb: 3 }}>
               <Grid container spacing={2} sx={{ mb: 2 }}>
                 <Grid item xs={12} sm={8}>
@@ -691,71 +946,19 @@ export function TopPicksSection() {
 
               {/* Library Match Preview */}
               {config.mdblistMoviesListId && (
-                <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
-                  {moviesMatchLoading ? (
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <CircularProgress size={16} />
-                      <Typography variant="body2" color="text.secondary">Checking library matches...</Typography>
-                    </Box>
-                  ) : moviesLibraryMatch ? (
-                    <>
-                      <Typography variant="body2">
-                        List contains <strong>{moviesLibraryMatch.total}</strong> items
-                      </Typography>
-                      <Typography variant="body2" color="success.main">
-                        Your library has <strong>{moviesLibraryMatch.matched}</strong> matches
-                      </Typography>
-                      {moviesLibraryMatch.missing.length > 0 && (
-                        <>
-                          <Box 
-                            onClick={() => setMoviesMatchExpanded(!moviesMatchExpanded)}
-                            sx={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: 0.5, 
-                              cursor: 'pointer',
-                              color: 'warning.main',
-                              '&:hover': { textDecoration: 'underline' }
-                            }}
-                          >
-                            <ExpandMoreIcon 
-                              fontSize="small" 
-                              sx={{ 
-                                transform: moviesMatchExpanded ? 'rotate(180deg)' : 'rotate(0)',
-                                transition: 'transform 0.2s'
-                              }} 
-                            />
-                            <Typography variant="body2">
-                              Missing from your library ({moviesLibraryMatch.missing.length})
-                            </Typography>
-                          </Box>
-                          <Collapse in={moviesMatchExpanded}>
-                            <List dense sx={{ maxHeight: 200, overflow: 'auto', mt: 1 }}>
-                              {moviesLibraryMatch.missing.map((item, idx) => (
-                                <ListItem key={idx} sx={{ py: 0 }}>
-                                  <ListItemText 
-                                    primary={`${item.title}${item.year ? ` (${item.year})` : ''}`}
-                                    primaryTypographyProps={{ variant: 'caption' }}
-                                  />
-                                </ListItem>
-                              ))}
-                            </List>
-                          </Collapse>
-                        </>
-                      )}
-                    </>
-                  ) : moviesListCounts ? (
-                    <Typography variant="caption" color="text.secondary">
-                      List contains {moviesListCounts.total} items
-                    </Typography>
-                  ) : null}
-                </Box>
+                <LibraryMatchPreview
+                  loading={moviesMatchLoading}
+                  data={moviesLibraryMatch}
+                  expanded={moviesMatchExpanded}
+                  onExpandToggle={() => setMoviesMatchExpanded(!moviesMatchExpanded)}
+                  onOpenPreview={() => openPreviewModal('movies')}
+                />
               )}
             </Box>
           )}
 
           {/* Local/Hybrid Settings */}
-          {(config.moviesPopularitySource === 'local' || config.moviesPopularitySource === 'hybrid') && (
+          {(config.moviesPopularitySource === 'emby_history' || config.moviesPopularitySource === 'hybrid') && (
             <Grid container spacing={3} sx={{ mb: 3 }}>
               <Grid item xs={12} sm={6} md={4}>
                 <TextField
@@ -797,9 +1000,9 @@ export function TopPicksSection() {
                       previewCounts?.movies ?? '—'
                     )}
                   </Typography>
-                  {previewCounts && previewCounts.movies > 30 && config.moviesPopularitySource === 'local' && (
+                  {previewCounts && previewCounts.movies > 30 && config.moviesPopularitySource === 'emby_history' && (
                     <Typography variant="caption" color="warning.main">
-                      Large list — consider MDBList or increase minimum viewers to {previewCounts.recommendedMoviesMinViewers}
+                      Large list — consider external source or increase minimum viewers to {previewCounts.recommendedMoviesMinViewers}
                     </Typography>
                   )}
                 </Box>
@@ -808,10 +1011,10 @@ export function TopPicksSection() {
           )}
 
           {/* Hybrid Weights */}
-          {config.moviesPopularitySource === 'hybrid' && mdblistConfigured && (
+          {config.moviesPopularitySource === 'hybrid' && (
             <Box sx={{ mb: 3 }}>
               <Typography variant="body2" fontWeight={500} gutterBottom>
-                Blend Weight (Local vs MDBList)
+                Blend Weight (Local vs External)
               </Typography>
               <Box display="flex" alignItems="center" gap={2}>
                 <HomeIcon fontSize="small" color="primary" />
@@ -819,7 +1022,7 @@ export function TopPicksSection() {
                   value={config.hybridLocalWeight * 100}
                   onChange={(_, value) => updateConfig({ 
                     hybridLocalWeight: (value as number) / 100,
-                    hybridMdblistWeight: 1 - (value as number) / 100,
+                    hybridExternalWeight: 1 - (value as number) / 100,
                   })}
                   min={0}
                   max={100}
@@ -830,6 +1033,85 @@ export function TopPicksSection() {
                 />
                 <PublicIcon fontSize="small" color="primary" />
               </Box>
+              <Typography variant="caption" color="text.secondary">
+                Local {Math.round(config.hybridLocalWeight * 100)}% / External {Math.round((config.hybridExternalWeight || (1 - config.hybridLocalWeight)) * 100)}%
+              </Typography>
+            </Box>
+          )}
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* Language Filter */}
+          {config.moviesPopularitySource !== 'emby_history' && (
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="body2" fontWeight={500} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <TranslateIcon fontSize="small" />
+                Language Filter
+              </Typography>
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+                Filter movies by original language. Leave empty to include all languages.
+              </Typography>
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} sm={8}>
+                  <FormControl fullWidth size="small" disabled={!config.isEnabled}>
+                    <InputLabel id="movies-language-label">Languages</InputLabel>
+                    <Select
+                      labelId="movies-language-label"
+                      label="Languages"
+                      multiple
+                      value={config.moviesLanguages || []}
+                      onChange={(e) => updateConfig({ moviesLanguages: e.target.value as string[] })}
+                      input={<OutlinedInput label="Languages" />}
+                      renderValue={(selected) => (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {(selected as string[]).map((value) => (
+                            <Chip key={value} label={getLanguageName(value)} size="small" />
+                          ))}
+                        </Box>
+                      )}
+                    >
+                      {COMMON_LANGUAGES.map((lang) => (
+                        <MenuItem key={lang} value={lang}>
+                          <Checkbox checked={(config.moviesLanguages || []).includes(lang)} />
+                          <ListItemText primary={getLanguageName(lang)} secondary={lang.toUpperCase()} />
+                        </MenuItem>
+                      ))}
+                      <Divider />
+                      {Object.keys(LANGUAGE_NAMES)
+                        .filter(lang => !COMMON_LANGUAGES.includes(lang))
+                        .sort((a, b) => getLanguageName(a).localeCompare(getLanguageName(b)))
+                        .map((lang) => (
+                          <MenuItem key={lang} value={lang}>
+                            <Checkbox checked={(config.moviesLanguages || []).includes(lang)} />
+                            <ListItemText primary={getLanguageName(lang)} secondary={lang.toUpperCase()} />
+                          </MenuItem>
+                        ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={config.moviesIncludeUnknownLanguage ?? true}
+                        onChange={(e) => updateConfig({ moviesIncludeUnknownLanguage: e.target.checked })}
+                        disabled={!config.isEnabled || (config.moviesLanguages || []).length === 0}
+                        size="small"
+                      />
+                    }
+                    label={<Typography variant="body2">Include unknown</Typography>}
+                  />
+                </Grid>
+              </Grid>
+              {(config.moviesLanguages || []).length > 0 && (
+                <Button
+                  size="small"
+                  onClick={() => updateConfig({ moviesLanguages: [], moviesIncludeUnknownLanguage: true })}
+                  sx={{ mt: 1 }}
+                >
+                  Clear Filter
+                </Button>
+              )}
             </Box>
           )}
 
@@ -874,6 +1156,21 @@ export function TopPicksSection() {
               </Grid>
             )}
           </Grid>
+
+          {/* Save Button */}
+          {hasChanges && (
+            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+              <Button
+                variant="contained"
+                startIcon={saving ? <CircularProgress size={16} /> : <SaveIcon />}
+                onClick={handleSave}
+                disabled={saving}
+                size="small"
+              >
+                {saving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </Box>
+          )}
             </CardContent>
           </Card>
         </Grid>
@@ -891,55 +1188,69 @@ export function TopPicksSection() {
               </Typography>
 
           {/* Data Source */}
-          <FormControl component="fieldset" disabled={!config.isEnabled} sx={{ mb: 3, width: '100%' }}>
-            <FormLabel sx={{ mb: 1, fontWeight: 500 }}>Data Source</FormLabel>
-            <RadioGroup
-              row
+          <FormControl fullWidth disabled={!config.isEnabled} sx={{ mb: 3 }}>
+            <InputLabel id="series-source-label">Data Source</InputLabel>
+            <Select
+              labelId="series-source-label"
+              label="Data Source"
               value={config.seriesPopularitySource}
               onChange={(e) => updateConfig({ seriesPopularitySource: e.target.value as PopularitySource })}
             >
-              <FormControlLabel
-                value="local"
-                control={<Radio size="small" />}
-                label={
-                  <Box display="flex" alignItems="center" gap={0.5}>
-                    <HomeIcon fontSize="small" />
-                    <Typography variant="body2">Local Watch History</Typography>
+              {SOURCE_OPTIONS.map((opt) => (
+                <MenuItem 
+                  key={opt.value} 
+                  value={opt.value}
+                  disabled={opt.requiresMdblist && !mdblistConfigured}
+                >
+                  <Box>
+                    <Typography variant="body2">{opt.label}</Typography>
+                    <Typography variant="caption" color="text.secondary">{opt.description}</Typography>
                   </Box>
-                }
-              />
-              <FormControlLabel
-                value="mdblist"
-                control={<Radio size="small" />}
-                disabled={!mdblistConfigured}
-                label={
-                  <Box display="flex" alignItems="center" gap={0.5}>
-                    <PublicIcon fontSize="small" color={mdblistConfigured ? 'inherit' : 'disabled'} />
-                    <Typography variant="body2" color={mdblistConfigured ? 'inherit' : 'text.disabled'}>MDBList</Typography>
-                  </Box>
-                }
-              />
-              <FormControlLabel
-                value="hybrid"
-                control={<Radio size="small" />}
-                disabled={!mdblistConfigured}
-                label={
-                  <Box display="flex" alignItems="center" gap={0.5}>
-                    <MergeIcon fontSize="small" color={mdblistConfigured ? 'inherit' : 'disabled'} />
-                    <Typography variant="body2" color={mdblistConfigured ? 'inherit' : 'text.disabled'}>Hybrid</Typography>
-                  </Box>
-                }
-              />
-            </RadioGroup>
-            {!mdblistConfigured && (
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-                Configure MDBList in Settings → Integrations to enable MDBList and Hybrid options.
-              </Typography>
-            )}
+                </MenuItem>
+              ))}
+            </Select>
           </FormControl>
 
-          {/* MDBList Selector (for mdblist or hybrid) */}
-          {(config.seriesPopularitySource === 'mdblist' || config.seriesPopularitySource === 'hybrid') && mdblistConfigured && (
+          {/* Hybrid External Source Selector */}
+          {config.seriesPopularitySource === 'hybrid' && (
+            <FormControl fullWidth disabled={!config.isEnabled} sx={{ mb: 3 }}>
+              <InputLabel id="series-hybrid-source-label">External Source to Blend</InputLabel>
+              <Select
+                labelId="series-hybrid-source-label"
+                label="External Source to Blend"
+                value={config.seriesHybridExternalSource || 'tmdb_popular'}
+                onChange={(e) => updateConfig({ seriesHybridExternalSource: e.target.value as HybridExternalSource })}
+              >
+                {HYBRID_EXTERNAL_OPTIONS.map((opt) => (
+                  <MenuItem 
+                    key={opt.value} 
+                    value={opt.value}
+                    disabled={opt.requiresMdblist && !mdblistConfigured}
+                  >
+                    {opt.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+
+          {/* Library Match Preview for TMDB sources */}
+          {(config.seriesPopularitySource.startsWith('tmdb_') || 
+            (config.seriesPopularitySource === 'hybrid' && config.seriesHybridExternalSource?.startsWith('tmdb_'))) && (
+            <Box sx={{ mb: 3 }}>
+              <LibraryMatchPreview
+                loading={seriesMatchLoading}
+                data={seriesLibraryMatch}
+                expanded={seriesMatchExpanded}
+                onExpandToggle={() => setSeriesMatchExpanded(!seriesMatchExpanded)}
+                onOpenPreview={() => openPreviewModal('series')}
+              />
+            </Box>
+          )}
+
+          {/* MDBList Selector (for mdblist source or hybrid with mdblist) */}
+          {((config.seriesPopularitySource === 'mdblist') || 
+            (config.seriesPopularitySource === 'hybrid' && config.seriesHybridExternalSource === 'mdblist')) && mdblistConfigured && (
             <Box sx={{ mb: 3 }}>
               <Grid container spacing={2} sx={{ mb: 2 }}>
                 <Grid item xs={12} sm={8}>
@@ -976,71 +1287,19 @@ export function TopPicksSection() {
 
               {/* Library Match Preview */}
               {config.mdblistSeriesListId && (
-                <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
-                  {seriesMatchLoading ? (
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <CircularProgress size={16} />
-                      <Typography variant="body2" color="text.secondary">Checking library matches...</Typography>
-                    </Box>
-                  ) : seriesLibraryMatch ? (
-                    <>
-                      <Typography variant="body2">
-                        List contains <strong>{seriesLibraryMatch.total}</strong> items
-                      </Typography>
-                      <Typography variant="body2" color="success.main">
-                        Your library has <strong>{seriesLibraryMatch.matched}</strong> matches
-                      </Typography>
-                      {seriesLibraryMatch.missing.length > 0 && (
-                        <>
-                          <Box 
-                            onClick={() => setSeriesMatchExpanded(!seriesMatchExpanded)}
-                            sx={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: 0.5, 
-                              cursor: 'pointer',
-                              color: 'warning.main',
-                              '&:hover': { textDecoration: 'underline' }
-                            }}
-                          >
-                            <ExpandMoreIcon 
-                              fontSize="small" 
-                              sx={{ 
-                                transform: seriesMatchExpanded ? 'rotate(180deg)' : 'rotate(0)',
-                                transition: 'transform 0.2s'
-                              }} 
-                            />
-                            <Typography variant="body2">
-                              Missing from your library ({seriesLibraryMatch.missing.length})
-                            </Typography>
-                          </Box>
-                          <Collapse in={seriesMatchExpanded}>
-                            <List dense sx={{ maxHeight: 200, overflow: 'auto', mt: 1 }}>
-                              {seriesLibraryMatch.missing.map((item, idx) => (
-                                <ListItem key={idx} sx={{ py: 0 }}>
-                                  <ListItemText 
-                                    primary={`${item.title}${item.year ? ` (${item.year})` : ''}`}
-                                    primaryTypographyProps={{ variant: 'caption' }}
-                                  />
-                                </ListItem>
-                              ))}
-                            </List>
-                          </Collapse>
-                        </>
-                      )}
-                    </>
-                  ) : seriesListCounts ? (
-                    <Typography variant="caption" color="text.secondary">
-                      List contains {seriesListCounts.total} items
-                    </Typography>
-                  ) : null}
-                </Box>
+                <LibraryMatchPreview
+                  loading={seriesMatchLoading}
+                  data={seriesLibraryMatch}
+                  expanded={seriesMatchExpanded}
+                  onExpandToggle={() => setSeriesMatchExpanded(!seriesMatchExpanded)}
+                  onOpenPreview={() => openPreviewModal('series')}
+                />
               )}
             </Box>
           )}
 
           {/* Local/Hybrid Settings */}
-          {(config.seriesPopularitySource === 'local' || config.seriesPopularitySource === 'hybrid') && (
+          {(config.seriesPopularitySource === 'emby_history' || config.seriesPopularitySource === 'hybrid') && (
             <Grid container spacing={3} sx={{ mb: 3 }}>
               <Grid item xs={12} sm={6} md={4}>
                 <TextField
@@ -1082,9 +1341,9 @@ export function TopPicksSection() {
                       previewCounts?.series ?? '—'
                     )}
                   </Typography>
-                  {previewCounts && previewCounts.series > 30 && config.seriesPopularitySource === 'local' && (
+                  {previewCounts && previewCounts.series > 30 && config.seriesPopularitySource === 'emby_history' && (
                     <Typography variant="caption" color="warning.main">
-                      Large list — consider MDBList or increase minimum viewers to {previewCounts.recommendedSeriesMinViewers}
+                      Large list — consider external source or increase minimum viewers to {previewCounts.recommendedSeriesMinViewers}
                     </Typography>
                   )}
                 </Box>
@@ -1092,11 +1351,11 @@ export function TopPicksSection() {
             </Grid>
           )}
 
-          {/* Hybrid Weights (shared with movies for now, but could be separate) */}
-          {config.seriesPopularitySource === 'hybrid' && mdblistConfigured && (
+          {/* Hybrid Weights (shared with movies) */}
+          {config.seriesPopularitySource === 'hybrid' && (
             <Box sx={{ mb: 3 }}>
               <Typography variant="body2" fontWeight={500} gutterBottom>
-                Blend Weight (Local vs MDBList)
+                Blend Weight (Local vs External)
               </Typography>
               <Box display="flex" alignItems="center" gap={2}>
                 <HomeIcon fontSize="small" color="primary" />
@@ -1104,7 +1363,7 @@ export function TopPicksSection() {
                   value={config.hybridLocalWeight * 100}
                   onChange={(_, value) => updateConfig({ 
                     hybridLocalWeight: (value as number) / 100,
-                    hybridMdblistWeight: 1 - (value as number) / 100,
+                    hybridExternalWeight: 1 - (value as number) / 100,
                   })}
                   min={0}
                   max={100}
@@ -1115,6 +1374,85 @@ export function TopPicksSection() {
                 />
                 <PublicIcon fontSize="small" color="primary" />
               </Box>
+              <Typography variant="caption" color="text.secondary">
+                Local {Math.round(config.hybridLocalWeight * 100)}% / External {Math.round((config.hybridExternalWeight || (1 - config.hybridLocalWeight)) * 100)}%
+              </Typography>
+            </Box>
+          )}
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* Language Filter */}
+          {config.seriesPopularitySource !== 'emby_history' && (
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="body2" fontWeight={500} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <TranslateIcon fontSize="small" />
+                Language Filter
+              </Typography>
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+                Filter series by original language. Leave empty to include all languages.
+              </Typography>
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} sm={8}>
+                  <FormControl fullWidth size="small" disabled={!config.isEnabled}>
+                    <InputLabel id="series-language-label">Languages</InputLabel>
+                    <Select
+                      labelId="series-language-label"
+                      label="Languages"
+                      multiple
+                      value={config.seriesLanguages || []}
+                      onChange={(e) => updateConfig({ seriesLanguages: e.target.value as string[] })}
+                      input={<OutlinedInput label="Languages" />}
+                      renderValue={(selected) => (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {(selected as string[]).map((value) => (
+                            <Chip key={value} label={getLanguageName(value)} size="small" />
+                          ))}
+                        </Box>
+                      )}
+                    >
+                      {COMMON_LANGUAGES.map((lang) => (
+                        <MenuItem key={lang} value={lang}>
+                          <Checkbox checked={(config.seriesLanguages || []).includes(lang)} />
+                          <ListItemText primary={getLanguageName(lang)} secondary={lang.toUpperCase()} />
+                        </MenuItem>
+                      ))}
+                      <Divider />
+                      {Object.keys(LANGUAGE_NAMES)
+                        .filter(lang => !COMMON_LANGUAGES.includes(lang))
+                        .sort((a, b) => getLanguageName(a).localeCompare(getLanguageName(b)))
+                        .map((lang) => (
+                          <MenuItem key={lang} value={lang}>
+                            <Checkbox checked={(config.seriesLanguages || []).includes(lang)} />
+                            <ListItemText primary={getLanguageName(lang)} secondary={lang.toUpperCase()} />
+                          </MenuItem>
+                        ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={config.seriesIncludeUnknownLanguage ?? true}
+                        onChange={(e) => updateConfig({ seriesIncludeUnknownLanguage: e.target.checked })}
+                        disabled={!config.isEnabled || (config.seriesLanguages || []).length === 0}
+                        size="small"
+                      />
+                    }
+                    label={<Typography variant="body2">Include unknown</Typography>}
+                  />
+                </Grid>
+              </Grid>
+              {(config.seriesLanguages || []).length > 0 && (
+                <Button
+                  size="small"
+                  onClick={() => updateConfig({ seriesLanguages: [], seriesIncludeUnknownLanguage: true })}
+                  sx={{ mt: 1 }}
+                >
+                  Clear Filter
+                </Button>
+              )}
             </Box>
           )}
 
@@ -1159,14 +1497,29 @@ export function TopPicksSection() {
               </Grid>
             )}
           </Grid>
+
+          {/* Save Button */}
+          {hasChanges && (
+            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+              <Button
+                variant="contained"
+                startIcon={saving ? <CircularProgress size={16} /> : <SaveIcon />}
+                onClick={handleSave}
+                disabled={saving}
+                size="small"
+              >
+                {saving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </Box>
+          )}
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
-      {/* Local Popularity Algorithm (shown if either movies or series uses local/hybrid) */}
-      {(config.moviesPopularitySource === 'local' || config.moviesPopularitySource === 'hybrid' ||
-        config.seriesPopularitySource === 'local' || config.seriesPopularitySource === 'hybrid') && (
+      {/* Local Popularity Algorithm (shown if either movies or series uses emby_history/hybrid) */}
+      {(config.moviesPopularitySource === 'emby_history' || config.moviesPopularitySource === 'hybrid' ||
+        config.seriesPopularitySource === 'emby_history' || config.seriesPopularitySource === 'hybrid') && (
       <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
         <CardContent>
           <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
@@ -1659,6 +2012,20 @@ export function TopPicksSection() {
           </Stack>
         </CardContent>
       </Card>
+
+      {/* Preview Modal */}
+      <TopPicksPreviewModal
+        open={previewModalOpen}
+        onClose={() => setPreviewModalOpen(false)}
+        mediaType={previewModalMediaType}
+        source={previewModalMediaType === 'movies' ? config.moviesPopularitySource : config.seriesPopularitySource}
+        hybridExternalSource={previewModalMediaType === 'movies' ? config.moviesHybridExternalSource : config.seriesHybridExternalSource}
+        mdblistListId={previewModalMediaType === 'movies' ? config.mdblistMoviesListId ?? undefined : config.mdblistSeriesListId ?? undefined}
+        mdblistSort={previewModalMediaType === 'movies' ? config.mdblistMoviesSort : config.mdblistSeriesSort}
+        sourceName={getSourceName(previewModalMediaType === 'movies' ? config.moviesPopularitySource : config.seriesPopularitySource)}
+        savedLanguages={previewModalMediaType === 'movies' ? config.moviesLanguages : config.seriesLanguages}
+        savedIncludeUnknownLanguage={previewModalMediaType === 'movies' ? config.moviesIncludeUnknownLanguage : config.seriesIncludeUnknownLanguage}
+      />
     </Box>
   )
 }

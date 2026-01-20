@@ -10,7 +10,28 @@ import { createChildLogger } from '../lib/logger.js'
 
 const logger = createChildLogger('top-picks-config')
 
-export type PopularitySource = 'local' | 'mdblist' | 'hybrid'
+// All available popularity sources
+export type PopularitySource = 
+  | 'emby_history'      // Local watch history (renamed from 'local')
+  | 'tmdb_popular'      // TMDB most popular
+  | 'tmdb_trending_day' // TMDB trending today
+  | 'tmdb_trending_week'// TMDB trending this week
+  | 'tmdb_top_rated'    // TMDB highest rated
+  | 'mdblist'           // User-selected MDBList
+  | 'hybrid'            // Local + one external source
+
+// External sources that can be used in hybrid mode
+export type HybridExternalSource = 
+  | 'tmdb_popular'
+  | 'tmdb_trending_day'
+  | 'tmdb_trending_week'
+  | 'tmdb_top_rated'
+  | 'mdblist'
+
+// Legacy source mapping for backwards compatibility
+const LEGACY_SOURCE_MAP: Record<string, PopularitySource> = {
+  'local': 'emby_history',
+}
 
 export interface TopPicksConfig {
   isEnabled: boolean
@@ -20,12 +41,14 @@ export interface TopPicksConfig {
   moviesMinUniqueViewers: number
   moviesUseAllMatches: boolean
   moviesCount: number
+  moviesHybridExternalSource: HybridExternalSource
   // Series-specific settings
   seriesPopularitySource: PopularitySource
   seriesTimeWindowDays: number
   seriesMinUniqueViewers: number
   seriesUseAllMatches: boolean
   seriesCount: number
+  seriesHybridExternalSource: HybridExternalSource
   // Popularity weights (should sum to 1.0) - shared for Local/Hybrid calculations
   uniqueViewersWeight: number
   playCountWeight: number
@@ -50,7 +73,7 @@ export interface TopPicksConfig {
   // Collection/Playlist names
   moviesCollectionName: string
   seriesCollectionName: string
-  // MDBList list selections (used when source is mdblist or hybrid)
+  // MDBList list selections (used when source is mdblist or hybrid with mdblist)
   mdblistMoviesListId: number | null
   mdblistSeriesListId: number | null
   mdblistMoviesListName: string | null
@@ -60,7 +83,18 @@ export interface TopPicksConfig {
   mdblistSeriesSort: string
   // Hybrid mode weights
   hybridLocalWeight: number
-  hybridMdblistWeight: number
+  hybridExternalWeight: number
+  // Auto-request settings (Jellyseerr integration)
+  moviesAutoRequestEnabled: boolean
+  moviesAutoRequestLimit: number
+  seriesAutoRequestEnabled: boolean
+  seriesAutoRequestLimit: number
+  autoRequestCron: string
+  // Language filters (ISO 639-1 codes, empty = all languages)
+  moviesLanguages: string[]
+  moviesIncludeUnknownLanguage: boolean
+  seriesLanguages: string[]
+  seriesIncludeUnknownLanguage: boolean
   // Timestamps
   createdAt: Date
   updatedAt: Date
@@ -75,12 +109,14 @@ interface TopPicksConfigRow {
   movies_min_unique_viewers: number
   movies_use_all_matches: boolean
   movies_count: number
+  movies_hybrid_external_source: string | null
   // Series-specific settings
   series_popularity_source: string | null
   series_time_window_days: number
   series_min_unique_viewers: number
   series_use_all_matches: boolean
   series_count: number
+  series_hybrid_external_source: string | null
   // Shared weights
   unique_viewers_weight: string
   play_count_weight: string
@@ -111,9 +147,71 @@ interface TopPicksConfigRow {
   mdblist_movies_sort: string | null
   mdblist_series_sort: string | null
   hybrid_local_weight: string | null
-  hybrid_mdblist_weight: string | null
+  hybrid_external_weight: string | null
+  // Auto-request settings
+  movies_auto_request_enabled: boolean | null
+  movies_auto_request_limit: number | null
+  series_auto_request_enabled: boolean | null
+  series_auto_request_limit: number | null
+  auto_request_cron: string | null
+  // Language filters
+  movies_languages: string[] | null
+  movies_include_unknown_language: boolean | null
+  series_languages: string[] | null
+  series_include_unknown_language: boolean | null
   created_at: Date
   updated_at: Date
+}
+
+// Valid popularity sources for validation
+const VALID_SOURCES: PopularitySource[] = [
+  'emby_history',
+  'tmdb_popular',
+  'tmdb_trending_day',
+  'tmdb_trending_week',
+  'tmdb_top_rated',
+  'mdblist',
+  'hybrid',
+]
+
+const VALID_HYBRID_EXTERNAL_SOURCES: HybridExternalSource[] = [
+  'tmdb_popular',
+  'tmdb_trending_day',
+  'tmdb_trending_week',
+  'tmdb_top_rated',
+  'mdblist',
+]
+
+/**
+ * Normalize a source value, handling legacy mappings
+ */
+function normalizeSource(source: string | null): PopularitySource {
+  if (!source) return 'emby_history'
+  
+  // Check for legacy mapping
+  if (source in LEGACY_SOURCE_MAP) {
+    return LEGACY_SOURCE_MAP[source]
+  }
+  
+  // Validate against known sources
+  if (VALID_SOURCES.includes(source as PopularitySource)) {
+    return source as PopularitySource
+  }
+  
+  return 'emby_history'
+}
+
+/**
+ * Normalize a hybrid external source value
+ */
+function normalizeHybridExternalSource(source: string | null): HybridExternalSource {
+  if (!source) return 'tmdb_popular'
+  
+  if (VALID_HYBRID_EXTERNAL_SOURCES.includes(source as HybridExternalSource)) {
+    return source as HybridExternalSource
+  }
+  
+  return 'tmdb_popular'
 }
 
 /**
@@ -129,17 +227,19 @@ export async function getTopPicksConfig(): Promise<TopPicksConfig> {
     return {
       isEnabled: false,
       // Movies-specific defaults
-      moviesPopularitySource: 'local' as PopularitySource,
+      moviesPopularitySource: 'emby_history',
       moviesTimeWindowDays: 30,
       moviesMinUniqueViewers: 2,
       moviesUseAllMatches: false,
       moviesCount: 10,
+      moviesHybridExternalSource: 'tmdb_popular',
       // Series-specific defaults
-      seriesPopularitySource: 'local' as PopularitySource,
+      seriesPopularitySource: 'emby_history',
       seriesTimeWindowDays: 30,
       seriesMinUniqueViewers: 2,
       seriesUseAllMatches: false,
       seriesCount: 10,
+      seriesHybridExternalSource: 'tmdb_popular',
       // Shared weights
       uniqueViewersWeight: 0.5,
       playCountWeight: 0.3,
@@ -165,7 +265,16 @@ export async function getTopPicksConfig(): Promise<TopPicksConfig> {
       mdblistMoviesSort: 'score',
       mdblistSeriesSort: 'score',
       hybridLocalWeight: 0.5,
-      hybridMdblistWeight: 0.5,
+      hybridExternalWeight: 0.5,
+      moviesAutoRequestEnabled: false,
+      moviesAutoRequestLimit: 10,
+      seriesAutoRequestEnabled: false,
+      seriesAutoRequestLimit: 10,
+      autoRequestCron: '0 0 * * 0',
+      moviesLanguages: [],
+      moviesIncludeUnknownLanguage: true,
+      seriesLanguages: [],
+      seriesIncludeUnknownLanguage: true,
       createdAt: new Date(),
       updatedAt: new Date(),
     }
@@ -211,6 +320,10 @@ export async function updateTopPicksConfig(
     setClauses.push(`movies_count = $${paramIndex++}`)
     values.push(updates.moviesCount)
   }
+  if (updates.moviesHybridExternalSource !== undefined) {
+    setClauses.push(`movies_hybrid_external_source = $${paramIndex++}`)
+    values.push(updates.moviesHybridExternalSource)
+  }
   // Series-specific settings
   if (updates.seriesPopularitySource !== undefined) {
     setClauses.push(`series_popularity_source = $${paramIndex++}`)
@@ -231,6 +344,10 @@ export async function updateTopPicksConfig(
   if (updates.seriesCount !== undefined) {
     setClauses.push(`series_count = $${paramIndex++}`)
     values.push(updates.seriesCount)
+  }
+  if (updates.seriesHybridExternalSource !== undefined) {
+    setClauses.push(`series_hybrid_external_source = $${paramIndex++}`)
+    values.push(updates.seriesHybridExternalSource)
   }
   // Shared weights
   if (updates.uniqueViewersWeight !== undefined) {
@@ -326,9 +443,47 @@ export async function updateTopPicksConfig(
     setClauses.push(`hybrid_local_weight = $${paramIndex++}`)
     values.push(updates.hybridLocalWeight)
   }
-  if (updates.hybridMdblistWeight !== undefined) {
-    setClauses.push(`hybrid_mdblist_weight = $${paramIndex++}`)
-    values.push(updates.hybridMdblistWeight)
+  if (updates.hybridExternalWeight !== undefined) {
+    setClauses.push(`hybrid_external_weight = $${paramIndex++}`)
+    values.push(updates.hybridExternalWeight)
+  }
+  // Auto-request settings
+  if (updates.moviesAutoRequestEnabled !== undefined) {
+    setClauses.push(`movies_auto_request_enabled = $${paramIndex++}`)
+    values.push(updates.moviesAutoRequestEnabled)
+  }
+  if (updates.moviesAutoRequestLimit !== undefined) {
+    setClauses.push(`movies_auto_request_limit = $${paramIndex++}`)
+    values.push(updates.moviesAutoRequestLimit)
+  }
+  if (updates.seriesAutoRequestEnabled !== undefined) {
+    setClauses.push(`series_auto_request_enabled = $${paramIndex++}`)
+    values.push(updates.seriesAutoRequestEnabled)
+  }
+  if (updates.seriesAutoRequestLimit !== undefined) {
+    setClauses.push(`series_auto_request_limit = $${paramIndex++}`)
+    values.push(updates.seriesAutoRequestLimit)
+  }
+  if (updates.autoRequestCron !== undefined) {
+    setClauses.push(`auto_request_cron = $${paramIndex++}`)
+    values.push(updates.autoRequestCron)
+  }
+  // Language filters
+  if (updates.moviesLanguages !== undefined) {
+    setClauses.push(`movies_languages = $${paramIndex++}`)
+    values.push(updates.moviesLanguages)
+  }
+  if (updates.moviesIncludeUnknownLanguage !== undefined) {
+    setClauses.push(`movies_include_unknown_language = $${paramIndex++}`)
+    values.push(updates.moviesIncludeUnknownLanguage)
+  }
+  if (updates.seriesLanguages !== undefined) {
+    setClauses.push(`series_languages = $${paramIndex++}`)
+    values.push(updates.seriesLanguages)
+  }
+  if (updates.seriesIncludeUnknownLanguage !== undefined) {
+    setClauses.push(`series_include_unknown_language = $${paramIndex++}`)
+    values.push(updates.seriesIncludeUnknownLanguage)
   }
 
   if (setClauses.length === 0) {
@@ -375,17 +530,19 @@ export async function resetTopPicksConfig(): Promise<TopPicksConfig> {
     SET
       is_enabled = false,
       -- Movies-specific settings
-      movies_popularity_source = 'local',
+      movies_popularity_source = 'emby_history',
       movies_time_window_days = 30,
       movies_min_unique_viewers = 2,
       movies_use_all_matches = false,
       movies_count = 10,
+      movies_hybrid_external_source = 'tmdb_popular',
       -- Series-specific settings
-      series_popularity_source = 'local',
+      series_popularity_source = 'emby_history',
       series_time_window_days = 30,
       series_min_unique_viewers = 2,
       series_use_all_matches = false,
       series_count = 10,
+      series_hybrid_external_source = 'tmdb_popular',
       -- Shared settings
       unique_viewers_weight = 0.50,
       play_count_weight = 0.30,
@@ -410,7 +567,16 @@ export async function resetTopPicksConfig(): Promise<TopPicksConfig> {
       mdblist_movies_sort = 'score',
       mdblist_series_sort = 'score',
       hybrid_local_weight = 0.50,
-      hybrid_mdblist_weight = 0.50,
+      hybrid_external_weight = 0.50,
+      movies_auto_request_enabled = false,
+      movies_auto_request_limit = 10,
+      series_auto_request_enabled = false,
+      series_auto_request_limit = 10,
+      auto_request_cron = '0 0 * * 0',
+      movies_languages = '{}',
+      movies_include_unknown_language = true,
+      series_languages = '{}',
+      series_include_unknown_language = true,
       updated_at = NOW()
     WHERE id = 1
     RETURNING *
@@ -424,29 +590,22 @@ export async function resetTopPicksConfig(): Promise<TopPicksConfig> {
 }
 
 function mapRowToConfig(row: TopPicksConfigRow): TopPicksConfig {
-  // Validate popularity sources
-  const validSources: PopularitySource[] = ['local', 'mdblist', 'hybrid']
-  const moviesPopularitySource = validSources.includes(row.movies_popularity_source as PopularitySource)
-    ? (row.movies_popularity_source as PopularitySource)
-    : 'local'
-  const seriesPopularitySource = validSources.includes(row.series_popularity_source as PopularitySource)
-    ? (row.series_popularity_source as PopularitySource)
-    : 'local'
-
   return {
     isEnabled: row.is_enabled,
     // Movies-specific settings
-    moviesPopularitySource,
+    moviesPopularitySource: normalizeSource(row.movies_popularity_source),
     moviesTimeWindowDays: row.movies_time_window_days,
     moviesMinUniqueViewers: row.movies_min_unique_viewers,
     moviesUseAllMatches: row.movies_use_all_matches ?? false,
     moviesCount: row.movies_count,
+    moviesHybridExternalSource: normalizeHybridExternalSource(row.movies_hybrid_external_source),
     // Series-specific settings
-    seriesPopularitySource,
+    seriesPopularitySource: normalizeSource(row.series_popularity_source),
     seriesTimeWindowDays: row.series_time_window_days,
     seriesMinUniqueViewers: row.series_min_unique_viewers,
     seriesUseAllMatches: row.series_use_all_matches ?? false,
     seriesCount: row.series_count,
+    seriesHybridExternalSource: normalizeHybridExternalSource(row.series_hybrid_external_source),
     // Shared weights
     uniqueViewersWeight: parseFloat(row.unique_viewers_weight),
     playCountWeight: parseFloat(row.play_count_weight),
@@ -472,7 +631,16 @@ function mapRowToConfig(row: TopPicksConfigRow): TopPicksConfig {
     mdblistMoviesSort: row.mdblist_movies_sort || 'score',
     mdblistSeriesSort: row.mdblist_series_sort || 'score',
     hybridLocalWeight: row.hybrid_local_weight ? parseFloat(row.hybrid_local_weight) : 0.5,
-    hybridMdblistWeight: row.hybrid_mdblist_weight ? parseFloat(row.hybrid_mdblist_weight) : 0.5,
+    hybridExternalWeight: row.hybrid_external_weight ? parseFloat(row.hybrid_external_weight) : 0.5,
+    moviesAutoRequestEnabled: row.movies_auto_request_enabled ?? false,
+    moviesAutoRequestLimit: row.movies_auto_request_limit ?? 10,
+    seriesAutoRequestEnabled: row.series_auto_request_enabled ?? false,
+    seriesAutoRequestLimit: row.series_auto_request_limit ?? 10,
+    autoRequestCron: row.auto_request_cron || '0 0 * * 0',
+    moviesLanguages: row.movies_languages || [],
+    moviesIncludeUnknownLanguage: row.movies_include_unknown_language ?? true,
+    seriesLanguages: row.series_languages || [],
+    seriesIncludeUnknownLanguage: row.series_include_unknown_language ?? true,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }

@@ -14,6 +14,7 @@ import {
   topPicksConfigSchema,
   updateTopPicksConfigSchema,
 } from '../schemas.js'
+import type { PopularitySource, HybridExternalSource } from '@aperture/core'
 
 export function registerTopPicksHandlers(fastify: FastifyInstance) {
   /**
@@ -50,16 +51,18 @@ export function registerTopPicksHandlers(fastify: FastifyInstance) {
   fastify.patch<{
     Body: {
       isEnabled?: boolean
-      moviesPopularitySource?: 'local' | 'mdblist' | 'hybrid'
+      moviesPopularitySource?: PopularitySource
       moviesTimeWindowDays?: number
       moviesMinUniqueViewers?: number
       moviesUseAllMatches?: boolean
       moviesCount?: number
-      seriesPopularitySource?: 'local' | 'mdblist' | 'hybrid'
+      moviesHybridExternalSource?: HybridExternalSource
+      seriesPopularitySource?: PopularitySource
       seriesTimeWindowDays?: number
       seriesMinUniqueViewers?: number
       seriesUseAllMatches?: boolean
       seriesCount?: number
+      seriesHybridExternalSource?: HybridExternalSource
       uniqueViewersWeight?: number
       playCountWeight?: number
       completionWeight?: number
@@ -83,7 +86,12 @@ export function registerTopPicksHandlers(fastify: FastifyInstance) {
       mdblistMoviesSort?: string
       mdblistSeriesSort?: string
       hybridLocalWeight?: number
-      hybridMdblistWeight?: number
+      hybridExternalWeight?: number
+      moviesAutoRequestEnabled?: boolean
+      moviesAutoRequestLimit?: number
+      seriesAutoRequestEnabled?: boolean
+      seriesAutoRequestLimit?: number
+      autoRequestCron?: string
     }
   }>('/api/settings/top-picks', { preHandler: requireAdmin, schema: updateTopPicksConfigSchema }, async (request, reply) => {
     try {

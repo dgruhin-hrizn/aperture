@@ -25,7 +25,7 @@ const getStatus = {
       example: {
         isSetupComplete: false,
         isFirstRun: true,
-        version: '0.6.0',
+        version: '0.6.1',
       },
     },
   },
@@ -1014,13 +1014,13 @@ const addCustomModel = {
     required: ['provider', 'function', 'modelId'] as string[],
     properties: {
       provider: { type: 'string' as const, description: 'Provider ID' },
-      function: { type: 'string' as const, enum: ['embedding', 'text_generation', 'chat_assistant'] },
+      function: { type: 'string' as const, enum: ['embeddings', 'chat', 'textGeneration', 'exploration'] },
       modelId: { type: 'string' as const, description: 'Model identifier' },
       embeddingDimensions: { type: 'number' as const, description: 'Embedding dimensions (required for embedding models)' },
     },
     example: {
       provider: 'ollama',
-      function: 'embedding',
+      function: 'embeddings',
       modelId: 'nomic-embed-text',
       embeddingDimensions: 768,
     },
@@ -1044,7 +1044,7 @@ const deleteCustomModel = {
     required: ['provider', 'function', 'modelId'] as string[],
     properties: {
       provider: { type: 'string' as const },
-      function: { type: 'string' as const, enum: ['embedding', 'text_generation', 'chat_assistant'] },
+      function: { type: 'string' as const, enum: ['embeddings', 'chat', 'textGeneration', 'exploration'] },
       modelId: { type: 'string' as const },
     },
   },
