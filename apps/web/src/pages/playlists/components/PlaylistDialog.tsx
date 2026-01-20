@@ -29,6 +29,111 @@ import DescriptionIcon from '@mui/icons-material/Description'
 import AddIcon from '@mui/icons-material/Add'
 import { getProxiedImageUrl } from '@aperture/ui'
 import type { Channel, Movie, FormData, SnackbarState } from '../types'
+import type { Theme } from '@mui/material'
+
+// AI button component - defined outside to prevent re-renders
+function AIButton({
+  onClick,
+  loading,
+  disabled,
+  tooltip,
+  theme,
+}: {
+  onClick: () => void
+  loading: boolean
+  disabled: boolean
+  tooltip: string
+  theme: Theme
+}) {
+  return (
+    <Tooltip title={tooltip}>
+      <span>
+        <IconButton
+          size="small"
+          onClick={onClick}
+          disabled={loading || disabled}
+          sx={{
+            bgcolor: alpha(theme.palette.primary.main, 0.1),
+            color: 'primary.main',
+            '&:hover': {
+              bgcolor: 'primary.main',
+              color: 'white',
+            },
+            '&.Mui-disabled': {
+              bgcolor: alpha(theme.palette.action.disabled, 0.1),
+            },
+            transition: 'all 0.2s',
+          }}
+        >
+          {loading ? (
+            <CircularProgress size={18} color="inherit" />
+          ) : (
+            <AutoAwesomeIcon fontSize="small" />
+          )}
+        </IconButton>
+      </span>
+    </Tooltip>
+  )
+}
+
+// Section wrapper component - defined outside to prevent re-renders
+function Section({
+  icon,
+  title,
+  subtitle,
+  children,
+  aiButton,
+  theme,
+}: {
+  icon: React.ReactNode
+  title: string
+  subtitle?: string
+  children: React.ReactNode
+  aiButton?: React.ReactNode
+  theme: Theme
+}) {
+  return (
+    <Box
+      sx={{
+        p: 2,
+        borderRadius: 2,
+        bgcolor: alpha(theme.palette.background.default, 0.5),
+        border: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+      }}
+    >
+      <Box display="flex" alignItems="flex-start" justifyContent="space-between" mb={1.5}>
+        <Box display="flex" alignItems="center" gap={1.5}>
+          <Box
+            sx={{
+              width: 32,
+              height: 32,
+              borderRadius: 1,
+              bgcolor: alpha(theme.palette.primary.main, 0.15),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'primary.main',
+            }}
+          >
+            {icon}
+          </Box>
+          <Box>
+            <Typography variant="subtitle2" fontWeight={600}>
+              {title}
+            </Typography>
+            {subtitle && (
+              <Typography variant="caption" color="text.secondary">
+                {subtitle}
+              </Typography>
+            )}
+          </Box>
+        </Box>
+        {aiButton}
+      </Box>
+      {children}
+    </Box>
+  )
+}
 
 interface PlaylistDialogProps {
   open: boolean
@@ -229,102 +334,6 @@ export function PlaylistDialog({
     }
   }
 
-  // AI button component for consistency
-  const AIButton = ({
-    onClick,
-    loading,
-    disabled,
-    tooltip,
-  }: {
-    onClick: () => void
-    loading: boolean
-    disabled: boolean
-    tooltip: string
-  }) => (
-    <Tooltip title={tooltip}>
-      <span>
-        <IconButton
-          size="small"
-          onClick={onClick}
-          disabled={loading || disabled}
-          sx={{
-            bgcolor: alpha(theme.palette.primary.main, 0.1),
-            color: 'primary.main',
-            '&:hover': {
-              bgcolor: 'primary.main',
-              color: 'white',
-            },
-            '&.Mui-disabled': {
-              bgcolor: alpha(theme.palette.action.disabled, 0.1),
-            },
-            transition: 'all 0.2s',
-          }}
-        >
-          {loading ? (
-            <CircularProgress size={18} color="inherit" />
-          ) : (
-            <AutoAwesomeIcon fontSize="small" />
-          )}
-        </IconButton>
-      </span>
-    </Tooltip>
-  )
-
-  // Section wrapper for consistent styling
-  const Section = ({
-    icon,
-    title,
-    subtitle,
-    children,
-    aiButton,
-  }: {
-    icon: React.ReactNode
-    title: string
-    subtitle?: string
-    children: React.ReactNode
-    aiButton?: React.ReactNode
-  }) => (
-    <Box
-      sx={{
-        p: 2,
-        borderRadius: 2,
-        bgcolor: alpha(theme.palette.background.default, 0.5),
-        border: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
-      }}
-    >
-      <Box display="flex" alignItems="flex-start" justifyContent="space-between" mb={1.5}>
-        <Box display="flex" alignItems="center" gap={1.5}>
-          <Box
-            sx={{
-              width: 32,
-              height: 32,
-              borderRadius: 1,
-              bgcolor: alpha(theme.palette.primary.main, 0.15),
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'primary.main',
-            }}
-          >
-            {icon}
-          </Box>
-          <Box>
-            <Typography variant="subtitle2" fontWeight={600}>
-              {title}
-            </Typography>
-            {subtitle && (
-              <Typography variant="caption" color="text.secondary">
-                {subtitle}
-              </Typography>
-            )}
-          </Box>
-        </Box>
-        {aiButton}
-      </Box>
-      {children}
-    </Box>
-  )
-
   return (
     <Dialog
       open={open}
@@ -385,6 +394,7 @@ export function PlaylistDialog({
           icon={<CategoryIcon fontSize="small" />}
           title="Genres"
           subtitle="Select genres to match"
+          theme={theme}
         >
           <Autocomplete
             multiple
@@ -429,6 +439,7 @@ export function PlaylistDialog({
           icon={<MovieIcon fontSize="small" />}
           title="Seed Movies"
           subtitle="Movies that define this playlist's vibe"
+          theme={theme}
         >
           {/* Movie Search */}
           <TextField
@@ -580,12 +591,14 @@ export function PlaylistDialog({
           icon={<TuneIcon fontSize="small" />}
           title="Preferences"
           subtitle="Describe your ideal recommendations"
+          theme={theme}
           aiButton={
             <AIButton
               onClick={handleGenerateAIPreferences}
               loading={generatingAIPreferences}
               disabled={!canGenerate}
               tooltip="Generate preferences with AI based on genres & movies"
+              theme={theme}
             />
           }
         >
@@ -604,12 +617,14 @@ export function PlaylistDialog({
         <Section
           icon={<TitleIcon fontSize="small" />}
           title="Playlist Name"
+          theme={theme}
           aiButton={
             <AIButton
               onClick={handleGenerateAIName}
               loading={generatingAIName}
               disabled={!canGenerate}
               tooltip="Generate a creative name with AI"
+              theme={theme}
             />
           }
         >
@@ -627,12 +642,14 @@ export function PlaylistDialog({
           icon={<DescriptionIcon fontSize="small" />}
           title="Description"
           subtitle="Optional"
+          theme={theme}
           aiButton={
             <AIButton
               onClick={handleGenerateAIDescription}
               loading={generatingAIDescription}
               disabled={!canGenerate}
               tooltip="Generate a description with AI"
+              theme={theme}
             />
           }
         >
