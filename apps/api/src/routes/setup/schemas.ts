@@ -432,13 +432,13 @@ const adminUpdateProgress = {
 const getAIProviders = {
   tags: ['setup'],
   summary: 'Get AI providers',
-  description: 'Get available AI providers for a specific function (embedding, text generation, chat).',
+  description: 'Get available AI providers for a specific function (embeddings, chat, textGeneration, exploration).',
   querystring: {
     type: 'object' as const,
     properties: {
       function: { 
         type: 'string' as const, 
-        enum: ['embedding', 'text_generation', 'chat_assistant'],
+        enum: ['embeddings', 'chat', 'textGeneration', 'exploration'],
         description: 'AI function type'
       },
     },
@@ -454,7 +454,7 @@ const getAIModels = {
     required: ['provider', 'function'] as string[],
     properties: {
       provider: { type: 'string' as const, description: 'Provider ID', example: 'openai' },
-      function: { type: 'string' as const, enum: ['embedding', 'text_generation', 'chat_assistant'] },
+      function: { type: 'string' as const, enum: ['embeddings', 'chat', 'textGeneration', 'exploration'] },
     },
   },
 }
