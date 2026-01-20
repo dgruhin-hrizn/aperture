@@ -1,6 +1,6 @@
 # Aperture
 
-[![Version](https://img.shields.io/badge/version-0.6.2-blue.svg)](https://github.com/dgruhin-hrizn/aperture/releases)
+[![Version](https://img.shields.io/badge/version-0.6.3-blue.svg)](https://github.com/dgruhin-hrizn/aperture/releases)
 [![Docker Image](https://img.shields.io/badge/docker-ghcr.io%2Fdgruhin--hrizn%2Faperture-blue?logo=docker)](https://github.com/dgruhin-hrizn/aperture/pkgs/container/aperture)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 
