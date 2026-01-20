@@ -46,6 +46,7 @@ const JOB_DISPLAY_NAMES: Record<string, string> = {
   'generate-series-recommendations': 'Generating Series Recommendations',
   'sync-series-libraries': 'Building Aperture Series Libraries',
   'refresh-top-picks': 'Refreshing Top Picks',
+  'auto-request-top-picks': 'Auto-Requesting Top Picks',
 }
 
 function getJobDisplayName(jobName: string): string {

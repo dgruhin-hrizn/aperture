@@ -69,22 +69,8 @@ export const listMoviesSchema = {
       },
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      description: 'Paginated list of movies',
-      properties: {
-        movies: {
-          type: 'array' as const,
-          items: MovieRef,
-          description: 'Array of movie objects',
-        },
-        total: { type: 'integer' as const, description: 'Total number of movies matching filters', example: 1234 },
-        page: { type: 'integer' as const, description: 'Current page number', example: 1 },
-        pageSize: { type: 'integer' as const, description: 'Number of items per page', example: 50 },
-      },
-    },
-  },
+  // Note: Response schema intentionally omitted to allow snake_case DB fields (poster_url, etc.)
+  // to pass through without Fastify serialization filtering them out
 }
 
 // =============================================================================
@@ -102,13 +88,8 @@ export const getMovieSchema = {
     },
     required: ['id'] as string[],
   },
-  response: {
-    200: {
-      description: 'Movie details with full metadata',
-      $ref: 'MovieDetail#',
-    },
-    404: ErrorRef,
-  },
+  // Note: Response schema intentionally omitted to allow snake_case DB fields (poster_url, etc.)
+  // to pass through without Fastify serialization filtering them out
 }
 
 // =============================================================================

@@ -14,6 +14,7 @@ import BusinessIcon from '@mui/icons-material/Business'
 import StreamIcon from '@mui/icons-material/Stream'
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney'
 import ExploreIcon from '@mui/icons-material/Explore'
+import SendIcon from '@mui/icons-material/Send'
 import type { JobCategory } from './types'
 
 // Movie job categories
@@ -64,40 +65,27 @@ export const SERIES_JOB_CATEGORIES: JobCategory[] = [
 export const GLOBAL_JOB_CATEGORIES: JobCategory[] = [
   {
     title: 'Metadata Enrichment',
-    description:
-      'Enrich with keywords, collections, RT/Metacritic scores, languages, countries, streaming providers',
+    description: 'Enrich with TMDb, OMDb, MDBList data and studio logos',
     color: '#10b981',
     jobs: ['enrich-metadata', 'enrich-studio-logos', 'enrich-mdblist'],
   },
   {
-    title: 'Top Picks',
-    description: 'Global popularity-based libraries',
+    title: 'Curated Libraries',
+    description: 'Top Picks popularity lists and Shows You Watch libraries',
     color: '#f59e0b',
-    jobs: ['refresh-top-picks'],
+    jobs: ['refresh-top-picks', 'auto-request-top-picks', 'sync-watching-libraries'],
   },
   {
-    title: 'User Libraries',
-    description: 'Per-user custom library management',
-    color: '#06b6d4',
-    jobs: ['sync-watching-libraries'],
+    title: 'Discovery & Suggestions',
+    description: 'AI-powered content discovery and recommendations',
+    color: '#ec4899',
+    jobs: ['generate-discovery-suggestions'],
   },
   {
     title: 'Integrations',
-    description: 'External service synchronization',
+    description: 'Sync with Trakt and update AI pricing data',
     color: '#ed1c24',
-    jobs: ['sync-trakt-ratings'],
-  },
-  {
-    title: 'AI System',
-    description: 'AI/LLM system maintenance',
-    color: '#22c55e',
-    jobs: ['refresh-ai-pricing'],
-  },
-  {
-    title: 'Discovery',
-    description: 'Find content not in your library that matches your taste',
-    color: '#ec4899',
-    jobs: ['generate-discovery-suggestions'],
+    jobs: ['sync-trakt-ratings', 'refresh-ai-pricing'],
   },
 ]
 
@@ -128,6 +116,7 @@ export const JOB_ICONS: Record<string, React.ReactNode> = {
   'enrich-studio-logos': <BusinessIcon />,
   'enrich-mdblist': <StreamIcon />,
   'refresh-top-picks': <TrendingUpIcon />,
+  'auto-request-top-picks': <SendIcon />,
   'sync-watching-libraries': <AddToQueueIcon />,
   'sync-trakt-ratings': <SyncIcon />,
   'refresh-ai-pricing': <AttachMoneyIcon />,
@@ -155,6 +144,7 @@ export const JOB_COLORS: Record<string, string> = {
   'enrich-studio-logos': '#14b8a6',
   'enrich-mdblist': '#6366f1',
   'refresh-top-picks': '#f59e0b',
+  'auto-request-top-picks': '#f97316',
   'sync-watching-libraries': '#06b6d4',
   'sync-trakt-ratings': '#ed1c24',
   'refresh-ai-pricing': '#22c55e',

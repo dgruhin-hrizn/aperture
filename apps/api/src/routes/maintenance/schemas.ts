@@ -57,6 +57,15 @@ export const scanPostersSchema = {
   tags: ['admin'],
   summary: 'Scan for missing posters',
   description: 'Scan Emby for items with missing poster images',
+  response: {
+    200: { $ref: 'PosterScanResult#' },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
+  },
 }
 
 export const repairPostersSchema = {
@@ -68,6 +77,15 @@ export const repairPostersSchema = {
     required: ['items'],
     properties: {
       items: { type: 'array', items: { $ref: 'MissingPosterItem#' } },
+    },
+  },
+  response: {
+    200: { $ref: 'PosterRepairResult#' },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
     },
   },
 }

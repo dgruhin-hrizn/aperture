@@ -8,6 +8,21 @@
 // Component Schemas
 // =============================================================================
 
+// Media item schema (movie or series nested object)
+const MediaItemSchema = {
+  type: 'object' as const,
+  description: 'Movie or series details',
+  properties: {
+    id: { type: 'string' as const, format: 'uuid', description: 'Media ID' },
+    title: { type: 'string' as const, description: 'Title' },
+    year: { type: 'integer' as const, nullable: true, description: 'Release year' },
+    poster_url: { type: 'string' as const, nullable: true, description: 'Poster image URL' },
+    genres: { type: 'array' as const, items: { type: 'string' as const }, description: 'Genre list' },
+    community_rating: { type: 'number' as const, nullable: true, description: 'Community rating' },
+    overview: { type: 'string' as const, nullable: true, description: 'Overview/description' },
+  },
+}
+
 export const recommendationComponentSchemas = {
   // Recommendation candidate
   RecommendationCandidate: {
@@ -15,19 +30,20 @@ export const recommendationComponentSchemas = {
     description: 'A recommended movie or series with scoring details',
     properties: {
       id: { type: 'string' as const, format: 'uuid', description: 'Recommendation candidate ID' },
-      movieId: { type: 'string' as const, format: 'uuid', nullable: true, description: 'Movie ID (if movie recommendation)' },
-      seriesId: { type: 'string' as const, format: 'uuid', nullable: true, description: 'Series ID (if series recommendation)' },
+      movie_id: { type: 'string' as const, format: 'uuid', nullable: true, description: 'Movie ID (if movie recommendation)' },
+      series_id: { type: 'string' as const, format: 'uuid', nullable: true, description: 'Series ID (if series recommendation)' },
       rank: { type: 'integer' as const, description: 'Position in recommendation list (1 = best)' },
-      isSelected: { type: 'boolean' as const, description: 'Whether this candidate was selected for the final list' },
-      finalScore: { type: 'number' as const, description: 'Combined recommendation score (0-1)' },
-      similarityScore: { type: 'number' as const, nullable: true, description: 'Semantic similarity to user preferences (0-1)' },
-      noveltyScore: { type: 'number' as const, nullable: true, description: 'How different from recently watched (0-1)' },
-      ratingScore: { type: 'number' as const, nullable: true, description: 'Community/critic rating score (0-1)' },
-      diversityScore: { type: 'number' as const, nullable: true, description: 'Genre diversity contribution (0-1)' },
-      title: { type: 'string' as const, description: 'Movie/series title' },
-      year: { type: 'integer' as const, nullable: true, description: 'Release year' },
-      posterUrl: { type: 'string' as const, nullable: true, description: 'Poster image URL' },
-      genres: { type: 'array' as const, items: { type: 'string' as const }, description: 'Genre list' },
+      selected_rank: { type: 'integer' as const, nullable: true, description: 'Position in selected list' },
+      is_selected: { type: 'boolean' as const, description: 'Whether this candidate was selected for the final list' },
+      final_score: { type: 'number' as const, description: 'Combined recommendation score (0-1)' },
+      similarity_score: { type: 'number' as const, nullable: true, description: 'Semantic similarity to user preferences (0-1)' },
+      novelty_score: { type: 'number' as const, nullable: true, description: 'How different from recently watched (0-1)' },
+      rating_score: { type: 'number' as const, nullable: true, description: 'Community/critic rating score (0-1)' },
+      diversity_score: { type: 'number' as const, nullable: true, description: 'Genre diversity contribution (0-1)' },
+      score_breakdown: { type: 'object' as const, additionalProperties: true, description: 'Detailed score breakdown' },
+      run_id: { type: 'string' as const, format: 'uuid', description: 'Run ID' },
+      movie: MediaItemSchema,
+      series: MediaItemSchema,
     },
   },
 
@@ -37,14 +53,16 @@ export const recommendationComponentSchemas = {
     description: 'A recommendation generation run',
     properties: {
       id: { type: 'string' as const, format: 'uuid', description: 'Run ID' },
-      userId: { type: 'string' as const, format: 'uuid', description: 'User ID' },
-      runType: { type: 'string' as const, description: 'Type of run (scheduled, manual, etc.)' },
-      mediaType: { type: 'string' as const, enum: ['movie', 'series'], description: 'Media type' },
-      candidateCount: { type: 'integer' as const, description: 'Number of candidates evaluated' },
-      selectedCount: { type: 'integer' as const, description: 'Number of recommendations selected' },
-      durationMs: { type: 'integer' as const, nullable: true, description: 'Run duration in milliseconds' },
+      user_id: { type: 'string' as const, format: 'uuid', description: 'User ID' },
+      run_type: { type: 'string' as const, description: 'Type of run (scheduled, manual, etc.)' },
+      media_type: { type: 'string' as const, enum: ['movie', 'series'], description: 'Media type' },
+      candidate_count: { type: 'integer' as const, description: 'Number of candidates evaluated' },
+      selected_count: { type: 'integer' as const, description: 'Number of recommendations selected' },
+      total_candidates: { type: 'integer' as const, description: 'Total number of candidates' },
+      duration_ms: { type: 'integer' as const, nullable: true, description: 'Run duration in milliseconds' },
       status: { type: 'string' as const, enum: ['running', 'completed', 'failed'], description: 'Run status' },
-      createdAt: { type: 'string' as const, format: 'date-time', description: 'When the run started' },
+      error_message: { type: 'string' as const, nullable: true, description: 'Error message if failed' },
+      created_at: { type: 'string' as const, format: 'date-time', description: 'When the run started' },
     },
   },
 

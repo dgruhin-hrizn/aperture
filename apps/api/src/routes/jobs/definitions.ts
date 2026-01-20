@@ -76,11 +76,16 @@ export const jobDefinitions: JobDefinition[] = [
     description: 'Build Aperture series libraries with AI recommendations (STRM or symlinks)',
     cron: process.env.PERMS_CRON || '0 5 * * *',
   },
-  // === Top Picks Job ===
+  // === Top Picks Jobs ===
   {
     name: 'refresh-top-picks',
     description: 'Refresh global Top Picks libraries based on popularity',
     cron: '0 6 * * *',
+  },
+  {
+    name: 'auto-request-top-picks',
+    description: 'Automatically request missing Top Picks content via Jellyseerr',
+    cron: '0 0 * * 0', // Weekly on Sunday at midnight (configurable via settings)
   },
   // === Trakt Sync Job ===
   {

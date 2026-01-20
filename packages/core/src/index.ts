@@ -393,12 +393,19 @@ export {
   grantTopPicksAccessToAllUsers,
   getTopPicksLibraries,
   refreshTopPicks,
+  getTopMoviesPreview,
+  getTopSeriesPreview,
+  runAutoRequestJob,
   type TopPicksConfig,
   type PopularMovie,
   type PopularSeries,
   type RefreshTopPicksResult,
   type TopPicksPreviewParams,
   type TopPicksPreviewResult,
+  type PopularitySource,
+  type HybridExternalSource,
+  type PreviewItem,
+  type PreviewResult,
 } from './topPicks/index.js'
 
 // Watching Libraries

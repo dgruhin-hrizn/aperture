@@ -10,4 +10,5 @@ export * from './popularity.js'
 export * from './writer.js'
 export * from './permissions.js'
 export * from './job.js'
+export * from './autoRequest.js'
 

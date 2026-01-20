@@ -66,7 +66,23 @@ export {
   extractYear,
   normalizeMovieResult,
   normalizeTVResult,
+  // Top Picks source functions
+  getPopularMovies,
+  getPopularMoviesBatch,
+  getTrendingMovies,
+  getTrendingMoviesBatch,
+  getTopRatedMovies,
+  getTopRatedMoviesBatch,
+  getPopularTV,
+  getPopularTVBatch,
+  getTrendingTV,
+  getTrendingTVBatch,
+  getTopRatedTV,
+  getTopRatedTVBatch,
 } from './discover.js'
+
+// Discovery types
+export type { TrendingTimeWindow } from './discover.js'
 
 // Types
 export type {

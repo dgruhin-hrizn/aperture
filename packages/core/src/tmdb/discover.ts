@@ -25,6 +25,243 @@ import type {
 const logger = createChildLogger('tmdb:discover')
 
 // ============================================================================
+// Top Picks Source Functions (Popular, Trending, Top Rated)
+// ============================================================================
+
+export type TrendingTimeWindow = 'day' | 'week'
+
+interface TMDbPaginatedResponse<T> {
+  page: number
+  results: T[]
+  total_pages: number
+  total_results: number
+}
+
+/**
+ * Get popular movies from TMDB
+ * Returns movies sorted by popularity
+ */
+export async function getPopularMovies(
+  page: number = 1,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<TMDbMovieResult[]> {
+  const result = await tmdbRequest<TMDbPaginatedResponse<TMDbMovieResult>>(
+    `/movie/popular?page=${page}&language=en-US`,
+    options
+  )
+  return result?.results ?? []
+}
+
+/**
+ * Get popular movies with multiple pages
+ */
+export async function getPopularMoviesBatch(
+  maxPages: number = 5,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<TMDbMovieResult[]> {
+  const results: TMDbMovieResult[] = []
+
+  for (let page = 1; page <= maxPages; page++) {
+    const pageResults = await getPopularMovies(page, options)
+    if (pageResults.length === 0) break
+    results.push(...pageResults)
+    
+    if (page < maxPages) {
+      await new Promise(resolve => setTimeout(resolve, 50))
+    }
+  }
+
+  return results
+}
+
+/**
+ * Get trending movies from TMDB
+ * @param timeWindow - 'day' for today's trending, 'week' for this week's trending
+ */
+export async function getTrendingMovies(
+  timeWindow: TrendingTimeWindow = 'week',
+  page: number = 1,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<TMDbMovieResult[]> {
+  const result = await tmdbRequest<TMDbPaginatedResponse<TMDbMovieResult>>(
+    `/trending/movie/${timeWindow}?page=${page}&language=en-US`,
+    options
+  )
+  return result?.results ?? []
+}
+
+/**
+ * Get trending movies with multiple pages
+ */
+export async function getTrendingMoviesBatch(
+  timeWindow: TrendingTimeWindow = 'week',
+  maxPages: number = 5,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<TMDbMovieResult[]> {
+  const results: TMDbMovieResult[] = []
+
+  for (let page = 1; page <= maxPages; page++) {
+    const pageResults = await getTrendingMovies(timeWindow, page, options)
+    if (pageResults.length === 0) break
+    results.push(...pageResults)
+    
+    if (page < maxPages) {
+      await new Promise(resolve => setTimeout(resolve, 50))
+    }
+  }
+
+  return results
+}
+
+/**
+ * Get top rated movies from TMDB
+ * Returns movies sorted by vote average
+ */
+export async function getTopRatedMovies(
+  page: number = 1,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<TMDbMovieResult[]> {
+  const result = await tmdbRequest<TMDbPaginatedResponse<TMDbMovieResult>>(
+    `/movie/top_rated?page=${page}&language=en-US`,
+    options
+  )
+  return result?.results ?? []
+}
+
+/**
+ * Get top rated movies with multiple pages
+ */
+export async function getTopRatedMoviesBatch(
+  maxPages: number = 5,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<TMDbMovieResult[]> {
+  const results: TMDbMovieResult[] = []
+
+  for (let page = 1; page <= maxPages; page++) {
+    const pageResults = await getTopRatedMovies(page, options)
+    if (pageResults.length === 0) break
+    results.push(...pageResults)
+    
+    if (page < maxPages) {
+      await new Promise(resolve => setTimeout(resolve, 50))
+    }
+  }
+
+  return results
+}
+
+/**
+ * Get popular TV shows from TMDB
+ */
+export async function getPopularTV(
+  page: number = 1,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<TMDbTVResult[]> {
+  const result = await tmdbRequest<TMDbPaginatedResponse<TMDbTVResult>>(
+    `/tv/popular?page=${page}&language=en-US`,
+    options
+  )
+  return result?.results ?? []
+}
+
+/**
+ * Get popular TV shows with multiple pages
+ */
+export async function getPopularTVBatch(
+  maxPages: number = 5,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<TMDbTVResult[]> {
+  const results: TMDbTVResult[] = []
+
+  for (let page = 1; page <= maxPages; page++) {
+    const pageResults = await getPopularTV(page, options)
+    if (pageResults.length === 0) break
+    results.push(...pageResults)
+    
+    if (page < maxPages) {
+      await new Promise(resolve => setTimeout(resolve, 50))
+    }
+  }
+
+  return results
+}
+
+/**
+ * Get trending TV shows from TMDB
+ * @param timeWindow - 'day' for today's trending, 'week' for this week's trending
+ */
+export async function getTrendingTV(
+  timeWindow: TrendingTimeWindow = 'week',
+  page: number = 1,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<TMDbTVResult[]> {
+  const result = await tmdbRequest<TMDbPaginatedResponse<TMDbTVResult>>(
+    `/trending/tv/${timeWindow}?page=${page}&language=en-US`,
+    options
+  )
+  return result?.results ?? []
+}
+
+/**
+ * Get trending TV shows with multiple pages
+ */
+export async function getTrendingTVBatch(
+  timeWindow: TrendingTimeWindow = 'week',
+  maxPages: number = 5,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<TMDbTVResult[]> {
+  const results: TMDbTVResult[] = []
+
+  for (let page = 1; page <= maxPages; page++) {
+    const pageResults = await getTrendingTV(timeWindow, page, options)
+    if (pageResults.length === 0) break
+    results.push(...pageResults)
+    
+    if (page < maxPages) {
+      await new Promise(resolve => setTimeout(resolve, 50))
+    }
+  }
+
+  return results
+}
+
+/**
+ * Get top rated TV shows from TMDB
+ */
+export async function getTopRatedTV(
+  page: number = 1,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<TMDbTVResult[]> {
+  const result = await tmdbRequest<TMDbPaginatedResponse<TMDbTVResult>>(
+    `/tv/top_rated?page=${page}&language=en-US`,
+    options
+  )
+  return result?.results ?? []
+}
+
+/**
+ * Get top rated TV shows with multiple pages
+ */
+export async function getTopRatedTVBatch(
+  maxPages: number = 5,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<TMDbTVResult[]> {
+  const results: TMDbTVResult[] = []
+
+  for (let page = 1; page <= maxPages; page++) {
+    const pageResults = await getTopRatedTV(page, options)
+    if (pageResults.length === 0) break
+    results.push(...pageResults)
+    
+    if (page < maxPages) {
+      await new Promise(resolve => setTimeout(resolve, 50))
+    }
+  }
+
+  return results
+}
+
+// ============================================================================
 // Movie Discovery Functions
 // ============================================================================
 

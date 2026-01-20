@@ -17,14 +17,20 @@ export const mediaServerInfoSchema = {
     200: {
       type: 'object' as const,
       properties: {
-        type: { type: 'string' as const, enum: ['emby', 'jellyfin'], description: 'Media server type' },
-        baseUrl: { type: 'string' as const, description: 'Server base URL for building play links' },
+        type: { type: 'string' as const, enum: ['emby', 'jellyfin'], nullable: true, description: 'Media server type' },
+        baseUrl: { type: 'string' as const, nullable: true, description: 'Server base URL for building play links' },
+        serverId: { type: 'string' as const, nullable: true, description: 'Media server unique identifier' },
         serverName: { type: 'string' as const, nullable: true, description: 'Server display name' },
+        webClientUrl: { type: 'string' as const, description: 'Full URL to web client' },
+        isConfigured: { type: 'boolean' as const, description: 'Whether media server is fully configured' },
       },
       example: {
         type: 'jellyfin',
         baseUrl: 'http://192.168.1.100:8096',
+        serverId: 'abc123',
         serverName: 'Home Server',
+        webClientUrl: 'http://192.168.1.100:8096/web/index.html',
+        isConfigured: true,
       },
     },
   },
@@ -52,8 +58,8 @@ export const mediaServerConfigSchema = {
           items: {
             type: 'object' as const,
             properties: {
-              value: { type: 'string' as const },
-              label: { type: 'string' as const },
+              id: { type: 'string' as const },
+              name: { type: 'string' as const },
             },
           },
           description: 'Available media server types',
@@ -90,7 +96,15 @@ export const updateMediaServerConfigSchema = {
     200: {
       type: 'object' as const,
       properties: {
-        success: { type: 'boolean' as const },
+        config: {
+          type: 'object' as const,
+          properties: {
+            type: { type: 'string' as const, enum: ['emby', 'jellyfin'], nullable: true },
+            baseUrl: { type: 'string' as const, nullable: true },
+            hasApiKey: { type: 'boolean' as const },
+            isConfigured: { type: 'boolean' as const },
+          },
+        },
         message: { type: 'string' as const },
       },
     },
@@ -101,6 +115,20 @@ export const mediaServerSecuritySchema = {
   tags: ['settings'],
   summary: 'Get security settings',
   description: 'Get media server security settings including passwordless login option (admin only).',
+  response: {
+    200: {
+      type: 'object' as const,
+      properties: {
+        allowPasswordlessLogin: { type: 'boolean' as const, description: 'Whether passwordless login is allowed' },
+      },
+    },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
+  },
 }
 
 export const updateMediaServerSecuritySchema = {
@@ -111,6 +139,21 @@ export const updateMediaServerSecuritySchema = {
     type: 'object' as const,
     properties: {
       allowPasswordlessLogin: { type: 'boolean' as const, description: 'Allow users without passwords to log in' },
+    },
+  },
+  response: {
+    200: {
+      type: 'object' as const,
+      properties: {
+        allowPasswordlessLogin: { type: 'boolean' as const, description: 'Updated passwordless login setting' },
+        message: { type: 'string' as const },
+      },
+    },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
     },
   },
 }
@@ -149,18 +192,63 @@ export const librariesSchema = {
   tags: ['settings'],
   summary: 'Get library configurations',
   description: 'Get all library configurations with enabled status and item counts (admin only).',
+  response: {
+    200: {
+      type: 'object' as const,
+      properties: {
+        libraries: { type: 'array' as const, items: { type: 'object' as const, additionalProperties: true } },
+      },
+    },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
+  },
 }
 
 export const syncLibrariesSchema = {
   tags: ['settings'],
   summary: 'Sync libraries from media server',
   description: 'Sync library configurations from the media server. Creates new entries for newly discovered libraries (admin only).',
+  response: {
+    200: {
+      type: 'object' as const,
+      properties: {
+        message: { type: 'string' as const },
+        libraries: { type: 'array' as const, items: { type: 'object' as const, additionalProperties: true } },
+      },
+    },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
+  },
 }
 
 export const availableLibrariesSchema = {
   tags: ['settings'],
   summary: 'Get available libraries',
   description: 'Get available libraries directly from media server before syncing (admin only).',
+  response: {
+    200: {
+      type: 'object' as const,
+      properties: {
+        libraries: { type: 'array' as const, items: { type: 'object' as const, additionalProperties: true } },
+        movieCount: { type: 'integer' as const },
+        tvShowCount: { type: 'integer' as const },
+      },
+    },
+    500: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
+  },
 }
 
 export const updateLibrarySchema = {
@@ -180,6 +268,20 @@ export const updateLibrarySchema = {
       isEnabled: { type: 'boolean' as const, description: 'Whether library is enabled' },
     },
     required: ['isEnabled'] as string[],
+  },
+  response: {
+    200: {
+      type: 'object' as const,
+      properties: {
+        library: { type: 'object' as const, additionalProperties: true },
+      },
+    },
+    404: {
+      type: 'object' as const,
+      properties: {
+        error: { type: 'string' as const },
+      },
+    },
   },
 }
 
@@ -705,7 +807,7 @@ export const addCustomModelSchema = {
       provider: { type: 'string' as const },
       modelId: { type: 'string' as const },
       displayName: { type: 'string' as const },
-      function: { type: 'string' as const, enum: ['embedding', 'text_generation', 'chat_assistant'] },
+      function: { type: 'string' as const, enum: ['embeddings', 'chat', 'textGeneration', 'exploration'] },
       contextWindow: { type: 'integer' as const },
       inputPrice: { type: 'number' as const },
       outputPrice: { type: 'number' as const },
