@@ -13,7 +13,7 @@ export const healthSchemas = {
     properties: {
       ok: { type: 'boolean', description: 'Overall health status (true if all components healthy)' },
       name: { type: 'string', description: 'Application name', example: 'aperture-api' },
-      version: { type: 'string', description: 'API version', example: '0.6.2' },
+      version: { type: 'string', description: 'API version', example: '0.6.3' },
       time: { type: 'string', format: 'date-time', description: 'Current server time (ISO 8601)' },
       database: {
         type: 'object',
@@ -25,7 +25,7 @@ export const healthSchemas = {
     example: {
       ok: true,
       name: 'aperture-api',
-      version: '0.6.2',
+      version: '0.6.3',
       time: '2024-01-15T10:30:00Z',
       database: { connected: true },
     },
