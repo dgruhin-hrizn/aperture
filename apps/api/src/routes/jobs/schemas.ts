@@ -295,6 +295,7 @@ const updateJobConfig = {
   },
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     description: 'Schedule configuration (partial update)',
     properties: {
       scheduleType: {
@@ -575,6 +576,7 @@ const purgeMovies = {
   description: 'Permanently delete all movie-related data including movies, embeddings, recommendations, and watch history. This action cannot be undone. Requires explicit confirmation.',
   body: {
     type: 'object' as const,
+    additionalProperties: true,
     required: ['confirm'] as string[],
     properties: {
       confirm: { type: 'boolean' as const, description: 'Must be true to confirm the purge' },

@@ -87,6 +87,7 @@ export const updateTraktConfigSchema = {
   description: 'Update Trakt API credentials (admin only). Get credentials from https://trakt.tv/oauth/applications',
   body: {
     type: 'object',
+    additionalProperties: true,
     properties: {
       clientId: { type: 'string', description: 'Trakt API client ID from your application settings' },
       clientSecret: { type: 'string', description: 'Trakt API client secret' },

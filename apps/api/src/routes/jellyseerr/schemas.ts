@@ -205,6 +205,7 @@ export const updateJellyseerrConfigSchema = {
   description: 'Update Jellyseerr integration settings (admin only). Get API key from Jellyseerr Settings > General.',
   body: {
     type: 'object',
+    additionalProperties: true,
     properties: {
       url: { type: 'string', description: 'Jellyseerr base URL (e.g., http://localhost:5055)', example: 'http://192.168.1.100:5055' },
       apiKey: { type: 'string', description: 'Jellyseerr API key' },
@@ -229,6 +230,7 @@ export const testJellyseerrSchema = {
   description: 'Test Jellyseerr API connection with provided or saved credentials (admin only).',
   body: {
     type: 'object',
+    additionalProperties: true,
     properties: {
       url: { type: 'string', description: 'Jellyseerr URL to test (optional, uses saved if not provided)' },
       apiKey: { type: 'string', description: 'API key to test (optional, uses saved if not provided)' },

@@ -203,6 +203,7 @@ export const expandDiscoverySchema = {
   },
   body: {
     type: 'object',
+    additionalProperties: true,
     properties: {
       languages: { type: 'array', items: { type: 'string' }, description: 'Language filter' },
       genreIds: { type: 'array', items: { type: 'integer' }, description: 'TMDb genre IDs' },

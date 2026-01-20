@@ -167,6 +167,7 @@ export const rateMovieSchema = {
   },
   body: {
     type: 'object',
+    additionalProperties: true,
     required: ['rating'],
     properties: {
       rating: { type: 'integer', minimum: 1, maximum: 10 },
@@ -196,6 +197,7 @@ export const rateSeriesSchema = {
   },
   body: {
     type: 'object',
+    additionalProperties: true,
     required: ['rating'],
     properties: {
       rating: { type: 'integer', minimum: 1, maximum: 10 },

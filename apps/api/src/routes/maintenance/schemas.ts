@@ -74,6 +74,7 @@ export const repairPostersSchema = {
   description: 'Repair selected items by fetching posters from TMDB and pushing to Emby',
   body: {
     type: 'object',
+    additionalProperties: true,
     required: ['items'],
     properties: {
       items: { type: 'array', items: { $ref: 'MissingPosterItem#' } },
