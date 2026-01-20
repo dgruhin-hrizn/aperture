@@ -28,6 +28,7 @@ import {
   FileLocationsSection,
   TopPicksSection,
   WatchingSection,
+  ContinueWatchingSection,
   AiExplanationSection,
   OutputFormatSection,
   LibraryTitlesSection,
@@ -242,7 +243,10 @@ export function SettingsPage() {
 
           {/* Shows You Watch Tab */}
           <TabPanel value={tabValue} index={4}>
-            <WatchingSection />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <WatchingSection />
+              <ContinueWatchingSection />
+            </Box>
           </TabPanel>
 
           {/* Maintenance Tab */}

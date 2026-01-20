@@ -13,6 +13,7 @@ import type {
   CollectionCreateResult,
   LibraryCreateResult,
   PlaylistItem,
+  ResumeItem,
 } from './types.js'
 
 /**
@@ -345,4 +346,14 @@ export interface MediaServerProvider {
     userId: string,
     seriesId: string
   ): Promise<{ markedCount: number }>
+
+  // =========================================================================
+  // Resume / Continue Watching
+  // =========================================================================
+
+  /**
+   * Get resume (continue watching) items for a user
+   * These are items that have been partially watched (in progress)
+   */
+  getResumeItems(apiKey: string, userId: string, limit?: number): Promise<ResumeItem[]>
 }

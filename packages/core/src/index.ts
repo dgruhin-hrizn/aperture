@@ -340,6 +340,8 @@ export {
   setAiExplanationConfig,
   getWatchingLibraryConfig,
   setWatchingLibraryConfig,
+  getContinueWatchingConfig,
+  setContinueWatchingConfig,
   getLibraryTitleConfig,
   setLibraryTitleConfig,
   getOpenAIApiKey,
@@ -369,6 +371,7 @@ export {
   type OutputPathConfig,
   type AiExplanationConfig,
   type WatchingLibraryConfig,
+  type ContinueWatchingConfig,
   type LibraryTitleConfig,
   type ChatAssistantModel,
   type ChatAssistantModelInfo,
@@ -422,6 +425,21 @@ export {
   getUpcomingEpisodeForSeries,
   type UpcomingEpisode,
 } from './watching/index.js'
+
+// Continue Watching
+export {
+  syncContinueWatchingForUser,
+  syncContinueWatchingForAllUsers,
+  filterAndDeduplicate,
+  writeContinueWatchingForUser,
+  processContinueWatchingForUser,
+  processContinueWatchingForAllUsers,
+  getContinueWatchingLibraryName,
+  ensureUserContinueWatchingLibrary,
+  refreshUserContinueWatchingLibrary,
+  updateUserContinueWatchingLibraryPermissions,
+  type ContinueWatchingItem,
+} from './continueWatching/index.js'
 
 // Trakt Integration
 export {

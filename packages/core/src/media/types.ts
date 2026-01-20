@@ -218,3 +218,31 @@ export interface LibraryCreateResult {
   alreadyExists?: boolean
 }
 
+
+/**
+ * Resume item from Emby/Jellyfin Resume API
+ * Represents an item that is partially watched (in progress)
+ */
+export interface ResumeItem {
+  id: string
+  name: string
+  type: 'Movie' | 'Episode'
+  parentId: string  // Library ID
+  parentName?: string  // Library name
+  year?: number
+  // Episode-specific fields
+  seriesId?: string
+  seriesName?: string
+  seasonNumber?: number
+  episodeNumber?: number
+  // External IDs for deduplication
+  tmdbId?: string
+  imdbId?: string
+  // Progress info
+  playbackPositionTicks: number
+  runTimeTicks: number
+  progressPercent: number
+  userData: UserData
+  // Media path for STRM/symlink creation
+  path?: string
+}

@@ -948,6 +948,102 @@ export async function setWatchingLibraryConfig(
 }
 
 // ============================================================================
+// Continue Watching Library Settings
+// ============================================================================
+
+export interface ContinueWatchingConfig {
+  enabled: boolean
+  useSymlinks: boolean
+  libraryName: string
+  pollIntervalSeconds: number
+  excludedLibraryIds: string[]
+}
+
+const DEFAULT_CONTINUE_WATCHING_LIBRARY_NAME = "{{username}}'s Continue Watching"
+const DEFAULT_POLL_INTERVAL_SECONDS = 60
+
+/**
+ * Get continue watching configuration
+ */
+export async function getContinueWatchingConfig(): Promise<ContinueWatchingConfig> {
+  const row = await queryOne<{
+    enabled: boolean
+    use_symlinks: boolean
+    library_name: string
+    poll_interval_seconds: number
+    excluded_library_ids: string[]
+  }>(
+    `SELECT enabled, use_symlinks, library_name, poll_interval_seconds, excluded_library_ids
+     FROM continue_watching_config LIMIT 1`
+  )
+
+  if (!row) {
+    // Return defaults if no config exists
+    return {
+      enabled: false,
+      useSymlinks: false,
+      libraryName: DEFAULT_CONTINUE_WATCHING_LIBRARY_NAME,
+      pollIntervalSeconds: DEFAULT_POLL_INTERVAL_SECONDS,
+      excludedLibraryIds: [],
+    }
+  }
+
+  return {
+    enabled: row.enabled,
+    useSymlinks: row.use_symlinks,
+    libraryName: row.library_name || DEFAULT_CONTINUE_WATCHING_LIBRARY_NAME,
+    pollIntervalSeconds: row.poll_interval_seconds || DEFAULT_POLL_INTERVAL_SECONDS,
+    excludedLibraryIds: row.excluded_library_ids || [],
+  }
+}
+
+/**
+ * Set continue watching configuration
+ */
+export async function setContinueWatchingConfig(
+  config: Partial<ContinueWatchingConfig>
+): Promise<ContinueWatchingConfig> {
+  // Build update parts
+  const updates: string[] = []
+  const values: (boolean | string | number | string[])[] = []
+  let paramIndex = 1
+
+  if (config.enabled !== undefined) {
+    updates.push(`enabled = $${paramIndex++}`)
+    values.push(config.enabled)
+  }
+  if (config.useSymlinks !== undefined) {
+    updates.push(`use_symlinks = $${paramIndex++}`)
+    values.push(config.useSymlinks)
+  }
+  if (config.libraryName !== undefined) {
+    updates.push(`library_name = $${paramIndex++}`)
+    values.push(config.libraryName)
+  }
+  if (config.pollIntervalSeconds !== undefined) {
+    updates.push(`poll_interval_seconds = $${paramIndex++}`)
+    values.push(config.pollIntervalSeconds)
+  }
+  if (config.excludedLibraryIds !== undefined) {
+    updates.push(`excluded_library_ids = $${paramIndex++}`)
+    values.push(config.excludedLibraryIds)
+  }
+
+  if (updates.length > 0) {
+    updates.push('updated_at = now()')
+    
+    await query(
+      `UPDATE continue_watching_config SET ${updates.join(', ')}`,
+      values
+    )
+    
+    logger.info({ updates: Object.keys(config) }, 'Updated continue watching config')
+  }
+
+  return getContinueWatchingConfig()
+}
+
+// ============================================================================
 // Library Title Template Settings
 // ============================================================================
 

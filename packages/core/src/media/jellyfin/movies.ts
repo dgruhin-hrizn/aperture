@@ -228,3 +228,82 @@ export async function markMovieUnplayed(
   logger.info({ userId, movieProviderId }, 'Movie marked as unplayed')
 }
 
+/**
+ * Get resume (continue watching) items for a user
+ * These are items that have been partially watched (in progress)
+ */
+export async function getResumeItems(
+  provider: JellyfinProviderBase,
+  apiKey: string,
+  userId: string,
+  limit?: number
+): Promise<import('../types.js').ResumeItem[]> {
+  logger.info({ userId, limit }, 'Fetching resume items from Jellyfin')
+
+  const params = new URLSearchParams({
+    UserId: userId,
+    Fields: [
+      'Path',
+      'ProviderIds',
+      'ParentId',
+      'Overview',
+      'MediaSources',
+    ].join(','),
+    Limit: String(limit || 100),
+    Recursive: 'true',
+    IncludeItemTypes: 'Movie,Episode',
+  })
+
+  const response = await provider.fetch<JellyfinItemsResponse>(
+    `/Users/${userId}/Items/Resume?${params}`,
+    apiKey
+  )
+
+  const items: import('../types.js').ResumeItem[] = []
+
+  for (const item of response.Items) {
+    // Skip items without playback position
+    if (!item.UserData?.PlaybackPositionTicks || item.UserData.PlaybackPositionTicks <= 0) {
+      continue
+    }
+
+    const runTimeTicks = item.RunTimeTicks || 0
+    const playbackPositionTicks = item.UserData.PlaybackPositionTicks
+    const progressPercent = runTimeTicks > 0 
+      ? (playbackPositionTicks / runTimeTicks) * 100 
+      : 0
+
+    // Extract provider IDs
+    const tmdbId = item.ProviderIds?.Tmdb || item.ProviderIds?.tmdb
+    const imdbId = item.ProviderIds?.Imdb || item.ProviderIds?.imdb
+
+    items.push({
+      id: item.Id,
+      name: item.Name,
+      type: item.Type as 'Movie' | 'Episode',
+      parentId: item.ParentId || '',
+      parentName: undefined,
+      year: item.ProductionYear,
+      seriesId: item.SeriesId,
+      seriesName: item.SeriesName,
+      seasonNumber: item.ParentIndexNumber,
+      episodeNumber: item.IndexNumber,
+      tmdbId,
+      imdbId,
+      playbackPositionTicks,
+      runTimeTicks,
+      progressPercent,
+      userData: {
+        playCount: item.UserData?.PlayCount || 0,
+        isFavorite: item.UserData?.IsFavorite || false,
+        lastPlayedDate: item.UserData?.LastPlayedDate,
+        playbackPositionTicks: item.UserData?.PlaybackPositionTicks,
+        played: item.UserData?.Played || false,
+      },
+      path: item.Path || item.MediaSources?.[0]?.Path,
+    })
+  }
+
+  logger.info({ userId, count: items.length }, 'Resume items fetched')
+  return items
+}

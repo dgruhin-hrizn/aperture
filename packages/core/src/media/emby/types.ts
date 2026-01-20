@@ -45,6 +45,7 @@ export interface EmbyLibraryResponse {
 export interface EmbyItem {
   Id: string
   Name: string
+  Type?: string  // Item type: Movie, Episode, Series, etc.
   OriginalTitle?: string
   SortName?: string
   ProductionYear?: number
@@ -58,6 +59,12 @@ export interface EmbyItem {
   RunTimeTicks?: number
   Path?: string
   ParentId?: string
+  ParentLogoItemId?: string
+  // Episode-specific fields (also on base item for Resume API)
+  SeriesId?: string
+  SeriesName?: string
+  ParentIndexNumber?: number  // Season number
+  IndexNumber?: number  // Episode number
   Studios?: Array<{ Name: string; Id?: number | string }>
   People?: Array<{
     Name: string
@@ -69,6 +76,8 @@ export interface EmbyItem {
   ProviderIds?: {
     Imdb?: string
     Tmdb?: string
+    imdb?: string  // Lowercase variants
+    tmdb?: string
     [key: string]: string | undefined
   }
   Tags?: string[]

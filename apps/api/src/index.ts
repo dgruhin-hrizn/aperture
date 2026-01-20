@@ -3,6 +3,7 @@ import { validateEnv, getDatabaseUrl } from './config/env.js'
 import { runMigrations, getMigrationStatus, detectInterruptedEnrichmentRuns } from '@aperture/core'
 import { closePool } from './lib/db.js'
 import { initializeScheduler, stopScheduler } from './lib/scheduler.js'
+import { startContinueWatchingPoller, stopContinueWatchingPoller } from './lib/continueWatchingPoller.js'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -75,6 +76,7 @@ async function main() {
 
     try {
       stopScheduler()
+      stopContinueWatchingPoller()
       await server.close()
       await closePool()
       console.log('Server closed')
@@ -103,6 +105,15 @@ async function main() {
     } catch (err) {
       console.error('⚠️ Failed to initialize scheduler:', err)
       // Don't exit - scheduler failure shouldn't prevent server from running
+    }
+
+    // Initialize continue watching poller
+    try {
+      await startContinueWatchingPoller()
+      console.log('📺 Continue watching poller initialized')
+    } catch (err) {
+      console.error('⚠️ Failed to initialize continue watching poller:', err)
+      // Don't exit - poller failure shouldn't prevent server from running
     }
   } catch (err) {
     server.log.error(err)

@@ -21,6 +21,7 @@ import type {
   CollectionCreateResult,
   LibraryCreateResult,
   PlaylistItem,
+  ResumeItem,
 } from '../types.js'
 
 import { EmbyProviderBase } from './base.js'
@@ -36,7 +37,7 @@ import {
   refreshLibrary,
   setLibrarySortPreference,
 } from './libraries.js'
-import { getMovies, getMovieById, getWatchHistory, markMovieUnplayed } from './movies.js'
+import { getMovies, getMovieById, getWatchHistory, markMovieUnplayed, getResumeItems } from './movies.js'
 import {
   getSeries,
   getSeriesById,
@@ -267,6 +268,11 @@ export class EmbyProvider extends EmbyProviderBase implements MediaServerProvide
     seriesId: string
   ): Promise<{ markedCount: number }> {
     return markSeriesUnplayed(this, apiKey, userId, seriesId)
+  }
+
+  // Resume / Continue Watching
+  async getResumeItems(apiKey: string, userId: string, limit?: number): Promise<ResumeItem[]> {
+    return getResumeItems(this, apiKey, userId, limit)
   }
 }
 

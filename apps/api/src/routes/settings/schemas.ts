@@ -443,6 +443,44 @@ export const updateWatchingLibraryConfigSchema = {
 }
 
 // =============================================================================
+// Continue Watching Schemas
+// =============================================================================
+
+export const continueWatchingConfigSchema = {
+  tags: ['settings'],
+  summary: 'Get continue watching configuration',
+  description: 'Get configuration for the deduplicated "Continue Watching" library feature (admin only).',
+}
+
+export const updateContinueWatchingConfigSchema = {
+  tags: ['settings'],
+  summary: 'Update continue watching configuration',
+  description: 'Update configuration for the deduplicated "Continue Watching" library feature (admin only).',
+  body: {
+    type: 'object' as const,
+    additionalProperties: true,
+    properties: {
+      enabled: { type: 'boolean' as const, description: 'Enable the continue watching feature' },
+      useSymlinks: { type: 'boolean' as const, description: 'Use symlinks instead of STRM files' },
+      libraryName: { type: 'string' as const, description: 'Library name template with merge tags ({{username}}, {{userid}})' },
+      pollIntervalSeconds: { type: 'number' as const, minimum: 30, maximum: 300, description: 'Polling interval in seconds (30-300)' },
+      excludedLibraryIds: { 
+        type: 'array' as const, 
+        items: { type: 'string' as const },
+        description: 'Library IDs to exclude from continue watching (e.g., Movies 4K to avoid duplicates)'
+      },
+    },
+    example: {
+      enabled: true,
+      useSymlinks: false,
+      libraryName: "{{username}}'s Continue Watching",
+      pollIntervalSeconds: 60,
+      excludedLibraryIds: [],
+    },
+  },
+}
+
+// =============================================================================
 // User Preference Schemas
 // =============================================================================
 

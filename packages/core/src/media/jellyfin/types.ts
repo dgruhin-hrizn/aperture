@@ -41,6 +41,7 @@ export interface JellyfinLibrary {
 export interface JellyfinItem {
   Id: string
   Name: string
+  Type?: string  // Item type: Movie, Episode, Series, etc.
   OriginalTitle?: string
   SortName?: string
   ProductionYear?: number
@@ -59,6 +60,11 @@ export interface JellyfinItem {
   ChildCount?: number
   RecursiveItemCount?: number
   AirDays?: string[]
+  // Episode-specific fields (also on base item for Resume API)
+  SeriesId?: string
+  SeriesName?: string
+  ParentIndexNumber?: number  // Season number
+  IndexNumber?: number  // Episode number
   Studios?: Array<{ Name: string; Id?: number | string }>
   People?: Array<{
     Name: string
@@ -71,6 +77,9 @@ export interface JellyfinItem {
     Imdb?: string
     Tmdb?: string
     Tvdb?: string
+    imdb?: string  // Lowercase variants
+    tmdb?: string
+    tvdb?: string
     [key: string]: string | undefined
   }
   Tags?: string[]

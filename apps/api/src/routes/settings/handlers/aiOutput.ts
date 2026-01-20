@@ -32,7 +32,10 @@ import {
   setWatchingLibraryConfig,
   getLibraryTitleConfig,
   setLibraryTitleConfig,
+  getContinueWatchingConfig,
+  setContinueWatchingConfig,
 } from '@aperture/core'
+import { restartContinueWatchingPoller } from '../../../lib/continueWatchingPoller.js'
 import { query } from '../../../lib/db.js'
 import { requireAdmin } from '../../../plugins/auth.js'
 import {
@@ -47,6 +50,8 @@ import {
   libraryTitleConfigSchema,
   updateLibraryTitleConfigSchema,
   strmLibrariesSchema,
+  continueWatchingConfigSchema,
+  updateContinueWatchingConfigSchema,
 } from '../schemas.js'
 
 export function registerAiOutputHandlers(fastify: FastifyInstance) {
@@ -443,6 +448,85 @@ export function registerAiOutputHandlers(fastify: FastifyInstance) {
     } catch (err) {
       fastify.log.error({ err }, 'Failed to get STRM libraries')
       return reply.status(500).send({ error: 'Failed to get STRM libraries' })
+    }
+  })
+
+  // =========================================================================
+  // Continue Watching Settings
+  // =========================================================================
+
+  /**
+   * GET /api/settings/continue-watching
+   */
+  fastify.get('/api/settings/continue-watching', { preHandler: requireAdmin, schema: continueWatchingConfigSchema }, async (_request, reply) => {
+    try {
+      const config = await getContinueWatchingConfig()
+      return reply.send({
+        ...config,
+        supportedMergeTags: [
+          { tag: '{{username}}', description: "User's display name" },
+          { tag: '{{userid}}', description: "User's provider ID (for uniqueness)" },
+        ],
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to get continue watching config')
+      return reply.status(500).send({ error: 'Failed to get continue watching configuration' })
+    }
+  })
+
+  /**
+   * PATCH /api/settings/continue-watching
+   */
+  fastify.patch<{
+    Body: {
+      enabled?: boolean
+      useSymlinks?: boolean
+      libraryName?: string
+      pollIntervalSeconds?: number
+      excludedLibraryIds?: string[]
+    }
+  }>('/api/settings/continue-watching', { preHandler: requireAdmin, schema: updateContinueWatchingConfigSchema }, async (request, reply) => {
+    try {
+      const { libraryName, pollIntervalSeconds } = request.body
+
+      // Validate library name if provided
+      if (libraryName !== undefined) {
+        if (typeof libraryName !== 'string' || libraryName.trim().length === 0) {
+          return reply.status(400).send({ error: 'libraryName must be a non-empty string' })
+        }
+        const invalidChars = /[<>:"/\\|?*]/
+        if (invalidChars.test(libraryName.replace(/\{\{[^}]+\}\}/g, ''))) {
+          return reply.status(400).send({
+            error: 'libraryName contains invalid characters for file paths',
+          })
+        }
+      }
+
+      // Validate poll interval if provided
+      if (pollIntervalSeconds !== undefined) {
+        if (typeof pollIntervalSeconds !== 'number' || pollIntervalSeconds < 30 || pollIntervalSeconds > 300) {
+          return reply.status(400).send({ error: 'pollIntervalSeconds must be between 30 and 300' })
+        }
+      }
+
+      const config = await setContinueWatchingConfig(request.body)
+      
+      // Restart the poller if enabled/interval changed
+      if (request.body.enabled !== undefined || request.body.pollIntervalSeconds !== undefined) {
+        try {
+          await restartContinueWatchingPoller()
+        } catch (err) {
+          fastify.log.error({ err }, 'Failed to restart continue watching poller')
+        }
+      }
+
+      return reply.send({
+        ...config,
+        message: 'Continue watching configuration updated',
+      })
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to update continue watching config')
+      return reply.status(500).send({ error: 'Failed to update continue watching configuration' })
     }
   })
 }
