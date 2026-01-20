@@ -65,40 +65,27 @@ export const SERIES_JOB_CATEGORIES: JobCategory[] = [
 export const GLOBAL_JOB_CATEGORIES: JobCategory[] = [
   {
     title: 'Metadata Enrichment',
-    description:
-      'Enrich with keywords, collections, RT/Metacritic scores, languages, countries, streaming providers',
+    description: 'Enrich with TMDb, OMDb, MDBList data and studio logos',
     color: '#10b981',
     jobs: ['enrich-metadata', 'enrich-studio-logos', 'enrich-mdblist'],
   },
   {
-    title: 'Top Picks',
-    description: 'Global popularity-based libraries',
+    title: 'Curated Libraries',
+    description: 'Top Picks popularity lists and Shows You Watch libraries',
     color: '#f59e0b',
-    jobs: ['refresh-top-picks', 'auto-request-top-picks'],
+    jobs: ['refresh-top-picks', 'auto-request-top-picks', 'sync-watching-libraries'],
   },
   {
-    title: 'User Libraries',
-    description: 'Per-user custom library management',
-    color: '#06b6d4',
-    jobs: ['sync-watching-libraries'],
+    title: 'Discovery & Suggestions',
+    description: 'AI-powered content discovery and recommendations',
+    color: '#ec4899',
+    jobs: ['generate-discovery-suggestions'],
   },
   {
     title: 'Integrations',
-    description: 'External service synchronization',
+    description: 'Sync with Trakt and update AI pricing data',
     color: '#ed1c24',
-    jobs: ['sync-trakt-ratings'],
-  },
-  {
-    title: 'AI System',
-    description: 'AI/LLM system maintenance',
-    color: '#22c55e',
-    jobs: ['refresh-ai-pricing'],
-  },
-  {
-    title: 'Discovery',
-    description: 'Find content not in your library that matches your taste',
-    color: '#ec4899',
-    jobs: ['generate-discovery-suggestions'],
+    jobs: ['sync-trakt-ratings', 'refresh-ai-pricing'],
   },
 ]
 
