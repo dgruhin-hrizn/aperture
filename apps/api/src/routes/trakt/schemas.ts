@@ -102,7 +102,7 @@ export const updateTraktConfigSchema = {
     200: {
       type: 'object',
       properties: {
-        success: { type: 'boolean' },
+        configured: { type: 'boolean', description: 'Whether Trakt is now fully configured' },
         message: { type: 'string' },
       },
     },

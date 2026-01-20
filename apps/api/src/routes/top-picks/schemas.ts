@@ -83,7 +83,7 @@ export const getTopMoviesSchema = {
       type: 'object',
       properties: {
         movies: { type: 'array', items: { $ref: 'PopularMovie#' } },
-        lastRefreshedAt: { type: 'string', format: 'date-time', nullable: true },
+        config: { $ref: 'TopPicksConfig#' },
       },
     },
   },
@@ -98,7 +98,7 @@ export const getTopSeriesSchema = {
       type: 'object',
       properties: {
         series: { type: 'array', items: { $ref: 'PopularSeries#' } },
-        lastRefreshedAt: { type: 'string', format: 'date-time', nullable: true },
+        config: { $ref: 'TopPicksConfig#' },
       },
     },
   },

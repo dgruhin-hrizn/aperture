@@ -472,9 +472,9 @@ const getSchedulerStatus = {
           items: {
             type: 'object' as const,
             properties: {
-              name: { type: 'string' as const },
-              nextRunAt: { type: 'string' as const, format: 'date-time', nullable: true },
-              scheduleDescription: { type: 'string' as const, description: 'Human-readable schedule' },
+              jobName: { type: 'string' as const, description: 'Job name' },
+              cronExpression: { type: 'string' as const, description: 'Cron expression for the schedule' },
+              schedule: { type: 'string' as const, description: 'Human-readable schedule' },
             },
           },
         },

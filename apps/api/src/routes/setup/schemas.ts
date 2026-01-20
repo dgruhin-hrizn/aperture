@@ -18,14 +18,25 @@ const getStatus = {
     200: {
       type: 'object' as const,
       properties: {
-        isSetupComplete: { type: 'boolean' as const, description: 'Whether initial setup has been completed' },
-        isFirstRun: { type: 'boolean' as const, description: 'True if this is the first time running Aperture' },
-        version: { type: 'string' as const, description: 'Aperture version' },
+        needsSetup: { type: 'boolean' as const, description: 'Whether initial setup is needed' },
+        isAdmin: { type: 'boolean' as const, description: 'Whether the current user is an admin' },
+        canAccessSetup: { type: 'boolean' as const, description: 'True if needs setup OR user is admin' },
+        configured: {
+          type: 'object' as const,
+          properties: {
+            mediaServer: { type: 'boolean' as const, description: 'Whether media server is configured' },
+            openai: { type: 'boolean' as const, description: 'Whether OpenAI API key is configured' },
+          },
+        },
       },
       example: {
-        isSetupComplete: false,
-        isFirstRun: true,
-        version: '0.6.1',
+        needsSetup: true,
+        isAdmin: false,
+        canAccessSetup: true,
+        configured: {
+          mediaServer: false,
+          openai: false,
+        },
       },
     },
   },
@@ -39,9 +50,20 @@ const getProgress = {
     200: {
       type: 'object' as const,
       properties: {
-        currentStep: { type: 'string' as const, nullable: true, description: 'Current step ID', example: 'media-server' },
-        completedSteps: { type: 'array' as const, items: { type: 'string' as const }, description: 'List of completed step IDs' },
-        config: { type: 'object' as const, description: 'Current configuration snapshot' },
+        progress: {
+          type: 'object' as const,
+          properties: {
+            completedSteps: { type: 'array' as const, items: { type: 'string' as const } },
+            currentStep: { type: 'string' as const, nullable: true },
+            completedAt: { type: 'string' as const, format: 'date-time', nullable: true },
+            updatedAt: { type: 'string' as const, format: 'date-time' },
+          },
+        },
+        snapshot: {
+          type: 'object' as const,
+          additionalProperties: true,
+          description: 'Current configuration snapshot',
+        },
       },
     },
     404: {

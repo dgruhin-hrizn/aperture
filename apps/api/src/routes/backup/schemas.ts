@@ -15,11 +15,10 @@ export const backupComponentSchemas = {
     description: 'Information about a backup file',
     properties: {
       filename: { type: 'string' as const, description: 'Backup filename', example: 'aperture-backup-2024-01-15-103000.sql.gz' },
-      size: { type: 'integer' as const, description: 'File size in bytes', example: 15728640 },
+      sizeBytes: { type: 'integer' as const, description: 'File size in bytes', example: 15728640 },
       sizeFormatted: { type: 'string' as const, description: 'Human-readable file size', example: '15 MB' },
       createdAt: { type: 'string' as const, format: 'date-time', description: 'When the backup was created' },
-      isAutomatic: { type: 'boolean' as const, description: 'Whether this was an automatic scheduled backup' },
-      isPreRestore: { type: 'boolean' as const, description: 'Whether this is a pre-restore safety backup' },
+      isCompressed: { type: 'boolean' as const, description: 'Whether the backup file is compressed' },
     },
   },
 
@@ -31,7 +30,9 @@ export const backupComponentSchemas = {
       backupPath: { type: 'string' as const, description: 'Directory where backups are stored', example: '/data/backups' },
       retentionCount: { type: 'integer' as const, description: 'Number of backups to keep (older ones are deleted)', example: 10 },
       lastBackupAt: { type: 'string' as const, format: 'date-time', nullable: true, description: 'When the last backup was created' },
-      totalBackups: { type: 'integer' as const, description: 'Current number of backup files' },
+      lastBackupFilename: { type: 'string' as const, nullable: true, description: 'Filename of the last backup' },
+      lastBackupSizeBytes: { type: 'integer' as const, nullable: true, description: 'Size of the last backup in bytes' },
+      lastBackupSizeFormatted: { type: 'string' as const, nullable: true, description: 'Human-readable size of the last backup' },
     },
   },
 } as const
@@ -84,7 +85,8 @@ const updateConfig = {
     200: {
       type: 'object' as const,
       properties: {
-        success: { type: 'boolean' as const },
+        backupPath: { type: 'string' as const, description: 'Updated backup path' },
+        retentionCount: { type: 'integer' as const, description: 'Updated retention count' },
         message: { type: 'string' as const },
       },
     },
@@ -104,8 +106,9 @@ const listBackups = {
       type: 'object' as const,
       properties: {
         backups: { type: 'array' as const, items: { $ref: 'BackupFile#' } },
-        totalSize: { type: 'integer' as const, description: 'Total size of all backups in bytes' },
-        totalSizeFormatted: { type: 'string' as const, description: 'Human-readable total size' },
+        backupPath: { type: 'string' as const, description: 'Directory where backups are stored' },
+        retentionCount: { type: 'integer' as const, description: 'Number of backups to keep' },
+        totalCount: { type: 'integer' as const, description: 'Total number of backup files' },
       },
     },
     500: {
@@ -137,8 +140,11 @@ const createBackup = {
       type: 'object' as const,
       properties: {
         success: { type: 'boolean' as const },
-        jobId: { type: 'string' as const, format: 'uuid', description: 'Backup job ID (async mode)' },
+        jobId: { type: 'string' as const, format: 'uuid', description: 'Backup job ID' },
         filename: { type: 'string' as const, description: 'Backup filename (sync mode)' },
+        sizeBytes: { type: 'integer' as const, nullable: true, description: 'Backup size in bytes (sync mode)' },
+        sizeFormatted: { type: 'string' as const, nullable: true, description: 'Human-readable backup size (sync mode)' },
+        duration: { type: 'number' as const, description: 'Backup duration in seconds (sync mode)' },
         message: { type: 'string' as const },
       },
     },
@@ -215,6 +221,9 @@ const restoreBackup = {
       properties: {
         success: { type: 'boolean' as const },
         message: { type: 'string' as const },
+        jobId: { type: 'string' as const, format: 'uuid', description: 'Restore job ID' },
+        filename: { type: 'string' as const, description: 'Backup filename being restored' },
+        duration: { type: 'number' as const, description: 'Restore duration in seconds (sync mode)' },
         preRestoreBackup: { type: 'string' as const, nullable: true, description: 'Filename of pre-restore backup if created' },
       },
     },
@@ -298,6 +307,8 @@ const uploadBackup = {
       properties: {
         success: { type: 'boolean' as const },
         filename: { type: 'string' as const, description: 'Saved filename' },
+        sizeBytes: { type: 'integer' as const, description: 'File size in bytes' },
+        sizeFormatted: { type: 'string' as const, description: 'Human-readable file size' },
         message: { type: 'string' as const },
       },
     },
@@ -330,6 +341,8 @@ const setupListBackups = {
       type: 'object' as const,
       properties: {
         backups: { type: 'array' as const, items: { $ref: 'BackupFile#' } },
+        hasBackups: { type: 'boolean' as const, description: 'Whether any backups exist' },
+        totalCount: { type: 'integer' as const, description: 'Total number of backup files' },
       },
     },
     500: {
@@ -353,6 +366,9 @@ const setupUploadBackup = {
       properties: {
         success: { type: 'boolean' as const },
         filename: { type: 'string' as const },
+        sizeBytes: { type: 'integer' as const, description: 'File size in bytes' },
+        sizeFormatted: { type: 'string' as const, description: 'Human-readable file size' },
+        message: { type: 'string' as const },
       },
     },
     400: {
@@ -395,6 +411,9 @@ const setupRestoreBackup = {
       properties: {
         success: { type: 'boolean' as const },
         message: { type: 'string' as const },
+        jobId: { type: 'string' as const, format: 'uuid', description: 'Restore job ID' },
+        filename: { type: 'string' as const, description: 'Backup filename being restored' },
+        duration: { type: 'number' as const, description: 'Restore duration in seconds (sync mode)' },
       },
     },
     400: {
