@@ -1612,6 +1612,122 @@ export function TopPicksSection() {
       </Card>
       )}
 
+      {/* Auto-Request via Jellyseerr */}
+      <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
+        <CardContent>
+          <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <SendIcon fontSize="small" color="primary" />
+            Auto-Request Missing Content
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Automatically request missing Top Picks content through Jellyseerr. Only works with external sources (TMDB, MDBList).
+          </Typography>
+
+          <Alert severity="info" icon={<InfoOutlinedIcon />} sx={{ mb: 3 }}>
+            <Typography variant="body2">
+              When enabled, Aperture will periodically check your Top Picks list for items not in your library and automatically
+              submit requests to Jellyseerr. Make sure Jellyseerr is configured in <strong>Settings → Integrations</strong>.
+            </Typography>
+          </Alert>
+
+          <Grid container spacing={4}>
+            {/* Movies Auto-Request */}
+            <Grid item xs={12} md={6}>
+              <Card variant="outlined" sx={{ p: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <MovieIcon fontSize="small" color="primary" />
+                  <Typography variant="subtitle2">Movies</Typography>
+                </Box>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={config.moviesAutoRequestEnabled}
+                      onChange={(e) => updateConfig({ moviesAutoRequestEnabled: e.target.checked })}
+                      disabled={!config.isEnabled || config.moviesPopularitySource === 'emby_history'}
+                      size="small"
+                    />
+                  }
+                  label={
+                    <Typography variant="body2">
+                      Enable auto-request for movies
+                    </Typography>
+                  }
+                />
+                {config.moviesPopularitySource === 'emby_history' && (
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1, ml: 4 }}>
+                    Auto-request requires an external source (TMDB or MDBList)
+                  </Typography>
+                )}
+                <Collapse in={config.moviesAutoRequestEnabled}>
+                  <Box sx={{ mt: 2, ml: 4 }}>
+                    <TextField
+                      fullWidth
+                      label="Max requests per run"
+                      type="number"
+                      value={config.moviesAutoRequestLimit}
+                      onChange={(e) => updateConfig({ moviesAutoRequestLimit: Math.max(1, parseInt(e.target.value) || 10) })}
+                      size="small"
+                      disabled={!config.isEnabled}
+                      InputProps={{
+                        inputProps: { min: 1, max: 100 }
+                      }}
+                      helperText="Limit how many movies to request per job run"
+                    />
+                  </Box>
+                </Collapse>
+              </Card>
+            </Grid>
+
+            {/* Series Auto-Request */}
+            <Grid item xs={12} md={6}>
+              <Card variant="outlined" sx={{ p: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <TvIcon fontSize="small" color="primary" />
+                  <Typography variant="subtitle2">Series</Typography>
+                </Box>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={config.seriesAutoRequestEnabled}
+                      onChange={(e) => updateConfig({ seriesAutoRequestEnabled: e.target.checked })}
+                      disabled={!config.isEnabled || config.seriesPopularitySource === 'emby_history'}
+                      size="small"
+                    />
+                  }
+                  label={
+                    <Typography variant="body2">
+                      Enable auto-request for series
+                    </Typography>
+                  }
+                />
+                {config.seriesPopularitySource === 'emby_history' && (
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1, ml: 4 }}>
+                    Auto-request requires an external source (TMDB or MDBList)
+                  </Typography>
+                )}
+                <Collapse in={config.seriesAutoRequestEnabled}>
+                  <Box sx={{ mt: 2, ml: 4 }}>
+                    <TextField
+                      fullWidth
+                      label="Max requests per run"
+                      type="number"
+                      value={config.seriesAutoRequestLimit}
+                      onChange={(e) => updateConfig({ seriesAutoRequestLimit: Math.max(1, parseInt(e.target.value) || 10) })}
+                      size="small"
+                      disabled={!config.isEnabled}
+                      InputProps={{
+                        inputProps: { min: 1, max: 100 }
+                      }}
+                      helperText="Limit how many series to request per job run"
+                    />
+                  </Box>
+                </Collapse>
+              </Card>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+
       {/* Section 4: Output Configuration */}
       <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
         <CardContent>
@@ -1976,122 +2092,6 @@ export function TopPicksSection() {
               </Typography>
             </Alert>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Auto-Request via Jellyseerr */}
-      <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
-        <CardContent>
-          <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-            <SendIcon fontSize="small" color="primary" />
-            Auto-Request Missing Content
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Automatically request missing Top Picks content through Jellyseerr. Only works with external sources (TMDB, MDBList).
-          </Typography>
-
-          <Alert severity="info" icon={<InfoOutlinedIcon />} sx={{ mb: 3 }}>
-            <Typography variant="body2">
-              When enabled, Aperture will periodically check your Top Picks list for items not in your library and automatically
-              submit requests to Jellyseerr. Make sure Jellyseerr is configured in <strong>Settings → Integrations</strong>.
-            </Typography>
-          </Alert>
-
-          <Grid container spacing={4}>
-            {/* Movies Auto-Request */}
-            <Grid item xs={12} md={6}>
-              <Card variant="outlined" sx={{ p: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                  <MovieIcon fontSize="small" color="primary" />
-                  <Typography variant="subtitle2">Movies</Typography>
-                </Box>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={config.moviesAutoRequestEnabled}
-                      onChange={(e) => updateConfig({ moviesAutoRequestEnabled: e.target.checked })}
-                      disabled={!config.isEnabled || config.moviesPopularitySource === 'emby_history'}
-                      size="small"
-                    />
-                  }
-                  label={
-                    <Typography variant="body2">
-                      Enable auto-request for movies
-                    </Typography>
-                  }
-                />
-                {config.moviesPopularitySource === 'emby_history' && (
-                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1, ml: 4 }}>
-                    Auto-request requires an external source (TMDB or MDBList)
-                  </Typography>
-                )}
-                <Collapse in={config.moviesAutoRequestEnabled}>
-                  <Box sx={{ mt: 2, ml: 4 }}>
-                    <TextField
-                      fullWidth
-                      label="Max requests per run"
-                      type="number"
-                      value={config.moviesAutoRequestLimit}
-                      onChange={(e) => updateConfig({ moviesAutoRequestLimit: Math.max(1, parseInt(e.target.value) || 10) })}
-                      size="small"
-                      disabled={!config.isEnabled}
-                      InputProps={{
-                        inputProps: { min: 1, max: 100 }
-                      }}
-                      helperText="Limit how many movies to request per job run"
-                    />
-                  </Box>
-                </Collapse>
-              </Card>
-            </Grid>
-
-            {/* Series Auto-Request */}
-            <Grid item xs={12} md={6}>
-              <Card variant="outlined" sx={{ p: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                  <TvIcon fontSize="small" color="primary" />
-                  <Typography variant="subtitle2">Series</Typography>
-                </Box>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={config.seriesAutoRequestEnabled}
-                      onChange={(e) => updateConfig({ seriesAutoRequestEnabled: e.target.checked })}
-                      disabled={!config.isEnabled || config.seriesPopularitySource === 'emby_history'}
-                      size="small"
-                    />
-                  }
-                  label={
-                    <Typography variant="body2">
-                      Enable auto-request for series
-                    </Typography>
-                  }
-                />
-                {config.seriesPopularitySource === 'emby_history' && (
-                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1, ml: 4 }}>
-                    Auto-request requires an external source (TMDB or MDBList)
-                  </Typography>
-                )}
-                <Collapse in={config.seriesAutoRequestEnabled}>
-                  <Box sx={{ mt: 2, ml: 4 }}>
-                    <TextField
-                      fullWidth
-                      label="Max requests per run"
-                      type="number"
-                      value={config.seriesAutoRequestLimit}
-                      onChange={(e) => updateConfig({ seriesAutoRequestLimit: Math.max(1, parseInt(e.target.value) || 10) })}
-                      size="small"
-                      disabled={!config.isEnabled}
-                      InputProps={{
-                        inputProps: { min: 1, max: 100 }
-                      }}
-                      helperText="Limit how many series to request per job run"
-                    />
-                  </Box>
-                </Collapse>
-              </Card>
-            </Grid>
-          </Grid>
         </CardContent>
       </Card>
 
