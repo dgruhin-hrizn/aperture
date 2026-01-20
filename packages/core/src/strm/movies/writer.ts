@@ -289,6 +289,7 @@ export async function writeStrmFilesForUser(
         includeImageUrls: !config.downloadImages,
         dateAdded,
         includeAiExplanation,
+        rank: movie.rank,
       })
       await fs.writeFile(path.join(movieFolderPath, 'movie.nfo'), nfoContent, 'utf-8')
 
@@ -394,6 +395,7 @@ export async function writeStrmFilesForUser(
         includeImageUrls: !config.downloadImages,
         dateAdded,
         includeAiExplanation,
+        rank: movie.rank,
       })
       await fs.writeFile(path.join(movieFolderPath, 'movie.nfo'), nfoContent, 'utf-8')
 

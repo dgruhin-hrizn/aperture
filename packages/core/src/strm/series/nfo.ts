@@ -69,7 +69,8 @@ export function generateSeriesNfoContent(
     lines.push(`  <outline><![CDATA[${series.overview || plot}]]></outline>`)
   }
 
-  lines.push(`  <lockdata>false</lockdata>`)
+  // Lock data to prevent Emby from overwriting our metadata
+  lines.push(`  <lockdata>true</lockdata>`)
 
   // Date added (for Emby sorting by "Date Added" - Rank 1 = newest)
   if (options.dateAdded) {
@@ -84,7 +85,11 @@ export function generateSeriesNfoContent(
     lines.push(`  <originaltitle>${escapeXml(series.originalTitle)}</originaltitle>`)
   }
 
-  if (series.sortTitle) {
+  // Sort title with rank prefix (like Top Picks) for proper ordering
+  if (options.rank) {
+    const rankPrefix = String(options.rank).padStart(2, '0')
+    lines.push(`  <sorttitle>${rankPrefix} - ${escapeXml(series.title)}</sorttitle>`)
+  } else if (series.sortTitle) {
     lines.push(`  <sorttitle>${escapeXml(series.sortTitle)}</sorttitle>`)
   } else {
     lines.push(`  <sorttitle>${escapeXml(series.title)}</sorttitle>`)
@@ -125,13 +130,10 @@ export function generateSeriesNfoContent(
     lines.push(`  <year>${series.year}</year>`)
   }
 
-  if (series.premiereDate) {
-    const dateStr = series.premiereDate instanceof Date
-      ? series.premiereDate.toISOString().split('T')[0]
-      : String(series.premiereDate).split('T')[0]
-    lines.push(`  <premiered>${dateStr}</premiered>`)
-    lines.push(`  <releasedate>${dateStr}</releasedate>`)
-  }
+  // NOTE: We intentionally DO NOT include <premiered> or <releasedate> tags.
+  // When present, Emby shows the series in "Recently Released" rows,
+  // causing duplicates with the original. lockdata=true prevents Emby
+  // from fetching this data automatically.
 
   // === Runtime ===
   if (series.runtimeMinutes) {
