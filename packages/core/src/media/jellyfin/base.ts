@@ -36,9 +36,9 @@ export class JellyfinProviderBase {
       ...((options.headers as Record<string, string>) || {}),
     }
 
-    // Add 30 second timeout with AbortController
+    // Add 60 second timeout with AbortController (increased from 30s for large libraries)
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 30000)
+    const timeoutId = setTimeout(() => controller.abort(), 60000)
 
     const startTime = Date.now()
     let response: Response
@@ -52,9 +52,9 @@ export class JellyfinProviderBase {
       clearTimeout(timeoutId)
       const duration = Date.now() - startTime
       if (err instanceof Error && err.name === 'AbortError') {
-        logger.error({ url, duration }, '⏱️ Jellyfin API request timed out after 30 seconds')
+        logger.error({ url, duration }, '⏱️ Jellyfin API request timed out after 60 seconds')
         throw new Error(
-          `Connection to Jellyfin timed out after 30 seconds. Please check that your media server URL (${this.baseUrl}) is accessible from the Aperture container.`
+          `Connection to Jellyfin timed out after 60 seconds. Please check that your media server URL (${this.baseUrl}) is accessible from the Aperture container.`
         )
       }
       logger.error({ url, duration, err }, '❌ Jellyfin API network error')

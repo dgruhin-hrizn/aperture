@@ -111,6 +111,60 @@ async function fetchParallel<T>(
 }
 
 /**
+ * Streaming batch processor for episodes
+ * 
+ * Instead of loading all episodes into memory, this fetches and processes
+ * episodes in chunks. This is critical for very large libraries (200K+ episodes)
+ * to avoid memory exhaustion.
+ * 
+ * @param fetchFn Function to fetch a page of episodes
+ * @param totalCount Total number of episodes to process
+ * @param pageSize Number of episodes per API request
+ * @param processBatch Function to process a batch of episodes
+ * @param onProgress Optional progress callback
+ */
+async function streamingBatchProcess<T>(
+  fetchFn: (startIndex: number, limit: number) => Promise<{ items: T[]; totalRecordCount: number }>,
+  totalCount: number,
+  pageSize: number,
+  processBatch: (items: T[]) => Promise<{ added: number; updated: number }>,
+  onProgress?: (processed: number, added: number, updated: number) => void
+): Promise<{ totalProcessed: number; totalAdded: number; totalUpdated: number }> {
+  let totalProcessed = 0
+  let totalAdded = 0
+  let totalUpdated = 0
+  let startIndex = 0
+
+  // Process one page at a time to minimize memory usage
+  // For very large libraries, this trades some speed for reliability
+  while (startIndex < totalCount) {
+    // Fetch a single page
+    const { items } = await fetchFn(startIndex, pageSize)
+    
+    if (items.length === 0) {
+      break
+    }
+
+    // Process this batch immediately
+    const result = await processBatch(items)
+    totalAdded += result.added
+    totalUpdated += result.updated
+    totalProcessed += items.length
+
+    onProgress?.(totalProcessed, totalAdded, totalUpdated)
+
+    startIndex += items.length
+
+    // Small yield to prevent blocking the event loop on very large libraries
+    if (totalProcessed % 10000 === 0) {
+      await new Promise(resolve => setImmediate(resolve))
+    }
+  }
+
+  return { totalProcessed, totalAdded, totalUpdated }
+}
+
+/**
  * Process series batch for database insertion
  */
 /**
@@ -822,9 +876,10 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
       providerToDbSeriesId.set(s.provider_item_id, s.id)
     }
 
-    // Step 4: Process episodes
+    // Step 4: Process episodes using streaming batch processing
+    // This processes episodes in chunks to avoid loading all 200K+ episodes into memory
     setJobStep(jobId, 3, 'Processing episodes', totalEpisodes)
-    addLog(jobId, 'info', '📺 Syncing episodes...')
+    addLog(jobId, 'info', '📺 Syncing episodes (streaming mode for large libraries)...')
 
     for (const { libraryId, episodeCount } of libraryCounts) {
       if (episodeCount === 0) continue
@@ -832,12 +887,14 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
       addLog(
         jobId,
         'info',
-        `📂 Fetching ${episodeCount} episodes from library${libraryId ? ` ${libraryId}` : ''}...`
+        `📂 Processing ${episodeCount} episodes from library${libraryId ? ` ${libraryId}` : ''} (streaming)...`
       )
 
-      // Fetch all episodes in parallel
-      // Note: We don't update job progress during fetch since it's fast
-      const episodeList = await fetchParallel(
+      let lastLogTime = Date.now()
+
+      // Use streaming batch processing to avoid memory issues with large libraries
+      const streamResult = await streamingBatchProcess<Episode>(
+        // Fetch function
         (startIndex, limit) =>
           provider.getEpisodes(apiKey, {
             startIndex,
@@ -846,58 +903,74 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
           }),
         episodeCount,
         EPISODE_PAGE_SIZE,
-        PARALLEL_FETCHES
+        // Process batch function - prepares and inserts episodes
+        async (episodes) => {
+          // Prepare episode data, filtering out placeholders and episodes without series
+          const preparedEpisodes: PreparedEpisode[] = []
+          for (const episode of episodes) {
+            // Skip Aperture sorting placeholder episodes
+            if (
+              episode.name === 'Aperture Sorting Placeholder' ||
+              (episode.seasonNumber === 0 && episode.episodeNumber === 0 && episode.name?.includes('Aperture'))
+            ) {
+              continue
+            }
+
+            const seriesDbId = providerToDbSeriesId.get(episode.seriesId)
+            if (!seriesDbId) continue // Series not in DB
+
+            preparedEpisodes.push({
+              episode,
+              seriesDbId,
+              posterUrl: episode.posterImageTag ? provider.getPosterUrl(episode.id, episode.posterImageTag) : null,
+              runtimeMinutes: episode.runtimeTicks ? Math.round(episode.runtimeTicks / 600000000) : null,
+            })
+          }
+
+          // Process in smaller DB batches
+          let batchAdded = 0
+          let batchUpdated = 0
+          for (let i = 0; i < preparedEpisodes.length; i += DB_BATCH_SIZE) {
+            const batch = preparedEpisodes.slice(i, i + DB_BATCH_SIZE)
+            const result = await processEpisodeBatch(batch, existingEpisodeIds)
+            batchAdded += result.added
+            batchUpdated += result.updated
+          }
+
+          return { added: batchAdded, updated: batchUpdated }
+        },
+        // Progress callback
+        (processed, added, updated) => {
+          processedEpisodes = processed
+          episodesAdded = added
+          episodesUpdated = updated
+          updateJobProgress(
+            jobId,
+            processedEpisodes,
+            totalEpisodes,
+            `${processedEpisodes}/${totalEpisodes} episodes`
+          )
+
+          // Log progress every 5 seconds or every 10K episodes
+          const now = Date.now()
+          if (now - lastLogTime > 5000 || processed % 10000 === 0) {
+            const elapsed = (now - startTime) / 1000
+            const rate = Math.round(processed / elapsed)
+            addLog(
+              jobId,
+              'info',
+              `📊 Episodes: ${processed}/${totalEpisodes} (${rate}/sec, ${added} new, ${updated} updated)`
+            )
+            lastLogTime = now
+          }
+        }
       )
 
-      addLog(jobId, 'info', `✅ Fetched ${episodeList.length} episodes, now processing...`)
-
-      // Prepare episode data, filtering out placeholders and episodes without series
-      const preparedEpisodes: PreparedEpisode[] = []
-      for (const episode of episodeList) {
-        // Skip Aperture sorting placeholder episodes
-        if (
-          episode.name === 'Aperture Sorting Placeholder' ||
-          (episode.seasonNumber === 0 && episode.episodeNumber === 0 && episode.name?.includes('Aperture'))
-        ) {
-          continue
-        }
-
-        const seriesDbId = providerToDbSeriesId.get(episode.seriesId)
-        if (!seriesDbId) continue // Series not in DB
-
-        preparedEpisodes.push({
-          episode,
-          seriesDbId,
-          posterUrl: episode.posterImageTag ? provider.getPosterUrl(episode.id, episode.posterImageTag) : null,
-          runtimeMinutes: episode.runtimeTicks ? Math.round(episode.runtimeTicks / 600000000) : null,
-        })
-      }
-
-      // Process in batches
-      for (let i = 0; i < preparedEpisodes.length; i += DB_BATCH_SIZE) {
-        const batch = preparedEpisodes.slice(i, i + DB_BATCH_SIZE)
-        const result = await processEpisodeBatch(batch, existingEpisodeIds)
-        episodesAdded += result.added
-        episodesUpdated += result.updated
-        processedEpisodes += batch.length
-        updateJobProgress(
-          jobId,
-          processedEpisodes,
-          totalEpisodes,
-          `${processedEpisodes}/${totalEpisodes} episodes`
-        )
-
-        // Log progress periodically
-        if (i % (DB_BATCH_SIZE * 10) === 0 && i > 0) {
-          const elapsed = (Date.now() - startTime) / 1000
-          const rate = Math.round(processedEpisodes / elapsed)
-          addLog(
-            jobId,
-            'info',
-            `📊 Episodes: ${processedEpisodes}/${totalEpisodes} (${rate}/sec, ${episodesAdded} new)`
-          )
-        }
-      }
+      addLog(
+        jobId,
+        'info',
+        `✅ Library complete: ${streamResult.totalProcessed} episodes (${streamResult.totalAdded} new, ${streamResult.totalUpdated} updated)`
+      )
     }
 
     const totalDuration = ((Date.now() - startTime) / 1000).toFixed(1)
