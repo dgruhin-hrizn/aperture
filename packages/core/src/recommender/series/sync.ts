@@ -491,14 +491,19 @@ async function processSeriesBatch(
  */
 async function processEpisodeBatch(
   episodes: PreparedEpisode[],
-  existingProviderIds: Set<string>
+  existingProviderIds: Set<string>,
+  existingEpisodeKeys: Set<string>
 ): Promise<{ added: number; updated: number }> {
   // Separate into updates and inserts
+  // An episode is considered "existing" if EITHER:
+  // 1. Its provider_item_id is in the database, OR
+  // 2. Its series+season+episode combination exists (handles ID regeneration)
   const toUpdate: PreparedEpisode[] = []
   const toInsert: PreparedEpisode[] = []
 
   for (const pe of episodes) {
-    if (existingProviderIds.has(pe.episode.id)) {
+    const episodeKey = `${pe.seriesDbId}:${pe.episode.seasonNumber}:${pe.episode.episodeNumber}`
+    if (existingProviderIds.has(pe.episode.id) || existingEpisodeKeys.has(episodeKey)) {
       toUpdate.push(pe)
     } else {
       toInsert.push(pe)
@@ -654,9 +659,10 @@ async function processEpisodeBatch(
       const upsertUpdates = result.rows.length - trueInserts
       added = trueInserts
       updated += upsertUpdates  // Add upsert updates to the update count
-      // Track all original provider IDs (including duplicates) as processed
+      // Track all original provider IDs and episode keys as processed
       for (const pe of toInsert) {
         existingProviderIds.add(pe.episode.id)
+        existingEpisodeKeys.add(`${pe.seriesDbId}:${pe.episode.seasonNumber}:${pe.episode.episodeNumber}`)
       }
     } catch (err) {
       logger.error({ err, count: deduplicatedInserts.length }, 'Failed to bulk insert episodes')
@@ -800,7 +806,9 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
     addLog(jobId, 'info', '🔍 Loading existing series and episodes from database...')
     const [existingSeriesResult, existingEpisodesResult] = await Promise.all([
       query<{ provider_item_id: string; title: string; year: number | null }>('SELECT provider_item_id, title, year FROM series'),
-      query<{ provider_item_id: string }>('SELECT provider_item_id FROM episodes'),
+      query<{ provider_item_id: string; series_id: string; season_number: number; episode_number: number }>(
+        'SELECT provider_item_id, series_id, season_number, episode_number FROM episodes'
+      ),
     ])
     const existingSeriesIds = new Set<string>()
     const existingSeriesTitleYears = new Map<string, string>()
@@ -810,7 +818,12 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
         existingSeriesTitleYears.set(`${s.title.toLowerCase()}|${s.year}`, s.provider_item_id)
       }
     }
+    // Track existing episodes by BOTH provider_item_id AND by series+season+episode composite key
+    // This handles cases where Emby/Jellyfin regenerates item IDs
     const existingEpisodeIds = new Set(existingEpisodesResult.rows.map((r) => r.provider_item_id))
+    const existingEpisodeKeys = new Set(
+      existingEpisodesResult.rows.map((r) => `${r.series_id}:${r.season_number}:${r.episode_number}`)
+    )
     addLog(
       jobId,
       'info',
@@ -952,7 +965,7 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
           let batchUpdated = 0
           for (let i = 0; i < preparedEpisodes.length; i += DB_BATCH_SIZE) {
             const batch = preparedEpisodes.slice(i, i + DB_BATCH_SIZE)
-            const result = await processEpisodeBatch(batch, existingEpisodeIds)
+            const result = await processEpisodeBatch(batch, existingEpisodeIds, existingEpisodeKeys)
             batchAdded += result.added
             batchUpdated += result.updated
           }
