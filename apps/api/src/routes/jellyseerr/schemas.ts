@@ -194,9 +194,6 @@ export const getJellyseerrConfigSchema = {
   tags: ['jellyseerr'],
   summary: 'Get Jellyseerr configuration',
   description: 'Get Jellyseerr integration configuration (admin only). API key is not exposed.',
-  response: {
-    200: { $ref: 'JellyseerrConfig#' },
-  },
 }
 
 export const updateJellyseerrConfigSchema = {
@@ -210,16 +207,6 @@ export const updateJellyseerrConfigSchema = {
       url: { type: 'string', description: 'Jellyseerr base URL (e.g., http://localhost:5055)', example: 'http://192.168.1.100:5055' },
       apiKey: { type: 'string', description: 'Jellyseerr API key' },
       enabled: { type: 'boolean', description: 'Enable/disable integration' },
-    },
-  },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        message: { type: 'string' },
-        configured: { type: 'boolean' },
-        enabled: { type: 'boolean' },
-      },
     },
   },
 }
@@ -236,9 +223,6 @@ export const testJellyseerrSchema = {
       apiKey: { type: 'string', description: 'API key to test (optional, uses saved if not provided)' },
     },
   },
-  response: {
-    200: { $ref: 'JellyseerrTestResponse#' },
-  },
 }
 
 export const getMediaStatusSchema = {
@@ -251,15 +235,6 @@ export const getMediaStatusSchema = {
     properties: {
       mediaType: { type: 'string', enum: ['movie', 'tv'], description: 'Media type (note: use "tv" not "series" for Jellyseerr API)' },
       tmdbId: { type: 'string', description: 'TMDb ID' },
-    },
-  },
-  response: {
-    200: { $ref: 'JellyseerrStatusResponse#' },
-    404: {
-      type: 'object',
-      properties: {
-        error: { type: 'string', example: 'Media not found' },
-      },
     },
   },
 }
@@ -275,9 +250,6 @@ export const getTVDetailsSchema = {
       tmdbId: { type: 'string', description: 'TMDb ID of the TV show' },
     },
   },
-  response: {
-    200: { $ref: 'JellyseerrTVDetails#' },
-  },
 }
 
 export const createRequestSchema = {
@@ -285,23 +257,6 @@ export const createRequestSchema = {
   summary: 'Create content request',
   description: 'Create a content request to Jellyseerr. For series, you can optionally specify which seasons to request.',
   body: { $ref: 'CreateRequestBody#' },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean' },
-        message: { type: 'string' },
-        apertureRequestId: { type: 'string', format: 'uuid', description: 'Aperture tracking ID' },
-        jellyseerrRequestId: { type: 'integer', description: 'Jellyseerr request ID' },
-      },
-    },
-    400: {
-      type: 'object',
-      properties: {
-        error: { type: 'string', example: 'Request already exists' },
-      },
-    },
-  },
 }
 
 export const getRequestsSchema = {
@@ -316,14 +271,6 @@ export const getRequestsSchema = {
       limit: { type: 'string', description: 'Maximum results', default: '50', example: '25' },
     },
   },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        requests: { type: 'array', items: { $ref: 'DiscoveryRequest#' } },
-      },
-    },
-  },
 }
 
 export const batchStatusSchema = {
@@ -331,24 +278,6 @@ export const batchStatusSchema = {
   summary: 'Batch check status',
   description: 'Check Jellyseerr status for multiple items at once. More efficient than individual calls for lists.',
   body: { $ref: 'BatchStatusRequest#' },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        statuses: { 
-          type: 'object', 
-          additionalProperties: { $ref: 'JellyseerrMediaStatus#' },
-          description: 'Map of "mediaType-tmdbId" to status'
-        },
-      },
-      example: {
-        statuses: {
-          'movie-550': { exists: true, status: 'available', requested: false },
-          'series-1396': { exists: true, status: 'partially_available', requested: true, requestStatus: 'approved' },
-        },
-      },
-    },
-  },
 }
 
 export const getRequestStatusSchema = {
@@ -360,21 +289,6 @@ export const getRequestStatusSchema = {
     required: ['requestId'],
     properties: {
       requestId: { type: 'string', format: 'uuid', description: 'Aperture request ID' },
-    },
-  },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        apertureStatus: { type: 'string', description: 'Aperture tracking status' },
-        jellyseerrStatus: { type: 'object', nullable: true, description: 'Full Jellyseerr status if available' },
-      },
-    },
-    404: {
-      type: 'object',
-      properties: {
-        error: { type: 'string', example: 'Request not found' },
-      },
     },
   },
 }

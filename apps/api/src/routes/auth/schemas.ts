@@ -97,19 +97,6 @@ export const loginOptionsSchema = {
   summary: 'Get login options',
   description: 'Get login configuration options. Use this before showing the login form to determine if password is required.',
   security: [],
-  response: {
-    200: {
-      type: 'object',
-      description: 'Login configuration',
-      properties: {
-        allowPasswordlessLogin: { 
-          type: 'boolean', 
-          description: 'If true, users can log in without a password (useful for trusted networks)',
-          example: false
-        },
-      },
-    },
-  },
 }
 
 export const loginSchema = {
@@ -118,79 +105,24 @@ export const loginSchema = {
   description: 'Authenticate using media server credentials. On success, sets a session cookie and returns user info. Credentials are validated against the configured Emby/Jellyfin server.',
   security: [],
   body: { $ref: 'LoginRequest#' },
-  response: {
-    200: { 
-      description: 'Login successful',
-      $ref: 'LoginResponse#' 
-    },
-    400: {
-      type: 'object',
-      description: 'Missing required fields',
-      properties: {
-        error: { type: 'string', example: 'Username is required' },
-      },
-    },
-    401: {
-      type: 'object',
-      description: 'Invalid credentials',
-      properties: {
-        error: { type: 'string', example: 'Invalid username or password' },
-      },
-    },
-    500: {
-      type: 'object',
-      description: 'Media server not configured or unavailable',
-      properties: {
-        error: { type: 'string', example: 'Media server not configured' },
-      },
-    },
-  },
 }
 
 export const logoutSchema = {
   tags: ['auth'],
   summary: 'Logout',
   description: 'End the current session and clear the session cookie.',
-  response: {
-    200: {
-      type: 'object',
-      description: 'Logout successful',
-      properties: {
-        success: { type: 'boolean', example: true },
-      },
-    },
-  },
 }
 
 export const getMeSchema = {
   tags: ['auth'],
   summary: 'Get current user',
   description: 'Get the currently authenticated user\'s information. Requires valid session.',
-  response: {
-    200: {
-      type: 'object',
-      description: 'Current user information',
-      properties: {
-        user: { $ref: 'SessionUser#' },
-      },
-    },
-    401: {
-      type: 'object',
-      description: 'Not authenticated',
-      properties: {
-        error: { type: 'string', example: 'Unauthorized' },
-      },
-    },
-  },
 }
 
 export const getPreferencesSchema = {
   tags: ['auth'],
   summary: 'Get user preferences',
   description: 'Get the current user\'s UI preferences including sidebar state, view modes, and sort settings.',
-  response: {
-    200: { $ref: 'UserPreferences#' },
-  },
 }
 
 export const updatePreferencesSchema = {
@@ -207,12 +139,6 @@ export const updatePreferencesSchema = {
       browseSort: { type: 'object', additionalProperties: true, description: 'Sort preferences for browse pages' },
     },
   },
-  response: {
-    200: { 
-      description: 'Updated preferences',
-      $ref: 'UserPreferences#' 
-    },
-  },
 }
 
 export const createFilterPresetSchema = {
@@ -227,12 +153,6 @@ export const createFilterPresetSchema = {
       name: { type: 'string', description: 'Preset name', minLength: 1, maxLength: 100, example: 'High Rated Action' },
       type: { type: 'string', enum: ['movies', 'series'], description: 'Media type this preset applies to' },
       filters: { type: 'object', additionalProperties: true, description: 'Filter configuration', example: { genre: 'Action', minRtScore: '80' } },
-    },
-  },
-  response: {
-    201: { 
-      description: 'Created preset',
-      $ref: 'FilterPreset#' 
     },
   },
 }
@@ -256,18 +176,6 @@ export const updateFilterPresetSchema = {
       filters: { type: 'object', additionalProperties: true, description: 'New filter configuration' },
     },
   },
-  response: {
-    200: { 
-      description: 'Updated preset',
-      $ref: 'FilterPreset#' 
-    },
-    404: {
-      type: 'object',
-      properties: {
-        error: { type: 'string', example: 'Preset not found' },
-      },
-    },
-  },
 }
 
 export const deleteFilterPresetSchema = {
@@ -281,17 +189,6 @@ export const deleteFilterPresetSchema = {
       id: { type: 'string', format: 'uuid', description: 'Preset ID to delete' },
     },
   },
-  response: {
-    204: {
-      description: 'Preset deleted successfully',
-    },
-    404: {
-      type: 'object',
-      properties: {
-        error: { type: 'string', example: 'Preset not found' },
-      },
-    },
-  },
 }
 
 export const authCheckSchema = {
@@ -299,33 +196,4 @@ export const authCheckSchema = {
   summary: 'Check authentication',
   description: 'Check if the current request has a valid session. Returns user info if authenticated, null otherwise. Does not return an error for unauthenticated requests.',
   security: [],
-  response: {
-    200: {
-      type: 'object',
-      description: 'Authentication status',
-      properties: {
-        authenticated: { type: 'boolean', description: 'Whether the user is authenticated' },
-        user: { 
-          oneOf: [
-            { $ref: 'SessionUser#' },
-            { type: 'null' }
-          ],
-          description: 'User info if authenticated, null otherwise'
-        },
-        sessionError: { type: 'boolean', description: 'True if session was invalid (e.g., after server reconfiguration)' },
-        message: { type: 'string', nullable: true, description: 'Additional message, e.g., explaining session invalidation' },
-      },
-      example: {
-        authenticated: true,
-        user: {
-          id: 'def4567-e89b-12d3-a456-426614174004',
-          username: 'john_doe',
-          displayName: 'John Doe',
-          provider: 'jellyfin',
-          isAdmin: false,
-          isEnabled: true,
-        },
-      },
-    },
-  },
 }

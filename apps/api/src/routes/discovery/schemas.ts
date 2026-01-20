@@ -134,9 +134,6 @@ export const getDiscoveryMoviesSchema = {
       minSimilarity: { type: 'string', description: 'Minimum similarity score (0-1)', example: '0.5' },
     },
   },
-  response: {
-    200: { $ref: 'DiscoveryResponse#' },
-  },
 }
 
 export const getDiscoverySeriesSchema = {
@@ -156,38 +153,12 @@ export const getDiscoverySeriesSchema = {
       minSimilarity: { type: 'string', description: 'Minimum similarity score (0-1)', example: '0.5' },
     },
   },
-  response: {
-    200: { $ref: 'DiscoveryResponse#' },
-  },
 }
 
 export const refreshDiscoverySchema = {
   tags: ['discovery'],
   summary: 'Refresh discovery suggestions',
   description: 'Trigger regeneration of discovery suggestions for the current user. This runs the discovery algorithm to find new content.',
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean' },
-        message: { type: 'string' },
-        movieRunId: { type: 'string', format: 'uuid', nullable: true },
-        seriesRunId: { type: 'string', format: 'uuid', nullable: true },
-      },
-    },
-    403: {
-      type: 'object',
-      properties: {
-        error: { type: 'string' },
-      },
-    },
-    500: {
-      type: 'object',
-      properties: {
-        error: { type: 'string' },
-      },
-    },
-  },
 }
 
 export const expandDiscoverySchema = {
@@ -213,49 +184,16 @@ export const expandDiscoverySchema = {
       targetCount: { type: 'integer', description: 'Target number of results', example: 50 },
     },
   },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        candidates: { type: 'array', items: { $ref: 'DiscoveryCandidate#' } },
-        generated: { type: 'integer', description: 'Number of new candidates generated' },
-      },
-    },
-    400: {
-      type: 'object',
-      properties: {
-        error: { type: 'string' },
-      },
-    },
-    403: {
-      type: 'object',
-      properties: {
-        error: { type: 'string' },
-      },
-    },
-    500: {
-      type: 'object',
-      properties: {
-        error: { type: 'string' },
-      },
-    },
-  },
 }
 
 export const getDiscoveryStatusSchema = {
   tags: ['discovery'],
   summary: 'Get discovery status',
   description: 'Get discovery feature status for the current user including run info and candidate counts.',
-  response: {
-    200: { $ref: 'DiscoveryStatusResponse#' },
-  },
 }
 
 export const getDiscoveryPrerequisitesSchema = {
   tags: ['discovery'],
   summary: 'Check discovery prerequisites',
   description: 'Check if discovery feature prerequisites are met (admin only). Returns status of Jellyseerr config and enabled users.',
-  response: {
-    200: { $ref: 'DiscoveryPrerequisitesResponse#' },
-  },
 }

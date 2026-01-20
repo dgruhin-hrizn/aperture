@@ -45,15 +45,6 @@ const getConfig = {
   tags: ['backup'],
   summary: 'Get backup configuration',
   description: 'Get current backup configuration including storage path, retention settings, and backup statistics (admin only).',
-  response: {
-    200: { $ref: 'BackupConfig#' },
-    500: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 const updateConfig = {
@@ -82,16 +73,6 @@ const updateConfig = {
       retentionCount: 10,
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        backupPath: { type: 'string' as const, description: 'Updated backup path' },
-        retentionCount: { type: 'integer' as const, description: 'Updated retention count' },
-        message: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 // =============================================================================
@@ -102,23 +83,6 @@ const listBackups = {
   tags: ['backup'],
   summary: 'List backups',
   description: 'List all available backup files sorted by creation date (newest first). Admin only.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        backups: { type: 'array' as const, items: { $ref: 'BackupFile#' } },
-        backupPath: { type: 'string' as const, description: 'Directory where backups are stored' },
-        retentionCount: { type: 'integer' as const, description: 'Number of backups to keep' },
-        totalCount: { type: 'integer' as const, description: 'Total number of backup files' },
-      },
-    },
-    500: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 const createBackup = {
@@ -136,32 +100,6 @@ const createBackup = {
       },
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-        jobId: { type: 'string' as const, format: 'uuid', description: 'Backup job ID' },
-        filename: { type: 'string' as const, description: 'Backup filename (sync mode)' },
-        sizeBytes: { type: 'integer' as const, nullable: true, description: 'Backup size in bytes (sync mode)' },
-        sizeFormatted: { type: 'string' as const, nullable: true, description: 'Human-readable backup size (sync mode)' },
-        duration: { type: 'number' as const, description: 'Backup duration in seconds (sync mode)' },
-        message: { type: 'string' as const },
-      },
-    },
-    400: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const, example: 'Backup already in progress' },
-      },
-    },
-    500: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 const cancelBackup = {
@@ -174,21 +112,6 @@ const cancelBackup = {
       jobId: { type: 'string' as const, format: 'uuid', description: 'Backup job ID to cancel' },
     },
     required: ['jobId'] as string[],
-  },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-        message: { type: 'string' as const },
-      },
-    },
-    404: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const, example: 'Backup job not found' },
-      },
-    },
   },
 }
 
@@ -217,31 +140,6 @@ const restoreBackup = {
       sync: { type: 'string' as const, enum: ['true', 'false'], description: 'Wait for restore to complete', default: 'false' },
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-        message: { type: 'string' as const },
-        jobId: { type: 'string' as const, format: 'uuid', description: 'Restore job ID' },
-        filename: { type: 'string' as const, description: 'Backup filename being restored' },
-        duration: { type: 'number' as const, description: 'Restore duration in seconds (sync mode)' },
-        preRestoreBackup: { type: 'string' as const, nullable: true, description: 'Filename of pre-restore backup if created' },
-      },
-    },
-    400: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const, example: 'Confirmation text required' },
-      },
-    },
-    500: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 const deleteBackup = {
@@ -254,21 +152,6 @@ const deleteBackup = {
       filename: { type: 'string' as const, description: 'Backup filename to delete' },
     },
     required: ['filename'] as string[],
-  },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-        message: { type: 'string' as const },
-      },
-    },
-    404: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const, example: 'Backup file not found' },
-      },
-    },
   },
 }
 
@@ -283,19 +166,6 @@ const downloadBackup = {
     },
     required: ['filename'] as string[],
   },
-  response: {
-    200: {
-      description: 'Backup file download (application/gzip)',
-      type: 'string' as const,
-      format: 'binary',
-    },
-    404: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const, example: 'Backup file not found' },
-      },
-    },
-  },
 }
 
 const uploadBackup = {
@@ -303,30 +173,6 @@ const uploadBackup = {
   summary: 'Upload backup',
   description: 'Upload a backup file for later restore. Accepts .sql.gz files. Admin only.',
   consumes: ['multipart/form-data'],
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-        filename: { type: 'string' as const, description: 'Saved filename' },
-        sizeBytes: { type: 'integer' as const, description: 'File size in bytes' },
-        sizeFormatted: { type: 'string' as const, description: 'Human-readable file size' },
-        message: { type: 'string' as const },
-      },
-    },
-    400: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const, example: 'Invalid file format' },
-      },
-    },
-    500: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 // =============================================================================
@@ -338,22 +184,6 @@ const setupListBackups = {
   security: [],
   summary: 'List backups (setup)',
   description: 'List available backups during initial setup. No authentication required. Only available when setup is not complete.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        backups: { type: 'array' as const, items: { $ref: 'BackupFile#' } },
-        hasBackups: { type: 'boolean' as const, description: 'Whether any backups exist' },
-        totalCount: { type: 'integer' as const, description: 'Total number of backup files' },
-      },
-    },
-    500: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 const setupUploadBackup = {
@@ -362,30 +192,6 @@ const setupUploadBackup = {
   summary: 'Upload backup (setup)',
   description: 'Upload a backup file during initial setup. No authentication required. Only available when setup is not complete.',
   consumes: ['multipart/form-data'],
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-        filename: { type: 'string' as const },
-        sizeBytes: { type: 'integer' as const, description: 'File size in bytes' },
-        sizeFormatted: { type: 'string' as const, description: 'Human-readable file size' },
-        message: { type: 'string' as const },
-      },
-    },
-    400: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-    500: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 const setupRestoreBackup = {
@@ -406,30 +212,6 @@ const setupRestoreBackup = {
     type: 'object' as const,
     properties: {
       sync: { type: 'string' as const, enum: ['true', 'false'], description: 'Wait for restore to complete' },
-    },
-  },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-        message: { type: 'string' as const },
-        jobId: { type: 'string' as const, format: 'uuid', description: 'Restore job ID' },
-        filename: { type: 'string' as const, description: 'Backup filename being restored' },
-        duration: { type: 'number' as const, description: 'Restore duration in seconds (sync mode)' },
-      },
-    },
-    400: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-    500: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
     },
   },
 }

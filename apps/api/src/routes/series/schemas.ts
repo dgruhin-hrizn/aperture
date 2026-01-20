@@ -68,22 +68,6 @@ export const listSeriesSchema = {
       },
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      description: 'Paginated list of series',
-      properties: {
-        series: {
-          type: 'array' as const,
-          items: SeriesRef,
-          description: 'Array of series objects',
-        },
-        total: { type: 'integer' as const, description: 'Total number of series matching filters', example: 456 },
-        page: { type: 'integer' as const, description: 'Current page number', example: 1 },
-        pageSize: { type: 'integer' as const, description: 'Number of items per page', example: 50 },
-      },
-    },
-  },
 }
 
 // =============================================================================
@@ -100,13 +84,6 @@ export const getSeriesSchema = {
       id: { type: 'string' as const, format: 'uuid', description: 'Unique series identifier (UUID)', example: '789e4567-e89b-12d3-a456-426614174002' },
     },
     required: ['id'] as string[],
-  },
-  response: {
-    200: {
-      description: 'Series details with full metadata',
-      $ref: 'Series#',
-    },
-    404: ErrorRef,
   },
 }
 
@@ -125,42 +102,6 @@ export const watchStatsSchema = {
     },
     required: ['id'] as string[],
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      description: 'Watch statistics for the series',
-      properties: {
-        currentlyWatching: { type: 'integer' as const, description: 'Users currently watching this series' },
-        totalViewers: { type: 'integer' as const, description: 'Total users who have watched any episode' },
-        completedViewers: { type: 'integer' as const, description: 'Users who have watched all episodes' },
-        totalEpisodes: { type: 'integer' as const, description: 'Total episodes in the series' },
-        totalEpisodePlays: { type: 'integer' as const, description: 'Total episode plays across all users' },
-        favoritedEpisodes: { type: 'integer' as const, description: 'Total favorited episodes across all users' },
-        firstWatched: { type: 'string' as const, format: 'date-time', nullable: true, description: 'When the series was first watched' },
-        lastWatched: { type: 'string' as const, format: 'date-time', nullable: true, description: 'Most recent watch time' },
-        averageUserRating: { type: 'number' as const, nullable: true, description: 'Average user rating (1-10)' },
-        totalRatings: { type: 'integer' as const, description: 'Number of user ratings' },
-        averageProgress: { type: 'integer' as const, description: 'Average completion percentage across viewers' },
-        watchPercentage: { type: 'integer' as const, description: 'Percentage of users who have watched any episode' },
-        totalUsers: { type: 'integer' as const, description: 'Total number of users in the system' },
-      },
-      example: {
-        currentlyWatching: 12,
-        totalViewers: 45,
-        completedViewers: 28,
-        totalEpisodes: 62,
-        totalEpisodePlays: 2340,
-        favoritedEpisodes: 89,
-        firstWatched: '2022-05-10T14:30:00Z',
-        lastWatched: '2024-01-15T21:45:00Z',
-        averageUserRating: 9.2,
-        totalRatings: 38,
-        averageProgress: 76,
-        watchPercentage: 90,
-        totalUsers: 50,
-      },
-    },
-  },
 }
 
 // =============================================================================
@@ -178,28 +119,6 @@ export const episodesSchema = {
     },
     required: ['id'] as string[],
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        episodes: { 
-          type: 'array' as const, 
-          items: EpisodeRef,
-          description: 'All episodes in order'
-        },
-        seasons: { 
-          type: 'object' as const, 
-          description: 'Episodes grouped by season number',
-          additionalProperties: {
-            type: 'array' as const,
-            items: EpisodeRef
-          }
-        },
-        totalEpisodes: { type: 'integer' as const, description: 'Total episode count' },
-        seasonCount: { type: 'integer' as const, description: 'Number of seasons' },
-      },
-    },
-  },
 }
 
 // =============================================================================
@@ -210,19 +129,6 @@ export const genresSchema = {
   tags: ['series'],
   summary: 'List series genres',
   description: 'Get all unique genres from the series library.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        genres: {
-          type: 'array' as const,
-          items: { type: 'string' as const },
-          description: 'List of all unique genres',
-          example: ['Action', 'Comedy', 'Drama', 'Sci-Fi & Fantasy', 'Crime', 'Documentary'],
-        },
-      },
-    },
-  },
 }
 
 // =============================================================================
@@ -233,19 +139,6 @@ export const networksSchema = {
   tags: ['series'],
   summary: 'List networks',
   description: 'Get all unique networks/streaming services from the series library.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        networks: {
-          type: 'array' as const,
-          items: { type: 'string' as const },
-          description: 'List of all unique networks',
-          example: ['HBO', 'Netflix', 'AMC', 'FX', 'Apple TV+', 'Prime Video'],
-        },
-      },
-    },
-  },
 }
 
 // =============================================================================
@@ -256,29 +149,6 @@ export const keywordsSchema = {
   tags: ['series'],
   summary: 'List series keywords',
   description: 'Get the top 100 keywords from series metadata (sourced from TMDb enrichment). Keywords with only one series are excluded.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        keywords: {
-          type: 'array' as const,
-          items: {
-            type: 'object' as const,
-            properties: {
-              name: { type: 'string' as const, description: 'Keyword name' },
-              count: { type: 'integer' as const, description: 'Number of series with this keyword' },
-            },
-          },
-          description: 'List of keywords sorted by frequency',
-          example: [
-            { name: 'based on novel', count: 45 },
-            { name: 'crime', count: 38 },
-            { name: 'anthology', count: 22 },
-          ],
-        },
-      },
-    },
-  },
 }
 
 // =============================================================================
@@ -289,28 +159,6 @@ export const contentRatingsSchema = {
   tags: ['series'],
   summary: 'List content ratings',
   description: 'Get all unique content ratings (TV-G, TV-PG, TV-14, TV-MA, etc.) with series counts. Sorted by restrictiveness.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        contentRatings: {
-          type: 'array' as const,
-          items: {
-            type: 'object' as const,
-            properties: {
-              rating: { type: 'string' as const, description: 'Content rating' },
-              count: { type: 'integer' as const, description: 'Number of series with this rating' },
-            },
-          },
-          example: [
-            { rating: 'TV-MA', count: 156 },
-            { rating: 'TV-14', count: 98 },
-            { rating: 'TV-PG', count: 45 },
-          ],
-        },
-      },
-    },
-  },
 }
 
 // =============================================================================
@@ -321,34 +169,6 @@ export const filterRangesSchema = {
   tags: ['series'],
   summary: 'Get filter ranges',
   description: 'Get min/max values for year, seasons, and rating filters. Useful for building filter UI sliders and range inputs.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        year: {
-          type: 'object' as const,
-          properties: {
-            min: { type: 'integer' as const, description: 'Oldest series year', example: 1950 },
-            max: { type: 'integer' as const, description: 'Newest series year', example: 2024 },
-          },
-        },
-        seasons: {
-          type: 'object' as const,
-          properties: {
-            min: { type: 'integer' as const, description: 'Minimum seasons', example: 1 },
-            max: { type: 'integer' as const, description: 'Maximum seasons', example: 30 },
-          },
-        },
-        rating: {
-          type: 'object' as const,
-          properties: {
-            min: { type: 'number' as const, description: 'Lowest community rating', example: 1.0 },
-            max: { type: 'number' as const, description: 'Highest community rating', example: 10.0 },
-          },
-        },
-      },
-    },
-  },
 }
 
 // =============================================================================
@@ -371,29 +191,5 @@ export const similarSeriesSchema = {
     properties: {
       limit: { type: 'string' as const, description: 'Maximum results to return (1-50)', default: '10', example: '20' },
     },
-  },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        similar: {
-          type: 'array' as const,
-          items: {
-            type: 'object' as const,
-            properties: {
-              id: { type: 'string' as const, format: 'uuid' },
-              title: { type: 'string' as const },
-              year: { type: 'integer' as const, nullable: true },
-              posterUrl: { type: 'string' as const, nullable: true },
-              genres: { type: 'array' as const, items: { type: 'string' as const } },
-              network: { type: 'string' as const, nullable: true },
-              similarity: { type: 'number' as const, description: 'Similarity score from 0-1' },
-            },
-          },
-          description: 'List of similar series with similarity scores'
-        },
-      },
-    },
-    404: ErrorRef,
   },
 }

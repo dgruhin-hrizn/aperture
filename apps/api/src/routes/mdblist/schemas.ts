@@ -157,15 +157,6 @@ export const getMDBListConfigSchema = {
   tags: ['mdblist'],
   summary: 'Get MDBList configuration',
   description: 'Get MDBList integration configuration (admin only). API key is masked.',
-  response: {
-    200: { $ref: 'MDBListConfig#' },
-    500: {
-      type: 'object',
-      properties: {
-        error: { type: 'string' },
-      },
-    },
-  },
 }
 
 export const updateMDBListConfigSchema = {
@@ -186,15 +177,6 @@ export const updateMDBListConfigSchema = {
       supporterTier: false,
     },
   },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean' },
-        message: { type: 'string' },
-      },
-    },
-  },
 }
 
 export const testMDBListSchema = {
@@ -207,9 +189,6 @@ export const testMDBListSchema = {
     properties: {
       apiKey: { type: 'string', description: 'API key to test (optional, uses saved if not provided)' },
     },
-  },
-  response: {
-    200: { $ref: 'MDBListTestResult#' },
   },
 }
 
@@ -224,14 +203,6 @@ export const getTopListsSchema = {
       limit: { type: 'string', description: 'Maximum lists to return', default: '20', example: '50' },
     },
   },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        lists: { type: 'array', items: { $ref: 'MDBListInfo#' } },
-      },
-    },
-  },
 }
 
 export const getMyListsSchema = {
@@ -242,14 +213,6 @@ export const getMyListsSchema = {
     type: 'object',
     properties: {
       mediatype: { type: 'string', enum: ['movie', 'show'], description: 'Filter by media type' },
-    },
-  },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        lists: { type: 'array', items: { $ref: 'MDBListInfo#' } },
-      },
     },
   },
 }
@@ -266,14 +229,6 @@ export const searchListsSchema = {
       mediatype: { type: 'string', enum: ['movie', 'show'], description: 'Filter by media type' },
     },
   },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        lists: { type: 'array', items: { $ref: 'MDBListInfo#' } },
-      },
-    },
-  },
 }
 
 export const getListInfoSchema = {
@@ -287,15 +242,6 @@ export const getListInfoSchema = {
       id: { type: 'string', description: 'MDBList list ID', example: '12345' },
     },
   },
-  response: {
-    200: { $ref: 'MDBListInfo#' },
-    404: {
-      type: 'object',
-      properties: {
-        error: { type: 'string', example: 'List not found' },
-      },
-    },
-  },
 }
 
 export const getListCountsSchema = {
@@ -307,16 +253,6 @@ export const getListCountsSchema = {
     required: ['id'],
     properties: {
       id: { type: 'string', description: 'MDBList list ID' },
-    },
-  },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        total: { type: 'integer', description: 'Total items in list' },
-        movies: { type: 'integer', description: 'Number of movies' },
-        shows: { type: 'integer', description: 'Number of TV shows' },
-      },
     },
   },
 }
@@ -339,16 +275,6 @@ export const getListItemsSchema = {
       offset: { type: 'string', description: 'Number of items to skip', default: '0', example: '100' },
     },
   },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        items: { type: 'array', items: { $ref: 'MDBListItem#' } },
-        total: { type: 'integer', description: 'Total items in list' },
-        hasMore: { type: 'boolean', description: 'Whether more items exist' },
-      },
-    },
-  },
 }
 
 export const getLibraryMatchSchema = {
@@ -369,29 +295,10 @@ export const getLibraryMatchSchema = {
       sort: { type: 'string', description: 'Sort order for missing items', example: 'rank' },
     },
   },
-  response: {
-    200: { $ref: 'MDBListLibraryMatch#' },
-  },
 }
 
 export const getSortOptionsSchema = {
   tags: ['mdblist'],
   summary: 'Get sort options',
   description: 'Get available sort options for MDBList items.',
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        options: { type: 'array', items: { $ref: 'MDBListSortOption#' } },
-      },
-      example: {
-        options: [
-          { value: 'rank', label: 'Rank' },
-          { value: 'title', label: 'Title' },
-          { value: 'year', label: 'Year' },
-          { value: 'score', label: 'Score' },
-        ],
-      },
-    },
-  },
 }

@@ -14,65 +14,12 @@ const getStatus = {
   summary: 'Get setup status',
   description: 'Check if initial setup is needed. Public endpoint, no authentication required.',
   security: [],
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        needsSetup: { type: 'boolean' as const, description: 'Whether initial setup is needed' },
-        isAdmin: { type: 'boolean' as const, description: 'Whether the current user is an admin' },
-        canAccessSetup: { type: 'boolean' as const, description: 'True if needs setup OR user is admin' },
-        configured: {
-          type: 'object' as const,
-          properties: {
-            mediaServer: { type: 'boolean' as const, description: 'Whether media server is configured' },
-            openai: { type: 'boolean' as const, description: 'Whether OpenAI API key is configured' },
-          },
-        },
-      },
-      example: {
-        needsSetup: true,
-        isAdmin: false,
-        canAccessSetup: true,
-        configured: {
-          mediaServer: false,
-          openai: false,
-        },
-      },
-    },
-  },
 }
 
 const getProgress = {
   tags: ['setup'],
   summary: 'Get setup progress',
   description: 'Get current wizard progress and configuration snapshot. Available during first-run or to admins for re-running setup.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        progress: {
-          type: 'object' as const,
-          properties: {
-            completedSteps: { type: 'array' as const, items: { type: 'string' as const } },
-            currentStep: { type: 'string' as const, nullable: true },
-            completedAt: { type: 'string' as const, format: 'date-time', nullable: true },
-            updatedAt: { type: 'string' as const, format: 'date-time' },
-          },
-        },
-        snapshot: {
-          type: 'object' as const,
-          additionalProperties: true,
-          description: 'Current configuration snapshot',
-        },
-      },
-    },
-    404: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 const updateProgress = {
@@ -92,14 +39,6 @@ const updateProgress = {
       currentStep: 'libraries',
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-      },
-    },
-  },
 }
 
 // =============================================================================
@@ -110,64 +49,12 @@ const getMediaServerTypes = {
   tags: ['setup'],
   summary: 'Get media server types',
   description: 'Get list of supported media server types for the setup wizard.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        types: {
-          type: 'array' as const,
-          items: {
-            type: 'object' as const,
-            properties: {
-              id: { type: 'string' as const, enum: ['emby', 'jellyfin'] },
-              name: { type: 'string' as const, description: 'Display name' },
-              description: { type: 'string' as const },
-            },
-          },
-          example: [
-            { id: 'jellyfin', name: 'Jellyfin', description: 'Free and open-source media server' },
-            { id: 'emby', name: 'Emby', description: 'Personal media server' },
-          ],
-        },
-      },
-    },
-    404: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 const discoverServers = {
   tags: ['setup'],
   summary: 'Discover servers',
   description: 'Auto-discover Emby/Jellyfin servers on the local network via UDP broadcast. May take a few seconds.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        servers: {
-          type: 'array' as const,
-          items: {
-            type: 'object' as const,
-            properties: {
-              type: { type: 'string' as const, enum: ['emby', 'jellyfin'] },
-              name: { type: 'string' as const, description: 'Server name' },
-              address: { type: 'string' as const, description: 'Server URL' },
-            },
-          },
-        },
-      },
-    },
-    404: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 const testMediaServer = {
@@ -182,17 +69,6 @@ const testMediaServer = {
       type: { type: 'string' as const, enum: ['emby', 'jellyfin'], description: 'Server type' },
       baseUrl: { type: 'string' as const, description: 'Server URL including protocol and port', example: 'http://192.168.1.100:8096' },
       apiKey: { type: 'string' as const, description: 'API key from server admin settings' },
-    },
-  },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-        serverName: { type: 'string' as const, nullable: true, description: 'Server name if connection successful' },
-        version: { type: 'string' as const, nullable: true, description: 'Server version' },
-        error: { type: 'string' as const, nullable: true, description: 'Error message if failed' },
-      },
     },
   },
 }
@@ -211,41 +87,12 @@ const saveMediaServer = {
       apiKey: { type: 'string' as const, description: 'API key' },
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-        message: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 const getMediaServerSecurity = {
   tags: ['setup'],
   summary: 'Get security settings',
   description: 'Get media server security settings including passwordless login option.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        allowPasswordlessLogin: { type: 'boolean' as const, description: 'Whether passwordless login is allowed' },
-      },
-    },
-    404: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-    500: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 const updateMediaServerSecurity = {
@@ -259,20 +106,6 @@ const updateMediaServerSecurity = {
       allowPasswordlessLogin: { type: 'boolean' as const, description: 'Allow users without passwords to log in' },
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-      },
-    },
-    500: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 // =============================================================================
@@ -283,38 +116,6 @@ const getLibraries = {
   tags: ['setup'],
   summary: 'Get libraries',
   description: 'Get available libraries from the configured media server. Shows library name, type, and item count.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        libraries: {
-          type: 'array' as const,
-          items: {
-            type: 'object' as const,
-            properties: {
-              providerLibraryId: { type: 'string' as const, description: 'Library ID in media server' },
-              name: { type: 'string' as const, description: 'Library name' },
-              type: { type: 'string' as const, enum: ['movies', 'tvshows'], description: 'Library content type' },
-              itemCount: { type: 'integer' as const, description: 'Number of items in library' },
-              isEnabled: { type: 'boolean' as const, description: 'Whether library is enabled for Aperture' },
-            },
-          },
-        },
-      },
-    },
-    400: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-    404: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 const setLibraries = {
@@ -346,21 +147,6 @@ const setLibraries = {
       ],
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-        enabledCount: { type: 'integer' as const, description: 'Number of enabled libraries' },
-      },
-    },
-    400: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 // =============================================================================
@@ -371,23 +157,6 @@ const getAiRecsOutput = {
   tags: ['setup'],
   summary: 'Get AI recommendations output config',
   description: 'Get current configuration for how AI recommendations are output (poster images, STRM files).',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        format: { type: 'string' as const, enum: ['poster', 'strm', 'both', 'none'], description: 'Output format' },
-        strmPath: { type: 'string' as const, nullable: true, description: 'Path for STRM file output' },
-        posterFormat: { type: 'string' as const, enum: ['png', 'jpg', 'webp'], description: 'Poster image format' },
-        posterQuality: { type: 'integer' as const, description: 'Poster quality (1-100)' },
-      },
-    },
-    404: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 const setAiRecsOutput = {
@@ -404,35 +173,12 @@ const setAiRecsOutput = {
       posterQuality: { type: 'integer' as const, minimum: 1, maximum: 100, description: 'Poster quality' },
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-      },
-    },
-  },
 }
 
 const getOutputConfig = {
   tags: ['setup'],
   summary: 'Get output path config',
   description: 'Get current output path configuration for recommendations.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        outputPath: { type: 'string' as const, description: 'Base output path' },
-        useSymlinks: { type: 'boolean' as const, description: 'Whether to use symlinks instead of copies' },
-      },
-    },
-    404: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 const setOutputConfig = {
@@ -447,50 +193,12 @@ const setOutputConfig = {
       useSymlinks: { type: 'boolean' as const, description: 'Use symlinks instead of file copies' },
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-      },
-    },
-  },
 }
 
 const detectPaths = {
   tags: ['setup'],
   summary: 'Detect path mappings',
   description: 'Auto-detect path mappings between Aperture container and media server. Useful when they run in different containers.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        detected: { type: 'boolean' as const, description: 'Whether paths were successfully detected' },
-        mappings: {
-          type: 'array' as const,
-          items: {
-            type: 'object' as const,
-            properties: {
-              aperturePath: { type: 'string' as const },
-              serverPath: { type: 'string' as const },
-            },
-          },
-        },
-      },
-    },
-    400: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-    404: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 const validate = {
@@ -502,25 +210,6 @@ const validate = {
     additionalProperties: true,
     properties: {
       useSymlinks: { type: 'boolean' as const, description: 'Test symlink creation' },
-    },
-  },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        valid: { type: 'boolean' as const, description: 'Whether all checks passed' },
-        checks: {
-          type: 'array' as const,
-          items: {
-            type: 'object' as const,
-            properties: {
-              name: { type: 'string' as const },
-              passed: { type: 'boolean' as const },
-              message: { type: 'string' as const },
-            },
-          },
-        },
-      },
     },
   },
 }
@@ -537,15 +226,6 @@ const uploadLibraryImage = {
     },
   },
   consumes: ['multipart/form-data'],
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-        path: { type: 'string' as const, description: 'Path to uploaded image' },
-      },
-    },
-  },
 }
 
 // =============================================================================
@@ -556,33 +236,6 @@ const getTopPicksConfig = {
   tags: ['setup'],
   summary: 'Get Top Picks config',
   description: 'Get Top Picks feature configuration during setup.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        movies: {
-          type: 'object' as const,
-          properties: {
-            enabled: { type: 'boolean' as const },
-            itemCount: { type: 'integer' as const },
-          },
-        },
-        series: {
-          type: 'object' as const,
-          properties: {
-            enabled: { type: 'boolean' as const },
-            itemCount: { type: 'integer' as const },
-          },
-        },
-      },
-    },
-    404: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 const setTopPicksConfig = {
@@ -609,14 +262,6 @@ const setTopPicksConfig = {
       },
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-      },
-    },
-  },
 }
 
 // =============================================================================
@@ -627,44 +272,6 @@ const getUsers = {
   tags: ['setup'],
   summary: 'Get users for import',
   description: 'Get users from media server for import during setup. Shows which users are already imported.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        users: {
-          type: 'array' as const,
-          items: {
-            type: 'object' as const,
-            properties: {
-              providerUserId: { type: 'string' as const, description: 'User ID in media server' },
-              username: { type: 'string' as const },
-              isAdmin: { type: 'boolean' as const },
-              isImported: { type: 'boolean' as const, description: 'Whether already imported to Aperture' },
-              apertureUserId: { type: 'string' as const, format: 'uuid', nullable: true, description: 'Aperture user ID if imported' },
-            },
-          },
-        },
-      },
-    },
-    400: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-    403: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-    500: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 const importUser = {
@@ -681,21 +288,6 @@ const importUser = {
       seriesEnabled: { type: 'boolean' as const, description: 'Enable series recommendations', default: true },
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-        userId: { type: 'string' as const, format: 'uuid', description: 'New Aperture user ID' },
-      },
-    },
-    500: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 const enableUser = {
@@ -710,14 +302,6 @@ const enableUser = {
       apertureUserId: { type: 'string' as const, format: 'uuid', description: 'Aperture user ID' },
       moviesEnabled: { type: 'boolean' as const, description: 'Enable movie recommendations' },
       seriesEnabled: { type: 'boolean' as const, description: 'Enable series recommendations' },
-    },
-  },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-      },
     },
   },
 }
@@ -738,35 +322,12 @@ const testOpenAI = {
       apiKey: { type: 'string' as const, description: 'OpenAI API key to test' },
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-        error: { type: 'string' as const, nullable: true },
-      },
-    },
-  },
 }
 
 const getOpenAI = {
   tags: ['setup'],
   summary: 'Get OpenAI config',
   description: 'Get OpenAI configuration status during setup. Legacy endpoint.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        hasApiKey: { type: 'boolean' as const },
-      },
-    },
-    404: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 const saveOpenAI = {
@@ -779,14 +340,6 @@ const saveOpenAI = {
     required: ['apiKey'] as string[],
     properties: {
       apiKey: { type: 'string' as const, description: 'OpenAI API key' },
-    },
-  },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-      },
     },
   },
 }
@@ -810,15 +363,6 @@ const runJob = {
       },
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-        jobId: { type: 'string' as const, format: 'uuid', description: 'Job run ID for tracking progress' },
-      },
-    },
-  },
 }
 
 const getJobProgress = {
@@ -832,47 +376,12 @@ const getJobProgress = {
       jobId: { type: 'string' as const, format: 'uuid', description: 'Job run ID' },
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        status: { type: 'string' as const, enum: ['running', 'success', 'failed', 'cancelled'] },
-        progress: { type: 'number' as const, description: 'Progress percentage (0-100)' },
-        itemsProcessed: { type: 'integer' as const },
-        itemsTotal: { type: 'integer' as const },
-        currentItem: { type: 'string' as const, nullable: true },
-      },
-    },
-  },
 }
 
 const getLastRuns = {
   tags: ['setup'],
   summary: 'Get last job runs',
   description: 'Get information about recent job runs during setup.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        runs: {
-          type: 'object' as const,
-          additionalProperties: {
-            type: 'object' as const,
-            properties: {
-              status: { type: 'string' as const },
-              completedAt: { type: 'string' as const, format: 'date-time', nullable: true },
-            },
-          },
-        },
-      },
-    },
-    403: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 // =============================================================================
@@ -883,27 +392,6 @@ const completeSetup = {
   tags: ['setup'],
   summary: 'Complete setup',
   description: 'Mark initial setup as complete. After this, setup endpoints require admin authentication.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-        message: { type: 'string' as const, example: 'Setup complete! You can now log in.' },
-      },
-    },
-    400: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-    404: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 // =============================================================================
@@ -914,36 +402,12 @@ const adminRunInitialJobs = {
   tags: ['setup'],
   summary: 'Run initial jobs (admin)',
   description: 'Run all initial setup jobs in order (sync, enrich, embed). Admin only.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-        message: { type: 'string' as const },
-      },
-    },
-    500: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 const adminGetProgress = {
   tags: ['setup'],
   summary: 'Get setup progress (admin)',
   description: 'Get setup progress for admin re-run.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        currentStep: { type: 'string' as const, nullable: true },
-        completedSteps: { type: 'array' as const, items: { type: 'string' as const } },
-      },
-    },
-  },
 }
 
 const adminUpdateProgress = {
@@ -957,14 +421,6 @@ const adminUpdateProgress = {
       currentStep: { type: 'string' as const, nullable: true },
       completedStep: { type: 'string' as const },
       reset: { type: 'boolean' as const },
-    },
-  },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-      },
     },
   },
 }
@@ -987,25 +443,6 @@ const getAIProviders = {
       },
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        providers: {
-          type: 'array' as const,
-          items: {
-            type: 'object' as const,
-            properties: {
-              id: { type: 'string' as const, description: 'Provider ID', example: 'openai' },
-              name: { type: 'string' as const, description: 'Display name', example: 'OpenAI' },
-              hasCredentials: { type: 'boolean' as const, description: 'Whether API key is configured' },
-              supportsCustomBaseUrl: { type: 'boolean' as const },
-            },
-          },
-        },
-      },
-    },
-  },
 }
 
 const getAIModels = {
@@ -1018,25 +455,6 @@ const getAIModels = {
     properties: {
       provider: { type: 'string' as const, description: 'Provider ID', example: 'openai' },
       function: { type: 'string' as const, enum: ['embedding', 'text_generation', 'chat_assistant'] },
-    },
-  },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        models: {
-          type: 'array' as const,
-          items: {
-            type: 'object' as const,
-            properties: {
-              id: { type: 'string' as const, description: 'Model ID' },
-              name: { type: 'string' as const, description: 'Display name' },
-              contextWindow: { type: 'integer' as const, nullable: true },
-              isCustom: { type: 'boolean' as const },
-            },
-          },
-        },
-      },
     },
   },
 }
@@ -1062,14 +480,6 @@ const addCustomModel = {
       embeddingDimensions: 768,
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-      },
-    },
-  },
 }
 
 const deleteCustomModel = {
@@ -1086,14 +496,6 @@ const deleteCustomModel = {
       modelId: { type: 'string' as const },
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-      },
-    },
-  },
 }
 
 const getAICredentials = {
@@ -1107,16 +509,6 @@ const getAICredentials = {
       provider: { type: 'string' as const, description: 'Provider ID' },
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        hasApiKey: { type: 'boolean' as const },
-        hasBaseUrl: { type: 'boolean' as const },
-        baseUrl: { type: 'string' as const, nullable: true, description: 'Custom base URL if set' },
-      },
-    },
-  },
 }
 
 const getAIFunctionConfig = {
@@ -1128,16 +520,6 @@ const getAIFunctionConfig = {
     required: ['function'] as string[],
     properties: {
       function: { type: 'string' as const, enum: ['embedding', 'text_generation', 'chat_assistant'] },
-    },
-  },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        provider: { type: 'string' as const, nullable: true },
-        model: { type: 'string' as const, nullable: true },
-        isConfigured: { type: 'boolean' as const },
-      },
     },
   },
 }
@@ -1156,16 +538,6 @@ const testAIProvider = {
       model: { type: 'string' as const },
       apiKey: { type: 'string' as const, description: 'API key to test (optional, uses saved if not provided)' },
       baseUrl: { type: 'string' as const, description: 'Custom base URL (optional)' },
-    },
-  },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-        error: { type: 'string' as const, nullable: true },
-        modelInfo: { type: 'object' as const, nullable: true, description: 'Model information if successful' },
-      },
     },
   },
 }
@@ -1195,14 +567,6 @@ const updateAIFunctionConfig = {
       provider: 'openai',
       model: 'text-embedding-3-small',
       apiKey: 'sk-...',
-    },
-  },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-      },
     },
   },
 }

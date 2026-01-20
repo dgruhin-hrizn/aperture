@@ -122,15 +122,6 @@ export const getSimilarMovieSchema = {
       depth: { type: 'string', description: 'Graph depth (1 = direct connections only, 2 = spider out to connections of connections)', default: '1', example: '2' },
     },
   },
-  response: {
-    200: { $ref: 'GraphData#' },
-    404: {
-      type: 'object',
-      properties: {
-        error: { type: 'string', example: 'Movie not found or has no embeddings' },
-      },
-    },
-  },
 }
 
 export const getSimilarSeriesSchema = {
@@ -149,15 +140,6 @@ export const getSimilarSeriesSchema = {
     properties: {
       limit: { type: 'string', description: 'Maximum connections per node', default: '12', example: '20' },
       depth: { type: 'string', description: 'Graph depth (1 = direct, 2 = extended)', default: '1' },
-    },
-  },
-  response: {
-    200: { $ref: 'GraphData#' },
-    404: {
-      type: 'object',
-      properties: {
-        error: { type: 'string', example: 'Series not found or has no embeddings' },
-      },
     },
   },
 }
@@ -184,9 +166,6 @@ export const getGraphSourceSchema = {
       crossMedia: { type: 'string', enum: ['true', 'false'], description: 'Include connections across media types (movies ↔ series)', default: 'false' },
     },
   },
-  response: {
-    200: { $ref: 'GraphData#' },
-  },
 }
 
 export const semanticSearchSchema = {
@@ -204,46 +183,16 @@ export const semanticSearchSchema = {
       hideWatched: { type: 'string', enum: ['true', 'false'], description: 'Exclude already-watched content', default: 'false' },
     },
   },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        results: { type: 'array', items: { $ref: 'SemanticSearchResult#' } },
-        graph: { $ref: 'GraphData#' },
-        query: { type: 'string', description: 'The search query that was executed' },
-      },
-    },
-    400: {
-      type: 'object',
-      properties: {
-        error: { type: 'string', example: 'Embeddings not configured' },
-      },
-    },
-  },
 }
 
 export const getColorsSchema = {
   tags: ['similarity'],
   summary: 'Get connection colors',
   description: 'Get the color scheme used for different connection types in the similarity graph.',
-  response: {
-    200: { $ref: 'ConnectionColors#' },
-  },
 }
 
 export const getValidationCacheStatsSchema = {
   tags: ['similarity'],
   summary: 'Get validation cache stats',
   description: 'Get statistics about the AI validation cache (admin only). Shows cache hit rates and memory usage.',
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        size: { type: 'integer', description: 'Number of cached items' },
-        hits: { type: 'integer', description: 'Cache hits' },
-        misses: { type: 'integer', description: 'Cache misses' },
-        hitRate: { type: 'number', description: 'Hit rate percentage' },
-      },
-    },
-  },
 }

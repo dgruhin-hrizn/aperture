@@ -145,14 +145,6 @@ const listJobs = {
   tags: ['jobs'],
   summary: 'List all jobs',
   description: 'Get all background jobs with their status, schedule configuration, and last run info. Admin only.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        jobs: { type: 'array' as const, items: { $ref: 'Job#' } },
-      },
-    },
-  },
 }
 
 const getJob = {
@@ -169,15 +161,6 @@ const getJob = {
       },
     },
     required: ['name'] as string[],
-  },
-  response: {
-    200: { $ref: 'Job#' },
-    404: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const, example: 'Job not found' },
-      },
-    },
   },
 }
 
@@ -196,28 +179,6 @@ const runJob = {
     },
     required: ['name'] as string[],
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-        jobId: { type: 'string' as const, format: 'uuid', description: 'ID of the started job run' },
-        message: { type: 'string' as const, example: 'Job started' },
-      },
-    },
-    400: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const, example: 'Job is already running' },
-      },
-    },
-    404: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const, example: 'Job not found' },
-      },
-    },
-  },
 }
 
 const cancelJob = {
@@ -235,21 +196,6 @@ const cancelJob = {
     },
     required: ['name'] as string[],
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-        message: { type: 'string' as const, example: 'Job cancellation requested' },
-      },
-    },
-    400: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const, example: 'Job is not running' },
-      },
-    },
-  },
 }
 
 // =============================================================================
@@ -266,19 +212,6 @@ const getJobConfig = {
       name: { type: 'string' as const, description: 'Job name', example: 'sync-movies' },
     },
     required: ['name'] as string[],
-  },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        scheduleType: { type: 'string' as const, enum: ['daily', 'weekly', 'interval', 'manual'] },
-        scheduleHour: { type: 'integer' as const, nullable: true },
-        scheduleMinute: { type: 'integer' as const, nullable: true },
-        scheduleDayOfWeek: { type: 'integer' as const, nullable: true },
-        scheduleIntervalHours: { type: 'integer' as const, nullable: true },
-        isEnabled: { type: 'boolean' as const },
-      },
-    },
   },
 }
 
@@ -316,15 +249,6 @@ const updateJobConfig = {
       isEnabled: true,
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-        message: { type: 'string' as const, example: 'Job configuration updated' },
-      },
-    },
-  },
 }
 
 // =============================================================================
@@ -342,15 +266,6 @@ const getJobProgress = {
     },
     required: ['jobId'] as string[],
   },
-  response: {
-    200: { $ref: 'JobProgress#' },
-    404: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const, example: 'Job run not found' },
-      },
-    },
-  },
 }
 
 const streamJobProgress = {
@@ -364,26 +279,12 @@ const streamJobProgress = {
     },
     required: ['jobId'] as string[],
   },
-  response: {
-    200: {
-      description: 'SSE stream of JobProgress events',
-      type: 'string' as const,
-    },
-  },
 }
 
 const getActiveJobs = {
   tags: ['jobs'],
   summary: 'Get active jobs',
   description: 'Get all currently running jobs with their progress.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        jobs: { type: 'array' as const, items: { $ref: 'JobProgress#' } },
-      },
-    },
-  },
 }
 
 // =============================================================================
@@ -398,14 +299,6 @@ const getJobHistory = {
     type: 'object' as const,
     properties: {
       limit: { type: 'string' as const, description: 'Maximum runs to return', default: '50', example: '100' },
-    },
-  },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        runs: { type: 'array' as const, items: { $ref: 'JobRun#' } },
-      },
     },
   },
 }
@@ -427,32 +320,12 @@ const getJobHistoryByName = {
       limit: { type: 'string' as const, description: 'Maximum runs to return', default: '20', example: '50' },
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        runs: { type: 'array' as const, items: { $ref: 'JobRun#' } },
-      },
-    },
-  },
 }
 
 const getLastRuns = {
   tags: ['jobs'],
   summary: 'Get last run for each job',
   description: 'Get the most recent run for each job type. Useful for dashboard status display.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        runs: { 
-          type: 'object' as const, 
-          additionalProperties: { $ref: 'JobRun#' },
-          description: 'Map of job name to last run',
-        },
-      },
-    },
-  },
 }
 
 // =============================================================================
@@ -463,25 +336,6 @@ const getSchedulerStatus = {
   tags: ['jobs'],
   summary: 'Get scheduler status',
   description: 'Get current scheduler status showing which jobs are scheduled and their next run times.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        isRunning: { type: 'boolean' as const, description: 'Whether the scheduler is running' },
-        scheduledJobs: {
-          type: 'array' as const,
-          items: {
-            type: 'object' as const,
-            properties: {
-              jobName: { type: 'string' as const, description: 'Job name' },
-              cronExpression: { type: 'string' as const, description: 'Cron expression for the schedule' },
-              schedule: { type: 'string' as const, description: 'Human-readable schedule' },
-            },
-          },
-        },
-      },
-    },
-  },
 }
 
 // =============================================================================
@@ -492,53 +346,12 @@ const getEnrichmentStatus = {
   tags: ['jobs'],
   summary: 'Get enrichment status',
   description: 'Check if there are incomplete or interrupted enrichment runs. These can occur if the server was restarted during enrichment.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        hasInterrupted: { type: 'boolean' as const, description: 'Whether there are interrupted runs' },
-        interruptedRuns: {
-          type: 'array' as const,
-          items: {
-            type: 'object' as const,
-            properties: {
-              jobName: { type: 'string' as const },
-              startedAt: { type: 'string' as const, format: 'date-time' },
-              itemsProcessed: { type: 'integer' as const },
-              itemsTotal: { type: 'integer' as const },
-            },
-          },
-        },
-      },
-    },
-    500: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 const clearInterrupted = {
   tags: ['jobs'],
   summary: 'Clear interrupted enrichment',
   description: 'Acknowledge and clear an interrupted enrichment run. The enrichment will resume from where it left off on the next run.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-        message: { type: 'string' as const, example: 'Interrupted run cleared' },
-      },
-    },
-    500: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 // =============================================================================
@@ -549,25 +362,6 @@ const getPurgeStats = {
   tags: ['admin'],
   summary: 'Get database purge statistics',
   description: 'Get current database statistics before performing a purge. Shows counts of movies, series, embeddings, etc.',
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        movies: { type: 'integer' as const, description: 'Number of movies' },
-        series: { type: 'integer' as const, description: 'Number of series' },
-        episodes: { type: 'integer' as const, description: 'Number of episodes' },
-        embeddings: { type: 'integer' as const, description: 'Number of embeddings' },
-        recommendations: { type: 'integer' as const, description: 'Number of recommendation runs' },
-        watchHistory: { type: 'integer' as const, description: 'Number of watch history entries' },
-      },
-    },
-    500: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
-    },
-  },
 }
 
 const purgeMovies = {
@@ -583,35 +377,6 @@ const purgeMovies = {
     },
     example: {
       confirm: true,
-    },
-  },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        success: { type: 'boolean' as const },
-        message: { type: 'string' as const, example: 'Movie data purged' },
-        deleted: {
-          type: 'object' as const,
-          properties: {
-            movies: { type: 'integer' as const },
-            embeddings: { type: 'integer' as const },
-            recommendations: { type: 'integer' as const },
-          },
-        },
-      },
-    },
-    400: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const, example: 'Confirmation required' },
-      },
-    },
-    500: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const },
-      },
     },
   },
 }

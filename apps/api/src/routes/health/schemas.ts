@@ -57,16 +57,6 @@ export const healthCheckSchema = {
   summary: 'Health check',
   description: 'Comprehensive health check including database connectivity. Use for monitoring dashboards.',
   security: [],
-  response: {
-    200: { $ref: 'HealthResponse#' },
-    503: {
-      type: 'object',
-      properties: {
-        ok: { type: 'boolean', example: false },
-        error: { type: 'string', example: 'Database connection failed' },
-      },
-    },
-  },
 }
 
 export const readyCheckSchema = {
@@ -74,10 +64,6 @@ export const readyCheckSchema = {
   summary: 'Readiness check',
   description: 'Kubernetes readiness probe. Returns 200 when the app is ready to serve traffic, 503 otherwise.',
   security: [],
-  response: {
-    200: { $ref: 'ReadinessResponse#' },
-    503: { $ref: 'ReadinessResponse#' },
-  },
 }
 
 export const liveCheckSchema = {
@@ -85,7 +71,4 @@ export const liveCheckSchema = {
   summary: 'Liveness check',
   description: 'Kubernetes liveness probe. Returns 200 if the process is alive. A failed liveness check typically triggers a container restart.',
   security: [],
-  response: {
-    200: { $ref: 'LivenessResponse#' },
-  },
 }

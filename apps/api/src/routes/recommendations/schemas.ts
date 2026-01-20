@@ -101,22 +101,6 @@ const getMovieRecommendations = {
       runId: { type: 'string' as const, format: 'uuid', description: 'Specific run ID to retrieve (optional, defaults to latest)' },
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      description: 'Recommendation results',
-      properties: {
-        run: { $ref: 'RecommendationRun#' },
-        recommendations: { type: 'array' as const, items: { $ref: 'RecommendationCandidate#' } },
-      },
-    },
-    404: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const, example: 'No recommendations found' },
-      },
-    },
-  },
 }
 
 const regenerateMovieRecommendations = {
@@ -129,23 +113,6 @@ const regenerateMovieRecommendations = {
       userId: { type: 'string' as const, format: 'uuid', description: 'User ID to regenerate recommendations for' },
     },
     required: ['userId'] as string[],
-  },
-  response: {
-    200: {
-      type: 'object' as const,
-      description: 'Regeneration started',
-      properties: {
-        success: { type: 'boolean' as const },
-        runId: { type: 'string' as const, format: 'uuid', description: 'ID of the new recommendation run' },
-        message: { type: 'string' as const, example: 'Recommendation generation started' },
-      },
-    },
-    400: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const, example: 'Embeddings not generated' },
-      },
-    },
   },
 }
 
@@ -160,42 +127,6 @@ const getMovieInsights = {
       movieId: { type: 'string' as const, format: 'uuid', description: 'Movie ID to get insights for' },
     },
     required: ['userId', 'movieId'] as string[],
-  },
-  response: {
-    200: {
-      type: 'object' as const,
-      description: 'Recommendation insights',
-      properties: {
-        explanation: { type: 'string' as const, nullable: true, description: 'AI-generated explanation of why this was recommended' },
-        scoreBreakdown: {
-          type: 'object' as const,
-          properties: {
-            similarity: { type: 'number' as const, description: 'Similarity score contribution' },
-            novelty: { type: 'number' as const, description: 'Novelty score contribution' },
-            rating: { type: 'number' as const, description: 'Rating score contribution' },
-            diversity: { type: 'number' as const, description: 'Diversity score contribution' },
-          },
-        },
-        similarWatched: {
-          type: 'array' as const,
-          description: 'Similar movies from user\'s watch history',
-          items: {
-            type: 'object' as const,
-            properties: {
-              id: { type: 'string' as const, format: 'uuid' },
-              title: { type: 'string' as const },
-              similarity: { type: 'number' as const },
-            },
-          },
-        },
-      },
-    },
-    404: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const, example: 'Movie not found in recommendations' },
-      },
-    },
   },
 }
 
@@ -220,22 +151,6 @@ const getSeriesRecommendations = {
       runId: { type: 'string' as const, format: 'uuid', description: 'Specific run ID to retrieve (optional, defaults to latest)' },
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      description: 'Recommendation results',
-      properties: {
-        run: { $ref: 'RecommendationRun#' },
-        recommendations: { type: 'array' as const, items: { $ref: 'RecommendationCandidate#' } },
-      },
-    },
-    404: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const, example: 'No recommendations found' },
-      },
-    },
-  },
 }
 
 const regenerateSeriesRecommendations = {
@@ -248,17 +163,6 @@ const regenerateSeriesRecommendations = {
       userId: { type: 'string' as const, format: 'uuid', description: 'User ID to regenerate recommendations for' },
     },
     required: ['userId'] as string[],
-  },
-  response: {
-    200: {
-      type: 'object' as const,
-      description: 'Regeneration started',
-      properties: {
-        success: { type: 'boolean' as const },
-        runId: { type: 'string' as const, format: 'uuid', description: 'ID of the new recommendation run' },
-        message: { type: 'string' as const, example: 'Recommendation generation started' },
-      },
-    },
   },
 }
 
@@ -283,14 +187,6 @@ const getHistory = {
       limit: { type: 'string' as const, description: 'Maximum runs to return', default: '10', example: '20' },
     },
   },
-  response: {
-    200: {
-      type: 'object' as const,
-      properties: {
-        runs: { type: 'array' as const, items: { $ref: 'RecommendationRun#' } },
-      },
-    },
-  },
 }
 
 const getEvidence = {
@@ -304,34 +200,6 @@ const getEvidence = {
       candidateId: { type: 'string' as const, format: 'uuid', description: 'Recommendation candidate ID' },
     },
     required: ['userId', 'candidateId'] as string[],
-  },
-  response: {
-    200: {
-      type: 'object' as const,
-      description: 'Recommendation evidence',
-      properties: {
-        candidate: { $ref: 'RecommendationCandidate#' },
-        evidence: {
-          type: 'array' as const,
-          description: 'Items from watch history that contributed to this recommendation',
-          items: {
-            type: 'object' as const,
-            properties: {
-              id: { type: 'string' as const, format: 'uuid' },
-              title: { type: 'string' as const },
-              similarity: { type: 'number' as const, description: 'Similarity score (0-1)' },
-              contribution: { type: 'number' as const, description: 'How much this item contributed to the final score' },
-            },
-          },
-        },
-      },
-    },
-    404: {
-      type: 'object' as const,
-      properties: {
-        error: { type: 'string' as const, example: 'Candidate not found' },
-      },
-    },
   },
 }
 
@@ -349,9 +217,6 @@ const getPreferences = {
       userId: { type: 'string' as const, format: 'uuid', description: 'User ID' },
     },
     required: ['userId'] as string[],
-  },
-  response: {
-    200: { $ref: 'RecommendationPreferences#' },
   },
 }
 
@@ -376,12 +241,6 @@ const updatePreferences = {
       excludedGenres: { type: 'array' as const, items: { type: 'string' as const }, description: 'Genres to exclude', example: ['Horror'] },
       noveltyWeight: { type: 'number' as const, minimum: 0, maximum: 1, description: 'Weight for novelty score (0-1)', example: 0.3 },
       ratingWeight: { type: 'number' as const, minimum: 0, maximum: 1, description: 'Weight for rating score (0-1)', example: 0.2 },
-    },
-  },
-  response: {
-    200: { 
-      description: 'Updated preferences',
-      $ref: 'RecommendationPreferences#' 
     },
   },
 }

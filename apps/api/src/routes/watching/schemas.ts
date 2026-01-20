@@ -65,23 +65,12 @@ export const getWatchingSchema = {
   tags: ['watching'],
   summary: 'Get watching list',
   description: 'Get the user\'s "Shows You Watch" list with upcoming episode information. Series are sorted by upcoming air dates.',
-  response: {
-    200: { $ref: 'WatchingListResponse#' },
-  },
 }
 
 export const getWatchingIdsSchema = {
   tags: ['watching'],
   summary: 'Get watching series IDs',
   description: 'Get just the series IDs the user is watching. Useful for quick UI checks without fetching full details.',
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        ids: { type: 'array', items: { type: 'string', format: 'uuid' } },
-      },
-    },
-  },
 }
 
 export const addToWatchingSchema = {
@@ -93,21 +82,6 @@ export const addToWatchingSchema = {
     required: ['seriesId'],
     properties: {
       seriesId: { type: 'string', format: 'uuid', description: 'Series ID to add' },
-    },
-  },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean' },
-        message: { type: 'string' },
-      },
-    },
-    404: {
-      type: 'object',
-      properties: {
-        error: { type: 'string', example: 'Series not found' },
-      },
     },
   },
 }
@@ -123,29 +97,12 @@ export const removeFromWatchingSchema = {
       seriesId: { type: 'string', format: 'uuid', description: 'Series ID to remove' },
     },
   },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean' },
-      },
-    },
-  },
 }
 
 export const refreshWatchingSchema = {
   tags: ['watching'],
   summary: 'Refresh watching library',
   description: 'Regenerate the user\'s "Shows You Watch" virtual library in the media server. Use this if the library gets out of sync.',
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean' },
-        message: { type: 'string' },
-      },
-    },
-  },
 }
 
 export const checkWatchingSchema = {
@@ -157,14 +114,6 @@ export const checkWatchingSchema = {
     required: ['seriesId'],
     properties: {
       seriesId: { type: 'string', format: 'uuid', description: 'Series ID to check' },
-    },
-  },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        isWatching: { type: 'boolean', description: 'Whether the series is in the watching list' },
-      },
     },
   },
 }

@@ -77,14 +77,6 @@ export const generateAiNameSchema = {
   summary: 'Generate AI playlist name',
   description: 'Generate an AI-powered name for a playlist based on its contents. Requires text generation to be configured.',
   body: { $ref: 'AiGenerateRequest#' },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        name: { type: 'string', description: 'AI-generated playlist name' },
-      },
-    },
-  },
 }
 
 export const generateAiDescriptionSchema = {
@@ -92,14 +84,6 @@ export const generateAiDescriptionSchema = {
   summary: 'Generate AI playlist description',
   description: 'Generate an AI-powered description for a playlist based on its contents and name.',
   body: { $ref: 'AiGenerateRequest#' },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        description: { type: 'string', description: 'AI-generated description' },
-      },
-    },
-  },
 }
 
 export const createPlaylistSchema = {
@@ -107,28 +91,12 @@ export const createPlaylistSchema = {
   summary: 'Create graph playlist',
   description: 'Create a new playlist from selected graph items.',
   body: { $ref: 'CreatePlaylistRequest#' },
-  response: {
-    201: {
-      type: 'object',
-      properties: {
-        playlist: { $ref: 'GraphPlaylist#' },
-      },
-    },
-  },
 }
 
 export const getPlaylistsSchema = {
   tags: ['playlists'],
   summary: 'Get playlists',
   description: 'Get all graph playlists for the current user.',
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        playlists: { type: 'array', items: { $ref: 'GraphPlaylist#' } },
-      },
-    },
-  },
 }
 
 export const getPlaylistSchema = {
@@ -140,20 +108,6 @@ export const getPlaylistSchema = {
     required: ['id'],
     properties: {
       id: { type: 'string', format: 'uuid', description: 'Playlist ID' },
-    },
-  },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        playlist: { $ref: 'GraphPlaylist#' },
-      },
-    },
-    404: {
-      type: 'object',
-      properties: {
-        error: { type: 'string', example: 'Playlist not found' },
-      },
     },
   },
 }
@@ -169,14 +123,6 @@ export const getPlaylistItemsSchema = {
       id: { type: 'string', format: 'uuid', description: 'Playlist ID' },
     },
   },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        items: { type: 'array', items: { $ref: 'PlaylistItem#' } },
-      },
-    },
-  },
 }
 
 export const deletePlaylistSchema = {
@@ -188,20 +134,6 @@ export const deletePlaylistSchema = {
     required: ['id'],
     properties: {
       id: { type: 'string', format: 'uuid', description: 'Playlist ID to delete' },
-    },
-  },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean' },
-      },
-    },
-    404: {
-      type: 'object',
-      properties: {
-        error: { type: 'string', example: 'Playlist not found' },
-      },
     },
   },
 }
