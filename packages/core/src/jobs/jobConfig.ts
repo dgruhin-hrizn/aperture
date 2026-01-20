@@ -73,6 +73,7 @@ const ENV_DEFAULTS: Record<
   'generate-movie-recommendations': { scheduleType: 'weekly', hour: 4, minute: 0, dayOfWeek: 0 },
   'generate-series-recommendations': { scheduleType: 'weekly', hour: 4, minute: 0, dayOfWeek: 0 },
   'refresh-ai-pricing': { scheduleType: 'weekly', hour: 0, minute: 0, dayOfWeek: 0 },
+  'auto-request-top-picks': { scheduleType: 'weekly', hour: 0, minute: 0, dayOfWeek: 0 },
 
   // === MANUAL ONLY ===
   'full-reset-movie-recommendations': { scheduleType: 'manual', hour: 0, minute: 0 },

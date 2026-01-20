@@ -846,12 +846,27 @@ export async function createDiscoveryRequest(
   title: string,
   discoveryCandidateId?: string
 ): Promise<string> {
+  // Validate that the discovery candidate exists before linking
+  // (candidates may be cleaned up during refresh, but we still want to allow the request)
+  let validCandidateId: string | null = null
+  if (discoveryCandidateId) {
+    const candidate = await queryOne<{ id: string }>(
+      `SELECT id FROM discovery_candidates WHERE id = $1`,
+      [discoveryCandidateId]
+    )
+    if (candidate) {
+      validCandidateId = discoveryCandidateId
+    } else {
+      logger.warn({ discoveryCandidateId }, 'Discovery candidate not found, proceeding without link')
+    }
+  }
+
   const result = await queryOne<{ id: string }>(
     `INSERT INTO discovery_requests (
       user_id, media_type, tmdb_id, title, discovery_candidate_id, status
     ) VALUES ($1, $2, $3, $4, $5, 'pending')
     RETURNING id`,
-    [userId, mediaType, tmdbId, title, discoveryCandidateId ?? null]
+    [userId, mediaType, tmdbId, title, validCandidateId]
   )
 
   if (!result) {
