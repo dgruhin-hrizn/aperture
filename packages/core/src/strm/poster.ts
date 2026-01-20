@@ -10,7 +10,7 @@ const TOP_PICKS_BLACK = '#000000'
 /**
  * Create a ranked poster with badge overlays:
  * - Top left: Semi-transparent black square with white rank number (flush to corner)
- * - Top right: Black circle with purple progress ring and white percentage
+ * - Bottom right: Black circle with purple progress ring and white percentage
  * - Original poster dimensions preserved
  */
 export async function createRankedPoster(
@@ -28,7 +28,7 @@ export async function createRankedPoster(
   const rankFontSize = Math.round(rankBadgeRadius * 1.1)
   const squareSize = rankBadgeRadius * 2
   
-  // Match percentage badge sizing (smaller, top right)
+  // Match percentage badge sizing (smaller, bottom right)
   const matchBadgeRadius = Math.round(Math.min(width, height) * 0.08)
   const padding = Math.round(matchBadgeRadius * 0.5)
   const percentFontSize = Math.round(matchBadgeRadius * 0.7)
@@ -90,8 +90,8 @@ export async function createRankedPoster(
         >${rank}</text>
       </g>
       
-      <!-- TOP RIGHT: Match percentage badge (black with purple ring) -->
-      <g transform="translate(${width - padding - matchBadgeRadius}, ${padding + matchBadgeRadius})" filter="url(#shadow)">
+      <!-- BOTTOM RIGHT: Match percentage badge (black with purple ring) -->
+      <g transform="translate(${width - padding - matchBadgeRadius}, ${height - padding - matchBadgeRadius})" filter="url(#shadow)">
         <!-- Black circle background -->
         <circle 
           cx="0" 
