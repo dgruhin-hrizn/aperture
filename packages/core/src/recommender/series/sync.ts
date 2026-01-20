@@ -584,9 +584,10 @@ async function processEpisodeBatch(
   // Bulk INSERT new episodes with UPSERT
   // Note: Array columns (directors, writers) are passed as JSONB
   // and converted back to text[] in SQL to avoid unnest() flattening 2D arrays incorrectly
+  // Uses RETURNING with xmax to distinguish true inserts (xmax=0) from updates (xmax>0)
   if (deduplicatedInserts.length > 0) {
     try {
-      const result = await query(
+      const result = await query<{ xmax: string }>(
         `INSERT INTO episodes (
           provider_item_id, series_id, season_number, episode_number, title,
           overview, premiere_date, year, runtime_minutes, community_rating,
@@ -621,7 +622,8 @@ async function processEpisodeBatch(
           path = EXCLUDED.path,
           media_sources = EXCLUDED.media_sources,
           poster_url = EXCLUDED.poster_url,
-          updated_at = NOW()`,
+          updated_at = NOW()
+        RETURNING xmax`,
         [
           deduplicatedInserts.map((pe) => pe.episode.id),
           deduplicatedInserts.map((pe) => pe.seriesDbId),
@@ -643,7 +645,11 @@ async function processEpisodeBatch(
           deduplicatedInserts.map((pe) => pe.posterUrl),
         ]
       )
-      added = result.rowCount || deduplicatedInserts.length
+      // xmax = 0 means true insert, xmax > 0 means it was an update due to conflict
+      const trueInserts = result.rows.filter(r => r.xmax === '0').length
+      const upsertUpdates = result.rows.length - trueInserts
+      added = trueInserts
+      updated += upsertUpdates  // Add upsert updates to the update count
       // Track all original provider IDs (including duplicates) as processed
       for (const pe of toInsert) {
         existingProviderIds.add(pe.episode.id)
