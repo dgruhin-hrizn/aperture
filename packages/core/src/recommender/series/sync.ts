@@ -891,6 +891,10 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
       )
 
       let lastLogTime = Date.now()
+      // Track base counts for this library (to accumulate across multiple libraries)
+      const baseProcessed = processedEpisodes
+      const baseAdded = episodesAdded
+      const baseUpdated = episodesUpdated
 
       // Use streaming batch processing to avoid memory issues with large libraries
       const streamResult = await streamingBatchProcess<Episode>(
@@ -945,11 +949,11 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
 
           return { added: batchAdded, updated: batchUpdated }
         },
-        // Progress callback
+        // Progress callback - accumulate with base counts from previous libraries
         (processed, added, updated) => {
-          processedEpisodes = processed
-          episodesAdded = added
-          episodesUpdated = updated
+          processedEpisodes = baseProcessed + processed
+          episodesAdded = baseAdded + added
+          episodesUpdated = baseUpdated + updated
           updateJobProgress(
             jobId,
             processedEpisodes,
@@ -961,11 +965,11 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
           const now = Date.now()
           if (now - lastLogTime > 5000 || processed % 10000 === 0) {
             const elapsed = (now - startTime) / 1000
-            const rate = Math.round(processed / elapsed)
+            const rate = Math.round(processedEpisodes / elapsed)
             addLog(
               jobId,
               'info',
-              `📊 Episodes: ${processed}/${totalEpisodes} (${rate}/sec, ${added} new, ${updated} updated)`
+              `📊 Episodes: ${processedEpisodes}/${totalEpisodes} (${rate}/sec, ${episodesAdded} new, ${episodesUpdated} updated)`
             )
             lastLogTime = now
           }
