@@ -344,6 +344,7 @@ export async function writeSeriesStrmFilesForUser(
       includeImageUrls: !config.downloadImages,
       dateAdded,
       includeAiExplanation,
+      rank: series.rank,
     })
     await fs.writeFile(seriesNfoPath, nfoContent, 'utf-8')
     filesWritten++

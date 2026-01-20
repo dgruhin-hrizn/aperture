@@ -101,7 +101,7 @@ function generateTopPicksMovieNfo(movie: TopPicksMovie, dateAdded: Date): string
     lines.push(`  <outline><![CDATA[${movie.tagline}]]></outline>`)
   }
 
-  lines.push(`  <lockdata>false</lockdata>`)
+  lines.push(`  <lockdata>true</lockdata>`)
   lines.push(`  <dateadded>${dateAdded.toISOString().slice(0, 19).replace('T', ' ')}</dateadded>`)
   lines.push(`  <title>${escapeXml(movie.title)}</title>`)
 
@@ -174,16 +174,10 @@ function generateTopPicksMovieNfo(movie: TopPicksMovie, dateAdded: Date): string
     lines.push(`  <tmdbid>${escapeXml(movie.tmdbId)}</tmdbid>`)
   }
 
-  // Premiere/release date
-  if (movie.premiereDate) {
-    // Handle both Date objects and ISO strings
-    const dateStr =
-      movie.premiereDate instanceof Date
-        ? movie.premiereDate.toISOString().split('T')[0]
-        : String(movie.premiereDate).split('T')[0]
-    lines.push(`  <premiered>${dateStr}</premiered>`)
-    lines.push(`  <releasedate>${dateStr}</releasedate>`)
-  }
+  // NOTE: We intentionally DO NOT include <premiered> or <releasedate> tags.
+  // When these are present, Emby shows the movie in "Recently Released" rows,
+  // causing duplicates with the original file. lockdata=true prevents Emby
+  // from fetching this data automatically.
 
   // Runtime
   if (movie.runtimeMinutes) {
@@ -266,7 +260,7 @@ function generateTopPicksSeriesNfo(
     lines.push(`  <plot><![CDATA[${series.overview}]]></plot>`)
   }
 
-  lines.push(`  <lockdata>false</lockdata>`)
+  lines.push(`  <lockdata>true</lockdata>`)
   lines.push(`  <dateadded>${dateAdded.toISOString().slice(0, 19).replace('T', ' ')}</dateadded>`)
   lines.push(`  <title>${escapeXml(series.title)}</title>`)
 
@@ -319,12 +313,12 @@ function generateTopPicksSeriesNfo(
     lines.push(`  <tmdbid>${escapeXml(series.tmdbId)}</tmdbid>`)
   }
 
-  // Year range (premiered year is from series.year, end year from endYear)
-  if (series.year) {
-    lines.push(`  <premiered>${series.year}-01-01</premiered>`)
-  }
+  // NOTE: We intentionally DO NOT include <premiered> tag for series.
+  // When present, Emby shows the series in "Recently Released" rows,
+  // causing duplicates with the original. lockdata=true prevents Emby
+  // from fetching this data automatically.
 
-  // End year (for ended series)
+  // End year (for ended series) - this is safe to include
   if (series.endYear) {
     lines.push(`  <enddate>${series.endYear}-12-31</enddate>`)
   }

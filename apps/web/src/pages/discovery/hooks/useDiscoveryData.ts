@@ -79,6 +79,14 @@ function invalidateCache() {
   localStorage.removeItem(CACHE_KEY)
 }
 
+/**
+ * Exported function to invalidate the discovery cache from outside the hook.
+ * Used when the discovery job completes to ensure fresh data is fetched.
+ */
+export function invalidateDiscoveryCache() {
+  localStorage.removeItem(CACHE_KEY)
+}
+
 // Minimum target count before triggering expansion
 const TARGET_DISPLAY_COUNT = 50
 const EXPANSION_THRESHOLD = 20 // Trigger expansion when below this count
@@ -436,6 +444,35 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
     checkAndExpand()
   }, [filters, loading, movieCandidates.length, seriesCandidates.length, expandDiscovery])
 
+  // Refetch candidates (used when job completes externally)
+  const refetchCandidates = useCallback(async () => {
+    setLoading(true)
+    const [newStatus, movieResult, seriesResult] = await Promise.all([
+      fetchStatus(),
+      fetchCandidates('movie', filters),
+      fetchCandidates('series', filters),
+    ])
+    
+    // Update cache with fresh data
+    const hasFilters = (filters.languages && filters.languages.length > 0) ||
+                      (filters.genreIds && filters.genreIds.length > 0) ||
+                      filters.yearStart !== undefined ||
+                      filters.yearEnd !== undefined ||
+                      (filters.minSimilarity !== undefined && filters.minSimilarity > 0)
+    
+    if (!hasFilters) {
+      saveCache({
+        movieCandidates: movieResult?.candidates || [],
+        seriesCandidates: seriesResult?.candidates || [],
+        movieRun: movieResult?.run || null,
+        seriesRun: seriesResult?.run || null,
+        status: newStatus,
+      })
+    }
+    
+    setLoading(false)
+  }, [fetchStatus, fetchCandidates, filters])
+
   return {
     status,
     movieCandidates,
@@ -450,6 +487,7 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
     refresh,
     markAsRequested,
     expandDiscovery,
+    refetchCandidates,
   }
 }
 

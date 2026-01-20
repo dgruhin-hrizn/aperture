@@ -19,6 +19,8 @@ export interface NfoGenerateOptions {
   dateAdded?: Date
   /** Include AI explanation of why this was recommended (default: true) */
   includeAiExplanation?: boolean
+  /** Rank for sort title prefix (e.g., "01 - Movie Title") */
+  rank?: number
 }
 
 /**
@@ -57,16 +59,23 @@ export function generateNfoContent(
   const lines: string[] = [
     '<?xml version="1.0" encoding="utf-8"?>',
     '<movie>',
-    `  <title>${escapeXml(movie.title)}</title>`,
   ]
+
+  // Lock data to prevent Emby from overwriting our metadata
+  lines.push(`  <lockdata>true</lockdata>`)
+
+  lines.push(`  <title>${escapeXml(movie.title)}</title>`)
 
   // Original title (if different from main title)
   if (movie.originalTitle && movie.originalTitle !== movie.title) {
     lines.push(`  <originaltitle>${escapeXml(movie.originalTitle)}</originaltitle>`)
   }
 
-  // Sort title
-  if (movie.sortTitle) {
+  // Sort title with rank prefix (like Top Picks) for proper ordering
+  if (options.rank) {
+    const rankPrefix = String(options.rank).padStart(2, '0')
+    lines.push(`  <sorttitle>${rankPrefix} - ${escapeXml(movie.title)}</sorttitle>`)
+  } else if (movie.sortTitle) {
     lines.push(`  <sorttitle>${escapeXml(movie.sortTitle)}</sorttitle>`)
   }
 
@@ -159,14 +168,10 @@ export function generateNfoContent(
     }
   }
 
-  // Premiere date
-  if (movie.premiereDate) {
-    // Handle both Date objects and ISO strings from the database
-    const dateStr = movie.premiereDate instanceof Date 
-      ? movie.premiereDate.toISOString().split('T')[0]
-      : String(movie.premiereDate).split('T')[0]
-    lines.push(`  <premiered>${dateStr}</premiered>`)
-  }
+  // NOTE: We intentionally DO NOT include <premiered> tag.
+  // When present, Emby shows the movie in "Recently Released" rows,
+  // causing duplicates with the original file. lockdata=true prevents
+  // Emby from fetching this data automatically.
 
   // Production countries
   if (movie.productionCountries && movie.productionCountries.length > 0) {

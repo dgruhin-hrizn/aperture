@@ -26,7 +26,8 @@ import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import GridViewIcon from '@mui/icons-material/GridView'
 import ViewListIcon from '@mui/icons-material/ViewList'
-import { useDiscoveryData, useJellyseerrRequest } from './hooks'
+import AutorenewIcon from '@mui/icons-material/Autorenew'
+import { useDiscoveryData, useJellyseerrRequest, useDiscoveryJobStatus, invalidateDiscoveryCache } from './hooks'
 import { DiscoveryCard, DiscoveryFilters, DiscoveryListItem } from './components'
 import { useViewMode } from '../../hooks/useViewMode'
 import type { DiscoveryCandidate, DiscoveryFilterOptions, MediaType } from './types'
@@ -79,9 +80,24 @@ export function DiscoveryPage() {
     error,
     refresh,
     markAsRequested,
+    refetchCandidates,
   } = useDiscoveryData(stableFilters)
 
   const { submitRequest, isRequesting, fetchTVDetails } = useJellyseerrRequest()
+
+  // Subscribe to discovery job status for real-time updates
+  const { isRunning: isJobRunning, progress: jobProgress } = useDiscoveryJobStatus({
+    onComplete: () => {
+      // Invalidate cache and refetch when job completes
+      invalidateDiscoveryCache()
+      refetchCandidates()
+      setSnackbar({ 
+        open: true, 
+        message: 'New discovery suggestions are ready!', 
+        severity: 'success' 
+      })
+    },
+  })
   const { viewMode, setViewMode } = useViewMode('discovery')
 
   const [mediaType, setMediaType] = useState<MediaType>('movie')
@@ -191,27 +207,27 @@ export function DiscoveryPage() {
       {/* Action buttons row */}
       <Box display="flex" gap={1} mb={2}>
         {isMobile ? (
-          <Tooltip title={refreshing ? 'Refreshing...' : 'Refresh'}>
+          <Tooltip title={isJobRunning ? 'Job running...' : refreshing ? 'Refreshing...' : 'Refresh'}>
             <span>
               <IconButton
                 onClick={handleRefresh}
-                disabled={refreshing}
+                disabled={refreshing || isJobRunning}
                 size="small"
                 sx={{ border: 1, borderColor: 'divider' }}
               >
-                {refreshing ? <CircularProgress size={18} /> : <RefreshIcon fontSize="small" />}
+                {refreshing || isJobRunning ? <CircularProgress size={18} /> : <RefreshIcon fontSize="small" />}
               </IconButton>
             </span>
           </Tooltip>
         ) : (
           <Button
             variant="outlined"
-            startIcon={refreshing ? <CircularProgress size={16} /> : <RefreshIcon />}
+            startIcon={refreshing || isJobRunning ? <CircularProgress size={16} /> : <RefreshIcon />}
             onClick={handleRefresh}
-            disabled={refreshing}
+            disabled={refreshing || isJobRunning}
             size="small"
           >
-            {refreshing ? 'Refreshing...' : 'Refresh'}
+            {isJobRunning ? 'Job Running...' : refreshing ? 'Refreshing...' : 'Refresh'}
           </Button>
         )}
       </Box>
@@ -285,6 +301,33 @@ export function DiscoveryPage() {
         filters={filters}
         onFiltersChange={handleFiltersChange}
       />
+
+      {/* Job Running Banner */}
+      <Fade in={isJobRunning} timeout={300}>
+        <Alert
+          severity="info"
+          icon={<AutorenewIcon sx={{ animation: 'spin 1s linear infinite', '@keyframes spin': { from: { transform: 'rotate(0deg)' }, to: { transform: 'rotate(360deg)' } } }} />}
+          sx={{ mb: 2, borderRadius: 2 }}
+        >
+          <Box>
+            <Typography variant="body2" fontWeight={500}>
+              Generating new discovery suggestions...
+            </Typography>
+            {jobProgress && (
+              <Box sx={{ mt: 1 }}>
+                <Typography variant="caption" color="text.secondary">
+                  {jobProgress.currentStep}
+                </Typography>
+                <LinearProgress
+                  variant="determinate"
+                  value={jobProgress.overallProgress}
+                  sx={{ mt: 0.5, height: 4, borderRadius: 1 }}
+                />
+              </Box>
+            )}
+          </Box>
+        </Alert>
+      </Fade>
 
       {/* Run Info */}
       {run && run.createdAt && (
