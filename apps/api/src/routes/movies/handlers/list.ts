@@ -9,6 +9,12 @@ import { requireAuth } from '../../../plugins/auth.js'
 import { listMoviesSchema } from '../schemas.js'
 import type { MovieRow, MoviesListResponse, MoviesListQuerystring } from '../types.js'
 
+function parseCountryQuery(country: string | string[] | undefined): string[] {
+  if (!country) return []
+  const raw = Array.isArray(country) ? country : country.split(',')
+  return [...new Set(raw.map((c) => c.trim()).filter(Boolean))]
+}
+
 export function registerListHandler(fastify: FastifyInstance) {
   fastify.get<{
     Querystring: MoviesListQuerystring
@@ -27,8 +33,11 @@ export function registerListHandler(fastify: FastifyInstance) {
         search, genre, collection, minRtScore, showAll, hasAwards,
         minYear, maxYear, contentRating, minRuntime, maxRuntime,
         minCommunityRating, minMetacritic, resolution,
+        country, watchStatus, minWatchers, maxWatchers,
         sortBy = 'title', sortOrder = 'asc'
       } = request.query
+
+      const userId = request.user!.id
 
       // Check if library configs exist
       const configCheck = await queryOne<{ count: string }>(
@@ -145,6 +154,46 @@ export function registerListHandler(fastify: FastifyInstance) {
           whereClause += whereClause ? ' AND ' : ' WHERE '
           whereClause += `metacritic_score >= $${paramIndex++}`
           params.push(score)
+        }
+      }
+
+      const countries = parseCountryQuery(country)
+      if (countries.length > 0) {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `production_countries && $${paramIndex++}::text[]`
+        params.push(countries)
+      }
+
+      if (watchStatus === 'watched') {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `EXISTS (
+          SELECT 1 FROM watch_history wh
+          WHERE wh.user_id = $${paramIndex++} AND wh.movie_id = movies.id AND wh.media_type = 'movie'
+        )`
+        params.push(userId)
+      } else if (watchStatus === 'unwatched') {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `NOT EXISTS (
+          SELECT 1 FROM watch_history wh
+          WHERE wh.user_id = $${paramIndex++} AND wh.movie_id = movies.id AND wh.media_type = 'movie'
+        )`
+        params.push(userId)
+      }
+
+      if (minWatchers) {
+        const n = parseInt(minWatchers, 10)
+        if (!isNaN(n) && n > 0) {
+          whereClause += whereClause ? ' AND ' : ' WHERE '
+          whereClause += `(SELECT COUNT(DISTINCT user_id)::int FROM watch_history WHERE movie_id = movies.id) >= $${paramIndex++}`
+          params.push(n)
+        }
+      }
+      if (maxWatchers) {
+        const n = parseInt(maxWatchers, 10)
+        if (!isNaN(n) && n >= 0) {
+          whereClause += whereClause ? ' AND ' : ' WHERE '
+          whereClause += `(SELECT COUNT(DISTINCT user_id)::int FROM watch_history WHERE movie_id = movies.id) <= $${paramIndex++}`
+          params.push(n)
         }
       }
 

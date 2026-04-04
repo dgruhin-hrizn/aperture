@@ -54,6 +54,10 @@ export const listSeriesSchema = {
       maxSeasons: { type: 'string' as const, description: 'Maximum number of seasons', example: '10' },
       minCommunityRating: { type: 'string' as const, description: 'Minimum community rating (0-10)', example: '8.0' },
       minMetacritic: { type: 'string' as const, description: 'Minimum Metacritic score (0-100)', example: '75' },
+      country: { type: 'string' as const, description: 'Filter by production country. Comma-separated or repeated; match if any overlaps.', example: 'United States' },
+      watchStatus: { type: 'string' as const, enum: ['any', 'watched', 'unwatched'], description: 'Personal watch state (any episode) for the current user', default: 'any' },
+      minWatchers: { type: 'string' as const, description: 'Minimum distinct users with episode watch history for this series', example: '2' },
+      maxWatchers: { type: 'string' as const, description: 'Maximum distinct users with episode watch history', example: '10' },
       sortBy: { 
         type: 'string' as const, 
         enum: ['title', 'year', 'rating', 'rtScore', 'metacritic', 'seasons', 'added'],
@@ -169,6 +173,12 @@ export const filterRangesSchema = {
   tags: ['series'],
   summary: 'Get filter ranges',
   description: 'Get min/max values for year, seasons, and rating filters. Useful for building filter UI sliders and range inputs.',
+}
+
+export const countriesSchema = {
+  tags: ['series'],
+  summary: 'List production countries',
+  description: 'Distinct production countries from series metadata with title counts.',
 }
 
 // =============================================================================

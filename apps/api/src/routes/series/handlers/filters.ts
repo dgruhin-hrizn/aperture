@@ -7,6 +7,7 @@
  * - GET /api/series/keywords
  * - GET /api/series/content-ratings
  * - GET /api/series/filter-ranges
+ * - GET /api/series/countries
  */
 import type { FastifyInstance } from 'fastify'
 import { query, queryOne } from '../../../lib/db.js'
@@ -17,6 +18,7 @@ import {
   keywordsSchema,
   contentRatingsSchema,
   filterRangesSchema,
+  countriesSchema,
 } from '../schemas.js'
 
 export function registerFiltersHandlers(fastify: FastifyInstance) {
@@ -118,6 +120,33 @@ export function registerFiltersHandlers(fastify: FastifyInstance) {
 
       return reply.send({ 
         contentRatings: result.rows.map((r) => ({ rating: r.content_rating, count: parseInt(r.count, 10) })) 
+      })
+    }
+  )
+
+  /**
+   * GET /api/series/countries
+   * Distinct production countries with counts
+   */
+  fastify.get(
+    '/api/series/countries',
+    {
+      preHandler: requireAuth,
+      schema: countriesSchema,
+    },
+    async (_request, reply) => {
+      const result = await query<{ country: string; count: string }>(
+        `SELECT c AS country, COUNT(*)::text AS count
+         FROM series, unnest(production_countries) AS c
+         GROUP BY c
+         ORDER BY c`
+      )
+
+      return reply.send({
+        countries: result.rows.map((r) => ({
+          country: r.country,
+          count: parseInt(r.count, 10),
+        })),
       })
     }
   )

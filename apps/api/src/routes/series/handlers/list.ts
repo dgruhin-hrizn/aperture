@@ -9,6 +9,12 @@ import { requireAuth } from '../../../plugins/auth.js'
 import { listSeriesSchema } from '../schemas.js'
 import type { SeriesRow, SeriesListResponse, SeriesListQuerystring } from '../types.js'
 
+function parseCountryQuery(country: string | string[] | undefined): string[] {
+  if (!country) return []
+  const raw = Array.isArray(country) ? country : country.split(',')
+  return [...new Set(raw.map((c) => c.trim()).filter(Boolean))]
+}
+
 export function registerListHandler(fastify: FastifyInstance) {
   fastify.get<{
     Querystring: SeriesListQuerystring
@@ -27,8 +33,11 @@ export function registerListHandler(fastify: FastifyInstance) {
         search, genre, network, status, minRtScore, showAll, hasAwards,
         minYear, maxYear, contentRating, minSeasons, maxSeasons,
         minCommunityRating, minMetacritic,
+        country, watchStatus, minWatchers, maxWatchers,
         sortBy = 'title', sortOrder = 'asc'
       } = request.query
+
+      const userId = request.user!.id
 
       // Check if library configs exist
       const configCheck = await queryOne<{ count: string }>(
@@ -153,6 +162,50 @@ export function registerListHandler(fastify: FastifyInstance) {
           whereClause += whereClause ? ' AND ' : ' WHERE '
           whereClause += `metacritic_score >= $${paramIndex++}`
           params.push(score)
+        }
+      }
+
+      const countries = parseCountryQuery(country)
+      if (countries.length > 0) {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `production_countries && $${paramIndex++}::text[]`
+        params.push(countries)
+      }
+
+      if (watchStatus === 'watched') {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `EXISTS (
+          SELECT 1 FROM watch_history wh
+          INNER JOIN episodes e ON e.id = wh.episode_id
+          WHERE wh.user_id = $${paramIndex++} AND e.series_id = series.id AND wh.media_type = 'episode'
+        )`
+        params.push(userId)
+      } else if (watchStatus === 'unwatched') {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `NOT EXISTS (
+          SELECT 1 FROM watch_history wh
+          INNER JOIN episodes e ON e.id = wh.episode_id
+          WHERE wh.user_id = $${paramIndex++} AND e.series_id = series.id AND wh.media_type = 'episode'
+        )`
+        params.push(userId)
+      }
+
+      if (minWatchers) {
+        const n = parseInt(minWatchers, 10)
+        if (!isNaN(n) && n > 0) {
+          whereClause += whereClause ? ' AND ' : ' WHERE '
+          whereClause += `(SELECT COUNT(DISTINCT wh.user_id)::int FROM watch_history wh
+            INNER JOIN episodes e ON e.id = wh.episode_id WHERE e.series_id = series.id) >= $${paramIndex++}`
+          params.push(n)
+        }
+      }
+      if (maxWatchers) {
+        const n = parseInt(maxWatchers, 10)
+        if (!isNaN(n) && n >= 0) {
+          whereClause += whereClause ? ' AND ' : ' WHERE '
+          whereClause += `(SELECT COUNT(DISTINCT wh.user_id)::int FROM watch_history wh
+            INNER JOIN episodes e ON e.id = wh.episode_id WHERE e.series_id = series.id) <= $${paramIndex++}`
+          params.push(n)
         }
       }
 

@@ -85,6 +85,10 @@ export interface SeriesListQuerystring {
   maxSeasons?: string
   minCommunityRating?: string
   minMetacritic?: string
+  country?: string | string[]
+  watchStatus?: 'any' | 'watched' | 'unwatched'
+  minWatchers?: string
+  maxWatchers?: string
   sortBy?: 'title' | 'year' | 'rating' | 'rtScore' | 'metacritic' | 'seasons' | 'added'
   sortOrder?: 'asc' | 'desc'
 }

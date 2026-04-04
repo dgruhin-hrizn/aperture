@@ -8,6 +8,7 @@
  * - GET /api/movies/content-ratings
  * - GET /api/movies/resolutions
  * - GET /api/movies/filter-ranges
+ * - GET /api/movies/countries
  */
 import type { FastifyInstance } from 'fastify'
 import { query, queryOne } from '../../../lib/db.js'
@@ -19,6 +20,7 @@ import {
   contentRatingsSchema,
   resolutionsSchema,
   filterRangesSchema,
+  countriesSchema,
 } from '../schemas.js'
 
 export function registerFiltersHandlers(fastify: FastifyInstance) {
@@ -165,6 +167,33 @@ export function registerFiltersHandlers(fastify: FastifyInstance) {
 
       return reply.send({ 
         resolutions: result.rows.map((r) => ({ resolution: r.category, count: parseInt(r.count, 10) })) 
+      })
+    }
+  )
+
+  /**
+   * GET /api/movies/countries
+   * Distinct production countries with counts
+   */
+  fastify.get(
+    '/api/movies/countries',
+    {
+      preHandler: requireAuth,
+      schema: countriesSchema,
+    },
+    async (_request, reply) => {
+      const result = await query<{ country: string; count: string }>(
+        `SELECT c AS country, COUNT(*)::text AS count
+         FROM movies, unnest(production_countries) AS c
+         GROUP BY c
+         ORDER BY c`
+      )
+
+      return reply.send({
+        countries: result.rows.map((r) => ({
+          country: r.country,
+          count: parseInt(r.count, 10),
+        })),
       })
     }
   )

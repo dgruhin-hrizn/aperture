@@ -93,6 +93,10 @@ export interface MoviesListQuerystring {
   minCommunityRating?: string
   minMetacritic?: string
   resolution?: string | string[]
+  country?: string | string[]
+  watchStatus?: 'any' | 'watched' | 'unwatched'
+  minWatchers?: string
+  maxWatchers?: string
   sortBy?: 'title' | 'year' | 'releaseDate' | 'rating' | 'rtScore' | 'metacritic' | 'runtime' | 'added'
   sortOrder?: 'asc' | 'desc'
 }
