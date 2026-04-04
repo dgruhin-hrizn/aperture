@@ -18,16 +18,19 @@ import {
   ToggleButtonGroup,
   CircularProgress,
   Skeleton,
+  Avatar,
+  Paper,
   useTheme,
   useMediaQuery,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
+import PersonIcon from '@mui/icons-material/Person'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
 import GridViewIcon from '@mui/icons-material/GridView'
 import ViewListIcon from '@mui/icons-material/ViewList'
-import { MoviePoster } from '@aperture/ui'
+import { MoviePoster, getProxiedImageUrl } from '@aperture/ui'
 import { useUserRatings } from '../hooks/useUserRatings'
 import { useWatching } from '../hooks/useWatching'
 import { useViewMode } from '../hooks/useViewMode'
@@ -89,6 +92,268 @@ interface FilterRanges {
   rating: { min: number; max: number }
 }
 
+interface BrowsePerson {
+  name: string
+  credits: number
+  movieCredits: number
+  seriesCredits: number
+}
+
+function personSubtitle(person: BrowsePerson): string {
+  const parts: string[] = []
+  if (person.movieCredits > 0) {
+    parts.push(
+      `${person.movieCredits} movie${person.movieCredits === 1 ? '' : 's'}`
+    )
+  }
+  if (person.seriesCredits > 0) {
+    parts.push(`${person.seriesCredits} series`)
+  }
+  return parts.length > 0
+    ? parts.join(' · ')
+    : `${person.credits} credit${person.credits === 1 ? '' : 's'}`
+}
+
+/** Media-server portrait first; on failure fetch TMDb profile URL (lazy). */
+function usePersonBrowsePortrait(personName: string) {
+  const raw = `/api/media/images/Persons/${encodeURIComponent(personName)}/Images/Primary`
+  const proxied = getProxiedImageUrl(raw, '')
+  const [phase, setPhase] = useState<'proxy' | 'pending-tmdb' | 'tmdb' | 'none'>('proxy')
+  const [tmdbUrl, setTmdbUrl] = useState<string | null>(null)
+  const phaseRef = useRef(phase)
+  phaseRef.current = phase
+
+  useEffect(() => {
+    setPhase('proxy')
+    setTmdbUrl(null)
+  }, [personName])
+
+  const displaySrc =
+    phase === 'proxy'
+      ? proxied
+      : phase === 'pending-tmdb'
+        ? undefined
+        : phase === 'tmdb' && tmdbUrl
+          ? getProxiedImageUrl(tmdbUrl, '')
+          : undefined
+
+  const onImageError = useCallback(() => {
+    if (phaseRef.current === 'proxy') {
+      setPhase('pending-tmdb')
+      console.info('[peoplePortrait] Emby/Jellyfin Primary failed, requesting TMDb fallback', {
+        personName,
+        proxiedUrl: getProxiedImageUrl(
+          `/api/media/images/Persons/${encodeURIComponent(personName)}/Images/Primary`,
+          ''
+        ),
+      })
+      void fetch(
+        `/api/discover/person-profile?name=${encodeURIComponent(personName)}`,
+        { credentials: 'include' }
+      )
+        .then((r) => {
+          console.info('[peoplePortrait] person-profile response', {
+            personName,
+            ok: r.ok,
+            status: r.status,
+          })
+          return r.json()
+        })
+        .then((data: { imageUrl?: string | null }) => {
+          if (data?.imageUrl) {
+            console.info('[peoplePortrait] using TMDb profile image', {
+              personName,
+              imageUrlPrefix: data.imageUrl.slice(0, 48),
+            })
+            setTmdbUrl(data.imageUrl)
+            setPhase('tmdb')
+          } else {
+            console.info('[peoplePortrait] no TMDb imageUrl (null or missing key / no match)', {
+              personName,
+              raw: data,
+            })
+            setPhase('none')
+          }
+        })
+        .catch((err) => {
+          console.info('[peoplePortrait] person-profile fetch failed', { personName, err })
+          setPhase('none')
+        })
+    } else {
+      console.info('[peoplePortrait] TMDb image also failed, showing initials', { personName })
+      setPhase('none')
+    }
+  }, [personName])
+
+  return { displaySrc, phase, onImageError }
+}
+
+function browseTabFromSearchParam(tab: string | null): number {
+  if (tab === 'series') return 1
+  if (tab === 'people') return 2
+  return 0
+}
+
+function BrowsePersonRow({
+  person,
+  onNavigate,
+}: {
+  person: BrowsePerson
+  onNavigate: () => void
+}) {
+  const { displaySrc, phase, onImageError } = usePersonBrowsePortrait(person.name)
+  const subtitle = personSubtitle(person)
+  const [avatarImgShown, setAvatarImgShown] = useState(false)
+
+  useEffect(() => {
+    setAvatarImgShown(false)
+  }, [displaySrc])
+
+  return (
+    <Box
+      onClick={onNavigate}
+      display="flex"
+      alignItems="center"
+      gap={2}
+      bgcolor="background.paper"
+      borderRadius={2}
+      p={2}
+      sx={{
+        cursor: 'pointer',
+        transition: 'background-color 0.15s',
+        '&:hover': { bgcolor: 'action.hover' },
+      }}
+    >
+      <Avatar
+        src={phase === 'none' ? undefined : displaySrc}
+        onError={onImageError}
+        alt=""
+        slotProps={{
+          img: {
+            onLoad: () => setAvatarImgShown(true),
+            style: {
+              opacity: displaySrc ? (avatarImgShown ? 1 : 0) : 1,
+              transition: 'opacity 0.2s ease',
+            },
+          },
+        }}
+        sx={{ width: 56, height: 56 }}
+      >
+        {person.name.charAt(0)}
+      </Avatar>
+      <Box flex={1} minWidth={0}>
+        <Typography variant="subtitle1" fontWeight={600} noWrap>
+          {person.name}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {subtitle}
+        </Typography>
+      </Box>
+    </Box>
+  )
+}
+
+function BrowsePersonCard({
+  person,
+  onNavigate,
+}: {
+  person: BrowsePerson
+  onNavigate: () => void
+}) {
+  const { displaySrc, phase, onImageError } = usePersonBrowsePortrait(person.name)
+  const subtitle = personSubtitle(person)
+  const [cardImgShown, setCardImgShown] = useState(false)
+
+  useEffect(() => {
+    setCardImgShown(false)
+  }, [displaySrc])
+
+  return (
+    <Paper
+      elevation={0}
+      onClick={onNavigate}
+      sx={{
+        borderRadius: 2,
+        overflow: 'hidden',
+        cursor: 'pointer',
+        bgcolor: 'background.paper',
+        border: 1,
+        borderColor: 'divider',
+        transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+        '&:hover': {
+          transform: 'translateY(-3px)',
+          boxShadow: 4,
+        },
+      }}
+    >
+      <Box
+        sx={{
+          position: 'relative',
+          aspectRatio: '2/3',
+          width: '100%',
+          bgcolor: 'action.hover',
+        }}
+      >
+        {phase !== 'none' && displaySrc ? (
+          <Box
+            component="img"
+            src={displaySrc}
+            alt=""
+            onLoad={() => setCardImgShown(true)}
+            onError={onImageError}
+            sx={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              display: 'block',
+              opacity: cardImgShown ? 1 : 0,
+              transition: 'opacity 0.2s ease',
+            }}
+          />
+        ) : (
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            height="100%"
+          >
+            <Avatar
+              sx={{
+                width: '45%',
+                height: 'auto',
+                aspectRatio: '1',
+                fontSize: 'clamp(1.5rem, 4vw, 2.5rem)',
+              }}
+            >
+              {person.name.charAt(0)}
+            </Avatar>
+          </Box>
+        )}
+      </Box>
+      <Box sx={{ p: 1.25 }}>
+        <Typography
+          variant="subtitle2"
+          fontWeight={600}
+          sx={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            lineHeight: 1.3,
+            minHeight: '2.6em',
+          }}
+        >
+          {person.name}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.25 }}>
+          {subtitle}
+        </Typography>
+      </Box>
+    </Paper>
+  )
+}
+
 const defaultMovieFilters: MovieFilters = {
   yearRange: [1900, new Date().getFullYear()],
   runtimeRange: [0, 300],
@@ -117,9 +382,16 @@ export function BrowsePage() {
   const { getRating, setRating } = useUserRatings()
   const { isWatching, toggleWatching } = useWatching()
   const { viewMode, setViewMode } = useViewMode('browse')
+  const { viewMode: peopleViewMode, setViewMode: setPeopleViewMode } =
+    useViewMode('browsePeople')
 
-  const initialTab = searchParams.get('tab') === 'series' ? 1 : 0
-  const [tabIndex, setTabIndex] = useState(initialTab)
+  const [tabIndex, setTabIndex] = useState(() =>
+    browseTabFromSearchParam(searchParams.get('tab'))
+  )
+  const tabQuery = searchParams.get('tab')
+  useEffect(() => {
+    setTabIndex(browseTabFromSearchParam(tabQuery))
+  }, [tabQuery])
 
   // Movies state
   const [movies, setMovies] = useState<Movie[]>([])
@@ -168,6 +440,19 @@ export function BrowsePage() {
   const [seriesHasMore, setSeriesHasMore] = useState(true)
   const [seriesTotal, setSeriesTotal] = useState(0)
 
+  // People state
+  const [people, setPeople] = useState<BrowsePerson[]>([])
+  const [peopleLoading, setPeopleLoading] = useState(
+    () => browseTabFromSearchParam(searchParams.get('tab')) === 2
+  )
+  const [peopleLoadingMore, setPeopleLoadingMore] = useState(false)
+  const [peopleError, setPeopleError] = useState<string | null>(null)
+  const [peopleSearch, setPeopleSearch] = useState('')
+  const [peopleSortBy, setPeopleSortBy] = useState<'name' | 'credits'>('name')
+  const [peoplePage, setPeoplePage] = useState(1)
+  const [peopleHasMore, setPeopleHasMore] = useState(true)
+  const [peopleTotal, setPeopleTotal] = useState(0)
+
   // Filter presets
   const [filterPresets, setFilterPresets] = useState<FilterPreset[]>([])
   const [preferencesLoaded, setPreferencesLoaded] = useState(false)
@@ -175,12 +460,16 @@ export function BrowsePage() {
   const pageSize = 24
   const movieObserverRef = useRef<IntersectionObserver | null>(null)
   const seriesObserverRef = useRef<IntersectionObserver | null>(null)
+  const peopleObserverRef = useRef<IntersectionObserver | null>(null)
   const movieLoadMoreRef = useRef<HTMLDivElement | null>(null)
   const seriesLoadMoreRef = useRef<HTMLDivElement | null>(null)
+  const peopleLoadMoreRef = useRef<HTMLDivElement | null>(null)
 
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
     setTabIndex(newValue)
-    setSearchParams({ tab: newValue === 1 ? 'series' : 'movies' })
+    const tab =
+      newValue === 1 ? 'series' : newValue === 2 ? 'people' : 'movies'
+    setSearchParams({ tab })
   }
 
   const handleRateMovie = useCallback(
@@ -216,6 +505,12 @@ export function BrowsePage() {
     setSeries([])
     setSeriesPage(1)
     setSeriesHasMore(true)
+  }, [])
+
+  const resetPeople = useCallback(() => {
+    setPeople([])
+    setPeoplePage(1)
+    setPeopleHasMore(true)
   }, [])
 
   // Load user preferences (sort defaults and filter presets)
@@ -646,6 +941,53 @@ export function BrowsePage() {
     ]
   )
 
+  // Fetch people (actors + directors)
+  const fetchPeople = useCallback(
+    async (page: number, append = false) => {
+      if (append) {
+        setPeopleLoadingMore(true)
+      } else {
+        setPeopleLoading(true)
+      }
+
+      try {
+        const params = new URLSearchParams({
+          page: String(page),
+          pageSize: String(pageSize),
+          sortBy: peopleSortBy,
+        })
+        if (peopleSearch) params.set('search', peopleSearch)
+
+        const response = await fetch(`/api/discover/people?${params}`, {
+          credentials: 'include',
+        })
+        if (response.ok) {
+          const data = await response.json()
+          const list: BrowsePerson[] = data.people
+          if (append) {
+            setPeople((prev) => [...prev, ...list])
+          } else {
+            setPeople(list)
+          }
+          setPeopleTotal(data.total)
+          setPeopleHasMore(
+            list.length === pageSize &&
+              (append ? people.length + list.length : list.length) < data.total
+          )
+          setPeopleError(null)
+        } else {
+          setPeopleError('Failed to load people')
+        }
+      } catch {
+        setPeopleError('Could not connect to server')
+      } finally {
+        setPeopleLoading(false)
+        setPeopleLoadingMore(false)
+      }
+    },
+    [peopleSearch, peopleSortBy, people.length]
+  )
+
   // Initial movie fetch and filter changes
   useEffect(() => {
     resetMovies()
@@ -659,6 +1001,14 @@ export function BrowsePage() {
     const debounce = setTimeout(() => fetchSeries(1, false), seriesSearch ? 300 : 0)
     return () => clearTimeout(debounce)
   }, [seriesSearch, seriesGenre, network, seriesFilters, seriesSortBy, seriesSortOrder])
+
+  // People fetch
+  useEffect(() => {
+    if (tabIndex !== 2) return
+    resetPeople()
+    const debounce = setTimeout(() => fetchPeople(1, false), peopleSearch ? 300 : 0)
+    return () => clearTimeout(debounce)
+  }, [tabIndex, peopleSearch, peopleSortBy])
 
   // Infinite scroll for movies
   useEffect(() => {
@@ -719,6 +1069,36 @@ export function BrowsePage() {
       }
     }
   }, [seriesHasMore, seriesLoading, seriesLoadingMore, tabIndex, seriesPage, fetchSeries])
+
+  // Infinite scroll for people
+  useEffect(() => {
+    if (peopleObserverRef.current) {
+      peopleObserverRef.current.disconnect()
+    }
+
+    if (!peopleHasMore || peopleLoading || peopleLoadingMore || tabIndex !== 2) return
+
+    peopleObserverRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && peopleHasMore && !peopleLoadingMore) {
+          const nextPage = peoplePage + 1
+          setPeoplePage(nextPage)
+          fetchPeople(nextPage, true)
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    if (peopleLoadMoreRef.current) {
+      peopleObserverRef.current.observe(peopleLoadMoreRef.current)
+    }
+
+    return () => {
+      if (peopleObserverRef.current) {
+        peopleObserverRef.current.disconnect()
+      }
+    }
+  }, [peopleHasMore, peopleLoading, peopleLoadingMore, tabIndex, peoplePage, fetchPeople])
 
   // Get active filter chips for movies
   const getMovieActiveFilters = () => {
@@ -899,6 +1279,41 @@ export function BrowsePage() {
               </Box>
               <Skeleton variant="text" width="90%" />
               <Skeleton variant="text" width="80%" />
+            </Box>
+          </Box>
+        ))}
+      </Box>
+    )
+
+  const renderPeopleSkeleton = () =>
+    peopleViewMode === 'grid' ? (
+      <Grid container spacing={2}>
+        {Array.from({ length: 12 }).map((_, i) => (
+          <Grid item xs={6} sm={4} md={3} lg={2} key={i}>
+            <Skeleton
+              variant="rectangular"
+              sx={{ width: '100%', aspectRatio: '2/3', borderRadius: 2 }}
+            />
+            <Skeleton variant="text" width="80%" sx={{ mt: 1 }} />
+            <Skeleton variant="text" width="50%" />
+          </Grid>
+        ))}
+      </Grid>
+    ) : (
+      <Box display="flex" flexDirection="column" gap={2}>
+        {Array.from({ length: 8 }).map((_, i) => (
+          <Box
+            key={i}
+            display="flex"
+            gap={2}
+            bgcolor="background.paper"
+            borderRadius={2}
+            p={2}
+          >
+            <Skeleton variant="circular" width={56} height={56} />
+            <Box flexGrow={1}>
+              <Skeleton variant="text" width="50%" height={28} />
+              <Skeleton variant="text" width="35%" height={20} />
             </Box>
           </Box>
         ))}
@@ -1270,6 +1685,116 @@ export function BrowsePage() {
     )
   }
 
+  const renderPeopleTab = () => (
+    <>
+      <Box
+        sx={{
+          position: 'sticky',
+          top: { xs: 56, sm: 64 },
+          zIndex: 10,
+          backgroundColor: 'background.default',
+          py: 2,
+          mx: -3,
+          px: 3,
+          mb: 2,
+          borderBottom: 1,
+          borderColor: 'divider',
+        }}
+      >
+        <Box display="flex" gap={1.5} flexWrap="wrap" alignItems="center">
+          <TextField
+            placeholder="Search people..."
+            value={peopleSearch}
+            onChange={(e) => setPeopleSearch(e.target.value)}
+            size="small"
+            sx={{ width: { xs: '100%', sm: 220 } }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+          />
+
+          <FormControl size="small" sx={{ width: { xs: '100%', sm: 160 } }}>
+            <InputLabel>Sort</InputLabel>
+            <Select
+              value={peopleSortBy}
+              label="Sort"
+              onChange={(e) =>
+                setPeopleSortBy(e.target.value as 'name' | 'credits')
+              }
+            >
+              <MenuItem value="name">Name</MenuItem>
+              <MenuItem value="credits">Credits</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
+      </Box>
+
+      {peopleError && (
+        <Alert severity="error" sx={{ mb: 4 }}>
+          {peopleError}
+        </Alert>
+      )}
+
+      {peopleLoading ? (
+        renderPeopleSkeleton()
+      ) : people.length === 0 ? (
+        <Typography color="text.secondary">
+          {peopleSearch
+            ? 'No people match your search.'
+            : 'No people found. Run a library sync to import cast and crew metadata.'}
+        </Typography>
+      ) : (
+        <>
+          {peopleViewMode === 'grid' ? (
+            <Grid container spacing={2}>
+              {people.map((p) => (
+                <Grid item xs={6} sm={4} md={3} lg={2} key={p.name}>
+                  <BrowsePersonCard
+                    person={p}
+                    onNavigate={() =>
+                      navigate(`/person/${encodeURIComponent(p.name)}`)
+                    }
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          ) : (
+            <Box display="flex" flexDirection="column" gap={1.5}>
+              {people.map((p) => (
+                <BrowsePersonRow
+                  key={p.name}
+                  person={p}
+                  onNavigate={() =>
+                    navigate(`/person/${encodeURIComponent(p.name)}`)
+                  }
+                />
+              ))}
+            </Box>
+          )}
+
+          <Box
+            ref={peopleLoadMoreRef}
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            py={4}
+          >
+            {peopleLoadingMore && <CircularProgress size={32} />}
+            {!peopleHasMore && people.length > 0 && (
+              <Typography variant="body2" color="text.secondary">
+                Showing all {peopleTotal.toLocaleString()} people
+              </Typography>
+            )}
+          </Box>
+        </>
+      )}
+    </>
+  )
+
   return (
     <Box>
       {/* Header */}
@@ -1291,17 +1816,23 @@ export function BrowsePage() {
               Browse your synced media library •{' '}
               {tabIndex === 0
                 ? movieTotal.toLocaleString()
-                : seriesTotal.toLocaleString()}{' '}
-              {tabIndex === 0 ? 'movies' : 'series'}
+                : tabIndex === 1
+                  ? seriesTotal.toLocaleString()
+                  : peopleTotal.toLocaleString()}{' '}
+              {tabIndex === 0 ? 'movies' : tabIndex === 1 ? 'series' : 'people'}
             </Typography>
           )}
         </Box>
 
-        {/* Grid/List toggle always in upper right */}
+        {/* Grid/List: movies & series share `browse`; People uses `browsePeople` */}
         <ToggleButtonGroup
-          value={viewMode}
+          value={tabIndex === 2 ? peopleViewMode : viewMode}
           exclusive
-          onChange={(_, v) => v && setViewMode(v)}
+          onChange={(_, v) => {
+            if (!v) return
+            if (tabIndex === 2) setPeopleViewMode(v)
+            else setViewMode(v)
+          }}
           size="small"
         >
           <ToggleButton value="grid">
@@ -1344,10 +1875,23 @@ export function BrowsePage() {
               '&.Mui-selected': { color: '#ec4899' },
             }}
           />
+          <Tab
+            icon={<PersonIcon />}
+            iconPosition="start"
+            label="People"
+            sx={{
+              color: tabIndex === 2 ? '#14b8a6' : 'text.secondary',
+              '&.Mui-selected': { color: '#14b8a6' },
+            }}
+          />
         </Tabs>
       </Box>
 
-      {tabIndex === 0 ? renderMoviesTab() : renderSeriesTab()}
+      {tabIndex === 0
+        ? renderMoviesTab()
+        : tabIndex === 1
+          ? renderSeriesTab()
+          : renderPeopleTab()}
     </Box>
   )
 }

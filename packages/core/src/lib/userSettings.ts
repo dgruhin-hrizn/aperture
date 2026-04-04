@@ -26,6 +26,8 @@ export interface PageViewModes {
   watchHistory?: ViewMode
   watching?: ViewMode
   browse?: ViewMode
+  /** Browse page → People tab (grid = cards, list = rows) */
+  browsePeople?: ViewMode
   recommendations?: ViewMode
 }
 
