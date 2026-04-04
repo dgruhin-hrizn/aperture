@@ -34,7 +34,7 @@ import {
   setLibraryTitleConfig,
 } from '@aperture/core'
 import { query } from '../../../lib/db.js'
-import { requireAdmin } from '../../../plugins/auth.js'
+import { requireAdmin, requireAuth } from '../../../plugins/auth.js'
 import {
   aiRecsOutputConfigSchema,
   updateAiRecsOutputConfigSchema,
@@ -291,7 +291,7 @@ export function registerAiOutputHandlers(fastify: FastifyInstance) {
   /**
    * GET /api/settings/watching
    */
-  fastify.get('/api/settings/watching', { preHandler: requireAdmin, schema: watchingLibraryConfigSchema }, async (_request, reply) => {
+  fastify.get('/api/settings/watching', { preHandler: requireAuth, schema: watchingLibraryConfigSchema }, async (_request, reply) => {
     try {
       const config = await getWatchingLibraryConfig()
       return reply.send(config)
