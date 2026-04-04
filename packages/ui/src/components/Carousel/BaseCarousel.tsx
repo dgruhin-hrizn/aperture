@@ -151,6 +151,7 @@ export function BaseCarousel({
         onScroll={updateScrollButtons}
         sx={{
           display: 'flex',
+          alignItems: 'flex-start',
           gap: 2,
           overflowX: 'auto',
           scrollSnapType: 'x mandatory',
