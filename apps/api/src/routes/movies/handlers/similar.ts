@@ -30,6 +30,7 @@ export function registerSimilarHandler(fastify: FastifyInstance) {
           poster_url: conn.item.poster_url,
           genres: conn.item.genres,
           similarity: conn.similarity,
+          reasons: conn.reasons,
         }))
 
         return reply.send({ similar })

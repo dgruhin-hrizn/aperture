@@ -10,6 +10,7 @@ import type {
   MovieWatchStats,
   SeriesWatchStats,
 } from '../types'
+import { DEFAULT_SIMILAR_MEDIA_LIMIT } from '../constants'
 
 export type WatchStats = MovieWatchStats | SeriesWatchStats
 
@@ -93,11 +94,11 @@ export function useMediaDetail(
             setSeasons(episodesData.seasons || {})
           }
 
-          // Fetch similar items
+          // Fetch similar items (same default count as graph neighbors)
           const similarEndpoint =
             mediaType === 'movie'
-              ? `/api/movies/${id}/similar?limit=6`
-              : `/api/series/${id}/similar?limit=6`
+              ? `/api/movies/${id}/similar?limit=${DEFAULT_SIMILAR_MEDIA_LIMIT}`
+              : `/api/series/${id}/similar?limit=${DEFAULT_SIMILAR_MEDIA_LIMIT}`
 
           const similarResponse = await fetch(similarEndpoint, { credentials: 'include' })
           if (similarResponse.ok) {

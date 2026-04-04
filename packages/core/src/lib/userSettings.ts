@@ -72,6 +72,8 @@ export interface UserUiPreferences {
   viewModes?: PageViewModes
   browseSort?: BrowseSortPreference
   browseFilterPresets?: BrowseFilterPreset[]
+  /** Movie/series detail: Similar Media section tab */
+  similarMediaView?: 'list' | 'graph'
 }
 
 /**

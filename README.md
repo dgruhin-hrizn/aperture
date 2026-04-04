@@ -1,6 +1,6 @@
 # Aperture
 
-[![Version](https://img.shields.io/badge/version-0.6.4-blue.svg)](https://github.com/dgruhin-hrizn/aperture/releases)
+[![Version](https://img.shields.io/badge/version-0.6.5-blue.svg)](https://github.com/dgruhin-hrizn/aperture/releases)
 [![Docker Image](https://img.shields.io/badge/docker-ghcr.io%2Fdgruhin--hrizn%2Faperture-blue?logo=docker)](https://github.com/dgruhin-hrizn/aperture/pkgs/container/aperture)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 
@@ -14,13 +14,13 @@ Aperture creates personalized recommendation libraries for your media server use
 
 ### 1. Download the docker-compose file for your platform
 
-| Platform        | File                          | Download                                                                                              |
-| --------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------- |
-| **Unraid**      | `docker-compose.unraid.yml`   | [Download](https://raw.githubusercontent.com/dgruhin-hrizn/aperture/main/docker-compose.unraid.yml)   |
-| **QNAP**        | `docker-compose.qnap.yml`     | [Download](https://raw.githubusercontent.com/dgruhin-hrizn/aperture/main/docker-compose.qnap.yml)     |
-| **Synology**    | `docker-compose.synology.yml` | [Download](https://raw.githubusercontent.com/dgruhin-hrizn/aperture/main/docker-compose.synology.yml) |
+| Platform        | File                          | Download                                                                                               |
+| --------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------ |
+| **Unraid**      | `docker-compose.unraid.yml`   | [Download](https://raw.githubusercontent.com/dgruhin-hrizn/aperture/main/docker-compose.unraid.yml)    |
+| **QNAP**        | `docker-compose.qnap.yml`     | [Download](https://raw.githubusercontent.com/dgruhin-hrizn/aperture/main/docker-compose.qnap.yml)      |
+| **Synology**    | `docker-compose.synology.yml` | [Download](https://raw.githubusercontent.com/dgruhin-hrizn/aperture/main/docker-compose.synology.yml)  |
 | **Windows**     | `docker-compose.windows.yml`  | [Download](https://raw.githubusercontent.com/dgruhin-hrizn/aperture/main/docker-compose.windows.yml) ¹ |
-| **Linux/Other** | `docker-compose.prod.yml`     | [Download](https://raw.githubusercontent.com/dgruhin-hrizn/aperture/main/docker-compose.prod.yml)     |
+| **Linux/Other** | `docker-compose.prod.yml`     | [Download](https://raw.githubusercontent.com/dgruhin-hrizn/aperture/main/docker-compose.prod.yml)      |
 
 > ¹ **Windows Users**: For Docker Desktop with Emby/Jellyfin running natively on Windows, see the [complete setup guide](docs/admin/windows-docker-desktop.md).
 

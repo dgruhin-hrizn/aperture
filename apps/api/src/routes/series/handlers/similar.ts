@@ -31,6 +31,7 @@ export function registerSimilarHandler(fastify: FastifyInstance) {
           genres: conn.item.genres,
           network: conn.item.network,
           similarity: conn.similarity,
+          reasons: conn.reasons,
         }))
 
         return reply.send({ similar })
