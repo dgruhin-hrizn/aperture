@@ -32,9 +32,18 @@ import FavoriteIcon from '@mui/icons-material/Favorite'
 import StarIcon from '@mui/icons-material/Star'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
+import { Link as RouterLink } from 'react-router-dom'
 import { getProxiedImageUrl } from '@aperture/ui'
 import type { Media, Actor, StudioItem, MovieWatchStats, SeriesWatchStats } from '../types'
 import { isMovie, isSeries } from '../types'
+
+function personPath(name: string): string {
+  return `/person/${encodeURIComponent(name)}`
+}
+
+function studioPath(name: string): string {
+  return `/studio/${encodeURIComponent(name)}`
+}
 
 type WatchStats = MovieWatchStats | SeriesWatchStats
 
@@ -551,7 +560,19 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
               </Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 3 }}>
                 {actors.slice(0, 12).map((actor, idx) => (
-                  <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box
+                    key={idx}
+                    component={RouterLink}
+                    to={personPath(actor.name)}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      textDecoration: 'none',
+                      color: 'inherit',
+                      borderRadius: 1,
+                    }}
+                  >
                     <Avatar
                       src={getProxiedImageUrl(actor.thumb)}
                       sx={{ width: 40, height: 40, bgcolor: 'grey.700' }}
@@ -559,7 +580,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                       <PersonIcon fontSize="small" />
                     </Avatar>
                     <Box>
-                      <Typography variant="body2" fontWeight={500}>
+                      <Typography variant="body2" fontWeight={500} color="primary">
                         {actor.name}
                       </Typography>
                       {actor.role && (
@@ -589,7 +610,15 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
               </Typography>
               <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
                 {media.directors.map((director) => (
-                  <Chip key={director} label={director} size="small" variant="outlined" />
+                  <Chip
+                    key={director}
+                    label={director}
+                    size="small"
+                    variant="outlined"
+                    component={RouterLink}
+                    to={personPath(director)}
+                    clickable
+                  />
                 ))}
               </Stack>
             </>
@@ -610,7 +639,15 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
               </Typography>
               <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
                 {media.writers.slice(0, 10).map((writer) => (
-                  <Chip key={writer} label={writer} size="small" variant="outlined" />
+                  <Chip
+                    key={writer}
+                    label={writer}
+                    size="small"
+                    variant="outlined"
+                    component={RouterLink}
+                    to={personPath(writer)}
+                    clickable
+                  />
                 ))}
               </Stack>
             </>
@@ -633,7 +670,15 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                   </Typography>
                   <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
                     {media.cinematographers.map((name) => (
-                      <Chip key={name} label={name} size="small" variant="outlined" />
+                      <Chip
+                        key={name}
+                        label={name}
+                        size="small"
+                        variant="outlined"
+                        component={RouterLink}
+                        to={personPath(name)}
+                        clickable
+                      />
                     ))}
                   </Stack>
                 </>
@@ -653,7 +698,15 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                   </Typography>
                   <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
                     {media.composers.map((name) => (
-                      <Chip key={name} label={name} size="small" variant="outlined" />
+                      <Chip
+                        key={name}
+                        label={name}
+                        size="small"
+                        variant="outlined"
+                        component={RouterLink}
+                        to={personPath(name)}
+                        clickable
+                      />
                     ))}
                   </Stack>
                 </>
@@ -673,7 +726,15 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                   </Typography>
                   <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
                     {media.editors.map((name) => (
-                      <Chip key={name} label={name} size="small" variant="outlined" />
+                      <Chip
+                        key={name}
+                        label={name}
+                        size="small"
+                        variant="outlined"
+                        component={RouterLink}
+                        to={personPath(name)}
+                        clickable
+                      />
                     ))}
                   </Stack>
                 </>
@@ -744,6 +805,9 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                       label={studioName}
                       size="small"
                       variant="outlined"
+                      component={RouterLink}
+                      to={studioPath(studioName)}
+                      clickable
                     />
                   )
                 })}
