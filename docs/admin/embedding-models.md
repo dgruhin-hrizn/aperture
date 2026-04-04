@@ -45,7 +45,7 @@ Embeddings are numerical representations of content:
 
 | Model | Dimensions | Quality |
 |-------|------------|---------|
-| **text-embedding-004** | 768 | Good |
+| **gemini-embedding-001** | 3072 | Good (default API output; flexible 128–3072) |
 
 ---
 

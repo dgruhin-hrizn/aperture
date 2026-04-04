@@ -174,7 +174,7 @@ Google's Gemini models.
 
 | Purpose | Recommended Model |
 |---------|-------------------|
-| Embeddings | text-embedding-004 |
+| Embeddings | gemini-embedding-001 |
 | Text | gemini-1.5-flash |
 | Chat | gemini-1.5-pro |
 

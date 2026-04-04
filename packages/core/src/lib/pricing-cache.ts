@@ -71,10 +71,12 @@ const MODEL_ALIASES: Record<string, string[]> = {
   'o3-mini': ['o3-mini', 'openai/o3-mini'],
   'text-embedding-3-large': ['text-embedding-3-large'],
   'text-embedding-3-small': ['text-embedding-3-small'],
+  'text-embedding-ada-002': ['text-embedding-ada-002'],
   // Anthropic
   'claude-sonnet-4-5': ['claude-sonnet-4-5', 'claude-3-5-sonnet', 'claude-sonnet-4-5-20250929'],
   'claude-haiku-3-5': ['claude-3-5-haiku', 'claude-haiku-4-5', 'claude-3-5-haiku-20241022'],
   // Google
+  'gemini-embedding-001': ['gemini-embedding-001'],
   'gemini-2.0-flash': ['gemini-2.0-flash', 'gemini-2.0-flash-exp'],
   'gemini-1.5-pro': ['gemini-1.5-pro'],
   // DeepSeek
