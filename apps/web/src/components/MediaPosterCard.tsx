@@ -66,6 +66,9 @@ export interface MediaPosterCardProps {
 
   // Click behavior
   onClick?: () => void
+
+  /** Fixed-height title/year block (e.g. person credits carousels) so movie vs TV rows align */
+  compactMeta?: boolean
 }
 
 export function MediaPosterCard({
@@ -89,6 +92,7 @@ export function MediaPosterCard({
   genres,
   onShowDetails,
   onClick,
+  compactMeta = false,
 }: MediaPosterCardProps) {
   const [hovering, setHovering] = useState(false)
   const [imageError, setImageError] = useState(false)
@@ -140,7 +144,7 @@ export function MediaPosterCard({
         transition: 'transform 0.2s, box-shadow 0.2s, opacity 0.2s',
         cursor: 'pointer',
         opacity: isGreyedOut ? 0.6 : 1,
-        height: '100%',
+        height: compactMeta ? 'auto' : '100%',
         display: 'flex',
         flexDirection: 'column',
         '&:hover': {
@@ -340,12 +344,37 @@ export function MediaPosterCard({
       </Box>
 
       {/* Info */}
-      <CardContent sx={{ flexGrow: 1, p: 1.5 }}>
+      <CardContent
+        sx={{
+          flexGrow: compactMeta ? 0 : 1,
+          flexShrink: 0,
+          p: 1.5,
+          ...(compactMeta && {
+            minHeight: 76,
+            maxHeight: 76,
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-start',
+            boxSizing: 'border-box',
+          }),
+        }}
+      >
         <Typography
           variant="subtitle2"
           fontWeight={600}
-          noWrap
-          sx={{ lineHeight: 1.3, mb: 0.5, color: isGreyedOut ? 'text.disabled' : 'text.primary' }}
+          noWrap={!compactMeta}
+          sx={{
+            lineHeight: compactMeta ? 1.25 : 1.3,
+            mb: 0.5,
+            color: isGreyedOut ? 'text.disabled' : 'text.primary',
+            ...(compactMeta && {
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }),
+          }}
           title={title}
         >
           {title}
