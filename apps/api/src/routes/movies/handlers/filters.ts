@@ -140,6 +140,7 @@ export function registerFiltersHandlers(fastify: FastifyInstance) {
       schema: resolutionsSchema,
     },
     async (_request, reply) => {
+      // ORDER BY must not reference the SELECT alias after GROUP BY in all PG versions — use MIN(sort key) per group.
       const result = await query<{ category: string; count: string }>(
         `SELECT 
           CASE 
@@ -147,18 +148,19 @@ export function registerFiltersHandlers(fastify: FastifyInstance) {
             WHEN video_resolution LIKE '1920x%' OR video_resolution LIKE '%x1080' THEN '1080p'
             WHEN video_resolution LIKE '1280x%' OR video_resolution LIKE '%x720' THEN '720p'
             ELSE 'SD'
-          END as category,
-          COUNT(*) as count
+          END AS category,
+          COUNT(*)::text AS count
          FROM movies 
          WHERE video_resolution IS NOT NULL
          GROUP BY 1
-         ORDER BY 
-           CASE category
-             WHEN '4K' THEN 1
-             WHEN '1080p' THEN 2
-             WHEN '720p' THEN 3
-             WHEN 'SD' THEN 4
-           END`
+         ORDER BY MIN(
+           CASE 
+             WHEN video_resolution LIKE '3840%' OR video_resolution LIKE '2160%' OR video_resolution LIKE '%x2160' THEN 1
+             WHEN video_resolution LIKE '1920x%' OR video_resolution LIKE '%x1080' THEN 2
+             WHEN video_resolution LIKE '1280x%' OR video_resolution LIKE '%x720' THEN 3
+             ELSE 4
+           END
+         )`
       )
 
       return reply.send({ 
