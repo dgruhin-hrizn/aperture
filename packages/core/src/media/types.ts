@@ -87,7 +87,7 @@ export interface Movie {
   /** Writer names */
   writers?: string[]
   /** Cast with name, role, and thumbnail */
-  actors?: Array<{ name: string; role?: string; thumb?: string }>
+  actors?: Array<{ name: string; role?: string; thumb?: string; personId?: string }>
   /** External IDs */
   imdbId?: string
   tmdbId?: string
@@ -168,7 +168,7 @@ export interface Series {
   /** Writers */
   writers?: string[]
   /** Cast with name, role, and thumbnail */
-  actors?: Array<{ name: string; role?: string; thumb?: string }>
+  actors?: Array<{ name: string; role?: string; thumb?: string; personId?: string }>
   /** External IDs */
   imdbId?: string
   tmdbId?: string

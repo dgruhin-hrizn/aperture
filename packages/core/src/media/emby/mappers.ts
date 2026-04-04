@@ -14,6 +14,7 @@ export function mapEmbyItemToMovie(item: EmbyItem, baseUrl: string): Movie {
       .map((p) => ({
         name: p.Name,
         role: p.Role,
+        ...(p.Id ? { personId: String(p.Id) } : {}),
         // Use Persons endpoint for actor images
         thumb: p.Name ? `${baseUrl}/Persons/${encodeURIComponent(p.Name)}/Images/Primary` : undefined,
       })) || []
@@ -94,6 +95,7 @@ export function mapEmbyItemToSeries(item: EmbySeries, baseUrl: string): Series {
       .map((p) => ({
         name: p.Name,
         role: p.Role,
+        ...(p.Id ? { personId: String(p.Id) } : {}),
         // Use Persons endpoint for actor images
         thumb: p.Name ? `${baseUrl}/Persons/${encodeURIComponent(p.Name)}/Images/Primary` : undefined,
       })) || []

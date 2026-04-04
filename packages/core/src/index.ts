@@ -490,6 +490,8 @@ export {
   // Series functions
   getTVDetails,
   getTVKeywords,
+  getTVCredits,
+  getTVExternalIds,
   getSeriesEnrichmentData,
   getSeriesEnrichmentByImdbId,
   getSeriesEnrichmentByTmdbId,
@@ -519,6 +521,18 @@ export {
   type SeriesEnrichmentData,
   type CollectionData,
   type TMDbImageSize,
+  // Person
+  normalizePersonNameKey,
+  searchPersonByName,
+  getPersonCombinedCredits,
+  resolveTmdbPersonProfileImageUrl,
+  resolveTmdbPersonId,
+  getCachedOrFetchCombinedCredits,
+  COMBINED_CREDITS_CACHE_TTL_MS,
+  type TmdbPersonSearchResult,
+  type TmdbCombinedCreditsResponse,
+  type TmdbCombinedCreditEntry,
+  type ResolveTmdbPersonProfileResult,
 } from './tmdb/index.js'
 
 // OMDb Integration
@@ -805,6 +819,23 @@ export {
   type DiscoveryPipelineResult,
   type DynamicFetchFilters,
   DEFAULT_DISCOVERY_CONFIG,
+  // Browse people list
+  listPeopleForBrowse,
+  type PersonBrowseRow,
+  type ListPeopleBrowseOptions,
+  type ListPeopleBrowseResult,
+  // Person TMDb credits gap + portrait push helper
+  getPersonCreditsGap,
+  flattenCombinedCredits,
+  flattenCombinedCreditsWithRoles,
+  creditsRoleKindFromEntry,
+  formatCreditsGapGroupLabel,
+  findPersonMediaServerItemIdForName,
+  type PersonCreditsGapOptions,
+  type PersonCreditsGapRow,
+  type PersonCreditsGapResult,
+  type PersonCreditsGapGroup,
+  type CreditsRoleKind,
 } from './discover/index.js'
 
 // Taste Profile System

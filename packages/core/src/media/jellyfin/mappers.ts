@@ -17,6 +17,7 @@ export function mapJellyfinItemToMovie(item: JellyfinItem, baseUrl: string): Mov
       .map((p) => ({
         name: p.Name,
         role: p.Role,
+        ...(p.Id ? { personId: String(p.Id) } : {}),
         // Use Persons endpoint for actor images
         thumb: p.Name ? `${baseUrl}/Persons/${encodeURIComponent(p.Name)}/Images/Primary` : undefined,
       })) || []
@@ -82,6 +83,7 @@ export function mapJellyfinItemToSeries(item: JellyfinItem, baseUrl: string): Se
       .map((p) => ({
         name: p.Name,
         role: p.Role,
+        ...(p.Id ? { personId: String(p.Id) } : {}),
         // Use Persons endpoint for actor images
         thumb: p.Name ? `${baseUrl}/Persons/${encodeURIComponent(p.Name)}/Images/Primary` : undefined,
       })) || []
