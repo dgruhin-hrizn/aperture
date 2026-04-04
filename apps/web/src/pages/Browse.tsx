@@ -85,6 +85,11 @@ interface Resolution {
   count: number
 }
 
+interface CountryOption {
+  country: string
+  count: number
+}
+
 interface FilterRanges {
   year: { min: number; max: number }
   runtime?: { min: number; max: number }
@@ -362,6 +367,10 @@ const defaultMovieFilters: MovieFilters = {
   metacritic: [0, 100],
   contentRatings: [],
   resolutions: [],
+  countries: [],
+  watchStatus: 'any',
+  minWatchers: null,
+  maxWatchers: null,
 }
 
 const defaultSeriesFilters: SeriesFilters = {
@@ -372,6 +381,10 @@ const defaultSeriesFilters: SeriesFilters = {
   metacritic: [0, 100],
   contentRatings: [],
   status: [],
+  countries: [],
+  watchStatus: 'any',
+  minWatchers: null,
+  maxWatchers: null,
 }
 
 export function BrowsePage() {
@@ -399,6 +412,7 @@ export function BrowsePage() {
   const [collections, setCollections] = useState<Collection[]>([])
   const [movieContentRatings, setMovieContentRatings] = useState<ContentRating[]>([])
   const [movieResolutions, setMovieResolutions] = useState<Resolution[]>([])
+  const [movieCountries, setMovieCountries] = useState<CountryOption[]>([])
   const [movieRanges, setMovieRanges] = useState<FilterRanges>({
     year: { min: 1900, max: new Date().getFullYear() },
     runtime: { min: 0, max: 300 },
@@ -422,6 +436,7 @@ export function BrowsePage() {
   const [seriesGenres, setSeriesGenres] = useState<string[]>([])
   const [networks, setNetworks] = useState<string[]>([])
   const [seriesContentRatings, setSeriesContentRatings] = useState<ContentRating[]>([])
+  const [seriesCountries, setSeriesCountries] = useState<CountryOption[]>([])
   const [seriesRanges, setSeriesRanges] = useState<FilterRanges>({
     year: { min: 1950, max: new Date().getFullYear() },
     seasons: { min: 1, max: 30 },
@@ -679,6 +694,10 @@ export function BrowsePage() {
     if (preset.filters.metacritic) setMovieFilters((f) => ({ ...f, metacritic: preset.filters.metacritic! }))
     if (preset.filters.contentRatings) setMovieFilters((f) => ({ ...f, contentRatings: preset.filters.contentRatings! }))
     if (preset.filters.resolutions) setMovieFilters((f) => ({ ...f, resolutions: preset.filters.resolutions! }))
+    if (preset.filters.countries) setMovieFilters((f) => ({ ...f, countries: preset.filters.countries! }))
+    if (preset.filters.watchStatus) setMovieFilters((f) => ({ ...f, watchStatus: preset.filters.watchStatus! }))
+    if (preset.filters.minWatchers !== undefined) setMovieFilters((f) => ({ ...f, minWatchers: preset.filters.minWatchers ?? null }))
+    if (preset.filters.maxWatchers !== undefined) setMovieFilters((f) => ({ ...f, maxWatchers: preset.filters.maxWatchers ?? null }))
     if (preset.filters.genre) setMovieGenre(preset.filters.genre)
     if (preset.filters.collection) setCollection(preset.filters.collection)
   }, [])
@@ -691,6 +710,10 @@ export function BrowsePage() {
     if (preset.filters.metacritic) setSeriesFilters((f) => ({ ...f, metacritic: preset.filters.metacritic! }))
     if (preset.filters.contentRatings) setSeriesFilters((f) => ({ ...f, contentRatings: preset.filters.contentRatings! }))
     if (preset.filters.status) setSeriesFilters((f) => ({ ...f, status: preset.filters.status! }))
+    if (preset.filters.countries) setSeriesFilters((f) => ({ ...f, countries: preset.filters.countries! }))
+    if (preset.filters.watchStatus) setSeriesFilters((f) => ({ ...f, watchStatus: preset.filters.watchStatus! }))
+    if (preset.filters.minWatchers !== undefined) setSeriesFilters((f) => ({ ...f, minWatchers: preset.filters.minWatchers ?? null }))
+    if (preset.filters.maxWatchers !== undefined) setSeriesFilters((f) => ({ ...f, maxWatchers: preset.filters.maxWatchers ?? null }))
     if (preset.filters.genre) setSeriesGenre(preset.filters.genre)
     if (preset.filters.network) setNetwork(preset.filters.network)
   }, [])
@@ -699,12 +722,13 @@ export function BrowsePage() {
   useEffect(() => {
     const fetchFilters = async () => {
       try {
-        const [genresRes, collectionsRes, contentRatingsRes, resolutionsRes, rangesRes] =
+        const [genresRes, collectionsRes, contentRatingsRes, resolutionsRes, countriesRes, rangesRes] =
           await Promise.all([
             fetch('/api/movies/genres', { credentials: 'include' }),
             fetch('/api/movies/collections', { credentials: 'include' }),
             fetch('/api/movies/content-ratings', { credentials: 'include' }),
             fetch('/api/movies/resolutions', { credentials: 'include' }),
+            fetch('/api/movies/countries', { credentials: 'include' }),
             fetch('/api/movies/filter-ranges', { credentials: 'include' }),
           ])
         if (genresRes.ok) {
@@ -722,6 +746,10 @@ export function BrowsePage() {
         if (resolutionsRes.ok) {
           const data = await resolutionsRes.json()
           setMovieResolutions(data.resolutions)
+        }
+        if (countriesRes.ok) {
+          const data = await countriesRes.json()
+          setMovieCountries(data.countries || [])
         }
         if (rangesRes.ok) {
           const data = await rangesRes.json()
@@ -744,10 +772,11 @@ export function BrowsePage() {
   useEffect(() => {
     const fetchFilters = async () => {
       try {
-        const [genresRes, networksRes, contentRatingsRes, rangesRes] = await Promise.all([
+        const [genresRes, networksRes, contentRatingsRes, countriesRes, rangesRes] = await Promise.all([
           fetch('/api/series/genres', { credentials: 'include' }),
           fetch('/api/series/networks', { credentials: 'include' }),
           fetch('/api/series/content-ratings', { credentials: 'include' }),
+          fetch('/api/series/countries', { credentials: 'include' }),
           fetch('/api/series/filter-ranges', { credentials: 'include' }),
         ])
         if (genresRes.ok) {
@@ -761,6 +790,10 @@ export function BrowsePage() {
         if (contentRatingsRes.ok) {
           const data = await contentRatingsRes.json()
           setSeriesContentRatings(data.contentRatings)
+        }
+        if (countriesRes.ok) {
+          const data = await countriesRes.json()
+          setSeriesCountries(data.countries || [])
         }
         if (rangesRes.ok) {
           const data = await rangesRes.json()
@@ -823,6 +856,16 @@ export function BrowsePage() {
         }
         movieFilters.contentRatings.forEach((r) => params.append('contentRating', r))
         movieFilters.resolutions.forEach((r) => params.append('resolution', r))
+        movieFilters.countries.forEach((c) => params.append('country', c))
+        if (movieFilters.watchStatus !== 'any') {
+          params.set('watchStatus', movieFilters.watchStatus)
+        }
+        if (movieFilters.minWatchers !== null && movieFilters.minWatchers > 0) {
+          params.set('minWatchers', String(movieFilters.minWatchers))
+        }
+        if (movieFilters.maxWatchers !== null && movieFilters.maxWatchers >= 0) {
+          params.set('maxWatchers', String(movieFilters.maxWatchers))
+        }
 
         const response = await fetch(`/api/movies?${params}`, { credentials: 'include' })
         if (response.ok) {
@@ -904,6 +947,16 @@ export function BrowsePage() {
         }
         seriesFilters.contentRatings.forEach((r) => params.append('contentRating', r))
         seriesFilters.status.forEach((s) => params.append('status', s))
+        seriesFilters.countries.forEach((c) => params.append('country', c))
+        if (seriesFilters.watchStatus !== 'any') {
+          params.set('watchStatus', seriesFilters.watchStatus)
+        }
+        if (seriesFilters.minWatchers !== null && seriesFilters.minWatchers > 0) {
+          params.set('minWatchers', String(seriesFilters.minWatchers))
+        }
+        if (seriesFilters.maxWatchers !== null && seriesFilters.maxWatchers >= 0) {
+          params.set('maxWatchers', String(seriesFilters.maxWatchers))
+        }
 
         const response = await fetch(`/api/series?${params}`, { credentials: 'include' })
         if (response.ok) {
@@ -1174,6 +1227,39 @@ export function BrowsePage() {
           })),
       })
     })
+    movieFilters.countries.forEach((c: string) => {
+      chips.push({
+        label: c,
+        onDelete: () =>
+          setMovieFilters((f: MovieFilters) => ({
+            ...f,
+            countries: f.countries.filter((x: string) => x !== c),
+          })),
+      })
+    })
+    if (movieFilters.watchStatus === 'watched') {
+      chips.push({
+        label: 'Watched (you)',
+        onDelete: () => setMovieFilters((f: MovieFilters) => ({ ...f, watchStatus: 'any' })),
+      })
+    } else if (movieFilters.watchStatus === 'unwatched') {
+      chips.push({
+        label: 'Unwatched (you)',
+        onDelete: () => setMovieFilters((f: MovieFilters) => ({ ...f, watchStatus: 'any' })),
+      })
+    }
+    if (movieFilters.minWatchers !== null && movieFilters.minWatchers > 0) {
+      chips.push({
+        label: `Watchers ≥${movieFilters.minWatchers}`,
+        onDelete: () => setMovieFilters((f: MovieFilters) => ({ ...f, minWatchers: null })),
+      })
+    }
+    if (movieFilters.maxWatchers !== null) {
+      chips.push({
+        label: `Watchers ≤${movieFilters.maxWatchers}`,
+        onDelete: () => setMovieFilters((f: MovieFilters) => ({ ...f, maxWatchers: null })),
+      })
+    }
 
     return chips
   }
@@ -1252,6 +1338,39 @@ export function BrowsePage() {
           })),
       })
     })
+    seriesFilters.countries.forEach((c: string) => {
+      chips.push({
+        label: c,
+        onDelete: () =>
+          setSeriesFilters((f: SeriesFilters) => ({
+            ...f,
+            countries: f.countries.filter((x: string) => x !== c),
+          })),
+      })
+    })
+    if (seriesFilters.watchStatus === 'watched') {
+      chips.push({
+        label: 'Watched (you)',
+        onDelete: () => setSeriesFilters((f: SeriesFilters) => ({ ...f, watchStatus: 'any' })),
+      })
+    } else if (seriesFilters.watchStatus === 'unwatched') {
+      chips.push({
+        label: 'Unwatched (you)',
+        onDelete: () => setSeriesFilters((f: SeriesFilters) => ({ ...f, watchStatus: 'any' })),
+      })
+    }
+    if (seriesFilters.minWatchers !== null && seriesFilters.minWatchers > 0) {
+      chips.push({
+        label: `Watchers ≥${seriesFilters.minWatchers}`,
+        onDelete: () => setSeriesFilters((f: SeriesFilters) => ({ ...f, minWatchers: null })),
+      })
+    }
+    if (seriesFilters.maxWatchers !== null) {
+      chips.push({
+        label: `Watchers ≤${seriesFilters.maxWatchers}`,
+        onDelete: () => setSeriesFilters((f: SeriesFilters) => ({ ...f, maxWatchers: null })),
+      })
+    }
 
     return chips
   }
@@ -1392,6 +1511,7 @@ export function BrowsePage() {
               onChange={(f: MovieFilters | SeriesFilters) => setMovieFilters(f as MovieFilters)}
               contentRatings={movieContentRatings}
               resolutions={movieResolutions}
+              countries={movieCountries}
               ranges={movieRanges}
             />
 
@@ -1571,6 +1691,7 @@ export function BrowsePage() {
               filters={seriesFilters}
               onChange={(f: MovieFilters | SeriesFilters) => setSeriesFilters(f as SeriesFilters)}
               contentRatings={seriesContentRatings}
+              countries={seriesCountries}
               ranges={seriesRanges}
             />
 

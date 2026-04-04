@@ -12,6 +12,9 @@ import {
   useTheme,
   ClickAwayListener,
   Badge,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material'
 import FilterListIcon from '@mui/icons-material/FilterList'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
@@ -19,6 +22,8 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import { RangeSlider } from './RangeSlider'
 import { ChipToggleGroup } from './ChipToggleGroup'
+
+export type WatchStatusFilter = 'any' | 'watched' | 'unwatched'
 
 export interface MovieFilters {
   yearRange: [number, number]
@@ -28,6 +33,10 @@ export interface MovieFilters {
   metacritic: [number, number]
   contentRatings: string[]
   resolutions: string[]
+  countries: string[]
+  watchStatus: WatchStatusFilter
+  minWatchers: number | null
+  maxWatchers: number | null
 }
 
 export interface SeriesFilters {
@@ -38,6 +47,10 @@ export interface SeriesFilters {
   metacritic: [number, number]
   contentRatings: string[]
   status: string[]
+  countries: string[]
+  watchStatus: WatchStatusFilter
+  minWatchers: number | null
+  maxWatchers: number | null
 }
 
 interface FilterPopperProps {
@@ -46,6 +59,7 @@ interface FilterPopperProps {
   onChange: (filters: MovieFilters | SeriesFilters) => void
   contentRatings: { rating: string; count: number }[]
   resolutions?: { resolution: string; count: number }[]
+  countries?: { country: string; count: number }[]
   ranges: {
     year: { min: number; max: number }
     runtime?: { min: number; max: number }
@@ -62,6 +76,10 @@ const defaultMovieFilters: MovieFilters = {
   metacritic: [0, 100],
   contentRatings: [],
   resolutions: [],
+  countries: [],
+  watchStatus: 'any',
+  minWatchers: null,
+  maxWatchers: null,
 }
 
 const defaultSeriesFilters: SeriesFilters = {
@@ -72,6 +90,10 @@ const defaultSeriesFilters: SeriesFilters = {
   metacritic: [0, 100],
   contentRatings: [],
   status: [],
+  countries: [],
+  watchStatus: 'any',
+  minWatchers: null,
+  maxWatchers: null,
 }
 
 export function FilterPopper({
@@ -80,6 +102,7 @@ export function FilterPopper({
   onChange,
   contentRatings,
   resolutions,
+  countries = [],
   ranges,
 }: FilterPopperProps) {
   const theme = useTheme()
@@ -91,6 +114,8 @@ export function FilterPopper({
     runtime: true,
     quality: true,
     status: true,
+    origin: true,
+    audience: true,
   })
 
   const open = Boolean(anchorEl)
@@ -115,6 +140,13 @@ export function FilterPopper({
     }
   }
 
+  const parseOptionalInt = (raw: string): number | null => {
+    const t = raw.trim()
+    if (t === '') return null
+    const n = parseInt(t, 10)
+    return Number.isNaN(n) ? null : n
+  }
+
   // Count active filters
   const getActiveFilterCount = () => {
     let count = 0
@@ -128,6 +160,10 @@ export function FilterPopper({
       if (f.metacritic[0] > 0 || f.metacritic[1] < 100) count++
       if (f.contentRatings.length > 0) count++
       if (f.resolutions.length > 0) count++
+      if (f.countries.length > 0) count++
+      if (f.watchStatus !== 'any') count++
+      if (f.minWatchers !== null) count++
+      if (f.maxWatchers !== null) count++
     } else {
       const f = filters as SeriesFilters
       if (f.yearRange[0] > ranges.year.min || f.yearRange[1] < ranges.year.max) count++
@@ -137,6 +173,10 @@ export function FilterPopper({
       if (f.metacritic[0] > 0 || f.metacritic[1] < 100) count++
       if (f.contentRatings.length > 0) count++
       if (f.status.length > 0) count++
+      if (f.countries.length > 0) count++
+      if (f.watchStatus !== 'any') count++
+      if (f.minWatchers !== null) count++
+      if (f.maxWatchers !== null) count++
     }
     
     return count
@@ -314,6 +354,86 @@ export function FilterPopper({
                   <Divider sx={{ my: 1.5 }} />
                 </>
               )}
+
+              {/* Origin: production countries */}
+              {countries.length > 0 && (
+                <>
+                  <SectionHeader title="PRODUCTION COUNTRY" section="origin" />
+                  <Collapse in={expandedSections.origin}>
+                    <Box sx={{ py: 1.5, maxHeight: 200, overflow: 'auto' }}>
+                      <ChipToggleGroup
+                        label=""
+                        options={countries.map((c) => ({
+                          value: c.country,
+                          label: c.country,
+                          count: c.count,
+                        }))}
+                        selected={filters.countries}
+                        onChange={(selected) => onChange({ ...filters, countries: selected })}
+                      />
+                    </Box>
+                  </Collapse>
+                  <Divider sx={{ my: 1.5 }} />
+                </>
+              )}
+
+              {/* Watch status & household reach */}
+              <SectionHeader title="LIBRARY & AUDIENCE" section="audience" />
+              <Collapse in={expandedSections.audience}>
+                <Box sx={{ py: 1.5, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.75 }}>
+                      Your watch status
+                    </Typography>
+                    <ToggleButtonGroup
+                      exclusive
+                      size="small"
+                      fullWidth
+                      value={filters.watchStatus}
+                      onChange={(_, v: WatchStatusFilter | null) => {
+                        if (v !== null) onChange({ ...filters, watchStatus: v })
+                      }}
+                    >
+                      <ToggleButton value="any">Any</ToggleButton>
+                      <ToggleButton value="watched">Watched</ToggleButton>
+                      <ToggleButton value="unwatched">Unwatched</ToggleButton>
+                    </ToggleButtonGroup>
+                  </Box>
+                  <Box display="flex" gap={1}>
+                    <TextField
+                      label="Min watchers"
+                      type="number"
+                      size="small"
+                      fullWidth
+                      inputProps={{ min: 0 }}
+                      value={filters.minWatchers ?? ''}
+                      onChange={(e) =>
+                        onChange({
+                          ...filters,
+                          minWatchers: parseOptionalInt(e.target.value),
+                        })
+                      }
+                      helperText="Distinct users on this server"
+                    />
+                    <TextField
+                      label="Max watchers"
+                      type="number"
+                      size="small"
+                      fullWidth
+                      inputProps={{ min: 0 }}
+                      value={filters.maxWatchers ?? ''}
+                      onChange={(e) =>
+                        onChange({
+                          ...filters,
+                          maxWatchers: parseOptionalInt(e.target.value),
+                        })
+                      }
+                    />
+                  </Box>
+                </Box>
+              </Collapse>
+
+              <Divider sx={{ my: 1.5 }} />
 
               {/* Movies: Runtime Section */}
               {type === 'movies' && ranges.runtime && (
