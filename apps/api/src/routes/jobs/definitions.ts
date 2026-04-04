@@ -84,7 +84,7 @@ export const jobDefinitions: JobDefinition[] = [
   },
   {
     name: 'auto-request-top-picks',
-    description: 'Automatically request missing Top Picks content via Jellyseerr',
+    description: 'Automatically request missing Top Picks content via Seerr',
     cron: '0 0 * * 0', // Weekly on Sunday at midnight (configurable via settings)
   },
   // === Trakt Sync Job ===

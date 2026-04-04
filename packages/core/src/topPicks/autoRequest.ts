@@ -1,7 +1,7 @@
 /**
  * Top Picks Auto-Request Job
  * 
- * Automatically requests missing Top Picks content via Jellyseerr
+ * Automatically requests missing Top Picks content via Seerr
  */
 
 import { createChildLogger } from '../lib/logger.js'
@@ -21,10 +21,10 @@ import {
   getTopSeriesFromMDBList,
 } from './popularity.js'
 import { 
-  isJellyseerrConfigured, 
+  isSeerrConfigured, 
   createRequest, 
   getMediaStatus,
-} from '../jellyseerr/index.js'
+} from '../seerr/index.js'
 import { query } from '../lib/db.js'
 import type { TMDbMovieResult, TMDbTVResult } from '../tmdb/index.js'
 
@@ -280,10 +280,10 @@ export async function runAutoRequestJob(
       return result
     }
     
-    // Check Jellyseerr configuration
-    const jellyseerrConfigured = await isJellyseerrConfigured()
-    if (!jellyseerrConfigured) {
-      addLog(jobId, 'warn', '⚠️ Jellyseerr is not configured - cannot auto-request')
+    // Check Seerr configuration
+    const seerrConfigured = await isSeerrConfigured()
+    if (!seerrConfigured) {
+      addLog(jobId, 'warn', '⚠️ Seerr is not configured - cannot auto-request')
       completeJob(jobId, { ...result })
       return result
     }

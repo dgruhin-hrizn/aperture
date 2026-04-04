@@ -154,7 +154,7 @@ Dismissed alerts are:
 | 401 Unauthorized | Invalid API key | Update key |
 | List not found | List deleted or private | Select different list |
 
-### Jellyseerr Errors
+### Seerr Errors
 
 | Error | Cause | Fix |
 |-------|-------|-----|

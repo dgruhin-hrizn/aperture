@@ -26,6 +26,7 @@ import {
   CardContent,
   Divider,
   Button,
+  TextField,
 } from '@mui/material'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined'
@@ -48,6 +49,7 @@ interface User {
   discover_enabled: boolean
   discover_request_enabled: boolean
   can_manage_watch_history: boolean
+  seerr_user_id: number | null
   created_at: string
 }
 
@@ -112,6 +114,10 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
   const [canManageWatchHistory, setCanManageWatchHistory] = useState(user.can_manage_watch_history)
   const [discoverEnabled, setDiscoverEnabled] = useState(user.discover_enabled)
   const [discoverRequestEnabled, setDiscoverRequestEnabled] = useState(user.discover_request_enabled)
+  const [seerrUserIdInput, setSeerrUserIdInput] = useState(
+    user.seerr_user_id != null ? String(user.seerr_user_id) : ''
+  )
+  const [savingSeerrId, setSavingSeerrId] = useState(false)
   const [settings, setSettings] = useState<{
     overrideAllowed: boolean
     enabled: boolean | null
@@ -186,6 +192,38 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
       setCanManageWatchHistory(!enabled)
     } finally {
       setSavingWatchHistory(false)
+    }
+  }
+
+  const handleSaveSeerrUserId = async () => {
+    const trimmed = seerrUserIdInput.trim()
+    let seerrUserId: number | null
+    if (trimmed === '') {
+      seerrUserId = null
+    } else {
+      const n = parseInt(trimmed, 10)
+      if (Number.isNaN(n) || n < 1) {
+        setError('Seerr user id must be a positive integer or empty to clear')
+        return
+      }
+      seerrUserId = n
+    }
+    try {
+      setSavingSeerrId(true)
+      setError(null)
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seerrUserId }),
+        credentials: 'include',
+      })
+      if (!response.ok) throw new Error('Failed to update Seerr mapping')
+      setSuccess('Seerr user id saved.')
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
+    } finally {
+      setSavingSeerrId(false)
     }
   }
 
@@ -345,7 +383,7 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
                   Allow Content Requests
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  User can request discovered content to be added to the library via Jellyseerr
+                  User can request discovered content to be added to the library via Seerr
                 </Typography>
               </Box>
             }
@@ -364,6 +402,36 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
               <Typography variant="caption" color="text.secondary">Saving...</Typography>
             </Box>
           )}
+        </CardContent>
+      </Card>
+
+      <Card variant="outlined" sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" sx={{ mb: 1 }}>
+            Seerr mapping
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Optional override: numeric user id from Seerr (Users in Seerr). When set, content requests are
+            attributed to this Seerr account. Leave empty to rely on automatic matching by email or username.
+          </Typography>
+          <Box display="flex" flexWrap="wrap" gap={2} alignItems="flex-start">
+            <TextField
+              label="Seerr user id"
+              value={seerrUserIdInput}
+              onChange={(e) => setSeerrUserIdInput(e.target.value)}
+              placeholder="e.g. 2"
+              size="small"
+              sx={{ minWidth: 200 }}
+            />
+            <Button
+              variant="outlined"
+              onClick={handleSaveSeerrUserId}
+              disabled={savingSeerrId}
+              startIcon={savingSeerrId ? <CircularProgress size={16} /> : <SaveIcon />}
+            >
+              {savingSeerrId ? 'Saving…' : 'Save'}
+            </Button>
+          </Box>
         </CardContent>
       </Card>
 

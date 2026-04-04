@@ -94,7 +94,7 @@ export const discoverySchemas = {
     description: 'Discovery feature status for current user',
     properties: {
       enabled: { type: 'boolean', description: 'Whether discovery is enabled' },
-      requestEnabled: { type: 'boolean', description: 'Whether content requests are enabled (Jellyseerr)' },
+      requestEnabled: { type: 'boolean', description: 'Whether content requests are enabled (Seerr)' },
       movieRun: { $ref: 'DiscoveryRun#' },
       seriesRun: { $ref: 'DiscoveryRun#' },
       movieCount: { type: 'integer', description: 'Number of movie candidates' },
@@ -108,7 +108,7 @@ export const discoverySchemas = {
     description: 'Discovery feature prerequisites check',
     properties: {
       ready: { type: 'boolean', description: 'Whether all prerequisites are met' },
-      jellyseerrConfigured: { type: 'boolean', description: 'Whether Jellyseerr is configured (for requests)' },
+      seerrConfigured: { type: 'boolean', description: 'Whether Seerr is configured (for requests)' },
       enabledUserCount: { type: 'integer', description: 'Number of users with discovery enabled' },
       enabledUsernames: { type: 'array', items: { type: 'string' }, description: 'Usernames with discovery enabled' },
       message: { type: 'string', nullable: true, description: 'Status message or error' },
@@ -195,5 +195,5 @@ export const getDiscoveryStatusSchema = {
 export const getDiscoveryPrerequisitesSchema = {
   tags: ['discovery'],
   summary: 'Check discovery prerequisites',
-  description: 'Check if discovery feature prerequisites are met (admin only). Returns status of Jellyseerr config and enabled users.',
+  description: 'Check if discovery feature prerequisites are met (admin only). Returns status of Seerr config and enabled users.',
 }

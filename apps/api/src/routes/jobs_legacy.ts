@@ -1146,7 +1146,7 @@ async function runJob(name: string, jobId: string): Promise<void> {
 
         // Step 1: Check prerequisites
         setJobStep(jobId, 0, 'Checking prerequisites')
-        addLog(jobId, 'info', '🔍 Checking Jellyseerr configuration and user enablement...')
+        addLog(jobId, 'info', '🔍 Checking Seerr configuration and user enablement...')
 
         const result = await generateDiscoveryForAllUsers(DEFAULT_DISCOVERY_CONFIG, jobId)
 

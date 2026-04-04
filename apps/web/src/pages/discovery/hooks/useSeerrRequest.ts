@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react'
-import type { MediaType, JellyseerrMediaStatus } from '../types'
+import type { MediaType, SeerrMediaStatus } from '../types'
 import type { SeasonInfo } from '../components/SeasonSelectModal'
 
-// TV details response from Jellyseerr API
+// TV details response from Seerr API
 export interface TVDetailsResponse {
   id: number
   name: string
@@ -38,26 +38,26 @@ export interface TVDetailsResponse {
   }>
 }
 
-export function useJellyseerrRequest() {
+export function useSeerrRequest() {
   const [requesting, setRequesting] = useState<number | null>(null)
   const [fetchingDetails, setFetchingDetails] = useState<number | null>(null)
-  const [statusCache, setStatusCache] = useState<Map<string, JellyseerrMediaStatus>>(new Map())
+  const [statusCache, setStatusCache] = useState<Map<string, SeerrMediaStatus>>(new Map())
 
-  const getMediaStatus = useCallback(async (tmdbId: number, mediaType: MediaType): Promise<JellyseerrMediaStatus | null> => {
+  const getMediaStatus = useCallback(async (tmdbId: number, mediaType: MediaType): Promise<SeerrMediaStatus | null> => {
     const cacheKey = `${mediaType}-${tmdbId}`
     const cached = statusCache.get(cacheKey)
     if (cached) return cached
 
     try {
-      const jellyseerrType = mediaType === 'movie' ? 'movie' : 'tv'
-      const response = await fetch(`/api/jellyseerr/status/${jellyseerrType}/${tmdbId}`, {
+      const seerrType = mediaType === 'movie' ? 'movie' : 'tv'
+      const response = await fetch(`/api/seerr/status/${seerrType}/${tmdbId}`, {
         credentials: 'include',
       })
       if (response.ok) {
         const data = await response.json()
-        if (data.jellyseerrStatus) {
-          setStatusCache(prev => new Map(prev).set(cacheKey, data.jellyseerrStatus))
-          return data.jellyseerrStatus
+        if (data.seerrStatus) {
+          setStatusCache(prev => new Map(prev).set(cacheKey, data.seerrStatus))
+          return data.seerrStatus
         }
       }
       return null
@@ -76,7 +76,7 @@ export function useJellyseerrRequest() {
   } | null> => {
     setFetchingDetails(tmdbId)
     try {
-      const response = await fetch(`/api/jellyseerr/tv/${tmdbId}`, {
+      const response = await fetch(`/api/seerr/tv/${tmdbId}`, {
         credentials: 'include',
       })
       
@@ -124,7 +124,7 @@ export function useJellyseerrRequest() {
   ): Promise<{ success: boolean; error?: string }> => {
     setRequesting(tmdbId)
     try {
-      const response = await fetch('/api/jellyseerr/request', {
+      const response = await fetch('/api/seerr/request', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -154,7 +154,10 @@ export function useJellyseerrRequest() {
         })
         return { success: true }
       } else {
-        return { success: false, error: data.error || 'Failed to submit request' }
+        return {
+          success: false,
+          error: (typeof data.message === 'string' && data.message) || data.error || 'Failed to submit request',
+        }
       }
     } catch {
       return { success: false, error: 'Could not connect to server' }

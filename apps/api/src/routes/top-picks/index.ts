@@ -181,7 +181,7 @@ const topPicksRoutes: FastifyPluginAsync = async (fastify) => {
 
   /**
    * POST /api/top-picks/request-missing
-   * Bulk request missing items via Jellyseerr
+   * Bulk request missing items via Seerr
    */
   fastify.post<{
     Body: {
@@ -196,12 +196,12 @@ const topPicksRoutes: FastifyPluginAsync = async (fastify) => {
     try {
       const { items, limit = 10 } = request.body
 
-      const { isJellyseerrConfigured, createJellyseerrRequest, getJellyseerrMediaStatus } = await import('@aperture/core')
+      const { isSeerrConfigured, createSeerrRequest, getSeerrMediaStatus } = await import('@aperture/core')
 
-      // Check if Jellyseerr is configured
-      const configured = await isJellyseerrConfigured()
+      // Check if Seerr is configured
+      const configured = await isSeerrConfigured()
       if (!configured) {
-        return reply.status(400).send({ error: 'Jellyseerr is not configured' } as never)
+        return reply.status(400).send({ error: 'Seerr is not configured' } as never)
       }
 
       // Limit the number of requests
@@ -216,7 +216,7 @@ const topPicksRoutes: FastifyPluginAsync = async (fastify) => {
 
       for (const item of itemsToRequest) {
         // Check if already requested or available
-        const status = await getJellyseerrMediaStatus(item.tmdbId, item.mediaType)
+        const status = await getSeerrMediaStatus(item.tmdbId, item.mediaType)
         if (status?.exists || status?.requested) {
           results.push({
             tmdbId: item.tmdbId,
@@ -228,7 +228,7 @@ const topPicksRoutes: FastifyPluginAsync = async (fastify) => {
         }
 
         // Create the request
-        const result = await createJellyseerrRequest(item.tmdbId, item.mediaType)
+        const result = await createSeerrRequest(item.tmdbId, item.mediaType)
         results.push({
           tmdbId: item.tmdbId,
           title: item.title,

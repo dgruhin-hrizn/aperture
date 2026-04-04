@@ -2,6 +2,7 @@ export interface UserRow {
   id: string
   username: string
   display_name: string | null
+  email: string | null
   provider: 'emby' | 'jellyfin'
   provider_user_id: string
   is_admin: boolean
@@ -12,6 +13,7 @@ export interface UserRow {
   discover_request_enabled: boolean
   max_parental_rating: number | null
   can_manage_watch_history: boolean
+  seerr_user_id: number | null
   created_at: Date
   updated_at: Date
 }
@@ -29,5 +31,7 @@ export interface UserUpdateBody {
   discoverEnabled?: boolean
   discoverRequestEnabled?: boolean
   canManageWatchHistory?: boolean
+  /** Admin: override Seerr/Seerr numeric user id for request attribution */
+  seerrUserId?: number | null
 }
 

@@ -778,7 +778,7 @@ export function UsersPage() {
                 </Tooltip>
               </TableCell>
               <TableCell align="center">
-                <Tooltip title="Allow user to request discovered content via Jellyseerr">
+                <Tooltip title="Allow user to request discovered content via Seerr">
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
                     <HubOutlinedIcon fontSize="small" />
                     Request

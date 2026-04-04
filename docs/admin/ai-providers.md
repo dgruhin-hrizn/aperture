@@ -276,4 +276,4 @@ After configuring:
 
 ---
 
-**Previous:** [Jellyseerr Integration](jellyseerr.md) | **Next:** [Embedding Models](embedding-models.md)
+**Previous:** [Seerr Integration](seerr.md) | **Next:** [Embedding Models](embedding-models.md)

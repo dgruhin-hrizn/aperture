@@ -1,4 +1,4 @@
 export { useDiscoveryData, invalidateDiscoveryCache } from './useDiscoveryData'
-export { useJellyseerrRequest } from './useJellyseerrRequest'
+export { useSeerrRequest } from './useSeerrRequest'
 export { useDiscoveryJobStatus } from './useDiscoveryJobStatus'
 

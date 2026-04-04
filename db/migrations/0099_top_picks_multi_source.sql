@@ -25,7 +25,7 @@ ALTER TABLE top_picks_config
 ALTER TABLE top_picks_config
   RENAME COLUMN hybrid_mdblist_weight TO hybrid_external_weight;
 
--- Step 4: Add auto-request configuration for Jellyseerr integration
+-- Step 4: Add auto-request configuration for Seerr integration
 ALTER TABLE top_picks_config
   ADD COLUMN IF NOT EXISTS movies_auto_request_enabled BOOLEAN DEFAULT false;
 
@@ -47,8 +47,8 @@ COMMENT ON COLUMN top_picks_config.series_popularity_source IS 'Popularity sourc
 COMMENT ON COLUMN top_picks_config.movies_hybrid_external_source IS 'External source to blend with local data in hybrid mode for movies';
 COMMENT ON COLUMN top_picks_config.series_hybrid_external_source IS 'External source to blend with local data in hybrid mode for series';
 COMMENT ON COLUMN top_picks_config.hybrid_external_weight IS 'Weight for external source in hybrid mode (0.0-1.0)';
-COMMENT ON COLUMN top_picks_config.movies_auto_request_enabled IS 'Enable automatic Jellyseerr requests for missing Top Picks movies';
+COMMENT ON COLUMN top_picks_config.movies_auto_request_enabled IS 'Enable automatic Seerr requests for missing Top Picks movies';
 COMMENT ON COLUMN top_picks_config.movies_auto_request_limit IS 'Maximum number of movie requests per auto-request job run';
-COMMENT ON COLUMN top_picks_config.series_auto_request_enabled IS 'Enable automatic Jellyseerr requests for missing Top Picks series';
+COMMENT ON COLUMN top_picks_config.series_auto_request_enabled IS 'Enable automatic Seerr requests for missing Top Picks series';
 COMMENT ON COLUMN top_picks_config.series_auto_request_limit IS 'Maximum number of series requests per auto-request job run';
 COMMENT ON COLUMN top_picks_config.auto_request_cron IS 'Cron schedule for auto-request job (default: weekly on Sunday at midnight)';

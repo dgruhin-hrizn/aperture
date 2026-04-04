@@ -1,6 +1,6 @@
 # Discovery
 
-Discovery helps you find movies and TV series that aren't in your library yet, with AI-powered suggestions and optional Jellyseerr integration for requesting content.
+Discovery helps you find movies and TV series that aren't in your library yet, with AI-powered suggestions and optional Seerr integration for requesting content.
 
 ![Discovery Page](../images/features/discovery.png)
 
@@ -44,7 +44,7 @@ Each suggestion shows:
 | **Rank Badge** | Top-left: 🥇🥈🥉 for top 3 |
 | **Source Badge** | Top-right: Where suggestion came from |
 | **Match %** | Bottom-right: AI confidence |
-| **Request Status** | Bottom-left: Jellyseerr status (if applicable) |
+| **Request Status** | Bottom-left: Seerr status (if applicable) |
 
 ### List View
 
@@ -125,7 +125,7 @@ Full-width fanart image.
 
 ## Requesting Content
 
-If your admin has configured Jellyseerr:
+If your admin has configured Seerr:
 
 ### Making a Request
 

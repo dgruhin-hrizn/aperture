@@ -11,7 +11,7 @@ import type { FastifySwaggerUiOptions } from '@fastify/swagger-ui'
 // API Information
 // =============================================================================
 
-const API_VERSION = '0.6.5'
+const API_VERSION = '0.7.0'
 
 const apiInfo = {
   title: 'Aperture API',
@@ -307,12 +307,12 @@ const tags = [
     },
   },
   {
-    name: 'jellyseerr',
+    name: 'seerr',
     description:
-      'Jellyseerr/Overseerr integration for requesting new content. Shows request status on movie/series pages.',
+      'Seerr/Overseerr integration for requesting new content. Shows request status on movie/series pages.',
     externalDocs: {
-      description: 'Jellyseerr Setup',
-      url: `${DOCS_BASE}/admin/jellyseerr.md`,
+      description: 'Seerr Setup',
+      url: `${DOCS_BASE}/admin/seerr.md`,
     },
   },
   {

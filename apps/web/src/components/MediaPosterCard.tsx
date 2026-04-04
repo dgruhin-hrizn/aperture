@@ -25,7 +25,7 @@ import { Link } from 'react-router-dom'
 
 const FALLBACK_POSTER = '/NO_POSTER_FOUND.png'
 
-export interface JellyseerrStatus {
+export interface SeerrStatus {
   requested: boolean
   requestStatus?: 'pending' | 'approved' | 'declined' | 'unknown'
 }
@@ -47,8 +47,8 @@ export interface MediaPosterCardProps {
   inLibrary?: boolean
   libraryId?: string | null // For linking to detail page
 
-  // Jellyseerr status
-  jellyseerrStatus?: JellyseerrStatus
+  // Seerr status
+  seerrStatus?: SeerrStatus
   canRequest?: boolean
   isRequesting?: boolean
   onRequest?: () => void
@@ -80,7 +80,7 @@ export function MediaPosterCard({
   mediaType,
   inLibrary = false,
   libraryId,
-  jellyseerrStatus,
+  seerrStatus,
   canRequest = false,
   isRequesting = false,
   onRequest,
@@ -98,8 +98,8 @@ export function MediaPosterCard({
   const [imageError, setImageError] = useState(false)
 
   const finalPosterUrl = posterUrl && !imageError ? posterUrl : FALLBACK_POSTER
-  const isRequested = jellyseerrStatus?.requested || false
-  const requestStatus = jellyseerrStatus?.requestStatus
+  const isRequested = seerrStatus?.requested || false
+  const requestStatus = seerrStatus?.requestStatus
 
   // Determine if the item should be greyed out (already requested but not in library)
   const isGreyedOut = isRequested && !inLibrary

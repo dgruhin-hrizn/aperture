@@ -69,11 +69,11 @@ interface TmdbExternalDetailModalProps {
   data: TmdbExternalDetailPayload | null
   /** Shown in meta row, e.g. "Credits" */
   sourceLabel?: string
-  /** Jellyseerr request (person credits flow) */
+  /** Seerr request (person credits flow) */
   canRequest?: boolean
   isRequesting?: boolean
-  jellyseerrAvailable?: boolean
-  jellyseerrPending?: boolean
+  seerrAvailable?: boolean
+  seerrPending?: boolean
   onRequest?: () => void
 }
 
@@ -86,8 +86,8 @@ export function TmdbExternalDetailModal({
   sourceLabel = 'TMDb',
   canRequest = false,
   isRequesting = false,
-  jellyseerrAvailable = false,
-  jellyseerrPending = false,
+  seerrAvailable = false,
+  seerrPending = false,
   onRequest,
 }: TmdbExternalDetailModalProps) {
   const navigate = useNavigate()
@@ -378,15 +378,15 @@ export function TmdbExternalDetailModal({
                         IMDb
                       </Button>
                     )}
-                    {jellyseerrAvailable && (
+                    {seerrAvailable && (
                       <Chip
                         size="small"
-                        label="In Jellyseerr"
+                        label="In Seerr"
                         color="success"
                         variant="outlined"
                       />
                     )}
-                    {jellyseerrPending && (
+                    {seerrPending && (
                       <Chip size="small" label="Requested" color="warning" variant="outlined" />
                     )}
                     {canRequest && onRequest && (

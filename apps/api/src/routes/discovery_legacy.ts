@@ -12,7 +12,7 @@ import {
   getDiscoveryCandidateCount,
   getLatestDiscoveryRun,
   regenerateUserDiscovery,
-  isJellyseerrConfigured,
+  isSeerrConfigured,
   fetchFilteredCandidates,
   scoreCandidates,
   filterCandidates,
@@ -453,8 +453,8 @@ const discoveryRoutes: FastifyPluginAsync = async (fastify) => {
     '/api/discovery/prerequisites',
     { preHandler: requireAdmin, schema: { tags: ["discovery"] } },
     async (_request, reply) => {
-      // Check Jellyseerr configuration
-      const jellyseerrConfigured = await isJellyseerrConfigured()
+      // Check Seerr configuration
+      const seerrConfigured = await isSeerrConfigured()
 
       // Check how many users have discovery enabled
       const usersResult = await query<{ count: string }>(
@@ -467,16 +467,16 @@ const discoveryRoutes: FastifyPluginAsync = async (fastify) => {
         `SELECT username FROM users WHERE discover_enabled = true ORDER BY username LIMIT 10`
       )
 
-      const ready = jellyseerrConfigured && enabledUserCount > 0
+      const ready = seerrConfigured && enabledUserCount > 0
 
       return reply.send({
         ready,
-        jellyseerrConfigured,
+        seerrConfigured,
         enabledUserCount,
         enabledUsernames: enabledUsers.rows.map(u => u.username),
         message: !ready
-          ? !jellyseerrConfigured
-            ? 'Jellyseerr integration is not configured. Configure it in Settings → Integrations.'
+          ? !seerrConfigured
+            ? 'Seerr integration is not configured. Configure it in Settings → Integrations.'
             : 'No users have discovery enabled. Enable discovery for users in Admin → Users.'
           : null,
       })

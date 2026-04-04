@@ -1,14 +1,14 @@
 /**
- * Jellyseerr API Types
+ * Seerr API Types
  */
 
-export interface JellyseerrConfig {
+export interface SeerrConfig {
   url: string
   apiKey: string
   enabled: boolean
 }
 
-export interface JellyseerrUser {
+export interface SeerrUser {
   id: number
   email: string
   username: string
@@ -21,51 +21,57 @@ export interface JellyseerrUser {
   updatedAt: string
 }
 
-export interface JellyseerrMediaInfo {
+/** Response shape for GET /user */
+export interface SeerrUserListResponse {
+  pageInfo: { page: number; pages: number; results: number }
+  results: SeerrUser[]
+}
+
+export interface SeerrMediaInfo {
   id: number
   tmdbId: number
   tvdbId?: number
   imdbId?: string
-  status: JellyseerrMediaStatus
+  status: SeerrMediaStatus
   mediaType: 'movie' | 'tv'
-  requests?: JellyseerrMediaRequest[]
+  requests?: SeerrMediaRequest[]
 }
 
-export type JellyseerrMediaStatus = 
+export type SeerrMediaStatus = 
   | 1 // UNKNOWN
   | 2 // PENDING
   | 3 // PROCESSING
   | 4 // PARTIALLY_AVAILABLE
   | 5 // AVAILABLE
 
-export interface JellyseerrMediaRequest {
+export interface SeerrMediaRequest {
   id: number
-  status: JellyseerrRequestStatus
+  status: SeerrRequestStatus
   media: {
     id: number
     tmdbId: number
     mediaType: 'movie' | 'tv'
-    status: JellyseerrMediaStatus
+    status: SeerrMediaStatus
   }
-  requestedBy: JellyseerrUser
+  requestedBy: SeerrUser
   createdAt: string
   updatedAt: string
   is4k: boolean
 }
 
-export type JellyseerrRequestStatus = 
+export type SeerrRequestStatus = 
   | 1 // PENDING
   | 2 // APPROVED
   | 3 // DECLINED
 
-export interface JellyseerrSearchResult {
+export interface SeerrSearchResult {
   page: number
   totalPages: number
   totalResults: number
-  results: JellyseerrSearchItem[]
+  results: SeerrSearchItem[]
 }
 
-export interface JellyseerrSearchItem {
+export interface SeerrSearchItem {
   id: number
   mediaType: 'movie' | 'tv' | 'person'
   title?: string // For movies
@@ -81,10 +87,10 @@ export interface JellyseerrSearchItem {
   voteCount?: number
   popularity?: number
   genreIds?: number[]
-  mediaInfo?: JellyseerrMediaInfo
+  mediaInfo?: SeerrMediaInfo
 }
 
-export interface JellyseerrMovieDetails {
+export interface SeerrMovieDetails {
   id: number
   imdbId?: string
   title: string
@@ -97,13 +103,13 @@ export interface JellyseerrMovieDetails {
   voteAverage?: number
   voteCount?: number
   genres: { id: number; name: string }[]
-  mediaInfo?: JellyseerrMediaInfo
+  mediaInfo?: SeerrMediaInfo
 }
 
 /**
- * Season information from Jellyseerr TV details
+ * Season information from Seerr TV details
  */
-export interface JellyseerrSeason {
+export interface SeerrSeason {
   id: number
   seasonNumber: number
   episodeCount: number
@@ -111,11 +117,11 @@ export interface JellyseerrSeason {
   name: string
   overview?: string
   posterPath?: string
-  // Per-season status (available from mediaInfo.seasons in Jellyseerr)
-  status?: JellyseerrMediaStatus
+  // Per-season status (available from mediaInfo.seasons in Seerr)
+  status?: SeerrMediaStatus
 }
 
-export interface JellyseerrTVDetails {
+export interface SeerrTVDetails {
   id: number
   name: string
   originalName: string
@@ -130,35 +136,37 @@ export interface JellyseerrTVDetails {
   voteCount?: number
   genres: { id: number; name: string }[]
   networks: { id: number; name: string; logoPath?: string }[]
-  mediaInfo?: JellyseerrMediaInfo
+  mediaInfo?: SeerrMediaInfo
   // Detailed season information
-  seasons?: JellyseerrSeason[]
+  seasons?: SeerrSeason[]
 }
 
-export interface JellyseerrRequestBody {
+export interface SeerrRequestBody {
   mediaType: 'movie' | 'tv'
   mediaId: number
   tvdbId?: number
   seasons?: number[] // For TV - all seasons requested
   is4k?: boolean
+  /** When set (with admin API key), request is attributed to this Seerr user */
+  userId?: number
 }
 
-export interface JellyseerrRequestResponse {
+export interface SeerrRequestResponse {
   id: number
-  status: JellyseerrRequestStatus
+  status: SeerrRequestStatus
   createdAt: string
   updatedAt: string
   media: {
     id: number
     tmdbId: number
     tvdbId?: number
-    status: JellyseerrMediaStatus
+    status: SeerrMediaStatus
     mediaType: 'movie' | 'tv'
   }
-  requestedBy: JellyseerrUser
+  requestedBy: SeerrUser
 }
 
-export const JELLYSEERR_MEDIA_STATUS = {
+export const SEERR_MEDIA_STATUS = {
   1: 'unknown',
   2: 'pending',
   3: 'processing',
@@ -166,20 +174,20 @@ export const JELLYSEERR_MEDIA_STATUS = {
   5: 'available',
 } as const
 
-export const JELLYSEERR_REQUEST_STATUS = {
+export const SEERR_REQUEST_STATUS = {
   1: 'pending',
   2: 'approved',
   3: 'declined',
 } as const
 
-export type MediaStatusLabel = typeof JELLYSEERR_MEDIA_STATUS[keyof typeof JELLYSEERR_MEDIA_STATUS]
-export type RequestStatusLabel = typeof JELLYSEERR_REQUEST_STATUS[keyof typeof JELLYSEERR_REQUEST_STATUS]
+export type MediaStatusLabel = typeof SEERR_MEDIA_STATUS[keyof typeof SEERR_MEDIA_STATUS]
+export type RequestStatusLabel = typeof SEERR_REQUEST_STATUS[keyof typeof SEERR_REQUEST_STATUS]
 
-export function getMediaStatusLabel(status: JellyseerrMediaStatus): MediaStatusLabel {
-  return JELLYSEERR_MEDIA_STATUS[status] ?? 'unknown'
+export function getMediaStatusLabel(status: SeerrMediaStatus): MediaStatusLabel {
+  return SEERR_MEDIA_STATUS[status] ?? 'unknown'
 }
 
-export function getRequestStatusLabel(status: JellyseerrRequestStatus): RequestStatusLabel {
-  return JELLYSEERR_REQUEST_STATUS[status] ?? 'pending'
+export function getRequestStatusLabel(status: SeerrRequestStatus): RequestStatusLabel {
+  return SEERR_REQUEST_STATUS[status] ?? 'pending'
 }
 

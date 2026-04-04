@@ -22,7 +22,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import SaveIcon from '@mui/icons-material/Save'
 import SyncIcon from '@mui/icons-material/Sync'
 
-interface JellyseerrConfig {
+interface SeerrConfig {
   configured: boolean
   enabled: boolean
   url: string
@@ -35,8 +35,8 @@ interface TestResult {
   serverName?: string
 }
 
-export function JellyseerrConfigSection() {
-  const [config, setConfig] = useState<JellyseerrConfig | null>(null)
+export function SeerrConfigSection() {
+  const [config, setConfig] = useState<SeerrConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
@@ -53,7 +53,7 @@ export function JellyseerrConfigSection() {
 
   const fetchConfig = useCallback(async () => {
     try {
-      const response = await fetch('/api/jellyseerr/config', { credentials: 'include' })
+      const response = await fetch('/api/seerr/config', { credentials: 'include' })
       if (response.ok) {
         const data = await response.json()
         setConfig(data)
@@ -63,7 +63,7 @@ export function JellyseerrConfigSection() {
         setHasChanges(false)
       }
     } catch {
-      setError('Failed to load Jellyseerr configuration')
+      setError('Failed to load Seerr configuration')
     } finally {
       setLoading(false)
     }
@@ -80,7 +80,7 @@ export function JellyseerrConfigSection() {
     setTestResult(null)
 
     try {
-      const response = await fetch('/api/jellyseerr/config', {
+      const response = await fetch('/api/seerr/config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -93,7 +93,7 @@ export function JellyseerrConfigSection() {
 
       if (response.ok) {
         const data = await response.json()
-        setSuccess('Jellyseerr configuration saved!')
+        setSuccess('Seerr configuration saved!')
         setConfig(prev => prev ? { ...prev, configured: data.configured, enabled: data.enabled } : null)
         setApiKey('')
         setHasChanges(false)
@@ -115,7 +115,7 @@ export function JellyseerrConfigSection() {
     setError(null)
 
     try {
-      const response = await fetch('/api/jellyseerr/test', {
+      const response = await fetch('/api/seerr/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -167,7 +167,7 @@ export function JellyseerrConfigSection() {
             JS
           </Box>
           <Typography variant="h6" fontWeight={600}>
-            Jellyseerr Integration
+            Seerr Integration
           </Typography>
           {config?.configured && config?.enabled && (
             <Chip
@@ -187,11 +187,11 @@ export function JellyseerrConfigSection() {
         </Box>
 
         <Typography variant="body2" color="text.secondary" mb={3}>
-          Enable Jellyseerr integration to let users request missing content discovered by AI.{' '}
+          Enable Seerr integration to let users request missing content discovered by AI.{' '}
           <Link href="https://docs.jellyseerr.dev" target="_blank" rel="noopener">
-            Learn more about Jellyseerr
+            Learn more about Seerr
           </Link>{' '}
-          or get your API key from your Jellyseerr settings.
+          or get your API key from your Seerr settings.
         </Typography>
 
         {error && (
@@ -223,7 +223,7 @@ export function JellyseerrConfigSection() {
 
         <Box display="flex" flexDirection="column" gap={2}>
           <TextField
-            label="Jellyseerr URL"
+            label="Seerr URL"
             value={url}
             onChange={(e) => {
               setUrl(e.target.value)
@@ -231,8 +231,8 @@ export function JellyseerrConfigSection() {
             }}
             size="small"
             fullWidth
-            placeholder="https://jellyseerr.example.com"
-            helperText="The URL of your Jellyseerr instance"
+            placeholder="https://seerr.example.com"
+            helperText="The URL of your Seerr instance"
           />
 
           <TextField
@@ -247,11 +247,11 @@ export function JellyseerrConfigSection() {
             }}
             size="small"
             fullWidth
-            placeholder="Enter your Jellyseerr API Key"
+            placeholder="Enter your Seerr API Key"
             helperText={
               config?.hasApiKey && !apiKey
                 ? 'API key is saved. Enter a new one to replace it.'
-                : 'Get your API key from Jellyseerr → Settings → General'
+                : 'Get your API key from Seerr → Settings → General'
             }
             InputProps={{
               endAdornment: (
@@ -281,7 +281,7 @@ export function JellyseerrConfigSection() {
             }
             label={
               <Typography variant="body2">
-                Enable Jellyseerr for content requests
+                Enable Seerr for content requests
               </Typography>
             }
           />

@@ -44,7 +44,7 @@ Start here if you're new to Aperture:
 | [TMDb](admin/tmdb.md) | Metadata enrichment |
 | [OMDb](admin/omdb.md) | Rotten Tomatoes, Metacritic |
 | [MDBList](admin/mdblist.md) | Curated lists, Top Picks source |
-| [Jellyseerr](admin/jellyseerr.md) | Discovery requests |
+| [Seerr](admin/seerr.md) | Discovery requests |
 
 ---
 
@@ -197,7 +197,7 @@ All admin documentation files:
 - [admin/tmdb.md](admin/tmdb.md)
 - [admin/omdb.md](admin/omdb.md)
 - [admin/mdblist.md](admin/mdblist.md)
-- [admin/jellyseerr.md](admin/jellyseerr.md)
+- [admin/seerr.md](admin/seerr.md)
 
 ### AI Configuration
 - [admin/ai-providers.md](admin/ai-providers.md)

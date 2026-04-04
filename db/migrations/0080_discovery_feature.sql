@@ -1,6 +1,6 @@
 -- Migration: 0080_discovery_feature
 -- Description: Add Discovery feature for suggesting content not in user's library,
---              with Jellyseerr integration for content requests
+--              with Seerr integration for content requests
 
 -- ============================================================================
 -- USER COLUMNS: Discovery permissions
@@ -9,7 +9,7 @@
 -- Enable/disable discovery suggestions per user
 ALTER TABLE users ADD COLUMN discover_enabled BOOLEAN NOT NULL DEFAULT FALSE;
 
--- Enable/disable Jellyseerr request capability per user
+-- Enable/disable Seerr request capability per user
 ALTER TABLE users ADD COLUMN discover_request_enabled BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Indexes for efficient filtering
@@ -17,7 +17,7 @@ CREATE INDEX idx_users_discover_enabled ON users(discover_enabled) WHERE discove
 CREATE INDEX idx_users_discover_request_enabled ON users(discover_request_enabled) WHERE discover_request_enabled = TRUE;
 
 COMMENT ON COLUMN users.discover_enabled IS 'Whether user can see Discovery suggestions for content not in library';
-COMMENT ON COLUMN users.discover_request_enabled IS 'Whether user can request missing content via Jellyseerr';
+COMMENT ON COLUMN users.discover_request_enabled IS 'Whether user can request missing content via Seerr';
 
 -- ============================================================================
 -- DISCOVERY RUNS TABLE: Track job executions per user
@@ -124,7 +124,7 @@ COMMENT ON COLUMN discovery_candidates.source_media_id IS 'TMDb ID of media that
 COMMENT ON COLUMN discovery_candidates.score_breakdown IS 'Detailed breakdown of all scoring factors';
 
 -- ============================================================================
--- DISCOVERY REQUESTS TABLE: Track Jellyseerr request submissions
+-- DISCOVERY REQUESTS TABLE: Track Seerr request submissions
 -- ============================================================================
 
 CREATE TABLE discovery_requests (
@@ -140,9 +140,9 @@ CREATE TABLE discovery_requests (
   tmdb_id INTEGER NOT NULL,
   title TEXT NOT NULL,
 
-  -- Jellyseerr request info
-  jellyseerr_request_id INTEGER, -- Jellyseerr's internal request ID
-  jellyseerr_media_id INTEGER, -- Jellyseerr's internal media ID
+  -- Seerr request info
+  seerr_request_id INTEGER, -- Seerr's internal request ID
+  seerr_media_id INTEGER, -- Seerr's internal media ID
 
   -- Status tracking
   status TEXT NOT NULL DEFAULT 'pending'
@@ -165,15 +165,15 @@ CREATE TRIGGER discovery_requests_updated_at
   BEFORE UPDATE ON discovery_requests
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-COMMENT ON TABLE discovery_requests IS 'Tracks content requests submitted to Jellyseerr from Aperture';
-COMMENT ON COLUMN discovery_requests.jellyseerr_request_id IS 'Request ID in Jellyseerr system';
-COMMENT ON COLUMN discovery_requests.jellyseerr_media_id IS 'Media ID in Jellyseerr system';
+COMMENT ON TABLE discovery_requests IS 'Tracks content requests submitted to Seerr from Aperture';
+COMMENT ON COLUMN discovery_requests.seerr_request_id IS 'Request ID in Seerr system';
+COMMENT ON COLUMN discovery_requests.seerr_media_id IS 'Media ID in Seerr system';
 COMMENT ON COLUMN discovery_requests.status IS 'Request status: pending, submitted, approved, declined, available, failed';
 COMMENT ON COLUMN discovery_requests.discovery_candidate_id IS 'Link to discovery candidate if request originated from Discovery page';
 
 -- ============================================================================
--- JELLYSEERR CONFIG (stored in system_settings via existing functions)
--- Keys: jellyseerr_url, jellyseerr_api_key, jellyseerr_enabled
+-- SEERR CONFIG (stored in system_settings via existing functions)
+-- Keys: seerr_url, seerr_api_key, seerr_enabled (see migration 0104 for key renames)
 -- ============================================================================
 
 -- No table changes needed - uses existing system_settings table

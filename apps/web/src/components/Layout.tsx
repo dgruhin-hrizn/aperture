@@ -36,6 +36,7 @@ import AddToQueueIcon from '@mui/icons-material/AddToQueue'
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined'
 import ExploreIcon from '@mui/icons-material/Explore'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
+import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck'
 import MenuOpenIcon from '@mui/icons-material/MenuOpen'
 import { useAuth } from '@/hooks/useAuth'
 import { WelcomeModal, useWelcomeModal } from './WelcomeModal'
@@ -55,6 +56,7 @@ const baseUserMenuItems = [
   { text: 'Playlists', icon: <PlaylistPlayIcon />, path: '/playlists', feature: null },
   { text: 'Explore', icon: <HubOutlinedIcon />, path: '/explore', feature: null },
   { text: 'Discover', icon: <ExploreIcon />, path: '/discovery', feature: null },
+  { text: 'My Requests', icon: <PlaylistAddCheckIcon />, path: '/my-requests', feature: null },
   { text: 'Browse', icon: <VideoLibraryIcon />, path: '/browse', feature: null },
   { text: 'Watch History', icon: <HistoryIcon />, path: '/history', feature: null },
   { text: 'Watch Stats', icon: <InsightsIcon />, path: '/stats', feature: null },
@@ -311,7 +313,7 @@ export function Layout() {
         }}
       >
         <Tooltip
-          title={collapsed ? 'Expand sidebar (v0.6.5)' : 'Collapse sidebar'}
+          title={collapsed ? 'Expand sidebar (v0.7.0)' : 'Collapse sidebar'}
           placement="right"
         >
           <IconButton
@@ -336,7 +338,7 @@ export function Layout() {
               fontSize: '0.7rem',
             }}
           >
-            v0.6.5
+            v0.7.0
           </Typography>
         )}
       </Box>

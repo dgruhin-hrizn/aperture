@@ -25,7 +25,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
 import { RankBadge } from '@aperture/ui'
 import { DiscoveryDetailPopper } from './DiscoveryDetailPopper'
 import { SeasonSelectModal, type SeasonInfo } from './SeasonSelectModal'
-import type { DiscoveryCandidate, JellyseerrMediaStatus } from '../types'
+import type { DiscoveryCandidate, SeerrMediaStatus } from '../types'
 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w500'
 const FALLBACK_POSTER = '/NO_POSTER_FOUND.png'
@@ -35,7 +35,7 @@ interface DiscoveryListItemProps {
   canRequest: boolean
   onRequest: (candidate: DiscoveryCandidate, seasons?: number[]) => Promise<void>
   isRequesting: boolean
-  cachedStatus?: JellyseerrMediaStatus
+  cachedStatus?: SeerrMediaStatus
   fetchTVDetails?: (tmdbId: number) => Promise<{ seasons: SeasonInfo[]; title: string; posterPath?: string } | null>
 }
 

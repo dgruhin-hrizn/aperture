@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { DiscoveryCandidate, DiscoveryRun, DiscoveryStatus, MediaType, JellyseerrMediaStatus, DiscoveryFilterOptions } from '../types'
+import type { DiscoveryCandidate, DiscoveryRun, DiscoveryStatus, MediaType, SeerrMediaStatus, DiscoveryFilterOptions } from '../types'
 
-// Jellyseerr status for candidates (keyed by TMDb ID)
-export type JellyseerrStatusMap = Record<number, JellyseerrMediaStatus>
+// Seerr status for candidates (keyed by TMDb ID)
+export type SeerrStatusMap = Record<number, SeerrMediaStatus>
 
 // Build query string from filter options
 function buildFilterQueryString(filters: DiscoveryFilterOptions): string {
@@ -97,7 +97,7 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
   const [seriesCandidates, setSeriesCandidates] = useState<DiscoveryCandidate[]>([])
   const [movieRun, setMovieRun] = useState<DiscoveryRun | null>(null)
   const [seriesRun, setSeriesRun] = useState<DiscoveryRun | null>(null)
-  const [jellyseerrStatus, setJellyseerrStatus] = useState<JellyseerrStatusMap>({})
+  const [seerrStatus, setSeerrStatus] = useState<SeerrStatusMap>({})
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [expanding, setExpanding] = useState(false)
@@ -133,7 +133,7 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
     }
   }, [])
 
-  const fetchJellyseerrStatus = useCallback(async (candidates: DiscoveryCandidate[]) => {
+  const fetchSeerrStatus = useCallback(async (candidates: DiscoveryCandidate[]) => {
     if (candidates.length === 0) return
 
     try {
@@ -142,7 +142,7 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
         mediaType: c.mediaType,
       }))
 
-      const response = await fetch('/api/jellyseerr/status/batch', {
+      const response = await fetch('/api/seerr/status/batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -151,10 +151,10 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
 
       if (response.ok) {
         const data = await response.json()
-        setJellyseerrStatus(prev => ({ ...prev, ...data.statuses }))
+        setSeerrStatus(prev => ({ ...prev, ...data.statuses }))
       }
     } catch {
-      console.error('Could not fetch Jellyseerr status')
+      console.error('Could not fetch Seerr status')
     }
   }, [])
 
@@ -176,9 +176,9 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
           setSeriesRun(data.run)
         }
         
-        // Fetch Jellyseerr status for these candidates
+        // Fetch Seerr status for these candidates
         if (candidates.length > 0) {
-          await fetchJellyseerrStatus(candidates)
+          await fetchSeerrStatus(candidates)
         }
         
         return { candidates, run: data.run }
@@ -190,7 +190,7 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
       console.error('Could not fetch candidates')
       return null
     }
-  }, [fetchJellyseerrStatus])
+  }, [fetchSeerrStatus])
 
   const refresh = useCallback(async (mediaType: MediaType) => {
     setRefreshing(true)
@@ -229,7 +229,7 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
 
   // Mark an item as requested locally (after successful request)
   const markAsRequested = useCallback((tmdbId: number) => {
-    setJellyseerrStatus(prev => ({
+    setSeerrStatus(prev => ({
       ...prev,
       [tmdbId]: {
         ...prev[tmdbId],
@@ -316,9 +316,9 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
         setSeriesCandidates(merged)
       }
 
-      // Fetch Jellyseerr status for new candidates
+      // Fetch Seerr status for new candidates
       if (newCandidates.length > 0) {
-        await fetchJellyseerrStatus(newCandidates)
+        await fetchSeerrStatus(newCandidates)
       }
 
       return { candidates: merged, added: newCandidates.length }
@@ -334,7 +334,7 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
     // Note: We intentionally don't include `expanding` in deps to prevent callback recreation
     // The `expanding` check uses a ref pattern internally
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, fetchJellyseerrStatus])
+  }, [filters, fetchSeerrStatus])
 
   // Check if filters have changed
   const filtersChanged = JSON.stringify(filters) !== JSON.stringify(filtersRef.current)
@@ -376,10 +376,10 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
             setLoading(false)
             isFirstLoad.current = false
             
-            // Fetch Jellyseerr status for cached candidates (always fresh)
+            // Fetch Seerr status for cached candidates (always fresh)
             const allCandidates = [...cached.movieCandidates, ...cached.seriesCandidates]
             if (allCandidates.length > 0) {
-              fetchJellyseerrStatus(allCandidates)
+              fetchSeerrStatus(allCandidates)
             }
             return
           }
@@ -413,7 +413,7 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
       setLoading(false)
     }
     load()
-  }, [fetchStatus, fetchCandidates, fetchJellyseerrStatus, filters])
+  }, [fetchStatus, fetchCandidates, fetchSeerrStatus, filters])
 
   // Auto-expand when filters result in low candidate count
   useEffect(() => {
@@ -479,7 +479,7 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
     seriesCandidates,
     movieRun,
     seriesRun,
-    jellyseerrStatus,
+    seerrStatus,
     loading,
     refreshing,
     expanding,

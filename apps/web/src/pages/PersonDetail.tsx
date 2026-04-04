@@ -29,7 +29,7 @@ import { useWatching } from '../hooks/useWatching'
 import { RotatingBackdrop } from '../components/RotatingBackdrop'
 import { MediaPosterCard } from '../components/MediaPosterCard'
 import { SeasonSelectModal, type SeasonInfo } from './discovery/components/SeasonSelectModal'
-import { useJellyseerrRequest } from './discovery/hooks/useJellyseerrRequest'
+import { useSeerrRequest } from './discovery/hooks/useSeerrRequest'
 import {
   TmdbExternalDetailModal,
   type TmdbExternalDetailPayload,
@@ -82,7 +82,7 @@ interface CreditsGapResponse {
   missing: CreditsGapGroup[]
 }
 
-interface JellyseerrBatchStatus {
+interface SeerrBatchStatus {
   exists: boolean
   status: string
   requested: boolean
@@ -111,10 +111,10 @@ export function PersonDetailPage() {
   const [avatarPhase, setAvatarPhase] = useState<'media' | 'tmdb' | 'initials'>('media')
   const [creditsGap, setCreditsGap] = useState<CreditsGapResponse | null>(null)
   const [creditsGapLoading, setCreditsGapLoading] = useState(false)
-  const [jellyseerrStatuses, setJellyseerrStatuses] = useState<
-    Record<number, JellyseerrBatchStatus>
+  const [seerrStatuses, setSeerrStatuses] = useState<
+    Record<number, SeerrBatchStatus>
   >({})
-  const [canRequestJellyseerr, setCanRequestJellyseerr] = useState(false)
+  const [canRequestSeerr, setCanRequestSeerr] = useState(false)
   const [avatarImgVisible, setAvatarImgVisible] = useState(false)
   const [seasonModalOpen, setSeasonModalOpen] = useState(false)
   const [seasonModalRow, setSeasonModalRow] = useState<CreditsGapRow | null>(null)
@@ -132,7 +132,7 @@ export function PersonDetailPage() {
   const [creditsMediaFilter, setCreditsMediaFilter] = useState<'all' | 'movie' | 'tv'>('all')
   const [creditsRoleFilter, setCreditsRoleFilter] = useState<string>('actor')
 
-  const { submitRequest, fetchTVDetails, isRequesting } = useJellyseerrRequest()
+  const { submitRequest, fetchTVDetails, isRequesting } = useSeerrRequest()
 
   useEffect(() => {
     const fetchPerson = async () => {
@@ -184,24 +184,24 @@ export function PersonDetailPage() {
             tmdbId: m.tmdbId,
             mediaType: (m.mediaType === 'movie' ? 'movie' : 'series') as 'movie' | 'series',
           }))
-          void fetch('/api/jellyseerr/status/batch', {
+          void fetch('/api/seerr/status/batch', {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ items }),
           })
             .then((r) => r.json())
-            .then((d: { statuses?: Record<number, JellyseerrBatchStatus> }) => {
-              if (d?.statuses) setJellyseerrStatuses(d.statuses)
+            .then((d: { statuses?: Record<number, SeerrBatchStatus> }) => {
+              if (d?.statuses) setSeerrStatuses(d.statuses)
             })
             .catch(() => {})
 
           const probe = flatMissing[0]
           const mt = probe.mediaType === 'movie' ? 'movie' : 'tv'
-          void fetch(`/api/jellyseerr/status/${mt}/${probe.tmdbId}`, { credentials: 'include' })
+          void fetch(`/api/seerr/status/${mt}/${probe.tmdbId}`, { credentials: 'include' })
             .then((r) => r.json())
-            .then((d: { canRequest?: boolean }) => setCanRequestJellyseerr(d.canRequest === true))
-            .catch(() => setCanRequestJellyseerr(false))
+            .then((d: { canRequest?: boolean }) => setCanRequestSeerr(d.canRequest === true))
+            .catch(() => setCanRequestSeerr(false))
         }
       })
       .finally(() => setCreditsGapLoading(false))
@@ -290,7 +290,7 @@ export function PersonDetailPage() {
   }
 
   const markCreditsRowRequested = (tmdbId: number) => {
-    setJellyseerrStatuses((prev) => ({
+    setSeerrStatuses((prev) => ({
       ...prev,
       [tmdbId]: {
         ...(prev[tmdbId] ?? {
@@ -379,10 +379,10 @@ export function PersonDetailPage() {
   }
 
   const renderCreditsMissingItem = (row: CreditsGapRow) => {
-    const st = jellyseerrStatuses[row.tmdbId]
+    const st = seerrStatuses[row.tmdbId]
     const available = st?.status === 'available' || st?.exists === true
     const pending = st?.requested === true || st?.requestStatus === 'pending'
-    const showRequest = canRequestJellyseerr && !available && !pending
+    const showRequest = canRequestSeerr && !available && !pending
     const posterUrl = row.posterUrl ? getProxiedImageUrl(row.posterUrl, '') : null
 
     return (
@@ -395,7 +395,7 @@ export function PersonDetailPage() {
             posterUrl={posterUrl}
             mediaType={row.mediaType === 'movie' ? 'movie' : 'series'}
             inLibrary={false}
-            jellyseerrStatus={
+            seerrStatus={
               st
                 ? {
                     requested: st.requested,
@@ -424,17 +424,17 @@ export function PersonDetailPage() {
   }
 
   const tmdbDetailSt = tmdbDetailCreditsRow
-    ? jellyseerrStatuses[tmdbDetailCreditsRow.tmdbId]
+    ? seerrStatuses[tmdbDetailCreditsRow.tmdbId]
     : undefined
-  const tmdbDetailJellyAvailable =
+  const tmdbDetailSeerrAvailable =
     tmdbDetailSt?.status === 'available' || tmdbDetailSt?.exists === true
-  const tmdbDetailJellyPending =
+  const tmdbDetailSeerrPending =
     tmdbDetailSt?.requested === true || tmdbDetailSt?.requestStatus === 'pending'
   const tmdbDetailCanRequest =
     !!tmdbDetailCreditsRow &&
-    canRequestJellyseerr &&
-    !tmdbDetailJellyAvailable &&
-    !tmdbDetailJellyPending
+    canRequestSeerr &&
+    !tmdbDetailSeerrAvailable &&
+    !tmdbDetailSeerrPending
 
   return (
     <Box>
@@ -705,8 +705,8 @@ export function PersonDetailPage() {
           isRequesting={
             tmdbDetailCreditsRow ? isRequesting(tmdbDetailCreditsRow.tmdbId) : false
           }
-          jellyseerrAvailable={tmdbDetailJellyAvailable}
-          jellyseerrPending={tmdbDetailJellyPending}
+          seerrAvailable={tmdbDetailSeerrAvailable}
+          seerrPending={tmdbDetailSeerrPending}
           onRequest={
             tmdbDetailCreditsRow
               ? () => void handleCreditsRequest(tmdbDetailCreditsRow)

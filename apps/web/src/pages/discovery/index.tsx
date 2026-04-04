@@ -27,7 +27,7 @@ import TvIcon from '@mui/icons-material/Tv'
 import GridViewIcon from '@mui/icons-material/GridView'
 import ViewListIcon from '@mui/icons-material/ViewList'
 import AutorenewIcon from '@mui/icons-material/Autorenew'
-import { useDiscoveryData, useJellyseerrRequest, useDiscoveryJobStatus, invalidateDiscoveryCache } from './hooks'
+import { useDiscoveryData, useSeerrRequest, useDiscoveryJobStatus, invalidateDiscoveryCache } from './hooks'
 import { DiscoveryCard, DiscoveryFilters, DiscoveryListItem } from './components'
 import { useViewMode } from '../../hooks/useViewMode'
 import type { DiscoveryCandidate, DiscoveryFilterOptions, MediaType } from './types'
@@ -73,7 +73,7 @@ export function DiscoveryPage() {
     seriesCandidates,
     movieRun,
     seriesRun,
-    jellyseerrStatus,
+    seerrStatus,
     loading,
     refreshing,
     expanding,
@@ -83,7 +83,7 @@ export function DiscoveryPage() {
     refetchCandidates,
   } = useDiscoveryData(stableFilters)
 
-  const { submitRequest, isRequesting, fetchTVDetails } = useJellyseerrRequest()
+  const { submitRequest, isRequesting, fetchTVDetails } = useSeerrRequest()
 
   // Subscribe to discovery job status for real-time updates
   const { isRunning: isJobRunning, progress: jobProgress } = useDiscoveryJobStatus({
@@ -342,7 +342,7 @@ export function DiscoveryPage() {
       {/* Request capability notice */}
       {status?.requestEnabled ? (
         <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
-          Click on any title to view on TMDb. Hover to request content via Jellyseerr.
+          Click on any title to view on TMDb. Hover to request content via Seerr.
         </Alert>
       ) : (
         <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
@@ -373,7 +373,7 @@ export function DiscoveryPage() {
                 canRequest={status?.requestEnabled ?? false}
                 onRequest={handleRequest}
                 isRequesting={isRequesting(candidate.tmdbId)}
-                cachedStatus={jellyseerrStatus[candidate.tmdbId]}
+                cachedStatus={seerrStatus[candidate.tmdbId]}
                 fetchTVDetails={fetchTVDetails}
               />
             </Grid>
@@ -388,7 +388,7 @@ export function DiscoveryPage() {
               canRequest={status?.requestEnabled ?? false}
               onRequest={handleRequest}
               isRequesting={isRequesting(candidate.tmdbId)}
-              cachedStatus={jellyseerrStatus[candidate.tmdbId]}
+              cachedStatus={seerrStatus[candidate.tmdbId]}
               fetchTVDetails={fetchTVDetails}
             />
           ))}

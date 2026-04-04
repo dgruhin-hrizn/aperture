@@ -734,44 +734,48 @@ export {
   type CreateGraphPlaylistInput,
 } from './graphPlaylists/index.js'
 
-// Jellyseerr Integration
+// Seerr Integration
 export {
   // Configuration
-  getJellyseerrConfig,
-  setJellyseerrConfig,
-  isJellyseerrConfigured,
-  testJellyseerrConnection,
+  getSeerrConfig,
+  setSeerrConfig,
+  isSeerrConfigured,
+  testSeerrConnection,
   // Search & Media Info
-  searchContent as jellyseerrSearchContent,
-  getMovieDetails as getJellyseerrMovieDetails,
-  getTVDetails as getJellyseerrTVDetails,
-  getMediaStatus as getJellyseerrMediaStatus,
+  searchContent as seerrSearchContent,
+  getMovieDetails as getSeerrMovieDetails,
+  getTVDetails as getSeerrTVDetails,
+  getMediaStatus as getSeerrMediaStatus,
+  listAllSeerrUsers,
+  matchApertureProfileToSeerrUser,
+  resolveSeerrUserIdForProfile,
   // Request Management
-  createRequest as createJellyseerrRequest,
-  getRequest as getJellyseerrRequest,
-  getRequestStatus as getJellyseerrRequestStatus,
-  deleteRequest as deleteJellyseerrRequest,
+  createRequest as createSeerrRequest,
+  getRequest as getSeerrRequest,
+  getRequestStatus as getSeerrRequestStatus,
+  deleteRequest as deleteSeerrRequest,
   // Batch Operations
-  batchGetMediaStatus as batchGetJellyseerrMediaStatus,
+  batchGetMediaStatus as batchGetSeerrMediaStatus,
   // Types
-  type JellyseerrConfig,
-  type JellyseerrUser,
-  type JellyseerrMediaInfo,
-  type JellyseerrSearchResult,
-  type JellyseerrSearchItem,
-  type JellyseerrMovieDetails,
-  type JellyseerrTVDetails,
-  type JellyseerrSeason,
-  type JellyseerrMediaStatus,
-  type JellyseerrRequestStatus,
-  type JellyseerrRequestBody,
-  type JellyseerrRequestResponse,
-  type JellyseerrMediaRequest,
+  type SeerrConfig,
+  type SeerrUser,
+  type ApertureUserProfileForSeerr,
+  type SeerrMediaInfo,
+  type SeerrSearchResult,
+  type SeerrSearchItem,
+  type SeerrMovieDetails,
+  type SeerrTVDetails,
+  type SeerrSeason,
+  type SeerrMediaStatus,
+  type SeerrRequestStatus,
+  type SeerrRequestBody,
+  type SeerrRequestResponse,
+  type SeerrMediaRequest,
   getMediaStatusLabel,
   getRequestStatusLabel,
-  JELLYSEERR_MEDIA_STATUS,
-  JELLYSEERR_REQUEST_STATUS,
-} from './jellyseerr/index.js'
+  SEERR_MEDIA_STATUS,
+  SEERR_REQUEST_STATUS,
+} from './seerr/index.js'
 
 // Discovery (Missing Content Suggestions)
 export {

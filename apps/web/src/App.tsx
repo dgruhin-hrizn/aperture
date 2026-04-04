@@ -31,6 +31,7 @@ import { PersonDetailPage } from './pages/PersonDetail'
 import { StudioDetailPage } from './pages/StudioDetail'
 import { ExplorePage } from './pages/explore'
 import { DiscoveryPage } from './pages/discovery'
+import { MyRequestsPage } from './pages/MyRequests'
 // Admin pages
 import { AdminDashboard } from './pages/admin'
 import { UsersPage } from './pages/Users'
@@ -158,6 +159,7 @@ function AppRoutes() {
         <Route path="playlists" element={<PlaylistsPage />} />
         <Route path="explore" element={<ExplorePage />} />
         <Route path="discovery" element={<DiscoveryPage />} />
+        <Route path="my-requests" element={<MyRequestsPage />} />
         <Route path="browse" element={<BrowsePage />} />
         <Route path="movies" element={<MoviesPage />} />
         <Route path="movies/:id" element={<MovieDetailPage />} />
