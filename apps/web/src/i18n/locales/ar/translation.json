@@ -964,7 +964,8 @@
       "traktTrending": "تتجه",
       "traktPopular": "شائع",
       "traktRecommendations": "اختيار المسار",
-      "mdblist": "MDBList"
+      "mdblist": "MDBList",
+      "justwatchStreaming": "Streaming charts"
     },
     "detail": {
       "mediaMovie": "فيلم",
@@ -3551,5 +3552,33 @@
       "title": "منظمة العفو الدولية تكوينها بالكامل",
       "message": "جميع ميزات الذكاء الاصطناعي متاحة مع التكوين الحالي الخاص بك."
     }
+  },
+  "settingsStreamingDiscovery": {
+    "title": "Streaming discovery (JustWatch)",
+    "description": "Show popular and per-provider streaming charts on the Discovery page. Uses JustWatch public data; enable only after you are comfortable with the integration.",
+    "enable": "Show streaming charts on Discovery",
+    "providerStrips": "Provider strips",
+    "providerStripsHelper": "Pick one or more streaming services. Stored values are short_name codes used by JustWatch filters. For regions outside the bundled list, cross-check with the live Discovery providers response.",
+    "providerStripsPlaceholder": "Search providers…",
+    "providerTermsLoadWarning": "Could not load provider choices for the picker; save still works if you already have codes configured. Refresh the page to retry.",
+    "save": "Save",
+    "saved": "Streaming discovery settings saved.",
+    "loadError": "Failed to load streaming discovery settings",
+    "saveError": "Failed to save streaming discovery settings"
+  },
+  "discoveryStreaming": {
+    "sectionTitle": "Streaming charts",
+    "sectionBlurb": "Popular titles and streaming momentum from JustWatch. Filter to titles not already in your library and request via Seerr when available.",
+    "country": "Country",
+    "languageHint": "Language: {{lang}} (from your UI locale)",
+    "missingOnly": "Only titles not in my library",
+    "searchPlaceholder": "Search streaming catalogs…",
+    "stripPopular": "Popular (all services)",
+    "stripProvider": "Popular on {{name}}",
+    "searchResults": "Search results",
+    "emptyStrip": "No titles in this row.",
+    "loadError": "Could not load streaming data",
+    "staleCache": "Showing cached results; live data refresh failed.",
+    "inLibrary": "In library"
   }
 }
