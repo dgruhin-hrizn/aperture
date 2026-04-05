@@ -86,6 +86,10 @@ Start here if you're new to Aperture:
 | [Top Picks](admin/top-picks.md) | Global trending libraries |
 | [Shows You Watch](admin/shows-you-watch.md) | Track ongoing series |
 
+### Language defaults (admin)
+
+Under **Admin → Settings → System**, **Language defaults** sets the instance-wide default **UI language** and default **AI output language** (taste synopses, recommendation explanations, assistant replies, etc.). Users can override both under **Settings → Preferences → Language** (`uiLanguage` / `aiLanguage` in stored preferences; `null` means “use server default”). Supported locale codes match `APP_LOCALE_OPTIONS` in core: `en`, `es`, `de`, `fr`, `it`, `pt`, `ja`, `zh`, `ko`, `hi`, `ar`, `he`.
+
 ### Gap Analysis (admin)
 
 **Gap Analysis** (`/admin/gaps`) compares TMDB movie collection membership to your synced `movies` table so you can see which franchise entries are missing. It is **not** the same as user [Discovery](features/discovery.md) (per-user suggestions).

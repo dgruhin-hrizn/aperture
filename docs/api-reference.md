@@ -28,6 +28,8 @@ Complete reference for all Aperture API endpoints.
 | `POST /api/auth/login`  | Authenticate with media server credentials |
 | `POST /api/auth/logout` | End session                                |
 | `GET /api/auth/me`      | Get current user                           |
+| `GET /api/auth/me/preferences` | Get UI preferences; includes `effectiveUiLanguage` and `effectiveAiLanguage` |
+| `PATCH /api/auth/me/preferences` | Update UI prefs (`uiLanguage`, `aiLanguage`, …); response includes effective locales |
 
 ---
 
@@ -228,6 +230,9 @@ The assistant has access to these tools for content discovery:
 | `PATCH /api/settings/trakt`                   | Update Trakt configuration  |
 | `GET /api/settings/chat-assistant-model`      | Get chat assistant model    |
 | `PATCH /api/settings/chat-assistant-model`    | Set chat assistant model    |
+| `GET /api/settings/locales`                   | Public: supported UI/AI locale codes and labels |
+| `GET /api/settings/language-defaults`         | Instance default UI/AI languages (auth) |
+| `PATCH /api/settings/language-defaults`       | Set default UI/AI languages (Admin) |
 
 ---
 
