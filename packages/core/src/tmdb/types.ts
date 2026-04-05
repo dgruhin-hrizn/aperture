@@ -218,12 +218,19 @@ export interface CollectionData {
   tmdbId: number
   name: string
   overview: string | null
+  /** Full image URL for display */
   posterUrl: string | null
+  /** Raw TMDb poster_path (e.g. /x.jpg) for persistence */
+  posterPath: string | null
   backdropUrl: string | null
+  /** Raw TMDb backdrop_path for local cache persistence */
+  backdropPath?: string | null
   parts: {
     tmdbId: number
     title: string
     releaseDate: string | null
+    /** TMDb poster_path (relative), e.g. /abc.jpg */
+    posterPath: string | null
   }[]
 }
 
