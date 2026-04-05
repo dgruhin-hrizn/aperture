@@ -20,11 +20,14 @@ import {
   appLocaleToTmdbLanguage,
   getMovieGenresList,
   getTVGenresList,
+  getStreamingDiscoveryEnabled,
   type DiscoveryFilterOptions,
   type DynamicFetchFilters,
   type MediaType,
   type TMDbGenre,
 } from '@aperture/core'
+import { registerStreamingDiscoveryRoutes } from './streaming.js'
+import { registerTmdbGenreRowsRoutes } from './tmdbGenreRows.js'
 import {
   discoverySchemas,
   getDiscoveryMoviesSchema,
@@ -87,6 +90,9 @@ function parseFilterParams(queryParams: {
 }
 
 const discoveryRoutes: FastifyPluginAsync = async (fastify) => {
+  registerStreamingDiscoveryRoutes(fastify)
+  registerTmdbGenreRowsRoutes(fastify)
+
   // Register schemas
   for (const [name, schema] of Object.entries(discoverySchemas)) {
     fastify.addSchema({ $id: name, ...schema })
@@ -463,6 +469,7 @@ const discoveryRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.send({
           enabled: false,
           requestEnabled: false,
+          streamingDiscoveryEnabled: false,
           movieRun: null,
           seriesRun: null,
           movieCount: 0,
@@ -471,16 +478,18 @@ const discoveryRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       // Get latest runs
-      const [movieRun, seriesRun, movieCount, seriesCount] = await Promise.all([
+      const [movieRun, seriesRun, movieCount, seriesCount, streamingDiscoveryEnabled] = await Promise.all([
         getLatestDiscoveryRun(currentUser.id, 'movie'),
         getLatestDiscoveryRun(currentUser.id, 'series'),
         getDiscoveryCandidateCount(currentUser.id, 'movie'),
         getDiscoveryCandidateCount(currentUser.id, 'series'),
+        getStreamingDiscoveryEnabled(),
       ])
 
       return reply.send({
         enabled: true,
         requestEnabled: userSettings.discover_request_enabled,
+        streamingDiscoveryEnabled,
         movieRun,
         seriesRun,
         movieCount,

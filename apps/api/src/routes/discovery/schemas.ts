@@ -95,6 +95,10 @@ export const discoverySchemas = {
     properties: {
       enabled: { type: 'boolean', description: 'Whether discovery is enabled' },
       requestEnabled: { type: 'boolean', description: 'Whether content requests are enabled (Seerr)' },
+      streamingDiscoveryEnabled: {
+        type: 'boolean',
+        description: 'Whether JustWatch streaming charts are enabled (system + user discovery)',
+      },
       movieRun: { $ref: 'DiscoveryRun#' },
       seriesRun: { $ref: 'DiscoveryRun#' },
       movieCount: { type: 'integer', description: 'Number of movie candidates' },
