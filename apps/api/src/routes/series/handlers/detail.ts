@@ -20,14 +20,17 @@ export function registerDetailHandler(fastify: FastifyInstance) {
       const { id } = request.params
 
       const series = await queryOne<SeriesDetailRow>(
-        `SELECT id, provider_item_id, title, original_title, year, end_year, genres, overview,
-                community_rating, critic_rating, content_rating, status, total_seasons, total_episodes, 
-                network, tagline, studios, directors, writers, actors,
-                imdb_id, tmdb_id, tvdb_id, air_days, production_countries, awards,
-                poster_url, backdrop_url, created_at, updated_at,
-                keywords, rt_critic_score, rt_audience_score, rt_consensus, metacritic_score, awards_summary,
-                languages, letterboxd_score, mdblist_score, streaming_providers
-         FROM series WHERE id = $1`,
+        `SELECT s.id, s.provider_item_id, s.title, s.original_title, s.year, s.end_year, s.genres, s.overview,
+                s.community_rating, s.critic_rating, s.content_rating, s.status, s.total_seasons, s.total_episodes,
+                s.network, s.tagline, s.studios, s.directors, s.writers, s.actors,
+                s.imdb_id, s.tmdb_id, s.tvdb_id, s.air_days, s.production_countries, s.awards,
+                s.poster_url, s.backdrop_url, s.created_at, s.updated_at,
+                s.keywords, s.rt_critic_score, s.rt_audience_score, s.rt_consensus, s.metacritic_score, s.awards_summary,
+                s.languages, s.letterboxd_score, s.mdblist_score, s.streaming_providers,
+                (SELECT ROUND(AVG(e.runtime_minutes))::int
+                 FROM episodes e
+                 WHERE e.series_id = s.id AND e.runtime_minutes IS NOT NULL) AS average_episode_runtime_minutes
+         FROM series s WHERE s.id = $1`,
         [id]
       )
 

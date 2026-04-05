@@ -33,6 +33,8 @@ export interface StreamingProvider {
 }
 
 export interface SeriesDetailRow extends SeriesRow {
+  /** Average episode length in minutes (from library episodes with runtime), when available */
+  average_episode_runtime_minutes: number | null
   tagline: string | null
   content_rating: string | null
   critic_rating: number | null

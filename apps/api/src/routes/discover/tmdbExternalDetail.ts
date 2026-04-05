@@ -8,9 +8,12 @@ import type { FastifyInstance } from 'fastify'
 import {
   getMovieCredits,
   getMovieDetails,
+  getMovieVideos,
   getTVCredits,
   getTVDetails,
   getTVExternalIds,
+  getTVVideos,
+  pickBestYoutubeTrailer,
   type TMDbCastMember,
   type TMDbMovieCreditsResponse,
   type TMDbMovieDetails,
@@ -142,6 +145,40 @@ function mapTvExternalDetail(
 }
 
 export function registerTmdbExternalDetailRoutes(fastify: FastifyInstance) {
+  fastify.get<{ Params: { tmdbId: string } }>(
+    '/api/discover/tmdb/movie/:tmdbId/trailer',
+    { preHandler: requireAuth, schema: { tags: ['discovery'] } },
+    async (request, reply) => {
+      const tmdbId = parseInt(request.params.tmdbId, 10)
+      if (!Number.isFinite(tmdbId)) {
+        return reply.status(400).send({ error: 'Invalid tmdbId' })
+      }
+      const data = await getMovieVideos(tmdbId)
+      const picked = pickBestYoutubeTrailer(data?.results ?? [])
+      if (!picked) {
+        return reply.send({ trailerUrl: null, name: null, site: null })
+      }
+      return reply.send(picked)
+    }
+  )
+
+  fastify.get<{ Params: { tmdbId: string } }>(
+    '/api/discover/tmdb/tv/:tmdbId/trailer',
+    { preHandler: requireAuth, schema: { tags: ['discovery'] } },
+    async (request, reply) => {
+      const tmdbId = parseInt(request.params.tmdbId, 10)
+      if (!Number.isFinite(tmdbId)) {
+        return reply.status(400).send({ error: 'Invalid tmdbId' })
+      }
+      const data = await getTVVideos(tmdbId)
+      const picked = pickBestYoutubeTrailer(data?.results ?? [])
+      if (!picked) {
+        return reply.send({ trailerUrl: null, name: null, site: null })
+      }
+      return reply.send(picked)
+    }
+  )
+
   fastify.get<{ Params: { tmdbId: string } }>(
     '/api/discover/tmdb/movie/:tmdbId',
     { preHandler: requireAuth, schema: { tags: ['discovery'] } },

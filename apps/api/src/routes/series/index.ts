@@ -11,6 +11,7 @@ import {
   registerWatchStatsHandler,
   registerEpisodesHandler,
   registerFiltersHandlers,
+  registerTrailerHandler,
 } from './handlers/index.js'
 import { seriesComponentSchemas } from './schemas.js'
 
@@ -27,6 +28,7 @@ const seriesRoutes: FastifyPluginAsync = async (fastify) => {
   registerWatchStatsHandler(fastify)
   registerEpisodesHandler(fastify)
   registerFiltersHandlers(fastify)
+  registerTrailerHandler(fastify)
 }
 
 export default seriesRoutes

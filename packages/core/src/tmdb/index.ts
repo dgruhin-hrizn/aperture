@@ -7,6 +7,8 @@
  * - Expanded Crew (cinematographers, composers, editors)
  */
 
+export { pickBestYoutubeTrailer } from './pickTrailer.js'
+
 // Client utilities
 export {
   tmdbRequest,
@@ -54,6 +56,7 @@ export {
 // Series functions
 export {
   getTVDetails,
+  getTVVideos,
   getTVKeywords,
   getTVExternalIds,
   getTVCredits,

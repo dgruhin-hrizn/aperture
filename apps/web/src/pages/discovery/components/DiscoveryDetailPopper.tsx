@@ -4,7 +4,7 @@
  * Modal dialog showing detailed metadata for a discovery candidate
  * with a fanart backdrop and 2-column card layout
  */
-import React from 'react'
+import React, { useState, useCallback } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -15,6 +15,9 @@ import {
   IconButton,
   Grid,
   alpha,
+  Button,
+  CircularProgress,
+  Tooltip,
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import StarIcon from '@mui/icons-material/Star'
@@ -26,8 +29,9 @@ import TvIcon from '@mui/icons-material/Tv'
 import HowToVoteIcon from '@mui/icons-material/HowToVote'
 import SourceIcon from '@mui/icons-material/Source'
 import TranslateIcon from '@mui/icons-material/Translate'
+import OndemandVideoIcon from '@mui/icons-material/OndemandVideo'
 import { useNavigate } from 'react-router-dom'
-import { getProxiedImageUrl } from '@aperture/ui'
+import { getProxiedImageUrl, TrailerModal } from '@aperture/ui'
 import type { DiscoveryCandidate } from '../types'
 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p'
@@ -45,12 +49,39 @@ export function DiscoveryDetailPopper({
   onClose,
 }: DiscoveryDetailPopperProps) {
   const navigate = useNavigate()
+  const [trailerLoading, setTrailerLoading] = useState(false)
+  const [trailerModal, setTrailerModal] = useState<{
+    open: boolean
+    watchUrl: string | null
+    title: string | null
+  }>({ open: false, watchUrl: null, title: null })
 
-  if (!candidate) return null
+  const handleOpenTrailer = useCallback(async () => {
+    if (!candidate) return
+    const path =
+      candidate.mediaType === 'movie'
+        ? `/api/discover/tmdb/movie/${candidate.tmdbId}/trailer`
+        : `/api/discover/tmdb/tv/${candidate.tmdbId}/trailer`
+    setTrailerLoading(true)
+    try {
+      const res = await fetch(path, { credentials: 'include' })
+      const json = (await res.json()) as { trailerUrl?: string | null; name?: string | null }
+      if (json.trailerUrl) {
+        setTrailerModal({
+          open: true,
+          watchUrl: json.trailerUrl,
+          title: json.name ?? candidate.title,
+        })
+      }
+    } finally {
+      setTrailerLoading(false)
+    }
+  }, [candidate])
 
-  const backdropUrl = candidate.backdropPath
-    ? `${TMDB_IMAGE_BASE}/w1280${candidate.backdropPath}`
-    : FALLBACK_BACKDROP
+  const backdropUrl =
+    candidate?.backdropPath != null
+      ? `${TMDB_IMAGE_BASE}/w1280${candidate.backdropPath}`
+      : FALLBACK_BACKDROP
 
   const formatRuntime = (minutes: number | null) => {
     if (!minutes) return null
@@ -89,6 +120,8 @@ export function DiscoveryDetailPopper({
   }
 
   return (
+    <>
+    {candidate ? (
     <Dialog
       open={open}
       onClose={onClose}
@@ -236,11 +269,44 @@ export function DiscoveryDetailPopper({
                 )}
 
                 {/* Source */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 2 }}>
-                  <SourceIcon fontSize="small" sx={{ color: 'text.secondary' }} />
-                  <Typography variant="body2" color="text.secondary">
-                    Source: {getSourceLabel(candidate.source)}
-                  </Typography>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    mb: 2,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <SourceIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+                    <Typography variant="body2" color="text.secondary">
+                      Source: {getSourceLabel(candidate.source)}
+                    </Typography>
+                  </Box>
+                  <Tooltip title="Play trailer (embedded player)">
+                    <span>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="inherit"
+                        startIcon={
+                          trailerLoading ? (
+                            <CircularProgress size={16} color="inherit" />
+                          ) : (
+                            <OndemandVideoIcon />
+                          )
+                        }
+                        disabled={trailerLoading}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          void handleOpenTrailer()
+                        }}
+                      >
+                        Trailer
+                      </Button>
+                    </span>
+                  </Tooltip>
                 </Box>
 
                 {/* Overview */}
@@ -393,6 +459,14 @@ export function DiscoveryDetailPopper({
         </DialogContent>
       </Box>
     </Dialog>
+    ) : null}
+    <TrailerModal
+      open={trailerModal.open}
+      onClose={() => setTrailerModal({ open: false, watchUrl: null, title: null })}
+      watchUrl={trailerModal.watchUrl}
+      title={trailerModal.title}
+    />
+    </>
   )
 }
 

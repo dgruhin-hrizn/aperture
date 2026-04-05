@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import {
   Box,
   Typography,
@@ -12,6 +12,7 @@ import {
   DialogContentText,
   DialogActions,
   Snackbar,
+  CircularProgress,
 } from '@mui/material'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StarIcon from '@mui/icons-material/Star'
@@ -23,10 +24,16 @@ import AddToQueueIcon from '@mui/icons-material/AddToQueue'
 import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import OndemandVideoIcon from '@mui/icons-material/OndemandVideo'
 import type { Media, MediaServerInfo, WatchStatus } from '../types'
 import { isMovie, isSeries } from '../types'
 import { formatRuntime } from '../hooks'
-import { HeartRating, getProxiedImageUrl, FALLBACK_POSTER_URL } from '@aperture/ui'
+import {
+  HeartRating,
+  getProxiedImageUrl,
+  FALLBACK_POSTER_URL,
+  TrailerModal,
+} from '@aperture/ui'
 
 interface MediaHeroProps {
   media: Media
@@ -64,6 +71,45 @@ export function MediaHero({
     message: string
     severity: 'success' | 'error'
   }>({ open: false, message: '', severity: 'success' })
+  const [trailerLoading, setTrailerLoading] = useState(false)
+  const [trailerModal, setTrailerModal] = useState<{
+    open: boolean
+    watchUrl: string | null
+    title: string | null
+  }>({ open: false, watchUrl: null, title: null })
+
+  const handleOpenTrailer = useCallback(async () => {
+    const tmdb = media.tmdb_id
+    if (!tmdb) return
+    const path =
+      isMovie(media) ? `/api/movies/${media.id}/trailer` : `/api/series/${media.id}/trailer`
+    setTrailerLoading(true)
+    try {
+      const res = await fetch(path, { credentials: 'include' })
+      const data = (await res.json()) as {
+        trailerUrl?: string | null
+        name?: string | null
+        error?: string
+      }
+      if (data.trailerUrl) {
+        setTrailerModal({
+          open: true,
+          watchUrl: data.trailerUrl,
+          title: data.name ?? media.title,
+        })
+      } else {
+        setSnackbar({
+          open: true,
+          message: data.error || 'No trailer found',
+          severity: 'error',
+        })
+      }
+    } catch {
+      setSnackbar({ open: true, message: 'Failed to load trailer', severity: 'error' })
+    } finally {
+      setTrailerLoading(false)
+    }
+  }, [media])
 
   const handlePlayOnMediaServer = () => {
     if (!mediaServer?.baseUrl || !media.provider_item_id) return
@@ -269,6 +315,14 @@ export function MediaHero({
                 {media.total_episodes} Episode{media.total_episodes !== 1 ? 's' : ''}
               </Typography>
             )}
+            {isSeries(media) && media.average_episode_runtime_minutes != null && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <AccessTimeIcon fontSize="small" color="action" />
+                <Typography variant="body1" color="text.secondary">
+                  {formatRuntime(media.average_episode_runtime_minutes)} avg/episode
+                </Typography>
+              </Box>
+            )}
             {/* Series network */}
             {isSeries(media) && media.network && (
               <Chip label={media.network} size="small" variant="outlined" />
@@ -326,6 +380,27 @@ export function MediaHero({
                 >
                   {isWatching ? 'Watching' : 'Add to Watching'}
                 </Button>
+              </Tooltip>
+            )}
+            {media.tmdb_id && (
+              <Tooltip title="Watch trailer (YouTube)">
+                <span>
+                  <Button
+                    variant="outlined"
+                    startIcon={
+                      trailerLoading ? (
+                        <CircularProgress size={18} color="inherit" />
+                      ) : (
+                        <OndemandVideoIcon />
+                      )
+                    }
+                    onClick={handleOpenTrailer}
+                    disabled={trailerLoading}
+                    sx={{ borderRadius: 2 }}
+                  >
+                    Trailer
+                  </Button>
+                </span>
               </Tooltip>
             )}
             <Button
@@ -423,6 +498,13 @@ export function MediaHero({
         autoHideDuration={4000}
         onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
         message={snackbar.message}
+      />
+
+      <TrailerModal
+        open={trailerModal.open}
+        onClose={() => setTrailerModal({ open: false, watchUrl: null, title: null })}
+        watchUrl={trailerModal.watchUrl}
+        title={trailerModal.title}
       />
     </>
   )

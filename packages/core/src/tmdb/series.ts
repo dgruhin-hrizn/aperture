@@ -9,6 +9,7 @@ import type {
   TMDbTVKeywordsResponse,
   TMDbTVCreditsResponse,
   TMDbExternalIds,
+  TMDbVideosResponse,
   SeriesEnrichmentData,
   NetworkData,
   ProductionCompanyData,
@@ -24,6 +25,16 @@ export async function getTVDetails(
   options: { onLog?: ApiLogCallback } = {}
 ): Promise<TMDbTVDetails | null> {
   return tmdbRequest<TMDbTVDetails>(`/tv/${tmdbId}`, options)
+}
+
+/**
+ * Get TV videos (trailers, teasers, etc.) from TMDb
+ */
+export async function getTVVideos(
+  tmdbId: number,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<TMDbVideosResponse | null> {
+  return tmdbRequest<TMDbVideosResponse>(`/tv/${tmdbId}/videos`, options)
 }
 
 /**

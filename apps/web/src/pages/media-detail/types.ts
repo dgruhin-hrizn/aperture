@@ -73,6 +73,8 @@ export interface Series extends BaseMedia {
   status: string | null
   total_seasons: number | null
   total_episodes: number | null
+  /** Average episode length from library metadata, when episodes have runtimes */
+  average_episode_runtime_minutes: number | null
   network: string | null
   studios: StudioItem[]
   actors: Actor[]

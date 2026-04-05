@@ -480,6 +480,7 @@ export {
   // Movie functions
   getMovieDetails,
   getMovieVideos,
+  pickBestYoutubeTrailer,
   getMovieKeywords,
   getMovieCredits,
   getMovieEnrichmentData,
@@ -487,6 +488,7 @@ export {
   getMovieEnrichmentByTmdbId,
   // Series functions
   getTVDetails,
+  getTVVideos,
   getTVKeywords,
   getTVCredits,
   getTVExternalIds,

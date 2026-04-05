@@ -2,7 +2,7 @@
  * In-app detail modal for TMDb-only titles (e.g. person credits not in library).
  * Data is loaded from GET /api/discover/tmdb/movie/:id or .../tv/:id.
  */
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect, useCallback } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,7 @@ import {
   CircularProgress,
   Alert,
   Button,
+  Tooltip,
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import StarIcon from '@mui/icons-material/Star'
@@ -28,8 +29,9 @@ import HowToVoteIcon from '@mui/icons-material/HowToVote'
 import TranslateIcon from '@mui/icons-material/Translate'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import AddIcon from '@mui/icons-material/Add'
+import OndemandVideoIcon from '@mui/icons-material/OndemandVideo'
 import { useNavigate } from 'react-router-dom'
-import { getProxiedImageUrl } from '@aperture/ui'
+import { getProxiedImageUrl, TrailerModal } from '@aperture/ui'
 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p'
 
@@ -92,6 +94,34 @@ export function TmdbExternalDetailModal({
 }: TmdbExternalDetailModalProps) {
   const navigate = useNavigate()
   const [heroImageVisible, setHeroImageVisible] = useState(false)
+  const [trailerLoading, setTrailerLoading] = useState(false)
+  const [trailerModal, setTrailerModal] = useState<{
+    open: boolean
+    watchUrl: string | null
+    title: string | null
+  }>({ open: false, watchUrl: null, title: null })
+
+  const handleOpenTrailer = useCallback(async () => {
+    if (!data) return
+    const path =
+      data.mediaType === 'movie'
+        ? `/api/discover/tmdb/movie/${data.tmdbId}/trailer`
+        : `/api/discover/tmdb/tv/${data.tmdbId}/trailer`
+    setTrailerLoading(true)
+    try {
+      const res = await fetch(path, { credentials: 'include' })
+      const json = (await res.json()) as { trailerUrl?: string | null; name?: string | null }
+      if (json.trailerUrl) {
+        setTrailerModal({
+          open: true,
+          watchUrl: json.trailerUrl,
+          title: json.name ?? data.title,
+        })
+      }
+    } finally {
+      setTrailerLoading(false)
+    }
+  }, [data])
 
   const heroImageUrl = useMemo(() => {
     if (data?.backdropPath) return `${TMDB_IMAGE_BASE}/w1280${data.backdropPath}`
@@ -143,6 +173,7 @@ export function TmdbExternalDetailModal({
     data?.mediaType === 'movie' ? data.directors : data?.creators ?? []
 
   return (
+    <>
     <Dialog
       open={open}
       onClose={onClose}
@@ -354,6 +385,29 @@ export function TmdbExternalDetailModal({
                       alignItems: 'center',
                     }}
                   >
+                    <Tooltip title="Play trailer (embedded player)">
+                      <span>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="inherit"
+                          startIcon={
+                            trailerLoading ? (
+                              <CircularProgress size={16} color="inherit" />
+                            ) : (
+                              <OndemandVideoIcon />
+                            )
+                          }
+                          disabled={trailerLoading}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            void handleOpenTrailer()
+                          }}
+                        >
+                          Trailer
+                        </Button>
+                      </span>
+                    </Tooltip>
                     <Button
                       size="small"
                       variant="outlined"
@@ -531,5 +585,12 @@ export function TmdbExternalDetailModal({
         </DialogContent>
       </Box>
     </Dialog>
+    <TrailerModal
+      open={trailerModal.open}
+      onClose={() => setTrailerModal({ open: false, watchUrl: null, title: null })}
+      watchUrl={trailerModal.watchUrl}
+      title={trailerModal.title}
+    />
+    </>
   )
 }

@@ -36,7 +36,14 @@ import AddToQueueIcon from '@mui/icons-material/AddToQueue'
 import CheckIcon from '@mui/icons-material/Check'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
-import { MoviePoster, RankBadge, getProxiedImageUrl, FALLBACK_POSTER_URL, HeartRating } from '@aperture/ui'
+import {
+  MoviePoster,
+  RankBadge,
+  getProxiedImageUrl,
+  FALLBACK_POSTER_URL,
+  HeartRating,
+  TrailerModal,
+} from '@aperture/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { useUserRatings } from '@/hooks/useUserRatings'
 import { useWatching } from '@/hooks/useWatching'
@@ -156,6 +163,11 @@ export function MyRecommendationsPage() {
   const [regenerating, setRegenerating] = useState(false)
   const [regenerateMessage, setRegenerateMessage] = useState<string | null>(null)
   const [trailerLoadingId, setTrailerLoadingId] = useState<string | null>(null)
+  const [trailerModal, setTrailerModal] = useState<{
+    open: boolean
+    watchUrl: string | null
+    title: string | null
+  }>({ open: false, watchUrl: null, title: null })
 
   const fetchMovieRecommendations = async () => {
     if (!user) return
@@ -292,13 +304,21 @@ export function MyRecommendationsPage() {
     }
   }
 
-  const openTrailer = useCallback(async (movieId: string) => {
+  const openTrailer = useCallback(async (movieId: string, fallbackTitle?: string) => {
     setTrailerLoadingId(movieId)
     try {
       const res = await fetch(`/api/movies/${movieId}/trailer`, { credentials: 'include' })
-      const data = (await res.json()) as { trailerUrl?: string | null; error?: string }
+      const data = (await res.json()) as {
+        trailerUrl?: string | null
+        name?: string | null
+        error?: string
+      }
       if (data.trailerUrl) {
-        window.open(data.trailerUrl, '_blank', 'noopener,noreferrer')
+        setTrailerModal({
+          open: true,
+          watchUrl: data.trailerUrl,
+          title: data.name ?? fallbackTitle ?? null,
+        })
       }
     } finally {
       setTrailerLoadingId(null)
@@ -515,7 +535,7 @@ export function MyRecommendationsPage() {
                           size="small"
                           onClick={(e) => {
                             e.stopPropagation()
-                            void openTrailer(id)
+                            void openTrailer(id, item.title)
                           }}
                           disabled={trailerLoadingId === id}
                           sx={{
@@ -719,7 +739,7 @@ export function MyRecommendationsPage() {
                                 size="small"
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  void openTrailer(id)
+                                  void openTrailer(id, item.title)
                                 }}
                                 disabled={trailerLoadingId === id}
                                 sx={{
@@ -788,7 +808,7 @@ export function MyRecommendationsPage() {
                               <IconButton
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  void openTrailer(id)
+                                  void openTrailer(id, item.title)
                                 }}
                                 size="small"
                                 disabled={trailerLoadingId === id}
@@ -944,6 +964,13 @@ export function MyRecommendationsPage() {
           })}
         </Box>
       )}
+
+      <TrailerModal
+        open={trailerModal.open}
+        onClose={() => setTrailerModal({ open: false, watchUrl: null, title: null })}
+        watchUrl={trailerModal.watchUrl}
+        title={trailerModal.title}
+      />
     </Box>
   )
 }
