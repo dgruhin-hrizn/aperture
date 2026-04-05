@@ -20,7 +20,7 @@ const logger = createChildLogger('tmdb:movies')
  */
 export async function getMovieDetails(
   tmdbId: number,
-  options: { onLog?: ApiLogCallback } = {}
+  options: { onLog?: ApiLogCallback; language?: string } = {}
 ): Promise<TMDbMovieDetails | null> {
   return tmdbRequest<TMDbMovieDetails>(`/movie/${tmdbId}`, options)
 }

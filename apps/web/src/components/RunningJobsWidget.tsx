@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -31,26 +32,8 @@ interface JobProgress {
   error?: string
 }
 
-// Map job names to friendly display names
-const JOB_DISPLAY_NAMES: Record<string, string> = {
-  'sync-movies': 'Syncing Movies',
-  'generate-embeddings': 'Generating Embeddings',
-  'sync-movie-watch-history': 'Syncing Movie Watch History',
-  'generate-recommendations': 'Generating Recommendations',
-  'full-reset-movie-recommendations': 'Full Reset Movie Recommendations',
-  'full-reset-series-recommendations': 'Full Reset Series Recommendations',
-  'sync-movie-libraries': 'Building Aperture Movie Libraries',
-  'sync-series': 'Syncing Series',
-  'generate-series-embeddings': 'Generating Series Embeddings',
-  'sync-series-watch-history': 'Syncing Series Watch History',
-  'generate-series-recommendations': 'Generating Series Recommendations',
-  'sync-series-libraries': 'Building Aperture Series Libraries',
-  'refresh-top-picks': 'Refreshing Top Picks',
-  'auto-request-top-picks': 'Auto-Requesting Top Picks',
-}
-
-function getJobDisplayName(jobName: string): string {
-  return JOB_DISPLAY_NAMES[jobName] || jobName.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+function prettifyJobName(jobName: string): string {
+  return jobName.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
 function formatDuration(startedAt: string): string {
@@ -68,9 +51,31 @@ function formatDuration(startedAt: string): string {
 }
 
 export function RunningJobsWidget() {
+  const { t } = useTranslation()
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [jobs, setJobs] = useState<JobProgress[]>([])
   const { user } = useAuth()
+
+  const getJobDisplayName = useCallback(
+    (jobName: string) =>
+      t(`runningJobs.jobNames.${jobName}`, { defaultValue: prettifyJobName(jobName) }),
+    [t]
+  )
+
+  const jobStatusLabel = useCallback(
+    (status: string) => {
+      const m: Record<string, string> = {
+        completed: 'runningJobs.statusCompleted',
+        failed: 'runningJobs.statusFailed',
+        cancelled: 'runningJobs.statusCancelled',
+        pending: 'runningJobs.statusPending',
+        running: 'runningJobs.statusRunning',
+      }
+      const k = m[status]
+      return k ? t(k) : status
+    },
+    [t]
+  )
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const open = Boolean(anchorEl)
@@ -133,11 +138,12 @@ export function RunningJobsWidget() {
     : 0
 
   // Get the primary job name to display
-  const primaryJobName = runningJobs.length === 1
-    ? getJobDisplayName(runningJobs[0].jobName)
-    : runningJobs.length > 1
-      ? `${runningJobs.length} jobs running`
-      : 'No active jobs'
+  const primaryJobName =
+    runningJobs.length === 1
+      ? getJobDisplayName(runningJobs[0].jobName)
+      : runningJobs.length > 1
+        ? t('runningJobs.countRunning', { count: runningJobs.length })
+        : t('runningJobs.noActiveJobs')
 
   if (!hasRunningJobs) return null
 
@@ -247,7 +253,7 @@ export function RunningJobsWidget() {
                     }}
                   >
                     <Typography variant="subtitle2" fontWeight={600}>
-                      Running Jobs
+                      {t('runningJobs.headerRunning')}
                     </Typography>
                   </Box>
 
@@ -309,7 +315,7 @@ export function RunningJobsWidget() {
                       <Divider />
                       <Box sx={{ px: 2, py: 1.5 }}>
                         <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                          RECENT
+                          {t('runningJobs.recentSection')}
                         </Typography>
                         {recentJobs.map((job) => (
                           <Box
@@ -330,7 +336,7 @@ export function RunningJobsWidget() {
                               </Typography>
                             </Box>
                             <Chip
-                              label={job.status}
+                              label={jobStatusLabel(job.status)}
                               size="small"
                               color={job.status === 'completed' ? 'success' : 'error'}
                               sx={{ height: 18, fontSize: '0.65rem' }}

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Dialog,
   DialogTitle,
@@ -40,32 +41,26 @@ interface JobConfigDialogProps {
   }) => Promise<void>
 }
 
-const DAYS_OF_WEEK = [
-  { value: 0, label: 'Sunday' },
-  { value: 1, label: 'Monday' },
-  { value: 2, label: 'Tuesday' },
-  { value: 3, label: 'Wednesday' },
-  { value: 4, label: 'Thursday' },
-  { value: 5, label: 'Friday' },
-  { value: 6, label: 'Saturday' },
-]
+const WEEKDAY_KEYS = [
+  'weekdaySun',
+  'weekdayMon',
+  'weekdayTue',
+  'weekdayWed',
+  'weekdayThu',
+  'weekdayFri',
+  'weekdaySat',
+] as const
 
-const HOURS = Array.from({ length: 24 }, (_, i) => ({
-  value: i,
-  label: i === 0 ? '12:00 AM' : i < 12 ? `${i}:00 AM` : i === 12 ? '12:00 PM' : `${i - 12}:00 PM`,
-}))
-
-/** Interval length in minutes (15/30 sub-hour; 60+ = hourly multiples) */
-const INTERVAL_OPTIONS = [
-  { value: 15, label: 'Every 15 minutes' },
-  { value: 30, label: 'Every 30 minutes' },
-  { value: 60, label: 'Every hour' },
-  { value: 120, label: 'Every 2 hours' },
-  { value: 180, label: 'Every 3 hours' },
-  { value: 240, label: 'Every 4 hours' },
-  { value: 360, label: 'Every 6 hours' },
-  { value: 480, label: 'Every 8 hours' },
-  { value: 720, label: 'Every 12 hours' },
+const INTERVAL_META: { value: number; labelKey: string }[] = [
+  { value: 15, labelKey: 'intervalEvery15m' },
+  { value: 30, labelKey: 'intervalEvery30m' },
+  { value: 60, labelKey: 'intervalEveryHour' },
+  { value: 120, labelKey: 'intervalEvery2h' },
+  { value: 180, labelKey: 'intervalEvery3h' },
+  { value: 240, labelKey: 'intervalEvery4h' },
+  { value: 360, labelKey: 'intervalEvery6h' },
+  { value: 480, labelKey: 'intervalEvery8h' },
+  { value: 720, labelKey: 'intervalEvery12h' },
 ]
 
 export function JobConfigDialog({
@@ -76,6 +71,7 @@ export function JobConfigDialog({
   manualOnly = false,
   onSave,
 }: JobConfigDialogProps) {
+  const { t } = useTranslation()
   const [scheduleType, setScheduleType] = useState<ScheduleType>('daily')
   const [hour, setHour] = useState<number>(3)
   const [dayOfWeek, setDayOfWeek] = useState<number>(0)
@@ -85,7 +81,40 @@ export function JobConfigDialog({
   const [error, setError] = useState<string | null>(null)
   const [initialized, setInitialized] = useState(false)
 
-  // Initialize form from current schedule only when dialog opens
+  const hours = useMemo(
+    () =>
+      Array.from({ length: 24 }, (_, i) => ({
+        value: i,
+        label:
+          i === 0
+            ? t('admin.jobsPage.ui.hour12am')
+            : i < 12
+              ? t('admin.jobsPage.ui.hourAm', { hour: i })
+              : i === 12
+                ? t('admin.jobsPage.ui.hour12pm')
+                : t('admin.jobsPage.ui.hourPm', { hour: i - 12 }),
+      })),
+    [t]
+  )
+
+  const daysOfWeek = useMemo(
+    () =>
+      WEEKDAY_KEYS.map((key, value) => ({
+        value,
+        label: t(`admin.jobsPage.ui.${key}`),
+      })),
+    [t]
+  )
+
+  const intervalOptions = useMemo(
+    () =>
+      INTERVAL_META.map(({ value, labelKey }) => ({
+        value,
+        label: t(`admin.jobsPage.ui.${labelKey}`),
+      })),
+    [t]
+  )
+
   useEffect(() => {
     if (open && !initialized && currentSchedule) {
       setScheduleType(currentSchedule.type)
@@ -98,7 +127,6 @@ export function JobConfigDialog({
       setIsEnabled(currentSchedule.isEnabled)
       setInitialized(true)
     }
-    // Reset initialized flag when dialog closes
     if (!open) {
       setInitialized(false)
       setError(null)
@@ -123,27 +151,31 @@ export function JobConfigDialog({
       })
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save configuration')
+      setError(err instanceof Error ? err.message : t('admin.jobsPage.ui.configFailedSave'))
     } finally {
       setSaving(false)
     }
   }
 
   const getPreviewText = (): string => {
-    if (manualOnly) return 'Manual only - this job cannot be scheduled'
-    if (!isEnabled) return 'Job is disabled'
-    
+    if (manualOnly) return t('admin.jobsPage.ui.configPreviewManualOnly')
+    if (!isEnabled) return t('admin.jobsPage.ui.configPreviewDisabled')
+
+    const timeLabel = hours.find((h) => h.value === hour)?.label ?? ''
     switch (scheduleType) {
       case 'daily':
-        return `Runs daily at ${HOURS.find((h) => h.value === hour)?.label}`
-      case 'weekly':
-        return `Runs every ${DAYS_OF_WEEK.find((d) => d.value === dayOfWeek)?.label} at ${HOURS.find((h) => h.value === hour)?.label}`
+        return t('admin.jobsPage.ui.configPreviewDaily', { time: timeLabel })
+      case 'weekly': {
+        const dayLabel = daysOfWeek.find((d) => d.value === dayOfWeek)?.label ?? ''
+        return t('admin.jobsPage.ui.configPreviewWeekly', { day: dayLabel, time: timeLabel })
+      }
       case 'interval':
         return (
-          INTERVAL_OPTIONS.find((i) => i.value === intervalMinutesTotal)?.label || 'Interval'
+          intervalOptions.find((i) => i.value === intervalMinutesTotal)?.label ||
+          t('admin.jobsPage.ui.intervalFallback')
         )
       case 'manual':
-        return 'Manual only - no automatic runs'
+        return t('admin.jobsPage.ui.configPreviewManualRuns')
       default:
         return ''
     }
@@ -152,29 +184,25 @@ export function JobConfigDialog({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ pb: 1 }}>
-        Configure {formatJobName(jobName)}
+        {t('admin.jobsPage.ui.configTitle', { name: formatJobName(jobName, t) })}
       </DialogTitle>
       <DialogContent>
         <Stack spacing={3} sx={{ mt: 1 }}>
-          {/* Manual-Only Warning */}
           {manualOnly && (
-            <Alert 
-              severity="warning" 
+            <Alert
+              severity="warning"
               icon={<WarningAmberIcon />}
-              sx={{ 
-                '& .MuiAlert-message': { width: '100%' }
+              sx={{
+                '& .MuiAlert-message': { width: '100%' },
               }}
             >
               <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                Manual-Only Job
+                {t('admin.jobsPage.ui.configManualOnlyTitle')}
               </Typography>
-              <Typography variant="body2">
-                This job deletes all existing data before rebuilding. It cannot be scheduled and must be run manually. Use only after major algorithm changes, embedding model changes, or if recommendations appear corrupted.
-              </Typography>
+              <Typography variant="body2">{t('admin.jobsPage.ui.configManualOnlyBody')}</Typography>
             </Alert>
           )}
 
-          {/* Enable/Disable Toggle */}
           <FormControlLabel
             disabled={manualOnly}
             control={
@@ -186,35 +214,44 @@ export function JobConfigDialog({
             }
             label={
               <Typography variant="body1" fontWeight={500} color={manualOnly ? 'text.disabled' : 'text.primary'}>
-                Enable automatic scheduling
+                {t('admin.jobsPage.ui.configEnableScheduling')}
               </Typography>
             }
           />
 
-          {/* Schedule Type */}
           <FormControl disabled={!isEnabled || manualOnly}>
-            <FormLabel sx={{ mb: 1, fontWeight: 500 }}>Run Frequency</FormLabel>
+            <FormLabel sx={{ mb: 1, fontWeight: 500 }}>{t('admin.jobsPage.ui.configRunFrequency')}</FormLabel>
             <RadioGroup
               value={manualOnly ? 'manual' : scheduleType}
               onChange={(e) => setScheduleType(e.target.value as ScheduleType)}
             >
-              <FormControlLabel value="daily" control={<Radio />} label="Daily" disabled={manualOnly} />
-              <FormControlLabel value="weekly" control={<Radio />} label="Weekly" disabled={manualOnly} />
-              <FormControlLabel value="interval" control={<Radio />} label="Interval" disabled={manualOnly} />
-              <FormControlLabel value="manual" control={<Radio />} label="Manual only" />
+              <FormControlLabel
+                value="daily"
+                control={<Radio />}
+                label={t('admin.jobsPage.ui.configDaily')}
+                disabled={manualOnly}
+              />
+              <FormControlLabel
+                value="weekly"
+                control={<Radio />}
+                label={t('admin.jobsPage.ui.configWeekly')}
+                disabled={manualOnly}
+              />
+              <FormControlLabel
+                value="interval"
+                control={<Radio />}
+                label={t('admin.jobsPage.ui.configInterval')}
+                disabled={manualOnly}
+              />
+              <FormControlLabel value="manual" control={<Radio />} label={t('admin.jobsPage.ui.configManualOnlyOption')} />
             </RadioGroup>
           </FormControl>
 
-          {/* Time Selection (for daily/weekly) */}
           {isEnabled && (scheduleType === 'daily' || scheduleType === 'weekly') && (
             <FormControl fullWidth>
-              <FormLabel sx={{ mb: 1, fontWeight: 500 }}>Time</FormLabel>
-              <Select
-                value={hour}
-                onChange={(e) => setHour(e.target.value as number)}
-                size="small"
-              >
-                {HOURS.map((h) => (
+              <FormLabel sx={{ mb: 1, fontWeight: 500 }}>{t('admin.jobsPage.ui.configTime')}</FormLabel>
+              <Select value={hour} onChange={(e) => setHour(e.target.value as number)} size="small">
+                {hours.map((h) => (
                   <MenuItem key={h.value} value={h.value}>
                     {h.label}
                   </MenuItem>
@@ -223,16 +260,11 @@ export function JobConfigDialog({
             </FormControl>
           )}
 
-          {/* Day of Week (for weekly) */}
           {isEnabled && scheduleType === 'weekly' && (
             <FormControl fullWidth>
-              <FormLabel sx={{ mb: 1, fontWeight: 500 }}>Day of Week</FormLabel>
-              <Select
-                value={dayOfWeek}
-                onChange={(e) => setDayOfWeek(e.target.value as number)}
-                size="small"
-              >
-                {DAYS_OF_WEEK.map((d) => (
+              <FormLabel sx={{ mb: 1, fontWeight: 500 }}>{t('admin.jobsPage.ui.configDayOfWeek')}</FormLabel>
+              <Select value={dayOfWeek} onChange={(e) => setDayOfWeek(e.target.value as number)} size="small">
+                {daysOfWeek.map((d) => (
                   <MenuItem key={d.value} value={d.value}>
                     {d.label}
                   </MenuItem>
@@ -241,16 +273,15 @@ export function JobConfigDialog({
             </FormControl>
           )}
 
-          {/* Interval Selection */}
           {isEnabled && scheduleType === 'interval' && (
             <FormControl fullWidth>
-              <FormLabel sx={{ mb: 1, fontWeight: 500 }}>Interval</FormLabel>
+              <FormLabel sx={{ mb: 1, fontWeight: 500 }}>{t('admin.jobsPage.ui.configInterval')}</FormLabel>
               <Select
                 value={intervalMinutesTotal}
                 onChange={(e) => setIntervalMinutesTotal(e.target.value as number)}
                 size="small"
               >
-                {INTERVAL_OPTIONS.map((i) => (
+                {intervalOptions.map((i) => (
                   <MenuItem key={i.value} value={i.value}>
                     {i.label}
                   </MenuItem>
@@ -259,7 +290,6 @@ export function JobConfigDialog({
             </FormControl>
           )}
 
-          {/* Preview */}
           <Box
             sx={{
               p: 2,
@@ -268,7 +298,7 @@ export function JobConfigDialog({
             }}
           >
             <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-              Schedule Preview
+              {t('admin.jobsPage.ui.schedulePreview')}
             </Typography>
             <Typography variant="body1" fontWeight={500}>
               {getPreviewText()}
@@ -284,7 +314,7 @@ export function JobConfigDialog({
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={onClose} disabled={saving}>
-          Cancel
+          {t('common.cancel')}
         </Button>
         <Button
           variant="contained"
@@ -292,10 +322,9 @@ export function JobConfigDialog({
           disabled={saving}
           startIcon={saving ? <CircularProgress size={16} /> : null}
         >
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? t('common.saving') : t('common.save')}
         </Button>
       </DialogActions>
     </Dialog>
   )
 }
-

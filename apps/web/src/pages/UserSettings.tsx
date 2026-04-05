@@ -165,17 +165,20 @@ export function UserSettingsPage() {
     const params = new URLSearchParams(window.location.hash.split('?')[1] || '')
     if (params.get('trakt') === 'success') {
       const username = params.get('username')
-      setTraktMessage({ type: 'success', text: `Successfully connected to Trakt as ${username}!` })
+      setTraktMessage({
+        type: 'success',
+        text: t('userSettings.traktSuccessConnect', { username: username ?? '' }),
+      })
       fetchTraktStatus()
       // Clean URL
       window.history.replaceState(null, '', window.location.pathname + '#/settings')
     } else if (params.get('trakt') === 'error') {
-      const message = params.get('message') || 'Unknown error'
-      setTraktMessage({ type: 'error', text: `Failed to connect: ${message}` })
+      const message = params.get('message') || t('userSettings.traktErrUnknown')
+      setTraktMessage({ type: 'error', text: t('userSettings.traktFailConnect', { message }) })
       // Clean URL
       window.history.replaceState(null, '', window.location.pathname + '#/settings')
     }
-  }, [])
+  }, [t])
 
   const fetchUserSettings = async () => {
     setLoadingUserSettings(true)
@@ -189,10 +192,10 @@ export function UserSettingsPage() {
         setSeriesLibraryName(data.settings?.seriesLibraryName || '')
       } else {
         const err = await response.json()
-        setUserSettingsError(err.error || 'Failed to load user settings')
+        setUserSettingsError(err.error || t('userSettings.errLoadUserSettings'))
       }
     } catch {
-      setUserSettingsError('Could not connect to server')
+      setUserSettingsError(t('userSettings.errConnectServer'))
     } finally {
       setLoadingUserSettings(false)
     }
@@ -213,14 +216,14 @@ export function UserSettingsPage() {
         }),
       })
       if (response.ok) {
-        setUserSettingsSuccess('Library names saved! They will be used for future library updates.')
+        setUserSettingsSuccess(t('userSettings.libraryNamesSaved'))
         setTimeout(() => setUserSettingsSuccess(null), 5000)
       } else {
         const err = await response.json()
-        setUserSettingsError(err.error || 'Failed to save settings')
+        setUserSettingsError(err.error || t('userSettings.errSaveSettings'))
       }
     } catch {
-      setUserSettingsError('Could not connect to server')
+      setUserSettingsError(t('userSettings.errConnectServer'))
     } finally {
       setSavingUserSettings(false)
     }
@@ -264,10 +267,10 @@ export function UserSettingsPage() {
         setTimeout(() => setAiPrefSuccess(null), 5000)
       } else {
         const err = await response.json()
-        setAiPrefError(err.error || 'Failed to save preference')
+        setAiPrefError(err.error || t('userSettings.errSavePreference'))
       }
     } catch {
-      setAiPrefError('Could not connect to server')
+      setAiPrefError(t('userSettings.errConnectServer'))
     } finally {
       setSavingAiPref(false)
     }
@@ -300,7 +303,7 @@ export function UserSettingsPage() {
       })
       if (response.ok) {
         setDislikeBehavior(behavior)
-        setDislikePrefSuccess('Preference saved!')
+        setDislikePrefSuccess(t('userSettings.preferenceSaved'))
         setTimeout(() => setDislikePrefSuccess(null), 3000)
       }
     } catch {
@@ -339,7 +342,7 @@ export function UserSettingsPage() {
       })
       if (response.ok) {
         setIncludeWatched(value)
-        setIncludeWatchedSuccess('Preference saved!')
+        setIncludeWatchedSuccess(t('userSettings.preferenceSaved'))
         setTimeout(() => setIncludeWatchedSuccess(null), 3000)
       }
     } catch {
@@ -381,7 +384,7 @@ export function UserSettingsPage() {
         } else {
           setSimilarityHideWatched(value)
         }
-        setSimilarityPrefsSuccess('Preference saved!')
+        setSimilarityPrefsSuccess(t('userSettings.preferenceSaved'))
         setTimeout(() => setSimilarityPrefsSuccess(null), 3000)
       }
     } catch {
@@ -414,10 +417,10 @@ export function UserSettingsPage() {
         window.location.href = data.authUrl
       } else {
         const err = await response.json()
-        setTraktMessage({ type: 'error', text: err.error || 'Failed to start Trakt connection' })
+        setTraktMessage({ type: 'error', text: err.error || t('userSettings.traktErrStart') })
       }
     } catch {
-      setTraktMessage({ type: 'error', text: 'Could not connect to server' })
+      setTraktMessage({ type: 'error', text: t('userSettings.errConnectServer') })
     }
   }
 
@@ -429,11 +432,11 @@ export function UserSettingsPage() {
       })
       if (response.ok) {
         setTraktStatus(prev => prev ? { ...prev, connected: false, username: null, syncedAt: null } : null)
-        setTraktMessage({ type: 'success', text: 'Trakt disconnected successfully' })
+        setTraktMessage({ type: 'success', text: t('userSettings.traktDisconnected') })
         setTimeout(() => setTraktMessage(null), 3000)
       }
     } catch {
-      setTraktMessage({ type: 'error', text: 'Failed to disconnect Trakt' })
+      setTraktMessage({ type: 'error', text: t('userSettings.traktErrDisconnect') })
     }
   }
 
@@ -451,10 +454,10 @@ export function UserSettingsPage() {
         fetchTraktStatus()
       } else {
         const err = await response.json()
-        setTraktMessage({ type: 'error', text: err.error || 'Failed to sync ratings' })
+        setTraktMessage({ type: 'error', text: err.error || t('userSettings.traktErrSync') })
       }
     } catch {
-      setTraktMessage({ type: 'error', text: 'Could not connect to server' })
+      setTraktMessage({ type: 'error', text: t('userSettings.errConnectServer') })
     } finally {
       setSyncingTrakt(false)
     }
@@ -511,7 +514,7 @@ export function UserSettingsPage() {
         setOriginalEmail(emailValue) // Update original after successful save
         setEmailLocked(data.emailLocked || false)
         setEmailNotificationsEnabled(data.emailNotificationsEnabled ?? true)
-        setEmailSuccess('Email settings saved')
+        setEmailSuccess(t('userSettings.emailSettingsSaved'))
         setTimeout(() => setEmailSuccess(null), 3000)
       }
     } catch {
@@ -623,7 +626,7 @@ export function UserSettingsPage() {
 
                 <TextField
                   label={t('userSettings.roleField')}
-                  value={user?.isAdmin ? 'Administrator' : 'User'}
+                  value={user?.isAdmin ? t('userSettings.roleAdmin') : t('userSettings.roleUser')}
                   fullWidth
                   margin="normal"
                   disabled
@@ -631,14 +634,14 @@ export function UserSettingsPage() {
                 />
 
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
-                  Profile information above is synced from your media server.
+                  {t('userSettings.profileSyncedCaption')}
                 </Typography>
 
                 <Divider sx={{ my: 3 }} />
 
                 {/* Email Section */}
                 <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                  Email & Notifications
+                  {t('userSettings.emailSectionTitle')}
                 </Typography>
 
                 {emailSuccess && (
@@ -654,17 +657,15 @@ export function UserSettingsPage() {
                 ) : (
                   <>
                     <TextField
-                      label="Email Address"
+                      label={t('userSettings.emailAddress')}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       fullWidth
                       margin="normal"
                       size="small"
-                      placeholder="Enter your email for notifications"
+                      placeholder={t('userSettings.emailPlaceholder')}
                       helperText={
-                        emailLocked 
-                          ? 'You have set a custom email (not synced from Emby)'
-                          : 'Synced from Emby Connect. Edit to override.'
+                        emailLocked ? t('userSettings.emailHelperCustom') : t('userSettings.emailHelperSynced')
                       }
                       InputProps={{
                         endAdornment: savingEmail ? (
@@ -688,10 +689,10 @@ export function UserSettingsPage() {
                       label={
                         <Box>
                           <Typography variant="body2">
-                            Email Notifications
+                            {t('userSettings.emailNotificationsTitle')}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            Receive email notifications about your recommendations
+                            {t('userSettings.emailNotificationsSubtitle')}
                           </Typography>
                         </Box>
                       }
@@ -728,8 +729,8 @@ export function UserSettingsPage() {
                     },
                   }}
                 >
-                  <Tab icon={<MovieIcon />} label="Movies" value="movie" iconPosition="start" />
-                  <Tab icon={<TvIcon />} label="TV Series" value="series" iconPosition="start" />
+                  <Tab icon={<MovieIcon />} label={t('userSettings.identitySubtabMovies')} value="movie" iconPosition="start" />
+                  <Tab icon={<TvIcon />} label={t('userSettings.identitySubtabSeries')} value="series" iconPosition="start" />
                 </Tabs>
               )
             })()}
@@ -755,10 +756,10 @@ export function UserSettingsPage() {
                   <CardContent>
                     <Box display="flex" alignItems="center" gap={1} mb={1}>
                       <TextFieldsIcon color="primary" />
-                      <Typography variant="h6">AI Library Names</Typography>
+                      <Typography variant="h6">{t('userSettings.aiLibraryNamesTitle')}</Typography>
                     </Box>
                     <Typography variant="body2" color="text.secondary" mb={3}>
-                      Customize how your AI recommendations libraries appear in your media server.
+                      {t('userSettings.aiLibraryNamesSubtitle')}
                     </Typography>
 
                     {userSettingsError && (
@@ -781,7 +782,7 @@ export function UserSettingsPage() {
                       <>
                         <FormControl fullWidth sx={{ mb: 3 }}>
                           <Typography variant="body2" fontWeight={500} gutterBottom>
-                            Movies Library Name
+                            {t('userSettings.moviesLibraryNameLabel')}
                           </Typography>
                           <TextField
                             placeholder={`${defaultLibraryPrefix}${user?.displayName || user?.username || 'User'} - Movies`}
@@ -792,15 +793,15 @@ export function UserSettingsPage() {
                             inputProps={{ maxLength: 100 }}
                             helperText={
                               moviesLibraryName
-                                ? `Your movies library will be named: "${moviesLibraryName}"`
-                                : 'Leave empty to use the global default template'
+                                ? t('userSettings.libraryHelperNamedMovies', { name: moviesLibraryName })
+                                : t('userSettings.libraryHelperEmpty')
                             }
                           />
                         </FormControl>
 
                         <FormControl fullWidth sx={{ mb: 3 }}>
                           <Typography variant="body2" fontWeight={500} gutterBottom>
-                            TV Series Library Name
+                            {t('userSettings.seriesLibraryNameLabel')}
                           </Typography>
                           <TextField
                             placeholder={`${defaultLibraryPrefix}${user?.displayName || user?.username || 'User'} - TV Series`}
@@ -811,8 +812,8 @@ export function UserSettingsPage() {
                             inputProps={{ maxLength: 100 }}
                             helperText={
                               seriesLibraryName
-                                ? `Your series library will be named: "${seriesLibraryName}"`
-                                : 'Leave empty to use the global default template'
+                                ? t('userSettings.libraryHelperNamedSeries', { name: seriesLibraryName })
+                                : t('userSettings.libraryHelperEmpty')
                             }
                           />
                         </FormControl>
@@ -825,7 +826,7 @@ export function UserSettingsPage() {
                             disabled={savingUserSettings}
                             size="small"
                           >
-                            {savingUserSettings ? 'Saving...' : 'Save'}
+                            {savingUserSettings ? t('userSettings.saving') : t('common.save')}
                           </Button>
                           {(moviesLibraryName || seriesLibraryName) && (
                             <Button
@@ -837,7 +838,7 @@ export function UserSettingsPage() {
                               disabled={savingUserSettings}
                               size="small"
                             >
-                              Reset to Defaults
+                              {t('userSettings.resetToDefaults')}
                             </Button>
                           )}
                         </Box>
@@ -845,7 +846,7 @@ export function UserSettingsPage() {
                         <Divider sx={{ my: 3 }} />
 
                         <Typography variant="caption" color="text.secondary">
-                          Changes will apply the next time the library sync jobs run or when recommendations are regenerated.
+                          {t('userSettings.aiLibraryFooter')}
                         </Typography>
                       </>
                     )}
@@ -860,10 +861,10 @@ export function UserSettingsPage() {
                     <CardContent>
                       <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <AutoAwesomeIcon color="primary" />
-                        AI Explanation Preference
+                        {t('userSettings.aiExplanationTitle')}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" mb={3}>
-                        Choose whether to include AI-generated explanations in your recommendation descriptions.
+                        {t('userSettings.aiExplanationSubtitle')}
                       </Typography>
 
                       {aiPrefError && (
@@ -895,10 +896,10 @@ export function UserSettingsPage() {
                             label={
                               <Box>
                                 <Typography variant="body1" fontWeight="medium">
-                                  Include AI Explanations
+                                  {t('userSettings.aiExplanationIncludeTitle')}
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                  When enabled, each recommendation includes "Why Aperture picked this for you"
+                                  {t('userSettings.aiExplanationIncludeBody')}
                                 </Typography>
                               </Box>
                             }
@@ -912,14 +913,18 @@ export function UserSettingsPage() {
                               onClick={() => saveAiExplanationPref(null)}
                               disabled={savingAiPref}
                             >
-                              Reset to Default ({aiExplanationPref.globalEnabled ? 'Enabled' : 'Disabled'})
+                              {t('userSettings.aiExplanationReset', {
+                                state: aiExplanationPref.globalEnabled
+                                  ? t('userSettings.stateEnabled')
+                                  : t('userSettings.stateDisabled'),
+                              })}
                             </Button>
                           )}
 
                           <Divider sx={{ my: 3 }} />
 
                           <Typography variant="caption" color="text.secondary">
-                            Changes will apply when your recommendations are next regenerated.
+                            {t('userSettings.aiExplanationFooter')}
                           </Typography>
                         </>
                       )}
@@ -934,10 +939,10 @@ export function UserSettingsPage() {
                   <CardContent>
                     <Box display="flex" alignItems="center" gap={1} mb={1}>
                       <VisibilityIcon color="primary" />
-                      <Typography variant="h6">Watched Content in Recommendations</Typography>
+                      <Typography variant="h6">{t('userSettings.watchedRecsTitle')}</Typography>
                     </Box>
                     <Typography variant="body2" color="text.secondary" mb={3}>
-                      Choose whether to include content you've already watched in your AI recommendations.
+                      {t('userSettings.watchedRecsSubtitle')}
                     </Typography>
 
                     {includeWatchedSuccess && (
@@ -963,12 +968,14 @@ export function UserSettingsPage() {
                           label={
                             <Box>
                               <Typography variant="body1" fontWeight="medium">
-                                {includeWatched ? 'Include Watched Content' : 'New Content Only'}
+                                {includeWatched
+                                  ? t('userSettings.includeWatchedTitle')
+                                  : t('userSettings.newContentOnlyTitle')}
                               </Typography>
                               <Typography variant="body2" color="text.secondary">
-                                {includeWatched 
-                                  ? 'Recommendations may include movies and series you\'ve already watched'
-                                  : 'Recommendations will only show content you haven\'t watched yet'}
+                                {includeWatched
+                                  ? t('userSettings.includeWatchedDesc')
+                                  : t('userSettings.newContentOnlyDesc')}
                               </Typography>
                             </Box>
                           }
@@ -978,7 +985,7 @@ export function UserSettingsPage() {
                         <Divider sx={{ my: 3 }} />
 
                         <Typography variant="caption" color="text.secondary">
-                          By default, recommendations only include new content. Enable this if you want rewatching suggestions.
+                          {t('userSettings.watchedRecsFooter')}
                         </Typography>
                       </>
                     )}
@@ -992,10 +999,10 @@ export function UserSettingsPage() {
                   <CardContent>
                     <Box display="flex" alignItems="center" gap={1} mb={1}>
                       <ThumbDownIcon color="primary" />
-                      <Typography variant="h6">Disliked Content Behavior</Typography>
+                      <Typography variant="h6">{t('userSettings.dislikedTitle')}</Typography>
                     </Box>
                     <Typography variant="body2" color="text.secondary" mb={3}>
-                      Choose how content you've rated 1-3 hearts should be handled in recommendations.
+                      {t('userSettings.dislikedSubtitle')}
                     </Typography>
 
                     {dislikePrefSuccess && (
@@ -1021,12 +1028,14 @@ export function UserSettingsPage() {
                           label={
                             <Box>
                               <Typography variant="body1" fontWeight="medium">
-                                {dislikeBehavior === 'exclude' ? 'Exclude Disliked Content' : 'Penalize Disliked Content'}
+                                {dislikeBehavior === 'exclude'
+                                  ? t('userSettings.excludeDislikedTitle')
+                                  : t('userSettings.penalizeDislikedTitle')}
                               </Typography>
                               <Typography variant="body2" color="text.secondary">
-                                {dislikeBehavior === 'exclude' 
-                                  ? 'Content you dislike will never appear in recommendations'
-                                  : 'Content you dislike will appear less often but may still show up occasionally'}
+                                {dislikeBehavior === 'exclude'
+                                  ? t('userSettings.excludeDislikedDesc')
+                                  : t('userSettings.penalizeDislikedDesc')}
                               </Typography>
                             </Box>
                           }
@@ -1036,7 +1045,7 @@ export function UserSettingsPage() {
                         <Divider sx={{ my: 3 }} />
 
                         <Typography variant="caption" color="text.secondary">
-                          Rate content with 1-3 hearts to mark it as disliked. Changes will apply when your recommendations are next regenerated.
+                          {t('userSettings.dislikedFooter')}
                         </Typography>
                       </>
                     )}
@@ -1051,11 +1060,11 @@ export function UserSettingsPage() {
                     <Box display="flex" alignItems="center" gap={1} mb={1}>
                       <HubOutlinedIcon color="primary" />
                       <Typography variant="h6">
-                        Similarity Graph
+                        {t('userSettings.similarityGraphPrefsTitle')}
                       </Typography>
                     </Box>
                     <Typography variant="body2" color="text.secondary" mb={3}>
-                      Customize how the similarity graph explores connections between movies and series.
+                      {t('userSettings.similarityGraphPrefsSubtitle')}
                     </Typography>
 
                     {similarityPrefsSuccess && (
@@ -1081,12 +1090,12 @@ export function UserSettingsPage() {
                           label={
                             <Box>
                               <Typography variant="body1" fontWeight="medium">
-                                Hide Watched Content
+                                {t('userSettings.hideWatchedTitle')}
                               </Typography>
                               <Typography variant="body2" color="text.secondary">
-                                {similarityHideWatched 
-                                  ? 'Graph only shows unwatched content for new discoveries'
-                                  : 'Graph includes all similar content, even what you\'ve already seen'}
+                                {similarityHideWatched
+                                  ? t('userSettings.hideWatchedOn')
+                                  : t('userSettings.hideWatchedOff')}
                               </Typography>
                             </Box>
                           }
@@ -1104,12 +1113,12 @@ export function UserSettingsPage() {
                           label={
                             <Box>
                               <Typography variant="body1" fontWeight="medium">
-                                Full Franchise Mode
+                                {t('userSettings.fullFranchiseTitle')}
                               </Typography>
                               <Typography variant="body2" color="text.secondary">
-                                {similarityFullFranchise 
-                                  ? 'Show entire franchises without limits (e.g., all 26 James Bond films)'
-                                  : 'Limit items per franchise to encourage diverse discoveries'}
+                                {similarityFullFranchise
+                                  ? t('userSettings.fullFranchiseOn')
+                                  : t('userSettings.fullFranchiseOff')}
                               </Typography>
                             </Box>
                           }
@@ -1119,7 +1128,7 @@ export function UserSettingsPage() {
                         <Divider sx={{ my: 3 }} />
 
                         <Typography variant="caption" color="text.secondary">
-                          These preferences apply when exploring similar content on detail pages and in fullscreen graph view.
+                          {t('userSettings.similarityGraphFooter')}
                         </Typography>
                       </>
                     )}
@@ -1136,15 +1145,15 @@ export function UserSettingsPage() {
                     <Box
                       component="img"
                       src="/trakt.svg"
-                      alt="Trakt"
+                      alt={t('userSettings.traktAlt')}
                       sx={{ width: 28, height: 28, filter: 'brightness(0) invert(1)' }}
                     />
                     <Typography variant="h6">
-                      Trakt Integration
+                      {t('userSettings.traktTitle')}
                     </Typography>
                   </Box>
                   <Typography variant="body2" color="text.secondary" mb={3}>
-                    Connect your Trakt account to sync your movie and TV show ratings.
+                    {t('userSettings.traktSubtitle')}
                   </Typography>
 
                   {traktMessage && (
@@ -1161,11 +1170,13 @@ export function UserSettingsPage() {
                     <>
                       <Box sx={{ bgcolor: 'action.hover', p: 2, borderRadius: 1, mb: 2 }}>
                         <Typography variant="body2" fontWeight={500}>
-                          Connected as: {traktStatus.username}
+                          {t('userSettings.traktConnectedAs', { username: traktStatus.username ?? '' })}
                         </Typography>
                         {traktStatus.syncedAt && (
                           <Typography variant="caption" color="text.secondary">
-                            Last synced: {new Date(traktStatus.syncedAt).toLocaleString()}
+                            {t('userSettings.traktLastSynced', {
+                              when: new Date(traktStatus.syncedAt).toLocaleString(),
+                            })}
                           </Typography>
                         )}
                       </Box>
@@ -1178,7 +1189,7 @@ export function UserSettingsPage() {
                           size="small"
                         >
                           {syncingTrakt ? <CircularProgress size={16} sx={{ mr: 1 }} /> : null}
-                          {syncingTrakt ? 'Syncing...' : 'Sync Ratings'}
+                          {syncingTrakt ? t('userSettings.traktSyncing') : t('userSettings.traktSyncRatings')}
                         </Button>
                         <Button
                           variant="outlined"
@@ -1186,7 +1197,7 @@ export function UserSettingsPage() {
                           onClick={disconnectTrakt}
                           size="small"
                         >
-                          Disconnect
+                          {t('userSettings.traktDisconnect')}
                         </Button>
                       </Box>
                     </>
@@ -1199,14 +1210,14 @@ export function UserSettingsPage() {
                         '&:hover': { bgcolor: '#c9171d' },
                       }}
                     >
-                      Connect to Trakt
+                      {t('userSettings.traktConnect')}
                     </Button>
                   )}
 
                     <Divider sx={{ my: 3 }} />
 
                     <Typography variant="caption" color="text.secondary">
-                      Syncing imports your Trakt ratings (1-10) as heart ratings in Aperture. Higher-rated content will have more influence on your recommendations.
+                      {t('userSettings.traktFooter')}
                     </Typography>
                   </CardContent>
                 </Card>

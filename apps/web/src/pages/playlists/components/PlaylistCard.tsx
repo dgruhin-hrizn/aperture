@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Card,
   CardActionArea,
@@ -37,6 +38,7 @@ export function PlaylistCard({
   onGenerate,
   onView,
 }: PlaylistCardProps) {
+  const { t, i18n } = useTranslation()
   const [previewItems, setPreviewItems] = useState<PlaylistItem[]>([])
   const [loadingPreview, setLoadingPreview] = useState(false)
   const [itemCount, setItemCount] = useState<number | null>(null)
@@ -225,14 +227,14 @@ export function PlaylistCard({
                 <>
                   <PlaylistPlayIcon sx={{ fontSize: 40, color: 'text.disabled' }} />
                   <Typography variant="caption" color="text.disabled">
-                    Empty playlist
+                    {t('playlists.cardEmptyPlaylist')}
                   </Typography>
                 </>
               ) : (
                 <>
                   <AutoAwesomeIcon sx={{ fontSize: 40, color: 'primary.main', opacity: 0.5 }} />
                   <Typography variant="caption" color="text.secondary">
-                    Generate to see movies
+                    {t('playlists.cardGeneratePrompt')}
                   </Typography>
                 </>
               )}
@@ -255,7 +257,7 @@ export function PlaylistCard({
             >
               <CircularProgress size={32} sx={{ color: 'white' }} />
               <Typography variant="caption" sx={{ color: 'white' }}>
-                Generating playlist...
+                {t('playlists.cardGenerating')}
               </Typography>
             </Box>
           )}
@@ -269,7 +271,7 @@ export function PlaylistCard({
             </Typography>
             {itemCount !== null && (
               <Chip
-                label={`${itemCount} movies`}
+                label={t('playlists.cardMoviesCount', { count: itemCount })}
                 size="small"
                 sx={{
                   bgcolor: 'action.selected',
@@ -325,7 +327,7 @@ export function PlaylistCard({
           {channel.example_movie_ids && channel.example_movie_ids.length > 0 && (
             <Typography variant="caption" color="text.secondary" display="flex" alignItems="center" gap={0.5}>
               <MovieIcon sx={{ fontSize: 14 }} />
-              {channel.example_movie_ids.length} seed movie{channel.example_movie_ids.length !== 1 ? 's' : ''}
+              {t('playlists.cardSeedMovies', { count: channel.example_movie_ids.length })}
             </Typography>
           )}
         </Box>
@@ -347,17 +349,19 @@ export function PlaylistCard({
         <Box display="flex" alignItems="center" gap={1}>
           {channel.last_generated_at ? (
             <Typography variant="caption" color="text.secondary">
-              Updated {new Date(channel.last_generated_at).toLocaleDateString()}
+              {t('playlists.cardUpdated', {
+                date: new Date(channel.last_generated_at).toLocaleDateString(i18n.language),
+              })}
             </Typography>
           ) : (
             <Typography variant="caption" color="warning.main">
-              Not generated
+              {t('playlists.cardNotGenerated')}
             </Typography>
           )}
         </Box>
 
         <Box display="flex" gap={0.5}>
-          <Tooltip title={hasPlaylist ? 'Refresh playlist' : 'Generate playlist'}>
+          <Tooltip title={hasPlaylist ? t('playlists.tooltipRefreshPlaylist') : t('playlists.tooltipGeneratePlaylist')}>
             <IconButton
               size="small"
               onClick={handleGenerateClick}
@@ -371,12 +375,12 @@ export function PlaylistCard({
               )}
             </IconButton>
           </Tooltip>
-          <Tooltip title="Edit settings">
+          <Tooltip title={t('playlists.tooltipEditSettings')}>
             <IconButton size="small" onClick={handleEditClick}>
               <EditIcon fontSize="small" />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Delete playlist">
+          <Tooltip title={t('playlists.tooltipDeletePlaylist')}>
             <IconButton size="small" onClick={handleDeleteClick} color="error">
               <DeleteIcon fontSize="small" />
             </IconButton>

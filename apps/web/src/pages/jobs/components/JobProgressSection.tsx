@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { Box, Button, Chip, Collapse, LinearProgress, Stack, Typography } from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
@@ -21,6 +22,7 @@ export function JobProgressSection({
   onToggleLogs,
   logsContainerRef,
 }: JobProgressSectionProps) {
+  const { t } = useTranslation()
   return (
     <Box
       sx={{
@@ -38,7 +40,7 @@ export function JobProgressSection({
           </Typography>
           <Stack direction="row" spacing={2} alignItems="center">
             <Typography variant="caption" color="text.secondary">
-              {getElapsedTime(progress.startedAt)}
+              {getElapsedTime(progress.startedAt, t)}
             </Typography>
             <Chip
               label={`${progress.overallProgress ?? 0}%`}
@@ -72,16 +74,23 @@ export function JobProgressSection({
         {/* Items Progress */}
         <Stack direction="row" justifyContent="space-between">
           <Typography variant="caption" color="text.secondary">
-            Step {progress.currentStepIndex + 1} of {progress.totalSteps}
+            {t('admin.jobsPage.ui.progressStep', {
+              current: progress.currentStepIndex + 1,
+              total: progress.totalSteps,
+            })}
           </Typography>
           {progress.itemsTotal > 0 ? (
             <Typography variant="caption" color="text.secondary">
-              {progress.itemsProcessed.toLocaleString()} / {progress.itemsTotal.toLocaleString()}{' '}
-              items
+              {t('admin.jobsPage.ui.progressItemsPair', {
+                processed: progress.itemsProcessed.toLocaleString(),
+                total: progress.itemsTotal.toLocaleString(),
+              })}
             </Typography>
           ) : progress.itemsProcessed > 0 ? (
             <Typography variant="caption" color="text.secondary">
-              {progress.itemsProcessed.toLocaleString()} items
+              {t('admin.jobsPage.ui.progressItemsSingle', {
+                count: progress.itemsProcessed.toLocaleString(),
+              })}
             </Typography>
           ) : null}
         </Stack>
@@ -110,7 +119,9 @@ export function JobProgressSection({
         endIcon={logsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
         sx={{ color: 'text.secondary' }}
       >
-        {logsExpanded ? 'Hide' : 'Show'} Logs ({progress.logs.length})
+        {logsExpanded
+          ? t('admin.jobsPage.ui.hideLogsWithCount', { count: progress.logs.length })
+          : t('admin.jobsPage.ui.showLogsWithCount', { count: progress.logs.length })}
       </Button>
 
       {/* Logs Panel */}

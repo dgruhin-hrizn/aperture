@@ -1,4 +1,6 @@
 import React, { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { Box, Typography, Chip, Alert, Stack, Tabs, Tab, Button, AlertTitle } from '@mui/material'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
@@ -26,6 +28,7 @@ function TabPanel({ children, value, index }: TabPanelProps) {
 }
 
 interface JobCategoryListProps {
+  t: TFunction
   categories: JobCategory[]
   jobs: ReturnType<typeof useJobsData>['jobs']
   jobProgress: ReturnType<typeof useJobsData>['jobProgress']
@@ -42,6 +45,7 @@ interface JobCategoryListProps {
 }
 
 function JobCategoryList({
+  t,
   categories,
   jobs,
   jobProgress,
@@ -63,7 +67,7 @@ function JobCategoryList({
         if (categoryJobs.length === 0) return null
 
         return (
-          <Box key={category.title}>
+          <Box key={category.titleKey}>
             {/* Category Header */}
             <Box mb={2.5}>
               <Typography
@@ -74,10 +78,10 @@ function JobCategoryList({
                   letterSpacing: 1.5,
                 }}
               >
-                {category.title}
+                {t(category.titleKey)}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {category.description}
+                {t(category.descriptionKey)}
               </Typography>
             </Box>
 
@@ -125,6 +129,7 @@ function JobCategoryList({
 }
 
 export function JobsPage() {
+  const { t } = useTranslation()
   const {
     jobs,
     loading,
@@ -201,11 +206,11 @@ export function JobsPage() {
       <Box mb={3}>
         <Stack direction="row" alignItems="center" spacing={2} mb={1}>
           <Typography variant="h4" fontWeight={700}>
-            Background Jobs
+            {t('admin.jobsPage.title')}
           </Typography>
           {runningCount > 0 && (
             <Chip
-              label={`${runningCount} running`}
+              label={t('admin.jobsPage.runningChip', { count: runningCount })}
               size="small"
               sx={{
                 bgcolor: 'primary.main',
@@ -221,7 +226,7 @@ export function JobsPage() {
           )}
         </Stack>
         <Typography variant="body1" color="text.secondary">
-          Manage syncing, AI processing, and system maintenance tasks
+          {t('admin.jobsPage.subtitle')}
         </Typography>
       </Box>
 
@@ -246,7 +251,7 @@ export function JobsPage() {
                 onClick={handleResumeEnrichment}
                 disabled={clearingInterrupted}
               >
-                Resume
+                {t('admin.jobsPage.resume')}
               </Button>
               <Button
                 color="inherit"
@@ -254,29 +259,30 @@ export function JobsPage() {
                 onClick={handleClearInterrupted}
                 disabled={clearingInterrupted}
               >
-                Dismiss
+                {t('admin.jobsPage.dismiss')}
               </Button>
             </Stack>
           }
         >
-          <AlertTitle>Metadata Enrichment Interrupted</AlertTitle>
-          A previous enrichment run was interrupted (possibly due to a container restart). 
+          <AlertTitle>{t('admin.jobsPage.enrichmentTitle')}</AlertTitle>
+          {t('admin.jobsPage.enrichmentBody1')}{' '}
           {enrichmentStatus.remainingMovies + enrichmentStatus.remainingSeries > 0 && (
             <>
-              {' '}
-              <strong>
-                {enrichmentStatus.remainingMovies} movies and {enrichmentStatus.remainingSeries} series
-              </strong>{' '}
-              still need enrichment.
+              {t('admin.jobsPage.enrichmentRemaining', {
+                movies: enrichmentStatus.remainingMovies,
+                series: enrichmentStatus.remainingSeries,
+              })}{' '}
             </>
           )}
           {enrichmentStatus.run.processed_movies + enrichmentStatus.run.processed_series > 0 && (
             <>
-              {' '}
-              ({enrichmentStatus.run.processed_movies} movies and {enrichmentStatus.run.processed_series} series were completed before interruption.)
+              {t('admin.jobsPage.enrichmentCompletedBefore', {
+                movies: enrichmentStatus.run.processed_movies,
+                series: enrichmentStatus.run.processed_series,
+              })}{' '}
             </>
           )}
-          {' '}Click <strong>Resume</strong> to continue enrichment, or <strong>Dismiss</strong> to clear this warning.
+          {t('admin.jobsPage.enrichmentFooter')}
         </Alert>
       )}
 
@@ -294,7 +300,7 @@ export function JobsPage() {
           iconPosition="start"
           label={
             <Stack direction="row" alignItems="center" spacing={1}>
-              <span>Movies</span>
+              <span>{t('admin.jobsPage.tabMovies')}</span>
               {runningMovieJobs > 0 && (
                 <Chip
                   label={runningMovieJobs}
@@ -317,7 +323,7 @@ export function JobsPage() {
           iconPosition="start"
           label={
             <Stack direction="row" alignItems="center" spacing={1}>
-              <span>TV Series</span>
+              <span>{t('admin.jobsPage.tabSeries')}</span>
               {runningSeriesJobs > 0 && (
                 <Chip
                   label={runningSeriesJobs}
@@ -340,7 +346,7 @@ export function JobsPage() {
           iconPosition="start"
           label={
             <Stack direction="row" alignItems="center" spacing={1}>
-              <span>Global</span>
+              <span>{t('admin.jobsPage.tabGlobal')}</span>
               {runningGlobalJobs > 0 && (
                 <Chip
                   label={runningGlobalJobs}
@@ -361,13 +367,14 @@ export function JobsPage() {
         <Tab
           icon={<ScheduleIcon />}
           iconPosition="start"
-          label="Schedule"
+          label={t('admin.jobsPage.tabSchedule')}
         />
       </Tabs>
 
       {/* Movies Tab */}
       <TabPanel value={tabValue} index={0}>
         <JobCategoryList
+          t={t}
           categories={MOVIE_JOB_CATEGORIES}
           jobs={jobs}
           jobProgress={jobProgress}
@@ -385,6 +392,7 @@ export function JobsPage() {
       {/* TV Series Tab */}
       <TabPanel value={tabValue} index={1}>
         <JobCategoryList
+          t={t}
           categories={SERIES_JOB_CATEGORIES}
           jobs={jobs}
           jobProgress={jobProgress}
@@ -402,6 +410,7 @@ export function JobsPage() {
       {/* Global Tab */}
       <TabPanel value={tabValue} index={2}>
         <JobCategoryList
+          t={t}
           categories={GLOBAL_JOB_CATEGORIES}
           jobs={jobs}
           jobProgress={jobProgress}
@@ -422,10 +431,10 @@ export function JobsPage() {
       <TabPanel value={tabValue} index={3}>
         <Box mb={3}>
           <Typography variant="h6" fontWeight={600} gutterBottom>
-            Job Schedules
+            {t('admin.jobsPage.scheduleTitle')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Configure when each job runs automatically. Disabled jobs will only run when manually triggered.
+            {t('admin.jobsPage.scheduleSubtitle')}
           </Typography>
         </Box>
         <ScheduleTable

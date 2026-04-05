@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Box,
@@ -38,7 +39,8 @@ import {
   type GraphData,
   type LoadingStatus,
 } from '../../components/SimilarityGraph'
-import { CONNECTION_COLORS, CONNECTION_LABELS, type ConnectionType } from '../../components/SimilarityGraph/types'
+import { CONNECTION_COLORS, type ConnectionType } from '../../components/SimilarityGraph/types'
+import { connectionTypeLabel } from '../../i18n/connectionTypeLabel'
 import { GraphExplorer } from '../../components/GraphExplorer'
 
 type GraphSource = 'ai-movies' | 'ai-series' | 'watching' | 'top-movies' | 'top-series'
@@ -47,51 +49,10 @@ type MediaFilter = 'movie' | 'series' | 'both'
 const RECENT_SEARCHES_KEY = 'aperture_recent_searches'
 const MAX_RECENT_SEARCHES = 5
 
-const SEARCH_EXAMPLES = ['Psychological thrillers', 'Feel-good comedies', 'Mind-bending sci-fi']
-
 interface SemanticSearchState {
   query: string
   loading: boolean
   results: GraphData | null
-}
-
-// Loading phase messages for semantic search
-const SEMANTIC_SEARCH_PHASES = {
-  searching: {
-    messages: [
-      'Searching your library...',
-      'Finding matching content...',
-      'Analyzing your query...',
-    ],
-    details: [
-      'Generating query embedding',
-      'Comparing with library content',
-      'Ranking by relevance',
-    ],
-  },
-  clustering: {
-    messages: [
-      'AI discovering themes...',
-      'Finding thematic connections...',
-      'Grouping related content...',
-    ],
-    details: [
-      'Analyzing shared themes',
-      'Identifying clusters',
-      'Building meaningful connections',
-    ],
-  },
-  building: {
-    messages: [
-      'Building visualization...',
-      'Arranging results...',
-      'Finalizing graph...',
-    ],
-    details: [
-      'Calculating layout',
-      'Preparing display',
-    ],
-  },
 }
 
 function randomItem<T>(arr: T[]): T {
@@ -99,6 +60,7 @@ function randomItem<T>(arr: T[]): T {
 }
 
 export function ExplorePage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -153,12 +115,50 @@ export function ExplorePage() {
   const semanticLoadingTimerRef = useRef<NodeJS.Timeout | null>(null)
   const semanticPhaseStartRef = useRef<number>(0)
 
+  const semanticPhases = useMemo(
+    () => ({
+      searching: {
+        messages: [
+          t('mediaGraph.semanticSearchingMsg1'),
+          t('mediaGraph.semanticSearchingMsg2'),
+          t('mediaGraph.semanticSearchingMsg3'),
+        ],
+        details: [
+          t('mediaGraph.semanticSearchingDetail1'),
+          t('mediaGraph.semanticSearchingDetail2'),
+          t('mediaGraph.semanticSearchingDetail3'),
+        ],
+      },
+      clustering: {
+        messages: [
+          t('mediaGraph.semanticClusteringMsg1'),
+          t('mediaGraph.semanticClusteringMsg2'),
+          t('mediaGraph.semanticClusteringMsg3'),
+        ],
+        details: [
+          t('mediaGraph.semanticClusteringDetail1'),
+          t('mediaGraph.semanticClusteringDetail2'),
+          t('mediaGraph.semanticClusteringDetail3'),
+        ],
+      },
+      building: {
+        messages: [
+          t('mediaGraph.semanticBuildingMsg1'),
+          t('mediaGraph.semanticBuildingMsg2'),
+          t('mediaGraph.semanticBuildingMsg3'),
+        ],
+        details: [t('mediaGraph.semanticBuildingDetail1'), t('mediaGraph.semanticBuildingDetail2')],
+      },
+    }),
+    [t]
+  )
+
   // Start semantic search loading animation
   const startSemanticLoadingProgress = useCallback(() => {
     semanticPhaseStartRef.current = Date.now()
     setSemanticLoadingStatus({
       phase: 'fetching',
-      message: randomItem(SEMANTIC_SEARCH_PHASES.searching.messages),
+      message: randomItem(semanticPhases.searching.messages),
       progress: 5,
     })
 
@@ -170,8 +170,8 @@ export function ExplorePage() {
         if (elapsed < 2000) {
           return {
             phase: 'fetching',
-            message: randomItem(SEMANTIC_SEARCH_PHASES.searching.messages),
-            detail: randomItem(SEMANTIC_SEARCH_PHASES.searching.details),
+            message: randomItem(semanticPhases.searching.messages),
+            detail: randomItem(semanticPhases.searching.details),
             progress: Math.min(30, 5 + (elapsed / 2000) * 25),
           }
         }
@@ -180,21 +180,21 @@ export function ExplorePage() {
           const progress = 30 + ((elapsed - 2000) / 4000) * 50
           return {
             phase: 'validating',
-            message: randomItem(SEMANTIC_SEARCH_PHASES.clustering.messages),
-            detail: randomItem(SEMANTIC_SEARCH_PHASES.clustering.details),
+            message: randomItem(semanticPhases.clustering.messages),
+            detail: randomItem(semanticPhases.clustering.details),
             progress: Math.min(80, progress),
           }
         }
         // Building phase (6s+, 80-95%)
         return {
           phase: 'building',
-          message: randomItem(SEMANTIC_SEARCH_PHASES.building.messages),
-          detail: randomItem(SEMANTIC_SEARCH_PHASES.building.details),
+          message: randomItem(semanticPhases.building.messages),
+          detail: randomItem(semanticPhases.building.details),
           progress: Math.min(95, 80 + ((elapsed - 6000) / 3000) * 15),
         }
       })
     }, 300)
-  }, [])
+  }, [semanticPhases])
 
   const stopSemanticLoadingProgress = useCallback(() => {
     if (semanticLoadingTimerRef.current) {
@@ -440,23 +440,27 @@ export function ExplorePage() {
   // Determine if refresh should be shown
   const showRefreshButton = !!(semanticSearch.results || selectedBrowseSource || focusedItemId)
 
-  // Get title for header
-  const getTitle = () => {
+  const graphTitle = useMemo(() => {
     if (semanticSearch.query) {
-      return `Search: "${semanticSearch.query}"`
+      return t('mediaGraph.titleSearch', { query: semanticSearch.query })
     }
     if (selectedBrowseSource) {
-      const sourceLabels: Record<GraphSource, string> = {
-        'ai-movies': 'My AI Movie Picks',
-        'ai-series': 'My AI Series Picks',
-        'watching': 'Shows You Watch',
-        'top-movies': 'Top Picks Movies',
-        'top-series': 'Top Picks Series',
+      const sourceKeys: Record<GraphSource, string> = {
+        'ai-movies': 'mediaGraph.sourceAiMovies',
+        'ai-series': 'mediaGraph.sourceAiSeries',
+        watching: 'mediaGraph.sourceWatching',
+        'top-movies': 'mediaGraph.sourceTopMovies',
+        'top-series': 'mediaGraph.sourceTopSeries',
       }
-      return sourceLabels[selectedBrowseSource]
+      return t(sourceKeys[selectedBrowseSource])
     }
-    return 'Explore'
-  }
+    return t('mediaGraph.titleDefault')
+  }, [semanticSearch.query, selectedBrowseSource, t])
+
+  const searchExamples = useMemo(
+    () => [t('mediaGraph.example1'), t('mediaGraph.example2'), t('mediaGraph.example3')],
+    [t]
+  )
 
   return (
     <Box 
@@ -474,7 +478,7 @@ export function ExplorePage() {
           data={displayData}
           loading={loading}
           loadingStatus={loadingStatus}
-          title={getTitle()}
+          title={graphTitle}
           history={breadcrumbHistory}
           onHistoryNavigate={handleHistoryNavigate}
           onStartOver={handleStartOver}
@@ -486,9 +490,9 @@ export function ExplorePage() {
           onSearchChange={setSearchQuery}
           onSearch={handleSemanticSearch}
           onSearchClear={handleSearchClear}
-          searchPlaceholder="Search by mood, theme, or description..."
+          searchPlaceholder={t('mediaGraph.searchPlaceholder')}
           searchLoading={semanticSearch.loading}
-          searchExamples={SEARCH_EXAMPLES}
+          searchExamples={searchExamples}
           showCreatePlaylist
           showRefresh={showRefreshButton}
           onRefresh={handleRefresh}
@@ -513,7 +517,7 @@ export function ExplorePage() {
         {/* Quick Filters */}
         <Box sx={{ px: 2, py: 1.5 }}>
           <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-            Filter by type
+            {t('mediaGraph.filterByType')}
           </Typography>
           <ToggleButtonGroup
             value={mediaFilter}
@@ -530,13 +534,13 @@ export function ExplorePage() {
           >
             <ToggleButton value="movie">
               <MovieIcon fontSize="small" sx={{ mr: 0.5 }} />
-              Movies
+              {t('mediaGraph.movies')}
             </ToggleButton>
             <ToggleButton value="series">
               <TvIcon fontSize="small" sx={{ mr: 0.5 }} />
-              Series
+              {t('mediaGraph.series')}
             </ToggleButton>
-            <ToggleButton value="both">Both</ToggleButton>
+            <ToggleButton value="both">{t('mediaGraph.both')}</ToggleButton>
           </ToggleButtonGroup>
 
           {/* Hide Watched Toggle */}
@@ -550,7 +554,7 @@ export function ExplorePage() {
             }
             label={
               <Typography variant="caption" color="text.secondary">
-                Hide watched
+                {t('mediaGraph.hideWatched')}
               </Typography>
             }
             sx={{ mt: 1.5, ml: 0 }}
@@ -563,7 +567,7 @@ export function ExplorePage() {
         <Box>
           <ListItemButton onClick={() => setBrowseSectionOpen(!browseSectionOpen)}>
             <ListItemText
-              primary="Browse By"
+              primary={t('mediaGraph.browseBy')}
               primaryTypographyProps={{ variant: 'subtitle2', fontWeight: 600 }}
             />
             {browseSectionOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
@@ -579,7 +583,7 @@ export function ExplorePage() {
                 <ListItemIcon sx={{ minWidth: 32 }}>
                   <AutoAwesomeIcon fontSize="small" color="primary" />
                 </ListItemIcon>
-                <ListItemText primary="My AI Movie Picks" />
+                <ListItemText primary={t('mediaGraph.sourceAiMovies')} />
               </ListItemButton>
 
               <ListItemButton
@@ -590,7 +594,7 @@ export function ExplorePage() {
                 <ListItemIcon sx={{ minWidth: 32 }}>
                   <AutoAwesomeIcon fontSize="small" color="secondary" />
                 </ListItemIcon>
-                <ListItemText primary="My AI Series Picks" />
+                <ListItemText primary={t('mediaGraph.sourceAiSeries')} />
               </ListItemButton>
 
               <ListItemButton
@@ -601,7 +605,7 @@ export function ExplorePage() {
                 <ListItemIcon sx={{ minWidth: 32 }}>
                   <PlaylistPlayIcon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText primary="Shows You Watch" />
+                <ListItemText primary={t('mediaGraph.sourceWatching')} />
               </ListItemButton>
 
               <ListItemButton
@@ -612,7 +616,7 @@ export function ExplorePage() {
                 <ListItemIcon sx={{ minWidth: 32 }}>
                   <TrendingUpIcon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText primary="Top Picks Movies" />
+                <ListItemText primary={t('mediaGraph.sourceTopMovies')} />
               </ListItemButton>
 
               <ListItemButton
@@ -623,7 +627,7 @@ export function ExplorePage() {
                 <ListItemIcon sx={{ minWidth: 32 }}>
                   <TrendingUpIcon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText primary="Top Picks Series" />
+                <ListItemText primary={t('mediaGraph.sourceTopSeries')} />
               </ListItemButton>
             </List>
           </Collapse>
@@ -637,7 +641,7 @@ export function ExplorePage() {
             <Box sx={{ p: 2 }}>
               <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <HistoryIcon fontSize="small" />
-                Recent Searches
+                {t('mediaGraph.recentSearches')}
               </Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                 {recentSearches.map((query) => (
@@ -662,7 +666,7 @@ export function ExplorePage() {
         {/* Connection Legend */}
         <Box sx={{ p: 2 }}>
           <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
-            Connection Types
+            {t('mediaGraph.connectionTypesHeading')}
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             {(Object.keys(CONNECTION_COLORS) as ConnectionType[]).map((type) => (
@@ -676,7 +680,7 @@ export function ExplorePage() {
                   }}
                 />
                 <Typography variant="caption" sx={{ fontSize: '10px' }}>
-                  {CONNECTION_LABELS[type]}
+                  {connectionTypeLabel(type, t)}
                 </Typography>
               </Box>
             ))}
@@ -695,9 +699,7 @@ export function ExplorePage() {
                 onChange={(e) => setCrossMediaEnabled(e.target.checked)}
               />
             }
-            label={
-              <Typography variant="caption">Show cross-media connections</Typography>
-            }
+            label={<Typography variant="caption">{t('mediaGraph.crossMedia')}</Typography>}
           />
         </Box>
       </Paper>

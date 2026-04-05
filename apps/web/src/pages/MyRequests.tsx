@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link as RouterLink } from 'react-router-dom'
 import {
   Box,
@@ -51,44 +52,44 @@ interface DiscoveryRequestRow {
   libraryMediaId?: string | null
 }
 
-function statusLabel(row: DiscoveryRequestRow): string {
+function getRequestStatusKey(row: DiscoveryRequestRow): string | null {
   const live = row.seerrLive
   if (live) {
-    if (live.mediaStatus === 'available') return 'Available'
-    if (live.status === 'declined') return 'Declined'
-    if (live.status === 'pending') return 'Pending approval'
+    if (live.mediaStatus === 'available') return 'available'
+    if (live.status === 'declined') return 'declined'
+    if (live.status === 'pending') return 'pendingApproval'
     if (live.mediaStatus === 'processing' || live.mediaStatus === 'partially_available') {
-      return 'Processing'
+      return 'processing'
     }
-    if (live.status === 'approved') return 'Approved'
+    if (live.status === 'approved') return 'approved'
   }
   const s = row.status
-  if (s === 'submitted') return 'Submitted'
-  if (s === 'pending') return 'Pending'
-  if (s === 'approved') return 'Approved'
-  if (s === 'declined') return 'Declined'
-  if (s === 'available') return 'Available'
-  if (s === 'failed') return 'Failed'
-  return s
+  if (s === 'submitted') return 'submitted'
+  if (s === 'pending') return 'pending'
+  if (s === 'approved') return 'approved'
+  if (s === 'declined') return 'declined'
+  if (s === 'available') return 'available'
+  if (s === 'failed') return 'failed'
+  return null
 }
 
 function isRowAvailable(row: DiscoveryRequestRow): boolean {
-  return statusLabel(row) === 'Available'
+  return getRequestStatusKey(row) === 'available'
 }
 
 function statusColor(row: DiscoveryRequestRow): 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' {
-  const label = statusLabel(row)
-  if (label === 'Available') return 'success'
-  if (label === 'Declined' || row.status === 'failed') return 'error'
-  if (label === 'Failed') return 'error'
-  if (label === 'Pending approval' || label === 'Pending' || label === 'Submitted') return 'warning'
-  if (label === 'Approved' || label === 'Processing') return 'info'
+  const key = getRequestStatusKey(row)
+  if (key === 'available') return 'success'
+  if (key === 'declined' || key === 'failed' || row.status === 'failed') return 'error'
+  if (key === 'pendingApproval' || key === 'pending' || key === 'submitted') return 'warning'
+  if (key === 'approved' || key === 'processing') return 'info'
   return 'default'
 }
 
 type SourceFilter = 'all' | 'discovery' | 'gap_analysis'
 
 export function MyRequestsPage() {
+  const { t } = useTranslation()
   const [rows, setRows] = useState<DiscoveryRequestRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -113,7 +114,7 @@ export function MyRequestsPage() {
       const res = await fetch(u.toString(), { credentials: 'include' })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || data.message || 'Could not load requests')
+        throw new Error(data.error || data.message || t('myRequests.errorLoad'))
       }
       const data = (await res.json()) as {
         requests?: DiscoveryRequestRow[]
@@ -123,11 +124,11 @@ export function MyRequestsPage() {
       setRows(list)
       setTotal(typeof data.total === 'number' ? data.total : list.length)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load requests')
+      setError(e instanceof Error ? e.message : t('myRequests.errorLoad'))
     } finally {
       setLoading(false)
     }
-  }, [sourceFilter, page, rowsPerPage])
+  }, [sourceFilter, page, rowsPerPage, t])
 
   useEffect(() => {
     void load()
@@ -149,13 +150,13 @@ export function MyRequestsPage() {
       .then(async (res) => {
         if (!res.ok) {
           const j = (await res.json().catch(() => ({}))) as { error?: string }
-          throw new Error(j.error || 'Failed to load details')
+          throw new Error(j.error || t('myRequests.errorLoadDetails'))
         }
         return res.json() as Promise<TmdbExternalDetailPayload>
       })
       .then((payload) => setTmdbModalData(payload))
       .catch((e: unknown) => {
-        setTmdbModalError(e instanceof Error ? e.message : 'Failed to load details')
+        setTmdbModalError(e instanceof Error ? e.message : t('myRequests.errorLoadDetails'))
       })
       .finally(() => setTmdbModalLoading(false))
   }
@@ -166,34 +167,39 @@ export function MyRequestsPage() {
     setTmdbModalData(null)
   }
 
+  const formatRequestStatus = (row: DiscoveryRequestRow) => {
+    const key = getRequestStatusKey(row)
+    if (key) return t(`myRequests.requestStatus.${key}`)
+    return t('myRequests.requestStatus.fallback', { status: row.status })
+  }
+
   return (
     <Box sx={{ maxWidth: 1100, mx: 'auto', p: { xs: 2, md: 3 } }}>
       <Box display="flex" alignItems="center" gap={1.5} mb={1}>
         <PlaylistAddCheckIcon color="primary" fontSize="large" />
         <Typography variant="h4" fontWeight={700}>
-          My Requests
+          {t('nav.myRequests')}
         </Typography>
       </Box>
       <Typography variant="body2" color="text.secondary" mb={2}>
-        Content you requested through Discovery or Gap Analysis (admin). Status is synced from Seerr when
-        available.
+        {t('myRequests.pageSubtitle')}
       </Typography>
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mb={3} alignItems={{ sm: 'center' }}>
         <FormControl size="small" sx={{ minWidth: 220 }}>
-          <InputLabel id="req-source-filter">Source</InputLabel>
+          <InputLabel id="req-source-filter">{t('myRequests.source')}</InputLabel>
           <Select
             labelId="req-source-filter"
-            label="Source"
+            label={t('myRequests.source')}
             value={sourceFilter}
             onChange={(e) => {
               setPage(0)
               setSourceFilter(e.target.value as SourceFilter)
             }}
           >
-            <MenuItem value="all">All</MenuItem>
-            <MenuItem value="discovery">Discovery</MenuItem>
-            <MenuItem value="gap_analysis">Gap Analysis</MenuItem>
+            <MenuItem value="all">{t('myRequests.sourceAll')}</MenuItem>
+            <MenuItem value="discovery">{t('myRequests.sourceDiscovery')}</MenuItem>
+            <MenuItem value="gap_analysis">{t('myRequests.sourceGapAnalysis')}</MenuItem>
           </Select>
         </FormControl>
       </Stack>
@@ -212,7 +218,7 @@ export function MyRequestsPage() {
         ) : total === 0 ? (
           <Box py={6} px={2} textAlign="center">
             <Typography color="text.secondary">
-              No requests yet. When you request titles from Discovery, they will appear here.
+              {t('myRequests.empty')}
             </Typography>
           </Box>
         ) : (
@@ -220,13 +226,13 @@ export function MyRequestsPage() {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Title</TableCell>
-                  <TableCell width={100}>Type</TableCell>
-                  <TableCell width={130}>Source</TableCell>
-                  <TableCell width={140}>Requested</TableCell>
-                  <TableCell width={180}>Status</TableCell>
+                  <TableCell>{t('myRequests.tableTitle')}</TableCell>
+                  <TableCell width={100}>{t('myRequests.tableType')}</TableCell>
+                  <TableCell width={130}>{t('myRequests.tableSource')}</TableCell>
+                  <TableCell width={140}>{t('myRequests.tableRequested')}</TableCell>
+                  <TableCell width={180}>{t('myRequests.tableStatus')}</TableCell>
                   <TableCell width={180} align="right">
-                    Actions
+                    {t('myRequests.tableActions')}
                   </TableCell>
                 </TableRow>
               </TableHead>
@@ -237,21 +243,21 @@ export function MyRequestsPage() {
                       <Typography fontWeight={600}>{r.title}</Typography>
                       {r.seerrRequestId != null && (
                         <Typography variant="caption" color="text.secondary" display="block">
-                          Seerr request #{r.seerrRequestId}
+                          {t('myRequests.seerrRequest', { id: r.seerrRequestId })}
                         </Typography>
                       )}
                     </TableCell>
                     <TableCell>
                       <Chip
                         size="small"
-                        label={r.mediaType === 'movie' ? 'Movie' : 'Series'}
+                        label={r.mediaType === 'movie' ? t('myRequests.typeMovie') : t('myRequests.typeSeries')}
                         variant="outlined"
                       />
                     </TableCell>
                     <TableCell>
                       <Chip
                         size="small"
-                        label={r.source === 'gap_analysis' ? 'Gap Analysis' : 'Discovery'}
+                        label={r.source === 'gap_analysis' ? t('myRequests.sourceGapAnalysis') : t('myRequests.sourceDiscovery')}
                         variant="outlined"
                         color={r.source === 'gap_analysis' ? 'secondary' : 'default'}
                       />
@@ -269,13 +275,16 @@ export function MyRequestsPage() {
                       <Tooltip
                         title={
                           r.seerrLive
-                            ? `Request: ${r.seerrLive.status} · media: ${r.seerrLive.mediaStatus}`
+                            ? t('myRequests.tooltipLive', {
+                                reqStatus: r.seerrLive.status,
+                                mediaStatus: r.seerrLive.mediaStatus,
+                              })
                             : ''
                         }
                       >
                         <Chip
                           size="small"
-                          label={statusLabel(r)}
+                          label={formatRequestStatus(r)}
                           color={statusColor(r)}
                           variant={statusColor(r) === 'default' ? 'outlined' : 'filled'}
                         />
@@ -293,11 +302,11 @@ export function MyRequestsPage() {
                               : `/series/${r.libraryMediaId}`
                           }
                         >
-                          Open in library
+                          {t('myRequests.openInLibrary')}
                         </Button>
                       ) : (
                         <Button size="small" variant="outlined" onClick={() => openTmdbModal(r)}>
-                          Details
+                          {t('myRequests.details')}
                         </Button>
                       )}
                     </TableCell>
@@ -319,7 +328,7 @@ export function MyRequestsPage() {
               setPage(0)
             }}
             rowsPerPageOptions={[10, 25, 50, 100]}
-            labelRowsPerPage="Rows per page"
+            labelRowsPerPage={t('common.rowsPerPage')}
           />
         )}
       </Paper>

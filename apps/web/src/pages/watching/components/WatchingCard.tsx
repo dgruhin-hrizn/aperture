@@ -5,6 +5,8 @@
  */
 
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { Box, Typography, Chip } from '@mui/material'
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
 import TvIcon from '@mui/icons-material/Tv'
@@ -17,16 +19,16 @@ interface WatchingCardProps {
   onRemove: (seriesId: string) => Promise<void>
 }
 
-function formatAirDate(dateStr: string): string {
+function formatAirDate(dateStr: string, t: TFunction, locale: string): string {
   const date = new Date(dateStr)
   const now = new Date()
   const diffDays = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-  
-  if (diffDays === 0) return 'Today'
-  if (diffDays === 1) return 'Tomorrow'
-  if (diffDays > 0 && diffDays <= 7) return `In ${diffDays} days`
-  
-  return date.toLocaleDateString('en-US', {
+
+  if (diffDays === 0) return t('dashboard.airToday')
+  if (diffDays === 1) return t('dashboard.airTomorrow')
+  if (diffDays > 0 && diffDays <= 7) return t('dashboard.airInDays', { count: diffDays })
+
+  return date.toLocaleDateString(locale, {
     month: 'short',
     day: 'numeric',
     year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
@@ -38,6 +40,7 @@ function formatEpisodeNumber(ep: UpcomingEpisode): string {
 }
 
 export function WatchingCard({ series, onRemove }: WatchingCardProps) {
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const { getRating, setRating } = useUserRatings()
 
@@ -75,7 +78,7 @@ export function WatchingCard({ series, onRemove }: WatchingCardProps) {
       >
         {/* Status badge */}
         <Chip
-          label={isAiring ? 'Airing' : series.status || 'Ended'}
+          label={isAiring ? t('watching.chipAiringShort') : series.status || t('watching.statusEnded')}
           size="small"
           color={isAiring ? 'success' : 'default'}
           sx={{
@@ -107,7 +110,9 @@ export function WatchingCard({ series, onRemove }: WatchingCardProps) {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
               <CalendarTodayIcon sx={{ fontSize: 14, color: 'primary.main' }} />
               <Typography variant="caption" color="primary.main" fontWeight={600}>
-                Next: {formatAirDate(upcoming.airDate)}
+                {t('watching.nextEpisodeLabel', {
+                  when: formatAirDate(upcoming.airDate, t, i18n.language),
+                })}
               </Typography>
             </Box>
             <Typography variant="caption" color="text.secondary" noWrap display="block">
@@ -116,13 +121,13 @@ export function WatchingCard({ series, onRemove }: WatchingCardProps) {
           </>
         ) : isAiring ? (
           <Typography variant="caption" color="text.secondary">
-            No upcoming episode data
+            {t('watching.noUpcomingCard')}
           </Typography>
         ) : (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <TvIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
             <Typography variant="caption" color="text.secondary">
-              Series ended
+              {t('watching.seriesEnded')}
             </Typography>
           </Box>
         )}

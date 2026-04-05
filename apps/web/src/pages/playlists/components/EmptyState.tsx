@@ -1,4 +1,5 @@
 import { Card, Typography, Button } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 import AddIcon from '@mui/icons-material/Add'
 import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay'
 
@@ -7,6 +8,7 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({ onCreateClick }: EmptyStateProps) {
+  const { t } = useTranslation()
   return (
     <Card
       sx={{
@@ -18,13 +20,13 @@ export function EmptyState({ onCreateClick }: EmptyStateProps) {
     >
       <PlaylistPlayIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
       <Typography variant="h6" mb={1}>
-        No playlists yet
+        {t('playlists.emptyTitle')}
       </Typography>
       <Typography variant="body2" color="text.secondary" mb={3}>
-        Create your first playlist to get custom AI-powered movie recommendations
+        {t('playlists.emptyBody')}
       </Typography>
       <Button variant="contained" startIcon={<AddIcon />} onClick={onCreateClick}>
-        Create Playlist
+        {t('playlists.createPlaylist')}
       </Button>
     </Card>
   )

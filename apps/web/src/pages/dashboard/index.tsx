@@ -1,5 +1,7 @@
 import { Box, Typography, Grid, Alert, Button } from '@mui/material'
 import RefreshIcon from '@mui/icons-material/Refresh'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { useAuth } from '@/hooks/useAuth'
 import { useDashboardData } from './hooks'
 import { useWatchingData } from '../watching/hooks/useWatchingData'
@@ -12,6 +14,7 @@ import {
 } from './components'
 
 export function DashboardPage() {
+  const { t } = useTranslation()
   const { user } = useAuth()
   const { data, loading, error, refetch } = useDashboardData()
   const { series: watchingSeries, loading: watchingLoading } = useWatchingData()
@@ -25,7 +28,7 @@ export function DashboardPage() {
       return dateA - dateB
     })
 
-  const greeting = getGreeting()
+  const greeting = getGreeting(t)
 
   return (
     <Box>
@@ -43,7 +46,7 @@ export function DashboardPage() {
             {greeting}, {user?.displayName || user?.username}
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Here's what's happening with your media
+            {t('dashboard.subtitle')}
           </Typography>
         </Box>
         <Button
@@ -54,7 +57,7 @@ export function DashboardPage() {
           disabled={loading}
           sx={{ alignSelf: { xs: 'flex-start', sm: 'center' } }}
         >
-          Refresh
+          {t('dashboard.refresh')}
         </Button>
       </Box>
 
@@ -78,30 +81,30 @@ export function DashboardPage() {
       {/* Your AI Movie Recommendations */}
       <Box sx={{ mb: 4 }}>
         <MediaCarousel
-          title="Your AI Movie Recommendations"
-          subtitle="Personalized picks based on your taste"
+          title={t('dashboard.aiMovieRecommendations')}
+          subtitle={t('dashboard.subtitlePersonalized')}
           items={(data?.recommendations || [])
             .filter(item => item.type === 'movie')
             .map((item, index) => ({ ...item, rank: index + 1 }))}
           loading={loading}
           showScore
           showRank
-          emptyMessage="No movie recommendations yet. Watch some movies to get personalized picks!"
+          emptyMessage={t('dashboard.emptyMovieRecs')}
         />
       </Box>
 
       {/* Your AI Series Recommendations */}
       <Box sx={{ mb: 4 }}>
         <MediaCarousel
-          title="Your AI Series Recommendations"
-          subtitle="Personalized picks based on your taste"
+          title={t('dashboard.aiSeriesRecommendations')}
+          subtitle={t('dashboard.subtitlePersonalized')}
           items={(data?.recommendations || [])
             .filter(item => item.type === 'series')
             .map((item, index) => ({ ...item, rank: index + 1 }))}
           loading={loading}
           showScore
           showRank
-          emptyMessage="No series recommendations yet. Watch some series to get personalized picks!"
+          emptyMessage={t('dashboard.emptySeriesRecs')}
         />
       </Box>
 
@@ -109,11 +112,10 @@ export function DashboardPage() {
       {(watchingLoading || upcomingShows.length > 0) && (
         <Box sx={{ mb: 4 }}>
           <WatchingCarousel
-            title="Upcoming Episodes"
-            subtitle="From shows you watch"
+            title={t('dashboard.upcomingEpisodes')}
+            subtitle={t('dashboard.subtitleFromWatching')}
             items={upcomingShows}
             loading={watchingLoading}
-            emptyMessage="No upcoming episodes"
           />
         </Box>
       )}
@@ -121,24 +123,24 @@ export function DashboardPage() {
       {/* Top Pick Movies */}
       <Box sx={{ mb: 4 }}>
         <MediaCarousel
-          title="Top Pick Movies"
-          subtitle="Popular movies across all users"
+          title={t('dashboard.topPickMovies')}
+          subtitle={t('dashboard.subtitlePopularMovies')}
           items={(data?.topPicks || []).filter(item => item.type === 'movie')}
           loading={loading}
           showRank
-          emptyMessage="No trending movies yet"
+          emptyMessage={t('dashboard.emptyTrendingMovies')}
         />
       </Box>
 
       {/* Top Pick Series */}
       <Box sx={{ mb: 4 }}>
         <MediaCarousel
-          title="Top Pick Series"
-          subtitle="Popular TV series across all users"
+          title={t('dashboard.topPickSeries')}
+          subtitle={t('dashboard.subtitlePopularSeries')}
           items={(data?.topPicks || []).filter(item => item.type === 'series')}
           loading={loading}
           showRank
-          emptyMessage="No trending series yet"
+          emptyMessage={t('dashboard.emptyTrendingSeries')}
         />
       </Box>
 
@@ -161,10 +163,10 @@ export function DashboardPage() {
   )
 }
 
-function getGreeting(): string {
+function getGreeting(t: TFunction): string {
   const hour = new Date().getHours()
-  if (hour < 12) return 'Good morning'
-  if (hour < 17) return 'Good afternoon'
-  return 'Good evening'
+  if (hour < 12) return t('dashboard.greetingMorning')
+  if (hour < 17) return t('dashboard.greetingAfternoon')
+  return t('dashboard.greetingEvening')
 }
 

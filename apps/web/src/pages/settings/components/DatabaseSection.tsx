@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -22,8 +23,6 @@ import PsychologyIcon from '@mui/icons-material/Psychology'
 import PersonIcon from '@mui/icons-material/Person'
 import SmartToyIcon from '@mui/icons-material/SmartToy'
 import type { PurgeStats } from '../types'
-
-const CONFIRMATION_TEXT = 'yes I am sure'
 
 interface DatabaseSectionProps {
   purgeStats: PurgeStats | null
@@ -85,11 +84,12 @@ export function DatabaseSection({
   setShowPurgeConfirm,
   onPurge,
 }: DatabaseSectionProps) {
+  const { t } = useTranslation()
   const [confirmationText, setConfirmationText] = useState('')
-  
-  const isConfirmationValid = confirmationText.toLowerCase() === CONFIRMATION_TEXT
 
-  // Calculate totals for summary
+  const confirmPhrase = t('settingsDatabase.confirmPhrase')
+  const isConfirmationValid = confirmationText.toLowerCase() === confirmPhrase.toLowerCase()
+
   const totalContent = purgeStats
     ? purgeStats.movies + purgeStats.series + purgeStats.episodes
     : 0
@@ -102,12 +102,12 @@ export function DatabaseSection({
   const totalAssistant = purgeStats
     ? purgeStats.assistantConversations + purgeStats.assistantMessages
     : 0
-  
+
   const handleCloseConfirm = () => {
     setShowPurgeConfirm(false)
     setConfirmationText('')
   }
-  
+
   const handlePurge = () => {
     if (isConfirmationValid) {
       onPurge()
@@ -122,12 +122,12 @@ export function DatabaseSection({
         <Box display="flex" alignItems="center" gap={1} mb={2}>
           <DeleteForeverIcon color="error" />
           <Typography variant="h6" color="error.main">
-            Database Management
+            {t('settingsDatabase.title')}
           </Typography>
         </Box>
 
         <Alert severity="warning" sx={{ mb: 3 }}>
-          <strong>Danger Zone!</strong> These actions are irreversible and will delete data.
+          <strong>{t('settingsDatabase.dangerTitle')}</strong> {t('settingsDatabase.dangerBody')}
         </Alert>
 
         {purgeError && (
@@ -142,7 +142,6 @@ export function DatabaseSection({
           </Alert>
         )}
 
-        {/* Current Stats */}
         {loadingPurgeStats ? (
           <Box display="flex" justifyContent="center" py={2}>
             <CircularProgress size={24} />
@@ -151,7 +150,7 @@ export function DatabaseSection({
           purgeStats && (
             <Box sx={{ mb: 3, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
               <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                Current Database Contents
+                {t('settingsDatabase.currentContents')}
               </Typography>
 
               <Box
@@ -162,40 +161,36 @@ export function DatabaseSection({
                   mt: 2,
                 }}
               >
-                {/* Content Library */}
-                <StatGroup title="Content Library" icon={<MovieIcon sx={{ fontSize: 18, color: 'primary.main' }} />}>
-                  <StatRow label="Movies" value={purgeStats.movies} />
-                  <StatRow label="Series" value={purgeStats.series} />
-                  <StatRow label="Episodes" value={purgeStats.episodes} />
+                <StatGroup title={t('settingsDatabase.groupContentLibrary')} icon={<MovieIcon sx={{ fontSize: 18, color: 'primary.main' }} />}>
+                  <StatRow label={t('settingsDatabase.statMovies')} value={purgeStats.movies} />
+                  <StatRow label={t('settingsDatabase.statSeries')} value={purgeStats.series} />
+                  <StatRow label={t('settingsDatabase.statEpisodes')} value={purgeStats.episodes} />
                   <Divider sx={{ my: 0.5 }} />
-                  <StatRow label="Total" value={totalContent} />
+                  <StatRow label={t('settingsDatabase.statTotal')} value={totalContent} />
                 </StatGroup>
 
-                {/* AI Embeddings */}
-                <StatGroup title="AI Embeddings" icon={<PsychologyIcon sx={{ fontSize: 18, color: 'secondary.main' }} />}>
-                  <StatRow label="Movie" value={purgeStats.movieEmbeddings} />
-                  <StatRow label="Series" value={purgeStats.seriesEmbeddings} />
-                  <StatRow label="Episode" value={purgeStats.episodeEmbeddings} />
+                <StatGroup title={t('settingsDatabase.groupAiEmbeddings')} icon={<PsychologyIcon sx={{ fontSize: 18, color: 'secondary.main' }} />}>
+                  <StatRow label={t('settingsDatabase.statMovieEmbeddings')} value={purgeStats.movieEmbeddings} />
+                  <StatRow label={t('settingsDatabase.statSeriesEmbeddings')} value={purgeStats.seriesEmbeddings} />
+                  <StatRow label={t('settingsDatabase.statEpisodeEmbeddings')} value={purgeStats.episodeEmbeddings} />
                   <Divider sx={{ my: 0.5 }} />
-                  <StatRow label="Total" value={totalEmbeddings} />
+                  <StatRow label={t('settingsDatabase.statTotal')} value={totalEmbeddings} />
                 </StatGroup>
 
-                {/* User Data */}
-                <StatGroup title="User Data" icon={<PersonIcon sx={{ fontSize: 18, color: 'info.main' }} />}>
-                  <StatRow label="Watch History" value={purgeStats.watchHistory} />
-                  <StatRow label="User Ratings" value={purgeStats.userRatings} />
-                  <StatRow label="Recommendations" value={purgeStats.recommendations} />
-                  <StatRow label="Taste Profiles" value={purgeStats.userPreferences} />
+                <StatGroup title={t('settingsDatabase.groupUserData')} icon={<PersonIcon sx={{ fontSize: 18, color: 'info.main' }} />}>
+                  <StatRow label={t('settingsDatabase.statWatchHistory')} value={purgeStats.watchHistory} />
+                  <StatRow label={t('settingsDatabase.statUserRatings')} value={purgeStats.userRatings} />
+                  <StatRow label={t('settingsDatabase.statRecommendations')} value={purgeStats.recommendations} />
+                  <StatRow label={t('settingsDatabase.statTasteProfiles')} value={purgeStats.userPreferences} />
                   <Divider sx={{ my: 0.5 }} />
-                  <StatRow label="Total" value={totalUserData} />
+                  <StatRow label={t('settingsDatabase.statTotal')} value={totalUserData} />
                 </StatGroup>
 
-                {/* Assistant */}
-                <StatGroup title="AI Assistant" icon={<SmartToyIcon sx={{ fontSize: 18, color: 'success.main' }} />}>
-                  <StatRow label="Conversations" value={purgeStats.assistantConversations} />
-                  <StatRow label="Messages" value={purgeStats.assistantMessages} />
+                <StatGroup title={t('settingsDatabase.groupAiAssistant')} icon={<SmartToyIcon sx={{ fontSize: 18, color: 'success.main' }} />}>
+                  <StatRow label={t('settingsDatabase.statConversations')} value={purgeStats.assistantConversations} />
+                  <StatRow label={t('settingsDatabase.statMessages')} value={purgeStats.assistantMessages} />
                   <Divider sx={{ my: 0.5 }} />
-                  <StatRow label="Total" value={totalAssistant} />
+                  <StatRow label={t('settingsDatabase.statTotal')} value={totalAssistant} />
                 </StatGroup>
               </Box>
             </Box>
@@ -204,9 +199,7 @@ export function DatabaseSection({
 
         <Box>
           <Typography variant="body2" color="text.secondary" mb={2}>
-            Purge all content data to start fresh. This will delete all movies, series, episodes, embeddings, watch
-            history, ratings, recommendations, taste profiles, and assistant conversations. Library configuration and
-            user accounts are preserved.
+            {t('settingsDatabase.purgeDescription')}
           </Typography>
           <Button
             variant="outlined"
@@ -215,11 +208,10 @@ export function DatabaseSection({
             onClick={() => setShowPurgeConfirm(true)}
             disabled={purging}
           >
-            Purge Content Database
+            {t('settingsDatabase.purgeButton')}
           </Button>
         </Box>
 
-        {/* Purge Confirmation Modal */}
         <Dialog
           open={showPurgeConfirm}
           onClose={handleCloseConfirm}
@@ -236,12 +228,11 @@ export function DatabaseSection({
           <DialogTitle sx={{ bgcolor: alpha('#f44336', 0.1), display: 'flex', alignItems: 'center', gap: 1 }}>
             <WarningIcon color="error" />
             <Typography variant="h6" color="error.main" fontWeight={700}>
-              ⚠️ DANGER: Database Purge
+              {t('settingsDatabase.dialogTitle')}
             </Typography>
           </DialogTitle>
-          
+
           <DialogContent sx={{ pt: 3 }}>
-            {/* Warning Video */}
             <Box
               sx={{
                 width: '100%',
@@ -266,18 +257,16 @@ export function DatabaseSection({
                 <source src="/are_you_sure.mp4" type="video/mp4" />
               </video>
             </Box>
-            
-            {/* Warning Text */}
+
             <Alert severity="error" sx={{ mb: 3 }}>
               <Typography variant="body1" fontWeight={600} gutterBottom>
-                This action is IRREVERSIBLE!
+                {t('settingsDatabase.irreversibleTitle')}
               </Typography>
               <Typography variant="body2">
-                You are about to permanently delete ALL content from your database. This includes:
+                {t('settingsDatabase.irreversibleBody')}
               </Typography>
             </Alert>
-            
-            {/* What will be deleted */}
+
             <Box
               sx={{
                 display: 'grid',
@@ -292,34 +281,33 @@ export function DatabaseSection({
               }}
             >
               <Box component="ul" sx={{ m: 0, pl: 2, color: 'error.main' }}>
-                <li><strong>{purgeStats?.movies.toLocaleString() || 0}</strong> movies</li>
-                <li><strong>{purgeStats?.series.toLocaleString() || 0}</strong> series</li>
-                <li><strong>{purgeStats?.episodes.toLocaleString() || 0}</strong> episodes</li>
-                <li><strong>{totalEmbeddings.toLocaleString()}</strong> AI embeddings</li>
+                <li>{t('settingsDatabase.purgeLineMovies', { count: purgeStats?.movies ?? 0 })}</li>
+                <li>{t('settingsDatabase.purgeLineSeries', { count: purgeStats?.series ?? 0 })}</li>
+                <li>{t('settingsDatabase.purgeLineEpisodes', { count: purgeStats?.episodes ?? 0 })}</li>
+                <li>{t('settingsDatabase.purgeLineEmbeddings', { count: totalEmbeddings })}</li>
               </Box>
               <Box component="ul" sx={{ m: 0, pl: 2, color: 'error.main' }}>
-                <li><strong>{purgeStats?.watchHistory.toLocaleString() || 0}</strong> watch history entries</li>
-                <li><strong>{purgeStats?.userRatings.toLocaleString() || 0}</strong> user ratings</li>
-                <li><strong>{purgeStats?.recommendations.toLocaleString() || 0}</strong> recommendations</li>
-                <li><strong>{purgeStats?.assistantConversations.toLocaleString() || 0}</strong> assistant chats</li>
+                <li>{t('settingsDatabase.purgeLineWatchHistory', { count: purgeStats?.watchHistory ?? 0 })}</li>
+                <li>{t('settingsDatabase.purgeLineRatings', { count: purgeStats?.userRatings ?? 0 })}</li>
+                <li>{t('settingsDatabase.purgeLineRecs', { count: purgeStats?.recommendations ?? 0 })}</li>
+                <li>{t('settingsDatabase.purgeLineChats', { count: purgeStats?.assistantConversations ?? 0 })}</li>
               </Box>
             </Box>
-            
-            {/* Confirmation Input */}
+
             <Typography variant="body1" fontWeight={600} gutterBottom>
-              To confirm, type "<strong>{CONFIRMATION_TEXT}</strong>" below:
+              {t('settingsDatabase.confirmPrompt', { phrase: confirmPhrase })}
             </Typography>
             <TextField
               fullWidth
               variant="outlined"
-              placeholder={CONFIRMATION_TEXT}
+              placeholder={confirmPhrase}
               value={confirmationText}
               onChange={(e) => setConfirmationText(e.target.value)}
               disabled={purging}
               error={confirmationText.length > 0 && !isConfirmationValid}
               helperText={
                 confirmationText.length > 0 && !isConfirmationValid
-                  ? `Please type exactly: ${CONFIRMATION_TEXT}`
+                  ? t('settingsDatabase.confirmHelper', { phrase: confirmPhrase })
                   : ' '
               }
               sx={{
@@ -331,14 +319,10 @@ export function DatabaseSection({
               }}
             />
           </DialogContent>
-          
+
           <DialogActions sx={{ p: 3, pt: 0 }}>
-            <Button
-              variant="outlined"
-              onClick={handleCloseConfirm}
-              disabled={purging}
-            >
-              Cancel
+            <Button variant="outlined" onClick={handleCloseConfirm} disabled={purging}>
+              {t('common.cancel')}
             </Button>
             <Button
               variant="contained"
@@ -347,7 +331,7 @@ export function DatabaseSection({
               onClick={handlePurge}
               disabled={!isConfirmationValid || purging}
             >
-              {purging ? 'Purging...' : 'Permanently Delete Everything'}
+              {purging ? t('settingsDatabase.purging') : t('settingsDatabase.deleteEverything')}
             </Button>
           </DialogActions>
         </Dialog>

@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -109,10 +110,27 @@ const TEXT_GEN = {
 }
 
 // ============================================================================
+// Category keys (map to settingsCostEstimator.categories.*)
+// ============================================================================
+
+type OneTimeCategoryKey = 'oneTimeMovies' | 'oneTimeSeries' | 'oneTimeEpisodes'
+type WeeklyEmbCategoryKey = 'weeklyNewMovies' | 'weeklyNewShows' | 'weeklyNewEpisodes'
+type TextGenCategoryKey =
+  | 'movieTasteSynopses'
+  | 'movieExplanations'
+  | 'seriesTasteSynopses'
+  | 'seriesExplanations'
+  | 'assistantSuggestions'
+
+// ============================================================================
 // Component
 // ============================================================================
 
 export function CostEstimatorSection() {
+  const { t } = useTranslation()
+  const cat = (key: OneTimeCategoryKey | WeeklyEmbCategoryKey | TextGenCategoryKey) =>
+    t(`settingsCostEstimator.categories.${key}`)
+
   const [costInputs, setCostInputs] = useState<CostInputs | null>(null)
   const [pricing, setPricing] = useState<AIPricing | null>(null)
   const [loading, setLoading] = useState(true)
@@ -213,11 +231,11 @@ export function CostEstimatorSection() {
   const oneTimeCosts = useMemo(() => {
     if (!costInputs?.library || !pricing?.embeddings) return []
 
-    const items: Array<{ category: string; count: number; cost: number }> = []
+    const items: Array<{ categoryKey: OneTimeCategoryKey; count: number; cost: number }> = []
 
     if (costInputs.library.totalMovies > 0) {
       items.push({
-        category: 'Movies',
+        categoryKey: 'oneTimeMovies',
         count: costInputs.library.totalMovies,
         cost: calculateEmbeddingCost(costInputs.library.totalMovies, TOKENS_PER_MOVIE),
       })
@@ -225,7 +243,7 @@ export function CostEstimatorSection() {
 
     if (costInputs.library.totalSeries > 0) {
       items.push({
-        category: 'Series',
+        categoryKey: 'oneTimeSeries',
         count: costInputs.library.totalSeries,
         cost: calculateEmbeddingCost(costInputs.library.totalSeries, TOKENS_PER_SERIES),
       })
@@ -233,7 +251,7 @@ export function CostEstimatorSection() {
 
     if (costInputs.library.totalEpisodes > 0) {
       items.push({
-        category: 'Episodes',
+        categoryKey: 'oneTimeEpisodes',
         count: costInputs.library.totalEpisodes,
         cost: calculateEmbeddingCost(costInputs.library.totalEpisodes, TOKENS_PER_EPISODE),
       })
@@ -246,11 +264,11 @@ export function CostEstimatorSection() {
   const weeklyEmbeddingCosts = useMemo(() => {
     if (!pricing?.embeddings) return []
 
-    const items: Array<{ category: string; count: number; cost: number }> = []
+    const items: Array<{ categoryKey: WeeklyEmbCategoryKey; count: number; cost: number }> = []
 
     if (userEstimates.weeklyMoviesAdded > 0) {
       items.push({
-        category: 'New Movies',
+        categoryKey: 'weeklyNewMovies',
         count: userEstimates.weeklyMoviesAdded,
         cost: calculateEmbeddingCost(userEstimates.weeklyMoviesAdded, TOKENS_PER_MOVIE),
       })
@@ -258,7 +276,7 @@ export function CostEstimatorSection() {
 
     if (userEstimates.weeklyShowsAdded > 0) {
       items.push({
-        category: 'New Shows',
+        categoryKey: 'weeklyNewShows',
         count: userEstimates.weeklyShowsAdded,
         cost: calculateEmbeddingCost(userEstimates.weeklyShowsAdded, TOKENS_PER_SERIES),
       })
@@ -266,7 +284,7 @@ export function CostEstimatorSection() {
 
     if (userEstimates.weeklyEpisodesAdded > 0) {
       items.push({
-        category: 'New Episodes',
+        categoryKey: 'weeklyNewEpisodes',
         count: userEstimates.weeklyEpisodesAdded,
         cost: calculateEmbeddingCost(userEstimates.weeklyEpisodesAdded, TOKENS_PER_EPISODE),
       })
@@ -279,13 +297,13 @@ export function CostEstimatorSection() {
   const weeklyTextGenCosts = useMemo(() => {
     if (!costInputs || !pricing?.textGeneration) return []
 
-    const items: Array<{ category: string; calls: number; cost: number }> = []
+    const items: Array<{ categoryKey: TextGenCategoryKey; calls: number; cost: number }> = []
 
     // Movie taste synopses
     if (costInputs.movie.enabledUsers > 0 && costInputs.movie.runsPerWeek > 0) {
       const tasteCalls = costInputs.movie.enabledUsers * costInputs.movie.runsPerWeek
       items.push({
-        category: 'Movie Taste Synopses',
+        categoryKey: 'movieTasteSynopses',
         calls: tasteCalls,
         cost: calculateTextGenCost(tasteCalls, TEXT_GEN.tasteSynopsis.input, TEXT_GEN.tasteSynopsis.output),
       })
@@ -293,7 +311,7 @@ export function CostEstimatorSection() {
       // Movie explanations
       const expCalls = costInputs.movie.selectedCount * costInputs.movie.enabledUsers * costInputs.movie.runsPerWeek
       items.push({
-        category: 'Movie Explanations',
+        categoryKey: 'movieExplanations',
         calls: expCalls,
         cost: calculateTextGenCost(expCalls, TEXT_GEN.explanation.input, TEXT_GEN.explanation.output),
       })
@@ -303,7 +321,7 @@ export function CostEstimatorSection() {
     if (costInputs.series.enabledUsers > 0 && costInputs.series.runsPerWeek > 0) {
       const tasteCalls = costInputs.series.enabledUsers * costInputs.series.runsPerWeek
       items.push({
-        category: 'Series Taste Synopses',
+        categoryKey: 'seriesTasteSynopses',
         calls: tasteCalls,
         cost: calculateTextGenCost(tasteCalls, TEXT_GEN.tasteSynopsis.input, TEXT_GEN.tasteSynopsis.output),
       })
@@ -311,7 +329,7 @@ export function CostEstimatorSection() {
       // Series explanations
       const expCalls = costInputs.series.selectedCount * costInputs.series.enabledUsers * costInputs.series.runsPerWeek
       items.push({
-        category: 'Series Explanations',
+        categoryKey: 'seriesExplanations',
         calls: expCalls,
         cost: calculateTextGenCost(expCalls, TEXT_GEN.seriesExplanation.input, TEXT_GEN.seriesExplanation.output),
       })
@@ -321,7 +339,7 @@ export function CostEstimatorSection() {
     if (costInputs.assistant && costInputs.assistant.enabledUsers > 0 && costInputs.assistant.runsPerWeek > 0) {
       const suggestionCalls = 5 * costInputs.assistant.enabledUsers * costInputs.assistant.runsPerWeek
       items.push({
-        category: 'Assistant Suggestions',
+        categoryKey: 'assistantSuggestions',
         calls: suggestionCalls,
         cost: calculateTextGenCost(suggestionCalls, TEXT_GEN.suggestion.input, TEXT_GEN.suggestion.output),
       })
@@ -360,7 +378,7 @@ export function CostEstimatorSection() {
       <Card sx={{ p: 3, textAlign: 'center' }}>
         <CircularProgress size={24} />
         <Typography variant="body2" sx={{ mt: 1 }}>
-          Loading cost data...
+          {t('settingsCostEstimator.loading')}
         </Typography>
       </Card>
     )
@@ -371,7 +389,7 @@ export function CostEstimatorSection() {
     return (
       <Card sx={{ p: 3 }}>
         <Alert severity="info">
-          Configure your AI providers above to see cost estimates.
+          {t('settingsCostEstimator.configureFirst')}
         </Alert>
       </Card>
     )
@@ -382,9 +400,9 @@ export function CostEstimatorSection() {
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
         <PaymentsIcon color="primary" />
         <Typography variant="h6" fontWeight={600}>
-          Cost Estimator
+          {t('settingsCostEstimator.title')}
         </Typography>
-        <Tooltip title="Estimates based on your configured providers. Actual costs may vary.">
+        <Tooltip title={t('settingsCostEstimator.tooltip')}>
           <IconButton size="small">
             <InfoIcon fontSize="small" />
           </IconButton>
@@ -396,7 +414,7 @@ export function CostEstimatorSection() {
       <Card variant="outlined" sx={{ mb: 3, bgcolor: 'action.hover' }}>
         <CardContent sx={{ py: 2 }}>
           <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-            Your AI Configuration
+            {t('settingsCostEstimator.yourConfig')}
           </Typography>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2 }}>
             {pricing.embeddings && (
@@ -408,15 +426,17 @@ export function CostEstimatorSection() {
                 )}
                 <Box>
                   <Typography variant="caption" color="text.secondary">
-                    Embeddings
+                    {t('settingsCostEstimator.fnEmbeddings')}
                   </Typography>
                   <Typography variant="body2">
                     {pricing.embeddings.providerName} / {pricing.embeddings.modelName}
                   </Typography>
                   <Typography variant="caption" color={pricing.embeddings.isLocalProvider ? 'success.main' : 'text.secondary'}>
                     {pricing.embeddings.isLocalProvider
-                      ? '$0.00 (Local)'
-                      : `$${pricing.embeddings.inputCostPerMillion}/M tokens`}
+                      ? t('settingsCostEstimator.localFree')
+                      : t('settingsCostEstimator.embedPricePerM', {
+                          price: `$${pricing.embeddings.inputCostPerMillion}`,
+                        })}
                   </Typography>
                 </Box>
               </Box>
@@ -430,15 +450,18 @@ export function CostEstimatorSection() {
                 )}
                 <Box>
                   <Typography variant="caption" color="text.secondary">
-                    Text Generation
+                    {t('settingsCostEstimator.fnTextGeneration')}
                   </Typography>
                   <Typography variant="body2">
                     {pricing.textGeneration.providerName} / {pricing.textGeneration.modelName}
                   </Typography>
                   <Typography variant="caption" color={pricing.textGeneration.isLocalProvider ? 'success.main' : 'text.secondary'}>
                     {pricing.textGeneration.isLocalProvider
-                      ? '$0.00 (Local)'
-                      : `$${pricing.textGeneration.inputCostPerMillion}/$${pricing.textGeneration.outputCostPerMillion}/M tokens`}
+                      ? t('settingsCostEstimator.localFree')
+                      : t('settingsCostEstimator.textGenPricePerM', {
+                          input: `$${pricing.textGeneration.inputCostPerMillion}`,
+                          output: `$${pricing.textGeneration.outputCostPerMillion}`,
+                        })}
                   </Typography>
                 </Box>
               </Box>
@@ -452,15 +475,18 @@ export function CostEstimatorSection() {
                 )}
                 <Box>
                   <Typography variant="caption" color="text.secondary">
-                    Chat
+                    {t('settingsCostEstimator.fnChat')}
                   </Typography>
                   <Typography variant="body2">
                     {pricing.chat.providerName} / {pricing.chat.modelName}
                   </Typography>
                   <Typography variant="caption" color={pricing.chat.isLocalProvider ? 'success.main' : 'text.secondary'}>
                     {pricing.chat.isLocalProvider
-                      ? '$0.00 (Local)'
-                      : `$${pricing.chat.inputCostPerMillion}/$${pricing.chat.outputCostPerMillion}/M tokens`}
+                      ? t('settingsCostEstimator.localFree')
+                      : t('settingsCostEstimator.textGenPricePerM', {
+                          input: `$${pricing.chat.inputCostPerMillion}`,
+                          output: `$${pricing.chat.outputCostPerMillion}`,
+                        })}
                   </Typography>
                 </Box>
               </Box>
@@ -473,11 +499,11 @@ export function CostEstimatorSection() {
       <Card variant="outlined" sx={{ mb: 3 }}>
         <CardContent sx={{ py: 2 }}>
           <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-            Weekly Content Growth (Estimated)
+            {t('settingsCostEstimator.weeklyGrowth')}
           </Typography>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: '1fr 1fr 1fr 1fr' }, gap: 2 }}>
             <TextField
-              label="Movies/week"
+              label={t('settingsCostEstimator.labelMoviesPerWk')}
               type="number"
               size="small"
               value={userEstimates.weeklyMoviesAdded}
@@ -485,7 +511,7 @@ export function CostEstimatorSection() {
               InputProps={{ inputProps: { min: 0 } }}
             />
             <TextField
-              label="Shows/week"
+              label={t('settingsCostEstimator.labelShowsPerWk')}
               type="number"
               size="small"
               value={userEstimates.weeklyShowsAdded}
@@ -493,7 +519,7 @@ export function CostEstimatorSection() {
               InputProps={{ inputProps: { min: 0 } }}
             />
             <TextField
-              label="Episodes/week"
+              label={t('settingsCostEstimator.labelEpisodesPerWk')}
               type="number"
               size="small"
               value={userEstimates.weeklyEpisodesAdded}
@@ -501,7 +527,7 @@ export function CostEstimatorSection() {
               InputProps={{ inputProps: { min: 0 } }}
             />
             <TextField
-              label="Chat msgs/user/wk"
+              label={t('settingsCostEstimator.labelChatPerUserWk')}
               type="number"
               size="small"
               value={userEstimates.weeklyChatMessagesPerUser}
@@ -516,8 +542,7 @@ export function CostEstimatorSection() {
       {isAnyLocalProvider && (
         <Alert severity="success" sx={{ mb: 3 }}>
           <Typography variant="body2">
-            <strong>Self-hosted models detected!</strong> Running AI locally means $0.00 API costs for those functions.
-            Only your compute costs (electricity, hardware) apply.
+            <strong>{t('settingsCostEstimator.localNoteTitle')}</strong> {t('settingsCostEstimator.localNoteBody')}
           </Typography>
         </Alert>
       )}
@@ -530,21 +555,24 @@ export function CostEstimatorSection() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
               <StorageIcon color="primary" fontSize="small" />
               <Typography variant="subtitle1" fontWeight={600}>
-                Initial Embedding Costs
+                {t('settingsCostEstimator.initialCosts')}
               </Typography>
             </Box>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-              One-time cost to embed your entire library ({costInputs?.library.totalMovies.toLocaleString()} movies,{' '}
-              {costInputs?.library.totalSeries.toLocaleString()} series, {costInputs?.library.totalEpisodes.toLocaleString()} episodes)
+              {t('settingsCostEstimator.initialCaption', {
+                movies: costInputs?.library.totalMovies.toLocaleString() ?? '0',
+                series: costInputs?.library.totalSeries.toLocaleString() ?? '0',
+                episodes: costInputs?.library.totalEpisodes.toLocaleString() ?? '0',
+              })}
             </Typography>
 
             <TableContainer>
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell>Type</TableCell>
-                    <TableCell align="right">Items</TableCell>
-                    <TableCell align="right">Cost</TableCell>
+                    <TableCell>{t('settingsCostEstimator.colType')}</TableCell>
+                    <TableCell align="right">{t('settingsCostEstimator.colItems')}</TableCell>
+                    <TableCell align="right">{t('settingsCostEstimator.colCost')}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -552,18 +580,18 @@ export function CostEstimatorSection() {
                     <TableRow>
                       <TableCell colSpan={3}>
                         <Typography variant="body2" color="text.secondary" textAlign="center">
-                          No embeddings configured
+                          {t('settingsCostEstimator.noEmbeddingsConfigured')}
                         </Typography>
                       </TableCell>
                     </TableRow>
                   ) : (
                     oneTimeCosts.map((item) => (
-                      <TableRow key={item.category}>
-                        <TableCell>{item.category}</TableCell>
+                      <TableRow key={item.categoryKey}>
+                        <TableCell>{cat(item.categoryKey)}</TableCell>
                         <TableCell align="right">{item.count.toLocaleString()}</TableCell>
                         <TableCell align="right">
                           {pricing?.embeddings?.isLocalProvider ? (
-                            <Chip label="Local" size="small" color="success" variant="outlined" />
+                            <Chip label={t('settingsCostEstimator.chipLocal')} size="small" color="success" variant="outlined" />
                           ) : (
                             `$${item.cost.toFixed(2)}`
                           )}
@@ -574,7 +602,7 @@ export function CostEstimatorSection() {
                   <TableRow>
                     <TableCell colSpan={2}>
                       <Typography variant="body2" fontWeight={600}>
-                        Total
+                        {t('settingsCostEstimator.total')}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
@@ -598,31 +626,31 @@ export function CostEstimatorSection() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
               <AutoAwesomeIcon color="secondary" fontSize="small" />
               <Typography variant="subtitle1" fontWeight={600}>
-                Weekly Recurring Costs
+                {t('settingsCostEstimator.recurringTitle')}
               </Typography>
             </Box>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-              Ongoing costs for recommendations, explanations, and chat
+              {t('settingsCostEstimator.recurringCaption')}
             </Typography>
 
             <TableContainer>
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell>Type</TableCell>
-                    <TableCell align="right">Calls/Wk</TableCell>
-                    <TableCell align="right">Cost/Wk</TableCell>
+                    <TableCell>{t('settingsCostEstimator.colType')}</TableCell>
+                    <TableCell align="right">{t('settingsCostEstimator.colCallsPerWk')}</TableCell>
+                    <TableCell align="right">{t('settingsCostEstimator.colCostPerWk')}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {/* Weekly embedding costs */}
                   {weeklyEmbeddingCosts.map((item) => (
-                    <TableRow key={item.category}>
-                      <TableCell>{item.category}</TableCell>
+                    <TableRow key={item.categoryKey}>
+                      <TableCell>{cat(item.categoryKey)}</TableCell>
                       <TableCell align="right">{item.count}</TableCell>
                       <TableCell align="right">
                         {pricing?.embeddings?.isLocalProvider ? (
-                          <Chip label="Local" size="small" color="success" variant="outlined" />
+                          <Chip label={t('settingsCostEstimator.chipLocal')} size="small" color="success" variant="outlined" />
                         ) : (
                           `$${item.cost.toFixed(4)}`
                         )}
@@ -632,12 +660,12 @@ export function CostEstimatorSection() {
 
                   {/* Text generation costs */}
                   {weeklyTextGenCosts.map((item) => (
-                    <TableRow key={item.category}>
-                      <TableCell>{item.category}</TableCell>
+                    <TableRow key={item.categoryKey}>
+                      <TableCell>{cat(item.categoryKey)}</TableCell>
                       <TableCell align="right">{item.calls.toLocaleString()}</TableCell>
                       <TableCell align="right">
                         {pricing?.textGeneration?.isLocalProvider ? (
-                          <Chip label="Local" size="small" color="success" variant="outlined" />
+                          <Chip label={t('settingsCostEstimator.chipLocal')} size="small" color="success" variant="outlined" />
                         ) : (
                           `$${item.cost.toFixed(4)}`
                         )}
@@ -651,15 +679,17 @@ export function CostEstimatorSection() {
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                           <ChatIcon fontSize="small" />
-                          Chat Assistant
+                          {t('settingsCostEstimator.chatAssistant')}
                         </Box>
                       </TableCell>
                       <TableCell align="right">
-                        {userEstimates.weeklyChatMessagesPerUser * totalEnabledUsers} msgs
+                        {t('settingsCostEstimator.chatMsgs', {
+                          count: userEstimates.weeklyChatMessagesPerUser * totalEnabledUsers,
+                        })}
                       </TableCell>
                       <TableCell align="right">
                         {pricing.chat.isLocalProvider ? (
-                          <Chip label="Local" size="small" color="success" variant="outlined" />
+                          <Chip label={t('settingsCostEstimator.chipLocal')} size="small" color="success" variant="outlined" />
                         ) : (
                           `$${weeklyChatCost.toFixed(4)}`
                         )}
@@ -670,7 +700,7 @@ export function CostEstimatorSection() {
                   <TableRow>
                     <TableCell colSpan={2}>
                       <Typography variant="body2" fontWeight={600}>
-                        Total Weekly
+                        {t('settingsCostEstimator.totalWeekly')}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
@@ -694,35 +724,35 @@ export function CostEstimatorSection() {
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} justifyContent="space-around">
           <Box textAlign="center">
             <Typography variant="caption" color="text.secondary">
-              Initial Setup
+              {t('settingsCostEstimator.summaryInitial')}
             </Typography>
             <Typography variant="h5" fontWeight={700} color="primary.main">
               ${totalOneTimeCost.toFixed(2)}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              one-time
+              {t('settingsCostEstimator.summaryOneTime')}
             </Typography>
           </Box>
           <Box textAlign="center">
             <Typography variant="caption" color="text.secondary">
-              Weekly
+              {t('settingsCostEstimator.summaryWeekly')}
             </Typography>
             <Typography variant="h5" fontWeight={700} color="secondary.main">
               ${totalWeeklyCost.toFixed(4)}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              for {totalEnabledUsers} user(s)
+              {t('settingsCostEstimator.summaryForUsers', { count: totalEnabledUsers })}
             </Typography>
           </Box>
           <Box textAlign="center">
             <Typography variant="caption" color="text.secondary">
-              Monthly Est.
+              {t('settingsCostEstimator.summaryMonthly')}
             </Typography>
             <Typography variant="h5" fontWeight={700} color="success.main">
               ${totalMonthlyCost.toFixed(2)}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              ~4.33 weeks
+              {t('settingsCostEstimator.summaryWeeksApprox')}
             </Typography>
           </Box>
         </Stack>

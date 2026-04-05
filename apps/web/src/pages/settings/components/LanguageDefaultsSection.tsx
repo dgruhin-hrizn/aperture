@@ -47,10 +47,10 @@ export function LanguageDefaultsSection() {
         setDefaultAi(data.defaultAiLanguage || 'en')
       } else {
         const err = await defRes.json().catch(() => ({}))
-        setError((err as { error?: string }).error || 'Failed to load language defaults')
+        setError((err as { error?: string }).error || t('language.loadDefaultsFailed'))
       }
     } catch {
-      setError('Could not load language settings')
+      setError(t('language.loadLanguageSettingsFailed'))
     } finally {
       setLoading(false)
     }
@@ -83,10 +83,10 @@ export function LanguageDefaultsSection() {
         setTimeout(() => setSuccess(null), 4000)
       } else {
         const err = await response.json().catch(() => ({}))
-        setError((err as { error?: string }).error || 'Failed to save')
+        setError((err as { error?: string }).error || t('language.saveDefaultsFailed'))
       }
     } catch {
-      setError('Could not connect to server')
+      setError(t('language.connectionError'))
     } finally {
       setSaving(false)
     }

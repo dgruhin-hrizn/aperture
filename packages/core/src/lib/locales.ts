@@ -38,6 +38,30 @@ export function normalizeAppLocale(code: string | null | undefined): AppLocaleCo
 }
 
 /**
+ * Map UI locale (e.g. `de`, `en`, or `de-DE`) to TMDb's `language` query parameter.
+ */
+export function appLocaleToTmdbLanguage(code: string | null | undefined): string {
+  const raw = (code ?? '').trim()
+  const base = raw.split(/[-_]/)[0] ?? ''
+  const normalized = normalizeAppLocale(base || raw)
+  const map: Record<AppLocaleCode, string> = {
+    en: 'en-US',
+    es: 'es-ES',
+    de: 'de-DE',
+    fr: 'fr-FR',
+    it: 'it-IT',
+    pt: 'pt-BR',
+    ja: 'ja-JP',
+    zh: 'zh-CN',
+    ko: 'ko-KR',
+    hi: 'hi-IN',
+    ar: 'ar-SA',
+    he: 'he-IL',
+  }
+  return map[normalized] ?? 'en-US'
+}
+
+/**
  * Human-readable language name for LLM system prompts (English instruction text).
  */
 export function getLocaleInstructionName(locale: AppLocaleCode): string {

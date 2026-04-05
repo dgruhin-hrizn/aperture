@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -38,6 +39,7 @@ export function LibraryMatchPreview({
   onExpandToggle,
   onOpenPreview,
 }: LibraryMatchPreviewProps) {
+  const { t } = useTranslation()
   if (loading) {
     return (
       <Box 
@@ -52,7 +54,7 @@ export function LibraryMatchPreview({
         <Box display="flex" alignItems="center" gap={1.5}>
           <CircularProgress size={18} sx={{ color: '#8B5CF6' }} />
           <Typography variant="body2" color="text.secondary">
-            Analyzing library coverage...
+            {t('settingsLibraryMatchPreview.analyzing')}
           </Typography>
         </Box>
       </Box>
@@ -82,7 +84,7 @@ export function LibraryMatchPreview({
         <Box sx={{ mb: 2 }}>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
             <Typography variant="caption" color="text.secondary" fontWeight={500}>
-              Library Coverage
+              {t('settingsLibraryMatchPreview.coverageLabel')}
             </Typography>
             <Typography variant="caption" fontWeight={600} color="primary.main">
               {matchPercentage}%
@@ -109,7 +111,7 @@ export function LibraryMatchPreview({
         <Box display="flex" gap={1} flexWrap="wrap">
           <Chip
             icon={<CheckCircleIcon sx={{ fontSize: 16 }} />}
-            label={`${data.matched} in library`}
+            label={t('settingsLibraryMatchPreview.inLibrary', { count: data.matched })}
             size="small"
             sx={{
               bgcolor: alpha('#22c55e', 0.15),
@@ -124,7 +126,7 @@ export function LibraryMatchPreview({
           {missingCount > 0 && (
             <Chip
               icon={<CloudDownloadIcon sx={{ fontSize: 16 }} />}
-              label={`${missingCount} missing`}
+              label={t('settingsLibraryMatchPreview.missing', { count: missingCount })}
               size="small"
               sx={{
                 bgcolor: alpha('#f59e0b', 0.15),
@@ -138,7 +140,7 @@ export function LibraryMatchPreview({
             />
           )}
           <Chip
-            label={`${data.total} total`}
+            label={t('settingsLibraryMatchPreview.total', { count: data.total })}
             size="small"
             variant="outlined"
             sx={{
@@ -169,7 +171,9 @@ export function LibraryMatchPreview({
             }}
           >
             <Typography variant="caption" fontWeight={600} color="warning.main">
-              {expanded ? 'Hide' : 'Show'} missing titles
+              {expanded
+                ? t('settingsLibraryMatchPreview.toggleHideMissing')
+                : t('settingsLibraryMatchPreview.toggleShowMissing')}
             </Typography>
             <ExpandMoreIcon 
               fontSize="small" 
@@ -201,7 +205,7 @@ export function LibraryMatchPreview({
                 >
                   <ListItemText 
                     primary={item.title}
-                    secondary={item.year || 'Unknown year'}
+                    secondary={item.year ?? t('settingsLibraryMatchPreview.unknownYear')}
                     primaryTypographyProps={{ 
                       variant: 'body2',
                       fontWeight: 500,
@@ -237,7 +241,7 @@ export function LibraryMatchPreview({
         }}
       >
         <Typography variant="caption" fontWeight={600} color="primary.main">
-          View Full Preview
+          {t('settingsLibraryMatchPreview.viewFullPreview')}
         </Typography>
         <OpenInNewIcon sx={{ fontSize: 14, color: 'primary.main' }} />
       </Box>

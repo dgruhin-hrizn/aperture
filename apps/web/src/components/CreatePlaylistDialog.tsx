@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Dialog,
   DialogTitle,
@@ -43,6 +44,7 @@ export function CreatePlaylistDialog({
   sourceItemType,
   onSuccess,
 }: CreatePlaylistDialogProps) {
+  const { t } = useTranslation()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [generatingName, setGeneratingName] = useState(false)
@@ -73,11 +75,11 @@ export function CreatePlaylistDialog({
       const data = await response.json()
       setName(data.name)
     } catch (err) {
-      setError('Failed to generate name. Please try again.')
+      setError(t('playlists.errGenerateName'))
     } finally {
       setGeneratingName(false)
     }
-  }, [movieIds, seriesIds])
+  }, [movieIds, seriesIds, t])
 
   const handleGenerateDescription = useCallback(async () => {
     setGeneratingDescription(true)
@@ -98,15 +100,15 @@ export function CreatePlaylistDialog({
       const data = await response.json()
       setDescription(data.description)
     } catch (err) {
-      setError('Failed to generate description. Please try again.')
+      setError(t('playlists.errGenerateDescription'))
     } finally {
       setGeneratingDescription(false)
     }
-  }, [movieIds, seriesIds, name])
+  }, [movieIds, seriesIds, name, t])
 
   const handleCreate = useCallback(async () => {
     if (!name.trim()) {
-      setError('Please enter a playlist name')
+      setError(t('playlists.errNameRequired'))
       return
     }
 
@@ -141,7 +143,7 @@ export function CreatePlaylistDialog({
     } finally {
       setCreating(false)
     }
-  }, [name, description, movieIds, seriesIds, sourceItemId, sourceItemType, onClose, onSuccess])
+  }, [name, description, movieIds, seriesIds, sourceItemId, sourceItemType, onClose, onSuccess, t])
 
   const handleClose = () => {
     if (!creating) {
@@ -176,7 +178,7 @@ export function CreatePlaylistDialog({
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <PlaylistAddIcon color="primary" />
           <Typography variant="h6" fontWeight={600}>
-            Create Playlist from Graph
+            {t('playlists.createFromGraphTitle')}
           </Typography>
         </Box>
         <IconButton onClick={handleClose} disabled={creating} size="small">
@@ -195,9 +197,9 @@ export function CreatePlaylistDialog({
         <Box sx={{ mb: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
             <Typography variant="subtitle2" color="text.secondary">
-              Playlist Name
+              {t('playlists.playlistName')}
             </Typography>
-            <Tooltip title="Generate a creative name with AI">
+            <Tooltip title={t('playlists.tooltipGenerateName')}>
               <span>
                 <IconButton
                   size="small"
@@ -218,7 +220,7 @@ export function CreatePlaylistDialog({
             fullWidth
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g., Galactic Adventures"
+            placeholder={t('playlists.namePlaceholder')}
             disabled={creating}
             size="small"
           />
@@ -228,9 +230,9 @@ export function CreatePlaylistDialog({
         <Box sx={{ mb: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
             <Typography variant="subtitle2" color="text.secondary">
-              Description (optional)
+              {t('playlists.descriptionOptional')}
             </Typography>
-            <Tooltip title="Generate a description with AI">
+            <Tooltip title={t('playlists.tooltipGenerateDescription')}>
               <span>
                 <IconButton
                   size="small"
@@ -251,7 +253,7 @@ export function CreatePlaylistDialog({
             fullWidth
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="A brief description of this playlist..."
+            placeholder={t('playlists.descriptionPlaceholder')}
             multiline
             rows={2}
             disabled={creating}
@@ -262,7 +264,7 @@ export function CreatePlaylistDialog({
         {/* Items preview */}
         <Box>
           <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-            {nodes.length} items will be added:
+            {t('playlists.itemsWillBeAdded', { count: nodes.length })}
           </Typography>
           <Box
             sx={{
@@ -284,7 +286,7 @@ export function CreatePlaylistDialog({
             }}
           >
             {nodes.slice(0, 12).map((node) => (
-              <Tooltip key={node.id} title={`${node.title} (${node.year || 'N/A'})`}>
+              <Tooltip key={node.id} title={`${node.title} (${node.year ?? t('playlists.naYear')})`}>
                 <Box
                   sx={{
                     flexShrink: 0,
@@ -349,7 +351,7 @@ export function CreatePlaylistDialog({
 
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={handleClose} disabled={creating}>
-          Cancel
+          {t('common.cancel')}
         </Button>
         <Button
           variant="contained"
@@ -357,7 +359,7 @@ export function CreatePlaylistDialog({
           disabled={creating || !name.trim() || nodes.length === 0}
           startIcon={creating ? <CircularProgress size={16} color="inherit" /> : <PlaylistAddIcon />}
         >
-          {creating ? 'Creating...' : 'Create Playlist'}
+          {creating ? t('playlists.creating') : t('playlists.createPlaylist')}
         </Button>
       </DialogActions>
     </Dialog>

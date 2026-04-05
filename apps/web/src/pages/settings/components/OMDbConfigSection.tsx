@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -29,6 +30,7 @@ interface OMDbConfig {
 }
 
 export function OMDbConfigSection() {
+  const { t } = useTranslation()
   const [config, setConfig] = useState<OMDbConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -55,11 +57,11 @@ export function OMDbConfigSection() {
         setHasChanges(false)
       }
     } catch {
-      setError('Failed to load OMDb configuration')
+      setError(t('settingsOmdb.loadError'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     fetchConfig()
@@ -84,7 +86,7 @@ export function OMDbConfigSection() {
 
       if (response.ok) {
         const data = await response.json()
-        setSuccess('OMDb configuration saved!')
+        setSuccess(t('settingsOmdb.saved'))
         setConfig({
           hasApiKey: data.hasApiKey,
           enabled: data.enabled,
@@ -96,10 +98,10 @@ export function OMDbConfigSection() {
         setTimeout(() => setSuccess(null), 3000)
       } else {
         const err = await response.json()
-        setError(err.error || 'Failed to save configuration')
+        setError(err.error || t('settingsOmdb.errSave'))
       }
     } catch {
-      setError('Could not connect to server')
+      setError(t('settingsOmdb.errConnect'))
     } finally {
       setSaving(false)
     }
@@ -122,13 +124,13 @@ export function OMDbConfigSection() {
 
       const result = await response.json()
       if (result.success) {
-        setSuccess('OMDb connection successful!')
+        setSuccess(t('settingsOmdb.testSuccess'))
         setTimeout(() => setSuccess(null), 3000)
       } else {
-        setError(result.error || 'Connection test failed')
+        setError(result.error || t('settingsOmdb.testFailed'))
       }
     } catch {
-      setError('Could not connect to server')
+      setError(t('settingsOmdb.errConnect'))
     } finally {
       setTesting(false)
     }
@@ -152,12 +154,12 @@ export function OMDbConfigSection() {
         <Box display="flex" alignItems="center" gap={2} mb={2}>
           <GradeIcon sx={{ fontSize: 28, color: '#f5c518' }} />
           <Typography variant="h6" fontWeight={600}>
-            OMDb Integration
+            {t('settingsOmdb.title')}
           </Typography>
           {config?.isConfigured && (
             <Chip
               icon={<CheckCircleIcon />}
-              label="Configured"
+              label={t('settingsOmdb.configured')}
               color="success"
               size="small"
             />
@@ -165,11 +167,11 @@ export function OMDbConfigSection() {
         </Box>
 
         <Typography variant="body2" color="text.secondary" mb={3}>
-          Enable OMDb integration for Rotten Tomatoes scores, Metacritic ratings, and awards data.{' '}
+          {t('settingsOmdb.description')}{' '}
           <Link href="https://www.omdbapi.com/apikey.aspx" target="_blank" rel="noopener">
-            Get a free API key
+            {t('settingsOmdb.getFreeKeyLink')}
           </Link>{' '}
-          (1,000 requests/day free, or 100,000/day for paid subscribers).
+          {t('settingsOmdb.descriptionSuffix')}
         </Typography>
 
         {error && (
@@ -186,7 +188,7 @@ export function OMDbConfigSection() {
 
         <Box display="flex" flexDirection="column" gap={2}>
           <TextField
-            label="API Key"
+            label={t('settingsOmdb.apiKey')}
             type={showApiKey ? 'text' : 'password'}
             value={apiKey || (config?.hasApiKey ? '••••••••••••••••••••••••••••' : '')}
             onChange={(e) => {
@@ -196,10 +198,10 @@ export function OMDbConfigSection() {
             }}
             size="small"
             fullWidth
-            placeholder="Enter your OMDb API key"
+            placeholder={t('settingsOmdb.placeholder')}
             helperText={
               config?.hasApiKey && !apiKey
-                ? 'API key is saved. Enter a new one to replace it.'
+                ? t('settingsOmdb.helperSaved')
                 : undefined
             }
             InputProps={{
@@ -228,7 +230,7 @@ export function OMDbConfigSection() {
                 disabled={!config?.hasApiKey && !apiKey}
               />
             }
-            label="Enable OMDb enrichment"
+            label={t('settingsOmdb.enableEnrichment')}
           />
 
           <FormControlLabel
@@ -244,11 +246,11 @@ export function OMDbConfigSection() {
             }
             label={
               <Box>
-                <Typography variant="body2">Paid subscription</Typography>
+                <Typography variant="body2">{t('settingsOmdb.paidTitle')}</Typography>
                 <Typography variant="caption" color="text.secondary">
                   {paidTier
-                    ? 'Using faster rate limits (40 req/sec)'
-                    : 'Enable if you have a paid OMDb key for faster enrichment'}
+                    ? t('settingsOmdb.paidCaptionOn')
+                    : t('settingsOmdb.paidCaptionOff')}
                 </Typography>
               </Box>
             }
@@ -262,7 +264,7 @@ export function OMDbConfigSection() {
               disabled={saving || !hasChanges}
               size="small"
             >
-              {saving ? 'Saving...' : 'Save'}
+              {saving ? t('common.saving') : t('common.save')}
             </Button>
             <Button
               variant="outlined"
@@ -270,7 +272,7 @@ export function OMDbConfigSection() {
               disabled={testing || (!apiKey && !config?.hasApiKey)}
               size="small"
             >
-              {testing ? 'Testing...' : 'Test Connection'}
+              {testing ? t('settingsOmdb.testing') : t('settingsOmdb.testConnection')}
             </Button>
           </Box>
         </Box>

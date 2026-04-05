@@ -6,6 +6,7 @@
  * - ExplorePage - main exploration interface with search
  */
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -108,7 +109,7 @@ export function GraphExplorer({
   onSearchChange,
   onSearch,
   onSearchClear,
-  searchPlaceholder = 'Explore...',
+  searchPlaceholder,
   searchLoading = false,
   searchExamples,
   showCreatePlaylist = true,
@@ -120,6 +121,7 @@ export function GraphExplorer({
   sourceItemType,
   compact = false,
 }: GraphExplorerProps) {
+  const { t } = useTranslation()
   const [playlistDialogOpen, setPlaylistDialogOpen] = useState(false)
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
@@ -135,7 +137,8 @@ export function GraphExplorer({
   }, [searchQuery])
 
   // Get current center node title
-  const currentTitle = data?.nodes.find((n) => n.isCenter)?.title || title || 'Explore'
+  const resolvedSearchPlaceholder = searchPlaceholder ?? t('graphExplorer.searchPlaceholderDefault')
+  const currentTitle = data?.nodes.find((n) => n.isCenter)?.title || title || t('graphExplorer.fallbackTitle')
   const displayItemCount = itemCount ?? data?.nodes.length ?? 0
 
   const handleSearchSubmit = useCallback(() => {
@@ -209,7 +212,7 @@ export function GraphExplorer({
               <TextField
                 ref={searchInputRef}
                 size="small"
-                placeholder={searchPlaceholder}
+                placeholder={resolvedSearchPlaceholder}
                 value={localSearchQuery}
                 onChange={handleSearchChange}
                 onKeyDown={handleSearchKeyDown}
@@ -233,7 +236,7 @@ export function GraphExplorer({
               {searchExamples && searchExamples.length > 0 && !localSearchQuery && (
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                   <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5, alignSelf: 'center' }}>
-                    Try:
+                    {t('graphExplorer.tryHint')}
                   </Typography>
                   {searchExamples.map((example) => (
                     <Chip
@@ -251,7 +254,7 @@ export function GraphExplorer({
           ) : (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography variant="h6" fontWeight={600} sx={{ fontSize: { xs: '1rem', md: '1.25rem' } }}>
-                {title || 'Similar Content'}
+                {title || t('graphExplorer.similarContentFallback')}
               </Typography>
               {subtitle && (
                 <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
@@ -260,7 +263,7 @@ export function GraphExplorer({
               )}
               {displayItemCount > 0 && !subtitle && (
                 <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
-                  • {displayItemCount} items
+                  • {t('graphExplorer.itemCount', { count: displayItemCount })}
                 </Typography>
               )}
             </Box>
@@ -269,7 +272,7 @@ export function GraphExplorer({
           {/* Breadcrumb navigation */}
           {history.length > 0 && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Tooltip title="Start over">
+              <Tooltip title={t('graphExplorer.startOver')}>
                 <IconButton size="small" onClick={onStartOver} sx={{ color: 'primary.main' }}>
                   <HomeIcon fontSize="small" />
                 </IconButton>
@@ -307,14 +310,14 @@ export function GraphExplorer({
         {/* Right side: Actions */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
           {showRefresh && onRefresh && (
-            <Tooltip title="Refresh">
+            <Tooltip title={t('graphExplorer.refresh')}>
               <IconButton size="small" onClick={onRefresh} disabled={loading}>
                 <RefreshIcon fontSize="small" />
               </IconButton>
             </Tooltip>
           )}
           {showCreatePlaylist && (
-            <Tooltip title="Create playlist from these items">
+            <Tooltip title={t('graphExplorer.createPlaylistTooltip')}>
               <Button
                 size="small"
                 variant="outlined"
@@ -326,12 +329,12 @@ export function GraphExplorer({
                   whiteSpace: 'nowrap',
                 }}
               >
-                Create Playlist
+                {t('graphExplorer.createPlaylist')}
               </Button>
             </Tooltip>
           )}
           {showExitFullscreen && onExitFullscreen && (
-            <Tooltip title="Exit fullscreen">
+            <Tooltip title={t('graphExplorer.exitFullscreen')}>
               <IconButton onClick={onExitFullscreen}>
                 <FullscreenExitIcon />
               </IconButton>
@@ -374,10 +377,10 @@ export function GraphExplorer({
           color="text.secondary"
           sx={{ display: { xs: 'none', sm: 'block' } }}
         >
-          Click poster to explore • Click ⓘ for details • Drag to reposition • Scroll to zoom
+          {t('graphExplorer.hintsDesktop')}
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'block', sm: 'none' } }}>
-          Tap to explore • Long press for details
+          {t('graphExplorer.hintsMobile')}
         </Typography>
       </Box>
 
@@ -399,7 +402,7 @@ export function GraphExplorer({
         onSuccess={() => {
           setSnackbar({
             open: true,
-            message: 'Playlist created successfully!',
+            message: t('graphExplorer.playlistCreated'),
             severity: 'success',
           })
           setPlaylistDialogOpen(false)

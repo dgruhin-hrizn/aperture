@@ -6,6 +6,8 @@
  */
 
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import {
   Box,
   Typography,
@@ -34,16 +36,16 @@ interface WatchingListItemProps {
   onRemove: (seriesId: string) => Promise<void>
 }
 
-function formatAirDate(dateStr: string): string {
+function formatAirDate(dateStr: string, t: TFunction, locale: string): string {
   const date = new Date(dateStr)
   const now = new Date()
   const diffDays = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-  
-  if (diffDays === 0) return 'Today'
-  if (diffDays === 1) return 'Tomorrow'
-  if (diffDays > 0 && diffDays <= 7) return `In ${diffDays} days`
-  
-  return date.toLocaleDateString('en-US', {
+
+  if (diffDays === 0) return t('dashboard.airToday')
+  if (diffDays === 1) return t('dashboard.airTomorrow')
+  if (diffDays > 0 && diffDays <= 7) return t('dashboard.airInDays', { count: diffDays })
+
+  return date.toLocaleDateString(locale, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -69,6 +71,7 @@ function getCountdownColor(days: number): string {
 }
 
 export function WatchingListItem({ series, userRating, onRate, onRemove }: WatchingListItemProps) {
+  const { t, i18n } = useTranslation()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const navigate = useNavigate()
@@ -223,7 +226,7 @@ export function WatchingListItem({ series, userRating, onRate, onRemove }: Watch
               )}
               {series.totalSeasons && (
                 <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
-                  • {series.totalSeasons} Season{series.totalSeasons !== 1 ? 's' : ''}
+                  • {t('watching.seasons', { count: series.totalSeasons })}
                 </Typography>
               )}
             </Box>
@@ -237,7 +240,7 @@ export function WatchingListItem({ series, userRating, onRate, onRemove }: Watch
                 onChange={(rating) => onRate(rating)}
                 size="small"
               />
-              <Tooltip title="Remove from watching list">
+              <Tooltip title={t('watching.removeTooltip')}>
                 <IconButton
                   size="small"
                   onClick={handleRemoveClick}
@@ -304,7 +307,7 @@ export function WatchingListItem({ series, userRating, onRate, onRemove }: Watch
                 onChange={(rating) => onRate(rating)}
                 size="small"
               />
-              <Tooltip title="Remove from watching list">
+              <Tooltip title={t('watching.removeTooltip')}>
                 <IconButton
                   size="small"
                   onClick={handleRemoveClick}
@@ -335,7 +338,7 @@ export function WatchingListItem({ series, userRating, onRate, onRemove }: Watch
               >
                 <ScheduleIcon sx={{ fontSize: 12, color: countdownColor }} />
                 <Typography variant="caption" sx={{ fontWeight: 600, color: countdownColor, fontSize: '0.65rem' }}>
-                  {formatAirDate(upcoming.airDate)}
+                  {formatAirDate(upcoming.airDate, t, i18n.language)}
                 </Typography>
               </Box>
             )}
@@ -380,7 +383,7 @@ export function WatchingListItem({ series, userRating, onRate, onRemove }: Watch
                     variant="caption"
                     sx={{ fontWeight: 700, color: countdownColor, textTransform: 'uppercase' }}
                   >
-                    {formatAirDate(upcoming.airDate)}
+                    {formatAirDate(upcoming.airDate, t, i18n.language)}
                   </Typography>
                 </Box>
                 <Chip
@@ -431,7 +434,9 @@ export function WatchingListItem({ series, userRating, onRate, onRemove }: Watch
                     }}
                   />
                   <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                    {daysUntil === 0 ? 'Airs today!' : `${daysUntil} day${daysUntil !== 1 ? 's' : ''} to go`}
+                    {daysUntil === 0
+                      ? t('watching.airsToday')
+                      : t('watching.daysToGo', { count: daysUntil })}
                   </Typography>
                 </Box>
               )}
@@ -450,10 +455,10 @@ export function WatchingListItem({ series, userRating, onRate, onRemove }: Watch
             >
               <AccessTimeIcon sx={{ fontSize: 28, color: 'text.disabled', mb: 1 }} />
               <Typography variant="caption" color="text.secondary">
-                No episode data available
+                {t('watching.noEpisodeData')}
               </Typography>
               <Typography variant="caption" color="text.disabled">
-                Check back soon
+                {t('watching.checkBackSoon')}
               </Typography>
             </Box>
           ) : (
@@ -470,11 +475,11 @@ export function WatchingListItem({ series, userRating, onRate, onRemove }: Watch
             >
               <CheckCircleIcon sx={{ fontSize: 28, color: 'text.disabled', mb: 1 }} />
               <Typography variant="caption" color="text.secondary">
-                Series Complete
+                {t('watching.seriesComplete')}
               </Typography>
               {series.totalEpisodes && (
                 <Typography variant="caption" color="text.disabled">
-                  {series.totalEpisodes} episodes
+                  {t('watching.episodesTotal', { count: series.totalEpisodes })}
                 </Typography>
               )}
             </Box>

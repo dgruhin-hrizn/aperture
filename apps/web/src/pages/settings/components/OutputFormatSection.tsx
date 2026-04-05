@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -26,6 +27,7 @@ interface OutputFormatConfig {
 }
 
 export function OutputFormatSection() {
+  const { t } = useTranslation()
   const [config, setConfig] = useState<OutputFormatConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -41,12 +43,12 @@ export function OutputFormatSection() {
     try {
       setLoading(true)
       const response = await fetch('/api/settings/ai-recs/output')
-      if (!response.ok) throw new Error('Failed to fetch config')
+      if (!response.ok) throw new Error(t('settingsOutputFormat.fetchFailed'))
       const data = await response.json()
       setConfig(data)
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : t('settingsOutputFormat.unknownError'))
     } finally {
       setLoading(false)
     }
@@ -62,12 +64,12 @@ export function OutputFormatSection() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
       })
-      if (!response.ok) throw new Error('Failed to save config')
-      setSuccess('Output format settings saved!')
+      if (!response.ok) throw new Error(t('settingsOutputFormat.saveFailed'))
+      setSuccess(t('settingsOutputFormat.saved'))
       setHasChanges(false)
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : t('settingsOutputFormat.unknownError'))
     } finally {
       setSaving(false)
     }
@@ -95,7 +97,7 @@ export function OutputFormatSection() {
     return (
       <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
         <CardContent>
-          <Alert severity="error">Failed to load output format configuration</Alert>
+          <Alert severity="error">{t('settingsOutputFormat.loadFailed')}</Alert>
         </CardContent>
       </Card>
     )
@@ -108,10 +110,10 @@ export function OutputFormatSection() {
       <CardContent>
         <Box mb={2}>
           <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <FolderOpenIcon color="primary" /> AI Recommendations Output Format
+            <FolderOpenIcon color="primary" /> {t('settingsOutputFormat.title')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Choose how AI recommendation files are created for the media server
+            {t('settingsOutputFormat.subtitle')}
           </Typography>
         </Box>
 
@@ -137,7 +139,7 @@ export function OutputFormatSection() {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                 <MovieIcon color="primary" />
                 <Typography variant="subtitle1" fontWeight="medium">
-                  Movies Library
+                  {t('settingsOutputFormat.moviesLibrary')}
                 </Typography>
               </Box>
               <FormControlLabel
@@ -152,16 +154,17 @@ export function OutputFormatSection() {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     {config.moviesUseSymlinks ? <LinkIcon fontSize="small" /> : <FolderOpenIcon fontSize="small" />}
                     <Typography variant="body2">
-                      {config.moviesUseSymlinks ? 'Symlinks' : 'STRM Files'}
+                      {config.moviesUseSymlinks
+                        ? t('settingsOutputFormat.modeSymlinks')
+                        : t('settingsOutputFormat.modeStrm')}
                     </Typography>
                   </Box>
                 }
               />
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                {config.moviesUseSymlinks 
-                  ? 'Creates symbolic links to original movie files'
-                  : 'Creates .strm files with paths or streaming URLs'
-                }
+                {config.moviesUseSymlinks
+                  ? t('settingsOutputFormat.moviesSymlinkHelp')
+                  : t('settingsOutputFormat.moviesStrmHelp')}
               </Typography>
             </Card>
           </Grid>
@@ -172,7 +175,7 @@ export function OutputFormatSection() {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                 <TvIcon color="primary" />
                 <Typography variant="subtitle1" fontWeight="medium">
-                  Series Library
+                  {t('settingsOutputFormat.seriesLibrary')}
                 </Typography>
               </Box>
               <FormControlLabel
@@ -187,21 +190,22 @@ export function OutputFormatSection() {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     {config.seriesUseSymlinks ? <LinkIcon fontSize="small" /> : <FolderOpenIcon fontSize="small" />}
                     <Typography variant="body2">
-                      {config.seriesUseSymlinks ? 'Symlinks' : 'STRM Files'}
+                      {config.seriesUseSymlinks
+                        ? t('settingsOutputFormat.modeSymlinks')
+                        : t('settingsOutputFormat.modeStrm')}
                     </Typography>
                   </Box>
                 }
               />
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                {config.seriesUseSymlinks 
-                  ? 'Creates symlinks to original season folders (recommended)'
-                  : 'Creates .strm files for each episode'
-                }
+                {config.seriesUseSymlinks
+                  ? t('settingsOutputFormat.seriesSymlinkHelp')
+                  : t('settingsOutputFormat.seriesStrmHelp')}
               </Typography>
               {!config.seriesUseSymlinks && (
                 <Alert severity="info" sx={{ mt: 2, py: 0.5 }} icon={false}>
                   <Typography variant="caption">
-                    Symlinks are recommended for TV series for better performance
+                    {t('settingsOutputFormat.seriesStrmRecommendation')}
                   </Typography>
                 </Alert>
               )}
@@ -214,24 +218,26 @@ export function OutputFormatSection() {
           <Card variant="outlined" sx={{ p: 2, bgcolor: anyUseSymlinks ? 'action.selected' : 'transparent' }}>
             <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <LinkIcon fontSize="small" color={anyUseSymlinks ? 'primary' : 'inherit'} />
-              Symlinks
+              {t('settingsOutputFormat.explainSymlinksTitle')}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              Creates symbolic links pointing to your original media files. Faster playback, same quality.
+              {t('settingsOutputFormat.explainSymlinksIntro')}
               <br />
-              <strong>Requires:</strong> Both Aperture and your media server must access the same filesystem paths.
+              <strong>{t('settingsOutputFormat.requiresLabel')}</strong>{' '}
+              {t('settingsOutputFormat.explainSymlinksRequires')}
             </Typography>
           </Card>
           
           <Card variant="outlined" sx={{ p: 2, bgcolor: !anyUseSymlinks ? 'action.selected' : 'transparent' }}>
             <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <FolderOpenIcon fontSize="small" color={!anyUseSymlinks ? 'primary' : 'inherit'} />
-              STRM Files
+              {t('settingsOutputFormat.explainStrmTitle')}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              Creates .strm files containing paths or streaming URLs. Works in all network configurations.
+              {t('settingsOutputFormat.explainStrmIntro')}
               <br />
-              <strong>Best for:</strong> Docker setups, different machines, or when paths differ between systems.
+              <strong>{t('settingsOutputFormat.bestForLabel')}</strong>{' '}
+              {t('settingsOutputFormat.explainStrmBestFor')}
             </Typography>
           </Card>
         </Box>
@@ -239,8 +245,8 @@ export function OutputFormatSection() {
         {anyUseSymlinks && (
           <Alert severity="warning" icon={<WarningAmberIcon />} sx={{ mt: 2 }}>
             <Typography variant="body2">
-              <strong>Important:</strong> Symlinks require that Aperture can access your media files at the exact same paths that your media server uses.
-              If you're running Aperture in Docker, ensure the volume mounts match.
+              <strong>{t('settingsOutputFormat.symlinkWarningTitle')}</strong>{' '}
+              {t('settingsOutputFormat.symlinkWarningBody')}
             </Typography>
           </Alert>
         )}
@@ -255,7 +261,7 @@ export function OutputFormatSection() {
             onClick={handleSave}
             disabled={saving || !hasChanges}
           >
-            {saving ? 'Saving...' : 'Save Changes'}
+            {saving ? t('settingsOutputFormat.saving') : t('settingsOutputFormat.saveChanges')}
           </Button>
         </Stack>
       </CardContent>

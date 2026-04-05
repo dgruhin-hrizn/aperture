@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   Box,
   Typography,
@@ -31,6 +31,7 @@ import TvIcon from '@mui/icons-material/Tv'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 import CloseIcon from '@mui/icons-material/Close'
+import { useTranslation } from 'react-i18next'
 import { HeartRating } from '@aperture/ui'
 
 interface AlgorithmWeights {
@@ -59,26 +60,29 @@ interface DislikedItem {
   rating: number
 }
 
-const WEIGHT_LABELS: Record<keyof Omit<AlgorithmWeights, 'recentWatchLimit'>, { label: string; description: string }> = {
-  similarityWeight: {
-    label: 'Similarity',
-    description: 'How much to prioritize content similar to what you\'ve enjoyed',
-  },
-  noveltyWeight: {
-    label: 'Novelty',
-    description: 'How much to prioritize exploring new genres and styles',
-  },
-  ratingWeight: {
-    label: 'Community Rating',
-    description: 'How much to favor highly-rated content',
-  },
-  diversityWeight: {
-    label: 'Diversity',
-    description: 'How much variety to include in recommendations',
-  },
-}
-
 export function AlgorithmSettingsSection({ userId }: Props) {
+  const { t } = useTranslation()
+  const weightLabels = useMemo(
+    (): Record<keyof Omit<AlgorithmWeights, 'recentWatchLimit'>, { label: string; description: string }> => ({
+      similarityWeight: {
+        label: t('algorithmSettings.weightSimilarity'),
+        description: t('algorithmSettings.weightSimilarityDesc'),
+      },
+      noveltyWeight: {
+        label: t('algorithmSettings.weightNovelty'),
+        description: t('algorithmSettings.weightNoveltyDesc'),
+      },
+      ratingWeight: {
+        label: t('algorithmSettings.weightRating'),
+        description: t('algorithmSettings.weightRatingDesc'),
+      },
+      diversityWeight: {
+        label: t('algorithmSettings.weightDiversity'),
+        description: t('algorithmSettings.weightDiversityDesc'),
+      },
+    }),
+    [t]
+  )
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -115,7 +119,7 @@ export function AlgorithmSettingsSection({ userId }: Props) {
       const response = await fetch(`/api/users/${userId}/algorithm-settings`, {
         credentials: 'include',
       })
-      if (!response.ok) throw new Error('Failed to fetch settings')
+      if (!response.ok) throw new Error(t('algorithmSettings.errFetchSettings'))
       const data = await response.json()
       setSettings(data.settings)
       setDefaults(data.defaults)
@@ -132,11 +136,11 @@ export function AlgorithmSettingsSection({ userId }: Props) {
         recentWatchLimit: current.recentWatchLimit ?? defaultWeights.recentWatchLimit,
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch settings')
+      setError(err instanceof Error ? err.message : t('algorithmSettings.errFetchSettings'))
     } finally {
       setLoading(false)
     }
-  }, [userId, mediaType])
+  }, [userId, mediaType, t])
 
   useEffect(() => {
     fetchSettings()
@@ -194,11 +198,11 @@ export function AlgorithmSettingsSection({ userId }: Props) {
       })
       if (response.ok) {
         setIncludeWatched(value)
-        setSuccess('Include watched preference saved')
+        setSuccess(t('algorithmSettings.successIncludeWatchedSaved'))
         setTimeout(() => setSuccess(null), 3000)
       }
     } catch {
-      setError('Failed to save preference')
+      setError(t('userSettings.errSavePreference'))
     } finally {
       setSavingPrefs(false)
     }
@@ -215,11 +219,11 @@ export function AlgorithmSettingsSection({ userId }: Props) {
       })
       if (response.ok) {
         setDislikeBehavior(value)
-        setSuccess('Dislike behavior preference saved')
+        setSuccess(t('algorithmSettings.successDislikeBehaviorSaved'))
         setTimeout(() => setSuccess(null), 3000)
       }
     } catch {
-      setError('Failed to save preference')
+      setError(t('userSettings.errSavePreference'))
     } finally {
       setSavingPrefs(false)
     }
@@ -254,7 +258,7 @@ export function AlgorithmSettingsSection({ userId }: Props) {
         }
       }
     } catch {
-      setError('Failed to update rating')
+      setError(t('algorithmSettings.errUpdateRating'))
     }
   }
 
@@ -273,7 +277,7 @@ export function AlgorithmSettingsSection({ userId }: Props) {
         }
       }
     } catch {
-      setError('Failed to clear rating')
+      setError(t('algorithmSettings.errClearRating'))
     }
   }
 
@@ -302,13 +306,13 @@ export function AlgorithmSettingsSection({ userId }: Props) {
         credentials: 'include',
         body: JSON.stringify({ enabled }),
       })
-      if (!response.ok) throw new Error('Failed to save settings')
+      if (!response.ok) throw new Error(t('algorithmSettings.errSaveSettings'))
       const data = await response.json()
       setSettings(data.settings)
-      setSuccess(enabled ? 'Custom algorithm enabled' : 'Using default algorithm')
+      setSuccess(enabled ? t('algorithmSettings.successCustomEnabled') : t('algorithmSettings.successUsingDefault'))
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save')
+      setError(err instanceof Error ? err.message : t('algorithmSettings.errSaveWeights'))
     } finally {
       setSaving(false)
     }
@@ -330,16 +334,16 @@ export function AlgorithmSettingsSection({ userId }: Props) {
       })
       if (!response.ok) {
         const data = await response.json()
-        throw new Error(data.error || 'Failed to save settings')
+        throw new Error(data.error || t('algorithmSettings.errSaveSettings'))
       }
       const data = await response.json()
       setSettings(data.settings)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save')
+      setError(err instanceof Error ? err.message : t('algorithmSettings.errSaveWeights'))
     } finally {
       setSaving(false)
     }
-  }, [userId, mediaType])
+  }, [userId, mediaType, t])
 
   const handleWeightChange = (key: keyof AlgorithmWeights, value: number) => {
     if (!localWeights) return
@@ -378,12 +382,12 @@ export function AlgorithmSettingsSection({ userId }: Props) {
         method: 'POST',
         credentials: 'include',
       })
-      if (!response.ok) throw new Error('Failed to reset settings')
+      if (!response.ok) throw new Error(t('algorithmSettings.errReset'))
       await fetchSettings()
-      setSuccess('Algorithm settings reset to defaults')
+      setSuccess(t('algorithmSettings.successReset'))
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to reset')
+      setError(err instanceof Error ? err.message : t('algorithmSettings.errReset'))
     } finally {
       setSaving(false)
     }
@@ -418,10 +422,10 @@ export function AlgorithmSettingsSection({ userId }: Props) {
         <CardContent>
           <Box display="flex" alignItems="center" gap={1} mb={1}>
             <TuneIcon color="primary" />
-            <Typography variant="h6">Custom Algorithm Weights</Typography>
+            <Typography variant="h6">{t('algorithmSettings.masterTitle')}</Typography>
           </Box>
           <Typography variant="body2" color="text.secondary" mb={2}>
-            Fine-tune how Aperture generates recommendations for you. When disabled, admin-configured defaults are used.
+            {t('algorithmSettings.masterSubtitle')}
           </Typography>
           
           <FormControlLabel
@@ -435,12 +439,14 @@ export function AlgorithmSettingsSection({ userId }: Props) {
             label={
               <Box>
                 <Typography variant="body1" fontWeight="medium">
-                  {settings.enabled ? 'Using Custom Weights' : 'Using Default Weights'}
+                  {settings.enabled
+                    ? t('algorithmSettings.labelUsingCustomWeights')
+                    : t('algorithmSettings.labelUsingDefaultWeights')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   {settings.enabled
-                    ? 'Your personalized algorithm settings are active'
-                    : 'Recommendations use the system defaults'}
+                    ? t('algorithmSettings.descCustomActive')
+                    : t('algorithmSettings.descSystemDefaults')}
                 </Typography>
               </Box>
             }
@@ -467,8 +473,18 @@ export function AlgorithmSettingsSection({ userId }: Props) {
                 },
               }}
             >
-              <Tab icon={<MovieIcon />} label="Movies" value="movie" iconPosition="start" />
-              <Tab icon={<TvIcon />} label="TV Series" value="series" iconPosition="start" />
+              <Tab
+                icon={<MovieIcon />}
+                label={t('userSettings.identitySubtabMovies')}
+                value="movie"
+                iconPosition="start"
+              />
+              <Tab
+                icon={<TvIcon />}
+                label={t('userSettings.identitySubtabSeries')}
+                value="series"
+                iconPosition="start"
+              />
             </Tabs>
 
             {/* Weight Info */}
@@ -481,22 +497,20 @@ export function AlgorithmSettingsSection({ userId }: Props) {
                 color: 'white',
               }}
             >
-              <Typography variant="body2">
-                💡 Set relative importance for each factor. Weights are automatically normalized.
-              </Typography>
+              <Typography variant="body2">💡 {t('algorithmSettings.weightTipNormal')}</Typography>
             </Box>
 
             {/* Weight Sliders */}
             <Grid container spacing={3}>
-              {(Object.keys(WEIGHT_LABELS) as (keyof typeof WEIGHT_LABELS)[]).map((key) => {
+              {(Object.keys(weightLabels) as (keyof typeof weightLabels)[]).map((key) => {
                 const defaultValue = defaults[mediaType][key]
                 const currentValue = localWeights[key] as number
                 return (
                   <Grid item xs={12} md={6} key={key}>
                     <Box>
                       <Box display="flex" alignItems="center" gap={1} mb={0.5}>
-                        <Typography variant="subtitle2">{WEIGHT_LABELS[key].label}</Typography>
-                        <Tooltip title={WEIGHT_LABELS[key].description}>
+                        <Typography variant="subtitle2">{weightLabels[key].label}</Typography>
+                        <Tooltip title={weightLabels[key].description}>
                           <IconButton size="small" sx={{ p: 0.5 }}>
                             <HelpOutlineIcon fontSize="small" />
                           </IconButton>
@@ -507,7 +521,9 @@ export function AlgorithmSettingsSection({ userId }: Props) {
                           </Typography>
                           {Math.abs(currentValue - defaultValue) > 0.01 && (
                             <Typography variant="caption" color="text.secondary">
-                              (default: {(defaultValue * 100).toFixed(0)}%)
+                              {t('algorithmSettings.defaultPercent', {
+                                percent: (defaultValue * 100).toFixed(0),
+                              })}
                             </Typography>
                           )}
                         </Box>
@@ -544,19 +560,21 @@ export function AlgorithmSettingsSection({ userId }: Props) {
             {/* Recent Watch Limit */}
             <Box mb={3}>
               <Box display="flex" alignItems="center" gap={1} mb={0.5}>
-                <Typography variant="subtitle2">Recent Watch History Limit</Typography>
-                <Tooltip title="How many recently watched items to consider when building your taste profile">
+                <Typography variant="subtitle2">{t('algorithmSettings.recentWatchLimit')}</Typography>
+                <Tooltip title={t('algorithmSettings.recentWatchTooltip')}>
                   <IconButton size="small" sx={{ p: 0.5 }}>
                     <HelpOutlineIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
                 <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Typography variant="body2" fontWeight="bold" sx={{ color: accentColor }}>
-                    {localWeights.recentWatchLimit} items
+                    {t('algorithmSettings.itemsCount', { count: localWeights.recentWatchLimit })}
                   </Typography>
                   {localWeights.recentWatchLimit !== defaults[mediaType].recentWatchLimit && (
                     <Typography variant="caption" color="text.secondary">
-                      (default: {defaults[mediaType].recentWatchLimit})
+                      {t('algorithmSettings.defaultValue', {
+                        value: defaults[mediaType].recentWatchLimit,
+                      })}
                     </Typography>
                   )}
                 </Box>
@@ -592,7 +610,7 @@ export function AlgorithmSettingsSection({ userId }: Props) {
                   <>
                     <CircularProgress size={16} />
                     <Typography variant="caption" color="text.secondary">
-                      Saving...
+                      {t('userSettings.saving')}
                     </Typography>
                   </>
                 )}
@@ -604,12 +622,12 @@ export function AlgorithmSettingsSection({ userId }: Props) {
                 onClick={resetToDefaults}
                 disabled={saving}
               >
-                Reset to Defaults
+                {t('userSettings.resetToDefaults')}
               </Button>
             </Box>
 
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
-              Changes are saved automatically and will take effect when your recommendations are next regenerated.
+              {t('algorithmSettings.autoSaveFooter')}
             </Typography>
           </CardContent>
         </Card>
@@ -620,10 +638,10 @@ export function AlgorithmSettingsSection({ userId }: Props) {
         <CardContent>
           <Box display="flex" alignItems="center" gap={1} mb={1}>
             <VisibilityIcon color="primary" />
-            <Typography variant="h6">Include Watched Content</Typography>
+            <Typography variant="h6">{t('userSettings.includeWatchedTitle')}</Typography>
           </Box>
           <Typography variant="body2" color="text.secondary" mb={2}>
-            Choose whether to include content you've already watched in your AI recommendations.
+            {t('userSettings.watchedRecsSubtitle')}
           </Typography>
           
           {loadingPrefs ? (
@@ -640,12 +658,12 @@ export function AlgorithmSettingsSection({ userId }: Props) {
               label={
                 <Box>
                   <Typography variant="body1" fontWeight="medium">
-                    {includeWatched ? 'Include Watched Content' : 'New Content Only'}
+                    {includeWatched
+                      ? t('userSettings.includeWatchedTitle')
+                      : t('userSettings.newContentOnlyTitle')}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {includeWatched 
-                      ? 'Recommendations may include movies and series you\'ve already watched'
-                      : 'Recommendations will only show content you haven\'t watched yet'}
+                    {includeWatched ? t('userSettings.includeWatchedDesc') : t('userSettings.newContentOnlyDesc')}
                   </Typography>
                 </Box>
               }
@@ -660,10 +678,10 @@ export function AlgorithmSettingsSection({ userId }: Props) {
         <CardContent>
           <Box display="flex" alignItems="center" gap={1} mb={1}>
             <ThumbDownIcon color="primary" />
-            <Typography variant="h6">Disliked Content Handling</Typography>
+            <Typography variant="h6">{t('algorithmSettings.dislikedHandlingTitle')}</Typography>
           </Box>
           <Typography variant="body2" color="text.secondary" mb={2}>
-            How should content you've rated 1-3 hearts affect your recommendations?
+            {t('algorithmSettings.dislikedHandlingSubtitle')}
           </Typography>
           
           {loadingPrefs ? (
@@ -695,10 +713,10 @@ export function AlgorithmSettingsSection({ userId }: Props) {
                   label={
                     <Box>
                       <Typography variant="body1" fontWeight="medium">
-                        Penalize But Allow
+                        {t('algorithmSettings.penalizeOptionTitle')}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        May still appear if strongly matching other preferences
+                        {t('algorithmSettings.penalizeOptionDesc')}
                       </Typography>
                     </Box>
                   }
@@ -712,7 +730,9 @@ export function AlgorithmSettingsSection({ userId }: Props) {
 
           {/* Disliked Items List */}
           <Typography variant="subtitle1" fontWeight="medium" mb={2}>
-            Your Disliked Content ({dislikedMovies.length + dislikedSeries.length} items)
+            {t('algorithmSettings.dislikedListHeading', {
+              count: dislikedMovies.length + dislikedSeries.length,
+            })}
           </Typography>
           
           {loadingDisliked ? (
@@ -721,7 +741,7 @@ export function AlgorithmSettingsSection({ userId }: Props) {
             </Box>
           ) : dislikedMovies.length === 0 && dislikedSeries.length === 0 ? (
             <Typography variant="body2" color="text.secondary">
-              No disliked content. Rate content with 1-3 hearts to add items here.
+              {t('algorithmSettings.noDislikedItems')}
             </Typography>
           ) : (
             <Box 
@@ -738,7 +758,7 @@ export function AlgorithmSettingsSection({ userId }: Props) {
               {dislikedMovies.length > 0 && (
                 <>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                    Movies ({dislikedMovies.length})
+                    {t('algorithmSettings.moviesWithCount', { count: dislikedMovies.length })}
                   </Typography>
                   {dislikedMovies.map((item) => (
                     <Fade in key={item.id}>
@@ -777,7 +797,7 @@ export function AlgorithmSettingsSection({ userId }: Props) {
                         <IconButton 
                           size="small" 
                           onClick={() => handleClearRating(item.id, 'movie')}
-                          title="Clear rating"
+                          title={t('algorithmSettings.clearRatingTooltip')}
                         >
                           <CloseIcon fontSize="small" />
                         </IconButton>
@@ -795,7 +815,7 @@ export function AlgorithmSettingsSection({ userId }: Props) {
                     color="text.secondary" 
                     sx={{ display: 'block', mb: 1, mt: dislikedMovies.length > 0 ? 2 : 0 }}
                   >
-                    TV Series ({dislikedSeries.length})
+                    {t('algorithmSettings.seriesWithCount', { count: dislikedSeries.length })}
                   </Typography>
                   {dislikedSeries.map((item) => (
                     <Fade in key={item.id}>
@@ -834,7 +854,7 @@ export function AlgorithmSettingsSection({ userId }: Props) {
                         <IconButton 
                           size="small" 
                           onClick={() => handleClearRating(item.id, 'series')}
-                          title="Clear rating"
+                          title={t('algorithmSettings.clearRatingTooltip')}
                         >
                           <CloseIcon fontSize="small" />
                         </IconButton>
@@ -847,7 +867,7 @@ export function AlgorithmSettingsSection({ userId }: Props) {
           )}
 
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
-            Tip: Adjust hearts to change rating. Click ✕ to clear rating entirely (returns item to unrated pool).
+            {t('algorithmSettings.dislikedTipFooter')}
           </Typography>
         </CardContent>
       </Card>

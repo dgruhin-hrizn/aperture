@@ -1,4 +1,6 @@
 import { useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { Box, Typography, Chip } from '@mui/material'
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
 import { useNavigate } from 'react-router-dom'
@@ -31,19 +33,18 @@ interface WatchingCarouselProps {
   subtitle?: string
   items: WatchingItem[]
   loading?: boolean
-  emptyMessage?: string
 }
 
-function formatAirDate(dateStr: string): string {
+function formatAirDate(dateStr: string, t: TFunction, locale: string): string {
   const date = new Date(dateStr)
   const now = new Date()
   const diffDays = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 
-  if (diffDays === 0) return 'Today'
-  if (diffDays === 1) return 'Tomorrow'
-  if (diffDays > 0 && diffDays <= 7) return `In ${diffDays} days`
+  if (diffDays === 0) return t('dashboard.airToday')
+  if (diffDays === 1) return t('dashboard.airTomorrow')
+  if (diffDays > 0 && diffDays <= 7) return t('dashboard.airInDays', { count: diffDays })
 
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString(locale, {
     month: 'short',
     day: 'numeric',
   })
@@ -58,8 +59,8 @@ export function WatchingCarousel({
   subtitle,
   items,
   loading,
-  emptyMessage = 'No shows to display',
 }: WatchingCarouselProps) {
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const { getRating, setRating } = useUserRatings()
   const { toggleWatching } = useWatching()
@@ -110,7 +111,7 @@ export function WatchingCarousel({
             {/* Status badge */}
             {item.status === 'Continuing' && (
               <Chip
-                label="Airing"
+                label={t('dashboard.chipAiring')}
                 size="small"
                 color="success"
                 sx={{
@@ -141,7 +142,7 @@ export function WatchingCarousel({
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <CalendarTodayIcon sx={{ fontSize: 12, color: 'primary.main' }} />
                 <Typography variant="caption" color="primary.main" fontWeight={600}>
-                  {formatAirDate(item.upcomingEpisode.airDate)}
+                  {formatAirDate(item.upcomingEpisode.airDate, t, i18n.language)}
                 </Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
                   {formatEpisodeNumber(item.upcomingEpisode)}

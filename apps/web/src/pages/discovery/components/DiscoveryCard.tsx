@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Box } from '@mui/material'
 import { MediaPosterCard, type Genre } from '../../../components/MediaPosterCard'
 import { RequestSeerrOptionsDialog } from '../../../components/RequestSeerrOptionsDialog'
@@ -6,6 +7,8 @@ import { DiscoveryDetailPopper } from './DiscoveryDetailPopper'
 import { SeasonSelectModal, type SeasonInfo } from './SeasonSelectModal'
 import type { SeerrRequestOptions } from '../../../types/seerrRequest'
 import type { DiscoveryCandidate, SeerrMediaStatus } from '../types'
+import type { ResolveDiscoveryGenreName } from '../hooks'
+import { discoverySourceLabel } from '../discoveryLabels'
 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w500'
 
@@ -20,6 +23,7 @@ interface DiscoveryCardProps {
   isRequesting: boolean
   cachedStatus?: SeerrMediaStatus
   fetchTVDetails?: (tmdbId: number) => Promise<{ seasons: SeasonInfo[]; title: string; posterPath?: string } | null>
+  resolveGenreName: ResolveDiscoveryGenreName
 }
 
 export function DiscoveryCard({
@@ -29,7 +33,9 @@ export function DiscoveryCard({
   isRequesting,
   cachedStatus,
   fetchTVDetails,
+  resolveGenreName,
 }: DiscoveryCardProps) {
+  const { t } = useTranslation()
   const [detailOpen, setDetailOpen] = useState(false)
   const [optionsDialogOpen, setOptionsDialogOpen] = useState(false)
   const [pendingSeerrOpts, setPendingSeerrOpts] = useState<SeerrRequestOptions | null>(null)
@@ -40,19 +46,6 @@ export function DiscoveryCard({
   const posterUrl = candidate.posterPath
     ? `${TMDB_IMAGE_BASE}${candidate.posterPath}`
     : null
-
-  const getSourceLabel = (source: string) => {
-    const labels: Record<string, string> = {
-      tmdb_recommendations: 'TMDb Recommended',
-      tmdb_similar: 'Similar Titles',
-      tmdb_discover: 'Popular',
-      trakt_trending: 'Trending',
-      trakt_popular: 'Popular',
-      trakt_recommendations: 'Trakt Pick',
-      mdblist: 'MDBList',
-    }
-    return labels[source] || source
-  }
 
   const getSourceColor = (source: string) => {
     if (source.startsWith('tmdb')) return '#01b4e4'
@@ -92,8 +85,11 @@ export function DiscoveryCard({
     requestStatus: cachedStatus.requestStatus,
   } : undefined
 
-  // Convert genres to the format MediaPosterCard expects
-  const genres: Genre[] = candidate.genres.map(g => ({ id: g.id, name: g.name }))
+  // Convert genres to the format MediaPosterCard expects (TMDb-localized labels)
+  const genres: Genre[] = candidate.genres.map((g) => ({
+    id: g.id,
+    name: resolveGenreName(g.id, g.name),
+  }))
 
   return (
     <Box sx={{ position: 'relative', height: '100%' }}>
@@ -109,7 +105,7 @@ export function DiscoveryCard({
         canRequest={canRequest}
         isRequesting={isRequesting}
         onRequest={handleRequest}
-        sourceLabel={getSourceLabel(candidate.source)}
+        sourceLabel={discoverySourceLabel(candidate.source, t)}
         sourceColor={getSourceColor(candidate.source)}
         matchScore={candidate.finalScore}
         overview={candidate.overview}
@@ -132,6 +128,7 @@ export function DiscoveryCard({
         candidate={candidate}
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
+        resolveGenreName={resolveGenreName}
       />
 
       {/* Season Selection Modal (for series) */}

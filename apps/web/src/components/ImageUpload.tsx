@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -31,7 +32,7 @@ export interface ImageUploadProps {
   disabled?: boolean
   /** Custom height for the drop zone */
   height?: number | string
-  /** Label for the upload area */
+  /** Label for the upload area (defaults to translated drop hint) */
   label?: string
   /** Whether to show the delete button */
   showDelete?: boolean
@@ -49,9 +50,10 @@ export function ImageUpload({
   loading = false,
   disabled = false,
   height = 200,
-  label = 'Drag & drop an image here, or click to browse',
+  label,
   showDelete = true,
 }: ImageUploadProps) {
+  const { t } = useTranslation()
   const [isDragging, setIsDragging] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [uploadProgress, setUploadProgress] = useState(false)
@@ -60,16 +62,18 @@ export function ImageUpload({
   const validateFile = useCallback(
     (file: File): string | null => {
       if (!ACCEPTED_TYPES.includes(file.type)) {
-        return `Invalid file type. Accepted: ${ACCEPTED_TYPES.map((t) => t.split('/')[1]).join(', ')}`
+        return t('imageUpload.invalidType', {
+          types: ACCEPTED_TYPES.map((x) => x.split('/')[1]).join(', '),
+        })
       }
 
       if (file.size > MAX_FILE_SIZE) {
-        return `File too large. Maximum size: ${MAX_FILE_SIZE / 1024 / 1024}MB`
+        return t('imageUpload.fileTooLarge', { mb: MAX_FILE_SIZE / 1024 / 1024 })
       }
 
       return null
     },
-    []
+    [t]
   )
 
   const handleFile = useCallback(
@@ -86,12 +90,12 @@ export function ImageUpload({
       try {
         await onUpload(file)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Upload failed')
+        setError(err instanceof Error ? err.message : t('imageUpload.uploadFailed'))
       } finally {
         setUploadProgress(false)
       }
     },
-    [onUpload, validateFile]
+    [onUpload, validateFile, t]
   )
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -153,11 +157,11 @@ export function ImageUpload({
     try {
       await onDelete()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Delete failed')
+      setError(err instanceof Error ? err.message : t('imageUpload.deleteFailed'))
     } finally {
       setUploadProgress(false)
     }
-  }, [onDelete, disabled, loading])
+  }, [onDelete, disabled, loading, t])
 
   const isLoading = loading || uploadProgress
 
@@ -203,7 +207,7 @@ export function ImageUpload({
           <Box
             component="img"
             src={currentImageUrl}
-            alt="Current image"
+            alt={t('imageUpload.altCurrent')}
             sx={{
               position: 'absolute',
               top: 0,
@@ -241,7 +245,7 @@ export function ImageUpload({
             >
               <CloudUploadIcon sx={{ fontSize: 48, color: 'white', mb: 1 }} />
               <Typography color="white" variant="body2">
-                Click or drag to replace
+                {t('imageUpload.clickOrDragReplace')}
               </Typography>
             </Box>
           </Fade>
@@ -249,7 +253,7 @@ export function ImageUpload({
 
         {/* Default badge */}
         {currentImageUrl && isDefault && (
-          <Tooltip title="This is the default image set by admin">
+          <Tooltip title={t('imageUpload.tooltipDefaultBadge')}>
             <Box
               sx={{
                 position: 'absolute',
@@ -266,7 +270,7 @@ export function ImageUpload({
             >
               <CheckCircleIcon sx={{ fontSize: 14, color: 'white' }} />
               <Typography variant="caption" sx={{ color: 'white', fontWeight: 600 }}>
-                Default
+                {t('imageUpload.badgeDefault')}
               </Typography>
             </Box>
           </Tooltip>
@@ -274,7 +278,11 @@ export function ImageUpload({
 
         {/* Delete button */}
         {currentImageUrl && showDelete && onDelete && !isLoading && (
-          <Tooltip title={isDefault ? 'Remove custom image (revert to default)' : 'Delete image'}>
+          <Tooltip
+            title={
+              isDefault ? t('imageUpload.tooltipDeleteRevert') : t('imageUpload.tooltipDelete')
+            }
+          >
             <IconButton
               onClick={(e) => {
                 e.stopPropagation()
@@ -330,11 +338,14 @@ export function ImageUpload({
               textAlign="center"
               sx={{ px: 2 }}
             >
-              {label}
+              {label ?? t('imageUpload.dropLabel')}
             </Typography>
             {recommendedDimensions && (
               <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-                Recommended: {recommendedDimensions.width} × {recommendedDimensions.height}px
+                {t('imageUpload.recommended', {
+                  w: recommendedDimensions.width,
+                  h: recommendedDimensions.height,
+                })}
               </Typography>
             )}
           </>
@@ -360,7 +371,10 @@ export function ImageUpload({
       {/* Dimensions hint */}
       {currentImageUrl && recommendedDimensions && (
         <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-          Recommended: {recommendedDimensions.width} × {recommendedDimensions.height}px
+          {t('imageUpload.recommended', {
+            w: recommendedDimensions.width,
+            h: recommendedDimensions.height,
+          })}
         </Typography>
       )}
     </Box>

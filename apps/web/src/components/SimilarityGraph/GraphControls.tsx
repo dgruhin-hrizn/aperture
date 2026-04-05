@@ -1,5 +1,7 @@
 import { Box, Typography, FormControlLabel, Checkbox, Switch, Divider } from '@mui/material'
-import { CONNECTION_COLORS, CONNECTION_LABELS, type ConnectionType } from './types'
+import { useTranslation } from 'react-i18next'
+import { CONNECTION_COLORS, type ConnectionType } from './types'
+import { connectionTypeLabel } from '../../i18n/connectionTypeLabel'
 
 interface GraphControlsProps {
   enabledTypes: Set<ConnectionType>
@@ -16,6 +18,7 @@ export function GraphControls({
   onToggleCrossMedia,
   compact = false,
 }: GraphControlsProps) {
+  const { t } = useTranslation()
   const connectionTypes: ConnectionType[] = [
     'director',
     'actor',
@@ -37,7 +40,7 @@ export function GraphControls({
     >
       {/* Legend */}
       <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
-        Connection Types
+        {t('graphControls.connectionTypes')}
       </Typography>
 
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -64,7 +67,7 @@ export function GraphControls({
               }}
             />
             <Typography variant="caption" sx={{ fontSize: compact ? '10px' : '11px' }}>
-              {CONNECTION_LABELS[type]}
+              {connectionTypeLabel(type, t)}
             </Typography>
           </Box>
         ))}
@@ -75,7 +78,7 @@ export function GraphControls({
       {/* Cross-media toggle */}
       <Box>
         <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
-          Cross Media
+          {t('graphControls.crossMedia')}
         </Typography>
         <FormControlLabel
           control={
@@ -87,7 +90,7 @@ export function GraphControls({
           }
           label={
             <Typography variant="caption" sx={{ fontSize: compact ? '10px' : '11px' }}>
-              Movies ↔ Series
+              {t('graphControls.moviesSeriesToggle')}
             </Typography>
           }
         />
@@ -98,6 +101,7 @@ export function GraphControls({
 
 // Standalone legend component for simpler use cases
 export function GraphLegend({ compact = false }: { compact?: boolean }) {
+  const { t } = useTranslation()
   const connectionTypes: ConnectionType[] = [
     'director',
     'actor',
@@ -140,7 +144,7 @@ export function GraphLegend({ compact = false }: { compact?: boolean }) {
             color="text.secondary"
             sx={{ fontSize: compact ? '9px' : '10px' }}
           >
-            {CONNECTION_LABELS[type]}
+            {connectionTypeLabel(type, t)}
           </Typography>
         </Box>
       ))}

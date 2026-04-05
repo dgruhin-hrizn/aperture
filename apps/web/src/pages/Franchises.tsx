@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -62,6 +63,7 @@ type SortOption = 'name' | 'total' | 'progress' | 'unwatched'
 const PAGE_SIZE = 20
 
 export function FranchisesPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { getRating, setRating } = useUserRatings()
   const [franchises, setFranchises] = useState<Franchise[]>([])
@@ -122,15 +124,15 @@ export function FranchisesPage() {
         setHasMore(pageNum * PAGE_SIZE < data.total)
         setError(null)
       } else {
-        setError('Failed to load franchises')
+        setError(t('browse.franchises.errorLoad'))
       }
     } catch {
-      setError('Could not connect to server')
+      setError(t('browse.franchises.errorConnect'))
     } finally {
       setLoading(false)
       setLoadingMore(false)
     }
-  }, [debouncedSearch, sortBy, showCompleted])
+  }, [debouncedSearch, sortBy, showCompleted, t])
 
   // Initial fetch and refetch on filter change
   useEffect(() => {
@@ -196,10 +198,10 @@ export function FranchisesPage() {
   return (
     <Box>
       <Typography variant="h4" fontWeight={700} mb={1}>
-        Franchise Tracker
+        {t('browse.franchises.title')}
       </Typography>
       <Typography variant="body1" color="text.secondary" mb={4}>
-        Track your progress through movie franchises and collections
+        {t('browse.franchises.subtitle')}
       </Typography>
 
       {/* Stats Cards */}
@@ -207,27 +209,27 @@ export function FranchisesPage() {
         <Grid item xs={6} sm={3}>
           <StatCard
             value={stats ? stats.totalFranchises : <Skeleton width={40} sx={{ mx: 'auto' }} />}
-            label="Franchises"
+            label={t('browse.franchises.statFranchises')}
             color="primary"
           />
         </Grid>
         <Grid item xs={6} sm={3}>
           <StatCard
             value={stats ? stats.completedFranchises : <Skeleton width={40} sx={{ mx: 'auto' }} />}
-            label="Completed"
+            label={t('browse.franchises.statCompleted')}
             color="success.main"
           />
         </Grid>
         <Grid item xs={6} sm={3}>
           <StatCard
             value={stats ? stats.totalMovies : <Skeleton width={40} sx={{ mx: 'auto' }} />}
-            label="Total Movies"
+            label={t('browse.franchises.statTotalMovies')}
           />
         </Grid>
         <Grid item xs={6} sm={3}>
           <StatCard
             value={stats ? `${stats.totalMovies > 0 ? Math.round((stats.watchedMovies / stats.totalMovies) * 100) : 0}%` : <Skeleton width={40} sx={{ mx: 'auto' }} />}
-            label="Overall Progress"
+            label={t('browse.franchises.statOverallProgress')}
           />
         </Grid>
       </Grid>
@@ -235,7 +237,7 @@ export function FranchisesPage() {
       {/* Filters */}
       <Box display="flex" gap={2} mb={4} flexWrap="wrap" alignItems="center">
         <TextField
-          placeholder="Search franchises..."
+          placeholder={t('browse.franchises.searchPlaceholder')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           size="small"
@@ -250,22 +252,22 @@ export function FranchisesPage() {
         />
 
         <FormControl size="small" sx={{ minWidth: 150 }}>
-          <InputLabel>Sort By</InputLabel>
+          <InputLabel>{t('browse.franchises.sortBy')}</InputLabel>
           <Select
             value={sortBy}
-            label="Sort By"
+            label={t('browse.franchises.sortBy')}
             onChange={(e) => setSortBy(e.target.value as SortOption)}
           >
-            <MenuItem value="total">Most Movies</MenuItem>
-            <MenuItem value="name">Name</MenuItem>
-            <MenuItem value="progress">Progress</MenuItem>
-            <MenuItem value="unwatched">Most Unwatched</MenuItem>
+            <MenuItem value="total">{t('browse.franchises.sortMostMovies')}</MenuItem>
+            <MenuItem value="name">{t('browse.franchises.sortName')}</MenuItem>
+            <MenuItem value="progress">{t('browse.franchises.sortProgress')}</MenuItem>
+            <MenuItem value="unwatched">{t('browse.franchises.sortMostUnwatched')}</MenuItem>
           </Select>
         </FormControl>
 
         <Chip
           icon={showCompleted ? <CheckCircleIcon /> : <VisibilityOffIcon />}
-          label={showCompleted ? 'Showing Completed' : 'Hiding Completed'}
+          label={showCompleted ? t('browse.franchises.showingCompleted') : t('browse.franchises.hidingCompleted')}
           onClick={() => setShowCompleted(!showCompleted)}
           color={showCompleted ? 'default' : 'primary'}
           variant={showCompleted ? 'outlined' : 'filled'}
@@ -303,17 +305,17 @@ export function FranchisesPage() {
         <Box textAlign="center" py={8}>
           <MovieIcon sx={{ fontSize: 64, opacity: 0.2, mb: 2 }} />
           <Typography variant="h6" color="text.secondary">
-            {debouncedSearch ? 'No franchises match your search' : 'No franchises found'}
+            {debouncedSearch ? t('browse.franchises.emptySearch') : t('browse.franchises.emptyNone')}
           </Typography>
           <Typography variant="body2" color="text.disabled" mt={1}>
-            {!debouncedSearch && 'Run the metadata enrichment job to discover franchises in your library'}
+            {!debouncedSearch && t('browse.franchises.emptyHint')}
           </Typography>
         </Box>
       ) : (
         <Box display="flex" flexDirection="column" gap={2}>
           {/* Results count */}
           <Typography variant="body2" color="text.secondary">
-            Showing {franchises.length} of {total} franchises
+            {t('browse.franchises.showingCount', { shown: franchises.length, total })}
           </Typography>
 
           {franchises.map((franchise) => (
@@ -347,7 +349,7 @@ export function FranchisesPage() {
                       {franchise.progress === 100 && (
                         <Chip
                           icon={<CheckCircleIcon />}
-                          label="Complete"
+                          label={t('browse.franchises.complete')}
                           color="success"
                           size="small"
                         />
@@ -356,7 +358,10 @@ export function FranchisesPage() {
 
                     <Box display="flex" alignItems="center" gap={2}>
                       <Typography variant="body2" color="text.secondary">
-                        {franchise.watchedMovies} / {franchise.totalMovies} movies watched
+                        {t('browse.franchises.moviesWatched', {
+                          watched: franchise.watchedMovies,
+                          total: franchise.totalMovies,
+                        })}
                       </Typography>
                       <Chip
                         label={`${franchise.progress}%`}
@@ -401,7 +406,7 @@ export function FranchisesPage() {
                             onClick={() => navigate(`/movies/${movie.id}`)}
                           />
                           {movie.watched && (
-                            <Tooltip title="Watched">
+                            <Tooltip title={t('browse.franchises.watched')}>
                               <CheckCircleIcon
                                 sx={{
                                   position: 'absolute',
@@ -428,7 +433,7 @@ export function FranchisesPage() {
             {loadingMore && <CircularProgress size={32} />}
             {!hasMore && franchises.length > 0 && (
               <Typography variant="body2" color="text.secondary">
-                All franchises loaded
+                {t('browse.franchises.allLoaded')}
               </Typography>
             )}
           </Box>

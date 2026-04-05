@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import {
   Dialog,
   DialogTitle,
@@ -35,6 +36,7 @@ export function GraphPlaylistViewDialog({
   loading,
   onClose,
 }: GraphPlaylistViewDialogProps) {
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
 
   const handleItemClick = (item: GraphPlaylistItem) => {
@@ -54,7 +56,7 @@ export function GraphPlaylistViewDialog({
             <Box display="flex" alignItems="center" gap={1} mb={0.5}>
               <Chip
                 icon={<HubIcon />}
-                label="Similarity Playlist"
+                label={t('playlists.similarityPlaylist')}
                 size="small"
                 color="primary"
                 sx={{ height: 22, fontSize: '0.7rem' }}
@@ -67,7 +69,10 @@ export function GraphPlaylistViewDialog({
               </Typography>
             )}
             <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-              {items.length} items • Created {playlist && new Date(playlist.createdAt).toLocaleDateString()}
+              {t('playlists.metaItemsCreated', {
+                count: items.length,
+                date: playlist ? new Date(playlist.createdAt).toLocaleDateString(i18n.language) : '',
+              })}
             </Typography>
           </Box>
           <IconButton onClick={onClose} size="small">
@@ -84,7 +89,7 @@ export function GraphPlaylistViewDialog({
           <Box textAlign="center" py={4}>
             <HubIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
             <Typography variant="body1" color="text.secondary">
-              No items in playlist
+              {t('playlists.noItemsInPlaylist')}
             </Typography>
           </Box>
         ) : (

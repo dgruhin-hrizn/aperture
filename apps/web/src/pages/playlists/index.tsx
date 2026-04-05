@@ -13,11 +13,13 @@ import {
   DialogActions,
   CircularProgress,
 } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 import AddIcon from '@mui/icons-material/Add'
 import { usePlaylistsData } from './hooks'
 import { PlaylistCard, GraphPlaylistCard, PlaylistDialog, PlaylistViewDialog, GraphPlaylistViewDialog, EmptyState } from './components'
 
 export function PlaylistsPage() {
+  const { t } = useTranslation()
   const {
     // Data
     channels,
@@ -72,7 +74,7 @@ export function PlaylistsPage() {
     return (
       <Box>
         <Typography variant="h4" fontWeight={700} mb={4}>
-          Playlists
+          {t('playlists.pageTitle')}
         </Typography>
         <Grid container spacing={3}>
           {Array.from({ length: 3 }).map((_, i) => (
@@ -97,10 +99,10 @@ export function PlaylistsPage() {
       >
         <Box>
           <Typography variant="h4" fontWeight={700} mb={1}>
-            Playlists
+            {t('playlists.pageTitle')}
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Create custom recommendation playlists with genres and example movies
+            {t('playlists.pageSubtitle')}
           </Typography>
         </Box>
         <Button 
@@ -109,7 +111,7 @@ export function PlaylistsPage() {
           onClick={() => handleOpenDialog()}
           sx={{ alignSelf: { xs: 'flex-start', sm: 'center' } }}
         >
-          New Playlist
+          {t('playlists.newPlaylist')}
         </Button>
       </Box>
 
@@ -193,15 +195,15 @@ export function PlaylistsPage() {
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle>Delete Playlist</DialogTitle>
+        <DialogTitle>{t('playlists.deleteTitle')}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete "{deletingPlaylist?.name}"? This action cannot be undone.
+            {t('playlists.deleteConfirm', { name: deletingPlaylist?.name ?? '' })}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDeleteCancel} disabled={deleteLoading}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             onClick={handleDeleteConfirm}
@@ -210,7 +212,7 @@ export function PlaylistsPage() {
             disabled={deleteLoading}
             startIcon={deleteLoading ? <CircularProgress size={16} color="inherit" /> : null}
           >
-            {deleteLoading ? 'Deleting...' : 'Delete'}
+            {deleteLoading ? t('playlists.deleting') : t('playlists.delete')}
           </Button>
         </DialogActions>
       </Dialog>

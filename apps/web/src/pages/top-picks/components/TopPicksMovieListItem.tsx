@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -41,6 +42,7 @@ interface TopPicksMovieListItemProps {
 }
 
 export function TopPicksMovieListItem({ movie, userRating, onRate }: TopPicksMovieListItemProps) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
@@ -174,7 +176,7 @@ export function TopPicksMovieListItem({ movie, userRating, onRate }: TopPicksMov
                 fontSize: { xs: '0.75rem', md: '0.875rem' },
               }}
             >
-              {movie.overview || 'No description available.'}
+              {movie.overview || t('common.noDescription')}
             </Typography>
 
             {/* Mobile: Inline actions */}
@@ -185,7 +187,7 @@ export function TopPicksMovieListItem({ movie, userRating, onRate }: TopPicksMov
                   onChange={(rating) => onRate(rating)}
                   size="small"
                 />
-                <Tooltip title="View on TMDb">
+                <Tooltip title={t('topPicksPage.viewTmdb')}>
                   <IconButton
                     onClick={handleOpenTmdb}
                     size="small"
@@ -230,7 +232,7 @@ export function TopPicksMovieListItem({ movie, userRating, onRate }: TopPicksMov
                 </Typography>
               </Box>
               <Typography variant="caption" color="text.secondary">
-                Unique Viewers
+                {t('topPicksPage.uniqueViewers')}
               </Typography>
               <LinearProgress
                 variant="determinate"
@@ -252,7 +254,7 @@ export function TopPicksMovieListItem({ movie, userRating, onRate }: TopPicksMov
             <Box display="flex" alignItems="center" justifyContent="center" gap={0.5}>
               <PlayArrowIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
               <Typography variant="body2" color="text.secondary">
-                {movie.playCount} plays
+                {t('topPicksPage.playsCount', { count: movie.playCount })}
               </Typography>
             </Box>
 
@@ -264,7 +266,7 @@ export function TopPicksMovieListItem({ movie, userRating, onRate }: TopPicksMov
                 size="small"
               />
               
-              <Tooltip title="View on TMDb">
+              <Tooltip title={t('topPicksPage.viewTmdb')}>
                 <IconButton
                   onClick={handleOpenTmdb}
                   size="small"
@@ -302,13 +304,13 @@ export function TopPicksMovieListItem({ movie, userRating, onRate }: TopPicksMov
                 {movie.uniqueViewers}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                viewers
+                {t('topPicksPage.viewers')}
               </Typography>
             </Box>
             <Box display="flex" alignItems="center" gap={0.5}>
               <PlayArrowIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
               <Typography variant="caption" color="text.secondary">
-                {movie.playCount} plays
+                {t('topPicksPage.playsCount', { count: movie.playCount })}
               </Typography>
             </Box>
           </Box>

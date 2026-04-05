@@ -1,5 +1,6 @@
 import { Box, Typography, Card, Skeleton, Avatar } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import FavoriteIcon from '@mui/icons-material/Favorite'
@@ -20,9 +21,9 @@ interface RecentRatingsListProps {
   loading?: boolean
 }
 
-function formatRatedDate(date: Date): string {
+function formatRatedDate(date: Date, locale: string): string {
   const d = new Date(date)
-  return d.toLocaleDateString('en-US', {
+  return d.toLocaleDateString(locale, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -52,6 +53,7 @@ function HeartDisplay({ rating }: { rating: number }) {
 }
 
 export function RecentRatingsList({ ratings, loading }: RecentRatingsListProps) {
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
 
   if (loading) {
@@ -66,7 +68,7 @@ export function RecentRatingsList({ ratings, loading }: RecentRatingsListProps) 
         }}
       >
         <Typography variant="h6" fontWeight={600} mb={2}>
-          Recent Ratings
+          {t('dashboard.recentRatings')}
         </Typography>
         {Array.from({ length: 3 }).map((_, i) => (
           <Box key={i} sx={{ display: 'flex', gap: 1.5, mb: 2 }}>
@@ -94,7 +96,7 @@ export function RecentRatingsList({ ratings, loading }: RecentRatingsListProps) 
         }}
       >
         <Typography variant="h6" fontWeight={600} mb={2}>
-          Recent Ratings
+          {t('dashboard.recentRatings')}
         </Typography>
         <Box
           sx={{
@@ -107,10 +109,10 @@ export function RecentRatingsList({ ratings, loading }: RecentRatingsListProps) 
         >
           <FavoriteIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
           <Typography variant="body2" color="text.secondary">
-            No ratings yet
+            {t('dashboard.noRatingsYet')}
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            Rate movies and series to see them here
+            {t('dashboard.noRatingsHint')}
           </Typography>
         </Box>
       </Card>
@@ -128,7 +130,7 @@ export function RecentRatingsList({ ratings, loading }: RecentRatingsListProps) 
       }}
     >
       <Typography variant="h6" fontWeight={600} mb={2}>
-        Recent Ratings
+        {t('dashboard.recentRatings')}
       </Typography>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
         {ratings.map((item) => (
@@ -175,12 +177,13 @@ export function RecentRatingsList({ ratings, loading }: RecentRatingsListProps) 
                 {item.title}
               </Typography>
               <Typography variant="caption" color="text.secondary" display="block">
-                {item.year || 'Unknown'} • {item.type === 'movie' ? 'Movie' : 'Series'}
+                {item.year || t('dashboard.unknownYear')} •{' '}
+                {item.type === 'movie' ? t('dashboard.typeMovie') : t('dashboard.typeSeries')}
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 0.5 }}>
                 <HeartDisplay rating={item.rating} />
                 <Typography variant="caption" color="text.secondary">
-                  Rated on {formatRatedDate(item.ratedAt)}
+                  {t('dashboard.ratedOn', { date: formatRatedDate(item.ratedAt, i18n.language) })}
                 </Typography>
               </Box>
             </Box>

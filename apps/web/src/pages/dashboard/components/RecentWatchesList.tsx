@@ -1,5 +1,7 @@
 import { Box, Typography, Card, Skeleton } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
@@ -24,7 +26,7 @@ interface RecentWatchesListProps {
   loading?: boolean
 }
 
-function formatRelativeTime(date: Date): string {
+function formatRelativeTime(date: Date, t: TFunction): string {
   const now = new Date()
   const diff = now.getTime() - new Date(date).getTime()
   const minutes = Math.floor(diff / 60000)
@@ -35,21 +37,21 @@ function formatRelativeTime(date: Date): string {
 
   if (years > 0) {
     const remainingMonths = Math.floor((days % 365) / 30)
-    if (remainingMonths > 0) return `${years}y ${remainingMonths}mo ago`
-    return `${years}y ago`
+    if (remainingMonths > 0) return t('dashboard.relativeYearsMonthsAgo', { years, months: remainingMonths })
+    return t('dashboard.relativeYearsAgo', { count: years })
   }
   if (months > 0) {
     const remainingDays = days % 30
-    if (remainingDays > 0) return `${months}mo ${remainingDays}d ago`
-    return `${months}mo ago`
+    if (remainingDays > 0) return t('dashboard.relativeMonthsDaysAgo', { months, days: remainingDays })
+    return t('dashboard.relativeMonthsAgo', { count: months })
   }
-  if (days > 0) return `${days}d ago`
-  if (hours > 0) return `${hours}h ago`
-  if (minutes > 0) return `${minutes}m ago`
-  return 'Just now'
+  if (days > 0) return t('dashboard.relativeDaysAgo', { count: days })
+  if (hours > 0) return t('dashboard.relativeHoursAgo', { count: hours })
+  if (minutes > 0) return t('dashboard.relativeMinutesAgo', { count: minutes })
+  return t('dashboard.relativeJustNow')
 }
 
-function WatchItemRow({ item, onClick }: { item: WatchItem; onClick: () => void }) {
+function WatchItemRow({ item, onClick, t }: { item: WatchItem; onClick: () => void; t: TFunction }) {
   return (
     <Box
       onClick={onClick}
@@ -93,13 +95,13 @@ function WatchItemRow({ item, onClick }: { item: WatchItem; onClick: () => void 
           {item.title}
         </Typography>
         <Typography variant="caption" color="text.secondary" display="block">
-          {item.year || 'Unknown'}
+          {item.year || t('dashboard.unknownYear')}
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-          {formatRelativeTime(item.lastWatched)}
+          {formatRelativeTime(item.lastWatched, t)}
           {item.lastEpisode && ` · S${item.lastEpisode.seasonNumber}E${item.lastEpisode.episodeNumber}`}
-          {item.type === 'movie' && item.playCount > 1 && item.playCount <= 5 && ` · ${item.playCount}x`}
-          {item.type === 'movie' && item.playCount > 5 && ' · Rewatched'}
+          {item.type === 'movie' && item.playCount > 1 && item.playCount <= 5 && ` · ${t('dashboard.playCount', { count: item.playCount })}`}
+          {item.type === 'movie' && item.playCount > 5 && ` · ${t('dashboard.rewatched')}`}
         </Typography>
       </Box>
     </Box>
@@ -123,7 +125,7 @@ function ColumnSkeleton() {
   )
 }
 
-function EmptyColumn({ type }: { type: 'movie' | 'series' }) {
+function EmptyColumn({ type, t }: { type: 'movie' | 'series'; t: TFunction }) {
   const Icon = type === 'movie' ? MovieIcon : TvIcon
   return (
     <Box
@@ -137,13 +139,14 @@ function EmptyColumn({ type }: { type: 'movie' | 'series' }) {
     >
       <Icon sx={{ fontSize: 32, color: 'text.disabled', mb: 0.5 }} />
       <Typography variant="caption" color="text.secondary" display="block">
-        No {type === 'movie' ? 'movies' : 'series'} watched yet
+        {type === 'movie' ? t('dashboard.noMoviesWatchedColumn') : t('dashboard.noSeriesWatchedColumn')}
       </Typography>
     </Box>
   )
 }
 
 export function RecentWatchesList({ watches, loading }: RecentWatchesListProps) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
 
   const movies = watches.filter((w) => w.type === 'movie')
@@ -161,18 +164,18 @@ export function RecentWatchesList({ watches, loading }: RecentWatchesListProps) 
         }}
       >
         <Typography variant="h6" fontWeight={600} mb={2}>
-          Recently Watched
+          {t('dashboard.recentlyWatched')}
         </Typography>
         <Box sx={{ display: 'flex', gap: 3 }}>
           <Box sx={{ flex: 1 }}>
             <Typography variant="subtitle2" color="text.secondary" mb={1.5} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <MovieIcon sx={{ fontSize: 18 }} /> Movies
+              <MovieIcon sx={{ fontSize: 18 }} /> {t('dashboard.movies')}
             </Typography>
             <ColumnSkeleton />
           </Box>
           <Box sx={{ flex: 1 }}>
             <Typography variant="subtitle2" color="text.secondary" mb={1.5} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <TvIcon sx={{ fontSize: 18 }} /> Series
+              <TvIcon sx={{ fontSize: 18 }} /> {t('dashboard.series')}
             </Typography>
             <ColumnSkeleton />
           </Box>
@@ -193,7 +196,7 @@ export function RecentWatchesList({ watches, loading }: RecentWatchesListProps) 
         }}
       >
         <Typography variant="h6" fontWeight={600} mb={2}>
-          Recently Watched
+          {t('dashboard.recentlyWatched')}
         </Typography>
         <Box
           sx={{
@@ -206,10 +209,10 @@ export function RecentWatchesList({ watches, loading }: RecentWatchesListProps) 
         >
           <PlayArrowIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
           <Typography variant="body2" color="text.secondary">
-            No watch history yet
+            {t('dashboard.noWatchHistory')}
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            Start watching to see your history here
+            {t('dashboard.noWatchHistoryHint')}
           </Typography>
         </Box>
       </Card>
@@ -227,7 +230,7 @@ export function RecentWatchesList({ watches, loading }: RecentWatchesListProps) 
       }}
     >
       <Typography variant="h6" fontWeight={600} mb={2}>
-        Recently Watched
+        {t('dashboard.recentlyWatched')}
       </Typography>
       <Box sx={{ display: 'flex', gap: 3 }}>
         {/* Movies Column */}
@@ -238,7 +241,7 @@ export function RecentWatchesList({ watches, loading }: RecentWatchesListProps) 
             mb={1.5}
             sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
           >
-            <MovieIcon sx={{ fontSize: 18 }} /> Movies
+            <MovieIcon sx={{ fontSize: 18 }} /> {t('dashboard.movies')}
           </Typography>
           {movies.length > 0 ? (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -246,12 +249,13 @@ export function RecentWatchesList({ watches, loading }: RecentWatchesListProps) 
                 <WatchItemRow
                   key={item.id}
                   item={item}
+                  t={t}
                   onClick={() => navigate(`/movies/${item.id}`)}
                 />
               ))}
             </Box>
           ) : (
-            <EmptyColumn type="movie" />
+            <EmptyColumn type="movie" t={t} />
           )}
         </Box>
 
@@ -263,7 +267,7 @@ export function RecentWatchesList({ watches, loading }: RecentWatchesListProps) 
             mb={1.5}
             sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
           >
-            <TvIcon sx={{ fontSize: 18 }} /> Series
+            <TvIcon sx={{ fontSize: 18 }} /> {t('dashboard.series')}
           </Typography>
           {series.length > 0 ? (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -271,12 +275,13 @@ export function RecentWatchesList({ watches, loading }: RecentWatchesListProps) 
                 <WatchItemRow
                   key={item.id}
                   item={item}
+                  t={t}
                   onClick={() => navigate(`/series/${item.id}`)}
                 />
               ))}
             </Box>
           ) : (
-            <EmptyColumn type="series" />
+            <EmptyColumn type="series" t={t} />
           )}
         </Box>
       </Box>

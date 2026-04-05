@@ -43,17 +43,20 @@ async function rateLimit(): Promise<void> {
  */
 export async function tmdbRequest<T>(
   endpoint: string,
-  options: { apiKey?: string; onLog?: ApiLogCallback } = {}
+  options: { apiKey?: string; onLog?: ApiLogCallback; language?: string } = {}
 ): Promise<T | null> {
   const apiKey = options.apiKey || (await getTMDbApiKey())
-  const { onLog } = options
-  
+  const { onLog, language } = options
+
   if (!apiKey) {
     logger.warn('TMDb API key not configured')
     return null
   }
 
-  const url = `${TMDB_API_BASE_URL}${endpoint}${endpoint.includes('?') ? '&' : '?'}api_key=${apiKey}`
+  let url = `${TMDB_API_BASE_URL}${endpoint}${endpoint.includes('?') ? '&' : '?'}api_key=${apiKey}`
+  if (language) {
+    url += `&language=${encodeURIComponent(language)}`
+  }
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     await rateLimit()

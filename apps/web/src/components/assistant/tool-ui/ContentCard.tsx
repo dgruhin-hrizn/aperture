@@ -8,6 +8,7 @@ import InfoIcon from '@mui/icons-material/Info'
 import StarIcon from '@mui/icons-material/Star'
 import FavoriteIcon from '@mui/icons-material/Favorite'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { RankBadge, getProxiedImageUrl } from '@aperture/ui'
 import type { ContentItem } from './types'
 
@@ -17,6 +18,7 @@ interface ContentCardProps {
 }
 
 export function ContentCard({ item, onPlay }: ContentCardProps) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   
   const detailsAction = item.actions?.find(a => a.id === 'details')
@@ -92,7 +94,7 @@ export function ContentCard({ item, onPlay }: ContentCardProps) {
               fontSize: 10,
             }}
           >
-            No Image
+            {t('assistantToolUi.noImage')}
           </Box>
         )}
         {/* Rank badge */}
@@ -147,7 +149,7 @@ export function ContentCard({ item, onPlay }: ContentCardProps) {
             />
           )}
           <Chip
-            label={item.type === 'movie' ? 'Movie' : 'Series'}
+            label={item.type === 'movie' ? t('assistantToolUi.movie') : t('assistantToolUi.series')}
             size="small"
             sx={{
               height: 20,
@@ -181,7 +183,7 @@ export function ContentCard({ item, onPlay }: ContentCardProps) {
               },
             }}
           >
-            Details
+            {t('assistantToolUi.details')}
           </Button>
           {playAction && (
             <Button
@@ -203,7 +205,7 @@ export function ContentCard({ item, onPlay }: ContentCardProps) {
                 },
               }}
             >
-              Play
+              {t('assistantToolUi.play')}
             </Button>
           )}
         </Box>

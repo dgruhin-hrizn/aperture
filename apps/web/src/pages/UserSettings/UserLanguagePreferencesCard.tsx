@@ -62,10 +62,10 @@ export function UserLanguagePreferencesCard() {
         setEffectiveAi(data.effectiveAiLanguage || 'en')
       } else {
         const err = await prefRes.json().catch(() => ({}))
-        setError((err as { error?: string }).error || 'Failed to load preferences')
+        setError((err as { error?: string }).error || t('userSettings.errLoadUserSettings'))
       }
     } catch {
-      setError('Could not load language preferences')
+      setError(t('language.loadLanguageSettingsFailed'))
     } finally {
       setLoading(false)
     }
@@ -100,10 +100,10 @@ export function UserLanguagePreferencesCard() {
         setTimeout(() => setSuccess(null), 4000)
       } else {
         const err = await response.json().catch(() => ({}))
-        setError((err as { error?: string }).error || 'Failed to save')
+        setError((err as { error?: string }).error || t('userSettings.errSaveSettings'))
       }
     } catch {
-      setError('Could not connect to server')
+      setError(t('userSettings.errConnectServer'))
     } finally {
       setSaving(false)
     }

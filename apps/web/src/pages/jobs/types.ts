@@ -80,8 +80,10 @@ export interface Job {
 }
 
 export interface JobCategory {
-  title: string
-  description: string
+  /** i18n key for category title (e.g. admin.jobs.categories.movieSync.title) */
+  titleKey: string
+  /** i18n key for category description */
+  descriptionKey: string
   color: string
   jobs: string[]
 }

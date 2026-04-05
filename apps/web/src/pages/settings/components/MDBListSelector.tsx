@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -55,6 +56,7 @@ export function MDBListSelector({
   disabled = false,
   helperText,
 }: MDBListSelectorProps) {
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState(0)
   const [popularLists, setPopularLists] = useState<MDBListOption[]>([])
   const [myLists, setMyLists] = useState<MDBListOption[]>([])
@@ -162,7 +164,7 @@ export function MDBListSelector({
     }
 
     if (isNaN(listId) || listId <= 0) {
-      setManualError('Please enter a valid list ID or MDBList URL')
+      setManualError(t('settingsMdblistSelector.errInvalidId'))
       return
     }
 
@@ -179,17 +181,17 @@ export function MDBListSelector({
           setManualId('')
           setIsOpen(false)
         } else {
-          setManualError('List not found')
+          setManualError(t('settingsMdblistSelector.errListNotFound'))
         }
       } else {
-        setManualError('List not found')
+        setManualError(t('settingsMdblistSelector.errListNotFound'))
       }
     } catch (err) {
-      setManualError('Failed to lookup list')
+      setManualError(t('settingsMdblistSelector.errLookupFailed'))
     } finally {
       setLoadingManual(false)
     }
-  }, [onChange])
+  }, [onChange, t])
 
   // Load data when opened
   useEffect(() => {
@@ -244,7 +246,7 @@ export function MDBListSelector({
                 <Box display="flex" alignItems="center" gap={0.5}>
                   <FormatListNumberedIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
                   <Typography variant="caption" color="text.secondary">
-                    {list.itemCount} items
+                    {t('settingsMdblistSelector.itemsCount', { count: list.itemCount })}
                   </Typography>
                 </Box>
               )}
@@ -252,7 +254,7 @@ export function MDBListSelector({
                 <Box display="flex" alignItems="center" gap={0.5}>
                   <PeopleIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
                   <Typography variant="caption" color="text.secondary">
-                    {list.likes} likes
+                    {t('settingsMdblistSelector.likesCount', { count: list.likes })}
                   </Typography>
                 </Box>
               )}
@@ -260,7 +262,7 @@ export function MDBListSelector({
           }
         />
         <ListItemSecondaryAction>
-          <Tooltip title="View on MDBList">
+          <Tooltip title={t('settingsMdblistSelector.viewOnMdblist')}>
             <IconButton
               size="small"
               onClick={(e) => {
@@ -287,7 +289,7 @@ export function MDBListSelector({
         label={label}
         value={value?.name || ''}
         onClick={() => !disabled && setIsOpen(true)}
-        placeholder="Click to select a list..."
+        placeholder={t('settingsMdblistSelector.placeholderClick')}
         size="small"
         disabled={disabled}
         helperText={helperText}
@@ -296,7 +298,7 @@ export function MDBListSelector({
           endAdornment: value && (
             <InputAdornment position="end">
               <Chip
-                label={`ID: ${value.id}`}
+                label={t('settingsMdblistSelector.idChip', { id: value.id })}
                 size="small"
                 onDelete={() => onChange(null)}
                 disabled={disabled}
@@ -349,7 +351,9 @@ export function MDBListSelector({
               }}
             >
               <Typography variant="subtitle1" fontWeight={600}>
-                Select {mediatype === 'movie' ? 'Movies' : 'Series'} List
+                {mediatype === 'movie'
+                  ? t('settingsMdblistSelector.modalTitleMovie')
+                  : t('settingsMdblistSelector.modalTitleSeries')}
               </Typography>
               <IconButton size="small" onClick={() => setIsOpen(false)}>
                 <CloseIcon fontSize="small" />
@@ -366,25 +370,25 @@ export function MDBListSelector({
             <Tab
               icon={<TrendingUpIcon fontSize="small" />}
               iconPosition="start"
-              label="Popular"
+              label={t('settingsMdblistSelector.tabPopular')}
               sx={{ minHeight: 48 }}
             />
             <Tab
               icon={<PersonIcon fontSize="small" />}
               iconPosition="start"
-              label="My Lists"
+              label={t('settingsMdblistSelector.tabMyLists')}
               sx={{ minHeight: 48 }}
             />
             <Tab
               icon={<SearchIcon fontSize="small" />}
               iconPosition="start"
-              label="Search"
+              label={t('settingsMdblistSelector.tabSearch')}
               sx={{ minHeight: 48 }}
             />
             <Tab
               icon={<LinkIcon fontSize="small" />}
               iconPosition="start"
-              label="By ID"
+              label={t('settingsMdblistSelector.tabById')}
               sx={{ minHeight: 48 }}
             />
           </Tabs>
@@ -395,7 +399,7 @@ export function MDBListSelector({
             {activeTab === 2 && (
               <TextField
                 fullWidth
-                placeholder="Search MDBList..."
+                placeholder={t('settingsMdblistSelector.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 size="small"
@@ -416,13 +420,13 @@ export function MDBListSelector({
               <Box>
                 <TextField
                   fullWidth
-                  placeholder="Enter list ID or paste MDBList URL..."
+                  placeholder={t('settingsMdblistSelector.manualPlaceholder')}
                   value={manualId}
                   onChange={(e) => setManualId(e.target.value)}
                   size="small"
                   autoFocus
                   error={!!manualError}
-                  helperText={manualError || 'e.g., 12345 or https://mdblist.com/lists/12345'}
+                  helperText={manualError || t('settingsMdblistSelector.manualHelperExample')}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && manualId) {
                       lookupListById(manualId)
@@ -452,11 +456,11 @@ export function MDBListSelector({
                 />
                 <Alert severity="info" sx={{ mt: 1 }}>
                   <Typography variant="caption">
-                    Find any list on{' '}
+                    {t('settingsMdblistSelector.manualInfoPrefix')}{' '}
                     <a href="https://mdblist.com/toplists/" target="_blank" rel="noopener noreferrer">
-                      mdblist.com/toplists
+                      {t('settingsMdblistSelector.manualInfoLink')}
                     </a>{' '}
-                    and paste the URL or ID here.
+                    {t('settingsMdblistSelector.manualInfoSuffix')}
                   </Typography>
                 </Alert>
               </Box>
@@ -473,10 +477,10 @@ export function MDBListSelector({
                   <Box textAlign="center" py={4}>
                     <Typography variant="body2" color="text.secondary">
                       {activeTab === 1
-                        ? "You don't have any lists on MDBList"
+                        ? t('settingsMdblistSelector.emptyMyLists')
                         : activeTab === 2 && searchQuery.length < 2
-                        ? 'Type at least 2 characters to search'
-                        : 'No lists found'}
+                          ? t('settingsMdblistSelector.emptySearchShort')
+                          : t('settingsMdblistSelector.emptyNoResults')}
                     </Typography>
                   </Box>
                 ) : (
@@ -503,7 +507,7 @@ export function MDBListSelector({
               }}
             >
               <Chip
-                label="Close"
+                label={t('settingsMdblistSelector.close')}
                 onClick={() => setIsOpen(false)}
                 size="small"
                 variant="outlined"

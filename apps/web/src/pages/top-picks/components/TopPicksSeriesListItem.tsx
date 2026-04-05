@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -50,6 +51,7 @@ export function TopPicksSeriesListItem({
   userRating, 
   onRate,
 }: TopPicksSeriesListItemProps) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
@@ -211,7 +213,7 @@ export function TopPicksSeriesListItem({
                 fontSize: { xs: '0.75rem', md: '0.875rem' },
               }}
             >
-              {series.overview || 'No description available.'}
+              {series.overview || t('common.noDescription')}
             </Typography>
 
             {/* Mobile: Inline actions */}
@@ -222,7 +224,7 @@ export function TopPicksSeriesListItem({
                   onChange={(rating) => onRate(rating)}
                   size="small"
                 />
-                <Tooltip title="View on TMDb">
+                <Tooltip title={t('topPicksPage.viewTmdb')}>
                   <IconButton
                     onClick={handleOpenTmdb}
                     size="small"
@@ -267,7 +269,7 @@ export function TopPicksSeriesListItem({
                 </Typography>
               </Box>
               <Typography variant="caption" color="text.secondary">
-                Unique Viewers
+                {t('topPicksPage.uniqueViewers')}
               </Typography>
               <LinearProgress
                 variant="determinate"
@@ -290,7 +292,7 @@ export function TopPicksSeriesListItem({
               <Box display="flex" alignItems="center" gap={0.5}>
                 <TvIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
                 <Typography variant="caption" color="text.secondary">
-                  {series.totalEpisodesWatched} eps
+                  {t('topPicksPage.seriesEps', { count: series.totalEpisodesWatched })}
                 </Typography>
               </Box>
               {series.avgCompletionRate > 0 && (
@@ -311,7 +313,7 @@ export function TopPicksSeriesListItem({
                 size="small"
               />
               
-              <Tooltip title="View on TMDb">
+              <Tooltip title={t('topPicksPage.viewTmdb')}>
                 <IconButton
                   onClick={handleOpenTmdb}
                   size="small"
@@ -349,18 +351,18 @@ export function TopPicksSeriesListItem({
                 {series.uniqueViewers}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                viewers
+                {t('topPicksPage.viewers')}
               </Typography>
             </Box>
             <Box display="flex" alignItems="center" gap={0.5}>
               <TvIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
               <Typography variant="caption" color="text.secondary">
-                {series.totalEpisodesWatched} eps
+                {t('topPicksPage.seriesEps', { count: series.totalEpisodesWatched })}
               </Typography>
             </Box>
             {series.avgCompletionRate > 0 && (
               <Typography variant="caption" color="text.secondary">
-                {Math.round(series.avgCompletionRate * 100)}% avg
+                {t('topPicksPage.avgShort', { pct: Math.round(series.avgCompletionRate * 100) })}
               </Typography>
             )}
           </Box>

@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { Box, Stack, Typography } from '@mui/material'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorIcon from '@mui/icons-material/Error'
@@ -10,6 +11,7 @@ interface JobResultProps {
 }
 
 export function JobResult({ progress }: JobResultProps) {
+  const { t } = useTranslation()
   return (
     <Box
       sx={{
@@ -30,7 +32,7 @@ export function JobResult({ progress }: JobResultProps) {
           <>
             <CheckCircleIcon sx={{ color: 'success.main', fontSize: 20 }} />
             <Typography variant="body2" color="success.main" fontWeight={500}>
-              Completed successfully
+              {t('admin.jobsPage.ui.resultCompleted')}
             </Typography>
           </>
         )}
@@ -38,7 +40,7 @@ export function JobResult({ progress }: JobResultProps) {
           <>
             <CancelIcon sx={{ color: 'warning.main', fontSize: 20 }} />
             <Typography variant="body2" color="warning.main" fontWeight={500}>
-              Cancelled by user
+              {t('admin.jobsPage.ui.resultCancelled')}
             </Typography>
           </>
         )}
@@ -46,7 +48,7 @@ export function JobResult({ progress }: JobResultProps) {
           <>
             <ErrorIcon sx={{ color: 'error.main', fontSize: 20 }} />
             <Typography variant="body2" color="error.main" fontWeight={500}>
-              {progress.error || 'Job failed'}
+              {progress.error || t('admin.jobsPage.ui.resultFailedDefault')}
             </Typography>
           </>
         )}
@@ -68,7 +70,7 @@ export function JobResult({ progress }: JobResultProps) {
                     {key.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase())}
                   </Typography>
                   <Typography variant="body2" fontWeight={600}>
-                    {names.length > 0 ? names.join(', ') : `${value.length} item(s)`}
+                    {names.length > 0 ? names.join(', ') : t('admin.jobsPage.ui.resultItemsCount', { count: value.length })}
                   </Typography>
                 </Box>
               )

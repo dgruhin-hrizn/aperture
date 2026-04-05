@@ -5,6 +5,7 @@
  */
 
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -35,6 +36,7 @@ import { WatchingCard, WatchingListItem, AddSeriesDialog } from './components'
 type FilterType = 'all' | 'airing' | 'upcoming'
 
 export function WatchingPage() {
+  const { t } = useTranslation()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const { series, loading, error, refreshing, removeSeries, refreshLibrary, refetch } = useWatchingData()
@@ -55,9 +57,9 @@ export function WatchingPage() {
   const handleRemove = async (seriesId: string) => {
     try {
       await removeSeries(seriesId)
-      setSnackbar({ open: true, message: 'Removed from watching list', severity: 'success' })
+      setSnackbar({ open: true, message: t('watching.removedSuccess'), severity: 'success' })
     } catch {
-      setSnackbar({ open: true, message: 'Failed to remove series', severity: 'error' })
+      setSnackbar({ open: true, message: t('watching.removeFailed'), severity: 'error' })
     }
   }
 
@@ -65,7 +67,7 @@ export function WatchingPage() {
     try {
       const result = await refreshLibrary()
       if (!result.success) {
-        setSnackbar({ open: true, message: result.message || 'Sync failed', severity: 'error' })
+        setSnackbar({ open: true, message: result.message || t('watching.syncFailed'), severity: 'error' })
         return
       }
       if (result.skipped) {
@@ -73,16 +75,16 @@ export function WatchingPage() {
         return
       }
       const detail: string[] = []
-      if (result.pushedToServer > 0) detail.push(`${result.pushedToServer} favorited on server`)
-      if (result.removedFromDb > 0) detail.push(`${result.removedFromDb} removed locally`)
-      if (result.pulledIntoDb > 0) detail.push(`${result.pulledIntoDb} added from server`)
-      if (result.pushErrors > 0) detail.push(`${result.pushErrors} push errors`)
+      if (result.pushedToServer > 0) detail.push(t('watching.detailFavorited', { count: result.pushedToServer }))
+      if (result.removedFromDb > 0) detail.push(t('watching.detailRemovedLocal', { count: result.removedFromDb }))
+      if (result.pulledIntoDb > 0) detail.push(t('watching.detailAddedFromServer', { count: result.pulledIntoDb }))
+      if (result.pushErrors > 0) detail.push(t('watching.detailPushErrors', { count: result.pushErrors }))
       const message =
         detail.length > 0 ? `${result.message} (${detail.join(', ')})` : result.message
       setSnackbar({ open: true, message, severity: 'success' })
       await refetch()
     } catch {
-      setSnackbar({ open: true, message: 'Failed to sync favorites', severity: 'error' })
+      setSnackbar({ open: true, message: t('watching.syncFavoritesFailed'), severity: 'error' })
     }
   }
 
@@ -115,7 +117,7 @@ export function WatchingPage() {
     return (
       <Box>
         <Typography variant="h4" fontWeight={700} mb={4}>
-          Shows You Watch
+          {t('nav.showsYouWatch')}
         </Typography>
         <Box display="flex" flexDirection="column" gap={2}>
           {Array.from({ length: 4 }).map((_, i) => (
@@ -138,11 +140,11 @@ export function WatchingPage() {
       >
         <Box>
           <Typography variant="h4" fontWeight={700} mb={{ xs: 0, sm: 0.5 }}>
-            Shows You Watch
+            {t('nav.showsYouWatch')}
           </Typography>
           {!isMobile && (
             <Typography variant="body2" color="text.secondary">
-              Track series you're currently watching and see upcoming episodes
+              {t('watching.subtitle')}
             </Typography>
           )}
         </Box>
@@ -168,7 +170,7 @@ export function WatchingPage() {
       <Box display="flex" gap={1} mb={2}>
         {isMobile ? (
           <>
-            <Tooltip title={refreshing ? 'Syncing...' : 'Sync with media server favorites'}>
+            <Tooltip title={refreshing ? t('watching.tooltipSyncing') : t('watching.tooltipSyncFavorites')}>
               <span>
                 <IconButton
                   onClick={handleRefresh}
@@ -180,7 +182,7 @@ export function WatchingPage() {
                 </IconButton>
               </span>
             </Tooltip>
-            <Tooltip title="Add Series">
+            <Tooltip title={t('watching.tooltipAddSeries')}>
               <IconButton
                 onClick={() => setAddDialogOpen(true)}
                 size="small"
@@ -200,7 +202,7 @@ export function WatchingPage() {
               disabled={refreshing || series.length === 0}
               size="small"
             >
-              {refreshing ? 'Syncing...' : 'Sync favorites'}
+              {refreshing ? t('watching.tooltipSyncing') : t('watching.syncFavorites')}
             </Button>
             <Button
               variant="contained"
@@ -208,7 +210,7 @@ export function WatchingPage() {
               onClick={() => setAddDialogOpen(true)}
               size="small"
             >
-              Add Series
+              {t('watching.addSeries')}
             </Button>
           </>
         )}
@@ -229,20 +231,20 @@ export function WatchingPage() {
             <Box display="flex" gap={1} flexWrap="wrap">
               <Chip
                 icon={<TvIcon />}
-                label={`${series.length} Series`}
+                label={t('watching.chipSeriesCount', { count: series.length })}
                 variant="outlined"
                 size="small"
               />
               <Chip
                 icon={<TvIcon />}
-                label={`${airingCount} Currently Airing`}
+                label={t('watching.chipAiring', { count: airingCount })}
                 color="success"
                 variant="outlined"
                 size="small"
               />
               <Chip
                 icon={<CalendarTodayIcon />}
-                label={`${upcomingCount} with Upcoming`}
+                label={t('watching.chipUpcoming', { count: upcomingCount })}
                 color="primary"
                 variant="outlined"
                 size="small"
@@ -259,13 +261,13 @@ export function WatchingPage() {
             fullWidth={isMobile}
           >
             <ToggleButton value="all">
-              All ({series.length})
+              {t('watching.filterAll', { count: series.length })}
             </ToggleButton>
             <ToggleButton value="airing" sx={{ color: filter === 'airing' ? 'success.main' : undefined }}>
-              Airing ({airingCount})
+              {t('watching.filterAiring', { count: airingCount })}
             </ToggleButton>
             <ToggleButton value="upcoming" sx={{ color: filter === 'upcoming' ? 'primary.main' : undefined }}>
-              Upcoming ({upcomingCount})
+              {t('watching.filterUpcoming', { count: upcomingCount })}
             </ToggleButton>
           </ToggleButtonGroup>
         </Box>
@@ -289,18 +291,17 @@ export function WatchingPage() {
         >
           <TvIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
           <Typography variant="h6" gutterBottom>
-            No series in your watching list yet
+            {t('watching.emptyTitle')}
           </Typography>
           <Typography variant="body2" color="text.secondary" mb={3}>
-            Add series you are watching to track them and see upcoming episodes. Use Sync favorites to align your list
-            with series favorites on your media server.
+            {t('watching.emptyBody')}
           </Typography>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => setAddDialogOpen(true)}
           >
-            Add Your First Series
+            {t('watching.addFirstSeries')}
           </Button>
         </Box>
       ) : filteredSeries.length === 0 ? (
@@ -314,7 +315,7 @@ export function WatchingPage() {
           }}
         >
           <Typography variant="body1" color="text.secondary">
-            No series match the current filter
+            {t('watching.noMatchFilter')}
           </Typography>
         </Box>
       ) : viewMode === 'list' ? (

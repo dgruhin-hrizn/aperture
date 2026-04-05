@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Dialog,
   DialogTitle,
@@ -49,6 +50,7 @@ export function RequestSeerrOptionsDialog({
   onClose,
   onConfirm,
 }: RequestSeerrOptionsDialogProps) {
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [servers, setServers] = useState<(RadarrServer | SonarrServer)[]>([])
@@ -106,7 +108,7 @@ export function RequestSeerrOptionsDialog({
         }
       })
       .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load servers')
+        if (!cancelled) setError(e instanceof Error ? e.message : t('seerrRequest.failedLoadServers'))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -114,7 +116,7 @@ export function RequestSeerrOptionsDialog({
     return () => {
       cancelled = true
     }
-  }, [open, isMovie, resetState])
+  }, [open, isMovie, resetState, t])
 
   useEffect(() => {
     if (!open || serverId === '') {
@@ -167,7 +169,7 @@ export function RequestSeerrOptionsDialog({
         }
       })
       .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load server details')
+        if (!cancelled) setError(e instanceof Error ? e.message : t('seerrRequest.failedLoadDetails'))
       })
       .finally(() => {
         if (!cancelled) setDetailsLoading(false)
@@ -175,7 +177,7 @@ export function RequestSeerrOptionsDialog({
     return () => {
       cancelled = true
     }
-  }, [open, serverId, isMovie])
+  }, [open, serverId, isMovie, t])
 
   const canSubmit = useMemo(() => {
     if (serverId === '' || !rootFolderPath || profileId === '') return false
@@ -202,10 +204,12 @@ export function RequestSeerrOptionsDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Request options</DialogTitle>
+      <DialogTitle>{t('seerrRequest.title')}</DialogTitle>
       <DialogContent>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Choose where and how &quot;{title}&quot; should be added in Radarr{isMovie ? '' : '/Sonarr'}.
+          {isMovie
+            ? t('seerrRequest.subtitleMovie', { title })
+            : t('seerrRequest.subtitleSeries', { title })}
         </Typography>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
@@ -220,10 +224,10 @@ export function RequestSeerrOptionsDialog({
           <>
             {servers.length > 1 && (
               <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-                <InputLabel id="seerr-server-label">Server</InputLabel>
+                <InputLabel id="seerr-server-label">{t('seerrRequest.server')}</InputLabel>
                 <Select
                   labelId="seerr-server-label"
-                  label="Server"
+                  label={t('seerrRequest.server')}
                   value={serverId}
                   onChange={(e) => setServerId(e.target.value as number)}
                 >
@@ -237,7 +241,9 @@ export function RequestSeerrOptionsDialog({
               </FormControl>
             )}
             {servers.length === 0 && !error && !loading && (
-              <Alert severity="warning">No {isMovie ? 'Radarr' : 'Sonarr'} servers returned from Seerr.</Alert>
+              <Alert severity="warning">
+                {isMovie ? t('seerrRequest.noServersMovie') : t('seerrRequest.noServersSeries')}
+              </Alert>
             )}
             {detailsLoading && serverId !== '' && (
               <Box display="flex" justifyContent="center" py={2}>
@@ -247,10 +253,10 @@ export function RequestSeerrOptionsDialog({
             {!detailsLoading && serverId !== '' && profiles.length > 0 && (
               <>
                 <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-                  <InputLabel id="seerr-root-label">Root folder</InputLabel>
+                  <InputLabel id="seerr-root-label">{t('seerrRequest.rootFolder')}</InputLabel>
                   <Select
                     labelId="seerr-root-label"
-                    label="Root folder"
+                    label={t('seerrRequest.rootFolder')}
                     value={rootFolderPath}
                     onChange={(e) => setRootFolderPath(e.target.value as string)}
                   >
@@ -262,10 +268,10 @@ export function RequestSeerrOptionsDialog({
                   </Select>
                 </FormControl>
                 <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-                  <InputLabel id="seerr-quality-label">Quality profile</InputLabel>
+                  <InputLabel id="seerr-quality-label">{t('seerrRequest.qualityProfile')}</InputLabel>
                   <Select
                     labelId="seerr-quality-label"
-                    label="Quality profile"
+                    label={t('seerrRequest.qualityProfile')}
                     value={profileId}
                     onChange={(e) => setProfileId(e.target.value as number)}
                   >
@@ -278,10 +284,10 @@ export function RequestSeerrOptionsDialog({
                 </FormControl>
                 {!isMovie && languageProfiles && languageProfiles.length > 0 && (
                   <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-                    <InputLabel id="seerr-lang-label">Language profile</InputLabel>
+                    <InputLabel id="seerr-lang-label">{t('seerrRequest.languageProfile')}</InputLabel>
                     <Select
                       labelId="seerr-lang-label"
-                      label="Language profile"
+                      label={t('seerrRequest.languageProfile')}
                       value={languageProfileId}
                       onChange={(e) => setLanguageProfileId(e.target.value as number)}
                     >
@@ -299,13 +305,13 @@ export function RequestSeerrOptionsDialog({
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t('common.cancel')}</Button>
         <Button
           variant="contained"
           onClick={handleConfirm}
           disabled={!canSubmit || loading || detailsLoading}
         >
-          Continue
+          {t('seerrRequest.continue')}
         </Button>
       </DialogActions>
     </Dialog>

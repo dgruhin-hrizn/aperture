@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -30,9 +31,9 @@ import {
   GraphLegend,
   useSimilarityData,
   CONNECTION_COLORS,
-  CONNECTION_LABELS,
 } from '../../../components/SimilarityGraph'
-import type { GraphNode, ConnectionReason } from '../../../components/SimilarityGraph'
+import type { GraphNode, ConnectionReason, ConnectionType } from '../../../components/SimilarityGraph'
+import { connectionTypeLabel } from '../../../i18n/connectionTypeLabel'
 import { GraphExplorer } from '../../../components/GraphExplorer'
 import type { MediaType, SimilarItem } from '../types'
 import {
@@ -43,13 +44,14 @@ import {
 const MAX_LIST_REASON_CHIPS = 3
 
 function ConnectionReasonChips({ reasons }: { reasons?: ConnectionReason[] }) {
+  const { t } = useTranslation()
   if (!reasons?.length) return null
   const shown = reasons.slice(0, MAX_LIST_REASON_CHIPS)
   const extra = reasons.length - shown.length
   return (
     <Stack direction="row" flexWrap="wrap" gap={0.5} sx={{ mt: 0.75, justifyContent: 'center' }}>
       {shown.map((r, i) => {
-        const baseLabel = CONNECTION_LABELS[r.type] ?? r.type
+        const baseLabel = connectionTypeLabel(r.type as ConnectionType, t)
         const detail = r.value
           ? `${baseLabel}: ${r.value}`
           : r.values?.length

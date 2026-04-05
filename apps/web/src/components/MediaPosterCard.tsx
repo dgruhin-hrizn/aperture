@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Card,
@@ -94,6 +95,7 @@ export function MediaPosterCard({
   onClick,
   compactMeta = false,
 }: MediaPosterCardProps) {
+  const { t } = useTranslation()
   const [hovering, setHovering] = useState(false)
   const [imageError, setImageError] = useState(false)
 
@@ -225,7 +227,7 @@ export function MediaPosterCard({
             }}
           >
             <Typography variant="caption" fontWeight={600} color="white">
-              {(matchScore * 100).toFixed(0)}% Match
+              {t('mediaPoster.matchPercent', { pct: (matchScore * 100).toFixed(0) })}
             </Typography>
           </Box>
         )}
@@ -248,7 +250,7 @@ export function MediaPosterCard({
           >
             <CheckCircleIcon sx={{ fontSize: 14, color: 'white' }} />
             <Typography variant="caption" fontWeight={600} color="white">
-              In Library
+              {t('mediaPoster.inLibrary')}
             </Typography>
           </Box>
         )}
@@ -273,7 +275,9 @@ export function MediaPosterCard({
           >
             <HourglassEmptyIcon sx={{ fontSize: 14, color: 'white' }} />
             <Typography variant="caption" fontWeight={600} color="white">
-              {requestStatus === 'declined' ? 'Declined' : 'Requested'}
+              {requestStatus === 'declined'
+                ? t('discovery.requestStatusDeclined')
+                : t('discovery.requestStatusRequested')}
             </Typography>
           </Box>
         )}
@@ -297,7 +301,9 @@ export function MediaPosterCard({
               <Box textAlign="center">
                 <HourglassEmptyIcon sx={{ fontSize: 40, color: '#8B5CF6' }} />
                 <Typography variant="caption" color="white" display="block">
-                  {requestStatus === 'declined' ? 'Declined' : 'Requested'}
+                  {requestStatus === 'declined'
+                    ? t('discovery.requestStatusDeclined')
+                    : t('discovery.requestStatusRequested')}
                 </Typography>
               </Box>
             ) : (
@@ -314,7 +320,7 @@ export function MediaPosterCard({
                   <AddIcon sx={{ fontSize: 32 }} />
                 </IconButton>
                 <Typography variant="caption" color="white" display="block" mt={1}>
-                  Request
+                  {t('mediaPoster.request')}
                 </Typography>
               </Box>
             )}
@@ -336,7 +342,7 @@ export function MediaPosterCard({
             <Box textAlign="center">
               <CheckCircleIcon sx={{ fontSize: 40, color: 'success.main' }} />
               <Typography variant="caption" color="white" display="block">
-                In Library
+                {t('mediaPoster.inLibrary')}
               </Typography>
             </Box>
           </Box>
@@ -385,12 +391,12 @@ export function MediaPosterCard({
           <>
             <Box display="flex" alignItems="center" justifyContent="space-between">
               <Typography variant="caption" color="text.secondary">
-                {year || 'TBA'}
+                {year || t('mediaPoster.tba')}
                 {voteAverage && ` • ${voteAverage.toFixed(1)}★`}
               </Typography>
               <Box display="flex" alignItems="center" gap={0.5}>
                 {onShowDetails && (
-                  <Tooltip title="View details">
+                  <Tooltip title={t('mediaPoster.viewDetails')}>
                     <IconButton
                       size="small"
                       onClick={(e) => {
@@ -404,7 +410,7 @@ export function MediaPosterCard({
                     </IconButton>
                   </Tooltip>
                 )}
-                <Tooltip title="View on TMDb">
+                <Tooltip title={t('mediaPoster.viewOnTmdb')}>
                   <IconButton
                     size="small"
                     onClick={(e) => {
@@ -444,7 +450,7 @@ export function MediaPosterCard({
           </>
         ) : (
           <Typography variant="caption" color="text.secondary">
-            {year || 'Unknown year'}
+            {year || t('mediaPoster.unknownYear')}
           </Typography>
         )}
       </CardContent>

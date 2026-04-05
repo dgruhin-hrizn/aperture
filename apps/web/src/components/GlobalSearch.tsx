@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Dialog,
@@ -47,8 +48,16 @@ interface SearchSuggestion {
 }
 
 export function GlobalSearch() {
+  const { t } = useTranslation()
   const theme = useTheme()
   const navigate = useNavigate()
+  const searchShortcutTooltip = useMemo(
+    () =>
+      typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.platform)
+        ? t('globalSearch.tooltipMac')
+        : t('globalSearch.tooltipWin'),
+    [t]
+  )
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
@@ -181,7 +190,7 @@ export function GlobalSearch() {
   return (
     <>
       {/* Search trigger button in header */}
-      <Tooltip title="Search (⌘K)">
+      <Tooltip title={searchShortcutTooltip}>
         <IconButton
           onClick={() => setOpen(true)}
           color="inherit"
@@ -220,7 +229,7 @@ export function GlobalSearch() {
             <TextField
               inputRef={inputRef}
               fullWidth
-              placeholder="Search movies, series, actors, directors..."
+              placeholder={t('globalSearch.placeholder')}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyboardNav}
@@ -255,10 +264,10 @@ export function GlobalSearch() {
             {!query && (
               <Box p={4} textAlign="center">
                 <Typography color="text.secondary">
-                  Start typing to search your library
+                  {t('globalSearch.emptyHint')}
                 </Typography>
                 <Typography variant="caption" color="text.disabled" display="block" mt={1}>
-                  Search by title, actor, director, genre, or keyword
+                  {t('globalSearch.emptyHintDetail')}
                 </Typography>
               </Box>
             )}
@@ -266,7 +275,7 @@ export function GlobalSearch() {
             {query && results.length === 0 && !loading && (
               <Box p={4} textAlign="center">
                 <Typography color="text.secondary">
-                  No results found for "{query}"
+                  {t('globalSearch.noResults', { query })}
                 </Typography>
               </Box>
             )}
@@ -309,7 +318,7 @@ export function GlobalSearch() {
                             )}
                             <Chip
                               size="small"
-                              label={result.type === 'movie' ? 'Movie' : 'Series'}
+                              label={result.type === 'movie' ? t('globalSearch.typeMovie') : t('globalSearch.typeSeries')}
                               sx={{ fontSize: '0.65rem', height: 20 }}
                             />
                           </Box>
@@ -371,7 +380,7 @@ export function GlobalSearch() {
                   onClick={handleViewAllResults}
                 >
                   <Typography variant="body2" color="primary">
-                    View all results for "{query}" →
+                    {t('globalSearch.viewAllForQuery', { query })}
                   </Typography>
                 </Box>
               </>
@@ -392,19 +401,19 @@ export function GlobalSearch() {
             <Box display="flex" alignItems="center" gap={0.5}>
               <Chip size="small" label="↑↓" sx={{ fontSize: '0.65rem', height: 20 }} />
               <Typography variant="caption" color="text.secondary">
-                Navigate
+                {t('globalSearch.shortcutNavigate')}
               </Typography>
             </Box>
             <Box display="flex" alignItems="center" gap={0.5}>
               <Chip size="small" label="↵" sx={{ fontSize: '0.65rem', height: 20 }} />
               <Typography variant="caption" color="text.secondary">
-                Select
+                {t('globalSearch.shortcutSelect')}
               </Typography>
             </Box>
             <Box display="flex" alignItems="center" gap={0.5}>
               <Chip size="small" label="Esc" sx={{ fontSize: '0.65rem', height: 20 }} />
               <Typography variant="caption" color="text.secondary">
-                Close
+                {t('globalSearch.shortcutClose')}
               </Typography>
             </Box>
           </Box>

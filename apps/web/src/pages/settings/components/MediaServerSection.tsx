@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -40,6 +41,7 @@ interface ServerType {
 }
 
 export function MediaServerSection() {
+  const { t } = useTranslation()
   const [config, setConfig] = useState<MediaServerConfig | null>(null)
   const [serverTypes, setServerTypes] = useState<ServerType[]>([])
   const [loading, setLoading] = useState(true)
@@ -85,7 +87,9 @@ export function MediaServerSection() {
       })
       if (response.ok) {
         setAllowPasswordlessLogin(enabled)
-        setSecuritySuccess(enabled ? 'Passwordless login enabled' : 'Passwordless login disabled')
+        setSecuritySuccess(
+          enabled ? t('settingsMediaServer.passwordlessEnabled') : t('settingsMediaServer.passwordlessDisabled'),
+        )
       }
     } catch {
       // Revert on error
@@ -107,11 +111,11 @@ export function MediaServerSection() {
         setHasChanges(false)
       }
     } catch (err) {
-      setError('Failed to load configuration')
+      setError(t('settingsMediaServer.loadError'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     fetchConfig()
@@ -120,7 +124,7 @@ export function MediaServerSection() {
 
   const handleTestConnection = async () => {
     if (!serverType || !baseUrl || (!apiKey && !config?.hasApiKey)) {
-      setError('Please fill in all fields before testing')
+      setError(t('settingsMediaServer.fillFieldsBeforeTest'))
       return
     }
 
@@ -144,7 +148,7 @@ export function MediaServerSection() {
       const result = await response.json()
       setTestResult(result)
     } catch (err) {
-      setTestResult({ success: false, error: 'Failed to connect' })
+      setTestResult({ success: false, error: t('settingsMediaServer.testFailedConnect') })
     } finally {
       setTesting(false)
     }
@@ -170,16 +174,16 @@ export function MediaServerSection() {
       })
 
       if (response.ok) {
-        setSuccess('Configuration saved successfully')
+        setSuccess(t('settingsMediaServer.savedSuccess'))
         setApiKey('') // Clear API key field
         setHasChanges(false)
         await fetchConfig()
       } else {
         const data = await response.json()
-        setError(data.error || 'Failed to save configuration')
+        setError(data.error || t('settingsMediaServer.saveFailed'))
       }
     } catch (err) {
-      setError('Failed to save configuration')
+      setError(t('settingsMediaServer.saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -218,11 +222,11 @@ export function MediaServerSection() {
     <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
       <CardContent>
         <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3}>
-          <Typography variant="h6">Media Server</Typography>
+          <Typography variant="h6">{t('settingsMediaServer.title')}</Typography>
           {config?.isConfigured && (
             <Chip
               icon={<CheckCircleIcon />}
-              label="Connected"
+              label={t('settingsMediaServer.connected')}
               color="success"
               size="small"
               variant="outlined"
@@ -233,11 +237,11 @@ export function MediaServerSection() {
         <Stack spacing={3}>
           {/* Server Type */}
           <FormControl fullWidth>
-            <InputLabel>Server Type</InputLabel>
+            <InputLabel>{t('settingsMediaServer.serverType')}</InputLabel>
             <Select
               value={serverType}
               onChange={(e) => handleFieldChange('type', e.target.value)}
-              label="Server Type"
+              label={t('settingsMediaServer.serverType')}
             >
               {serverTypes.map((type) => (
                 <MenuItem key={type.id} value={type.id}>
@@ -249,17 +253,17 @@ export function MediaServerSection() {
 
           {/* Base URL */}
           <TextField
-            label="Server URL"
+            label={t('settingsMediaServer.serverUrl')}
             value={baseUrl}
             onChange={(e) => handleFieldChange('baseUrl', e.target.value)}
-            placeholder="http://emby:8096 or http://jellyfin:8096"
-            helperText="The base URL of your media server"
+            placeholder={t('settingsMediaServer.serverUrlPlaceholder')}
+            helperText={t('settingsMediaServer.serverUrlHelper')}
             fullWidth
           />
 
           {/* API Key */}
           <TextField
-            label="API Key"
+            label={t('settingsMediaServer.apiKey')}
             type={showApiKey ? 'text' : 'password'}
             value={apiKey || (config?.hasApiKey ? '••••••••••••••••••••••••' : '')}
             onChange={(e) => {
@@ -273,11 +277,11 @@ export function MediaServerSection() {
                 // Don't clear - let user type to replace
               }
             }}
-            placeholder="Enter API key"
+            placeholder={t('settingsMediaServer.apiKeyPlaceholder')}
             helperText={
               config?.hasApiKey && !apiKey
-                ? 'API key is saved. Enter a new key to update it.'
-                : 'Generate an API key in your media server admin settings'
+                ? t('settingsMediaServer.helperSaved')
+                : t('settingsMediaServer.helperNew')
             }
             fullWidth
             InputProps={{
@@ -286,7 +290,7 @@ export function MediaServerSection() {
                   {config?.hasApiKey && !apiKey && (
                     <Chip 
                       key="saved-chip"
-                      label="Saved" 
+                      label={t('settingsMediaServer.savedChip')} 
                       size="small" 
                       color="success" 
                       variant="outlined"
@@ -313,9 +317,12 @@ export function MediaServerSection() {
               icon={testResult.success ? <CheckCircleIcon /> : <ErrorIcon />}
             >
               {testResult.success ? (
-                <>Connected to <strong>{testResult.serverName}</strong></>
+                <>
+                  {t('settingsMediaServer.connectedIntro')}
+                  <strong>{testResult.serverName}</strong>
+                </>
               ) : (
-                <>Connection failed: {testResult.error}</>
+                <>{t('settingsMediaServer.connectionFailed', { error: testResult.error ?? '' })}</>
               )}
             </Alert>
           )}
@@ -340,7 +347,7 @@ export function MediaServerSection() {
               disabled={testing || !serverType || !baseUrl}
               startIcon={testing ? <CircularProgress size={16} /> : <RefreshIcon />}
             >
-              {testing ? 'Testing...' : 'Test Connection'}
+              {testing ? t('settingsMediaServer.testing') : t('settingsMediaServer.testConnection')}
             </Button>
             <Button
               variant="contained"
@@ -348,15 +355,14 @@ export function MediaServerSection() {
               disabled={saving || !hasChanges}
               startIcon={saving ? <CircularProgress size={16} /> : null}
             >
-              {saving ? 'Saving...' : 'Save Changes'}
+              {saving ? t('settingsMediaServer.saving') : t('settingsMediaServer.saveChanges')}
             </Button>
           </Stack>
 
           {/* Help Text */}
           <Box sx={{ pt: 1, borderTop: 1, borderColor: 'divider' }}>
             <Typography variant="caption" color="text.secondary">
-              Your media server must be accessible from this container. For Docker deployments, 
-              use the container name (e.g., <code>http://emby:8096</code>) or the host IP address.
+              {t('settingsMediaServer.helpDocker', { exampleUrl: 'http://emby:8096' })}
             </Typography>
           </Box>
 
@@ -365,7 +371,7 @@ export function MediaServerSection() {
           
           <Box>
             <Typography variant="subtitle1" fontWeight={500} gutterBottom>
-              Security Settings
+              {t('settingsMediaServer.securityTitle')}
             </Typography>
             
             <FormControlLabel
@@ -376,10 +382,10 @@ export function MediaServerSection() {
                   disabled={savingSecuritySetting}
                 />
               }
-              label="Allow passwordless login"
+              label={t('settingsMediaServer.allowPasswordlessLogin')}
             />
             <Typography variant="body2" color="text.secondary" sx={{ ml: 6, mt: -0.5, mb: 1 }}>
-              Enable this if your media server users don't have passwords set
+              {t('settingsMediaServer.allowPasswordlessHelper')}
             </Typography>
 
             {allowPasswordlessLogin && (
@@ -389,11 +395,10 @@ export function MediaServerSection() {
                 sx={{ mt: 1 }}
               >
                 <Typography variant="body2" fontWeight={500}>
-                  Security Warning
+                  {t('settingsMediaServer.securityWarningTitle')}
                 </Typography>
                 <Typography variant="body2">
-                  Only enable this if your Aperture instance is on a private network with no internet exposure. 
-                  If your server is accessible via reverse proxy or the internet, leave this disabled to prevent unauthorized access.
+                  {t('settingsMediaServer.securityWarningBody')}
                 </Typography>
               </Alert>
             )}

@@ -5,6 +5,7 @@
  */
 
 import { useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Dialog,
   DialogTitle,
@@ -42,6 +43,7 @@ interface AddSeriesDialogProps {
 }
 
 export function AddSeriesDialog({ open, onClose }: AddSeriesDialogProps) {
+  const { t } = useTranslation()
   const { isWatching, addToWatching } = useWatching()
   const [search, setSearch] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
@@ -125,12 +127,12 @@ export function AddSeriesDialog({ open, onClose }: AddSeriesDialogProps) {
         sx: { minHeight: 400 },
       }}
     >
-      <DialogTitle>Add Series to Watching List</DialogTitle>
+      <DialogTitle>{t('watching.addDialogTitle')}</DialogTitle>
       <DialogContent>
         <TextField
           autoFocus
           fullWidth
-          placeholder="Search for a series..."
+          placeholder={t('watching.searchPlaceholder')}
           value={search}
           onChange={handleSearchChange}
           InputProps={{
@@ -145,11 +147,11 @@ export function AddSeriesDialog({ open, onClose }: AddSeriesDialogProps) {
           </Box>
         ) : results.length === 0 && search ? (
           <Typography color="text.secondary" textAlign="center" py={4}>
-            No series found for "{search}"
+            {t('watching.noResultsFor', { query: search })}
           </Typography>
         ) : results.length === 0 ? (
           <Typography color="text.secondary" textAlign="center" py={4}>
-            Search for a series to add to your watching list
+            {t('watching.searchPrompt')}
           </Typography>
         ) : (
           <List>
@@ -182,7 +184,7 @@ export function AddSeriesDialog({ open, onClose }: AddSeriesDialogProps) {
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Typography variant="subtitle2">{series.title}</Typography>
                         {series.status === 'Continuing' && (
-                          <Chip label="Airing" size="small" color="success" sx={{ height: 20, fontSize: '0.65rem' }} />
+                          <Chip label={t('watching.chipAiringShort')} size="small" color="success" sx={{ height: 20, fontSize: '0.65rem' }} />
                         )}
                       </Box>
                     }

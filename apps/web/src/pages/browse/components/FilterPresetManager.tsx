@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Button,
@@ -79,6 +80,7 @@ export function FilterPresetManager({
   onDeletePreset,
   onRenamePreset,
 }: FilterPresetManagerProps) {
+  const { t } = useTranslation()
   const theme = useTheme()
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null)
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
@@ -154,7 +156,7 @@ export function FilterPresetManager({
 
   return (
     <>
-      <Tooltip title="Filter Presets">
+      <Tooltip title={t('filterPresets.tooltip')}>
         <Button
           variant="outlined"
           startIcon={filteredPresets.length > 0 ? <BookmarkIcon /> : <BookmarkBorderIcon />}
@@ -175,7 +177,7 @@ export function FilterPresetManager({
             },
           }}
         >
-          Presets
+          {t('filterPresets.presets')}
           {filteredPresets.length > 0 && (
             <Chip
               label={filteredPresets.length}
@@ -206,10 +208,10 @@ export function FilterPresetManager({
       >
         <Box sx={{ px: 2, py: 1.5 }}>
           <Typography variant="subtitle2" fontWeight={700}>
-            Filter Presets
+            {t('filterPresets.menuTitle')}
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            Save and load filter combinations
+            {t('filterPresets.menuSubtitle')}
           </Typography>
         </Box>
         <Divider />
@@ -217,7 +219,7 @@ export function FilterPresetManager({
         {filteredPresets.length === 0 ? (
           <Box sx={{ px: 2, py: 3, textAlign: 'center' }}>
             <Typography variant="body2" color="text.secondary">
-              No saved presets yet
+              {t('filterPresets.noPresetsYet')}
             </Typography>
           </Box>
         ) : (
@@ -264,7 +266,7 @@ export function FilterPresetManager({
             size="small"
             sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
           >
-            Save Current Filters
+            {t('filterPresets.saveCurrent')}
           </Button>
           {filteredPresets.length > 0 && (
             <Button
@@ -277,7 +279,7 @@ export function FilterPresetManager({
               size="small"
               sx={{ justifyContent: 'flex-start', textTransform: 'none', mt: 0.5 }}
             >
-              Manage Presets
+              {t('filterPresets.manage')}
             </Button>
           )}
         </Box>
@@ -299,67 +301,67 @@ export function FilterPresetManager({
           }}
         >
           <EditIcon fontSize="small" sx={{ mr: 1 }} />
-          Rename
+          {t('filterPresets.rename')}
         </MenuItem>
         <MenuItem
           onClick={() => menuAnchor && handleDelete(menuAnchor.preset.id)}
           sx={{ color: 'error.main' }}
         >
           <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
-          Delete
+          {t('filterPresets.delete')}
         </MenuItem>
       </Menu>
 
       {/* Save Dialog */}
       <Dialog open={saveDialogOpen} onClose={() => setSaveDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Save Filter Preset</DialogTitle>
+        <DialogTitle>{t('filterPresets.saveDialogTitle')}</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             fullWidth
-            label="Preset Name"
+            label={t('filterPresets.presetNameLabel')}
             value={presetName}
             onChange={(e) => setPresetName(e.target.value)}
-            placeholder="e.g., High Rated Action"
+            placeholder={t('filterPresets.presetNamePlaceholder')}
             sx={{ mt: 1 }}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setSaveDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setSaveDialogOpen(false)}>{t('filterPresets.cancel')}</Button>
           <Button onClick={handleSave} variant="contained" disabled={!presetName.trim() || saving}>
-            Save
+            {t('filterPresets.save')}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Rename Dialog */}
       <Dialog open={Boolean(editingPreset)} onClose={() => setEditingPreset(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Rename Preset</DialogTitle>
+        <DialogTitle>{t('filterPresets.renameDialogTitle')}</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             fullWidth
-            label="New Name"
+            label={t('filterPresets.newNameLabel')}
             value={presetName}
             onChange={(e) => setPresetName(e.target.value)}
             sx={{ mt: 1 }}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditingPreset(null)}>Cancel</Button>
+          <Button onClick={() => setEditingPreset(null)}>{t('filterPresets.cancel')}</Button>
           <Button onClick={handleRename} variant="contained" disabled={!presetName.trim() || saving}>
-            Rename
+            {t('filterPresets.rename')}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Manage Dialog */}
       <Dialog open={manageDialogOpen} onClose={() => setManageDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Manage Filter Presets</DialogTitle>
+        <DialogTitle>{t('filterPresets.manageDialogTitle')}</DialogTitle>
         <DialogContent dividers>
           {filteredPresets.length === 0 ? (
             <Typography color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
-              No presets to manage
+              {t('filterPresets.noPresetsManage')}
             </Typography>
           ) : (
             <List disablePadding>
@@ -369,7 +371,9 @@ export function FilterPresetManager({
                   <ListItem sx={{ py: 2 }}>
                     <ListItemText
                       primary={preset.name}
-                      secondary={`Created ${new Date(preset.createdAt).toLocaleDateString()}`}
+                      secondary={t('filterPresets.createdLine', {
+                        date: new Date(preset.createdAt).toLocaleDateString(),
+                      })}
                     />
                     <ListItemSecondaryAction>
                       <IconButton
@@ -396,7 +400,7 @@ export function FilterPresetManager({
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setManageDialogOpen(false)}>Close</Button>
+          <Button onClick={() => setManageDialogOpen(false)}>{t('filterPresets.close')}</Button>
         </DialogActions>
       </Dialog>
     </>

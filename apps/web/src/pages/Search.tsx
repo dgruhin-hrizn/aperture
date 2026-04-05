@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -53,6 +54,7 @@ interface FilterOptions {
 }
 
 export function SearchPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const { getRating, setRating } = useUserRatings()
@@ -135,14 +137,14 @@ export function SearchPage() {
         setResults(data.results)
         setTotalResults(data.total)
       } else {
-        setError('Search failed')
+        setError(t('search.errors.searchFailed'))
       }
     } catch {
-      setError('Could not connect to server')
+      setError(t('search.errors.connect'))
     } finally {
       setLoading(false)
     }
-  }, [query, type, genre, collection, network, minRtScore, useSemantic, yearRange, filters])
+  }, [query, type, genre, collection, network, minRtScore, useSemantic, yearRange, filters, t])
 
   // Debounced search
   useEffect(() => {
@@ -195,20 +197,27 @@ export function SearchPage() {
     useSemantic ||
     (filters?.yearRange && (yearRange[0] > filters.yearRange.min || yearRange[1] < filters.yearRange.max))
 
+  const filterPanelCount = useMemo(
+    () =>
+      [type !== 'all', genre, collection, network, minRtScore > 0, useSemantic].filter(Boolean)
+        .length,
+    [type, genre, collection, network, minRtScore, useSemantic]
+  )
+
   return (
     <Box>
       <Typography variant="h4" fontWeight={700} mb={1}>
-        Search
+        {t('search.title')}
       </Typography>
       <Typography variant="body1" color="text.secondary" mb={4}>
-        Find movies and series using smart search with filters
+        {t('search.subtitle')}
       </Typography>
 
       {/* Search Input */}
       <Box mb={3}>
         <TextField
           fullWidth
-          placeholder="Search by title, actor, director, genre, keyword..."
+          placeholder={t('search.placeholder')}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value)
@@ -243,7 +252,9 @@ export function SearchPage() {
           onClick={() => setShowFilters(!showFilters)}
           size="small"
         >
-          Filters {hasActiveFilters && `(${[type !== 'all', genre, collection, network, minRtScore > 0, useSemantic].filter(Boolean).length})`}
+          {hasActiveFilters
+            ? t('search.filtersButtonWithCount', { count: filterPanelCount })
+            : t('search.filtersButton')}
         </Button>
 
         <ToggleButtonGroup
@@ -252,12 +263,12 @@ export function SearchPage() {
           onChange={(_, value) => value && setType(value)}
           size="small"
         >
-          <ToggleButton value="all">All</ToggleButton>
+          <ToggleButton value="all">{t('search.typeAll')}</ToggleButton>
           <ToggleButton value="movie">
-            <MovieIcon sx={{ mr: 0.5, fontSize: 18 }} /> Movies
+            <MovieIcon sx={{ mr: 0.5, fontSize: 18 }} /> {t('search.typeMovies')}
           </ToggleButton>
           <ToggleButton value="series">
-            <TvIcon sx={{ mr: 0.5, fontSize: 18 }} /> Series
+            <TvIcon sx={{ mr: 0.5, fontSize: 18 }} /> {t('search.typeSeries')}
           </ToggleButton>
         </ToggleButtonGroup>
 
@@ -268,7 +279,7 @@ export function SearchPage() {
           onClick={() => setUseSemantic(!useSemantic)}
           size="small"
         >
-          AI Search
+          {t('search.aiSearch')}
         </Button>
 
         {hasActiveFilters && (
@@ -278,7 +289,7 @@ export function SearchPage() {
             onClick={clearFilters}
             size="small"
           >
-            Clear Filters
+            {t('search.clearFilters')}
           </Button>
         )}
       </Box>
@@ -289,13 +300,13 @@ export function SearchPage() {
           <Grid container spacing={3}>
             <Grid item xs={12} sm={6} md={3}>
               <FormControl fullWidth size="small">
-                <InputLabel>Genre</InputLabel>
+                <InputLabel>{t('browse.labels.genre')}</InputLabel>
                 <Select
                   value={genre}
-                  label="Genre"
+                  label={t('browse.labels.genre')}
                   onChange={(e) => setGenre(e.target.value)}
                 >
-                  <MenuItem value="">All Genres</MenuItem>
+                  <MenuItem value="">{t('browse.labels.allGenres')}</MenuItem>
                   {filters.genres.map((g) => (
                     <MenuItem key={g.name} value={g.name}>
                       {g.name} ({g.count})
@@ -307,14 +318,14 @@ export function SearchPage() {
 
             <Grid item xs={12} sm={6} md={3}>
               <FormControl fullWidth size="small">
-                <InputLabel>Franchise</InputLabel>
+                <InputLabel>{t('browse.labels.franchise')}</InputLabel>
                 <Select
                   value={collection}
-                  label="Franchise"
+                  label={t('browse.labels.franchise')}
                   onChange={(e) => setCollection(e.target.value)}
                   disabled={type === 'series'}
                 >
-                  <MenuItem value="">All Franchises</MenuItem>
+                  <MenuItem value="">{t('browse.labels.allFranchises')}</MenuItem>
                   {filters.collections.map((c) => (
                     <MenuItem key={c.name} value={c.name}>
                       {c.name} ({c.count})
@@ -326,14 +337,14 @@ export function SearchPage() {
 
             <Grid item xs={12} sm={6} md={3}>
               <FormControl fullWidth size="small">
-                <InputLabel>Network</InputLabel>
+                <InputLabel>{t('browse.labels.network')}</InputLabel>
                 <Select
                   value={network}
-                  label="Network"
+                  label={t('browse.labels.network')}
                   onChange={(e) => setNetwork(e.target.value)}
                   disabled={type === 'movie'}
                 >
-                  <MenuItem value="">All Networks</MenuItem>
+                  <MenuItem value="">{t('browse.labels.allNetworks')}</MenuItem>
                   {filters.networks.map((n) => (
                     <MenuItem key={n.name} value={n.name}>
                       {n.name} ({n.count})
@@ -345,7 +356,9 @@ export function SearchPage() {
 
             <Grid item xs={12} sm={6} md={3}>
               <Typography variant="caption" color="text.secondary" gutterBottom display="block">
-                Min RT Score: {minRtScore > 0 ? `${minRtScore}%` : 'Any'}
+                {t('search.minRtCaption', {
+                  value: minRtScore > 0 ? `${minRtScore}%` : t('search.minRtAny'),
+                })}
               </Typography>
               <Slider
                 value={minRtScore}
@@ -359,7 +372,7 @@ export function SearchPage() {
 
             <Grid item xs={12} md={6}>
               <Typography variant="caption" color="text.secondary" gutterBottom display="block">
-                Year Range: {yearRange[0]} - {yearRange[1]}
+                {t('search.yearRangeCaption', { min: yearRange[0], max: yearRange[1] })}
               </Typography>
               <Slider
                 value={yearRange}
@@ -378,21 +391,37 @@ export function SearchPage() {
       {hasActiveFilters && (
         <Box display="flex" gap={1} mb={3} flexWrap="wrap">
           {genre && (
-            <Chip label={`Genre: ${genre}`} onDelete={() => setGenre('')} size="small" />
+            <Chip
+              label={t('search.chipGenre', { value: genre })}
+              onDelete={() => setGenre('')}
+              size="small"
+            />
           )}
           {collection && (
-            <Chip label={`Franchise: ${collection}`} onDelete={() => setCollection('')} size="small" />
+            <Chip
+              label={t('search.chipFranchise', { value: collection })}
+              onDelete={() => setCollection('')}
+              size="small"
+            />
           )}
           {network && (
-            <Chip label={`Network: ${network}`} onDelete={() => setNetwork('')} size="small" />
+            <Chip
+              label={t('search.chipNetwork', { value: network })}
+              onDelete={() => setNetwork('')}
+              size="small"
+            />
           )}
           {minRtScore > 0 && (
-            <Chip label={`RT ${minRtScore}%+`} onDelete={() => setMinRtScore(0)} size="small" />
+            <Chip
+              label={t('search.chipRt', { value: minRtScore })}
+              onDelete={() => setMinRtScore(0)}
+              size="small"
+            />
           )}
           {useSemantic && (
             <Chip
               icon={<AutoAwesomeIcon />}
-              label="AI Search"
+              label={t('search.aiSearch')}
               onDelete={() => setUseSemantic(false)}
               size="small"
               color="secondary"
@@ -413,10 +442,10 @@ export function SearchPage() {
         <Box textAlign="center" py={8}>
           <SearchIcon sx={{ fontSize: 64, opacity: 0.2, mb: 2 }} />
           <Typography variant="h6" color="text.secondary">
-            Enter a search term to find content
+            {t('search.emptyTitle')}
           </Typography>
           <Typography variant="body2" color="text.disabled" mt={1}>
-            Try searching for a movie title, actor name, director, genre, or keyword
+            {t('search.emptyHint')}
           </Typography>
         </Box>
       )}
@@ -424,10 +453,10 @@ export function SearchPage() {
       {query && !loading && results.length === 0 && (
         <Box textAlign="center" py={8}>
           <Typography variant="h6" color="text.secondary">
-            No results found for "{query}"
+            {t('search.noResults', { query })}
           </Typography>
           <Typography variant="body2" color="text.disabled" mt={1}>
-            Try adjusting your filters or search terms
+            {t('search.noResultsHint')}
           </Typography>
         </Box>
       )}
@@ -435,8 +464,11 @@ export function SearchPage() {
       {results.length > 0 && (
         <>
           <Typography variant="body2" color="text.secondary" mb={2}>
-            Found {totalResults} result{totalResults !== 1 ? 's' : ''} for "{query}"
-            {useSemantic && ' (with AI-powered semantic matching)'}
+            {t('search.foundResults', {
+              count: totalResults,
+              query,
+            })}
+            {useSemantic ? t('search.semanticSuffix') : ''}
           </Typography>
 
           <Grid container spacing={2}>

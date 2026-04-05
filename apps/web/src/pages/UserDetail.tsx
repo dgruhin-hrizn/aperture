@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -105,6 +106,7 @@ function TabPanel({ children, value, index }: TabPanelProps) {
 
 // User Settings Tab Component (Admin only)
 function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [savingWatchHistory, setSavingWatchHistory] = useState(false)
@@ -157,16 +159,16 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
         body: JSON.stringify({ overrideAllowed: settings.overrideAllowed }),
         credentials: 'include',
       })
-      if (!response.ok) throw new Error('Failed to save settings')
+      if (!response.ok) throw new Error(t('admin.userDetail.errorSaveSettings'))
       const data = await response.json()
       setSettings({
         ...settings,
         effectiveValue: data.effectiveValue,
       })
-      setSuccess('User settings saved!')
+      setSuccess(t('admin.userDetail.successSaveSettings'))
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : t('admin.userDetail.unknownError'))
     } finally {
       setSaving(false)
     }
@@ -182,12 +184,12 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
         body: JSON.stringify({ canManageWatchHistory: enabled }),
         credentials: 'include',
       })
-      if (!response.ok) throw new Error('Failed to update permission')
+      if (!response.ok) throw new Error(t('admin.userDetail.errorUpdatePermission'))
       setCanManageWatchHistory(enabled)
-      setSuccess('Watch history permission updated!')
+      setSuccess(t('admin.userDetail.successWatchHistoryPerm'))
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : t('admin.userDetail.unknownError'))
       // Revert the toggle on error
       setCanManageWatchHistory(!enabled)
     } finally {
@@ -203,7 +205,7 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
     } else {
       const n = parseInt(trimmed, 10)
       if (Number.isNaN(n) || n < 1) {
-        setError('Seerr user id must be a positive integer or empty to clear')
+        setError(t('admin.userDetail.seerrIdInvalid'))
         return
       }
       seerrUserId = n
@@ -217,11 +219,11 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
         body: JSON.stringify({ seerrUserId }),
         credentials: 'include',
       })
-      if (!response.ok) throw new Error('Failed to update Seerr mapping')
-      setSuccess('Seerr user id saved.')
+      if (!response.ok) throw new Error(t('admin.userDetail.errorUpdateSeerr'))
+      setSuccess(t('admin.userDetail.successSeerrSaved'))
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : t('admin.userDetail.unknownError'))
     } finally {
       setSavingSeerrId(false)
     }
@@ -241,7 +243,7 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
         body: JSON.stringify(body),
         credentials: 'include',
       })
-      if (!response.ok) throw new Error('Failed to update permission')
+      if (!response.ok) throw new Error(t('admin.userDetail.errorUpdatePermission'))
       
       if (field === 'discover') {
         setDiscoverEnabled(enabled)
@@ -253,10 +255,14 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
         setDiscoverRequestEnabled(enabled)
       }
       
-      setSuccess(`Discovery ${field === 'discover' ? 'access' : 'request'} permission updated!`)
+      setSuccess(
+        field === 'discover'
+          ? t('admin.userDetail.discoveryAccessUpdated')
+          : t('admin.userDetail.discoveryRequestUpdated')
+      )
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : t('admin.userDetail.unknownError'))
       // Revert the toggle on error
       if (field === 'discover') {
         setDiscoverEnabled(!enabled)
@@ -278,7 +284,7 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
 
   if (!settings) {
     return (
-      <Alert severity="error">Failed to load user settings</Alert>
+      <Alert severity="error">{t('admin.userDetail.settingsLoadFailed')}</Alert>
     )
   }
 
@@ -299,11 +305,11 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
       <Card variant="outlined" sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-            Watch History Management
+            {t('admin.userDetail.watchHistoryTitle')}
           </Typography>
           
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Allow this user to mark movies and series as unwatched. This will update both the media server (Emby/Jellyfin) and Aperture's database.
+            {t('admin.userDetail.watchHistoryBody')}
           </Typography>
 
           <FormControlLabel
@@ -317,10 +323,10 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
             label={
               <Box>
                 <Typography variant="body1" fontWeight="medium">
-                  Allow Watch History Management
+                  {t('admin.userDetail.watchHistoryToggleTitle')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  User can mark items as unwatched from their Watch History page and movie detail pages
+                  {t('admin.userDetail.watchHistoryToggleHint')}
                 </Typography>
               </Box>
             }
@@ -330,7 +336,7 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
           {savingWatchHistory && (
             <Box display="flex" alignItems="center" gap={1} mt={2}>
               <CircularProgress size={16} />
-              <Typography variant="caption" color="text.secondary">Saving...</Typography>
+              <Typography variant="caption" color="text.secondary">{t('common.saving')}</Typography>
             </Box>
           )}
         </CardContent>
@@ -341,11 +347,11 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
         <CardContent>
           <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
             <HubOutlinedIcon sx={{ color: '#ec4899' }} />
-            Discovery Permissions
+            {t('admin.userDetail.discoveryTitle')}
           </Typography>
           
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Control this user's access to the Discovery feature, which suggests content not currently in your library based on their taste profile.
+            {t('admin.userDetail.discoveryBody')}
           </Typography>
 
           <FormControlLabel
@@ -359,10 +365,10 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
             label={
               <Box>
                 <Typography variant="body1" fontWeight="medium">
-                  Enable Discovery Suggestions
+                  {t('admin.userDetail.discoverySuggestionsTitle')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  User can view AI-powered suggestions for movies and series not in the library
+                  {t('admin.userDetail.discoverySuggestionsHint')}
                 </Typography>
               </Box>
             }
@@ -380,10 +386,10 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
             label={
               <Box>
                 <Typography variant="body1" fontWeight="medium">
-                  Allow Content Requests
+                  {t('admin.userDetail.discoveryRequestTitle')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  User can request discovered content to be added to the library via Seerr
+                  {t('admin.userDetail.discoveryRequestHint')}
                 </Typography>
               </Box>
             }
@@ -392,14 +398,14 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
 
           {!discoverEnabled && discoverRequestEnabled && (
             <Alert severity="info" sx={{ mt: 2 }}>
-              Request permission requires Discovery to be enabled first.
+              {t('admin.userDetail.discoveryRequiresDiscover')}
             </Alert>
           )}
 
           {savingDiscovery && (
             <Box display="flex" alignItems="center" gap={1} mt={2}>
               <CircularProgress size={16} />
-              <Typography variant="caption" color="text.secondary">Saving...</Typography>
+              <Typography variant="caption" color="text.secondary">{t('common.saving')}</Typography>
             </Box>
           )}
         </CardContent>
@@ -408,18 +414,17 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
       <Card variant="outlined" sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" sx={{ mb: 1 }}>
-            Seerr mapping
+            {t('admin.userDetail.seerrMappingTitle')}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Optional override: numeric user id from Seerr (Users in Seerr). When set, content requests are
-            attributed to this Seerr account. Leave empty to rely on automatic matching by email or username.
+            {t('admin.userDetail.seerrMappingBody')}
           </Typography>
           <Box display="flex" flexWrap="wrap" gap={2} alignItems="flex-start">
             <TextField
-              label="Seerr user id"
+              label={t('admin.userDetail.seerrUserIdLabel')}
               value={seerrUserIdInput}
               onChange={(e) => setSeerrUserIdInput(e.target.value)}
-              placeholder="e.g. 2"
+              placeholder={t('admin.userDetail.seerrUserIdPlaceholder')}
               size="small"
               sx={{ minWidth: 200 }}
             />
@@ -429,7 +434,7 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
               disabled={savingSeerrId}
               startIcon={savingSeerrId ? <CircularProgress size={16} /> : <SaveIcon />}
             >
-              {savingSeerrId ? 'Saving…' : 'Save'}
+              {savingSeerrId ? t('common.saving') : t('common.save')}
             </Button>
           </Box>
         </CardContent>
@@ -439,11 +444,11 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
         <CardContent>
           <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
             <AutoAwesomeIcon color="primary" />
-            AI Explanation Settings
+            {t('admin.userDetail.aiExplanationTitle')}
           </Typography>
           
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Control whether this user can customize their AI explanation preferences.
+            {t('admin.userDetail.aiExplanationBody')}
           </Typography>
 
           <Divider sx={{ my: 2 }} />
@@ -451,10 +456,13 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
           {/* Global Setting Status */}
           <Box sx={{ mb: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
             <Typography variant="body2" color="text.secondary">
-              <strong>Global Setting:</strong> AI explanations are {settings.globalConfig.enabled ? 'enabled' : 'disabled'} by default
-              {settings.globalConfig.userOverrideAllowed 
-                ? ' (per-user overrides allowed)' 
-                : ' (per-user overrides disabled globally)'}
+              {settings.globalConfig.enabled
+                ? settings.globalConfig.userOverrideAllowed
+                  ? t('admin.userDetail.globalSettingEnabledAllowed')
+                  : t('admin.userDetail.globalSettingEnabledDisallowed')
+                : settings.globalConfig.userOverrideAllowed
+                  ? t('admin.userDetail.globalSettingDisabledAllowed')
+                  : t('admin.userDetail.globalSettingDisabledDisallowed')}
             </Typography>
           </Box>
 
@@ -470,10 +478,10 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
             label={
               <Box>
                 <Typography variant="body1" fontWeight="medium">
-                  Allow This User to Override
+                  {t('admin.userDetail.allowOverrideTitle')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  When enabled, this user can toggle AI explanations on/off for their own recommendations
+                  {t('admin.userDetail.allowOverrideHint')}
                 </Typography>
               </Box>
             }
@@ -482,19 +490,21 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
 
           {!settings.globalConfig.userOverrideAllowed && (
             <Alert severity="info" sx={{ mb: 2 }}>
-              Per-user overrides are disabled globally. Enable "Allow Per-User Overrides" in Settings → AI Config → Algorithm to grant users override permission.
+              {t('admin.userDetail.overridesDisabledGlobally')}
             </Alert>
           )}
 
           {/* Current Effective Value */}
           <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 1, mb: 2 }}>
             <Typography variant="body2">
-              <strong>Effective Value for This User:</strong>{' '}
-              {settings.effectiveValue ? 'AI explanations are INCLUDED' : 'AI explanations are EXCLUDED'}
+              <strong>{t('admin.userDetail.effectiveValueLabel')}</strong>{' '}
+              {settings.effectiveValue
+                ? t('admin.userDetail.effectiveIncluded')
+                : t('admin.userDetail.effectiveExcluded')}
             </Typography>
             {settings.overrideAllowed && settings.enabled !== null && (
               <Typography variant="caption" color="text.secondary">
-                (User has chosen to {settings.enabled ? 'enable' : 'disable'} AI explanations)
+                {settings.enabled ? t('admin.userDetail.userChoseEnable') : t('admin.userDetail.userChoseDisable')}
               </Typography>
             )}
           </Box>
@@ -508,7 +518,7 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
               onClick={handleSave}
               disabled={saving || !settings.globalConfig.userOverrideAllowed}
             >
-              {saving ? 'Saving...' : 'Save Changes'}
+              {saving ? t('common.saving') : t('admin.userDetail.saveChanges')}
             </Button>
           </Box>
         </CardContent>
@@ -519,6 +529,7 @@ function UserSettingsTab({ userId, user }: { userId: string; user: User }) {
 
 // Watch History Tab Component
 function WatchHistoryTab({ userId }: { userId: string }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [history, setHistory] = useState<WatchHistoryItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -561,16 +572,16 @@ function WatchHistoryTab({ userId }: { userId: string }) {
   }
 
   const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return 'Never'
+    if (!dateStr) return t('admin.userDetail.dateNever')
     const date = new Date(dateStr)
     const now = new Date()
     const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
     
-    if (diffDays === 0) return 'Today'
-    if (diffDays === 1) return 'Yesterday'
-    if (diffDays < 7) return `${diffDays} days ago`
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`
+    if (diffDays === 0) return t('admin.userDetail.dateToday')
+    if (diffDays === 1) return t('admin.userDetail.dateYesterday')
+    if (diffDays < 7) return t('admin.userDetail.dateDaysAgo', { count: diffDays })
+    if (diffDays < 30) return t('admin.userDetail.dateWeeksAgo', { count: Math.floor(diffDays / 7) })
+    if (diffDays < 365) return t('admin.userDetail.dateMonthsAgo', { count: Math.floor(diffDays / 30) })
     return date.toLocaleDateString()
   }
 
@@ -591,7 +602,7 @@ function WatchHistoryTab({ userId }: { userId: string }) {
   if (history.length === 0) {
     return (
       <Typography color="text.secondary">
-        No watch history found. Run the watch history sync job to import data from the media server.
+        {t('admin.userDetail.watchHistoryTabEmpty')}
       </Typography>
     )
   }
@@ -602,7 +613,7 @@ function WatchHistoryTab({ userId }: { userId: string }) {
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Box display="flex" alignItems="center" gap={2}>
           <Typography variant="body2" color="text.secondary">
-            {pagination.total.toLocaleString()} movies watched
+            {t('admin.userDetail.moviesWatchedCount', { count: pagination.total })}
           </Typography>
           <ToggleButtonGroup
             value={sortBy}
@@ -610,9 +621,9 @@ function WatchHistoryTab({ userId }: { userId: string }) {
             onChange={handleSortChange}
             size="small"
           >
-            <ToggleButton value="recent">Recent</ToggleButton>
-            <ToggleButton value="plays">Most Played</ToggleButton>
-            <ToggleButton value="title">A-Z</ToggleButton>
+            <ToggleButton value="recent">{t('admin.userDetail.sortRecent')}</ToggleButton>
+            <ToggleButton value="plays">{t('admin.userDetail.sortMostPlayed')}</ToggleButton>
+            <ToggleButton value="title">{t('admin.userDetail.sortTitleAz')}</ToggleButton>
           </ToggleButtonGroup>
         </Box>
         <Box display="flex" alignItems="center" gap={1}>
@@ -648,7 +659,7 @@ function WatchHistoryTab({ userId }: { userId: string }) {
                 {/* Play count badge - cap display at 5x, show "Rewatched" for higher */}
                 {item.play_count > 1 && (
                   <Chip
-                    label={item.play_count <= 5 ? `${item.play_count}x` : 'Rewatched'}
+                    label={item.play_count <= 5 ? `${item.play_count}x` : t('admin.userDetail.rewatched')}
                     size="small"
                     sx={{
                       position: 'absolute',
@@ -687,10 +698,10 @@ function WatchHistoryTab({ userId }: { userId: string }) {
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>Movie</TableCell>
-                <TableCell align="center">Plays</TableCell>
-                <TableCell align="center">Rating</TableCell>
-                <TableCell align="right">Last Watched</TableCell>
+                <TableCell>{t('admin.userDetail.tableMovie')}</TableCell>
+                <TableCell align="center">{t('admin.userDetail.tablePlays')}</TableCell>
+                <TableCell align="center">{t('admin.userDetail.tableRating')}</TableCell>
+                <TableCell align="right">{t('admin.userDetail.tableLastWatched')}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -734,7 +745,7 @@ function WatchHistoryTab({ userId }: { userId: string }) {
                   </TableCell>
                   <TableCell align="center">
                     <Chip 
-                      label={item.play_count <= 5 ? item.play_count : '5+'} 
+                      label={item.play_count <= 5 ? item.play_count : t('admin.userDetail.playsBadgeMany')} 
                       size="small" 
                       color={item.play_count > 3 ? 'primary' : 'default'}
                       variant={item.play_count > 1 ? 'filled' : 'outlined'}
@@ -793,6 +804,7 @@ const getTabName = (index: number): TabName => {
 }
 
 export function UserDetailPage() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   
@@ -822,7 +834,7 @@ export function UserDetailPage() {
         // Fetch user
         const userResponse = await fetch(`/api/users/${id}`, { credentials: 'include' })
         if (!userResponse.ok) {
-          setError('User not found')
+          setError(t('admin.userDetail.userNotFound'))
           return
         }
         const userData = await userResponse.json()
@@ -835,14 +847,14 @@ export function UserDetailPage() {
           setRecommendations(recsData.recommendations || [])
         }
       } catch {
-        setError('Could not load user data')
+        setError(t('admin.userDetail.couldNotLoadUser'))
       } finally {
         setLoading(false)
       }
     }
 
     fetchData()
-  }, [id])
+  }, [id, t])
 
   if (loading) {
     return (
@@ -858,12 +870,12 @@ export function UserDetailPage() {
       <Box>
         <Breadcrumbs
           items={[
-            { label: 'Admin', path: '/admin/users' },
-            { label: 'Users', path: '/admin/users' },
-            { label: 'User' },
+            { label: t('nav.admin'), path: '/admin/users' },
+            { label: t('admin.users'), path: '/admin/users' },
+            { label: t('admin.userDetail.breadcrumbUser') },
           ]}
         />
-        <Alert severity="error">{error || 'User not found'}</Alert>
+        <Alert severity="error">{error || t('admin.userDetail.userNotFound')}</Alert>
       </Box>
     )
   }
@@ -872,8 +884,8 @@ export function UserDetailPage() {
     <Box>
       <Breadcrumbs
         items={[
-          { label: 'Admin', path: '/admin/users' },
-          { label: 'Users', path: '/admin/users' },
+          { label: t('nav.admin'), path: '/admin/users' },
+          { label: t('admin.users'), path: '/admin/users' },
         ]}
         currentLabel={user.display_name || user.username}
       />
@@ -882,36 +894,40 @@ export function UserDetailPage() {
         <Typography variant="h5" fontWeight={700}>
           {user.display_name || user.username}
         </Typography>
-        {user.is_admin && <Chip label="Admin" size="small" color="primary" />}
+        {user.is_admin && <Chip label={t('admin.usersPage.adminChip')} size="small" color="primary" />}
         {user.movies_enabled && (
-          <Chip label="Movies" size="small" color="success" variant="filled" />
+          <Chip label={t('admin.usersPage.movies')} size="small" color="success" variant="filled" />
         )}
         {user.series_enabled && (
-          <Chip label="Series" size="small" color="success" variant="filled" />
+          <Chip label={t('admin.usersPage.series')} size="small" color="success" variant="filled" />
         )}
         {!user.movies_enabled && !user.series_enabled && (
-          <Chip label="AI Disabled" size="small" color="default" variant="outlined" />
+          <Chip label={t('admin.userDetail.chipAiDisabled')} size="small" color="default" variant="outlined" />
         )}
       </Box>
 
       <Typography variant="body2" color="text.secondary" mb={3}>
-        @{user.username} • {user.provider} • Joined {new Date(user.created_at).toLocaleDateString()}
+        {t('admin.userDetail.joinedLine', {
+          username: user.username,
+          provider: user.provider,
+          joined: new Date(user.created_at).toLocaleDateString(),
+        })}
       </Typography>
 
       <Paper sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
         <Tabs value={tabValue} onChange={handleTabChange} sx={{ px: 2, pt: 1 }}>
-          <Tab label="Recommendations" />
-          <Tab label="Watch History" />
-          <Tab label="Playlists" />
-          <Tab label="Diagnostics" />
-          <Tab label="Settings" />
+          <Tab label={t('admin.userDetail.tabRecommendations')} />
+          <Tab label={t('admin.userDetail.tabWatchHistory')} />
+          <Tab label={t('admin.userDetail.tabPlaylists')} />
+          <Tab label={t('admin.userDetail.tabDiagnostics')} />
+          <Tab label={t('admin.userDetail.tabSettings')} />
         </Tabs>
 
         <Box p={3}>
           <TabPanel value={tabValue} index={0}>
             {recommendations.length === 0 ? (
               <Typography color="text.secondary">
-                No recommendations generated yet. Run the recommendations job to generate picks for this user.
+                {t('admin.userDetail.recsEmpty')}
               </Typography>
             ) : (
               <Grid container spacing={2}>
@@ -938,13 +954,13 @@ export function UserDetailPage() {
 
           <TabPanel value={tabValue} index={2}>
             <Typography color="text.secondary">
-              User playlists will appear here.
+              {t('admin.userDetail.playlistsPlaceholder')}
             </Typography>
           </TabPanel>
 
           <TabPanel value={tabValue} index={3}>
             <Typography color="text.secondary">
-              Recommendation diagnostics and score breakdowns will appear here.
+              {t('admin.userDetail.diagnosticsPlaceholder')}
             </Typography>
           </TabPanel>
 

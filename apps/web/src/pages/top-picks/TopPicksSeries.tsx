@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -46,6 +47,7 @@ interface TopPicksConfig {
 }
 
 export function TopPicksSeriesPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { getRating, setRating } = useUserRatings()
   const { isWatching, toggleWatching } = useWatching()
@@ -76,17 +78,17 @@ export function TopPicksSeriesPage() {
           setConfig(data.config)
           setError(null)
         } else {
-          setError('Failed to load trending series')
+          setError(t('topPicksPage.errorLoadSeries'))
         }
       } catch {
-        setError('Could not connect to server')
+        setError(t('topPicksPage.errorConnect'))
       } finally {
         setLoading(false)
       }
     }
 
     fetchTopSeries()
-  }, [])
+  }, [t])
 
   if (loading) {
     return (
@@ -112,16 +114,18 @@ export function TopPicksSeriesPage() {
           <Box display="flex" alignItems="center" gap={2} mb={1}>
             <TvIcon sx={{ color: '#8b5cf6', fontSize: 32 }} />
             <Typography variant="h4" fontWeight={700}>
-              Top Pick Series
+              {t('topPicksPage.pageTitleSeries')}
             </Typography>
           </Box>
           <Typography variant="body1" color="text.secondary">
-            Most popular TV series on your server
-            {config && ` in the last ${config.timeWindowDays} days`}
+            {t('topPicksPage.subtitleSeries')}
+            {config && t('topPicksPage.inLastDays', { count: config.timeWindowDays })}
           </Typography>
           {config?.lastRefreshedAt && (
             <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
-              Last updated: {new Date(config.lastRefreshedAt).toLocaleDateString()}
+              {t('topPicksPage.lastUpdated', {
+                date: new Date(config.lastRefreshedAt).toLocaleDateString(),
+              })}
             </Typography>
           )}
         </Box>
@@ -148,8 +152,7 @@ export function TopPicksSeriesPage() {
 
       {series.length === 0 && !error ? (
         <Alert severity="info" sx={{ borderRadius: 2 }}>
-          No trending series yet. Top picks are calculated from watch history across all users.
-          Make sure TV series watch history sync has run and multiple users have watched some episodes.
+          {t('topPicksPage.emptySeries')}
         </Alert>
       ) : viewMode === 'grid' ? (
         <Grid container spacing={2}>
@@ -278,7 +281,7 @@ export function TopPicksSeriesPage() {
                       overflow: 'hidden',
                     }}
                   >
-                    {show.overview || 'No description available.'}
+                    {show.overview || t('common.noDescription')}
                   </Typography>
                 </Box>
 
@@ -293,19 +296,21 @@ export function TopPicksSeriesPage() {
                 >
                   <Chip
                     icon={<PeopleIcon sx={{ fontSize: 16 }} />}
-                    label={`${show.uniqueViewers} viewers`}
+                    label={t('topPicksPage.viewersCount', { count: show.uniqueViewers })}
                     size="small"
                     sx={{ backgroundColor: 'rgba(139, 92, 246, 0.2)' }}
                   />
                   <Chip
                     icon={<PlayArrowIcon sx={{ fontSize: 16 }} />}
-                    label={`${show.totalEpisodesWatched} episodes`}
+                    label={t('topPicksPage.episodesWatched', { count: show.totalEpisodesWatched })}
                     size="small"
                     variant="outlined"
                   />
                   {show.avgCompletionRate > 0 && (
                     <Typography variant="caption" color="text.secondary">
-                      {Math.round(show.avgCompletionRate * 100)}% avg completion
+                      {t('topPicksPage.avgCompletion', {
+                        pct: Math.round(show.avgCompletionRate * 100),
+                      })}
                     </Typography>
                   )}
                 </Box>

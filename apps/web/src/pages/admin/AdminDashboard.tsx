@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -38,6 +39,7 @@ interface Stats {
 }
 
 export function AdminDashboard() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [health, setHealth] = useState<HealthResponse | null>(null)
   const [healthLoading, setHealthLoading] = useState(true)
@@ -54,10 +56,10 @@ export function AdminDashboard() {
           setHealth(data)
           setHealthError(null)
         } else {
-          setHealthError('Health check failed')
+          setHealthError(t('admin.dashboard.healthCheckFailed'))
         }
       } catch {
-        setHealthError('Could not connect to server')
+        setHealthError(t('admin.dashboard.couldNotConnect'))
       } finally {
         setHealthLoading(false)
       }
@@ -66,22 +68,20 @@ export function AdminDashboard() {
     fetchHealth()
     const interval = setInterval(fetchHealth, 30000)
     return () => clearInterval(interval)
-  }, [])
+  }, [t])
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // Fetch users count
         const usersResponse = await fetch('/api/users', { credentials: 'include' })
         let totalUsers = 0
         let enabledUsers = 0
         if (usersResponse.ok) {
           const usersData = await usersResponse.json()
           totalUsers = usersData.total || 0
-          enabledUsers = usersData.users?.filter((u: any) => u.is_enabled).length || 0
+          enabledUsers = usersData.users?.filter((u: { is_enabled?: boolean }) => u.is_enabled).length || 0
         }
 
-        // Fetch movies count
         const moviesResponse = await fetch('/api/movies?pageSize=1', { credentials: 'include' })
         let totalMovies = 0
         if (moviesResponse.ok) {
@@ -93,7 +93,7 @@ export function AdminDashboard() {
           totalUsers,
           enabledUsers,
           totalMovies,
-          moviesWithEmbeddings: 0, // Would need separate endpoint
+          moviesWithEmbeddings: 0,
         })
       } catch (err) {
         console.error('Failed to fetch stats:', err)
@@ -106,10 +106,10 @@ export function AdminDashboard() {
   }, [])
 
   const setupChecklist = [
-    { label: 'Media server connected', done: health?.ok || false },
-    { label: 'Database connected', done: health?.database?.connected || false },
-    { label: 'Movies synced', done: (stats?.totalMovies || 0) > 0 },
-    { label: 'Users enabled', done: (stats?.enabledUsers || 0) > 0 },
+    { label: t('admin.dashboard.checklistMediaServer'), done: health?.ok || false },
+    { label: t('admin.dashboard.checklistDatabase'), done: health?.database?.connected || false },
+    { label: t('admin.dashboard.checklistMovies'), done: (stats?.totalMovies || 0) > 0 },
+    { label: t('admin.dashboard.checklistUsers'), done: (stats?.enabledUsers || 0) > 0 },
   ]
 
   const allSetupDone = setupChecklist.every((item) => item.done)
@@ -117,30 +117,32 @@ export function AdminDashboard() {
   return (
     <Box>
       <Grid container spacing={3}>
-        {/* System Status */}
         <Grid item xs={12} md={6} lg={4}>
           <StatusCard
-            title="System Status"
+            title={t('admin.dashboard.systemStatus')}
             status={healthLoading ? 'loading' : healthError ? 'error' : health?.ok ? 'ok' : 'error'}
-            message={healthError || (health?.ok ? 'All systems operational' : 'System issues detected')}
+            message={
+              healthError || (health?.ok ? t('admin.dashboard.allOperational') : t('admin.dashboard.systemIssues'))
+            }
             time={health?.time}
             details={
               health
                 ? {
-                    Version: health.version,
-                    Database: health.database?.connected ? 'Connected' : 'Disconnected',
+                    [t('admin.dashboard.version')]: health.version,
+                    [t('admin.dashboard.database')]: health.database?.connected
+                      ? t('admin.dashboard.connected')
+                      : t('admin.dashboard.disconnected'),
                   }
                 : undefined
             }
           />
         </Grid>
 
-        {/* Quick Stats */}
         <Grid item xs={12} md={6} lg={4}>
           <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2, height: '100%' }}>
             <CardContent>
               <Typography variant="h6" mb={2}>
-                Quick Stats
+                {t('admin.dashboard.quickStats')}
               </Typography>
 
               {statsLoading ? (
@@ -151,28 +153,23 @@ export function AdminDashboard() {
                 </Box>
               ) : stats ? (
                 <Box>
-                  <StatRow label="Total Users" value={stats.totalUsers} />
-                  <StatRow label="AI Enabled Users" value={stats.enabledUsers} />
-                  <StatRow label="Movies in Library" value={stats.totalMovies} />
+                  <StatRow label={t('admin.dashboard.totalUsers')} value={stats.totalUsers} />
+                  <StatRow label={t('admin.dashboard.aiEnabledUsers')} value={stats.enabledUsers} />
+                  <StatRow label={t('admin.dashboard.moviesInLibrary')} value={stats.totalMovies} />
                 </Box>
               ) : (
-                <Alert severity="warning">Could not load stats</Alert>
+                <Alert severity="warning">{t('admin.dashboard.couldNotLoadStats')}</Alert>
               )}
             </CardContent>
           </Card>
         </Grid>
 
-        {/* Setup Checklist */}
         <Grid item xs={12} md={6} lg={4}>
           <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2, height: '100%' }}>
             <CardContent>
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                <Typography variant="h6">
-                  Setup Status
-                </Typography>
-                {allSetupDone && (
-                  <Chip label="Complete" color="success" size="small" />
-                )}
+                <Typography variant="h6">{t('admin.dashboard.setupStatus')}</Typography>
+                {allSetupDone && <Chip label={t('admin.dashboard.complete')} color="success" size="small" />}
               </Box>
 
               <List dense disablePadding>
@@ -199,42 +196,37 @@ export function AdminDashboard() {
           </Card>
         </Grid>
 
-        {/* Getting Started Guide */}
         {!allSetupDone && (
           <Grid item xs={12}>
             <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
               <CardContent>
                 <Typography variant="h6" mb={2}>
-                  Getting Started
+                  {t('admin.dashboard.gettingStarted')}
                 </Typography>
 
                 <Box component="ol" sx={{ pl: 2, m: 0, mb: 3 }}>
                   <Typography component="li" variant="body2" mb={1}>
-                    Configure your media server connection in <strong>Settings → System</strong>
+                    {t('admin.dashboard.step1')}
                   </Typography>
                   <Typography component="li" variant="body2" mb={1}>
-                    Select which libraries to sync in <strong>Settings → Libraries</strong>
+                    {t('admin.dashboard.step2')}
                   </Typography>
                   <Typography component="li" variant="body2" mb={1}>
-                    Run the "Sync Movies" job in <strong>Jobs</strong> to import your movie library
+                    {t('admin.dashboard.step3')}
                   </Typography>
                   <Typography component="li" variant="body2" mb={1}>
-                    Enable users who should receive AI recommendations in <strong>Users</strong>
+                    {t('admin.dashboard.step4')}
                   </Typography>
                   <Typography component="li" variant="body2" mb={1}>
-                    Run the "Generate Embeddings" job to create movie embeddings
+                    {t('admin.dashboard.step5')}
                   </Typography>
                   <Typography component="li" variant="body2">
-                    Run the "Generate Recommendations" job to create personalized picks
+                    {t('admin.dashboard.step6')}
                   </Typography>
                 </Box>
 
-                <Button
-                  variant="contained"
-                  startIcon={<PlayArrowIcon />}
-                  onClick={() => navigate('/admin/jobs')}
-                >
-                  Go to Jobs
+                <Button variant="contained" startIcon={<PlayArrowIcon />} onClick={() => navigate('/admin/jobs')}>
+                  {t('admin.dashboard.goToJobs')}
                 </Button>
               </CardContent>
             </Card>

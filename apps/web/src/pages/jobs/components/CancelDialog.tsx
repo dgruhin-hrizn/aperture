@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Dialog,
   DialogTitle,
@@ -16,6 +17,8 @@ interface CancelDialogProps {
 }
 
 export function CancelDialog({ jobName, onClose, onConfirm }: CancelDialogProps) {
+  const { t } = useTranslation()
+  const displayName = jobName ? formatJobName(jobName, t) : ''
   return (
     <Dialog
       open={!!jobName}
@@ -27,19 +30,16 @@ export function CancelDialog({ jobName, onClose, onConfirm }: CancelDialogProps)
         },
       }}
     >
-      <DialogTitle sx={{ fontWeight: 600 }}>Stop Job?</DialogTitle>
+      <DialogTitle sx={{ fontWeight: 600 }}>{t('admin.jobsPage.ui.cancelTitle')}</DialogTitle>
       <DialogContent>
-        <DialogContentText>
-          Are you sure you want to stop <strong>{jobName && formatJobName(jobName)}</strong>? The
-          job will be cancelled and any progress will be lost.
-        </DialogContentText>
+        <DialogContentText>{t('admin.jobsPage.ui.cancelBody', { name: displayName })}</DialogContentText>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2.5 }}>
         <Button onClick={onClose} color="inherit">
-          Keep Running
+          {t('admin.jobsPage.ui.keepRunning')}
         </Button>
         <Button onClick={onConfirm} color="error" variant="contained">
-          Stop Job
+          {t('admin.jobsPage.ui.stopJob')}
         </Button>
       </DialogActions>
     </Dialog>

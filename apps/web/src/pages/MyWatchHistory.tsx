@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -44,6 +45,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useWatching } from '@/hooks/useWatching'
 import { useUserRatings } from '@/hooks/useUserRatings'
 import { useViewMode } from '@/hooks/useViewMode'
+import { formatWatchHistoryRelativeDate } from '@/lib/formatWatchHistoryRelativeDate'
 import { WatchHistoryMovieListItem, WatchHistorySeriesListItem } from './watch-history/components'
 
 interface MovieWatchHistoryItem {
@@ -85,6 +87,7 @@ interface WatchHistoryResponse<T> {
 }
 
 export function MyWatchHistoryPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
@@ -149,14 +152,14 @@ export function MyWatchHistoryPage() {
           setSeriesHistory(prev => prev.filter(s => s.series_id !== confirmDialog.id))
           setSeriesPagination(prev => ({ ...prev, total: prev.total - 1 }))
         }
-        setSnackbar({ open: true, message: `"${confirmDialog.title}" marked as unwatched`, severity: 'success' })
+        setSnackbar({ open: true, message: t('watchHistoryPage.snackbarMarked', { title: confirmDialog.title }), severity: 'success' })
       } else {
         const error = await response.json()
-        setSnackbar({ open: true, message: error.error || 'Failed to mark as unwatched', severity: 'error' })
+        setSnackbar({ open: true, message: error.error || t('watchHistoryPage.snackbarError'), severity: 'error' })
       }
     } catch (err) {
       console.error('Failed to mark as unwatched:', err)
-      setSnackbar({ open: true, message: 'Failed to mark as unwatched', severity: 'error' })
+      setSnackbar({ open: true, message: t('watchHistoryPage.snackbarError'), severity: 'error' })
     } finally {
       setMarkingUnwatched(false)
       setConfirmDialog(null)
@@ -233,20 +236,6 @@ export function MyWatchHistoryPage() {
     }
   }
 
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return 'Never'
-    const date = new Date(dateStr)
-    const now = new Date()
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
-    
-    if (diffDays === 0) return 'Today'
-    if (diffDays === 1) return 'Yesterday'
-    if (diffDays < 7) return `${diffDays} days ago`
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`
-    return date.toLocaleDateString()
-  }
-
   // Filter movies by search query
   const filteredMovies = searchQuery
     ? movieHistory.filter((item) =>
@@ -291,12 +280,15 @@ export function MyWatchHistoryPage() {
           <Box display="flex" alignItems="center" gap={2} mb={{ xs: 0, sm: 1 }}>
             <HistoryIcon sx={{ color: 'primary.main', fontSize: 32 }} />
             <Typography variant="h4" fontWeight={700}>
-              Watch History
+              {t('watchHistoryPage.title')}
             </Typography>
           </Box>
           {!isMobile && (
             <Typography variant="body1" color="text.secondary">
-              {moviePagination.total.toLocaleString()} movies • {seriesPagination.total.toLocaleString()} series watched
+              {t('watchHistoryPage.subtitleStats', {
+                movies: moviePagination.total.toLocaleString(),
+                series: seriesPagination.total.toLocaleString(),
+              })}
             </Typography>
           )}
         </Box>
@@ -328,7 +320,7 @@ export function MyWatchHistoryPage() {
           <Tab 
             icon={<MovieIcon />} 
             iconPosition="start" 
-            label={`Movies (${moviePagination.total.toLocaleString()})`}
+            label={t('watchHistoryPage.tabMovies', { total: moviePagination.total.toLocaleString() })}
             sx={{
               color: tabValue === 0 ? '#6366f1' : 'text.secondary',
               '&.Mui-selected': { color: '#6366f1' },
@@ -337,7 +329,7 @@ export function MyWatchHistoryPage() {
           <Tab 
             icon={<TvIcon />} 
             iconPosition="start" 
-            label={`Series (${seriesPagination.total.toLocaleString()})`}
+            label={t('watchHistoryPage.tabSeries', { total: seriesPagination.total.toLocaleString() })}
             sx={{
               color: tabValue === 1 ? '#ec4899' : 'text.secondary',
               '&.Mui-selected': { color: '#ec4899' },
@@ -351,7 +343,7 @@ export function MyWatchHistoryPage() {
         <Box display="flex" alignItems="center" gap={2}>
           <TextField
             size="small"
-            placeholder={`Search ${tabValue === 0 ? 'movies' : 'series'}...`}
+            placeholder={tabValue === 0 ? t('watchHistoryPage.searchMovies') : t('watchHistoryPage.searchSeries')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             InputProps={{
@@ -371,15 +363,15 @@ export function MyWatchHistoryPage() {
           >
             <ToggleButton value="recent">
               <AccessTimeIcon fontSize="small" sx={{ mr: isMobile ? 0 : 0.5 }} />
-              {!isMobile && 'Recent'}
+              {!isMobile && t('watchHistoryPage.sortRecent')}
             </ToggleButton>
             <ToggleButton value="plays">
               <TrendingUpIcon fontSize="small" sx={{ mr: isMobile ? 0 : 0.5 }} />
-              {!isMobile && 'Most Played'}
+              {!isMobile && t('watchHistoryPage.sortMostPlayed')}
             </ToggleButton>
             <ToggleButton value="title">
               <SortByAlphaIcon fontSize="small" sx={{ mr: isMobile ? 0 : 0.5 }} />
-              {!isMobile && 'A-Z'}
+              {!isMobile && t('watchHistoryPage.sortAZ')}
             </ToggleButton>
           </ToggleButtonGroup>
         </Box>
@@ -392,8 +384,8 @@ export function MyWatchHistoryPage() {
           {filteredMovies.length === 0 ? (
             <Alert severity="info" sx={{ borderRadius: 2 }}>
               {searchQuery
-                ? `No movies found matching "${searchQuery}"`
-                : 'No watch history found. Movies you watch will appear here after the watch history sync runs.'}
+                ? t('watchHistoryPage.emptySearchMovies', { query: searchQuery })
+                : t('watchHistoryPage.emptyMovies')}
             </Alert>
           ) : (
             <>
@@ -425,7 +417,7 @@ export function MyWatchHistoryPage() {
                         {/* Play count badge - cap display at 5x, show "Rewatched" for higher */}
                         {item.play_count > 1 && (
                           <Chip
-                            label={item.play_count <= 5 ? `${item.play_count}x` : 'Rewatched'}
+                            label={item.play_count <= 5 ? t('dashboard.playCount', { count: item.play_count }) : t('dashboard.rewatched')}
                             size="small"
                             sx={{
                               position: 'absolute',
@@ -454,7 +446,7 @@ export function MyWatchHistoryPage() {
                         )}
                         {/* Mark Unwatched button */}
                         {canManage && (
-                          <Tooltip title="Mark as unwatched">
+                          <Tooltip title={t('watchHistoryPage.markUnwatchedTooltip')}>
                             <IconButton
                               className="mark-unwatched-btn"
                               size="small"
@@ -535,8 +527,8 @@ export function MyWatchHistoryPage() {
           {filteredSeries.length === 0 ? (
             <Alert severity="info" sx={{ borderRadius: 2 }}>
               {searchQuery
-                ? `No series found matching "${searchQuery}"`
-                : 'No watch history found. Series you watch will appear here after the watch history sync runs.'}
+                ? t('watchHistoryPage.emptySearchSeries', { query: searchQuery })
+                : t('watchHistoryPage.emptySeries')}
             </Alert>
           ) : (
             <>
@@ -583,7 +575,7 @@ export function MyWatchHistoryPage() {
                           )}
                           {/* Mark Unwatched button */}
                           {canManage && (
-                            <Tooltip title="Mark all episodes as unwatched">
+                            <Tooltip title={t('watchHistoryPage.markAllUnwatchedTooltip')}>
                               <IconButton
                                 className="mark-unwatched-btn"
                                 size="small"
@@ -618,7 +610,10 @@ export function MyWatchHistoryPage() {
                         <Box sx={{ mt: 0.5 }}>
                           <Box display="flex" alignItems="center" justifyContent="space-between">
                             <Typography variant="caption" color="text.secondary" fontSize="0.7rem">
-                              {item.episodes_watched} / {item.total_episodes} eps
+                              {t('watchHistoryPage.episodesProgress', {
+                                watched: item.episodes_watched,
+                                total: item.total_episodes,
+                              })}
                             </Typography>
                             <Typography 
                               variant="caption" 
@@ -697,21 +692,20 @@ export function MyWatchHistoryPage() {
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle>Mark as Unwatched?</DialogTitle>
+        <DialogTitle>{t('watchHistoryPage.confirmTitle')}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            {confirmDialog?.type === 'movie' 
-              ? `This will mark "${confirmDialog?.title}" as unwatched in your media server and remove it from your Aperture watch history.`
-              : `This will mark all episodes of "${confirmDialog?.title}" as unwatched in your media server and remove them from your Aperture watch history.`
-            }
+            {confirmDialog?.type === 'movie'
+              ? t('watchHistoryPage.confirmMovieBody', { title: confirmDialog?.title ?? '' })
+              : t('watchHistoryPage.confirmSeriesBody', { title: confirmDialog?.title ?? '' })}
           </DialogContentText>
           <DialogContentText sx={{ mt: 1, fontWeight: 500, color: 'warning.main' }}>
-            This action cannot be undone.
+            {t('watchHistoryPage.cannotUndo')}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmDialog(null)} disabled={markingUnwatched}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button 
             onClick={handleMarkUnwatched} 
@@ -719,7 +713,7 @@ export function MyWatchHistoryPage() {
             variant="contained"
             disabled={markingUnwatched}
           >
-            {markingUnwatched ? 'Marking...' : 'Mark Unwatched'}
+            {markingUnwatched ? t('watchHistoryPage.marking') : t('watchHistoryPage.markUnwatched')}
           </Button>
         </DialogActions>
       </Dialog>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -28,6 +29,7 @@ interface DetectionResult {
 }
 
 export function FileLocationsSection() {
+  const { t } = useTranslation()
   const [config, setConfig] = useState<OutputPathConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -49,14 +51,14 @@ export function FileLocationsSection() {
         })
         setHasChanges(false)
       } else {
-        setError('Failed to load configuration')
+        setError(t('settingsFileLocations.loadError'))
       }
     } catch (err) {
-      setError('Could not connect to server')
+      setError(t('settingsFileLocations.errConnect'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     fetchConfig()
@@ -76,7 +78,7 @@ export function FileLocationsSection() {
 
       if (!response.ok) {
         const data = await response.json()
-        throw new Error(data.message || data.error || 'Auto-detection failed')
+        throw new Error(data.message || data.error || t('settingsFileLocations.detectFailed'))
       }
 
       const result: DetectionResult = await response.json()
@@ -86,9 +88,9 @@ export function FileLocationsSection() {
         mediaServerPathPrefix: result.mediaServerPathPrefix,
       })
       setHasChanges(true)
-      setSuccess('Paths detected! Click "Save Changes" to apply.')
+      setSuccess(t('settingsFileLocations.detectSuccess'))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Auto-detection failed')
+      setError(err instanceof Error ? err.message : t('settingsFileLocations.detectFailed'))
     } finally {
       setDetecting(false)
     }
@@ -110,15 +112,15 @@ export function FileLocationsSection() {
       })
 
       if (response.ok) {
-        setSuccess('File locations saved successfully')
+        setSuccess(t('settingsFileLocations.saveSuccess'))
         setHasChanges(false)
         setDetectionResult(null)
       } else {
         const data = await response.json()
-        setError(data.error || 'Failed to save configuration')
+        setError(data.error || t('settingsFileLocations.saveFailed'))
       }
     } catch (err) {
-      setError('Failed to save configuration')
+      setError(t('settingsFileLocations.saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -147,10 +149,10 @@ export function FileLocationsSection() {
       <CardContent>
         <Stack direction="row" alignItems="center" gap={1} mb={1}>
           <FolderIcon color="primary" />
-          <Typography variant="h6">File Locations</Typography>
+          <Typography variant="h6">{t('settingsFileLocations.title')}</Typography>
         </Stack>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Configure where your media server sees Aperture's libraries and media files
+          {t('settingsFileLocations.subtitle')}
         </Typography>
 
         <Stack spacing={3}>
@@ -162,10 +164,10 @@ export function FileLocationsSection() {
               disabled={detecting}
               startIcon={detecting ? <CircularProgress size={16} /> : <AutoFixHighIcon />}
             >
-              {detecting ? 'Detecting...' : 'Auto-Detect Paths'}
+              {detecting ? t('settingsFileLocations.detecting') : t('settingsFileLocations.detectPaths')}
             </Button>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Automatically detect paths by comparing media server files with Aperture's mounts
+              {t('settingsFileLocations.detectCaption')}
             </Typography>
           </Box>
 
@@ -173,12 +175,12 @@ export function FileLocationsSection() {
           {detectionResult && (
             <Alert severity="info" icon={<CheckCircleIcon />}>
               <Typography variant="body2" fontWeight={500}>
-                Detected path mapping:
+                {t('settingsFileLocations.detectedMapping')}
               </Typography>
               <Typography variant="caption" component="div" sx={{ mt: 0.5, fontFamily: 'monospace' }}>
-                Media server: <code>{detectionResult.sampleMediaServerPath}</code>
+                {t('settingsFileLocations.mediaServerSample')} <code>{detectionResult.sampleMediaServerPath}</code>
                 <br />
-                Aperture: <code>{detectionResult.sampleAperturePath}</code>
+                {t('settingsFileLocations.apertureSample')} <code>{detectionResult.sampleAperturePath}</code>
               </Typography>
             </Alert>
           )}
@@ -186,7 +188,7 @@ export function FileLocationsSection() {
           {/* Aperture Libraries Path */}
           <Box>
             <Typography variant="subtitle2" gutterBottom>
-              Aperture Libraries Path
+              {t('settingsFileLocations.apertureLibrariesPath')}
             </Typography>
             <TextField
               fullWidth
@@ -194,14 +196,14 @@ export function FileLocationsSection() {
               value={config?.mediaServerLibrariesPath || ''}
               onChange={(e) => updateConfig({ mediaServerLibrariesPath: e.target.value })}
               placeholder="/mnt/ApertureLibraries/"
-              helperText="Where your media server sees Aperture's output (the folder mounted as /aperture-libraries in Aperture)"
+              helperText={t('settingsFileLocations.apertureLibrariesHelper')}
             />
           </Box>
 
           {/* Media Server Path Prefix */}
           <Box>
             <Typography variant="subtitle2" gutterBottom>
-              Media Server Path Prefix
+              {t('settingsFileLocations.mediaServerPathPrefix')}
             </Typography>
             <TextField
               fullWidth
@@ -209,7 +211,7 @@ export function FileLocationsSection() {
               value={config?.mediaServerPathPrefix || ''}
               onChange={(e) => updateConfig({ mediaServerPathPrefix: e.target.value })}
               placeholder="/mnt/"
-              helperText="Base path where your media server sees your media files (used for symlinks)"
+              helperText={t('settingsFileLocations.mediaServerPathPrefixHelper')}
             />
           </Box>
 
@@ -233,7 +235,7 @@ export function FileLocationsSection() {
               disabled={saving || !hasChanges}
               startIcon={saving ? <CircularProgress size={16} /> : <SaveIcon />}
             >
-              {saving ? 'Saving...' : 'Save Changes'}
+              {saving ? t('settingsFileLocations.saving') : t('settingsFileLocations.saveChanges')}
             </Button>
           </Stack>
         </Stack>

@@ -2,6 +2,7 @@
  * AI Setup Section - Card-based AI provider configuration for Admin Settings
  */
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -46,6 +47,7 @@ interface EmbeddingSet {
  * Component to manage embedding sets - view and delete old embedding sets
  */
 function EmbeddingSetsManager() {
+  const { t } = useTranslation()
   const [sets, setSets] = useState<EmbeddingSet[]>([])
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState<string | null>(null)
@@ -70,7 +72,7 @@ function EmbeddingSetsManager() {
   }, [fetchSets])
 
   const handleDelete = async (model: string) => {
-    if (!confirm(`Delete all embeddings for "${model}"? This cannot be undone.`)) {
+    if (!confirm(t('settingsAiSetup.confirmDeleteSet', { model }))) {
       return
     }
 
@@ -83,12 +85,12 @@ function EmbeddingSetsManager() {
       })
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || 'Failed to delete')
+        throw new Error(data.error || t('settingsAiSetup.deleteFailed'))
       }
       // Refresh the list
       fetchSets()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete embedding set')
+      setError(err instanceof Error ? err.message : t('settingsAiSetup.deleteSetError'))
     } finally {
       setDeleting(null)
     }
@@ -113,17 +115,16 @@ function EmbeddingSetsManager() {
       <CardContent>
         <Box display="flex" alignItems="center" gap={1} mb={2}>
           <StorageIcon color="primary" />
-          <Typography variant="h6">Embedding Sets</Typography>
+          <Typography variant="h6">{t('settingsAiSetup.embeddingSetsTitle')}</Typography>
           <Chip 
             size="small" 
-            label={`${sets.length} sets`} 
+            label={t('settingsAiSetup.setsCount', { count: sets.length })} 
             sx={{ ml: 'auto' }}
           />
         </Box>
 
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          You have embeddings stored from multiple models. Inactive sets can be deleted to free up storage.
-          When you switch back to a model with existing embeddings, they will be used immediately without regenerating.
+          {t('settingsAiSetup.embeddingSetsBody')}
         </Typography>
 
         {error && (
@@ -161,11 +162,16 @@ function EmbeddingSetsManager() {
                     {set.model}
                   </Typography>
                   {set.isActive && (
-                    <Chip size="small" label="Active" color="success" />
+                    <Chip size="small" label={t('settingsAiSetup.chipActive')} color="success" />
                   )}
                 </Box>
                 <Typography variant="caption" color="text.secondary">
-                  {set.dimensions}d • {set.movieCount.toLocaleString()} movies • {set.seriesCount.toLocaleString()} series • {set.episodeCount.toLocaleString()} episodes
+                  {t('settingsAiSetup.statsLine', {
+                    dimensions: set.dimensions,
+                    movies: set.movieCount.toLocaleString(),
+                    series: set.seriesCount.toLocaleString(),
+                    episodes: set.episodeCount.toLocaleString(),
+                  })}
                 </Typography>
               </Box>
               
@@ -175,7 +181,7 @@ function EmbeddingSetsManager() {
                   color="error"
                   onClick={() => handleDelete(set.model)}
                   disabled={deleting === set.model}
-                  title="Delete this embedding set"
+                  title={t('settingsAiSetup.deleteSetTooltip')}
                 >
                   {deleting === set.model ? (
                     <CircularProgress size={16} />
@@ -193,6 +199,7 @@ function EmbeddingSetsManager() {
 }
 
 export function AISetupSection() {
+  const { t } = useTranslation()
   const [config, setConfig] = useState<AIConfig | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -223,7 +230,7 @@ export function AISetupSection() {
     })
     if (!res.ok) {
       const err = await res.json()
-      throw new Error(err.error || 'Failed to save')
+      throw new Error(err.error || t('settingsAiSetup.saveFailed'))
     }
     // Refresh config
     fetchConfig()
@@ -242,11 +249,10 @@ export function AISetupSection() {
       {/* Header */}
       <Box mb={3}>
         <Typography variant="h5" fontWeight={600} gutterBottom>
-          AI Provider Configuration
+          {t('settingsAiSetup.pageTitle')}
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Configure AI providers for different features. Aperture recommends using OpenAI for all four functions, 
-          but feel free to explore other providers and models.
+          {t('settingsAiSetup.pageSubtitle')}
         </Typography>
       </Box>
 
@@ -258,8 +264,8 @@ export function AISetupSection() {
       >
         <AIFunctionCard
           functionType="embeddings"
-          title="Embeddings"
-          description="Converts text to vectors for semantic search and recommendations. Higher dimensions = better quality."
+          title={t('settingsAiSetup.cardEmbeddingsTitle')}
+          description={t('settingsAiSetup.cardEmbeddingsDesc')}
           icon={<MemoryIcon />}
           iconColor="#2196f3"
           config={config?.embeddings ?? null}
@@ -269,8 +275,8 @@ export function AISetupSection() {
 
         <AIFunctionCard
           functionType="chat"
-          title="Chat Assistant"
-          description="Powers the AI assistant. Needs tool calling to search your library and make recommendations."
+          title={t('settingsAiSetup.cardChatTitle')}
+          description={t('settingsAiSetup.cardChatDesc')}
           icon={<SmartToyIcon />}
           iconColor="#9c27b0"
           config={config?.chat ?? null}
@@ -280,8 +286,8 @@ export function AISetupSection() {
 
         <AIFunctionCard
           functionType="textGeneration"
-          title="Text Generation"
-          description="Generates recommendation explanations, taste profiles, and playlist descriptions."
+          title={t('settingsAiSetup.cardTextGenTitle')}
+          description={t('settingsAiSetup.cardTextGenDesc')}
           icon={<AutoFixHighIcon />}
           iconColor="#ff9800"
           config={config?.textGeneration ?? null}
@@ -290,8 +296,8 @@ export function AISetupSection() {
 
         <AIFunctionCard
           functionType="exploration"
-          title="Exploration"
-          description="Powers the Explore page. Uses AI to find meaningful connections from conceptual searches like 'feel-good comedies'."
+          title={t('settingsAiSetup.cardExplorationTitle')}
+          description={t('settingsAiSetup.cardExplorationDesc')}
           icon={<HubOutlinedIcon />}
           iconColor="#4caf50"
           config={config?.exploration ?? null}

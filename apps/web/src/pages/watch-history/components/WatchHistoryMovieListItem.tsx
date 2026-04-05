@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -22,6 +23,7 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import FavoriteIcon from '@mui/icons-material/Favorite'
 import { getProxiedImageUrl, FALLBACK_POSTER_URL, HeartRating } from '@aperture/ui'
+import { formatWatchHistoryRelativeDate } from '@/lib/formatWatchHistoryRelativeDate'
 
 interface MovieWatchHistoryItem {
   movie_id: string
@@ -51,23 +53,10 @@ export function WatchHistoryMovieListItem({
   canManage,
   onMarkUnwatched,
 }: WatchHistoryMovieListItemProps) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
-
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return 'Never'
-    const date = new Date(dateStr)
-    const now = new Date()
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
-    
-    if (diffDays === 0) return 'Today'
-    if (diffDays === 1) return 'Yesterday'
-    if (diffDays < 7) return `${diffDays} days ago`
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`
-    return date.toLocaleDateString()
-  }
 
   // Visual representation of play count (max 10 for the bar)
   const playPercent = Math.min(100, (movie.play_count / 5) * 100)
@@ -126,7 +115,7 @@ export function WatchHistoryMovieListItem({
             {/* Play count badge */}
             {movie.play_count > 1 && (
               <Chip
-                label={movie.play_count <= 5 ? `${movie.play_count}x` : '5+'}
+                label={movie.play_count <= 5 ? t('dashboard.playCount', { count: movie.play_count }) : t('watchHistoryPage.playCountBadgeMany')}
                 size="small"
                 sx={{
                   position: 'absolute',
@@ -183,7 +172,7 @@ export function WatchHistoryMovieListItem({
               {movie.is_favorite && !isMobile && (
                 <Chip
                   icon={<FavoriteIcon sx={{ fontSize: 14 }} />}
-                  label="Favorite"
+                  label={t('watchHistoryPage.favorite')}
                   size="small"
                   sx={{
                     backgroundColor: alpha('#ef4444', 0.2),
@@ -241,7 +230,7 @@ export function WatchHistoryMovieListItem({
                 fontSize: { xs: '0.75rem', md: '0.875rem' },
               }}
             >
-              {movie.overview || 'No description available.'}
+              {movie.overview || t('common.noDescription')}
             </Typography>
 
             {/* Mobile: Inline actions */}
@@ -252,7 +241,7 @@ export function WatchHistoryMovieListItem({
                   onChange={(rating) => onRate(rating)}
                   size="small"
                 />
-                <Tooltip title="View details">
+                <Tooltip title={t('watchHistoryPage.viewDetails')}>
                   <IconButton
                     onClick={(e) => {
                       e.stopPropagation()
@@ -269,7 +258,7 @@ export function WatchHistoryMovieListItem({
                   </IconButton>
                 </Tooltip>
                 {canManage && onMarkUnwatched && (
-                  <Tooltip title="Mark as unwatched">
+                  <Tooltip title={t('watchHistoryPage.markUnwatchedTooltip')}>
                     <IconButton
                       onClick={(e) => {
                         e.stopPropagation()
@@ -318,7 +307,7 @@ export function WatchHistoryMovieListItem({
                 </Typography>
               </Box>
               <Typography variant="caption" color="text.secondary">
-                {movie.play_count === 1 ? 'Play' : 'Plays'}
+                {t('watchHistoryPage.playLabel', { count: movie.play_count })}
               </Typography>
               <LinearProgress
                 variant="determinate"
@@ -340,7 +329,7 @@ export function WatchHistoryMovieListItem({
             <Box display="flex" alignItems="center" justifyContent="center" gap={0.5}>
               <AccessTimeIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
               <Typography variant="caption" color="text.secondary">
-                {formatDate(movie.last_played_at)}
+                {formatWatchHistoryRelativeDate(movie.last_played_at, t)}
               </Typography>
             </Box>
 
@@ -352,7 +341,7 @@ export function WatchHistoryMovieListItem({
                 size="small"
               />
               
-              <Tooltip title="View details">
+              <Tooltip title={t('watchHistoryPage.viewDetails')}>
                 <IconButton
                   onClick={(e) => {
                     e.stopPropagation()
@@ -369,7 +358,7 @@ export function WatchHistoryMovieListItem({
               </Tooltip>
               
               {canManage && onMarkUnwatched && (
-                <Tooltip title="Mark as unwatched">
+                <Tooltip title={t('watchHistoryPage.markUnwatchedTooltip')}>
                   <IconButton
                     onClick={(e) => {
                       e.stopPropagation()
@@ -411,13 +400,13 @@ export function WatchHistoryMovieListItem({
                 {movie.play_count}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                {movie.play_count === 1 ? 'play' : 'plays'}
+                {t('watchHistoryPage.playNoun', { count: movie.play_count })}
               </Typography>
             </Box>
             <Box display="flex" alignItems="center" gap={0.5}>
               <AccessTimeIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
               <Typography variant="caption" color="text.secondary">
-                {formatDate(movie.last_played_at)}
+                {formatWatchHistoryRelativeDate(movie.last_played_at, t)}
               </Typography>
             </Box>
           </Box>

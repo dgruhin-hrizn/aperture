@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -39,6 +40,7 @@ interface StudioData {
 }
 
 export function StudioDetailPage() {
+  const { t } = useTranslation()
   const { name } = useParams<{ name: string }>()
   const navigate = useNavigate()
   const { getRating, setRating } = useUserRatings()
@@ -60,20 +62,20 @@ export function StudioDetailPage() {
         })
 
         if (!response.ok) {
-          throw new Error('Failed to load studio data')
+          throw new Error(t('studioDetail.errorLoad'))
         }
 
         const result = await response.json()
         setData(result)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred')
+        setError(err instanceof Error ? err.message : t('studioDetail.errorGeneric'))
       } finally {
         setLoading(false)
       }
     }
 
     fetchStudio()
-  }, [name])
+  }, [name, t])
 
   // Collect backdrop URLs from movies and series (must be before early returns)
   const backdropUrls = useMemo(() => {
@@ -94,7 +96,7 @@ export function StudioDetailPage() {
   if (error || !data) {
     return (
       <Box sx={{ p: 3 }}>
-        <Alert severity="error">{error || 'Studio not found'}</Alert>
+        <Alert severity="error">{error || t('studioDetail.notFound')}</Alert>
       </Box>
     )
   }
@@ -201,7 +203,7 @@ export function StudioDetailPage() {
         {data.movies.length > 0 && (
           <Box mb={4}>
             <BaseCarousel
-              title="Movies"
+              title={t('studioDetail.moviesCarousel')}
               subtitle={`${data.movies.length} movies from ${decodedName}`}
               hasItems={data.movies.length > 0}
             >
@@ -228,7 +230,7 @@ export function StudioDetailPage() {
         {data.series.length > 0 && (
           <Box mb={4}>
             <BaseCarousel
-              title="TV Series"
+              title={t('studioDetail.seriesCarousel')}
               subtitle={`${data.series.length} series from ${decodedName}`}
               hasItems={data.series.length > 0}
             >
@@ -256,7 +258,7 @@ export function StudioDetailPage() {
         {/* Empty state */}
         {data.movies.length === 0 && data.series.length === 0 && (
           <Alert severity="info">
-            No content found for {decodedName} in your library.
+            {t('studioDetail.emptyLibrary', { name: decodedName })}
           </Alert>
         )}
       </Box>

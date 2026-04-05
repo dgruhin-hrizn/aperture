@@ -12,6 +12,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Alert,
   AlertTitle,
@@ -82,45 +83,52 @@ const ERROR_ICONS: Record<string, React.ReactNode> = {
   outage: <InfoIcon />,
 }
 
-// Error type display names
-const ERROR_TYPE_NAMES: Record<string, string> = {
-  auth: 'Authentication Error',
-  rate_limit: 'Rate Limit Reached',
-  limit: 'Account Limit Reached',
-  outage: 'Service Unavailable',
-}
-
-/**
- * Format reset time for display
- */
-function formatResetTime(resetAt: string): string {
-  const resetDate = new Date(resetAt)
-  const now = new Date()
-  const diffMs = resetDate.getTime() - now.getTime()
-  
-  if (diffMs <= 0) {
-    return 'should reset now'
-  }
-  
-  const diffMins = Math.ceil(diffMs / 60000)
-  if (diffMins < 60) {
-    return `resets in ${diffMins} minute${diffMins !== 1 ? 's' : ''}`
-  }
-  
-  const diffHours = Math.ceil(diffMins / 60)
-  if (diffHours < 24) {
-    return `resets in ${diffHours} hour${diffHours !== 1 ? 's' : ''}`
-  }
-  
-  return `resets at ${resetDate.toLocaleString()}`
-}
-
 export function ApiErrorAlert({
   provider,
   maxErrors = 3,
   compact = false,
 }: ApiErrorAlertProps) {
+  const { t } = useTranslation()
   const [errors, setErrors] = useState<ApiError[]>([])
+
+  const formatResetTime = useCallback(
+    (resetAt: string) => {
+      const resetDate = new Date(resetAt)
+      const now = new Date()
+      const diffMs = resetDate.getTime() - now.getTime()
+
+      if (diffMs <= 0) {
+        return t('apiError.resetNow')
+      }
+
+      const diffMins = Math.ceil(diffMs / 60000)
+      if (diffMins < 60) {
+        return t('apiError.resetInMinutes', { count: diffMins })
+      }
+
+      const diffHours = Math.ceil(diffMins / 60)
+      if (diffHours < 24) {
+        return t('apiError.resetInHours', { count: diffHours })
+      }
+
+      return t('apiError.resetAt', { when: resetDate.toLocaleString() })
+    },
+    [t]
+  )
+
+  const errorTypeLabel = useCallback(
+    (errorType: string) => {
+      const m: Record<string, string> = {
+        auth: 'apiError.errorTypeAuth',
+        rate_limit: 'apiError.errorTypeRateLimit',
+        limit: 'apiError.errorTypeLimit',
+        outage: 'apiError.errorTypeOutage',
+      }
+      const k = m[errorType]
+      return k ? t(k) : errorType
+    },
+    [t]
+  )
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
 
@@ -178,7 +186,7 @@ export function ApiErrorAlert({
             icon={ERROR_ICONS[error.errorType]}
             action={
               <IconButton
-                aria-label="dismiss"
+                aria-label={t('common.dismiss')}
                 color="inherit"
                 size="small"
                 onClick={() => handleDismiss(error.id)}
@@ -194,7 +202,7 @@ export function ApiErrorAlert({
             <AlertTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <span>{PROVIDER_NAMES[error.provider]}</span>
               <Chip
-                label={ERROR_TYPE_NAMES[error.errorType]}
+                label={errorTypeLabel(error.errorType)}
                 size="small"
                 color={ERROR_SEVERITY[error.errorType]}
                 sx={{ fontSize: '0.7rem', height: 20 }}
@@ -222,7 +230,7 @@ export function ApiErrorAlert({
                       onClick={() => (window.location.href = error.actionUrl!)}
                       sx={{ ml: 'auto' }}
                     >
-                      {error.errorType === 'auth' ? 'Check Settings' : 'Learn More'}
+                      {error.errorType === 'auth' ? t('apiError.checkSettings') : t('apiError.learnMore')}
                     </Button>
                   ) : (
                     <Button
@@ -236,10 +244,10 @@ export function ApiErrorAlert({
                       sx={{ ml: 'auto' }}
                     >
                       {error.errorType === 'auth'
-                        ? 'Check Settings'
+                        ? t('apiError.checkSettings')
                         : error.errorType === 'limit'
-                        ? 'Upgrade'
-                        : 'Learn More'}
+                          ? t('apiError.upgrade')
+                          : t('apiError.learnMore')}
                     </Button>
                   )
                 )}
@@ -251,9 +259,9 @@ export function ApiErrorAlert({
 
       {errors.length > maxErrors && (
         <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
-          +{errors.length - maxErrors} more{' '}
+          {t('apiError.moreErrors', { count: errors.length - maxErrors })}{' '}
           <Link href="/settings#integrations" underline="hover">
-            View all in settings
+            {t('apiError.viewAllSettings')}
           </Link>
         </Typography>
       )}
@@ -265,6 +273,7 @@ export function ApiErrorAlert({
  * Compact version for use in headers/toolbars
  */
 export function ApiErrorIndicator() {
+  const { t } = useTranslation()
   const [summary, setSummary] = useState<ErrorSummaryItem[]>([])
 
   useEffect(() => {
@@ -303,7 +312,7 @@ export function ApiErrorIndicator() {
   return (
     <Chip
       icon={hasAuthError ? <ErrorIcon /> : <WarningAmberIcon />}
-      label={`${totalErrors} API ${totalErrors === 1 ? 'issue' : 'issues'}`}
+      label={t('apiError.issues', { count: totalErrors })}
       size="small"
       color={severity}
       variant="outlined"

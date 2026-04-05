@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -35,6 +36,7 @@ interface Series {
 }
 
 export function SeriesPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { getRating, setRating } = useUserRatings()
   const { isWatching, toggleWatching } = useWatching()
@@ -104,10 +106,10 @@ export function SeriesPage() {
           setTotalPages(Math.ceil(data.total / pageSize))
           setError(null)
         } else {
-          setError('Failed to load series')
+          setError(t('browse.series.errorLoad'))
         }
       } catch {
-        setError('Could not connect to server')
+        setError(t('browse.series.errorConnect'))
       } finally {
         setLoading(false)
       }
@@ -115,21 +117,21 @@ export function SeriesPage() {
 
     const debounce = setTimeout(fetchSeries, search ? 300 : 0)
     return () => clearTimeout(debounce)
-  }, [page, search, genre, network, minRtScore])
+  }, [page, search, genre, network, minRtScore, t])
 
   return (
     <Box>
       <Typography variant="h4" fontWeight={700} mb={1}>
-        TV Series
+        {t('browse.series.title')}
       </Typography>
       <Typography variant="body1" color="text.secondary" mb={4}>
-        Browse your synced TV series library
+        {t('browse.series.subtitle')}
       </Typography>
 
       {/* Filters */}
       <Box display="flex" gap={2} mb={4} flexWrap="wrap" alignItems="center">
         <TextField
-          placeholder="Search series..."
+          placeholder={t('browse.series.searchPlaceholder')}
           value={search}
           onChange={(e) => {
             setSearch(e.target.value)
@@ -147,16 +149,16 @@ export function SeriesPage() {
         />
 
         <FormControl size="small" sx={{ minWidth: 150 }}>
-          <InputLabel>Genre</InputLabel>
+          <InputLabel>{t('browse.genre')}</InputLabel>
           <Select
             value={genre}
-            label="Genre"
+            label={t('browse.genre')}
             onChange={(e) => {
               setGenre(e.target.value)
               setPage(1)
             }}
           >
-            <MenuItem value="">All Genres</MenuItem>
+            <MenuItem value="">{t('browse.series.allGenres')}</MenuItem>
             {genres.map((g) => (
               <MenuItem key={g} value={g}>
                 {g}
@@ -166,16 +168,16 @@ export function SeriesPage() {
         </FormControl>
 
         <FormControl size="small" sx={{ minWidth: 150 }}>
-          <InputLabel>Network</InputLabel>
+          <InputLabel>{t('browse.series.network')}</InputLabel>
           <Select
             value={network}
-            label="Network"
+            label={t('browse.series.network')}
             onChange={(e) => {
               setNetwork(e.target.value)
               setPage(1)
             }}
           >
-            <MenuItem value="">All Networks</MenuItem>
+            <MenuItem value="">{t('browse.series.allNetworks')}</MenuItem>
             {networks.map((n) => (
               <MenuItem key={n} value={n}>
                 {n}
@@ -186,7 +188,9 @@ export function SeriesPage() {
 
         <Box sx={{ minWidth: 180, px: 1 }}>
           <Typography variant="caption" color="text.secondary">
-            Min RT Score: {minRtScore > 0 ? `${minRtScore}%` : 'Any'}
+            {t('browse.minRtScore', {
+              value: minRtScore > 0 ? `${minRtScore}%` : t('browse.any'),
+            })}
           </Typography>
           <Slider
             value={minRtScore}
@@ -221,7 +225,7 @@ export function SeriesPage() {
             )}
             {minRtScore > 0 && (
               <Chip
-                label={`RT ${minRtScore}%+`}
+                label={t('browse.rtChip', { min: minRtScore })}
                 size="small"
                 onDelete={() => { setMinRtScore(0); setPage(1) }}
               />
@@ -247,8 +251,8 @@ export function SeriesPage() {
       ) : series.length === 0 ? (
         <Typography color="text.secondary">
           {search || genre || network || minRtScore > 0
-            ? 'No series match your filters.'
-            : 'No series found. Run the series sync job to import your library.'}
+            ? t('browse.series.emptyFiltered')
+            : t('browse.series.emptyNoSync')}
         </Typography>
       ) : (
         <>

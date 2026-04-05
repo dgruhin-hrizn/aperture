@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Box,
@@ -69,6 +70,7 @@ interface TopPicksConfig {
 }
 
 export function TopPicksPage() {
+  const { t } = useTranslation()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const navigate = useNavigate()
@@ -125,10 +127,10 @@ export function TopPicksPage() {
           setMoviesConfig(data.config)
           setMoviesError(null)
         } else {
-          setMoviesError('Failed to load trending movies')
+          setMoviesError(t('topPicksPage.errorLoadMovies'))
         }
       } catch {
-        setMoviesError('Could not connect to server')
+        setMoviesError(t('topPicksPage.errorConnect'))
       } finally {
         setMoviesLoading(false)
       }
@@ -143,10 +145,10 @@ export function TopPicksPage() {
           setSeriesConfig(data.config)
           setSeriesError(null)
         } else {
-          setSeriesError('Failed to load trending series')
+          setSeriesError(t('topPicksPage.errorLoadSeries'))
         }
       } catch {
-        setSeriesError('Could not connect to server')
+        setSeriesError(t('topPicksPage.errorConnect'))
       } finally {
         setSeriesLoading(false)
       }
@@ -154,7 +156,7 @@ export function TopPicksPage() {
 
     fetchTopMovies()
     fetchTopSeries()
-  }, [])
+  }, [t])
 
   const config = tabIndex === 0 ? moviesConfig : seriesConfig
   const loading = tabIndex === 0 ? moviesLoading : seriesLoading
@@ -312,8 +314,7 @@ export function TopPicksPage() {
       if (movies.length === 0) {
         return (
           <Alert severity="info" sx={{ borderRadius: 2 }}>
-            No trending movies yet. Top picks are calculated from watch history across all users.
-            Make sure watch history sync has run and multiple users have watched some content.
+            {t('topPicksPage.emptyMovies')}
           </Alert>
         )
       }
@@ -322,8 +323,7 @@ export function TopPicksPage() {
       if (series.length === 0) {
         return (
           <Alert severity="info" sx={{ borderRadius: 2 }}>
-            No trending series yet. Top picks are calculated from watch history across all users.
-            Make sure TV series watch history sync has run and multiple users have watched some episodes.
+            {t('topPicksPage.emptySeries')}
           </Alert>
         )
       }
@@ -339,20 +339,23 @@ export function TopPicksPage() {
           <Box display="flex" alignItems="center" gap={2} mb={{ xs: 0, sm: 1 }}>
             <WhatshotIcon sx={{ color: '#f97316', fontSize: 32 }} />
             <Typography variant="h4" fontWeight={700}>
-              Top Picks
+              {t('topPicksPage.pageTitle')}
             </Typography>
           </Box>
           {!isMobile && (
             <>
               <Typography variant="body1" color="text.secondary">
-                {config 
-                  ? `Ranked by popularity based on watch activity from all users over the last ${tabIndex === 0 ? config.moviesTimeWindowDays : config.seriesTimeWindowDays} days`
-                  : 'Ranked by popularity based on watch activity from all users'
-                }
+                {config
+                  ? t('topPicksPage.rankedSubtitle', {
+                      days: tabIndex === 0 ? config.moviesTimeWindowDays : config.seriesTimeWindowDays,
+                    })
+                  : t('topPicksPage.rankedSubtitleNoWindow')}
               </Typography>
               {config?.lastRefreshedAt && (
                 <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
-                  Last refreshed: {new Date(config.lastRefreshedAt).toLocaleDateString()}
+                  {t('topPicksPage.lastRefreshed', {
+                    date: new Date(config.lastRefreshedAt).toLocaleDateString(),
+                  })}
                 </Typography>
               )}
             </>
@@ -390,7 +393,7 @@ export function TopPicksPage() {
           <Tab 
             icon={<MovieIcon />} 
             iconPosition="start" 
-            label="Movies" 
+            label={t('topPicksPage.tabMovies')} 
             sx={{ 
               color: tabIndex === 0 ? '#6366f1' : 'text.secondary',
               '&.Mui-selected': { color: '#6366f1' },
@@ -399,7 +402,7 @@ export function TopPicksPage() {
           <Tab 
             icon={<TvIcon />} 
             iconPosition="start" 
-            label="Series" 
+            label={t('topPicksPage.tabSeries')} 
             sx={{ 
               color: tabIndex === 1 ? '#ec4899' : 'text.secondary',
               '&.Mui-selected': { color: '#ec4899' },

@@ -1,4 +1,5 @@
 import { Typography, Card, CardContent, TextField, Box, Avatar } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 
 interface ProfileSectionProps {
   user: {
@@ -11,14 +12,20 @@ interface ProfileSectionProps {
 }
 
 export function ProfileSection({ user }: ProfileSectionProps) {
+  const { t } = useTranslation()
+  const displayName = user?.displayName || user?.username || t('settingsPage.profileFallbackName')
+  const roleLabel = user?.isAdmin ? t('nav.roleLabelAdmin') : t('nav.roleLabelUser')
+  const providerLabel = user?.provider
+    ? user.provider.charAt(0).toUpperCase() + user.provider.slice(1)
+    : ''
+
   return (
     <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
       <CardContent>
         <Typography variant="h6" mb={3}>
-          Your Profile
+          {t('settingsPage.profileTitle')}
         </Typography>
 
-        {/* Avatar and name header */}
         <Box display="flex" alignItems="center" gap={3} mb={4}>
           <Avatar
             src={user?.avatarUrl || undefined}
@@ -33,16 +40,16 @@ export function ProfileSection({ user }: ProfileSectionProps) {
           </Avatar>
           <Box>
             <Typography variant="h5" fontWeight={600}>
-              {user?.displayName || user?.username || 'User'}
+              {displayName}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {user?.isAdmin ? 'Administrator' : 'User'} • {user?.provider?.charAt(0).toUpperCase()}{user?.provider?.slice(1)}
+              {t('settingsPage.profileSubtitle', { role: roleLabel, provider: providerLabel })}
             </Typography>
           </Box>
         </Box>
 
         <TextField
-          label="Username"
+          label={t('settingsPage.profileUsernameLabel')}
           value={user?.username || ''}
           fullWidth
           margin="normal"
@@ -50,7 +57,7 @@ export function ProfileSection({ user }: ProfileSectionProps) {
         />
 
         <TextField
-          label="Display Name"
+          label={t('settingsPage.profileDisplayNameLabel')}
           value={user?.displayName || user?.username || ''}
           fullWidth
           margin="normal"
@@ -58,7 +65,7 @@ export function ProfileSection({ user }: ProfileSectionProps) {
         />
 
         <TextField
-          label="Provider"
+          label={t('settingsPage.profileProviderLabel')}
           value={user?.provider || ''}
           fullWidth
           margin="normal"
@@ -66,8 +73,8 @@ export function ProfileSection({ user }: ProfileSectionProps) {
         />
 
         <TextField
-          label="Role"
-          value={user?.isAdmin ? 'Administrator' : 'User'}
+          label={t('settingsPage.profileRoleLabel')}
+          value={roleLabel}
           fullWidth
           margin="normal"
           disabled

@@ -12,6 +12,7 @@ import {
 } from '@mui/material'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
 import SaveIcon from '@mui/icons-material/Save'
+import { useTranslation } from 'react-i18next'
 
 interface PersonalPreferencesSectionProps {
   user: { displayName?: string | null; username?: string } | null
@@ -40,18 +41,20 @@ export function PersonalPreferencesSection({
   setLibraryNameInput,
   onSave,
 }: PersonalPreferencesSectionProps) {
+  const { t } = useTranslation()
+  const fallbackName = user?.displayName || user?.username || t('settingsPage.profileFallbackName')
+  const defaultFullName = `${defaultLibraryPrefix}${fallbackName}`
+
   return (
     <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
       <CardContent>
         <Box display="flex" alignItems="center" gap={1} mb={2}>
           <VideoLibraryIcon color="primary" />
-          <Typography variant="h6">
-            Personal Preferences
-          </Typography>
+          <Typography variant="h6">{t('settingsPage.personalPrefsTitle')}</Typography>
         </Box>
 
         <Typography variant="body2" color="text.secondary" mb={3}>
-          Customize your AI recommendations library name as it appears in your media server.
+          {t('settingsPage.personalPrefsSubtitle')}
         </Typography>
 
         {userSettingsError && (
@@ -74,10 +77,10 @@ export function PersonalPreferencesSection({
           <>
             <FormControl fullWidth sx={{ mb: 2 }}>
               <Typography variant="body2" fontWeight={500} gutterBottom>
-                Library Name
+                {t('settingsPage.personalPrefsLibraryName')}
               </Typography>
               <TextField
-                placeholder={`${defaultLibraryPrefix}${user?.displayName || user?.username || 'User'}`}
+                placeholder={defaultFullName}
                 value={libraryNameInput}
                 onChange={(e) => setLibraryNameInput(e.target.value)}
                 size="small"
@@ -85,8 +88,8 @@ export function PersonalPreferencesSection({
                 inputProps={{ maxLength: 100 }}
                 helperText={
                   libraryNameInput
-                    ? `Your library will be named: "${libraryNameInput}"`
-                    : `Leave empty to use default: "${defaultLibraryPrefix}${user?.displayName || user?.username || 'User'}"`
+                    ? t('settingsPage.personalPrefsHelperNamed', { name: libraryNameInput })
+                    : t('settingsPage.personalPrefsHelperDefault', { name: defaultFullName })
                 }
               />
             </FormControl>
@@ -99,7 +102,7 @@ export function PersonalPreferencesSection({
                 disabled={savingUserSettings}
                 size="small"
               >
-                {savingUserSettings ? 'Saving...' : 'Save'}
+                {savingUserSettings ? t('common.saving') : t('common.save')}
               </Button>
               {libraryNameInput && (
                 <Button
@@ -108,7 +111,7 @@ export function PersonalPreferencesSection({
                   disabled={savingUserSettings}
                   size="small"
                 >
-                  Reset to Default
+                  {t('settingsPage.personalPrefsReset')}
                 </Button>
               )}
             </Box>
@@ -116,8 +119,7 @@ export function PersonalPreferencesSection({
             <Divider sx={{ my: 3 }} />
 
             <Typography variant="caption" color="text.secondary">
-              💡 Changes will apply the next time the "Update Permissions" job runs or when recommendations are regenerated.
-              If you already have a library with the old name, you may need to manually delete it from your media server.
+              {t('settingsPage.personalPrefsFooter')}
             </Typography>
           </>
         )}
@@ -125,4 +127,3 @@ export function PersonalPreferencesSection({
     </Card>
   )
 }
-

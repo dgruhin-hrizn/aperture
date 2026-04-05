@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Card,
@@ -40,6 +41,7 @@ export function BrowseMovieListItem({
   onRate,
   onClick,
 }: BrowseMovieListItemProps) {
+  const { t } = useTranslation()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
 
@@ -178,7 +180,7 @@ export function BrowseMovieListItem({
               fontSize: { xs: '0.75rem', md: '0.875rem' },
             }}
           >
-            {movie.overview || 'No description available.'}
+            {movie.overview || t('browse.listItem.noDescription')}
           </Typography>
 
           {/* Mobile: Inline actions */}
@@ -195,7 +197,7 @@ export function BrowseMovieListItem({
                 onChange={(rating) => onRate(rating)}
                 size="small"
               />
-              <Tooltip title="View on TMDb">
+              <Tooltip title={t('browse.listItem.viewOnTmdb')}>
                 <IconButton
                   onClick={handleOpenTmdb}
                   size="small"
@@ -234,7 +236,7 @@ export function BrowseMovieListItem({
           {/* User Rating */}
           <Box>
             <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-              Your Rating
+              {t('browse.listItem.yourRating')}
             </Typography>
             <HeartRating
               value={userRating}
@@ -245,7 +247,7 @@ export function BrowseMovieListItem({
 
           {/* Actions */}
           <Box display="flex" justifyContent="center" gap={1}>
-            <Tooltip title="View on TMDb">
+            <Tooltip title={t('browse.listItem.viewOnTmdb')}>
               <IconButton
                 onClick={handleOpenTmdb}
                 size="small"

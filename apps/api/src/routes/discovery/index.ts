@@ -17,9 +17,13 @@ import {
   scoreCandidates,
   filterCandidates,
   DEFAULT_DISCOVERY_CONFIG,
+  appLocaleToTmdbLanguage,
+  getMovieGenresList,
+  getTVGenresList,
   type DiscoveryFilterOptions,
   type DynamicFetchFilters,
   type MediaType,
+  type TMDbGenre,
 } from '@aperture/core'
 import {
   discoverySchemas,
@@ -87,6 +91,45 @@ const discoveryRoutes: FastifyPluginAsync = async (fastify) => {
   for (const [name, schema] of Object.entries(discoverySchemas)) {
     fastify.addSchema({ $id: name, ...schema })
   }
+
+  /**
+   * GET /api/discovery/genres
+   * TMDb genre labels for filters and UI (localized via `locale` → TMDb `language`).
+   */
+  fastify.get<{
+    Querystring: { mediaType?: string; locale?: string }
+  }>(
+    '/api/discovery/genres',
+    { preHandler: requireAuth, schema: { tags: ['discovery'] } },
+    async (request, reply) => {
+      const currentUser = request.user as SessionUser
+      const user = await queryOne<{ discover_enabled: boolean }>(
+        `SELECT discover_enabled FROM users WHERE id = $1`,
+        [currentUser.id]
+      )
+      if (!user?.discover_enabled) {
+        return reply.status(403).send({
+          error: 'Discovery not enabled for your account',
+          message: 'Contact your admin to enable discovery suggestions',
+        })
+      }
+
+      const rawType = (request.query.mediaType || 'movie').toLowerCase()
+      const mediaType = rawType === 'series' || rawType === 'tv' ? 'series' : 'movie'
+      const language = appLocaleToTmdbLanguage(request.query.locale)
+
+      const genres =
+        mediaType === 'movie'
+          ? await getMovieGenresList({ language })
+          : await getTVGenresList({ language })
+
+      return reply.send({
+        mediaType,
+        language,
+        genres: genres.map((g: TMDbGenre) => ({ id: g.id, name: g.name })),
+      })
+    }
+  )
 
   /**
    * GET /api/discovery/movies

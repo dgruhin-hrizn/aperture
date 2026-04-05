@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -48,6 +49,7 @@ const RECOMMENDED_DIMENSIONS = {
 }
 
 export function LibraryTitlesSection() {
+  const { t } = useTranslation()
   const [config, setConfig] = useState<LibraryTitleConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -65,18 +67,18 @@ export function LibraryTitlesSection() {
   useEffect(() => {
     fetchConfig()
     fetchImages()
-  }, [])
+  }, [t])
 
   const fetchConfig = async () => {
     try {
       setLoading(true)
       const response = await fetch('/api/settings/library-titles')
-      if (!response.ok) throw new Error('Failed to fetch config')
+      if (!response.ok) throw new Error(t('settingsLibraryTitles.fetchFailed'))
       const data = await response.json()
       setConfig(data)
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : t('settingsLibraryTitles.unknownError'))
     } finally {
       setLoading(false)
     }
@@ -132,7 +134,7 @@ export function LibraryTitlesSection() {
 
       if (!response.ok) {
         const data = await response.json()
-        throw new Error(data.error || 'Upload failed')
+        throw new Error(data.error || t('settingsLibraryTitles.uploadFailed'))
       }
 
       const data = await response.json()
@@ -141,12 +143,12 @@ export function LibraryTitlesSection() {
         [libraryTypeId]: { url: data.url, isDefault: true },
       }))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed')
+      setError(err instanceof Error ? err.message : t('settingsLibraryTitles.uploadFailed'))
       throw err
     } finally {
       setUploadingFor(null)
     }
-  }, [])
+  }, [t])
 
   const handleDeleteImage = useCallback(async (libraryTypeId: string) => {
     setUploadingFor(libraryTypeId)
@@ -160,7 +162,7 @@ export function LibraryTitlesSection() {
 
       if (!response.ok) {
         const data = await response.json()
-        throw new Error(data.error || 'Delete failed')
+        throw new Error(data.error || t('settingsLibraryTitles.deleteFailed'))
       }
 
       // Revert to bundled default image
@@ -169,12 +171,12 @@ export function LibraryTitlesSection() {
         [libraryTypeId]: { url: DEFAULT_LIBRARY_IMAGES[libraryTypeId], isDefault: true },
       }))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Delete failed')
+      setError(err instanceof Error ? err.message : t('settingsLibraryTitles.deleteFailed'))
       throw err
     } finally {
       setUploadingFor(null)
     }
-  }, [])
+  }, [t])
 
   const handleSave = async () => {
     if (!config) return
@@ -191,13 +193,13 @@ export function LibraryTitlesSection() {
       })
       if (!response.ok) {
         const data = await response.json()
-        throw new Error(data.error || 'Failed to save config')
+        throw new Error(data.error || t('settingsLibraryTitles.saveFailed'))
       }
-      setSuccess('Library title templates saved!')
+      setSuccess(t('settingsLibraryTitles.saved'))
       setHasChanges(false)
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : t('settingsLibraryTitles.unknownError'))
     } finally {
       setSaving(false)
     }
@@ -215,10 +217,10 @@ export function LibraryTitlesSection() {
     updateConfig({ [field]: currentValue + tag })
   }
 
-  const previewTitle = (template: string, type: 'Movies' | 'TV Series') => {
+  const previewTitle = (template: string, typeLabel: string) => {
     return template
       .replace(/\{\{username\}\}/gi, 'John')
-      .replace(/\{\{type\}\}/gi, type)
+      .replace(/\{\{type\}\}/gi, typeLabel)
       .replace(/\{\{count\}\}/gi, '20')
       .replace(/\{\{date\}\}/gi, new Date().toISOString().split('T')[0])
       .replace(/\s+-\s*$/g, '')
@@ -242,7 +244,7 @@ export function LibraryTitlesSection() {
     return (
       <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
         <CardContent>
-          <Alert severity="error">Failed to load library title configuration</Alert>
+          <Alert severity="error">{t('settingsLibraryTitles.loadFailed')}</Alert>
         </CardContent>
       </Card>
     )
@@ -256,12 +258,11 @@ export function LibraryTitlesSection() {
       <CardContent>
         <Box display="flex" alignItems="center" gap={1} mb={2}>
           <LocalLibraryIcon color="primary" />
-          <Typography variant="h6">AI Recommendations Libraries</Typography>
+          <Typography variant="h6">{t('settingsLibraryTitles.title')}</Typography>
         </Box>
 
         <Typography variant="body2" color="text.secondary" mb={3}>
-          Configure naming templates and cover images for AI recommendation libraries. 
-          Users can override names in their personal settings.
+          {t('settingsLibraryTitles.subtitle')}
         </Typography>
 
         {error && (
@@ -281,7 +282,7 @@ export function LibraryTitlesSection() {
           <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
             <Box display="flex" alignItems="center" gap={1} mb={1}>
               <InfoIcon fontSize="small" color="info" />
-              <Typography variant="subtitle2">Available Merge Tags</Typography>
+              <Typography variant="subtitle2">{t('settingsLibraryTitles.mergeTagsTitle')}</Typography>
             </Box>
             <Stack direction="row" flexWrap="wrap" gap={1}>
               {config.supportedMergeTags.map((tag) => (
@@ -309,15 +310,15 @@ export function LibraryTitlesSection() {
               <CardContent>
                 <Box display="flex" alignItems="center" gap={1} mb={2}>
                   <MovieIcon color="primary" />
-                  <Typography variant="subtitle1" fontWeight={600}>Movies Library</Typography>
+                  <Typography variant="subtitle1" fontWeight={600}>{t('settingsLibraryTitles.moviesLibrary')}</Typography>
                   {moviesImage.url && (
-                    <Chip size="small" label="Image Set" color="success" variant="outlined" sx={{ ml: 'auto' }} />
+                    <Chip size="small" label={t('settingsLibraryTitles.imageSetChip')} color="success" variant="outlined" sx={{ ml: 'auto' }} />
                   )}
                 </Box>
 
                 {/* Title Template */}
                 <Typography variant="body2" fontWeight={500} gutterBottom>
-                  Library Name Template
+                  {t('settingsLibraryTitles.templateLabel')}
                 </Typography>
                 <TextField
                   fullWidth
@@ -344,12 +345,13 @@ export function LibraryTitlesSection() {
                   ))}
                 </Stack>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-                  Preview: <strong>{previewTitle(config.moviesTemplate, 'Movies')}</strong>
+                  {t('settingsLibraryTitles.previewLabel')}{' '}
+                  <strong>{previewTitle(config.moviesTemplate, t('settingsLibraryTitles.previewMovies'))}</strong>
                 </Typography>
 
                 {/* Cover Image */}
                 <Typography variant="body2" fontWeight={500} gutterBottom>
-                  Library Cover Image
+                  {t('settingsLibraryTitles.coverLabel')}
                 </Typography>
                 <ImageUpload
                   currentImageUrl={moviesImage.url}
@@ -359,7 +361,7 @@ export function LibraryTitlesSection() {
                   onDelete={moviesImage.url ? () => handleDeleteImage('ai-recs-movies') : undefined}
                   loading={uploadingFor === 'ai-recs-movies'}
                   height={180}
-                  label="Drop image (16:9)"
+                  label={t('settingsLibraryTitles.dropImageLabel')}
                   showDelete={!!moviesImage.url}
                 />
               </CardContent>
@@ -372,15 +374,15 @@ export function LibraryTitlesSection() {
               <CardContent>
                 <Box display="flex" alignItems="center" gap={1} mb={2}>
                   <TvIcon color="primary" />
-                  <Typography variant="subtitle1" fontWeight={600}>Series Library</Typography>
+                  <Typography variant="subtitle1" fontWeight={600}>{t('settingsLibraryTitles.seriesLibrary')}</Typography>
                   {seriesImage.url && (
-                    <Chip size="small" label="Image Set" color="success" variant="outlined" sx={{ ml: 'auto' }} />
+                    <Chip size="small" label={t('settingsLibraryTitles.imageSetChip')} color="success" variant="outlined" sx={{ ml: 'auto' }} />
                   )}
                 </Box>
 
                 {/* Title Template */}
                 <Typography variant="body2" fontWeight={500} gutterBottom>
-                  Library Name Template
+                  {t('settingsLibraryTitles.templateLabel')}
                 </Typography>
                 <TextField
                   fullWidth
@@ -407,12 +409,13 @@ export function LibraryTitlesSection() {
                   ))}
                 </Stack>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-                  Preview: <strong>{previewTitle(config.seriesTemplate, 'TV Series')}</strong>
+                  {t('settingsLibraryTitles.previewLabel')}{' '}
+                  <strong>{previewTitle(config.seriesTemplate, t('settingsLibraryTitles.previewTvSeries'))}</strong>
                 </Typography>
 
                 {/* Cover Image */}
                 <Typography variant="body2" fontWeight={500} gutterBottom>
-                  Library Cover Image
+                  {t('settingsLibraryTitles.coverLabel')}
                 </Typography>
                 <ImageUpload
                   currentImageUrl={seriesImage.url}
@@ -422,7 +425,7 @@ export function LibraryTitlesSection() {
                   onDelete={seriesImage.url ? () => handleDeleteImage('ai-recs-series') : undefined}
                   loading={uploadingFor === 'ai-recs-series'}
                   height={180}
-                  label="Drop image (16:9)"
+                  label={t('settingsLibraryTitles.dropImageLabel')}
                   showDelete={!!seriesImage.url}
                 />
               </CardContent>
@@ -437,7 +440,7 @@ export function LibraryTitlesSection() {
             onClick={handleSave}
             disabled={saving || !hasChanges}
           >
-            {saving ? 'Saving...' : 'Save Templates'}
+            {saving ? t('settingsLibraryTitles.saving') : t('settingsLibraryTitles.saveTemplates')}
           </Button>
         </Box>
       </CardContent>

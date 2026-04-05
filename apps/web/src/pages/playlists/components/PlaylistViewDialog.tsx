@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Dialog,
   DialogTitle,
@@ -46,6 +47,7 @@ export function PlaylistViewDialog({
   onRemoveItem,
   onAddMovie,
 }: PlaylistViewDialogProps) {
+  const { t } = useTranslation()
   const [addMovieSearch, setAddMovieSearch] = useState('')
   const [addMovieResults, setAddMovieResults] = useState<Movie[]>([])
   const [searchingAddMovies, setSearchingAddMovies] = useState(false)
@@ -101,9 +103,11 @@ export function PlaylistViewDialog({
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Box>
-            <Typography variant="h6">{channel?.name} - Playlist</Typography>
+            <Typography variant="h6">
+              {channel?.name ? t('playlists.playlistViewTitle', { name: channel.name }) : ''}
+            </Typography>
             <Typography variant="body2" color="text.secondary">
-              {playlistItems.length} movies
+              {t('playlists.movieCount', { count: playlistItems.length })}
             </Typography>
           </Box>
           <IconButton onClick={onClose} size="small">
@@ -115,12 +119,12 @@ export function PlaylistViewDialog({
         {/* Add Movie Search */}
         <Box mb={3}>
           <Typography variant="subtitle2" gutterBottom>
-            Add Movie to Playlist
+            {t('playlists.addMovieToPlaylist')}
           </Typography>
           <TextField
             fullWidth
             size="small"
-            placeholder="Search for movies to add..."
+            placeholder={t('playlists.searchMoviesPlaceholder')}
             value={addMovieSearch}
             onChange={(e) => setAddMovieSearch(e.target.value)}
             InputProps={{
@@ -188,7 +192,7 @@ export function PlaylistViewDialog({
               {addMovieResults.length > 0 &&
                 addMovieResults.filter((movie) => !playlistItems.some((item) => item.id === movie.provider_item_id)).length === 0 && (
                   <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>
-                    All results are already in playlist
+                    {t('playlists.allResultsInPlaylist')}
                   </Typography>
                 )}
             </Box>
@@ -204,10 +208,10 @@ export function PlaylistViewDialog({
           <Box textAlign="center" py={4}>
             <PlaylistPlayIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
             <Typography variant="body1" color="text.secondary">
-              No movies in playlist yet
+              {t('playlists.noMoviesInPlaylist')}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Generate the playlist or add movies manually
+              {t('playlists.noMoviesInPlaylistHint')}
             </Typography>
           </Box>
         ) : (
@@ -235,11 +239,11 @@ export function PlaylistViewDialog({
                 <Box flexGrow={1}>
                   <Typography variant="body1">{item.title}</Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {item.year || 'Unknown year'}
+                    {item.year || t('playlists.unknownYear')}
                     {item.runtime && ` • ${item.runtime} min`}
                   </Typography>
                 </Box>
-                <Tooltip title="Remove from playlist">
+                <Tooltip title={t('playlists.removeFromPlaylist')}>
                   <IconButton
                     size="small"
                     color="error"

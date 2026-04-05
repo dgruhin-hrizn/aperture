@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -36,6 +37,7 @@ interface TestResult {
 }
 
 export function SeerrConfigSection() {
+  const { t } = useTranslation()
   const [config, setConfig] = useState<SeerrConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -63,11 +65,11 @@ export function SeerrConfigSection() {
         setHasChanges(false)
       }
     } catch {
-      setError('Failed to load Seerr configuration')
+      setError(t('settingsSeerr.loadError'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     fetchConfig()
@@ -93,17 +95,17 @@ export function SeerrConfigSection() {
 
       if (response.ok) {
         const data = await response.json()
-        setSuccess('Seerr configuration saved!')
+        setSuccess(t('settingsSeerr.saved'))
         setConfig(prev => prev ? { ...prev, configured: data.configured, enabled: data.enabled } : null)
         setApiKey('')
         setHasChanges(false)
         setTimeout(() => setSuccess(null), 3000)
       } else {
         const err = await response.json()
-        setError(err.error || 'Failed to save configuration')
+        setError(err.error || t('settingsSeerr.errSave'))
       }
     } catch {
-      setError('Could not connect to server')
+      setError(t('settingsSeerr.errConnect'))
     } finally {
       setSaving(false)
     }
@@ -128,7 +130,7 @@ export function SeerrConfigSection() {
       const result = await response.json()
       setTestResult(result)
     } catch {
-      setTestResult({ success: false, message: 'Could not connect to server' })
+      setTestResult({ success: false, message: t('settingsSeerr.errConnect') })
     } finally {
       setTesting(false)
     }
@@ -167,19 +169,19 @@ export function SeerrConfigSection() {
             JS
           </Box>
           <Typography variant="h6" fontWeight={600}>
-            Seerr Integration
+            {t('settingsSeerr.title')}
           </Typography>
           {config?.configured && config?.enabled && (
             <Chip
               icon={<CheckCircleIcon />}
-              label="Enabled"
+              label={t('settingsSeerr.chipEnabled')}
               color="success"
               size="small"
             />
           )}
           {config?.configured && !config?.enabled && (
             <Chip
-              label="Disabled"
+              label={t('settingsSeerr.chipDisabled')}
               color="warning"
               size="small"
             />
@@ -187,11 +189,11 @@ export function SeerrConfigSection() {
         </Box>
 
         <Typography variant="body2" color="text.secondary" mb={3}>
-          Enable Seerr integration to let users request missing content discovered by AI.{' '}
+          {t('settingsSeerr.description')}{' '}
           <Link href="https://docs.jellyseerr.dev" target="_blank" rel="noopener">
-            Learn more about Seerr
+            {t('settingsSeerr.learnMoreLink')}
           </Link>{' '}
-          or get your API key from your Seerr settings.
+          {t('settingsSeerr.learnMoreSuffix')}
         </Typography>
 
         {error && (
@@ -215,7 +217,8 @@ export function SeerrConfigSection() {
             {testResult.message}
             {testResult.serverName && (
               <Typography variant="body2" sx={{ mt: 0.5 }}>
-                Connected to: <strong>{testResult.serverName}</strong>
+                {t('settingsSeerr.connectedTo')}{' '}
+                <strong>{testResult.serverName}</strong>
               </Typography>
             )}
           </Alert>
@@ -223,7 +226,7 @@ export function SeerrConfigSection() {
 
         <Box display="flex" flexDirection="column" gap={2}>
           <TextField
-            label="Seerr URL"
+            label={t('settingsSeerr.seerrUrl')}
             value={url}
             onChange={(e) => {
               setUrl(e.target.value)
@@ -231,12 +234,12 @@ export function SeerrConfigSection() {
             }}
             size="small"
             fullWidth
-            placeholder="https://seerr.example.com"
-            helperText="The URL of your Seerr instance"
+            placeholder={t('settingsSeerr.urlPlaceholder')}
+            helperText={t('settingsSeerr.urlHelper')}
           />
 
           <TextField
-            label="API Key"
+            label={t('settingsSeerr.apiKey')}
             type={showApiKey ? 'text' : 'password'}
             value={apiKey || (config?.hasApiKey ? '••••••••••••••••••••••••••••' : '')}
             onChange={(e) => {
@@ -247,11 +250,11 @@ export function SeerrConfigSection() {
             }}
             size="small"
             fullWidth
-            placeholder="Enter your Seerr API Key"
+            placeholder={t('settingsSeerr.apiKeyPlaceholder')}
             helperText={
               config?.hasApiKey && !apiKey
-                ? 'API key is saved. Enter a new one to replace it.'
-                : 'Get your API key from Seerr → Settings → General'
+                ? t('settingsSeerr.helperSaved')
+                : t('settingsSeerr.helperNewKey')
             }
             InputProps={{
               endAdornment: (
@@ -281,7 +284,7 @@ export function SeerrConfigSection() {
             }
             label={
               <Typography variant="body2">
-                Enable Seerr for content requests
+                {t('settingsSeerr.enableRequests')}
               </Typography>
             }
           />
@@ -294,7 +297,7 @@ export function SeerrConfigSection() {
               disabled={saving || !hasChanges}
               size="small"
             >
-              {saving ? 'Saving...' : 'Save Configuration'}
+              {saving ? t('common.saving') : t('settingsSeerr.saveConfiguration')}
             </Button>
             
             <Button
@@ -304,7 +307,7 @@ export function SeerrConfigSection() {
               disabled={testing || (!url && !config?.url)}
               size="small"
             >
-              {testing ? 'Testing...' : 'Test Connection'}
+              {testing ? t('settingsSeerr.testing') : t('settingsSeerr.testConnection')}
             </Button>
           </Stack>
         </Box>

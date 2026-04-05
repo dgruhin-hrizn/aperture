@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Dialog,
   DialogTitle,
@@ -43,13 +44,13 @@ interface SeasonSelectModalProps {
   loading?: boolean
 }
 
-// Map Seerr status codes to labels and colors
-const STATUS_CONFIG: Record<number, { label: string; color: 'default' | 'warning' | 'info' | 'success'; disabled: boolean }> = {
-  1: { label: 'Not Requested', color: 'default', disabled: false },
-  2: { label: 'Pending', color: 'warning', disabled: true },
-  3: { label: 'Processing', color: 'info', disabled: true },
-  4: { label: 'Partial', color: 'info', disabled: false },
-  5: { label: 'Available', color: 'success', disabled: true },
+/** Seerr status → row disabled for selection (must match `statusConfigByCode`). */
+const STATUS_DISABLED: Record<number, boolean> = {
+  1: false,
+  2: true,
+  3: true,
+  4: false,
+  5: true,
 }
 
 export function SeasonSelectModal({
@@ -61,13 +62,30 @@ export function SeasonSelectModal({
   seasons,
   loading = false,
 }: SeasonSelectModalProps) {
+  const { t } = useTranslation()
+
+  const statusConfigByCode = useMemo(
+    () =>
+      ({
+        1: { label: t('seasonRequest.statusNotRequested'), color: 'default' as const, disabled: false },
+        2: { label: t('seasonRequest.statusPending'), color: 'warning' as const, disabled: true },
+        3: { label: t('seasonRequest.statusProcessing'), color: 'info' as const, disabled: true },
+        4: { label: t('seasonRequest.statusPartial'), color: 'info' as const, disabled: false },
+        5: { label: t('seasonRequest.statusAvailable'), color: 'success' as const, disabled: true },
+      }) satisfies Record<
+        number,
+        { label: string; color: 'default' | 'warning' | 'info' | 'success'; disabled: boolean }
+      >,
+    [t]
+  )
+
   // Track selected seasons (exclude specials by default, include all regular seasons)
   const [selectedSeasons, setSelectedSeasons] = useState<Set<number>>(() => {
     const initial = new Set<number>()
     for (const season of seasons) {
       // Select by default if: not specials (season 0), and not already available/pending
       const status = season.status ?? 1
-      const isDisabled = STATUS_CONFIG[status]?.disabled ?? false
+      const isDisabled = STATUS_DISABLED[status] ?? false
       if (season.seasonNumber > 0 && !isDisabled) {
         initial.add(season.seasonNumber)
       }
@@ -81,7 +99,7 @@ export function SeasonSelectModal({
     const initial = new Set<number>()
     for (const season of seasons) {
       const status = season.status ?? 1
-      const isDisabled = STATUS_CONFIG[status]?.disabled ?? false
+      const isDisabled = STATUS_DISABLED[status] ?? false
       if (season.seasonNumber > 0 && !isDisabled) {
         initial.add(season.seasonNumber)
       }
@@ -93,7 +111,7 @@ export function SeasonSelectModal({
   const selectableSeasons = useMemo(() => {
     return seasons.filter(s => {
       const status = s.status ?? 1
-      return !STATUS_CONFIG[status]?.disabled
+      return !(STATUS_DISABLED[status] ?? false)
     })
   }, [seasons])
 
@@ -143,7 +161,9 @@ export function SeasonSelectModal({
   }
 
   const getStatusConfig = (status?: number) => {
-    return STATUS_CONFIG[status ?? 1] ?? STATUS_CONFIG[1]
+    const key = status ?? 1
+    const cfg = statusConfigByCode[key as keyof typeof statusConfigByCode]
+    return cfg ?? statusConfigByCode[1]
   }
 
   return (
@@ -162,7 +182,7 @@ export function SeasonSelectModal({
     >
       <DialogTitle sx={{ pb: 1 }}>
         <Typography variant="overline" color="primary" display="block" sx={{ mb: -0.5 }}>
-          Request Series
+          {t('seasonRequest.dialogTitle')}
         </Typography>
         <Typography variant="h6" fontWeight={600}>
           {title}
@@ -174,17 +194,17 @@ export function SeasonSelectModal({
           <Box display="flex" justifyContent="center" alignItems="center" py={4}>
             <CircularProgress size={32} />
             <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
-              Loading seasons...
+              {t('seasonRequest.loadingSeasons')}
             </Typography>
           </Box>
         ) : noSelectableSeasons ? (
           <Alert severity="info" icon={<InfoOutlinedIcon />}>
-            All seasons are already available or have been requested.
+            {t('seasonRequest.allUnavailable')}
           </Alert>
         ) : (
           <>
             <Alert severity="info" icon={<InfoOutlinedIcon />} sx={{ mb: 2 }}>
-              Select the seasons you want to request.
+              {t('seasonRequest.selectHint')}
             </Alert>
 
             <TableContainer>
@@ -199,9 +219,9 @@ export function SeasonSelectModal({
                         disabled={selectableSeasons.length === 0}
                       />
                     </TableCell>
-                    <TableCell>Season</TableCell>
-                    <TableCell align="center"># of Episodes</TableCell>
-                    <TableCell align="right">Status</TableCell>
+                    <TableCell>{t('seasonRequest.colSeason')}</TableCell>
+                    <TableCell align="center">{t('seasonRequest.colEpisodes')}</TableCell>
+                    <TableCell align="right">{t('seasonRequest.colStatus')}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -233,7 +253,10 @@ export function SeasonSelectModal({
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2" fontWeight={500}>
-                            {season.name || (season.seasonNumber === 0 ? 'Specials' : `Season ${season.seasonNumber}`)}
+                            {season.name ||
+                              (season.seasonNumber === 0
+                                ? t('seasonRequest.specials')
+                                : t('seasonRequest.seasonFormat', { n: season.seasonNumber }))}
                           </Typography>
                         </TableCell>
                         <TableCell align="center">
@@ -260,10 +283,10 @@ export function SeasonSelectModal({
             {selectedSeasons.size > 0 && (
               <Box mt={2} display="flex" justifyContent="space-between" alignItems="center">
                 <Typography variant="body2" color="text.secondary">
-                  {selectedSeasons.size} season{selectedSeasons.size !== 1 ? 's' : ''} selected
+                  {t('seasonRequest.seasonsSelected', { count: selectedSeasons.size })}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {totalEpisodes} episode{totalEpisodes !== 1 ? 's' : ''} total
+                  {t('seasonRequest.episodesTotal', { count: totalEpisodes })}
                 </Typography>
               </Box>
             )}
@@ -279,7 +302,7 @@ export function SeasonSelectModal({
           }} 
           disabled={submitting}
         >
-          Cancel
+          {t('common.cancel')}
         </Button>
         <Button
           variant="contained"
@@ -290,7 +313,11 @@ export function SeasonSelectModal({
           disabled={selectedSeasons.size === 0 || submitting || loading || noSelectableSeasons}
           startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : null}
         >
-          {submitting ? 'Requesting...' : `Request ${selectedSeasons.size > 0 ? `(${selectedSeasons.size})` : ''}`}
+          {submitting
+            ? t('seasonRequest.requesting')
+            : selectedSeasons.size > 0
+              ? t('seasonRequest.requestWithCount', { count: selectedSeasons.size })
+              : t('seasonRequest.request')}
         </Button>
       </DialogActions>
     </Dialog>

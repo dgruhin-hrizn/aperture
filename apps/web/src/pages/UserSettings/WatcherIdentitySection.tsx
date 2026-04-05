@@ -44,6 +44,7 @@ import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import Markdown from 'react-markdown'
 import { useAuth } from '@/hooks/useAuth'
+import { useTranslation } from 'react-i18next'
 
 // Types
 interface TasteProfile {
@@ -108,21 +109,14 @@ interface AccessibleLibrary {
   isExcluded: boolean
 }
 
-const REFRESH_INTERVAL_LABELS: Record<number, string> = {
-  7: '7 days',
-  14: '2 weeks',
-  30: '1 month',
-  60: '2 months',
-  90: '3 months',
-  180: '6 months',
-  365: '1 year',
-}
+const REFRESH_INTERVAL_VALUES = [7, 14, 30, 60, 90, 180, 365] as const
 
 interface WatcherIdentitySectionProps {
   mediaType: 'movie' | 'series'
 }
 
 export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProps) {
+  const { t } = useTranslation()
   const { user } = useAuth()
   
   // Data states
@@ -775,9 +769,9 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                         setTimeout(handleSaveSettings, 100)
                       }}
                     >
-                      {Object.entries(REFRESH_INTERVAL_LABELS).map(([value, label]) => (
-                        <MenuItem key={value} value={Number(value)}>
-                          {label}
+                      {REFRESH_INTERVAL_VALUES.map((value) => (
+                        <MenuItem key={value} value={value}>
+                          {t(`watcherIdentity.refreshInterval.${value}`)}
                         </MenuItem>
                       ))}
                     </Select>
@@ -785,10 +779,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                 )}
               </Box>
               <Typography variant="caption" color="text.secondary">
-                {isLocked 
-                  ? 'Identity locked - won\'t auto-update'
-                  : 'Re-analyzes watch history automatically'
-                }
+                {isLocked ? t('watcherIdentity.lockCaptionLocked') : t('watcherIdentity.lockCaptionUnlocked')}
               </Typography>
             </Box>
           </Grid>

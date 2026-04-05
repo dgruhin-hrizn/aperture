@@ -272,6 +272,7 @@ export {
   APP_LOCALE_OPTIONS,
   isValidAppLocale,
   normalizeAppLocale,
+  appLocaleToTmdbLanguage,
   getLocaleInstructionName,
   buildAiLanguageInstruction,
   type AppLocaleCode,
@@ -502,6 +503,8 @@ export {
   getMovieEnrichmentData,
   getMovieEnrichmentByImdbId,
   getMovieEnrichmentByTmdbId,
+  getMovieGenresList,
+  getTVGenresList,
   // Series functions
   getTVDetails,
   getTVVideos,

@@ -8,6 +8,7 @@ import TvIcon from '@mui/icons-material/Tv'
 import PlayCircleIcon from '@mui/icons-material/PlayCircle'
 import StarIcon from '@mui/icons-material/Star'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
+import { useTranslation } from 'react-i18next'
 import type { StatsData, StudiosData } from './types'
 
 interface StatsDisplayProps {
@@ -15,6 +16,7 @@ interface StatsDisplayProps {
 }
 
 export function StatsDisplay({ data }: StatsDisplayProps) {
+  const { t } = useTranslation()
   const maxGenreCount = data.topGenres?.reduce((max, g) => Math.max(max, g.count), 0) || 1
 
   return (
@@ -32,7 +34,7 @@ export function StatsDisplay({ data }: StatsDisplayProps) {
         <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
             <MovieIcon sx={{ color: '#818cf8' }} />
-            <Typography variant="caption" color="text.secondary">Movies</Typography>
+            <Typography variant="caption" color="text.secondary">{t('assistantToolUi.movies')}</Typography>
           </Box>
           <Typography variant="h4" fontWeight={700} sx={{ color: '#fff' }}>
             {data.movieCount.toLocaleString()}
@@ -43,14 +45,14 @@ export function StatsDisplay({ data }: StatsDisplayProps) {
         <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
             <TvIcon sx={{ color: '#10b981' }} />
-            <Typography variant="caption" color="text.secondary">TV Series</Typography>
+            <Typography variant="caption" color="text.secondary">{t('assistantToolUi.tvSeries')}</Typography>
           </Box>
           <Typography variant="h4" fontWeight={700} sx={{ color: '#fff' }}>
             {data.seriesCount.toLocaleString()}
           </Typography>
           {data.episodeCount !== undefined && (
             <Typography variant="caption" color="text.secondary">
-              {data.episodeCount.toLocaleString()} episodes
+              {t('assistantToolUi.episodesLabel', { count: data.episodeCount })}
             </Typography>
           )}
         </Paper>
@@ -60,7 +62,7 @@ export function StatsDisplay({ data }: StatsDisplayProps) {
           <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
               <AccessTimeIcon sx={{ color: '#f59e0b' }} />
-              <Typography variant="caption" color="text.secondary">Total Runtime</Typography>
+              <Typography variant="caption" color="text.secondary">{t('assistantToolUi.totalRuntime')}</Typography>
             </Box>
             <Typography variant="body1" fontWeight={600} sx={{ color: '#fff' }}>
               {data.totalRuntimeFormatted}
@@ -73,7 +75,7 @@ export function StatsDisplay({ data }: StatsDisplayProps) {
           <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
               <StarIcon sx={{ color: '#ffc107' }} />
-              <Typography variant="caption" color="text.secondary">Avg Rating</Typography>
+              <Typography variant="caption" color="text.secondary">{t('assistantToolUi.avgRating')}</Typography>
             </Box>
             <Typography variant="h4" fontWeight={700} sx={{ color: '#fff' }}>
               {Number(data.averageRating).toFixed(1)}
@@ -86,30 +88,30 @@ export function StatsDisplay({ data }: StatsDisplayProps) {
       {data.watchStats && (
         <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2, mb: 2 }}>
           <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5, color: '#e4e4e7' }}>
-            Your Activity
+            {t('assistantToolUi.yourActivity')}
           </Typography>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
             <Box>
-              <Typography variant="caption" color="text.secondary">Movies Watched</Typography>
+              <Typography variant="caption" color="text.secondary">{t('assistantToolUi.moviesWatched')}</Typography>
               <Typography variant="h6" fontWeight={600} sx={{ color: '#818cf8' }}>
                 {data.watchStats.moviesWatched}
               </Typography>
             </Box>
             <Box>
-              <Typography variant="caption" color="text.secondary">Series Started</Typography>
+              <Typography variant="caption" color="text.secondary">{t('assistantToolUi.seriesStarted')}</Typography>
               <Typography variant="h6" fontWeight={600} sx={{ color: '#10b981' }}>
                 {data.watchStats.seriesStarted}
               </Typography>
             </Box>
             <Box>
-              <Typography variant="caption" color="text.secondary">Total Plays</Typography>
+              <Typography variant="caption" color="text.secondary">{t('assistantToolUi.totalPlays')}</Typography>
               <Typography variant="h6" fontWeight={600} sx={{ color: '#f59e0b' }}>
                 {data.watchStats.totalPlayCount}
               </Typography>
             </Box>
             {data.ratingStats && (
               <Box>
-                <Typography variant="caption" color="text.secondary">Titles Rated</Typography>
+                <Typography variant="caption" color="text.secondary">{t('assistantToolUi.titlesRated')}</Typography>
                 <Typography variant="h6" fontWeight={600} sx={{ color: '#ec4899' }}>
                   {data.ratingStats.totalRated}
                 </Typography>
@@ -123,7 +125,7 @@ export function StatsDisplay({ data }: StatsDisplayProps) {
       {data.topGenres && data.topGenres.length > 0 && (
         <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2 }}>
           <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5, color: '#e4e4e7' }}>
-            Top Genres
+            {t('assistantToolUi.topGenres')}
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
             {data.topGenres.slice(0, 5).map((genre) => (
@@ -163,12 +165,13 @@ interface StudiosDisplayProps {
 }
 
 export function StudiosDisplay({ data }: StudiosDisplayProps) {
+  const { t } = useTranslation()
   return (
     <Box sx={{ my: 2 }}>
       {data.studios && data.studios.length > 0 && (
         <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2, mb: 2 }}>
           <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5, color: '#e4e4e7' }}>
-            Top Movie Studios
+            {t('assistantToolUi.topMovieStudios')}
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
             {data.studios.map((studio) => (
@@ -178,7 +181,7 @@ export function StudiosDisplay({ data }: StudiosDisplayProps) {
                     {studio.name}
                   </Typography>
                   <Chip
-                    label={`${studio.movieCount} movies`}
+                    label={t('assistantToolUi.studioMovieCount', { count: studio.movieCount })}
                     size="small"
                     sx={{
                       height: 20,
@@ -201,7 +204,7 @@ export function StudiosDisplay({ data }: StudiosDisplayProps) {
       {data.networks && data.networks.length > 0 && (
         <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2 }}>
           <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5, color: '#e4e4e7' }}>
-            Top TV Networks
+            {t('assistantToolUi.topTvNetworks')}
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
             {data.networks.map((network) => (
@@ -211,7 +214,7 @@ export function StudiosDisplay({ data }: StudiosDisplayProps) {
                     {network.name}
                   </Typography>
                   <Chip
-                    label={`${network.seriesCount} series`}
+                    label={t('assistantToolUi.networkSeriesCount', { count: network.seriesCount })}
                     size="small"
                     sx={{
                       height: 20,

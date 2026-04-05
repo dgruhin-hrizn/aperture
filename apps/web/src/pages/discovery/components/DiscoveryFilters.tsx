@@ -1,4 +1,5 @@
-import React from 'react'
+import React, { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   FormControl,
@@ -22,63 +23,63 @@ import FilterListIcon from '@mui/icons-material/FilterList'
 import ClearIcon from '@mui/icons-material/Clear'
 import type { DiscoveryFilterOptions } from '../types'
 
-// Common language codes with display names
-const LANGUAGES = [
-  { code: 'en', name: 'English' },
-  { code: 'es', name: 'Spanish' },
-  { code: 'fr', name: 'French' },
-  { code: 'de', name: 'German' },
-  { code: 'it', name: 'Italian' },
-  { code: 'pt', name: 'Portuguese' },
-  { code: 'ja', name: 'Japanese' },
-  { code: 'ko', name: 'Korean' },
-  { code: 'zh', name: 'Chinese' },
-  { code: 'hi', name: 'Hindi' },
-  { code: 'ru', name: 'Russian' },
-  { code: 'ar', name: 'Arabic' },
-  { code: 'th', name: 'Thai' },
-  { code: 'tr', name: 'Turkish' },
-  { code: 'pl', name: 'Polish' },
-  { code: 'nl', name: 'Dutch' },
-  { code: 'sv', name: 'Swedish' },
-  { code: 'da', name: 'Danish' },
-  { code: 'no', name: 'Norwegian' },
-  { code: 'fi', name: 'Finnish' },
-]
+/** ISO 639-1 codes for the language filter (labels via Intl.DisplayNames in UI locale). */
+const FILTER_LANGUAGE_CODES = [
+  'en',
+  'es',
+  'fr',
+  'de',
+  'it',
+  'pt',
+  'ja',
+  'ko',
+  'zh',
+  'hi',
+  'ru',
+  'ar',
+  'th',
+  'tr',
+  'pl',
+  'nl',
+  'sv',
+  'da',
+  'no',
+  'fi',
+] as const
 
-// TMDb genre IDs (common for both movies and TV)
-const GENRES = [
-  { id: 28, name: 'Action' },
-  { id: 12, name: 'Adventure' },
-  { id: 16, name: 'Animation' },
-  { id: 35, name: 'Comedy' },
-  { id: 80, name: 'Crime' },
-  { id: 99, name: 'Documentary' },
-  { id: 18, name: 'Drama' },
-  { id: 10751, name: 'Family' },
-  { id: 14, name: 'Fantasy' },
-  { id: 36, name: 'History' },
-  { id: 27, name: 'Horror' },
-  { id: 10402, name: 'Music' },
-  { id: 9648, name: 'Mystery' },
-  { id: 10749, name: 'Romance' },
-  { id: 878, name: 'Science Fiction' },
-  { id: 10770, name: 'TV Movie' },
-  { id: 53, name: 'Thriller' },
-  { id: 10752, name: 'War' },
-  { id: 37, name: 'Western' },
-]
+function languageLabelForCode(code: string, displayNames: Intl.DisplayNames): string {
+  try {
+    return displayNames.of(code) ?? code
+  } catch {
+    return code
+  }
+}
 
 interface DiscoveryFiltersProps {
   filters: DiscoveryFilterOptions
   onFiltersChange: (filters: DiscoveryFilterOptions) => void
   yearRange?: { min: number; max: number }
+  /** TMDb genres for the active tab (movie vs TV), localized via API */
+  genreOptions: { id: number; name: string }[]
+  genresLoading?: boolean
 }
 
-export function DiscoveryFilters({ filters, onFiltersChange, yearRange }: DiscoveryFiltersProps) {
+export function DiscoveryFilters({
+  filters,
+  onFiltersChange,
+  yearRange,
+  genreOptions,
+  genresLoading,
+}: DiscoveryFiltersProps) {
+  const { t, i18n } = useTranslation()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const [expanded, setExpanded] = React.useState(false)
+
+  const languageDisplayNames = useMemo(
+    () => new Intl.DisplayNames([i18n.language], { type: 'language' }),
+    [i18n.language]
+  )
   
   const currentYear = new Date().getFullYear()
   const minYear = yearRange?.min ?? 1950
@@ -153,7 +154,7 @@ export function DiscoveryFilters({ filters, onFiltersChange, yearRange }: Discov
             bgcolor: hasActiveFilters ? 'primary.main' : 'transparent',
           }}
         >
-          Filters
+          {t('discovery.filters.button')}
           {activeFilterCount > 0 && (
             <Chip
               label={activeFilterCount}
@@ -171,7 +172,7 @@ export function DiscoveryFilters({ filters, onFiltersChange, yearRange }: Discov
         </Button>
         
         {hasActiveFilters && (
-          <IconButton size="small" onClick={clearFilters} title="Clear all filters">
+          <IconButton size="small" onClick={clearFilters} title={t('discovery.filters.clearAll')}>
             <ClearIcon fontSize="small" />
           </IconButton>
         )}
@@ -196,25 +197,28 @@ export function DiscoveryFilters({ filters, onFiltersChange, yearRange }: Discov
             {/* Language Filter */}
             <Box sx={{ flex: isMobile ? 1 : '0 0 auto' }}>
               <FormControl size="small" sx={{ minWidth: 150, width: '100%' }}>
-                <InputLabel id="language-filter-label">Language</InputLabel>
+                <InputLabel id="language-filter-label">{t('discovery.filters.language')}</InputLabel>
                 <Select
                   labelId="language-filter-label"
                   multiple
                   value={filters.languages || []}
                   onChange={handleLanguageChange}
-                  input={<OutlinedInput label="Language" />}
+                  input={<OutlinedInput label={t('discovery.filters.language')} />}
                   renderValue={(selected) => (
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                      {(selected as string[]).map((code) => {
-                        const lang = LANGUAGES.find(l => l.code === code)
-                        return <Chip key={code} label={lang?.name || code} size="small" />
-                      })}
+                      {(selected as string[]).map((code) => (
+                        <Chip
+                          key={code}
+                          label={languageLabelForCode(code, languageDisplayNames)}
+                          size="small"
+                        />
+                      ))}
                     </Box>
                   )}
                 >
-                  {LANGUAGES.map((lang) => (
-                    <MenuItem key={lang.code} value={lang.code}>
-                      {lang.name}
+                  {FILTER_LANGUAGE_CODES.map((code) => (
+                    <MenuItem key={code} value={code}>
+                      {languageLabelForCode(code, languageDisplayNames)}
                     </MenuItem>
                   ))}
                 </Select>
@@ -231,7 +235,7 @@ export function DiscoveryFilters({ filters, onFiltersChange, yearRange }: Discov
                   }
                   label={
                     <Typography variant="caption" color="text.secondary">
-                      Include unknown
+                      {t('discovery.filters.includeUnknown')}
                     </Typography>
                   }
                   sx={{ mt: 0.5, ml: 0 }}
@@ -241,23 +245,24 @@ export function DiscoveryFilters({ filters, onFiltersChange, yearRange }: Discov
 
             {/* Genre Filter */}
             <FormControl size="small" sx={{ minWidth: 150, flex: isMobile ? 1 : '0 0 auto' }}>
-              <InputLabel id="genre-filter-label">Genre</InputLabel>
+              <InputLabel id="genre-filter-label">{t('discovery.filters.genre')}</InputLabel>
               <Select
                 labelId="genre-filter-label"
                 multiple
                 value={filters.genreIds || []}
                 onChange={handleGenreChange}
-                input={<OutlinedInput label="Genre" />}
+                input={<OutlinedInput label={t('discovery.filters.genre')} />}
                 renderValue={(selected) => (
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                     {(selected as number[]).map((id) => {
-                      const genre = GENRES.find(g => g.id === id)
+                      const genre = genreOptions.find((g) => g.id === id)
                       return <Chip key={id} label={genre?.name || id} size="small" />
                     })}
                   </Box>
                 )}
+                disabled={genresLoading}
               >
-                {GENRES.map((genre) => (
+                {genreOptions.map((genre) => (
                   <MenuItem key={genre.id} value={genre.id}>
                     {genre.name}
                   </MenuItem>
@@ -268,7 +273,7 @@ export function DiscoveryFilters({ filters, onFiltersChange, yearRange }: Discov
             {/* Year Range Slider */}
             <Box sx={{ minWidth: 200, flex: isMobile ? 1 : '0 0 auto', px: 1 }}>
               <Typography variant="caption" color="text.secondary" gutterBottom>
-                Year Range
+                {t('discovery.filters.yearRange')}
               </Typography>
               <Slider
                 value={[filters.yearStart ?? minYear, filters.yearEnd ?? maxYear]}
@@ -292,7 +297,7 @@ export function DiscoveryFilters({ filters, onFiltersChange, yearRange }: Discov
             {/* Similarity Threshold Slider */}
             <Box sx={{ minWidth: 200, flex: isMobile ? 1 : '0 0 auto', px: 1 }}>
               <Typography variant="caption" color="text.secondary" gutterBottom>
-                Min Taste Match
+                {t('discovery.filters.minTasteMatch')}
               </Typography>
               <Slider
                 value={(filters.minSimilarity ?? 0) * 100}
@@ -306,10 +311,12 @@ export function DiscoveryFilters({ filters, onFiltersChange, yearRange }: Discov
               />
               <Box display="flex" justifyContent="space-between">
                 <Typography variant="caption" color="text.secondary">
-                  Any
+                  {t('discovery.filters.any')}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {filters.minSimilarity ? `${Math.round(filters.minSimilarity * 100)}%` : 'Any'}
+                  {filters.minSimilarity
+                    ? `${Math.round(filters.minSimilarity * 100)}%`
+                    : t('discovery.filters.any')}
                 </Typography>
               </Box>
             </Box>

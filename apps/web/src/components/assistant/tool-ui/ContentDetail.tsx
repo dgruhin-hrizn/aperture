@@ -10,6 +10,7 @@ import FavoriteIcon from '@mui/icons-material/Favorite'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { getProxiedImageUrl } from '@aperture/ui'
 import type { ContentDetailData } from './types'
 
@@ -18,6 +19,7 @@ interface ContentDetailProps {
 }
 
 export function ContentDetail({ data }: ContentDetailProps) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
 
   const detailsAction = data.actions.find(a => a.id === 'details')
@@ -72,7 +74,7 @@ export function ContentDetail({ data }: ContentDetailProps) {
                 fontSize: 12,
               }}
             >
-              No Image
+              {t('assistantToolUi.noImage')}
             </Box>
           )}
         </Box>
@@ -85,7 +87,7 @@ export function ContentDetail({ data }: ContentDetailProps) {
               {data.name}
             </Typography>
             <Chip
-              label={data.type === 'movie' ? 'Movie' : 'Series'}
+              label={data.type === 'movie' ? t('assistantToolUi.movie') : t('assistantToolUi.series')}
               size="small"
               sx={{
                 height: 20,
@@ -140,7 +142,11 @@ export function ContentDetail({ data }: ContentDetailProps) {
             {data.isWatched && (
               <Chip
                 icon={<CheckCircleIcon sx={{ fontSize: 14 }} />}
-                label={data.playCount && data.playCount > 1 ? `Watched ${data.playCount}x` : 'Watched'}
+                label={
+                  data.playCount && data.playCount > 1
+                    ? t('assistantToolUi.watchedCount', { count: data.playCount })
+                    : t('assistantToolUi.watched')
+                }
                 size="small"
                 sx={{
                   height: 24,
@@ -173,19 +179,26 @@ export function ContentDetail({ data }: ContentDetailProps) {
           {/* Director / Network */}
           {(data.director || data.network) && (
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-              {data.director && `Director: ${data.director}`}
-              {data.network && `Network: ${data.network}`}
-              {data.status && ` · ${data.status}`}
+              {[
+                data.director && t('assistantToolUi.directorPrefix', { name: data.director }),
+                data.network && t('assistantToolUi.networkPrefix', { name: data.network }),
+                data.status,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
             </Typography>
           )}
 
           {/* Series info */}
           {data.type === 'series' && (data.seasonCount || data.episodeCount) && (
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-              {data.seasonCount} seasons · {data.episodeCount} episodes
-              {data.episodesWatched !== undefined && data.episodesWatched > 0 && (
-                ` · ${data.episodesWatched} watched`
-              )}
+              {t('assistantToolUi.seriesCounts', {
+                seasons: data.seasonCount ?? 0,
+                episodes: data.episodeCount ?? 0,
+              })}
+              {data.episodesWatched !== undefined &&
+                data.episodesWatched > 0 &&
+                t('assistantToolUi.episodesWatchedSuffix', { count: data.episodesWatched })}
             </Typography>
           )}
 
@@ -204,7 +217,7 @@ export function ContentDetail({ data }: ContentDetailProps) {
                 },
               }}
             >
-              View Details
+              {t('assistantToolUi.viewDetails')}
             </Button>
             {playAction && (
               <Button
@@ -218,7 +231,7 @@ export function ContentDetail({ data }: ContentDetailProps) {
                   },
                 }}
               >
-                Play on Emby
+                {t('assistantToolUi.playOnEmby')}
               </Button>
             )}
           </Box>
@@ -240,7 +253,7 @@ export function ContentDetail({ data }: ContentDetailProps) {
         <>
           <Divider sx={{ my: 2, borderColor: '#2a2a2a' }} />
           <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-            Cast
+            {t('assistantToolUi.castHeading')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             {data.cast.join(', ')}

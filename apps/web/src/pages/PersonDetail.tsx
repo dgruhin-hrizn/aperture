@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -103,6 +104,7 @@ function preloadImage(src: string): Promise<void> {
 }
 
 export function PersonDetailPage() {
+  const { t } = useTranslation()
   const { name } = useParams<{ name: string }>()
   const navigate = useNavigate()
   const { getRating, setRating } = useUserRatings()
@@ -152,7 +154,7 @@ export function PersonDetailPage() {
         })
 
         if (!response.ok) {
-          throw new Error('Failed to load person data')
+          throw new Error(t('personDetail.errorLoad'))
         }
 
         const result = await response.json()
@@ -165,14 +167,14 @@ export function PersonDetailPage() {
         })
         setData(result)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred')
+        setError(err instanceof Error ? err.message : t('personDetail.errorGeneric'))
       } finally {
         setLoading(false)
       }
     }
 
     fetchPerson()
-  }, [name])
+  }, [name, t])
 
   useEffect(() => {
     if (!name) return
@@ -272,7 +274,7 @@ export function PersonDetailPage() {
   if (error || !data) {
     return (
       <Box sx={{ p: 3 }}>
-        <Alert severity="error">{error || 'Person not found'}</Alert>
+        <Alert severity="error">{error || t('personDetail.notFound')}</Alert>
       </Box>
     )
   }
@@ -362,7 +364,7 @@ export function PersonDetailPage() {
       .then(async (r) => {
         if (!r.ok) {
           const j = (await r.json().catch(() => ({}))) as { error?: string }
-          throw new Error(j.error || 'Failed to load details')
+          throw new Error(j.error || t('personDetail.failedLoadDetails'))
         }
         return r.json() as Promise<TmdbExternalDetailPayload>
       })
@@ -381,7 +383,7 @@ export function PersonDetailPage() {
         setTmdbDetailData(payload)
       })
       .catch((e: unknown) => {
-        setTmdbDetailError(e instanceof Error ? e.message : 'Failed to load details')
+        setTmdbDetailError(e instanceof Error ? e.message : t('personDetail.failedLoadDetails'))
       })
       .finally(() => {
         setTmdbDetailLoading(false)
@@ -564,7 +566,7 @@ export function PersonDetailPage() {
         {data.movies.length > 0 && (
           <Box mb={4}>
             <BaseCarousel
-              title="Movies"
+              title={t('personDetail.moviesCarousel')}
               subtitle={`${data.movies.length} movies featuring ${decodedName}`}
               hasItems={data.movies.length > 0}
             >
@@ -591,7 +593,7 @@ export function PersonDetailPage() {
         {data.series.length > 0 && (
           <Box mb={4}>
             <BaseCarousel
-              title="TV Series"
+              title={t('personDetail.seriesCarousel')}
               subtitle={`${data.series.length} series featuring ${decodedName}`}
               hasItems={data.series.length > 0}
             >

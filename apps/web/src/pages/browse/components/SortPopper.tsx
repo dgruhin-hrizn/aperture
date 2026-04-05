@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Button,
@@ -37,16 +38,72 @@ interface SortOption {
   availableFor: ('movies' | 'series')[]
 }
 
-const sortOptions: SortOption[] = [
-  { field: 'title', label: 'Title', icon: <TitleIcon fontSize="small" />, defaultOrder: 'asc', availableFor: ['movies', 'series'] },
-  { field: 'year', label: 'Year', icon: <CalendarTodayIcon fontSize="small" />, defaultOrder: 'desc', availableFor: ['movies', 'series'] },
-  { field: 'releaseDate', label: 'Release Date', icon: <EventIcon fontSize="small" />, defaultOrder: 'desc', availableFor: ['movies'] },
-  { field: 'rating', label: 'Rating', icon: <StarIcon fontSize="small" />, defaultOrder: 'desc', availableFor: ['movies', 'series'] },
-  { field: 'rtScore', label: 'RT Score', icon: <ThumbUpIcon fontSize="small" />, defaultOrder: 'desc', availableFor: ['movies', 'series'] },
-  { field: 'metacritic', label: 'Metacritic', icon: <ThumbUpIcon fontSize="small" />, defaultOrder: 'desc', availableFor: ['movies', 'series'] },
-  { field: 'runtime', label: 'Runtime', icon: <AccessTimeIcon fontSize="small" />, defaultOrder: 'asc', availableFor: ['movies'] },
-  { field: 'seasons', label: 'Seasons', icon: <LayersIcon fontSize="small" />, defaultOrder: 'desc', availableFor: ['series'] },
-  { field: 'added', label: 'Recently Added', icon: <NewReleasesIcon fontSize="small" />, defaultOrder: 'desc', availableFor: ['movies', 'series'] },
+type SortOptionDef = Omit<SortOption, 'label'> & { labelKey: string }
+
+const SORT_OPTION_DEFS: SortOptionDef[] = [
+  {
+    field: 'title',
+    labelKey: 'sortPopper.fields.title',
+    icon: <TitleIcon fontSize="small" />,
+    defaultOrder: 'asc',
+    availableFor: ['movies', 'series'],
+  },
+  {
+    field: 'year',
+    labelKey: 'sortPopper.fields.year',
+    icon: <CalendarTodayIcon fontSize="small" />,
+    defaultOrder: 'desc',
+    availableFor: ['movies', 'series'],
+  },
+  {
+    field: 'releaseDate',
+    labelKey: 'sortPopper.fields.releaseDate',
+    icon: <EventIcon fontSize="small" />,
+    defaultOrder: 'desc',
+    availableFor: ['movies'],
+  },
+  {
+    field: 'rating',
+    labelKey: 'sortPopper.fields.rating',
+    icon: <StarIcon fontSize="small" />,
+    defaultOrder: 'desc',
+    availableFor: ['movies', 'series'],
+  },
+  {
+    field: 'rtScore',
+    labelKey: 'sortPopper.fields.rtScore',
+    icon: <ThumbUpIcon fontSize="small" />,
+    defaultOrder: 'desc',
+    availableFor: ['movies', 'series'],
+  },
+  {
+    field: 'metacritic',
+    labelKey: 'sortPopper.fields.metacritic',
+    icon: <ThumbUpIcon fontSize="small" />,
+    defaultOrder: 'desc',
+    availableFor: ['movies', 'series'],
+  },
+  {
+    field: 'runtime',
+    labelKey: 'sortPopper.fields.runtime',
+    icon: <AccessTimeIcon fontSize="small" />,
+    defaultOrder: 'asc',
+    availableFor: ['movies'],
+  },
+  {
+    field: 'seasons',
+    labelKey: 'sortPopper.fields.seasons',
+    icon: <LayersIcon fontSize="small" />,
+    defaultOrder: 'desc',
+    availableFor: ['series'],
+  },
+  {
+    field: 'added',
+    labelKey: 'sortPopper.fields.added',
+    icon: <NewReleasesIcon fontSize="small" />,
+    defaultOrder: 'desc',
+    availableFor: ['movies', 'series'],
+  },
 ]
 
 interface SortPopperProps {
@@ -57,9 +114,22 @@ interface SortPopperProps {
 }
 
 export function SortPopper({ type, sortBy, sortOrder, onChange }: SortPopperProps) {
+  const { t } = useTranslation()
   const theme = useTheme()
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null)
   const open = Boolean(anchorEl)
+
+  const sortOptions = useMemo(
+    () =>
+      SORT_OPTION_DEFS.map((d) => ({
+        field: d.field,
+        icon: d.icon,
+        defaultOrder: d.defaultOrder,
+        availableFor: d.availableFor,
+        label: t(d.labelKey),
+      })),
+    [t]
+  )
 
   const availableOptions = sortOptions.filter((opt) => opt.availableFor.includes(type))
   const currentOption = availableOptions.find((opt) => opt.field === sortBy) || availableOptions[0]
@@ -77,18 +147,18 @@ export function SortPopper({ type, sortBy, sortOrder, onChange }: SortPopperProp
 
   const getOrderLabel = () => {
     if (sortBy === 'title') {
-      return sortOrder === 'asc' ? 'A → Z' : 'Z → A'
+      return sortOrder === 'asc' ? t('sortPopper.order.az') : t('sortPopper.order.za')
     }
     if (sortBy === 'year' || sortBy === 'added' || sortBy === 'releaseDate') {
-      return sortOrder === 'desc' ? 'Newest' : 'Oldest'
+      return sortOrder === 'desc' ? t('sortPopper.order.newest') : t('sortPopper.order.oldest')
     }
     if (sortBy === 'runtime') {
-      return sortOrder === 'asc' ? 'Shortest' : 'Longest'
+      return sortOrder === 'asc' ? t('sortPopper.order.shortest') : t('sortPopper.order.longest')
     }
     if (sortBy === 'seasons') {
-      return sortOrder === 'desc' ? 'Most' : 'Fewest'
+      return sortOrder === 'desc' ? t('sortPopper.order.most') : t('sortPopper.order.fewest')
     }
-    return sortOrder === 'desc' ? 'Highest' : 'Lowest'
+    return sortOrder === 'desc' ? t('sortPopper.order.highest') : t('sortPopper.order.lowest')
   }
 
   return (
@@ -147,7 +217,7 @@ export function SortPopper({ type, sortBy, sortOrder, onChange }: SortPopperProp
               }}
             >
               <Typography variant="subtitle2" fontWeight={700}>
-                Sort By
+                {t('sortPopper.sortBy')}
               </Typography>
             </Box>
 

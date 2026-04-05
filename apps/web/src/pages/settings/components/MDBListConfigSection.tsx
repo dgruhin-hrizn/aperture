@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -38,6 +39,7 @@ interface MDBListUserInfo {
 }
 
 export function MDBListConfigSection() {
+  const { t } = useTranslation()
   const [config, setConfig] = useState<MDBListConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -65,11 +67,11 @@ export function MDBListConfigSection() {
         setHasChanges(false)
       }
     } catch {
-      setError('Failed to load MDBList configuration')
+      setError(t('settingsMdblist.loadError'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     fetchConfig()
@@ -94,7 +96,7 @@ export function MDBListConfigSection() {
 
       if (response.ok) {
         const data = await response.json()
-        setSuccess('MDBList configuration saved!')
+        setSuccess(t('settingsMdblist.saved'))
         setConfig({
           configured: data.configured,
           enabled: data.enabled,
@@ -107,10 +109,10 @@ export function MDBListConfigSection() {
         setTimeout(() => setSuccess(null), 3000)
       } else {
         const err = await response.json()
-        setError(err.error || 'Failed to save configuration')
+        setError(err.error || t('settingsMdblist.errSave'))
       }
     } catch {
-      setError('Could not connect to server')
+      setError(t('settingsMdblist.errConnect'))
     } finally {
       setSaving(false)
     }
@@ -134,7 +136,7 @@ export function MDBListConfigSection() {
 
       const result = await response.json()
       if (result.success) {
-        setSuccess(`Connected as ${result.username}!`)
+        setSuccess(t('settingsMdblist.connectedAs', { username: result.username }))
         setTestResult({
           userId: result.userId,
           username: result.username,
@@ -144,10 +146,10 @@ export function MDBListConfigSection() {
         })
         setTimeout(() => setSuccess(null), 5000)
       } else {
-        setError(result.error || 'Connection test failed')
+        setError(result.error || t('settingsMdblist.testFailed'))
       }
     } catch {
-      setError('Could not connect to server')
+      setError(t('settingsMdblist.errConnect'))
     } finally {
       setTesting(false)
     }
@@ -171,12 +173,12 @@ export function MDBListConfigSection() {
         <Box display="flex" alignItems="center" gap={2} mb={2}>
           <FormatListBulletedIcon sx={{ fontSize: 28, color: '#3498db' }} />
           <Typography variant="h6" fontWeight={600}>
-            MDBList Integration
+            {t('settingsMdblist.title')}
           </Typography>
           {config?.configured && (
             <Chip
               icon={<CheckCircleIcon />}
-              label="Configured"
+              label={t('settingsMdblist.configured')}
               color="success"
               size="small"
             />
@@ -184,12 +186,11 @@ export function MDBListConfigSection() {
         </Box>
 
         <Typography variant="body2" color="text.secondary" mb={3}>
-          Enable MDBList integration for internet popularity rankings in Top Picks, plus Letterboxd ratings,
-          streaming availability, and additional keywords for metadata enrichment.{' '}
+          {t('settingsMdblist.description')}{' '}
           <Link href="https://mdblist.com/preferences/" target="_blank" rel="noopener">
-            Get your API key
+            {t('settingsMdblist.getApiKeyLink')}
           </Link>{' '}
-          (1,000 requests/day free, or higher limits for supporters).
+          {t('settingsMdblist.descriptionSuffix')}
         </Typography>
 
         {error && (
@@ -207,16 +208,18 @@ export function MDBListConfigSection() {
         {testResult && (
           <Alert severity="info" sx={{ mb: 2 }} onClose={() => setTestResult(null)}>
             <Typography variant="body2">
-              <strong>User:</strong> {testResult.username} • 
-              <strong> Status:</strong> {testResult.patronStatus || 'Free'} • 
-              <strong> API Requests:</strong> {testResult.apiRequestsCount.toLocaleString()}/{testResult.apiRequests.toLocaleString()}
+              <strong>{t('settingsMdblist.testUserLabel')}</strong> {testResult.username} •{' '}
+              <strong>{t('settingsMdblist.testStatusLabel')}</strong>{' '}
+              {testResult.patronStatus || t('settingsMdblist.freeTier')} •{' '}
+              <strong>{t('settingsMdblist.testApiRequestsLabel')}</strong>{' '}
+              {testResult.apiRequestsCount.toLocaleString()}/{testResult.apiRequests.toLocaleString()}
             </Typography>
           </Alert>
         )}
 
         <Box display="flex" flexDirection="column" gap={2}>
           <TextField
-            label="API Key"
+            label={t('settingsMdblist.apiKey')}
             type={showApiKey ? 'text' : 'password'}
             value={apiKey || (config?.hasApiKey ? '••••••••••••••••••••••••••••' : '')}
             onChange={(e) => {
@@ -226,10 +229,10 @@ export function MDBListConfigSection() {
             }}
             size="small"
             fullWidth
-            placeholder="Enter your MDBList API key"
+            placeholder={t('settingsMdblist.placeholder')}
             helperText={
               config?.hasApiKey && !apiKey
-                ? 'API key is saved. Enter a new one to replace it.'
+                ? t('settingsMdblist.helperSaved')
                 : undefined
             }
             slotProps={{
@@ -260,7 +263,7 @@ export function MDBListConfigSection() {
                 disabled={!config?.hasApiKey && !apiKey}
               />
             }
-            label="Enable MDBList integration"
+            label={t('settingsMdblist.enableIntegration')}
           />
 
           <FormControlLabel
@@ -276,11 +279,11 @@ export function MDBListConfigSection() {
             }
             label={
               <Box>
-                <Typography variant="body2">Supporter tier</Typography>
+                <Typography variant="body2">{t('settingsMdblist.supporterTitle')}</Typography>
                 <Typography variant="caption" color="text.secondary">
                   {supporterTier
-                    ? 'Using faster rate limits for supporters'
-                    : 'Enable if you are an MDBList supporter for faster enrichment'}
+                    ? t('settingsMdblist.supporterCaptionOn')
+                    : t('settingsMdblist.supporterCaptionOff')}
                 </Typography>
               </Box>
             }
@@ -294,7 +297,7 @@ export function MDBListConfigSection() {
               disabled={saving || !hasChanges}
               size="small"
             >
-              {saving ? 'Saving...' : 'Save'}
+              {saving ? t('common.saving') : t('common.save')}
             </Button>
             <Button
               variant="outlined"
@@ -302,7 +305,7 @@ export function MDBListConfigSection() {
               disabled={testing || (!apiKey && !config?.hasApiKey)}
               size="small"
             >
-              {testing ? 'Testing...' : 'Test Connection'}
+              {testing ? t('settingsMdblist.testing') : t('settingsMdblist.testConnection')}
             </Button>
           </Box>
         </Box>

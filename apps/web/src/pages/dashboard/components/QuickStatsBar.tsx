@@ -1,4 +1,6 @@
 import { Box, Card, Typography, Skeleton } from '@mui/material'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import FavoriteIcon from '@mui/icons-material/Favorite'
@@ -71,12 +73,12 @@ function StatCard({ icon, label, value, color, loading }: StatCardProps) {
   )
 }
 
-function formatWatchTime(minutes: number): string {
-  if (minutes < 60) return `${minutes}m`
+function formatWatchTime(minutes: number, t: TFunction): string {
+  if (minutes < 60) return t('dashboard.watchTimeMinutes', { count: minutes })
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h`
+  if (hours < 24) return t('dashboard.watchTimeHours', { count: hours })
   const days = Math.floor(hours / 24)
-  return `${days}d`
+  return t('dashboard.watchTimeDays', { count: days })
 }
 
 export function QuickStatsBar({
@@ -86,6 +88,7 @@ export function QuickStatsBar({
   watchTimeMinutes,
   loading,
 }: QuickStatsBarProps) {
+  const { t } = useTranslation()
   return (
     <Box
       sx={{
@@ -103,29 +106,29 @@ export function QuickStatsBar({
     >
       <StatCard
         icon={<MovieIcon />}
-        label="Movies Watched"
+        label={t('dashboard.statMoviesWatched')}
         value={moviesWatched.toLocaleString()}
         color="#6366f1"
         loading={loading}
       />
       <StatCard
         icon={<TvIcon />}
-        label="Series Watched"
+        label={t('dashboard.statSeriesWatched')}
         value={seriesWatched.toLocaleString()}
         color="#8b5cf6"
         loading={loading}
       />
       <StatCard
         icon={<FavoriteIcon />}
-        label="Ratings"
+        label={t('dashboard.statRatings')}
         value={ratingsCount.toLocaleString()}
         color="#ec4899"
         loading={loading}
       />
       <StatCard
         icon={<AccessTimeIcon />}
-        label="Watch Time"
-        value={formatWatchTime(watchTimeMinutes)}
+        label={t('dashboard.statWatchTime')}
+        value={formatWatchTime(watchTimeMinutes, t)}
         color="#10b981"
         loading={loading}
       />

@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Dialog,
   DialogTitle,
@@ -26,7 +27,7 @@ import CancelIcon from '@mui/icons-material/Cancel'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
-import { formatJobName } from '../constants'
+import { formatJobName, formatJobDurationMs } from '../constants'
 import type { JobRunRecord, LogEntry } from '../types'
 
 interface JobHistoryDialogProps {
@@ -38,18 +39,6 @@ interface JobHistoryDialogProps {
 function formatDate(dateString: string): string {
   const date = new Date(dateString)
   return date.toLocaleString()
-}
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`
-  const sec = Math.floor(ms / 1000)
-  if (sec < 60) return `${sec}s`
-  const min = Math.floor(sec / 60)
-  const remainingSec = sec % 60
-  if (min < 60) return `${min}m ${remainingSec}s`
-  const hr = Math.floor(min / 60)
-  const remainingMin = min % 60
-  return `${hr}h ${remainingMin}m`
 }
 
 function getStatusIcon(status: string): React.ReactElement | undefined {
@@ -79,12 +68,13 @@ function getStatusColor(status: string): 'success' | 'error' | 'warning' | 'defa
 }
 
 export function JobHistoryDialog({ open, jobName, onClose }: JobHistoryDialogProps) {
+  const { t } = useTranslation()
   const [history, setHistory] = useState<JobRunRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     if (!jobName) return
 
     setLoading(true)
@@ -93,29 +83,31 @@ export function JobHistoryDialog({ open, jobName, onClose }: JobHistoryDialogPro
     try {
       const response = await fetch(`/api/jobs/${jobName}/history?limit=25`)
       if (!response.ok) {
-        throw new Error('Failed to fetch history')
+        throw new Error(t('admin.jobsPage.ui.historyFetchFailed'))
       }
       const data = await response.json()
       setHistory(data.history || [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : t('admin.jobsPage.ui.unknownError'))
     } finally {
       setLoading(false)
     }
-  }
+  }, [jobName, t])
 
   useEffect(() => {
     if (open && jobName) {
-      fetchHistory()
+      void fetchHistory()
     }
-  }, [open, jobName])
+  }, [open, jobName, fetchHistory])
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Typography variant="h6">
-            {jobName ? formatJobName(jobName) : 'Job'} History
+            {jobName
+              ? t('admin.jobsPage.ui.historyTitle', { name: formatJobName(jobName, t) })
+              : t('admin.jobsPage.ui.historyTitleFallback')}
           </Typography>
           <Stack direction="row" spacing={1}>
             <IconButton size="small" onClick={fetchHistory} disabled={loading}>
@@ -143,7 +135,7 @@ export function JobHistoryDialog({ open, jobName, onClose }: JobHistoryDialogPro
         {!loading && !error && history.length === 0 && (
           <Box py={4} textAlign="center">
             <Typography color="text.secondary">
-              No run history found for this job.
+              {t('admin.jobsPage.ui.historyEmpty')}
             </Typography>
           </Box>
         )}
@@ -154,11 +146,11 @@ export function JobHistoryDialog({ open, jobName, onClose }: JobHistoryDialogPro
               <TableHead>
                 <TableRow>
                   <TableCell width={40}></TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Started</TableCell>
-                  <TableCell>Duration</TableCell>
-                  <TableCell>Items</TableCell>
-                  <TableCell>Details</TableCell>
+                  <TableCell>{t('admin.jobsPage.ui.historyColStatus')}</TableCell>
+                  <TableCell>{t('admin.jobsPage.ui.historyColStarted')}</TableCell>
+                  <TableCell>{t('admin.jobsPage.ui.historyColDuration')}</TableCell>
+                  <TableCell>{t('admin.jobsPage.ui.historyColItems')}</TableCell>
+                  <TableCell>{t('admin.jobsPage.ui.historyColDetails')}</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -200,7 +192,7 @@ export function JobHistoryDialog({ open, jobName, onClose }: JobHistoryDialogPro
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2">
-                            {formatDuration(run.duration_ms)}
+                            {formatJobDurationMs(run.duration_ms, t)}
                           </Typography>
                         </TableCell>
                         <TableCell>
@@ -210,7 +202,7 @@ export function JobHistoryDialog({ open, jobName, onClose }: JobHistoryDialogPro
                             </Typography>
                           ) : (
                             <Typography variant="body2" color="text.secondary">
-                              -
+                              {t('admin.jobsPage.ui.dash')}
                             </Typography>
                           )}
                         </TableCell>
@@ -232,11 +224,11 @@ export function JobHistoryDialog({ open, jobName, onClose }: JobHistoryDialogPro
                             </Tooltip>
                           ) : hasLogs ? (
                             <Typography variant="body2" color="text.secondary">
-                              {logs.length} log entries
+                              {t('admin.jobsPage.ui.historyLogEntries', { count: logs.length })}
                             </Typography>
                           ) : (
                             <Typography variant="body2" color="text.secondary">
-                              -
+                              {t('admin.jobsPage.ui.dash')}
                             </Typography>
                           )}
                         </TableCell>

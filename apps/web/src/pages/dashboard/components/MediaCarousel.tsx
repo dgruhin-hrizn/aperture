@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Box } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { MoviePoster, RankBadge, BaseCarousel, CarouselItem } from '@aperture/ui'
@@ -34,9 +35,11 @@ export function MediaCarousel({
   loading,
   showScore = false,
   showRank = false,
-  emptyMessage = 'No items to display',
+  emptyMessage: emptyMessageProp,
   rows = 1,
 }: MediaCarouselProps) {
+  const { t } = useTranslation()
+  const emptyMessage = emptyMessageProp ?? t('dashboard.carouselEmpty')
   const navigate = useNavigate()
   const { getRating, setRating } = useUserRatings()
   const { isWatching, toggleWatching } = useWatching()

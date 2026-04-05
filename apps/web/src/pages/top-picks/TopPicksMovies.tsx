@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -43,6 +44,7 @@ interface TopPicksConfig {
 }
 
 export function TopPicksMoviesPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { getRating, setRating } = useUserRatings()
   const [movies, setMovies] = useState<PopularMovie[]>([])
@@ -72,17 +74,17 @@ export function TopPicksMoviesPage() {
           setConfig(data.config)
           setError(null)
         } else {
-          setError('Failed to load trending movies')
+          setError(t('topPicksPage.errorLoadMovies'))
         }
       } catch {
-        setError('Could not connect to server')
+        setError(t('topPicksPage.errorConnect'))
       } finally {
         setLoading(false)
       }
     }
 
     fetchTopMovies()
-  }, [])
+  }, [t])
 
   if (loading) {
     return (
@@ -108,16 +110,18 @@ export function TopPicksMoviesPage() {
           <Box display="flex" alignItems="center" gap={2} mb={1}>
             <WhatshotIcon sx={{ color: '#f97316', fontSize: 32 }} />
             <Typography variant="h4" fontWeight={700}>
-              Top Pick Movies
+              {t('topPicksPage.pageTitleMovies')}
             </Typography>
           </Box>
           <Typography variant="body1" color="text.secondary">
-            Most popular movies on your server
-            {config && ` in the last ${config.timeWindowDays} days`}
+            {t('topPicksPage.subtitleMovies')}
+            {config && t('topPicksPage.inLastDays', { count: config.timeWindowDays })}
           </Typography>
           {config?.lastRefreshedAt && (
             <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
-              Last updated: {new Date(config.lastRefreshedAt).toLocaleDateString()}
+              {t('topPicksPage.lastUpdated', {
+                date: new Date(config.lastRefreshedAt).toLocaleDateString(),
+              })}
             </Typography>
           )}
         </Box>
@@ -144,8 +148,7 @@ export function TopPicksMoviesPage() {
 
       {movies.length === 0 && !error ? (
         <Alert severity="info" sx={{ borderRadius: 2 }}>
-          No trending movies yet. Top picks are calculated from watch history across all users.
-          Make sure watch history sync has run and multiple users have watched some content.
+          {t('topPicksPage.emptyMovies')}
         </Alert>
       ) : viewMode === 'grid' ? (
         <Grid container spacing={2}>
@@ -239,7 +242,7 @@ export function TopPicksMoviesPage() {
                       overflow: 'hidden',
                     }}
                   >
-                    {movie.overview || 'No description available.'}
+                    {movie.overview || t('common.noDescription')}
                   </Typography>
                 </Box>
 
@@ -254,13 +257,13 @@ export function TopPicksMoviesPage() {
                 >
                   <Chip
                     icon={<PeopleIcon sx={{ fontSize: 16 }} />}
-                    label={`${movie.uniqueViewers} viewers`}
+                    label={t('topPicksPage.viewersCount', { count: movie.uniqueViewers })}
                     size="small"
                     sx={{ backgroundColor: 'rgba(99, 102, 241, 0.2)' }}
                   />
                   <Chip
                     icon={<PlayArrowIcon sx={{ fontSize: 16 }} />}
-                    label={movie.playCount <= 10 ? `${movie.playCount} plays` : '10+ plays'}
+                    label={movie.playCount <= 10 ? t('topPicksPage.playsCount', { count: movie.playCount }) : t('topPicksPage.playsPlus')}
                     size="small"
                     variant="outlined"
                   />

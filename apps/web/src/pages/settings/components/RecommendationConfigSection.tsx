@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -22,83 +23,36 @@ import HelpOutlineIcon from '@mui/icons-material/HelpOutline'
 import type { RecommendationConfig, MediaTypeConfig } from '../types'
 import { MAX_UNLIMITED } from '../types'
 
-// Help text for each setting
-const HELP_TEXT = {
-  maxCandidates: {
-    title: 'Max Candidates',
-    description: 'How many items from your library to evaluate as potential recommendations.',
-    increase: 'More thorough search, considers entire library, but slower processing.',
-    decrease: 'Faster generation, but may miss some good matches from less popular items.',
-    example: 'Set to ∞ (unlimited) for best results if you have time, or 10-20K for faster daily runs.',
-  },
-  selectedCount: {
-    title: 'Recommendations Per User',
-    description: 'The final number of recommendations each user receives.',
-    increase: 'More choices for users, but quality of later picks may decrease.',
-    decrease: 'Fewer but higher-quality, more confident recommendations.',
-    example: 'Movies: 20-50 is typical. Series: 10-15 since they require more time investment.',
-  },
-  recentWatchLimit: {
-    title: 'Watch History Depth',
-    description: 'How many recently watched items to analyze when building the taste profile.',
-    increase: 'Broader understanding of long-term preferences, better for established users.',
-    decrease: 'Focuses on recent viewing habits, good if tastes change frequently.',
-    example: 'New user with 20 watches? Set to 20. Long-time user? 50-100 captures their full taste.',
-  },
-  similarityWeight: {
-    title: 'Taste Similarity',
-    description: 'How much to favor items that match the user\'s established preferences.',
-    increase: 'Safer picks the user will likely enjoy, but less adventurous.',
-    decrease: 'More variety and surprises, but higher chance of misses.',
-    example: 'Set high (50-60%) for picky viewers. Set lower (30-40%) for those who like discovering new things.',
-  },
-  noveltyWeight: {
-    title: 'Genre Discovery',
-    description: 'Rewards items with genres the user hasn\'t explored much.',
-    increase: 'Pushes users outside their comfort zone into new genres.',
-    decrease: 'Sticks to familiar territory and known favorite genres.',
-    example: 'Someone who only watches action? Higher novelty might suggest a thriller or sci-fi they\'d enjoy.',
-  },
-  ratingWeight: {
-    title: 'Community Rating',
-    description: 'How much to favor highly-rated, critically acclaimed items.',
-    increase: 'Prioritizes quality over personalization - great for new users.',
-    decrease: 'Ignores ratings, trusts the taste-matching algorithm more.',
-    example: 'Set higher (30%+) if you want to surface hidden gems with great reviews.',
-  },
-  diversityWeight: {
-    title: 'Result Diversity',
-    description: 'Ensures variety in the final recommendation list.',
-    increase: 'Spreads recommendations across different genres, years, styles.',
-    decrease: 'May cluster similar items together if they all score well.',
-    example: 'High diversity prevents getting 10 Marvel movies in a row even if the user loves them.',
-  },
-}
+type HelpSettingKey =
+  | 'maxCandidates'
+  | 'selectedCount'
+  | 'recentWatchLimit'
+  | 'similarityWeight'
+  | 'noveltyWeight'
+  | 'ratingWeight'
+  | 'diversityWeight'
 
-interface HelpIconProps {
-  settingKey: keyof typeof HELP_TEXT
-}
-
-function HelpIcon({ settingKey }: HelpIconProps) {
-  const help = HELP_TEXT[settingKey]
+function HelpIcon({ settingKey }: { settingKey: HelpSettingKey }) {
+  const { t } = useTranslation()
+  const p = `settingsRecAlgo.help.${settingKey}`
   return (
     <Tooltip
       title={
         <Box sx={{ p: 0.5 }}>
           <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-            {help.title}
+            {t(`${p}.title`)}
           </Typography>
           <Typography variant="body2" sx={{ mb: 1 }}>
-            {help.description}
+            {t(`${p}.description`)}
           </Typography>
           <Typography variant="body2" sx={{ mb: 0.5 }}>
-            <strong>↑ Increase:</strong> {help.increase}
+            <strong>{t('settingsRecAlgo.helpIncrease')}</strong> {t(`${p}.increase`)}
           </Typography>
           <Typography variant="body2" sx={{ mb: 0.5 }}>
-            <strong>↓ Decrease:</strong> {help.decrease}
+            <strong>{t('settingsRecAlgo.helpDecrease')}</strong> {t(`${p}.decrease`)}
           </Typography>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, fontStyle: 'italic' }}>
-            💡 {help.example}
+            💡 {t(`${p}.example`)}
           </Typography>
         </Box>
       }
@@ -150,6 +104,7 @@ function MediaTypeCard({
   onReset,
   onUpdateField,
 }: MediaTypeCardProps) {
+  const { t } = useTranslation()
   const totalWeight =
     config.similarityWeight +
     config.noveltyWeight +
@@ -167,7 +122,7 @@ function MediaTypeCard({
             </Typography>
           </Box>
           <Box display="flex" gap={0.5}>
-            <Tooltip title="Reset to defaults">
+            <Tooltip title={t('settingsRecAlgo.resetTooltip')}>
               <Button
                 size="small"
                 onClick={onReset}
@@ -184,21 +139,22 @@ function MediaTypeCard({
               disabled={isSaving || isLoading || !isDirty}
               startIcon={isSaving ? <CircularProgress size={14} /> : <SaveIcon />}
             >
-              Save
+              {t('settingsRecAlgo.save')}
             </Button>
           </Box>
         </Box>
 
         {/* Candidate Selection */}
         <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" mb={1}>
-          SELECTION
+          {t('settingsRecAlgo.sectionSelection')}
         </Typography>
 
         {/* Max Candidates */}
         <FormControl fullWidth sx={{ mb: 2 }} size="small">
           <Box display="flex" alignItems="center">
             <Typography variant="body2">
-              Max Candidates: <strong>{config.maxCandidates >= MAX_UNLIMITED ? '∞' : `${(config.maxCandidates / 1000).toFixed(0)}K`}</strong>
+              {t('settingsRecAlgo.maxCandidatesLabel')}{' '}
+              <strong>{config.maxCandidates >= MAX_UNLIMITED ? '∞' : `${(config.maxCandidates / 1000).toFixed(0)}K`}</strong>
             </Typography>
             <HelpIcon settingKey="maxCandidates" />
           </Box>
@@ -222,7 +178,7 @@ function MediaTypeCard({
         {/* Selected Count */}
         <FormControl fullWidth sx={{ mb: 2 }} size="small">
           <Box display="flex" alignItems="center">
-            <Typography variant="body2">Recs Per User</Typography>
+            <Typography variant="body2">{t('settingsRecAlgo.recsPerUser')}</Typography>
             <HelpIcon settingKey="selectedCount" />
           </Box>
           <TextField
@@ -239,7 +195,7 @@ function MediaTypeCard({
         {/* Recent Watch Limit */}
         <FormControl fullWidth sx={{ mb: 2 }} size="small">
           <Box display="flex" alignItems="center">
-            <Typography variant="body2">Watch History Depth</Typography>
+            <Typography variant="body2">{t('settingsRecAlgo.watchHistoryDepth')}</Typography>
             <HelpIcon settingKey="recentWatchLimit" />
           </Box>
           <TextField
@@ -256,7 +212,7 @@ function MediaTypeCard({
         {/* Weights */}
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
           <Typography variant="caption" color="text.secondary" fontWeight={600}>
-            WEIGHTS
+            {t('settingsRecAlgo.sectionWeights')}
           </Typography>
           <Chip
             label={`${(totalWeight * 100).toFixed(0)}%`}
@@ -270,7 +226,7 @@ function MediaTypeCard({
         <FormControl fullWidth sx={{ mb: 1.5 }} size="small">
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Box display="flex" alignItems="center">
-              <Typography variant="body2">Similarity</Typography>
+              <Typography variant="body2">{t('settingsRecAlgo.weightSimilarity')}</Typography>
               <HelpIcon settingKey="similarityWeight" />
             </Box>
             <Typography variant="body2" color="primary" fontWeight={600}>
@@ -290,7 +246,7 @@ function MediaTypeCard({
         <FormControl fullWidth sx={{ mb: 1.5 }} size="small">
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Box display="flex" alignItems="center">
-              <Typography variant="body2">Discovery</Typography>
+              <Typography variant="body2">{t('settingsRecAlgo.weightDiscovery')}</Typography>
               <HelpIcon settingKey="noveltyWeight" />
             </Box>
             <Typography variant="body2" color="primary" fontWeight={600}>
@@ -310,7 +266,7 @@ function MediaTypeCard({
         <FormControl fullWidth sx={{ mb: 1.5 }} size="small">
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Box display="flex" alignItems="center">
-              <Typography variant="body2">Rating</Typography>
+              <Typography variant="body2">{t('settingsRecAlgo.weightRating')}</Typography>
               <HelpIcon settingKey="ratingWeight" />
             </Box>
             <Typography variant="body2" color="primary" fontWeight={600}>
@@ -330,7 +286,7 @@ function MediaTypeCard({
         <FormControl fullWidth size="small">
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Box display="flex" alignItems="center">
-              <Typography variant="body2">Diversity</Typography>
+              <Typography variant="body2">{t('settingsRecAlgo.weightDiversity')}</Typography>
               <HelpIcon settingKey="diversityWeight" />
             </Box>
             <Typography variant="body2" color="primary" fontWeight={600}>
@@ -385,13 +341,14 @@ export function RecommendationConfigSection({
   updateMovieConfigField,
   updateSeriesConfigField,
 }: RecommendationConfigSectionProps) {
+  const { t } = useTranslation()
   return (
     <Box>
       <Typography variant="h6" gutterBottom>
-        Recommendation Algorithm
+        {t('settingsRecAlgo.title')}
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Configure how recommendations are generated. Hover over the <HelpOutlineIcon sx={{ fontSize: 14, verticalAlign: 'middle' }} /> icons for detailed explanations.
+        {t('settingsRecAlgo.subtitle')}
       </Typography>
 
       {recConfigError && (
@@ -414,7 +371,7 @@ export function RecommendationConfigSection({
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
             <MediaTypeCard
-              title="Movies"
+              title={t('settingsRecAlgo.moviesCardTitle')}
               icon={<MovieIcon color="primary" />}
               config={recConfig.movie}
               isDirty={movieConfigDirty}
@@ -427,7 +384,7 @@ export function RecommendationConfigSection({
           </Grid>
           <Grid item xs={12} md={6}>
             <MediaTypeCard
-              title="TV Series"
+              title={t('settingsRecAlgo.seriesCardTitle')}
               icon={<TvIcon color="secondary" />}
               config={recConfig.series}
               isDirty={seriesConfigDirty}
@@ -441,12 +398,12 @@ export function RecommendationConfigSection({
         </Grid>
       ) : (
         <Alert severity="warning">
-          Could not load recommendation configuration. Try refreshing the page.
+          {t('settingsRecAlgo.loadFailed')}
         </Alert>
       )}
 
       <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 2 }}>
-        Changes apply to the next recommendation generation run.
+        {t('settingsRecAlgo.footer')}
       </Typography>
     </Box>
   )

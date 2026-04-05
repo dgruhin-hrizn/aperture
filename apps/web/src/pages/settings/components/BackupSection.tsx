@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -40,6 +41,9 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import CancelIcon from '@mui/icons-material/Cancel'
 
+/** Must match server / restore API expectation */
+const RESTORE_CONFIRM_WORD = 'RESTORE'
+
 interface BackupInfo {
   filename: string
   sizeBytes: number
@@ -74,6 +78,7 @@ interface JobProgress {
 }
 
 export function BackupSection() {
+  const { t } = useTranslation()
   const [config, setConfig] = useState<BackupConfig | null>(null)
   const [backups, setBackups] = useState<BackupInfo[]>([])
   const [loading, setLoading] = useState(true)
@@ -171,7 +176,7 @@ export function BackupSection() {
         // Got HTML or other non-JSON response - likely auth or proxy error
         console.warn('Job progress returned non-JSON response:', contentType)
         if (res.status === 401 || res.status === 403) {
-          setError('Session expired. Please refresh and try again.')
+          setError(t('settingsBackup.sessionExpired'))
         }
         setActiveJobId(null)
         setCreatingBackup(false)
@@ -420,7 +425,7 @@ export function BackupSection() {
         throw new Error(data.error || 'Failed to upload backup')
       }
 
-      setSuccess(`Backup uploaded: ${data.filename} (${data.sizeFormatted})`)
+      setSuccess(t('settingsBackup.uploadSuccess', { filename: data.filename, size: data.sizeFormatted }))
       await fetchData()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to upload backup')
@@ -438,7 +443,7 @@ export function BackupSection() {
   }
 
   const handleRestore = async () => {
-    if (!restoreFilename || restoreConfirmText !== 'RESTORE') return
+    if (!restoreFilename || restoreConfirmText !== RESTORE_CONFIRM_WORD) return
 
     try {
       setRestoringBackup(true)
@@ -455,7 +460,7 @@ export function BackupSection() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           filename: restoreFilename,
-          confirmText: 'RESTORE',
+          confirmText: RESTORE_CONFIRM_WORD,
           createPreRestoreBackup: true,
         }),
       })
@@ -514,7 +519,7 @@ export function BackupSection() {
         throw new Error(data.error || 'Failed to save configuration')
       }
 
-      setSuccess('Backup configuration saved')
+      setSuccess(t('settingsBackup.configSaved'))
       setEditingConfig(false)
       await fetchData()
     } catch (err) {
@@ -527,6 +532,11 @@ export function BackupSection() {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString()
   }
+
+  const backupDetailLabel =
+    (inProgressBackup
+      ? backups.filter((b) => b.filename !== inProgressBackup.filename).length
+      : backups.length) + (inProgressBackup ? t('settingsBackup.availableBackupsInProgressSuffix') : '')
 
   if (loading) {
     return (
@@ -546,7 +556,7 @@ export function BackupSection() {
         <CardContent>
           <Box display="flex" alignItems="center" gap={1} mb={2}>
             <BackupIcon color="primary" />
-            <Typography variant="h6">Database Backup & Restore</Typography>
+            <Typography variant="h6">{t('settingsBackup.title')}</Typography>
           </Box>
 
           {error && (
@@ -567,12 +577,12 @@ export function BackupSection() {
               <Box display="flex" alignItems="center" gap={1}>
                 <SettingsIcon fontSize="small" color="action" />
                 <Typography variant="subtitle2" fontWeight={600}>
-                  Configuration
+                  {t('settingsBackup.configuration')}
                 </Typography>
               </Box>
               {!editingConfig && (
                 <Button size="small" onClick={() => setEditingConfig(true)}>
-                  Edit
+                  {t('settingsBackup.edit')}
                 </Button>
               )}
             </Box>
@@ -580,13 +590,13 @@ export function BackupSection() {
             {editingConfig ? (
               <Stack spacing={2}>
                 <TextField
-                  label="Backups to Retain"
+                  label={t('settingsBackup.backupsToRetain')}
                   type="number"
                   size="small"
                   value={retentionCount}
                   onChange={(e) => setRetentionCount(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
                   inputProps={{ min: 1, max: 100 }}
-                  helperText="Number of backup files to keep (older backups are automatically deleted)"
+                  helperText={t('settingsBackup.backupsToRetainHelper')}
                 />
                 <Box display="flex" gap={1}>
                   <Button
@@ -595,7 +605,7 @@ export function BackupSection() {
                     onClick={handleSaveConfig}
                     disabled={savingConfig}
                   >
-                    {savingConfig ? <CircularProgress size={16} /> : 'Save'}
+                    {savingConfig ? <CircularProgress size={16} /> : t('common.save')}
                   </Button>
                   <Button
                     variant="outlined"
@@ -605,7 +615,7 @@ export function BackupSection() {
                       setRetentionCount(config?.retentionCount ?? 7)
                     }}
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </Button>
                 </Box>
               </Stack>
@@ -613,7 +623,7 @@ export function BackupSection() {
               <Box display="flex" flexDirection="column" gap={1}>
                 <Box display="flex" justifyContent="space-between">
                   <Typography variant="body2" color="text.secondary">
-                    Backup Path
+                    {t('settingsBackup.backupPath')}
                   </Typography>
                   <Typography variant="body2" fontFamily="monospace">
                     {config?.backupPath}
@@ -621,14 +631,16 @@ export function BackupSection() {
                 </Box>
                 <Box display="flex" justifyContent="space-between">
                   <Typography variant="body2" color="text.secondary">
-                    Retention Count
+                    {t('settingsBackup.retentionCount')}
                   </Typography>
-                  <Typography variant="body2">{config?.retentionCount} backups</Typography>
+                  <Typography variant="body2">
+                    {t('settingsBackup.retentionCountValue', { count: config?.retentionCount ?? 0 })}
+                  </Typography>
                 </Box>
                 {config?.lastBackupAt && (
                   <Box display="flex" justifyContent="space-between">
                     <Typography variant="body2" color="text.secondary">
-                      Last Backup
+                      {t('settingsBackup.lastBackup')}
                     </Typography>
                     <Box display="flex" alignItems="center" gap={0.5}>
                       <CheckCircleIcon fontSize="small" color="success" />
@@ -688,7 +700,7 @@ export function BackupSection() {
               onClick={handleCreateBackup}
               disabled={creatingBackup || restoringBackup}
             >
-              {creatingBackup ? 'Backing up...' : 'Backup Now'}
+              {creatingBackup ? t('settingsBackup.backingUp') : t('settingsBackup.backupNow')}
             </Button>
 
             {creatingBackup && (
@@ -698,7 +710,7 @@ export function BackupSection() {
                 startIcon={<CancelIcon />}
                 onClick={handleCancelBackup}
               >
-                Cancel
+                {t('settingsBackup.cancel')}
               </Button>
             )}
 
@@ -708,14 +720,14 @@ export function BackupSection() {
               startIcon={uploadingBackup ? <CircularProgress size={16} /> : <UploadIcon />}
               disabled={uploadingBackup || restoringBackup || creatingBackup}
             >
-              {uploadingBackup ? 'Uploading...' : 'Upload Backup'}
+              {uploadingBackup ? t('settingsBackup.uploading') : t('settingsBackup.uploadBackup')}
               <input type="file" hidden accept=".sql,.sql.gz,.dump" onChange={handleUploadBackup} />
             </Button>
 
             <Box display="flex" alignItems="center" gap={0.5} ml="auto">
               <ScheduleIcon fontSize="small" color="action" />
               <Typography variant="body2" color="text.secondary">
-                Automatic backups run daily at 2:00 AM
+                {t('settingsBackup.scheduleNote')}
               </Typography>
             </Box>
           </Box>
@@ -729,7 +741,9 @@ export function BackupSection() {
                   {jobProgress?.status === 'completed' && <CheckCircleIcon color="success" fontSize="small" />}
                   {jobProgress?.status === 'failed' && <ErrorIcon color="error" fontSize="small" />}
                   <Typography variant="subtitle2" fontWeight={600}>
-                    {jobProgress?.jobName === 'backup-database' ? 'Creating Backup' : 'Restoring Database'}
+                    {jobProgress?.jobName === 'backup-database'
+                      ? t('settingsBackup.jobCreatingBackup')
+                      : t('settingsBackup.jobRestoring')}
                   </Typography>
                 </Box>
                 <Button
@@ -737,7 +751,7 @@ export function BackupSection() {
                   startIcon={showLogs ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                   onClick={() => setShowLogs(!showLogs)}
                 >
-                  {showLogs ? 'Hide Logs' : 'Show Logs'}
+                  {showLogs ? t('settingsBackup.hideLogs') : t('settingsBackup.showLogs')}
                 </Button>
               </Box>
 
@@ -745,7 +759,7 @@ export function BackupSection() {
               <Box sx={{ mb: 1 }}>
                 <Box display="flex" justifyContent="space-between" mb={0.5}>
                   <Typography variant="caption" color="text.secondary">
-                    {jobProgress?.currentStep || 'Initializing...'}
+                    {jobProgress?.currentStep || t('settingsBackup.initializing')}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     {jobProgress?.overallProgress || 0}%
@@ -792,21 +806,21 @@ export function BackupSection() {
 
           {/* Backups List */}
           <Typography variant="subtitle2" fontWeight={600} mb={1}>
-            Available Backups ({inProgressBackup ? backups.filter(b => b.filename !== inProgressBackup.filename).length : backups.length}{inProgressBackup ? ' + 1 in progress' : ''})
+            {t('settingsBackup.availableBackups', { detail: backupDetailLabel })}
           </Typography>
 
           {backups.length === 0 && !inProgressBackup ? (
-            <Alert severity="info">No backups found. Create your first backup using the button above.</Alert>
+            <Alert severity="info">{t('settingsBackup.noBackups')}</Alert>
           ) : (
             <TableContainer sx={{ maxHeight: 400 }}>
               <Table size="small" stickyHeader>
                 <TableHead>
                   <TableRow>
-                    <TableCell width={40}>Status</TableCell>
-                    <TableCell>Filename</TableCell>
-                    <TableCell>Size</TableCell>
-                    <TableCell>Created</TableCell>
-                    <TableCell align="right">Actions</TableCell>
+                    <TableCell width={40}>{t('settingsBackup.colStatus')}</TableCell>
+                    <TableCell>{t('settingsBackup.colFilename')}</TableCell>
+                    <TableCell>{t('settingsBackup.colSize')}</TableCell>
+                    <TableCell>{t('settingsBackup.colCreated')}</TableCell>
+                    <TableCell align="right">{t('settingsBackup.colActions')}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -819,7 +833,7 @@ export function BackupSection() {
                       }}
                     >
                       <TableCell>
-                        <Tooltip title="Backup in progress">
+                        <Tooltip title={t('settingsBackup.tooltipBackupProgress')}>
                           <CircularProgress size={18} color="primary" />
                         </Tooltip>
                       </TableCell>
@@ -828,8 +842,8 @@ export function BackupSection() {
                           <Typography variant="body2" fontFamily="monospace" fontSize="0.8rem">
                             {inProgressBackup.filename}
                           </Typography>
-                          <Chip 
-                            label="In Progress" 
+                          <Chip
+                            label={t('settingsBackup.chipInProgress')}
                             size="small" 
                             color="primary" 
                             sx={{ height: 20, fontSize: '0.7rem' }} 
@@ -843,7 +857,7 @@ export function BackupSection() {
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" color="text.secondary" fontStyle="italic">
-                          Now
+                          {t('settingsBackup.now')}
                         </Typography>
                       </TableCell>
                       <TableCell align="right">
@@ -859,7 +873,7 @@ export function BackupSection() {
                     .map((backup) => (
                     <TableRow key={backup.filename} hover>
                       <TableCell>
-                        <Tooltip title="Backup complete">
+                        <Tooltip title={t('settingsBackup.tooltipBackupComplete')}>
                           <CheckCircleIcon fontSize="small" color="success" />
                         </Tooltip>
                       </TableCell>
@@ -869,14 +883,14 @@ export function BackupSection() {
                             {backup.filename}
                           </Typography>
                           {backup.isCompressed && (
-                            <Chip label="gzip" size="small" variant="outlined" sx={{ height: 20 }} />
+                            <Chip label={t('settingsBackup.chipGzip')} size="small" variant="outlined" sx={{ height: 20 }} />
                           )}
                         </Box>
                       </TableCell>
                       <TableCell>{backup.sizeFormatted}</TableCell>
                       <TableCell>{formatDate(backup.createdAt)}</TableCell>
                       <TableCell align="right">
-                        <Tooltip title="Restore">
+                        <Tooltip title={t('settingsBackup.tooltipRestore')}>
                           <IconButton
                             size="small"
                             onClick={() => openRestoreDialog(backup.filename)}
@@ -885,12 +899,12 @@ export function BackupSection() {
                             <RestoreIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="Download">
+                        <Tooltip title={t('settingsBackup.tooltipDownload')}>
                           <IconButton size="small" onClick={() => handleDownloadBackup(backup.filename)}>
                             <DownloadIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="Delete">
+                        <Tooltip title={t('settingsBackup.tooltipDelete')}>
                           <IconButton
                             size="small"
                             color="error"
@@ -919,36 +933,35 @@ export function BackupSection() {
         <DialogTitle sx={{ color: 'warning.main' }}>
           <Box display="flex" alignItems="center" gap={1}>
             <RestoreIcon />
-            Restore Database
+            {t('settingsBackup.restoreDialogTitle')}
           </Box>
         </DialogTitle>
         <DialogContent>
           <Alert severity="warning" sx={{ mb: 2 }}>
-            <strong>Warning:</strong> This will replace all current data with the backup. A pre-restore backup
-            will be created automatically.
+            <strong>{t('settingsBackup.restoreWarningTitle')}</strong> {t('settingsBackup.restoreWarningBody')}
           </Alert>
           <Typography variant="body2" mb={2}>
-            You are about to restore from: <strong>{restoreFilename}</strong>
+            {t('settingsBackup.restoreFrom', { filename: restoreFilename ?? '' })}
           </Typography>
           <Typography variant="body2" mb={2}>
-            To confirm, type <strong>RESTORE</strong> below:
+            {t('settingsBackup.restoreConfirmPrompt', { word: RESTORE_CONFIRM_WORD })}
           </Typography>
           <TextField
             fullWidth
             size="small"
             value={restoreConfirmText}
             onChange={(e) => setRestoreConfirmText(e.target.value)}
-            placeholder="Type RESTORE to confirm"
+            placeholder={t('settingsBackup.restorePlaceholder')}
             autoFocus
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setRestoreDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setRestoreDialogOpen(false)}>{t('common.cancel')}</Button>
           <Button
             variant="contained"
             color="warning"
             onClick={handleRestore}
-            disabled={restoreConfirmText !== 'RESTORE' || restoringBackup}
+            disabled={restoreConfirmText !== RESTORE_CONFIRM_WORD || restoringBackup}
             startIcon={
               restoringBackup ? (
                 <Box sx={{ position: 'relative', display: 'inline-flex' }}>
@@ -986,7 +999,7 @@ export function BackupSection() {
               )
             }
           >
-            {restoringBackup ? 'Restoring...' : 'Restore Database'}
+            {restoringBackup ? t('settingsBackup.restoring') : t('settingsBackup.restoreButton')}
           </Button>
         </DialogActions>
       </Dialog>

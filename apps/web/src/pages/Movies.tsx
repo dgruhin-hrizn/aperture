@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -36,6 +37,7 @@ interface Collection {
 }
 
 export function MoviesPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { getRating, setRating } = useUserRatings()
   const [movies, setMovies] = useState<Movie[]>([])
@@ -104,10 +106,10 @@ export function MoviesPage() {
           setTotalPages(Math.ceil(data.total / pageSize))
           setError(null)
         } else {
-          setError('Failed to load movies')
+          setError(t('browse.movies.errorLoad'))
         }
       } catch {
-        setError('Could not connect to server')
+        setError(t('browse.movies.errorConnect'))
       } finally {
         setLoading(false)
       }
@@ -115,21 +117,21 @@ export function MoviesPage() {
 
     const debounce = setTimeout(fetchMovies, search ? 300 : 0)
     return () => clearTimeout(debounce)
-  }, [page, search, genre, collection, minRtScore])
+  }, [page, search, genre, collection, minRtScore, t])
 
   return (
     <Box>
       <Typography variant="h4" fontWeight={700} mb={1}>
-        Movies
+        {t('browse.movies.title')}
       </Typography>
       <Typography variant="body1" color="text.secondary" mb={4}>
-        Browse your synced movie library
+        {t('browse.movies.subtitle')}
       </Typography>
 
       {/* Filters */}
       <Box display="flex" gap={2} mb={4} flexWrap="wrap" alignItems="center">
         <TextField
-          placeholder="Search movies..."
+          placeholder={t('browse.movies.searchPlaceholder')}
           value={search}
           onChange={(e) => {
             setSearch(e.target.value)
@@ -147,16 +149,16 @@ export function MoviesPage() {
         />
 
         <FormControl size="small" sx={{ width: { xs: '100%', sm: 150 } }}>
-          <InputLabel>Genre</InputLabel>
+          <InputLabel>{t('browse.genre')}</InputLabel>
           <Select
             value={genre}
-            label="Genre"
+            label={t('browse.genre')}
             onChange={(e) => {
               setGenre(e.target.value)
               setPage(1)
             }}
           >
-            <MenuItem value="">All Genres</MenuItem>
+            <MenuItem value="">{t('browse.movies.allGenres')}</MenuItem>
             {genres.map((g) => (
               <MenuItem key={g} value={g}>
                 {g}
@@ -167,16 +169,16 @@ export function MoviesPage() {
 
         {collections.length > 0 && (
           <FormControl size="small" sx={{ width: { xs: '100%', sm: 180 } }}>
-            <InputLabel>Franchise</InputLabel>
+            <InputLabel>{t('browse.movies.franchise')}</InputLabel>
             <Select
               value={collection}
-              label="Franchise"
+              label={t('browse.movies.franchise')}
               onChange={(e) => {
                 setCollection(e.target.value)
                 setPage(1)
               }}
             >
-              <MenuItem value="">All Franchises</MenuItem>
+              <MenuItem value="">{t('browse.movies.allFranchises')}</MenuItem>
               {collections.map((c) => (
                 <MenuItem key={c.name} value={c.name}>
                   {c.name} ({c.count})
@@ -188,7 +190,9 @@ export function MoviesPage() {
 
         <Box sx={{ width: { xs: '100%', sm: 180 }, px: 1 }}>
           <Typography variant="caption" color="text.secondary">
-            Min RT Score: {minRtScore > 0 ? `${minRtScore}%` : 'Any'}
+            {t('browse.minRtScore', {
+              value: minRtScore > 0 ? `${minRtScore}%` : t('browse.any'),
+            })}
           </Typography>
           <Slider
             value={minRtScore}
@@ -223,7 +227,7 @@ export function MoviesPage() {
             )}
             {minRtScore > 0 && (
               <Chip
-                label={`RT ${minRtScore}%+`}
+                label={t('browse.rtChip', { min: minRtScore })}
                 size="small"
                 onDelete={() => { setMinRtScore(0); setPage(1) }}
               />
@@ -249,8 +253,8 @@ export function MoviesPage() {
       ) : movies.length === 0 ? (
         <Typography color="text.secondary">
           {search || genre || collection || minRtScore > 0
-            ? 'No movies match your filters.'
-            : 'No movies found. Run the movie sync job to import your library.'}
+            ? t('browse.movies.emptyFiltered')
+            : t('browse.movies.emptyNoSync')}
         </Typography>
       ) : (
         <>

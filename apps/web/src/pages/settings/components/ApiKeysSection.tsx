@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -56,6 +57,7 @@ interface ExpirationOption {
 }
 
 export function ApiKeysSection() {
+  const { t } = useTranslation()
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([])
   const [expirationOptions, setExpirationOptions] = useState<ExpirationOption[]>([])
   const [loading, setLoading] = useState(true)
@@ -105,7 +107,7 @@ export function ApiKeysSection() {
 
   const handleCreateKey = async () => {
     if (!newKeyName.trim()) {
-      setError('Name is required')
+      setError(t('settingsApiKeys.errNameRequired'))
       return
     }
 
@@ -178,7 +180,7 @@ export function ApiKeysSection() {
         throw new Error(data.error || 'Failed to delete API key')
       }
 
-      setSuccess(`API key "${keyToDelete.name}" has been revoked`)
+      setSuccess(t('settingsApiKeys.revokedSuccess', { name: keyToDelete.name }))
       setDeleteDialogOpen(false)
       setKeyToDelete(null)
       await fetchApiKeys()
@@ -200,24 +202,24 @@ export function ApiKeysSection() {
     })
   }
 
-  const getKeyStatus = (key: ApiKey): { label: string; color: 'success' | 'warning' | 'error' } => {
+  const getKeyStatus = (key: ApiKey): { status: 'revoked' | 'expired' | 'active'; color: 'success' | 'warning' | 'error' } => {
     if (key.revokedAt) {
-      return { label: 'Revoked', color: 'error' }
+      return { status: 'revoked', color: 'error' }
     }
     if (key.expiresAt && new Date(key.expiresAt) < new Date()) {
-      return { label: 'Expired', color: 'warning' }
+      return { status: 'expired', color: 'warning' }
     }
-    return { label: 'Active', color: 'success' }
+    return { status: 'active', color: 'success' }
   }
 
   const getExpirationDisplay = (key: ApiKey): string => {
-    if (!key.expiresAt) return 'Never'
+    if (!key.expiresAt) return t('settingsApiKeys.never')
     const date = new Date(key.expiresAt)
     const now = new Date()
-    if (date < now) return 'Expired'
+    if (date < now) return t('settingsApiKeys.expired')
     const days = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-    if (days === 1) return '1 day'
-    if (days <= 30) return `${days} days`
+    if (days === 1) return t('settingsApiKeys.expiresOneDay')
+    if (days <= 30) return t('settingsApiKeys.expiresDays', { count: days })
     return formatDate(key.expiresAt)
   }
 
@@ -240,19 +242,19 @@ export function ApiKeysSection() {
           <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
             <Box display="flex" alignItems="center" gap={1}>
               <VpnKeyIcon color="primary" />
-              <Typography variant="h6">API Keys</Typography>
+              <Typography variant="h6">{t('settingsApiKeys.title')}</Typography>
             </Box>
             <Button
               variant="contained"
               startIcon={<AddIcon />}
               onClick={() => setCreateDialogOpen(true)}
             >
-              Create API Key
+              {t('settingsApiKeys.createButton')}
             </Button>
           </Box>
 
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            API keys allow programmatic access to the Aperture API. Keys are shown only once when created.
+            {t('settingsApiKeys.subtitle')}
           </Typography>
 
           {error && (
@@ -269,26 +271,32 @@ export function ApiKeysSection() {
 
           {apiKeys.length === 0 ? (
             <Alert severity="info">
-              No API keys found. Create your first API key to enable programmatic access.
+              {t('settingsApiKeys.empty')}
             </Alert>
           ) : (
             <TableContainer component={Paper} variant="outlined">
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell>Name</TableCell>
-                    <TableCell>Key Prefix</TableCell>
-                    {apiKeys.some((k) => k.username) && <TableCell>User</TableCell>}
-                    <TableCell>Status</TableCell>
-                    <TableCell>Expires</TableCell>
-                    <TableCell>Last Used</TableCell>
-                    <TableCell>Created</TableCell>
-                    <TableCell align="right">Actions</TableCell>
+                    <TableCell>{t('settingsApiKeys.colName')}</TableCell>
+                    <TableCell>{t('settingsApiKeys.colPrefix')}</TableCell>
+                    {apiKeys.some((k) => k.username) && <TableCell>{t('settingsApiKeys.colUser')}</TableCell>}
+                    <TableCell>{t('settingsApiKeys.colStatus')}</TableCell>
+                    <TableCell>{t('settingsApiKeys.colExpires')}</TableCell>
+                    <TableCell>{t('settingsApiKeys.colLastUsed')}</TableCell>
+                    <TableCell>{t('settingsApiKeys.colCreated')}</TableCell>
+                    <TableCell align="right">{t('settingsApiKeys.colActions')}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {apiKeys.map((key) => {
-                    const status = getKeyStatus(key)
+                    const keyStatus = getKeyStatus(key)
+                    const statusLabel =
+                      keyStatus.status === 'revoked'
+                        ? t('settingsApiKeys.statusRevoked')
+                        : keyStatus.status === 'expired'
+                          ? t('settingsApiKeys.statusExpired')
+                          : t('settingsApiKeys.statusActive')
                     return (
                       <TableRow key={key.id} hover>
                         <TableCell>
@@ -314,13 +322,13 @@ export function ApiKeysSection() {
                         )}
                         <TableCell>
                           <Chip
-                            label={status.label}
-                            color={status.color}
+                            label={statusLabel}
+                            color={keyStatus.color}
                             size="small"
                             icon={
-                              status.label === 'Revoked' ? (
+                              keyStatus.status === 'revoked' ? (
                                 <BlockIcon />
-                              ) : status.label === 'Expired' ? (
+                              ) : keyStatus.status === 'expired' ? (
                                 <WarningIcon />
                               ) : (
                                 <CheckIcon />
@@ -335,7 +343,7 @@ export function ApiKeysSection() {
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2" color="text.secondary">
-                            {key.lastUsedAt ? formatDate(key.lastUsedAt) : 'Never'}
+                            {key.lastUsedAt ? formatDate(key.lastUsedAt) : t('settingsApiKeys.never')}
                           </Typography>
                         </TableCell>
                         <TableCell>
@@ -345,7 +353,7 @@ export function ApiKeysSection() {
                         </TableCell>
                         <TableCell align="right">
                           {!key.revokedAt && (
-                            <Tooltip title="Revoke key">
+                            <Tooltip title={t('settingsApiKeys.revokeTooltip')}>
                               <IconButton
                                 size="small"
                                 color="error"
@@ -373,26 +381,26 @@ export function ApiKeysSection() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Create API Key</DialogTitle>
+        <DialogTitle>{t('settingsApiKeys.dialogCreateTitle')}</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             <TextField
-              label="Key Name"
+              label={t('settingsApiKeys.keyNameLabel')}
               value={newKeyName}
               onChange={(e) => setNewKeyName(e.target.value)}
-              placeholder="e.g., Home Assistant, Automation Script"
+              placeholder={t('settingsApiKeys.keyNamePlaceholder')}
               fullWidth
               autoFocus
-              helperText="A descriptive name to identify this key"
+              helperText={t('settingsApiKeys.keyNameHelper')}
             />
             <FormControl fullWidth>
-              <InputLabel>Expiration</InputLabel>
+              <InputLabel>{t('settingsApiKeys.expirationLabel')}</InputLabel>
               <Select
                 value={newKeyExpiration === null ? 'never' : newKeyExpiration}
                 onChange={(e) =>
                   setNewKeyExpiration(e.target.value === 'never' ? null : Number(e.target.value))
                 }
-                label="Expiration"
+                label={t('settingsApiKeys.expirationLabel')}
               >
                 {expirationOptions.map((opt) => (
                   <MenuItem key={opt.label} value={opt.days === null ? 'never' : opt.days}>
@@ -404,14 +412,14 @@ export function ApiKeysSection() {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setCreateDialogOpen(false)}>{t('common.cancel')}</Button>
           <Button
             variant="contained"
             onClick={handleCreateKey}
             disabled={creating || !newKeyName.trim()}
             startIcon={creating ? <CircularProgress size={16} /> : <AddIcon />}
           >
-            {creating ? 'Creating...' : 'Create Key'}
+            {creating ? t('settingsApiKeys.creating') : t('settingsApiKeys.createKey')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -425,14 +433,14 @@ export function ApiKeysSection() {
       >
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <CheckIcon color="success" />
-          API Key Created
+          {t('settingsApiKeys.createdTitle')}
         </DialogTitle>
         <DialogContent>
           <Alert severity="warning" sx={{ mb: 2 }}>
-            <strong>Important:</strong> Copy this key now. You won't be able to see it again!
+            <strong>{t('settingsApiKeys.createdWarning')}</strong> {t('settingsApiKeys.createdWarningBody')}
           </Alert>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            Key name: <strong>{createdKey?.name}</strong>
+            {t('settingsApiKeys.keyNameLine', { name: createdKey?.name ?? '' })}
           </Typography>
           <TextField
             fullWidth
@@ -442,7 +450,7 @@ export function ApiKeysSection() {
               sx: { fontFamily: 'monospace' },
               endAdornment: (
                 <InputAdornment position="end">
-                  <Tooltip title={copied ? 'Copied!' : 'Copy to clipboard'}>
+                  <Tooltip title={copied ? t('settingsApiKeys.copied') : t('settingsApiKeys.copyTooltip')}>
                     <IconButton onClick={handleCopyKey} edge="end">
                       {copied ? <CheckIcon color="success" /> : <ContentCopyIcon />}
                     </IconButton>
@@ -454,7 +462,7 @@ export function ApiKeysSection() {
         </DialogContent>
         <DialogActions>
           <Button variant="contained" onClick={handleCloseCreatedKey}>
-            Done
+            {t('settingsApiKeys.done')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -466,17 +474,17 @@ export function ApiKeysSection() {
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle>Revoke API Key</DialogTitle>
+        <DialogTitle>{t('settingsApiKeys.revokeDialogTitle')}</DialogTitle>
         <DialogContent>
           <Typography variant="body2">
-            Are you sure you want to revoke the API key <strong>"{keyToDelete?.name}"</strong>?
+            {t('settingsApiKeys.revokeConfirm', { name: keyToDelete?.name ?? '' })}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            This action cannot be undone. Any applications using this key will lose access.
+            {t('settingsApiKeys.revokeWarning')}
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setDeleteDialogOpen(false)}>{t('common.cancel')}</Button>
           <Button
             variant="contained"
             color="error"
@@ -484,7 +492,7 @@ export function ApiKeysSection() {
             disabled={deleting}
             startIcon={deleting ? <CircularProgress size={16} /> : <DeleteIcon />}
           >
-            {deleting ? 'Revoking...' : 'Revoke Key'}
+            {deleting ? t('settingsApiKeys.revoking') : t('settingsApiKeys.revokeKey')}
           </Button>
         </DialogActions>
       </Dialog>

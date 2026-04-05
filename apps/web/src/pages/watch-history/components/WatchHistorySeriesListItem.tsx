@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -23,6 +24,7 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import FavoriteIcon from '@mui/icons-material/Favorite'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import { getProxiedImageUrl, FALLBACK_POSTER_URL, HeartRating } from '@aperture/ui'
+import { formatWatchHistoryRelativeDate } from '@/lib/formatWatchHistoryRelativeDate'
 
 interface SeriesWatchHistoryItem {
   series_id: string
@@ -54,23 +56,10 @@ export function WatchHistorySeriesListItem({
   canManage,
   onMarkUnwatched,
 }: WatchHistorySeriesListItemProps) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
-
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return 'Never'
-    const date = new Date(dateStr)
-    const now = new Date()
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
-    
-    if (diffDays === 0) return 'Today'
-    if (diffDays === 1) return 'Yesterday'
-    if (diffDays < 7) return `${diffDays} days ago`
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`
-    return date.toLocaleDateString()
-  }
 
   const progressPercent = series.total_episodes > 0 
     ? Math.min(100, (series.episodes_watched / series.total_episodes) * 100)
@@ -191,7 +180,7 @@ export function WatchHistorySeriesListItem({
               {series.is_favorite && !isMobile && (
                 <Chip
                   icon={<FavoriteIcon sx={{ fontSize: 14 }} />}
-                  label="Favorite"
+                  label={t('watchHistoryPage.favorite')}
                   size="small"
                   sx={{
                     backgroundColor: alpha('#ef4444', 0.2),
@@ -249,7 +238,7 @@ export function WatchHistorySeriesListItem({
                 fontSize: { xs: '0.75rem', md: '0.875rem' },
               }}
             >
-              {series.overview || 'No description available.'}
+              {series.overview || t('common.noDescription')}
             </Typography>
 
             {/* Mobile: Inline actions */}
@@ -260,7 +249,7 @@ export function WatchHistorySeriesListItem({
                   onChange={(rating) => onRate(rating)}
                   size="small"
                 />
-                <Tooltip title="View details">
+                <Tooltip title={t('watchHistoryPage.viewDetails')}>
                   <IconButton
                     onClick={(e) => {
                       e.stopPropagation()
@@ -277,7 +266,7 @@ export function WatchHistorySeriesListItem({
                   </IconButton>
                 </Tooltip>
                 {canManage && onMarkUnwatched && (
-                  <Tooltip title="Mark all episodes as unwatched">
+                  <Tooltip title={t('watchHistoryPage.markAllUnwatchedTooltip')}>
                     <IconButton
                       onClick={(e) => {
                         e.stopPropagation()
@@ -330,7 +319,10 @@ export function WatchHistorySeriesListItem({
                 </Typography>
               </Box>
               <Typography variant="caption" color="text.secondary">
-                {series.episodes_watched} / {series.total_episodes} episodes
+                {t('watchHistoryPage.episodesProgressFull', {
+                  watched: series.episodes_watched,
+                  total: series.total_episodes,
+                })}
               </Typography>
               <LinearProgress
                 variant="determinate"
@@ -354,7 +346,7 @@ export function WatchHistorySeriesListItem({
             <Box display="flex" alignItems="center" justifyContent="center" gap={0.5}>
               <AccessTimeIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
               <Typography variant="caption" color="text.secondary">
-                {formatDate(series.last_played_at)}
+                {formatWatchHistoryRelativeDate(series.last_played_at, t)}
               </Typography>
             </Box>
 
@@ -366,7 +358,7 @@ export function WatchHistorySeriesListItem({
                 size="small"
               />
               
-              <Tooltip title="View details">
+              <Tooltip title={t('watchHistoryPage.viewDetails')}>
                 <IconButton
                   onClick={(e) => {
                     e.stopPropagation()
@@ -383,7 +375,7 @@ export function WatchHistorySeriesListItem({
               </Tooltip>
               
               {canManage && onMarkUnwatched && (
-                <Tooltip title="Mark all episodes as unwatched">
+                <Tooltip title={t('watchHistoryPage.markAllUnwatchedTooltip')}>
                   <IconButton
                     onClick={(e) => {
                       e.stopPropagation()
@@ -430,12 +422,15 @@ export function WatchHistorySeriesListItem({
               </Typography>
             </Box>
             <Typography variant="caption" color="text.secondary">
-              {series.episodes_watched}/{series.total_episodes} eps
+              {t('watchHistoryPage.episodesShort', {
+                watched: series.episodes_watched,
+                total: series.total_episodes,
+              })}
             </Typography>
             <Box display="flex" alignItems="center" gap={0.5}>
               <AccessTimeIcon sx={{ fontSize: 12, color: 'text.secondary' }} />
               <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
-                {formatDate(series.last_played_at)}
+                {formatWatchHistoryRelativeDate(series.last_played_at, t)}
               </Typography>
             </Box>
           </Box>

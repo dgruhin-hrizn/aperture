@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -27,6 +28,7 @@ interface SeasonsListProps {
 }
 
 export function SeasonsList({ seasons }: SeasonsListProps) {
+  const { t } = useTranslation()
   const seasonNumbers = Object.keys(seasons)
     .map(Number)
     .sort((a, b) => a - b)
@@ -38,10 +40,10 @@ export function SeasonsList({ seasons }: SeasonsListProps) {
       <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
         <CardContent>
           <Typography variant="h6" fontWeight={600} gutterBottom>
-            Episodes
+            {t('mediaDetail.seasons.title')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            No episodes available.
+            {t('mediaDetail.seasons.noEpisodes')}
           </Typography>
         </CardContent>
       </Card>
@@ -69,7 +71,7 @@ export function SeasonsList({ seasons }: SeasonsListProps) {
     <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
       <CardContent>
         <Typography variant="h6" fontWeight={600} gutterBottom>
-          Episodes
+          {t('mediaDetail.seasons.title')}
         </Typography>
 
         {/* Season Tabs */}
@@ -91,7 +93,11 @@ export function SeasonsList({ seasons }: SeasonsListProps) {
               <Tab
                 key={seasonNum}
                 value={seasonNum}
-                label={seasonNum === 0 ? 'Specials' : `Season ${seasonNum}`}
+                label={
+                  seasonNum === 0
+                    ? t('mediaDetail.seasons.specials')
+                    : t('mediaDetail.seasons.seasonN', { n: seasonNum })
+                }
               />
             ))}
           </Tabs>

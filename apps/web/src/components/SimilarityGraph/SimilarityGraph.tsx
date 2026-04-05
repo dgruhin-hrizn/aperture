@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, useCallback, useMemo, memo } from 'react'
+import { useTranslation } from 'react-i18next'
 import * as d3 from 'd3'
 import { Box, Typography, Fade, CircularProgress, Chip, Stack } from '@mui/material'
 import { getProxiedImageUrl } from '@aperture/ui'
-import type { GraphNode, GraphEdge, GraphData, ConnectionReason, LoadingStatus } from './types'
-import { CONNECTION_COLORS, CONNECTION_LABELS } from './types'
+import type { GraphNode, GraphEdge, GraphData, ConnectionReason, LoadingStatus, ConnectionType } from './types'
+import { CONNECTION_COLORS } from './types'
+import { connectionTypeLabel } from '../../i18n/connectionTypeLabel'
 
 // Node dimensions (2:3 poster ratio)
 const NODE_WIDTH = 100
@@ -47,6 +49,7 @@ export const SimilarityGraph = memo(function SimilarityGraph({
   width: propWidth,
   height: propHeight,
 }: SimilarityGraphProps) {
+  const { t } = useTranslation()
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 })
@@ -528,7 +531,7 @@ export const SimilarityGraph = memo(function SimilarityGraph({
           fontWeight={500}
           sx={{ textAlign: 'center' }}
         >
-          {loadingStatus?.message || 'Loading...'}
+          {loadingStatus?.message || t('similarityGraph.loadingFallback')}
         </Typography>
 
         {/* Detail message (e.g., current validation being checked) */}
@@ -553,7 +556,7 @@ export const SimilarityGraph = memo(function SimilarityGraph({
         {/* Phase indicator chips */}
         <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
           <Chip
-            label="Fetch"
+            label={t('similarityGraph.phaseFetch')}
             size="small"
             color={loadingStatus?.phase === 'fetching' ? 'primary' : 'default'}
             variant={loadingStatus?.phase === 'fetching' ? 'filled' : 'outlined'}
@@ -563,7 +566,7 @@ export const SimilarityGraph = memo(function SimilarityGraph({
             }}
           />
           <Chip
-            label="Validate"
+            label={t('similarityGraph.phaseValidate')}
             size="small"
             color={loadingStatus?.phase === 'validating' ? 'primary' : 'default'}
             variant={loadingStatus?.phase === 'validating' ? 'filled' : 'outlined'}
@@ -573,7 +576,7 @@ export const SimilarityGraph = memo(function SimilarityGraph({
             }}
           />
           <Chip
-            label="Build"
+            label={t('similarityGraph.phaseBuild')}
             size="small"
             color={loadingStatus?.phase === 'building' ? 'primary' : 'default'}
             variant={loadingStatus?.phase === 'building' ? 'filled' : 'outlined'}
@@ -602,7 +605,7 @@ export const SimilarityGraph = memo(function SimilarityGraph({
           borderRadius: 2,
         }}
       >
-        <Typography color="text.secondary">No connections to display</Typography>
+        <Typography color="text.secondary">{t('similarityGraph.empty')}</Typography>
       </Box>
     )
   }
@@ -663,24 +666,27 @@ export const SimilarityGraph = memo(function SimilarityGraph({
                   {hoveredNode.title}
                 </Typography>
                 <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.5 }}>
-                  {hoveredNode.year} • {hoveredNode.type === 'movie' ? 'Movie' : 'Series'}
+                  {hoveredNode.year} •{' '}
+                  {hoveredNode.type === 'movie'
+                    ? t('similarityGraph.movie')
+                    : t('similarityGraph.series')}
                 </Typography>
                 
                 {hoveredNode.isCenter ? (
                   <Typography variant="caption" color="primary.light">
-                    Center node • {connections.length} connection{connections.length !== 1 ? 's' : ''}
+                    {t('similarityGraph.centerNode', { count: connections.length })}
                   </Typography>
                 ) : connections.length > 0 ? (
                   <Box>
                     <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                      Connected via:
+                      {t('similarityGraph.connectedVia')}
                     </Typography>
                     <Stack spacing={1}>
                       {Object.entries(reasonsByType).map(([type, values]) => (
                         <Box key={type}>
                           <Chip
                             size="small"
-                            label={CONNECTION_LABELS[type as keyof typeof CONNECTION_LABELS] || type}
+                            label={connectionTypeLabel(type as ConnectionType, t)}
                             sx={{
                               bgcolor: CONNECTION_COLORS[type as keyof typeof CONNECTION_COLORS] || '#666',
                               color: '#fff',
@@ -693,7 +699,8 @@ export const SimilarityGraph = memo(function SimilarityGraph({
                           {values.size > 0 && (
                             <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
                               {Array.from(values).slice(0, 3).join(', ')}
-                              {values.size > 3 && ` +${values.size - 3} more`}
+                              {values.size > 3 &&
+                                ` ${t('similarityGraph.moreCount', { count: values.size - 3 })}`}
                             </Typography>
                           )}
                         </Box>
@@ -702,7 +709,7 @@ export const SimilarityGraph = memo(function SimilarityGraph({
                   </Box>
                 ) : (
                   <Typography variant="caption" color="text.secondary">
-                    No direct connections
+                    {t('similarityGraph.noDirectConnections')}
                   </Typography>
                 )}
               </>
@@ -728,7 +735,9 @@ export const SimilarityGraph = memo(function SimilarityGraph({
           {hoveredEdge && (
             <>
               <Typography variant="subtitle2" fontWeight={600}>
-                {Math.round(hoveredEdge.similarity * 100)}% Similar
+                {t('similarityGraph.percentSimilar', {
+                  pct: Math.round(hoveredEdge.similarity * 100),
+                })}
               </Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
                 {hoveredEdge.reasons.map((reason, idx) => (
@@ -743,7 +752,7 @@ export const SimilarityGraph = memo(function SimilarityGraph({
                       fontSize: '10px',
                     }}
                   >
-                    {CONNECTION_LABELS[reason.type]}
+                    {connectionTypeLabel(reason.type, t)}
                     {reason.value && `: ${reason.value}`}
                   </Box>
                 ))}

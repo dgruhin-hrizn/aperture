@@ -5,6 +5,7 @@
  * with a fanart backdrop and 2-column card layout
  */
 import React, { useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,8 @@ import OndemandVideoIcon from '@mui/icons-material/OndemandVideo'
 import { useNavigate } from 'react-router-dom'
 import { getProxiedImageUrl, TrailerModal } from '@aperture/ui'
 import type { DiscoveryCandidate } from '../types'
+import type { ResolveDiscoveryGenreName } from '../hooks'
+import { discoverySourceLabel } from '../discoveryLabels'
 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p'
 const FALLBACK_BACKDROP = '/NO_POSTER_FOUND.png'
@@ -41,13 +44,16 @@ interface DiscoveryDetailPopperProps {
   candidate: DiscoveryCandidate | null
   open: boolean
   onClose: () => void
+  resolveGenreName: ResolveDiscoveryGenreName
 }
 
 export function DiscoveryDetailPopper({
   candidate,
   open,
   onClose,
+  resolveGenreName,
 }: DiscoveryDetailPopperProps) {
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const [trailerLoading, setTrailerLoading] = useState(false)
   const [trailerModal, setTrailerModal] = useState<{
@@ -87,7 +93,7 @@ export function DiscoveryDetailPopper({
     if (!minutes) return null
     const hours = Math.floor(minutes / 60)
     const mins = minutes % 60
-    return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`
+    return hours > 0 ? t('discovery.runtimeHm', { hours, mins }) : t('discovery.runtimeM', { mins })
   }
 
   const handlePersonClick = (name: string) => {
@@ -103,20 +109,6 @@ export function DiscoveryDetailPopper({
     borderRadius: 2,
     p: { xs: 2, md: 3 },
     height: { xs: 'auto', md: '100%' },
-  }
-
-  // Format source label
-  const getSourceLabel = (source: string) => {
-    const labels: Record<string, string> = {
-      tmdb_recommendations: 'TMDb Recommended',
-      tmdb_similar: 'Similar Titles',
-      tmdb_discover: 'TMDb Discover',
-      trakt_trending: 'Trakt Trending',
-      trakt_popular: 'Trakt Popular',
-      trakt_recommendations: 'Trakt Pick',
-      mdblist: 'MDBList',
-    }
-    return labels[source] || source
   }
 
   return (
@@ -184,7 +176,11 @@ export function DiscoveryDetailPopper({
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                   <Chip
                     icon={candidate.mediaType === 'movie' ? <MovieIcon sx={{ fontSize: 16 }} /> : <TvIcon sx={{ fontSize: 16 }} />}
-                    label={candidate.mediaType === 'movie' ? 'Movie' : 'TV Series'}
+                    label={
+                      candidate.mediaType === 'movie'
+                        ? t('discovery.detail.mediaMovie')
+                        : t('discovery.detail.mediaSeries')
+                    }
                     size="small"
                     sx={{
                       bgcolor: alpha('#8B5CF6', 0.2),
@@ -245,7 +241,9 @@ export function DiscoveryDetailPopper({
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                       <HowToVoteIcon fontSize="small" sx={{ color: 'text.secondary' }} />
                       <Typography variant="body2" color="text.secondary">
-                        {candidate.voteCount.toLocaleString()} votes
+                        {t('discovery.detail.votes', {
+                          count: candidate.voteCount.toLocaleString(i18n.language),
+                        })}
                       </Typography>
                     </Box>
                   )}
@@ -254,10 +252,13 @@ export function DiscoveryDetailPopper({
                 {/* Genres */}
                 {candidate.genres.length > 0 && (
                   <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-                    {candidate.genres.filter(g => g.name).slice(0, 5).map((genre) => (
+                    {candidate.genres
+                      .filter((g) => resolveGenreName(g.id, g.name))
+                      .slice(0, 5)
+                      .map((genre) => (
                       <Chip
                         key={genre.id}
-                        label={genre.name}
+                        label={resolveGenreName(genre.id, genre.name)}
                         size="small"
                         sx={{
                           bgcolor: alpha('#fff', 0.1),
@@ -281,10 +282,12 @@ export function DiscoveryDetailPopper({
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                     <SourceIcon fontSize="small" sx={{ color: 'text.secondary' }} />
                     <Typography variant="body2" color="text.secondary">
-                      Source: {getSourceLabel(candidate.source)}
+                      {t('discovery.detail.source', {
+                        label: discoverySourceLabel(candidate.source, t, 'detail'),
+                      })}
                     </Typography>
                   </Box>
-                  <Tooltip title="Play trailer (embedded player)">
+                  <Tooltip title={t('discovery.detail.trailerTooltip')}>
                     <span>
                       <Button
                         size="small"
@@ -303,7 +306,7 @@ export function DiscoveryDetailPopper({
                           void handleOpenTrailer()
                         }}
                       >
-                        Trailer
+                        {t('discovery.detail.trailer')}
                       </Button>
                     </span>
                   </Tooltip>
@@ -325,7 +328,7 @@ export function DiscoveryDetailPopper({
                   <Grid container spacing={2}>
                     <Grid item xs={6}>
                       <Typography variant="body2" color="text.secondary">
-                        AI Match Score
+                        {t('discovery.detail.aiMatchScore')}
                       </Typography>
                       <Typography variant="h5" fontWeight={700} color="primary.main">
                         {(candidate.finalScore * 100).toFixed(0)}%
@@ -334,7 +337,7 @@ export function DiscoveryDetailPopper({
                     {candidate.similarityScore !== null && (
                       <Grid item xs={6}>
                         <Typography variant="body2" color="text.secondary">
-                          Similarity
+                          {t('discovery.detail.similarity')}
                         </Typography>
                         <Typography variant="h6" fontWeight={600}>
                           {(candidate.similarityScore * 100).toFixed(0)}%
@@ -358,7 +361,9 @@ export function DiscoveryDetailPopper({
                       sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}
                     >
                       <MovieIcon fontSize="small" />
-                      {candidate.mediaType === 'movie' ? 'Director' : 'Created By'}
+                      {candidate.mediaType === 'movie'
+                        ? t('discovery.detail.director')
+                        : t('discovery.detail.createdBy')}
                     </Typography>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                       {candidate.directors.map((director) => (
@@ -387,7 +392,7 @@ export function DiscoveryDetailPopper({
                       sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}
                     >
                       <PersonIcon fontSize="small" />
-                      Cast
+                      {t('discovery.detail.cast')}
                     </Typography>
                     <Grid container spacing={1}>
                       {candidate.castMembers.slice(0, 8).map((cast) => (
@@ -423,7 +428,7 @@ export function DiscoveryDetailPopper({
                               </Typography>
                               {cast.character && (
                                 <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: '0.7rem' }}>
-                                  as {cast.character}
+                                  {t('discovery.detail.castAs', { character: cast.character })}
                                 </Typography>
                               )}
                             </Box>
@@ -449,7 +454,7 @@ export function DiscoveryDetailPopper({
                   >
                     <PersonIcon sx={{ fontSize: 48, mb: 1, opacity: 0.5 }} />
                     <Typography variant="body2">
-                      Cast information not available
+                      {t('discovery.detail.castUnavailable')}
                     </Typography>
                   </Box>
                 )}

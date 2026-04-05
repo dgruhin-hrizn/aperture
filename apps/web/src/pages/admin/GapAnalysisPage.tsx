@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import {
   Alert,
   Box,
@@ -111,16 +113,21 @@ interface JobProgressState {
   currentItem?: string
 }
 
-function seerrChipLabel(status: PartSeerrStatus): string {
+function seerrChipLabel(status: PartSeerrStatus, t: TFunction): string {
   switch (status) {
-    case 'requested': return 'Requested'
-    case 'processing': return 'Processing'
-    case 'available': return 'Available'
-    default: return 'Requested'
+    case 'requested':
+      return t('admin.gaps.seerrRequested')
+    case 'processing':
+      return t('admin.gaps.seerrProcessing')
+    case 'available':
+      return t('admin.gaps.seerrAvailable')
+    default:
+      return t('admin.gaps.seerrRequested')
   }
 }
 
 export function GapAnalysisPage() {
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [run, setRun] = useState<GapRun | null>(null)
@@ -204,7 +211,7 @@ export function GapAnalysisPage() {
       ])
       if (!latestRes.ok) {
         const d = await latestRes.json().catch(() => ({}))
-        throw new Error(d.error || 'Failed to load gap analysis')
+        throw new Error(d.error || t('admin.gaps.errorLoadGapAnalysis'))
       }
       const data = await latestRes.json()
       setPrereq(data.prerequisites)
@@ -221,12 +228,12 @@ export function GapAnalysisPage() {
       }
       return nextRun
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load')
+      setError(e instanceof Error ? e.message : t('admin.gaps.errorFailedToLoad'))
       return null
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   const loadResults = useCallback(async (runId: string) => {
     try {
@@ -369,7 +376,9 @@ export function GapAnalysisPage() {
     const u = new URL('/api/admin/gap-analysis/collection-parts', window.location.origin)
     u.searchParams.set('ids', ids.join(','))
     void fetch(u.toString(), { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Failed to load collection parts'))))
+      .then((r) =>
+        r.ok ? r.json() : Promise.reject(new Error(t('admin.gaps.errorLoadCollectionParts')))
+      )
       .then((d: { collections?: Record<string, GapCollectionPartsPayload> }) => {
         if (cancelled) return
         const next: Record<number, GapCollectionPartsPayload> = {}
@@ -382,8 +391,10 @@ export function GapAnalysisPage() {
       .catch(() => {
         if (!cancelled) setCollectionPartsById({})
       })
-    return () => { cancelled = true }
-  }, [collectionIdsForPartsKey])
+    return () => {
+      cancelled = true
+    }
+  }, [collectionIdsForPartsKey, t])
 
   const toggleSelect = (key: string, dimmed: boolean) => {
     if (dimmed) return
@@ -424,14 +435,16 @@ export function GapAnalysisPage() {
       .then(async (r) => {
         if (!r.ok) {
           const j = (await r.json().catch(() => ({}))) as { error?: string }
-          throw new Error(j.error || 'Failed to load details')
+          throw new Error(j.error || t('admin.gaps.errorLoadDetails'))
         }
         return r.json() as Promise<TmdbExternalDetailPayload>
       })
       .then((payload) => setDetailData(payload))
-      .catch((e: unknown) => setDetailError(e instanceof Error ? e.message : 'Failed to load details'))
+      .catch((e: unknown) =>
+        setDetailError(e instanceof Error ? e.message : t('admin.gaps.errorLoadDetails'))
+      )
       .finally(() => setDetailLoading(false))
-  }, [])
+  }, [t])
 
   const closeDetailModal = useCallback(() => {
     setDetailOpen(false)
@@ -444,12 +457,12 @@ export function GapAnalysisPage() {
     (items: GapRequestItem[], titleOverride?: string) => {
       if (!seerrOk || items.length === 0) return
       setOptionsDialogTitle(
-        titleOverride ?? (items.length === 1 ? items[0].title : `${items.length} movies`)
+        titleOverride ?? (items.length === 1 ? items[0].title : t('admin.gaps.moviesCount', { count: items.length }))
       )
       setItemsPendingSeerrOptions(items)
       setRequestOptionsOpen(true)
     },
-    [seerrOk]
+    [seerrOk, t]
   )
 
   const executeGapRequest = useCallback(
@@ -466,7 +479,7 @@ export function GapAnalysisPage() {
           }),
         })
         const data = await res.json().catch(() => ({}))
-        if (!res.ok) throw new Error(data.error || data.message || 'Request failed')
+        if (!res.ok) throw new Error(data.error || data.message || t('admin.gaps.errorRequestFailed'))
         const errs = (data.errors || []) as { tmdbId: number; title: string; message: string }[]
         if (errs.length > 0) {
           setError(
@@ -491,14 +504,14 @@ export function GapAnalysisPage() {
         clearSel()
         setConfirmOpen(false)
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Request failed')
+        setError(e instanceof Error ? e.message : t('admin.gaps.errorRequestFailed'))
         setConfirmOpen(false)
       } finally {
         setRequesting(false)
         setPendingBulkAfterOptions(null)
       }
     },
-    [loadLatest, loadResults]
+    [loadLatest, loadResults, t]
   )
 
   const handleSeerrOptionsConfirm = (opts: SeerrRequestOptions) => {
@@ -532,7 +545,7 @@ export function GapAnalysisPage() {
         credentials: 'include',
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Refresh failed')
+      if (!res.ok) throw new Error(data.error || t('admin.gaps.errorRefreshFailed'))
       const jobId = data.jobId as string
       poll = setInterval(async () => {
         let terminal = false
@@ -584,7 +597,7 @@ export function GapAnalysisPage() {
       }, 15 * 60 * 1000)
     } catch (e) {
       if (poll) clearInterval(poll)
-      setError(e instanceof Error ? e.message : 'Refresh failed')
+      setError(e instanceof Error ? e.message : t('admin.gaps.errorRefreshFailed'))
       setRefreshing(false)
       setJobProgress(null)
     }
@@ -600,7 +613,7 @@ export function GapAnalysisPage() {
     if (items.length === 0) return
     openSeerrOptionsStep(
       items,
-      items.length === 1 ? items[0].title : `${items.length} selected titles`
+      items.length === 1 ? items[0].title : t('admin.gaps.selectedTitles', { count: items.length })
     )
   }
 
@@ -674,12 +687,11 @@ export function GapAnalysisPage() {
       <Box display="flex" alignItems="center" gap={1.5} mb={1}>
         <FactCheckIcon color="primary" fontSize="large" />
         <Typography variant="h4" fontWeight={700}>
-          Gap Analysis
+          {t('admin.gaps.pageTitle')}
         </Typography>
       </Box>
       <Typography variant="body2" color="text.secondary" mb={3}>
-        Compare TMDB movie collections against your synced library to find missing titles. Requests via Seerr are
-        never automatic — you choose what to request.
+        {t('admin.gaps.pageSubtitle')}
       </Typography>
 
       {error && (
@@ -695,27 +707,27 @@ export function GapAnalysisPage() {
           <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid item xs={12} md={4}>
               <StatusCard
-                title="TMDb"
+                title={t('admin.gaps.statusTmdb')}
                 status={prereq?.tmdbConfigured ? 'ok' : 'error'}
-                message={prereq?.tmdbConfigured ? 'API key configured' : 'Add your TMDb API key in Admin → Settings'}
+                message={prereq?.tmdbConfigured ? t('admin.gaps.statusTmdbOk') : t('admin.gaps.statusTmdbBad')}
               />
             </Grid>
             <Grid item xs={12} md={4}>
               <StatusCard
-                title="Collections on movies"
+                title={t('admin.gaps.statusCollections')}
                 status={(prereq?.moviesWithCollectionCount ?? 0) > 0 ? 'ok' : 'error'}
                 message={
                   (prereq?.moviesWithCollectionCount ?? 0) > 0
-                    ? `${prereq?.moviesWithCollectionCount} movies have collection metadata`
-                    : 'Run Enrich Metadata (Admin → Jobs) so movies get collection_id from TMDb'
+                    ? t('admin.gaps.statusCollectionsOk', { count: prereq?.moviesWithCollectionCount ?? 0 })
+                    : t('admin.gaps.statusCollectionsBad')
                 }
               />
             </Grid>
             <Grid item xs={12} md={4}>
               <StatusCard
-                title="Seerr"
+                title={t('admin.gaps.statusSeerr')}
                 status={seerrOk ? 'ok' : 'error'}
-                message={seerrOk ? 'Ready for requests' : 'Configure Seerr in Admin → Settings to request missing titles'}
+                message={seerrOk ? t('admin.gaps.statusSeerrOk') : t('admin.gaps.statusSeerrBad')}
               />
             </Grid>
           </Grid>
@@ -723,26 +735,32 @@ export function GapAnalysisPage() {
           <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, mb: 3 }}>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" justifyContent="space-between">
               <Box>
-                <Typography fontWeight={600}>Analysis snapshot</Typography>
+                <Typography fontWeight={600}>{t('admin.gaps.analysisSnapshot')}</Typography>
                 {activeRun ? (
                   <Typography variant="body2" color="text.secondary">
-                    In progress — {activeRun.collectionsScanned} collections scanned, {activeRun.missingCount} missing
-                    released titles so far, ~{completionPct}% released parts in library.
+                    {t('admin.gaps.inProgressScan', {
+                      scanned: activeRun.collectionsScanned,
+                      missing: activeRun.missingCount,
+                      pct: completionPct,
+                    })}
                   </Typography>
                 ) : run ? (
                   <Typography variant="body2" color="text.secondary">
-                    Last run: {new Date(run.completedAt || run.startedAt).toLocaleString()} — {run.collectionsScanned}{' '}
-                    collections, {run.missingCount} missing released titles, ~{completionPct}% released parts in library.
-                    Re-run after syncing new movies.
+                    {t('admin.gaps.lastRun', {
+                      when: new Date(run.completedAt || run.startedAt).toLocaleString(),
+                      scanned: run.collectionsScanned,
+                      missing: run.missingCount,
+                      pct: completionPct,
+                    })}
                   </Typography>
                 ) : (
                   <Typography variant="body2" color="text.secondary">
-                    No run yet. Start an analysis to scan your library against TMDb collections.
+                    {t('admin.gaps.noRunYet')}
                   </Typography>
                 )}
               </Box>
               <Button variant="contained" onClick={() => void runRefresh()} disabled={refreshing || !prereq?.tmdbConfigured}>
-                {refreshing ? <CircularProgress size={22} color="inherit" /> : 'Run analysis'}
+                {refreshing ? <CircularProgress size={22} color="inherit" /> : t('admin.gaps.runAnalysis')}
               </Button>
             </Stack>
           </Paper>
@@ -750,7 +768,7 @@ export function GapAnalysisPage() {
           {refreshing && (
             <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, mb: 3 }}>
               <Typography fontWeight={600} gutterBottom>
-                {jobProgress?.currentStep || 'Starting gap analysis…'}
+                {jobProgress?.currentStep || t('admin.gaps.startingGapAnalysis')}
               </Typography>
               <LinearProgress
                 variant={jobProgress && jobProgress.overallProgress > 0 ? 'determinate' : 'indeterminate'}
@@ -759,13 +777,15 @@ export function GapAnalysisPage() {
               />
               <Typography variant="body2" color="text.secondary">
                 {jobProgress && jobProgress.itemsTotal > 0
-                  ? `${jobProgress.itemsProcessed} / ${jobProgress.itemsTotal} collections`
-                  : jobProgress?.currentItem || 'Scanning collections — results appear below as each batch finishes.'}
+                  ? t('admin.gaps.progressCollections', {
+                      processed: jobProgress.itemsProcessed,
+                      total: jobProgress.itemsTotal,
+                    })
+                  : jobProgress?.currentItem || t('admin.gaps.scanningCollections')}
               </Typography>
               {activeRun != null && (
                 <Typography variant="body2" color="primary" sx={{ mt: 1 }}>
-                  {activeRun.missingCount} missing released title{activeRun.missingCount === 1 ? '' : 's'} so far — the
-                  grid updates as analysis runs.
+                  {t('admin.gaps.missingSoFar', { count: activeRun.missingCount })}
                 </Typography>
               )}
             </Paper>
@@ -773,8 +793,9 @@ export function GapAnalysisPage() {
 
           {!prereq?.tmdbConfigured && (
             <Alert severity="warning" sx={{ mb: 2 }}>
-              TMDb is required. Open{' '}
-              <MuiLink href="/admin/settings">Admin → Settings</MuiLink> to add your API key.
+              {t('admin.gaps.tmdbRequired')}{' '}
+              <MuiLink href="/admin/settings">{t('admin.gaps.tmdbRequiredLink')}</MuiLink>{' '}
+              {t('admin.gaps.tmdbRequiredSuffix')}
             </Alert>
           )}
 
@@ -783,20 +804,24 @@ export function GapAnalysisPage() {
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }} alignItems={{ sm: 'center' }} flexWrap="wrap">
                 <TextField
                   size="small"
-                  label="Search title or collection"
+                  label={t('admin.gaps.searchLabel')}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   sx={{ minWidth: 260 }}
                 />
                 <FormControl size="small" sx={{ minWidth: 180 }}>
-                  <InputLabel id="gap-sort-by">Sort by</InputLabel>
+                  <InputLabel id="gap-sort-by">{t('admin.gaps.sortBy')}</InputLabel>
                   <Select
                     labelId="gap-sort-by"
-                    label="Sort by"
+                    label={t('admin.gaps.sortBy')}
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as 'most_missing' | 'most_complete' | 'name')}
                     renderValue={(sel) => {
-                      const labels: Record<string, string> = { most_missing: 'Most missing', most_complete: 'Most complete', name: 'Name A–Z' }
+                      const labels: Record<string, string> = {
+                        most_missing: t('admin.gaps.sortMostMissing'),
+                        most_complete: t('admin.gaps.sortMostComplete'),
+                        name: t('admin.gaps.sortName'),
+                      }
                       return (
                         <Stack direction="row" alignItems="center" gap={0.75} component="span">
                           <SortIcon fontSize="small" sx={{ opacity: 0.8 }} />
@@ -805,15 +830,15 @@ export function GapAnalysisPage() {
                       )
                     }}
                   >
-                    <MenuItem value="most_missing">Most missing</MenuItem>
-                    <MenuItem value="most_complete">Most complete</MenuItem>
-                    <MenuItem value="name">Name A–Z</MenuItem>
+                    <MenuItem value="most_missing">{t('admin.gaps.sortMostMissing')}</MenuItem>
+                    <MenuItem value="most_complete">{t('admin.gaps.sortMostComplete')}</MenuItem>
+                    <MenuItem value="name">{t('admin.gaps.sortName')}</MenuItem>
                   </Select>
                 </FormControl>
                 {maxMissing > 1 && (
                   <Stack direction="row" alignItems="center" spacing={1.5} sx={{ minWidth: 200, maxWidth: 320, flex: 1 }}>
                     <Typography variant="body2" color="text.secondary" noWrap>
-                      Min missing
+                      {t('admin.gaps.minMissing')}
                     </Typography>
                     <Slider
                       size="small"
@@ -828,20 +853,24 @@ export function GapAnalysisPage() {
                     </Typography>
                   </Stack>
                 )}
-                <Button size="small" onClick={selectAllVisible}>Select all visible</Button>
-                <Button size="small" onClick={clearSel}>Clear selection</Button>
+                <Button size="small" onClick={selectAllVisible}>
+                  {t('admin.gaps.selectAllVisible')}
+                </Button>
+                <Button size="small" onClick={clearSel}>
+                  {t('admin.gaps.clearSelection')}
+                </Button>
               </Stack>
 
               <RequestSeerrOptionsDialog
                 open={requestOptionsOpen}
                 mediaType="movie"
-                title={optionsDialogTitle || 'Request options'}
+                title={optionsDialogTitle || t('admin.gaps.requestOptionsDefault')}
                 onClose={handleSeerrOptionsDialogClose}
                 onConfirm={handleSeerrOptionsConfirm}
               />
 
               {displaySummariesOrdered.length === 0 && filteredRows.length === 0 ? (
-                <Alert severity="info">No missing titles in this snapshot (or nothing matches the filter).</Alert>
+                <Alert severity="info">{t('admin.gaps.noMissingInSnapshot')}</Alert>
               ) : (
                 <Stack spacing={3}>
                   {displaySummariesOrdered.map((s) => {
@@ -886,7 +915,7 @@ export function GapAnalysisPage() {
                               {s.ownedCount > 0 && (
                                 <Chip
                                   icon={<CheckCircleIcon />}
-                                  label={`${s.ownedCount} owned`}
+                                  label={t('admin.gaps.owned', { count: s.ownedCount })}
                                   size="small"
                                   color="success"
                                   variant="outlined"
@@ -895,14 +924,18 @@ export function GapAnalysisPage() {
                               {s.seerrCount > 0 && (
                                 <Chip
                                   icon={<HourglassEmptyIcon />}
-                                  label={`${s.seerrCount} in Seerr`}
+                                  label={t('admin.gaps.inSeerr', { count: s.seerrCount })}
                                   size="small"
                                   color="info"
                                   variant="outlined"
                                 />
                               )}
                               <Typography variant="caption" color="text.secondary">
-                                {coveredCount}/{s.totalReleased} covered — {missingRows.length} missing
+                                {t('admin.gaps.coveredFraction', {
+                                  covered: coveredCount,
+                                  total: s.totalReleased,
+                                  missing: missingRows.length,
+                                })}
                               </Typography>
                             </Stack>
                             <LinearProgress
@@ -923,7 +956,7 @@ export function GapAnalysisPage() {
                                 setSelected(n)
                               }}
                             >
-                              Select all
+                              {t('admin.gaps.selectAll')}
                             </Button>
                             <Button
                               size="small"
@@ -934,10 +967,13 @@ export function GapAnalysisPage() {
                                 const requestable = missingRows
                                   .filter((r) => !isDimmed(r))
                                   .map((r) => ({ tmdbId: r.tmdbId, mediaType: 'movie' as const, title: r.title }))
-                                openSeerrOptionsStep(requestable, `${s.collectionName} — request all missing`)
+                                openSeerrOptionsStep(
+                                  requestable,
+                                  t('admin.gaps.requestAllMissing', { name: s.collectionName })
+                                )
                               }}
                             >
-                              Request all
+                              {t('admin.gaps.requestAll')}
                             </Button>
                             <IconButton size="small">
                               {collapsed ? <ExpandMoreIcon /> : <ExpandLessIcon />}
@@ -978,7 +1014,7 @@ export function GapAnalysisPage() {
                                           {isOwned && (
                                             <Chip
                                               icon={<CheckCircleIcon />}
-                                              label="In Library"
+                                              label={t('admin.gaps.inLibrary')}
                                               size="small"
                                               sx={{
                                                 position: 'absolute',
@@ -997,7 +1033,7 @@ export function GapAnalysisPage() {
                                           {isSeerr && (
                                             <Chip
                                               icon={<HourglassEmptyIcon />}
-                                              label={seerrChipLabel(p.seerrStatus)}
+                                              label={seerrChipLabel(p.seerrStatus, t)}
                                               size="small"
                                               sx={{
                                                 position: 'absolute',
@@ -1016,7 +1052,11 @@ export function GapAnalysisPage() {
                                           {isMissing && apertureRequested && (
                                             <Chip
                                               icon={<HourglassEmptyIcon />}
-                                              label={seerr?.requestStatus === 'pending' ? 'Pending' : 'Requested'}
+                                              label={
+                                                seerr?.requestStatus === 'pending'
+                                                  ? t('admin.gaps.pending')
+                                                  : t('admin.gaps.requested')
+                                              }
                                               size="small"
                                               sx={{
                                                 position: 'absolute',
@@ -1038,7 +1078,7 @@ export function GapAnalysisPage() {
                                               checked={isChecked}
                                               disabled={dim}
                                               onChange={(e) => { e.stopPropagation(); toggleSelect(`${p.tmdbId}`, dim) }}
-                                              inputProps={{ 'aria-label': `Select ${p.title}` }}
+                                              inputProps={{ 'aria-label': t('admin.gaps.selectAria', { title: p.title }) }}
                                               sx={{
                                                 position: 'absolute',
                                                 top: 4,
@@ -1076,7 +1116,7 @@ export function GapAnalysisPage() {
                                                 openSeerrOptionsStep([{ tmdbId: p.tmdbId, mediaType: 'movie', title: p.title }])
                                               }}
                                             >
-                                              Request
+                                              {t('admin.gaps.request')}
                                             </Button>
                                           )}
                                         </MoviePoster>
@@ -1104,7 +1144,7 @@ export function GapAnalysisPage() {
         loading={detailLoading}
         error={detailError}
         data={detailData}
-        sourceLabel="Gap Analysis"
+        sourceLabel={t('admin.gaps.sourceLabel')}
         canRequest={
           seerrOk &&
           !!detailPart &&
@@ -1135,11 +1175,11 @@ export function GapAnalysisPage() {
           sx={{ top: 'auto', bottom: 0, borderTop: 1, borderColor: 'divider' }}
         >
           <Toolbar sx={{ justifyContent: 'space-between', gap: 2 }}>
-            <Typography variant="body2">{selected.size} selected</Typography>
+            <Typography variant="body2">{t('admin.gaps.selectedCount', { count: selected.size })}</Typography>
             <Stack direction="row" spacing={1}>
-              <Button onClick={clearSel}>Clear</Button>
+              <Button onClick={clearSel}>{t('common.clear')}</Button>
               <Button variant="contained" disabled={!seerrOk} onClick={onToolbarRequest}>
-                Request selected via Seerr
+                {t('admin.gaps.requestSelectedSeerr')}
               </Button>
             </Stack>
           </Toolbar>
@@ -1147,20 +1187,21 @@ export function GapAnalysisPage() {
       )}
 
       <Dialog open={confirmOpen} onClose={closeConfirm} maxWidth="sm" fullWidth>
-        <DialogTitle>Request via Seerr?</DialogTitle>
+        <DialogTitle>{t('admin.gaps.dialogRequestTitle')}</DialogTitle>
         <DialogContent>
           {pendingBulkAfterOptions ? (
             <>
               <Typography variant="body2" color="text.secondary" mb={2}>
-                This will send {bulkPreConfirmCount} request(s) to Seerr using your linked account (Radarr options
-                already chosen). You can track them under My Requests.
+                {t('admin.gaps.dialogBulkBody', { count: bulkPreConfirmCount })}
               </Typography>
               {requesting && <CircularProgress size={24} />}
             </>
           ) : null}
         </DialogContent>
         <DialogActions>
-          <Button onClick={closeConfirm} disabled={requesting}>Cancel</Button>
+          <Button onClick={closeConfirm} disabled={requesting}>
+            {t('common.cancel')}
+          </Button>
           {pendingBulkAfterOptions && (
             <Button
               variant="contained"
@@ -1171,7 +1212,7 @@ export function GapAnalysisPage() {
                 void executeGapRequest(b.items, b.seerrOptions)
               }}
             >
-              Confirm
+              {t('common.confirm')}
             </Button>
           )}
         </DialogActions>

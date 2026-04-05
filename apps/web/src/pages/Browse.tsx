@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import {
   Box,
   Typography,
@@ -104,19 +106,17 @@ interface BrowsePerson {
   seriesCredits: number
 }
 
-function personSubtitle(person: BrowsePerson): string {
+function personSubtitle(person: BrowsePerson, t: TFunction): string {
   const parts: string[] = []
   if (person.movieCredits > 0) {
-    parts.push(
-      `${person.movieCredits} movie${person.movieCredits === 1 ? '' : 's'}`
-    )
+    parts.push(t('browse.personSubtitle.movieCredits', { count: person.movieCredits }))
   }
   if (person.seriesCredits > 0) {
-    parts.push(`${person.seriesCredits} series`)
+    parts.push(t('browse.personSubtitle.seriesCredits', { count: person.seriesCredits }))
   }
   return parts.length > 0
     ? parts.join(' · ')
-    : `${person.credits} credit${person.credits === 1 ? '' : 's'}`
+    : t('browse.personSubtitle.creditsOnly', { count: person.credits })
 }
 
 /** Media-server portrait first; on failure fetch TMDb profile URL (lazy). */
@@ -206,8 +206,9 @@ function BrowsePersonRow({
   person: BrowsePerson
   onNavigate: () => void
 }) {
+  const { t } = useTranslation()
   const { displaySrc, phase, onImageError } = usePersonBrowsePortrait(person.name)
-  const subtitle = personSubtitle(person)
+  const subtitle = personSubtitle(person, t)
   const [avatarImgShown, setAvatarImgShown] = useState(false)
 
   useEffect(() => {
@@ -265,8 +266,9 @@ function BrowsePersonCard({
   person: BrowsePerson
   onNavigate: () => void
 }) {
+  const { t } = useTranslation()
   const { displaySrc, phase, onImageError } = usePersonBrowsePortrait(person.name)
-  const subtitle = personSubtitle(person)
+  const subtitle = personSubtitle(person, t)
   const [cardImgShown, setCardImgShown] = useState(false)
 
   useEffect(() => {
@@ -388,6 +390,7 @@ const defaultSeriesFilters: SeriesFilters = {
 }
 
 export function BrowsePage() {
+  const { t } = useTranslation()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const navigate = useNavigate()
@@ -882,10 +885,10 @@ export function BrowsePage() {
           )
           setMoviesError(null)
         } else {
-          setMoviesError('Failed to load movies')
+          setMoviesError(t('browse.errors.loadMovies'))
         }
       } catch {
-        setMoviesError('Could not connect to server')
+        setMoviesError(t('browse.errors.connect'))
       } finally {
         setMoviesLoading(false)
         setMoviesLoadingMore(false)
@@ -900,6 +903,7 @@ export function BrowsePage() {
       movieSortBy,
       movieSortOrder,
       movies.length,
+      t,
     ]
   )
 
@@ -973,10 +977,10 @@ export function BrowsePage() {
           )
           setSeriesError(null)
         } else {
-          setSeriesError('Failed to load series')
+          setSeriesError(t('browse.errors.loadSeries'))
         }
       } catch {
-        setSeriesError('Could not connect to server')
+        setSeriesError(t('browse.errors.connect'))
       } finally {
         setSeriesLoading(false)
         setSeriesLoadingMore(false)
@@ -991,6 +995,7 @@ export function BrowsePage() {
       seriesSortBy,
       seriesSortOrder,
       series.length,
+      t,
     ]
   )
 
@@ -1029,16 +1034,16 @@ export function BrowsePage() {
           )
           setPeopleError(null)
         } else {
-          setPeopleError('Failed to load people')
+          setPeopleError(t('browse.errors.loadPeople'))
         }
       } catch {
-        setPeopleError('Could not connect to server')
+        setPeopleError(t('browse.errors.connect'))
       } finally {
         setPeopleLoading(false)
         setPeopleLoadingMore(false)
       }
     },
-    [peopleSearch, peopleSortBy, people.length]
+    [peopleSearch, peopleSortBy, people.length, t]
   )
 
   // Initial movie fetch and filter changes
@@ -1178,19 +1183,19 @@ export function BrowsePage() {
     }
     if (movieFilters.communityRating[0] > 0) {
       chips.push({
-        label: `Rating ≥${movieFilters.communityRating[0]}`,
+        label: t('browse.chips.ratingMin', { min: movieFilters.communityRating[0] }),
         onDelete: () => setMovieFilters((f: MovieFilters) => ({ ...f, communityRating: [0, 10] })),
       })
     }
     if (movieFilters.rtScore[0] > 0) {
       chips.push({
-        label: `RT ≥${movieFilters.rtScore[0]}%`,
+        label: t('browse.chips.rtMin', { min: movieFilters.rtScore[0] }),
         onDelete: () => setMovieFilters((f: MovieFilters) => ({ ...f, rtScore: [0, 100] })),
       })
     }
     if (movieFilters.metacritic[0] > 0) {
       chips.push({
-        label: `MC ≥${movieFilters.metacritic[0]}`,
+        label: t('browse.chips.mcMin', { min: movieFilters.metacritic[0] }),
         onDelete: () => setMovieFilters((f: MovieFilters) => ({ ...f, metacritic: [0, 100] })),
       })
     }
@@ -1199,7 +1204,10 @@ export function BrowsePage() {
       movieFilters.runtimeRange[1] < (movieRanges.runtime?.max || 300)
     ) {
       chips.push({
-        label: `${movieFilters.runtimeRange[0]}–${movieFilters.runtimeRange[1]} min`,
+        label: t('browse.chips.runtimeRange', {
+          min: movieFilters.runtimeRange[0],
+          max: movieFilters.runtimeRange[1],
+        }),
         onDelete: () =>
           setMovieFilters((f: MovieFilters) => ({
             ...f,
@@ -1239,24 +1247,24 @@ export function BrowsePage() {
     })
     if (movieFilters.watchStatus === 'watched') {
       chips.push({
-        label: 'Watched (you)',
+        label: t('browse.watchStatus.watchedYou'),
         onDelete: () => setMovieFilters((f: MovieFilters) => ({ ...f, watchStatus: 'any' })),
       })
     } else if (movieFilters.watchStatus === 'unwatched') {
       chips.push({
-        label: 'Unwatched (you)',
+        label: t('browse.watchStatus.unwatchedYou'),
         onDelete: () => setMovieFilters((f: MovieFilters) => ({ ...f, watchStatus: 'any' })),
       })
     }
     if (movieFilters.minWatchers !== null && movieFilters.minWatchers > 0) {
       chips.push({
-        label: `Watchers ≥${movieFilters.minWatchers}`,
+        label: t('browse.chips.watchersMin', { min: movieFilters.minWatchers }),
         onDelete: () => setMovieFilters((f: MovieFilters) => ({ ...f, minWatchers: null })),
       })
     }
     if (movieFilters.maxWatchers !== null) {
       chips.push({
-        label: `Watchers ≤${movieFilters.maxWatchers}`,
+        label: t('browse.chips.watchersMax', { max: movieFilters.maxWatchers }),
         onDelete: () => setMovieFilters((f: MovieFilters) => ({ ...f, maxWatchers: null })),
       })
     }
@@ -1289,19 +1297,19 @@ export function BrowsePage() {
     }
     if (seriesFilters.communityRating[0] > 0) {
       chips.push({
-        label: `Rating ≥${seriesFilters.communityRating[0]}`,
+        label: t('browse.chips.ratingMin', { min: seriesFilters.communityRating[0] }),
         onDelete: () => setSeriesFilters((f: SeriesFilters) => ({ ...f, communityRating: [0, 10] })),
       })
     }
     if (seriesFilters.rtScore[0] > 0) {
       chips.push({
-        label: `RT ≥${seriesFilters.rtScore[0]}%`,
+        label: t('browse.chips.rtMin', { min: seriesFilters.rtScore[0] }),
         onDelete: () => setSeriesFilters((f: SeriesFilters) => ({ ...f, rtScore: [0, 100] })),
       })
     }
     if (seriesFilters.metacritic[0] > 0) {
       chips.push({
-        label: `MC ≥${seriesFilters.metacritic[0]}`,
+        label: t('browse.chips.mcMin', { min: seriesFilters.metacritic[0] }),
         onDelete: () => setSeriesFilters((f: SeriesFilters) => ({ ...f, metacritic: [0, 100] })),
       })
     }
@@ -1310,7 +1318,10 @@ export function BrowsePage() {
       seriesFilters.seasonsRange[1] < (seriesRanges.seasons?.max || 30)
     ) {
       chips.push({
-        label: `${seriesFilters.seasonsRange[0]}–${seriesFilters.seasonsRange[1]} seasons`,
+        label: t('browse.chips.seasonsRange', {
+          min: seriesFilters.seasonsRange[0],
+          max: seriesFilters.seasonsRange[1],
+        }),
         onDelete: () =>
           setSeriesFilters((f: SeriesFilters) => ({
             ...f,
@@ -1330,7 +1341,7 @@ export function BrowsePage() {
     })
     seriesFilters.status.forEach((s: string) => {
       chips.push({
-        label: s === 'Continuing' ? 'Airing' : s,
+        label: s === 'Continuing' ? t('browse.seriesStatus.airing') : s,
         onDelete: () =>
           setSeriesFilters((f: SeriesFilters) => ({
             ...f,
@@ -1350,24 +1361,24 @@ export function BrowsePage() {
     })
     if (seriesFilters.watchStatus === 'watched') {
       chips.push({
-        label: 'Watched (you)',
+        label: t('browse.watchStatus.watchedYou'),
         onDelete: () => setSeriesFilters((f: SeriesFilters) => ({ ...f, watchStatus: 'any' })),
       })
     } else if (seriesFilters.watchStatus === 'unwatched') {
       chips.push({
-        label: 'Unwatched (you)',
+        label: t('browse.watchStatus.unwatchedYou'),
         onDelete: () => setSeriesFilters((f: SeriesFilters) => ({ ...f, watchStatus: 'any' })),
       })
     }
     if (seriesFilters.minWatchers !== null && seriesFilters.minWatchers > 0) {
       chips.push({
-        label: `Watchers ≥${seriesFilters.minWatchers}`,
+        label: t('browse.chips.watchersMin', { min: seriesFilters.minWatchers }),
         onDelete: () => setSeriesFilters((f: SeriesFilters) => ({ ...f, minWatchers: null })),
       })
     }
     if (seriesFilters.maxWatchers !== null) {
       chips.push({
-        label: `Watchers ≤${seriesFilters.maxWatchers}`,
+        label: t('browse.chips.watchersMax', { max: seriesFilters.maxWatchers }),
         onDelete: () => setSeriesFilters((f: SeriesFilters) => ({ ...f, maxWatchers: null })),
       })
     }
@@ -1461,7 +1472,7 @@ export function BrowsePage() {
         >
           <Box display="flex" gap={1.5} flexWrap="wrap" alignItems="center">
             <TextField
-              placeholder="Search movies..."
+              placeholder={t('browse.searchMoviesPlaceholder')}
               value={movieSearch}
               onChange={(e) => setMovieSearch(e.target.value)}
               size="small"
@@ -1476,9 +1487,13 @@ export function BrowsePage() {
             />
 
             <FormControl size="small" sx={{ width: { xs: '100%', sm: 150 } }}>
-              <InputLabel>Genre</InputLabel>
-              <Select value={movieGenre} label="Genre" onChange={(e) => setMovieGenre(e.target.value)}>
-                <MenuItem value="">All Genres</MenuItem>
+              <InputLabel>{t('browse.labels.genre')}</InputLabel>
+              <Select
+                value={movieGenre}
+                label={t('browse.labels.genre')}
+                onChange={(e) => setMovieGenre(e.target.value)}
+              >
+                <MenuItem value="">{t('browse.labels.allGenres')}</MenuItem>
                 {movieGenres.map((g) => (
                   <MenuItem key={g} value={g}>
                     {g}
@@ -1489,13 +1504,13 @@ export function BrowsePage() {
 
             {collections.length > 0 && (
               <FormControl size="small" sx={{ width: { xs: '100%', sm: 180 } }}>
-                <InputLabel>Franchise</InputLabel>
+                <InputLabel>{t('browse.labels.franchise')}</InputLabel>
                 <Select
                   value={collection}
-                  label="Franchise"
+                  label={t('browse.labels.franchise')}
                   onChange={(e) => setCollection(e.target.value)}
                 >
-                  <MenuItem value="">All Franchises</MenuItem>
+                  <MenuItem value="">{t('browse.labels.allFranchises')}</MenuItem>
                   {collections.map((c) => (
                     <MenuItem key={c.name} value={c.name}>
                       {c.name} ({c.count})
@@ -1563,8 +1578,8 @@ export function BrowsePage() {
         ) : movies.length === 0 ? (
           <Typography color="text.secondary">
             {movieSearch || movieGenre || collection || activeFilters.length > 0
-              ? 'No movies match your filters.'
-              : 'No movies found. Run the movie sync job to import your library.'}
+              ? t('browse.empty.moviesFiltered')
+              : t('browse.empty.moviesNoSync')}
           </Typography>
         ) : (
           <>
@@ -1612,7 +1627,9 @@ export function BrowsePage() {
               {moviesLoadingMore && <CircularProgress size={32} />}
               {!movieHasMore && movies.length > 0 && (
                 <Typography variant="body2" color="text.secondary">
-                  Showing all {movieTotal.toLocaleString()} movies
+                  {t('browse.loadMore.allMovies', {
+                    count: movieTotal.toLocaleString(),
+                  })}
                 </Typography>
               )}
             </Box>
@@ -1644,7 +1661,7 @@ export function BrowsePage() {
         >
           <Box display="flex" gap={1.5} flexWrap="wrap" alignItems="center">
             <TextField
-              placeholder="Search series..."
+              placeholder={t('browse.searchSeriesPlaceholder')}
               value={seriesSearch}
               onChange={(e) => setSeriesSearch(e.target.value)}
               size="small"
@@ -1659,13 +1676,13 @@ export function BrowsePage() {
             />
 
             <FormControl size="small" sx={{ width: { xs: '100%', sm: 150 } }}>
-              <InputLabel>Genre</InputLabel>
+              <InputLabel>{t('browse.labels.genre')}</InputLabel>
               <Select
                 value={seriesGenre}
-                label="Genre"
+                label={t('browse.labels.genre')}
                 onChange={(e) => setSeriesGenre(e.target.value)}
               >
-                <MenuItem value="">All Genres</MenuItem>
+                <MenuItem value="">{t('browse.labels.allGenres')}</MenuItem>
                 {seriesGenres.map((g) => (
                   <MenuItem key={g} value={g}>
                     {g}
@@ -1675,9 +1692,13 @@ export function BrowsePage() {
             </FormControl>
 
             <FormControl size="small" sx={{ width: { xs: '100%', sm: 150 } }}>
-              <InputLabel>Network</InputLabel>
-              <Select value={network} label="Network" onChange={(e) => setNetwork(e.target.value)}>
-                <MenuItem value="">All Networks</MenuItem>
+              <InputLabel>{t('browse.labels.network')}</InputLabel>
+              <Select
+                value={network}
+                label={t('browse.labels.network')}
+                onChange={(e) => setNetwork(e.target.value)}
+              >
+                <MenuItem value="">{t('browse.labels.allNetworks')}</MenuItem>
                 {networks.map((n) => (
                   <MenuItem key={n} value={n}>
                     {n}
@@ -1743,8 +1764,8 @@ export function BrowsePage() {
         ) : series.length === 0 ? (
           <Typography color="text.secondary">
             {seriesSearch || seriesGenre || network || activeFilters.length > 0
-              ? 'No series match your filters.'
-              : 'No series found. Run the series sync job to import your library.'}
+              ? t('browse.empty.seriesFiltered')
+              : t('browse.empty.seriesNoSync')}
           </Typography>
         ) : (
           <>
@@ -1796,7 +1817,9 @@ export function BrowsePage() {
               {seriesLoadingMore && <CircularProgress size={32} />}
               {!seriesHasMore && series.length > 0 && (
                 <Typography variant="body2" color="text.secondary">
-                  Showing all {seriesTotal.toLocaleString()} series
+                  {t('browse.loadMore.allSeries', {
+                    count: seriesTotal.toLocaleString(),
+                  })}
                 </Typography>
               )}
             </Box>
@@ -1824,7 +1847,7 @@ export function BrowsePage() {
       >
         <Box display="flex" gap={1.5} flexWrap="wrap" alignItems="center">
           <TextField
-            placeholder="Search people..."
+            placeholder={t('browse.searchPeoplePlaceholder')}
             value={peopleSearch}
             onChange={(e) => setPeopleSearch(e.target.value)}
             size="small"
@@ -1839,16 +1862,16 @@ export function BrowsePage() {
           />
 
           <FormControl size="small" sx={{ width: { xs: '100%', sm: 160 } }}>
-            <InputLabel>Sort</InputLabel>
+            <InputLabel>{t('browse.labels.sort')}</InputLabel>
             <Select
               value={peopleSortBy}
-              label="Sort"
+              label={t('browse.labels.sort')}
               onChange={(e) =>
                 setPeopleSortBy(e.target.value as 'name' | 'credits')
               }
             >
-              <MenuItem value="name">Name</MenuItem>
-              <MenuItem value="credits">Credits</MenuItem>
+              <MenuItem value="name">{t('browse.sort.name')}</MenuItem>
+              <MenuItem value="credits">{t('browse.sort.credits')}</MenuItem>
             </Select>
           </FormControl>
         </Box>
@@ -1865,8 +1888,8 @@ export function BrowsePage() {
       ) : people.length === 0 ? (
         <Typography color="text.secondary">
           {peopleSearch
-            ? 'No people match your search.'
-            : 'No people found. Run a library sync to import cast and crew metadata.'}
+            ? t('browse.empty.peopleFiltered')
+            : t('browse.empty.peopleNoSync')}
         </Typography>
       ) : (
         <>
@@ -1907,7 +1930,9 @@ export function BrowsePage() {
             {peopleLoadingMore && <CircularProgress size={32} />}
             {!peopleHasMore && people.length > 0 && (
               <Typography variant="body2" color="text.secondary">
-                Showing all {peopleTotal.toLocaleString()} people
+                {t('browse.loadMore.allPeople', {
+                  count: peopleTotal.toLocaleString(),
+                })}
               </Typography>
             )}
           </Box>
@@ -1929,18 +1954,25 @@ export function BrowsePage() {
           <Box display="flex" alignItems="center" gap={2} mb={{ xs: 0, sm: 1 }}>
             <VideoLibraryIcon sx={{ color: 'primary.main', fontSize: 32 }} />
             <Typography variant="h4" fontWeight={700}>
-              Browse
+              {t('browse.title')}
             </Typography>
           </Box>
           {!isMobile && (
             <Typography variant="body1" color="text.secondary">
-              Browse your synced media library •{' '}
-              {tabIndex === 0
-                ? movieTotal.toLocaleString()
-                : tabIndex === 1
-                  ? seriesTotal.toLocaleString()
-                  : peopleTotal.toLocaleString()}{' '}
-              {tabIndex === 0 ? 'movies' : tabIndex === 1 ? 'series' : 'people'}
+              {t('browse.subtitleLine', {
+                count:
+                  tabIndex === 0
+                    ? movieTotal.toLocaleString()
+                    : tabIndex === 1
+                      ? seriesTotal.toLocaleString()
+                      : peopleTotal.toLocaleString(),
+                kind:
+                  tabIndex === 0
+                    ? t('browse.subtitleKindMovies')
+                    : tabIndex === 1
+                      ? t('browse.subtitleKindSeries')
+                      : t('browse.subtitleKindPeople'),
+              })}
             </Typography>
           )}
         </Box>
@@ -1981,7 +2013,7 @@ export function BrowsePage() {
           <Tab
             icon={<MovieIcon />}
             iconPosition="start"
-            label="Movies"
+            label={t('browse.tabMovies')}
             sx={{
               color: tabIndex === 0 ? '#6366f1' : 'text.secondary',
               '&.Mui-selected': { color: '#6366f1' },
@@ -1990,7 +2022,7 @@ export function BrowsePage() {
           <Tab
             icon={<TvIcon />}
             iconPosition="start"
-            label="Series"
+            label={t('browse.tabSeries')}
             sx={{
               color: tabIndex === 1 ? '#ec4899' : 'text.secondary',
               '&.Mui-selected': { color: '#ec4899' },
@@ -1999,7 +2031,7 @@ export function BrowsePage() {
           <Tab
             icon={<PersonIcon />}
             iconPosition="start"
-            label="People"
+            label={t('browse.tabPeople')}
             sx={{
               color: tabIndex === 2 ? '#14b8a6' : 'text.secondary',
               '&.Mui-selected': { color: '#14b8a6' },

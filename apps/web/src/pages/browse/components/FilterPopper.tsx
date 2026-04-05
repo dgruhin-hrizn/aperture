@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Button,
@@ -105,6 +106,7 @@ export function FilterPopper({
   countries = [],
   ranges,
 }: FilterPopperProps) {
+  const { t } = useTranslation()
   const theme = useTheme()
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null)
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -184,7 +186,13 @@ export function FilterPopper({
 
   const activeCount = getActiveFilterCount()
 
-  const SectionHeader = ({ title, section }: { title: string; section: string }) => (
+  const SectionHeader = ({
+    titleKey,
+    section,
+  }: {
+    titleKey: string
+    section: string
+  }) => (
     <Box
       onClick={() => toggleSection(section)}
       sx={{
@@ -200,7 +208,7 @@ export function FilterPopper({
       }}
     >
       <Typography variant="subtitle2" fontWeight={600} color="text.secondary">
-        {title}
+        {t(titleKey)}
       </Typography>
       {expandedSections[section] ? (
         <ExpandLessIcon fontSize="small" sx={{ color: 'text.secondary' }} />
@@ -232,7 +240,7 @@ export function FilterPopper({
             },
           }}
         >
-          Filters
+          {t('filterPopper.filters')}
         </Button>
       </Badge>
 
@@ -271,9 +279,9 @@ export function FilterPopper({
               }}
             >
               <Typography variant="subtitle1" fontWeight={700}>
-                Filters
+                {t('filterPopper.filters')}
               </Typography>
-              <IconButton size="small" onClick={handleReset} title="Reset all filters">
+              <IconButton size="small" onClick={handleReset} title={t('filterPopper.resetAllTooltip')}>
                 <RestartAltIcon fontSize="small" />
               </IconButton>
             </Box>
@@ -281,11 +289,11 @@ export function FilterPopper({
             {/* Content */}
             <Box sx={{ p: 2 }}>
               {/* Scores Section */}
-              <SectionHeader title="SCORES" section="scores" />
+              <SectionHeader titleKey="filterPopper.sections.scores" section="scores" />
               <Collapse in={expandedSections.scores}>
                 <Box sx={{ py: 1.5, display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <RangeSlider
-                    label="Community Rating"
+                    label={t('filterPopper.communityRating')}
                     value={filters.communityRating}
                     onChange={(value) => onChange({ ...filters, communityRating: value })}
                     min={0}
@@ -294,7 +302,7 @@ export function FilterPopper({
                     formatValue={(v) => v.toFixed(1)}
                   />
                   <RangeSlider
-                    label="RT Critic Score"
+                    label={t('filterPopper.rtCriticScore')}
                     value={filters.rtScore}
                     onChange={(value) => onChange({ ...filters, rtScore: value })}
                     min={0}
@@ -303,7 +311,7 @@ export function FilterPopper({
                     formatValue={(v) => `${v}%`}
                   />
                   <RangeSlider
-                    label="Metacritic"
+                    label={t('filterPopper.metacritic')}
                     value={filters.metacritic}
                     onChange={(value) => onChange({ ...filters, metacritic: value })}
                     min={0}
@@ -317,11 +325,11 @@ export function FilterPopper({
               <Divider sx={{ my: 1.5 }} />
 
               {/* Year Section */}
-              <SectionHeader title="YEAR" section="year" />
+              <SectionHeader titleKey="filterPopper.sections.year" section="year" />
               <Collapse in={expandedSections.year}>
                 <Box sx={{ py: 1.5 }}>
                   <RangeSlider
-                    label="Release Year"
+                    label={t('filterPopper.releaseYear')}
                     value={filters.yearRange}
                     onChange={(value) => onChange({ ...filters, yearRange: value })}
                     min={ranges.year.min}
@@ -336,7 +344,7 @@ export function FilterPopper({
               {/* Content Rating Section */}
               {contentRatings.length > 0 && (
                 <>
-                  <SectionHeader title="CONTENT RATING" section="content" />
+                  <SectionHeader titleKey="filterPopper.sections.contentRating" section="content" />
                   <Collapse in={expandedSections.content}>
                     <Box sx={{ py: 1.5 }}>
                       <ChipToggleGroup
@@ -358,7 +366,7 @@ export function FilterPopper({
               {/* Origin: production countries */}
               {countries.length > 0 && (
                 <>
-                  <SectionHeader title="PRODUCTION COUNTRY" section="origin" />
+                  <SectionHeader titleKey="filterPopper.sections.productionCountry" section="origin" />
                   <Collapse in={expandedSections.origin}>
                     <Box sx={{ py: 1.5, maxHeight: 200, overflow: 'auto' }}>
                       <ChipToggleGroup
@@ -378,12 +386,12 @@ export function FilterPopper({
               )}
 
               {/* Watch status & household reach */}
-              <SectionHeader title="LIBRARY & AUDIENCE" section="audience" />
+              <SectionHeader titleKey="filterPopper.sections.libraryAudience" section="audience" />
               <Collapse in={expandedSections.audience}>
                 <Box sx={{ py: 1.5, display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <Box>
                     <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.75 }}>
-                      Your watch status
+                      {t('filterPopper.watchStatusCaption')}
                     </Typography>
                     <ToggleButtonGroup
                       exclusive
@@ -394,14 +402,14 @@ export function FilterPopper({
                         if (v !== null) onChange({ ...filters, watchStatus: v })
                       }}
                     >
-                      <ToggleButton value="any">Any</ToggleButton>
-                      <ToggleButton value="watched">Watched</ToggleButton>
-                      <ToggleButton value="unwatched">Unwatched</ToggleButton>
+                      <ToggleButton value="any">{t('filterPopper.watchAny')}</ToggleButton>
+                      <ToggleButton value="watched">{t('filterPopper.watchWatched')}</ToggleButton>
+                      <ToggleButton value="unwatched">{t('filterPopper.watchUnwatched')}</ToggleButton>
                     </ToggleButtonGroup>
                   </Box>
                   <Box display="flex" gap={1}>
                     <TextField
-                      label="Min watchers"
+                      label={t('filterPopper.minWatchers')}
                       type="number"
                       size="small"
                       fullWidth
@@ -413,10 +421,10 @@ export function FilterPopper({
                           minWatchers: parseOptionalInt(e.target.value),
                         })
                       }
-                      helperText="Distinct users on this server"
+                      helperText={t('filterPopper.watchersHelper')}
                     />
                     <TextField
-                      label="Max watchers"
+                      label={t('filterPopper.maxWatchers')}
                       type="number"
                       size="small"
                       fullWidth
@@ -438,11 +446,11 @@ export function FilterPopper({
               {/* Movies: Runtime Section */}
               {type === 'movies' && ranges.runtime && (
                 <>
-                  <SectionHeader title="RUNTIME" section="runtime" />
+                  <SectionHeader titleKey="filterPopper.sections.runtime" section="runtime" />
                   <Collapse in={expandedSections.runtime}>
                     <Box sx={{ py: 1.5 }}>
                       <RangeSlider
-                        label="Duration"
+                        label={t('filterPopper.duration')}
                         value={(filters as MovieFilters).runtimeRange}
                         onChange={(value) => onChange({ ...filters, runtimeRange: value })}
                         min={ranges.runtime.min}
@@ -459,7 +467,7 @@ export function FilterPopper({
               {/* Movies: Quality Section */}
               {type === 'movies' && resolutions && resolutions.length > 0 && (
                 <>
-                  <SectionHeader title="VIDEO QUALITY" section="quality" />
+                  <SectionHeader titleKey="filterPopper.sections.videoQuality" section="quality" />
                   <Collapse in={expandedSections.quality}>
                     <Box sx={{ py: 1.5 }}>
                       <ChipToggleGroup
@@ -480,11 +488,11 @@ export function FilterPopper({
               {/* Series: Seasons Section */}
               {type === 'series' && ranges.seasons && (
                 <>
-                  <SectionHeader title="SEASONS" section="runtime" />
+                  <SectionHeader titleKey="filterPopper.sections.seasons" section="runtime" />
                   <Collapse in={expandedSections.runtime}>
                     <Box sx={{ py: 1.5 }}>
                       <RangeSlider
-                        label="Number of Seasons"
+                        label={t('filterPopper.numberOfSeasons')}
                         value={(filters as SeriesFilters).seasonsRange}
                         onChange={(value) => onChange({ ...filters, seasonsRange: value })}
                         min={ranges.seasons.min}
@@ -500,14 +508,14 @@ export function FilterPopper({
               {/* Series: Status Section */}
               {type === 'series' && (
                 <>
-                  <SectionHeader title="STATUS" section="status" />
+                  <SectionHeader titleKey="filterPopper.sections.status" section="status" />
                   <Collapse in={expandedSections.status}>
                     <Box sx={{ py: 1.5 }}>
                       <ChipToggleGroup
                         label=""
                         options={[
-                          { value: 'Continuing', label: 'Airing' },
-                          { value: 'Ended', label: 'Ended' },
+                          { value: 'Continuing', label: t('filterPopper.seriesAiring') },
+                          { value: 'Ended', label: t('filterPopper.seriesEnded') },
                         ]}
                         selected={(filters as SeriesFilters).status}
                         onChange={(selected) => onChange({ ...filters, status: selected })}

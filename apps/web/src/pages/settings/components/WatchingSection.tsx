@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -20,6 +21,7 @@ interface WatchingLibraryConfig {
 }
 
 export function WatchingSection() {
+  const { t } = useTranslation()
   const [config, setConfig] = useState<WatchingLibraryConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -35,12 +37,12 @@ export function WatchingSection() {
     try {
       setLoading(true)
       const response = await fetch('/api/settings/watching', { credentials: 'include' })
-      if (!response.ok) throw new Error('Failed to fetch config')
+      if (!response.ok) throw new Error(t('settingsWatching.fetchFailed'))
       const data = (await response.json()) as WatchingLibraryConfig
       setConfig(data)
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : t('settingsWatching.unknownError'))
     } finally {
       setLoading(false)
     }
@@ -57,12 +59,12 @@ export function WatchingSection() {
         credentials: 'include',
         body: JSON.stringify({ enabled: config.enabled }),
       })
-      if (!response.ok) throw new Error('Failed to save config')
-      setSuccess('Shows You Watch settings saved.')
+      if (!response.ok) throw new Error(t('settingsWatching.saveFailed'))
+      setSuccess(t('settingsWatching.saved'))
       setHasChanges(false)
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : t('settingsWatching.unknownError'))
     } finally {
       setSaving(false)
     }
@@ -90,7 +92,7 @@ export function WatchingSection() {
     return (
       <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
         <CardContent>
-          <Alert severity="error">Failed to load Shows You Watch configuration</Alert>
+          <Alert severity="error">{t('settingsWatching.loadFailed')}</Alert>
         </CardContent>
       </Card>
     )
@@ -101,11 +103,10 @@ export function WatchingSection() {
       <CardContent>
         <Box mb={2}>
           <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <AddToQueueIcon color="primary" /> Shows You Watch
+            <AddToQueueIcon color="primary" /> {t('settingsWatching.title')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Let users track series they are watching, see upcoming episodes, and keep their list in sync with media
-            server favorites (Emby/Jellyfin).
+            {t('settingsWatching.subtitle')}
           </Typography>
         </Box>
 
@@ -135,10 +136,10 @@ export function WatchingSection() {
             label={
               <Box>
                 <Typography variant="body1" fontWeight="medium">
-                  Enable Shows You Watch
+                  {t('settingsWatching.enableTitle')}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  When disabled, the list and favorites sync are unavailable for all users.
+                  {t('settingsWatching.enableCaption')}
                 </Typography>
               </Box>
             }
@@ -154,7 +155,7 @@ export function WatchingSection() {
             onClick={handleSave}
             disabled={saving || !hasChanges}
           >
-            {saving ? 'Saving...' : 'Save Changes'}
+            {saving ? t('settingsWatching.saving') : t('settingsWatching.saveChanges')}
           </Button>
         </Stack>
       </CardContent>

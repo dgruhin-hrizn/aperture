@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Card,
   CardContent,
@@ -28,6 +29,7 @@ interface LegacyInfo {
 }
 
 export function LegacyEmbeddingsSection() {
+  const { t } = useTranslation()
   const [legacyInfo, setLegacyInfo] = useState<LegacyInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
@@ -39,11 +41,11 @@ export function LegacyEmbeddingsSection() {
     try {
       setLoading(true)
       const res = await fetch('/api/settings/ai/embeddings/legacy')
-      if (!res.ok) throw new Error('Failed to check legacy embeddings')
+      if (!res.ok) throw new Error(t('settingsLegacyEmbeddings.checkFailed'))
       const data = await res.json()
       setLegacyInfo(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : t('settingsLegacyEmbeddings.unknownError'))
     } finally {
       setLoading(false)
     }
@@ -61,13 +63,17 @@ export function LegacyEmbeddingsSection() {
       const res = await fetch('/api/settings/ai/embeddings/legacy', { method: 'DELETE' })
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || 'Failed to delete legacy tables')
+        throw new Error(data.error || t('settingsLegacyEmbeddings.deleteFailed'))
       }
       const data = await res.json()
-      setSuccess(`Successfully deleted ${data.totalRowsDeleted.toLocaleString()} rows from legacy tables`)
+      setSuccess(
+        t('settingsLegacyEmbeddings.deleteSuccess', {
+          count: data.totalRowsDeleted.toLocaleString(),
+        }),
+      )
       setLegacyInfo(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : t('settingsLegacyEmbeddings.unknownError'))
     } finally {
       setDeleting(false)
     }
@@ -86,13 +92,13 @@ export function LegacyEmbeddingsSection() {
       <CardContent>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
           <StorageIcon color="warning" />
-          <Typography variant="h6">Legacy Embedding Tables</Typography>
+          <Typography variant="h6">{t('settingsLegacyEmbeddings.title')}</Typography>
         </Box>
 
         {loading ? (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <CircularProgress size={24} />
-            <Typography>Checking for legacy tables...</Typography>
+            <Typography>{t('settingsLegacyEmbeddings.checking')}</Typography>
           </Box>
         ) : success ? (
           <Alert severity="success" icon={<CheckCircleIcon />}>
@@ -101,19 +107,21 @@ export function LegacyEmbeddingsSection() {
         ) : (
           <>
             <Alert severity="warning" sx={{ mb: 2 }}>
-              Legacy embedding tables from before the multi-dimension migration were found. 
-              These tables are no longer used and can be safely deleted to free up storage.
+              {t('settingsLegacyEmbeddings.warningBody')}
             </Alert>
 
             <Typography variant="body2" color="text.secondary" gutterBottom>
-              The following tables contain old embedding data:
+              {t('settingsLegacyEmbeddings.tablesIntro')}
             </Typography>
 
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-              {legacyInfo?.tables.map((t) => (
+              {legacyInfo?.tables.map((tbl) => (
                 <Chip
-                  key={t.name}
-                  label={`${t.name} (${t.rowCount.toLocaleString()} rows)`}
+                  key={tbl.name}
+                  label={t('settingsLegacyEmbeddings.tableRows', {
+                    name: tbl.name,
+                    count: tbl.rowCount.toLocaleString(),
+                  })}
                   size="small"
                   variant="outlined"
                   color="warning"
@@ -123,8 +131,10 @@ export function LegacyEmbeddingsSection() {
 
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 2 }}>
               <Typography variant="body2" color="text.secondary">
-                Total: <strong>{legacyInfo?.totalRows.toLocaleString()}</strong> rows, 
-                ~<strong>{estimatedSizeMB.toFixed(1)}</strong> MB storage
+                {t('settingsLegacyEmbeddings.totalLine', {
+                  rows: legacyInfo?.totalRows.toLocaleString() ?? '0',
+                  mb: estimatedSizeMB.toFixed(1),
+                })}
               </Typography>
               
               <Button
@@ -134,7 +144,7 @@ export function LegacyEmbeddingsSection() {
                 onClick={() => setShowConfirm(true)}
                 disabled={deleting}
               >
-                {deleting ? 'Deleting...' : 'Drop Legacy Tables'}
+                {deleting ? t('settingsLegacyEmbeddings.deleting') : t('settingsLegacyEmbeddings.dropButton')}
               </Button>
             </Box>
 
@@ -148,23 +158,27 @@ export function LegacyEmbeddingsSection() {
       </CardContent>
 
       <Dialog open={showConfirm} onClose={() => setShowConfirm(false)}>
-        <DialogTitle>Drop Legacy Embedding Tables?</DialogTitle>
+        <DialogTitle>{t('settingsLegacyEmbeddings.dialogTitle')}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            This will permanently delete the following tables:
+            {t('settingsLegacyEmbeddings.dialogBody')}
             <Box component="ul" sx={{ mt: 1 }}>
-              {legacyInfo?.tables.map((t) => (
-                <li key={t.name}>{t.name} ({t.rowCount.toLocaleString()} rows)</li>
+              {legacyInfo?.tables.map((tbl) => (
+                <li key={tbl.name}>
+                  {t('settingsLegacyEmbeddings.tableRows', {
+                    name: tbl.name,
+                    count: tbl.rowCount.toLocaleString(),
+                  })}
+                </li>
               ))}
             </Box>
-            This action cannot be undone. Your new dimension-specific embedding tables 
-            will not be affected.
+            {t('settingsLegacyEmbeddings.dialogFooter')}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setShowConfirm(false)}>Cancel</Button>
+          <Button onClick={() => setShowConfirm(false)}>{t('settingsLegacyEmbeddings.cancel')}</Button>
           <Button onClick={handleDelete} color="error" variant="contained">
-            Drop Tables
+            {t('settingsLegacyEmbeddings.confirmDrop')}
           </Button>
         </DialogActions>
       </Dialog>

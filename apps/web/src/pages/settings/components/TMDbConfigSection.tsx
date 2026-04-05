@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -28,6 +29,7 @@ interface TMDbConfig {
 }
 
 export function TMDbConfigSection() {
+  const { t } = useTranslation()
   const [config, setConfig] = useState<TMDbConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -52,11 +54,11 @@ export function TMDbConfigSection() {
         setHasChanges(false)
       }
     } catch {
-      setError('Failed to load TMDb configuration')
+      setError(t('settingsTmdb.loadError'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     fetchConfig()
@@ -80,7 +82,7 @@ export function TMDbConfigSection() {
 
       if (response.ok) {
         const data = await response.json()
-        setSuccess('TMDb configuration saved!')
+        setSuccess(t('settingsTmdb.saved'))
         setConfig({
           hasApiKey: data.hasApiKey,
           enabled: data.enabled,
@@ -91,10 +93,10 @@ export function TMDbConfigSection() {
         setTimeout(() => setSuccess(null), 3000)
       } else {
         const err = await response.json()
-        setError(err.error || 'Failed to save configuration')
+        setError(err.error || t('settingsTmdb.errSave'))
       }
     } catch {
-      setError('Could not connect to server')
+      setError(t('settingsTmdb.errConnect'))
     } finally {
       setSaving(false)
     }
@@ -117,13 +119,13 @@ export function TMDbConfigSection() {
 
       const result = await response.json()
       if (result.success) {
-        setSuccess('TMDb connection successful!')
+        setSuccess(t('settingsTmdb.testSuccess'))
         setTimeout(() => setSuccess(null), 3000)
       } else {
-        setError(result.error || 'Connection test failed')
+        setError(result.error || t('settingsTmdb.testFailed'))
       }
     } catch {
-      setError('Could not connect to server')
+      setError(t('settingsTmdb.errConnect'))
     } finally {
       setTesting(false)
     }
@@ -147,12 +149,12 @@ export function TMDbConfigSection() {
         <Box display="flex" alignItems="center" gap={2} mb={2}>
           <MovieFilterIcon sx={{ fontSize: 28, color: 'primary.main' }} />
           <Typography variant="h6" fontWeight={600}>
-            TMDb Integration
+            {t('settingsTmdb.title')}
           </Typography>
           {config?.isConfigured && (
             <Chip
               icon={<CheckCircleIcon />}
-              label="Configured"
+              label={t('settingsTmdb.configured')}
               color="success"
               size="small"
             />
@@ -160,9 +162,9 @@ export function TMDbConfigSection() {
         </Box>
 
         <Typography variant="body2" color="text.secondary" mb={3}>
-          Enable TMDb integration for keywords, collections/franchises, and expanded crew data.{' '}
+          {t('settingsTmdb.description')}{' '}
           <Link href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">
-            Get a free API key
+            {t('settingsTmdb.getApiKeyLink')}
           </Link>
           .
         </Typography>
@@ -181,7 +183,7 @@ export function TMDbConfigSection() {
 
         <Box display="flex" flexDirection="column" gap={2}>
           <TextField
-            label="API Key"
+            label={t('settingsTmdb.apiKey')}
             type={showApiKey ? 'text' : 'password'}
             value={apiKey || (config?.hasApiKey ? '••••••••••••••••••••••••••••' : '')}
             onChange={(e) => {
@@ -191,10 +193,10 @@ export function TMDbConfigSection() {
             }}
             size="small"
             fullWidth
-            placeholder="Enter your TMDb API key"
+            placeholder={t('settingsTmdb.placeholder')}
             helperText={
               config?.hasApiKey && !apiKey
-                ? 'API key is saved. Enter a new one to replace it.'
+                ? t('settingsTmdb.helperSaved')
                 : undefined
             }
             InputProps={{
@@ -223,7 +225,7 @@ export function TMDbConfigSection() {
                 disabled={!config?.hasApiKey && !apiKey}
               />
             }
-            label="Enable TMDb enrichment"
+            label={t('settingsTmdb.enableEnrichment')}
           />
 
           <Box display="flex" gap={1} mt={1}>
@@ -234,7 +236,7 @@ export function TMDbConfigSection() {
               disabled={saving || !hasChanges}
               size="small"
             >
-              {saving ? 'Saving...' : 'Save'}
+              {saving ? t('settingsTmdb.saving') : t('common.save')}
             </Button>
             <Button
               variant="outlined"
@@ -242,7 +244,7 @@ export function TMDbConfigSection() {
               disabled={testing || (!apiKey && !config?.hasApiKey)}
               size="small"
             >
-              {testing ? 'Testing...' : 'Test Connection'}
+              {testing ? t('settingsTmdb.testing') : t('settingsTmdb.testConnection')}
             </Button>
           </Box>
         </Box>

@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Card,
@@ -49,6 +50,7 @@ export function BrowseSeriesListItem({
   onWatchingToggle,
   onClick,
 }: BrowseSeriesListItemProps) {
+  const { t } = useTranslation()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
 
@@ -67,6 +69,12 @@ export function BrowseSeriesListItem({
   }
 
   const isAiring = series.status === 'Continuing' || series.status === 'Returning Series'
+
+  const statusChipLabel = isAiring
+    ? t('browse.seriesStatus.airing')
+    : series.status === 'Ended' || !series.status
+      ? t('filterPopper.seriesEnded')
+      : series.status
 
   return (
     <Card
@@ -123,7 +131,7 @@ export function BrowseSeriesListItem({
           />
           {/* Status badge - smaller on mobile */}
           <Chip
-            label={isAiring ? 'Airing' : series.status || 'Ended'}
+            label={statusChipLabel}
             size="small"
             color={isAiring ? 'success' : 'default'}
             sx={{
@@ -203,7 +211,7 @@ export function BrowseSeriesListItem({
             )}
             {series.total_seasons && (
               <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
-                • {series.total_seasons} season{series.total_seasons !== 1 ? 's' : ''}
+                • {t('browse.listItem.seasons', { count: series.total_seasons })}
               </Typography>
             )}
             {/* Show network inline on mobile */}
@@ -243,7 +251,7 @@ export function BrowseSeriesListItem({
               fontSize: { xs: '0.75rem', md: '0.875rem' },
             }}
           >
-            {series.overview || 'No description available.'}
+            {series.overview || t('browse.listItem.noDescription')}
           </Typography>
 
           {/* Mobile: Inline actions */}
@@ -260,7 +268,13 @@ export function BrowseSeriesListItem({
                 onChange={(rating) => onRate(rating)}
                 size="small"
               />
-              <Tooltip title={isWatching ? 'Remove from watching' : 'Add to watching'}>
+              <Tooltip
+                title={
+                  isWatching
+                    ? t('browse.listItem.removeFromWatching')
+                    : t('browse.listItem.addToWatching')
+                }
+              >
                 <IconButton
                   onClick={handleWatchingClick}
                   size="small"
@@ -279,7 +293,7 @@ export function BrowseSeriesListItem({
                   {isWatching ? <CheckIcon sx={{ fontSize: 16 }} /> : <AddToQueueIcon sx={{ fontSize: 16 }} />}
                 </IconButton>
               </Tooltip>
-              <Tooltip title="View on TMDb">
+              <Tooltip title={t('browse.listItem.viewOnTmdb')}>
                 <IconButton
                   onClick={handleOpenTmdb}
                   size="small"
@@ -318,7 +332,7 @@ export function BrowseSeriesListItem({
           {/* User Rating */}
           <Box>
             <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-              Your Rating
+              {t('browse.listItem.yourRating')}
             </Typography>
             <HeartRating
               value={userRating}
@@ -329,7 +343,13 @@ export function BrowseSeriesListItem({
 
           {/* Actions */}
           <Box display="flex" justifyContent="center" gap={1}>
-            <Tooltip title={isWatching ? 'Remove from watching' : 'Add to watching'}>
+            <Tooltip
+              title={
+                isWatching
+                  ? t('browse.listItem.removeFromWatching')
+                  : t('browse.listItem.addToWatching')
+              }
+            >
               <IconButton
                 onClick={handleWatchingClick}
                 size="small"
@@ -347,7 +367,7 @@ export function BrowseSeriesListItem({
                 {isWatching ? <CheckIcon fontSize="small" /> : <AddToQueueIcon fontSize="small" />}
               </IconButton>
             </Tooltip>
-            <Tooltip title="View on TMDb">
+            <Tooltip title={t('browse.listItem.viewOnTmdb')}>
               <IconButton
                 onClick={handleOpenTmdb}
                 size="small"

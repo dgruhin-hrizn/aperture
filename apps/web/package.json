@@ -8,7 +8,10 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "i18n:sync": "node scripts/i18n/sync-missing-from-en.mjs",
+    "i18n:delta": "node scripts/i18n/export-missing-delta-from-git.mjs && node scripts/i18n/split-delta-chunks.mjs",
+    "i18n:translate": "node scripts/i18n/translate-locales-from-en.mjs"
   },
   "dependencies": {
     "@aperture/ui": "workspace:*",
@@ -34,6 +37,7 @@
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
+    "google-translate-api-x": "10.7.1",
     "vite": "^6.0.6",
     "vite-plugin-checker": "^0.12.0"
   }

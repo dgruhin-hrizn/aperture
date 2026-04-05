@@ -1,4 +1,6 @@
+import type { ReactNode } from 'react'
 import { Box, Paper, Typography, Avatar, CircularProgress, TextField, IconButton, Button } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 import SendIcon from '@mui/icons-material/Send'
 import SmartToyIcon from '@mui/icons-material/SmartToy'
 import PersonIcon from '@mui/icons-material/Person'
@@ -25,11 +27,12 @@ import {
   type StudiosData,
 } from './tool-ui'
 
-// Custom link renderer for markdown
-const MarkdownLink: Components['a'] = ({ href, children }) => {
+// Custom link renderer for markdown (needs hooks for i18n)
+function MarkdownLink({ href, children }: { href?: string; children?: ReactNode }) {
+  const { t } = useTranslation()
   const text = String(children)
   const isPlayLink = text.toLowerCase().includes('play') || text.includes('▶️')
-  
+
   if (isPlayLink && href) {
     return (
       <Button
@@ -48,7 +51,7 @@ const MarkdownLink: Components['a'] = ({ href, children }) => {
           },
         }}
       >
-        Play on Emby
+        {t('assistant.playOnEmby')}
       </Button>
     )
   }
@@ -231,7 +234,7 @@ function AssistantMessage() {
                         },
                       }}
                     >
-                      <ReactMarkdown components={{ a: MarkdownLink }}>{text}</ReactMarkdown>
+                      <ReactMarkdown components={{ a: MarkdownLink as Components['a'] }}>{text}</ReactMarkdown>
                     </Box>
                   </Paper>
                 )
@@ -251,19 +254,19 @@ function AssistantMessage() {
   )
 }
 
-// Default suggestions (fallback)
-const DEFAULT_SUGGESTIONS = [
-  'What should I watch tonight?',
-  'Show me my top picks',
-  'Find me something like Inception',
-  'What sci-fi movies do you recommend?',
-]
-
 // Thread welcome screen
 function ThreadWelcome({ suggestions }: { suggestions: string[] }) {
+  const { t } = useTranslation()
   const composerRuntime = useComposerRuntime()
-  
-  const displaySuggestions = suggestions.length > 0 ? suggestions : DEFAULT_SUGGESTIONS
+
+  const defaultSuggestions = [
+    t('assistant.suggestion1'),
+    t('assistant.suggestion2'),
+    t('assistant.suggestion3'),
+    t('assistant.suggestion4'),
+  ]
+
+  const displaySuggestions = suggestions.length > 0 ? suggestions : defaultSuggestions
 
   const handleSuggestionClick = (suggestion: string) => {
     composerRuntime.setText(suggestion)
@@ -293,10 +296,10 @@ function ThreadWelcome({ suggestions }: { suggestions: string[] }) {
         <SmartToyIcon sx={{ fontSize: 36 }} />
       </Avatar>
       <Typography variant="h5" sx={{ mb: 1, fontWeight: 600 }}>
-        Hi! I'm Encore
+        {t('assistant.welcomeTitle')}
       </Typography>
       <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 400 }}>
-        Your AI movie and TV recommendation assistant. Ask me to find something to watch, discover similar titles, or explore your personalized picks!
+        {t('assistant.welcomeBody')}
       </Typography>
       <Box sx={{ mt: 3, display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center' }}>
         {displaySuggestions.map((suggestion) => (
@@ -331,6 +334,7 @@ function ThreadWelcome({ suggestions }: { suggestions: string[] }) {
 
 // Loading indicator
 function LoadingIndicator() {
+  const { t } = useTranslation()
   return (
     <Box sx={{ display: 'flex', gap: 1.5, py: 1.5 }}>
       <Avatar
@@ -353,7 +357,7 @@ function LoadingIndicator() {
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
           <CircularProgress size={16} />
-          <Typography variant="body2">Thinking...</Typography>
+          <Typography variant="body2">{t('assistant.thinking')}</Typography>
         </Box>
       </Paper>
     </Box>
@@ -362,6 +366,7 @@ function LoadingIndicator() {
 
 // Composer component
 function Composer() {
+  const { t } = useTranslation()
   const composerRuntime = useComposerRuntime()
   
   const handleSubmit = (e: React.FormEvent) => {
@@ -385,7 +390,7 @@ function Composer() {
               fullWidth
               multiline
               maxRows={4}
-              placeholder="Ask me anything about movies or shows..."
+              placeholder={t('assistant.placeholder')}
               onKeyDown={handleKeyDown}
               sx={{
                 '& .MuiOutlinedInput-root': {
@@ -504,7 +509,7 @@ function HistoricalAssistantMessage({ message }: { message: HistoricalMessage })
                 '& p:last-of-type': { mb: 0 },
               }}
             >
-              <ReactMarkdown components={{ a: MarkdownLink }}>{message.content}</ReactMarkdown>
+              <ReactMarkdown components={{ a: MarkdownLink as Components['a'] }}>{message.content}</ReactMarkdown>
             </Box>
           </Paper>
         )}

@@ -7,6 +7,7 @@ import PersonIcon from '@mui/icons-material/Person'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { getProxiedImageUrl } from '@aperture/ui'
 import type { Person, PersonResultData } from './types'
 
@@ -15,15 +16,16 @@ interface PersonCardProps {
 }
 
 function PersonCardSingle({ person }: PersonCardProps) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
 
   const movies = person.filmography.filter(f => f.type === 'movie')
   const series = person.filmography.filter(f => f.type === 'series')
 
   const roleLabel = {
-    actor: 'Actor',
-    director: 'Director',
-    writer: 'Writer',
+    actor: t('assistantToolUi.roleActor'),
+    director: t('assistantToolUi.roleDirector'),
+    writer: t('assistantToolUi.roleWriter'),
   }[person.role]
 
   return (
@@ -70,7 +72,7 @@ function PersonCardSingle({ person }: PersonCardProps) {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
             <MovieIcon sx={{ fontSize: 16, color: '#818cf8' }} />
             <Typography variant="caption" fontWeight={600} color="text.secondary">
-              Movies ({movies.length})
+              {t('assistantToolUi.moviesHeading', { count: movies.length })}
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
@@ -93,7 +95,7 @@ function PersonCardSingle({ person }: PersonCardProps) {
             ))}
             {movies.length > 8 && (
               <Typography variant="caption" color="text.secondary" sx={{ alignSelf: 'center', ml: 0.5 }}>
-                +{movies.length - 8} more
+                {t('assistantToolUi.more', { count: movies.length - 8 })}
               </Typography>
             )}
           </Box>
@@ -105,7 +107,7 @@ function PersonCardSingle({ person }: PersonCardProps) {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
             <TvIcon sx={{ fontSize: 16, color: '#10b981' }} />
             <Typography variant="caption" fontWeight={600} color="text.secondary">
-              TV Series ({series.length})
+              {t('assistantToolUi.tvSeriesHeading', { count: series.length })}
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
@@ -128,7 +130,7 @@ function PersonCardSingle({ person }: PersonCardProps) {
             ))}
             {series.length > 8 && (
               <Typography variant="caption" color="text.secondary" sx={{ alignSelf: 'center', ml: 0.5 }}>
-                +{series.length - 8} more
+                {t('assistantToolUi.more', { count: series.length - 8 })}
               </Typography>
             )}
           </Box>

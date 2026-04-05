@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Box, Typography, CircularProgress, Grid } from '@mui/material'
 import { useAuth } from '../../hooks/useAuth'
 import { useWatching } from '../../hooks/useWatching'
@@ -19,6 +20,7 @@ interface MediaDetailPageProps {
 }
 
 export function MediaDetailPage({ mediaType }: MediaDetailPageProps) {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -52,7 +54,8 @@ export function MediaDetailPage({ mediaType }: MediaDetailPageProps) {
     return (
       <Box sx={{ textAlign: 'center', py: 8 }}>
         <Typography color="error" variant="h6">
-          {error || `${mediaType === 'movie' ? 'Movie' : 'Series'} not found`}
+          {error ||
+            (mediaType === 'movie' ? t('mediaDetail.movieNotFound') : t('mediaDetail.seriesNotFound'))}
         </Typography>
       </Box>
     )

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Card,
   CardActionArea,
@@ -33,6 +34,7 @@ interface GraphPlaylistCardProps {
 }
 
 export function GraphPlaylistCard({ playlist, onDelete, onView }: GraphPlaylistCardProps) {
+  const { t, i18n } = useTranslation()
   const [previewItems, setPreviewItems] = useState<GraphPlaylistItem[]>([])
   const [loadingPreview, setLoadingPreview] = useState(false)
 
@@ -104,7 +106,7 @@ export function GraphPlaylistCard({ playlist, onDelete, onView }: GraphPlaylistC
       >
         <HubIcon sx={{ fontSize: 14, color: 'white' }} />
         <Typography variant="caption" sx={{ color: 'white', fontWeight: 600, fontSize: '0.65rem' }}>
-          Similarity
+          {t('playlists.similarityBadgeShort')}
         </Typography>
       </Box>
 
@@ -212,7 +214,7 @@ export function GraphPlaylistCard({ playlist, onDelete, onView }: GraphPlaylistC
                     fontWeight: 600,
                   }}
                 >
-                  +{playlist.itemCount - 5} more
+                  {t('playlists.moreCount', { count: playlist.itemCount - 5 })}
                 </Box>
               )}
             </Box>
@@ -230,7 +232,7 @@ export function GraphPlaylistCard({ playlist, onDelete, onView }: GraphPlaylistC
             >
               <HubIcon sx={{ fontSize: 40, color: 'text.disabled' }} />
               <Typography variant="caption" color="text.disabled">
-                Loading items...
+                {t('playlists.loadingItems')}
               </Typography>
             </Box>
           )}
@@ -244,7 +246,7 @@ export function GraphPlaylistCard({ playlist, onDelete, onView }: GraphPlaylistC
             </Typography>
             <Chip
               icon={playlist.sourceItemType === 'series' ? <TvIcon /> : <MovieIcon />}
-              label={`${playlist.itemCount}`}
+              label={t('playlists.graphMovies', { count: playlist.itemCount })}
               size="small"
               sx={{
                 bgcolor: 'action.selected',
@@ -290,18 +292,20 @@ export function GraphPlaylistCard({ playlist, onDelete, onView }: GraphPlaylistC
         }}
       >
         <Typography variant="caption" color="text.secondary">
-          Created {new Date(playlist.createdAt).toLocaleDateString()}
+          {t('playlists.cardCreated', {
+            date: new Date(playlist.createdAt).toLocaleDateString(i18n.language),
+          })}
         </Typography>
 
         <Box display="flex" gap={0.5}>
           {isClickable && (
-            <Tooltip title="View playlist">
+            <Tooltip title={t('playlists.tooltipViewPlaylist')}>
               <IconButton size="small" onClick={handleCardClick} color="primary">
                 <VisibilityIcon fontSize="small" />
               </IconButton>
             </Tooltip>
           )}
-          <Tooltip title="Delete playlist">
+          <Tooltip title={t('playlists.tooltipDeletePlaylist')}>
             <IconButton size="small" onClick={handleDeleteClick} color="error">
               <DeleteIcon fontSize="small" />
             </IconButton>

@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { Box, Button, Collapse, IconButton, Stack, Tooltip, Typography, Chip } from '@mui/material'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
@@ -8,46 +9,10 @@ import HistoryIcon from '@mui/icons-material/History'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorIcon from '@mui/icons-material/Error'
 import CancelIcon from '@mui/icons-material/Cancel'
-import { JOB_ICONS, JOB_COLORS, formatJobName } from '../constants'
+import { JOB_ICONS, JOB_COLORS, formatJobName, formatJobDurationMs, formatRelativePastTime } from '../constants'
 import { JobProgressSection } from './JobProgressSection'
 import { JobResult } from './JobResult'
 import type { Job, JobProgress } from '../types'
-
-// Helper to format relative time
-function formatRelativeTime(dateString: string): string {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffSec = Math.floor(diffMs / 1000)
-  const diffMin = Math.floor(diffSec / 60)
-  const diffHour = Math.floor(diffMin / 60)
-  const diffDay = Math.floor(diffHour / 24)
-
-  if (diffDay > 7) {
-    return date.toLocaleDateString()
-  } else if (diffDay > 0) {
-    return `${diffDay}d ago`
-  } else if (diffHour > 0) {
-    return `${diffHour}h ago`
-  } else if (diffMin > 0) {
-    return `${diffMin}m ago`
-  } else {
-    return 'Just now'
-  }
-}
-
-// Helper to format duration
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`
-  const sec = Math.floor(ms / 1000)
-  if (sec < 60) return `${sec}s`
-  const min = Math.floor(sec / 60)
-  const remainingSec = sec % 60
-  if (min < 60) return `${min}m ${remainingSec}s`
-  const hr = Math.floor(min / 60)
-  const remainingMin = min % 60
-  return `${hr}h ${remainingMin}m`
-}
 
 interface JobCardProps {
   job: Job
@@ -78,6 +43,7 @@ export function JobCard({
   disabled = false,
   disabledMessage,
 }: JobCardProps) {
+  const { t } = useTranslation()
   const isRunning = job.status === 'running' || progress?.status === 'running'
   const jobColor = JOB_COLORS[job.name] || '#666'
   const showResult =
@@ -91,17 +57,16 @@ export function JobCard({
   const getLastRunInfo = () => {
     if (!job.lastRun) return null
     const { status, startedAt, durationMs, itemsProcessed, itemsTotal, errorMessage } = job.lastRun
-    // Show items count - prefer total format if both available, otherwise just processed count
     let items: string | undefined
     if (itemsTotal > 0) {
-      items = `${itemsProcessed}/${itemsTotal}`
+      items = t('admin.jobsPage.ui.itemsProcessedTotal', { processed: itemsProcessed, total: itemsTotal })
     } else if (itemsProcessed > 0) {
-      items = `${itemsProcessed} items`
+      items = t('admin.jobsPage.ui.itemsCount', { count: itemsProcessed })
     }
     return {
       status,
-      time: formatRelativeTime(startedAt),
-      duration: formatDuration(durationMs),
+      time: formatRelativePastTime(startedAt, t),
+      duration: formatJobDurationMs(durationMs, t),
       items,
       error: errorMessage,
       icon: status === 'completed' ? <CheckCircleIcon sx={{ fontSize: 14 }} /> :
@@ -198,7 +163,7 @@ export function JobCard({
           <Box flex={1} minWidth={0}>
             <Stack direction="row" alignItems="center" spacing={1} mb={0.5} flexWrap="wrap">
               <Typography variant="subtitle1" fontWeight={600}>
-                {formatJobName(job.name)}
+                {formatJobName(job.name, t)}
               </Typography>
               {isRunning && (
                 <Box
@@ -223,15 +188,26 @@ export function JobCard({
               <Stack direction="row" alignItems="center" spacing={0.5}>
                 <ScheduleIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
                 <Typography variant="caption" color="text.disabled">
-                  {job.schedule?.formatted || 'Not configured'}
+                  {job.schedule?.formatted || t('admin.jobsPage.ui.notConfigured')}
                 </Typography>
               </Stack>
               {lastRunInfo && !isRunning && (
-                <Tooltip title={lastRunInfo.error ? `Error: ${lastRunInfo.error}` : `Duration: ${lastRunInfo.duration}${lastRunInfo.items ? ` • Items: ${lastRunInfo.items}` : ''}`}>
+                <Tooltip
+                  title={
+                    lastRunInfo.error
+                      ? t('admin.jobsPage.ui.tooltipError', { message: lastRunInfo.error })
+                      : lastRunInfo.items
+                        ? t('admin.jobsPage.ui.tooltipDurationWithItems', {
+                            duration: lastRunInfo.duration,
+                            items: lastRunInfo.items,
+                          })
+                        : t('admin.jobsPage.ui.tooltipDurationShort', { duration: lastRunInfo.duration })
+                  }
+                >
                   <Chip
                     size="small"
                     icon={lastRunInfo.icon}
-                    label={`Last run: ${lastRunInfo.time}`}
+                    label={t('admin.jobsPage.ui.lastRunChip', { time: lastRunInfo.time })}
                     color={lastRunInfo.color as 'success' | 'error' | 'warning'}
                     variant="outlined"
                     onClick={onHistoryClick}
@@ -257,7 +233,7 @@ export function JobCard({
             justifyContent={{ xs: 'flex-end', sm: 'flex-start' }}
             width={{ xs: '100%', sm: 'auto' }}
           >
-            <Tooltip title="View run history">
+            <Tooltip title={t('admin.jobsPage.ui.viewRunHistory')}>
               <IconButton
                 size="small"
                 onClick={onHistoryClick}
@@ -269,7 +245,7 @@ export function JobCard({
                 <HistoryIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Configure schedule">
+            <Tooltip title={t('admin.jobsPage.ui.configureSchedule')}>
               <IconButton
                 size="small"
                 onClick={onConfigClick}
@@ -299,7 +275,7 @@ export function JobCard({
                   },
                 }}
               >
-                {isCancelling ? 'Stopping...' : 'Stop'}
+                {isCancelling ? t('admin.jobsPage.ui.stopping') : t('admin.jobsPage.ui.stop')}
               </Button>
             ) : (
               <Button
@@ -320,7 +296,7 @@ export function JobCard({
                   },
                 }}
               >
-                Run
+                {t('admin.jobsPage.ui.run')}
               </Button>
             )}
           </Stack>

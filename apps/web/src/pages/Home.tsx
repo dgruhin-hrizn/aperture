@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -87,6 +88,7 @@ interface SeriesTasteProfile {
 }
 
 export function HomePage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { user } = useAuth()
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
@@ -276,7 +278,7 @@ export function HomePage() {
             onClick={() => navigate(viewAllPath)}
             size="small"
           >
-            View All
+            {t('home.viewAll')}
           </Button>
         </Box>
       </Box>
@@ -324,7 +326,11 @@ export function HomePage() {
                   />
                   {!isRec && (item as WatchHistoryItem).play_count > 1 && (
                     <Chip
-                      label={(item as WatchHistoryItem).play_count <= 5 ? `${(item as WatchHistoryItem).play_count}x` : 'Rewatched'}
+                      label={
+                        (item as WatchHistoryItem).play_count <= 5
+                          ? `${(item as WatchHistoryItem).play_count}x`
+                          : t('home.rewatched')
+                      }
                       size="small"
                       sx={{
                         position: 'absolute',
@@ -382,10 +388,10 @@ export function HomePage() {
     <Box>
       {/* Welcome Header */}
       <Typography variant="h4" fontWeight={700} mb={1}>
-        Welcome back, {user?.displayName || user?.username}
+        {t('home.welcomeBack', { name: user?.displayName || user?.username || '' })}
       </Typography>
       <Typography variant="body1" color="text.secondary" mb={4}>
-        Here's what we've picked for you based on your watch history
+        {t('home.heroSubtitle')}
       </Typography>
 
       {/* Quick Stats */}
@@ -393,17 +399,17 @@ export function HomePage() {
         <Box display="flex" gap={2} mb={4} flexWrap="wrap">
           <StatCard
             icon={<MovieIcon fontSize="large" />}
-            label="Movies Watched"
+            label={t('home.statMoviesWatched')}
             value={stats.watchedCount}
           />
           <StatCard
             icon={<FavoriteIcon fontSize="large" />}
-            label="Favorites"
+            label={t('home.statFavorites')}
             value={stats.favoritesCount}
           />
           <StatCard
             icon={<AutoAwesomeIcon fontSize="large" />}
-            label="AI Recommendations"
+            label={t('home.statAiRecs')}
             value={stats.recommendationsCount}
           />
         </Box>
@@ -445,14 +451,14 @@ export function HomePage() {
                       </Box>
                       <Box>
                         <Typography variant="h6" fontWeight={700}>
-                          Your Movie Taste
+                          {t('home.movieTasteTitle')}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          AI-powered film preferences
+                          {t('home.movieTasteSubtitle')}
                         </Typography>
                       </Box>
                     </Box>
-                    <Tooltip title="Regenerate movie taste profile">
+                    <Tooltip title={t('home.regenMovieTaste')}>
                       <IconButton
                         onClick={regenerateTasteProfile}
                         disabled={loadingTasteProfile}
@@ -498,7 +504,7 @@ export function HomePage() {
                   {tasteProfile.stats.topGenres.length > 0 && (
                     <Box mb={2}>
                       <Typography variant="subtitle2" color="text.secondary" mb={1}>
-                        Your Top Genres
+                        {t('home.topGenres')}
                       </Typography>
                       <Box display="flex" gap={1} flexWrap="wrap">
                         {tasteProfile.stats.topGenres.map((genre, index) => (
@@ -531,7 +537,7 @@ export function HomePage() {
                     {tasteProfile.stats.favoriteDecade && (
                       <Box>
                         <Typography variant="caption" color="text.secondary" display="block">
-                          Favorite Era
+                          {t('home.favoriteEra')}
                         </Typography>
                         <Typography variant="body2" fontWeight={600}>
                           {tasteProfile.stats.favoriteDecade}
@@ -540,7 +546,7 @@ export function HomePage() {
                     )}
                     <Box>
                       <Typography variant="caption" color="text.secondary" display="block">
-                        Avg. Rating
+                        {t('home.avgRating')}
                       </Typography>
                       <Typography variant="body2" fontWeight={600}>
                         {tasteProfile.stats.avgRating.toFixed(1)}/10
@@ -548,7 +554,7 @@ export function HomePage() {
                     </Box>
                     <Box>
                       <Typography variant="caption" color="text.secondary" display="block">
-                        Movies
+                        {t('home.moviesCount')}
                       </Typography>
                       <Typography variant="body2" fontWeight={600}>
                         {tasteProfile.stats.totalWatched}
@@ -593,14 +599,14 @@ export function HomePage() {
                       </Box>
                       <Box>
                         <Typography variant="h6" fontWeight={700}>
-                          Your TV Taste
+                          {t('home.tvTasteTitle')}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          AI-powered series preferences
+                          {t('home.tvTasteSubtitle')}
                         </Typography>
                       </Box>
                     </Box>
-                    <Tooltip title="Regenerate TV series taste profile">
+                    <Tooltip title={t('home.regenTvTaste')}>
                       <IconButton
                         onClick={regenerateSeriesTasteProfile}
                         disabled={loadingSeriesTasteProfile}
@@ -646,7 +652,7 @@ export function HomePage() {
                   {seriesTasteProfile.stats.topGenres.length > 0 && (
                     <Box mb={2}>
                       <Typography variant="subtitle2" color="text.secondary" mb={1}>
-                        Your Top Genres
+                        {t('home.topGenres')}
                       </Typography>
                       <Box display="flex" gap={1} flexWrap="wrap">
                         {seriesTasteProfile.stats.topGenres.map((genre, index) => (
@@ -669,7 +675,7 @@ export function HomePage() {
                   {seriesTasteProfile.stats.favoriteNetworks?.length > 0 && (
                     <Box mb={2}>
                       <Typography variant="subtitle2" color="text.secondary" mb={1}>
-                        Favorite Networks
+                        {t('home.favoriteNetworks')}
                       </Typography>
                       <Box display="flex" gap={1} flexWrap="wrap">
                         {seriesTasteProfile.stats.favoriteNetworks.map((network) => (
@@ -699,7 +705,7 @@ export function HomePage() {
                     {seriesTasteProfile.stats.favoriteDecade && (
                       <Box>
                         <Typography variant="caption" color="text.secondary" display="block">
-                          Favorite Era
+                          {t('home.favoriteEra')}
                         </Typography>
                         <Typography variant="body2" fontWeight={600}>
                           {seriesTasteProfile.stats.favoriteDecade}
@@ -708,7 +714,7 @@ export function HomePage() {
                     )}
                     <Box>
                       <Typography variant="caption" color="text.secondary" display="block">
-                        Avg. Rating
+                        {t('home.avgRating')}
                       </Typography>
                       <Typography variant="body2" fontWeight={600}>
                         {seriesTasteProfile.stats.avgRating.toFixed(1)}/10
@@ -716,7 +722,7 @@ export function HomePage() {
                     </Box>
                     <Box>
                       <Typography variant="caption" color="text.secondary" display="block">
-                        Series / Episodes
+                        {t('home.seriesEpisodes')}
                       </Typography>
                       <Typography variant="body2" fontWeight={600}>
                         {seriesTasteProfile.stats.totalSeriesStarted} / {seriesTasteProfile.stats.totalEpisodesWatched}
@@ -732,25 +738,25 @@ export function HomePage() {
 
       {/* Your Top Picks (Recommendations) */}
       <CarouselSection
-        title="Your Top Picks"
-        subtitle="AI-powered recommendations based on your taste"
+        title={t('home.topPicksTitle')}
+        subtitle={t('home.topPicksSubtitle')}
         items={recommendations.slice(0, 20)}
         scrollPosition={recsScrollPosition}
         onScroll={(dir) => scrollCarousel(dir, 'recs')}
         _type="recommendations"
-        emptyMessage="No recommendations yet. Your personalized picks will appear here once they're generated."
+        emptyMessage={t('home.topPicksEmpty')}
         viewAllPath="/recommendations"
       />
 
       {/* Recently Watched */}
       <CarouselSection
-        title="Recently Watched"
-        subtitle="Continue where you left off"
+        title={t('home.recentTitle')}
+        subtitle={t('home.recentSubtitle')}
         items={recentlyWatched.slice(0, 20)}
         scrollPosition={recentScrollPosition}
         onScroll={(dir) => scrollCarousel(dir, 'recent')}
         _type="history"
-        emptyMessage="No watch history yet. Movies you watch will appear here."
+        emptyMessage={t('home.recentEmpty')}
         viewAllPath="/history"
       />
 
@@ -761,15 +767,15 @@ export function HomePage() {
             <HistoryIcon sx={{ color: 'primary.main', fontSize: 40 }} />
             <Box>
               <Typography variant="h6" fontWeight={600}>
-                Discover More
+                {t('home.discoverMore')}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Browse the full movie library to find something new
+                {t('home.discoverMoreSubtitle')}
               </Typography>
             </Box>
           </Box>
           <Button variant="contained" onClick={() => navigate('/movies')}>
-            Browse Movies
+            {t('home.browseMovies')}
           </Button>
         </CardContent>
       </Card>

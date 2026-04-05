@@ -3,6 +3,7 @@
  * Shows once to admins when exploration is not configured
  */
 import { useState, useEffect } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import {
   Dialog,
   DialogTitle,
@@ -32,6 +33,7 @@ interface ExplorationConfigModalProps {
 }
 
 export function ExplorationConfigModal({ open: controlledOpen, onClose }: ExplorationConfigModalProps) {
+  const { t } = useTranslation()
   const theme = useTheme()
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -127,17 +129,20 @@ export function ExplorationConfigModal({ open: controlledOpen, onClose }: Explor
         </Box>
         <Box>
           <Typography variant="h5" fontWeight={700}>
-            New Feature: Exploration AI
+            {t('explorationConfig.title')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Configure a dedicated AI for the Explore page
+            {t('explorationConfig.subtitle')}
           </Typography>
         </Box>
       </Box>
 
       <DialogContent sx={{ p: 3 }}>
         <Typography variant="body1" paragraph>
-          Aperture now supports a dedicated <strong>Exploration AI provider</strong> for the Explore page's semantic graph generation.
+          <Trans
+            i18nKey="explorationConfig.bodyP1"
+            components={{ 0: <strong /> }}
+          />
         </Typography>
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3 }}>
@@ -145,10 +150,10 @@ export function ExplorationConfigModal({ open: controlledOpen, onClose }: Explor
             <AutoAwesomeIcon sx={{ color: 'success.main', mt: 0.5 }} />
             <Box>
               <Typography variant="subtitle2" fontWeight={600}>
-                Conceptual Understanding
+                {t('explorationConfig.feature1Title')}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Use a more powerful model to understand queries like "feel-good comedies" or "mind-bending sci-fi"
+                {t('explorationConfig.feature1Body')}
               </Typography>
             </Box>
           </Box>
@@ -157,10 +162,10 @@ export function ExplorationConfigModal({ open: controlledOpen, onClose }: Explor
             <HubOutlinedIcon sx={{ color: 'success.main', mt: 0.5 }} />
             <Box>
               <Typography variant="subtitle2" fontWeight={600}>
-                Better Graph Connections
+                {t('explorationConfig.feature2Title')}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                AI analyzes your library to find meaningful thematic connections between items
+                {t('explorationConfig.feature2Body')}
               </Typography>
             </Box>
           </Box>
@@ -169,10 +174,10 @@ export function ExplorationConfigModal({ open: controlledOpen, onClose }: Explor
             <SettingsIcon sx={{ color: 'success.main', mt: 0.5 }} />
             <Box>
               <Typography variant="subtitle2" fontWeight={600}>
-                Independent Configuration
+                {t('explorationConfig.feature3Title')}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Use GPT-4 or Claude for exploration while keeping cheaper models for other functions
+                {t('explorationConfig.feature3Body')}
               </Typography>
             </Box>
           </Box>
@@ -188,7 +193,7 @@ export function ExplorationConfigModal({ open: controlledOpen, onClose }: Explor
           }
           label={
             <Typography variant="body2" color="text.secondary">
-              Don't show this again
+              {t('common.dontShowAgain')}
             </Typography>
           }
         />
@@ -196,7 +201,7 @@ export function ExplorationConfigModal({ open: controlledOpen, onClose }: Explor
 
       <DialogActions sx={{ p: 3, pt: 0, gap: 1 }}>
         <Button variant="outlined" onClick={handleClose}>
-          Later
+          {t('common.later')}
         </Button>
         <Button
           variant="contained"
@@ -204,7 +209,7 @@ export function ExplorationConfigModal({ open: controlledOpen, onClose }: Explor
           startIcon={<SettingsIcon />}
           onClick={handleConfigureNow}
         >
-          Configure Now
+          {t('explorationConfig.configureNow')}
         </Button>
       </DialogActions>
     </Dialog>

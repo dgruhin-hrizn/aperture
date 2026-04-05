@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -22,6 +23,7 @@ interface AiExplanationConfig {
 }
 
 export function AiExplanationSection() {
+  const { t } = useTranslation()
   const [config, setConfig] = useState<AiExplanationConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -37,12 +39,12 @@ export function AiExplanationSection() {
     try {
       setLoading(true)
       const response = await fetch('/api/settings/ai-explanation')
-      if (!response.ok) throw new Error('Failed to fetch config')
+      if (!response.ok) throw new Error(t('settingsAiExplanation.fetchFailed'))
       const data = await response.json()
       setConfig(data)
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : t('settingsAiExplanation.unknownError'))
     } finally {
       setLoading(false)
     }
@@ -58,12 +60,12 @@ export function AiExplanationSection() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
       })
-      if (!response.ok) throw new Error('Failed to save config')
-      setSuccess('AI explanation settings saved!')
+      if (!response.ok) throw new Error(t('settingsAiExplanation.saveFailed'))
+      setSuccess(t('settingsAiExplanation.saved'))
       setHasChanges(false)
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : t('settingsAiExplanation.unknownError'))
     } finally {
       setSaving(false)
     }
@@ -91,7 +93,7 @@ export function AiExplanationSection() {
     return (
       <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
         <CardContent>
-          <Alert severity="error">Failed to load AI explanation configuration</Alert>
+          <Alert severity="error">{t('settingsAiExplanation.loadFailed')}</Alert>
         </CardContent>
       </Card>
     )
@@ -103,10 +105,10 @@ export function AiExplanationSection() {
         <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
           <Box>
             <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <AutoAwesomeIcon color="primary" /> AI Explanation in Recommendations
+              <AutoAwesomeIcon color="primary" /> {t('settingsAiExplanation.title')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Control whether AI-generated explanations ("Why Aperture picked this for you") appear in recommendation descriptions
+              {t('settingsAiExplanation.subtitle')}
             </Typography>
           </Box>
         </Box>
@@ -138,10 +140,10 @@ export function AiExplanationSection() {
             label={
               <Box>
                 <Typography variant="body1" fontWeight="medium">
-                  Include AI Explanations
+                  {t('settingsAiExplanation.includeTitle')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  When enabled, each recommendation includes a personalized explanation of why it was selected
+                  {t('settingsAiExplanation.includeDesc')}
                 </Typography>
               </Box>
             }
@@ -164,10 +166,10 @@ export function AiExplanationSection() {
             label={
               <Box>
                 <Typography variant="body1" fontWeight="medium">
-                  Allow Per-User Overrides
+                  {t('settingsAiExplanation.overrideTitle')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  When enabled, administrators can grant individual users the ability to toggle AI explanations for their own recommendations
+                  {t('settingsAiExplanation.overrideDesc')}
                 </Typography>
               </Box>
             }
@@ -178,9 +180,10 @@ export function AiExplanationSection() {
         {config.userOverrideAllowed && (
           <Alert severity="info" icon={<InfoIcon />} sx={{ mb: 2 }}>
             <Typography variant="body2">
-              <strong>Three-tier system:</strong> Global default → Admin grants override per user → User chooses their preference.
+              <strong>{t('settingsAiExplanation.infoThreeTier')}</strong>{' '}
+              {t('settingsAiExplanation.infoThreeTierBody')}
               <br />
-              To grant a user override permission, go to <strong>Users</strong> → select a user → enable "Allow AI explanation override".
+              {t('settingsAiExplanation.infoGrantPath')}
             </Typography>
           </Alert>
         )}
@@ -195,7 +198,7 @@ export function AiExplanationSection() {
             onClick={handleSave}
             disabled={saving || !hasChanges}
           >
-            {saving ? 'Saving...' : 'Save Changes'}
+            {saving ? t('settingsAiExplanation.saving') : t('settingsAiExplanation.saveChanges')}
           </Button>
         </Stack>
       </CardContent>

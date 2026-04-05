@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { 
   Dialog, 
   Fab, 
@@ -251,6 +252,7 @@ function MessageSaver({
 
 
 export function AssistantModal() {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -469,17 +471,17 @@ export function AssistantModal() {
     const date = new Date(dateStr)
     const now = new Date()
     const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
-    
-    if (diffDays === 0) return 'Today'
-    if (diffDays === 1) return 'Yesterday'
-    if (diffDays < 7) return `${diffDays}d ago`
+
+    if (diffDays === 0) return t('assistant.dateToday')
+    if (diffDays === 1) return t('assistant.dateYesterday')
+    if (diffDays < 7) return t('assistant.dateDaysAgo', { count: diffDays })
     return date.toLocaleDateString()
   }
 
   return (
     <>
       {/* Floating Action Button */}
-      <Tooltip title="AI Assistant" placement="left">
+      <Tooltip title={t('assistant.fabTooltip')} placement="left">
         <Zoom in={!open}>
           <Fab
             color="primary"
@@ -557,7 +559,7 @@ export function AssistantModal() {
                 >
                   <AddIcon fontSize="small" />
                   <Typography variant="body2" fontWeight={500}>
-                    New Chat
+                    {t('assistant.newChat')}
                   </Typography>
                 </Box>
               </Box>
@@ -573,7 +575,7 @@ export function AssistantModal() {
                 ) : conversations.length === 0 ? (
                   <Box sx={{ p: 3, textAlign: 'center' }}>
                     <Typography variant="body2" color="text.secondary">
-                      No conversations yet
+                      {t('assistant.noConversations')}
                     </Typography>
                   </Box>
                 ) : (
@@ -675,7 +677,7 @@ export function AssistantModal() {
                 <Box sx={{ p: 1, borderTop: '1px solid rgba(255, 255, 255, 0.1)', display: 'flex', alignItems: 'center', gap: 1 }}>
                   <CircularProgress size={12} />
                   <Typography variant="caption" color="text.secondary">
-                    Saving...
+                    {t('assistant.saving')}
                   </Typography>
                 </Box>
               )}
@@ -711,22 +713,22 @@ export function AssistantModal() {
                 </Box>
                 <Box>
                   <Typography variant="subtitle1" fontWeight={600}>
-                    Aperture Encore
+                    {t('assistant.title')}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    AI-powered recommendations
+                    {t('assistant.subtitle')}
                   </Typography>
                 </Box>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 {!fullscreen && (
-                  <Tooltip title="New chat">
+                  <Tooltip title={t('assistant.tooltipNewChat')}>
                     <IconButton onClick={handleNewChat} size="small">
                       <AddIcon />
                     </IconButton>
                   </Tooltip>
                 )}
-                <Tooltip title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
+                <Tooltip title={fullscreen ? t('assistant.tooltipExitFullscreen') : t('assistant.tooltipFullscreen')}>
                   <IconButton onClick={toggleFullscreen} size="small">
                     {fullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
                   </IconButton>

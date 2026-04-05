@@ -3,6 +3,7 @@
  * Used in both Admin Settings and Setup Wizard
  */
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -181,8 +182,23 @@ export function AIFunctionCard({
   compact = false,
   isSetup = false,
 }: AIFunctionCardProps) {
+  const { t } = useTranslation()
   // Use setup endpoints during first-run (no auth), settings endpoints after
   const apiBase = isSetup ? '/api/setup/ai' : '/api/settings/ai'
+
+  const ollamaNoteLabel = (note: string | null) => {
+    if (!note) return null
+    const key: Record<string, string> = {
+      recommended: 'recommended',
+      'higher quality': 'higherQuality',
+      multilingual: 'multilingual',
+      'best for tools': 'bestForTools',
+      fast: 'fast',
+      'small & capable': 'smallCapable',
+    }
+    const k = key[note]
+    return k ? t(`aiFunctionCard.ollamaNotes.${k}`) : note
+  }
   
   const [loadingProviders, setLoadingProviders] = useState(true)
   const [loading, setLoading] = useState(false)
@@ -330,7 +346,7 @@ export function AIFunctionCard({
       const data = await res.json()
       setTestResult(data)
     } catch {
-      setTestResult({ success: false, error: 'Connection failed' })
+      setTestResult({ success: false, error: t('aiFunctionCard.connectionFailed') })
     } finally {
       setTesting(false)
     }
@@ -349,11 +365,11 @@ export function AIFunctionCard({
     setSuccess(null)
     try {
       await onSave(newConfig)
-      setSuccess('Configuration saved!')
+      setSuccess(t('aiFunctionCard.configSaved'))
       setApiKey('') // Clear for security
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save')
+      setError(err instanceof Error ? err.message : t('aiFunctionCard.failedToSave'))
     } finally {
       setSaving(false)
     }
@@ -395,7 +411,7 @@ export function AIFunctionCard({
       const data = await res.json()
       setDialogTestResult(data)
     } catch {
-      setDialogTestResult({ success: false, error: 'Connection failed' })
+      setDialogTestResult({ success: false, error: t('aiFunctionCard.connectionFailed') })
     } finally {
       setDialogTesting(false)
     }
@@ -426,7 +442,7 @@ export function AIFunctionCard({
       
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || 'Failed to add custom model')
+        throw new Error(data.error || t('aiFunctionCard.failedAddCustom'))
       }
       
       // Refresh models list and select the new model
@@ -436,10 +452,10 @@ export function AIFunctionCard({
       setNewModelName('')
       setNewModelEmbeddingDimensions('')
       setDialogTestResult(null)
-      setSuccess(`Custom model "${newModelName.trim()}" added!`)
+      setSuccess(t('aiFunctionCard.customModelAdded', { name: newModelName.trim() }))
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add custom model')
+      setError(err instanceof Error ? err.message : t('aiFunctionCard.failedAddCustom'))
     } finally {
       setAddingModel(false)
     }
@@ -473,7 +489,7 @@ export function AIFunctionCard({
       
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || 'Failed to delete custom model')
+        throw new Error(data.error || t('aiFunctionCard.failedDeleteCustom'))
       }
       
       // If the deleted model was selected, clear selection
@@ -483,10 +499,10 @@ export function AIFunctionCard({
       
       // Refresh models list
       await refreshModels()
-      setSuccess(`Custom model "${modelId}" deleted`)
+      setSuccess(t('aiFunctionCard.customModelDeleted', { name: modelId }))
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete custom model')
+      setError(err instanceof Error ? err.message : t('aiFunctionCard.failedDeleteCustom'))
     } finally {
       setDeletingModel(null)
     }
@@ -522,9 +538,9 @@ export function AIFunctionCard({
             </Typography>
           </Box>
           {isConfigured ? (
-            <Chip icon={<CheckCircleIcon />} label="Active" color="success" size="small" />
+            <Chip icon={<CheckCircleIcon />} label={t('aiFunctionCard.chipActive')} color="success" size="small" />
           ) : (
-            <Chip icon={<WarningIcon />} label="Setup Required" color="warning" size="small" />
+            <Chip icon={<WarningIcon />} label={t('aiFunctionCard.chipSetupRequired')} color="warning" size="small" />
           )}
         </Box>
 
@@ -550,26 +566,26 @@ export function AIFunctionCard({
             sx={{ mb: 2 }}
             onClose={() => setTestResult(null)}
           >
-            {testResult.success 
-              ? 'Connection successful!' 
-              : `Connection failed: ${testResult.error}`}
+            {testResult.success
+              ? t('aiFunctionCard.connectionSuccess')
+              : t('aiFunctionCard.connectionFailedWithError', { error: testResult.error ?? '' })}
           </Alert>
         )}
 
         {/* Provider & Model Selection */}
         <Box display="flex" flexDirection="column" gap={2} mb={2}>
           <FormControl size="small" fullWidth>
-            <InputLabel>Provider</InputLabel>
+            <InputLabel>{t('aiFunctionCard.provider')}</InputLabel>
             <Select
               value={!loadingProviders && providers.length > 0 ? provider : ''}
-              label="Provider"
+              label={t('aiFunctionCard.provider')}
               onChange={(e) => handleProviderChange(e.target.value as ProviderType)}
               displayEmpty
               disabled={loadingProviders}
             >
               {loadingProviders && (
                 <MenuItem value="" disabled>
-                  <CircularProgress size={16} sx={{ mr: 1 }} /> Loading...
+                  <CircularProgress size={16} sx={{ mr: 1 }} /> {t('aiFunctionCard.loadingProviders')}
                 </MenuItem>
               )}
               {[...providers].sort((a, b) => a.name.localeCompare(b.name)).map((p) => {
@@ -603,10 +619,10 @@ export function AIFunctionCard({
           </FormControl>
 
           <FormControl size="small" fullWidth>
-            <InputLabel>Model</InputLabel>
+            <InputLabel>{t('aiFunctionCard.model')}</InputLabel>
             <Select
               value={!loading && models.length > 0 ? model : ''}
-              label="Model"
+              label={t('aiFunctionCard.model')}
               onChange={(e) => {
                 const value = e.target.value
                 if (value === '__add_custom__') {
@@ -629,12 +645,12 @@ export function AIFunctionCard({
             >
               {(loading || loadingProviders) && (
                 <MenuItem value="" disabled>
-                  <CircularProgress size={16} sx={{ mr: 1 }} /> Loading models...
+                  <CircularProgress size={16} sx={{ mr: 1 }} /> {t('aiFunctionCard.loadingModels')}
                 </MenuItem>
               )}
               {!loading && !loadingProviders && models.length === 0 && !supportsCustomModels && (
                 <MenuItem value="" disabled>
-                  No models available
+                  {t('aiFunctionCard.noModelsAvailable')}
                 </MenuItem>
               )}
               {/* Built-in models */}
@@ -654,7 +670,7 @@ export function AIFunctionCard({
               {models.filter(m => m.isCustom).length > 0 && (
                 <MenuItem disabled sx={{ borderTop: 1, borderColor: 'divider', mt: 1, opacity: 0.7 }}>
                   <Typography variant="caption" color="text.secondary">
-                    Custom Models
+                    {t('aiFunctionCard.customModelsHeader')}
                   </Typography>
                 </MenuItem>
               )}
@@ -664,7 +680,7 @@ export function AIFunctionCard({
                     <Box>
                       <Typography variant="body2" sx={{ fontStyle: 'italic' }}>{m.name}</Typography>
                       <Typography variant="caption" color="text.secondary">
-                        Custom model
+                        {t('aiFunctionCard.customModelSubtitle')}
                       </Typography>
                     </Box>
                     <ListItemSecondaryAction>
@@ -702,9 +718,9 @@ export function AIFunctionCard({
                   <Box display="flex" alignItems="center" gap={1}>
                     <AddIcon fontSize="small" />
                     <Box>
-                      <Typography variant="body2">Add Custom Model...</Typography>
+                      <Typography variant="body2">{t('aiFunctionCard.addCustomModel')}</Typography>
                       <Typography variant="caption" color="text.secondary">
-                        Enter any model name manually
+                        {t('aiFunctionCard.addCustomModelHint')}
                       </Typography>
                     </Box>
                   </Box>
@@ -721,18 +737,18 @@ export function AIFunctionCard({
               <Chip label={selectedModel.contextWindow} size="small" variant="outlined" />
             )}
             {selectedModel.embeddingDimensions && (
-              <Chip 
-                label={`${selectedModel.embeddingDimensions}d embeddings`} 
-                size="small" 
-                variant="outlined" 
+              <Chip
+                label={t('aiFunctionCard.embeddingsDimensions', { d: selectedModel.embeddingDimensions })}
+                size="small"
+                variant="outlined"
               />
             )}
             {selectedModel.capabilities.supportsToolCalling && (
-              <Chip 
-                label="Tool Calling" 
-                size="small" 
-                color="success" 
-                variant="outlined" 
+              <Chip
+                label={t('aiFunctionCard.toolCalling')}
+                size="small"
+                color="success"
+                variant="outlined"
               />
             )}
           </Box>
@@ -742,17 +758,17 @@ export function AIFunctionCard({
         {hasCapabilityWarning && (
           <Alert severity="warning" sx={{ mb: 2 }}>
             <Typography variant="body2" sx={{ mb: 0.5 }}>
-              <strong>This model doesn't support reliable tool calling.</strong>
+              <strong>{t('aiFunctionCard.toolCallingWarningTitle')}</strong>
             </Typography>
             <Typography variant="body2">
-              The assistant will work but cannot search your library or make recommendations.
-              {provider === 'ollama' && ' For Ollama, use firefunction-v2 or qwen3 instead.'}
+              {t('aiFunctionCard.toolCallingWarningBody')}
+              {provider === 'ollama' && t('aiFunctionCard.toolCallingWarningOllama')}
             </Typography>
           </Alert>
         )}
         {hasEmbeddingWarning && (
           <Alert severity="error" sx={{ mb: 2 }}>
-            This model doesn't support embeddings. Choose a different model.
+            {t('aiFunctionCard.embeddingUnsupported')}
           </Alert>
         )}
 
@@ -762,13 +778,13 @@ export function AIFunctionCard({
         {/* API Key */}
         {providerInfo?.requiresApiKey && (
           <TextField
-            label="API Key"
+            label={t('aiFunctionCard.apiKey')}
             type={showApiKey ? 'text' : 'password'}
             value={apiKey || (isConfigured ? '••••••••••••••••' : '')}
             onChange={(e) => setApiKey(e.target.value.replace(/•/g, ''))}
             size="small"
             fullWidth
-            placeholder={`Enter your ${providerInfo.name} API key`}
+            placeholder={t('aiFunctionCard.apiKeyPlaceholder', { provider: providerInfo.name })}
             sx={{ mb: 2 }}
             InputProps={{
               endAdornment: (
@@ -782,7 +798,7 @@ export function AIFunctionCard({
             helperText={
               providerInfo.website && (
                 <span>
-                  Get your API key from{' '}
+                  {t('aiFunctionCard.getApiKeyPrefix')}{' '}
                   <Link href={providerInfo.website} target="_blank" rel="noopener">
                     {providerInfo.name}
                   </Link>
@@ -804,7 +820,7 @@ export function AIFunctionCard({
           }}>
             <Typography variant="subtitle2" sx={{ mb: 1.5, color: 'info.main', display: 'flex', alignItems: 'center', gap: 1 }}>
               <ComputerIcon fontSize="small" />
-              Install models on your Ollama server
+              {t('aiFunctionCard.ollamaInstallTitle')}
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
               {(functionType === 'embeddings' 
@@ -842,9 +858,9 @@ export function AIFunctionCard({
                 >
                   <Box component="span" sx={{ color: 'text.primary' }}>{cmd}</Box>
                   {note && (
-                    <Chip 
-                      label={note} 
-                      size="small" 
+                    <Chip
+                      label={ollamaNoteLabel(note)}
+                      size="small"
                       variant="outlined"
                       sx={{ 
                         height: 20, 
@@ -862,7 +878,7 @@ export function AIFunctionCard({
         {/* Base URL */}
         {providerInfo?.requiresBaseUrl && (
           <TextField
-            label="Base URL"
+            label={t('aiFunctionCard.baseUrl')}
             value={baseUrl}
             onChange={(e) => setBaseUrl(e.target.value)}
             size="small"
@@ -870,9 +886,9 @@ export function AIFunctionCard({
             placeholder={providerInfo.defaultBaseUrl}
             sx={{ mb: 2 }}
             helperText={
-              provider === 'ollama' 
-                ? 'Make sure Ollama is running and accessible at this URL'
-                : 'OpenAI-compatible API endpoint'
+              provider === 'ollama'
+                ? t('aiFunctionCard.baseUrlHelperOllama')
+                : t('aiFunctionCard.baseUrlHelperCompatible')
             }
           />
         )}
@@ -885,7 +901,7 @@ export function AIFunctionCard({
             onClick={handleTest}
             disabled={testing || !model}
           >
-            {testing ? <CircularProgress size={16} /> : 'Test'}
+            {testing ? <CircularProgress size={16} /> : t('aiFunctionCard.test')}
           </Button>
           <Button
             variant="contained"
@@ -893,7 +909,7 @@ export function AIFunctionCard({
             onClick={handleSave}
             disabled={saving || !model}
           >
-            {saving ? <CircularProgress size={16} /> : 'Save'}
+            {saving ? <CircularProgress size={16} /> : t('common.save')}
           </Button>
         </Box>
       </CardContent>
@@ -905,17 +921,18 @@ export function AIFunctionCard({
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Add Custom Model</DialogTitle>
+        <DialogTitle>{t('aiFunctionCard.dialogAddCustomTitle')}</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Enter the exact model name as it appears on your {provider === 'ollama' ? 'Ollama server' : provider === 'openrouter' ? 'OpenRouter account' : provider === 'huggingface' ? 'Hugging Face Hub' : 'OpenAI-compatible server'}.
-            {provider === 'ollama' && ' You can find model names at ollama.com/library.'}
-            {provider === 'openrouter' && ' You can find model names at openrouter.ai/models (e.g., anthropic/claude-3.5-sonnet, openai/gpt-4o).'}
-            {provider === 'huggingface' && ' You can find model names at huggingface.co/models (e.g., meta-llama/Llama-3.3-70B-Instruct, deepseek-ai/DeepSeek-V3-0324).'}
+            {provider === 'ollama' && t('aiFunctionCard.addCustomDialog_ollama')}
+            {provider === 'openrouter' && t('aiFunctionCard.addCustomDialog_openrouter')}
+            {provider === 'huggingface' && t('aiFunctionCard.addCustomDialog_huggingface')}
+            {provider !== 'ollama' && provider !== 'openrouter' && provider !== 'huggingface' &&
+              t('aiFunctionCard.addCustomDialog_compatible')}
           </Typography>
           <TextField
             autoFocus
-            label="Model Name"
+            label={t('aiFunctionCard.modelName')}
             value={newModelName}
             onChange={(e) => {
               setNewModelName(e.target.value)
@@ -924,7 +941,15 @@ export function AIFunctionCard({
             }}
             fullWidth
             size="small"
-            placeholder={provider === 'ollama' ? 'e.g., llama3.3:70b, mixtral:8x22b' : provider === 'openrouter' ? 'e.g., anthropic/claude-3.5-sonnet' : provider === 'huggingface' ? 'e.g., meta-llama/Llama-3.3-70B-Instruct' : 'Enter model name'}
+            placeholder={
+              provider === 'ollama'
+                ? t('aiFunctionCard.placeholderOllama')
+                : provider === 'openrouter'
+                  ? t('aiFunctionCard.placeholderOpenrouter')
+                  : provider === 'huggingface'
+                    ? t('aiFunctionCard.placeholderHuggingface')
+                    : t('aiFunctionCard.placeholderDefault')
+            }
             disabled={dialogTesting}
             sx={{ mb: 2 }}
           />
@@ -934,42 +959,39 @@ export function AIFunctionCard({
             <>
               <Alert severity="warning" sx={{ mb: 2 }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                  Vector Dimension Must Match Model Output
+                  {t('aiFunctionCard.embeddingVectorTitle')}
                 </Typography>
                 <Typography variant="body2" sx={{ mb: 1.5 }}>
-                  The embedding dimension you select <strong>must exactly match</strong> the number of dimensions your model outputs. 
-                  If these don't match, embedding generation will fail or produce incorrect results.
+                  {t('aiFunctionCard.embeddingVectorBody')}
                 </Typography>
                 <Typography variant="body2" component="div">
-                  <strong>Common dimensions:</strong>
-                  <Box component="ul" sx={{ mt: 0.5, mb: 0, pl: 2 }}>
-                    <li>384 — granite-embedding-30m-english, all-MiniLM-L6-v2</li>
-                    <li>768 — nomic-embed-text, snowflake-arctic-embed-m, e5-base-v2</li>
-                    <li>1024 — mxbai-embed-large, snowflake-arctic-embed-l, voyage-multilingual-2</li>
-                    <li>1536 — OpenAI text-embedding-3-small, text-embedding-ada-002</li>
-                    <li>3072 — OpenAI text-embedding-3-large</li>
-                    <li>4096 — nv-embed-v2, larger custom models</li>
+                  <strong>{t('aiFunctionCard.embeddingCommonDimensionsTitle')}</strong>
+                  <Box
+                    component="span"
+                    sx={{ display: 'block', mt: 0.5, whiteSpace: 'pre-line', pl: 0 }}
+                  >
+                    {t('aiFunctionCard.embeddingCommonDimensionsList')}
                   </Box>
                 </Typography>
                 <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic' }}>
-                  Check your model's documentation to find the correct dimension.
+                  {t('aiFunctionCard.embeddingCheckDocs')}
                 </Typography>
               </Alert>
-              
+
               <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-                <InputLabel>Embedding Dimensions *</InputLabel>
+                <InputLabel>{t('aiFunctionCard.embeddingDimensionsLabel')}</InputLabel>
                 <Select
                   value={newModelEmbeddingDimensions}
-                  label="Embedding Dimensions *"
+                  label={t('aiFunctionCard.embeddingDimensionsLabel')}
                   onChange={(e) => setNewModelEmbeddingDimensions(e.target.value as number | '')}
                   disabled={dialogTesting}
                 >
                   <MenuItem value="" disabled>
-                    <em>Select dimensions</em>
+                    <em>{t('aiFunctionCard.selectDimensions')}</em>
                   </MenuItem>
                   {VALID_EMBEDDING_DIMENSIONS.map((dim) => (
                     <MenuItem key={dim} value={dim}>
-                      {dim} dimensions
+                      {t('aiFunctionCard.dimensionOption', { dim })}
                     </MenuItem>
                   ))}
                 </Select>
@@ -983,9 +1005,9 @@ export function AIFunctionCard({
               severity={dialogTestResult.success ? 'success' : 'error'} 
               sx={{ mb: 2 }}
             >
-              {dialogTestResult.success 
-                ? 'Model validated successfully!' 
-                : `Validation failed: ${dialogTestResult.error}`}
+              {dialogTestResult.success
+                ? t('aiFunctionCard.modelValidatedSuccess')
+                : t('aiFunctionCard.validationFailedWithError', { error: dialogTestResult.error ?? '' })}
             </Alert>
           )}
           
@@ -994,36 +1016,39 @@ export function AIFunctionCard({
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, color: 'text.secondary' }}>
               <CircularProgress size={20} />
               <Typography variant="body2">
-                Validating model... This may take a moment{provider === 'ollama' ? ' for Ollama models' : ''}.
+                {t('aiFunctionCard.validatingModel', {
+                  ollamaSuffix:
+                    provider === 'ollama' ? t('aiFunctionCard.validatingModelOllamaSuffix') : '',
+                })}
               </Typography>
             </Box>
           )}
         </DialogContent>
         <DialogActions>
-          <Button 
+          <Button
             onClick={handleCloseDialog}
             disabled={dialogTesting || addingModel}
           >
-            Cancel
+            {t('common.cancel')}
           </Button>
-          <Button 
+          <Button
             onClick={handleTestCustomModel}
             variant="outlined"
             disabled={!newModelName.trim() || dialogTesting || addingModel}
           >
-            {dialogTesting ? <CircularProgress size={16} /> : 'Test'}
+            {dialogTesting ? <CircularProgress size={16} /> : t('aiFunctionCard.test')}
           </Button>
-          <Button 
+          <Button
             onClick={handleAddCustomModel}
             variant="contained"
             disabled={
-              !newModelName.trim() || 
-              !dialogTestResult?.success || 
+              !newModelName.trim() ||
+              !dialogTestResult?.success ||
               addingModel ||
               (functionType === 'embeddings' && !newModelEmbeddingDimensions)
             }
           >
-            {addingModel ? <CircularProgress size={16} /> : 'Add Model'}
+            {addingModel ? <CircularProgress size={16} /> : t('aiFunctionCard.addModel')}
           </Button>
         </DialogActions>
       </Dialog>

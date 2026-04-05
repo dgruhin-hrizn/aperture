@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -56,6 +57,7 @@ export function LibraryConfigSection({
   onSync,
   onToggle,
 }: LibraryConfigSectionProps) {
+  const { t } = useTranslation()
   const [tabValue, setTabValue] = React.useState(0)
 
   const movieLibraries = libraries.filter((l) => l.collectionType === 'movies')
@@ -67,12 +69,15 @@ export function LibraryConfigSection({
   const renderLibraryList = (libs: LibraryConfig[], type: 'movies' | 'tvshows') => {
     const Icon = type === 'movies' ? MovieIcon : TvIcon
     const enabledCount = type === 'movies' ? enabledMovieCount : enabledTvCount
-    const typeName = type === 'movies' ? 'movie' : 'TV show'
+    const typeLabel =
+      type === 'movies' ? t('settingsLibraryConfig.typeMovie') : t('settingsLibraryConfig.typeTvShow')
 
     if (libs.length === 0) {
       return (
         <Alert severity="info">
-          No {typeName} libraries found. Click "Sync from Media Server" to fetch your libraries.
+          {type === 'movies'
+            ? t('settingsLibraryConfig.noLibrariesMovie')
+            : t('settingsLibraryConfig.noLibrariesTv')}
         </Alert>
       )
     }
@@ -81,13 +86,13 @@ export function LibraryConfigSection({
       <>
         <Box mb={2}>
           <Chip
-            label={`${enabledCount} of ${libs.length} libraries enabled`}
+            label={t('settingsLibraryConfig.enabledChip', { enabled: enabledCount, total: libs.length })}
             color={enabledCount > 0 ? 'primary' : 'default'}
             size="small"
           />
           {enabledCount === 0 && libs.length > 0 && (
             <Typography variant="caption" color="warning.main" sx={{ ml: 2 }}>
-              ⚠️ No libraries enabled - {typeName} sync will be skipped
+              {t('settingsLibraryConfig.warningNoneEnabled', { type: typeLabel })}
             </Typography>
           )}
         </Box>
@@ -115,7 +120,7 @@ export function LibraryConfigSection({
                   }
                   secondary={
                     <Typography variant="caption" color="text.secondary">
-                      ID: {lib.providerLibraryId}
+                      {t('settingsLibraryConfig.idLabel', { id: lib.providerLibraryId })}
                     </Typography>
                   }
                 />
@@ -135,7 +140,7 @@ export function LibraryConfigSection({
         </List>
 
         <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
-          Changes take effect on the next {typeName} sync. Run the appropriate sync job after making changes.
+          {t('settingsLibraryConfig.footerNextSync', { type: typeLabel })}
         </Typography>
       </>
     )
@@ -147,14 +152,14 @@ export function LibraryConfigSection({
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
           <Box>
             <Typography variant="h6">
-              Library Configuration
+              {t('settingsLibraryConfig.title')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Select which libraries to include when syncing content
+              {t('settingsLibraryConfig.subtitle')}
             </Typography>
           </Box>
           <Box display="flex" gap={1}>
-            <Tooltip title="Refresh library list from media server">
+            <Tooltip title={t('settingsLibraryConfig.syncTooltip')}>
               <Button
                 variant="outlined"
                 startIcon={syncingLibraries ? <CircularProgress size={16} /> : <RefreshIcon />}
@@ -162,7 +167,7 @@ export function LibraryConfigSection({
                 disabled={syncingLibraries}
                 size="small"
               >
-                {syncingLibraries ? 'Syncing...' : 'Sync from Media Server'}
+                {syncingLibraries ? t('settingsLibraryConfig.syncing') : t('settingsLibraryConfig.syncButton')}
               </Button>
             </Tooltip>
           </Box>
@@ -180,7 +185,7 @@ export function LibraryConfigSection({
           </Box>
         ) : libraries.length === 0 ? (
           <Alert severity="info">
-            No libraries configured yet. Click "Sync from Media Server" to fetch your libraries.
+            {t('settingsLibraryConfig.emptyState')}
           </Alert>
         ) : (
           <>
@@ -192,12 +197,12 @@ export function LibraryConfigSection({
               <Tab
                 icon={<MovieIcon />}
                 iconPosition="start"
-                label={`Movies (${movieLibraries.length})`}
+                label={t('settingsLibraryConfig.tabMovies', { count: movieLibraries.length })}
               />
               <Tab
                 icon={<TvIcon />}
                 iconPosition="start"
-                label={`TV Shows (${tvLibraries.length})`}
+                label={t('settingsLibraryConfig.tabTvShows', { count: tvLibraries.length })}
               />
             </Tabs>
 

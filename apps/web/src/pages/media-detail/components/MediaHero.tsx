@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -64,6 +65,7 @@ export function MediaHero({
   userId,
   onMarkedUnwatched,
 }: MediaHeroProps) {
+  const { t } = useTranslation()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [marking, setMarking] = useState(false)
   const [snackbar, setSnackbar] = useState<{
@@ -100,16 +102,16 @@ export function MediaHero({
       } else {
         setSnackbar({
           open: true,
-          message: data.error || 'No trailer found',
+          message: data.error || t('mediaDetail.hero.noTrailer'),
           severity: 'error',
         })
       }
     } catch {
-      setSnackbar({ open: true, message: 'Failed to load trailer', severity: 'error' })
+      setSnackbar({ open: true, message: t('mediaDetail.hero.failedTrailer'), severity: 'error' })
     } finally {
       setTrailerLoading(false)
     }
-  }, [media])
+  }, [media, t])
 
   const handlePlayOnMediaServer = () => {
     if (!mediaServer?.baseUrl || !media.provider_item_id) return
@@ -135,18 +137,18 @@ export function MediaHero({
       })
 
       if (response.ok) {
-        setSnackbar({ open: true, message: 'Movie marked as unwatched', severity: 'success' })
+        setSnackbar({ open: true, message: t('mediaDetail.hero.snackbarMarked'), severity: 'success' })
         onMarkedUnwatched?.()
       } else {
         const error = await response.json()
         setSnackbar({
           open: true,
-          message: error.error || 'Failed to mark as unwatched',
+          message: error.error || t('mediaDetail.hero.snackbarMarkFailed'),
           severity: 'error',
         })
       }
     } catch {
-      setSnackbar({ open: true, message: 'Failed to mark as unwatched', severity: 'error' })
+      setSnackbar({ open: true, message: t('mediaDetail.hero.snackbarMarkFailed'), severity: 'error' })
     } finally {
       setMarking(false)
       setConfirmOpen(false)
@@ -159,7 +161,7 @@ export function MediaHero({
       return media.end_year
         ? `${media.year} – ${media.end_year}`
         : media.year
-          ? `${media.year} – Present`
+          ? `${media.year} – ${t('mediaDetail.hero.yearPresent')}`
           : null
     }
     return media.year
@@ -251,7 +253,7 @@ export function MediaHero({
             {/* Movie availability */}
             {isMovie(media) && (
               <Chip
-                label="Available"
+                label={t('mediaDetail.hero.available')}
                 size="small"
                 sx={{ bgcolor: 'success.main', color: 'white', fontWeight: 600 }}
               />
@@ -260,7 +262,11 @@ export function MediaHero({
             {isMovie(media) && watchStatus?.isWatched && (
               <Chip
                 icon={<CheckCircleIcon sx={{ fontSize: 16 }} />}
-                label={watchStatus.playCount > 1 ? `Watched ${watchStatus.playCount}x` : 'Watched'}
+                label={
+                  watchStatus.playCount > 1
+                    ? t('mediaDetail.hero.watchedCount', { count: watchStatus.playCount })
+                    : t('mediaDetail.hero.watched')
+                }
                 size="small"
                 sx={{ bgcolor: 'primary.main', color: 'white', fontWeight: 600 }}
               />
@@ -307,19 +313,21 @@ export function MediaHero({
             {/* Series seasons/episodes */}
             {isSeries(media) && media.total_seasons && (
               <Typography variant="body1" color="text.secondary">
-                {media.total_seasons} Season{media.total_seasons !== 1 ? 's' : ''}
+                {t('mediaDetail.hero.seasons', { count: media.total_seasons })}
               </Typography>
             )}
             {isSeries(media) && media.total_episodes && (
               <Typography variant="body1" color="text.secondary">
-                {media.total_episodes} Episode{media.total_episodes !== 1 ? 's' : ''}
+                {t('mediaDetail.hero.episodes', { count: media.total_episodes })}
               </Typography>
             )}
             {isSeries(media) && media.average_episode_runtime_minutes != null && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <AccessTimeIcon fontSize="small" color="action" />
                 <Typography variant="body1" color="text.secondary">
-                  {formatRuntime(media.average_episode_runtime_minutes)} avg/episode
+                  {t('mediaDetail.hero.avgPerEpisode', {
+                    runtime: formatRuntime(media.average_episode_runtime_minutes),
+                  })}
                 </Typography>
               </Box>
             )}
@@ -364,7 +372,11 @@ export function MediaHero({
             {/* Series watching toggle */}
             {isSeries(media) && onWatchingToggle && (
               <Tooltip
-                title={isWatching ? 'Remove from watching list' : 'Add to watching list'}
+                title={
+                  isWatching
+                    ? t('mediaDetail.hero.removeFromWatchingList')
+                    : t('mediaDetail.hero.addToWatchingList')
+                }
               >
                 <Button
                   variant={isWatching ? 'contained' : 'outlined'}
@@ -378,12 +390,12 @@ export function MediaHero({
                     }),
                   }}
                 >
-                  {isWatching ? 'Watching' : 'Add to Watching'}
+                  {isWatching ? t('mediaDetail.hero.watching') : t('mediaDetail.hero.addToWatching')}
                 </Button>
               </Tooltip>
             )}
             {media.tmdb_id && (
-              <Tooltip title="Watch trailer (YouTube)">
+              <Tooltip title={t('mediaDetail.hero.trailerTooltip')}>
                 <span>
                   <Button
                     variant="outlined"
@@ -398,7 +410,7 @@ export function MediaHero({
                     disabled={trailerLoading}
                     sx={{ borderRadius: 2 }}
                   >
-                    Trailer
+                    {t('mediaDetail.hero.trailer')}
                   </Button>
                 </span>
               </Tooltip>
@@ -410,11 +422,11 @@ export function MediaHero({
               disabled={!mediaServer?.baseUrl}
               sx={{ borderRadius: 2 }}
             >
-              {mediaServer?.type === 'jellyfin' ? 'Open in Jellyfin' : 'Open in Emby'}
+              {mediaServer?.type === 'jellyfin' ? t('mediaDetail.hero.openJellyfin') : t('mediaDetail.hero.openEmby')}
             </Button>
             {/* Movie mark unwatched */}
             {isMovie(media) && watchStatus?.isWatched && canManageWatchHistory && (
-              <Tooltip title="Mark as unwatched - removes from watch history">
+              <Tooltip title={t('mediaDetail.hero.markUnwatchedTooltip')}>
                 <Button
                   variant="outlined"
                   color="warning"
@@ -422,7 +434,7 @@ export function MediaHero({
                   onClick={() => setConfirmOpen(true)}
                   sx={{ borderRadius: 2 }}
                 >
-                  Mark Unwatched
+                  {t('mediaDetail.hero.markUnwatched')}
                 </Button>
               </Tooltip>
             )}
@@ -437,14 +449,14 @@ export function MediaHero({
                   {Number(media.community_rating).toFixed(1)}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  / 10
+                  {t('mediaDetail.hero.outOfTen')}
                 </Typography>
               </Box>
               {/* Series critic rating */}
               {isSeries(media) && media.critic_rating && (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Typography variant="body2" color="text.secondary">
-                    Critic:
+                    {t('mediaDetail.hero.critic')}
                   </Typography>
                   <Typography variant="body1" fontWeight={600}>
                     {Number(media.critic_rating).toFixed(0)}%
@@ -472,22 +484,21 @@ export function MediaHero({
 
       {/* Confirmation Dialog for Mark Unwatched */}
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Mark as Unwatched?</DialogTitle>
+        <DialogTitle>{t('mediaDetail.hero.confirmUnwatchedTitle')}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            This will mark "{media.title}" as unwatched in your media server and remove it from
-            your Aperture watch history.
+            {t('mediaDetail.hero.confirmUnwatchedBody', { title: media.title })}
           </DialogContentText>
           <DialogContentText sx={{ mt: 1, fontWeight: 500, color: 'warning.main' }}>
-            This action cannot be undone.
+            {t('mediaDetail.hero.cannotUndo')}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmOpen(false)} disabled={marking}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button onClick={handleMarkUnwatched} color="error" variant="contained" disabled={marking}>
-            {marking ? 'Marking...' : 'Mark Unwatched'}
+            {marking ? t('mediaDetail.hero.marking') : t('mediaDetail.hero.markUnwatched')}
           </Button>
         </DialogActions>
       </Dialog>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -69,6 +70,7 @@ interface GlobalAiConfig {
 }
 
 export function UsersPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
@@ -117,10 +119,10 @@ export function UsersPage() {
         setError(null)
       } else {
         const errData = await response.json().catch(() => ({}))
-        setError(errData.error || 'Failed to load users from media server')
+        setError(errData.error || t('admin.usersPage.errorLoadUsers'))
       }
     } catch {
-      setError('Could not connect to server')
+      setError(t('admin.usersPage.errorConnect'))
     } finally {
       setLoading(false)
     }
@@ -142,7 +144,10 @@ export function UsersPage() {
       if (response.ok) {
         const data = await response.json()
         const result = data.result || {}
-        const message = `User sync complete: ${result.imported || 0} imported, ${result.updated || 0} updated`
+        const message = t('admin.usersPage.syncComplete', {
+          imported: result.imported || 0,
+          updated: result.updated || 0,
+        })
         setSnackbar({ open: true, message, severity: 'success' })
         // Refresh the user list after sync
         await fetchProviderUsers()
@@ -150,12 +155,12 @@ export function UsersPage() {
         const errData = await response.json().catch(() => ({}))
         setSnackbar({ 
           open: true, 
-          message: errData.error || 'Failed to sync users', 
+          message: errData.error || t('admin.usersPage.syncFailed'), 
           severity: 'error' 
         })
       }
     } catch {
-      setSnackbar({ open: true, message: 'Failed to sync users', severity: 'error' })
+      setSnackbar({ open: true, message: t('admin.usersPage.syncFailed'), severity: 'error' })
     } finally {
       setSyncingUsers(false)
     }
@@ -180,7 +185,7 @@ export function UsersPage() {
               : user
           )
         )
-        setSnackbar({ open: true, message: 'User imported successfully', severity: 'success' })
+        setSnackbar({ open: true, message: t('admin.usersPage.userImported'), severity: 'success' })
       }
     } finally {
       setImporting(null)
@@ -265,8 +270,8 @@ export function UsersPage() {
         setSnackbar({ 
           open: true, 
           message: newValue 
-            ? `${user.name} can now control their AI explanation preference` 
-            : `${user.name} will use the global AI explanation setting`,
+            ? t('admin.usersPage.aiOverrideOn', { name: user.name })
+            : t('admin.usersPage.aiOverrideOff', { name: user.name }),
           severity: 'success' 
         })
       }
@@ -308,8 +313,8 @@ export function UsersPage() {
         setSnackbar({ 
           open: true, 
           message: newValue 
-            ? `${user.name} can now see discovery suggestions` 
-            : `${user.name} will no longer see discovery suggestions`,
+            ? t('admin.usersPage.discoverOn', { name: user.name })
+            : t('admin.usersPage.discoverOff', { name: user.name }),
           severity: 'success' 
         })
       }
@@ -342,8 +347,8 @@ export function UsersPage() {
         setSnackbar({ 
           open: true, 
           message: newValue 
-            ? `${user.name} can now request discovered content` 
-            : `${user.name} can no longer request discovered content`,
+            ? t('admin.usersPage.discoverReqOn', { name: user.name })
+            : t('admin.usersPage.discoverReqOff', { name: user.name }),
           severity: 'success' 
         })
       }
@@ -376,18 +381,29 @@ export function UsersPage() {
 
       if (response.ok) {
         const jobNames: Record<string, string> = {
-          'sync-history': 'Watch history synced',
-          'generate-recommendations': 'Recommendations generated',
-          'update-strm': 'STRM files updated',
-          'run-all': 'Full pipeline complete',
+          'sync-history': t('admin.usersPage.jobSyncHistory'),
+          'generate-recommendations': t('admin.usersPage.jobGenRecs'),
+          'update-strm': t('admin.usersPage.jobStrm'),
+          'run-all': t('admin.usersPage.jobRunAll'),
         }
-        setSnackbar({ open: true, message: `${userName}: ${jobNames[jobType]}`, severity: 'success' })
+        setSnackbar({
+          open: true,
+          message: t('admin.usersPage.jobSnackOk', { name: userName, result: jobNames[jobType] }),
+          severity: 'success',
+        })
       } else {
         const errData = await response.json().catch(() => ({}))
-        setSnackbar({ open: true, message: `${userName}: ${errData.error || 'Job failed'}`, severity: 'error' })
+        setSnackbar({
+          open: true,
+          message: t('admin.usersPage.jobSnackErr', {
+            name: userName,
+            error: errData.error || t('admin.usersPage.jobFailed'),
+          }),
+          severity: 'error',
+        })
       }
     } catch {
-      setSnackbar({ open: true, message: `${userName}: Failed to run job`, severity: 'error' })
+      setSnackbar({ open: true, message: t('admin.usersPage.jobSnackRunErr', { name: userName }), severity: 'error' })
     } finally {
       // Remove this user from running jobs
       setRunningJobs(prev => {
@@ -411,7 +427,7 @@ export function UsersPage() {
       <Box>
         <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
         <Button variant="outlined" onClick={fetchProviderUsers} startIcon={<RefreshIcon />}>
-          Retry
+          {t('admin.usersPage.retry')}
         </Button>
       </Box>
     )
@@ -427,6 +443,7 @@ export function UsersPage() {
   })
 
   const isJobRunning = (userId: string) => runningJobs.has(userId)
+  const providerLabel = provider.charAt(0).toUpperCase() + provider.slice(1)
 
   // Mobile card view
   if (isMobile) {
@@ -434,10 +451,10 @@ export function UsersPage() {
       <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1 }}>
           <Typography variant="body2" color="text.secondary">
-            Manage {provider.charAt(0).toUpperCase() + provider.slice(1)} users
+            {t('admin.usersPage.subtitleMobile', { provider: providerLabel })}
           </Typography>
           <Stack direction="row" spacing={1}>
-            <Tooltip title="Sync new users from media server">
+            <Tooltip title={t('admin.usersPage.syncTooltipShort')}>
               <Button
                 variant="contained"
                 size="small"
@@ -445,7 +462,7 @@ export function UsersPage() {
                 disabled={syncingUsers}
                 startIcon={syncingUsers ? <CircularProgress size={16} color="inherit" /> : <SyncIcon />}
               >
-                {syncingUsers ? 'Syncing...' : 'Sync Users'}
+                {syncingUsers ? t('admin.usersPage.syncing') : t('admin.usersPage.syncUsers')}
               </Button>
             </Tooltip>
             <Button
@@ -454,7 +471,7 @@ export function UsersPage() {
               onClick={fetchProviderUsers}
               startIcon={<RefreshIcon />}
             >
-              Refresh
+              {t('admin.usersPage.refresh')}
             </Button>
           </Stack>
         </Box>
@@ -463,7 +480,7 @@ export function UsersPage() {
           {sortedUsers.length === 0 ? (
             <Paper sx={{ p: 4, textAlign: 'center', backgroundColor: 'background.paper', borderRadius: 2 }}>
               <Typography variant="body2" color="text.secondary">
-                No users found on {provider} server.
+                {t('admin.usersPage.noUsers', { provider: providerLabel })}
               </Typography>
             </Paper>
           ) : (
@@ -496,14 +513,14 @@ export function UsersPage() {
                             {user.name}
                           </Typography>
                           {user.isAdmin && (
-                            <Chip label="Admin" size="small" color="primary" sx={{ height: 20 }} />
+                            <Chip label={t('admin.usersPage.adminChip')} size="small" color="primary" sx={{ height: 20 }} />
                           )}
                         </Stack>
                         <Typography variant="caption" color="text.secondary" component="div">
                           {user.isDisabled ? (
                             <Chip 
                               icon={<BlockIcon sx={{ fontSize: 14 }} />}
-                              label={`${provider}: Disabled`}
+                              label={t('admin.usersPage.providerDisabled', { provider: providerLabel })}
                               size="small" 
                               color="error" 
                               variant="outlined"
@@ -511,7 +528,7 @@ export function UsersPage() {
                             />
                           ) : (
                             <Chip 
-                              label={`${provider}: Active`}
+                              label={t('admin.usersPage.providerActive', { provider: providerLabel })}
                               size="small" 
                               color="success" 
                               variant="outlined"
@@ -522,7 +539,7 @@ export function UsersPage() {
                       </Box>
                     </Stack>
                     {user.isImported && (user.moviesEnabled || user.seriesEnabled) ? (
-                      <Tooltip title="Recommendations enabled">
+                      <Tooltip title={t('admin.usersPage.recsEnabledTooltip')}>
                         <CheckCircleIcon color="success" />
                       </Tooltip>
                     ) : null}
@@ -545,7 +562,7 @@ export function UsersPage() {
                       }
                       sx={{ mb: 2 }}
                     >
-                      Enable for AI Recommendations
+                      {t('admin.usersPage.enableAiRecs')}
                     </Button>
                   )}
 
@@ -556,7 +573,7 @@ export function UsersPage() {
                       <Stack direction="row" alignItems="center" spacing={2} mb={1.5}>
                         <Stack direction="row" alignItems="center" spacing={1}>
                           <MovieIcon fontSize="small" color="action" />
-                          <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>Movies</Typography>
+                          <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>{t('admin.usersPage.movies')}</Typography>
                           <Switch
                             checked={user.moviesEnabled}
                             onChange={() => handleToggleMovies(user)}
@@ -567,7 +584,7 @@ export function UsersPage() {
                         </Stack>
                         <Stack direction="row" alignItems="center" spacing={1}>
                           <TvIcon fontSize="small" color="action" />
-                          <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>Series</Typography>
+                          <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>{t('admin.usersPage.series')}</Typography>
                           <Switch
                             checked={user.seriesEnabled}
                             onChange={() => handleToggleSeries(user)}
@@ -582,7 +599,7 @@ export function UsersPage() {
                       <Stack direction="row" alignItems="center" spacing={2} mb={1.5}>
                         <Stack direction="row" alignItems="center" spacing={1}>
                           <HubOutlinedIcon fontSize="small" color="action" />
-                          <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>Discover</Typography>
+                          <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>{t('admin.usersPage.discover')}</Typography>
                           <Switch
                             checked={user.discoverEnabled}
                             onChange={() => handleToggleDiscover(user)}
@@ -593,7 +610,7 @@ export function UsersPage() {
                         </Stack>
                         <Stack direction="row" alignItems="center" spacing={1}>
                           <HubOutlinedIcon fontSize="small" color="action" />
-                          <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>Request</Typography>
+                          <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>{t('admin.usersPage.request')}</Typography>
                           <Switch
                             checked={user.discoverRequestEnabled}
                             onChange={() => handleToggleDiscoverRequest(user)}
@@ -608,7 +625,7 @@ export function UsersPage() {
                       {globalAiConfig?.userOverrideAllowed && (
                         <Stack direction="row" alignItems="center" spacing={1} mb={2}>
                           <AutoAwesomeIcon fontSize="small" color="action" />
-                          <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>AI Override</Typography>
+                          <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>{t('admin.usersPage.aiOverride')}</Typography>
                           <Switch
                             checked={user.aiOverrideAllowed}
                             onChange={() => handleToggleAiOverride(user)}
@@ -624,7 +641,7 @@ export function UsersPage() {
                         {isJobRunning(user.apertureUserId!) && (
                           <CircularProgress size={20} sx={{ mr: 1 }} />
                         )}
-                        <Tooltip title="More User Settings">
+                        <Tooltip title={t('admin.usersPage.moreSettingsTooltip')}>
                           <IconButton
                             size="small"
                             onClick={() => navigate(`/admin/users/${user.apertureUserId}?tab=settings`)}
@@ -637,7 +654,7 @@ export function UsersPage() {
                           </IconButton>
                         </Tooltip>
                         {user.isEnabled && (
-                          <Tooltip title="User Actions">
+                          <Tooltip title={t('admin.usersPage.userActionsTooltip')}>
                             <IconButton
                               size="small"
                               onClick={(e) => handleMenuOpen(e, user)}
@@ -675,26 +692,29 @@ export function UsersPage() {
             <ListItemIcon>
               <PlayArrowIcon fontSize="small" color="primary" />
             </ListItemIcon>
-            <ListItemText primary="Run Full Pipeline" secondary="Sync → Recommend → STRM" />
+            <ListItemText
+              primary={t('admin.usersPage.menuRunAll')}
+              secondary={t('admin.usersPage.menuRunAllSecondary')}
+            />
           </MenuItem>
           <Divider />
           <MenuItem onClick={() => menuUser?.apertureUserId && runUserJob(menuUser.apertureUserId, 'sync-history', menuUser.name)}>
             <ListItemIcon>
               <HistoryIcon fontSize="small" />
             </ListItemIcon>
-            <ListItemText primary="Sync Watch History" />
+            <ListItemText primary={t('admin.usersPage.menuSyncHistory')} />
           </MenuItem>
           <MenuItem onClick={() => menuUser?.apertureUserId && runUserJob(menuUser.apertureUserId, 'generate-recommendations', menuUser.name)}>
             <ListItemIcon>
               <RecommendIcon fontSize="small" />
             </ListItemIcon>
-            <ListItemText primary="Generate Recommendations" />
+            <ListItemText primary={t('admin.usersPage.menuGenRecs')} />
           </MenuItem>
           <MenuItem onClick={() => menuUser?.apertureUserId && runUserJob(menuUser.apertureUserId, 'update-strm', menuUser.name)}>
             <ListItemIcon>
               <FolderIcon fontSize="small" />
             </ListItemIcon>
-            <ListItemText primary="Update STRM Files" />
+            <ListItemText primary={t('admin.usersPage.menuUpdateStrm')} />
           </MenuItem>
         </Menu>
 
@@ -722,10 +742,10 @@ export function UsersPage() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1 }}>
         <Typography variant="body1" color="text.secondary">
-          Manage {provider.charAt(0).toUpperCase() + provider.slice(1)} users and enable AI recommendations
+          {t('admin.usersPage.subtitleDesktop', { provider: providerLabel })}
         </Typography>
         <Stack direction="row" spacing={1}>
-          <Tooltip title="Import new users and sync profile data (email, admin status) from media server">
+          <Tooltip title={t('admin.usersPage.syncTooltip')}>
             <Button
               variant="contained"
               size="small"
@@ -733,7 +753,7 @@ export function UsersPage() {
               disabled={syncingUsers}
               startIcon={syncingUsers ? <CircularProgress size={16} color="inherit" /> : <SyncIcon />}
             >
-              {syncingUsers ? 'Syncing...' : 'Sync Users'}
+              {syncingUsers ? t('admin.usersPage.syncing') : t('admin.usersPage.syncUsers')}
             </Button>
           </Tooltip>
           <Button
@@ -742,7 +762,7 @@ export function UsersPage() {
             onClick={fetchProviderUsers}
             startIcon={<RefreshIcon />}
           >
-            Refresh
+            {t('admin.usersPage.refresh')}
           </Button>
         </Stack>
       </Box>
@@ -754,48 +774,48 @@ export function UsersPage() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>User</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell align="center">Imported</TableCell>
+              <TableCell>{t('admin.usersPage.colUser')}</TableCell>
+              <TableCell>{t('admin.usersPage.colStatus')}</TableCell>
+              <TableCell align="center">{t('admin.usersPage.colImported')}</TableCell>
               <TableCell align="center">
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
                   <MovieIcon fontSize="small" />
-                  Movies
+                  {t('admin.usersPage.colMovies')}
                 </Box>
               </TableCell>
               <TableCell align="center">
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
                   <TvIcon fontSize="small" />
-                  Series
+                  {t('admin.usersPage.colSeries')}
                 </Box>
               </TableCell>
               <TableCell align="center">
-                <Tooltip title="Show discovery suggestions for content not in library">
+                <Tooltip title={t('admin.usersPage.discoverColTooltip')}>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
                     <HubOutlinedIcon fontSize="small" />
-                    Discover
+                    {t('admin.usersPage.colDiscover')}
                   </Box>
                 </Tooltip>
               </TableCell>
               <TableCell align="center">
-                <Tooltip title="Allow user to request discovered content via Seerr">
+                <Tooltip title={t('admin.usersPage.requestColTooltip')}>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
                     <HubOutlinedIcon fontSize="small" />
-                    Request
+                    {t('admin.usersPage.colRequest')}
                   </Box>
                 </Tooltip>
               </TableCell>
               {globalAiConfig?.userOverrideAllowed && (
                 <TableCell align="center">
-                  <Tooltip title="Allow user to control their AI explanation preference">
+                  <Tooltip title={t('admin.usersPage.aiOverrideColTooltip')}>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
                       <AutoAwesomeIcon fontSize="small" />
-                      AI Override
+                      {t('admin.usersPage.colAiOverride')}
                     </Box>
                   </Tooltip>
                 </TableCell>
               )}
-              <TableCell align="right">Actions</TableCell>
+              <TableCell align="right">{t('admin.usersPage.colActions')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -803,7 +823,7 @@ export function UsersPage() {
               <TableRow>
                 <TableCell colSpan={globalAiConfig?.userOverrideAllowed ? 9 : 8} align="center">
                   <Typography variant="body2" color="text.secondary" py={4}>
-                    No users found on {provider} server.
+                    {t('admin.usersPage.noUsers', { provider: providerLabel })}
                   </Typography>
                 </TableCell>
               </TableRow>
@@ -823,7 +843,7 @@ export function UsersPage() {
                         {user.name}
                       </Typography>
                       {user.isAdmin && (
-                        <Chip label="Admin" size="small" color="primary" />
+                        <Chip label={t('admin.usersPage.adminChip')} size="small" color="primary" />
                       )}
                     </Box>
                   </TableCell>
@@ -831,14 +851,14 @@ export function UsersPage() {
                     {user.isDisabled ? (
                       <Chip 
                         icon={<BlockIcon />}
-                        label="Disabled in Emby" 
+                        label={t('admin.usersPage.disabledOnServer')} 
                         size="small" 
                         color="error" 
                         variant="outlined"
                       />
                     ) : (
                       <Chip 
-                        label="Active" 
+                        label={t('admin.usersPage.activeStatus')} 
                         size="small" 
                         color="success" 
                         variant="outlined"
@@ -847,11 +867,11 @@ export function UsersPage() {
                   </TableCell>
                   <TableCell align="center">
                     {user.isImported ? (
-                      <Tooltip title="User imported to Aperture">
+                      <Tooltip title={t('admin.usersPage.importedTooltip')}>
                         <CheckCircleIcon color="success" />
                       </Tooltip>
                     ) : (
-                      <Tooltip title="Not yet imported">
+                      <Tooltip title={t('admin.usersPage.notImportedTooltip')}>
                         <Typography variant="body2" color="text.secondary">—</Typography>
                       </Tooltip>
                     )}
@@ -884,7 +904,7 @@ export function UsersPage() {
                   </TableCell>
                   <TableCell align="center">
                     {user.isImported ? (
-                      <Tooltip title={user.discoverEnabled ? 'Disable discovery suggestions' : 'Enable discovery suggestions'}>
+                      <Tooltip title={user.discoverEnabled ? t('admin.usersPage.discoverToggleOn') : t('admin.usersPage.discoverToggleOff')}>
                         <Switch
                           checked={user.discoverEnabled}
                           onChange={() => handleToggleDiscover(user)}
@@ -899,7 +919,7 @@ export function UsersPage() {
                   </TableCell>
                   <TableCell align="center">
                     {user.isImported ? (
-                      <Tooltip title={user.discoverRequestEnabled ? 'Disable content requests' : 'Enable content requests'}>
+                      <Tooltip title={user.discoverRequestEnabled ? t('admin.usersPage.requestToggleOn') : t('admin.usersPage.requestToggleOff')}>
                         <Switch
                           checked={user.discoverRequestEnabled}
                           onChange={() => handleToggleDiscoverRequest(user)}
@@ -930,7 +950,7 @@ export function UsersPage() {
                   <TableCell align="right">
                     <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', alignItems: 'center' }}>
                       {!user.isImported && (
-                        <Tooltip title="Import & Enable for AI Recommendations">
+                        <Tooltip title={t('admin.usersPage.enableImportTooltip')}>
                           <span>
                             <Button
                               size="small"
@@ -946,7 +966,7 @@ export function UsersPage() {
                                 )
                               }
                             >
-                              Enable
+                              {t('admin.usersPage.enable')}
                             </Button>
                           </span>
                         </Tooltip>
@@ -956,7 +976,7 @@ export function UsersPage() {
                           {isJobRunning(user.apertureUserId) && (
                             <CircularProgress size={20} sx={{ mr: 1 }} />
                           )}
-                          <Tooltip title="More User Settings">
+                          <Tooltip title={t('admin.usersPage.moreSettingsTooltip')}>
                             <IconButton
                               size="small"
                               onClick={() => navigate(`/admin/users/${user.apertureUserId}?tab=settings`)}
@@ -965,7 +985,7 @@ export function UsersPage() {
                             </IconButton>
                           </Tooltip>
                           {user.isEnabled && (
-                            <Tooltip title="User Actions">
+                            <Tooltip title={t('admin.usersPage.userActionsTooltip')}>
                               <IconButton
                                 size="small"
                                 onClick={(e) => handleMenuOpen(e, user)}
@@ -1001,26 +1021,29 @@ export function UsersPage() {
           <ListItemIcon>
             <PlayArrowIcon fontSize="small" color="primary" />
           </ListItemIcon>
-          <ListItemText primary="Run Full Pipeline" secondary="Sync → Recommend → STRM" />
+          <ListItemText
+            primary={t('admin.usersPage.menuRunAll')}
+            secondary={t('admin.usersPage.menuRunAllSecondary')}
+          />
         </MenuItem>
         <Divider />
         <MenuItem onClick={() => menuUser?.apertureUserId && runUserJob(menuUser.apertureUserId, 'sync-history', menuUser.name)}>
           <ListItemIcon>
             <HistoryIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText primary="Sync Watch History" />
+          <ListItemText primary={t('admin.usersPage.menuSyncHistory')} />
         </MenuItem>
         <MenuItem onClick={() => menuUser?.apertureUserId && runUserJob(menuUser.apertureUserId, 'generate-recommendations', menuUser.name)}>
           <ListItemIcon>
             <RecommendIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText primary="Generate Recommendations" />
+          <ListItemText primary={t('admin.usersPage.menuGenRecs')} />
         </MenuItem>
         <MenuItem onClick={() => menuUser?.apertureUserId && runUserJob(menuUser.apertureUserId, 'update-strm', menuUser.name)}>
           <ListItemIcon>
             <FolderIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText primary="Update STRM Files" />
+          <ListItemText primary={t('admin.usersPage.menuUpdateStrm')} />
         </MenuItem>
       </Menu>
 

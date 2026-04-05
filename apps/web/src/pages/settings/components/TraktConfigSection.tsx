@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -26,6 +27,7 @@ interface TraktConfig {
 }
 
 export function TraktConfigSection() {
+  const { t } = useTranslation()
   const [config, setConfig] = useState<TraktConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -51,11 +53,11 @@ export function TraktConfigSection() {
         setHasChanges(false)
       }
     } catch {
-      setError('Failed to load Trakt configuration')
+      setError(t('settingsTrakt.loadError'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     fetchConfig()
@@ -80,17 +82,17 @@ export function TraktConfigSection() {
 
       if (response.ok) {
         const data = await response.json()
-        setSuccess('Trakt configuration saved!')
+        setSuccess(t('settingsTrakt.saved'))
         setConfig(prev => prev ? { ...prev, configured: data.configured } : null)
         setClientSecret('')
         setHasChanges(false)
         setTimeout(() => setSuccess(null), 3000)
       } else {
         const err = await response.json()
-        setError(err.error || 'Failed to save configuration')
+        setError(err.error || t('settingsTrakt.errSave'))
       }
     } catch {
-      setError('Could not connect to server')
+      setError(t('settingsTrakt.errConnect'))
     } finally {
       setSaving(false)
     }
@@ -115,16 +117,16 @@ export function TraktConfigSection() {
           <Box
             component="img"
             src="/trakt.svg"
-            alt="Trakt"
+            alt={t('settingsTrakt.alt')}
             sx={{ width: 28, height: 28, filter: 'brightness(0) invert(1)' }}
           />
           <Typography variant="h6" fontWeight={600}>
-            Trakt Integration
+            {t('settingsTrakt.title')}
           </Typography>
           {config?.configured && (
             <Chip
               icon={<CheckCircleIcon />}
-              label="Configured"
+              label={t('settingsTrakt.configured')}
               color="success"
               size="small"
             />
@@ -132,11 +134,11 @@ export function TraktConfigSection() {
         </Box>
 
         <Typography variant="body2" color="text.secondary" mb={3}>
-          Enable Trakt integration to let users sync their ratings.{' '}
+          {t('settingsTrakt.description')}{' '}
           <Link href="https://trakt.tv/oauth/applications" target="_blank" rel="noopener">
-            Register a Trakt app
-          </Link>{' '}
-          to get your Client ID and Secret.
+            {t('settingsTrakt.registerLink')}
+          </Link>
+          {t('settingsTrakt.registerSuffix')}
         </Typography>
 
         {error && (
@@ -153,7 +155,7 @@ export function TraktConfigSection() {
 
         <Box display="flex" flexDirection="column" gap={2}>
           <TextField
-            label="Client ID"
+            label={t('settingsTrakt.clientId')}
             value={clientId}
             onChange={(e) => {
               setClientId(e.target.value)
@@ -161,11 +163,11 @@ export function TraktConfigSection() {
             }}
             size="small"
             fullWidth
-            placeholder="Enter your Trakt Client ID"
+            placeholder={t('settingsTrakt.clientIdPlaceholder')}
           />
 
           <TextField
-            label="Client Secret"
+            label={t('settingsTrakt.clientSecret')}
             type={showClientSecret ? 'text' : 'password'}
             value={clientSecret || (config?.hasClientSecret ? '••••••••••••••••••••••••••••' : '')}
             onChange={(e) => {
@@ -176,10 +178,10 @@ export function TraktConfigSection() {
             }}
             size="small"
             fullWidth
-            placeholder="Enter your Trakt Client Secret"
+            placeholder={t('settingsTrakt.clientSecretPlaceholder')}
             helperText={
               config?.hasClientSecret && !clientSecret
-                ? 'Client secret is saved. Enter a new one to replace it.'
+                ? t('settingsTrakt.helperSecretSaved')
                 : undefined
             }
             InputProps={{
@@ -198,7 +200,7 @@ export function TraktConfigSection() {
           />
 
           <TextField
-            label="Redirect URI"
+            label={t('settingsTrakt.redirectUri')}
             value={redirectUri}
             onChange={(e) => {
               setRedirectUri(e.target.value)
@@ -206,7 +208,7 @@ export function TraktConfigSection() {
             }}
             size="small"
             fullWidth
-            helperText="Copy this URL to your Trakt app's Redirect URI field"
+            helperText={t('settingsTrakt.redirectHelper')}
           />
 
           <Box display="flex" gap={1} mt={1}>
@@ -217,7 +219,7 @@ export function TraktConfigSection() {
               disabled={saving || !hasChanges}
               size="small"
             >
-              {saving ? 'Saving...' : 'Save Configuration'}
+              {saving ? t('settingsTrakt.saving') : t('settingsTrakt.saveConfiguration')}
             </Button>
           </Box>
         </Box>
