@@ -116,12 +116,16 @@ export function createHelpTools(ctx: ToolContext) {
                 'Sync Series Watch History': 'Import episode watch data',
                 'Generate Movie Recommendations': 'Run AI recommendation pipeline',
                 'Generate Series Recommendations': 'Run series recommendation pipeline',
+                'sync-watching-favorites':
+                  'Reconcile Shows You Watch with media server series favorites (Emby/Jellyfin)',
               },
               settings: {
                 'Algorithm Weights': 'Tune similarity, novelty, rating, diversity factors',
                 'Embedding Model': 'Choose between text-embedding-3-small and large',
-                'Output Type': 'STRM files vs Symlinks for recommendation libraries',
+                'AI Picks output (movies/series)':
+                  'STRM files vs symlinks for AI recommendation libraries only—not Shows You Watch',
                 'Library Images': 'Upload 16:9 banners for AI Picks libraries',
+                'Shows You Watch': 'Enable the in-app list and favorites sync (no STRM virtual libraries)',
               },
             }
           : null
