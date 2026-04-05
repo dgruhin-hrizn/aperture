@@ -1,11 +1,16 @@
+import { isRtlLocale } from './localeDirection'
 import i18n from './config'
 
-/** Applies a resolved locale to i18next and the document `<html lang>`. */
+function applyDocumentLangAndDir(lng: string): void {
+  if (typeof document === 'undefined') return
+  document.documentElement.lang = lng
+  document.documentElement.dir = isRtlLocale(lng) ? 'rtl' : 'ltr'
+}
+
+/** Applies a resolved locale to i18next and the document `<html lang>` / `dir`. */
 export async function applyEffectiveUiLanguage(lng: string): Promise<void> {
   await i18n.changeLanguage(lng)
-  if (typeof document !== 'undefined') {
-    document.documentElement.lang = lng
-  }
+  applyDocumentLangAndDir(lng)
 }
 
 /**

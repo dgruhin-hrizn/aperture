@@ -682,8 +682,14 @@ export function UsersPage() {
           anchorEl={menuAnchor}
           open={Boolean(menuAnchor)}
           onClose={handleMenuClose}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: theme.direction === 'rtl' ? 'left' : 'right',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: theme.direction === 'rtl' ? 'left' : 'right',
+          }}
         >
           <MenuItem 
             onClick={() => menuUser?.apertureUserId && runUserJob(menuUser.apertureUserId, 'run-all', menuUser.name)}
@@ -1011,8 +1017,14 @@ export function UsersPage() {
         anchorEl={menuAnchor}
         open={Boolean(menuAnchor)}
         onClose={handleMenuClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: theme.direction === 'rtl' ? 'left' : 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: theme.direction === 'rtl' ? 'left' : 'right',
+        }}
       >
         <MenuItem 
           onClick={() => menuUser?.apertureUserId && runUserJob(menuUser.apertureUserId, 'run-all', menuUser.name)}

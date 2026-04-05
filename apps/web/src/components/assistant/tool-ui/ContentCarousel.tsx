@@ -4,7 +4,7 @@
  */
 import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Box, Typography, IconButton } from '@mui/material'
+import { Box, Typography, IconButton, useTheme } from '@mui/material'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import { ContentCard } from './ContentCard'
@@ -17,13 +17,17 @@ interface ContentCarouselProps {
 
 export function ContentCarousel({ data, onPlay }: ContentCarouselProps) {
   const { t } = useTranslation()
+  const theme = useTheme()
+  const rtl = theme.direction === 'rtl'
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
       const scrollAmount = 300
+      let delta = direction === 'left' ? -scrollAmount : scrollAmount
+      if (rtl) delta = -delta
       scrollRef.current.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        left: delta,
         behavior: 'smooth',
       })
     }
@@ -63,7 +67,7 @@ export function ContentCarousel({ data, onPlay }: ContentCarouselProps) {
               aria-label={t('assistantToolUi.scrollCarouselLeft')}
               sx={{
                 position: 'absolute',
-                left: 4,
+                insetInlineStart: 4,
                 top: '50%',
                 transform: 'translateY(-50%)',
                 zIndex: 2,
@@ -82,7 +86,7 @@ export function ContentCarousel({ data, onPlay }: ContentCarouselProps) {
               aria-label={t('assistantToolUi.scrollCarouselRight')}
               sx={{
                 position: 'absolute',
-                right: 4,
+                insetInlineEnd: 4,
                 top: '50%',
                 transform: 'translateY(-50%)',
                 zIndex: 2,

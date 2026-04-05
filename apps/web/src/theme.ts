@@ -1,4 +1,4 @@
-import { createTheme, type ThemeOptions } from '@mui/material/styles'
+import { createTheme, type Theme, type ThemeOptions } from '@mui/material/styles'
 
 const themeOptions: ThemeOptions = {
   palette: {
@@ -130,7 +130,7 @@ const themeOptions: ThemeOptions = {
       styleOverrides: {
         paper: {
           backgroundColor: '#1a1a1a',
-          borderRight: '1px solid #2a2a2a',
+          borderInlineEnd: '1px solid #2a2a2a',
         },
       },
     },
@@ -147,8 +147,7 @@ const themeOptions: ThemeOptions = {
       styleOverrides: {
         root: {
           borderRadius: 8,
-          marginLeft: 8,
-          marginRight: 8,
+          marginInline: 8,
           '&.Mui-selected': {
             backgroundColor: 'rgba(99, 102, 241, 0.12)',
             '&:hover': {
@@ -175,7 +174,12 @@ const themeOptions: ThemeOptions = {
   },
 }
 
-export const theme = createTheme(themeOptions)
+export function createAppTheme(direction: 'ltr' | 'rtl'): Theme {
+  return createTheme({ ...themeOptions, direction })
+}
+
+/** @deprecated Prefer `createAppTheme('ltr')` from RtlProviders; kept for Storybook or tests. */
+export const theme = createAppTheme('ltr')
 
 
 

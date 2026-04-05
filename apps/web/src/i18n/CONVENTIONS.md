@@ -37,6 +37,14 @@ Filling **all** missing strings (~1.4k per locale × 13 non-English locales) is 
 
 - Use `_plural` suffix keys where needed (e.g. `admin.runningJobs` / `admin.runningJobs_plural`).
 
+## RTL (Arabic, Hebrew)
+
+- **RTL locale list** is defined in web as [`localeDirection.ts`](./localeDirection.ts) and must stay aligned with `isRtlLocale` / `RTL_LOCALE_CODES` in [`packages/core/src/lib/locales.ts`](../../packages/core/src/lib/locales.ts) (core is not imported in the browser bundle). The app sets `document.documentElement.dir` and uses MUI **`direction`** plus Emotion **`stylis-plugin-rtl`** via [`RtlProviders`](../RtlProviders.tsx).
+- Prefer **logical CSS** in new UI: `marginInline*`, `paddingInline*`, `borderInline*`, `insetInlineStart` / `insetInlineEnd` instead of `left`/`right` where mirroring matters.
+- **Menus and anchored overlays**: if you hardcode `anchorOrigin` / `transformOrigin` with `horizontal: 'right'`, flip to `'left'` when `theme.direction === 'rtl'` (see `Layout` user menu).
+- **Horizontal scroll / carousels**: `scrollBy({ left })` is not mirrored by CSS; use `theme.direction` or test in RTL and invert deltas where needed (see `BaseCarousel`, `ContentCarousel`, `Home` carousels).
+- **Canvas/SVG graphs** (e.g. similarity graph) may stay LTR for coordinates; treat full mirroring as a follow-up if needed.
+
 ## English-only exceptions
 
 - **`apps/web/src/pages/setup/constants/waitingMessages.ts`** — Large rotating list of humor/cultural-reference strings used during setup job waits. Do **not** move these into `translation.json` unless there is a deliberate project to translate or replace them; i18n tooling should not flag this file as “missing keys.”

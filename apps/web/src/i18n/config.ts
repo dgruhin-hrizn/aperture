@@ -16,8 +16,9 @@ import ko from './locales/ko/translation.json'
 import hi from './locales/hi/translation.json'
 import ar from './locales/ar/translation.json'
 import he from './locales/he/translation.json'
+import { isRtlLocale } from './localeDirection'
 
-void i18n
+const i18nInit = i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
@@ -64,5 +65,12 @@ void i18n
       lookupLocalStorage: 'i18nextLng',
     },
   })
+
+void i18nInit.then(() => {
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = i18n.language
+    document.documentElement.dir = isRtlLocale(i18n.language) ? 'rtl' : 'ltr'
+  }
+})
 
 export default i18n

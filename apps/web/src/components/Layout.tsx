@@ -453,8 +453,14 @@ export function Layout() {
                 anchorEl={anchorEl}
                 open={Boolean(anchorEl)}
                 onClose={handleUserMenuClose}
-                transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-                anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                transformOrigin={{
+                  horizontal: theme.direction === 'rtl' ? 'left' : 'right',
+                  vertical: 'top',
+                }}
+                anchorOrigin={{
+                  horizontal: theme.direction === 'rtl' ? 'left' : 'right',
+                  vertical: 'bottom',
+                }}
               >
                 <Box px={2} py={1}>
                   <Typography variant="subtitle2" fontWeight={600}>

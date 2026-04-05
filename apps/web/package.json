@@ -17,6 +17,7 @@
     "@aperture/ui": "workspace:*",
     "@assistant-ui/react": "^0.11.53",
     "@assistant-ui/react-ai-sdk": "^1.0.0",
+    "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@mui/icons-material": "^6.3.0",
@@ -31,9 +32,12 @@
     "react-i18next": "^17.0.2",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.1.1",
-    "recharts": "^3.6.0"
+    "recharts": "^3.6.0",
+    "stylis": "^4.3.4",
+    "stylis-plugin-rtl": "^2.1.1"
   },
   "devDependencies": {
+    "@types/stylis": "^4.2.7",
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",

@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback, type ReactNode } from 'react'
-import { Box, Typography, IconButton, Skeleton } from '@mui/material'
+import { Box, Typography, IconButton, Skeleton, useTheme } from '@mui/material'
 import type { CarouselProps } from './types.js'
 
 const DEFAULT_SKELETON_COUNT = 5
@@ -41,16 +41,25 @@ export function BaseCarousel({
   children,
   hasItems = true,
 }: CarouselProps) {
+  const theme = useTheme()
+  const rtl = theme.direction === 'rtl'
   const scrollRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
 
   const updateScrollButtons = useCallback(() => {
     if (!scrollRef.current) return
-    const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current
-    setCanScrollLeft(scrollLeft > 0)
-    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10)
-  }, [])
+    const el = scrollRef.current
+    const { scrollLeft, scrollWidth, clientWidth } = el
+    const maxScroll = scrollWidth - clientWidth
+    if (rtl) {
+      setCanScrollLeft(scrollLeft < maxScroll - 1)
+      setCanScrollRight(scrollLeft > 1)
+    } else {
+      setCanScrollLeft(scrollLeft > 0)
+      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10)
+    }
+  }, [rtl])
 
   useEffect(() => {
     updateScrollButtons()
@@ -60,8 +69,9 @@ export function BaseCarousel({
 
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollRef.current) return
-    const scrollAmount = direction === 'left' ? -400 : 400
-    scrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' })
+    let delta = direction === 'left' ? -400 : 400
+    if (rtl) delta = -delta
+    scrollRef.current.scrollBy({ left: delta, behavior: 'smooth' })
     setTimeout(updateScrollButtons, 300)
   }
 

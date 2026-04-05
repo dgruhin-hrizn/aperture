@@ -270,6 +270,8 @@ export {
 export {
   DEFAULT_LOCALE,
   APP_LOCALE_OPTIONS,
+  RTL_LOCALE_CODES,
+  isRtlLocale,
   isValidAppLocale,
   normalizeAppLocale,
   appLocaleToTmdbLanguage,

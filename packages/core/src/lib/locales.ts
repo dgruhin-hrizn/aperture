@@ -25,7 +25,17 @@ export const APP_LOCALE_OPTIONS = [
   { code: 'he' as const, label: 'עברית' },
 ] as const
 
+/** Locales that use right-to-left UI (document `dir` and MUI `direction`). */
+export const RTL_LOCALE_CODES = ['ar', 'he'] as const
+
 const VALID_CODES = new Set(APP_LOCALE_OPTIONS.map((o) => o.code))
+
+/** True if the base language tag is RTL (handles `ar`, `he`, and BCP-47 prefixes like `ar-SA`). */
+export function isRtlLocale(code: string | null | undefined): boolean {
+  if (!code) return false
+  const base = code.split(/[-_]/)[0] ?? code
+  return (RTL_LOCALE_CODES as readonly string[]).includes(base)
+}
 
 export function isValidAppLocale(code: string | null | undefined): code is AppLocaleCode {
   return !!code && VALID_CODES.has(code as AppLocaleCode)

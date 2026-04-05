@@ -1,8 +1,17 @@
 import pino, { type Logger, type LoggerOptions } from 'pino'
 
-// LOG_LEVEL env var takes precedence, otherwise 'info' in production, 'info' in development
+/** Safe for browser bundles (Vite) where `process` is undefined. */
+function readProcessEnv(key: string): string | undefined {
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env[key]
+  }
+  return undefined
+}
+
+// LOG_LEVEL env var takes precedence, otherwise 'info'
 const getLogLevel = () => {
-  if (process.env.LOG_LEVEL) return process.env.LOG_LEVEL
+  const level = readProcessEnv('LOG_LEVEL')
+  if (level) return level
   return 'info'
 }
 
@@ -39,8 +48,9 @@ const defaultOptions: LoggerOptions = {
     paths: REDACT_PATHS,
     censor: '[REDACTED]',
   },
+  // Only attach pino-pretty in Node dev; skip when `process` is missing (browser) or production
   transport:
-    process.env.NODE_ENV === 'production'
+    readProcessEnv('NODE_ENV') === 'production' || typeof process === 'undefined'
       ? undefined
       : {
           target: 'pino-pretty',

@@ -14,6 +14,7 @@ import {
   CircularProgress,
   Tooltip,
   Grid,
+  useTheme,
 } from '@mui/material'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
@@ -89,6 +90,7 @@ interface SeriesTasteProfile {
 
 export function HomePage() {
   const { t } = useTranslation()
+  const theme = useTheme()
   const navigate = useNavigate()
   const { user } = useAuth()
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
@@ -199,14 +201,13 @@ export function HomePage() {
 
   const scrollCarousel = (direction: 'left' | 'right', type: 'recs' | 'recent') => {
     const scrollAmount = 600
+    const rtl = theme.direction === 'rtl'
+    const left = direction === 'left'
+    const delta = rtl ? (left ? scrollAmount : -scrollAmount) : left ? -scrollAmount : scrollAmount
     if (type === 'recs') {
-      setRecsScrollPosition((prev) =>
-        direction === 'left' ? Math.max(0, prev - scrollAmount) : prev + scrollAmount
-      )
+      setRecsScrollPosition((prev) => Math.max(0, prev + delta))
     } else {
-      setRecentScrollPosition((prev) =>
-        direction === 'left' ? Math.max(0, prev - scrollAmount) : prev + scrollAmount
-      )
+      setRecentScrollPosition((prev) => Math.max(0, prev + delta))
     }
   }
 
@@ -300,7 +301,10 @@ export function HomePage() {
             sx={{
               display: 'flex',
               gap: 2,
-              transform: `translateX(-${scrollPosition}px)`,
+              transform:
+                theme.direction === 'rtl'
+                  ? `translateX(${scrollPosition}px)`
+                  : `translateX(-${scrollPosition}px)`,
               transition: 'transform 0.3s ease-in-out',
             }}
           >
