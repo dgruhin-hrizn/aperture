@@ -20,6 +20,10 @@ const MediaItemSchema = {
     genres: { type: 'array' as const, items: { type: 'string' as const }, description: 'Genre list' },
     community_rating: { type: 'number' as const, nullable: true, description: 'Community rating' },
     overview: { type: 'string' as const, nullable: true, description: 'Overview/description' },
+    runtime_minutes: { type: 'integer' as const, nullable: true, description: 'Movie runtime in minutes' },
+    total_seasons: { type: 'integer' as const, nullable: true, description: 'Series season count' },
+    total_episodes: { type: 'integer' as const, nullable: true, description: 'Series episode count' },
+    tmdb_id: { type: 'string' as const, nullable: true, description: 'TMDb ID' },
   },
 }
 
@@ -166,6 +170,20 @@ const regenerateSeriesRecommendations = {
   },
 }
 
+const getSeriesInsights = {
+  tags: ['recommendations'],
+  summary: 'Get series insights',
+  description: 'Get detailed AI-generated insights explaining why a specific series was recommended. Includes score breakdown and similar series from watch history.',
+  params: {
+    type: 'object' as const,
+    properties: {
+      userId: { type: 'string' as const, format: 'uuid', description: 'User ID' },
+      seriesId: { type: 'string' as const, format: 'uuid', description: 'Series ID to get insights for' },
+    },
+    required: ['userId', 'seriesId'] as string[],
+  },
+}
+
 // =============================================================================
 // History & Evidence Schemas
 // =============================================================================
@@ -255,6 +273,7 @@ export const recommendationSchemas = {
   getMovieInsights,
   getSeriesRecommendations,
   regenerateSeriesRecommendations,
+  getSeriesInsights,
   getHistory,
   getEvidence,
   getPreferences,

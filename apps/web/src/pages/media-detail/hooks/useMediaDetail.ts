@@ -122,12 +122,18 @@ export function useMediaDetail(
           if (userId) {
             const userFetchPromises: Promise<Response>[] = []
 
-            // Movie-specific: insights and watch history
+            // Insights endpoint (media-type specific)
+            const insightsUrl =
+              mediaType === 'movie'
+                ? `/api/recommendations/${userId}/movie/${id}/insights`
+                : `/api/recommendations/${userId}/series/${id}/insights`
+            userFetchPromises.push(
+              fetch(insightsUrl, { credentials: 'include' })
+            )
+
+            // Movie-specific: watch history
             if (mediaType === 'movie') {
               userFetchPromises.push(
-                fetch(`/api/recommendations/${userId}/movie/${id}/insights`, {
-                  credentials: 'include',
-                }),
                 fetch(`/api/users/${userId}/watch-history?pageSize=1000&sortBy=title`, {
                   credentials: 'include',
                 })
@@ -173,8 +179,13 @@ export function useMediaDetail(
                 setUserRating(ratingData.rating)
               }
             } else {
-              // Series rating
-              const [ratingResponse] = userResponses
+              const [insightsResponse, ratingResponse] = userResponses
+
+              if (insightsResponse.ok) {
+                const insightsData = await insightsResponse.json()
+                setInsights(insightsData)
+              }
+
               if (ratingResponse.ok) {
                 const ratingsData = await ratingResponse.json()
                 const seriesRating = ratingsData.ratings?.find(

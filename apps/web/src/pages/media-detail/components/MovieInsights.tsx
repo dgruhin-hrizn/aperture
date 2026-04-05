@@ -20,19 +20,26 @@ import ShuffleIcon from '@mui/icons-material/Shuffle'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import { getProxiedImageUrl, FALLBACK_POSTER_URL } from '@aperture/ui'
-import type { RecommendationInsights } from '../types'
+import type { RecommendationInsights, MediaType } from '../types'
 
 interface MovieInsightsProps {
   insights: RecommendationInsights
+  mediaType?: MediaType
 }
 
-export function MovieInsights({ insights }: MovieInsightsProps) {
+export function MovieInsights({ insights, mediaType = 'movie' }: MovieInsightsProps) {
   const navigate = useNavigate()
   const [insightsExpanded, setInsightsExpanded] = useState(true)
 
   if (!insights.isRecommended || !insights.isSelected) {
     return null
   }
+
+  const isSeriesView = mediaType === 'series'
+  const mediaLabel = isSeriesView ? 'series' : 'movies'
+  const similarityTooltip = isSeriesView
+    ? 'How similar this series is to series you\'ve enjoyed'
+    : 'How similar this movie is to movies you\'ve enjoyed'
 
   return (
     <Box sx={{ mt: 4, px: 3 }}>
@@ -105,7 +112,7 @@ export function MovieInsights({ insights }: MovieInsightsProps) {
             <Grid container spacing={3} sx={{ mb: 4 }}>
               {/* Taste Similarity */}
               <Grid item xs={12} sm={6} md={3}>
-                <Tooltip title="How similar this movie is to movies you've enjoyed" arrow>
+                <Tooltip title={similarityTooltip} arrow>
                   <Paper sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                       <TrendingUpIcon sx={{ color: 'info.main', fontSize: 20 }} />
@@ -234,82 +241,88 @@ export function MovieInsights({ insights }: MovieInsightsProps) {
               </Box>
             )}
 
-            {/* Evidence - Movies that contributed to this recommendation */}
+            {/* Evidence - Items that contributed to this recommendation */}
             {insights.evidence && insights.evidence.length > 0 && (
               <Box>
                 <Typography variant="subtitle1" fontWeight={600} gutterBottom>
                   Why We Think You'll Like This
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Based on your history with similar movies:
+                  Based on your history with similar {mediaLabel}:
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2 }}>
-                  {insights.evidence.map((ev) => (
-                    <Paper
-                      key={ev.id}
-                      onClick={() => navigate(`/movies/${ev.similar_movie.id}`)}
-                      sx={{
-                        flexShrink: 0,
-                        width: 120,
-                        cursor: 'pointer',
-                        borderRadius: 2,
-                        overflow: 'hidden',
-                        transition: 'transform 0.2s',
-                        '&:hover': { transform: 'scale(1.05)' },
-                        bgcolor: 'background.default',
-                      }}
-                    >
-                      <Box sx={{ height: 160, bgcolor: 'grey.800', position: 'relative' }}>
-                        <Box
-                          component="img"
-                          src={getProxiedImageUrl(ev.similar_movie.poster_url)}
-                          alt={ev.similar_movie.title}
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement
-                            target.src = FALLBACK_POSTER_URL
-                          }}
-                          sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        />
-                        {/* Similarity badge */}
-                        <Chip
-                          label={`${Math.round(ev.similarity * 100)}%`}
-                          size="small"
-                          sx={{
-                            position: 'absolute',
-                            top: 4,
-                            right: 4,
-                            height: 20,
-                            fontSize: '0.65rem',
-                            fontWeight: 700,
-                            bgcolor: 'rgba(99, 102, 241, 0.9)',
-                            color: 'white',
-                          }}
-                        />
-                        {/* Evidence type badge */}
-                        <Chip
-                          label={ev.evidence_type === 'favorite' ? '❤️' : ev.evidence_type === 'recent' ? '🕐' : '✓'}
-                          size="small"
-                          sx={{
-                            position: 'absolute',
-                            bottom: 4,
-                            left: 4,
-                            height: 20,
-                            minWidth: 20,
-                            fontSize: '0.7rem',
-                            bgcolor: 'rgba(0,0,0,0.7)',
-                          }}
-                        />
-                      </Box>
-                      <Box sx={{ p: 1 }}>
-                        <Typography variant="caption" fontWeight={500} noWrap display="block">
-                          {ev.similar_movie.title}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {ev.similar_movie.year || 'N/A'}
-                        </Typography>
-                      </Box>
-                    </Paper>
-                  ))}
+                  {insights.evidence.map((ev) => {
+                    const item = ev.similar_movie || ev.similar_series
+                    if (!item) return null
+                    const route = ev.similar_movie
+                      ? `/movies/${item.id}`
+                      : `/series/${item.id}`
+
+                    return (
+                      <Paper
+                        key={ev.id}
+                        onClick={() => navigate(route)}
+                        sx={{
+                          flexShrink: 0,
+                          width: 120,
+                          cursor: 'pointer',
+                          borderRadius: 2,
+                          overflow: 'hidden',
+                          transition: 'transform 0.2s',
+                          '&:hover': { transform: 'scale(1.05)' },
+                          bgcolor: 'background.default',
+                        }}
+                      >
+                        <Box sx={{ height: 160, bgcolor: 'grey.800', position: 'relative' }}>
+                          <Box
+                            component="img"
+                            src={getProxiedImageUrl(item.poster_url)}
+                            alt={item.title}
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement
+                              target.src = FALLBACK_POSTER_URL
+                            }}
+                            sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                          <Chip
+                            label={`${Math.round(ev.similarity * 100)}%`}
+                            size="small"
+                            sx={{
+                              position: 'absolute',
+                              top: 4,
+                              right: 4,
+                              height: 20,
+                              fontSize: '0.65rem',
+                              fontWeight: 700,
+                              bgcolor: 'rgba(99, 102, 241, 0.9)',
+                              color: 'white',
+                            }}
+                          />
+                          <Chip
+                            label={ev.evidence_type === 'favorite' ? '❤️' : ev.evidence_type === 'recent' ? '🕐' : '✓'}
+                            size="small"
+                            sx={{
+                              position: 'absolute',
+                              bottom: 4,
+                              left: 4,
+                              height: 20,
+                              minWidth: 20,
+                              fontSize: '0.7rem',
+                              bgcolor: 'rgba(0,0,0,0.7)',
+                            }}
+                          />
+                        </Box>
+                        <Box sx={{ p: 1 }}>
+                          <Typography variant="caption" fontWeight={500} noWrap display="block">
+                            {item.title}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {item.year || 'N/A'}
+                          </Typography>
+                        </Box>
+                      </Paper>
+                    )
+                  })}
                 </Box>
               </Box>
             )}

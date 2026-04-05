@@ -94,9 +94,11 @@ Complete reference for all Aperture API endpoints.
 
 | Endpoint                                                   | Description                      |
 | ---------------------------------------------------------- | -------------------------------- |
-| `GET /api/recommendations/:userId`                         | Get user's movie recommendations |
-| `GET /api/recommendations/:userId/movie/:movieId/insights` | Get recommendation insights      |
-| `GET /api/recommendations/:userId/history`                 | Get recommendation run history   |
+| `GET /api/recommendations/:userId`                             | Get user's movie recommendations   |
+| `GET /api/recommendations/:userId/movie/:movieId/insights`     | Get movie recommendation insights  |
+| `GET /api/recommendations/:userId/series`                      | Get user's series recommendations  |
+| `GET /api/recommendations/:userId/series/:seriesId/insights`   | Get series recommendation insights |
+| `GET /api/recommendations/:userId/history`                     | Get recommendation run history     |
 
 ---
 

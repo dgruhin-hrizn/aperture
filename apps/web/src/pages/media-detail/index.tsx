@@ -84,8 +84,8 @@ export function MediaDetailPage({ mediaType }: MediaDetailPageProps) {
         onMarkedUnwatched={isMovie(media) ? clearWatchStatus : undefined}
       />
 
-      {/* AI Recommendation Insights (Movies only) */}
-      {isMovie(media) && insights && <MovieInsights insights={insights} />}
+      {/* AI Recommendation Insights */}
+      {insights && <MovieInsights insights={insights} mediaType={mediaType} />}
 
       {/* Main Content */}
       <Box sx={{ mt: 4, px: { xs: 2, sm: 3 } }}>

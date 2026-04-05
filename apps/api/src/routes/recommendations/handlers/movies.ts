@@ -60,7 +60,9 @@ export async function registerMovieHandlers(fastify: FastifyInstance) {
                   'poster_url', m.poster_url,
                   'genres', m.genres,
                   'community_rating', m.community_rating,
-                  'overview', m.overview
+                  'overview', m.overview,
+                  'runtime_minutes', m.runtime_minutes,
+                  'tmdb_id', m.tmdb_id
                 ) as movie
          FROM recommendation_candidates rc
          JOIN movies m ON m.id = rc.movie_id
@@ -131,7 +133,7 @@ export async function registerMovieHandlers(fastify: FastifyInstance) {
 
       const latestRun = await queryOne<{ id: string }>(
         `SELECT id FROM recommendation_runs
-         WHERE user_id = $1 AND status = 'completed'
+         WHERE user_id = $1 AND status = 'completed' AND media_type = 'movie'
          ORDER BY created_at DESC
          LIMIT 1`,
         [userId]

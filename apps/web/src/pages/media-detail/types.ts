@@ -139,10 +139,18 @@ export interface RecommendationInsights {
   scoreBreakdown?: Record<string, unknown>
   evidence?: Array<{
     id: string
-    similar_movie_id: string
+    similar_movie_id?: string
+    similar_series_id?: string
     similarity: number
     evidence_type: string
-    similar_movie: {
+    similar_movie?: {
+      id: string
+      title: string
+      year: number | null
+      poster_url: string | null
+      genres: string[]
+    }
+    similar_series?: {
       id: string
       title: string
       year: number | null
@@ -151,7 +159,8 @@ export interface RecommendationInsights {
     }
   }>
   genreAnalysis?: {
-    movieGenres: string[]
+    movieGenres?: string[]
+    mediaGenres?: string[]
     matchingGenres: string[]
     newGenres: string[]
     userTopGenres: Array<{ genre: string; weight: number }>
