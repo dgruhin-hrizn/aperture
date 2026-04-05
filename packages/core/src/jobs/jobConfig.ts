@@ -78,6 +78,7 @@ const ENV_DEFAULTS: Record<
   // === MANUAL ONLY ===
   'full-reset-movie-recommendations': { scheduleType: 'manual', hour: 0, minute: 0 },
   'full-reset-series-recommendations': { scheduleType: 'manual', hour: 0, minute: 0 },
+  'refresh-library-gaps': { scheduleType: 'manual', hour: 0, minute: 0 },
 }
 
 function rowToConfig(row: JobConfigRow): JobConfig {

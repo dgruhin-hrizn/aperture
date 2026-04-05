@@ -28,6 +28,11 @@ export {
   deleteRequest,
   // Batch Operations
   batchGetMediaStatus,
+  // Radarr / Sonarr (request options UI)
+  listRadarrServers,
+  getRadarrServerDetails,
+  listSonarrServers,
+  getSonarrServerDetails,
 } from './provider.js'
 
 export {

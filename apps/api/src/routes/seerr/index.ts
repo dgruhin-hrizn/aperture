@@ -17,6 +17,10 @@ import {
   hasExistingRequest,
   getSystemSetting,
   resolveSeerrUserIdForProfile,
+  listRadarrServers,
+  getRadarrServerDetails,
+  listSonarrServers,
+  getSonarrServerDetails,
 } from '@aperture/core'
 import {
   seerrSchemas,
@@ -29,6 +33,10 @@ import {
   getRequestsSchema,
   batchStatusSchema,
   getRequestStatusSchema,
+  listRadarrServiceSchema,
+  getRadarrServiceSchema,
+  listSonarrServiceSchema,
+  getSonarrServiceSchema,
 } from './schemas.js'
 
 async function ensureSeerrUserIdForRequest(userId: string): Promise<number | null> {
@@ -238,6 +246,111 @@ const seerrRoutes: FastifyPluginAsync = async (fastify) => {
     }
   )
 
+  async function ensureUserCanRequestSeerr(userId: string): Promise<
+    | { ok: true }
+    | { ok: false; reply: { status: number; body: Record<string, string> } }
+  > {
+    if (!(await isSeerrConfigured())) {
+      return {
+        ok: false,
+        reply: {
+          status: 503,
+          body: { error: 'Seerr not configured', message: 'Content requests are not available' },
+        },
+      }
+    }
+    const user = await queryOne<{ discover_request_enabled: boolean }>(
+      `SELECT discover_request_enabled FROM users WHERE id = $1`,
+      [userId]
+    )
+    if (!user?.discover_request_enabled) {
+      return {
+        ok: false,
+        reply: {
+          status: 403,
+          body: {
+            error: 'Content requests not enabled for your account',
+            message: 'Contact your admin to enable content requests',
+          },
+        },
+      }
+    }
+    return { ok: true }
+  }
+
+  /**
+   * GET /api/seerr/service/radarr
+   * List Radarr servers (for movie request options)
+   */
+  fastify.get('/api/seerr/service/radarr', { preHandler: requireAuth, schema: listRadarrServiceSchema }, async (request, reply) => {
+    const currentUser = request.user as SessionUser
+    const gate = await ensureUserCanRequestSeerr(currentUser.id)
+    if (!gate.ok) return reply.status(gate.reply.status).send(gate.reply.body)
+    const data = await listRadarrServers()
+    if (!data) {
+      return reply.status(502).send({ error: 'Failed to load Radarr servers from Seerr' })
+    }
+    return reply.send(data)
+  })
+
+  /**
+   * GET /api/seerr/service/radarr/:id
+   */
+  fastify.get<{ Params: { id: string } }>(
+    '/api/seerr/service/radarr/:id',
+    { preHandler: requireAuth, schema: getRadarrServiceSchema },
+    async (request, reply) => {
+      const currentUser = request.user as SessionUser
+      const gate = await ensureUserCanRequestSeerr(currentUser.id)
+      if (!gate.ok) return reply.status(gate.reply.status).send(gate.reply.body)
+      const id = parseInt(request.params.id, 10)
+      if (!Number.isFinite(id)) {
+        return reply.status(400).send({ error: 'Invalid id' })
+      }
+      const data = await getRadarrServerDetails(id)
+      if (!data) {
+        return reply.status(404).send({ error: 'Radarr server not found or Seerr error' })
+      }
+      return reply.send(data)
+    }
+  )
+
+  /**
+   * GET /api/seerr/service/sonarr
+   */
+  fastify.get('/api/seerr/service/sonarr', { preHandler: requireAuth, schema: listSonarrServiceSchema }, async (request, reply) => {
+    const currentUser = request.user as SessionUser
+    const gate = await ensureUserCanRequestSeerr(currentUser.id)
+    if (!gate.ok) return reply.status(gate.reply.status).send(gate.reply.body)
+    const data = await listSonarrServers()
+    if (!data) {
+      return reply.status(502).send({ error: 'Failed to load Sonarr servers from Seerr' })
+    }
+    return reply.send(data)
+  })
+
+  /**
+   * GET /api/seerr/service/sonarr/:id
+   */
+  fastify.get<{ Params: { id: string } }>(
+    '/api/seerr/service/sonarr/:id',
+    { preHandler: requireAuth, schema: getSonarrServiceSchema },
+    async (request, reply) => {
+      const currentUser = request.user as SessionUser
+      const gate = await ensureUserCanRequestSeerr(currentUser.id)
+      if (!gate.ok) return reply.status(gate.reply.status).send(gate.reply.body)
+      const id = parseInt(request.params.id, 10)
+      if (!Number.isFinite(id)) {
+        return reply.status(400).send({ error: 'Invalid id' })
+      }
+      const data = await getSonarrServerDetails(id)
+      if (!data) {
+        return reply.status(404).send({ error: 'Sonarr server not found or Seerr error' })
+      }
+      return reply.send(data)
+    }
+  )
+
   /**
    * POST /api/seerr/request
    * Create a content request
@@ -248,14 +361,30 @@ const seerrRoutes: FastifyPluginAsync = async (fastify) => {
       mediaType: 'movie' | 'series'
       title: string
       discoveryCandidateId?: string
-      seasons?: number[] // For series
+      seasons?: number[]
+      rootFolder?: string
+      profileId?: number
+      serverId?: number
+      languageProfileId?: number
+      is4k?: boolean
     }
   }>(
     '/api/seerr/request',
     { preHandler: requireAuth, schema: createRequestSchema },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
-      const { tmdbId, mediaType, title, discoveryCandidateId, seasons } = request.body
+      const {
+        tmdbId,
+        mediaType,
+        title,
+        discoveryCandidateId,
+        seasons,
+        rootFolder,
+        profileId,
+        serverId,
+        languageProfileId,
+        is4k,
+      } = request.body
 
       // Check if Seerr is configured
       if (!await isSeerrConfigured()) {
@@ -312,6 +441,11 @@ const seerrRoutes: FastifyPluginAsync = async (fastify) => {
       const result = await createSeerrRequest(tmdbId, seerrMediaType, {
         seasons,
         ...(seerrUserId != null ? { userId: seerrUserId } : {}),
+        ...(rootFolder !== undefined ? { rootFolder } : {}),
+        ...(profileId !== undefined ? { profileId } : {}),
+        ...(serverId !== undefined ? { serverId } : {}),
+        ...(languageProfileId !== undefined ? { languageProfileId } : {}),
+        ...(is4k !== undefined ? { is4k } : {}),
       })
 
       if (!result.success) {
@@ -346,17 +480,21 @@ const seerrRoutes: FastifyPluginAsync = async (fastify) => {
    * Get user's content requests
    */
   fastify.get<{
-    Querystring: { mediaType?: string; status?: string; limit?: string }
+    Querystring: { mediaType?: string; status?: string; limit?: string; source?: string }
   }>(
     '/api/seerr/requests',
     { preHandler: requireAuth, schema: getRequestsSchema },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
-      const { mediaType, status, limit } = request.query
+      const { mediaType, status, limit, source } = request.query
 
       const requests = await getDiscoveryRequests(currentUser.id, {
         mediaType: mediaType as 'movie' | 'series' | undefined,
         status: status as any,
+        source:
+          source === 'gap_analysis' || source === 'discovery'
+            ? source
+            : undefined,
         limit: limit ? parseInt(limit, 10) : 50,
       })
 

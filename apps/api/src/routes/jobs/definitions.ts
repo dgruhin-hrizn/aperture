@@ -144,4 +144,11 @@ export const jobDefinitions: JobDefinition[] = [
     description: 'Generate AI-powered suggestions for content not in your library',
     cron: '0 6 * * *', // Daily at 6 AM
   },
+  // === Library gap analysis (TMDB collections vs movies table) ===
+  {
+    name: 'refresh-library-gaps',
+    description:
+      'Compare TMDB movie collections to your library and store missing titles (does not request via Seerr)',
+    cron: null,
+  },
 ]

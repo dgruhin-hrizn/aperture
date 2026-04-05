@@ -34,6 +34,9 @@ export type DiscoveryRequestStatus =
   | 'available'
   | 'failed'
 
+/** Where the Seerr request was initiated */
+export type DiscoveryRequestSource = 'discovery' | 'gap_analysis'
+
 export interface CastMember {
   id: number
   name: string
@@ -103,6 +106,8 @@ export interface DiscoveryRequest {
   status: DiscoveryRequestStatus
   statusMessage: string | null
   discoveryCandidateId: string | null
+  /** discovery = Discovery page; gap_analysis = admin Gap Analysis */
+  source: DiscoveryRequestSource
   createdAt: Date
   updatedAt: Date
 }

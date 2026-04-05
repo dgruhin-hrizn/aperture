@@ -38,6 +38,7 @@ import ExploreIcon from '@mui/icons-material/Explore'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
 import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck'
 import MenuOpenIcon from '@mui/icons-material/MenuOpen'
+import FactCheckIcon from '@mui/icons-material/FactCheck'
 import { useAuth } from '@/hooks/useAuth'
 import { WelcomeModal, useWelcomeModal } from './WelcomeModal'
 import { ExplorationConfigModal } from './ExplorationConfigModal'
@@ -65,6 +66,7 @@ const baseUserMenuItems = [
 // Admin navigation items (shown only to admins)
 const adminMenuItems = [
   { text: 'Admin', icon: <AdminPanelSettingsIcon />, path: '/admin' },
+  { text: 'Gap Analysis', icon: <FactCheckIcon />, path: '/admin/gaps' },
 ]
 
 export function Layout() {
@@ -173,6 +175,20 @@ export function Layout() {
     return location.pathname === itemPath || location.pathname.startsWith(itemPath + '/')
   }
 
+    /** Admin sidebar: avoid highlighting "Admin" when on Gap Analysis */
+  const isAdminPathActive = (itemPath: string) => {
+    if (itemPath === '/admin/gaps') {
+      return (
+        location.pathname === '/admin/gaps' || location.pathname.startsWith('/admin/gaps/')
+      )
+    }
+    if (itemPath === '/admin') {
+      if (location.pathname.startsWith('/admin/gaps')) return false
+      return location.pathname === '/admin' || location.pathname.startsWith('/admin/')
+    }
+    return isPathActive(itemPath)
+  }
+
   const drawer = (
     <Box sx={{ overflow: 'auto', mt: 2, display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Logo */}
@@ -268,7 +284,7 @@ export function Layout() {
               <ListItem key={item.text} disablePadding>
                 <Tooltip title={collapsed ? item.text : ''} placement="right" arrow>
                   <ListItemButton
-                    selected={isPathActive(item.path)}
+                    selected={isAdminPathActive(item.path)}
                     onClick={() => handleNavClick(item.path)}
                     sx={{
                       justifyContent: collapsed ? 'center' : 'flex-start',
@@ -277,7 +293,7 @@ export function Layout() {
                   >
                     <ListItemIcon
                       sx={{
-                        color: isPathActive(item.path) ? 'primary.main' : 'text.secondary',
+                        color: isAdminPathActive(item.path) ? 'primary.main' : 'text.secondary',
                         minWidth: collapsed ? 0 : 40,
                         mr: collapsed ? 0 : 1,
                       }}
@@ -288,7 +304,7 @@ export function Layout() {
                       <ListItemText
                         primary={item.text}
                         primaryTypographyProps={{
-                          fontWeight: isPathActive(item.path) ? 600 : 400,
+                          fontWeight: isAdminPathActive(item.path) ? 600 : 400,
                         }}
                       />
                     )}
@@ -313,7 +329,7 @@ export function Layout() {
         }}
       >
         <Tooltip
-          title={collapsed ? 'Expand sidebar (v0.7.0)' : 'Collapse sidebar'}
+          title={collapsed ? 'Expand sidebar (v0.7.1)' : 'Collapse sidebar'}
           placement="right"
         >
           <IconButton
@@ -338,7 +354,7 @@ export function Layout() {
               fontSize: '0.7rem',
             }}
           >
-            v0.7.0
+            v0.7.1
           </Typography>
         )}
       </Box>

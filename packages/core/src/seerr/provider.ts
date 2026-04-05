@@ -20,6 +20,11 @@ import type {
   SeerrRequestStatus,
   SeerrUser,
   SeerrUserListResponse,
+  SeerrRadarrServerSummary,
+  SeerrSonarrServerSummary,
+  SeerrRadarrServerDetailsResponse,
+  SeerrSonarrServerDetailsResponse,
+  SeerrCreateRequestOptions,
 } from './types.js'
 import {
   matchApertureProfileToSeerrUser,
@@ -193,6 +198,13 @@ export async function getTVDetails(tmdbId: number): Promise<SeerrTVDetails | nul
   return seerrRequest<SeerrTVDetails>(`/tv/${tmdbId}`)
 }
 
+/** Jellyseerr / JSON may surface status as number or string; normalize for comparisons. */
+function mediaStatusCode(s: unknown): number | undefined {
+  if (s == null || s === '') return undefined
+  const n = typeof s === 'number' ? s : Number(s)
+  return Number.isFinite(n) ? n : undefined
+}
+
 /**
  * Get media status (availability and request info)
  */
@@ -240,10 +252,19 @@ export async function getMediaStatus(
 
   const latestRequest = mediaInfo.requests?.[0]
 
+  const status4k = mediaInfo.status4k
+  const hd = mediaStatusCode(mediaInfo.status)
+  const fourK = mediaStatusCode(status4k)
+  const inLibrary = (s: number | undefined) => s != null && s >= 4
+  const inPipeline = (s: number | undefined) => s === 2 || s === 3
+
   return {
-    exists: mediaInfo.status >= 4,
-    status: statusMap[mediaInfo.status] ?? 'unknown',
-    requested: !!latestRequest,
+    exists: inLibrary(hd) || inLibrary(fourK),
+    status: statusMap[hd ?? 1] ?? 'unknown',
+    requested:
+      Boolean(mediaInfo.requests?.length) ||
+      inPipeline(hd) ||
+      inPipeline(fourK),
     requestStatus: latestRequest ? requestStatusMap[latestRequest.status] : undefined,
     requestId: latestRequest?.id,
   }
@@ -285,6 +306,38 @@ export async function resolveSeerrUserIdForProfile(
 }
 
 // ============================================================================
+// Radarr / Sonarr service lists (for request UI)
+// ============================================================================
+
+/**
+ * List configured Radarr instances (GET /service/radarr).
+ */
+export async function listRadarrServers(): Promise<SeerrRadarrServerSummary[] | null> {
+  return seerrRequest<SeerrRadarrServerSummary[]>('/service/radarr')
+}
+
+/**
+ * Quality profiles and root folders for a Radarr server (GET /service/radarr/:id).
+ */
+export async function getRadarrServerDetails(radarrId: number): Promise<SeerrRadarrServerDetailsResponse | null> {
+  return seerrRequest<SeerrRadarrServerDetailsResponse>(`/service/radarr/${radarrId}`)
+}
+
+/**
+ * List configured Sonarr instances (GET /service/sonarr).
+ */
+export async function listSonarrServers(): Promise<SeerrSonarrServerSummary[] | null> {
+  return seerrRequest<SeerrSonarrServerSummary[]>('/service/sonarr')
+}
+
+/**
+ * Quality profiles, root folders, and language profiles for a Sonarr server (GET /service/sonarr/:id).
+ */
+export async function getSonarrServerDetails(sonarrId: number): Promise<SeerrSonarrServerDetailsResponse | null> {
+  return seerrRequest<SeerrSonarrServerDetailsResponse>(`/service/sonarr/${sonarrId}`)
+}
+
+// ============================================================================
 // Request Management
 // ============================================================================
 
@@ -294,12 +347,7 @@ export async function resolveSeerrUserIdForProfile(
 export async function createRequest(
   tmdbId: number,
   mediaType: 'movie' | 'tv',
-  options: {
-    seasons?: number[] // For TV shows
-    is4k?: boolean
-    /** Attribute request to this Seerr user (POST body userId) */
-    userId?: number
-  } = {}
+  options: SeerrCreateRequestOptions = {}
 ): Promise<{
   success: boolean
   requestId?: number
@@ -312,6 +360,18 @@ export async function createRequest(
   }
   if (options.userId !== undefined) {
     body.userId = options.userId
+  }
+  if (options.rootFolder !== undefined) {
+    body.rootFolder = options.rootFolder
+  }
+  if (options.profileId !== undefined) {
+    body.profileId = options.profileId
+  }
+  if (options.serverId !== undefined) {
+    body.serverId = options.serverId
+  }
+  if (options.languageProfileId !== undefined) {
+    body.languageProfileId = options.languageProfileId
   }
 
   // For TV shows, Seerr requires the seasons array
@@ -423,14 +483,18 @@ export async function batchGetMediaStatus(
     const batch = items.slice(i, i + batchSize)
     
     const batchResults = await Promise.all(
-      batch.map(async item => {
-        const status = await getMediaStatus(item.tmdbId, item.mediaType)
-        return { tmdbId: item.tmdbId, status }
+      batch.map(async (item) => {
+        const id = Number(item.tmdbId)
+        if (!Number.isFinite(id)) {
+          return { tmdbId: id, status: null }
+        }
+        const status = await getMediaStatus(id, item.mediaType)
+        return { tmdbId: id, status }
       })
     )
 
     for (const { tmdbId, status } of batchResults) {
-      if (status) {
+      if (status && Number.isFinite(tmdbId)) {
         results.set(tmdbId, {
           exists: status.exists,
           status: status.status,

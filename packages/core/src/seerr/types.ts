@@ -33,6 +33,8 @@ export interface SeerrMediaInfo {
   tvdbId?: number
   imdbId?: string
   status: SeerrMediaStatus
+  /** Jellyseerr / multi-Radarr: separate 4K availability (HD may stay UNKNOWN while 4K is requested). */
+  status4k?: SeerrMediaStatus
   mediaType: 'movie' | 'tv'
   requests?: SeerrMediaRequest[]
 }
@@ -141,14 +143,94 @@ export interface SeerrTVDetails {
   seasons?: SeerrSeason[]
 }
 
+/** Optional fields aligned with Seerr POST /request (OpenAPI). */
 export interface SeerrRequestBody {
   mediaType: 'movie' | 'tv'
   mediaId: number
   tvdbId?: number
-  seasons?: number[] // For TV - all seasons requested
+  seasons?: number[] | 'all' // For TV
   is4k?: boolean
   /** When set (with admin API key), request is attributed to this Seerr user */
   userId?: number
+  /** Radarr/Sonarr instance id when multiple servers exist */
+  serverId?: number
+  /** Quality profile id (Radarr or Sonarr) */
+  profileId?: number
+  /** Root folder path string (e.g. /movies) */
+  rootFolder?: string
+  /** Sonarr language profile (TV) */
+  languageProfileId?: number
+}
+
+/** GET /service/radarr list item (non-sensitive subset) */
+export interface SeerrRadarrServerSummary {
+  id: number
+  name: string
+  is4k: boolean
+  isDefault: boolean
+  activeDirectory: string
+  activeProfileId: number
+  activeTags?: number[]
+}
+
+/** GET /service/sonarr list item */
+export interface SeerrSonarrServerSummary {
+  id: number
+  name: string
+  is4k: boolean
+  isDefault: boolean
+  activeDirectory: string
+  activeProfileId: number
+  activeAnimeProfileId?: number | null
+  activeAnimeDirectory?: string | null
+  activeLanguageProfileId?: number
+  activeAnimeLanguageProfileId?: number | null
+  activeTags?: number[]
+}
+
+export interface SeerrServiceProfile {
+  id: number
+  name: string
+}
+
+export interface SeerrRootFolder {
+  id: number
+  path: string
+  freeSpace?: number
+  totalSpace?: number
+}
+
+export interface SeerrLanguageProfile {
+  id: number
+  name: string
+}
+
+/** GET /service/radarr/:id */
+export interface SeerrRadarrServerDetailsResponse {
+  server: SeerrRadarrServerSummary
+  profiles: SeerrServiceProfile[]
+  rootFolders: SeerrRootFolder[]
+  tags?: unknown[]
+}
+
+/** GET /service/sonarr/:id — languageProfiles null on Sonarr v4+ */
+export interface SeerrSonarrServerDetailsResponse {
+  server: SeerrSonarrServerSummary
+  profiles: SeerrServiceProfile[]
+  rootFolders: SeerrRootFolder[]
+  languageProfiles: SeerrLanguageProfile[] | null
+  tags?: unknown[]
+}
+
+/** Options passed through to createRequest (subset of SeerrRequestBody). */
+export type SeerrCreateRequestOptions = {
+  seasons?: number[]
+  is4k?: boolean
+  userId?: number
+  rootFolder?: string
+  profileId?: number
+  serverId?: number
+  languageProfileId?: number
 }
 
 export interface SeerrRequestResponse {

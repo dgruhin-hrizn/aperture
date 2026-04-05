@@ -23,6 +23,7 @@
     "format:check": "prettier --check .",
     "db:migrate": "node scripts/migrate.mjs",
     "db:status": "node scripts/migrate.mjs --status",
+    "debug:seerr-gap": "node scripts/debug-seerr-gap-movie.mjs",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",

@@ -497,6 +497,10 @@ export {
   getCollectionDetails,
   getCollectionData,
   getCollectionsData,
+  collectionDetailsToCollectionData,
+  upsertCollectionCache,
+  getCachedCollectionDataBatch,
+  fetchCollectionDataAndCache,
   // Constants
   TMDB_IMAGE_BASE_URL,
   TMDB_API_BASE_URL,
@@ -753,6 +757,10 @@ export {
   deleteRequest as deleteSeerrRequest,
   // Batch Operations
   batchGetMediaStatus as batchGetSeerrMediaStatus,
+  listRadarrServers,
+  getRadarrServerDetails,
+  listSonarrServers,
+  getSonarrServerDetails,
   // Types
   type SeerrConfig,
   type SeerrUser,
@@ -768,6 +776,14 @@ export {
   type SeerrRequestBody,
   type SeerrRequestResponse,
   type SeerrMediaRequest,
+  type SeerrCreateRequestOptions,
+  type SeerrRadarrServerSummary,
+  type SeerrSonarrServerSummary,
+  type SeerrRadarrServerDetailsResponse,
+  type SeerrSonarrServerDetailsResponse,
+  type SeerrServiceProfile,
+  type SeerrRootFolder,
+  type SeerrLanguageProfile,
   getMediaStatusLabel,
   getRequestStatusLabel,
   SEERR_MEDIA_STATUS,
@@ -809,6 +825,7 @@ export {
   type DiscoverySource,
   type DiscoveryRunStatus,
   type DiscoveryRequestStatus,
+  type DiscoveryRequestSource,
   type DiscoveryCandidate,
   type DiscoveryRun,
   type DiscoveryRequest,
@@ -838,6 +855,30 @@ export {
   type PersonCreditsGapGroup,
   type CreditsRoleKind,
 } from './discover/index.js'
+
+// Gap analysis (movie collection completeness vs library)
+export {
+  runLibraryGapAnalysis,
+  getLatestCompletedGapRun,
+  getActiveRunningGapRun,
+  getDistinctMovieCollectionIds,
+  getLibraryMovieTmdbIdSet,
+  getMovieTmdbIdsWithActiveDiscoveryRequest,
+  isReleasedReleaseDate,
+  listGapResults,
+  getGapCollectionSummaries,
+  getGapCollectionParts,
+  type GapAnalysisRun,
+  type GapAnalysisRunStatus,
+  type GapAnalysisResultRow,
+  type GapResult,
+  type GapCollectionSummary,
+  type GapCollectionPart,
+  type SeerrStatus as GapSeerrStatus,
+  type ListGapResultsOptions,
+  type GapResultsSortBy,
+  type GapResultsSortDir,
+} from './gap-analysis/index.js'
 
 // Taste Profile System
 export {

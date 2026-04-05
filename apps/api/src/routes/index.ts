@@ -28,6 +28,7 @@ import similarityRoutes from './similarity/index.js'
 import graphPlaylistRoutes from './graphPlaylists/index.js'
 import discoveryRoutes from './discovery/index.js'
 import seerrRoutes from './seerr/index.js'
+import gapAnalysisRoutes from './gap-analysis/index.js'
 import apiKeysRoutes from './apiKeys/index.js'
 import logoRoutes from './logo/index.js'
 
@@ -118,6 +119,9 @@ const routes: FastifyPluginAsync = async (fastify) => {
 
   // Register Seerr routes (content requests)
   await fastify.register(seerrRoutes)
+
+  // Admin Gap Analysis (movie collection completeness)
+  await fastify.register(gapAnalysisRoutes)
 
   // Register API keys routes
   await fastify.register(apiKeysRoutes)

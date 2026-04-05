@@ -30,6 +30,8 @@ import { RotatingBackdrop } from '../components/RotatingBackdrop'
 import { MediaPosterCard } from '../components/MediaPosterCard'
 import { SeasonSelectModal, type SeasonInfo } from './discovery/components/SeasonSelectModal'
 import { useSeerrRequest } from './discovery/hooks/useSeerrRequest'
+import { RequestSeerrOptionsDialog } from '../components/RequestSeerrOptionsDialog'
+import type { SeerrRequestOptions } from '../types/seerrRequest'
 import {
   TmdbExternalDetailModal,
   type TmdbExternalDetailPayload,
@@ -116,6 +118,9 @@ export function PersonDetailPage() {
   >({})
   const [canRequestSeerr, setCanRequestSeerr] = useState(false)
   const [avatarImgVisible, setAvatarImgVisible] = useState(false)
+  const [optionsDialogOpen, setOptionsDialogOpen] = useState(false)
+  const [optionsTargetRow, setOptionsTargetRow] = useState<CreditsGapRow | null>(null)
+  const [pendingSeerrOpts, setPendingSeerrOpts] = useState<SeerrRequestOptions | null>(null)
   const [seasonModalOpen, setSeasonModalOpen] = useState(false)
   const [seasonModalRow, setSeasonModalRow] = useState<CreditsGapRow | null>(null)
   const [seasonModalData, setSeasonModalData] = useState<{
@@ -304,8 +309,18 @@ export function PersonDetailPage() {
     }))
   }
 
-  const handleCreditsRequest = async (row: CreditsGapRow) => {
+  const handleCreditsRequest = (row: CreditsGapRow) => {
+    setOptionsTargetRow(row)
+    setOptionsDialogOpen(true)
+  }
+
+  const handleSeerrOptionsConfirm = async (opts: SeerrRequestOptions) => {
+    const row = optionsTargetRow
+    setOptionsDialogOpen(false)
+    setOptionsTargetRow(null)
+    if (!row) return
     if (row.mediaType === 'tv') {
+      setPendingSeerrOpts(opts)
       setSeasonModalLoading(true)
       setSeasonModalRow(row)
       setSeasonModalOpen(true)
@@ -313,7 +328,7 @@ export function PersonDetailPage() {
       setSeasonModalData(details)
       setSeasonModalLoading(false)
     } else {
-      const result = await submitRequest(row.tmdbId, 'movie', row.title, undefined, undefined)
+      const result = await submitRequest(row.tmdbId, 'movie', row.title, undefined, undefined, opts)
       if (result.success) markCreditsRowRequested(row.tmdbId)
     }
   }
@@ -325,12 +340,14 @@ export function PersonDetailPage() {
       'series',
       seasonModalRow.title,
       undefined,
-      seasons
+      seasons,
+      pendingSeerrOpts ?? undefined
     )
     if (result.success) markCreditsRowRequested(seasonModalRow.tmdbId)
     setSeasonModalOpen(false)
     setSeasonModalRow(null)
     setSeasonModalData(null)
+    setPendingSeerrOpts(null)
   }
 
   const openTmdbDetailModal = (row: CreditsGapRow) => {
@@ -671,12 +688,24 @@ export function PersonDetailPage() {
                 </Box>
               ))}
 
+              <RequestSeerrOptionsDialog
+                open={optionsDialogOpen}
+                mediaType={optionsTargetRow?.mediaType === 'tv' ? 'series' : 'movie'}
+                title={optionsTargetRow?.title ?? ''}
+                onClose={() => {
+                  setOptionsDialogOpen(false)
+                  setOptionsTargetRow(null)
+                }}
+                onConfirm={handleSeerrOptionsConfirm}
+              />
+
               <SeasonSelectModal
                 open={seasonModalOpen}
                 onClose={() => {
                   setSeasonModalOpen(false)
                   setSeasonModalRow(null)
                   setSeasonModalData(null)
+                  setPendingSeerrOpts(null)
                 }}
                 onSubmit={handleCreditsSeasonSubmit}
                 title={seasonModalData?.title || seasonModalRow?.title || ''}

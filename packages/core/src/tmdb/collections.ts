@@ -9,6 +9,27 @@ import type { TMDbCollectionDetails, CollectionData } from './types.js'
 const logger = createChildLogger('tmdb:collections')
 
 /**
+ * Map TMDb collection API response to internal CollectionData (also used when hydrating from DB cache).
+ */
+export function collectionDetailsToCollectionData(details: TMDbCollectionDetails): CollectionData {
+  return {
+    tmdbId: details.id,
+    name: details.name,
+    overview: details.overview,
+    posterUrl: getImageUrl(details.poster_path),
+    posterPath: details.poster_path,
+    backdropUrl: getImageUrl(details.backdrop_path, 'original'),
+    backdropPath: details.backdrop_path ?? null,
+    parts: details.parts.map((part) => ({
+      tmdbId: part.id,
+      title: part.title,
+      releaseDate: part.release_date,
+      posterPath: part.poster_path,
+    })),
+  }
+}
+
+/**
  * Get collection details from TMDb
  */
 export async function getCollectionDetails(
@@ -31,18 +52,7 @@ export async function getCollectionData(
     return null
   }
 
-  return {
-    tmdbId: details.id,
-    name: details.name,
-    overview: details.overview,
-    posterUrl: getImageUrl(details.poster_path),
-    backdropUrl: getImageUrl(details.backdrop_path, 'original'),
-    parts: details.parts.map((part) => ({
-      tmdbId: part.id,
-      title: part.title,
-      releaseDate: part.release_date,
-    })),
-  }
+  return collectionDetailsToCollectionData(details)
 }
 
 /**

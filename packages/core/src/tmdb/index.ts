@@ -67,7 +67,15 @@ export {
   getCollectionDetails,
   getCollectionData,
   getCollectionsData,
+  collectionDetailsToCollectionData,
 } from './collections.js'
+
+// Collection DB cache (gap analysis, etc.)
+export {
+  upsertCollectionCache,
+  getCachedCollectionDataBatch,
+  fetchCollectionDataAndCache,
+} from './collection-cache.js'
 
 // Discovery functions (recommendations, similar, discover)
 export {

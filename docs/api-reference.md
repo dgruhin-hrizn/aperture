@@ -16,6 +16,7 @@ Complete reference for all Aperture API endpoints.
 - [Trakt Integration](#trakt-integration)
 - [Settings (Admin)](#settings-admin)
 - [Jobs (Admin)](#jobs-admin)
+- [Gap analysis (Admin)](#gap-analysis-admin)
 - [Database (Admin)](#database-admin)
 
 ---
@@ -241,6 +242,23 @@ The assistant has access to these tools for content discovery:
 | `GET /api/jobs/:name/history`          | Get job run history       |
 | `GET /api/jobs/progress/stream/:jobId` | SSE stream for progress   |
 | `GET /api/jobs/scheduler/status`       | Get scheduler status      |
+
+The `refresh-library-gaps` job recomputes TMDB collection vs library snapshots (no Seerr calls).
+
+---
+
+## Gap analysis (Admin)
+
+All endpoints require an authenticated **admin** session.
+
+| Endpoint                                  | Description |
+| ----------------------------------------- | ----------- |
+| `GET /api/admin/gap-analysis/latest`      | Prerequisites (TMDb, collection coverage), last completed run, per-collection summaries |
+| `GET /api/admin/gap-analysis/results`     | Paginated missing titles for a run (`runId`, `collectionId`, `search`, `showOwned`, `page`, `pageSize`) |
+| `POST /api/admin/gap-analysis/refresh`    | Start `refresh-library-gaps` background job (returns `jobId`) |
+| `POST /api/admin/gap-analysis/request`    | Bulk Seerr requests; body `{ items: [{ tmdbId, mediaType, title }] }` — tags rows with `source: gap_analysis` |
+
+`GET /api/seerr/requests` accepts optional `source=discovery|gap_analysis` to filter **My Requests**.
 
 ---
 
