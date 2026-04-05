@@ -37,7 +37,8 @@ const graphPlaylistRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       try {
-        const name = await generateGraphPlaylistName(movieIds || [], seriesIds || [])
+        const currentUser = request.user as SessionUser
+        const name = await generateGraphPlaylistName(movieIds || [], seriesIds || [], currentUser.id)
         return reply.send({ name })
       } catch (err) {
         request.log.error({ err }, 'Failed to generate graph playlist name')
@@ -67,10 +68,12 @@ const graphPlaylistRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       try {
+        const currentUser = request.user as SessionUser
         const description = await generateGraphPlaylistDescription(
           movieIds || [],
           seriesIds || [],
-          name
+          name,
+          currentUser.id
         )
         return reply.send({ description })
       } catch (err) {

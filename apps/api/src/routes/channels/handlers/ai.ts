@@ -52,13 +52,15 @@ export function registerAiHandlers(fastify: FastifyInstance) {
     '/api/channels/ai-name',
     { preHandler: requireAuth, schema: { tags: ["playlists"] } },
     async (request, reply) => {
+      const currentUser = request.user as SessionUser
       const { genres, exampleMovieIds, textPreferences } = request.body
 
       try {
         const name = await generateAIPlaylistName(
           genres || [],
           exampleMovieIds || [],
-          textPreferences
+          textPreferences,
+          currentUser.id
         )
 
         return reply.send({ name })
@@ -84,6 +86,7 @@ export function registerAiHandlers(fastify: FastifyInstance) {
     '/api/channels/ai-description',
     { preHandler: requireAuth, schema: { tags: ["playlists"] } },
     async (request, reply) => {
+      const currentUser = request.user as SessionUser
       const { genres, exampleMovieIds, textPreferences, playlistName } = request.body
 
       try {
@@ -91,7 +94,8 @@ export function registerAiHandlers(fastify: FastifyInstance) {
           genres || [],
           exampleMovieIds || [],
           textPreferences,
-          playlistName
+          playlistName,
+          currentUser.id
         )
 
         return reply.send({ description })

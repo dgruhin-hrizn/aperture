@@ -22,6 +22,7 @@ import {
   ANTIPATTERNS,
 } from './rules/index.js'
 import { buildUserContext, ADMIN_CONTEXT } from './context/index.js'
+import { resolveEffectiveAiLanguage, buildAiLanguageInstruction } from '@aperture/core'
 
 export { ASSISTANT_NAME }
 
@@ -75,6 +76,8 @@ RIGHT: Call a tool, cards appear with posters/ratings/play buttons.
  */
 export async function buildSystemPrompt(userId: string, isAdmin: boolean): Promise<string> {
   const userContext = await buildUserContext(userId, isAdmin)
+  const aiLocale = await resolveEffectiveAiLanguage(userId)
+  const languageRules = `## Response language\n${buildAiLanguageInstruction(aiLocale)}\nTool names and JSON field names stay in English; user-visible explanations and chat text follow the language above.`
 
   const sections = [
     CRITICAL_RULES, // FIRST - most important
@@ -84,6 +87,7 @@ export async function buildSystemPrompt(userId: string, isAdmin: boolean): Promi
     TOOL_SELECTION_RULES,
     BEHAVIOR_RULES,
     ANTIPATTERNS,
+    languageRules,
   ]
 
   // Add admin context only for admins
