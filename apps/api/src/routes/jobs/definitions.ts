@@ -99,6 +99,12 @@ export const jobDefinitions: JobDefinition[] = [
     description: 'Sync "Shows You Watch" libraries for all users',
     cron: '0 */4 * * *', // Every 4 hours
   },
+  {
+    name: 'sync-watching-favorites',
+    description:
+      'Reconcile Shows You Watch with media server series favorites (Emby/Jellyfin) for all users',
+    cron: '0 */4 * * *', // Every 4 hours (stagger from STRM job in Admin → Jobs)
+  },
   // === Assistant Suggestions Job ===
   {
     name: 'refresh-assistant-suggestions',

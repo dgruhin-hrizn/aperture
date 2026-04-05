@@ -9,10 +9,19 @@
  * Unfavoriting on the server when the user removes a show in Aperture is handled by the DELETE /api/watching route.
  */
 
+import crypto from 'crypto'
 import { createChildLogger } from '../lib/logger.js'
 import { query } from '../lib/db.js'
 import { getMediaServerProvider } from '../media/index.js'
 import { getMediaServerApiKey, getWatchingLibraryConfig } from '../settings/systemSettings.js'
+import {
+  createJobProgress,
+  setJobStep,
+  updateJobProgress,
+  addLog,
+  completeJob,
+  failJob,
+} from '../jobs/index.js'
 
 const logger = createChildLogger('watching-favorite-sync')
 
@@ -214,4 +223,144 @@ export async function unfavoriteWatchingSeriesOnMediaServer(
 
   const provider = await getMediaServerProvider()
   await provider.unfavoriteSeriesItem(apiKey, providerUserId, providerItemId)
+}
+
+/**
+ * Reconcile Shows You Watch ↔ media server favorites for every user with a linked provider account.
+ * Scheduled job entry point: `sync-watching-favorites`.
+ */
+export async function processWatchingFavoritesForAllUsers(jobId?: string): Promise<{
+  success: number
+  failed: number
+  jobId: string
+  users: Array<{
+    userId: string
+    displayName: string
+    skipped?: boolean
+    reason?: string
+    error?: string
+  }>
+}> {
+  const actualJobId = jobId || crypto.randomUUID()
+
+  createJobProgress(actualJobId, 'sync-watching-favorites', 2)
+
+  const users: Array<{
+    userId: string
+    displayName: string
+    skipped?: boolean
+    reason?: string
+    error?: string
+  }> = []
+
+  try {
+    const watchingConfig = await getWatchingLibraryConfig()
+    if (!watchingConfig.enabled) {
+      addLog(actualJobId, 'info', '⏭️ Watching library feature is disabled, skipping job')
+      completeJob(actualJobId, { success: 0, failed: 0, skipped: true })
+      return { success: 0, failed: 0, jobId: actualJobId, users: [] }
+    }
+
+    setJobStep(actualJobId, 0, 'Finding users with media server accounts')
+    addLog(actualJobId, 'info', '🔍 Finding users for Shows You Watch ↔ favorites sync...')
+
+    const usersResult = await query<{
+      id: string
+      provider_user_id: string
+      display_name: string | null
+      username: string
+    }>(
+      `SELECT u.id, u.provider_user_id, u.display_name, u.username
+       FROM users u
+       WHERE u.is_enabled = true
+         AND u.provider_user_id IS NOT NULL
+         AND TRIM(u.provider_user_id) <> ''`
+    )
+
+    const totalUsers = usersResult.rows.length
+
+    if (totalUsers === 0) {
+      addLog(actualJobId, 'info', '📭 No enabled users with a linked media server account')
+      completeJob(actualJobId, { success: 0, failed: 0 })
+      return { success: 0, failed: 0, jobId: actualJobId, users: [] }
+    }
+
+    addLog(actualJobId, 'info', `👥 Reconciling favorites for ${totalUsers} user(s)`)
+    setJobStep(actualJobId, 1, 'Syncing favorites with media server', totalUsers)
+
+    let success = 0
+    let failed = 0
+
+    for (let i = 0; i < usersResult.rows.length; i++) {
+      const user = usersResult.rows[i]
+      const displayName = user.display_name || user.username
+
+      try {
+        addLog(actualJobId, 'info', `❤️ ${displayName}`)
+        const res = await reconcileWatchingFavoritesForUser(user.id, user.provider_user_id)
+        users.push({
+          userId: user.id,
+          displayName,
+          skipped: res.skipped,
+          reason: res.reason,
+        })
+        if (res.skipped) {
+          addLog(
+            actualJobId,
+            'debug',
+            `  ⏭️ Skipped: ${res.reason ?? 'unknown'}`
+          )
+        } else {
+          addLog(
+            actualJobId,
+            'info',
+            `  ✅ pushed ${res.pushedToServer}, removed from db ${res.removedFromDb}, added to db ${res.pulledIntoDb}, push errors ${res.pushErrors}`
+          )
+        }
+        success++
+        updateJobProgress(
+          actualJobId,
+          success + failed,
+          totalUsers,
+          `${success + failed}/${totalUsers} users`
+        )
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Unknown error'
+        logger.error({ err, userId: user.id }, 'Failed to reconcile watching favorites')
+        addLog(actualJobId, 'error', `❌ Failed for ${displayName}: ${errorMsg}`)
+        users.push({
+          userId: user.id,
+          displayName,
+          error: errorMsg,
+        })
+        failed++
+        updateJobProgress(
+          actualJobId,
+          success + failed,
+          totalUsers,
+          `${success + failed}/${totalUsers} users (${failed} failed)`
+        )
+      }
+    }
+
+    const finalResult = { success, failed, jobId: actualJobId, users }
+
+    if (failed > 0) {
+      addLog(
+        actualJobId,
+        'warn',
+        `⚠️ Completed with ${failed} failure(s): ${success} succeeded, ${failed} failed`
+      )
+    } else {
+      addLog(actualJobId, 'info', `🎉 Watching favorites sync complete for ${success} user(s)`)
+    }
+
+    completeJob(actualJobId, finalResult)
+    return finalResult
+  } catch (err) {
+    const error = err instanceof Error ? err.message : 'Unknown error'
+    logger.error({ err }, 'Failed to run watching favorites sync job')
+    failJob(actualJobId, error)
+    throw err
+  }
 }

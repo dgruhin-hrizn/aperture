@@ -424,6 +424,7 @@ export {
   reconcileWatchingFavoritesForUser,
   favoriteWatchingSeriesOnMediaServer,
   unfavoriteWatchingSeriesOnMediaServer,
+  processWatchingFavoritesForAllUsers,
   type ReconcileWatchingFavoritesResult,
 } from './watching/index.js'
 

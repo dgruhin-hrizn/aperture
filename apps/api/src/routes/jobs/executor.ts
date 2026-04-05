@@ -21,6 +21,7 @@ import {
   enrichStudioLogos,
   enrichMDBListMetadata,
   processWatchingLibrariesForAllUsers,
+  processWatchingFavoritesForAllUsers,
   createBackup,
   refreshPricingCache,
   getPricingCacheStatus,
@@ -284,6 +285,20 @@ export async function runJob(name: string, jobId: string): Promise<void> {
             users: result.users.length,
           },
           `✅ Watching libraries sync complete`
+        )
+        break
+      }
+      case 'sync-watching-favorites': {
+        const result = await processWatchingFavoritesForAllUsers(jobId)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            success: result.success,
+            failed: result.failed,
+            users: result.users.length,
+          },
+          `✅ Watching favorites sync complete`
         )
         break
       }

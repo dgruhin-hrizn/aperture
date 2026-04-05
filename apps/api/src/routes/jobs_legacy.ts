@@ -26,6 +26,7 @@ import {
   createChildLogger,
   // Watching libraries
   processWatchingLibrariesForAllUsers,
+  processWatchingFavoritesForAllUsers,
   getJobProgress,
   getAllJobProgress,
   subscribeToJob,
@@ -166,6 +167,12 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
     name: 'sync-watching-libraries',
     description: 'Sync "Shows You Watch" libraries for all users',
     cron: '0 */4 * * *', // Every 4 hours
+  },
+  {
+    name: 'sync-watching-favorites',
+    description:
+      'Reconcile Shows You Watch with media server series favorites (Emby/Jellyfin) for all users',
+    cron: '0 */4 * * *',
   },
   // === Assistant Suggestions Job ===
   {
@@ -1021,6 +1028,20 @@ async function runJob(name: string, jobId: string): Promise<void> {
             users: result.users.length,
           },
           `✅ Watching libraries sync complete`
+        )
+        break
+      }
+      case 'sync-watching-favorites': {
+        const result = await processWatchingFavoritesForAllUsers(jobId)
+        logger.info(
+          {
+            job: name,
+            jobId,
+            success: result.success,
+            failed: result.failed,
+            users: result.users.length,
+          },
+          `✅ Watching favorites sync complete`
         )
         break
       }

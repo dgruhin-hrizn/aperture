@@ -10,6 +10,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import SyncIcon from '@mui/icons-material/Sync'
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
 import AddToQueueIcon from '@mui/icons-material/AddToQueue'
+import FavoriteIcon from '@mui/icons-material/Favorite'
 import BusinessIcon from '@mui/icons-material/Business'
 import StreamIcon from '@mui/icons-material/Stream'
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney'
@@ -73,7 +74,12 @@ export const GLOBAL_JOB_CATEGORIES: JobCategory[] = [
     title: 'Curated Libraries',
     description: 'Top Picks popularity lists and Shows You Watch libraries',
     color: '#f59e0b',
-    jobs: ['refresh-top-picks', 'auto-request-top-picks', 'sync-watching-libraries'],
+    jobs: [
+      'refresh-top-picks',
+      'auto-request-top-picks',
+      'sync-watching-libraries',
+      'sync-watching-favorites',
+    ],
   },
   {
     title: 'Discovery & Suggestions',
@@ -118,6 +124,7 @@ export const JOB_ICONS: Record<string, React.ReactNode> = {
   'refresh-top-picks': <TrendingUpIcon />,
   'auto-request-top-picks': <SendIcon />,
   'sync-watching-libraries': <AddToQueueIcon />,
+  'sync-watching-favorites': <FavoriteIcon />,
   'sync-trakt-ratings': <SyncIcon />,
   'refresh-ai-pricing': <AttachMoneyIcon />,
   // Discovery jobs
@@ -146,6 +153,7 @@ export const JOB_COLORS: Record<string, string> = {
   'refresh-top-picks': '#f59e0b',
   'auto-request-top-picks': '#f97316',
   'sync-watching-libraries': '#06b6d4',
+  'sync-watching-favorites': '#e11d48',
   'sync-trakt-ratings': '#ed1c24',
   'refresh-ai-pricing': '#22c55e',
   // Discovery jobs
