@@ -8,6 +8,7 @@ import {
 } from '@mui/material'
 import NavigateNextIcon from '@mui/icons-material/NavigateNext'
 import HomeIcon from '@mui/icons-material/Home'
+import { useTranslation } from 'react-i18next'
 
 interface BreadcrumbItem {
   label: string
@@ -19,21 +20,33 @@ interface BreadcrumbsProps {
   currentLabel?: string
 }
 
-// Route configuration for automatic breadcrumb generation
-const routeLabels: Record<string, string> = {
-  '': 'Home',
-  'admin': 'Admin',
-  'users': 'Users',
-  'jobs': 'Jobs',
-  'settings': 'Settings',
-  'recommendations': 'Recommendations',
-  'history': 'Watch History',
-  'movies': 'Movies',
-  'series': 'TV Series',
-  'playlists': 'Playlists',
+// i18n keys under "breadcrumb.*" for automatic breadcrumb generation
+const routeLabelKeys: Record<string, string> = {
+  admin: 'breadcrumb.admin',
+  users: 'breadcrumb.users',
+  jobs: 'breadcrumb.jobs',
+  settings: 'breadcrumb.settings',
+  recommendations: 'breadcrumb.recommendations',
+  history: 'breadcrumb.history',
+  movies: 'breadcrumb.movies',
+  series: 'breadcrumb.series',
+  playlists: 'breadcrumb.playlists',
+  explore: 'breadcrumb.explore',
+  discovery: 'breadcrumb.discovery',
+  browse: 'breadcrumb.browse',
+  stats: 'breadcrumb.stats',
+  'top-picks': 'breadcrumb.top-picks',
+  watching: 'breadcrumb.watching',
+  'my-requests': 'breadcrumb.my-requests',
+  franchises: 'breadcrumb.franchises',
+  person: 'breadcrumb.person',
+  studio: 'breadcrumb.studio',
+  search: 'breadcrumb.search',
+  gaps: 'breadcrumb.gaps',
 }
 
 export function Breadcrumbs({ items, currentLabel }: BreadcrumbsProps) {
+  const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
   const params = useParams()
@@ -55,7 +68,8 @@ export function Breadcrumbs({ items, currentLabel }: BreadcrumbsProps) {
         continue
       }
 
-      const label = routeLabels[segment] || segment.charAt(0).toUpperCase() + segment.slice(1)
+      const key = routeLabelKeys[segment]
+      const label = key ? t(key) : segment.charAt(0).toUpperCase() + segment.slice(1)
       
       // Last segment is current page (no link)
       if (i === pathSegments.length - 1 && !currentLabel) {

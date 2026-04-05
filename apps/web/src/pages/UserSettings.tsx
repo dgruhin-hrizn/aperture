@@ -31,10 +31,13 @@ import TuneIcon from '@mui/icons-material/Tune'
 import TextFieldsIcon from '@mui/icons-material/TextFields'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import ThumbDownIcon from '@mui/icons-material/ThumbDown'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { Breadcrumbs } from '@/components/Breadcrumbs'
 import { WatcherIdentitySection } from './UserSettings/WatcherIdentitySection'
 import { AlgorithmSettingsSection } from './UserSettings/AlgorithmSettingsSection'
+import { UserLanguagePreferencesCard } from './UserSettings/UserLanguagePreferencesCard'
+import { useTranslation } from 'react-i18next'
 
 interface TabPanelProps {
   children?: React.ReactNode
@@ -50,6 +53,18 @@ function TabPanel({ children, value, index }: TabPanelProps) {
   )
 }
 
+const USER_SETTINGS_TAB_KEYS = ['profile', 'watcher', 'algorithm', 'preferences'] as const
+
+function userSettingsTabIndexFromParam(tab: string | null): number {
+  if (!tab) return 0
+  const idx = USER_SETTINGS_TAB_KEYS.indexOf(tab as (typeof USER_SETTINGS_TAB_KEYS)[number])
+  return idx >= 0 ? idx : 0
+}
+
+function userSettingsTabParamFromIndex(index: number): string {
+  return USER_SETTINGS_TAB_KEYS[index] ?? 'profile'
+}
+
 interface AiExplanationPreference {
   overrideAllowed: boolean
   userPreference: boolean | null
@@ -59,8 +74,27 @@ interface AiExplanationPreference {
 }
 
 export function UserSettingsPage() {
+  const { t } = useTranslation()
   const { user } = useAuth()
-  const [tabValue, setTabValue] = useState(0)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [tabValue, setTabValue] = useState(() => userSettingsTabIndexFromParam(searchParams.get('tab')))
+
+  useEffect(() => {
+    setTabValue(userSettingsTabIndexFromParam(searchParams.get('tab')))
+  }, [searchParams])
+
+  const handleMainTabChange = (_: React.SyntheticEvent, v: number) => {
+    setTabValue(v)
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.set('tab', userSettingsTabParamFromIndex(v))
+        return next
+      },
+      { replace: true }
+    )
+  }
+
   const [identityMediaType, setIdentityMediaType] = useState<'movie' | 'series'>('movie')
 
   // User settings state
@@ -496,11 +530,11 @@ export function UserSettingsPage() {
         <Box display="flex" alignItems="center" gap={2} mb={1}>
           <SettingsIcon sx={{ color: 'primary.main', fontSize: 32 }} />
           <Typography variant="h4" fontWeight={700}>
-            Settings
+            {t('userSettings.pageTitle')}
           </Typography>
         </Box>
         <Typography variant="body1" color="text.secondary">
-          Manage your profile and preferences
+          {t('userSettings.pageSubtitle')}
         </Typography>
       </Box>
 
@@ -514,7 +548,7 @@ export function UserSettingsPage() {
       >
         <Tabs
           value={tabValue}
-          onChange={(_, v) => setTabValue(v)}
+          onChange={handleMainTabChange}
           sx={{
             px: 2,
             borderBottom: 1,
@@ -527,10 +561,10 @@ export function UserSettingsPage() {
             },
           }}
         >
-          <Tab icon={<PersonIcon />} iconPosition="start" label="Profile" />
-          <Tab icon={<FingerprintIcon />} iconPosition="start" label="Watcher Identity" />
-          <Tab icon={<TuneIcon />} iconPosition="start" label="AI Algorithm" />
-          <Tab icon={<VideoLibraryIcon />} iconPosition="start" label="Preferences" />
+          <Tab icon={<PersonIcon />} iconPosition="start" label={t('userSettings.tabProfile')} />
+          <Tab icon={<FingerprintIcon />} iconPosition="start" label={t('userSettings.tabWatcherIdentity')} />
+          <Tab icon={<TuneIcon />} iconPosition="start" label={t('userSettings.tabAlgorithm')} />
+          <Tab icon={<VideoLibraryIcon />} iconPosition="start" label={t('userSettings.tabPreferences')} />
         </Tabs>
 
         <Box sx={{ p: 3 }}>
@@ -555,13 +589,13 @@ export function UserSettingsPage() {
                       {user?.displayName || user?.username}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {user?.isAdmin ? 'Administrator' : 'User'} • {user?.provider ? user.provider.charAt(0).toUpperCase() + user.provider.slice(1) : ''}
+                      {user?.isAdmin ? t('userSettings.roleAdmin') : t('userSettings.roleUser')} • {user?.provider ? user.provider.charAt(0).toUpperCase() + user.provider.slice(1) : ''}
                     </Typography>
                   </Box>
                 </Box>
 
                 <TextField
-                  label="Username"
+                  label={t('login.username')}
                   value={user?.username || ''}
                   fullWidth
                   margin="normal"
@@ -570,7 +604,7 @@ export function UserSettingsPage() {
                 />
 
                 <TextField
-                  label="Display Name"
+                  label={t('userSettings.displayName')}
                   value={user?.displayName || user?.username || ''}
                   fullWidth
                   margin="normal"
@@ -579,7 +613,7 @@ export function UserSettingsPage() {
                 />
 
                 <TextField
-                  label="Media Server"
+                  label={t('userSettings.mediaServer')}
                   value={user?.provider ? user.provider.charAt(0).toUpperCase() + user.provider.slice(1) : ''}
                   fullWidth
                   margin="normal"
@@ -588,7 +622,7 @@ export function UserSettingsPage() {
                 />
 
                 <TextField
-                  label="Role"
+                  label={t('userSettings.roleField')}
                   value={user?.isAdmin ? 'Administrator' : 'User'}
                   fullWidth
                   margin="normal"
@@ -712,6 +746,9 @@ export function UserSettingsPage() {
           {/* Preferences Tab */}
           <TabPanel value={tabValue} index={3}>
             <Grid container spacing={3}>
+              <Grid item xs={12} lg={6}>
+                <UserLanguagePreferencesCard />
+              </Grid>
               {/* AI Library Names */}
               <Grid item xs={12} lg={6}>
                 <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, height: '100%' }}>

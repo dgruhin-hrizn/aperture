@@ -11,8 +11,10 @@ import {
   CircularProgress,
 } from '@mui/material'
 import { useAuth } from '@/hooks/useAuth'
+import { useTranslation } from 'react-i18next'
 
 export function LoginPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { login, user, sessionError, clearSessionError } = useAuth()
   const [username, setUsername] = useState('')
@@ -63,7 +65,7 @@ export function LoginPage() {
       await login(username, password)
       navigate('/')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed')
+      setError(err instanceof Error ? err.message : t('login.loginFailed'))
     } finally {
       setLoading(false)
     }
@@ -105,10 +107,10 @@ export function LoginPage() {
                 mb: 1,
               }}
             >
-              Aperture
+              {t('common.appName')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Sign in with your media server credentials
+              {t('login.subtitle')}
             </Typography>
           </Box>
 
@@ -127,7 +129,7 @@ export function LoginPage() {
           <form onSubmit={handleSubmit}>
             <TextField
               fullWidth
-              label="Username"
+              label={t('login.username')}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               margin="normal"
@@ -138,14 +140,14 @@ export function LoginPage() {
 
             <TextField
               fullWidth
-              label={allowPasswordlessLogin ? 'Password (optional)' : 'Password'}
+              label={allowPasswordlessLogin ? t('login.passwordOptional') : t('login.password')}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               margin="normal"
               autoComplete="current-password"
               disabled={loading || loadingOptions}
-              helperText={allowPasswordlessLogin ? 'Password is optional for this server' : undefined}
+              helperText={allowPasswordlessLogin ? t('login.passwordOptionalHelp') : undefined}
             />
 
             <Button
@@ -156,7 +158,11 @@ export function LoginPage() {
               disabled={isSubmitDisabled || loadingOptions}
               sx={{ mt: 3 }}
             >
-              {loading || loadingOptions ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
+              {loading || loadingOptions ? (
+                <CircularProgress size={24} color="inherit" />
+              ) : (
+                t('login.signIn')
+              )}
             </Button>
           </form>
 
@@ -167,7 +173,7 @@ export function LoginPage() {
             textAlign="center"
             mt={3}
           >
-            Use your Emby or Jellyfin account
+            {t('login.footerProviders')}
           </Typography>
         </CardContent>
       </Card>

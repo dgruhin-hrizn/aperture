@@ -15,21 +15,23 @@ import PeopleIcon from '@mui/icons-material/People'
 import WorkIcon from '@mui/icons-material/Work'
 import SettingsIcon from '@mui/icons-material/Settings'
 import { Breadcrumbs } from './Breadcrumbs'
+import { useTranslation } from 'react-i18next'
 
 interface AdminTab {
-  label: string
+  labelKey: string
   path: string
   icon: React.ReactElement
 }
 
 const adminTabs: AdminTab[] = [
-  { label: 'Overview', path: '/admin', icon: <DashboardIcon /> },
-  { label: 'Users', path: '/admin/users', icon: <PeopleIcon /> },
-  { label: 'Jobs', path: '/admin/jobs', icon: <WorkIcon /> },
-  { label: 'Settings', path: '/admin/settings', icon: <SettingsIcon /> },
+  { labelKey: 'admin.overview', path: '/admin', icon: <DashboardIcon /> },
+  { labelKey: 'admin.users', path: '/admin/users', icon: <PeopleIcon /> },
+  { labelKey: 'admin.jobs', path: '/admin/jobs', icon: <WorkIcon /> },
+  { labelKey: 'admin.settings', path: '/admin/settings', icon: <SettingsIcon /> },
 ]
 
 export function AdminLayout() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const [runningJobsCount, setRunningJobsCount] = useState(0)
@@ -93,11 +95,11 @@ export function AdminLayout() {
         <Box display="flex" alignItems="center" gap={2} mb={1}>
           <AdminPanelSettingsIcon sx={{ color: 'primary.main', fontSize: 32 }} />
           <Typography variant="h4" fontWeight={700}>
-            Administration
+            {t('admin.title')}
           </Typography>
         </Box>
         <Typography variant="body1" color="text.secondary">
-          Manage users, run jobs, and configure system settings
+          {t('admin.subtitle')}
         </Typography>
       </Box>
 
@@ -142,7 +144,7 @@ export function AdminLayout() {
               label={
                 tab.path === '/admin/jobs' && runningJobsCount > 0 ? (
                   <Stack direction="row" alignItems="center" spacing={1}>
-                    <span>{tab.label}</span>
+                    <span>{t(tab.labelKey)}</span>
                     <Chip
                       label={runningJobsCount}
                       size="small"
@@ -157,7 +159,7 @@ export function AdminLayout() {
                     />
                   </Stack>
                 ) : (
-                  tab.label
+                  t(tab.labelKey)
                 )
               }
               sx={{

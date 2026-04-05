@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Box,
   Tabs,
@@ -41,8 +41,10 @@ import {
   PosterRepairSection,
   LegacyEmbeddingsSection,
   ApiKeysSection,
+  LanguageDefaultsSection,
 } from './components'
 import { ApiErrorAlert } from '../../components/ApiErrorAlert'
+import { useTranslation } from 'react-i18next'
 
 interface TabPanelProps {
   children?: React.ReactNode
@@ -58,12 +60,91 @@ function TabPanel({ children, value, index }: TabPanelProps) {
   )
 }
 
+const ADMIN_MAIN_TAB_KEYS = [
+  'setup',
+  'ai-llm',
+  'ai-recs',
+  'top-picks',
+  'watching',
+  'maintenance',
+  'system',
+] as const
+
+function adminMainIndexFromParam(tab: string | null): number {
+  if (!tab) return 0
+  const idx = ADMIN_MAIN_TAB_KEYS.indexOf(tab as (typeof ADMIN_MAIN_TAB_KEYS)[number])
+  return idx >= 0 ? idx : 0
+}
+
+function adminMainParamFromIndex(index: number): string {
+  return ADMIN_MAIN_TAB_KEYS[index] ?? 'setup'
+}
+
+const SETUP_SUB_KEYS = ['media', 'integrations'] as const
+const AI_SUB_KEYS = ['output', 'features', 'algorithm'] as const
+
+function setupSubIndexFromParam(p: string | null): number {
+  if (p === 'integrations') return 1
+  return 0
+}
+
+function setupSubParamFromIndex(index: number): string {
+  return SETUP_SUB_KEYS[index] ?? 'media'
+}
+
+function aiSubIndexFromParam(p: string | null): number {
+  if (p === 'features') return 1
+  if (p === 'algorithm') return 2
+  return 0
+}
+
+function aiSubParamFromIndex(index: number): string {
+  return AI_SUB_KEYS[index] ?? 'output'
+}
+
 export function SettingsPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
-  const [tabValue, setTabValue] = useState(0)
-  const [setupSubTab, setSetupSubTab] = useState(0)
-  const [aiSubTab, setAiSubTab] = useState(0)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [tabValue, setTabValue] = useState(() => adminMainIndexFromParam(searchParams.get('tab')))
+  const [setupSubTab, setSetupSubTab] = useState(() => setupSubIndexFromParam(searchParams.get('setupSub')))
+  const [aiSubTab, setAiSubTab] = useState(() => aiSubIndexFromParam(searchParams.get('aiSub')))
   const settings = useSettingsData(true) // Admin-only page now
+
+  useEffect(() => {
+    setTabValue(adminMainIndexFromParam(searchParams.get('tab')))
+    setSetupSubTab(setupSubIndexFromParam(searchParams.get('setupSub')))
+    setAiSubTab(aiSubIndexFromParam(searchParams.get('aiSub')))
+  }, [searchParams])
+
+  const updateAdminSettingsParams = (updates: Record<string, string | null>) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        for (const [key, val] of Object.entries(updates)) {
+          if (val === null) next.delete(key)
+          else next.set(key, val)
+        }
+        return next
+      },
+      { replace: true }
+    )
+  }
+
+  const handleMainTabChange = (_: React.SyntheticEvent, v: number) => {
+    setTabValue(v)
+    updateAdminSettingsParams({ tab: adminMainParamFromIndex(v) })
+  }
+
+  const handleSetupSubChange = (_: React.SyntheticEvent, v: number) => {
+    setSetupSubTab(v)
+    updateAdminSettingsParams({ setupSub: setupSubParamFromIndex(v) })
+  }
+
+  const handleAiSubChange = (_: React.SyntheticEvent, v: number) => {
+    setAiSubTab(v)
+    updateAdminSettingsParams({ aiSub: aiSubParamFromIndex(v) })
+  }
 
   return (
     <Box>
@@ -77,7 +158,7 @@ export function SettingsPage() {
       >
         <Tabs
           value={tabValue}
-          onChange={(_, v) => setTabValue(v)}
+          onChange={handleMainTabChange}
           variant="scrollable"
           scrollButtons="auto"
           sx={{
@@ -92,13 +173,13 @@ export function SettingsPage() {
             },
           }}
         >
-          <Tab icon={<BuildIcon />} iconPosition="start" label="Setup" />
-          <Tab icon={<MemoryIcon />} iconPosition="start" label="AI / LLM" />
-          <Tab icon={<AutoAwesomeIcon />} iconPosition="start" label="AI Recommendations" />
-          <Tab icon={<TrendingUpIcon />} iconPosition="start" label="Top Picks" />
-          <Tab icon={<AddToQueueIcon />} iconPosition="start" label="Shows You Watch" />
-          <Tab icon={<HandymanIcon />} iconPosition="start" label="Maintenance" />
-          <Tab icon={<SettingsIcon />} iconPosition="start" label="System" />
+          <Tab icon={<BuildIcon />} iconPosition="start" label={t('settingsPage.tabSetup')} />
+          <Tab icon={<MemoryIcon />} iconPosition="start" label={t('settingsPage.tabAiLlm')} />
+          <Tab icon={<AutoAwesomeIcon />} iconPosition="start" label={t('settingsPage.tabAiRecs')} />
+          <Tab icon={<TrendingUpIcon />} iconPosition="start" label={t('settingsPage.tabTopPicks')} />
+          <Tab icon={<AddToQueueIcon />} iconPosition="start" label={t('settingsPage.tabWatching')} />
+          <Tab icon={<HandymanIcon />} iconPosition="start" label={t('settingsPage.tabMaintenance')} />
+          <Tab icon={<SettingsIcon />} iconPosition="start" label={t('settingsPage.tabSystem')} />
         </Tabs>
 
         <Box sx={{ p: 3 }}>
@@ -106,13 +187,13 @@ export function SettingsPage() {
           <TabPanel value={tabValue} index={0}>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
               <Button variant="outlined" onClick={() => navigate('/setup', { state: { from: '/admin/settings' } })}>
-                Re-run Setup Wizard
+                {t('settingsPage.rerunSetup')}
               </Button>
             </Box>
             {/* Sub-tabs for Setup */}
             <Tabs
               value={setupSubTab}
-              onChange={(_, v) => setSetupSubTab(v)}
+              onChange={handleSetupSubChange}
               variant="scrollable"
               scrollButtons="auto"
               sx={{
@@ -127,8 +208,8 @@ export function SettingsPage() {
                 },
               }}
             >
-              <Tab icon={<StorageIcon />} iconPosition="start" label="Media Server" />
-              <Tab icon={<ExtensionIcon />} iconPosition="start" label="Integrations" />
+              <Tab icon={<StorageIcon />} iconPosition="start" label={t('settingsPage.subMediaServer')} />
+              <Tab icon={<ExtensionIcon />} iconPosition="start" label={t('settingsPage.subIntegrations')} />
             </Tabs>
 
             {/* Media Server Sub-tab */}
@@ -178,7 +259,7 @@ export function SettingsPage() {
             {/* Sub-tabs for AI Recommendations */}
             <Tabs
               value={aiSubTab}
-              onChange={(_, v) => setAiSubTab(v)}
+              onChange={handleAiSubChange}
               variant="scrollable"
               scrollButtons="auto"
               sx={{
@@ -193,9 +274,9 @@ export function SettingsPage() {
                 },
               }}
             >
-              <Tab icon={<OutputIcon />} iconPosition="start" label="Output" />
-              <Tab icon={<PsychologyIcon />} iconPosition="start" label="AI Features" />
-              <Tab icon={<TuneIcon />} iconPosition="start" label="Algorithm" />
+              <Tab icon={<OutputIcon />} iconPosition="start" label={t('settingsPage.subOutput')} />
+              <Tab icon={<PsychologyIcon />} iconPosition="start" label={t('settingsPage.subAiFeatures')} />
+              <Tab icon={<TuneIcon />} iconPosition="start" label={t('settingsPage.subAlgorithm')} />
             </Tabs>
 
             {/* Output Sub-tab */}
@@ -256,6 +337,7 @@ export function SettingsPage() {
           {/* System Tab */}
           <TabPanel value={tabValue} index={6}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <LanguageDefaultsSection />
               {/* API Keys */}
               <ApiKeysSection />
 
