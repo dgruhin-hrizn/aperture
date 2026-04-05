@@ -13,6 +13,7 @@ export interface JobSchedule {
   minute: number | null
   dayOfWeek: number | null
   intervalHours: number | null
+  intervalMinutes: number | null
   isEnabled: boolean
   formatted: string
 }

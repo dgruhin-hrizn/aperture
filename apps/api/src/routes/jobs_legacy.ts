@@ -280,6 +280,7 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
                 minute: config.scheduleMinute,
                 dayOfWeek: config.scheduleDayOfWeek,
                 intervalHours: config.scheduleIntervalHours,
+                intervalMinutes: config.scheduleIntervalMinutes,
                 isEnabled: config.isEnabled,
                 formatted: formatSchedule(config),
               }
@@ -414,6 +415,7 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
           scheduleMinute: config.scheduleMinute,
           scheduleDayOfWeek: config.scheduleDayOfWeek,
           scheduleIntervalHours: config.scheduleIntervalHours,
+          scheduleIntervalMinutes: config.scheduleIntervalMinutes,
           isEnabled: config.isEnabled,
           formatted: formatSchedule(config),
         },
@@ -433,6 +435,7 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
       scheduleMinute?: number | null
       scheduleDayOfWeek?: number | null
       scheduleIntervalHours?: number | null
+      scheduleIntervalMinutes?: number | null
       isEnabled?: boolean
     }
   }>('/api/jobs/:name/config', { preHandler: requireAdmin, schema: { tags: ['jobs'] } }, async (request, reply) => {
@@ -485,6 +488,29 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
       }
     }
 
+    if (updates.scheduleIntervalMinutes !== undefined && updates.scheduleIntervalMinutes !== null) {
+      if (![15, 30].includes(updates.scheduleIntervalMinutes)) {
+        return reply.status(400).send({ error: 'Interval minutes must be 15 or 30' })
+      }
+    }
+
+    if (updates.scheduleType === 'interval') {
+      const hasHours =
+        updates.scheduleIntervalHours !== undefined && updates.scheduleIntervalHours !== null
+      const hasMinutes =
+        updates.scheduleIntervalMinutes !== undefined && updates.scheduleIntervalMinutes !== null
+      if (!hasHours && !hasMinutes) {
+        return reply.status(400).send({
+          error: 'Interval schedules require scheduleIntervalHours or scheduleIntervalMinutes',
+        })
+      }
+      if (hasHours && hasMinutes) {
+        return reply.status(400).send({
+          error: 'Use either scheduleIntervalHours or scheduleIntervalMinutes, not both',
+        })
+      }
+    }
+
     try {
       const config = await setJobConfig(name, updates)
       logger.info({ job: name, config: updates }, 'Job config updated')
@@ -504,6 +530,7 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
           scheduleMinute: config.scheduleMinute,
           scheduleDayOfWeek: config.scheduleDayOfWeek,
           scheduleIntervalHours: config.scheduleIntervalHours,
+          scheduleIntervalMinutes: config.scheduleIntervalMinutes,
           isEnabled: config.isEnabled,
           formatted: formatSchedule(config),
         },

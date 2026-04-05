@@ -12,6 +12,8 @@ export interface JobConfig {
   scheduleMinute: number | null
   scheduleDayOfWeek: number | null
   scheduleIntervalHours: number | null
+  /** 15 or 30 when set; mutually exclusive with scheduleIntervalHours for interval schedules */
+  scheduleIntervalMinutes: number | null
   isEnabled: boolean
   updatedAt: Date
 }
@@ -23,6 +25,7 @@ interface JobConfigRow {
   schedule_minute: number | null
   schedule_day_of_week: number | null
   schedule_interval_hours: number | null
+  schedule_interval_minutes: number | null
   is_enabled: boolean
   updated_at: Date
 }
@@ -36,11 +39,12 @@ const ENV_DEFAULTS: Record<
     hour: number
     minute: number
     intervalHours?: number
+    intervalMinutes?: number
     dayOfWeek?: number
   }
 > = {
   // === EVERY 30 MINUTES ===
-  'sync-users': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 0.5 },
+  'sync-users': { scheduleType: 'interval', hour: 0, minute: 0, intervalMinutes: 30 },
 
   // === EVERY HOUR (staggered by 15 mins) ===
   'sync-series-watch-history': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 1 },
@@ -89,6 +93,7 @@ function rowToConfig(row: JobConfigRow): JobConfig {
     scheduleMinute: row.schedule_minute,
     scheduleDayOfWeek: row.schedule_day_of_week,
     scheduleIntervalHours: row.schedule_interval_hours,
+    scheduleIntervalMinutes: row.schedule_interval_minutes,
     isEnabled: row.is_enabled,
     updatedAt: row.updated_at,
   }
@@ -100,7 +105,7 @@ function rowToConfig(row: JobConfigRow): JobConfig {
 export async function getJobConfig(jobName: string): Promise<JobConfig | null> {
   const result = await queryOne<JobConfigRow>(
     `SELECT job_name, schedule_type, schedule_hour, schedule_minute,
-            schedule_day_of_week, schedule_interval_hours, is_enabled, updated_at
+            schedule_day_of_week, schedule_interval_hours, schedule_interval_minutes, is_enabled, updated_at
      FROM job_config
      WHERE job_name = $1`,
     [jobName]
@@ -120,6 +125,7 @@ export async function getJobConfig(jobName: string): Promise<JobConfig | null> {
       scheduleMinute: defaultConfig.minute,
       scheduleDayOfWeek: defaultConfig.dayOfWeek ?? null,
       scheduleIntervalHours: defaultConfig.intervalHours ?? null,
+      scheduleIntervalMinutes: defaultConfig.intervalMinutes ?? null,
       isEnabled: true,
       updatedAt: new Date(),
     }
@@ -134,7 +140,7 @@ export async function getJobConfig(jobName: string): Promise<JobConfig | null> {
 export async function getAllJobConfigs(): Promise<JobConfig[]> {
   const result = await query<JobConfigRow>(
     `SELECT job_name, schedule_type, schedule_hour, schedule_minute,
-            schedule_day_of_week, schedule_interval_hours, is_enabled, updated_at
+            schedule_day_of_week, schedule_interval_hours, schedule_interval_minutes, is_enabled, updated_at
      FROM job_config
      ORDER BY job_name`
   )
@@ -164,23 +170,25 @@ export async function setJobConfig(
     scheduleMinute?: number | null
     scheduleDayOfWeek?: number | null
     scheduleIntervalHours?: number | null
+    scheduleIntervalMinutes?: number | null
     isEnabled?: boolean
   }
 ): Promise<JobConfig> {
   const result = await queryOne<JobConfigRow>(
     `INSERT INTO job_config (job_name, schedule_type, schedule_hour, schedule_minute,
-                             schedule_day_of_week, schedule_interval_hours, is_enabled)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+                             schedule_day_of_week, schedule_interval_hours, schedule_interval_minutes, is_enabled)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      ON CONFLICT (job_name) DO UPDATE SET
        schedule_type = COALESCE($2, job_config.schedule_type),
        schedule_hour = CASE WHEN $2 IS NOT NULL THEN $3 ELSE job_config.schedule_hour END,
        schedule_minute = CASE WHEN $2 IS NOT NULL THEN $4 ELSE job_config.schedule_minute END,
        schedule_day_of_week = CASE WHEN $2 IS NOT NULL THEN $5 ELSE job_config.schedule_day_of_week END,
        schedule_interval_hours = CASE WHEN $2 IS NOT NULL THEN $6 ELSE job_config.schedule_interval_hours END,
-       is_enabled = COALESCE($7, job_config.is_enabled),
+       schedule_interval_minutes = CASE WHEN $2 IS NOT NULL THEN $7 ELSE job_config.schedule_interval_minutes END,
+       is_enabled = COALESCE($8, job_config.is_enabled),
        updated_at = NOW()
      RETURNING job_name, schedule_type, schedule_hour, schedule_minute,
-               schedule_day_of_week, schedule_interval_hours, is_enabled, updated_at`,
+               schedule_day_of_week, schedule_interval_hours, schedule_interval_minutes, is_enabled, updated_at`,
     [
       jobName,
       config.scheduleType ?? 'daily',
@@ -188,6 +196,7 @@ export async function setJobConfig(
       config.scheduleMinute ?? null,
       config.scheduleDayOfWeek ?? null,
       config.scheduleIntervalHours ?? null,
+      config.scheduleIntervalMinutes ?? null,
       config.isEnabled ?? true,
     ]
   )
@@ -221,6 +230,13 @@ export function scheduleToCron(config: JobConfig): string | null {
     }
 
     case 'interval': {
+      const intervalMins = config.scheduleIntervalMinutes
+      if (intervalMins === 15) {
+        return '*/15 * * * *'
+      }
+      if (intervalMins === 30) {
+        return '*/30 * * * *'
+      }
       const intervalHours = config.scheduleIntervalHours ?? 1
       // Use minute offset for staggering jobs at the same interval
       return `${minute} */${intervalHours} * * *`
@@ -264,6 +280,13 @@ export function formatSchedule(config: JobConfig): string {
     }
 
     case 'interval': {
+      const intervalMins = config.scheduleIntervalMinutes
+      if (intervalMins === 15) {
+        return 'Every 15 minutes'
+      }
+      if (intervalMins === 30) {
+        return 'Every 30 minutes'
+      }
       const hours = config.scheduleIntervalHours ?? 1
       // Show minute offset if non-zero (for staggered jobs)
       if (minute > 0) {

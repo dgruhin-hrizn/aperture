@@ -63,13 +63,11 @@ function getNextRunTime(schedule: JobSchedule | null): string {
       nextRun.setDate(nextRun.getDate() + daysUntil)
     }
   } else if (schedule.type === 'interval') {
-    const hours = schedule.intervalHours ?? 1
-    const currentHour = now.getHours()
-    const nextHour = Math.ceil(currentHour / hours) * hours
-    nextRun.setHours(nextHour, 0, 0, 0)
-    if (nextRun <= now) {
-      nextRun.setHours(nextHour + hours, 0, 0, 0)
-    }
+    const intervalMins =
+      schedule.intervalMinutes ?? (schedule.intervalHours ?? 1) * 60
+    const ms = intervalMins * 60 * 1000
+    const next = new Date(Math.ceil(now.getTime() / ms) * ms)
+    nextRun.setTime(next.getTime())
   }
   
   // Format relative time
@@ -150,13 +148,11 @@ function getMinutesUntilNextRun(schedule: JobSchedule | null | undefined): numbe
       nextRun.setDate(nextRun.getDate() + daysUntil)
     }
   } else if (schedule.type === 'interval') {
-    const hours = schedule.intervalHours ?? 1
-    const currentHour = now.getHours()
-    const nextHour = Math.ceil((currentHour + 1) / hours) * hours
-    nextRun.setHours(nextHour % 24, 0, 0, 0)
-    if (nextRun <= now) {
-      nextRun.setHours(nextRun.getHours() + hours)
-    }
+    const intervalMins =
+      schedule.intervalMinutes ?? (schedule.intervalHours ?? 1) * 60
+    const ms = intervalMins * 60 * 1000
+    const next = new Date(Math.ceil(now.getTime() / ms) * ms)
+    nextRun.setTime(next.getTime())
   }
   
   return Math.floor((nextRun.getTime() - now.getTime()) / (1000 * 60))

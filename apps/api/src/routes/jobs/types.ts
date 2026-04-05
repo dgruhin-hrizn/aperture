@@ -37,5 +37,6 @@ export interface JobConfigUpdate {
   scheduleMinute?: number | null
   scheduleDayOfWeek?: number | null
   scheduleIntervalHours?: number | null
+  scheduleIntervalMinutes?: number | null
   isEnabled?: boolean
 }

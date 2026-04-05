@@ -35,6 +35,7 @@ interface JobConfigDialogProps {
     scheduleMinute: number | null
     scheduleDayOfWeek: number | null
     scheduleIntervalHours: number | null
+    scheduleIntervalMinutes: number | null
     isEnabled: boolean
   }) => Promise<void>
 }
@@ -54,14 +55,17 @@ const HOURS = Array.from({ length: 24 }, (_, i) => ({
   label: i === 0 ? '12:00 AM' : i < 12 ? `${i}:00 AM` : i === 12 ? '12:00 PM' : `${i - 12}:00 PM`,
 }))
 
+/** Interval length in minutes (15/30 sub-hour; 60+ = hourly multiples) */
 const INTERVAL_OPTIONS = [
-  { value: 1, label: 'Every hour' },
-  { value: 2, label: 'Every 2 hours' },
-  { value: 3, label: 'Every 3 hours' },
-  { value: 4, label: 'Every 4 hours' },
-  { value: 6, label: 'Every 6 hours' },
-  { value: 8, label: 'Every 8 hours' },
-  { value: 12, label: 'Every 12 hours' },
+  { value: 15, label: 'Every 15 minutes' },
+  { value: 30, label: 'Every 30 minutes' },
+  { value: 60, label: 'Every hour' },
+  { value: 120, label: 'Every 2 hours' },
+  { value: 180, label: 'Every 3 hours' },
+  { value: 240, label: 'Every 4 hours' },
+  { value: 360, label: 'Every 6 hours' },
+  { value: 480, label: 'Every 8 hours' },
+  { value: 720, label: 'Every 12 hours' },
 ]
 
 export function JobConfigDialog({
@@ -75,7 +79,7 @@ export function JobConfigDialog({
   const [scheduleType, setScheduleType] = useState<ScheduleType>('daily')
   const [hour, setHour] = useState<number>(3)
   const [dayOfWeek, setDayOfWeek] = useState<number>(0)
-  const [intervalHours, setIntervalHours] = useState<number>(6)
+  const [intervalMinutesTotal, setIntervalMinutesTotal] = useState<number>(360)
   const [isEnabled, setIsEnabled] = useState<boolean>(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -87,7 +91,10 @@ export function JobConfigDialog({
       setScheduleType(currentSchedule.type)
       setHour(currentSchedule.hour ?? 3)
       setDayOfWeek(currentSchedule.dayOfWeek ?? 0)
-      setIntervalHours(currentSchedule.intervalHours ?? 6)
+      setIntervalMinutesTotal(
+        currentSchedule.intervalMinutes ??
+          (currentSchedule.intervalHours != null ? currentSchedule.intervalHours * 60 : 360)
+      )
       setIsEnabled(currentSchedule.isEnabled)
       setInitialized(true)
     }
@@ -103,12 +110,15 @@ export function JobConfigDialog({
     setError(null)
 
     try {
+      const subHour = scheduleType === 'interval' && intervalMinutesTotal < 60
       await onSave({
         scheduleType,
         scheduleHour: scheduleType === 'interval' || scheduleType === 'manual' ? null : hour,
         scheduleMinute: scheduleType === 'interval' || scheduleType === 'manual' ? null : 0,
         scheduleDayOfWeek: scheduleType === 'weekly' ? dayOfWeek : null,
-        scheduleIntervalHours: scheduleType === 'interval' ? intervalHours : null,
+        scheduleIntervalHours:
+          scheduleType === 'interval' && !subHour ? intervalMinutesTotal / 60 : null,
+        scheduleIntervalMinutes: scheduleType === 'interval' && subHour ? intervalMinutesTotal : null,
         isEnabled,
       })
       onClose()
@@ -129,7 +139,9 @@ export function JobConfigDialog({
       case 'weekly':
         return `Runs every ${DAYS_OF_WEEK.find((d) => d.value === dayOfWeek)?.label} at ${HOURS.find((h) => h.value === hour)?.label}`
       case 'interval':
-        return INTERVAL_OPTIONS.find((i) => i.value === intervalHours)?.label || 'Every X hours'
+        return (
+          INTERVAL_OPTIONS.find((i) => i.value === intervalMinutesTotal)?.label || 'Interval'
+        )
       case 'manual':
         return 'Manual only - no automatic runs'
       default:
@@ -188,7 +200,7 @@ export function JobConfigDialog({
             >
               <FormControlLabel value="daily" control={<Radio />} label="Daily" disabled={manualOnly} />
               <FormControlLabel value="weekly" control={<Radio />} label="Weekly" disabled={manualOnly} />
-              <FormControlLabel value="interval" control={<Radio />} label="Every X hours" disabled={manualOnly} />
+              <FormControlLabel value="interval" control={<Radio />} label="Interval" disabled={manualOnly} />
               <FormControlLabel value="manual" control={<Radio />} label="Manual only" />
             </RadioGroup>
           </FormControl>
@@ -234,8 +246,8 @@ export function JobConfigDialog({
             <FormControl fullWidth>
               <FormLabel sx={{ mb: 1, fontWeight: 500 }}>Interval</FormLabel>
               <Select
-                value={intervalHours}
-                onChange={(e) => setIntervalHours(e.target.value as number)}
+                value={intervalMinutesTotal}
+                onChange={(e) => setIntervalMinutesTotal(e.target.value as number)}
                 size="small"
               >
                 {INTERVAL_OPTIONS.map((i) => (

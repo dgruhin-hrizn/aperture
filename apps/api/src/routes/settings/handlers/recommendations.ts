@@ -59,17 +59,27 @@ function validateConfigUpdates(updates: Partial<MediaTypeConfig>): string | null
 /**
  * Helper function to calculate runs per week from job schedule
  */
-function calculateRunsPerWeek(scheduleType: string, intervalHours?: number | null): number {
+function calculateRunsPerWeek(
+  scheduleType: string,
+  intervalHours?: number | null,
+  intervalMinutes?: number | null
+): number {
   switch (scheduleType) {
     case 'daily':
       return 7
     case 'weekly':
       return 1
-    case 'interval':
-      if (intervalHours && intervalHours > 0) {
-        return Math.round((24 * 7) / intervalHours)
+    case 'interval': {
+      const hourSpan = intervalMinutes
+        ? intervalMinutes / 60
+        : intervalHours && intervalHours > 0
+          ? intervalHours
+          : null
+      if (hourSpan && hourSpan > 0) {
+        return Math.round((24 * 7) / hourSpan)
       }
       return 7
+    }
     case 'manual':
       return 0
     default:
@@ -248,19 +258,39 @@ export function registerRecommendationHandlers(fastify: FastifyInstance) {
       const totalEpisodes = parseInt(totalLibraryResult.rows[0]?.total_episodes || '0', 10)
 
       const movieRecsRunsPerWeek = movieRecsJobConfig
-        ? calculateRunsPerWeek(movieRecsJobConfig.scheduleType, movieRecsJobConfig.scheduleIntervalHours)
+        ? calculateRunsPerWeek(
+            movieRecsJobConfig.scheduleType,
+            movieRecsJobConfig.scheduleIntervalHours,
+            movieRecsJobConfig.scheduleIntervalMinutes
+          )
         : 1
       const seriesRecsRunsPerWeek = seriesRecsJobConfig
-        ? calculateRunsPerWeek(seriesRecsJobConfig.scheduleType, seriesRecsJobConfig.scheduleIntervalHours)
+        ? calculateRunsPerWeek(
+            seriesRecsJobConfig.scheduleType,
+            seriesRecsJobConfig.scheduleIntervalHours,
+            seriesRecsJobConfig.scheduleIntervalMinutes
+          )
         : 1
       const movieEmbeddingsRunsPerWeek = movieEmbeddingsJobConfig
-        ? calculateRunsPerWeek(movieEmbeddingsJobConfig.scheduleType, movieEmbeddingsJobConfig.scheduleIntervalHours)
+        ? calculateRunsPerWeek(
+            movieEmbeddingsJobConfig.scheduleType,
+            movieEmbeddingsJobConfig.scheduleIntervalHours,
+            movieEmbeddingsJobConfig.scheduleIntervalMinutes
+          )
         : 7
       const seriesEmbeddingsRunsPerWeek = seriesEmbeddingsJobConfig
-        ? calculateRunsPerWeek(seriesEmbeddingsJobConfig.scheduleType, seriesEmbeddingsJobConfig.scheduleIntervalHours)
+        ? calculateRunsPerWeek(
+            seriesEmbeddingsJobConfig.scheduleType,
+            seriesEmbeddingsJobConfig.scheduleIntervalHours,
+            seriesEmbeddingsJobConfig.scheduleIntervalMinutes
+          )
         : 7
       const assistantRunsPerWeek = assistantJobConfig
-        ? calculateRunsPerWeek(assistantJobConfig.scheduleType, assistantJobConfig.scheduleIntervalHours)
+        ? calculateRunsPerWeek(
+            assistantJobConfig.scheduleType,
+            assistantJobConfig.scheduleIntervalHours,
+            assistantJobConfig.scheduleIntervalMinutes
+          )
         : 168
 
       return reply.send({
