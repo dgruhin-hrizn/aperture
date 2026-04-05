@@ -1,6 +1,9 @@
 /**
  * Amusing messages to cycle through while waiting for long-running jobs.
  * Includes adapted movie quotes and pop culture references.
+ *
+ * **Intentionally English-only:** There are 600+ quips, puns, and cultural references.
+ * Localizing them is out of scope; see `apps/web/src/i18n/CONVENTIONS.md`.
  */
 export const WAITING_MESSAGES = [
   // General amusing messages

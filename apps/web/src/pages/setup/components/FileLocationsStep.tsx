@@ -15,6 +15,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import { useTranslation } from 'react-i18next'
 import type { SetupWizardContext } from '../types'
 
 interface FileLocationsStepProps {
@@ -34,6 +35,7 @@ interface DetectionResult {
 }
 
 export function FileLocationsStep({ wizard }: FileLocationsStepProps) {
+  const { t } = useTranslation()
   const { goToStep, updateProgress } = wizard
 
   const [config, setConfig] = useState<OutputPathConfig>({
@@ -83,7 +85,7 @@ export function FileLocationsStep({ wizard }: FileLocationsStepProps) {
 
       if (!response.ok) {
         const data = await response.json()
-        throw new Error(data.message || data.error || 'Auto-detection failed')
+        throw new Error(data.message || data.error || t('setup.fileLocations.errDetect'))
       }
 
       const result: DetectionResult = await response.json()
@@ -93,7 +95,7 @@ export function FileLocationsStep({ wizard }: FileLocationsStepProps) {
         mediaServerPathPrefix: result.mediaServerPathPrefix,
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Auto-detection failed')
+      setError(err instanceof Error ? err.message : t('setup.fileLocations.errDetect'))
       setShowManualEntry(true)
     } finally {
       setDetecting(false)
@@ -115,14 +117,14 @@ export function FileLocationsStep({ wizard }: FileLocationsStepProps) {
 
       if (!response.ok) {
         const data = await response.json()
-        throw new Error(data.error || 'Failed to save configuration')
+        throw new Error(data.error || t('setup.fileLocations.errSave'))
       }
 
       setSuccess(true)
       await updateProgress({ completedStep: 'fileLocations' })
       goToStep('aiRecsLibraries')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save configuration')
+      setError(err instanceof Error ? err.message : t('setup.fileLocations.errSave'))
     } finally {
       setSaving(false)
     }
@@ -144,11 +146,10 @@ export function FileLocationsStep({ wizard }: FileLocationsStepProps) {
   return (
     <Box>
       <Typography variant="h6" gutterBottom>
-        File Locations
+        {t('setup.fileLocations.title')}
       </Typography>
       <Typography variant="body2" color="text.secondary" paragraph>
-        Configure where your media server sees Aperture's library files. These paths must match how your media server
-        accesses the volumes mounted in your Docker configuration.
+        {t('setup.fileLocations.body')}
       </Typography>
 
       {error && (
@@ -159,7 +160,7 @@ export function FileLocationsStep({ wizard }: FileLocationsStepProps) {
 
       {success && (
         <Alert severity="success" sx={{ mb: 2 }} icon={<CheckCircleIcon />}>
-          File locations saved!
+          {t('setup.fileLocations.saved')}
         </Alert>
       )}
 
@@ -169,12 +170,11 @@ export function FileLocationsStep({ wizard }: FileLocationsStepProps) {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
             <AutoFixHighIcon color="primary" />
             <Typography variant="subtitle1" fontWeight={600}>
-              Auto-Detect Paths
+              {t('setup.fileLocations.autoDetectTitle')}
             </Typography>
           </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Aperture can automatically detect the correct paths by comparing how your media server sees files with how
-            Aperture sees them.
+            {t('setup.fileLocations.autoDetectBody')}
           </Typography>
 
           <Button
@@ -183,22 +183,22 @@ export function FileLocationsStep({ wizard }: FileLocationsStepProps) {
             disabled={detecting}
             startIcon={detecting ? <CircularProgress size={16} /> : <AutoFixHighIcon />}
           >
-            {detecting ? 'Detecting...' : 'Detect Paths Automatically'}
+            {detecting ? t('setup.fileLocations.detecting') : t('setup.fileLocations.detectButton')}
           </Button>
 
           {/* Detection Result */}
           {detectionResult && (
             <Alert severity="success" sx={{ mt: 2 }} icon={<CheckCircleIcon />}>
               <Typography variant="body2" fontWeight={500}>
-                Paths detected successfully!
+                {t('setup.fileLocations.pathsDetected')}
               </Typography>
               <Typography variant="caption" component="div" sx={{ mt: 1, fontFamily: 'monospace' }}>
-                Media server sees: <code>{detectionResult.sampleMediaServerPath}</code>
+                {t('setup.fileLocations.mediaServerSees')} <code>{detectionResult.sampleMediaServerPath}</code>
                 <br />
-                Aperture sees: <code>{detectionResult.sampleAperturePath}</code>
+                {t('setup.fileLocations.apertureSees')} <code>{detectionResult.sampleAperturePath}</code>
                 <br />
                 <br />
-                Detected prefix: <strong>{detectionResult.mediaServerPathPrefix}</strong>
+                {t('setup.fileLocations.detectedPrefix')} <strong>{detectionResult.mediaServerPathPrefix}</strong>
               </Typography>
             </Alert>
           )}
@@ -211,10 +211,12 @@ export function FileLocationsStep({ wizard }: FileLocationsStepProps) {
           size="small"
           color="inherit"
           onClick={() => setShowManualEntry(!showManualEntry)}
-          endIcon={<ExpandMoreIcon sx={{ transform: showManualEntry ? 'rotate(180deg)' : 'none', transition: '0.2s' }} />}
+          endIcon={
+            <ExpandMoreIcon sx={{ transform: showManualEntry ? 'rotate(180deg)' : 'none', transition: '0.2s' }} />
+          }
           sx={{ color: 'text.secondary', textTransform: 'none', mb: 1 }}
         >
-          {showManualEntry ? 'Hide manual configuration' : 'Or configure manually'}
+          {showManualEntry ? t('setup.fileLocations.hideManual') : t('setup.fileLocations.orManual')}
         </Button>
 
         <Collapse in={showManualEntry || !!detectionResult}>
@@ -222,9 +224,7 @@ export function FileLocationsStep({ wizard }: FileLocationsStepProps) {
             {/* Tip Card */}
             <Alert severity="info" icon={<InfoOutlinedIcon />} sx={{ py: 0.5 }}>
               <Typography variant="caption">
-                <strong>How to find these paths:</strong> Open any movie in your media server, go to Media Info, and
-                look at the file path. If it shows <code>/mnt/Movies/SomeMovie/file.mkv</code>, your media path prefix
-                is <code>/mnt/</code>.
+                <strong>{t('setup.fileLocations.howToFindTitle')}</strong> {t('setup.fileLocations.howToFindBody')}
               </Typography>
             </Alert>
 
@@ -233,10 +233,10 @@ export function FileLocationsStep({ wizard }: FileLocationsStepProps) {
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                   <FolderIcon color="primary" fontSize="small" />
-                  <Typography variant="subtitle2">Aperture Libraries Path</Typography>
+                  <Typography variant="subtitle2">{t('setup.fileLocations.apertureLibsPath')}</Typography>
                 </Box>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Where does your media server see Aperture's output libraries?
+                  {t('setup.fileLocations.apertureLibsHelp')}
                 </Typography>
                 <TextField
                   fullWidth
@@ -244,11 +244,7 @@ export function FileLocationsStep({ wizard }: FileLocationsStepProps) {
                   value={config.mediaServerLibrariesPath}
                   onChange={(e) => setConfig((c) => ({ ...c, mediaServerLibrariesPath: e.target.value }))}
                   placeholder="/mnt/ApertureLibraries/"
-                  helperText={
-                    <>
-                      Path where your media server sees <code>/aperture-libraries</code>
-                    </>
-                  }
+                  helperText={t('setup.fileLocations.helperApertureLibs')}
                 />
               </CardContent>
             </Card>
@@ -258,10 +254,10 @@ export function FileLocationsStep({ wizard }: FileLocationsStepProps) {
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                   <FolderIcon color="primary" fontSize="small" />
-                  <Typography variant="subtitle2">Media Server Path Prefix</Typography>
+                  <Typography variant="subtitle2">{t('setup.fileLocations.mediaPrefixTitle')}</Typography>
                 </Box>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Where does your media server see your original media files?
+                  {t('setup.fileLocations.mediaPrefixHelp')}
                 </Typography>
                 <TextField
                   fullWidth
@@ -269,7 +265,7 @@ export function FileLocationsStep({ wizard }: FileLocationsStepProps) {
                   value={config.mediaServerPathPrefix}
                   onChange={(e) => setConfig((c) => ({ ...c, mediaServerPathPrefix: e.target.value }))}
                   placeholder="/mnt/"
-                  helperText="Used for creating symlinks to your media files"
+                  helperText={t('setup.fileLocations.symlinkHelper')}
                 />
               </CardContent>
             </Card>
@@ -282,12 +278,12 @@ export function FileLocationsStep({ wizard }: FileLocationsStepProps) {
         <Card sx={{ mb: 3, bgcolor: 'background.paper' }}>
           <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
             <Typography variant="subtitle2" gutterBottom>
-              Current Configuration
+              {t('setup.fileLocations.currentConfig')}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
-              Libraries Path: <strong>{config.mediaServerLibrariesPath}</strong>
+              {t('setup.fileLocations.librariesPathLine')} <strong>{config.mediaServerLibrariesPath}</strong>
               <br />
-              Media Prefix: <strong>{config.mediaServerPathPrefix}</strong>
+              {t('setup.fileLocations.mediaPrefixLine')} <strong>{config.mediaServerPathPrefix}</strong>
             </Typography>
           </CardContent>
         </Card>
@@ -295,13 +291,13 @@ export function FileLocationsStep({ wizard }: FileLocationsStepProps) {
 
       <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
         <Button variant="outlined" onClick={() => goToStep('mediaLibraries')}>
-          Back
+          {t('setup.fileLocations.back')}
         </Button>
         <Button variant="text" onClick={handleSkip} disabled={saving}>
-          Skip (Use Defaults)
+          {t('setup.fileLocations.skipDefaults')}
         </Button>
         <Button variant="contained" onClick={handleSave} disabled={saving}>
-          {saving ? <CircularProgress size={20} /> : 'Save & Continue'}
+          {saving ? <CircularProgress size={20} /> : t('setup.fileLocations.saveContinue')}
         </Button>
       </Box>
     </Box>

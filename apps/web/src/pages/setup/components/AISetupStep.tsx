@@ -19,6 +19,7 @@ import {
   Warning as WarningIcon,
   HubOutlined as HubOutlinedIcon,
 } from '@mui/icons-material'
+import { useTranslation } from 'react-i18next'
 import { AIFunctionCard, type FunctionConfig, type AIFunction } from '../../../components/AIFunctionCard'
 import type { SetupWizardContext } from '../types'
 
@@ -34,8 +35,9 @@ interface AIConfig {
 }
 
 export function AISetupStep({ wizard }: AISetupStepProps) {
+  const { t } = useTranslation()
   const { error, saving, goToStep } = wizard
-  
+
   const [config, setConfig] = useState<AIConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [testResults, setTestResults] = useState<Record<AIFunction, boolean | null>>({
@@ -54,31 +56,31 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
         fetch('/api/setup/ai/textGeneration', { credentials: 'include' }),
         fetch('/api/setup/ai/exploration', { credentials: 'include' }),
       ])
-      
+
       const embeddingsData = embeddingsRes.ok ? await embeddingsRes.json() : { config: null }
       const chatData = chatRes.ok ? await chatRes.json() : { config: null }
       const textGenData = textGenRes.ok ? await textGenRes.json() : { config: null }
       const explorationData = explorationRes.ok ? await explorationRes.json() : { config: null }
-      
+
       setConfig({
         embeddings: embeddingsData.config,
         chat: chatData.config,
         textGeneration: textGenData.config,
         exploration: explorationData.config,
       })
-      
+
       // If config exists, mark as tested
       if (embeddingsData.config) {
-        setTestResults(prev => ({ ...prev, embeddings: true }))
+        setTestResults((prev) => ({ ...prev, embeddings: true }))
       }
       if (chatData.config) {
-        setTestResults(prev => ({ ...prev, chat: true }))
+        setTestResults((prev) => ({ ...prev, chat: true }))
       }
       if (textGenData.config) {
-        setTestResults(prev => ({ ...prev, textGeneration: true }))
+        setTestResults((prev) => ({ ...prev, textGeneration: true }))
       }
       if (explorationData.config) {
-        setTestResults(prev => ({ ...prev, exploration: true }))
+        setTestResults((prev) => ({ ...prev, exploration: true }))
       }
     } catch {
       // Ignore
@@ -100,16 +102,15 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
     })
     if (!res.ok) {
       const err = await res.json()
-      throw new Error(err.error || 'Failed to save')
+      throw new Error(err.error || t('setup.aiSetup.saveFailed'))
     }
     // Mark as tested and refresh config
-    setTestResults(prev => ({ ...prev, [fn]: true }))
+    setTestResults((prev) => ({ ...prev, [fn]: true }))
     fetchConfig()
   }
 
   const handleContinue = () => {
-    // Go to the complete step
-    goToStep('complete')
+    goToStep('initialJobs')
   }
 
   // All 4 AI functions are required
@@ -118,12 +119,12 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
   const hasTextGen = config?.textGeneration?.provider && config?.textGeneration?.model
   const hasExploration = config?.exploration?.provider && config?.exploration?.model
   const canContinue = hasEmbeddings && hasChat && hasTextGen && hasExploration
-  
+
   const missingConfigs: string[] = []
-  if (!hasEmbeddings) missingConfigs.push('Embeddings')
-  if (!hasChat) missingConfigs.push('Chat Assistant')
-  if (!hasTextGen) missingConfigs.push('Text Generation')
-  if (!hasExploration) missingConfigs.push('Exploration')
+  if (!hasEmbeddings) missingConfigs.push(t('setup.aiSetup.nameEmbeddings'))
+  if (!hasChat) missingConfigs.push(t('setup.aiSetup.nameChat'))
+  if (!hasTextGen) missingConfigs.push(t('setup.aiSetup.nameTextGen'))
+  if (!hasExploration) missingConfigs.push(t('setup.aiSetup.nameExploration'))
 
   if (loading) {
     return (
@@ -136,25 +137,26 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
   return (
     <Box>
       <Typography variant="h6" gutterBottom>
-        Configure AI / LLM Providers
+        {t('setup.aiSetup.title')}
       </Typography>
       <Typography variant="body2" color="text.secondary" paragraph>
-        Aperture uses AI to power its recommendation engine. Configure your AI providers below.
-        <strong> Aperture recommends using OpenAI</strong> for the best experience, but you can explore
-        other providers including local models.
+        {t('setup.aiSetup.bodyLead')}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" paragraph>
+        <strong>{t('setup.aiSetup.bodyBold')}</strong> {t('setup.aiSetup.bodyTail')}
       </Typography>
 
       <Alert severity="info" sx={{ mb: 3 }}>
         <Typography variant="body2" fontWeight={500} gutterBottom>
-          Need an OpenAI API Key?
+          {t('setup.aiSetup.needKeyTitle')}
         </Typography>
         <Typography variant="body2">
-          Visit{' '}
+          {t('setup.aiSetup.needKeyBeforeLink')}{' '}
           <Link href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">
-            platform.openai.com/api-keys
+            {t('setup.aiSetup.needKeyLink')}
             <OpenInNewIcon sx={{ fontSize: 14, ml: 0.5, verticalAlign: 'middle' }} />
           </Link>{' '}
-          to create one. New accounts get $5 free credits. Typical usage costs ~$0.10-0.50/month.
+          {t('setup.aiSetup.needKeyAfterLink')}
         </Typography>
       </Alert>
 
@@ -165,16 +167,11 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
       )}
 
       {/* All AI Functions - 2x2 grid */}
-      <Box 
-        display="grid" 
-        gridTemplateColumns={{ xs: '1fr', md: 'repeat(2, 1fr)' }} 
-        gap={2} 
-        mb={3}
-      >
+      <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: 'repeat(2, 1fr)' }} gap={2} mb={3}>
         <AIFunctionCard
           functionType="embeddings"
-          title="Embeddings"
-          description="Required for semantic search and AI recommendations. Generates vector representations of your media library."
+          title={t('setup.aiSetup.cardEmbeddingsTitle')}
+          description={t('setup.aiSetup.cardEmbeddingsDesc')}
           icon={<MemoryIcon />}
           iconColor="#2196f3"
           config={config?.embeddings ?? null}
@@ -186,8 +183,8 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
 
         <AIFunctionCard
           functionType="chat"
-          title="Chat Assistant"
-          description="Powers the AI assistant for conversational interactions about your library."
+          title={t('setup.aiSetup.cardChatTitle')}
+          description={t('setup.aiSetup.cardChatDesc')}
           icon={<SmartToyIcon />}
           iconColor="#9c27b0"
           config={config?.chat ?? null}
@@ -199,8 +196,8 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
 
         <AIFunctionCard
           functionType="textGeneration"
-          title="Text Generation"
-          description="Generates recommendation explanations, taste profiles, and summaries."
+          title={t('setup.aiSetup.cardTextGenTitle')}
+          description={t('setup.aiSetup.cardTextGenDesc')}
           icon={<AutoFixHighIcon />}
           iconColor="#ff9800"
           config={config?.textGeneration ?? null}
@@ -211,8 +208,8 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
 
         <AIFunctionCard
           functionType="exploration"
-          title="Exploration"
-          description="Powers the Explore page. A powerful model here enables conceptual searches like 'feel-good comedies'."
+          title={t('setup.aiSetup.cardExplorationTitle')}
+          description={t('setup.aiSetup.cardExplorationDesc')}
           icon={<HubOutlinedIcon />}
           iconColor="#4caf50"
           config={config?.exploration ?? null}
@@ -225,21 +222,18 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
       {!canContinue && (
         <Alert severity="warning" icon={<WarningIcon />} sx={{ mb: 3 }}>
           <Typography variant="body2">
-            You must configure and test <strong>{missingConfigs.join(', ')}</strong> to continue.
+            {t('setup.aiSetup.missingConfigsPrefix')}{' '}
+            <strong>{missingConfigs.join(', ')}</strong> {t('setup.aiSetup.missingConfigsSuffix')}
           </Typography>
         </Alert>
       )}
 
       <Box sx={{ display: 'flex', gap: 2 }}>
         <Button variant="outlined" onClick={() => goToStep('topPicks')}>
-          Back
+          {t('setup.aiSetup.back')}
         </Button>
-        <Button
-          variant="contained"
-          onClick={handleContinue}
-          disabled={saving || !canContinue}
-        >
-          {saving ? <CircularProgress size={20} /> : 'Continue'}
+        <Button variant="contained" onClick={handleContinue} disabled={saving || !canContinue}>
+          {saving ? <CircularProgress size={20} /> : t('setup.aiSetup.continue')}
         </Button>
       </Box>
     </Box>

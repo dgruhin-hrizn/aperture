@@ -90,6 +90,7 @@ interface SimilarMediaProps {
 }
 
 export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: SimilarMediaProps) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { getRating, setRating } = useUserRatings()
   const { isWatching, toggleWatching } = useWatching()
@@ -164,7 +165,8 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
   }, [])
 
   // Get current center node title
-  const currentTitle = graphData?.nodes.find((n) => n.isCenter)?.title || mediaTitle || 'Media'
+  const currentTitle =
+    graphData?.nodes.find((n) => n.isCenter)?.title || mediaTitle || t('mediaDetail.similar.fallbackCenterTitle')
 
   const handleRate = useCallback(
     async (itemId: string, rating: number | null) => {
@@ -225,14 +227,14 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
               value="list"
               icon={<GridViewIcon fontSize="small" />}
               iconPosition="start"
-              label="List"
+              label={t('mediaDetail.similar.tabList')}
               sx={{ minHeight: 36, py: 0 }}
             />
             <Tab
               value="graph"
               icon={<BubbleChartIcon fontSize="small" />}
               iconPosition="start"
-              label="Graph"
+              label={t('mediaDetail.similar.tabGraph')}
               sx={{ minHeight: 36, py: 0 }}
             />
           </Tabs>
@@ -300,7 +302,7 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
             {/* Breadcrumb navigation for rabbit-hole exploration */}
             {history.length > 0 && (
               <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Tooltip title="Start over">
+                <Tooltip title={t('mediaDetail.similar.tooltipStartOver')}>
                   <IconButton size="small" onClick={startOver} sx={{ color: 'primary.main' }}>
                     <HomeIcon fontSize="small" />
                   </IconButton>
@@ -348,7 +350,7 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
             >
               <GraphLegend compact />
               <Typography variant="caption" color="text.secondary">
-                Click poster to explore • Click ⓘ for details
+                {t('mediaDetail.similar.graphHint')}
               </Typography>
             </Box>
           </Paper>
@@ -370,8 +372,14 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
               data={fullscreenGraphData}
               loading={fullscreenLoading}
               loadingStatus={fullscreenLoadingStatus}
-              title={`Similar ${mediaType === 'movie' ? 'Movies' : 'Series'}`}
-              subtitle={`Expanded view • ${fullscreenGraphData?.nodes.length || 0} items`}
+              title={
+                mediaType === 'movie'
+                  ? t('mediaDetail.similar.titleMovies')
+                  : t('mediaDetail.similar.titleSeries')
+              }
+              subtitle={t('mediaDetail.similar.expandedSubtitle', {
+                count: fullscreenGraphData?.nodes.length || 0,
+              })}
               history={fullscreenHistory}
               onHistoryNavigate={(index) =>
                 index === 0 ? fullscreenStartOver() : fullscreenGoToHistoryIndex(index)

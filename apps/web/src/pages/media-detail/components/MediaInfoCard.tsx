@@ -33,6 +33,7 @@ import StarIcon from '@mui/icons-material/Star'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import { Link as RouterLink } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { getProxiedImageUrl } from '@aperture/ui'
 import type { Media, Actor, StudioItem, MovieWatchStats, SeriesWatchStats } from '../types'
 import { isMovie, isSeries } from '../types'
@@ -54,15 +55,19 @@ interface MediaInfoCardProps {
 
 // Rotten Tomatoes score badge component
 function RTScoreBadge({ score, type }: { score: number | string; type: 'critic' | 'audience' }) {
+  const { t } = useTranslation()
   const numScore = typeof score === 'string' ? parseFloat(score) : score
   if (isNaN(numScore)) return null
 
   const isFresh = numScore >= 60
   const icon = type === 'critic' ? '🍅' : '🍿'
-  const label = type === 'critic' ? 'Tomatometer' : 'Audience'
+  const tooltipTitle =
+    type === 'critic'
+      ? t('mediaDetail.infoCard.scoreTooltipTomatometer', { pct: Math.round(numScore) })
+      : t('mediaDetail.infoCard.scoreTooltipAudience', { pct: Math.round(numScore) })
 
   return (
-    <Tooltip title={`${label}: ${numScore}%`}>
+    <Tooltip title={tooltipTitle}>
       <Box
         sx={{
           display: 'inline-flex',
@@ -86,6 +91,7 @@ function RTScoreBadge({ score, type }: { score: number | string; type: 'critic' 
 
 // Metacritic score badge
 function MetacriticBadge({ score }: { score: number | string }) {
+  const { t } = useTranslation()
   const numScore = typeof score === 'string' ? parseFloat(score) : score
   if (isNaN(numScore)) return null
 
@@ -96,7 +102,7 @@ function MetacriticBadge({ score }: { score: number | string }) {
   }
 
   return (
-    <Tooltip title={`Metacritic: ${Math.round(numScore)}/100`}>
+    <Tooltip title={t('mediaDetail.infoCard.scoreTooltipMetacritic', { score: Math.round(numScore) })}>
       <Box
         sx={{
           display: 'inline-flex',
@@ -120,6 +126,7 @@ function MetacriticBadge({ score }: { score: number | string }) {
 
 // Letterboxd score badge
 function LetterboxdBadge({ score }: { score: number | string }) {
+  const { t } = useTranslation()
   const numScore = typeof score === 'string' ? parseFloat(score) : score
   if (isNaN(numScore)) return null
 
@@ -134,7 +141,7 @@ function LetterboxdBadge({ score }: { score: number | string }) {
   }
 
   return (
-    <Tooltip title={`Letterboxd: ${displayScore}/5`}>
+    <Tooltip title={t('mediaDetail.infoCard.scoreTooltipLetterboxd', { score: displayScore })}>
       <Box
         sx={{
           display: 'inline-flex',
@@ -179,6 +186,7 @@ function getStudios(media: Media): StudioItem[] {
 }
 
 export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
+  const { t } = useTranslation()
   const hasRatings =
     media.rt_critic_score ||
     media.rt_audience_score ||
@@ -213,7 +221,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
             <GroupIcon sx={{ color: 'primary.main', fontSize: 20 }} />
             <Typography variant="subtitle1" fontWeight={600}>
-              Community Activity
+              {t('mediaDetail.infoCard.communityActivity')}
             </Typography>
           </Box>
           
@@ -222,7 +230,12 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {/* Reach/Engagement Row */}
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <Tooltip title={`${(watchStats as MovieWatchStats).watchPercentage}% of your ${(watchStats as MovieWatchStats).totalUsers} users`}>
+                <Tooltip
+                  title={t('mediaDetail.infoCard.movieWatchersTooltip', {
+                    pct: (watchStats as MovieWatchStats).watchPercentage,
+                    total: (watchStats as MovieWatchStats).totalUsers,
+                  })}
+                >
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 100 }}>
                     <VisibilityIcon sx={{ color: 'info.main', fontSize: 20 }} />
                     <Box>
@@ -230,7 +243,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                         {(watchStats as MovieWatchStats).totalWatchers}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" lineHeight={1.2}>
-                        Watched
+                        {t('mediaDetail.infoCard.watched')}
                       </Typography>
                     </Box>
                   </Box>
@@ -244,7 +257,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                         {(watchStats as MovieWatchStats).totalPlays}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" lineHeight={1.2}>
-                        Plays
+                        {t('mediaDetail.infoCard.plays')}
                       </Typography>
                     </Box>
                   </Box>
@@ -258,7 +271,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                         {(watchStats as MovieWatchStats).favoritesCount}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" lineHeight={1.2}>
-                        Favorited
+                        {t('mediaDetail.infoCard.favorited')}
                       </Typography>
                     </Box>
                   </Box>
@@ -272,7 +285,9 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                         {(watchStats as MovieWatchStats).averageUserRating!.toFixed(1)}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" lineHeight={1.2}>
-                        Avg rating ({(watchStats as MovieWatchStats).totalRatings})
+                        {t('mediaDetail.infoCard.avgRatingCount', {
+                          count: (watchStats as MovieWatchStats).totalRatings,
+                        })}
                       </Typography>
                     </Box>
                   </Box>
@@ -284,7 +299,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                 <Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
                     <Typography variant="caption" color="text.secondary">
-                      Household Reach
+                      {t('mediaDetail.infoCard.householdReach')}
                     </Typography>
                     <Typography variant="caption" fontWeight={600} color="primary.main">
                       {(watchStats as MovieWatchStats).watchPercentage}%
@@ -318,7 +333,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                         {(watchStats as SeriesWatchStats).currentlyWatching}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" lineHeight={1.2}>
-                        Watching now
+                        {t('mediaDetail.infoCard.watchingNow')}
                       </Typography>
                     </Box>
                   </Box>
@@ -332,7 +347,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                         {(watchStats as SeriesWatchStats).totalViewers}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" lineHeight={1.2}>
-                        Viewers
+                        {t('mediaDetail.infoCard.viewers')}
                       </Typography>
                     </Box>
                   </Box>
@@ -346,7 +361,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                         {(watchStats as SeriesWatchStats).completedViewers}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" lineHeight={1.2}>
-                        Completed
+                        {t('mediaDetail.infoCard.completed')}
                       </Typography>
                     </Box>
                   </Box>
@@ -360,7 +375,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                         {(watchStats as SeriesWatchStats).totalEpisodePlays}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" lineHeight={1.2}>
-                        Episode plays
+                        {t('mediaDetail.infoCard.episodePlays')}
                       </Typography>
                     </Box>
                   </Box>
@@ -374,7 +389,9 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                         {(watchStats as SeriesWatchStats).averageUserRating!.toFixed(1)}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" lineHeight={1.2}>
-                        Avg rating ({(watchStats as SeriesWatchStats).totalRatings})
+                        {t('mediaDetail.infoCard.avgRatingCount', {
+                          count: (watchStats as SeriesWatchStats).totalRatings,
+                        })}
                       </Typography>
                     </Box>
                   </Box>
@@ -386,7 +403,9 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                 <Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
                     <Typography variant="caption" color="text.secondary">
-                      Average Viewer Progress ({(watchStats as SeriesWatchStats).totalEpisodes} episodes)
+                      {t('mediaDetail.infoCard.averageViewerProgress', {
+                        count: (watchStats as SeriesWatchStats).totalEpisodes,
+                      })}
                     </Typography>
                     <Typography variant="caption" fontWeight={600} color="primary.main">
                       {(watchStats as SeriesWatchStats).averageProgress}%
@@ -412,7 +431,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                 <Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
                     <Typography variant="caption" color="text.secondary">
-                      User Reach
+                      {t('mediaDetail.infoCard.userReach')}
                     </Typography>
                     <Typography variant="caption" fontWeight={600} color="secondary.main">
                       {(watchStats as SeriesWatchStats).watchPercentage}%
@@ -442,7 +461,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
       {hasRatings && (
         <Paper sx={{ p: 2, borderRadius: 2, bgcolor: 'background.paper' }}>
           <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-            Critic Ratings
+            {t('mediaDetail.infoCard.criticRatings')}
           </Typography>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
             {media.rt_critic_score && (
@@ -472,7 +491,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
             <StreamIcon sx={{ color: 'info.main', fontSize: 20 }} />
             <Typography variant="subtitle1" fontWeight={600}>
-              Also Available On
+              {t('mediaDetail.infoCard.alsoAvailableOn')}
             </Typography>
           </Box>
           <Stack direction="row" flexWrap="wrap" gap={0.5}>
@@ -496,7 +515,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
             <CollectionsIcon sx={{ color: 'secondary.main', fontSize: 20 }} />
             <Box>
               <Typography variant="caption" color="text.secondary">
-                Part of Collection
+                {t('mediaDetail.infoCard.partOfCollection')}
               </Typography>
               <Typography variant="body2" fontWeight={500}>
                 {media.collection_name}
@@ -528,7 +547,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
             sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
           >
             <LocalOfferIcon fontSize="small" />
-            Keywords
+            {t('mediaDetail.infoCard.keywords')}
           </Typography>
           <Stack direction="row" flexWrap="wrap" gap={0.5}>
             {media.keywords.slice(0, 10).map((keyword) => (
@@ -556,7 +575,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                 sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
               >
                 <PersonIcon fontSize="small" />
-                Cast
+                {t('mediaDetail.infoCard.cast')}
               </Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 3 }}>
                 {actors.slice(0, 12).map((actor, idx) => (
@@ -606,7 +625,9 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                 sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
               >
                 <MovieFilterIcon fontSize="small" />
-                {isSeries(media) ? 'Created By' : 'Director'}
+                {isSeries(media)
+                  ? t('mediaDetail.infoCard.createdBy')
+                  : t('mediaDetail.infoCard.director')}
               </Typography>
               <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
                 {media.directors.map((director) => (
@@ -635,7 +656,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                 sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
               >
                 <CreateIcon fontSize="small" />
-                Writers
+                {t('mediaDetail.infoCard.writers')}
               </Typography>
               <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
                 {media.writers.slice(0, 10).map((writer) => (
@@ -666,7 +687,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                     sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
                   >
                     <CameraRollIcon fontSize="small" />
-                    Cinematography
+                    {t('mediaDetail.infoCard.cinematography')}
                   </Typography>
                   <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
                     {media.cinematographers.map((name) => (
@@ -694,7 +715,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                     sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
                   >
                     <MusicNoteIcon fontSize="small" />
-                    Music
+                    {t('mediaDetail.infoCard.music')}
                   </Typography>
                   <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
                     {media.composers.map((name) => (
@@ -722,7 +743,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                     sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
                   >
                     <ContentCutIcon fontSize="small" />
-                    Editing
+                    {t('mediaDetail.infoCard.editing')}
                   </Typography>
                   <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
                     {media.editors.map((name) => (
@@ -751,12 +772,12 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                     sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
                   >
                     <LinkIcon fontSize="small" />
-                    External Links
+                    {t('mediaDetail.infoCard.externalLinks')}
                   </Typography>
                   <Stack direction="row" gap={1}>
                     {media.imdb_id && (
                       <Chip
-                        label="IMDb"
+                        label={t('mediaDetail.infoCard.linkImdb')}
                         size="small"
                         component="a"
                         href={`https://www.imdb.com/title/${media.imdb_id}`}
@@ -768,7 +789,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                     )}
                     {media.tmdb_id && (
                       <Chip
-                        label="TMDb"
+                        label={t('mediaDetail.infoCard.linkTmdb')}
                         size="small"
                         component="a"
                         href={`https://www.themoviedb.org/movie/${media.tmdb_id}`}
@@ -794,7 +815,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                 sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
               >
                 <BusinessIcon fontSize="small" />
-                Studios
+                {t('mediaDetail.infoCard.studios')}
               </Typography>
               <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
                 {studios.map((studio, idx) => {
@@ -826,7 +847,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                 sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
               >
                 <LanguageIcon fontSize="small" />
-                Languages
+                {t('mediaDetail.infoCard.languages')}
               </Typography>
               <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
                 {media.languages.map((language) => (
@@ -847,7 +868,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                 sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
               >
                 <PublicIcon fontSize="small" />
-                Countries
+                {t('mediaDetail.infoCard.countries')}
               </Typography>
               <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
                 {media.production_countries.map((country) => (
@@ -868,7 +889,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                 sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
               >
                 <EmojiEventsIcon fontSize="small" />
-                Awards
+                {t('mediaDetail.infoCard.awards')}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {media.awards}
@@ -887,12 +908,12 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                 sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
               >
                 <LinkIcon fontSize="small" />
-                External Links
+                {t('mediaDetail.infoCard.externalLinks')}
               </Typography>
               <Stack direction="row" gap={1}>
                 {media.imdb_id && (
                   <Chip
-                    label="IMDb"
+                    label={t('mediaDetail.infoCard.linkImdb')}
                     size="small"
                     component="a"
                     href={`https://www.imdb.com/title/${media.imdb_id}`}
@@ -904,7 +925,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                 )}
                 {media.tmdb_id && (
                   <Chip
-                    label="TMDb"
+                    label={t('mediaDetail.infoCard.linkTmdb')}
                     size="small"
                     component="a"
                     href={`https://www.themoviedb.org/tv/${media.tmdb_id}`}
@@ -915,7 +936,7 @@ export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
                 )}
                 {media.tvdb_id && (
                   <Chip
-                    label="TVDb"
+                    label={t('mediaDetail.infoCard.linkTvdb')}
                     size="small"
                     component="a"
                     href={`https://thetvdb.com/?id=${media.tvdb_id}&tab=series`}

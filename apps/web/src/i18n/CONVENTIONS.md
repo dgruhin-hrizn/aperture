@@ -36,3 +36,15 @@ Filling **all** missing strings (~1.4k per locale × 11 locales) is done in batc
 ## Pluralization
 
 - Use `_plural` suffix keys where needed (e.g. `admin.runningJobs` / `admin.runningJobs_plural`).
+
+## English-only exceptions
+
+- **`apps/web/src/pages/setup/constants/waitingMessages.ts`** — Large rotating list of humor/cultural-reference strings used during setup job waits. Do **not** move these into `translation.json` unless there is a deliberate project to translate or replace them; i18n tooling should not flag this file as “missing keys.”
+
+## API error messages (frontend)
+
+- The API often returns **English** `error` / `message` strings. Full backend localization is separate (e.g. `Accept-Language` and server catalogs).
+- **Pragmatic pattern**: keep the **raw server text** for debugging, and optionally frame it with translated chrome:
+  - Use `withServerMessageDetail(t, message)` from `lib/withServerMessageDetail.ts`, which maps to `common.errors.serverMessage` (`{{message}}` in English; other locales may add a prefix or label).
+  - For assistant tool failures, use `assistant.toolErrorTitle` + `assistant.toolErrorBody` (see `ToolResultError`).
+- **Optional**: if an endpoint returns a **stable machine-readable `code`**, you can map `code → i18n key` in a small object next to the caller and show `t('errors.<code>')` with a fallback to `withServerMessageDetail`. Do not invent codes; only map what the API actually returns.

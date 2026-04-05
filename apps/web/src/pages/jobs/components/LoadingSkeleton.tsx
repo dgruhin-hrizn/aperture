@@ -1,9 +1,11 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { Box, Skeleton, Stack } from '@mui/material'
 
 export function LoadingSkeleton() {
+  const { t } = useTranslation()
   return (
-    <Box>
+    <Box aria-busy role="status" aria-label={t('common.loading')}>
       <Box mb={4}>
         <Skeleton variant="text" width={200} height={40} />
         <Skeleton variant="text" width={350} height={24} />

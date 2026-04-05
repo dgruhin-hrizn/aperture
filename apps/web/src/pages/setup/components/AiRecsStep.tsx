@@ -15,6 +15,7 @@ import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
 import LinkIcon from '@mui/icons-material/Link'
+import { useTranslation } from 'react-i18next'
 import { ImageUpload } from '@/components/ImageUpload'
 import type { SetupWizardContext } from '../types'
 
@@ -28,6 +29,7 @@ const RECOMMENDED_DIMENSIONS = {
 }
 
 export function AiRecsStep({ wizard }: AiRecsStepProps) {
+  const { t } = useTranslation()
   const {
     error,
     aiRecsOutput,
@@ -47,19 +49,14 @@ export function AiRecsStep({ wizard }: AiRecsStepProps) {
   return (
     <Box>
       <Typography variant="h6" gutterBottom>
-        Configure AI Recommendation Libraries
+        {t('setup.aiRecs.title')}
       </Typography>
       <Typography variant="body2" color="text.secondary" paragraph>
-        Aperture creates virtual libraries in your media server containing personalized recommendations for each user.
-        Configure how these libraries are created and optionally customize their cover images.
+        {t('setup.aiRecs.body')}
       </Typography>
 
       <Alert severity="info" sx={{ mb: 2, py: 0.5 }} icon={false}>
-        <Typography variant="caption">
-          <strong>STRM vs Symlinks:</strong> STRM files work universally and support streaming URLs, while Symlinks
-          provide direct file access (better for local playback) but require Aperture to access your media files at the
-          same paths as your media server. For TV series, symlinks are recommended for better performance.
-        </Typography>
+        <Typography variant="caption">{t('setup.aiRecs.strmVsSymlink')}</Typography>
       </Alert>
 
       {error && (
@@ -77,16 +74,16 @@ export function AiRecsStep({ wizard }: AiRecsStepProps) {
               <Box display="flex" alignItems="center" gap={1} mb={2}>
                 <MovieIcon color="primary" />
                 <Typography variant="subtitle1" fontWeight={600}>
-                  Movies Library
+                  {t('setup.aiRecs.moviesLibrary')}
                 </Typography>
                 {moviesImage.url && (
-                  <Chip size="small" label="Image Set" color="success" variant="outlined" sx={{ ml: 'auto' }} />
+                  <Chip size="small" label={t('setup.aiRecs.imageSet')} color="success" variant="outlined" sx={{ ml: 'auto' }} />
                 )}
               </Box>
 
               {/* Output Format */}
               <Typography variant="body2" fontWeight={500} gutterBottom>
-                Output Format
+                {t('setup.aiRecs.outputFormat')}
               </Typography>
               <FormControlLabel
                 control={
@@ -100,20 +97,18 @@ export function AiRecsStep({ wizard }: AiRecsStepProps) {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     {aiRecsOutput.moviesUseSymlinks ? <LinkIcon fontSize="small" /> : <FolderOpenIcon fontSize="small" />}
                     <Typography variant="body2">
-                      {aiRecsOutput.moviesUseSymlinks ? 'Symlinks' : 'STRM Files'}
+                      {aiRecsOutput.moviesUseSymlinks ? t('setup.aiRecs.symlinks') : t('setup.aiRecs.strmFiles')}
                     </Typography>
                   </Box>
                 }
               />
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-                {aiRecsOutput.moviesUseSymlinks
-                  ? 'Creates symbolic links to original movie files'
-                  : 'Creates .strm files with paths or streaming URLs'}
+                {aiRecsOutput.moviesUseSymlinks ? t('setup.aiRecs.moviesSymlinkHelp') : t('setup.aiRecs.moviesStrmHelp')}
               </Typography>
 
               {/* Cover Image */}
               <Typography variant="body2" fontWeight={500} gutterBottom>
-                Library Cover Image
+                {t('setup.aiRecs.coverImage')}
               </Typography>
               <Box sx={{ maxWidth: 250 }}>
                 <ImageUpload
@@ -124,7 +119,7 @@ export function AiRecsStep({ wizard }: AiRecsStepProps) {
                   onDelete={moviesImage.url ? () => deleteLibraryImage('ai-recs-movies') : undefined}
                   loading={uploadingImage === 'ai-recs-movies'}
                   height={141}
-                  label="Drop image"
+                  label={t('setup.aiRecs.dropImage')}
                   showDelete={!!moviesImage.url}
                 />
               </Box>
@@ -139,16 +134,16 @@ export function AiRecsStep({ wizard }: AiRecsStepProps) {
               <Box display="flex" alignItems="center" gap={1} mb={2}>
                 <TvIcon color="primary" />
                 <Typography variant="subtitle1" fontWeight={600}>
-                  Series Library
+                  {t('setup.aiRecs.seriesLibrary')}
                 </Typography>
                 {seriesImage.url && (
-                  <Chip size="small" label="Image Set" color="success" variant="outlined" sx={{ ml: 'auto' }} />
+                  <Chip size="small" label={t('setup.aiRecs.imageSet')} color="success" variant="outlined" sx={{ ml: 'auto' }} />
                 )}
               </Box>
 
               {/* Output Format */}
               <Typography variant="body2" fontWeight={500} gutterBottom>
-                Output Format
+                {t('setup.aiRecs.outputFormat')}
               </Typography>
               <FormControlLabel
                 control={
@@ -162,20 +157,18 @@ export function AiRecsStep({ wizard }: AiRecsStepProps) {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     {aiRecsOutput.seriesUseSymlinks ? <LinkIcon fontSize="small" /> : <FolderOpenIcon fontSize="small" />}
                     <Typography variant="body2">
-                      {aiRecsOutput.seriesUseSymlinks ? 'Symlinks' : 'STRM Files'}
+                      {aiRecsOutput.seriesUseSymlinks ? t('setup.aiRecs.symlinks') : t('setup.aiRecs.strmFiles')}
                     </Typography>
                   </Box>
                 }
               />
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-                {aiRecsOutput.seriesUseSymlinks
-                  ? 'Creates symlinks to original season folders (recommended)'
-                  : 'Creates .strm files for each episode'}
+                {aiRecsOutput.seriesUseSymlinks ? t('setup.aiRecs.seriesSymlinkHelp') : t('setup.aiRecs.seriesStrmHelp')}
               </Typography>
 
               {/* Cover Image */}
               <Typography variant="body2" fontWeight={500} gutterBottom>
-                Library Cover Image
+                {t('setup.aiRecs.coverImage')}
               </Typography>
               <Box sx={{ maxWidth: 250 }}>
                 <ImageUpload
@@ -186,7 +179,7 @@ export function AiRecsStep({ wizard }: AiRecsStepProps) {
                   onDelete={seriesImage.url ? () => deleteLibraryImage('ai-recs-series') : undefined}
                   loading={uploadingImage === 'ai-recs-series'}
                   height={141}
-                  label="Drop image"
+                  label={t('setup.aiRecs.dropImage')}
                   showDelete={!!seriesImage.url}
                 />
               </Box>
@@ -197,10 +190,10 @@ export function AiRecsStep({ wizard }: AiRecsStepProps) {
 
       <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
         <Button variant="outlined" onClick={() => goToStep('mediaLibraries')}>
-          Back
+          {t('setup.aiRecs.back')}
         </Button>
         <Button variant="contained" onClick={saveAiRecsOutput} disabled={saving}>
-          {saving ? <CircularProgress size={20} /> : 'Save & Continue'}
+          {saving ? <CircularProgress size={20} /> : t('setup.aiRecs.saveContinue')}
         </Button>
       </Box>
     </Box>

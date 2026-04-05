@@ -26,6 +26,7 @@ import {
   type StatsData,
   type StudiosData,
 } from './tool-ui'
+import { ToolResultError } from './ToolResultError'
 
 // Custom link renderer for markdown (needs hooks for i18n)
 function MarkdownLink({ href, children }: { href?: string; children?: ReactNode }) {
@@ -79,13 +80,7 @@ function renderToolResult(toolName: string, result: unknown): React.ReactNode {
   
   // Check if result has an error
   if ('error' in data && typeof data.error === 'string') {
-    return (
-      <Box sx={{ p: 2, bgcolor: 'rgba(26, 26, 26, 0.7)', borderRadius: 2, my: 1 }}>
-        <Typography variant="body2" color="text.secondary">
-          {data.error}
-        </Typography>
-      </Box>
-    )
+    return <ToolResultError message={data.error} />
   }
 
   // Content carousel tools (search, similar, recommendations, history, ratings, unwatched, top rated)

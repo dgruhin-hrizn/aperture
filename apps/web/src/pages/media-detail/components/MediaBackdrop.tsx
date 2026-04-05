@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Box, IconButton } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
+import { useTranslation } from 'react-i18next'
 import { getProxiedImageUrl } from '@aperture/ui'
 
 interface MediaBackdropProps {
@@ -10,6 +11,7 @@ interface MediaBackdropProps {
 }
 
 export function MediaBackdrop({ backdropUrl, title, onBack }: MediaBackdropProps) {
+  const { t } = useTranslation()
   const [imageError, setImageError] = useState(false)
   const proxiedBackdropUrl = backdropUrl ? getProxiedImageUrl(backdropUrl, '') : null
 
@@ -62,6 +64,7 @@ export function MediaBackdrop({ backdropUrl, title, onBack }: MediaBackdropProps
       {/* Back button */}
       <IconButton
         onClick={onBack}
+        aria-label={t('common.back')}
         sx={{
           position: 'absolute',
           top: 16,

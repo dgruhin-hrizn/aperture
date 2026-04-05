@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { useTranslation, Trans } from 'react-i18next'
 import {
     Dialog,
     DialogTitle,
@@ -38,57 +39,6 @@ import { MediaPosterCard, type SeerrStatus } from '../../../components/MediaPost
 import { RequestSeerrOptionsDialog } from '../../../components/RequestSeerrOptionsDialog'
 import type { SeerrRequestOptions } from '../../../types/seerrRequest'
 import { SeasonSelectModal, type SeasonInfo } from '../../discovery/components/SeasonSelectModal'
-
-// ISO 639-1 language code to display name mapping
-const LANGUAGE_NAMES: Record<string, string> = {
-    en: 'English',
-    es: 'Spanish',
-    fr: 'French',
-    de: 'German',
-    it: 'Italian',
-    pt: 'Portuguese',
-    ja: 'Japanese',
-    ko: 'Korean',
-    zh: 'Chinese',
-    ru: 'Russian',
-    ar: 'Arabic',
-    hi: 'Hindi',
-    nl: 'Dutch',
-    sv: 'Swedish',
-    da: 'Danish',
-    no: 'Norwegian',
-    fi: 'Finnish',
-    pl: 'Polish',
-    tr: 'Turkish',
-    th: 'Thai',
-    id: 'Indonesian',
-    vi: 'Vietnamese',
-    cs: 'Czech',
-    el: 'Greek',
-    he: 'Hebrew',
-    hu: 'Hungarian',
-    ro: 'Romanian',
-    uk: 'Ukrainian',
-    bn: 'Bengali',
-    ta: 'Tamil',
-    te: 'Telugu',
-    ml: 'Malayalam',
-    mr: 'Marathi',
-    gu: 'Gujarati',
-    kn: 'Kannada',
-    pa: 'Punjabi',
-    tl: 'Tagalog',
-    ms: 'Malay',
-    fa: 'Persian',
-    ur: 'Urdu',
-    cn: 'Cantonese',
-    // Add more as needed
-}
-
-function getLanguageName(code: string | null): string {
-    if (!code) return 'Unknown'
-    return LANGUAGE_NAMES[code] || code.toUpperCase()
-}
 
 interface PreviewItem {
     id: string | null
@@ -157,6 +107,16 @@ export function TopPicksPreviewModal({
     savedLanguages = [],
     savedIncludeUnknownLanguage = true,
 }: TopPicksPreviewModalProps) {
+    const { t } = useTranslation()
+
+    const getLanguageName = useCallback(
+        (code: string | null) => {
+            if (!code) return t('topPicksAdmin.previewModal.unknownLanguage')
+            return t(`topPicksAdmin.languages.${code}`, { defaultValue: code.toUpperCase() })
+        },
+        [t]
+    )
+
     const [tabValue, setTabValue] = useState(0)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -194,7 +154,7 @@ export function TopPicksPreviewModal({
         return Array.from(languageSet).sort((a, b) =>
             getLanguageName(a).localeCompare(getLanguageName(b))
         )
-    }, [matchedItems, missingItems])
+    }, [matchedItems, missingItems, getLanguageName])
 
     // Filter items by selected languages
     const filteredMatchedItems = useMemo(() => {
@@ -235,7 +195,7 @@ export function TopPicksPreviewModal({
             })
 
             if (!response.ok) {
-                throw new Error('Failed to fetch preview')
+                throw new Error(t('topPicksAdmin.errors.fetchPreview'))
             }
 
             const data = await response.json()
@@ -243,12 +203,12 @@ export function TopPicksPreviewModal({
             setMissingItems(data.missing || [])
             return data.missing || []
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load preview')
+            setError(err instanceof Error ? err.message : t('topPicksAdmin.errors.loadPreview'))
             return []
         } finally {
             setLoading(false)
         }
-    }, [mediaType, source, hybridExternalSource, mdblistListId, mdblistSort])
+    }, [mediaType, source, hybridExternalSource, mdblistListId, mdblistSort, t])
 
     // Check if Seerr is configured
     const checkSeerr = useCallback(async () => {
@@ -299,7 +259,11 @@ export function TopPicksPreviewModal({
                 seasonNumber: s.seasonNumber,
                 episodeCount: s.episodeCount,
                 airDate: s.airDate,
-                name: s.name || (s.seasonNumber === 0 ? 'Specials' : `Season ${s.seasonNumber}`),
+                name:
+                    s.name ||
+                    (s.seasonNumber === 0
+                        ? t('topPicksAdmin.previewModal.specials')
+                        : t('topPicksAdmin.previewModal.seasonNumber', { number: s.seasonNumber })),
                 overview: s.overview,
                 posterPath: s.posterPath,
                 status: s.status ?? 1,
@@ -317,7 +281,7 @@ export function TopPicksPreviewModal({
             console.error('Error fetching TV details:', err)
             return null
         }
-    }, [])
+    }, [t])
 
     // Fetch Seerr status for all missing items
     const fetchSeerrStatuses = useCallback(async (items: PreviewItem[]) => {
@@ -585,10 +549,12 @@ export function TopPicksPreviewModal({
             <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
                     <Typography variant="h6" component="span">
-                        {mediaType === 'movies' ? 'Movies' : 'Series'} Preview
+                        {mediaType === 'movies'
+                            ? t('topPicksAdmin.previewModal.previewTitleMovies')
+                            : t('topPicksAdmin.previewModal.previewTitleSeries')}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                        Source: {sourceName}
+                        {t('topPicksAdmin.previewModal.sourceLabel', { name: sourceName })}
                     </Typography>
                 </Box>
                 <IconButton onClick={onClose} size="small">
@@ -609,9 +575,9 @@ export function TopPicksPreviewModal({
                             label={
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                     <CheckCircleIcon fontSize="small" color="success" />
-                                    In Your Library
+                                    {t('topPicksAdmin.previewModal.inLibrary')}
                                     <Chip
-                                        label={loading ? '...' : (selectedLanguages.length > 0
+                                        label={loading ? t('topPicksAdmin.previewModal.loadingEllipsis') : (selectedLanguages.length > 0
                                             ? `${filteredMatchedItems.length}/${matchedItems.length}`
                                             : matchedItems.length)}
                                         size="small"
@@ -625,9 +591,9 @@ export function TopPicksPreviewModal({
                             label={
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                     <CloudDownloadIcon fontSize="small" color="warning" />
-                                    Missing
+                                    {t('topPicksAdmin.previewModal.missing')}
                                     <Chip
-                                        label={loading ? '...' : (isLocalSource ? 'N/A' : (selectedLanguages.length > 0
+                                        label={loading ? t('topPicksAdmin.previewModal.loadingEllipsis') : (isLocalSource ? t('topPicksAdmin.previewModal.notApplicable') : (selectedLanguages.length > 0
                                             ? `${filteredMissingItems.length}/${missingItems.length}`
                                             : missingItems.length))}
                                         size="small"
@@ -651,7 +617,7 @@ export function TopPicksPreviewModal({
                             onClick={() => setShowFilters(!showFilters)}
                             sx={{ mb: 1 }}
                         >
-                            Language Filter
+                            {t('topPicksAdmin.previewModal.languageFilter')}
                             {selectedLanguages.length > 0 && (
                                 <Chip
                                     label={selectedLanguages.length}
@@ -672,12 +638,12 @@ export function TopPicksPreviewModal({
                                 alignItems: 'center'
                             }}>
                                 <FormControl size="small" sx={{ minWidth: 200, maxWidth: 400 }}>
-                                    <InputLabel>Languages</InputLabel>
+                                    <InputLabel>{t('topPicksAdmin.previewModal.languagesLabel')}</InputLabel>
                                     <Select
                                         multiple
                                         value={selectedLanguages}
                                         onChange={(e) => setSelectedLanguages(e.target.value as string[])}
-                                        input={<OutlinedInput label="Languages" />}
+                                        input={<OutlinedInput label={t('topPicksAdmin.previewModal.languagesLabel')} />}
                                         renderValue={(selected) => (
                                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                                                 {selected.map((value) => (
@@ -702,7 +668,7 @@ export function TopPicksPreviewModal({
                                             size="small"
                                         />
                                     }
-                                    label="Include unknown language"
+                                    label={t('topPicksAdmin.previewModal.includeUnknownLanguage')}
                                 />
                                 {selectedLanguages.length > 0 && (
                                     <Button
@@ -713,7 +679,7 @@ export function TopPicksPreviewModal({
                                             setIncludeUnknownLanguage(true)
                                         }}
                                     >
-                                        Clear Filters
+                                        {t('topPicksAdmin.previewModal.clearFilters')}
                                     </Button>
                                 )}
                             </Box>
@@ -728,8 +694,8 @@ export function TopPicksPreviewModal({
                         <Box sx={{ textAlign: 'center', py: 4 }}>
                             <Typography color="text.secondary">
                                 {selectedLanguages.length > 0
-                                    ? `No items match the selected language filter. ${matchedItems.length} items available without filter.`
-                                    : 'No items found in your library matching this source.'}
+                                    ? t('topPicksAdmin.previewModal.emptyMatchedFiltered', { total: matchedItems.length })
+                                    : t('topPicksAdmin.previewModal.emptyMatched')}
                             </Typography>
                         </Box>
                     ) : (
@@ -746,17 +712,17 @@ export function TopPicksPreviewModal({
                         <Box sx={{ textAlign: 'center', py: 4 }}>
                             <Typography color="text.secondary">
                                 {isLocalSource
-                                    ? 'Local watch history source only shows items already in your library.'
+                                    ? t('topPicksAdmin.previewModal.emptyMissingLocal')
                                     : selectedLanguages.length > 0
-                                        ? `No missing items match the selected language filter. ${missingItems.length} items available without filter.`
-                                        : 'All items from this source are already in your library!'}
+                                        ? t('topPicksAdmin.previewModal.emptyMissingFiltered', { total: missingItems.length })
+                                        : t('topPicksAdmin.previewModal.emptyMissingAllInLibrary')}
                             </Typography>
                         </Box>
                     ) : (
                         <>
                             {!seerrConfigured && (
                                 <Alert severity="info" sx={{ mb: 2 }}>
-                                    Configure Seerr in Settings → Integrations to request missing items.
+                                    <Trans i18nKey="topPicksAdmin.previewModal.configureSeerr" components={{ 1: <strong /> }} />
                                 </Alert>
                             )}
                             <Grid container spacing={2}>
@@ -775,11 +741,13 @@ export function TopPicksPreviewModal({
                             variant="outlined"
                             onClick={() => setSeerrOptionsDialogOpen(true)}
                         >
-                            Seerr options{sessionSeerrOptions ? ' (set)' : ''}
+                            {sessionSeerrOptions
+                                ? t('topPicksAdmin.previewModal.seerrOptionsSet')
+                                : t('topPicksAdmin.previewModal.seerrOptions')}
                         </Button>
                         {sessionSeerrOptions && (
                             <Button size="small" onClick={() => setSessionSeerrOptions(null)}>
-                                Clear options
+                                {t('topPicksAdmin.previewModal.clearOptions')}
                             </Button>
                         )}
                     </>
@@ -793,14 +761,17 @@ export function TopPicksPreviewModal({
                         disabled={bulkRequesting || loadingStatuses}
                     >
                         {bulkRequesting
-                            ? `Requesting ${bulkRequestProgress.current}/${bulkRequestProgress.total}...`
-                            : `Request All (${getRequestableItems().length})`
+                            ? t('topPicksAdmin.previewModal.requestingProgress', {
+                                current: bulkRequestProgress.current,
+                                total: bulkRequestProgress.total,
+                            })
+                            : t('topPicksAdmin.previewModal.requestAll', { count: getRequestableItems().length })
                         }
                     </Button>
                 )}
                 {tabValue === 1 && seerrConfigured && getRequestableItems().length > 0 && mediaType === 'series' && (
                     <Typography variant="body2" color="text.secondary">
-                        Click on individual series to select seasons to request
+                        {t('topPicksAdmin.previewModal.seriesClickHint')}
                     </Typography>
                 )}
             </DialogActions>
@@ -822,7 +793,11 @@ export function TopPicksPreviewModal({
             <RequestSeerrOptionsDialog
                 open={seerrOptionsDialogOpen}
                 mediaType={mediaType === 'movies' ? 'movie' : 'series'}
-                title={`${mediaType === 'movies' ? 'Movies' : 'Series'} preview requests`}
+                title={
+                    mediaType === 'movies'
+                        ? t('topPicksAdmin.previewModal.requestTitleMovies')
+                        : t('topPicksAdmin.previewModal.requestTitleSeries')
+                }
                 onClose={() => setSeerrOptionsDialogOpen(false)}
                 onConfirm={(opts) => {
                     setSessionSeerrOptions(opts)

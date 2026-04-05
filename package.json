@@ -9,7 +9,8 @@
     }
   },
   "scripts": {
-    "menu": "node scripts/dev.mjs",
+    "menu": "node scripts/menu.mjs",
+    "MENU": "node scripts/menu.mjs",
     "dev": "node scripts/dev-start.mjs",
     "dev:raw": "concurrently -n api,web -c blue,green \"pnpm --filter @aperture/api dev\" \"pnpm --filter @aperture/web dev\"",
     "dev:api": "pnpm --filter @aperture/api dev",

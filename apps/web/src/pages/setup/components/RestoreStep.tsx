@@ -26,6 +26,7 @@ import UploadIcon from '@mui/icons-material/Upload'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import HistoryIcon from '@mui/icons-material/History'
 import AddIcon from '@mui/icons-material/Add'
+import { useTranslation } from 'react-i18next'
 import type { SetupWizardContext } from '../types'
 
 interface BackupInfo {
@@ -41,6 +42,7 @@ interface RestoreStepProps {
 }
 
 export function RestoreStep({ wizard }: RestoreStepProps) {
+  const { t } = useTranslation()
   const [backups, setBackups] = useState<BackupInfo[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -63,17 +65,17 @@ export function RestoreStep({ wizard }: RestoreStepProps) {
       const res = await fetch('/api/setup/backup/list', { credentials: 'include' })
 
       if (!res.ok) {
-        throw new Error('Failed to load available backups')
+        throw new Error(t('setup.restore.errLoad'))
       }
 
       const data = await res.json()
       setBackups(data.backups || [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load backups')
+      setError(err instanceof Error ? err.message : t('setup.restore.errLoadGeneric'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     fetchBackups()
@@ -99,13 +101,13 @@ export function RestoreStep({ wizard }: RestoreStepProps) {
       const data = await res.json()
 
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to upload backup')
+        throw new Error(data.error || t('setup.restore.errUpload'))
       }
 
-      setSuccess(`Backup uploaded: ${data.filename} (${data.sizeFormatted})`)
+      setSuccess(t('setup.restore.successUpload', { filename: data.filename, size: data.sizeFormatted }))
       await fetchBackups()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to upload backup')
+      setError(err instanceof Error ? err.message : t('setup.restore.errUpload'))
     } finally {
       setUploading(false)
       event.target.value = ''
@@ -118,8 +120,10 @@ export function RestoreStep({ wizard }: RestoreStepProps) {
     setRestoreDialogOpen(true)
   }
 
+  const confirmWord = t('setup.restore.confirmWord')
+
   const handleRestore = async () => {
-    if (!restoreFilename || restoreConfirmText !== 'RESTORE') return
+    if (!restoreFilename || restoreConfirmText !== confirmWord) return
 
     try {
       setRestoring(true)
@@ -132,26 +136,24 @@ export function RestoreStep({ wizard }: RestoreStepProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           filename: restoreFilename,
-          confirmText: 'RESTORE',
+          confirmText: confirmWord,
         }),
       })
 
       const data = await res.json()
 
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to restore backup')
+        throw new Error(data.error || t('setup.restore.errRestore'))
       }
 
-      setSuccess(
-        'Database restored successfully! The page will reload in 3 seconds to complete the restore process.'
-      )
+      setSuccess(t('setup.restore.successRestored'))
 
       // Reload the page after a short delay to pick up the restored data
       setTimeout(() => {
         window.location.reload()
       }, 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to restore backup')
+      setError(err instanceof Error ? err.message : t('setup.restore.errRestore'))
     } finally {
       setRestoring(false)
       setRestoreFilename(null)
@@ -169,11 +171,10 @@ export function RestoreStep({ wizard }: RestoreStepProps) {
   return (
     <Box>
       <Typography variant="h5" fontWeight={600} mb={1}>
-        Restore from Backup
+        {t('setup.restore.title')}
       </Typography>
       <Typography variant="body2" color="text.secondary" mb={3}>
-        If you have a previous Aperture backup, you can restore it here. This is useful when migrating to a new
-        server or recovering from a failure.
+        {t('setup.restore.subtitle')}
       </Typography>
 
       {error && (
@@ -226,13 +227,13 @@ export function RestoreStep({ wizard }: RestoreStepProps) {
             >
               <AddIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
               <Typography variant="h6" fontWeight={600} mb={1}>
-                Start Fresh
+                {t('setup.restore.startFreshTitle')}
               </Typography>
               <Typography variant="body2" color="text.secondary" mb={2}>
-                Set up Aperture from scratch. This is the recommended option for new installations.
+                {t('setup.restore.startFreshBody')}
               </Typography>
               <Button variant="contained" endIcon={<ArrowForwardIcon />}>
-                Continue Setup
+                {t('setup.restore.continueSetup')}
               </Button>
             </Paper>
 
@@ -252,10 +253,10 @@ export function RestoreStep({ wizard }: RestoreStepProps) {
             >
               <HistoryIcon sx={{ fontSize: 48, color: 'secondary.main', mb: 2 }} />
               <Typography variant="h6" fontWeight={600} mb={1}>
-                Restore from Backup
+                {t('setup.restore.restoreCardTitle')}
               </Typography>
               <Typography variant="body2" color="text.secondary" mb={2}>
-                Restore all your data from a previous Aperture installation.
+                {t('setup.restore.restoreCardBody')}
               </Typography>
               <Button
                 variant="outlined"
@@ -263,7 +264,7 @@ export function RestoreStep({ wizard }: RestoreStepProps) {
                 startIcon={uploading ? <CircularProgress size={16} /> : <UploadIcon />}
                 disabled={uploading || restoring}
               >
-                {uploading ? 'Uploading...' : 'Upload Backup File'}
+                {uploading ? t('setup.restore.uploading') : t('setup.restore.uploadBackupFile')}
                 <input type="file" hidden accept=".sql,.sql.gz" onChange={handleUploadBackup} />
               </Button>
             </Paper>
@@ -275,17 +276,17 @@ export function RestoreStep({ wizard }: RestoreStepProps) {
               <Divider sx={{ my: 3 }} />
 
               <Typography variant="subtitle1" fontWeight={600} mb={2}>
-                Available Backups ({backups.length})
+                {t('setup.restore.availableBackups', { count: backups.length })}
               </Typography>
 
               <TableContainer sx={{ maxHeight: 300 }}>
                 <Table size="small" stickyHeader>
                   <TableHead>
                     <TableRow>
-                      <TableCell>Filename</TableCell>
-                      <TableCell>Size</TableCell>
-                      <TableCell>Created</TableCell>
-                      <TableCell align="right">Action</TableCell>
+                      <TableCell>{t('setup.restore.colFilename')}</TableCell>
+                      <TableCell>{t('setup.restore.colSize')}</TableCell>
+                      <TableCell>{t('setup.restore.colCreated')}</TableCell>
+                      <TableCell align="right">{t('setup.restore.colAction')}</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -297,14 +298,14 @@ export function RestoreStep({ wizard }: RestoreStepProps) {
                               {backup.filename}
                             </Typography>
                             {backup.isCompressed && (
-                              <Chip label="gzip" size="small" variant="outlined" sx={{ height: 20 }} />
+                              <Chip label={t('setup.restore.gzip')} size="small" variant="outlined" sx={{ height: 20 }} />
                             )}
                           </Box>
                         </TableCell>
                         <TableCell>{backup.sizeFormatted}</TableCell>
                         <TableCell>{formatDate(backup.createdAt)}</TableCell>
                         <TableCell align="right">
-                          <Tooltip title="Restore this backup">
+                          <Tooltip title={t('setup.restore.restoreTooltip')}>
                             <Button
                               size="small"
                               variant="outlined"
@@ -312,7 +313,7 @@ export function RestoreStep({ wizard }: RestoreStepProps) {
                               onClick={() => openRestoreDialog(backup.filename)}
                               disabled={restoring}
                             >
-                              Restore
+                              {t('setup.restore.restoreButton')}
                             </Button>
                           </Tooltip>
                         </TableCell>
@@ -331,43 +332,43 @@ export function RestoreStep({ wizard }: RestoreStepProps) {
         <DialogTitle sx={{ color: 'warning.main' }}>
           <Box display="flex" alignItems="center" gap={1}>
             <RestoreIcon />
-            Restore Database
+            {t('setup.restore.dialogTitle')}
           </Box>
         </DialogTitle>
         <DialogContent>
           <Alert severity="warning" sx={{ mb: 2 }}>
-            <strong>Warning:</strong> This will replace all current data with the backup. After restore, the
-            setup wizard will reload with your restored data.
+            <Typography variant="body2" component="span">
+              <strong>{t('setup.restore.warningLabel')}</strong> {t('setup.restore.dialogWarning')}
+            </Typography>
           </Alert>
           <Typography variant="body2" mb={2}>
-            You are about to restore from: <strong>{restoreFilename}</strong>
+            {t('setup.restore.dialogAboutToRestore')} <strong>{restoreFilename}</strong>
           </Typography>
           <Typography variant="body2" mb={2}>
-            To confirm, type <strong>RESTORE</strong> below:
+            {t('setup.restore.dialogTypeConfirm')}
           </Typography>
           <TextField
             fullWidth
             size="small"
             value={restoreConfirmText}
             onChange={(e) => setRestoreConfirmText(e.target.value)}
-            placeholder="Type RESTORE to confirm"
+            placeholder={t('setup.restore.placeholderConfirm')}
             autoFocus
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setRestoreDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setRestoreDialogOpen(false)}>{t('setup.restore.cancel')}</Button>
           <Button
             variant="contained"
             color="warning"
             onClick={handleRestore}
-            disabled={restoreConfirmText !== 'RESTORE' || restoring}
+            disabled={restoreConfirmText !== confirmWord || restoring}
             startIcon={restoring ? <CircularProgress size={16} color="inherit" /> : <RestoreIcon />}
           >
-            {restoring ? 'Restoring...' : 'Restore Database'}
+            {restoring ? t('setup.restore.restoring') : t('setup.restore.restoreDatabase')}
           </Button>
         </DialogActions>
       </Dialog>
     </Box>
   )
 }
-

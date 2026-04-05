@@ -2,13 +2,15 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSetupStatus } from '@/hooks/useSetupStatus'
 import { useAuth } from '@/hooks/useAuth'
+import { useTranslation } from 'react-i18next'
 import {
-  STEP_ORDER,
+  STEP_ORDER_IDS,
   DEFAULT_AI_RECS_OUTPUT,
   DEFAULT_TOP_PICKS,
   DEFAULT_MEDIA_SERVER_TYPES,
   DEFAULT_LIBRARY_IMAGES,
 } from '../constants'
+import { SETUP_JOB_DEFINITIONS } from '../setupJobDefinitions'
 import type {
   SetupStepId,
   SetupProgress,
@@ -29,59 +31,8 @@ import type {
   AIFunction,
 } from '../types'
 
-// Define the initial jobs with their descriptions
-const INITIAL_JOBS: Array<{ id: string; name: string; description: string; optional?: boolean }> = [
-  { id: 'sync-movies', name: 'Sync Movies', description: 'Importing movie metadata from your media server' },
-  { id: 'sync-series', name: 'Sync Series', description: 'Importing TV series metadata from your media server' },
-  {
-    id: 'sync-movie-watch-history',
-    name: 'Sync Movie Watch History',
-    description: 'Importing your movie watch history to understand preferences',
-  },
-  {
-    id: 'sync-series-watch-history',
-    name: 'Sync Series Watch History',
-    description: 'Importing your TV watch history to understand preferences',
-  },
-  {
-    id: 'generate-movie-embeddings',
-    name: 'Generate Movie Embeddings',
-    description: 'Creating AI embeddings to understand movie content and themes',
-  },
-  {
-    id: 'generate-series-embeddings',
-    name: 'Generate Series Embeddings',
-    description: 'Creating AI embeddings to understand TV series content and themes',
-  },
-  {
-    id: 'generate-movie-recommendations',
-    name: 'Generate Movie Recommendations',
-    description: 'Creating personalized movie recommendations for each user',
-  },
-  {
-    id: 'generate-series-recommendations',
-    name: 'Generate Series Recommendations',
-    description: 'Creating personalized TV series recommendations for each user',
-  },
-  {
-    id: 'sync-movie-libraries',
-    name: 'Build Aperture Movie Libraries',
-    description: 'Creating AI recommendation movie libraries in your media server',
-  },
-  {
-    id: 'sync-series-libraries',
-    name: 'Build Aperture Series Libraries',
-    description: 'Creating AI recommendation series libraries in your media server',
-  },
-  {
-    id: 'refresh-top-picks',
-    name: 'Sync Top Picks',
-    description: 'Creating Top Picks movies and series libraries',
-    optional: true, // Only auto-runs if Top 10 is enabled
-  },
-]
-
 export function useSetupWizard(): SetupWizardContext {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { status, markComplete } = useSetupStatus()
   const { user } = useAuth()
@@ -152,10 +103,21 @@ export function useSetupWizard(): SetupWizardContext {
   const [jobsProgress, setJobsProgress] = useState<JobProgress[]>([])
   const [currentJobIndex, setCurrentJobIndex] = useState(-1)
 
-  const stepId = useMemo(() => STEP_ORDER[activeStep]?.id ?? 'mediaServer', [activeStep])
+  const initialJobs = useMemo(
+    () =>
+      SETUP_JOB_DEFINITIONS.map((def) => ({
+        id: def.id,
+        name: t(def.nameKey),
+        description: t(def.descriptionKey),
+        optional: 'optional' in def ? def.optional : undefined,
+      })),
+    [t]
+  )
+
+  const stepId = useMemo(() => STEP_ORDER_IDS[activeStep] ?? 'mediaServer', [activeStep])
 
   const goToStep = useCallback((targetStepId: SetupStepId) => {
-    setActiveStep(STEP_ORDER.findIndex((s) => s.id === targetStepId))
+    setActiveStep(STEP_ORDER_IDS.findIndex((id) => id === targetStepId))
   }, [])
 
   // Redirect if setup is already complete AND user is not an admin
@@ -237,8 +199,8 @@ export function useSetupWizard(): SetupWizardContext {
         }
 
         const completed = new Set<string>((data?.progress?.completedSteps ?? []) as string[])
-        const firstIncompleteIdx = STEP_ORDER.findIndex((s) => !completed.has(s.id))
-        setActiveStep(firstIncompleteIdx === -1 ? STEP_ORDER.length - 1 : firstIncompleteIdx)
+        const firstIncompleteIdx = STEP_ORDER_IDS.findIndex((id) => !completed.has(id))
+        setActiveStep(firstIncompleteIdx === -1 ? STEP_ORDER_IDS.length - 1 : firstIncompleteIdx)
       })
       .catch(() => {
         // non-fatal
@@ -266,7 +228,7 @@ export function useSetupWizard(): SetupWizardContext {
         }>
 
         // Build job progress from last runs (all jobs, including optional ones)
-        const restoredProgress: JobProgress[] = INITIAL_JOBS.map((job) => {
+        const restoredProgress: JobProgress[] = initialJobs.map((job) => {
           const lastRun = lastRuns[job.id]
           if (lastRun) {
             return {
@@ -288,7 +250,7 @@ export function useSetupWizard(): SetupWizardContext {
               name: job.name,
               description: job.description,
               status: 'skipped' as const,
-              message: 'Top 10 not enabled',
+              message: t('setup.initialJobs.skipTopPicks'),
             }
           }
           return {
@@ -305,8 +267,8 @@ export function useSetupWizard(): SetupWizardContext {
           setJobsProgress(restoredProgress)
 
           // Restore logs from last runs
-          const restoredLogs: string[] = ['[Restored] Previous job run results:']
-          for (const job of INITIAL_JOBS) {
+          const restoredLogs: string[] = [t('setup.jobs.logRestoredHeader')]
+          for (const job of initialJobs) {
             const lastRun = lastRuns[job.id]
             if (lastRun) {
               const completedAt = new Date(lastRun.completedAt).toLocaleTimeString()
@@ -329,7 +291,7 @@ export function useSetupWizard(): SetupWizardContext {
       .catch(() => {
         // non-fatal
       })
-  }, [stepId, jobsProgress.length, topPicks.isEnabled])
+  }, [stepId, jobsProgress.length, topPicks.isEnabled, initialJobs, t])
 
   const updateProgress = useCallback(
     async (opts: { currentStep?: SetupStepId | null; completedStep?: SetupStepId }) => {
@@ -964,9 +926,12 @@ export function useSetupWizard(): SetupWizardContext {
 
     // Mark job as running
     setJobsProgress((prev) =>
-      prev.map((j, i) => (i === jobIndex ? { ...j, status: 'running' as const, message: 'Starting...' } : j))
+      prev.map((j, i) => (i === jobIndex ? { ...j, status: 'running' as const, message: t('setup.jobs.statusStarting') } : j))
     )
-    setJobLogs((l) => [...l, `[${new Date().toLocaleTimeString()}] ▶ Starting: ${job.name}`])
+    setJobLogs((l) => [
+      ...l,
+      `[${new Date().toLocaleTimeString()}] ${t('setup.jobs.startingLogLine', { name: job.name })}`,
+    ])
 
     // Use setup-specific endpoint that doesn't require auth (only works before setup is complete)
     const startRes = await fetch(`/api/setup/jobs/${job.id}/run`, { method: 'POST', credentials: 'include' })
@@ -996,9 +961,9 @@ export function useSetupWizard(): SetupWizardContext {
       }
 
       // Build status message with counts
-      let statusMessage = p.currentStep || 'Processing...'
+      let statusMessage = p.currentStep || t('setup.jobs.statusProcessing')
       if (p.itemsTotal > 0) {
-        statusMessage = `${p.currentStep || 'Processing'}: ${p.itemsProcessed || 0}/${p.itemsTotal}`
+        statusMessage = `${p.currentStep || t('setup.jobs.statusProcessingShort')}: ${p.itemsProcessed || 0}/${p.itemsTotal}`
         if (p.currentItem) {
           statusMessage += ` - ${p.currentItem}`
         }
@@ -1082,13 +1047,13 @@ export function useSetupWizard(): SetupWizardContext {
 
       await new Promise((r) => setTimeout(r, 500)) // Poll every 500ms for more responsive log updates
     }
-  }, [])
+  }, [t])
 
   const runInitialJobs = useCallback(async () => {
     // No auth required - setup endpoint only works before setup is complete
     // Initialize job progress for all jobs
     setJobsProgress(
-      INITIAL_JOBS.map((job) => {
+      initialJobs.map((job) => {
         // Mark optional jobs as skipped if not enabled
         if (job.optional && job.id === 'refresh-top-picks' && !topPicks.isEnabled) {
           return {
@@ -1096,7 +1061,7 @@ export function useSetupWizard(): SetupWizardContext {
             name: job.name,
             description: job.description,
             status: 'skipped' as const,
-            message: 'Top 10 not enabled',
+            message: t('setup.initialJobs.skipTopPicks'),
           }
         }
         return {
@@ -1110,29 +1075,37 @@ export function useSetupWizard(): SetupWizardContext {
     setCurrentJobIndex(-1)
     setRunningJobs(true)
     setError('')
-    setJobLogs([`[${new Date().toLocaleTimeString()}] Starting initial setup jobs...`])
+    setJobLogs([`[${new Date().toLocaleTimeString()}] ${t('setup.jobs.logStartingBatch')}`])
 
     try {
-      for (let i = 0; i < INITIAL_JOBS.length; i++) {
-        const job = INITIAL_JOBS[i]
+      for (let i = 0; i < initialJobs.length; i++) {
+        const job = initialJobs[i]
         // Skip optional jobs that aren't enabled
         if (job.optional && job.id === 'refresh-top-picks' && !topPicks.isEnabled) {
-          setJobLogs((l) => [...l, `[${new Date().toLocaleTimeString()}] ⊘ Skipped: ${job.name} (Top Picks not enabled)`])
+          setJobLogs((l) => [
+            ...l,
+            `[${new Date().toLocaleTimeString()}] ${t('setup.jobs.logSkippedTopPicks', { name: job.name })}`,
+          ])
           continue
         }
-        await runJobAndWait(i, INITIAL_JOBS)
+        await runJobAndWait(i, initialJobs)
       }
-      setJobLogs((l) => [...l, `[${new Date().toLocaleTimeString()}] All jobs completed successfully!`])
+      setJobLogs((l) => [...l, `[${new Date().toLocaleTimeString()}] ${t('setup.jobs.logAllComplete')}`])
       await updateProgress({ completedStep: 'initialJobs' })
       goToStep('complete')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to run initial jobs')
-      setJobLogs((l) => [...l, `[${new Date().toLocaleTimeString()}] Setup failed: ${err instanceof Error ? err.message : 'Unknown error'}`])
+      setError(err instanceof Error ? err.message : t('setup.jobs.errRunInitial'))
+      setJobLogs((l) => [
+        ...l,
+        `[${new Date().toLocaleTimeString()}] ${t('setup.jobs.logSetupFailed', {
+          message: err instanceof Error ? err.message : t('setup.jobs.unknownError'),
+        })}`,
+      ])
     } finally {
       setRunningJobs(false)
       setCurrentJobIndex(-1)
     }
-  }, [runJobAndWait, updateProgress, goToStep, topPicks.isEnabled])
+  }, [runJobAndWait, updateProgress, goToStep, topPicks.isEnabled, initialJobs, t])
 
   // Run a single job by ID (for re-running completed or failed jobs)
   const runSingleJob = useCallback(async (jobId: string) => {

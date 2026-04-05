@@ -9,6 +9,7 @@ import TvIcon from '@mui/icons-material/Tv'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { getProxiedImageUrl } from '@aperture/ui'
+import { ToolResultError } from '../ToolResultError'
 import type { Person, PersonResultData } from './types'
 
 interface PersonCardProps {
@@ -146,13 +147,7 @@ interface PersonResultProps {
 
 export function PersonResult({ data }: PersonResultProps) {
   if (data.error) {
-    return (
-      <Box sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2 }}>
-        <Typography variant="body2" color="text.secondary">
-          {data.error}
-        </Typography>
-      </Box>
-    )
+    return <ToolResultError message={data.error} />
   }
 
   return (

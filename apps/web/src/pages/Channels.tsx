@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -77,6 +78,7 @@ interface FormData {
 }
 
 export function ChannelsPage() {
+  const { t } = useTranslation()
   const [channels, setChannels] = useState<Channel[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -131,10 +133,10 @@ export function ChannelsPage() {
         setChannels(data.channels)
         setError(null)
       } else {
-        setError('Failed to load channels')
+        setError(t('channels.errorLoadFailed'))
       }
     } catch {
-      setError('Could not connect to server')
+      setError(t('channels.errorCouldNotConnect'))
     } finally {
       setLoading(false)
     }
@@ -279,17 +281,17 @@ export function ChannelsPage() {
         fetchChannels()
         setSnackbar({
           open: true,
-          message: editingChannel ? 'Channel updated' : 'Channel created',
+          message: editingChannel ? t('channels.snackbarChannelUpdated') : t('channels.snackbarChannelCreated'),
           severity: 'success',
         })
       }
     } catch {
-      setSnackbar({ open: true, message: 'Failed to save channel', severity: 'error' })
+      setSnackbar({ open: true, message: t('channels.snackbarSaveFailed'), severity: 'error' })
     }
   }
 
   const handleDelete = async (channelId: string) => {
-    if (!confirm('Are you sure you want to delete this channel?')) return
+    if (!confirm(t('channels.deleteConfirm'))) return
 
     try {
       const response = await fetch(`/api/channels/${channelId}`, {
@@ -299,10 +301,10 @@ export function ChannelsPage() {
 
       if (response.ok) {
         fetchChannels()
-        setSnackbar({ open: true, message: 'Channel deleted', severity: 'success' })
+        setSnackbar({ open: true, message: t('channels.snackbarChannelDeleted'), severity: 'success' })
       }
     } catch {
-      setSnackbar({ open: true, message: 'Failed to delete channel', severity: 'error' })
+      setSnackbar({ open: true, message: t('channels.snackbarDeleteFailed'), severity: 'error' })
     }
   }
 
@@ -319,14 +321,14 @@ export function ChannelsPage() {
         fetchChannels()
         setSnackbar({
           open: true,
-          message: `Playlist created with ${data.itemCount} movies`,
+          message: t('channels.snackbarPlaylistCreated', { count: data.itemCount }),
           severity: 'success',
         })
       } else {
-        setSnackbar({ open: true, message: 'Failed to generate playlist', severity: 'error' })
+        setSnackbar({ open: true, message: t('channels.snackbarGeneratePlaylistFailed'), severity: 'error' })
       }
     } catch {
-      setSnackbar({ open: true, message: 'Failed to generate playlist', severity: 'error' })
+      setSnackbar({ open: true, message: t('channels.snackbarGeneratePlaylistFailed'), severity: 'error' })
     } finally {
       setGeneratingChannelId(null)
     }
@@ -366,7 +368,7 @@ export function ChannelsPage() {
         setPlaylistItems(data.items || [])
       }
     } catch {
-      setSnackbar({ open: true, message: 'Failed to load playlist', severity: 'error' })
+      setSnackbar({ open: true, message: t('channels.snackbarLoadPlaylistFailed'), severity: 'error' })
     } finally {
       setLoadingPlaylist(false)
     }
@@ -392,12 +394,12 @@ export function ChannelsPage() {
 
       if (response.ok) {
         setPlaylistItems(playlistItems.filter((item) => item.playlistItemId !== entryId))
-        setSnackbar({ open: true, message: 'Movie removed from playlist', severity: 'success' })
+        setSnackbar({ open: true, message: t('channels.snackbarMovieRemoved'), severity: 'success' })
       } else {
-        setSnackbar({ open: true, message: 'Failed to remove movie', severity: 'error' })
+        setSnackbar({ open: true, message: t('channels.snackbarRemoveMovieFailed'), severity: 'error' })
       }
     } catch {
-      setSnackbar({ open: true, message: 'Failed to remove movie', severity: 'error' })
+      setSnackbar({ open: true, message: t('channels.snackbarRemoveMovieFailed'), severity: 'error' })
     } finally {
       setRemovingItemId(null)
     }
@@ -454,14 +456,14 @@ export function ChannelsPage() {
           const data = await itemsResponse.json()
           setPlaylistItems(data.items || [])
         }
-        setSnackbar({ open: true, message: `Added "${movie.title}" to playlist`, severity: 'success' })
+        setSnackbar({ open: true, message: t('channels.snackbarAddedToPlaylist', { title: movie.title }), severity: 'success' })
         setAddMovieSearch('')
         setAddMovieResults([])
       } else {
-        setSnackbar({ open: true, message: 'Failed to add movie', severity: 'error' })
+        setSnackbar({ open: true, message: t('channels.snackbarAddMovieFailed'), severity: 'error' })
       }
     } catch {
-      setSnackbar({ open: true, message: 'Failed to add movie', severity: 'error' })
+      setSnackbar({ open: true, message: t('channels.snackbarAddMovieFailed'), severity: 'error' })
     } finally {
       setAddingMovieId(null)
     }
@@ -472,7 +474,7 @@ export function ChannelsPage() {
     if (formData.genreFilters.length === 0 && formData.exampleMovies.length === 0) {
       setSnackbar({
         open: true,
-        message: 'Please select genres or example movies first',
+        message: t('channels.snackbarSelectGenresOrMovies'),
         severity: 'error',
       })
       return
@@ -493,12 +495,12 @@ export function ChannelsPage() {
       if (response.ok) {
         const data = await response.json()
         setFormData({ ...formData, textPreferences: data.preferences })
-        setSnackbar({ open: true, message: 'AI preferences generated', severity: 'success' })
+        setSnackbar({ open: true, message: t('channels.snackbarAiPreferencesGenerated'), severity: 'success' })
       } else {
-        setSnackbar({ open: true, message: 'Failed to generate preferences', severity: 'error' })
+        setSnackbar({ open: true, message: t('channels.snackbarGeneratePreferencesFailed'), severity: 'error' })
       }
     } catch {
-      setSnackbar({ open: true, message: 'Failed to generate preferences', severity: 'error' })
+      setSnackbar({ open: true, message: t('channels.snackbarGeneratePreferencesFailed'), severity: 'error' })
     } finally {
       setGeneratingAIPreferences(false)
     }
@@ -509,7 +511,7 @@ export function ChannelsPage() {
     if (formData.genreFilters.length === 0 && formData.exampleMovies.length === 0) {
       setSnackbar({
         open: true,
-        message: 'Please select genres or example movies first',
+        message: t('channels.snackbarSelectGenresOrMovies'),
         severity: 'error',
       })
       return
@@ -531,12 +533,12 @@ export function ChannelsPage() {
       if (response.ok) {
         const data = await response.json()
         setFormData({ ...formData, name: data.name })
-        setSnackbar({ open: true, message: 'AI name generated', severity: 'success' })
+        setSnackbar({ open: true, message: t('channels.snackbarAiNameGenerated'), severity: 'success' })
       } else {
-        setSnackbar({ open: true, message: 'Failed to generate name', severity: 'error' })
+        setSnackbar({ open: true, message: t('channels.snackbarGenerateNameFailed'), severity: 'error' })
       }
     } catch {
-      setSnackbar({ open: true, message: 'Failed to generate name', severity: 'error' })
+      setSnackbar({ open: true, message: t('channels.snackbarGenerateNameFailed'), severity: 'error' })
     } finally {
       setGeneratingAIName(false)
     }
@@ -547,7 +549,7 @@ export function ChannelsPage() {
     if (formData.genreFilters.length === 0 && formData.exampleMovies.length === 0) {
       setSnackbar({
         open: true,
-        message: 'Please select genres or example movies first',
+        message: t('channels.snackbarSelectGenresOrMovies'),
         severity: 'error',
       })
       return
@@ -570,12 +572,12 @@ export function ChannelsPage() {
       if (response.ok) {
         const data = await response.json()
         setFormData({ ...formData, description: data.description })
-        setSnackbar({ open: true, message: 'AI description generated', severity: 'success' })
+        setSnackbar({ open: true, message: t('channels.snackbarAiDescriptionGenerated'), severity: 'success' })
       } else {
-        setSnackbar({ open: true, message: 'Failed to generate description', severity: 'error' })
+        setSnackbar({ open: true, message: t('channels.snackbarGenerateDescriptionFailed'), severity: 'error' })
       }
     } catch {
-      setSnackbar({ open: true, message: 'Failed to generate description', severity: 'error' })
+      setSnackbar({ open: true, message: t('channels.snackbarGenerateDescriptionFailed'), severity: 'error' })
     } finally {
       setGeneratingAIDescription(false)
     }
@@ -585,7 +587,7 @@ export function ChannelsPage() {
     return (
       <Box>
         <Typography variant="h4" fontWeight={700} mb={4}>
-          Channels
+          {t('channels.title')}
         </Typography>
         <Grid container spacing={3}>
           {Array.from({ length: 3 }).map((_, i) => (
@@ -603,14 +605,14 @@ export function ChannelsPage() {
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Box>
           <Typography variant="h4" fontWeight={700} mb={1}>
-            Channels
+            {t('channels.title')}
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Create custom recommendation playlists with genres and example movies
+            {t('channels.subtitle')}
           </Typography>
         </Box>
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenDialog()}>
-          New Channel
+          {t('channels.newChannel')}
         </Button>
       </Box>
 
@@ -631,13 +633,13 @@ export function ChannelsPage() {
         >
           <PlaylistPlayIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
           <Typography variant="h6" mb={1}>
-            No channels yet
+            {t('channels.emptyTitle')}
           </Typography>
           <Typography variant="body2" color="text.secondary" mb={3}>
-            Create your first channel to get custom recommendation playlists
+            {t('channels.emptyBody')}
           </Typography>
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenDialog()}>
-            Create Channel
+            {t('channels.createChannel')}
           </Button>
         </Card>
       ) : (
@@ -659,7 +661,7 @@ export function ChannelsPage() {
                       {channel.name}
                     </Typography>
                     {channel.playlist_id && (
-                      <Tooltip title="Playlist synced">
+                      <Tooltip title={t('channels.tooltipPlaylistSynced')}>
                         <CheckCircleIcon color="success" fontSize="small" />
                       </Tooltip>
                     )}
@@ -680,14 +682,14 @@ export function ChannelsPage() {
                   {channel.genre_filters && channel.genre_filters.length > 0 && (
                     <Box mb={2}>
                       <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-                        Genres
+                        {t('channels.genresLabel')}
                       </Typography>
                       <Box display="flex" gap={0.5} flexWrap="wrap">
                         {channel.genre_filters.slice(0, 4).map((genre) => (
                           <Chip key={genre} label={genre} size="small" variant="outlined" />
                         ))}
                         {channel.genre_filters.length > 4 && (
-                          <Chip label={`+${channel.genre_filters.length - 4}`} size="small" />
+                          <Chip label={t('channels.moreGenres', { count: channel.genre_filters.length - 4 })} size="small" />
                         )}
                       </Box>
                     </Box>
@@ -696,7 +698,7 @@ export function ChannelsPage() {
                   {channel.example_movie_ids && channel.example_movie_ids.length > 0 && (
                     <Box mb={2}>
                       <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
-                        {channel.example_movie_ids.length} example movie{channel.example_movie_ids.length !== 1 ? 's' : ''}
+                        {t('channels.exampleMoviesCount', { count: channel.example_movie_ids.length })}
                       </Typography>
                     </Box>
                   )}
@@ -704,11 +706,11 @@ export function ChannelsPage() {
                   <Box display="flex" justifyContent="space-between" alignItems="center">
                     {channel.last_generated_at ? (
                       <Typography variant="caption" color="text.secondary">
-                        Updated: {new Date(channel.last_generated_at).toLocaleDateString()}
+                        {t('channels.updatedLabel', { date: new Date(channel.last_generated_at).toLocaleDateString() })}
                       </Typography>
                     ) : (
                       <Typography variant="caption" color="warning.main">
-                        Not generated yet
+                        {t('channels.notGeneratedYet')}
                       </Typography>
                     )}
                   </Box>
@@ -723,7 +725,7 @@ export function ChannelsPage() {
                       onClick={() => handleGeneratePlaylist(channel.id)}
                       disabled={generatingChannelId === channel.id}
                     >
-                      {channel.playlist_id ? 'Refresh' : 'Generate'}
+                      {channel.playlist_id ? t('channels.refresh') : t('channels.generate')}
                     </Button>
                     {channel.playlist_id && (
                       <Button
@@ -732,7 +734,7 @@ export function ChannelsPage() {
                         startIcon={<VisibilityIcon />}
                         onClick={() => handleViewPlaylist(channel)}
                       >
-                        View
+                        {t('channels.view')}
                       </Button>
                     )}
                   </Box>
@@ -753,12 +755,12 @@ export function ChannelsPage() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>{editingChannel ? 'Edit Playlist' : 'New Playlist'}</DialogTitle>
+        <DialogTitle>{editingChannel ? t('channels.dialogEditTitle') : t('channels.dialogNewTitle')}</DialogTitle>
         <DialogContent>
           {/* Step 1: Genre Multi-Select */}
           <Box mt={1}>
             <Typography variant="subtitle2" gutterBottom color="primary">
-              1. Select Genres
+              {t('channels.step1Genres')}
             </Typography>
             <Autocomplete
               multiple
@@ -770,7 +772,7 @@ export function ChannelsPage() {
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  placeholder={formData.genreFilters.length === 0 ? 'Select genres...' : ''}
+                  placeholder={formData.genreFilters.length === 0 ? t('channels.genrePlaceholder') : ''}
                   InputProps={{
                     ...params.InputProps,
                     endAdornment: (
@@ -793,17 +795,17 @@ export function ChannelsPage() {
           {/* Step 2: Example Movies */}
           <Box mt={3}>
             <Typography variant="subtitle2" gutterBottom color="primary">
-              2. Add Example Movies
+              {t('channels.step2Movies')}
             </Typography>
             <Typography variant="caption" color="text.secondary" display="block" mb={1}>
-              Movies that define this playlist's vibe
+              {t('channels.step2MoviesHint')}
             </Typography>
 
             {/* Movie Search */}
             <TextField
               fullWidth
               size="small"
-              placeholder="Search for movies..."
+              placeholder={t('channels.searchMoviesPlaceholder')}
               value={movieSearch}
               onChange={(e) => setMovieSearch(e.target.value)}
               InputProps={{
@@ -886,9 +888,9 @@ export function ChannelsPage() {
           <Box mt={3}>
             <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
               <Typography variant="subtitle2" color="primary">
-                3. Text Preferences (Optional)
+                {t('channels.step3Preferences')}
               </Typography>
-              <Tooltip title="Generate AI preferences based on your taste profile, genres, and example movies">
+              <Tooltip title={t('channels.tooltipGeneratePreferences')}>
                 <span>
                   <IconButton
                     size="small"
@@ -914,8 +916,8 @@ export function ChannelsPage() {
               rows={3}
               value={formData.textPreferences}
               onChange={(e) => setFormData({ ...formData, textPreferences: e.target.value })}
-              placeholder="e.g., Dark atmosphere, morally complex characters, twist endings..."
-              helperText="Describe what you want. Click ✨ to auto-generate."
+              placeholder={t('channels.preferencesPlaceholder')}
+              helperText={t('channels.preferencesHelper')}
             />
           </Box>
 
@@ -923,9 +925,9 @@ export function ChannelsPage() {
           <Box mt={3}>
             <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
               <Typography variant="subtitle2" color="primary">
-                4. Playlist Name
+                {t('channels.step4Name')}
               </Typography>
-              <Tooltip title="Generate a creative name based on genres, movies, and preferences">
+              <Tooltip title={t('channels.tooltipGenerateName')}>
                 <span>
                   <IconButton
                     size="small"
@@ -949,8 +951,8 @@ export function ChannelsPage() {
               fullWidth
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="e.g., Neon Noir Nights"
-              helperText="A catchy name for your playlist. Click ✨ to auto-generate."
+              placeholder={t('channels.namePlaceholder')}
+              helperText={t('channels.nameHelper')}
             />
           </Box>
 
@@ -958,9 +960,9 @@ export function ChannelsPage() {
           <Box mt={3}>
             <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
               <Typography variant="subtitle2" color="primary">
-                5. Description (Optional)
+                {t('channels.step5Description')}
               </Typography>
-              <Tooltip title="Generate a description based on your playlist">
+              <Tooltip title={t('channels.tooltipGenerateDescription')}>
                 <span>
                   <IconButton
                     size="small"
@@ -986,15 +988,15 @@ export function ChannelsPage() {
               rows={2}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="A curated collection of..."
-              helperText="Brief description for your playlist. Click ✨ to auto-generate."
+              placeholder={t('channels.descriptionPlaceholder')}
+              helperText={t('channels.descriptionHelper')}
             />
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
+          <Button onClick={handleCloseDialog}>{t('common.cancel')}</Button>
           <Button variant="contained" onClick={handleSubmit} disabled={!formData.name}>
-            {editingChannel ? 'Save' : 'Create'}
+            {editingChannel ? t('channels.save') : t('channels.create')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1004,9 +1006,11 @@ export function ChannelsPage() {
         <DialogTitle>
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Box>
-              <Typography variant="h6">{viewingChannel?.name} - Playlist</Typography>
+              <Typography variant="h6">
+                {t('channels.playlistDialogTitle', { name: viewingChannel?.name ?? '' })}
+              </Typography>
               <Typography variant="body2" color="text.secondary">
-                {playlistItems.length} movies
+                {t('channels.movieCount', { count: playlistItems.length })}
               </Typography>
             </Box>
             <IconButton onClick={handleClosePlaylistDialog} size="small">
@@ -1018,12 +1022,12 @@ export function ChannelsPage() {
           {/* Add Movie Search */}
           <Box mb={3}>
             <Typography variant="subtitle2" gutterBottom>
-              Add Movie to Playlist
+              {t('channels.addMovieToPlaylist')}
             </Typography>
             <TextField
               fullWidth
               size="small"
-              placeholder="Search for movies to add..."
+              placeholder={t('channels.searchMoviesToAddPlaceholder')}
               value={addMovieSearch}
               onChange={(e) => setAddMovieSearch(e.target.value)}
               InputProps={{
@@ -1091,7 +1095,7 @@ export function ChannelsPage() {
                 {addMovieResults.length > 0 &&
                   addMovieResults.filter((movie) => !playlistItems.some((item) => item.id === movie.provider_item_id)).length === 0 && (
                     <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>
-                      All results are already in playlist
+                      {t('channels.allResultsInPlaylist')}
                     </Typography>
                   )}
               </Box>
@@ -1107,10 +1111,10 @@ export function ChannelsPage() {
             <Box textAlign="center" py={4}>
               <PlaylistPlayIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
               <Typography variant="body1" color="text.secondary">
-                No movies in playlist yet
+                {t('channels.playlistEmptyTitle')}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Generate the playlist or add movies manually
+                {t('channels.playlistEmptyHint')}
               </Typography>
             </Box>
           ) : (
@@ -1142,11 +1146,11 @@ export function ChannelsPage() {
                   <Box flexGrow={1}>
                     <Typography variant="body1">{item.title}</Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {item.year || 'Unknown year'}
-                      {item.runtime && ` • ${item.runtime} min`}
+                      {item.year != null ? item.year : t('channels.unknownYear')}
+                      {item.runtime != null ? ` • ${t('channels.runtimeMinutes', { minutes: item.runtime })}` : ''}
                     </Typography>
                   </Box>
-                  <Tooltip title="Remove from playlist">
+                  <Tooltip title={t('channels.removeFromPlaylistTooltip')}>
                     <IconButton
                       size="small"
                       color="error"
@@ -1166,7 +1170,7 @@ export function ChannelsPage() {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClosePlaylistDialog}>Close</Button>
+          <Button onClick={handleClosePlaylistDialog}>{t('common.close')}</Button>
         </DialogActions>
       </Dialog>
 

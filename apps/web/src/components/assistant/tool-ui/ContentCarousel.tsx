@@ -3,6 +3,7 @@
  * Horizontal scrollable list of content cards
  */
 import { useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Box, Typography, IconButton } from '@mui/material'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
@@ -15,6 +16,7 @@ interface ContentCarouselProps {
 }
 
 export function ContentCarousel({ data, onPlay }: ContentCarouselProps) {
+  const { t } = useTranslation()
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const scroll = (direction: 'left' | 'right') => {
@@ -58,6 +60,7 @@ export function ContentCarousel({ data, onPlay }: ContentCarouselProps) {
           <>
             <IconButton
               onClick={() => scroll('left')}
+              aria-label={t('assistantToolUi.scrollCarouselLeft')}
               sx={{
                 position: 'absolute',
                 left: 4,
@@ -76,6 +79,7 @@ export function ContentCarousel({ data, onPlay }: ContentCarouselProps) {
             </IconButton>
             <IconButton
               onClick={() => scroll('right')}
+              aria-label={t('assistantToolUi.scrollCarouselRight')}
               sx={{
                 position: 'absolute',
                 right: 4,

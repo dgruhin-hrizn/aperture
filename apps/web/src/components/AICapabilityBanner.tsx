@@ -5,9 +5,10 @@
  * and the configured AI providers' capabilities.
  */
 import React from 'react'
-import { Alert, AlertTitle, Box, Button, Typography, Collapse } from '@mui/material'
+import { Alert, AlertTitle, Box, Button, Typography } from '@mui/material'
 import { Warning as WarningIcon, Settings as SettingsIcon } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAICapabilities } from '../hooks/useAICapabilities'
 
 type FeatureContext = 
@@ -25,6 +26,7 @@ export function AICapabilityBanner({
   context = 'general',
   showWhenConfigured = false,
 }: AICapabilityBannerProps) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { 
     features, 
@@ -44,14 +46,14 @@ export function AICapabilityBanner({
   if (context === 'chat') {
     if (!chat.configured) {
       warnings.push({
-        title: 'Chat Not Configured',
-        message: 'Configure an AI provider for the Chat function to use the assistant.',
+        title: t('aiCapability.chat.notConfiguredTitle'),
+        message: t('aiCapability.chat.notConfiguredMessage'),
         severity: 'error',
       })
     } else if (!chat.supportsTools) {
       warnings.push({
-        title: 'Limited Chat Capabilities',
-        message: `Your chat model (${chat.model}) doesn't support tool calling. The assistant will work as a basic chatbot without access to your library, search, or recommendations.`,
+        title: t('aiCapability.chat.limitedToolsTitle'),
+        message: t('aiCapability.chat.limitedToolsMessage', { model: chat.model }),
         severity: 'warning',
       })
     }
@@ -60,15 +62,15 @@ export function AICapabilityBanner({
   if (context === 'recommendations') {
     if (!embeddings.configured) {
       warnings.push({
-        title: 'Embeddings Not Configured',
-        message: 'Configure an embedding provider to enable AI-powered recommendations.',
+        title: t('aiCapability.recommendations.embeddingsMissingTitle'),
+        message: t('aiCapability.recommendations.embeddingsMissingMessage'),
         severity: 'error',
       })
     }
     if (!textGeneration.configured) {
       warnings.push({
-        title: 'Text Generation Not Configured',
-        message: 'Configure a text generation provider to enable recommendation explanations.',
+        title: t('aiCapability.recommendations.textGenMissingTitle'),
+        message: t('aiCapability.recommendations.textGenMissingMessage'),
         severity: 'warning',
       })
     }
@@ -77,8 +79,8 @@ export function AICapabilityBanner({
   if (context === 'search') {
     if (!embeddings.configured) {
       warnings.push({
-        title: 'Semantic Search Unavailable',
-        message: 'Configure an embedding provider to enable semantic search (searching by concept/theme).',
+        title: t('aiCapability.search.semanticUnavailableTitle'),
+        message: t('aiCapability.search.semanticUnavailableMessage'),
         severity: 'warning',
       })
     }
@@ -86,8 +88,8 @@ export function AICapabilityBanner({
 
   if (context === 'general' && !isAnyConfigured) {
     warnings.push({
-      title: 'AI Not Configured',
-      message: 'Configure AI providers in Settings to enable recommendations, chat, and other AI features.',
+      title: t('aiCapability.general.notConfiguredTitle'),
+      message: t('aiCapability.general.notConfiguredMessage'),
       severity: 'info',
     })
   }
@@ -101,8 +103,8 @@ export function AICapabilityBanner({
   if (warnings.length === 0 && showWhenConfigured) {
     return (
       <Alert severity="success" sx={{ mb: 2 }}>
-        <AlertTitle>AI Fully Configured</AlertTitle>
-        All AI features are available with your current configuration.
+        <AlertTitle>{t('aiCapability.fullyConfigured.title')}</AlertTitle>
+        {t('aiCapability.fullyConfigured.message')}
       </Alert>
     )
   }
@@ -122,7 +124,7 @@ export function AICapabilityBanner({
               startIcon={<SettingsIcon />}
               onClick={() => navigate('/settings')}
             >
-              Configure
+              {t('aiCapability.configure')}
             </Button>
           }
         >

@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { Box, List, ListItem, ListItemText, Stack, Typography } from '@mui/material'
 import ErrorIcon from '@mui/icons-material/Error'
 import WarningIcon from '@mui/icons-material/Warning'
@@ -22,9 +23,14 @@ function getLogIcon(level: string) {
 }
 
 export function JobLogs({ logs, containerRef }: JobLogsProps) {
+  const { t } = useTranslation()
+  const visibleLogs = logs.slice(-100)
+
   return (
     <Box
       ref={containerRef}
+      role="region"
+      aria-label={t('jobsUi.logsRegionLabel')}
       sx={{
         mt: 1.5,
         maxHeight: 240,
@@ -35,8 +41,13 @@ export function JobLogs({ logs, containerRef }: JobLogsProps) {
         borderColor: 'divider',
       }}
     >
+      {visibleLogs.length === 0 ? (
+        <Typography variant="body2" color="text.secondary" sx={{ px: 1.5, py: 1.5 }}>
+          {t('jobsUi.logsEmpty')}
+        </Typography>
+      ) : (
       <List dense disablePadding>
-        {logs.slice(-100).map((log, i) => (
+        {visibleLogs.map((log, i) => (
           <ListItem
             key={i}
             sx={{
@@ -76,6 +87,7 @@ export function JobLogs({ logs, containerRef }: JobLogsProps) {
           </ListItem>
         ))}
       </List>
+      )}
     </Box>
   )
 }

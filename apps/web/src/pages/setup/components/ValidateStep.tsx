@@ -15,6 +15,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorIcon from '@mui/icons-material/Error'
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
 import RefreshIcon from '@mui/icons-material/Refresh'
+import { useTranslation } from 'react-i18next'
 import type { SetupWizardContext, ValidationCheck } from '../types'
 
 interface ValidateStepProps {
@@ -35,6 +36,7 @@ function CheckIcon({ status }: { status: ValidationCheck['status'] }) {
 }
 
 export function ValidateStep({ wizard }: ValidateStepProps) {
+  const { t } = useTranslation()
   const {
     validationResult,
     validating,
@@ -61,10 +63,10 @@ export function ValidateStep({ wizard }: ValidateStepProps) {
   return (
     <Box>
       <Typography variant="h6" gutterBottom>
-        Validate Setup
+        {t('setup.validate.title')}
       </Typography>
       <Typography variant="body2" color="text.secondary" paragraph>
-        Checking that Aperture can access all required paths and your media server is reachable.
+        {t('setup.validate.subtitle')}
       </Typography>
 
       {/* Validation Results */}
@@ -95,7 +97,7 @@ export function ValidateStep({ wizard }: ValidateStepProps) {
                     </Typography>
                     {check.status === 'failed' && check.error && (
                       <Typography variant="body2" color="error.light" sx={{ mt: 0.5 }}>
-                        Error: {check.error}
+                        {t('setup.validate.errorPrefix')} {check.error}
                       </Typography>
                     )}
                     {check.status === 'failed' && check.suggestion && (
@@ -114,7 +116,7 @@ export function ValidateStep({ wizard }: ValidateStepProps) {
               <ListItemIcon>
                 <CircularProgress size={24} />
               </ListItemIcon>
-              <ListItemText primary="Running validation checks..." />
+              <ListItemText primary={t('setup.validate.running')} />
             </ListItem>
           )}
         </List>
@@ -124,14 +126,9 @@ export function ValidateStep({ wizard }: ValidateStepProps) {
       {hasResults && (
         <Alert severity={allPassed ? 'success' : 'error'} sx={{ mb: 3 }}>
           {allPassed ? (
-            <Typography variant="body2">
-              All checks passed! Your setup is ready to go.
-            </Typography>
+            <Typography variant="body2">{t('setup.validate.allPassed')}</Typography>
           ) : (
-            <Typography variant="body2">
-              Some checks failed. Please fix the issues above and retry, or check your docker-compose.yml
-              volume mounts.
-            </Typography>
+            <Typography variant="body2">{t('setup.validate.someFailed')}</Typography>
           )}
         </Alert>
       )}
@@ -139,7 +136,7 @@ export function ValidateStep({ wizard }: ValidateStepProps) {
       {/* Actions */}
       <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
         <Button variant="outlined" onClick={() => goToStep('aiRecsLibraries')}>
-          Back
+          {t('setup.validate.back')}
         </Button>
         <Button
           variant="outlined"
@@ -147,14 +144,14 @@ export function ValidateStep({ wizard }: ValidateStepProps) {
           disabled={validating}
           startIcon={validating ? <CircularProgress size={16} /> : <RefreshIcon />}
         >
-          {validating ? 'Checking...' : 'Retry'}
+          {validating ? t('setup.validate.checking') : t('setup.validate.retry')}
         </Button>
         <Button
           variant="contained"
           onClick={handleContinue}
           disabled={!allPassed || validating}
         >
-          Continue
+          {t('setup.validate.continue')}
         </Button>
       </Box>
     </Box>

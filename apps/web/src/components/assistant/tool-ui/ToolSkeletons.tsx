@@ -2,6 +2,7 @@
  * Skeleton loaders for tool results while loading
  */
 import { Box, Paper, Skeleton } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 
 // Skeleton for a single content card (matches ContentCard dimensions)
 function CardSkeleton() {
@@ -43,8 +44,14 @@ function CardSkeleton() {
 
 // Skeleton for content carousel (searchContent, findSimilar, getRecommendations, etc.)
 export function ContentCarouselSkeleton() {
+  const { t } = useTranslation()
   return (
-    <Box sx={{ my: 2, width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
+    <Box
+      role="status"
+      aria-busy="true"
+      aria-label={t('assistantToolUi.loadingContentCarousel')}
+      sx={{ my: 2, width: '100%', maxWidth: '100%', overflow: 'hidden' }}
+    >
       {/* Header skeleton */}
       <Box sx={{ mb: 1.5 }}>
         <Skeleton variant="text" width={150} height={24} sx={{ bgcolor: '#2a2a2a' }} />
@@ -62,8 +69,14 @@ export function ContentCarouselSkeleton() {
 
 // Skeleton for content detail (getContentDetails)
 export function ContentDetailSkeleton() {
+  const { t } = useTranslation()
   return (
-    <Paper sx={{ bgcolor: '#1a1a1a', borderRadius: 2, overflow: 'hidden', my: 2 }}>
+    <Paper
+      role="status"
+      aria-busy="true"
+      aria-label={t('assistantToolUi.loadingContentDetail')}
+      sx={{ bgcolor: '#1a1a1a', borderRadius: 2, overflow: 'hidden', my: 2 }}
+    >
       {/* Backdrop skeleton */}
       <Skeleton variant="rectangular" width="100%" height={150} sx={{ bgcolor: '#2a2a2a' }} />
       <Box sx={{ p: 2 }}>
@@ -91,8 +104,9 @@ export function ContentDetailSkeleton() {
 
 // Skeleton for person results (searchPeople)
 export function PersonResultSkeleton() {
+  const { t } = useTranslation()
   return (
-    <Box sx={{ my: 2 }}>
+    <Box role="status" aria-busy="true" aria-label={t('assistantToolUi.loadingPersonResults')} sx={{ my: 2 }}>
       <Skeleton variant="text" width={120} height={24} sx={{ bgcolor: '#2a2a2a', mb: 1 }} />
       <Box sx={{ display: 'flex', gap: 2 }}>
         {[1, 2, 3].map((i) => (
@@ -109,8 +123,9 @@ export function PersonResultSkeleton() {
 
 // Skeleton for stats display (getLibraryStats)
 export function StatsSkeleton() {
+  const { t } = useTranslation()
   return (
-    <Box sx={{ my: 2 }}>
+    <Box role="status" aria-busy="true" aria-label={t('assistantToolUi.loadingStats')} sx={{ my: 2 }}>
       <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
         {[1, 2, 3, 4].map((i) => (
           <Paper key={i} sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2, minWidth: 120 }}>
@@ -125,8 +140,9 @@ export function StatsSkeleton() {
 
 // Skeleton for studios/networks display
 export function StudiosSkeleton() {
+  const { t } = useTranslation()
   return (
-    <Box sx={{ my: 2 }}>
+    <Box role="status" aria-busy="true" aria-label={t('assistantToolUi.loadingStudios')} sx={{ my: 2 }}>
       <Skeleton variant="text" width={100} height={24} sx={{ bgcolor: '#2a2a2a', mb: 1 }} />
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
         {[1, 2, 3, 4, 5].map((i) => (

@@ -196,11 +196,11 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
       // Reset the flag after fetch completes
       justGeneratedRef.current = false
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch data')
+      setError(err instanceof Error ? err.message : t('watcherIdentity.errFetchData'))
     } finally {
       setLoading(false)
     }
-  }, [mediaType, user?.id])
+  }, [mediaType, user?.id, t])
   
   // Fetch accessible libraries (only once per component)
   const fetchLibraries = useCallback(async () => {
@@ -260,7 +260,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mediaType, mode }),
       })
-      if (!response.ok) throw new Error('Failed to analyze watch history')
+      if (!response.ok) throw new Error(t('watcherIdentity.errAnalyzeWatchHistory'))
       const result = await response.json()
       
       // Track new items for highlighting
@@ -283,14 +283,20 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
       if (mode === 'merge') {
         const newCount = (result.newFranchises?.length || 0) + (result.newGenres?.length || 0)
         setSuccess(newCount > 0 
-          ? `Found ${result.newFranchises?.length || 0} new franchises and ${result.newGenres?.length || 0} new genres!`
-          : 'No new items found. Your preferences are up to date!'
+          ? t('watcherIdentity.successMergeNew', {
+              franchiseCount: result.newFranchises?.length || 0,
+              genreCount: result.newGenres?.length || 0,
+            })
+          : t('watcherIdentity.successMergeNone')
         )
       } else {
-        setSuccess(`Analysis complete! Found ${result.franchisesUpdated} franchises and ${result.genresUpdated || 0} genres.`)
+        setSuccess(t('watcherIdentity.successResetComplete', {
+          franchiseCount: result.franchisesUpdated,
+          genreCount: result.genresUpdated || 0,
+        }))
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to analyze')
+      setError(err instanceof Error ? err.message : t('watcherIdentity.errAnalyze'))
     } finally {
       setAnalyzing(false)
     }
@@ -521,7 +527,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
         credentials: 'include',
       })
       
-      if (!response.ok) throw new Error('Failed to generate identity')
+      if (!response.ok) throw new Error(t('watcherIdentity.errGenerateIdentity'))
       
       // Check if streaming response (SSE)
       const contentType = response.headers.get('content-type')
@@ -563,7 +569,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                       stats: data.stats,
                     })
                   } else if (data.type === 'error') {
-                    throw new Error(data.message || 'Stream error')
+                    throw new Error(data.message || t('watcherIdentity.errStreamError'))
                   }
                 } catch (parseErr) {
                   // Ignore parse errors, might be malformed chunk
@@ -580,9 +586,9 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
         setStreamingText(result.synopsis || '')
       }
       
-      setSuccess('Identity generated successfully!')
+      setSuccess(t('watcherIdentity.successIdentityGenerated'))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate identity')
+      setError(err instanceof Error ? err.message : t('watcherIdentity.errGenerateIdentity'))
     } finally {
       setGenerating(false)
       setIsStreaming(false)
@@ -590,7 +596,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
   }
 
   const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return 'Never'
+    if (!dateStr) return t('watcherIdentity.analyzedNever')
     return new Date(dateStr).toLocaleDateString(undefined, {
       month: 'short',
       day: 'numeric',
@@ -633,12 +639,12 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
         <DialogTitle sx={{ pb: 1 }}>
           <Box display="flex" alignItems="center" gap={1}>
             <HistoryIcon color="primary" />
-            Analyze Watch History
+            {t('watcherIdentity.analyzeModalTitle')}
           </Box>
         </DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" mb={3}>
-            You have existing preferences. How would you like to proceed?
+            {t('watcherIdentity.analyzeModalBody')}
           </Typography>
           
           <Stack spacing={2}>
@@ -664,10 +670,10 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                 <RefreshIcon color="error" sx={{ fontSize: 32 }} />
                 <Box>
                   <Typography variant="subtitle1" fontWeight={600}>
-                    Reset All
+                    {t('watcherIdentity.analyzeResetTitle')}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Clear all preferences and recalculate from your current watch history
+                    {t('watcherIdentity.analyzeResetDescription')}
                   </Typography>
                 </Box>
               </Box>
@@ -695,10 +701,10 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                 <AddIcon color="success" sx={{ fontSize: 32 }} />
                 <Box>
                   <Typography variant="subtitle1" fontWeight={600}>
-                    Add New Only
+                    {t('watcherIdentity.analyzeMergeTitle')}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Keep your customized preferences and only add newly detected items
+                    {t('watcherIdentity.analyzeMergeDescription')}
                   </Typography>
                 </Box>
               </Box>
@@ -706,7 +712,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setShowAnalyzeModal(false)}>Cancel</Button>
+          <Button onClick={() => setShowAnalyzeModal(false)}>{t('watcherIdentity.dialogCancel')}</Button>
         </DialogActions>
       </Dialog>
 
@@ -715,20 +721,20 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
         <CardContent>
           <Box display="flex" alignItems="center" justifyContent="space-between" mb={2.5}>
           <Typography variant="h6" fontWeight={600}>
-            Identity Settings
+            {t('watcherIdentity.identitySettingsTitle')}
           </Typography>
           <Box display="flex" alignItems="center" gap={1}>
             <Chip
               size="small"
-              label={data?.profile?.hasEmbedding ? 'Active' : 'Not Analyzed'}
+              label={data?.profile?.hasEmbedding ? t('watcherIdentity.statusActive') : t('watcherIdentity.statusNotAnalyzed')}
               color={data?.profile?.hasEmbedding ? 'success' : 'warning'}
             />
             {data?.profile?.isLocked && (
-              <Chip size="small" icon={<LockIcon />} label="Locked" color="info" />
+              <Chip size="small" icon={<LockIcon />} label={t('watcherIdentity.lockedChip')} color="info" />
             )}
             {data?.profile?.autoUpdatedAt && (
               <Typography variant="caption" color="text.secondary">
-                Analyzed {formatDate(data.profile.autoUpdatedAt)}
+                {t('watcherIdentity.analyzedOn', { date: formatDate(data.profile.autoUpdatedAt) })}
               </Typography>
             )}
           </Box>
@@ -749,7 +755,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
             >
               <Box display="flex" alignItems="center" gap={0.5} mb={1}>
                 {isLocked ? <LockIcon fontSize="small" color="action" /> : <LockOpenIcon fontSize="small" color="action" />}
-                <Typography variant="body2" fontWeight={600}>Auto-refresh</Typography>
+                <Typography variant="body2" fontWeight={600}>{t('watcherIdentity.autoRefresh')}</Typography>
               </Box>
               <Box display="flex" alignItems="center" gap={1.5} mb={1}>
                 <Switch
@@ -796,7 +802,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                 height: '100%',
               }}
             >
-              <Typography variant="body2" fontWeight={600} mb={1}>Min Franchise Size</Typography>
+              <Typography variant="body2" fontWeight={600} mb={1}>{t('watcherIdentity.minFranchiseSizeTitle')}</Typography>
               <FormControl size="small" fullWidth sx={{ mb: 1 }}>
                 <Select
                   value={minFranchiseSize}
@@ -807,13 +813,17 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                 >
                   {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
                     <MenuItem key={value} value={value}>
-                      {value}+ {isMovie ? 'movies' : 'shows'} in library
+                      {isMovie
+                        ? t('watcherIdentity.minFranchiseSizeOptionMovies', { count: value })
+                        : t('watcherIdentity.minFranchiseSizeOptionShows', { count: value })}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
               <Typography variant="caption" color="text.secondary">
-                Only include franchises with at least {minFranchiseSize} {isMovie ? 'movies' : 'shows'} available
+                {isMovie
+                  ? t('watcherIdentity.minFranchiseSizeCaptionMovies', { count: minFranchiseSize })
+                  : t('watcherIdentity.minFranchiseSizeCaptionShows', { count: minFranchiseSize })}
               </Typography>
             </Box>
           </Grid>
@@ -830,7 +840,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                 height: '100%',
               }}
             >
-              <Typography variant="body2" fontWeight={600} mb={1}>Min Watched</Typography>
+              <Typography variant="body2" fontWeight={600} mb={1}>{t('watcherIdentity.minWatchedTitle')}</Typography>
               <FormControl size="small" fullWidth sx={{ mb: 1 }}>
                 <Select
                   value={minFranchiseItems}
@@ -841,13 +851,13 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                 >
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
                     <MenuItem key={value} value={value}>
-                      {value}+ watched from franchise
+                      {t('watcherIdentity.minWatchedOption', { count: value })}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
               <Typography variant="caption" color="text.secondary">
-                You must have watched at least {minFranchiseItems} from a franchise to include it
+                {t('watcherIdentity.minWatchedCaption', { count: minFranchiseItems })}
               </Typography>
             </Box>
           </Grid>
@@ -864,11 +874,11 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
               <Box display="flex" alignItems="center" gap={1} mb={1}>
                 <AutoAwesomeIcon sx={{ color: accentColor }} fontSize="small" />
                 <Typography variant="h6" fontWeight={600}>
-                  Specific Interests
+                  {t('watcherIdentity.specificInterestsTitle')}
                 </Typography>
               </Box>
             <Typography variant="body2" color="text.secondary" mb={2}>
-              Add themes, styles, or content types you enjoy to improve recommendations.
+              {t('watcherIdentity.specificInterestsBody')}
             </Typography>
             
             <Autocomplete
@@ -899,7 +909,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  placeholder="Type an interest and press Enter"
+                  placeholder={t('watcherIdentity.interestPlaceholder')}
                   size="small"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && interestInput.trim()) {
@@ -913,7 +923,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
             
             {interests.length === 0 && (
               <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                Examples: "Time travel stories", "Dark comedies", "Underdog sports dramas"
+                {t('watcherIdentity.interestExamples')}
               </Typography>
             )}
             </CardContent>
@@ -927,11 +937,11 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
               <Box display="flex" alignItems="center" gap={1} mb={1}>
                 <VideoLibraryIcon sx={{ color: accentColor }} fontSize="small" />
                 <Typography variant="h6" fontWeight={600}>
-                  {isMovie ? 'Movie' : 'Series'} Library Sources
+                  {isMovie ? t('watcherIdentity.librarySourcesMovie') : t('watcherIdentity.librarySourcesSeries')}
                 </Typography>
               </Box>
             <Typography variant="body2" color="text.secondary" mb={2}>
-              Choose which {isMovie ? 'movie' : 'TV show'} libraries contribute to your taste profile.
+              {isMovie ? t('watcherIdentity.librarySourcesDescMovie') : t('watcherIdentity.librarySourcesDescTv')}
             </Typography>
             
             {loadingLibraries ? (
@@ -940,7 +950,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
               </Box>
             ) : accessibleLibraries.filter(l => l.collectionType === (isMovie ? 'movies' : 'tvshows')).length === 0 ? (
               <Typography variant="body2" color="text.secondary">
-                No {isMovie ? 'movie' : 'TV show'} libraries found.
+                {isMovie ? t('watcherIdentity.noMovieLibraries') : t('watcherIdentity.noTvLibraries')}
               </Typography>
             ) : (
               <Box 
@@ -1021,7 +1031,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
             )}
             
             <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
-              AI Picks and system libraries are automatically excluded.
+              {t('watcherIdentity.aiPicksExcludedCaption')}
             </Typography>
             </CardContent>
           </Card>
@@ -1042,7 +1052,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
               '&:hover': { bgcolor: accentColor, filter: 'brightness(1.1)' },
             }}
           >
-            {analyzing ? 'Analyzing...' : 'Analyze Watch History'}
+            {analyzing ? t('watcherIdentity.analyzing') : t('watcherIdentity.analyzeWatchHistory')}
           </Button>
           
         </Box>
@@ -1054,11 +1064,11 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
         <CardContent>
         <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
           <Typography variant="h6" fontWeight={600}>
-            Watch History Weights
+            {t('watcherIdentity.watchHistoryWeightsTitle')}
           </Typography>
           <Fade in={!!savingSlider}>
             <Typography variant="caption" color="text.secondary">
-              Saving...
+              {t('watcherIdentity.savingSlider')}
             </Typography>
           </Fade>
         </Box>
@@ -1075,7 +1085,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
               <Box display="flex" alignItems="center" gap={1} mb={1}>
                 <LocalMoviesIcon sx={{ color: accentColor }} fontSize="small" />
                 <Typography variant="subtitle1" fontWeight={600}>
-                  Franchise Weighting ({data?.franchises?.length || 0})
+                  {t('watcherIdentity.franchiseWeightingTitle', { count: data?.franchises?.length || 0 })}
                 </Typography>
               </Box>
               
@@ -1091,17 +1101,19 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                 }}
               >
                 <Typography variant="caption" color="text.secondary">
-                  Adjust how much each franchise influences your recommendations. 
-                  <strong> Boost</strong> to see more from franchises you love, 
-                  <strong> Avoid</strong> to see less. Your settings are saved automatically.
+                  {t('watcherIdentity.franchiseExplainerLead')}{' '}
+                  <strong>{t('watcherIdentity.weightBoost')}</strong>
+                  {t('watcherIdentity.franchiseExplainerAfterBoost')}
+                  <strong>{t('watcherIdentity.weightAvoid')}</strong>
+                  {t('watcherIdentity.franchiseExplainerAfterAvoid')}
                 </Typography>
               </Box>
               
               {/* Legend */}
               <Box display="flex" justifyContent="space-between" mb={2} px={1}>
-                <Typography variant="caption" color="error.main">Avoid</Typography>
-                <Typography variant="caption" color="text.secondary">Neutral</Typography>
-                <Typography variant="caption" color="success.main">Boost</Typography>
+                <Typography variant="caption" color="error.main">{t('watcherIdentity.weightAvoid')}</Typography>
+                <Typography variant="caption" color="text.secondary">{t('watcherIdentity.weightNeutral')}</Typography>
+                <Typography variant="caption" color="success.main">{t('watcherIdentity.weightBoost')}</Typography>
               </Box>
               
               {/* Scrollable slider list */}
@@ -1144,7 +1156,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                             {isNew && (
                               <Chip 
                                 size="small" 
-                                label="NEW" 
+                                label={t('watcherIdentity.chipNew')} 
                                 sx={{ 
                                   bgcolor: '#f59e0b', 
                                   color: 'white', 
@@ -1159,8 +1171,8 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                             <Chip
                               size="small"
                               label={
-                                franchise.preferenceScore > 0.3 ? 'Boost' :
-                                franchise.preferenceScore < -0.3 ? 'Avoid' : 'Neutral'
+                                franchise.preferenceScore > 0.3 ? t('watcherIdentity.weightBoost') :
+                                franchise.preferenceScore < -0.3 ? t('watcherIdentity.weightAvoid') : t('watcherIdentity.weightNeutral')
                               }
                               sx={{
                                 bgcolor: franchise.preferenceScore > 0.3 ? 'success.main' :
@@ -1170,7 +1182,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                                 height: 20,
                               }}
                             />
-                            <Tooltip title="Remove from list">
+                            <Tooltip title={t('watcherIdentity.removeFromListTooltip')}>
                               <IconButton 
                                 size="small" 
                                 onClick={() => handleDeleteFranchise(franchise.franchiseName)}
@@ -1209,7 +1221,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                   })
                 ) : (
                   <Typography variant="body2" color="text.secondary" textAlign="center" py={4}>
-                    No franchises detected. Click "Analyze Watch History" to scan.
+                    {t('watcherIdentity.noFranchisesHint', { action: t('watcherIdentity.analyzeWatchHistory') })}
                   </Typography>
                 )}
               </Box>
@@ -1222,7 +1234,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                   sx={{ mt: 2 }}
                 >
                   <Typography variant="body2" fontWeight={500} mb={1}>
-                    {newItems.franchises.length} new franchise{newItems.franchises.length > 1 ? 's' : ''} detected:
+                    {t('watcherIdentity.newFranchisesDetected', { count: newItems.franchises.length })}
                   </Typography>
                   <Box display="flex" gap={0.5} flexWrap="wrap">
                     {newItems.franchises.map((name) => (
@@ -1256,7 +1268,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
               <Box display="flex" alignItems="center" gap={1} mb={1}>
                 <TheaterComedyIcon sx={{ color: accentColor }} fontSize="small" />
                 <Typography variant="subtitle1" fontWeight={600}>
-                  Genre Weighting ({data?.genres?.length || 0})
+                  {t('watcherIdentity.genreWeightingTitle', { count: data?.genres?.length || 0 })}
                 </Typography>
               </Box>
               
@@ -1272,17 +1284,19 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                 }}
               >
                 <Typography variant="caption" color="text.secondary">
-                  Fine-tune genre preferences to personalize discovery and recommendations. 
-                  <strong> Boost</strong> genres you enjoy, 
-                  <strong> Hide</strong> genres you want to avoid. Changes apply to all features.
+                  {t('watcherIdentity.genreExplainerLead')}{' '}
+                  <strong>{t('watcherIdentity.weightBoost')}</strong>
+                  {t('watcherIdentity.genreExplainerAfterBoost')}
+                  <strong>{t('watcherIdentity.weightHide')}</strong>
+                  {t('watcherIdentity.genreExplainerAfterHide')}
                 </Typography>
               </Box>
               
               {/* Legend */}
               <Box display="flex" justifyContent="space-between" mb={2} px={1}>
-                <Typography variant="caption" color="text.secondary">Hide</Typography>
-                <Typography variant="caption" color="text.secondary">Normal</Typography>
-                <Typography variant="caption" color="info.main">Boost</Typography>
+                <Typography variant="caption" color="text.secondary">{t('watcherIdentity.weightHide')}</Typography>
+                <Typography variant="caption" color="text.secondary">{t('watcherIdentity.weightNormal')}</Typography>
+                <Typography variant="caption" color="info.main">{t('watcherIdentity.weightBoost')}</Typography>
               </Box>
               
               {/* Scrollable slider list */}
@@ -1317,7 +1331,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                             {isNew && (
                               <Chip 
                                 size="small" 
-                                label="NEW" 
+                                label={t('watcherIdentity.chipNew')} 
                                 sx={{ 
                                   bgcolor: '#f59e0b', 
                                   color: 'white', 
@@ -1332,8 +1346,8 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                             <Chip
                               size="small"
                               label={
-                                genre.weight > 1.3 ? 'Boost' :
-                                genre.weight < 0.7 ? 'Less' : 'Normal'
+                                genre.weight > 1.3 ? t('watcherIdentity.weightBoost') :
+                                genre.weight < 0.7 ? t('watcherIdentity.weightLess') : t('watcherIdentity.weightNormal')
                               }
                               sx={{
                                 bgcolor: genre.weight > 1.3 ? 'info.main' :
@@ -1343,7 +1357,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                                 height: 20,
                               }}
                             />
-                            <Tooltip title="Remove from list">
+                            <Tooltip title={t('watcherIdentity.removeFromListTooltip')}>
                               <IconButton 
                                 size="small" 
                                 onClick={() => handleDeleteGenre(genre.genre)}
@@ -1380,7 +1394,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                   })
                 ) : (
                   <Typography variant="body2" color="text.secondary" textAlign="center" py={4}>
-                    No genres detected. Click "Analyze Watch History" to scan.
+                    {t('watcherIdentity.noGenresHint', { action: t('watcherIdentity.analyzeWatchHistory') })}
                   </Typography>
                 )}
               </Box>
@@ -1393,7 +1407,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                   sx={{ mt: 2 }}
                 >
                   <Typography variant="body2" fontWeight={500} mb={1}>
-                    {newItems.genres.length} new genre{newItems.genres.length > 1 ? 's' : ''} detected:
+                    {t('watcherIdentity.newGenresDetected', { count: newItems.genres.length })}
                   </Typography>
                   <Box display="flex" gap={0.5} flexWrap="wrap">
                     {newItems.genres.map((name) => (
@@ -1439,10 +1453,10 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
             </Box>
             <Box>
               <Typography variant="h6" fontWeight={700}>
-                {isMovie ? 'Movie' : 'TV Series'} Identity
+                {isMovie ? t('watcherIdentity.movieIdentityTitle') : t('watcherIdentity.seriesIdentityTitle')}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                AI-generated analysis of your viewing preferences
+                {t('watcherIdentity.identitySubtitle')}
               </Typography>
             </Box>
           </Box>
@@ -1457,7 +1471,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
               '&:hover': { bgcolor: accentColor, filter: 'brightness(1.1)' },
             }}
           >
-            {generating ? 'Generating...' : 'Generate Identity'}
+            {generating ? t('watcherIdentity.generating') : t('watcherIdentity.generateIdentity')}
           </Button>
         </Box>
 
@@ -1520,10 +1534,12 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
             }}
           >
             <Typography color="text.secondary" gutterBottom>
-              No identity generated yet
+              {t('watcherIdentity.noIdentityYet')}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Click "Generate Identity" to create your personalized {isMovie ? 'movie' : 'TV'} profile
+              {isMovie
+                ? t('watcherIdentity.generateIdentityHintMovie', { action: t('watcherIdentity.generateIdentity') })
+                : t('watcherIdentity.generateIdentityHintSeries', { action: t('watcherIdentity.generateIdentity') })}
             </Typography>
           </Box>
         )}
@@ -1541,7 +1557,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                   }
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {isMovie ? 'Movies Watched' : 'Series / Episodes'}
+                  {isMovie ? t('watcherIdentity.moviesWatched') : t('watcherIdentity.seriesEpisodesLabel')}
                 </Typography>
               </Card>
             </Grid>
@@ -1553,7 +1569,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                   {stats.avgRating?.toFixed(1) || '—'}/10
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Avg. Rating
+                  {t('watcherIdentity.avgRating')}
                 </Typography>
               </Card>
             </Grid>
@@ -1565,7 +1581,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                   {stats.favoriteDecade || '—'}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Favorite Era
+                  {t('watcherIdentity.favoriteEra')}
                 </Typography>
               </Card>
             </Grid>
@@ -1579,7 +1595,7 @@ export function WatcherIdentitySection({ mediaType }: WatcherIdentitySectionProp
                   ))}
                 </Box>
                 <Typography variant="caption" color="text.secondary" display="block" mt={1}>
-                  Top Genres
+                  {t('watcherIdentity.topGenres')}
                 </Typography>
               </Card>
             </Grid>

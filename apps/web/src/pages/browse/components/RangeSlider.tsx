@@ -1,4 +1,5 @@
 import { Box, Slider, Typography, alpha, useTheme } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 
 interface RangeSliderProps {
   label: string
@@ -21,6 +22,7 @@ export function RangeSlider({
   formatValue = (v) => String(v),
   marks = false,
 }: RangeSliderProps) {
+  const { t } = useTranslation()
   const theme = useTheme()
   const isChanged = value[0] !== min || value[1] !== max
 
@@ -37,7 +39,10 @@ export function RangeSlider({
             fontWeight: isChanged ? 600 : 400,
           }}
         >
-          {formatValue(value[0])} – {formatValue(value[1])}
+          {t('browse.rangeSlider.valueRange', {
+            start: formatValue(value[0]),
+            end: formatValue(value[1]),
+          })}
         </Typography>
       </Box>
       <Slider

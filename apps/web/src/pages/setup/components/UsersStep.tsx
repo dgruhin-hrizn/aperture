@@ -24,6 +24,7 @@ import RefreshIcon from '@mui/icons-material/Refresh'
 import MovieIcon from '@mui/icons-material/LocalMovies'
 import TvIcon from '@mui/icons-material/Tv'
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
+import { useTranslation } from 'react-i18next'
 import type { SetupWizardContext, SetupUser } from '../types'
 
 const ROWS_PER_PAGE = 10
@@ -41,6 +42,7 @@ interface UserTableProps {
 }
 
 function UserTable({ users, toggleUserMovies, toggleUserSeries, enabledAdminCount, isAdminSection }: UserTableProps) {
+  const { t } = useTranslation()
   const [page, setPage] = useState(0)
 
   if (users.length === 0) return null
@@ -53,17 +55,17 @@ function UserTable({ users, toggleUserMovies, toggleUserSeries, enabledAdminCoun
       <Table size="small">
         <TableHead>
           <TableRow>
-            <TableCell>User</TableCell>
+            <TableCell>{t('setup.users.colUser')}</TableCell>
             <TableCell align="center" sx={{ width: 100 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
                 <MovieIcon fontSize="small" />
-                Movies
+                {t('setup.users.colMovies')}
               </Box>
             </TableCell>
             <TableCell align="center" sx={{ width: 100 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
                 <TvIcon fontSize="small" />
-                Series
+                {t('setup.users.colSeries')}
               </Box>
             </TableCell>
           </TableRow>
@@ -88,20 +90,20 @@ function UserTable({ users, toggleUserMovies, toggleUserSeries, enabledAdminCoun
                     {user.isAdmin && (
                       <Chip
                         icon={<AdminPanelSettingsIcon />}
-                        label="Admin"
+                        label={t('setup.users.adminChip')}
                         size="small"
                         color="primary"
                         variant="outlined"
                       />
                     )}
                     {user.isDisabled && (
-                      <Chip label="Disabled" size="small" color="default" variant="outlined" />
+                      <Chip label={t('setup.users.disabledChip')} size="small" color="default" variant="outlined" />
                     )}
                   </Box>
                 </TableCell>
                 <TableCell align="center">
                   <Tooltip
-                    title={isLastEnabledAdmin && user.moviesEnabled ? 'At least one admin must remain enabled' : ''}
+                    title={isLastEnabledAdmin && user.moviesEnabled ? t('setup.users.tooltipLastAdmin') : ''}
                   >
                     <span>
                       <Switch
@@ -115,7 +117,7 @@ function UserTable({ users, toggleUserMovies, toggleUserSeries, enabledAdminCoun
                 </TableCell>
                 <TableCell align="center">
                   <Tooltip
-                    title={isLastEnabledAdmin && user.seriesEnabled ? 'At least one admin must remain enabled' : ''}
+                    title={isLastEnabledAdmin && user.seriesEnabled ? t('setup.users.tooltipLastAdmin') : ''}
                   >
                     <span>
                       <Switch
@@ -140,7 +142,9 @@ function UserTable({ users, toggleUserMovies, toggleUserSeries, enabledAdminCoun
           onPageChange={(_, newPage) => setPage(newPage)}
           rowsPerPage={ROWS_PER_PAGE}
           rowsPerPageOptions={[ROWS_PER_PAGE]}
-          labelDisplayedRows={({ from, to, count }) => `${from}-${to} of ${count}`}
+          labelDisplayedRows={({ from, to, count }) =>
+            t('setup.users.paginationRange', { from, to, count })
+          }
           sx={{ borderTop: 1, borderColor: 'divider' }}
         />
       )}
@@ -149,6 +153,7 @@ function UserTable({ users, toggleUserMovies, toggleUserSeries, enabledAdminCoun
 }
 
 export function UsersStep({ wizard }: UsersStepProps) {
+  const { t } = useTranslation()
   const {
     goToStep,
     updateProgress,
@@ -184,24 +189,24 @@ export function UsersStep({ wizard }: UsersStepProps) {
     return (
       <Box>
         <Typography variant="h6" gutterBottom>
-          Enable Users
+          {t('setup.users.titleEnableUsers')}
         </Typography>
 
         <Alert severity="info" sx={{ mb: 3 }}>
           <Typography variant="body2">
-            {usersError || 'Setup is complete.'}{' '}
+            {usersError || t('setup.users.setupCompleteFallback')}{' '}
             <RouterLink to="/admin/users" style={{ color: 'inherit', fontWeight: 600 }}>
-              Manage users in Admin → Users
+              {t('setup.users.manageUsersLink')}
             </RouterLink>
           </Typography>
         </Alert>
 
         <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
           <Button variant="outlined" onClick={() => goToStep('validate')}>
-            Back
+            {t('setup.users.back')}
           </Button>
           <Button variant="contained" onClick={handleContinue}>
-            Continue
+            {t('setup.users.continue')}
           </Button>
         </Box>
       </Box>
@@ -211,8 +216,8 @@ export function UsersStep({ wizard }: UsersStepProps) {
   return (
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-        <Typography variant="h6">Enable Users for AI Recommendations</Typography>
-        <Tooltip title="Refresh user list from media server">
+        <Typography variant="h6">{t('setup.users.titleMain')}</Typography>
+        <Tooltip title={t('setup.users.refreshTooltip')}>
           <IconButton onClick={fetchSetupUsers} disabled={loadingUsers} size="small">
             <RefreshIcon />
           </IconButton>
@@ -220,9 +225,7 @@ export function UsersStep({ wizard }: UsersStepProps) {
       </Box>
 
       <Typography variant="body2" color="text.secondary" paragraph>
-        Choose which users should receive personalized AI recommendations. For each user, you can enable
-        recommendations for Movies, TV Series, or both. Aperture analyzes each user's watch history
-        individually to generate tailored suggestions that appear in their personal recommendation libraries.
+        {t('setup.users.bodyParagraph')}
       </Typography>
 
       {usersError && !setupCompleteForUsers && (
@@ -237,23 +240,24 @@ export function UsersStep({ wizard }: UsersStepProps) {
         </Box>
       ) : setupUsers.length === 0 ? (
         <Alert severity="warning" sx={{ mb: 2 }}>
-          No users found on your media server. Please ensure your media server has active user accounts,
-          then click the refresh button to reload the list.
+          {t('setup.users.noUsersWarning')}
         </Alert>
       ) : (
         <>
           {/* Admin Users Section */}
           {adminUsers.length > 0 && (
             <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle2" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography
+                variant="subtitle2"
+                color="primary"
+                gutterBottom
+                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+              >
                 <AdminPanelSettingsIcon fontSize="small" />
-                Admin Users ({adminUsers.length})
+                {t('setup.users.adminSectionTitle', { count: adminUsers.length })}
               </Typography>
               <Alert severity="info" sx={{ mb: 2, py: 0.5 }} icon={false}>
-                <Typography variant="caption">
-                  Admin users have been automatically enabled to ensure you can log in and manage Aperture.
-                  At least one admin must stay enabled to maintain access to the admin dashboard.
-                </Typography>
+                <Typography variant="caption">{t('setup.users.adminInfoCaption')}</Typography>
               </Alert>
               <UserTable
                 users={adminUsers}
@@ -270,11 +274,10 @@ export function UsersStep({ wizard }: UsersStepProps) {
             <Box sx={{ mb: 3 }}>
               {adminUsers.length > 0 && <Divider sx={{ my: 2 }} />}
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                Other Users ({regularUsers.length})
+                {t('setup.users.otherUsersTitle', { count: regularUsers.length })}
               </Typography>
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-                Enable recommendations for family members or other users on your media server.
-                Each enabled user will get their own personalized recommendations based on their viewing history.
+                {t('setup.users.otherUsersCaption')}
               </Typography>
               <UserTable
                 users={regularUsers}
@@ -289,17 +292,16 @@ export function UsersStep({ wizard }: UsersStepProps) {
 
       <Alert severity="warning" sx={{ mb: 2, py: 0.5 }} icon={false}>
         <Typography variant="caption">
-          <strong>Note:</strong> Users with both Movies and Series disabled will not receive any recommendations
-          and won't be able to log in to Aperture. You can always change these settings later in Admin → Users.
+          <strong>{t('setup.users.noteLabel')}</strong> {t('setup.users.noteWarning')}
         </Typography>
       </Alert>
 
       <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
         <Button variant="outlined" onClick={() => goToStep('validate')}>
-          Back
+          {t('setup.users.back')}
         </Button>
         <Button variant="contained" onClick={handleContinue}>
-          Continue
+          {t('setup.users.continue')}
         </Button>
       </Box>
     </Box>

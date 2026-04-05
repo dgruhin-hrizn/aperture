@@ -122,7 +122,7 @@ export function WatchHistorySeriesListItem({
             {isCompleted && (
               <Chip
                 icon={<CheckCircleIcon sx={{ fontSize: { xs: 12, md: 14 } }} />}
-                label="Complete"
+                label={t('watchHistoryPage.completeBadge')}
                 size="small"
                 sx={{
                   position: 'absolute',

@@ -3,7 +3,8 @@ import CloseIcon from '@mui/icons-material/Close'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useSetupWizard } from './hooks/useSetupWizard'
 import { useSetupStatus } from '../../hooks/useSetupStatus'
-import { STEP_ORDER } from './constants'
+import { useTranslation } from 'react-i18next'
+import { STEP_ORDER_IDS } from './constants'
 import {
   RestoreStep,
   MediaServerStep,
@@ -21,6 +22,7 @@ import {
 const APP_VERSION = '0.7.1'
 
 export function SetupPage() {
+  const { t } = useTranslation()
   const wizard = useSetupWizard()
   const { status } = useSetupStatus()
   const navigate = useNavigate()
@@ -90,7 +92,7 @@ export function SetupPage() {
         <Box
           component="img"
           src="/aperture.svg"
-          alt="Aperture"
+          alt={t('setup.page.altLogo')}
           sx={{ width: 32, height: 32 }}
         />
         <Typography
@@ -102,13 +104,13 @@ export function SetupPage() {
             letterSpacing: '-0.01em',
           }}
         >
-          Aperture
+          {t('setup.page.brandName')}
         </Typography>
       </Box>
 
       {/* Exit button for admin re-run - top right */}
       {isAdminRerun && (
-        <Tooltip title="Exit Setup Wizard">
+        <Tooltip title={t('setup.page.exitWizardTooltip')}>
           <IconButton
             onClick={() => navigate(exitPath)}
             sx={{
@@ -155,9 +157,9 @@ export function SetupPage() {
       >
         <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
           <Stepper activeStep={activeStep} sx={{ mb: 4 }} alternativeLabel>
-            {STEP_ORDER.map((s) => (
-              <Step key={s.id}>
-                <StepLabel>{s.label}</StepLabel>
+            {STEP_ORDER_IDS.map((id) => (
+              <Step key={id}>
+                <StepLabel>{t(`setup.step.${id}.label`)}</StepLabel>
               </Step>
             ))}
           </Stepper>

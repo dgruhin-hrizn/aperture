@@ -38,6 +38,7 @@ import {
 } from 'recharts'
 import { getProxiedImageUrl } from '@aperture/ui'
 import { useAuth } from '@/hooks/useAuth'
+import { useTranslation } from 'react-i18next'
 
 interface WatchStats {
   genreDistribution: { genre: string; count: number; percentage: number }[]
@@ -67,6 +68,7 @@ const GENRE_COLORS = [
 const DECADE_COLORS = ['#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe', '#e0e7ff']
 
 export function WatchStatsPage() {
+  const { t } = useTranslation()
   const { user } = useAuth()
   const navigate = useNavigate()
   const [stats, setStats] = useState<WatchStats | null>(null)
@@ -86,25 +88,25 @@ export function WatchStatsPage() {
           setStats(data)
           setError(null)
         } else {
-          setError('Failed to load watch statistics')
+          setError(t('watchStats.errorLoadFailed'))
         }
       } catch {
-        setError('Could not connect to server')
+        setError(t('watchStats.errorConnect'))
       } finally {
         setLoading(false)
       }
     }
 
     fetchStats()
-  }, [user])
+  }, [user, t])
 
   const formatWatchTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60)
     const days = Math.floor(hours / 24)
     if (days > 0) {
-      return `${days}d ${hours % 24}h`
+      return t('watchStats.watchTimeDaysHours', { days, hours: hours % 24 })
     }
-    return `${hours}h ${minutes % 60}m`
+    return t('watchStats.watchTimeHoursMinutes', { hours, minutes: minutes % 60 })
   }
 
   if (loading) {
@@ -144,17 +146,17 @@ export function WatchStatsPage() {
         <Box display="flex" alignItems="center" gap={2} mb={1}>
           <InsightsIcon sx={{ color: 'primary.main', fontSize: 32 }} />
           <Typography variant="h4" fontWeight={700}>
-            Watch Stats
+            {t('watchStats.title')}
           </Typography>
         </Box>
         <Typography variant="body1" color="text.secondary">
-          Your personal viewing statistics and insights
+          {t('watchStats.subtitle')}
         </Typography>
       </Box>
 
       {!hasData ? (
         <Alert severity="info" sx={{ borderRadius: 2 }}>
-          No watch history data yet. Your statistics will appear here once you've watched some content.
+          {t('watchStats.emptyState')}
         </Alert>
       ) : (
         <>
@@ -168,7 +170,7 @@ export function WatchStatsPage() {
                     {stats.totalMovies}
                   </Typography>
                   <Typography variant="caption" color="rgba(255,255,255,0.8)">
-                    Movies
+                    {t('watchStats.summaryMovies')}
                   </Typography>
                 </CardContent>
               </Card>
@@ -181,7 +183,7 @@ export function WatchStatsPage() {
                     {stats.totalSeries}
                   </Typography>
                   <Typography variant="caption" color="rgba(255,255,255,0.8)">
-                    TV Series
+                    {t('watchStats.summaryTvSeries')}
                   </Typography>
                 </CardContent>
               </Card>
@@ -194,7 +196,7 @@ export function WatchStatsPage() {
                     {stats.totalEpisodes}
                   </Typography>
                   <Typography variant="caption" color="rgba(255,255,255,0.8)">
-                    Episodes
+                    {t('watchStats.summaryEpisodes')}
                   </Typography>
                 </CardContent>
               </Card>
@@ -207,7 +209,7 @@ export function WatchStatsPage() {
                     {formatWatchTime(stats.totalWatchTimeMinutes)}
                   </Typography>
                   <Typography variant="caption" color="rgba(255,255,255,0.8)">
-                    Watch Time
+                    {t('watchStats.summaryWatchTime')}
                   </Typography>
                 </CardContent>
               </Card>
@@ -220,7 +222,7 @@ export function WatchStatsPage() {
                     {stats.totalPlays}
                   </Typography>
                   <Typography variant="caption" color="rgba(255,255,255,0.8)">
-                    Total Plays
+                    {t('watchStats.summaryTotalPlays')}
                   </Typography>
                 </CardContent>
               </Card>
@@ -233,7 +235,7 @@ export function WatchStatsPage() {
                     {stats.totalFavorites}
                   </Typography>
                   <Typography variant="caption" color="rgba(255,255,255,0.8)">
-                    Favorites
+                    {t('watchStats.summaryFavorites')}
                   </Typography>
                 </CardContent>
               </Card>
@@ -247,7 +249,7 @@ export function WatchStatsPage() {
               <Card sx={{ borderRadius: 2, height: '100%' }}>
                 <CardContent>
                   <Typography variant="h6" fontWeight={600} mb={2}>
-                    Favorite Genres
+                    {t('watchStats.sectionFavoriteGenres')}
                   </Typography>
                   {stats.genreDistribution.length > 0 ? (
                     <Box display="flex" alignItems="center" gap={2}>
@@ -276,7 +278,14 @@ export function WatchStatsPage() {
                             itemStyle={{ color: '#f5f5f5' }}
                             formatter={(value, _name, props) => {
                               const payload = props.payload as { genre: string; percentage: number } | undefined
-                              return [`${value} movies (${payload?.percentage || 0}%)`, payload?.genre || '']
+                              const count = typeof value === 'number' ? value : Number(value)
+                              return [
+                                t('watchStats.genreTooltipMovies', {
+                                  count,
+                                  pct: payload?.percentage ?? 0,
+                                }),
+                                payload?.genre || '',
+                              ]
                             }}
                           />
                         </PieChart>
@@ -304,7 +313,7 @@ export function WatchStatsPage() {
                     </Box>
                   ) : (
                     <Typography variant="body2" color="text.secondary">
-                      No genre data available
+                      {t('watchStats.emptyGenreData')}
                     </Typography>
                   )}
                 </CardContent>
@@ -316,7 +325,7 @@ export function WatchStatsPage() {
               <Card sx={{ borderRadius: 2, height: '100%' }}>
                 <CardContent>
                   <Typography variant="h6" fontWeight={600} mb={2}>
-                    Watching Activity
+                    {t('watchStats.sectionWatchingActivity')}
                   </Typography>
                   {stats.watchTimeline.length > 0 ? (
                     <ResponsiveContainer width="100%" height={200}>
@@ -344,7 +353,7 @@ export function WatchStatsPage() {
                           stroke="#6366f1" 
                           fill="#6366f1" 
                           fillOpacity={0.6}
-                          name="Movies"
+                          name={t('watchStats.chartMovies')}
                         />
                         <Area 
                           type="monotone" 
@@ -353,13 +362,13 @@ export function WatchStatsPage() {
                           stroke="#8b5cf6" 
                           fill="#8b5cf6" 
                           fillOpacity={0.6}
-                          name="Episodes"
+                          name={t('watchStats.chartEpisodes')}
                         />
                       </AreaChart>
                     </ResponsiveContainer>
                   ) : (
                     <Typography variant="body2" color="text.secondary">
-                      No timeline data available
+                      {t('watchStats.emptyTimelineData')}
                     </Typography>
                   )}
                 </CardContent>
@@ -374,7 +383,7 @@ export function WatchStatsPage() {
               <Card sx={{ borderRadius: 2, height: '100%' }}>
                 <CardContent>
                   <Typography variant="h6" fontWeight={600} mb={2}>
-                    Movies by Decade
+                    {t('watchStats.sectionMoviesByDecade')}
                   </Typography>
                   {stats.decadeDistribution.length > 0 ? (
                     <ResponsiveContainer width="100%" height={200}>
@@ -398,7 +407,7 @@ export function WatchStatsPage() {
                     </ResponsiveContainer>
                   ) : (
                     <Typography variant="body2" color="text.secondary">
-                      No decade data available
+                      {t('watchStats.emptyDecadeData')}
                     </Typography>
                   )}
                 </CardContent>
@@ -410,7 +419,7 @@ export function WatchStatsPage() {
               <Card sx={{ borderRadius: 2, height: '100%' }}>
                 <CardContent>
                   <Typography variant="h6" fontWeight={600} mb={2}>
-                    Rating Distribution
+                    {t('watchStats.sectionRatingDistribution')}
                   </Typography>
                   {stats.ratingDistribution.length > 0 ? (
                     <ResponsiveContainer width="100%" height={200}>
@@ -424,14 +433,20 @@ export function WatchStatsPage() {
                             border: '1px solid #2a2a2a',
                             borderRadius: 8 
                           }}
-                          formatter={(value) => [`${value} movies`, 'Count']}
+                          formatter={(value) => {
+                            const count = typeof value === 'number' ? value : Number(value)
+                            return [
+                              t('watchStats.ratingTooltipMovies', { count }),
+                              t('watchStats.chartCountLabel'),
+                            ]
+                          }}
                         />
                         <Bar dataKey="count" fill="#f59e0b" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
                     <Typography variant="body2" color="text.secondary">
-                      No rating data available
+                      {t('watchStats.emptyRatingData')}
                     </Typography>
                   )}
                 </CardContent>
@@ -448,7 +463,7 @@ export function WatchStatsPage() {
                   <Box display="flex" alignItems="center" gap={1} mb={2}>
                     <PersonIcon sx={{ color: 'primary.main' }} />
                     <Typography variant="h6" fontWeight={600}>
-                      Most Watched Actors
+                      {t('watchStats.sectionTopActors')}
                     </Typography>
                   </Box>
                   {stats.topActors.length > 0 ? (
@@ -495,7 +510,7 @@ export function WatchStatsPage() {
                                 {actor.name}
                               </Typography>
                               <Chip 
-                                label={`${actor.count} films`} 
+                                label={t('watchStats.filmsCount', { count: actor.count })} 
                                 size="small" 
                                 sx={{ 
                                   height: 20, 
@@ -529,7 +544,7 @@ export function WatchStatsPage() {
                     </Box>
                   ) : (
                     <Typography variant="body2" color="text.secondary">
-                      No actor data available
+                      {t('watchStats.emptyActorData')}
                     </Typography>
                   )}
                 </CardContent>
@@ -543,7 +558,7 @@ export function WatchStatsPage() {
                   <Box display="flex" alignItems="center" gap={1} mb={2}>
                     <VideocamIcon sx={{ color: 'secondary.main' }} />
                     <Typography variant="h6" fontWeight={600}>
-                      Most Watched Directors
+                      {t('watchStats.sectionTopDirectors')}
                     </Typography>
                   </Box>
                   {stats.topDirectors.length > 0 ? (
@@ -590,7 +605,7 @@ export function WatchStatsPage() {
                                 {director.name}
                               </Typography>
                               <Chip 
-                                label={`${director.count} films`} 
+                                label={t('watchStats.filmsCount', { count: director.count })} 
                                 size="small" 
                                 sx={{ 
                                   height: 20, 
@@ -624,7 +639,7 @@ export function WatchStatsPage() {
                     </Box>
                   ) : (
                     <Typography variant="body2" color="text.secondary">
-                      No director data available
+                      {t('watchStats.emptyDirectorData')}
                     </Typography>
                   )}
                 </CardContent>
@@ -641,7 +656,7 @@ export function WatchStatsPage() {
                   <Box display="flex" alignItems="center" gap={1} mb={2}>
                     <BusinessIcon sx={{ color: '#f97316' }} />
                     <Typography variant="h6" fontWeight={600}>
-                      Top Studios
+                      {t('watchStats.sectionTopStudios')}
                     </Typography>
                   </Box>
                   {stats.topStudios.length > 0 ? (
@@ -689,7 +704,7 @@ export function WatchStatsPage() {
                                 {studio.name}
                               </Typography>
                               <Chip 
-                                label={`${studio.count} films`} 
+                                label={t('watchStats.filmsCount', { count: studio.count })} 
                                 size="small" 
                                 sx={{ 
                                   height: 20, 
@@ -723,7 +738,7 @@ export function WatchStatsPage() {
                     </Box>
                   ) : (
                     <Typography variant="body2" color="text.secondary">
-                      No studio data available
+                      {t('watchStats.emptyStudioData')}
                     </Typography>
                   )}
                 </CardContent>
@@ -737,7 +752,7 @@ export function WatchStatsPage() {
                   <Box display="flex" alignItems="center" gap={1} mb={2}>
                     <LiveTvIcon sx={{ color: '#06b6d4' }} />
                     <Typography variant="h6" fontWeight={600}>
-                      Top Networks
+                      {t('watchStats.sectionTopNetworks')}
                     </Typography>
                   </Box>
                   {stats.topNetworks.length > 0 ? (
@@ -785,7 +800,7 @@ export function WatchStatsPage() {
                                 {network.name}
                               </Typography>
                               <Chip 
-                                label={`${network.count} series`} 
+                                label={t('watchStats.networkSeriesCount', { count: network.count })} 
                                 size="small" 
                                 sx={{ 
                                   height: 20, 
@@ -819,7 +834,7 @@ export function WatchStatsPage() {
                     </Box>
                   ) : (
                     <Typography variant="body2" color="text.secondary">
-                      No network data available
+                      {t('watchStats.emptyNetworkData')}
                     </Typography>
                   )}
                 </CardContent>

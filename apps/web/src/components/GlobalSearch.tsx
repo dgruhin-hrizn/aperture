@@ -399,19 +399,37 @@ export function GlobalSearch() {
             }}
           >
             <Box display="flex" alignItems="center" gap={0.5}>
-              <Chip size="small" label="↑↓" sx={{ fontSize: '0.65rem', height: 20 }} />
+              <Chip
+                size="small"
+                label={t('globalSearch.hintChipNavigate')}
+                aria-label={t('globalSearch.hintAriaNavigate')}
+                title={t('globalSearch.hintAriaNavigate')}
+                sx={{ fontSize: '0.65rem', height: 20 }}
+              />
               <Typography variant="caption" color="text.secondary">
                 {t('globalSearch.shortcutNavigate')}
               </Typography>
             </Box>
             <Box display="flex" alignItems="center" gap={0.5}>
-              <Chip size="small" label="↵" sx={{ fontSize: '0.65rem', height: 20 }} />
+              <Chip
+                size="small"
+                label={t('globalSearch.hintChipSelect')}
+                aria-label={t('globalSearch.hintAriaSelect')}
+                title={t('globalSearch.hintAriaSelect')}
+                sx={{ fontSize: '0.65rem', height: 20 }}
+              />
               <Typography variant="caption" color="text.secondary">
                 {t('globalSearch.shortcutSelect')}
               </Typography>
             </Box>
             <Box display="flex" alignItems="center" gap={0.5}>
-              <Chip size="small" label="Esc" sx={{ fontSize: '0.65rem', height: 20 }} />
+              <Chip
+                size="small"
+                label={t('globalSearch.hintChipClose')}
+                aria-label={t('globalSearch.hintAriaClose')}
+                title={t('globalSearch.hintAriaClose')}
+                sx={{ fontSize: '0.65rem', height: 20 }}
+              />
               <Typography variant="caption" color="text.secondary">
                 {t('globalSearch.shortcutClose')}
               </Typography>

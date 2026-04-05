@@ -1,5 +1,6 @@
 import { Box, Button, Typography, Alert, CircularProgress, Switch, List, ListItem, ListItemText, Chip } from '@mui/material'
 import { LocalMovies as LocalMoviesIcon, Tv as TvIcon } from '@mui/icons-material'
+import { useTranslation } from 'react-i18next'
 import type { SetupWizardContext, LibraryConfig } from '../types'
 
 interface LibrariesStepProps {
@@ -7,6 +8,7 @@ interface LibrariesStepProps {
 }
 
 export function LibrariesStep({ wizard }: LibrariesStepProps) {
+  const { t } = useTranslation()
   const { error, libraries, setLibraries, loadingLibraries, loadLibraries, saveLibraries, saving, goToStep } = wizard
 
   const movieLibraries = libraries.filter((l) => l.collectionType === 'movies')
@@ -34,7 +36,7 @@ export function LibrariesStep({ wizard }: LibrariesStepProps) {
       ))}
       {libs.length === 0 && (
         <ListItem sx={{ py: 0.5 }}>
-          <ListItemText primary="No libraries found" secondary="Click Refresh to load libraries" />
+          <ListItemText primary={t('setup.libraries.nonePrimary')} secondary={t('setup.libraries.noneSecondary')} />
         </ListItem>
       )}
     </List>
@@ -43,19 +45,14 @@ export function LibrariesStep({ wizard }: LibrariesStepProps) {
   return (
     <Box>
       <Typography variant="h6" gutterBottom>
-        Select Libraries to Analyze
+        {t('setup.libraries.title')}
       </Typography>
       <Typography variant="body2" color="text.secondary" paragraph>
-        Choose which media libraries Aperture should include when generating recommendations. Only content from enabled
-        libraries will be analyzed for viewing patterns and included in AI-powered suggestions. You can have multiple
-        libraries of each type enabled.
+        {t('setup.libraries.body')}
       </Typography>
 
       <Alert severity="info" sx={{ mb: 2, py: 0.5 }} icon={false}>
-        <Typography variant="caption">
-          <strong>What happens next:</strong> Aperture will sync metadata from these libraries, analyze content
-          similarities using AI embeddings, and track watch history to understand each user's preferences.
-        </Typography>
+        <Typography variant="caption">{t('setup.libraries.whatNext')}</Typography>
       </Alert>
 
       {error && (
@@ -66,21 +63,21 @@ export function LibrariesStep({ wizard }: LibrariesStepProps) {
 
       <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
         <Button variant="contained" onClick={loadLibraries} disabled={loadingLibraries}>
-          {loadingLibraries ? <CircularProgress size={20} /> : 'Refresh Libraries'}
+          {loadingLibraries ? <CircularProgress size={20} /> : t('setup.libraries.refresh')}
         </Button>
         <Button
           variant="outlined"
           onClick={() => setLibraries((libs) => libs.map((l) => ({ ...l, isEnabled: true })))}
           disabled={libraries.length === 0}
         >
-          Enable All
+          {t('setup.libraries.enableAll')}
         </Button>
         <Button
           variant="outlined"
           onClick={() => setLibraries((libs) => libs.map((l) => ({ ...l, isEnabled: false })))}
           disabled={libraries.length === 0}
         >
-          Disable All
+          {t('setup.libraries.disableAll')}
         </Button>
       </Box>
 
@@ -96,7 +93,7 @@ export function LibrariesStep({ wizard }: LibrariesStepProps) {
           }}
         >
           <Box sx={{ mb: 2 }}>
-            <Chip icon={<LocalMoviesIcon />} label="Movies" color="primary" variant="filled" sx={{ fontWeight: 600 }} />
+            <Chip icon={<LocalMoviesIcon />} label={t('setup.libraries.moviesChip')} color="primary" variant="filled" sx={{ fontWeight: 600 }} />
           </Box>
           {renderLibraryList(movieLibraries)}
         </Box>
@@ -112,7 +109,7 @@ export function LibrariesStep({ wizard }: LibrariesStepProps) {
           }}
         >
           <Box sx={{ mb: 2 }}>
-            <Chip icon={<TvIcon />} label="TV Series" color="secondary" variant="filled" sx={{ fontWeight: 600 }} />
+            <Chip icon={<TvIcon />} label={t('setup.libraries.tvChip')} color="secondary" variant="filled" sx={{ fontWeight: 600 }} />
           </Box>
           {renderLibraryList(tvLibraries)}
         </Box>
@@ -120,10 +117,10 @@ export function LibrariesStep({ wizard }: LibrariesStepProps) {
 
       <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
         <Button variant="outlined" onClick={() => goToStep('mediaServer')}>
-          Back
+          {t('setup.libraries.back')}
         </Button>
         <Button variant="contained" onClick={saveLibraries} disabled={saving}>
-          {saving ? <CircularProgress size={20} /> : 'Save & Continue'}
+          {saving ? <CircularProgress size={20} /> : t('setup.libraries.saveContinue')}
         </Button>
       </Box>
     </Box>

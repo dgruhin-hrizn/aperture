@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { useTranslation, Trans } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -60,57 +61,15 @@ import { ImageUpload } from '../../../components/ImageUpload'
 import { DEFAULT_LIBRARY_IMAGES } from '../../setup/constants'
 import TranslateIcon from '@mui/icons-material/Translate'
 
-// ISO 639-1 language code to display name mapping
-const LANGUAGE_NAMES: Record<string, string> = {
-  en: 'English',
-  es: 'Spanish',
-  fr: 'French',
-  de: 'German',
-  it: 'Italian',
-  pt: 'Portuguese',
-  ja: 'Japanese',
-  ko: 'Korean',
-  zh: 'Chinese',
-  ru: 'Russian',
-  ar: 'Arabic',
-  hi: 'Hindi',
-  nl: 'Dutch',
-  sv: 'Swedish',
-  da: 'Danish',
-  no: 'Norwegian',
-  fi: 'Finnish',
-  pl: 'Polish',
-  tr: 'Turkish',
-  th: 'Thai',
-  id: 'Indonesian',
-  vi: 'Vietnamese',
-  cs: 'Czech',
-  el: 'Greek',
-  he: 'Hebrew',
-  hu: 'Hungarian',
-  ro: 'Romanian',
-  uk: 'Ukrainian',
-  bn: 'Bengali',
-  ta: 'Tamil',
-  te: 'Telugu',
-  ml: 'Malayalam',
-  mr: 'Marathi',
-  gu: 'Gujarati',
-  kn: 'Kannada',
-  pa: 'Punjabi',
-  tl: 'Tagalog',
-  ms: 'Malay',
-  fa: 'Persian',
-  ur: 'Urdu',
-  cn: 'Cantonese',
-}
-
 // Common languages for quick selection
 const COMMON_LANGUAGES = ['en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'ko', 'zh', 'ru']
 
-function getLanguageName(code: string): string {
-  return LANGUAGE_NAMES[code] || code.toUpperCase()
-}
+// All ISO 639-1 codes we have display names for (see topPicksAdmin.languages.*)
+const KNOWN_LANGUAGE_CODES = [
+  'en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'ko', 'zh', 'ru',
+  'ar', 'hi', 'nl', 'sv', 'da', 'no', 'fi', 'pl', 'tr', 'th', 'id', 'vi', 'cs', 'el', 'he', 'hu', 'ro', 'uk',
+  'bn', 'ta', 'te', 'ml', 'mr', 'gu', 'kn', 'pa', 'tl', 'ms', 'fa', 'ur', 'cn',
+]
 
 // All available popularity sources
 type PopularitySource = 
@@ -221,17 +180,6 @@ interface LibraryMatchResult {
   }>
 }
 
-const SORT_OPTIONS: SortOption[] = [
-  { value: 'score', label: 'MDBList Score' },
-  { value: 'score_average', label: 'Average Score' },
-  { value: 'imdbrating', label: 'IMDb Rating' },
-  { value: 'imdbvotes', label: 'IMDb Votes' },
-  { value: 'imdbpopular', label: 'IMDb Popularity' },
-  { value: 'tmdbpopular', label: 'TMDb Popularity' },
-  { value: 'rtomatoes', label: 'Rotten Tomatoes' },
-  { value: 'metacritic', label: 'Metacritic' },
-]
-
 // Source options for dropdown
 interface SourceOption {
   value: PopularitySource
@@ -241,30 +189,12 @@ interface SourceOption {
   requiresMdblist?: boolean
 }
 
-const SOURCE_OPTIONS: SourceOption[] = [
-  { value: 'emby_history', label: 'Local Watch History', description: 'Based on what your users are watching', icon: 'home' },
-  { value: 'tmdb_popular', label: 'TMDB Popular', description: 'Most popular movies/series on TMDB', icon: 'tmdb' },
-  { value: 'tmdb_trending_day', label: 'TMDB Trending (Today)', description: "What's trending today on TMDB", icon: 'tmdb' },
-  { value: 'tmdb_trending_week', label: 'TMDB Trending (Week)', description: "What's trending this week on TMDB", icon: 'tmdb' },
-  { value: 'tmdb_top_rated', label: 'TMDB Top Rated', description: 'Highest rated on TMDB', icon: 'tmdb' },
-  { value: 'mdblist', label: 'MDBList', description: 'Custom curated list from MDBList', icon: 'mdblist', requiresMdblist: true },
-  { value: 'hybrid', label: 'Hybrid (Local + External)', description: 'Blend local watch history with an external source', icon: 'hybrid' },
-]
-
 // External sources for hybrid mode
 interface HybridSourceOption {
   value: HybridExternalSource
   label: string
   requiresMdblist?: boolean
 }
-
-const HYBRID_EXTERNAL_OPTIONS: HybridSourceOption[] = [
-  { value: 'tmdb_popular', label: 'TMDB Popular' },
-  { value: 'tmdb_trending_day', label: 'TMDB Trending (Today)' },
-  { value: 'tmdb_trending_week', label: 'TMDB Trending (Week)' },
-  { value: 'tmdb_top_rated', label: 'TMDB Top Rated' },
-  { value: 'mdblist', label: 'MDBList', requiresMdblist: true },
-]
 
 const RECOMMENDED_DIMENSIONS = {
   width: 1920,
@@ -308,6 +238,95 @@ export function TopPicksSection() {
   // Preview modal state
   const [previewModalOpen, setPreviewModalOpen] = useState(false)
   const [previewModalMediaType, setPreviewModalMediaType] = useState<'movies' | 'series'>('movies')
+
+  const { t } = useTranslation()
+
+  const getLanguageName = useCallback(
+    (code: string) => t(`topPicksAdmin.languages.${code}`, { defaultValue: code.toUpperCase() }),
+    [t]
+  )
+
+  const extendedLanguageCodes = useMemo(
+    () =>
+      KNOWN_LANGUAGE_CODES.filter((code) => !COMMON_LANGUAGES.includes(code)).sort((a, b) =>
+        getLanguageName(a).localeCompare(getLanguageName(b))
+      ),
+    [getLanguageName]
+  )
+
+  const sortOptions = useMemo<SortOption[]>(
+    () => [
+      { value: 'score', label: t('topPicksAdmin.sortOptions.score') },
+      { value: 'score_average', label: t('topPicksAdmin.sortOptions.score_average') },
+      { value: 'imdbrating', label: t('topPicksAdmin.sortOptions.imdbrating') },
+      { value: 'imdbvotes', label: t('topPicksAdmin.sortOptions.imdbvotes') },
+      { value: 'imdbpopular', label: t('topPicksAdmin.sortOptions.imdbpopular') },
+      { value: 'tmdbpopular', label: t('topPicksAdmin.sortOptions.tmdbpopular') },
+      { value: 'rtomatoes', label: t('topPicksAdmin.sortOptions.rtomatoes') },
+      { value: 'metacritic', label: t('topPicksAdmin.sortOptions.metacritic') },
+    ],
+    [t]
+  )
+
+  const sourceOptions = useMemo<SourceOption[]>(
+    () => [
+      {
+        value: 'emby_history',
+        label: t('topPicksAdmin.sources.emby_history.label'),
+        description: t('topPicksAdmin.sources.emby_history.description'),
+        icon: 'home',
+      },
+      {
+        value: 'tmdb_popular',
+        label: t('topPicksAdmin.sources.tmdb_popular.label'),
+        description: t('topPicksAdmin.sources.tmdb_popular.description'),
+        icon: 'tmdb',
+      },
+      {
+        value: 'tmdb_trending_day',
+        label: t('topPicksAdmin.sources.tmdb_trending_day.label'),
+        description: t('topPicksAdmin.sources.tmdb_trending_day.description'),
+        icon: 'tmdb',
+      },
+      {
+        value: 'tmdb_trending_week',
+        label: t('topPicksAdmin.sources.tmdb_trending_week.label'),
+        description: t('topPicksAdmin.sources.tmdb_trending_week.description'),
+        icon: 'tmdb',
+      },
+      {
+        value: 'tmdb_top_rated',
+        label: t('topPicksAdmin.sources.tmdb_top_rated.label'),
+        description: t('topPicksAdmin.sources.tmdb_top_rated.description'),
+        icon: 'tmdb',
+      },
+      {
+        value: 'mdblist',
+        label: t('topPicksAdmin.sources.mdblist.label'),
+        description: t('topPicksAdmin.sources.mdblist.description'),
+        icon: 'mdblist',
+        requiresMdblist: true,
+      },
+      {
+        value: 'hybrid',
+        label: t('topPicksAdmin.sources.hybrid.label'),
+        description: t('topPicksAdmin.sources.hybrid.description'),
+        icon: 'hybrid',
+      },
+    ],
+    [t]
+  )
+
+  const hybridExternalOptions = useMemo<HybridSourceOption[]>(
+    () => [
+      { value: 'tmdb_popular', label: t('topPicksAdmin.sources.tmdb_popular.label') },
+      { value: 'tmdb_trending_day', label: t('topPicksAdmin.sources.tmdb_trending_day.label') },
+      { value: 'tmdb_trending_week', label: t('topPicksAdmin.sources.tmdb_trending_week.label') },
+      { value: 'tmdb_top_rated', label: t('topPicksAdmin.sources.tmdb_top_rated.label') },
+      { value: 'mdblist', label: t('topPicksAdmin.sources.mdblist.label'), requiresMdblist: true },
+    ],
+    [t]
+  )
 
   // Fetch MDBList item counts when list selection changes
   const fetchListCounts = useCallback(async (listId: number | null, type: 'movies' | 'series') => {
@@ -556,7 +575,7 @@ export function TopPicksSection() {
 
       if (!response.ok) {
         const data = await response.json()
-        throw new Error(data.error || 'Upload failed')
+        throw new Error(data.error || t('topPicksAdmin.errors.uploadFailed'))
       }
 
       const data = await response.json()
@@ -565,12 +584,12 @@ export function TopPicksSection() {
         [libraryTypeId]: { url: data.url, isDefault: true },
       }))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed')
+      setError(err instanceof Error ? err.message : t('topPicksAdmin.errors.uploadFailed'))
       throw err
     } finally {
       setUploadingFor(null)
     }
-  }, [])
+  }, [t])
 
   const handleDeleteImage = useCallback(async (libraryTypeId: string) => {
     setUploadingFor(libraryTypeId)
@@ -584,7 +603,7 @@ export function TopPicksSection() {
 
       if (!response.ok) {
         const data = await response.json()
-        throw new Error(data.error || 'Delete failed')
+        throw new Error(data.error || t('topPicksAdmin.errors.deleteFailed'))
       }
 
       // Revert to bundled default image
@@ -593,12 +612,12 @@ export function TopPicksSection() {
         [libraryTypeId]: { url: DEFAULT_LIBRARY_IMAGES[libraryTypeId], isDefault: true },
       }))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Delete failed')
+      setError(err instanceof Error ? err.message : t('topPicksAdmin.errors.deleteFailed'))
       throw err
     } finally {
       setUploadingFor(null)
     }
-  }, [])
+  }, [t])
 
   // Check if MDBList is configured
   const checkMDBListConfig = useCallback(async () => {
@@ -677,12 +696,12 @@ export function TopPicksSection() {
     try {
       setLoading(true)
       const response = await fetch('/api/settings/top-picks')
-      if (!response.ok) throw new Error('Failed to fetch config')
+      if (!response.ok) throw new Error(t('topPicksAdmin.errors.fetchConfig'))
       const data = await response.json()
       setConfig(data)
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : t('topPicksAdmin.errors.unknown'))
     } finally {
       setLoading(false)
     }
@@ -698,12 +717,12 @@ export function TopPicksSection() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
       })
-      if (!response.ok) throw new Error('Failed to save config')
-      setSuccess('Top Picks configuration saved!')
+      if (!response.ok) throw new Error(t('topPicksAdmin.errors.saveConfig'))
+      setSuccess(t('topPicksAdmin.success.saved'))
       setHasChanges(false)
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : t('topPicksAdmin.errors.unknown'))
     } finally {
       setSaving(false)
     }
@@ -715,14 +734,14 @@ export function TopPicksSection() {
       const response = await fetch('/api/settings/top-picks/reset', {
         method: 'POST',
       })
-      if (!response.ok) throw new Error('Failed to reset config')
+      if (!response.ok) throw new Error(t('topPicksAdmin.errors.resetConfig'))
       const data = await response.json()
       setConfig(data)
-      setSuccess('Configuration reset to defaults!')
+      setSuccess(t('topPicksAdmin.success.reset'))
       setHasChanges(false)
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : t('topPicksAdmin.errors.unknown'))
     } finally {
       setSaving(false)
     }
@@ -735,12 +754,12 @@ export function TopPicksSection() {
       })
       if (!response.ok) {
         const data = await response.json()
-        throw new Error(data.error || 'Failed to start job')
+        throw new Error(data.error || t('topPicksAdmin.errors.startJob'))
       }
-      setSuccess('Top Picks refresh job started!')
+      setSuccess(t('topPicksAdmin.success.refreshStarted'))
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : t('topPicksAdmin.errors.unknown'))
     }
   }
 
@@ -752,7 +771,7 @@ export function TopPicksSection() {
 
   // Helper to get readable source name
   const getSourceName = (source: PopularitySource): string => {
-    const option = SOURCE_OPTIONS.find(o => o.value === source)
+    const option = sourceOptions.find((o) => o.value === source)
     return option?.label || source
   }
 
@@ -772,7 +791,7 @@ export function TopPicksSection() {
 
   if (!config) {
     return (
-      <Alert severity="error">Failed to load Top Picks configuration</Alert>
+      <Alert severity="error">{t('topPicksAdmin.loadFailed')}</Alert>
     )
   }
 
@@ -789,11 +808,10 @@ export function TopPicksSection() {
           <Box display="flex" justifyContent="space-between" alignItems="flex-start">
             <Box>
               <Typography variant="h5" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                <TrendingUpIcon color="primary" /> Top Picks
+                <TrendingUpIcon color="primary" /> {t('topPicksAdmin.title')}
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 600 }}>
-                Create global "what's popular" libraries based on aggregated watch history from all users.
-                Unlike personalized recommendations, Top Picks show the same content to everyone.
+                {t('topPicksAdmin.subtitle')}
               </Typography>
             </Box>
             <FormControlLabel
@@ -805,7 +823,11 @@ export function TopPicksSection() {
                   size="medium"
                 />
               }
-              label={<Typography fontWeight={500}>{config.isEnabled ? 'Enabled' : 'Disabled'}</Typography>}
+              label={
+                <Typography fontWeight={500}>
+                  {config.isEnabled ? t('topPicksAdmin.enabled') : t('topPicksAdmin.disabled')}
+                </Typography>
+              }
               labelPlacement="start"
             />
           </Box>
@@ -824,7 +846,9 @@ export function TopPicksSection() {
 
           {config.lastRefreshedAt && (
             <Chip
-              label={`Last refreshed: ${new Date(config.lastRefreshedAt).toLocaleString()}`}
+              label={t('topPicksAdmin.lastRefreshed', {
+                datetime: new Date(config.lastRefreshedAt).toLocaleString(),
+              })}
               size="small"
               variant="outlined"
               sx={{ mt: 2 }}
@@ -841,22 +865,22 @@ export function TopPicksSection() {
             <CardContent>
               <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                 <MovieIcon fontSize="small" color="primary" />
-                Movies Settings
+                {t('topPicksAdmin.movies.settingsTitle')}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Configure data source, filters, and list size for movie Top Picks.
+                {t('topPicksAdmin.movies.settingsSubtitle')}
               </Typography>
 
           {/* Data Source */}
           <FormControl fullWidth disabled={!config.isEnabled} sx={{ mb: 3 }}>
-            <InputLabel id="movies-source-label">Data Source</InputLabel>
+            <InputLabel id="movies-source-label">{t('topPicksAdmin.fields.dataSource')}</InputLabel>
             <Select
               labelId="movies-source-label"
-              label="Data Source"
+              label={t('topPicksAdmin.fields.dataSource')}
               value={config.moviesPopularitySource}
               onChange={(e) => updateConfig({ moviesPopularitySource: e.target.value as PopularitySource })}
             >
-              {SOURCE_OPTIONS.map((opt) => (
+              {sourceOptions.map((opt) => (
                 <MenuItem 
                   key={opt.value} 
                   value={opt.value}
@@ -874,14 +898,14 @@ export function TopPicksSection() {
           {/* Hybrid External Source Selector */}
           {config.moviesPopularitySource === 'hybrid' && (
             <FormControl fullWidth disabled={!config.isEnabled} sx={{ mb: 3 }}>
-              <InputLabel id="movies-hybrid-source-label">External Source to Blend</InputLabel>
+              <InputLabel id="movies-hybrid-source-label">{t('topPicksAdmin.fields.externalSourceBlend')}</InputLabel>
               <Select
                 labelId="movies-hybrid-source-label"
-                label="External Source to Blend"
+                label={t('topPicksAdmin.fields.externalSourceBlend')}
                 value={config.moviesHybridExternalSource || 'tmdb_popular'}
                 onChange={(e) => updateConfig({ moviesHybridExternalSource: e.target.value as HybridExternalSource })}
               >
-                {HYBRID_EXTERNAL_OPTIONS.map((opt) => (
+                {hybridExternalOptions.map((opt) => (
                   <MenuItem 
                     key={opt.value} 
                     value={opt.value}
@@ -923,21 +947,21 @@ export function TopPicksSection() {
                       })
                     }}
                     mediatype="movie"
-                    label="Movies List"
-                    helperText="Select a MDBList to use for movie rankings"
+                    label={t('topPicksAdmin.movies.listLabel')}
+                    helperText={t('topPicksAdmin.movies.listHelper')}
                     disabled={!config.isEnabled}
                   />
                 </Grid>
                 <Grid item xs={12} sm={4}>
                   <FormControl fullWidth size="small" disabled={!config.isEnabled} variant="outlined">
-                    <InputLabel id="movies-sort-label">Sort By</InputLabel>
+                    <InputLabel id="movies-sort-label">{t('topPicksAdmin.fields.sortBy')}</InputLabel>
                     <Select
                       labelId="movies-sort-label"
-                      label="Sort By"
+                      label={t('topPicksAdmin.fields.sortBy')}
                       value={config.mdblistMoviesSort || 'score'}
                       onChange={(e) => updateConfig({ mdblistMoviesSort: e.target.value })}
                     >
-                      {SORT_OPTIONS.map((opt) => (
+                      {sortOptions.map((opt) => (
                         <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
                       ))}
                     </Select>
@@ -964,27 +988,27 @@ export function TopPicksSection() {
               <Grid item xs={12} sm={6} md={4}>
                 <TextField
                   fullWidth
-                  label="Time Window"
+                  label={t('topPicksAdmin.fields.timeWindow')}
                   type="number"
                   value={config.moviesTimeWindowDays}
                   onChange={(e) => updateConfig({ moviesTimeWindowDays: parseInt(e.target.value) || 30 })}
                   InputProps={{
-                    endAdornment: <InputAdornment position="end">days</InputAdornment>,
+                    endAdornment: <InputAdornment position="end">{t('topPicksAdmin.fields.daysSuffix')}</InputAdornment>,
                   }}
                   size="small"
-                  helperText="How far back to look at watch history"
+                  helperText={t('topPicksAdmin.fields.timeWindowHelper')}
                   disabled={!config.isEnabled}
                 />
               </Grid>
               <Grid item xs={12} sm={6} md={4}>
                 <TextField
                   fullWidth
-                  label="Minimum Viewers"
+                  label={t('topPicksAdmin.fields.minViewers')}
                   type="number"
                   value={config.moviesMinUniqueViewers}
                   onChange={(e) => updateConfig({ moviesMinUniqueViewers: parseInt(e.target.value) || 1 })}
                   size="small"
-                  helperText="Required unique viewers to qualify"
+                  helperText={t('topPicksAdmin.fields.minViewersHelper')}
                   disabled={!config.isEnabled}
                 />
               </Grid>
@@ -992,18 +1016,20 @@ export function TopPicksSection() {
                 {/* Preview Count */}
                 <Box sx={{ p: 1.5, bgcolor: 'action.hover', borderRadius: 1 }}>
                   <Typography variant="caption" color="text.secondary">
-                    Movies matching criteria
+                    {t('topPicksAdmin.movies.matchingCriteria')}
                   </Typography>
                   <Typography variant="h6" color="primary">
                     {previewLoading ? (
                       <CircularProgress size={16} />
                     ) : (
-                      previewCounts?.movies ?? '—'
+                      previewCounts?.movies ?? t('topPicksAdmin.emDash')
                     )}
                   </Typography>
                   {previewCounts && previewCounts.movies > 30 && config.moviesPopularitySource === 'emby_history' && (
                     <Typography variant="caption" color="warning.main">
-                      Large list — consider external source or increase minimum viewers to {previewCounts.recommendedMoviesMinViewers}
+                      {t('topPicksAdmin.movies.largeListWarning', {
+                        count: previewCounts.recommendedMoviesMinViewers,
+                      })}
                     </Typography>
                   )}
                 </Box>
@@ -1015,7 +1041,7 @@ export function TopPicksSection() {
           {config.moviesPopularitySource === 'hybrid' && (
             <Box sx={{ mb: 3 }}>
               <Typography variant="body2" fontWeight={500} gutterBottom>
-                Blend Weight (Local vs External)
+                {t('topPicksAdmin.hybrid.blendWeightTitle')}
               </Typography>
               <Box display="flex" alignItems="center" gap={2}>
                 <HomeIcon fontSize="small" color="primary" />
@@ -1029,13 +1055,16 @@ export function TopPicksSection() {
                   max={100}
                   disabled={!config.isEnabled}
                   valueLabelDisplay="auto"
-                  valueLabelFormat={(v) => `Local ${v}%`}
+                  valueLabelFormat={(v) => t('topPicksAdmin.hybrid.sliderLocal', { percent: v })}
                   sx={{ flex: 1 }}
                 />
                 <PublicIcon fontSize="small" color="primary" />
               </Box>
               <Typography variant="caption" color="text.secondary">
-                Local {Math.round(config.hybridLocalWeight * 100)}% / External {Math.round((config.hybridExternalWeight || (1 - config.hybridLocalWeight)) * 100)}%
+                {t('topPicksAdmin.hybrid.blendSummary', {
+                  localPercent: Math.round(config.hybridLocalWeight * 100),
+                  externalPercent: Math.round((config.hybridExternalWeight || (1 - config.hybridLocalWeight)) * 100),
+                })}
               </Typography>
             </Box>
           )}
@@ -1047,22 +1076,22 @@ export function TopPicksSection() {
             <Box sx={{ mb: 3 }}>
               <Typography variant="body2" fontWeight={500} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <TranslateIcon fontSize="small" />
-                Language Filter
+                {t('topPicksAdmin.fields.languageFilter')}
               </Typography>
               <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
-                Filter movies by original language. Leave empty to include all languages.
+                {t('topPicksAdmin.movies.languageFilterHint')}
               </Typography>
               <Grid container spacing={2} alignItems="center">
                 <Grid item xs={12} sm={8}>
                   <FormControl fullWidth size="small" disabled={!config.isEnabled}>
-                    <InputLabel id="movies-language-label">Languages</InputLabel>
+                    <InputLabel id="movies-language-label">{t('topPicksAdmin.fields.languages')}</InputLabel>
                     <Select
                       labelId="movies-language-label"
-                      label="Languages"
+                      label={t('topPicksAdmin.fields.languages')}
                       multiple
                       value={config.moviesLanguages || []}
                       onChange={(e) => updateConfig({ moviesLanguages: e.target.value as string[] })}
-                      input={<OutlinedInput label="Languages" />}
+                      input={<OutlinedInput label={t('topPicksAdmin.fields.languages')} />}
                       renderValue={(selected) => (
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                           {(selected as string[]).map((value) => (
@@ -1078,10 +1107,7 @@ export function TopPicksSection() {
                         </MenuItem>
                       ))}
                       <Divider />
-                      {Object.keys(LANGUAGE_NAMES)
-                        .filter(lang => !COMMON_LANGUAGES.includes(lang))
-                        .sort((a, b) => getLanguageName(a).localeCompare(getLanguageName(b)))
-                        .map((lang) => (
+                      {extendedLanguageCodes.map((lang) => (
                           <MenuItem key={lang} value={lang}>
                             <Checkbox checked={(config.moviesLanguages || []).includes(lang)} />
                             <ListItemText primary={getLanguageName(lang)} secondary={lang.toUpperCase()} />
@@ -1100,7 +1126,7 @@ export function TopPicksSection() {
                         size="small"
                       />
                     }
-                    label={<Typography variant="body2">Include unknown</Typography>}
+                    label={<Typography variant="body2">{t('topPicksAdmin.language.includeUnknown')}</Typography>}
                   />
                 </Grid>
               </Grid>
@@ -1110,7 +1136,7 @@ export function TopPicksSection() {
                   onClick={() => updateConfig({ moviesLanguages: [], moviesIncludeUnknownLanguage: true })}
                   sx={{ mt: 1 }}
                 >
-                  Clear Filter
+                  {t('topPicksAdmin.language.clearFilter')}
                 </Button>
               )}
             </Box>
@@ -1120,10 +1146,10 @@ export function TopPicksSection() {
 
           {/* List Size */}
           <Typography variant="body2" fontWeight={500} gutterBottom>
-            List Size
+            {t('topPicksAdmin.fields.listSize')}
           </Typography>
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
-            Limit to a specific number of top movies, or include all matches from your criteria.
+            {t('topPicksAdmin.movies.listSizeHint')}
           </Typography>
           <Grid container spacing={2} alignItems="center">
             <Grid item>
@@ -1138,7 +1164,9 @@ export function TopPicksSection() {
                 }
                 label={
                   <Typography variant="body2">
-                    {config.moviesUseAllMatches ? 'Use all matches' : 'Limit count'}
+                    {config.moviesUseAllMatches
+                      ? t('topPicksAdmin.listMode.useAllMatches')
+                      : t('topPicksAdmin.listMode.limitCount')}
                   </Typography>
                 }
               />
@@ -1147,7 +1175,7 @@ export function TopPicksSection() {
               <Grid item xs={6} sm={4} md={3}>
                 <TextField
                   fullWidth
-                  label="Movies to Show"
+                  label={t('topPicksAdmin.movies.moviesToShow')}
                   type="number"
                   value={config.moviesCount}
                   onChange={(e) => updateConfig({ moviesCount: parseInt(e.target.value) || 10 })}
@@ -1168,7 +1196,7 @@ export function TopPicksSection() {
                 disabled={saving}
                 size="small"
               >
-                {saving ? 'Saving...' : 'Save Changes'}
+                {saving ? t('topPicksAdmin.actions.saving') : t('topPicksAdmin.actions.saveChanges')}
               </Button>
             </Box>
           )}
@@ -1182,22 +1210,22 @@ export function TopPicksSection() {
             <CardContent>
               <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                 <TvIcon fontSize="small" color="primary" />
-                Series Settings
+                {t('topPicksAdmin.series.settingsTitle')}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Configure data source, filters, and list size for series Top Picks.
+                {t('topPicksAdmin.series.settingsSubtitle')}
               </Typography>
 
           {/* Data Source */}
           <FormControl fullWidth disabled={!config.isEnabled} sx={{ mb: 3 }}>
-            <InputLabel id="series-source-label">Data Source</InputLabel>
+            <InputLabel id="series-source-label">{t('topPicksAdmin.fields.dataSource')}</InputLabel>
             <Select
               labelId="series-source-label"
-              label="Data Source"
+              label={t('topPicksAdmin.fields.dataSource')}
               value={config.seriesPopularitySource}
               onChange={(e) => updateConfig({ seriesPopularitySource: e.target.value as PopularitySource })}
             >
-              {SOURCE_OPTIONS.map((opt) => (
+              {sourceOptions.map((opt) => (
                 <MenuItem 
                   key={opt.value} 
                   value={opt.value}
@@ -1215,14 +1243,14 @@ export function TopPicksSection() {
           {/* Hybrid External Source Selector */}
           {config.seriesPopularitySource === 'hybrid' && (
             <FormControl fullWidth disabled={!config.isEnabled} sx={{ mb: 3 }}>
-              <InputLabel id="series-hybrid-source-label">External Source to Blend</InputLabel>
+              <InputLabel id="series-hybrid-source-label">{t('topPicksAdmin.fields.externalSourceBlend')}</InputLabel>
               <Select
                 labelId="series-hybrid-source-label"
-                label="External Source to Blend"
+                label={t('topPicksAdmin.fields.externalSourceBlend')}
                 value={config.seriesHybridExternalSource || 'tmdb_popular'}
                 onChange={(e) => updateConfig({ seriesHybridExternalSource: e.target.value as HybridExternalSource })}
               >
-                {HYBRID_EXTERNAL_OPTIONS.map((opt) => (
+                {hybridExternalOptions.map((opt) => (
                   <MenuItem 
                     key={opt.value} 
                     value={opt.value}
@@ -1264,21 +1292,21 @@ export function TopPicksSection() {
                       })
                     }}
                     mediatype="show"
-                    label="Series List"
-                    helperText="Select a MDBList to use for series rankings"
+                    label={t('topPicksAdmin.series.listLabel')}
+                    helperText={t('topPicksAdmin.series.listHelper')}
                     disabled={!config.isEnabled}
                   />
                 </Grid>
                 <Grid item xs={12} sm={4}>
                   <FormControl fullWidth size="small" disabled={!config.isEnabled} variant="outlined">
-                    <InputLabel id="series-sort-label">Sort By</InputLabel>
+                    <InputLabel id="series-sort-label">{t('topPicksAdmin.fields.sortBy')}</InputLabel>
                     <Select
                       labelId="series-sort-label"
-                      label="Sort By"
+                      label={t('topPicksAdmin.fields.sortBy')}
                       value={config.mdblistSeriesSort || 'score'}
                       onChange={(e) => updateConfig({ mdblistSeriesSort: e.target.value })}
                     >
-                      {SORT_OPTIONS.map((opt) => (
+                      {sortOptions.map((opt) => (
                         <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
                       ))}
                     </Select>
@@ -1305,27 +1333,27 @@ export function TopPicksSection() {
               <Grid item xs={12} sm={6} md={4}>
                 <TextField
                   fullWidth
-                  label="Time Window"
+                  label={t('topPicksAdmin.fields.timeWindow')}
                   type="number"
                   value={config.seriesTimeWindowDays}
                   onChange={(e) => updateConfig({ seriesTimeWindowDays: parseInt(e.target.value) || 30 })}
                   InputProps={{
-                    endAdornment: <InputAdornment position="end">days</InputAdornment>,
+                    endAdornment: <InputAdornment position="end">{t('topPicksAdmin.fields.daysSuffix')}</InputAdornment>,
                   }}
                   size="small"
-                  helperText="How far back to look at watch history"
+                  helperText={t('topPicksAdmin.fields.timeWindowHelper')}
                   disabled={!config.isEnabled}
                 />
               </Grid>
               <Grid item xs={12} sm={6} md={4}>
                 <TextField
                   fullWidth
-                  label="Minimum Viewers"
+                  label={t('topPicksAdmin.fields.minViewers')}
                   type="number"
                   value={config.seriesMinUniqueViewers}
                   onChange={(e) => updateConfig({ seriesMinUniqueViewers: parseInt(e.target.value) || 1 })}
                   size="small"
-                  helperText="Required unique viewers to qualify"
+                  helperText={t('topPicksAdmin.fields.minViewersHelper')}
                   disabled={!config.isEnabled}
                 />
               </Grid>
@@ -1333,18 +1361,20 @@ export function TopPicksSection() {
                 {/* Preview Count */}
                 <Box sx={{ p: 1.5, bgcolor: 'action.hover', borderRadius: 1 }}>
                   <Typography variant="caption" color="text.secondary">
-                    Series matching criteria
+                    {t('topPicksAdmin.series.matchingCriteria')}
                   </Typography>
                   <Typography variant="h6" color="primary">
                     {previewLoading ? (
                       <CircularProgress size={16} />
                     ) : (
-                      previewCounts?.series ?? '—'
+                      previewCounts?.series ?? t('topPicksAdmin.emDash')
                     )}
                   </Typography>
                   {previewCounts && previewCounts.series > 30 && config.seriesPopularitySource === 'emby_history' && (
                     <Typography variant="caption" color="warning.main">
-                      Large list — consider external source or increase minimum viewers to {previewCounts.recommendedSeriesMinViewers}
+                      {t('topPicksAdmin.series.largeListWarning', {
+                        count: previewCounts.recommendedSeriesMinViewers,
+                      })}
                     </Typography>
                   )}
                 </Box>
@@ -1356,7 +1386,7 @@ export function TopPicksSection() {
           {config.seriesPopularitySource === 'hybrid' && (
             <Box sx={{ mb: 3 }}>
               <Typography variant="body2" fontWeight={500} gutterBottom>
-                Blend Weight (Local vs External)
+                {t('topPicksAdmin.hybrid.blendWeightTitle')}
               </Typography>
               <Box display="flex" alignItems="center" gap={2}>
                 <HomeIcon fontSize="small" color="primary" />
@@ -1370,13 +1400,16 @@ export function TopPicksSection() {
                   max={100}
                   disabled={!config.isEnabled}
                   valueLabelDisplay="auto"
-                  valueLabelFormat={(v) => `Local ${v}%`}
+                  valueLabelFormat={(v) => t('topPicksAdmin.hybrid.sliderLocal', { percent: v })}
                   sx={{ flex: 1 }}
                 />
                 <PublicIcon fontSize="small" color="primary" />
               </Box>
               <Typography variant="caption" color="text.secondary">
-                Local {Math.round(config.hybridLocalWeight * 100)}% / External {Math.round((config.hybridExternalWeight || (1 - config.hybridLocalWeight)) * 100)}%
+                {t('topPicksAdmin.hybrid.blendSummary', {
+                  localPercent: Math.round(config.hybridLocalWeight * 100),
+                  externalPercent: Math.round((config.hybridExternalWeight || (1 - config.hybridLocalWeight)) * 100),
+                })}
               </Typography>
             </Box>
           )}
@@ -1388,22 +1421,22 @@ export function TopPicksSection() {
             <Box sx={{ mb: 3 }}>
               <Typography variant="body2" fontWeight={500} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <TranslateIcon fontSize="small" />
-                Language Filter
+                {t('topPicksAdmin.fields.languageFilter')}
               </Typography>
               <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
-                Filter series by original language. Leave empty to include all languages.
+                {t('topPicksAdmin.series.languageFilterHint')}
               </Typography>
               <Grid container spacing={2} alignItems="center">
                 <Grid item xs={12} sm={8}>
                   <FormControl fullWidth size="small" disabled={!config.isEnabled}>
-                    <InputLabel id="series-language-label">Languages</InputLabel>
+                    <InputLabel id="series-language-label">{t('topPicksAdmin.fields.languages')}</InputLabel>
                     <Select
                       labelId="series-language-label"
-                      label="Languages"
+                      label={t('topPicksAdmin.fields.languages')}
                       multiple
                       value={config.seriesLanguages || []}
                       onChange={(e) => updateConfig({ seriesLanguages: e.target.value as string[] })}
-                      input={<OutlinedInput label="Languages" />}
+                      input={<OutlinedInput label={t('topPicksAdmin.fields.languages')} />}
                       renderValue={(selected) => (
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                           {(selected as string[]).map((value) => (
@@ -1419,10 +1452,7 @@ export function TopPicksSection() {
                         </MenuItem>
                       ))}
                       <Divider />
-                      {Object.keys(LANGUAGE_NAMES)
-                        .filter(lang => !COMMON_LANGUAGES.includes(lang))
-                        .sort((a, b) => getLanguageName(a).localeCompare(getLanguageName(b)))
-                        .map((lang) => (
+                      {extendedLanguageCodes.map((lang) => (
                           <MenuItem key={lang} value={lang}>
                             <Checkbox checked={(config.seriesLanguages || []).includes(lang)} />
                             <ListItemText primary={getLanguageName(lang)} secondary={lang.toUpperCase()} />
@@ -1441,7 +1471,7 @@ export function TopPicksSection() {
                         size="small"
                       />
                     }
-                    label={<Typography variant="body2">Include unknown</Typography>}
+                    label={<Typography variant="body2">{t('topPicksAdmin.language.includeUnknown')}</Typography>}
                   />
                 </Grid>
               </Grid>
@@ -1451,7 +1481,7 @@ export function TopPicksSection() {
                   onClick={() => updateConfig({ seriesLanguages: [], seriesIncludeUnknownLanguage: true })}
                   sx={{ mt: 1 }}
                 >
-                  Clear Filter
+                  {t('topPicksAdmin.language.clearFilter')}
                 </Button>
               )}
             </Box>
@@ -1461,10 +1491,10 @@ export function TopPicksSection() {
 
           {/* List Size */}
           <Typography variant="body2" fontWeight={500} gutterBottom>
-            List Size
+            {t('topPicksAdmin.fields.listSize')}
           </Typography>
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
-            Limit to a specific number of top series, or include all matches from your criteria.
+            {t('topPicksAdmin.series.listSizeHint')}
           </Typography>
           <Grid container spacing={2} alignItems="center">
             <Grid item>
@@ -1479,7 +1509,9 @@ export function TopPicksSection() {
                 }
                 label={
                   <Typography variant="body2">
-                    {config.seriesUseAllMatches ? 'Use all matches' : 'Limit count'}
+                    {config.seriesUseAllMatches
+                      ? t('topPicksAdmin.listMode.useAllMatches')
+                      : t('topPicksAdmin.listMode.limitCount')}
                   </Typography>
                 }
               />
@@ -1488,7 +1520,7 @@ export function TopPicksSection() {
               <Grid item xs={6} sm={4} md={3}>
                 <TextField
                   fullWidth
-                  label="Series to Show"
+                  label={t('topPicksAdmin.series.seriesToShow')}
                   type="number"
                   value={config.seriesCount}
                   onChange={(e) => updateConfig({ seriesCount: parseInt(e.target.value) || 10 })}
@@ -1509,7 +1541,7 @@ export function TopPicksSection() {
                 disabled={saving}
                 size="small"
               >
-                {saving ? 'Saving...' : 'Save Changes'}
+                {saving ? t('topPicksAdmin.actions.saving') : t('topPicksAdmin.actions.saveChanges')}
               </Button>
             </Box>
           )}
@@ -1527,19 +1559,20 @@ export function TopPicksSection() {
             <Box>
               <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <TuneIcon fontSize="small" color="primary" />
-                Local Popularity Algorithm
+                {t('topPicksAdmin.localAlgorithm.title')}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Adjust the relative importance of each factor when using Local or Hybrid mode.
+                {t('topPicksAdmin.localAlgorithm.subtitle')}
               </Typography>
             </Box>
           </Box>
 
           <Alert severity="info" icon={<InfoOutlinedIcon />} sx={{ my: 2 }}>
-            <Typography variant="body2">
-              <strong>Unique Viewers</strong> = How many different people watched it (popularity breadth)<br />
-              <strong>Play Count</strong> = Total number of plays across all users (engagement depth)<br />
-              <strong>Completion Rate</strong> = How often people finish watching (quality signal)
+            <Typography variant="body2" component="div">
+              <Trans
+                i18nKey="topPicksAdmin.localAlgorithm.factors"
+                components={{ strong: <strong />, br: <br /> }}
+              />
             </Typography>
           </Alert>
 
@@ -1547,7 +1580,7 @@ export function TopPicksSection() {
             <Grid item xs={12} md={4}>
               <Box display="flex" alignItems="center" gap={1} mb={1}>
                 <GroupIcon fontSize="small" color="primary" />
-                <Typography variant="body2" fontWeight={500}>Unique Viewers</Typography>
+                <Typography variant="body2" fontWeight={500}>{t('topPicksAdmin.localAlgorithm.uniqueViewers')}</Typography>
                 <Chip 
                   label={`${getProportionalPercent(config.uniqueViewersWeight)}%`} 
                   size="small" 
@@ -1568,7 +1601,7 @@ export function TopPicksSection() {
             <Grid item xs={12} md={4}>
               <Box display="flex" alignItems="center" gap={1} mb={1}>
                 <PlayArrowIcon fontSize="small" color="primary" />
-                <Typography variant="body2" fontWeight={500}>Play Count</Typography>
+                <Typography variant="body2" fontWeight={500}>{t('topPicksAdmin.localAlgorithm.playCount')}</Typography>
                 <Chip 
                   label={`${getProportionalPercent(config.playCountWeight)}%`} 
                   size="small" 
@@ -1589,7 +1622,7 @@ export function TopPicksSection() {
             <Grid item xs={12} md={4}>
               <Box display="flex" alignItems="center" gap={1} mb={1}>
                 <CheckCircleIcon fontSize="small" color="primary" />
-                <Typography variant="body2" fontWeight={500}>Completion Rate</Typography>
+                <Typography variant="body2" fontWeight={500}>{t('topPicksAdmin.localAlgorithm.completionRate')}</Typography>
                 <Chip 
                   label={`${getProportionalPercent(config.completionWeight)}%`} 
                   size="small" 
@@ -1617,16 +1650,18 @@ export function TopPicksSection() {
         <CardContent>
           <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
             <SendIcon fontSize="small" color="primary" />
-            Auto-Request Missing Content
+            {t('topPicksAdmin.autoRequest.title')}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Automatically request missing Top Picks content through Seerr. Only works with external sources (TMDB, MDBList).
+            {t('topPicksAdmin.autoRequest.subtitle')}
           </Typography>
 
           <Alert severity="info" icon={<InfoOutlinedIcon />} sx={{ mb: 3 }}>
-            <Typography variant="body2">
-              When enabled, Aperture will periodically check your Top Picks list for items not in your library and automatically
-              submit requests to Seerr. Make sure Seerr is configured in <strong>Settings → Integrations</strong>.
+            <Typography variant="body2" component="div">
+              {t('topPicksAdmin.autoRequest.infoLine1')}
+            </Typography>
+            <Typography variant="body2" component="div" sx={{ mt: 0.5 }}>
+              <Trans i18nKey="topPicksAdmin.autoRequest.infoLine2" components={{ 1: <strong /> }} />
             </Typography>
           </Alert>
 
@@ -1636,7 +1671,7 @@ export function TopPicksSection() {
               <Card variant="outlined" sx={{ p: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                   <MovieIcon fontSize="small" color="primary" />
-                  <Typography variant="subtitle2">Movies</Typography>
+                  <Typography variant="subtitle2">{t('topPicksAdmin.autoRequest.moviesSection')}</Typography>
                 </Box>
                 <FormControlLabel
                   control={
@@ -1649,20 +1684,20 @@ export function TopPicksSection() {
                   }
                   label={
                     <Typography variant="body2">
-                      Enable auto-request for movies
+                      {t('topPicksAdmin.autoRequest.enableMovies')}
                     </Typography>
                   }
                 />
                 {config.moviesPopularitySource === 'emby_history' && (
                   <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1, ml: 4 }}>
-                    Auto-request requires an external source (TMDB or MDBList)
+                    {t('topPicksAdmin.autoRequest.requiresExternal')}
                   </Typography>
                 )}
                 <Collapse in={config.moviesAutoRequestEnabled}>
                   <Box sx={{ mt: 2, ml: 4 }}>
                     <TextField
                       fullWidth
-                      label="Max requests per run"
+                      label={t('topPicksAdmin.fields.maxRequestsPerRun')}
                       type="number"
                       value={config.moviesAutoRequestLimit}
                       onChange={(e) => updateConfig({ moviesAutoRequestLimit: Math.max(1, parseInt(e.target.value) || 10) })}
@@ -1671,7 +1706,7 @@ export function TopPicksSection() {
                       InputProps={{
                         inputProps: { min: 1, max: 100 }
                       }}
-                      helperText="Limit how many movies to request per job run"
+                      helperText={t('topPicksAdmin.autoRequest.moviesHelper')}
                     />
                   </Box>
                 </Collapse>
@@ -1683,7 +1718,7 @@ export function TopPicksSection() {
               <Card variant="outlined" sx={{ p: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                   <TvIcon fontSize="small" color="primary" />
-                  <Typography variant="subtitle2">Series</Typography>
+                  <Typography variant="subtitle2">{t('topPicksAdmin.autoRequest.seriesSection')}</Typography>
                 </Box>
                 <FormControlLabel
                   control={
@@ -1696,20 +1731,20 @@ export function TopPicksSection() {
                   }
                   label={
                     <Typography variant="body2">
-                      Enable auto-request for series
+                      {t('topPicksAdmin.autoRequest.enableSeries')}
                     </Typography>
                   }
                 />
                 {config.seriesPopularitySource === 'emby_history' && (
                   <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1, ml: 4 }}>
-                    Auto-request requires an external source (TMDB or MDBList)
+                    {t('topPicksAdmin.autoRequest.requiresExternal')}
                   </Typography>
                 )}
                 <Collapse in={config.seriesAutoRequestEnabled}>
                   <Box sx={{ mt: 2, ml: 4 }}>
                     <TextField
                       fullWidth
-                      label="Max requests per run"
+                      label={t('topPicksAdmin.fields.maxRequestsPerRun')}
                       type="number"
                       value={config.seriesAutoRequestLimit}
                       onChange={(e) => updateConfig({ seriesAutoRequestLimit: Math.max(1, parseInt(e.target.value) || 10) })}
@@ -1718,7 +1753,7 @@ export function TopPicksSection() {
                       InputProps={{
                         inputProps: { min: 1, max: 100 }
                       }}
-                      helperText="Limit how many series to request per job run"
+                      helperText={t('topPicksAdmin.autoRequest.seriesHelper')}
                     />
                   </Box>
                 </Collapse>
@@ -1733,10 +1768,10 @@ export function TopPicksSection() {
         <CardContent>
           <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
             <OutputIcon fontSize="small" color="primary" />
-            Output Configuration
+            {t('topPicksAdmin.output.title')}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Choose how Top Picks appear in your media server. You can enable multiple output types simultaneously.
+            {t('topPicksAdmin.output.subtitle')}
           </Typography>
 
           {/* Output Type Explanations */}
@@ -1744,7 +1779,7 @@ export function TopPicksSection() {
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <InfoOutlinedIcon fontSize="small" />
-                What's the difference between Library, Collection, and Playlist?
+                {t('topPicksAdmin.output.accordionTitle')}
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
@@ -1752,33 +1787,30 @@ export function TopPicksSection() {
                 <Grid item xs={12} md={4}>
                   <Box sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}>
                     <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <FolderIcon fontSize="small" color="primary" /> Library
+                      <FolderIcon fontSize="small" color="primary" /> {t('topPicksAdmin.output.libraryHeading')}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Appears as a separate library in your media server sidebar. Contains virtual copies (STRM files) of the media.
-                      Best for dedicated browsing of Top Picks.
+                      {t('topPicksAdmin.output.libraryBody')}
                     </Typography>
                   </Box>
                 </Grid>
                 <Grid item xs={12} md={4}>
                   <Box sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}>
                     <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <CollectionsIcon fontSize="small" color="primary" /> Collection (Box Set)
+                      <CollectionsIcon fontSize="small" color="primary" /> {t('topPicksAdmin.output.collectionHeading')}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Groups your existing library items into a "box set" that appears when browsing.
-                      Uses your original media files directly. Best for organization within existing libraries.
+                      {t('topPicksAdmin.output.collectionBody')}
                     </Typography>
                   </Box>
                 </Grid>
                 <Grid item xs={12} md={4}>
                   <Box sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}>
                     <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <PlaylistPlayIcon fontSize="small" color="primary" /> Playlist
+                      <PlaylistPlayIcon fontSize="small" color="primary" /> {t('topPicksAdmin.output.playlistHeading')}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Creates an ordered playlist in the Playlists section.
-                      Uses your original media files directly. Best for sequential watching or shuffle play.
+                      {t('topPicksAdmin.output.playlistBody')}
                     </Typography>
                   </Box>
                 </Grid>
@@ -1794,9 +1826,9 @@ export function TopPicksSection() {
                 <CardContent>
                   <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                     <MovieIcon color="primary" />
-                    Movies Output
+                    {t('topPicksAdmin.output.moviesOutput')}
                     {images['top-picks-movies']?.url && (
-                      <Chip size="small" label="Image Set" color="success" variant="outlined" sx={{ ml: 'auto' }} />
+                      <Chip size="small" label={t('topPicksAdmin.output.imageSet')} color="success" variant="outlined" sx={{ ml: 'auto' }} />
                     )}
                   </Typography>
 
@@ -1804,7 +1836,7 @@ export function TopPicksSection() {
               <Box sx={{ mb: 3 }}>
                 <Box display="flex" alignItems="center" gap={1} mb={1}>
                   <ImageIcon fontSize="small" color="action" />
-                  <Typography variant="body2" fontWeight={500}>Library Cover Image</Typography>
+                  <Typography variant="body2" fontWeight={500}>{t('topPicksAdmin.output.libraryCoverImage')}</Typography>
                 </Box>
                 <Box sx={{ maxWidth: 400 }}>
                   <ImageUpload
@@ -1815,7 +1847,7 @@ export function TopPicksSection() {
                     onDelete={images['top-picks-movies']?.url ? () => handleDeleteImage('top-picks-movies') : undefined}
                     loading={uploadingFor === 'top-picks-movies'}
                     height={160}
-                    label="Drop image (16:9)"
+                    label={t('topPicksAdmin.output.dropImage169')}
                     showDelete={!!images['top-picks-movies']?.url}
                   />
                 </Box>
@@ -1826,7 +1858,7 @@ export function TopPicksSection() {
               <Grid container spacing={3}>
                 <Grid item xs={12} md={6}>
                   <Typography variant="body2" fontWeight={500} gutterBottom>
-                    Output Types (select one or more)
+                    {t('topPicksAdmin.fields.outputTypesHeading')}
                   </Typography>
                   <FormGroup>
                     <FormControlLabel
@@ -1840,7 +1872,7 @@ export function TopPicksSection() {
                       label={
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <FolderIcon fontSize="small" />
-                          <Typography variant="body2">Library (sidebar)</Typography>
+                          <Typography variant="body2">{t('topPicksAdmin.output.librarySidebar')}</Typography>
                         </Box>
                       }
                     />
@@ -1855,7 +1887,7 @@ export function TopPicksSection() {
                       label={
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <CollectionsIcon fontSize="small" />
-                          <Typography variant="body2">Collection (Box Set)</Typography>
+                          <Typography variant="body2">{t('topPicksAdmin.output.collectionBoxSet')}</Typography>
                         </Box>
                       }
                     />
@@ -1870,7 +1902,7 @@ export function TopPicksSection() {
                       label={
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <PlaylistPlayIcon fontSize="small" />
-                          <Typography variant="body2">Playlist</Typography>
+                          <Typography variant="body2">{t('topPicksAdmin.output.playlist')}</Typography>
                         </Box>
                       }
                     />
@@ -1881,12 +1913,12 @@ export function TopPicksSection() {
                   <Stack spacing={2}>
                     <Box>
                       <Typography variant="body2" fontWeight={500} gutterBottom>
-                        Names
+                        {t('topPicksAdmin.fields.names')}
                       </Typography>
                       {config.moviesLibraryEnabled && (
                         <TextField
                           fullWidth
-                          label="Library Name"
+                          label={t('topPicksAdmin.fields.libraryName')}
                           value={config.moviesLibraryName}
                           onChange={(e) => updateConfig({ moviesLibraryName: e.target.value })}
                           size="small"
@@ -1897,7 +1929,7 @@ export function TopPicksSection() {
                       {(config.moviesCollectionEnabled || config.moviesPlaylistEnabled) && (
                         <TextField
                           fullWidth
-                          label="Collection/Playlist Name"
+                          label={t('topPicksAdmin.fields.collectionPlaylistName')}
                           value={config.moviesCollectionName}
                           onChange={(e) => updateConfig({ moviesCollectionName: e.target.value })}
                           size="small"
@@ -1909,7 +1941,7 @@ export function TopPicksSection() {
                     {config.moviesLibraryEnabled && (
                       <Box>
                         <Typography variant="body2" fontWeight={500} gutterBottom>
-                          Library File Type
+                          {t('topPicksAdmin.fields.libraryFileType')}
                         </Typography>
                         <FormControlLabel
                           control={
@@ -1922,7 +1954,9 @@ export function TopPicksSection() {
                           }
                           label={
                             <Typography variant="body2">
-                              {config.moviesUseSymlinks ? 'Symlinks' : 'STRM Files'}
+                              {config.moviesUseSymlinks
+                                ? t('topPicksAdmin.output.symlinks')
+                                : t('topPicksAdmin.output.strmFiles')}
                             </Typography>
                           }
                         />
@@ -1941,9 +1975,9 @@ export function TopPicksSection() {
                 <CardContent>
                   <Typography variant="subtitle1" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                     <TvIcon color="primary" />
-                    Series Output
+                    {t('topPicksAdmin.output.seriesOutput')}
                     {images['top-picks-series']?.url && (
-                      <Chip size="small" label="Image Set" color="success" variant="outlined" sx={{ ml: 'auto' }} />
+                      <Chip size="small" label={t('topPicksAdmin.output.imageSet')} color="success" variant="outlined" sx={{ ml: 'auto' }} />
                     )}
                   </Typography>
 
@@ -1951,7 +1985,7 @@ export function TopPicksSection() {
                   <Box sx={{ mb: 3 }}>
                     <Box display="flex" alignItems="center" gap={1} mb={1}>
                       <ImageIcon fontSize="small" color="action" />
-                      <Typography variant="body2" fontWeight={500}>Library Cover Image</Typography>
+                      <Typography variant="body2" fontWeight={500}>{t('topPicksAdmin.output.libraryCoverImage')}</Typography>
                     </Box>
                     <Box sx={{ maxWidth: 400 }}>
                       <ImageUpload
@@ -1962,7 +1996,7 @@ export function TopPicksSection() {
                         onDelete={images['top-picks-series']?.url ? () => handleDeleteImage('top-picks-series') : undefined}
                         loading={uploadingFor === 'top-picks-series'}
                         height={160}
-                        label="Drop image (16:9)"
+                        label={t('topPicksAdmin.output.dropImage169')}
                         showDelete={!!images['top-picks-series']?.url}
                       />
                     </Box>
@@ -1973,7 +2007,7 @@ export function TopPicksSection() {
               <Grid container spacing={3}>
                 <Grid item xs={12} md={6}>
                   <Typography variant="body2" fontWeight={500} gutterBottom>
-                    Output Types (select one or more)
+                    {t('topPicksAdmin.fields.outputTypesHeading')}
                   </Typography>
                   <FormGroup>
                     <FormControlLabel
@@ -1987,7 +2021,7 @@ export function TopPicksSection() {
                       label={
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <FolderIcon fontSize="small" />
-                          <Typography variant="body2">Library (sidebar)</Typography>
+                          <Typography variant="body2">{t('topPicksAdmin.output.librarySidebar')}</Typography>
                         </Box>
                       }
                     />
@@ -2002,7 +2036,7 @@ export function TopPicksSection() {
                       label={
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <CollectionsIcon fontSize="small" />
-                          <Typography variant="body2">Collection (Box Set)</Typography>
+                          <Typography variant="body2">{t('topPicksAdmin.output.collectionBoxSet')}</Typography>
                         </Box>
                       }
                     />
@@ -2017,7 +2051,7 @@ export function TopPicksSection() {
                       label={
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <PlaylistPlayIcon fontSize="small" />
-                          <Typography variant="body2">Playlist</Typography>
+                          <Typography variant="body2">{t('topPicksAdmin.output.playlist')}</Typography>
                         </Box>
                       }
                     />
@@ -2028,12 +2062,12 @@ export function TopPicksSection() {
                   <Stack spacing={2}>
                     <Box>
                       <Typography variant="body2" fontWeight={500} gutterBottom>
-                        Names
+                        {t('topPicksAdmin.fields.names')}
                       </Typography>
                       {config.seriesLibraryEnabled && (
                         <TextField
                           fullWidth
-                          label="Library Name"
+                          label={t('topPicksAdmin.fields.libraryName')}
                           value={config.seriesLibraryName}
                           onChange={(e) => updateConfig({ seriesLibraryName: e.target.value })}
                           size="small"
@@ -2044,7 +2078,7 @@ export function TopPicksSection() {
                       {(config.seriesCollectionEnabled || config.seriesPlaylistEnabled) && (
                         <TextField
                           fullWidth
-                          label="Collection/Playlist Name"
+                          label={t('topPicksAdmin.fields.collectionPlaylistName')}
                           value={config.seriesCollectionName}
                           onChange={(e) => updateConfig({ seriesCollectionName: e.target.value })}
                           size="small"
@@ -2056,7 +2090,7 @@ export function TopPicksSection() {
                     {config.seriesLibraryEnabled && (
                       <Box>
                         <Typography variant="body2" fontWeight={500} gutterBottom>
-                          Library File Type
+                          {t('topPicksAdmin.fields.libraryFileType')}
                         </Typography>
                         <FormControlLabel
                           control={
@@ -2069,7 +2103,9 @@ export function TopPicksSection() {
                           }
                           label={
                             <Typography variant="body2">
-                              {config.seriesUseSymlinks ? 'Symlinks' : 'STRM Files'}
+                              {config.seriesUseSymlinks
+                                ? t('topPicksAdmin.output.symlinks')
+                                : t('topPicksAdmin.output.strmFiles')}
                             </Typography>
                           }
                         />
@@ -2086,9 +2122,8 @@ export function TopPicksSection() {
           {/* Symlink Warning */}
           {(config.moviesUseSymlinks || config.seriesUseSymlinks) && (
             <Alert severity="warning" icon={<WarningAmberIcon />}>
-              <Typography variant="body2">
-                <strong>Symlinks</strong> require that Aperture can access your media files at the exact same paths that your media server uses.
-                If paths differ between systems (e.g., Docker containers), use STRM files instead.
+              <Typography variant="body2" component="div">
+                <Trans i18nKey="topPicksAdmin.output.symlinkWarning" components={{ strong: <strong /> }} />
               </Typography>
             </Alert>
           )}
@@ -2106,7 +2141,7 @@ export function TopPicksSection() {
                 onClick={handleReset}
                 disabled={saving}
               >
-                Reset to Defaults
+                {t('topPicksAdmin.actions.resetDefaults')}
               </Button>
               <Button
                 variant="outlined"
@@ -2114,7 +2149,7 @@ export function TopPicksSection() {
                 onClick={handleRefreshNow}
                 disabled={!config.isEnabled}
               >
-                Refresh Now
+                {t('topPicksAdmin.actions.refreshNow')}
               </Button>
             </Stack>
             <Button
@@ -2124,7 +2159,7 @@ export function TopPicksSection() {
               disabled={saving || !hasChanges}
               size="large"
             >
-              {saving ? 'Saving...' : 'Save Changes'}
+              {saving ? t('topPicksAdmin.actions.saving') : t('topPicksAdmin.actions.saveChanges')}
             </Button>
           </Stack>
         </CardContent>

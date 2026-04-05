@@ -1,4 +1,5 @@
 import { Box, Chip, Typography, alpha, useTheme } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 
 interface ChipToggleGroupProps {
   label: string
@@ -15,6 +16,7 @@ export function ChipToggleGroup({
   onChange,
   exclusive = false,
 }: ChipToggleGroupProps) {
+  const { t } = useTranslation()
   const theme = useTheme()
 
   const handleToggle = (value: string) => {
@@ -42,7 +44,11 @@ export function ChipToggleGroup({
           return (
             <Chip
               key={option.value}
-              label={option.count !== undefined ? `${option.label} (${option.count})` : option.label}
+              label={
+                option.count !== undefined
+                  ? t('browse.chipToggle.optionWithCount', { label: option.label, count: option.count })
+                  : option.label
+              }
               onClick={() => handleToggle(option.value)}
               variant={isSelected ? 'filled' : 'outlined'}
               size="small"

@@ -30,6 +30,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   Warning as WarningIcon,
 } from '@mui/icons-material'
+import { useTranslation } from 'react-i18next'
 import type { SetupWizardContext } from '../types'
 
 interface MediaServerStepProps {
@@ -37,6 +38,7 @@ interface MediaServerStepProps {
 }
 
 export function MediaServerStep({ wizard }: MediaServerStepProps) {
+  const { t } = useTranslation()
   const {
     error,
     testSuccess,
@@ -114,7 +116,7 @@ export function MediaServerStep({ wizard }: MediaServerStepProps) {
         <Box
           component="img"
           src="/aperture.png"
-          alt="Aperture"
+          alt={t('setup.page.altLogo')}
           sx={{ width: 72, height: 72, mb: 2 }}
         />
         <Typography
@@ -127,21 +129,20 @@ export function MediaServerStep({ wizard }: MediaServerStepProps) {
             mb: 1,
           }}
         >
-          Aperture
+          {t('setup.page.brandName')}
         </Typography>
         <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ maxWidth: 400 }}>
-          Discover your next favorite. Every time.
+          {t('setup.mediaServer.tagline')}
         </Typography>
       </Box>
 
       <Divider sx={{ mb: 3 }} />
 
       <Typography variant="h6" gutterBottom>
-        Connect Your Media Server
+        {t('setup.mediaServer.title')}
       </Typography>
       <Typography variant="body2" color="text.secondary" paragraph>
-        Aperture integrates with your Emby or Jellyfin server to analyze viewing habits and generate personalized
-        recommendations.
+        {t('setup.mediaServer.subtitle')}
       </Typography>
 
       {/* Existing Server Display */}
@@ -149,7 +150,7 @@ export function MediaServerStep({ wizard }: MediaServerStepProps) {
         <Alert severity="success" icon={<CheckCircleIcon />} sx={{ mb: 3 }}>
           <Box>
             <Typography variant="body2" fontWeight={500}>
-              Media Server Connected
+              {t('setup.mediaServer.connectedTitle')}
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
               <Chip
@@ -162,7 +163,7 @@ export function MediaServerStep({ wizard }: MediaServerStepProps) {
               {existingMediaServer.baseUrl}
             </Typography>
             <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'text.secondary', display: 'block', mt: 0.5 }}>
-              API Key: {existingMediaServer.maskedApiKey}
+              {t('setup.mediaServer.apiKeyLabel')} {existingMediaServer.maskedApiKey}
             </Typography>
           </Box>
         </Alert>
@@ -176,7 +177,7 @@ export function MediaServerStep({ wizard }: MediaServerStepProps) {
 
       {testSuccess && !existingMediaServer && (
         <Alert severity="success" sx={{ mb: 2 }} icon={<CheckCircleIcon />}>
-          Connected to {serverName || 'media server'}!
+          {t('setup.mediaServer.connectedTo', { name: serverName || t('setup.mediaServer.connectedFallback') })}
         </Alert>
       )}
 
@@ -190,15 +191,12 @@ export function MediaServerStep({ wizard }: MediaServerStepProps) {
             endIcon={<ExpandMoreIcon sx={{ transform: showReconfigure ? 'rotate(180deg)' : 'none', transition: '0.2s' }} />}
             sx={{ color: 'text.secondary', textTransform: 'none' }}
           >
-            Connect to a different server
+            {t('setup.mediaServer.reconfigure')}
           </Button>
           <Collapse in={showReconfigure}>
             <Box sx={{ mt: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
               <Alert severity="info" sx={{ mb: 2, py: 0.5 }} icon={false}>
-                <Typography variant="caption">
-                  <strong>Need an API key?</strong> In your media server dashboard, go to <strong>Settings → API Keys</strong> and
-                  create a new key for Aperture.
-                </Typography>
+                <Typography variant="caption">{t('setup.mediaServer.needApiKeyShort')}</Typography>
               </Alert>
 
               {/* Auto-Discovery Section */}
@@ -210,7 +208,7 @@ export function MediaServerStep({ wizard }: MediaServerStepProps) {
                 disabled={discoveringServers}
                 sx={{ mb: 2 }}
               >
-                {discoveringServers ? 'Scanning...' : 'Discover Servers'}
+                {discoveringServers ? t('setup.mediaServer.discoverScanning') : t('setup.mediaServer.discoverServers')}
               </Button>
 
               {discoveredServers.length > 0 && (
@@ -250,8 +248,8 @@ export function MediaServerStep({ wizard }: MediaServerStepProps) {
               )}
 
               <FormControl fullWidth size="small" margin="dense">
-                <InputLabel>Server Type</InputLabel>
-                <Select value={serverType} label="Server Type" onChange={(e) => setServerType(e.target.value)}>
+                <InputLabel>{t('setup.mediaServer.serverType')}</InputLabel>
+                <Select value={serverType} label={t('setup.mediaServer.serverType')} onChange={(e) => setServerType(e.target.value)}>
                   {mediaServerTypes.map((type) => (
                     <MenuItem key={type.id} value={type.id}>
                       {type.name}
@@ -263,8 +261,8 @@ export function MediaServerStep({ wizard }: MediaServerStepProps) {
               <TextField
                 fullWidth
                 size="small"
-                label="Server URL"
-                placeholder="http://192.168.1.100:8096"
+                label={t('setup.mediaServer.serverUrl')}
+                placeholder={t('setup.mediaServer.urlPlaceholder')}
                 value={serverUrl}
                 onChange={(e) => setServerUrl(e.target.value)}
                 margin="dense"
@@ -273,7 +271,7 @@ export function MediaServerStep({ wizard }: MediaServerStepProps) {
               <TextField
                 fullWidth
                 size="small"
-                label="API Key"
+                label={t('setup.mediaServer.apiKey')}
                 type={showApiKey ? 'text' : 'password'}
                 value={serverApiKey}
                 onChange={(e) => setServerApiKey(e.target.value)}
@@ -297,7 +295,7 @@ export function MediaServerStep({ wizard }: MediaServerStepProps) {
                   disabled={testing || !serverUrl || !serverApiKey}
                   sx={{ mt: 2 }}
                 >
-                  {testing ? <CircularProgress size={16} /> : 'Test New Connection'}
+                  {testing ? <CircularProgress size={16} /> : t('setup.mediaServer.testNewConnection')}
                 </Button>
               )}
             </Box>
@@ -306,10 +304,7 @@ export function MediaServerStep({ wizard }: MediaServerStepProps) {
       ) : (
         <>
           <Alert severity="info" sx={{ mb: 2, py: 0.5 }} icon={false}>
-            <Typography variant="caption">
-              <strong>Need an API key?</strong> In your media server dashboard, go to <strong>Settings → API Keys</strong> and
-              create a new key for Aperture. This allows secure read-only access to your library metadata and watch history.
-            </Typography>
+            <Typography variant="caption">{t('setup.mediaServer.needApiKeyLong')}</Typography>
           </Alert>
 
           {/* Auto-Discovery Section */}
@@ -322,13 +317,13 @@ export function MediaServerStep({ wizard }: MediaServerStepProps) {
               fullWidth
               sx={{ mb: 2 }}
             >
-              {discoveringServers ? 'Scanning Network...' : 'Discover Servers on Network'}
+              {discoveringServers ? t('setup.mediaServer.discoverScanningNetwork') : t('setup.mediaServer.discoverOnNetwork')}
             </Button>
 
             {discoveredServers.length > 0 && (
               <Box sx={{ mb: 2 }}>
                 <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                  Found {discoveredServers.length} server{discoveredServers.length > 1 ? 's' : ''}:
+                  {t('setup.mediaServer.foundServers', { count: discoveredServers.length })}
                 </Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                   {discoveredServers.map((server) => (
@@ -365,13 +360,13 @@ export function MediaServerStep({ wizard }: MediaServerStepProps) {
               </Box>
             )}
 
-            {discoveredServers.length > 0 && <Divider sx={{ my: 2 }}>or enter manually</Divider>}
+            {discoveredServers.length > 0 && <Divider sx={{ my: 2 }}>{t('setup.mediaServer.orManual')}</Divider>}
           </Box>
 
           {/* Manual Entry Section */}
           <FormControl fullWidth margin="normal">
-            <InputLabel>Server Type</InputLabel>
-            <Select value={serverType} label="Server Type" onChange={(e) => setServerType(e.target.value)}>
+            <InputLabel>{t('setup.mediaServer.serverType')}</InputLabel>
+            <Select value={serverType} label={t('setup.mediaServer.serverType')} onChange={(e) => setServerType(e.target.value)}>
               {mediaServerTypes.map((type) => (
                 <MenuItem key={type.id} value={type.id}>
                   {type.name}
@@ -382,22 +377,24 @@ export function MediaServerStep({ wizard }: MediaServerStepProps) {
 
           <TextField
             fullWidth
-            label="Server URL"
-            placeholder="http://192.168.1.100:8096"
+            label={t('setup.mediaServer.serverUrl')}
+            placeholder={t('setup.mediaServer.urlPlaceholder')}
             value={serverUrl}
             onChange={(e) => setServerUrl(e.target.value)}
             margin="normal"
-            helperText="Include the protocol (http/https) and port"
+            helperText={t('setup.mediaServer.urlHelper')}
           />
 
           <TextField
             fullWidth
-            label="API Key"
+            label={t('setup.mediaServer.apiKey')}
             type={showApiKey ? 'text' : 'password'}
             value={serverApiKey}
             onChange={(e) => setServerApiKey(e.target.value)}
             margin="normal"
-            helperText={`Find this in your ${serverType === 'emby' ? 'Emby' : 'Jellyfin'} dashboard under API Keys`}
+            helperText={t('setup.mediaServer.apiKeyHelper', {
+              server: serverType === 'emby' ? 'Emby' : 'Jellyfin',
+            })}
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
@@ -415,7 +412,7 @@ export function MediaServerStep({ wizard }: MediaServerStepProps) {
       <Divider sx={{ my: 3 }} />
       
       <Typography variant="h6" gutterBottom>
-        Security Settings
+        {t('setup.mediaServer.securityTitle')}
       </Typography>
       
       <Box sx={{ mb: 2 }}>
@@ -427,10 +424,10 @@ export function MediaServerStep({ wizard }: MediaServerStepProps) {
               disabled={savingSecuritySetting}
             />
           }
-          label="Allow passwordless login"
+          label={t('setup.mediaServer.passwordlessLabel')}
         />
         <Typography variant="body2" color="text.secondary" sx={{ ml: 4.5, mt: -0.5 }}>
-          Enable this if your media server users don't have passwords set
+          {t('setup.mediaServer.passwordlessHelper')}
         </Typography>
       </Box>
 
@@ -441,19 +438,16 @@ export function MediaServerStep({ wizard }: MediaServerStepProps) {
           sx={{ mb: 2 }}
         >
           <Typography variant="body2" fontWeight={500}>
-            Security Warning
+            {t('setup.mediaServer.securityWarningTitle')}
           </Typography>
-          <Typography variant="body2">
-            Only enable this if your Aperture instance is on a private network with no internet exposure. 
-            If your server is accessible via reverse proxy or the internet, leave this disabled to prevent unauthorized access.
-          </Typography>
+          <Typography variant="body2">{t('setup.mediaServer.securityWarningBody')}</Typography>
         </Alert>
       )}
 
       <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
         {!existingMediaServer && (
           <Button variant="outlined" onClick={handleTestMediaServer} disabled={testing || !serverUrl || !serverApiKey}>
-            {testing ? <CircularProgress size={20} /> : 'Test Connection'}
+            {testing ? <CircularProgress size={20} /> : t('setup.mediaServer.testConnection')}
           </Button>
         )}
         <Button
@@ -461,7 +455,15 @@ export function MediaServerStep({ wizard }: MediaServerStepProps) {
           onClick={handleSaveMediaServer}
           disabled={saving || (!existingMediaServer && !testSuccess) || (!!existingMediaServer && !!serverApiKey && !testSuccess)}
         >
-          {saving ? <CircularProgress size={20} /> : existingMediaServer && !serverApiKey ? 'Continue' : testSuccess ? 'Save & Continue' : 'Continue'}
+          {saving ? (
+            <CircularProgress size={20} />
+          ) : existingMediaServer && !serverApiKey ? (
+            t('setup.mediaServer.continue')
+          ) : testSuccess ? (
+            t('setup.mediaServer.saveContinue')
+          ) : (
+            t('setup.mediaServer.continue')
+          )}
         </Button>
       </Box>
     </Box>

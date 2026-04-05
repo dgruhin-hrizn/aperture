@@ -27,21 +27,24 @@ import {
   Extension as ExtensionIcon,
   TrendingUp as TrendingUpIcon,
 } from '@mui/icons-material'
+import { useTranslation } from 'react-i18next'
 import type { SetupWizardContext, UserLibraryResult } from '../types'
 
 interface CompleteStepProps {
   wizard: SetupWizardContext
 }
 
-function LibrarySummarySection({ 
-  type, 
-  users, 
-  icon 
-}: { 
-  type: 'Movies' | 'TV Series'
+function LibrarySummarySection({
+  typeLabel,
+  users,
+  icon,
+}: {
+  typeLabel: string
   users: UserLibraryResult[]
-  icon: React.ReactNode 
+  icon: React.ReactNode
 }) {
+  const { t } = useTranslation()
+
   if (!users || users.length === 0) return null
 
   const successUsers = users.filter((u) => u.status === 'success')
@@ -54,17 +57,17 @@ function LibrarySummarySection({
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
         {icon}
         <Typography variant="subtitle1" fontWeight={600}>
-          {type}
+          {typeLabel}
         </Typography>
-        <Chip 
-          label={`${totalRecs} recommendations`} 
-          size="small" 
-          color="primary" 
-          variant="outlined" 
+        <Chip
+          label={t('setup.complete.recommendationsChip', { count: totalRecs })}
+          size="small"
+          color="primary"
+          variant="outlined"
           sx={{ ml: 'auto' }}
         />
       </Box>
-      
+
       <List dense disablePadding>
         {successUsers.map((user) => (
           <ListItem key={user.userId} sx={{ py: 0.5, px: 1.5 }}>
@@ -72,14 +75,19 @@ function LibrarySummarySection({
               <CheckCircleIcon fontSize="small" color="success" />
             </ListItemIcon>
             <ListItemText
-              primary={user.libraryName || `${user.displayName}'s AI Picks`}
-              secondary={`${user.recommendationCount} recommendations`}
+              primary={
+                user.libraryName ||
+                t('setup.complete.aiPicksPrimary', { name: user.displayName })
+              }
+              secondary={t('setup.complete.recommendationsChip', {
+                count: user.recommendationCount ?? 0,
+              })}
               primaryTypographyProps={{ variant: 'body2' }}
               secondaryTypographyProps={{ variant: 'caption' }}
             />
           </ListItem>
         ))}
-        
+
         {skippedUsers.map((user) => (
           <ListItem key={user.userId} sx={{ py: 0.5, px: 1.5 }}>
             <ListItemIcon sx={{ minWidth: 32 }}>
@@ -87,13 +95,13 @@ function LibrarySummarySection({
             </ListItemIcon>
             <ListItemText
               primary={user.displayName}
-              secondary={user.error || 'Skipped (no watch history)'}
+              secondary={user.error || t('setup.complete.skippedNoHistory')}
               primaryTypographyProps={{ variant: 'body2' }}
               secondaryTypographyProps={{ variant: 'caption', color: 'warning.main' }}
             />
           </ListItem>
         ))}
-        
+
         {failedUsers.map((user) => (
           <ListItem key={user.userId} sx={{ py: 0.5, px: 1.5 }}>
             <ListItemIcon sx={{ minWidth: 32 }}>
@@ -101,7 +109,7 @@ function LibrarySummarySection({
             </ListItemIcon>
             <ListItemText
               primary={user.displayName}
-              secondary={user.error || 'Failed'}
+              secondary={user.error || t('setup.complete.failed')}
               primaryTypographyProps={{ variant: 'body2' }}
               secondaryTypographyProps={{ variant: 'caption', color: 'error.main' }}
             />
@@ -112,13 +120,15 @@ function LibrarySummarySection({
   )
 }
 
-function TopPicksSummarySection({ 
-  moviesCount, 
+function TopPicksSummarySection({
+  moviesCount,
   seriesCount,
-}: { 
+}: {
   moviesCount: number
   seriesCount: number
 }) {
+  const { t } = useTranslation()
+
   if (moviesCount === 0 && seriesCount === 0) return null
 
   return (
@@ -126,10 +136,10 @@ function TopPicksSummarySection({
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
         <TrendingUpIcon fontSize="small" color="primary" />
         <Typography variant="subtitle1" fontWeight={600}>
-          Top Picks (Global)
+          {t('setup.complete.topPicksGlobal')}
         </Typography>
       </Box>
-      
+
       <List dense disablePadding>
         {moviesCount > 0 && (
           <ListItem sx={{ py: 0.5, px: 1.5 }}>
@@ -137,8 +147,8 @@ function TopPicksSummarySection({
               <CheckCircleIcon fontSize="small" color="success" />
             </ListItemIcon>
             <ListItemText
-              primary="Top Picks - Movies"
-              secondary={`${moviesCount} popular movies`}
+              primary={t('setup.complete.topPicksMovies')}
+              secondary={t('setup.complete.topPicksMoviesSecondary', { count: moviesCount })}
               primaryTypographyProps={{ variant: 'body2' }}
               secondaryTypographyProps={{ variant: 'caption' }}
             />
@@ -150,8 +160,8 @@ function TopPicksSummarySection({
               <CheckCircleIcon fontSize="small" color="success" />
             </ListItemIcon>
             <ListItemText
-              primary="Top Picks - Series"
-              secondary={`${seriesCount} popular series`}
+              primary={t('setup.complete.topPicksSeries')}
+              secondary={t('setup.complete.topPicksSeriesSecondary', { count: seriesCount })}
               primaryTypographyProps={{ variant: 'body2' }}
               secondaryTypographyProps={{ variant: 'caption' }}
             />
@@ -163,21 +173,22 @@ function TopPicksSummarySection({
 }
 
 export function CompleteStep({ wizard }: CompleteStepProps) {
+  const { t } = useTranslation()
   const { handleCompleteSetup, jobsProgress, serverName, serverType, goToStep } = wizard
 
   // Extract library results from completed sync jobs
   const movieSyncJob = jobsProgress.find((j) => j.id === 'sync-movie-libraries')
   const seriesSyncJob = jobsProgress.find((j) => j.id === 'sync-series-libraries')
-  const topPicksJob = jobsProgress.find((j) => j.id === 'sync-top-picks')
-  
+  const topPicksJob = jobsProgress.find((j) => j.id === 'refresh-top-picks')
+
   const movieUsers = movieSyncJob?.result?.users || []
   const seriesUsers = seriesSyncJob?.result?.users || []
-  
+
   // Top Picks results
   const topPicksMoviesCount = topPicksJob?.result?.moviesCount || 0
   const topPicksSeriesCount = topPicksJob?.result?.seriesCount || 0
   const hasTopPicks = topPicksMoviesCount > 0 || topPicksSeriesCount > 0
-  
+
   const hasMovieLibraries = movieUsers.some((u) => u.status === 'success')
   const hasSeriesLibraries = seriesUsers.some((u) => u.status === 'success')
   const hasAnyLibraries = hasMovieLibraries || hasSeriesLibraries || hasTopPicks
@@ -185,26 +196,25 @@ export function CompleteStep({ wizard }: CompleteStepProps) {
     (u) => u.status === 'skipped' || u.status === 'failed'
   )
 
+  const serverDisplayName = serverName || serverType || t('setup.complete.mediaServerFallback')
+
   return (
     <Box>
       {/* Success Header */}
       <Box textAlign="center" sx={{ mb: 4 }}>
         <CheckCircleIcon sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
         <Typography variant="h5" gutterBottom>
-          Setup Complete!
+          {t('setup.complete.title')}
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Aperture has created personalized recommendation libraries in your media server.
+          {t('setup.complete.subtitle')}
         </Typography>
       </Box>
 
       {/* Issues Alert */}
       {hasAnyIssues && (
         <Alert severity="warning" sx={{ mb: 3 }}>
-          <Typography variant="body2">
-            Some users were skipped or had issues. Users need watch history for recommendations to be generated.
-            They will receive recommendations after watching more content and running the next sync.
-          </Typography>
+          <Typography variant="body2">{t('setup.complete.issuesAlert')}</Typography>
         </Alert>
       )}
 
@@ -215,30 +225,27 @@ export function CompleteStep({ wizard }: CompleteStepProps) {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
               <AutoAwesomeIcon color="primary" />
               <Typography variant="h6">
-                Libraries Created in {serverName || serverType || 'Media Server'}
+                {t('setup.complete.librariesCreatedIn', { name: serverDisplayName })}
               </Typography>
             </Box>
-            
+
             <LibrarySummarySection
-              type="Movies"
+              typeLabel={t('setup.complete.movies')}
               users={movieUsers}
               icon={<MovieIcon fontSize="small" color="primary" />}
             />
-            
+
             {hasMovieLibraries && hasSeriesLibraries && <Divider sx={{ my: 2 }} />}
-            
+
             <LibrarySummarySection
-              type="TV Series"
+              typeLabel={t('setup.complete.tvSeries')}
               users={seriesUsers}
               icon={<TvIcon fontSize="small" color="primary" />}
             />
-            
+
             {(hasMovieLibraries || hasSeriesLibraries) && hasTopPicks && <Divider sx={{ my: 2 }} />}
-            
-            <TopPicksSummarySection
-              moviesCount={topPicksMoviesCount}
-              seriesCount={topPicksSeriesCount}
-            />
+
+            <TopPicksSummarySection moviesCount={topPicksMoviesCount} seriesCount={topPicksSeriesCount} />
           </CardContent>
         </Card>
       )}
@@ -247,27 +254,27 @@ export function CompleteStep({ wizard }: CompleteStepProps) {
       <Card variant="outlined" sx={{ mb: 3, backgroundColor: 'action.hover' }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            Getting Started
+            {t('setup.complete.gettingStarted')}
           </Typography>
-          
+
           <List dense>
             <ListItem>
               <ListItemIcon>
                 <LoginIcon fontSize="small" color="primary" />
               </ListItemIcon>
               <ListItemText
-                primary="Log in with your Media Server admin credentials"
-                secondary="Use the same username and password you use for Emby/Jellyfin"
+                primary={t('setup.complete.loginPrimary')}
+                secondary={t('setup.complete.loginSecondary')}
               />
             </ListItem>
-            
+
             <ListItem>
               <ListItemIcon>
                 <OpenInNewIcon fontSize="small" color="primary" />
               </ListItemIcon>
               <ListItemText
-                primary="Open your media server to see the new libraries"
-                secondary="New 'AI Picks' libraries will appear for each enabled user in Aperture"
+                primary={t('setup.complete.openServerPrimary')}
+                secondary={t('setup.complete.openServerSecondary')}
               />
             </ListItem>
           </List>
@@ -279,51 +286,49 @@ export function CompleteStep({ wizard }: CompleteStepProps) {
         <CardContent>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
             <ScheduleIcon color="primary" />
-            <Typography variant="h6">
-              Automatic Schedules
-            </Typography>
+            <Typography variant="h6">{t('setup.complete.schedulesTitle')}</Typography>
           </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Aperture runs background jobs to keep recommendations fresh. Default schedules can be modified in <strong>Admin → Jobs</strong>.
+            {t('setup.complete.schedulesIntro')}
           </Typography>
-          
+
           <List dense disablePadding>
             <ListItem sx={{ py: 0.25 }}>
               <ListItemText
-                primary="Watch History"
-                secondary="Every 2 hours — Tracks what users are watching"
+                primary={t('setup.complete.schedWatchHistory')}
+                secondary={t('setup.complete.schedWatchHistoryDesc')}
                 primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
                 secondaryTypographyProps={{ variant: 'caption' }}
               />
             </ListItem>
             <ListItem sx={{ py: 0.25 }}>
               <ListItemText
-                primary="Library Scan"
-                secondary="Daily at 2am — Syncs new movies and series from your media server"
+                primary={t('setup.complete.schedLibraryScan')}
+                secondary={t('setup.complete.schedLibraryScanDesc')}
                 primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
                 secondaryTypographyProps={{ variant: 'caption' }}
               />
             </ListItem>
             <ListItem sx={{ py: 0.25 }}>
               <ListItemText
-                primary="Embeddings"
-                secondary="Daily at 3am — Processes content for AI recommendations"
+                primary={t('setup.complete.schedEmbeddings')}
+                secondary={t('setup.complete.schedEmbeddingsDesc')}
                 primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
                 secondaryTypographyProps={{ variant: 'caption' }}
               />
             </ListItem>
             <ListItem sx={{ py: 0.25 }}>
               <ListItemText
-                primary="AI Recommendations"
-                secondary="Weekly on Sunday at 4am — Generates personalized picks for each user"
+                primary={t('setup.complete.schedAiRecs')}
+                secondary={t('setup.complete.schedAiRecsDesc')}
                 primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
                 secondaryTypographyProps={{ variant: 'caption' }}
               />
             </ListItem>
             <ListItem sx={{ py: 0.25 }}>
               <ListItemText
-                primary="Top Picks"
-                secondary="Daily at 5am — Updates global trending content libraries"
+                primary={t('setup.complete.schedTopPicks')}
+                secondary={t('setup.complete.schedTopPicksDesc')}
                 primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
                 secondaryTypographyProps={{ variant: 'caption' }}
               />
@@ -336,50 +341,50 @@ export function CompleteStep({ wizard }: CompleteStepProps) {
       <Card variant="outlined" sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            Unlock More Features
+            {t('setup.complete.unlockTitle')}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            After logging in, visit <strong>Admin → Settings</strong> to enable these additional features:
+            {t('setup.complete.unlockIntro')}
           </Typography>
-          
+
           <List dense>
             <ListItem>
               <ListItemIcon>
                 <ExtensionIcon fontSize="small" color="secondary" />
               </ListItemIcon>
               <ListItemText
-                primary="Trakt Integration"
-                secondary="Connect your Trakt account to import ratings, watchlists, and discover trending content"
+                primary={t('setup.complete.featTrakt')}
+                secondary={t('setup.complete.featTraktDesc')}
               />
             </ListItem>
-            
+
             <ListItem>
               <ListItemIcon>
                 <MovieIcon fontSize="small" color="secondary" />
               </ListItemIcon>
               <ListItemText
-                primary="TMDb & OMDb Metadata"
-                secondary="Enrich your library with additional metadata, ratings, and artwork from TMDb and OMDb"
+                primary={t('setup.complete.featMetadata')}
+                secondary={t('setup.complete.featMetadataDesc')}
               />
             </ListItem>
-            
+
             <ListItem>
               <ListItemIcon>
                 <LiveTvIcon fontSize="small" color="secondary" />
               </ListItemIcon>
               <ListItemText
-                primary="Shows You Watch – Virtual DVR"
-                secondary="Automatically create a library of shows you're currently watching, perfect for catching up on your favorites, and ignoring other shows you're not interested in with new episodes."
+                primary={t('setup.complete.featWatching')}
+                secondary={t('setup.complete.featWatchingDesc')}
               />
             </ListItem>
-            
+
             <ListItem>
               <ListItemIcon>
                 <PersonIcon fontSize="small" color="secondary" />
               </ListItemIcon>
               <ListItemText
-                primary="User Preferences"
-                secondary="Each user can customize their recommendation preferences and settings"
+                primary={t('setup.complete.featUserPrefs')}
+                secondary={t('setup.complete.featUserPrefsDesc')}
               />
             </ListItem>
           </List>
@@ -389,22 +394,21 @@ export function CompleteStep({ wizard }: CompleteStepProps) {
       {/* Action Buttons */}
       <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
         <Button variant="outlined" onClick={() => goToStep('initialJobs')}>
-          Back to Jobs
+          {t('setup.complete.backToJobs')}
         </Button>
-        <Button 
-          variant="contained" 
-          size="large" 
+        <Button
+          variant="contained"
+          size="large"
           onClick={handleCompleteSetup}
           startIcon={<CheckCircleIcon />}
         >
-          Finish Setup
+          {t('setup.complete.finishSetup')}
         </Button>
       </Box>
 
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 2 }}>
-        Clicking Finish will disable the public setup wizard, secure Aperture, and redirect to login.
+        {t('setup.complete.finishHint')}
       </Typography>
     </Box>
   )
 }
-

@@ -37,6 +37,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   TrendingUp as TrendingUpIcon,
 } from '@mui/icons-material'
+import { useTranslation } from 'react-i18next'
 import type { SetupWizardContext, JobProgress, UserLibraryResult } from '../types'
 
 import { WAITING_MESSAGES } from '../constants/waitingMessages'
@@ -86,6 +87,7 @@ function UserStatusIcon({ status }: { status: UserLibraryResult['status'] }) {
 }
 
 function UserLibraryResultItem({ user }: { user: UserLibraryResult }) {
+  const { t } = useTranslation()
   return (
     <Box
       sx={{
@@ -113,7 +115,7 @@ function UserLibraryResultItem({ user }: { user: UserLibraryResult }) {
           </Typography>
           {user.status === 'success' && user.recommendationCount !== undefined && (
             <Chip
-              label={`${user.recommendationCount} recommendations`}
+              label={t('setup.complete.recommendationsChip', { count: user.recommendationCount })}
               size="small"
               color="success"
               variant="outlined"
@@ -122,7 +124,7 @@ function UserLibraryResultItem({ user }: { user: UserLibraryResult }) {
           )}
           {user.libraryCreated && (
             <Chip
-              label="New library"
+              label={t('setup.initialJobsStep.newLibraryChip')}
               size="small"
               color="primary"
               variant="outlined"
@@ -151,9 +153,10 @@ function UserLibraryResultItem({ user }: { user: UserLibraryResult }) {
 }
 
 function LibraryResultsSummary({ jobs, type }: { jobs: JobProgress[]; type: 'movies' | 'series' }) {
+  const { t } = useTranslation()
   const jobId = type === 'movies' ? 'sync-movie-libraries' : 'sync-series-libraries'
   const job = jobs.find((j) => j.id === jobId)
-  
+
   if (!job || job.status !== 'completed' || !job.result?.users?.length) {
     return null
   }
@@ -166,10 +169,10 @@ function LibraryResultsSummary({ jobs, type }: { jobs: JobProgress[]; type: 'mov
   const hasIssues = skippedCount > 0 || failedCount > 0
 
   return (
-    <Accordion 
+    <Accordion
       defaultExpanded={hasIssues}
-      sx={{ 
-        mt: 1.5, 
+      sx={{
+        mt: 1.5,
         '&:before': { display: 'none' },
         border: '1px solid',
         borderColor: failedCount > 0 ? 'error.main' : skippedCount > 0 ? 'warning.main' : 'success.main',
@@ -177,42 +180,42 @@ function LibraryResultsSummary({ jobs, type }: { jobs: JobProgress[]; type: 'mov
         overflow: 'hidden',
       }}
     >
-      <AccordionSummary 
+      <AccordionSummary
         expandIcon={<ExpandMoreIcon />}
-        sx={{ 
+        sx={{
           backgroundColor: failedCount > 0 ? 'error.dark' : skippedCount > 0 ? 'warning.dark' : 'success.dark',
           '& .MuiAccordionSummary-content': { alignItems: 'center', gap: 1 },
         }}
       >
         <CloudSyncIcon fontSize="small" />
         <Typography variant="body2" fontWeight={600}>
-          {type === 'movies' ? 'Movie' : 'TV Series'} Libraries Created
+          {type === 'movies' ? t('setup.initialJobsStep.libSummaryMoviesTitle') : t('setup.initialJobsStep.libSummarySeriesTitle')}
         </Typography>
         <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
           {successCount > 0 && (
-            <Chip 
-              icon={<CheckCircleIcon />} 
-              label={`${successCount} created`} 
-              size="small" 
-              color="success" 
+            <Chip
+              icon={<CheckCircleIcon />}
+              label={t('setup.initialJobsStep.createdCount', { count: successCount })}
+              size="small"
+              color="success"
               sx={{ height: 24 }}
             />
           )}
           {skippedCount > 0 && (
-            <Chip 
-              icon={<WarningIcon />} 
-              label={`${skippedCount} skipped`} 
-              size="small" 
-              color="warning" 
+            <Chip
+              icon={<WarningIcon />}
+              label={t('setup.initialJobsStep.skippedCount', { count: skippedCount })}
+              size="small"
+              color="warning"
               sx={{ height: 24 }}
             />
           )}
           {failedCount > 0 && (
-            <Chip 
-              icon={<ErrorIcon />} 
-              label={`${failedCount} failed`} 
-              size="small" 
-              color="error" 
+            <Chip
+              icon={<ErrorIcon />}
+              label={t('setup.initialJobsStep.failedCount', { count: failedCount })}
+              size="small"
+              color="error"
               sx={{ height: 24 }}
             />
           )}
@@ -230,8 +233,9 @@ function LibraryResultsSummary({ jobs, type }: { jobs: JobProgress[]; type: 'mov
 }
 
 function TopPicksResultsSummary({ jobs }: { jobs: JobProgress[] }) {
+  const { t } = useTranslation()
   const job = jobs.find((j) => j.id === 'refresh-top-picks')
-  
+
   if (!job || (job.status !== 'completed' && job.status !== 'failed')) {
     return null
   }
@@ -241,10 +245,10 @@ function TopPicksResultsSummary({ jobs }: { jobs: JobProgress[] }) {
   const seriesCount = job.result?.seriesCount ?? 0
 
   return (
-    <Accordion 
+    <Accordion
       defaultExpanded={!isSuccess}
-      sx={{ 
-        mt: 1.5, 
+      sx={{
+        mt: 1.5,
         '&:before': { display: 'none' },
         border: '1px solid',
         borderColor: isSuccess ? 'success.main' : 'error.main',
@@ -252,43 +256,37 @@ function TopPicksResultsSummary({ jobs }: { jobs: JobProgress[] }) {
         overflow: 'hidden',
       }}
     >
-      <AccordionSummary 
+      <AccordionSummary
         expandIcon={<ExpandMoreIcon />}
-        sx={{ 
+        sx={{
           backgroundColor: isSuccess ? 'success.dark' : 'error.dark',
           '& .MuiAccordionSummary-content': { alignItems: 'center', gap: 1 },
         }}
       >
         <TrendingUpIcon fontSize="small" />
         <Typography variant="body2" fontWeight={600}>
-          Top Picks Libraries Created
+          {t('setup.initialJobsStep.topPicksLibsCreated')}
         </Typography>
         <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
           {isSuccess ? (
             <>
-              <Chip 
-                icon={<CheckCircleIcon />} 
-                label={`${moviesCount} movies`} 
-                size="small" 
-                color="success" 
+              <Chip
+                icon={<CheckCircleIcon />}
+                label={t('setup.initialJobsStep.moviesChip', { count: moviesCount })}
+                size="small"
+                color="success"
                 sx={{ height: 24 }}
               />
-              <Chip 
-                icon={<CheckCircleIcon />} 
-                label={`${seriesCount} series`} 
-                size="small" 
-                color="success" 
+              <Chip
+                icon={<CheckCircleIcon />}
+                label={t('setup.initialJobsStep.seriesChip', { count: seriesCount })}
+                size="small"
+                color="success"
                 sx={{ height: 24 }}
               />
             </>
           ) : (
-            <Chip 
-              icon={<ErrorIcon />} 
-              label="Failed" 
-              size="small" 
-              color="error" 
-              sx={{ height: 24 }}
-            />
+            <Chip icon={<ErrorIcon />} label={t('setup.initialJobsStep.failedChip')} size="small" color="error" sx={{ height: 24 }} />
           )}
         </Box>
       </AccordionSummary>
@@ -298,18 +296,18 @@ function TopPicksResultsSummary({ jobs }: { jobs: JobProgress[] }) {
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1, borderRadius: 1, bgcolor: 'action.hover' }}>
                 <CheckCircleIcon color="success" fontSize="small" />
-                <Typography variant="body2">Top Picks - Movies</Typography>
-                <Chip label={`${moviesCount} movies`} size="small" variant="outlined" sx={{ ml: 'auto' }} />
+                <Typography variant="body2">{t('setup.initialJobsStep.topPicksMoviesRow')}</Typography>
+                <Chip label={t('setup.initialJobsStep.moviesChip', { count: moviesCount })} size="small" variant="outlined" sx={{ ml: 'auto' }} />
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1, borderRadius: 1, bgcolor: 'action.hover' }}>
                 <CheckCircleIcon color="success" fontSize="small" />
-                <Typography variant="body2">Top Picks - Series</Typography>
-                <Chip label={`${seriesCount} series`} size="small" variant="outlined" sx={{ ml: 'auto' }} />
+                <Typography variant="body2">{t('setup.initialJobsStep.topPicksSeriesRow')}</Typography>
+                <Chip label={t('setup.initialJobsStep.seriesChip', { count: seriesCount })} size="small" variant="outlined" sx={{ ml: 'auto' }} />
               </Box>
             </Box>
           ) : (
             <Typography variant="body2" color="error">
-              {job.error || 'Failed to create Top Picks libraries'}
+              {job.error || t('setup.initialJobsStep.topPicksFailedDefault')}
             </Typography>
           )}
         </Box>
@@ -326,24 +324,32 @@ interface JobListItemProps {
 }
 
 function JobListItem({ job, isActive, canRerun, onRerun }: JobListItemProps) {
-  // Format the count display
+  const { t } = useTranslation()
   const countDisplay =
-    job.itemsTotal && job.itemsTotal > 0
-      ? `${job.itemsProcessed ?? 0} / ${job.itemsTotal}`
-      : null
+    job.itemsTotal && job.itemsTotal > 0 ? `${job.itemsProcessed ?? 0} / ${job.itemsTotal}` : null
 
-  const showRerunButton = canRerun && (job.status === 'completed' || job.status === 'failed' || job.status === 'skipped' || job.status === 'pending')
+  const showRerunButton =
+    canRerun &&
+    (job.status === 'completed' || job.status === 'failed' || job.status === 'skipped' || job.status === 'pending')
 
-  // Determine border color based on status
   const getBorderColor = () => {
     if (isActive) return 'primary.main'
     switch (job.status) {
-      case 'completed': return 'success.main'
-      case 'failed': return 'error.main'
-      case 'skipped': return 'grey.500'
-      default: return 'divider'
+      case 'completed':
+        return 'success.main'
+      case 'failed':
+        return 'error.main'
+      case 'skipped':
+        return 'grey.500'
+      default:
+        return 'divider'
     }
   }
+
+  const rerunTitle =
+    job.status === 'skipped' || job.status === 'pending'
+      ? t('setup.initialJobsStep.rerunRun', { name: job.name })
+      : t('setup.initialJobsStep.rerunRerun', { name: job.name })
 
   return (
     <ListItem
@@ -364,13 +370,23 @@ function JobListItem({ job, isActive, canRerun, onRerun }: JobListItemProps) {
             edge="end"
             size="small"
             onClick={onRerun}
-            title={job.status === 'skipped' || job.status === 'pending' ? `Run ${job.name}` : `Re-run ${job.name}`}
-            sx={{ 
-              color: job.status === 'failed' ? 'warning.main' : (job.status === 'skipped' || job.status === 'pending') ? 'info.main' : 'primary.main',
-              '&:hover': { 
-                backgroundColor: job.status === 'failed' ? 'warning.light' : (job.status === 'skipped' || job.status === 'pending') ? 'info.light' : 'primary.light', 
-                color: 'white' 
-              }
+            title={rerunTitle}
+            sx={{
+              color:
+                job.status === 'failed'
+                  ? 'warning.main'
+                  : job.status === 'skipped' || job.status === 'pending'
+                    ? 'info.main'
+                    : 'primary.main',
+              '&:hover': {
+                backgroundColor:
+                  job.status === 'failed'
+                    ? 'warning.light'
+                    : job.status === 'skipped' || job.status === 'pending'
+                      ? 'info.light'
+                      : 'primary.light',
+                color: 'white',
+              },
             }}
           >
             <SyncIcon fontSize="small" />
@@ -399,7 +415,7 @@ function JobListItem({ job, isActive, canRerun, onRerun }: JobListItemProps) {
             )}
             {job.status === 'completed' && typeof job.itemsProcessed === 'number' && job.itemsProcessed > 0 && (
               <Chip
-                label={`${job.itemsProcessed} items`}
+                label={t('setup.initialJobsStep.itemsProcessed', { count: job.itemsProcessed })}
                 size="small"
                 color="success"
                 variant="outlined"
@@ -431,15 +447,11 @@ function JobListItem({ job, isActive, canRerun, onRerun }: JobListItemProps) {
               </Typography>
             ) : null}
             {job.status === 'running' && job.progress !== undefined && (
-              <LinearProgress
-                variant="determinate"
-                value={job.progress}
-                sx={{ mt: 1, height: 6, borderRadius: 3 }}
-              />
+              <LinearProgress variant="determinate" value={job.progress} sx={{ mt: 1, height: 6, borderRadius: 3 }} />
             )}
             {job.status === 'failed' && job.error && (
               <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
-                Error: {job.error}
+                {t('setup.initialJobsStep.errorPrefix')} {job.error}
               </Typography>
             )}
           </Box>
@@ -450,6 +462,7 @@ function JobListItem({ job, isActive, canRerun, onRerun }: JobListItemProps) {
 }
 
 export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
+  const { t } = useTranslation()
   const { error, runningJobs, jobLogs, jobsProgress, currentJobIndex, runInitialJobs, runSingleJob, goToStep } = wizard
   const [logModalOpen, setLogModalOpen] = useState(false)
   const [waitingMessageIndex, setWaitingMessageIndex] = useState(0)
@@ -463,20 +476,17 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
   const allCompleted = hasStarted && doneCount === totalCount
   const hasFailed = jobsProgress.some((j) => j.status === 'failed')
 
-  // Auto-scroll logs to bottom
   useEffect(() => {
     if (logContainerRef.current) {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight
     }
   }, [jobLogs])
 
-  // Cycle through amusing waiting messages every 10 seconds while jobs are running
   useEffect(() => {
     if (!runningJobs || allCompleted) return
 
     const interval = setInterval(() => {
       setWaitingMessageIndex((prev) => {
-        // Pick a random different message
         let next = Math.floor(Math.random() * WAITING_MESSAGES.length)
         while (next === prev && WAITING_MESSAGES.length > 1) {
           next = Math.floor(Math.random() * WAITING_MESSAGES.length)
@@ -488,63 +498,47 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
     return () => clearInterval(interval)
   }, [runningJobs, allCompleted])
 
-  // Calculate totals
   const totalItemsProcessed = jobsProgress.reduce((sum, j) => sum + (j.itemsProcessed || 0), 0)
   const totalItems = jobsProgress.reduce((sum, j) => sum + (j.itemsTotal || 0), 0)
 
   return (
     <Box>
       <Typography variant="h6" gutterBottom>
-        Initialize Your Library
+        {t('setup.initialJobsStep.title')}
       </Typography>
       <Typography variant="body2" color="text.secondary" paragraph>
-        Aperture will now sync your media library, analyze content with AI, and generate personalized recommendations.
-        This process runs through several steps and may take a few minutes depending on your library size.
+        {t('setup.initialJobsStep.body')}
       </Typography>
 
       {!hasStarted && (
-        <>
-          <Alert severity="info" sx={{ mb: 2 }}>
-            <Typography variant="body2" fontWeight={500} gutterBottom>
-              What happens during initialization:
-            </Typography>
-            <Box component="ul" sx={{ mt: 1, mb: 0, pl: 2, '& li': { mb: 0.5 } }}>
-              <li>
-                <Typography variant="body2">
-                  <strong>Sync Media</strong> — Import movie and TV series metadata from your media server
-                </Typography>
-              </li>
-              <li>
-                <Typography variant="body2">
-                  <strong>Sync Watch History</strong> — Import viewing history to understand preferences
-                </Typography>
-              </li>
-              <li>
-                <Typography variant="body2">
-                  <strong>Generate Embeddings</strong> — Create AI vectors to understand content themes (uses OpenAI)
-                </Typography>
-              </li>
-              <li>
-                <Typography variant="body2">
-                  <strong>Generate Recommendations</strong> — Create personalized picks for each user
-                </Typography>
-              </li>
-              <li>
-                <Typography variant="body2">
-                  <strong>Sync Libraries</strong> — Push recommendation libraries to your media server
-                </Typography>
-              </li>
-            </Box>
-          </Alert>
-        </>
+        <Alert severity="info" sx={{ mb: 2 }}>
+          <Typography variant="body2" fontWeight={500} gutterBottom>
+            {t('setup.initialJobsStep.whatHappensTitle')}
+          </Typography>
+          <Box component="ul" sx={{ mt: 1, mb: 0, pl: 2, '& li': { mb: 0.5 } }}>
+            <li>
+              <Typography variant="body2">{t('setup.initialJobsStep.bulletSyncMedia')}</Typography>
+            </li>
+            <li>
+              <Typography variant="body2">{t('setup.initialJobsStep.bulletWatchHistory')}</Typography>
+            </li>
+            <li>
+              <Typography variant="body2">{t('setup.initialJobsStep.bulletEmbeddings')}</Typography>
+            </li>
+            <li>
+              <Typography variant="body2">{t('setup.initialJobsStep.bulletRecs')}</Typography>
+            </li>
+            <li>
+              <Typography variant="body2">{t('setup.initialJobsStep.bulletLibraries')}</Typography>
+            </li>
+          </Box>
+        </Alert>
       )}
 
-      {/* Show timing warning before and during sync (hide after completion) */}
       {!allCompleted && (
         <Alert severity="warning" sx={{ mb: 3 }} icon={false}>
           <Typography variant="body2">
-            <strong>Heads up!</strong> This can take anywhere from a few minutes to 30+ minutes depending on the size
-            of your media libraries. Large collections with thousands of movies and episodes will take longer.
+            <strong>{t('setup.initialJobsStep.headsUpLabel')}</strong> {t('setup.initialJobsStep.headsUp')}
           </Typography>
           <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic' }}>
             {WAITING_MESSAGES[waitingMessageIndex]}
@@ -558,25 +552,29 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
         </Alert>
       )}
 
-      {/* Progress Summary */}
       {hasStarted && (
         <Box sx={{ mb: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
             <Box>
               <Typography variant="body2" fontWeight={500}>
-                Progress: {completedCount} of {totalCount} jobs
+                {t('setup.initialJobsStep.progressLine', { done: completedCount, total: totalCount })}
               </Typography>
               {totalItems > 0 && (
                 <Typography variant="caption" color="text.secondary">
-                  {totalItemsProcessed.toLocaleString()} / {totalItems.toLocaleString()} items processed
+                  {t('setup.initialJobsStep.itemsProcessedLine', {
+                    processed: totalItemsProcessed.toLocaleString(),
+                    total: totalItems.toLocaleString(),
+                  })}
                 </Typography>
               )}
             </Box>
             <Box sx={{ display: 'flex', gap: 1 }}>
-              {allCompleted && <Chip label="All Complete" color="success" size="small" icon={<CheckCircleIcon />} />}
-              {hasFailed && <Chip label="Failed" color="error" size="small" icon={<ErrorIcon />} />}
+              {allCompleted && (
+                <Chip label={t('setup.initialJobsStep.chipAllComplete')} color="success" size="small" icon={<CheckCircleIcon />} />
+              )}
+              {hasFailed && <Chip label={t('setup.initialJobsStep.chipFailed')} color="error" size="small" icon={<ErrorIcon />} />}
               {runningJobs && !hasFailed && (
-                <Chip label="Running" color="primary" size="small" icon={<RunningIcon />} />
+                <Chip label={t('setup.initialJobsStep.chipRunning')} color="primary" size="small" icon={<RunningIcon />} />
               )}
             </Box>
           </Box>
@@ -589,14 +587,13 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
         </Box>
       )}
 
-      {/* Job List */}
       {hasStarted && (
         <Paper variant="outlined" sx={{ mb: 3, maxHeight: 400, overflow: 'auto' }}>
           <List disablePadding sx={{ p: 1 }}>
             {jobsProgress.map((job, index) => (
-              <JobListItem 
-                key={job.id} 
-                job={job} 
+              <JobListItem
+                key={job.id}
+                job={job}
                 isActive={index === currentJobIndex}
                 canRerun={!runningJobs}
                 onRerun={() => runSingleJob(job.id)}
@@ -606,11 +603,10 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
         </Paper>
       )}
 
-      {/* Per-User Library Creation Results */}
       {hasStarted && (allCompleted || hasFailed) && (
         <Box sx={{ mb: 3 }}>
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-            Library Creation Results
+            {t('setup.initialJobsStep.libraryResultsTitle')}
           </Typography>
           <LibraryResultsSummary jobs={jobsProgress} type="movies" />
           <LibraryResultsSummary jobs={jobsProgress} type="series" />
@@ -618,10 +614,9 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
         </Box>
       )}
 
-      {/* Action Buttons */}
       <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
         <Button variant="outlined" onClick={() => goToStep('aiSetup')} disabled={runningJobs}>
-          Back
+          {t('setup.initialJobsStep.back')}
         </Button>
 
         {!hasStarted && (
@@ -632,23 +627,19 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
             startIcon={runningJobs ? <CircularProgress size={20} color="inherit" /> : <RunningIcon />}
             size="large"
           >
-            Start Initialization
+            {t('setup.initialJobsStep.startInit')}
           </Button>
         )}
 
         {hasStarted && runningJobs && !hasFailed && (
           <Button variant="contained" disabled startIcon={<CircularProgress size={20} color="inherit" />}>
-            Running... ({completedCount}/{totalCount})
+            {t('setup.initialJobsStep.runningProgress', { done: completedCount, total: totalCount })}
           </Button>
         )}
 
         {hasStarted && !runningJobs && !allCompleted && !hasFailed && (
-          <Button
-            variant="contained"
-            onClick={runInitialJobs}
-            startIcon={<RunningIcon />}
-          >
-            Continue ({completedCount}/{totalCount} done)
+          <Button variant="contained" onClick={runInitialJobs} startIcon={<RunningIcon />}>
+            {t('setup.initialJobsStep.continueProgress', { done: completedCount, total: totalCount })}
           </Button>
         )}
 
@@ -660,7 +651,7 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
             disabled={runningJobs}
             startIcon={<RunningIcon />}
           >
-            Retry
+            {t('setup.initialJobsStep.retry')}
           </Button>
         )}
 
@@ -671,24 +662,24 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
             startIcon={<TerminalIcon />}
             color={runningJobs ? 'primary' : 'inherit'}
           >
-            View Logs {runningJobs && '(Live)'} ({jobLogs.length})
+            {t('setup.initialJobsStep.viewLogs')}
+            {runningJobs && ` ${t('setup.initialJobsStep.viewLogsLive')}`} ({jobLogs.length})
           </Button>
         )}
 
         {allCompleted && (
           <Button variant="contained" color="success" onClick={() => goToStep('complete')}>
-            Continue to Finish
+            {t('setup.initialJobsStep.continueFinish')}
           </Button>
         )}
       </Box>
 
-      {/* Log Modal */}
       <Dialog open={logModalOpen} onClose={() => setLogModalOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <TerminalIcon />
-            <Typography variant="h6">Live Job Logs</Typography>
-            <Chip label={`${jobLogs.length} entries`} size="small" variant="outlined" />
+            <Typography variant="h6">{t('setup.initialJobsStep.logsTitle')}</Typography>
+            <Chip label={t('setup.initialJobsStep.logEntries', { count: jobLogs.length })} size="small" variant="outlined" />
           </Box>
           <IconButton onClick={() => setLogModalOpen(false)} size="small">
             <CloseIcon />
@@ -715,20 +706,19 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
           >
             {jobLogs.length > 0 ? (
               jobLogs.map((log, i) => {
-                // Determine color based on content
-                let color = '#c9d1d9' // default gray
+                let color = '#c9d1d9'
                 if (log.includes('✗') || log.includes('ERROR') || log.includes('FAILED')) {
-                  color = '#f85149' // red
+                  color = '#f85149'
                 } else if (log.includes('✓') || log.includes('Completed') || log.includes('successfully')) {
-                  color = '#3fb950' // green
+                  color = '#3fb950'
                 } else if (log.includes('▶') || log.includes('Starting')) {
-                  color = '#58a6ff' // blue
+                  color = '#58a6ff'
                 } else if (log.includes('⚠')) {
-                  color = '#d29922' // yellow/orange
+                  color = '#d29922'
                 } else if (log.includes('•')) {
-                  color = '#8b949e' // muted gray for info
+                  color = '#8b949e'
                 } else if (log.includes('→')) {
-                  color = '#a5d6ff' // light blue for current item
+                  color = '#a5d6ff'
                 }
 
                 return (
@@ -747,16 +737,18 @@ export function InitialJobsStep({ wizard }: InitialJobsStepProps) {
               })
             ) : (
               <Typography variant="body2" sx={{ color: '#484f58', fontStyle: 'italic' }}>
-                No logs yet. Start initialization to see live output.
+                {t('setup.initialJobsStep.noLogsYet')}
               </Typography>
             )}
           </Paper>
         </DialogContent>
         <DialogActions sx={{ justifyContent: 'space-between', px: 2 }}>
           <Typography variant="caption" color="text.secondary">
-            Logs auto-scroll to bottom • {runningJobs ? 'Streaming live...' : 'Complete'}
+            {t('setup.initialJobsStep.logsFooter', {
+              status: runningJobs ? t('setup.initialJobsStep.logsStreaming') : t('setup.initialJobsStep.logsComplete'),
+            })}
           </Typography>
-          <Button onClick={() => setLogModalOpen(false)}>Close</Button>
+          <Button onClick={() => setLogModalOpen(false)}>{t('setup.initialJobsStep.close')}</Button>
         </DialogActions>
       </Dialog>
     </Box>

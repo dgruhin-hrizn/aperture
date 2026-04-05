@@ -37,6 +37,7 @@ import {
   TmdbExternalDetailModal,
   type TmdbExternalDetailPayload,
 } from '../components/TmdbExternalDetailModal'
+import { withServerMessageDetail } from '../lib/withServerMessageDetail'
 
 interface ContentItem {
   id: string
@@ -167,7 +168,11 @@ export function PersonDetailPage() {
         })
         setData(result)
       } catch (err) {
-        setError(err instanceof Error ? err.message : t('personDetail.errorGeneric'))
+        setError(
+          err instanceof Error
+            ? withServerMessageDetail(t, err.message)
+            : t('personDetail.errorGeneric'),
+        )
       } finally {
         setLoading(false)
       }
@@ -639,10 +644,12 @@ export function PersonDetailPage() {
 
               <Box display="flex" flexWrap="wrap" gap={2} alignItems="center" sx={{ mb: 2 }}>
                 <FormControl size="small" sx={{ minWidth: 140 }}>
-                  <InputLabel id="credits-media-filter-label">Media</InputLabel>
+                  <InputLabel id="credits-media-filter-label">
+                    {t('personDetail.creditsFilterMedia')}
+                  </InputLabel>
                   <Select
                     labelId="credits-media-filter-label"
-                    label="Media"
+                    label={t('personDetail.creditsFilterMedia')}
                     value={creditsMediaFilter}
                     onChange={(e) =>
                       setCreditsMediaFilter(e.target.value as 'all' | 'movie' | 'tv')
@@ -654,10 +661,12 @@ export function PersonDetailPage() {
                   </Select>
                 </FormControl>
                 <FormControl size="small" sx={{ minWidth: 180 }}>
-                  <InputLabel id="credits-role-filter-label">Role</InputLabel>
+                  <InputLabel id="credits-role-filter-label">
+                    {t('personDetail.creditsFilterRole')}
+                  </InputLabel>
                   <Select
                     labelId="credits-role-filter-label"
-                    label="Role"
+                    label={t('personDetail.creditsFilterRole')}
                     value={creditsRoleFilter}
                     onChange={(e) => setCreditsRoleFilter(e.target.value)}
                   >

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { useTranslation, Trans } from 'react-i18next'
 import {
   Box,
   Typography,
@@ -59,6 +60,8 @@ interface ScanSummary {
 }
 
 export function PosterRepairSection() {
+  const { t } = useTranslation()
+
   // Scan state
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
@@ -91,6 +94,20 @@ export function PosterRepairSection() {
   const logsEndRef = useRef<HTMLDivElement>(null)
 
   // Poll for job progress
+  const formatRepairSuccess = useCallback(
+    (successful: number, failed: number) => {
+      if (failed > 0) {
+        return t('topPicksAdmin.posterRepair.repairSuccessWithFailed', {
+          successful,
+          failed,
+          count: successful,
+        })
+      }
+      return t('topPicksAdmin.posterRepair.repairSuccess', { count: successful })
+    },
+    [t]
+  )
+
   const pollJobProgress = useCallback(async (jobId: string) => {
     try {
       const res = await fetch(`/api/jobs/progress/${jobId}`, { credentials: 'include' })
@@ -143,10 +160,7 @@ export function PosterRepairSection() {
           // Remove successfully repaired items from the lists
           // We don't have individual results from the async API, so just refresh counts
           if (result.successful > 0) {
-            setSuccess(
-              `Successfully repaired ${result.successful} poster${result.successful !== 1 ? 's' : ''}` +
-                (result.failed > 0 ? ` (${result.failed} failed)` : '')
-            )
+            setSuccess(formatRepairSuccess(result.successful, result.failed || 0))
             // Clear the lists since we repaired items
             setMovies([])
             setSeries([])
@@ -154,13 +168,13 @@ export function PosterRepairSection() {
             setSelectedSeries(new Set())
           }
         } else if (data.status === 'failed') {
-          setScanError(data.error || 'Repair operation failed')
+          setScanError(data.error || t('topPicksAdmin.posterRepair.repairFailed'))
         }
       }
     } catch (err) {
       console.error('Failed to poll job progress:', err)
     }
-  }, [showLogs])
+  }, [showLogs, t, formatRepairSuccess])
 
   // Set up polling when job is active
   useEffect(() => {
@@ -201,7 +215,7 @@ export function PosterRepairSection() {
 
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || 'Failed to scan for missing posters')
+        throw new Error(data.error || t('topPicksAdmin.posterRepair.scanFailed'))
       }
 
       const data = await res.json()
@@ -221,14 +235,14 @@ export function PosterRepairSection() {
       setSelectedSeries(repairableSeries)
 
       if (data.totalMissing === 0) {
-        setSuccess('No items with missing posters found!')
+        setSuccess(t('topPicksAdmin.posterRepair.noMissingFound'))
       }
     } catch (err) {
-      setScanError(err instanceof Error ? err.message : 'Failed to scan')
+      setScanError(err instanceof Error ? err.message : t('topPicksAdmin.posterRepair.scanFailedGeneric'))
     } finally {
       setScanning(false)
     }
-  }, [])
+  }, [t])
 
   const handleRepair = useCallback(async () => {
     const selectedItems = [
@@ -237,7 +251,7 @@ export function PosterRepairSection() {
     ]
 
     if (selectedItems.length === 0) {
-      setScanError('No repairable items selected')
+      setScanError(t('topPicksAdmin.posterRepair.noRepairableSelected'))
       return
     }
 
@@ -264,7 +278,7 @@ export function PosterRepairSection() {
 
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || 'Failed to start repair')
+        throw new Error(data.error || t('topPicksAdmin.posterRepair.startRepairFailed'))
       }
 
       const data = await res.json()
@@ -282,17 +296,14 @@ export function PosterRepairSection() {
         // Fallback for sync response (shouldn't happen with new API)
         setRepairing(false)
         if (data.successful > 0) {
-          setSuccess(
-            `Successfully repaired ${data.successful} poster${data.successful !== 1 ? 's' : ''}` +
-              (data.failed > 0 ? ` (${data.failed} failed)` : '')
-          )
+          setSuccess(formatRepairSuccess(data.successful, data.failed || 0))
         }
       }
     } catch (err) {
-      setScanError(err instanceof Error ? err.message : 'Failed to start repair')
+      setScanError(err instanceof Error ? err.message : t('topPicksAdmin.posterRepair.startRepairFailed'))
       setRepairing(false)
     }
-  }, [movies, series, selectedMovies, selectedSeries])
+  }, [movies, series, selectedMovies, selectedSeries, t, formatRepairSuccess])
 
   const toggleMovieSelection = (id: string) => {
     setSelectedMovies((prev) => {
@@ -340,13 +351,11 @@ export function PosterRepairSection() {
       <CardContent>
         <Box display="flex" alignItems="center" gap={1} mb={2}>
           <ImageIcon color="primary" />
-          <Typography variant="h6">Missing Poster Repair</Typography>
+          <Typography variant="h6">{t('topPicksAdmin.posterRepair.title')}</Typography>
         </Box>
 
         <Typography variant="body2" color="text.secondary" mb={3}>
-          Scan your Emby library for movies and series with missing poster images. This tool fetches
-          replacement posters from TMDB and uploads them directly to Emby—no images are stored in
-          Aperture.
+          {t('topPicksAdmin.posterRepair.description')}
         </Typography>
 
         {scanError && (
@@ -369,7 +378,7 @@ export function PosterRepairSection() {
             onClick={handleScan}
             disabled={scanning || repairing}
           >
-            {scanning ? 'Scanning...' : 'Scan for Missing Posters'}
+            {scanning ? t('topPicksAdmin.posterRepair.scanning') : t('topPicksAdmin.posterRepair.scan')}
           </Button>
 
           {totalSelected > 0 && (
@@ -381,8 +390,11 @@ export function PosterRepairSection() {
               disabled={scanning || repairing}
             >
               {repairing
-                ? `Repairing ${repairProgress?.completed || 0}/${repairProgress?.total || 0}...`
-                : `Repair ${totalSelected} Selected`}
+                ? t('topPicksAdmin.posterRepair.repairing', {
+                    completed: repairProgress?.completed || 0,
+                    total: repairProgress?.total || 0,
+                  })
+                : t('topPicksAdmin.posterRepair.repairSelected', { count: totalSelected })}
             </Button>
           )}
         </Box>
@@ -400,12 +412,14 @@ export function PosterRepairSection() {
                   <WarningIcon color="warning" fontSize="small" />
                 )}
                 <Typography variant="subtitle2" fontWeight={600}>
-                  {repairing ? 'Repairing Posters...' : 'Repair Complete'}
+                  {repairing
+                    ? t('topPicksAdmin.posterRepair.repairingTitle')
+                    : t('topPicksAdmin.posterRepair.repairComplete')}
                 </Typography>
               </Box>
               {jobLogs.length > 0 && (
                 <Button size="small" onClick={() => setShowLogs(!showLogs)}>
-                  {showLogs ? 'Hide Logs' : 'Show Logs'}
+                  {showLogs ? t('topPicksAdmin.posterRepair.hideLogs') : t('topPicksAdmin.posterRepair.showLogs')}
                 </Button>
               )}
             </Box>
@@ -414,12 +428,17 @@ export function PosterRepairSection() {
               <>
                 <Box display="flex" justifyContent="space-between" mb={0.5}>
                   <Typography variant="caption" color="text.secondary">
-                    {repairProgress.completed} of {repairProgress.total} processed
+                    {t('topPicksAdmin.posterRepair.processed', {
+                      completed: repairProgress.completed,
+                      total: repairProgress.total,
+                    })}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {repairProgress.total > 0 
-                      ? `${Math.round((repairProgress.completed / repairProgress.total) * 100)}%`
-                      : '0%'}
+                    {repairProgress.total > 0
+                      ? t('topPicksAdmin.posterRepair.percent', {
+                          value: Math.round((repairProgress.completed / repairProgress.total) * 100),
+                        })
+                      : t('topPicksAdmin.posterRepair.percentZero')}
                   </Typography>
                 </Box>
                 <LinearProgress
@@ -434,7 +453,7 @@ export function PosterRepairSection() {
                     <Chip
                       size="small"
                       icon={<CheckCircleIcon />}
-                      label={`${repairProgress.successful} successful`}
+                      label={t('topPicksAdmin.posterRepair.successful', { count: repairProgress.successful })}
                       color="success"
                       variant="outlined"
                     />
@@ -442,7 +461,7 @@ export function PosterRepairSection() {
                       <Chip
                         size="small"
                         icon={<ErrorIcon />}
-                        label={`${repairProgress.failed} failed`}
+                        label={t('topPicksAdmin.posterRepair.failed', { count: repairProgress.failed })}
                         color="error"
                         variant="outlined"
                       />
@@ -486,7 +505,7 @@ export function PosterRepairSection() {
             {repairResults.filter((r) => !r.success).length > 0 && (
               <Box sx={{ mt: 2 }}>
                 <Typography variant="caption" color="error" fontWeight={600}>
-                  Failed items:
+                  {t('topPicksAdmin.posterRepair.failedItems')}
                 </Typography>
                 <Paper
                   variant="outlined"
@@ -519,10 +538,13 @@ export function PosterRepairSection() {
             <Box display="flex" alignItems="center" gap={1} mb={1}>
               <PhotoLibraryIcon fontSize="small" color="primary" />
               <Typography variant="subtitle2" fontWeight={600}>
-                Scan Results
+                {t('topPicksAdmin.posterRepair.scanResults')}
               </Typography>
               <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
-                {scannedAt && `Scanned at ${new Date(scannedAt).toLocaleTimeString()}`}
+                {scannedAt &&
+                  t('topPicksAdmin.posterRepair.scannedAt', {
+                    time: new Date(scannedAt).toLocaleTimeString(),
+                  })}
               </Typography>
             </Box>
 
@@ -530,23 +552,31 @@ export function PosterRepairSection() {
               <Box>
                 <Box display="flex" alignItems="center" gap={0.5}>
                   <MovieIcon fontSize="small" color="action" />
-                  <Typography variant="body2">
-                    <strong>{scanSummary.moviesWithMissingPosters}</strong> movies missing posters
+                  <Typography variant="body2" component="span">
+                    <Trans
+                      i18nKey="topPicksAdmin.posterRepair.moviesMissing"
+                      values={{ count: scanSummary.moviesWithMissingPosters }}
+                      components={{ 0: <strong /> }}
+                    />
                   </Typography>
                 </Box>
                 <Typography variant="caption" color="text.secondary">
-                  {scanSummary.moviesRepairable} can be repaired (have TMDB ID)
+                  {t('topPicksAdmin.posterRepair.moviesRepairable', { count: scanSummary.moviesRepairable })}
                 </Typography>
               </Box>
               <Box>
                 <Box display="flex" alignItems="center" gap={0.5}>
                   <TvIcon fontSize="small" color="action" />
-                  <Typography variant="body2">
-                    <strong>{scanSummary.seriesWithMissingPosters}</strong> series missing posters
+                  <Typography variant="body2" component="span">
+                    <Trans
+                      i18nKey="topPicksAdmin.posterRepair.seriesMissing"
+                      values={{ count: scanSummary.seriesWithMissingPosters }}
+                      components={{ 0: <strong /> }}
+                    />
                   </Typography>
                 </Box>
                 <Typography variant="caption" color="text.secondary">
-                  {scanSummary.seriesRepairable} can be repaired (have TMDB ID)
+                  {t('topPicksAdmin.posterRepair.seriesRepairable', { count: scanSummary.seriesRepairable })}
                 </Typography>
               </Box>
             </Box>
@@ -564,13 +594,13 @@ export function PosterRepairSection() {
               <Tab
                 icon={<MovieIcon />}
                 iconPosition="start"
-                label={`Movies (${movies.length})`}
+                label={t('topPicksAdmin.posterRepair.tabMovies', { count: movies.length })}
                 sx={{ textTransform: 'none' }}
               />
               <Tab
                 icon={<TvIcon />}
                 iconPosition="start"
-                label={`Series (${series.length})`}
+                label={t('topPicksAdmin.posterRepair.tabSeries', { count: series.length })}
                 sx={{ textTransform: 'none' }}
               />
             </Tabs>
@@ -579,18 +609,18 @@ export function PosterRepairSection() {
             {tabValue === 0 && (
               <Box>
                 {movies.length === 0 ? (
-                  <Alert severity="success">No movies with missing posters!</Alert>
+                  <Alert severity="success">{t('topPicksAdmin.posterRepair.noMoviesMissing')}</Alert>
                 ) : (
                   <>
                     <Box display="flex" gap={1} mb={2}>
                       <Button size="small" variant="outlined" onClick={selectAllMovies}>
-                        Select All Repairable
+                        {t('topPicksAdmin.posterRepair.selectAllRepairable')}
                       </Button>
                       <Button size="small" variant="outlined" onClick={deselectAllMovies}>
-                        Deselect All
+                        {t('topPicksAdmin.posterRepair.deselectAll')}
                       </Button>
                       <Typography variant="body2" color="text.secondary" sx={{ ml: 'auto', alignSelf: 'center' }}>
-                        {selectedMovies.size} selected
+                        {t('topPicksAdmin.posterRepair.selectedCount', { count: selectedMovies.size })}
                       </Typography>
                     </Box>
                     <TableContainer sx={{ maxHeight: 400 }}>
@@ -614,10 +644,10 @@ export function PosterRepairSection() {
                                 }
                               />
                             </TableCell>
-                            <TableCell>Title</TableCell>
-                            <TableCell>Year</TableCell>
-                            <TableCell>TMDB ID</TableCell>
-                            <TableCell>Status</TableCell>
+                            <TableCell>{t('topPicksAdmin.posterRepair.headerTitle')}</TableCell>
+                            <TableCell>{t('topPicksAdmin.posterRepair.headerYear')}</TableCell>
+                            <TableCell>{t('topPicksAdmin.posterRepair.headerTmdbId')}</TableCell>
+                            <TableCell>{t('topPicksAdmin.posterRepair.headerStatus')}</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
@@ -635,7 +665,7 @@ export function PosterRepairSection() {
                                 />
                               </TableCell>
                               <TableCell>{movie.title}</TableCell>
-                              <TableCell>{movie.year || '—'}</TableCell>
+                              <TableCell>{movie.year ?? t('topPicksAdmin.emDash')}</TableCell>
                               <TableCell>
                                 {movie.tmdbId ? (
                                   <Chip
@@ -645,10 +675,10 @@ export function PosterRepairSection() {
                                     sx={{ height: 20 }}
                                   />
                                 ) : (
-                                  <Tooltip title="Cannot repair without TMDB ID">
+                                  <Tooltip title={t('topPicksAdmin.posterRepair.tooltipNoTmdb')}>
                                     <Chip
                                       size="small"
-                                      label="Missing"
+                                      label={t('topPicksAdmin.posterRepair.missingId')}
                                       color="error"
                                       variant="outlined"
                                       sx={{ height: 20 }}
@@ -661,7 +691,7 @@ export function PosterRepairSection() {
                                   <Chip
                                     size="small"
                                     icon={<CheckCircleIcon />}
-                                    label="Repairable"
+                                    label={t('topPicksAdmin.posterRepair.repairable')}
                                     color="success"
                                     variant="outlined"
                                     sx={{ height: 22 }}
@@ -670,7 +700,7 @@ export function PosterRepairSection() {
                                   <Chip
                                     size="small"
                                     icon={<ErrorIcon />}
-                                    label="Not Repairable"
+                                    label={t('topPicksAdmin.posterRepair.notRepairable')}
                                     color="error"
                                     variant="outlined"
                                     sx={{ height: 22 }}
@@ -691,18 +721,18 @@ export function PosterRepairSection() {
             {tabValue === 1 && (
               <Box>
                 {series.length === 0 ? (
-                  <Alert severity="success">No series with missing posters!</Alert>
+                  <Alert severity="success">{t('topPicksAdmin.posterRepair.noSeriesMissing')}</Alert>
                 ) : (
                   <>
                     <Box display="flex" gap={1} mb={2}>
                       <Button size="small" variant="outlined" onClick={selectAllSeries}>
-                        Select All Repairable
+                        {t('topPicksAdmin.posterRepair.selectAllRepairable')}
                       </Button>
                       <Button size="small" variant="outlined" onClick={deselectAllSeries}>
-                        Deselect All
+                        {t('topPicksAdmin.posterRepair.deselectAll')}
                       </Button>
                       <Typography variant="body2" color="text.secondary" sx={{ ml: 'auto', alignSelf: 'center' }}>
-                        {selectedSeries.size} selected
+                        {t('topPicksAdmin.posterRepair.selectedCount', { count: selectedSeries.size })}
                       </Typography>
                     </Box>
                     <TableContainer sx={{ maxHeight: 400 }}>
@@ -726,10 +756,10 @@ export function PosterRepairSection() {
                                 }
                               />
                             </TableCell>
-                            <TableCell>Title</TableCell>
-                            <TableCell>Year</TableCell>
-                            <TableCell>TMDB ID</TableCell>
-                            <TableCell>Status</TableCell>
+                            <TableCell>{t('topPicksAdmin.posterRepair.headerTitle')}</TableCell>
+                            <TableCell>{t('topPicksAdmin.posterRepair.headerYear')}</TableCell>
+                            <TableCell>{t('topPicksAdmin.posterRepair.headerTmdbId')}</TableCell>
+                            <TableCell>{t('topPicksAdmin.posterRepair.headerStatus')}</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
@@ -747,7 +777,7 @@ export function PosterRepairSection() {
                                 />
                               </TableCell>
                               <TableCell>{show.title}</TableCell>
-                              <TableCell>{show.year || '—'}</TableCell>
+                              <TableCell>{show.year ?? t('topPicksAdmin.emDash')}</TableCell>
                               <TableCell>
                                 {show.tmdbId ? (
                                   <Chip
@@ -757,10 +787,10 @@ export function PosterRepairSection() {
                                     sx={{ height: 20 }}
                                   />
                                 ) : (
-                                  <Tooltip title="Cannot repair without TMDB ID">
+                                  <Tooltip title={t('topPicksAdmin.posterRepair.tooltipNoTmdb')}>
                                     <Chip
                                       size="small"
-                                      label="Missing"
+                                      label={t('topPicksAdmin.posterRepair.missingId')}
                                       color="error"
                                       variant="outlined"
                                       sx={{ height: 20 }}
@@ -773,7 +803,7 @@ export function PosterRepairSection() {
                                   <Chip
                                     size="small"
                                     icon={<CheckCircleIcon />}
-                                    label="Repairable"
+                                    label={t('topPicksAdmin.posterRepair.repairable')}
                                     color="success"
                                     variant="outlined"
                                     sx={{ height: 22 }}
@@ -782,7 +812,7 @@ export function PosterRepairSection() {
                                   <Chip
                                     size="small"
                                     icon={<ErrorIcon />}
-                                    label="Not Repairable"
+                                    label={t('topPicksAdmin.posterRepair.notRepairable')}
                                     color="error"
                                     variant="outlined"
                                     sx={{ height: 22 }}
@@ -813,7 +843,10 @@ export function PosterRepairSection() {
                 }}
               >
                 <Typography variant="body2" color="text.secondary">
-                  {totalSelected} of {totalRepairable} repairable items selected
+                  {t('topPicksAdmin.posterRepair.bottomSelection', {
+                    selected: totalSelected,
+                    total: totalRepairable,
+                  })}
                 </Typography>
                 <Button
                   variant="contained"
@@ -823,8 +856,11 @@ export function PosterRepairSection() {
                   disabled={scanning || repairing || totalSelected === 0}
                 >
                   {repairing
-                    ? `Repairing ${repairProgress?.completed || 0}/${repairProgress?.total || 0}...`
-                    : `Repair ${totalSelected} Selected`}
+                    ? t('topPicksAdmin.posterRepair.repairing', {
+                        completed: repairProgress?.completed || 0,
+                        total: repairProgress?.total || 0,
+                      })
+                    : t('topPicksAdmin.posterRepair.repairSelected', { count: totalSelected })}
                 </Button>
               </Box>
             )}
