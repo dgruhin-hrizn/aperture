@@ -25,13 +25,12 @@ import {
   MenuItem,
   Chip,
   IconButton,
+  Slider,
 } from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import FactCheckIcon from '@mui/icons-material/FactCheck'
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
-import SortByAlphaIcon from '@mui/icons-material/SortByAlpha'
+import SortIcon from '@mui/icons-material/Sort'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
 import { StatusCard } from '@aperture/ui'
@@ -104,38 +103,6 @@ interface GapRow {
   requestStatus: string | null
 }
 
-function compareGapRows(
-  a: GapRow,
-  b: GapRow,
-  sortBy: 'collection_name' | 'title' | 'release_date',
-  sortDir: 'asc' | 'desc'
-): number {
-  const inv = sortDir === 'desc' ? -1 : 1
-  if (sortBy === 'title') {
-    const t = a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })
-    if (t !== 0) return inv * t
-    const c = a.collectionName.localeCompare(b.collectionName, undefined, { sensitivity: 'base' })
-    if (c !== 0) return inv * c
-    return inv * (a.tmdbId - b.tmdbId)
-  }
-  if (sortBy === 'release_date') {
-    const rdKey = (r: GapRow) => {
-      const d = (r.releaseDate ?? '').slice(0, 10)
-      return d.length >= 10 ? d : '\uffff'
-    }
-    const d = rdKey(a).localeCompare(rdKey(b))
-    if (d !== 0) return inv * d
-    const t = a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })
-    if (t !== 0) return inv * t
-    return inv * (a.tmdbId - b.tmdbId)
-  }
-  const c = a.collectionName.localeCompare(b.collectionName, undefined, { sensitivity: 'base' })
-  if (c !== 0) return inv * c
-  const t = a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })
-  if (t !== 0) return inv * t
-  return inv * (a.tmdbId - b.tmdbId)
-}
-
 interface JobProgressState {
   overallProgress: number
   currentStep: string
@@ -176,28 +143,15 @@ export function GapAnalysisPage() {
     items: GapRequestItem[]
     seerrOptions: SeerrRequestOptions
   } | null>(null)
-  const [sortBy, setSortBy] = useState<'collection_name' | 'title' | 'release_date'>('release_date')
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [collectionPartsById, setCollectionPartsById] = useState<Record<number, GapCollectionPartsPayload | undefined>>({})
+  const [sortBy, setSortBy] = useState<'most_missing' | 'most_complete' | 'name'>('most_missing')
+  const [minMissing, setMinMissing] = useState(0)
   const [collapsedCollections, setCollapsedCollections] = useState<Set<number>>(new Set())
   const [detailOpen, setDetailOpen] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState<string | null>(null)
   const [detailData, setDetailData] = useState<TmdbExternalDetailPayload | null>(null)
   const [detailPart, setDetailPart] = useState<GapCollectionPart | null>(null)
-
-  const gapOrderOptions = useMemo(() => {
-    if (sortBy === 'release_date') {
-      return [
-        { value: 'desc' as const, label: 'Newest first', Icon: ArrowDownwardIcon },
-        { value: 'asc' as const, label: 'Oldest first', Icon: ArrowUpwardIcon },
-      ]
-    }
-    return [
-      { value: 'asc' as const, label: 'A to Z', Icon: SortByAlphaIcon },
-      { value: 'desc' as const, label: 'Z to A', Icon: SortByAlphaIcon },
-    ]
-  }, [sortBy])
 
   const toSeerrStatus = useCallback(
     (row: GapRow): SeerrStatus | undefined => {
@@ -285,8 +239,6 @@ export function GapAnalysisPage() {
         u.searchParams.set('page', String(page))
         u.searchParams.set('pageSize', '500')
         if (search.trim()) u.searchParams.set('search', search.trim())
-        u.searchParams.set('sortBy', sortBy)
-        u.searchParams.set('sortDir', sortDir)
         const res = await fetch(u.toString(), { credentials: 'include' })
         if (!res.ok) break
         const data = await res.json()
@@ -299,7 +251,7 @@ export function GapAnalysisPage() {
     } catch {
       /* keep prior rows on fetch error */
     }
-  }, [search, sortBy, sortDir])
+  }, [search])
 
   useEffect(() => {
     void loadLatest()
@@ -323,9 +275,7 @@ export function GapAnalysisPage() {
     )
   }, [rows, search])
 
-  const sortedMissingRows = useMemo(() => {
-    return [...filteredRows].sort((a, b) => compareGapRows(a, b, sortBy, sortDir))
-  }, [filteredRows, sortBy, sortDir])
+  const sortedMissingRows = filteredRows
 
   const grouped = useMemo(() => {
     const m = new Map<number, GapRow[]>()
@@ -351,7 +301,7 @@ export function GapAnalysisPage() {
 
   const displaySummariesOrdered = useMemo(() => {
     const byId = new Map(summaries.map((s) => [s.collectionId, s]))
-    return collectionOrder
+    const built = collectionOrder
       .map((cid) => {
         const gapRows = grouped.get(cid)
         if (!gapRows?.length) return null
@@ -372,7 +322,30 @@ export function GapAnalysisPage() {
         }
       })
       .filter((s): s is CollectionSummary => s != null)
-  }, [summaries, collectionOrder, grouped])
+      .filter((s) => s.missingCount >= minMissing)
+
+    if (sortBy === 'most_missing') {
+      built.sort((a, b) => b.missingCount - a.missingCount || a.collectionName.localeCompare(b.collectionName))
+    } else if (sortBy === 'most_complete') {
+      built.sort((a, b) => {
+        const ratioA = a.totalReleased > 0 ? a.ownedCount / a.totalReleased : 0
+        const ratioB = b.totalReleased > 0 ? b.ownedCount / b.totalReleased : 0
+        return ratioB - ratioA || a.collectionName.localeCompare(b.collectionName)
+      })
+    } else {
+      built.sort((a, b) => a.collectionName.localeCompare(b.collectionName))
+    }
+
+    return built
+  }, [summaries, collectionOrder, grouped, sortBy, minMissing])
+
+  const maxMissing = useMemo(() => {
+    let max = 0
+    for (const s of summaries) {
+      if (s.missingCount > max) max = s.missingCount
+    }
+    return max
+  }, [summaries])
 
   const collectionIdsForPartsKey = useMemo(
     () => displaySummariesOrdered.map((s) => s.collectionId).join(','),
@@ -815,51 +788,46 @@ export function GapAnalysisPage() {
                   onChange={(e) => setSearch(e.target.value)}
                   sx={{ minWidth: 260 }}
                 />
-                <FormControl size="small" sx={{ minWidth: 160 }}>
+                <FormControl size="small" sx={{ minWidth: 180 }}>
                   <InputLabel id="gap-sort-by">Sort by</InputLabel>
                   <Select
                     labelId="gap-sort-by"
                     label="Sort by"
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as 'collection_name' | 'title' | 'release_date')}
-                  >
-                    <MenuItem value="collection_name">Collection</MenuItem>
-                    <MenuItem value="title">Title</MenuItem>
-                    <MenuItem value="release_date">Release date</MenuItem>
-                  </Select>
-                </FormControl>
-                <FormControl size="small" sx={{ minWidth: 168 }}>
-                  <InputLabel id="gap-sort-dir">Order</InputLabel>
-                  <Select
-                    labelId="gap-sort-dir"
-                    label="Order"
-                    value={sortDir}
-                    onChange={(e) => setSortDir(e.target.value as 'asc' | 'desc')}
+                    onChange={(e) => setSortBy(e.target.value as 'most_missing' | 'most_complete' | 'name')}
                     renderValue={(sel) => {
-                      const opt = gapOrderOptions.find((o) => o.value === sel)
-                      if (!opt) return String(sel)
-                      const Icon = opt.Icon
+                      const labels: Record<string, string> = { most_missing: 'Most missing', most_complete: 'Most complete', name: 'Name A–Z' }
                       return (
                         <Stack direction="row" alignItems="center" gap={0.75} component="span">
-                          <Icon fontSize="small" sx={{ opacity: 0.9 }} />
-                          <Typography component="span" variant="body2">{opt.label}</Typography>
+                          <SortIcon fontSize="small" sx={{ opacity: 0.8 }} />
+                          <Typography component="span" variant="body2">{labels[sel] ?? sel}</Typography>
                         </Stack>
                       )
                     }}
                   >
-                    {gapOrderOptions.map((opt) => {
-                      const Icon = opt.Icon
-                      return (
-                        <MenuItem key={opt.value} value={opt.value}>
-                          <Stack direction="row" alignItems="center" gap={1}>
-                            <Icon fontSize="small" />
-                            {opt.label}
-                          </Stack>
-                        </MenuItem>
-                      )
-                    })}
+                    <MenuItem value="most_missing">Most missing</MenuItem>
+                    <MenuItem value="most_complete">Most complete</MenuItem>
+                    <MenuItem value="name">Name A–Z</MenuItem>
                   </Select>
                 </FormControl>
+                {maxMissing > 1 && (
+                  <Stack direction="row" alignItems="center" spacing={1.5} sx={{ minWidth: 200, maxWidth: 320, flex: 1 }}>
+                    <Typography variant="body2" color="text.secondary" noWrap>
+                      Min missing
+                    </Typography>
+                    <Slider
+                      size="small"
+                      value={minMissing}
+                      min={0}
+                      max={maxMissing}
+                      onChange={(_, v) => setMinMissing(v as number)}
+                      valueLabelDisplay="auto"
+                    />
+                    <Typography variant="body2" fontWeight={600} sx={{ minWidth: 24, textAlign: 'right' }}>
+                      {minMissing}
+                    </Typography>
+                  </Stack>
+                )}
                 <Button size="small" onClick={selectAllVisible}>Select all visible</Button>
                 <Button size="small" onClick={clearSel}>Clear selection</Button>
               </Stack>
