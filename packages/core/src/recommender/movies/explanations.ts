@@ -9,6 +9,8 @@ import { query } from '../../lib/db.js'
 import { createChildLogger } from '../../lib/logger.js'
 import { getTextGenerationModelInstance, getFunctionConfig } from '../../lib/ai-provider.js'
 import { generateText } from 'ai'
+import { buildAiLanguageInstruction, DEFAULT_LOCALE, type AppLocaleCode } from '../../lib/locales.js'
+import { resolveEffectiveAiLanguage } from '../../lib/userSettings.js'
 
 const logger = createChildLogger('explanations')
 
@@ -184,6 +186,8 @@ export async function generateExplanations(
     '🤖 Generating AI explanations with embedding evidence'
   )
 
+  const aiLocale = await resolveEffectiveAiLanguage(userId)
+
   // Fetch the actual embedding-based evidence
   const movieIds = recommendations.map((r) => r.movieId)
   const evidenceMap = await fetchEvidenceForRecommendations(runId, movieIds)
@@ -205,7 +209,7 @@ export async function generateExplanations(
 
   for (let i = 0; i < moviesWithEvidence.length; i += batchSize) {
     const batch = moviesWithEvidence.slice(i, i + batchSize)
-    const batchResults = await generateBatchExplanations(batch, tasteContext, maxTokens)
+    const batchResults = await generateBatchExplanations(batch, tasteContext, maxTokens, aiLocale)
     results.push(...batchResults)
   }
 
@@ -216,7 +220,8 @@ export async function generateExplanations(
 async function generateBatchExplanations(
   movies: MovieWithEvidence[],
   tasteContext: UserTasteContext,
-  maxOutputTokens: number = 3000
+  maxOutputTokens: number = 3000,
+  aiLocale: AppLocaleCode = DEFAULT_LOCALE
 ): Promise<ExplanationResult[]> {
   // Build user context string
   const userContextLines = [
@@ -260,6 +265,8 @@ async function generateBatchExplanations(
     })
     .join('\n\n')
 
+  const langBlock = `\n\n${buildAiLanguageInstruction(aiLocale)}`
+
   try {
     const model = await getTextGenerationModelInstance()
     const { text } = await generateText({
@@ -276,7 +283,7 @@ Write compelling 3-4 sentence explanations for each recommendation. Your explana
 
 CRITICAL: Each recommendation shows which of the user's watched movies it's most similar to. USE THAT DATA - don't make up connections to random movies.
 
-Format: Return JSON with an "explanations" array containing objects with "index" (1-based) and "explanation" fields.`,
+Format: Return JSON with an "explanations" array containing objects with "index" (1-based) and "explanation" fields.${langBlock}`,
       prompt: `=== USER'S TASTE PROFILE ===
 ${userContext}
 

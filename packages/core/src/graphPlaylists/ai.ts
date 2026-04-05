@@ -6,6 +6,8 @@ import { createChildLogger } from '../lib/logger.js'
 import { getTextGenerationModelInstance } from '../lib/ai-provider.js'
 import { generateText } from 'ai'
 import { query } from '../lib/db.js'
+import { buildAiLanguageInstruction, DEFAULT_LOCALE, type AppLocaleCode } from '../lib/locales.js'
+import { resolveEffectiveAiLanguage } from '../lib/userSettings.js'
 
 const logger = createChildLogger('graphPlaylists')
 
@@ -106,7 +108,8 @@ async function buildGraphContext(
  */
 export async function generateGraphPlaylistName(
   movieIds: string[],
-  seriesIds: string[]
+  seriesIds: string[],
+  userId?: string
 ): Promise<string> {
   logger.info({ movieCount: movieIds.length, seriesCount: seriesIds.length }, 'Generating graph playlist name')
 
@@ -117,6 +120,10 @@ export async function generateGraphPlaylistName(
   }
 
   try {
+    const aiLocale: AppLocaleCode = userId
+      ? await resolveEffectiveAiLanguage(userId)
+      : DEFAULT_LOCALE
+    const langBlock = `\n\n${buildAiLanguageInstruction(aiLocale)}`
     const model = await getTextGenerationModelInstance()
     const { text } = await generateText({
       model,
@@ -138,7 +145,7 @@ Examples of good names:
 - "Midnight Thrills" (horror/thriller mix)
 - "Epic Quests" (adventure/fantasy)
 
-Return ONLY the playlist name, nothing else.`,
+Return ONLY the playlist name, nothing else.${langBlock}`,
       prompt: context,
       temperature: 0.9,
       maxOutputTokens: 50,
@@ -164,7 +171,8 @@ Return ONLY the playlist name, nothing else.`,
 export async function generateGraphPlaylistDescription(
   movieIds: string[],
   seriesIds: string[],
-  playlistName?: string
+  playlistName?: string,
+  userId?: string
 ): Promise<string> {
   logger.info(
     { movieCount: movieIds.length, seriesCount: seriesIds.length, playlistName },
@@ -184,6 +192,10 @@ export async function generateGraphPlaylistDescription(
   const mediaType = hasMovies && hasSeries ? 'movies and shows' : hasMovies ? 'movies' : 'shows'
 
   try {
+    const aiLocale: AppLocaleCode = userId
+      ? await resolveEffectiveAiLanguage(userId)
+      : DEFAULT_LOCALE
+    const langBlock = `\n\n${buildAiLanguageInstruction(aiLocale)}`
     const model = await getTextGenerationModelInstance()
     const { text } = await generateText({
       model,
@@ -204,7 +216,7 @@ Examples:
 - "Dark, atmospheric thrillers where nothing is as it seems. Prepare for twist endings and sleepless nights."
 - "A curated selection of mind-bending narratives from cinema's most innovative directors."
 
-Return ONLY the description, nothing else.`,
+Return ONLY the description, nothing else.${langBlock}`,
       prompt: context + nameContext,
       temperature: 0.8,
       maxOutputTokens: 150,

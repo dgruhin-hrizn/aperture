@@ -10,6 +10,12 @@ import { query } from '../../lib/db.js'
 import { createChildLogger } from '../../lib/logger.js'
 import { getTextGenerationModelInstance, getFunctionConfig } from '../../lib/ai-provider.js'
 import { generateText } from 'ai'
+import {
+  buildAiLanguageInstruction,
+  DEFAULT_LOCALE,
+  type AppLocaleCode,
+} from '../../lib/locales.js'
+import { resolveEffectiveAiLanguage } from '../../lib/userSettings.js'
 
 const logger = createChildLogger('series-explanations')
 
@@ -193,6 +199,8 @@ export async function generateSeriesExplanations(
     '🤖 Generating AI explanations for series with embedding evidence'
   )
 
+  const aiLocale = await resolveEffectiveAiLanguage(userId)
+
   // Fetch the actual embedding-based evidence
   const seriesIds = recommendations.map((r) => r.seriesId)
   const evidenceMap = await fetchSeriesEvidenceForRecommendations(runId, seriesIds)
@@ -214,7 +222,7 @@ export async function generateSeriesExplanations(
 
   for (let i = 0; i < seriesWithEvidence.length; i += batchSize) {
     const batch = seriesWithEvidence.slice(i, i + batchSize)
-    const batchResults = await generateBatchSeriesExplanations(batch, tasteContext, maxTokens)
+    const batchResults = await generateBatchSeriesExplanations(batch, tasteContext, maxTokens, aiLocale)
     results.push(...batchResults)
   }
 
@@ -225,7 +233,8 @@ export async function generateSeriesExplanations(
 async function generateBatchSeriesExplanations(
   seriesList: SeriesWithEvidence[],
   tasteContext: UserSeriesTasteContext,
-  maxOutputTokens: number = 3000
+  maxOutputTokens: number = 3000,
+  aiLocale: AppLocaleCode = DEFAULT_LOCALE
 ): Promise<SeriesExplanationResult[]> {
   // Build user context string
   const userContextLines = [
@@ -274,6 +283,8 @@ async function generateBatchSeriesExplanations(
     })
     .join('\n\n')
 
+  const langBlock = `\n\n${buildAiLanguageInstruction(aiLocale)}`
+
   try {
     const model = await getTextGenerationModelInstance()
     const { text } = await generateText({
@@ -291,7 +302,7 @@ Write compelling 3-4 sentence explanations for each recommendation. Your explana
 
 CRITICAL: Each recommendation shows which of the user's watched series it's most similar to. USE THAT DATA - don't make up connections to random series.
 
-Format: Return JSON with an "explanations" array containing objects with "index" (1-based) and "explanation" fields.`,
+Format: Return JSON with an "explanations" array containing objects with "index" (1-based) and "explanation" fields.${langBlock}`,
       prompt: `=== USER'S TV TASTE PROFILE ===
 ${userContext}
 

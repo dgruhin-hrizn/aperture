@@ -2,6 +2,8 @@ import { createChildLogger } from '../lib/logger.js'
 import { getTextGenerationModelInstance } from '../lib/ai-provider.js'
 import { generateText } from 'ai'
 import { query, queryOne } from '../lib/db.js'
+import { buildAiLanguageInstruction, DEFAULT_LOCALE, type AppLocaleCode } from '../lib/locales.js'
+import { resolveEffectiveAiLanguage } from '../lib/userSettings.js'
 
 const logger = createChildLogger('channels')
 
@@ -98,6 +100,8 @@ export async function generateAIPreferences(
   }
 
   try {
+    const aiLocale = await resolveEffectiveAiLanguage(userId)
+    const langBlock = `\n\n${buildAiLanguageInstruction(aiLocale)}`
     const model = await getTextGenerationModelInstance()
     const { text } = await generateText({
       model,
@@ -113,7 +117,7 @@ Focus on:
 - Era or time period preferences
 - What to avoid if implied by the examples
 
-Write in first person as if the user is describing what they want. Keep it concise but specific - each paragraph should be 1-2 sentences. Don't use bullet points.`,
+Write in first person as if the user is describing what they want. Keep it concise but specific - each paragraph should be 1-2 sentences. Don't use bullet points.${langBlock}`,
       prompt: contextParts.join('\n\n'),
       temperature: 0.7,
       maxOutputTokens: 500,
@@ -137,7 +141,8 @@ Write in first person as if the user is describing what they want. Keep it conci
 export async function generateAIPlaylistName(
   genres: string[],
   exampleMovieIds: string[],
-  textPreferences?: string
+  textPreferences?: string,
+  userId?: string
 ): Promise<string> {
   logger.info({ genres, exampleMovieCount: exampleMovieIds.length }, 'Generating AI playlist name')
 
@@ -148,6 +153,10 @@ export async function generateAIPlaylistName(
   }
 
   try {
+    const aiLocale: AppLocaleCode = userId
+      ? await resolveEffectiveAiLanguage(userId)
+      : DEFAULT_LOCALE
+    const langBlock = `\n\n${buildAiLanguageInstruction(aiLocale)}`
     const model = await getTextGenerationModelInstance()
     const { text } = await generateText({
       model,
@@ -169,7 +178,7 @@ Examples of good names:
 - "Midnight Mayhem" (horror/thriller)
 - "Retro Rewind" (80s movies)
 
-Return ONLY the playlist name, nothing else.`,
+Return ONLY the playlist name, nothing else.${langBlock}`,
       prompt: context,
       temperature: 0.9,
       maxOutputTokens: 50,
@@ -194,7 +203,8 @@ export async function generateAIPlaylistDescription(
   genres: string[],
   exampleMovieIds: string[],
   textPreferences?: string,
-  playlistName?: string
+  playlistName?: string,
+  userId?: string
 ): Promise<string> {
   logger.info({ genres, exampleMovieCount: exampleMovieIds.length, playlistName }, 'Generating AI playlist description')
 
@@ -207,6 +217,10 @@ export async function generateAIPlaylistDescription(
   const nameContext = playlistName ? `\nPLAYLIST NAME: "${playlistName}"` : ''
 
   try {
+    const aiLocale: AppLocaleCode = userId
+      ? await resolveEffectiveAiLanguage(userId)
+      : DEFAULT_LOCALE
+    const langBlock = `\n\n${buildAiLanguageInstruction(aiLocale)}`
     const model = await getTextGenerationModelInstance()
     const { text } = await generateText({
       model,
@@ -224,7 +238,7 @@ Examples:
 - "Heartwarming tales of unlikely friendships and second chances. Perfect for when you need to believe in happy endings."
 - "Dark, atmospheric thrillers where nothing is as it seems. Prepare for twist endings and sleepless nights."
 
-Return ONLY the description, nothing else.`,
+Return ONLY the description, nothing else.${langBlock}`,
       prompt: context + nameContext,
       temperature: 0.8,
       maxOutputTokens: 150,

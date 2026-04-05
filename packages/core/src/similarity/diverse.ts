@@ -362,9 +362,10 @@ export function analyzeBubble(
 export async function findDiverseContent(
   centerItem: SimilarityItem,
   existingItems: SimilarityItem[],
-  options: { limit?: number; type?: 'movie' | 'series' } = {}
+  options: { limit?: number; type?: 'movie' | 'series'; userId?: string } = {}
 ): Promise<DiverseResult> {
-  const { limit = 10, type = 'movie' } = options
+  const { limit = 10, type = 'movie', userId: _userId } = options
+  void _userId // Reserved for future locale-aware suggestions; title output stays English for library matching.
 
   // Build exclusion list (titles to avoid)
   const excludeTitles = existingItems.map((item) => item.title).slice(0, 15)

@@ -687,6 +687,7 @@ export async function getSimilarWithDepth(
         const diverseResult = await findDiverseContent(centerResult.center, allItems, {
           limit: Math.max(4, limit - addedAtThisLevel),
           type: itemType,
+          userId: userId ?? undefined,
         })
 
         for (const item of diverseResult.items) {

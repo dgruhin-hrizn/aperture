@@ -11,6 +11,8 @@ import { getTextGenerationModelInstance, isAIFunctionConfigured } from './ai-pro
 import { streamText } from 'ai'
 import { getUserExcludedLibraries } from './libraryExclusions.js'
 import { analyzeMovieTaste, formatTasteProfileForAI } from './tasteAnalyzer.js'
+import { buildAiLanguageInstruction } from './locales.js'
+import { resolveEffectiveAiLanguage } from './userSettings.js'
 
 const logger = createChildLogger('taste-synopsis')
 
@@ -126,6 +128,8 @@ export async function* streamTasteSynopsis(
   // Stream with AI
   let fullText = ''
   try {
+    const aiLocale = await resolveEffectiveAiLanguage(userId)
+    const langBlock = `\n\n${buildAiLanguageInstruction(aiLocale)}`
     const model = await getTextGenerationModelInstance()
     const result = streamText({
       model,
@@ -146,7 +150,7 @@ Rules:
 - Discuss ONLY genres, moods, pacing, and abstract narrative qualities
 - NEVER mention any movie or franchise names
 - Write in second person ("You gravitate toward...")
-- Use **bold** markdown for trait names`,
+- Use **bold** markdown for trait names${langBlock}`,
       prompt: abstractPrompt,
       temperature: 0.4,
       maxOutputTokens: 400,
