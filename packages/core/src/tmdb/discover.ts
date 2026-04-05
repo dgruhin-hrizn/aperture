@@ -320,6 +320,7 @@ export async function discoverMovies(
   if (filters.withoutGenres?.length) params.set('without_genres', filters.withoutGenres.join(','))
   if (filters.withKeywords?.length) params.set('with_keywords', filters.withKeywords.join(','))
   if (filters.withOriginalLanguage) params.set('with_original_language', filters.withOriginalLanguage)
+  if (filters.withOriginCountry) params.set('with_origin_country', filters.withOriginCountry)
   if (filters.page) params.set('page', filters.page.toString())
 
   return tmdbRequest<TMDbMovieDiscoverResponse>(
@@ -435,6 +436,7 @@ export async function discoverTV(
   if (filters.withKeywords?.length) params.set('with_keywords', filters.withKeywords.join(','))
   if (filters.withNetworks?.length) params.set('with_networks', filters.withNetworks.join(','))
   if (filters.withOriginalLanguage) params.set('with_original_language', filters.withOriginalLanguage)
+  if (filters.withOriginCountry) params.set('with_origin_country', filters.withOriginCountry)
   if (filters.page) params.set('page', filters.page.toString())
 
   return tmdbRequest<TMDbTVDiscoverResponse>(

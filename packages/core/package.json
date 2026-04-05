@@ -45,6 +45,7 @@
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch",
     "typecheck": "tsc --noEmit",
+    "test:justwatch": "node --import tsx --test src/justwatch/normalize.test.ts",
     "lint": "eslint src",
     "clean": "rm -rf dist"
   },
@@ -68,6 +69,7 @@
   "devDependencies": {
     "@types/node": "^22.10.2",
     "@types/pg": "^8.11.10",
-    "pino-pretty": "^13.0.0"
+    "pino-pretty": "^13.0.0",
+    "tsx": "^4.19.2"
   }
 }

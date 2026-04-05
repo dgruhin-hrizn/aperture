@@ -1342,3 +1342,322 @@ export async function setStudioLogosConfig(
   logger.info({ config }, 'Studio logos config updated')
   return getStudioLogosConfig()
 }
+
+// ============================================================================
+// Streaming discovery (JustWatch charts on Discovery page)
+// ============================================================================
+
+export async function getStreamingDiscoveryEnabled(): Promise<boolean> {
+  const v = await getSystemSetting('streaming_discovery_enabled')
+  return v === 'true'
+}
+
+export async function setStreamingDiscoveryEnabled(enabled: boolean): Promise<void> {
+  await setSystemSetting(
+    'streaming_discovery_enabled',
+    enabled ? 'true' : 'false',
+    'Show JustWatch streaming charts on Discovery (admin)'
+  )
+}
+
+/**
+ * Comma-separated JustWatch package technical names for per-provider strips (e.g. nfx,dnp).
+ */
+export async function getStreamingDiscoveryProviderStrips(): Promise<string[]> {
+  const raw = await getSystemSetting('streaming_discovery_provider_strips')
+  const s = (raw ?? 'nfx,dnp,mxx').trim()
+  return s
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean)
+}
+
+export async function setStreamingDiscoveryProviderStrips(packages: string[]): Promise<void> {
+  await setSystemSetting(
+    'streaming_discovery_provider_strips',
+    packages.map((p) => p.trim()).filter(Boolean).join(','),
+    'JustWatch package technical names for streaming discovery strips'
+  )
+}
+
+function parseCommaSeparatedIntIds(raw: string | null | undefined, fallback: string): number[] {
+  const s = (raw ?? fallback).trim()
+  return s
+    .split(',')
+    .map((x) => parseInt(x.trim(), 10))
+    .filter((n) => Number.isFinite(n))
+}
+
+/** Max horizontal strips on Discovery per media type. */
+export const GENRE_STRIP_MAX_ROWS = 24
+/** TMDb Discover ANDs multiple genres in one row; cap how many can be combined. */
+export const GENRE_STRIP_MAX_GENRES_PER_ROW = 8
+/** TMDb Discover `without_genres` — cap list length per strip. */
+export const GENRE_STRIP_MAX_EXCLUDE_GENRES_PER_ROW = 8
+/** Default number of titles per genre strip row (after library/request filtering). */
+export const GENRE_STRIP_DEFAULT_ROW_LIMIT = 24
+export const GENRE_STRIP_MIN_ROW_LIMIT = 1
+/** Matches API cap in discovery/tmdbGenreRows. */
+export const GENRE_STRIP_MAX_ROW_LIMIT = 48
+/** Optional custom strip title in admin; shown on Discovery instead of joined genre names. */
+export const GENRE_STRIP_MAX_ROW_LABEL_LENGTH = 80
+
+/** One horizontal strip on Discovery. Order is the array index; persisted JSON also stores `sortOrder` per row. */
+export interface GenreStripRowConfig {
+  genreIds: number[]
+  /** How many titles to return for this strip (after filtering). */
+  limit: number
+  /** If set, shown as the row heading on Discovery instead of TMDb genre names. */
+  label?: string
+  /** ISO 3166-1 alpha-2; TMDb Discover `with_origin_country` for this row. */
+  originCountry?: string
+  /** TMDb genre IDs to exclude (e.g. Sci-Fi but not Animation). Must not overlap {@link genreIds}. */
+  excludeGenreIds?: number[]
+  /** Inclusive release / first-air year lower bound (Discover date filters). */
+  yearStart?: number
+  /** Inclusive release / first-air year upper bound. */
+  yearEnd?: number
+}
+
+/** Trim and cap length; empty after trim → undefined. */
+export function sanitizeGenreStripRowLabel(raw: unknown): string | undefined {
+  if (raw === undefined || raw === null) return undefined
+  if (typeof raw !== 'string') return undefined
+  const t = raw.trim().slice(0, GENRE_STRIP_MAX_ROW_LABEL_LENGTH)
+  return t === '' ? undefined : t
+}
+
+/** ISO 3166-1 alpha-2 for TMDb `with_origin_country`; empty/invalid → undefined. */
+export function sanitizeGenreStripOriginCountry(raw: unknown): string | undefined {
+  if (raw === undefined || raw === null) return undefined
+  if (typeof raw !== 'string') return undefined
+  const t = raw.trim().toUpperCase()
+  if (t === '') return undefined
+  if (!/^[A-Z]{2}$/.test(t)) return undefined
+  return t
+}
+
+const GENRE_STRIP_YEAR_MIN = 1900
+const GENRE_STRIP_YEAR_MAX = 2100
+
+/** Optional strip year bound for TMDb Discover (primary_release_date / first_air_date). Invalid → undefined. */
+export function sanitizeGenreStripYear(raw: unknown): number | undefined {
+  if (raw === undefined || raw === null || raw === '') return undefined
+  const n = typeof raw === 'number' ? raw : parseInt(String(raw), 10)
+  if (!Number.isFinite(n)) return undefined
+  const y = Math.floor(n)
+  if (y < GENRE_STRIP_YEAR_MIN || y > GENRE_STRIP_YEAR_MAX) return undefined
+  return y
+}
+
+export function clampGenreStripRowLimit(n: number): number {
+  if (!Number.isFinite(n)) return GENRE_STRIP_DEFAULT_ROW_LIMIT
+  const x = Math.floor(n)
+  return Math.min(GENRE_STRIP_MAX_ROW_LIMIT, Math.max(GENRE_STRIP_MIN_ROW_LIMIT, x))
+}
+
+function parsePositiveIntIds(arr: unknown[]): number[] | null {
+  const ids: number[] = []
+  for (const x of arr) {
+    const n = typeof x === 'number' ? x : parseInt(String(x), 10)
+    if (!Number.isFinite(n) || n < 1) return null
+    ids.push(Math.floor(n))
+  }
+  return [...new Set(ids)]
+}
+
+function parseOptionalYearField(
+  o: Record<string, unknown>,
+  key: 'yearStart' | 'yearEnd'
+): number | undefined | 'invalid' {
+  if (!(key in o)) return undefined
+  const raw = o[key]
+  if (raw === undefined || raw === null || raw === '') return undefined
+  const y = sanitizeGenreStripYear(raw)
+  return y === undefined ? 'invalid' : y
+}
+
+/**
+ * Validates admin / API input: legacy `number[][]` or `{ genreIds, limit? }[]`.
+ */
+export function validateGenreStripRows(rows: unknown): GenreStripRowConfig[] | null {
+  if (!Array.isArray(rows)) return null
+  if (rows.length > GENRE_STRIP_MAX_ROWS) return null
+  if (rows.length === 0) return []
+  const out: GenreStripRowConfig[] = []
+  for (const item of rows) {
+    if (Array.isArray(item)) {
+      const ids = parsePositiveIntIds(item)
+      if (!ids || ids.length === 0) return null
+      if (ids.length > GENRE_STRIP_MAX_GENRES_PER_ROW) return null
+      out.push({ genreIds: ids, limit: GENRE_STRIP_DEFAULT_ROW_LIMIT })
+      continue
+    }
+    if (item && typeof item === 'object' && item !== null && 'genreIds' in item) {
+      const o = item as {
+        genreIds?: unknown
+        limit?: unknown
+        label?: unknown
+        originCountry?: unknown
+        excludeGenreIds?: unknown
+        yearStart?: unknown
+        yearEnd?: unknown
+      }
+      if (!Array.isArray(o.genreIds)) return null
+      const ids = parsePositiveIntIds(o.genreIds as unknown[])
+      if (!ids || ids.length === 0) return null
+      if (ids.length > GENRE_STRIP_MAX_GENRES_PER_ROW) return null
+      const lim =
+        o.limit === undefined || o.limit === null
+          ? GENRE_STRIP_DEFAULT_ROW_LIMIT
+          : clampGenreStripRowLimit(Number(o.limit))
+      const label = sanitizeGenreStripRowLabel(o.label)
+      const originCountry = sanitizeGenreStripOriginCountry(o.originCountry)
+      const genreSet = new Set(ids)
+      let excludeIds: number[] | undefined
+      if (o.excludeGenreIds !== undefined) {
+        if (!Array.isArray(o.excludeGenreIds)) return null
+        const ex = parsePositiveIntIds(o.excludeGenreIds as unknown[])
+        if (!ex || ex.length > GENRE_STRIP_MAX_EXCLUDE_GENRES_PER_ROW) return null
+        for (const id of ex) {
+          if (genreSet.has(id)) return null
+        }
+        excludeIds = ex.length > 0 ? ex : undefined
+      }
+      const oRec = o as Record<string, unknown>
+      const ys = parseOptionalYearField(oRec, 'yearStart')
+      const ye = parseOptionalYearField(oRec, 'yearEnd')
+      if (ys === 'invalid' || ye === 'invalid') return null
+      if (ys !== undefined && ye !== undefined && ys > ye) return null
+      const row: GenreStripRowConfig = { genreIds: ids, limit: lim }
+      if (label) row.label = label
+      if (originCountry) row.originCountry = originCountry
+      if (excludeIds) row.excludeGenreIds = excludeIds
+      if (ys !== undefined) row.yearStart = ys
+      if (ye !== undefined) row.yearEnd = ye
+      out.push(row)
+      continue
+    }
+    return null
+  }
+  return out
+}
+
+/**
+ * If every row object includes numeric `sortOrder`, reorder to match persisted strip order.
+ * Otherwise keep JSON array order (legacy rows or mixed data).
+ */
+function sortParsedGenreStripRowsByStoredOrder(parsed: unknown[]): unknown[] {
+  if (parsed.length === 0) return parsed
+  const allHaveSortOrder = parsed.every((item) => {
+    if (!item || typeof item !== 'object') return false
+    const s = (item as { sortOrder?: unknown }).sortOrder
+    return typeof s === 'number' && Number.isFinite(s)
+  })
+  if (!allHaveSortOrder) return parsed
+  return [...parsed].sort(
+    (a, b) => (a as { sortOrder: number }).sortOrder - (b as { sortOrder: number }).sortOrder
+  )
+}
+
+function parseGenreStripRowsFromStorageJson(raw: string | null | undefined): GenreStripRowConfig[] | null {
+  if (!raw || !String(raw).trim()) return null
+  try {
+    const parsed = JSON.parse(String(raw)) as unknown
+    if (!Array.isArray(parsed)) return null
+    const ordered = sortParsedGenreStripRowsByStoredOrder(parsed)
+    return validateGenreStripRows(ordered)
+  } catch {
+    return null
+  }
+}
+
+function serializeGenreStripRowsForStorage(rows: GenreStripRowConfig[]): string {
+  const payload = rows.map((r, i) => {
+    const base: Record<string, unknown> = {
+      genreIds: r.genreIds,
+      limit: r.limit,
+      sortOrder: i,
+    }
+    if (r.label) base.label = r.label
+    if (r.originCountry) base.originCountry = r.originCountry
+    if (r.excludeGenreIds?.length) base.excludeGenreIds = r.excludeGenreIds
+    if (r.yearStart !== undefined) base.yearStart = r.yearStart
+    if (r.yearEnd !== undefined) base.yearEnd = r.yearEnd
+    return base
+  })
+  return JSON.stringify(payload)
+}
+
+/**
+ * TMDb movie genre rows: each entry is one horizontal strip (genres ANDed by TMDb Discover).
+ * Migrates from legacy `number[][]` JSON or comma-separated `discovery_genre_strip_movie_ids` when JSON unset.
+ */
+export async function getGenreStripMovieRows(): Promise<GenreStripRowConfig[]> {
+  const jsonRaw = await getSystemSetting('discovery_genre_strip_movie_rows')
+  const fromJson = parseGenreStripRowsFromStorageJson(jsonRaw)
+  if (fromJson !== null) return fromJson
+  const legacy = parseCommaSeparatedIntIds(await getSystemSetting('discovery_genre_strip_movie_ids'), '28,12,878')
+  return legacy.map((id) => ({ genreIds: [id], limit: GENRE_STRIP_DEFAULT_ROW_LIMIT }))
+}
+
+export async function setGenreStripMovieRows(rows: GenreStripRowConfig[]): Promise<void> {
+  await setSystemSetting(
+    'discovery_genre_strip_movie_rows',
+    serializeGenreStripRowsForStorage(rows),
+    'TMDb movie genre rows (JSON) for Discovery TMDB genre strips'
+  )
+}
+
+/**
+ * @deprecated Prefer {@link getGenreStripMovieRows}. Flat list of genre IDs (legacy one-genre-per-row).
+ */
+export async function getGenreStripMovieIds(): Promise<number[]> {
+  const rows = await getGenreStripMovieRows()
+  return rows.flatMap((r) => r.genreIds)
+}
+
+/**
+ * @deprecated Prefer {@link setGenreStripMovieRows}. Sets one TMDb genre per row.
+ */
+export async function setGenreStripMovieIds(ids: number[]): Promise<void> {
+  await setGenreStripMovieRows(
+    ids.map((id) => ({ genreIds: [id], limit: GENRE_STRIP_DEFAULT_ROW_LIMIT }))
+  )
+}
+
+/**
+ * TMDb TV genre rows (see {@link getGenreStripMovieRows}).
+ */
+export async function getGenreStripSeriesRows(): Promise<GenreStripRowConfig[]> {
+  const jsonRaw = await getSystemSetting('discovery_genre_strip_series_rows')
+  const fromJson = parseGenreStripRowsFromStorageJson(jsonRaw)
+  if (fromJson !== null) return fromJson
+  const legacy = parseCommaSeparatedIntIds(await getSystemSetting('discovery_genre_strip_series_ids'), '10759,18,9648')
+  return legacy.map((id) => ({ genreIds: [id], limit: GENRE_STRIP_DEFAULT_ROW_LIMIT }))
+}
+
+export async function setGenreStripSeriesRows(rows: GenreStripRowConfig[]): Promise<void> {
+  await setSystemSetting(
+    'discovery_genre_strip_series_rows',
+    serializeGenreStripRowsForStorage(rows),
+    'TMDb TV genre rows (JSON) for Discovery TMDB genre strips'
+  )
+}
+
+/**
+ * @deprecated Prefer {@link getGenreStripSeriesRows}.
+ */
+export async function getGenreStripSeriesIds(): Promise<number[]> {
+  const rows = await getGenreStripSeriesRows()
+  return rows.flatMap((r) => r.genreIds)
+}
+
+/**
+ * @deprecated Prefer {@link setGenreStripSeriesRows}.
+ */
+export async function setGenreStripSeriesIds(ids: number[]): Promise<void> {
+  await setGenreStripSeriesRows(
+    ids.map((id) => ({ genreIds: [id], limit: GENRE_STRIP_DEFAULT_ROW_LIMIT }))
+  )
+}

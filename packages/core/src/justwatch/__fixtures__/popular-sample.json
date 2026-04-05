@@ -1,0 +1,34 @@
+{
+  "data": {
+    "popularTitles": {
+      "edges": [
+        {
+          "node": {
+            "id": "tm1",
+            "objectId": 1,
+            "objectType": "MOVIE",
+            "content": {
+              "title": "Inception",
+              "originalReleaseYear": 2010,
+              "shortDescription": "A thief who steals secrets.",
+              "externalIds": { "imdbId": "tt1375666", "tmdbId": "27205" },
+              "posterUrl": "https://example.invalid/poster.jpg"
+            },
+            "streamingCharts": {
+              "edges": [
+                {
+                  "streamingChartInfo": {
+                    "rank": 3,
+                    "trend": "UP",
+                    "daysInTop10": 5,
+                    "topRank": 2
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

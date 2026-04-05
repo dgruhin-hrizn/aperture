@@ -379,6 +379,31 @@ export {
   // Studio logos settings
   getStudioLogosConfig,
   setStudioLogosConfig,
+  getStreamingDiscoveryEnabled,
+  setStreamingDiscoveryEnabled,
+  getStreamingDiscoveryProviderStrips,
+  setStreamingDiscoveryProviderStrips,
+  getGenreStripMovieIds,
+  setGenreStripMovieIds,
+  getGenreStripSeriesIds,
+  setGenreStripSeriesIds,
+  getGenreStripMovieRows,
+  setGenreStripMovieRows,
+  getGenreStripSeriesRows,
+  setGenreStripSeriesRows,
+  GENRE_STRIP_MAX_ROWS,
+  GENRE_STRIP_MAX_GENRES_PER_ROW,
+  GENRE_STRIP_MAX_EXCLUDE_GENRES_PER_ROW,
+  GENRE_STRIP_DEFAULT_ROW_LIMIT,
+  GENRE_STRIP_MIN_ROW_LIMIT,
+  GENRE_STRIP_MAX_ROW_LIMIT,
+  GENRE_STRIP_MAX_ROW_LABEL_LENGTH,
+  validateGenreStripRows,
+  clampGenreStripRowLimit,
+  sanitizeGenreStripRowLabel,
+  sanitizeGenreStripOriginCountry,
+  sanitizeGenreStripYear,
+  type GenreStripRowConfig,
   type SystemSetting,
   type EmbeddingModel,
   type TextGenerationModel,
@@ -507,6 +532,7 @@ export {
   getMovieEnrichmentByTmdbId,
   getMovieGenresList,
   getTVGenresList,
+  getTmdbConfigurationCountries,
   // Series functions
   getTVDetails,
   getTVVideos,
@@ -531,6 +557,7 @@ export {
   // Types
   type TMDbKeyword,
   type TMDbGenre,
+  type TmdbConfigurationCountry,
   type TMDbCrewMember,
   type TMDbCastMember,
   type TMDbCollection,
@@ -826,9 +853,11 @@ export {
   // Sources
   fetchAllCandidates,
   fetchFilteredCandidates,
+  fetchGenreStripDiscoverCandidates,
   hasDiscoverySources,
   // Filter
   filterCandidates,
+  getCandidateExclusionTmdbIds,
   isInLibrary,
   hasWatched,
   // Scorer
@@ -863,6 +892,7 @@ export {
   type ScoredCandidate,
   type DiscoveryPipelineResult,
   type DynamicFetchFilters,
+  type GenreStripDiscoverFilters,
   DEFAULT_DISCOVERY_CONFIG,
   // Browse people list
   listPeopleForBrowse,
@@ -882,6 +912,30 @@ export {
   type PersonCreditsGapGroup,
   type CreditsRoleKind,
 } from './discover/index.js'
+
+// JustWatch streaming charts (Discovery expansion)
+export {
+  fetchPopularTitles,
+  fetchSearchTitles,
+  fetchProviders,
+  normalizeJwNode,
+  parsePopularEdges,
+  parseSearchEdges,
+  parseProvidersResponse,
+  attachLibraryMatch,
+  attachTmdbPosterPaths,
+  sortStreamingRowsForDiscovery,
+  getCachedPayload,
+  setCachedPayload,
+  buildCacheKey,
+  streamingCacheTtlMs,
+  loadCachedOrFetch,
+  type JustWatchStreamingRow,
+  type JustWatchProviderOption,
+  type JwTitleNode,
+  PARTNER_PROVIDER_TERMS_US,
+  type PartnerProviderTerm,
+} from './justwatch/index.js'
 
 // Gap analysis (movie collection completeness vs library)
 export {

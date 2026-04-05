@@ -32,11 +32,14 @@ import {
   isTraktConfigured,
   getUserTraktTokens,
 } from '../trakt/index.js'
-import type { 
-  MediaType, 
-  RawCandidate, 
-  DiscoverySource, 
-  DiscoveryConfig, 
+import type { TMDbMovieResult, TMDbTVResult } from '../tmdb/types.js'
+import { GENRE_STRIP_MAX_ROW_LIMIT } from '../settings/systemSettings.js'
+import { getCandidateExclusionTmdbIds } from './filter.js'
+import type {
+  MediaType,
+  RawCandidate,
+  DiscoverySource,
+  DiscoveryConfig,
   CastMember,
   GlobalFetchResult,
   PersonalizedFetchResult,
@@ -48,6 +51,167 @@ const logger = createChildLogger('discover:sources')
 const MAX_PAGES_PER_SOURCE = 10       // Fetch up to 10 pages (200 items) per source
 const EXPANSION_MAX_PAGES = 5         // Dynamic expansion fetches 5 pages (100 items)
 const PAGE_DELAY_MS = 50              // 50ms delay between page fetches for rate limiting
+
+/** TMDb allows up to ~500 discover pages. */
+const GENRE_STRIP_MAX_DISCOVER_PAGE = 500
+
+function rawFromMovieResult(movie: TMDbMovieResult): RawCandidate {
+  const normalized = normalizeMovieResult(movie)
+  return {
+    tmdbId: normalized.tmdbId,
+    imdbId: null,
+    title: normalized.title,
+    originalTitle: normalized.originalTitle,
+    originalLanguage: normalized.originalLanguage,
+    overview: movie.overview,
+    releaseYear: normalized.releaseYear,
+    posterPath: normalized.posterPath,
+    backdropPath: normalized.backdropPath,
+    genres: normalized.genres.map((id) => ({ id, name: '' })),
+    voteAverage: normalized.voteAverage,
+    voteCount: normalized.voteCount,
+    popularity: normalized.popularity,
+    source: 'tmdb_discover' as DiscoverySource,
+  }
+}
+
+function rawFromTvResult(tv: TMDbTVResult): RawCandidate {
+  const normalized = normalizeTVResult(tv)
+  return {
+    tmdbId: normalized.tmdbId,
+    imdbId: null,
+    title: normalized.title,
+    originalTitle: normalized.originalTitle,
+    originalLanguage: normalized.originalLanguage,
+    overview: tv.overview,
+    releaseYear: normalized.releaseYear,
+    posterPath: normalized.posterPath,
+    backdropPath: normalized.backdropPath,
+    genres: normalized.genres.map((id) => ({ id, name: '' })),
+    voteAverage: normalized.voteAverage,
+    voteCount: normalized.voteCount,
+    popularity: normalized.popularity,
+    source: 'tmdb_discover' as DiscoverySource,
+  }
+}
+
+/**
+ * TMDb Discover for admin-configured genre strips: `vote_count.desc` (not popularity/trending).
+ * Walks pages 1…n in order, drops library / watched / requested, stops when `targetCount` is met.
+ */
+export interface GenreStripDiscoverFilters {
+  genreIds: number[]
+  /** TMDb `without_genres`; must not overlap {@link genreIds}. */
+  withoutGenreIds?: number[]
+  withOriginCountry?: string
+  /** Inclusive calendar year lower bound (movies: primary_release_date; TV: first_air_date). */
+  yearStart?: number
+  /** Inclusive calendar year upper bound. */
+  yearEnd?: number
+  /** How many titles to return after exclusions (strip “max titles”). */
+  targetCount: number
+  userId: string
+}
+
+export async function fetchGenreStripDiscoverCandidates(
+  mediaType: MediaType,
+  filters: GenreStripDiscoverFilters
+): Promise<RawCandidate[]> {
+  const targetCount = Math.max(1, Math.min(GENRE_STRIP_MAX_ROW_LIMIT, filters.targetCount))
+  const sortBy = 'vote_count.desc' as const
+  const withoutGenres = filters.withoutGenreIds?.length ? filters.withoutGenreIds : undefined
+  const dateFilters =
+    mediaType === 'movie'
+      ? {
+          releaseDateGte:
+            filters.yearStart !== undefined ? `${filters.yearStart}-01-01` : undefined,
+          releaseDateLte:
+            filters.yearEnd !== undefined ? `${filters.yearEnd}-12-31` : undefined,
+        }
+      : {
+          firstAirDateGte:
+            filters.yearStart !== undefined ? `${filters.yearStart}-01-01` : undefined,
+          firstAirDateLte:
+            filters.yearEnd !== undefined ? `${filters.yearEnd}-12-31` : undefined,
+        }
+  const base = {
+    sortBy,
+    withGenres: filters.genreIds,
+    withoutGenres,
+    withOriginCountry: filters.withOriginCountry,
+    ...dateFilters,
+  }
+
+  try {
+    const excludeIds = await getCandidateExclusionTmdbIds(filters.userId, mediaType)
+    const pool: RawCandidate[] = []
+    const seenTmdb = new Set<number>()
+    let totalPagesCap = GENRE_STRIP_MAX_DISCOVER_PAGE
+    let totalCatalog = 0
+
+    for (let page = 1; page <= totalPagesCap; page++) {
+      const res =
+        mediaType === 'movie'
+          ? await discoverMovies({ ...base, page })
+          : await discoverTV({ ...base, page })
+
+      if (page > 1) {
+        await new Promise((r) => setTimeout(r, PAGE_DELAY_MS))
+      }
+
+      if (!res || !res.results.length) {
+        if (page === 1) return []
+        break
+      }
+
+      if (page === 1) {
+        totalCatalog = res.total_results
+        if (!totalCatalog) return []
+        totalPagesCap = Math.min(res.total_pages, GENRE_STRIP_MAX_DISCOVER_PAGE)
+      }
+
+      for (const item of res.results) {
+        const id = item.id
+        if (seenTmdb.has(id)) continue
+        seenTmdb.add(id)
+        pool.push(mediaType === 'movie' ? rawFromMovieResult(item as TMDbMovieResult) : rawFromTvResult(item as TMDbTVResult))
+      }
+
+      const passed = pool.filter((c) => !excludeIds.has(c.tmdbId))
+      if (passed.length >= targetCount) {
+        const enriched = await enrichBasicData(passed.slice(0, targetCount), mediaType)
+        logger.info(
+          {
+            mediaType,
+            targetCount,
+            returned: enriched.length,
+            pagesFetched: page,
+            totalCatalog,
+          },
+          'Genre strip discover: target met'
+        )
+        return enriched
+      }
+    }
+
+    const passed = pool.filter((c) => !excludeIds.has(c.tmdbId))
+    const enriched = await enrichBasicData(passed.slice(0, targetCount), mediaType)
+    logger.info(
+      {
+        mediaType,
+        targetCount,
+        returned: enriched.length,
+        pagesExhausted: true,
+        totalCatalog,
+      },
+      'Genre strip discover: exhausted catalog'
+    )
+    return enriched
+  } catch (err) {
+    logger.error({ err, mediaType, filters }, 'Failed to fetch genre strip discover candidates')
+    return []
+  }
+}
 
 /**
  * Fetch candidates from TMDb recommendations (based on user's watched content)
@@ -1049,6 +1213,8 @@ export async function hasDiscoverySources(): Promise<boolean> {
 export interface DynamicFetchFilters {
   languages?: string[]
   genreIds?: number[]
+  /** TMDb Discover `with_origin_country` (ISO 3166-1 alpha-2). */
+  withOriginCountry?: string
   yearStart?: number
   yearEnd?: number
   excludeTmdbIds?: number[]
@@ -1088,6 +1254,7 @@ export async function fetchFilteredCandidates(
             sortBy: 'popularity.desc',
             withGenres: filters.genreIds,
             withOriginalLanguage: language,
+            withOriginCountry: filters.withOriginCountry,
             releaseDateGte: filters.yearStart ? `${filters.yearStart}-01-01` : undefined,
             releaseDateLte: filters.yearEnd ? `${filters.yearEnd}-12-31` : undefined,
             minVoteCount: 20,
@@ -1126,6 +1293,7 @@ export async function fetchFilteredCandidates(
             sortBy: 'popularity.desc',
             withGenres: filters.genreIds,
             withOriginalLanguage: language,
+            withOriginCountry: filters.withOriginCountry,
             firstAirDateGte: filters.yearStart ? `${filters.yearStart}-01-01` : undefined,
             firstAirDateLte: filters.yearEnd ? `${filters.yearEnd}-12-31` : undefined,
             minVoteCount: 20,

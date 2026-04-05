@@ -92,6 +92,33 @@ async function getRequestedTmdbIds(userId: string, mediaType: MediaType): Promis
 }
 
 /**
+ * TMDb IDs to skip for discovery: library, watched, and non-declined discovery requests.
+ */
+export async function getCandidateExclusionTmdbIds(
+  userId: string,
+  mediaType: MediaType
+): Promise<Set<number>> {
+  const [libraryIds, watchedIds, requestedIds] = await Promise.all([
+    getLibraryTmdbIds(mediaType),
+    getWatchedTmdbIds(userId, mediaType),
+    getRequestedTmdbIds(userId, mediaType),
+  ])
+  const excludeIds = new Set<number>([...libraryIds, ...watchedIds, ...requestedIds])
+  logger.info(
+    {
+      userId,
+      mediaType,
+      libraryCount: libraryIds.size,
+      watchedCount: watchedIds.size,
+      requestedCount: requestedIds.size,
+      totalExclude: excludeIds.size,
+    },
+    'Built candidate exclusion set'
+  )
+  return excludeIds
+}
+
+/**
  * Filter candidates to remove content already in library or watched
  */
 export async function filterCandidates(
@@ -101,28 +128,7 @@ export async function filterCandidates(
 ): Promise<RawCandidate[]> {
   logger.info({ userId, mediaType, inputCount: candidates.length }, 'Filtering candidates')
 
-  // Load all exclusion sets in parallel
-  const [libraryIds, watchedIds, requestedIds] = await Promise.all([
-    getLibraryTmdbIds(mediaType),
-    getWatchedTmdbIds(userId, mediaType),
-    getRequestedTmdbIds(userId, mediaType),
-  ])
-
-  // Combine all exclusion sets
-  const excludeIds = new Set<number>([
-    ...libraryIds,
-    ...watchedIds,
-    ...requestedIds,
-  ])
-
-  logger.info({
-    userId,
-    mediaType,
-    libraryCount: libraryIds.size,
-    watchedCount: watchedIds.size,
-    requestedCount: requestedIds.size,
-    totalExclude: excludeIds.size,
-  }, 'Built exclusion set')
+  const excludeIds = await getCandidateExclusionTmdbIds(userId, mediaType)
 
   // Filter candidates
   const filtered = candidates.filter(c => !excludeIds.has(c.tmdbId))
