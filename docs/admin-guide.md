@@ -86,6 +86,24 @@ Start here if you're new to Aperture:
 | [Top Picks](admin/top-picks.md) | Global trending libraries |
 | [Shows You Watch](admin/shows-you-watch.md) | Track ongoing series |
 
+### Gap Analysis (admin)
+
+**Gap Analysis** (`/admin/gaps`) compares TMDB movie collection membership to your synced `movies` table so you can see which franchise entries are missing. It is **not** the same as user [Discovery](features/discovery.md) (per-user suggestions).
+
+**Prerequisites**
+
+- **TMDb API key** — Admin → Settings.
+- **Collection metadata** — Run the **Enrich metadata** job so movies get `collection_id` from TMDb.
+- **Seerr** (optional) — Only needed if you want to request missing titles; requests are always explicit (bulk or single).
+
+**Operations**
+
+- Use **Run analysis** on the page (or schedule the **`refresh-library-gaps`** job under Admin → Jobs). The job only calls TMDb and your database — it **never** requests content from Seerr automatically.
+- Gap-initiated requests are stored with `source: gap_analysis` and appear on **My Requests** with a **Gap Analysis** badge; they can be filtered with the Source dropdown.
+- Re-run analysis after large library syncs so counts stay accurate.
+
+**API** — See [Gap analysis (Admin)](api-reference.md#gap-analysis-admin) in the API reference.
+
 ---
 
 ## Background Jobs
