@@ -147,6 +147,14 @@ export const updatePreferencesSchema = {
         enum: ['list', 'graph'],
         description: 'Default tab for Similar Movies/Series on media detail',
       },
+      uiLanguage: {
+        type: ['string', 'null'],
+        description: 'UI locale override (BCP-47); null clears to system default',
+      },
+      aiLanguage: {
+        type: ['string', 'null'],
+        description: 'AI output locale override; null clears to system default',
+      },
     },
   },
 }

@@ -199,13 +199,26 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/auth/me/preferences
    * Get current user's UI preferences
    */
-  fastify.get<{ Reply: { sidebarCollapsed?: boolean } }>(
+  fastify.get<{ Reply: Record<string, unknown> }>(
     '/api/auth/me/preferences',
     { preHandler: requireAuth, schema: { tags: ['auth'] } },
     async (request, reply) => {
-      const { getUserUiPreferences } = await import('@aperture/core')
-      const preferences = await getUserUiPreferences(request.user!.id)
-      return reply.send(preferences)
+      const {
+        getUserUiPreferences,
+        resolveEffectiveUiLanguage,
+        resolveEffectiveAiLanguage,
+      } = await import('@aperture/core')
+      const uid = request.user!.id
+      const preferences = await getUserUiPreferences(uid)
+      const [effectiveUiLanguage, effectiveAiLanguage] = await Promise.all([
+        resolveEffectiveUiLanguage(uid),
+        resolveEffectiveAiLanguage(uid),
+      ])
+      return reply.send({
+        ...preferences,
+        effectiveUiLanguage,
+        effectiveAiLanguage,
+      })
     }
   )
 
@@ -244,7 +257,17 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       }
       
       const preferences = await updateUserUiPreferences(request.user!.id, updates)
-      return reply.send(preferences)
+      const { resolveEffectiveUiLanguage, resolveEffectiveAiLanguage } = await import('@aperture/core')
+      const uid = request.user!.id
+      const [effectiveUiLanguage, effectiveAiLanguage] = await Promise.all([
+        resolveEffectiveUiLanguage(uid),
+        resolveEffectiveAiLanguage(uid),
+      ])
+      return reply.send({
+        ...preferences,
+        effectiveUiLanguage,
+        effectiveAiLanguage,
+      })
     }
   )
 

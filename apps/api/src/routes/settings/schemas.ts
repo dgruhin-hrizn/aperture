@@ -991,3 +991,54 @@ export const deleteCustomInterestSchema = {
     required: ['id'] as string[],
   },
 }
+
+/** Matches packages/core APP_LOCALE_OPTIONS */
+const SUPPORTED_LOCALE_CODES = [
+  'en',
+  'es',
+  'de',
+  'fr',
+  'it',
+  'pt',
+  'ja',
+  'zh',
+  'ko',
+  'hi',
+  'ar',
+  'he',
+] as const
+
+export const supportedLocalesSchema = {
+  tags: ['settings'],
+  summary: 'List supported UI/AI locales',
+  description: 'Public list of BCP-47 locale codes and labels for language pickers.',
+}
+
+export const getLanguageDefaultsSchema = {
+  tags: ['settings'],
+  summary: 'Get system language defaults',
+  description:
+    'Instance-wide default UI and AI output languages (authenticated users).',
+}
+
+export const updateLanguageDefaultsSchema = {
+  tags: ['settings'],
+  summary: 'Update system language defaults',
+  description: 'Set default UI and AI languages for users without overrides (admin only).',
+  body: {
+    type: 'object' as const,
+    additionalProperties: false,
+    properties: {
+      defaultUiLanguage: {
+        type: 'string' as const,
+        enum: [...SUPPORTED_LOCALE_CODES],
+        description: 'Default UI locale (BCP-47)',
+      },
+      defaultAiLanguage: {
+        type: 'string' as const,
+        enum: [...SUPPORTED_LOCALE_CODES],
+        description: 'Default AI synopsis/explanation locale',
+      },
+    },
+  },
+}
