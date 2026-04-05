@@ -907,25 +907,23 @@ export async function setAiExplanationConfig(
 // ============================================================================
 
 export interface WatchingLibraryConfig {
+  /** When false, Shows You Watch UI and media server favorites sync are disabled */
   enabled: boolean
-  useSymlinks: boolean
 }
 
 /**
- * Get watching library configuration
+ * Get Shows You Watch feature flag
  */
 export async function getWatchingLibraryConfig(): Promise<WatchingLibraryConfig> {
   const enabled = await getSystemSetting('watching_library_enabled')
-  const useSymlinks = await getSystemSetting('watching_library_use_symlinks')
 
   return {
     enabled: enabled !== 'false', // Default to true
-    useSymlinks: useSymlinks !== 'false', // Default to true (symlinks recommended for series)
   }
 }
 
 /**
- * Set watching library configuration
+ * Set Shows You Watch feature flag
  */
 export async function setWatchingLibraryConfig(
   config: Partial<WatchingLibraryConfig>
@@ -934,14 +932,7 @@ export async function setWatchingLibraryConfig(
     await setSystemSetting(
       'watching_library_enabled',
       String(config.enabled),
-      'Enable "Shows You Watch" library feature'
-    )
-  }
-  if (config.useSymlinks !== undefined) {
-    await setSystemSetting(
-      'watching_library_use_symlinks',
-      String(config.useSymlinks),
-      'Use symlinks instead of STRM files for watching libraries'
+      'Enable "Shows You Watch" feature'
     )
   }
   return getWatchingLibraryConfig()

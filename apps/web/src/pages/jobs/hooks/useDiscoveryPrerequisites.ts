@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 
 export interface DiscoveryPrerequisites {
   ready: boolean
-  jellyseerrConfigured: boolean
+  seerrConfigured: boolean
   enabledUserCount: number
   enabledUsernames: string[]
   message: string | null

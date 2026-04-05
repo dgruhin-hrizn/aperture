@@ -228,7 +228,7 @@ Navigate to **Admin → Settings → Setup → Integrations**
 | **TMDb** | Metadata enrichment | High |
 | **Trakt** | Rating sync | Medium |
 | **MDBList** | Top Picks source | Optional |
-| **Jellyseerr** | Discovery requests | Optional |
+| **Seerr** | Discovery requests | Optional |
 
 See [Integrations Overview](integrations-overview.md) for setup details.
 

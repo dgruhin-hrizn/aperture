@@ -19,6 +19,24 @@ export {
   getNetworkDetails,
 } from './client.js'
 
+// Person (search, profile, combined credits, cache)
+export {
+  normalizePersonNameKey,
+  searchPersonByName,
+  getPersonCombinedCredits,
+  getPersonTmdbCacheRow,
+  upsertPersonTmdbCache,
+  upsertPersonCombinedCreditsCache,
+  resolveTmdbPersonProfileImageUrl,
+  resolveTmdbPersonId,
+  getCachedOrFetchCombinedCredits,
+  COMBINED_CREDITS_CACHE_TTL_MS,
+  type TmdbPersonSearchResult,
+  type TmdbCombinedCreditsResponse,
+  type TmdbCombinedCreditEntry,
+  type ResolveTmdbPersonProfileResult,
+} from './person.js'
+
 // Client types
 export type { ApiLogCallback } from './client.js'
 

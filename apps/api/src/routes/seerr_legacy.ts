@@ -1,49 +1,35 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { requireAuth, requireAdmin, type SessionUser } from '../../plugins/auth.js'
-import { queryOne } from '../../lib/db.js'
+import { requireAuth, requireAdmin, type SessionUser } from '../plugins/auth.js'
+import { queryOne } from '../lib/db.js'
 import {
-  getJellyseerrConfig,
-  setJellyseerrConfig,
-  isJellyseerrConfigured,
-  testJellyseerrConnection,
-  getJellyseerrMediaStatus,
-  getJellyseerrTVDetails,
-  batchGetJellyseerrMediaStatus,
-  createJellyseerrRequest,
-  getJellyseerrRequestStatus,
+  getSeerrConfig,
+  setSeerrConfig,
+  isSeerrConfigured,
+  testSeerrConnection,
+  getSeerrMediaStatus,
+  getSeerrTVDetails,
+  batchGetSeerrMediaStatus,
+  createSeerrRequest,
+  getSeerrRequestStatus,
   createDiscoveryRequest,
   updateDiscoveryRequestStatus,
   getDiscoveryRequests,
   hasExistingRequest,
+  type SeerrConfig,
 } from '@aperture/core'
-import {
-  jellyseerrSchemas,
-  getJellyseerrConfigSchema,
-  updateJellyseerrConfigSchema,
-  testJellyseerrSchema,
-  getMediaStatusSchema,
-  getTVDetailsSchema,
-  createRequestSchema,
-  getRequestsSchema,
-  batchStatusSchema,
-  getRequestStatusSchema,
-} from './schemas.js'
 
-const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
-  // Register schemas
-  for (const [name, schema] of Object.entries(jellyseerrSchemas)) {
-    fastify.addSchema({ $id: name, ...schema })
-  }
+type MediaType = 'movie' | 'tv'
 
+const seerrRoutes: FastifyPluginAsync = async (fastify) => {
   /**
-   * GET /api/jellyseerr/config
-   * Get Jellyseerr configuration (admin only)
+   * GET /api/seerr/config
+   * Get Seerr configuration (admin only)
    */
   fastify.get(
-    '/api/jellyseerr/config',
-    { preHandler: requireAdmin, schema: getJellyseerrConfigSchema },
+    '/api/seerr/config',
+    { preHandler: requireAdmin, schema: { tags: ["seerr"] } },
     async (request, reply) => {
-      const config = await getJellyseerrConfig()
+      const config = await getSeerrConfig()
       
       return reply.send({
         configured: config !== null,
@@ -56,8 +42,8 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
   )
 
   /**
-   * PUT /api/jellyseerr/config
-   * Update Jellyseerr configuration (admin only)
+   * PUT /api/seerr/config
+   * Update Seerr configuration (admin only)
    */
   fastify.put<{
     Body: {
@@ -66,19 +52,19 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
       enabled?: boolean
     }
   }>(
-    '/api/jellyseerr/config',
-    { preHandler: requireAdmin, schema: updateJellyseerrConfigSchema },
+    '/api/seerr/config',
+    { preHandler: requireAdmin, schema: { tags: ["seerr"] } },
     async (request, reply) => {
       const { url, apiKey, enabled } = request.body
 
-      await setJellyseerrConfig({
+      await setSeerrConfig({
         url,
         apiKey,
         enabled,
       })
 
       return reply.send({
-        message: 'Jellyseerr configuration updated',
+        message: 'Seerr configuration updated',
         configured: !!(url && apiKey),
         enabled: enabled ?? false,
       })
@@ -86,8 +72,8 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
   )
 
   /**
-   * POST /api/jellyseerr/test
-   * Test Jellyseerr connection (admin only)
+   * POST /api/seerr/test
+   * Test Seerr connection (admin only)
    */
   fastify.post<{
     Body?: {
@@ -95,8 +81,8 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
       apiKey?: string
     }
   }>(
-    '/api/jellyseerr/test',
-    { preHandler: requireAdmin, schema: testJellyseerrSchema },
+    '/api/seerr/test',
+    { preHandler: requireAdmin, schema: { tags: ["seerr"] } },
     async (request, reply) => {
       const { url, apiKey } = request.body || {}
 
@@ -105,21 +91,21 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
         ? { url, apiKey, enabled: true }
         : undefined
 
-      const result = await testJellyseerrConnection(testConfig)
+      const result = await testSeerrConnection(testConfig)
 
       return reply.send(result)
     }
   )
 
   /**
-   * GET /api/jellyseerr/status/:mediaType/:tmdbId
-   * Get media status from Jellyseerr
+   * GET /api/seerr/status/:mediaType/:tmdbId
+   * Get media status from Seerr
    */
   fastify.get<{
     Params: { mediaType: string; tmdbId: string }
   }>(
-    '/api/jellyseerr/status/:mediaType/:tmdbId',
-    { preHandler: requireAuth, schema: getMediaStatusSchema },
+    '/api/seerr/status/:mediaType/:tmdbId',
+    { preHandler: requireAuth, schema: { tags: ["seerr"] } },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
       const { mediaType, tmdbId } = request.params
@@ -129,10 +115,10 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: 'Invalid media type' })
       }
 
-      // Check if Jellyseerr is configured
-      if (!await isJellyseerrConfigured()) {
+      // Check if Seerr is configured
+      if (!await isSeerrConfigured()) {
         return reply.status(503).send({
-          error: 'Jellyseerr not configured',
+          error: 'Seerr not configured',
           message: 'Content requests are not available',
         })
       }
@@ -145,12 +131,12 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
 
       const canRequest = user?.discover_request_enabled ?? false
 
-      // Get status from Jellyseerr
-      const status = await getJellyseerrMediaStatus(parseInt(tmdbId, 10), mediaType as 'movie' | 'tv')
+      // Get status from Seerr
+      const status = await getSeerrMediaStatus(parseInt(tmdbId, 10), mediaType as 'movie' | 'tv')
 
       if (!status) {
         return reply.send({
-          jellyseerrStatus: null,
+          seerrStatus: null,
           canRequest,
         })
       }
@@ -163,7 +149,7 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
       )
 
       return reply.send({
-        jellyseerrStatus: status,
+        seerrStatus: status,
         apertureRequest: existingRequest,
         canRequest,
       })
@@ -171,32 +157,32 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
   )
 
   /**
-   * GET /api/jellyseerr/tv/:tmdbId
+   * GET /api/seerr/tv/:tmdbId
    * Get TV show details with season information for the season selection modal
    */
   fastify.get<{
     Params: { tmdbId: string }
   }>(
-    '/api/jellyseerr/tv/:tmdbId',
-    { preHandler: requireAuth, schema: getTVDetailsSchema },
+    '/api/seerr/tv/:tmdbId',
+    { preHandler: requireAuth, schema: { tags: ["seerr"] } },
     async (request, reply) => {
       const { tmdbId } = request.params
 
-      // Check if Jellyseerr is configured
-      if (!await isJellyseerrConfigured()) {
+      // Check if Seerr is configured
+      if (!await isSeerrConfigured()) {
         return reply.status(503).send({
-          error: 'Jellyseerr not configured',
+          error: 'Seerr not configured',
           message: 'Content requests are not available',
         })
       }
 
-      // Fetch TV details from Jellyseerr
-      const tvDetails = await getJellyseerrTVDetails(parseInt(tmdbId, 10))
+      // Fetch TV details from Seerr
+      const tvDetails = await getSeerrTVDetails(parseInt(tmdbId, 10))
 
       if (!tvDetails) {
         return reply.status(404).send({
           error: 'TV show not found',
-          message: 'Could not fetch TV show details from Jellyseerr',
+          message: 'Could not fetch TV show details from Seerr',
         })
       }
 
@@ -205,7 +191,7 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
   )
 
   /**
-   * POST /api/jellyseerr/request
+   * POST /api/seerr/request
    * Create a content request
    */
   fastify.post<{
@@ -217,16 +203,16 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
       seasons?: number[] // For series
     }
   }>(
-    '/api/jellyseerr/request',
-    { preHandler: requireAuth, schema: createRequestSchema },
+    '/api/seerr/request',
+    { preHandler: requireAuth, schema: { tags: ["seerr"] } },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
       const { tmdbId, mediaType, title, discoveryCandidateId, seasons } = request.body
 
-      // Check if Jellyseerr is configured
-      if (!await isJellyseerrConfigured()) {
+      // Check if Seerr is configured
+      if (!await isSeerrConfigured()) {
         return reply.status(503).send({
-          error: 'Jellyseerr not configured',
+          error: 'Seerr not configured',
           message: 'Content requests are not available',
         })
       }
@@ -262,9 +248,9 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
         discoveryCandidateId
       )
 
-      // Submit to Jellyseerr
-      const jellyseerrMediaType = mediaType === 'movie' ? 'movie' : 'tv'
-      const result = await createJellyseerrRequest(tmdbId, jellyseerrMediaType, { seasons })
+      // Submit to Seerr
+      const seerrMediaType = mediaType === 'movie' ? 'movie' : 'tv'
+      const result = await createSeerrRequest(tmdbId, seerrMediaType, { seasons })
 
       if (!result.success) {
         // Update Aperture request as failed
@@ -273,35 +259,35 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
         })
 
         return reply.status(500).send({
-          error: 'Failed to submit request to Jellyseerr',
+          error: 'Failed to submit request to Seerr',
           message: result.message,
           apertureRequestId,
         })
       }
 
-      // Update Aperture request with Jellyseerr info
+      // Update Aperture request with Seerr info
       await updateDiscoveryRequestStatus(apertureRequestId, 'submitted', {
-        jellyseerrRequestId: result.requestId,
+        seerrRequestId: result.requestId,
       })
 
       return reply.send({
         success: true,
         message: 'Request submitted successfully',
         apertureRequestId,
-        jellyseerrRequestId: result.requestId,
+        seerrRequestId: result.requestId,
       })
     }
   )
 
   /**
-   * GET /api/jellyseerr/requests
+   * GET /api/seerr/requests
    * Get user's content requests
    */
   fastify.get<{
     Querystring: { mediaType?: string; status?: string; limit?: string }
   }>(
-    '/api/jellyseerr/requests',
-    { preHandler: requireAuth, schema: getRequestsSchema },
+    '/api/seerr/requests',
+    { preHandler: requireAuth, schema: { tags: ["seerr"] } },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
       const { mediaType, status, limit } = request.query
@@ -317,16 +303,16 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
   )
 
   /**
-   * POST /api/jellyseerr/status/batch
-   * Check Jellyseerr status for multiple items at once
+   * POST /api/seerr/status/batch
+   * Check Seerr status for multiple items at once
    */
   fastify.post<{
     Body: {
       items: { tmdbId: number; mediaType: 'movie' | 'series' }[]
     }
   }>(
-    '/api/jellyseerr/status/batch',
-    { preHandler: requireAuth, schema: batchStatusSchema },
+    '/api/seerr/status/batch',
+    { preHandler: requireAuth, schema: { tags: ["seerr"] } },
     async (request, reply) => {
       const { items } = request.body
 
@@ -339,18 +325,18 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: 'Maximum 100 items per batch' })
       }
 
-      // Check if Jellyseerr is configured
-      if (!await isJellyseerrConfigured()) {
+      // Check if Seerr is configured
+      if (!await isSeerrConfigured()) {
         return reply.send({ statuses: {} })
       }
 
-      // Convert to Jellyseerr format
-      const jellyseerrItems = items.map(item => ({
+      // Convert to Seerr format
+      const seerrItems = items.map(item => ({
         tmdbId: item.tmdbId,
         mediaType: (item.mediaType === 'movie' ? 'movie' : 'tv') as 'movie' | 'tv',
       }))
 
-      const statusMap = await batchGetJellyseerrMediaStatus(jellyseerrItems)
+      const statusMap = await batchGetSeerrMediaStatus(seerrItems)
 
       // Convert Map to object for JSON response
       const statuses: Record<number, {
@@ -369,14 +355,14 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
   )
 
   /**
-   * GET /api/jellyseerr/request/:requestId/status
+   * GET /api/seerr/request/:requestId/status
    * Get status of a specific request
    */
   fastify.get<{
     Params: { requestId: string }
   }>(
-    '/api/jellyseerr/request/:requestId/status',
-    { preHandler: requireAuth, schema: getRequestStatusSchema },
+    '/api/seerr/request/:requestId/status',
+    { preHandler: requireAuth, schema: { tags: ["seerr"] } },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
       const { requestId } = request.params
@@ -385,10 +371,10 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
       const apertureRequest = await queryOne<{
         id: string
         user_id: string
-        jellyseerr_request_id: number | null
+        seerr_request_id: number | null
         status: string
       }>(
-        `SELECT id, user_id, jellyseerr_request_id, status 
+        `SELECT id, user_id, seerr_request_id, status 
          FROM discovery_requests 
          WHERE id = $1`,
         [requestId]
@@ -403,19 +389,19 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(403).send({ error: 'Forbidden' })
       }
 
-      // If we have a Jellyseerr request ID, get the latest status
-      let jellyseerrStatus = null
-      if (apertureRequest.jellyseerr_request_id) {
-        jellyseerrStatus = await getJellyseerrRequestStatus(apertureRequest.jellyseerr_request_id)
+      // If we have a Seerr request ID, get the latest status
+      let seerrStatus = null
+      if (apertureRequest.seerr_request_id) {
+        seerrStatus = await getSeerrRequestStatus(apertureRequest.seerr_request_id)
         
-        // Update Aperture status if Jellyseerr status changed
-        if (jellyseerrStatus) {
+        // Update Aperture status if Seerr status changed
+        if (seerrStatus) {
           let newStatus = apertureRequest.status
-          if (jellyseerrStatus.status === 'approved' && apertureRequest.status !== 'approved') {
+          if (seerrStatus.status === 'approved' && apertureRequest.status !== 'approved') {
             newStatus = 'approved'
-          } else if (jellyseerrStatus.status === 'declined' && apertureRequest.status !== 'declined') {
+          } else if (seerrStatus.status === 'declined' && apertureRequest.status !== 'declined') {
             newStatus = 'declined'
-          } else if (jellyseerrStatus.mediaStatus === 'available' && apertureRequest.status !== 'available') {
+          } else if (seerrStatus.mediaStatus === 'available' && apertureRequest.status !== 'available') {
             newStatus = 'available'
           }
           
@@ -427,10 +413,11 @@ const jellyseerrRoutes: FastifyPluginAsync = async (fastify) => {
 
       return reply.send({
         apertureStatus: apertureRequest.status,
-        jellyseerrStatus,
+        seerrStatus,
       })
     }
   )
 }
 
-export default jellyseerrRoutes
+export default seerrRoutes
+

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   Box,
   Typography,
@@ -13,6 +13,8 @@ import {
   Dialog,
   Snackbar,
   Alert,
+  Chip,
+  Stack,
 } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { MoviePoster } from '@aperture/ui'
@@ -27,10 +29,56 @@ import {
   SimilarityGraph,
   GraphLegend,
   useSimilarityData,
+  CONNECTION_COLORS,
+  CONNECTION_LABELS,
 } from '../../../components/SimilarityGraph'
-import type { GraphNode } from '../../../components/SimilarityGraph'
+import type { GraphNode, ConnectionReason } from '../../../components/SimilarityGraph'
 import { GraphExplorer } from '../../../components/GraphExplorer'
 import type { MediaType, SimilarItem } from '../types'
+import {
+  DEFAULT_SIMILAR_MEDIA_LIMIT,
+  FULLSCREEN_SIMILAR_GRAPH_LIMIT,
+} from '../constants'
+
+const MAX_LIST_REASON_CHIPS = 3
+
+function ConnectionReasonChips({ reasons }: { reasons?: ConnectionReason[] }) {
+  if (!reasons?.length) return null
+  const shown = reasons.slice(0, MAX_LIST_REASON_CHIPS)
+  const extra = reasons.length - shown.length
+  return (
+    <Stack direction="row" flexWrap="wrap" gap={0.5} sx={{ mt: 0.75, justifyContent: 'center' }}>
+      {shown.map((r, i) => {
+        const baseLabel = CONNECTION_LABELS[r.type] ?? r.type
+        const detail = r.value
+          ? `${baseLabel}: ${r.value}`
+          : r.values?.length
+            ? `${baseLabel} (${r.values.slice(0, 2).join(', ')}${r.values.length > 2 ? '…' : ''})`
+            : baseLabel
+        return (
+          <Tooltip key={i} title={detail}>
+            <Chip
+              size="small"
+              label={baseLabel}
+              sx={{
+                height: 22,
+                maxWidth: '100%',
+                fontSize: '0.65rem',
+                borderLeft: 3,
+                borderColor: CONNECTION_COLORS[r.type] ?? 'grey.500',
+                bgcolor: 'action.hover',
+                '& .MuiChip-label': { px: 0.75, overflow: 'hidden', textOverflow: 'ellipsis' },
+              }}
+            />
+          </Tooltip>
+        )
+      })}
+      {extra > 0 && (
+        <Chip size="small" label={`+${extra}`} sx={{ height: 22, fontSize: '0.65rem' }} />
+      )}
+    </Stack>
+  )
+}
 
 interface SimilarMediaProps {
   mediaType: MediaType
@@ -43,7 +91,7 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
   const navigate = useNavigate()
   const { getRating, setRating } = useUserRatings()
   const { isWatching, toggleWatching } = useWatching()
-  const [viewMode, setViewMode] = useState<'list' | 'graph'>('graph')
+  const [viewMode, setViewMode] = useState<'list' | 'graph'>('list')
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
@@ -60,7 +108,10 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
     setFocusId,
     goToHistoryIndex,
     startOver,
-  } = useSimilarityData(mediaType, viewMode === 'graph' ? mediaId || null : null, { limit: 10, depth: 1 })
+  } = useSimilarityData(mediaType, viewMode === 'graph' ? mediaId || null : null, {
+    limit: DEFAULT_SIMILAR_MEDIA_LIMIT,
+    depth: 1,
+  })
 
   // Fetch expanded graph data for fullscreen (depth=3 - deep spider out effect)
   const {
@@ -71,7 +122,44 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
     setFocusId: fullscreenSetFocusId,
     goToHistoryIndex: fullscreenGoToHistoryIndex,
     startOver: fullscreenStartOver,
-  } = useSimilarityData(mediaType, isFullscreen ? mediaId || null : null, { limit: 12, depth: 3 })
+  } = useSimilarityData(mediaType, isFullscreen ? mediaId || null : null, {
+    limit: FULLSCREEN_SIMILAR_GRAPH_LIMIT,
+    depth: 3,
+  })
+
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      try {
+        const res = await fetch('/api/auth/me/preferences', { credentials: 'include' })
+        if (!res.ok || cancelled) return
+        const prefs = await res.json()
+        if (prefs.similarMediaView === 'graph' || prefs.similarMediaView === 'list') {
+          setViewMode(prefs.similarMediaView)
+        }
+      } catch {
+        // keep default list
+      }
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const handleViewModeChange = useCallback(async (_: unknown, v: 'list' | 'graph') => {
+    setViewMode(v)
+    try {
+      await fetch('/api/auth/me/preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ similarMediaView: v }),
+      })
+    } catch {
+      // non-fatal
+    }
+  }, [])
 
   // Get current center node title
   const currentTitle = graphData?.nodes.find((n) => n.isCenter)?.title || mediaTitle || 'Media'
@@ -128,7 +216,7 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Tabs
             value={viewMode}
-            onChange={(_, v) => setViewMode(v)}
+            onChange={handleViewModeChange}
             sx={{ minHeight: 36 }}
           >
             <Tab
@@ -154,23 +242,26 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
         <Grid container spacing={2}>
           {similar.map((item) => (
             <Grid item xs={6} sm={4} md={3} lg={3} key={item.id}>
-              <MoviePoster
-                title={item.title}
-                year={item.year}
-                posterUrl={item.poster_url}
-                genres={item.genres}
-                userRating={getRating(mediaType === 'movie' ? 'movie' : 'series', item.id)}
-                onRate={(rating) => handleRate(item.id, rating)}
-                isWatching={mediaType === 'series' ? isWatching(item.id) : undefined}
-                onWatchingToggle={
-                  mediaType === 'series' ? () => toggleWatching(item.id) : undefined
-                }
-                hideWatchingToggle={mediaType === 'movie'}
-                responsive
-                onClick={() =>
-                  navigate(`/${mediaType === 'movie' ? 'movies' : 'series'}/${item.id}`)
-                }
-              />
+              <Box>
+                <MoviePoster
+                  title={item.title}
+                  year={item.year}
+                  posterUrl={item.poster_url}
+                  genres={item.genres}
+                  userRating={getRating(mediaType === 'movie' ? 'movie' : 'series', item.id)}
+                  onRate={(rating) => handleRate(item.id, rating)}
+                  isWatching={mediaType === 'series' ? isWatching(item.id) : undefined}
+                  onWatchingToggle={
+                    mediaType === 'series' ? () => toggleWatching(item.id) : undefined
+                  }
+                  hideWatchingToggle={mediaType === 'movie'}
+                  responsive
+                  onClick={() =>
+                    navigate(`/${mediaType === 'movie' ? 'movies' : 'series'}/${item.id}`)
+                  }
+                />
+                <ConnectionReasonChips reasons={item.reasons} />
+              </Box>
             </Grid>
           ))}
         </Grid>

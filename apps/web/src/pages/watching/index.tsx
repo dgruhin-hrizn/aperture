@@ -40,7 +40,11 @@ export function WatchingPage() {
   const { series, loading, error, refreshing, removeSeries, refreshLibrary, refetch } = useWatchingData()
   const { getRating, setRating } = useUserRatings()
   const [addDialogOpen, setAddDialogOpen] = useState(false)
-  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean
+    message: string
+    severity: 'success' | 'error' | 'warning' | 'info'
+  }>({
     open: false,
     message: '',
     severity: 'success',
@@ -60,15 +64,25 @@ export function WatchingPage() {
   const handleRefresh = async () => {
     try {
       const result = await refreshLibrary()
-      setSnackbar({
-        open: true,
-        message: result.libraryCreated
-          ? `Library created with ${result.written} series`
-          : `Library updated with ${result.written} series`,
-        severity: 'success',
-      })
+      if (!result.success) {
+        setSnackbar({ open: true, message: result.message || 'Sync failed', severity: 'error' })
+        return
+      }
+      if (result.skipped) {
+        setSnackbar({ open: true, message: result.message, severity: 'warning' })
+        return
+      }
+      const detail: string[] = []
+      if (result.pushedToServer > 0) detail.push(`${result.pushedToServer} favorited on server`)
+      if (result.removedFromDb > 0) detail.push(`${result.removedFromDb} removed locally`)
+      if (result.pulledIntoDb > 0) detail.push(`${result.pulledIntoDb} added from server`)
+      if (result.pushErrors > 0) detail.push(`${result.pushErrors} push errors`)
+      const message =
+        detail.length > 0 ? `${result.message} (${detail.join(', ')})` : result.message
+      setSnackbar({ open: true, message, severity: 'success' })
+      await refetch()
     } catch {
-      setSnackbar({ open: true, message: 'Failed to refresh library', severity: 'error' })
+      setSnackbar({ open: true, message: 'Failed to sync favorites', severity: 'error' })
     }
   }
 
@@ -154,7 +168,7 @@ export function WatchingPage() {
       <Box display="flex" gap={1} mb={2}>
         {isMobile ? (
           <>
-            <Tooltip title={refreshing ? 'Syncing...' : 'Sync to Emby'}>
+            <Tooltip title={refreshing ? 'Syncing...' : 'Sync with media server favorites'}>
               <span>
                 <IconButton
                   onClick={handleRefresh}
@@ -186,7 +200,7 @@ export function WatchingPage() {
               disabled={refreshing || series.length === 0}
               size="small"
             >
-              {refreshing ? 'Syncing...' : 'Sync to Emby'}
+              {refreshing ? 'Syncing...' : 'Sync favorites'}
             </Button>
             <Button
               variant="contained"
@@ -278,8 +292,8 @@ export function WatchingPage() {
             No series in your watching list yet
           </Typography>
           <Typography variant="body2" color="text.secondary" mb={3}>
-            Add series you're currently watching to track them and see upcoming episodes.
-            Your watching list will be synced to Emby as a personal library.
+            Add series you are watching to track them and see upcoming episodes. Use Sync favorites to align your list
+            with series favorites on your media server.
           </Typography>
           <Button
             variant="contained"

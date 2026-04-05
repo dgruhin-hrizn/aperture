@@ -26,6 +26,8 @@ export interface PageViewModes {
   watchHistory?: ViewMode
   watching?: ViewMode
   browse?: ViewMode
+  /** Browse page → People tab (grid = cards, list = rows) */
+  browsePeople?: ViewMode
   recommendations?: ViewMode
 }
 
@@ -72,6 +74,8 @@ export interface UserUiPreferences {
   viewModes?: PageViewModes
   browseSort?: BrowseSortPreference
   browseFilterPresets?: BrowseFilterPreset[]
+  /** Movie/series detail: Similar Media section tab */
+  similarMediaView?: 'list' | 'graph'
 }
 
 /**

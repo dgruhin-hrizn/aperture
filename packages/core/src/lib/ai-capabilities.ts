@@ -116,6 +116,22 @@ export const PROVIDERS: ProviderMetadata[] = [
         costTier: 'low',
         inputCostPerMillion: 0.02,
       },
+      {
+        id: 'text-embedding-ada-002',
+        name: 'text-embedding-ada-002',
+        description:
+          'Legacy OpenAI embedding model. Prefer text-embedding-3-small for better quality and pricing.',
+        capabilities: {
+          supportsToolCalling: false,
+          supportsToolStreaming: false,
+          supportsObjectGeneration: false,
+          supportsEmbeddings: true,
+        },
+        embeddingDimensions: 1536,
+        quality: 'standard',
+        costTier: 'low',
+        inputCostPerMillion: 0.1,
+      },
     ],
     chatModels: [
       {
@@ -772,19 +788,20 @@ export const PROVIDERS: ProviderMetadata[] = [
     requiresBaseUrl: false,
     embeddingModels: [
       {
-        id: 'text-embedding-004',
-        name: 'Text Embedding 004',
-        description: 'Good for multilingual text.',
+        id: 'gemini-embedding-001',
+        name: 'Gemini Embedding 001',
+        description:
+          'Google Gemini embedding model for semantic search and retrieval. Default output is 3072 dimensions (matches API when output dimensionality is not set).',
         capabilities: {
           supportsToolCalling: false,
           supportsToolStreaming: false,
           supportsObjectGeneration: false,
           supportsEmbeddings: true,
         },
-        embeddingDimensions: 768,
+        embeddingDimensions: 3072,
         quality: 'standard',
         costTier: 'low',
-        inputCostPerMillion: 0.00, // Free at time of implementation
+        inputCostPerMillion: 0.0,
       },
     ],
     chatModels: [

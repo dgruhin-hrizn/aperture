@@ -1,23 +1,9 @@
 /**
  * Shows You Watch Module
- * 
- * Handles per-user "Shows You Watch" library management,
- * including STRM file generation and media server integration.
+ *
+ * Per-user list in `user_watching_series`, upcoming episode helpers,
+ * and bidirectional sync with media server series favorites (Emby/Jellyfin).
  */
-
-export {
-  getWatchingLibraryName,
-  ensureUserWatchingLibrary,
-  refreshUserWatchingLibrary,
-  updateUserWatchingLibraryPermissions,
-  getUserWatchingLibraryInfo,
-} from './library.js'
-
-export {
-  writeWatchingSeriesForUser,
-  processWatchingForUser,
-  processWatchingLibrariesForAllUsers,
-} from './writer.js'
 
 export {
   getUpcomingEpisodes,
@@ -25,3 +11,10 @@ export {
   type UpcomingEpisode,
 } from './upcomingEpisodes.js'
 
+export {
+  reconcileWatchingFavoritesForUser,
+  favoriteWatchingSeriesOnMediaServer,
+  unfavoriteWatchingSeriesOnMediaServer,
+  processWatchingFavoritesForAllUsers,
+  type ReconcileWatchingFavoritesResult,
+} from './favoriteSync.js'

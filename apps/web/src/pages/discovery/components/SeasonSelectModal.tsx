@@ -43,7 +43,7 @@ interface SeasonSelectModalProps {
   loading?: boolean
 }
 
-// Map Jellyseerr status codes to labels and colors
+// Map Seerr status codes to labels and colors
 const STATUS_CONFIG: Record<number, { label: string; color: 'default' | 'warning' | 'info' | 'success'; disabled: boolean }> = {
   1: { label: 'Not Requested', color: 'default', disabled: false },
   2: { label: 'Pending', color: 'warning', disabled: true },

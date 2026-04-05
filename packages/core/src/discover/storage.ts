@@ -884,23 +884,23 @@ export async function updateDiscoveryRequestStatus(
   requestId: string,
   status: DiscoveryRequestStatus,
   options: {
-    jellyseerrRequestId?: number
-    jellyseerrMediaId?: number
+    seerrRequestId?: number
+    seerrMediaId?: number
     statusMessage?: string
   } = {}
 ): Promise<void> {
   await query(
     `UPDATE discovery_requests 
      SET status = $2,
-         jellyseerr_request_id = COALESCE($3, jellyseerr_request_id),
-         jellyseerr_media_id = COALESCE($4, jellyseerr_media_id),
+         seerr_request_id = COALESCE($3, seerr_request_id),
+         seerr_media_id = COALESCE($4, seerr_media_id),
          status_message = COALESCE($5, status_message)
      WHERE id = $1`,
     [
       requestId,
       status,
-      options.jellyseerrRequestId ?? null,
-      options.jellyseerrMediaId ?? null,
+      options.seerrRequestId ?? null,
+      options.seerrMediaId ?? null,
       options.statusMessage ?? null,
     ]
   )
@@ -947,8 +947,8 @@ export async function getDiscoveryRequests(
     media_type: MediaType
     tmdb_id: number
     title: string
-    jellyseerr_request_id: number | null
-    jellyseerr_media_id: number | null
+    seerr_request_id: number | null
+    seerr_media_id: number | null
     status: DiscoveryRequestStatus
     status_message: string | null
     discovery_candidate_id: string | null
@@ -962,8 +962,8 @@ export async function getDiscoveryRequests(
     mediaType: row.media_type,
     tmdbId: row.tmdb_id,
     title: row.title,
-    jellyseerrRequestId: row.jellyseerr_request_id,
-    jellyseerrMediaId: row.jellyseerr_media_id,
+    seerrRequestId: row.seerr_request_id,
+    seerrMediaId: row.seerr_media_id,
     status: row.status,
     statusMessage: row.status_message,
     discoveryCandidateId: row.discovery_candidate_id,
@@ -986,8 +986,8 @@ export async function hasExistingRequest(
     media_type: MediaType
     tmdb_id: number
     title: string
-    jellyseerr_request_id: number | null
-    jellyseerr_media_id: number | null
+    seerr_request_id: number | null
+    seerr_media_id: number | null
     status: DiscoveryRequestStatus
     status_message: string | null
     discovery_candidate_id: string | null
@@ -1009,8 +1009,8 @@ export async function hasExistingRequest(
     mediaType: result.media_type,
     tmdbId: result.tmdb_id,
     title: result.title,
-    jellyseerrRequestId: result.jellyseerr_request_id,
-    jellyseerrMediaId: result.jellyseerr_media_id,
+    seerrRequestId: result.seerr_request_id,
+    seerrMediaId: result.seerr_media_id,
     status: result.status,
     statusMessage: result.status_message,
     discoveryCandidateId: result.discovery_candidate_id,

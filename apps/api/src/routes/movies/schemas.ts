@@ -55,6 +55,10 @@ export const listMoviesSchema = {
       minCommunityRating: { type: 'string' as const, description: 'Minimum community rating (0-10)', example: '7.0' },
       minMetacritic: { type: 'string' as const, description: 'Minimum Metacritic score (0-100)', example: '70' },
       resolution: { type: 'string' as const, description: 'Filter by resolution. Can pass multiple comma-separated values.', example: '4K,1080p' },
+      country: { type: 'string' as const, description: 'Filter by production country (ISO or label as stored). Comma-separated or repeated; match if any overlaps.', example: 'United States,Japan' },
+      watchStatus: { type: 'string' as const, enum: ['any', 'watched', 'unwatched'], description: 'Personal watch state for the current user', default: 'any' },
+      minWatchers: { type: 'string' as const, description: 'Minimum distinct users with watch history for this title (instance-wide)', example: '2' },
+      maxWatchers: { type: 'string' as const, description: 'Maximum distinct users with watch history for this title', example: '10' },
       sortBy: { 
         type: 'string' as const, 
         enum: ['title', 'year', 'releaseDate', 'rating', 'rtScore', 'metacritic', 'runtime', 'added'],
@@ -167,6 +171,12 @@ export const filterRangesSchema = {
   tags: ['movies'],
   summary: 'Get filter ranges',
   description: 'Get min/max values for year, runtime, and rating filters. Useful for building filter UI sliders and range inputs.',
+}
+
+export const countriesSchema = {
+  tags: ['movies'],
+  summary: 'List production countries',
+  description: 'Distinct production countries from movie metadata with title counts.',
 }
 
 // =============================================================================

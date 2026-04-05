@@ -1612,7 +1612,7 @@ export function TopPicksSection() {
       </Card>
       )}
 
-      {/* Auto-Request via Jellyseerr */}
+      {/* Auto-Request via Seerr */}
       <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
         <CardContent>
           <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -1620,13 +1620,13 @@ export function TopPicksSection() {
             Auto-Request Missing Content
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Automatically request missing Top Picks content through Jellyseerr. Only works with external sources (TMDB, MDBList).
+            Automatically request missing Top Picks content through Seerr. Only works with external sources (TMDB, MDBList).
           </Typography>
 
           <Alert severity="info" icon={<InfoOutlinedIcon />} sx={{ mb: 3 }}>
             <Typography variant="body2">
               When enabled, Aperture will periodically check your Top Picks list for items not in your library and automatically
-              submit requests to Jellyseerr. Make sure Jellyseerr is configured in <strong>Settings → Integrations</strong>.
+              submit requests to Seerr. Make sure Seerr is configured in <strong>Settings → Integrations</strong>.
             </Typography>
           </Alert>
 

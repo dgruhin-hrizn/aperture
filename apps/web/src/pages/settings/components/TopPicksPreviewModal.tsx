@@ -34,7 +34,7 @@ import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd'
 import FilterListIcon from '@mui/icons-material/FilterList'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
-import { MediaPosterCard, type JellyseerrStatus } from '../../../components/MediaPosterCard'
+import { MediaPosterCard, type SeerrStatus } from '../../../components/MediaPosterCard'
 import { SeasonSelectModal, type SeasonInfo } from '../../discovery/components/SeasonSelectModal'
 
 // ISO 639-1 language code to display name mapping
@@ -103,7 +103,7 @@ interface PreviewItem {
     originalLanguage: string | null
 }
 
-interface JellyseerrMediaStatus {
+interface SeerrMediaStatus {
     exists: boolean
     requested: boolean
     requestStatus?: 'pending' | 'approved' | 'declined' | 'unknown'
@@ -161,8 +161,8 @@ export function TopPicksPreviewModal({
     const [matchedItems, setMatchedItems] = useState<PreviewItem[]>([])
     const [missingItems, setMissingItems] = useState<PreviewItem[]>([])
     const [requestingItems, setRequestingItems] = useState<Set<number>>(new Set())
-    const [jellyseerrConfigured, setJellyseerrConfigured] = useState(false)
-    const [statusCache, setStatusCache] = useState<Map<number, JellyseerrMediaStatus>>(new Map())
+    const [seerrConfigured, setSeerrConfigured] = useState(false)
+    const [statusCache, setStatusCache] = useState<Map<number, SeerrMediaStatus>>(new Map())
     const [loadingStatuses, setLoadingStatuses] = useState(false)
     const [bulkRequesting, setBulkRequesting] = useState(false)
     const [bulkRequestProgress, setBulkRequestProgress] = useState({ current: 0, total: 0 })
@@ -245,18 +245,18 @@ export function TopPicksPreviewModal({
         }
     }, [mediaType, source, hybridExternalSource, mdblistListId, mdblistSort])
 
-    // Check if Jellyseerr is configured
-    const checkJellyseerr = useCallback(async () => {
+    // Check if Seerr is configured
+    const checkSeerr = useCallback(async () => {
         try {
-            const response = await fetch('/api/jellyseerr/config', { credentials: 'include' })
+            const response = await fetch('/api/seerr/config', { credentials: 'include' })
             if (response.ok) {
                 const data = await response.json()
-                setJellyseerrConfigured(data.configured === true)
+                setSeerrConfigured(data.configured === true)
                 return data.configured === true
             }
             return false
         } catch {
-            setJellyseerrConfigured(false)
+            setSeerrConfigured(false)
             return false
         }
     }, [])
@@ -268,7 +268,7 @@ export function TopPicksPreviewModal({
         posterPath?: string
     } | null> => {
         try {
-            const response = await fetch(`/api/jellyseerr/tv/${tmdbId}`, {
+            const response = await fetch(`/api/seerr/tv/${tmdbId}`, {
                 credentials: 'include',
             })
 
@@ -314,13 +314,13 @@ export function TopPicksPreviewModal({
         }
     }, [])
 
-    // Fetch Jellyseerr status for all missing items
-    const fetchJellyseerrStatuses = useCallback(async (items: PreviewItem[]) => {
+    // Fetch Seerr status for all missing items
+    const fetchSeerrStatuses = useCallback(async (items: PreviewItem[]) => {
         if (items.length === 0) return
 
         setLoadingStatuses(true)
-        const jellyseerrType = mediaType === 'movies' ? 'movie' : 'tv'
-        const newCache = new Map<number, JellyseerrMediaStatus>()
+        const seerrType = mediaType === 'movies' ? 'movie' : 'tv'
+        const newCache = new Map<number, SeerrMediaStatus>()
 
         // Fetch statuses in parallel (batch of 10 at a time to avoid overwhelming the server)
         const batchSize = 10
@@ -329,13 +329,13 @@ export function TopPicksPreviewModal({
             await Promise.all(
                 batch.map(async (item) => {
                     try {
-                        const response = await fetch(`/api/jellyseerr/status/${jellyseerrType}/${item.tmdbId}`, {
+                        const response = await fetch(`/api/seerr/status/${seerrType}/${item.tmdbId}`, {
                             credentials: 'include',
                         })
                         if (response.ok) {
                             const data = await response.json()
-                            if (data.jellyseerrStatus) {
-                                newCache.set(item.tmdbId, data.jellyseerrStatus)
+                            if (data.seerrStatus) {
+                                newCache.set(item.tmdbId, data.seerrStatus)
                             }
                         }
                     } catch {
@@ -355,21 +355,21 @@ export function TopPicksPreviewModal({
             setRequestingItems(new Set())
             setStatusCache(new Map())
 
-            // Fetch preview and then Jellyseerr statuses
+            // Fetch preview and then Seerr statuses
             const init = async () => {
                 const [missing, isConfigured] = await Promise.all([
                     fetchPreview(),
-                    checkJellyseerr(),
+                    checkSeerr(),
                 ])
 
-                // Only fetch Jellyseerr statuses if configured and there are missing items
+                // Only fetch Seerr statuses if configured and there are missing items
                 if (isConfigured && missing.length > 0) {
-                    await fetchJellyseerrStatuses(missing)
+                    await fetchSeerrStatuses(missing)
                 }
             }
             init()
         }
-    }, [open, fetchPreview, checkJellyseerr, fetchJellyseerrStatuses])
+    }, [open, fetchPreview, checkSeerr, fetchSeerrStatuses])
 
     const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
         setTabValue(newValue)
@@ -393,7 +393,7 @@ export function TopPicksPreviewModal({
         setRequestingItems(prev => new Set(prev).add(item.tmdbId))
 
         try {
-            const response = await fetch('/api/jellyseerr/request', {
+            const response = await fetch('/api/seerr/request', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -458,7 +458,7 @@ export function TopPicksPreviewModal({
             setBulkRequestProgress({ current: i + 1, total: requestableItems.length })
 
             try {
-                const response = await fetch('/api/jellyseerr/request', {
+                const response = await fetch('/api/seerr/request', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -484,7 +484,7 @@ export function TopPicksPreviewModal({
                 // Continue with next item
             }
 
-            // Small delay between requests to avoid overwhelming Jellyseerr
+            // Small delay between requests to avoid overwhelming Seerr
             if (i < requestableItems.length - 1) {
                 await new Promise(resolve => setTimeout(resolve, 300))
             }
@@ -518,8 +518,8 @@ export function TopPicksPreviewModal({
         const isRequesting = requestingItems.has(item.tmdbId)
         const status = statusCache.get(item.tmdbId)
 
-        // Convert to JellyseerrStatus format for MediaPosterCard
-        const jellyseerrStatus: JellyseerrStatus | undefined = status ? {
+        // Convert to SeerrStatus format for MediaPosterCard
+        const seerrStatus: SeerrStatus | undefined = status ? {
             requested: status.requested,
             requestStatus: status.requestStatus,
         } : undefined
@@ -534,8 +534,8 @@ export function TopPicksPreviewModal({
                     rank={item.rank}
                     mediaType={mediaType === 'movies' ? 'movie' : 'series'}
                     inLibrary={false}
-                    jellyseerrStatus={jellyseerrStatus}
-                    canRequest={jellyseerrConfigured && !loadingStatuses}
+                    seerrStatus={seerrStatus}
+                    canRequest={seerrConfigured && !loadingStatuses}
                     isRequesting={isRequesting}
                     onRequest={() => handleRequestItem(item)}
                     overview={item.overview}
@@ -746,9 +746,9 @@ export function TopPicksPreviewModal({
                         </Box>
                     ) : (
                         <>
-                            {!jellyseerrConfigured && (
+                            {!seerrConfigured && (
                                 <Alert severity="info" sx={{ mb: 2 }}>
-                                    Configure Jellyseerr in Settings → Integrations to request missing items.
+                                    Configure Seerr in Settings → Integrations to request missing items.
                                 </Alert>
                             )}
                             <Grid container spacing={2}>
@@ -760,7 +760,7 @@ export function TopPicksPreviewModal({
             </DialogContent>
 
             <DialogActions sx={{ p: 2 }}>
-                {tabValue === 1 && jellyseerrConfigured && getRequestableItems().length > 0 && mediaType === 'movies' && (
+                {tabValue === 1 && seerrConfigured && getRequestableItems().length > 0 && mediaType === 'movies' && (
                     <Button
                         variant="contained"
                         color="primary"
@@ -774,7 +774,7 @@ export function TopPicksPreviewModal({
                         }
                     </Button>
                 )}
-                {tabValue === 1 && jellyseerrConfigured && getRequestableItems().length > 0 && mediaType === 'series' && (
+                {tabValue === 1 && seerrConfigured && getRequestableItems().length > 0 && mediaType === 'series' && (
                     <Typography variant="body2" color="text.secondary">
                         Click on individual series to select seasons to request
                     </Typography>

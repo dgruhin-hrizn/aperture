@@ -1,38 +1,44 @@
 /**
- * Jellyseerr API Provider
+ * Seerr API Provider
  * 
- * Handles communication with Jellyseerr for content requests
+ * Handles communication with Seerr for content requests
  * Uses API Key authentication (admin-configured)
  */
 
 import { createChildLogger } from '../lib/logger.js'
 import { getSystemSetting, setSystemSetting } from '../settings/systemSettings.js'
 import type {
-  JellyseerrConfig,
-  JellyseerrSearchResult,
-  JellyseerrSearchItem,
-  JellyseerrMovieDetails,
-  JellyseerrTVDetails,
-  JellyseerrMediaInfo,
-  JellyseerrRequestBody,
-  JellyseerrRequestResponse,
-  JellyseerrMediaStatus,
-  JellyseerrRequestStatus,
+  SeerrConfig,
+  SeerrSearchResult,
+  SeerrSearchItem,
+  SeerrMovieDetails,
+  SeerrTVDetails,
+  SeerrMediaInfo,
+  SeerrRequestBody,
+  SeerrRequestResponse,
+  SeerrMediaStatus,
+  SeerrRequestStatus,
+  SeerrUser,
+  SeerrUserListResponse,
 } from './types.js'
+import {
+  matchApertureProfileToSeerrUser,
+  type ApertureUserProfileForSeerr,
+} from './userMapping.js'
 
-const logger = createChildLogger('jellyseerr')
+const logger = createChildLogger('seerr')
 
 // ============================================================================
 // Configuration
 // ============================================================================
 
 /**
- * Get Jellyseerr configuration from system settings
+ * Get Seerr configuration from system settings
  */
-export async function getJellyseerrConfig(): Promise<JellyseerrConfig | null> {
-  const url = await getSystemSetting('jellyseerr_url')
-  const apiKey = await getSystemSetting('jellyseerr_api_key')
-  const enabled = await getSystemSetting('jellyseerr_enabled')
+export async function getSeerrConfig(): Promise<SeerrConfig | null> {
+  const url = await getSystemSetting('seerr_url')
+  const apiKey = await getSystemSetting('seerr_api_key')
+  const enabled = await getSystemSetting('seerr_enabled')
 
   if (!url || !apiKey) {
     return null
@@ -46,25 +52,25 @@ export async function getJellyseerrConfig(): Promise<JellyseerrConfig | null> {
 }
 
 /**
- * Set Jellyseerr configuration in system settings
+ * Set Seerr configuration in system settings
  */
-export async function setJellyseerrConfig(config: Partial<JellyseerrConfig>): Promise<void> {
+export async function setSeerrConfig(config: Partial<SeerrConfig>): Promise<void> {
   if (config.url !== undefined) {
-    await setSystemSetting('jellyseerr_url', config.url.replace(/\/$/, ''))
+    await setSystemSetting('seerr_url', config.url.replace(/\/$/, ''))
   }
   if (config.apiKey !== undefined) {
-    await setSystemSetting('jellyseerr_api_key', config.apiKey)
+    await setSystemSetting('seerr_api_key', config.apiKey)
   }
   if (config.enabled !== undefined) {
-    await setSystemSetting('jellyseerr_enabled', String(config.enabled))
+    await setSystemSetting('seerr_enabled', String(config.enabled))
   }
 }
 
 /**
- * Check if Jellyseerr is configured and enabled
+ * Check if Seerr is configured and enabled
  */
-export async function isJellyseerrConfigured(): Promise<boolean> {
-  const config = await getJellyseerrConfig()
+export async function isSeerrConfigured(): Promise<boolean> {
+  const config = await getSeerrConfig()
   return config !== null && config.enabled && !!config.apiKey
 }
 
@@ -73,20 +79,20 @@ export async function isJellyseerrConfigured(): Promise<boolean> {
 // ============================================================================
 
 /**
- * Make a request to the Jellyseerr API
+ * Make a request to the Seerr API
  */
-async function jellyseerrRequest<T>(
+async function seerrRequest<T>(
   endpoint: string,
   options: {
     method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
     body?: Record<string, unknown>
-    config?: JellyseerrConfig
+    config?: SeerrConfig
   } = {}
 ): Promise<T | null> {
-  const config = options.config || await getJellyseerrConfig()
+  const config = options.config || await getSeerrConfig()
   
   if (!config) {
-    logger.warn('Jellyseerr not configured')
+    logger.warn('Seerr not configured')
     return null
   }
 
@@ -104,29 +110,29 @@ async function jellyseerrRequest<T>(
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error')
-      logger.error({ status: response.status, endpoint, error: errorText }, 'Jellyseerr API request failed')
+      logger.error({ status: response.status, endpoint, error: errorText }, 'Seerr API request failed')
       return null
     }
 
     return (await response.json()) as T
   } catch (err) {
-    logger.error({ err, endpoint }, 'Jellyseerr API request error')
+    logger.error({ err, endpoint }, 'Seerr API request error')
     return null
   }
 }
 
 /**
- * Test connection to Jellyseerr
+ * Test connection to Seerr
  */
-export async function testJellyseerrConnection(config?: JellyseerrConfig): Promise<{
+export async function testSeerrConnection(config?: SeerrConfig): Promise<{
   success: boolean
   message?: string
   serverName?: string
 }> {
-  const testConfig = config || await getJellyseerrConfig()
+  const testConfig = config || await getSeerrConfig()
   
   if (!testConfig) {
-    return { success: false, message: 'Jellyseerr not configured' }
+    return { success: false, message: 'Seerr not configured' }
   }
 
   try {
@@ -167,8 +173,8 @@ export async function testJellyseerrConnection(config?: JellyseerrConfig): Promi
 export async function searchContent(
   query: string,
   page: number = 1
-): Promise<JellyseerrSearchResult | null> {
-  return jellyseerrRequest<JellyseerrSearchResult>(
+): Promise<SeerrSearchResult | null> {
+  return seerrRequest<SeerrSearchResult>(
     `/search?query=${encodeURIComponent(query)}&page=${page}`
   )
 }
@@ -176,15 +182,15 @@ export async function searchContent(
 /**
  * Get movie details by TMDb ID
  */
-export async function getMovieDetails(tmdbId: number): Promise<JellyseerrMovieDetails | null> {
-  return jellyseerrRequest<JellyseerrMovieDetails>(`/movie/${tmdbId}`)
+export async function getMovieDetails(tmdbId: number): Promise<SeerrMovieDetails | null> {
+  return seerrRequest<SeerrMovieDetails>(`/movie/${tmdbId}`)
 }
 
 /**
  * Get TV show details by TMDb ID
  */
-export async function getTVDetails(tmdbId: number): Promise<JellyseerrTVDetails | null> {
-  return jellyseerrRequest<JellyseerrTVDetails>(`/tv/${tmdbId}`)
+export async function getTVDetails(tmdbId: number): Promise<SeerrTVDetails | null> {
+  return seerrRequest<SeerrTVDetails>(`/tv/${tmdbId}`)
 }
 
 /**
@@ -244,6 +250,41 @@ export async function getMediaStatus(
 }
 
 // ============================================================================
+// Seerr users (for mapping Aperture user ↔ Seerr user id)
+// ============================================================================
+
+/**
+ * Paginate GET /user until all Seerr users are loaded (admin API key).
+ */
+export async function listAllSeerrUsers(): Promise<SeerrUser[]> {
+  const all: SeerrUser[] = []
+  let skip = 0
+  const take = 50
+  while (true) {
+    const res = await seerrRequest<SeerrUserListResponse>(
+      `/user?take=${take}&skip=${skip}`
+    )
+    if (!res?.results?.length) break
+    all.push(...res.results)
+    skip += res.results.length
+    const total = res.pageInfo?.results ?? skip
+    if (skip >= total) break
+    if (res.results.length < take) break
+  }
+  return all
+}
+
+/**
+ * Resolve Seerr user id for an Aperture profile using GET /user (cached in DB by API).
+ */
+export async function resolveSeerrUserIdForProfile(
+  profile: ApertureUserProfileForSeerr
+): Promise<number | null> {
+  const users = await listAllSeerrUsers()
+  return matchApertureProfileToSeerrUser(profile, users)
+}
+
+// ============================================================================
 // Request Management
 // ============================================================================
 
@@ -256,19 +297,24 @@ export async function createRequest(
   options: {
     seasons?: number[] // For TV shows
     is4k?: boolean
+    /** Attribute request to this Seerr user (POST body userId) */
+    userId?: number
   } = {}
 ): Promise<{
   success: boolean
   requestId?: number
   message?: string
 }> {
-  const body: JellyseerrRequestBody = {
+  const body: SeerrRequestBody = {
     mediaType,
     mediaId: tmdbId,
     is4k: options.is4k,
   }
+  if (options.userId !== undefined) {
+    body.userId = options.userId
+  }
 
-  // For TV shows, Jellyseerr requires the seasons array
+  // For TV shows, Seerr requires the seasons array
   // If not provided, fetch the show details and request all seasons
   if (mediaType === 'tv') {
     if (options.seasons && options.seasons.length > 0) {
@@ -288,7 +334,7 @@ export async function createRequest(
     }
   }
 
-  const result = await jellyseerrRequest<JellyseerrRequestResponse>('/request', {
+  const result = await seerrRequest<SeerrRequestResponse>('/request', {
     method: 'POST',
     body: body as unknown as Record<string, unknown>,
   })
@@ -307,8 +353,8 @@ export async function createRequest(
 /**
  * Get a specific request by ID
  */
-export async function getRequest(requestId: number): Promise<JellyseerrRequestResponse | null> {
-  return jellyseerrRequest<JellyseerrRequestResponse>(`/request/${requestId}`)
+export async function getRequest(requestId: number): Promise<SeerrRequestResponse | null> {
+  return seerrRequest<SeerrRequestResponse>(`/request/${requestId}`)
 }
 
 /**
@@ -348,7 +394,7 @@ export async function getRequestStatus(requestId: number): Promise<{
  * Delete/cancel a request
  */
 export async function deleteRequest(requestId: number): Promise<boolean> {
-  const result = await jellyseerrRequest<{ success: boolean }>(`/request/${requestId}`, {
+  const result = await seerrRequest<{ success: boolean }>(`/request/${requestId}`, {
     method: 'DELETE',
   })
 

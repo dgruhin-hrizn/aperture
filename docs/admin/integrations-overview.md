@@ -18,7 +18,7 @@ Navigate to **Admin → Settings → Setup → Integrations**
 | [TMDb](tmdb.md) | Metadata enrichment | Recommended |
 | [OMDb](omdb.md) | Rotten Tomatoes, Metacritic scores | Optional |
 | [MDBList](mdblist.md) | Curated lists, Top Picks source | Optional |
-| [Jellyseerr](jellyseerr.md) | Discovery requests | Optional |
+| [Seerr](seerr.md) | Discovery requests | Optional |
 
 ---
 
@@ -48,7 +48,7 @@ Navigate to **Admin → Settings → Setup → Integrations**
 | Integration | Why |
 |-------------|-----|
 | **MDBList** | Only needed for MDBList-based Top Picks |
-| **Jellyseerr** | Only needed for Discovery request feature |
+| **Seerr** | Only needed for Discovery request feature |
 
 ---
 
@@ -94,7 +94,7 @@ Media Server → Aperture → TMDb (metadata)
                        → OMDb (scores)
                        → Trakt (ratings)
                        → MDBList (rankings)
-                       → Jellyseerr (requests)
+                       → Seerr (requests)
 ```
 
 ### What Each Integration Provides
@@ -120,7 +120,7 @@ Media Server → Aperture → TMDb (metadata)
 - Popularity rankings
 - Genre-specific lists
 
-**Jellyseerr:**
+**Seerr:**
 - Request management
 - Availability status
 - User request permissions
@@ -136,7 +136,7 @@ Recommended setup order for new installations:
 3. **OMDb** (adds critic scores)
 4. **Trakt** (if users use Trakt)
 5. **MDBList** (if using for Top Picks)
-6. **Jellyseerr** (if using Discovery)
+6. **Seerr** (if using Discovery)
 
 ---
 
@@ -207,7 +207,7 @@ To disable an integration:
 | OMDb | No RT/Metacritic scores |
 | Trakt | No rating sync |
 | MDBList | Can't use MDBList for Top Picks |
-| Jellyseerr | No request functionality |
+| Seerr | No request functionality |
 
 ---
 

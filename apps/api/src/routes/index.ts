@@ -27,7 +27,7 @@ import apiErrorsRoutes from './apiErrors/index.js'
 import similarityRoutes from './similarity/index.js'
 import graphPlaylistRoutes from './graphPlaylists/index.js'
 import discoveryRoutes from './discovery/index.js'
-import jellyseerrRoutes from './jellyseerr/index.js'
+import seerrRoutes from './seerr/index.js'
 import apiKeysRoutes from './apiKeys/index.js'
 import logoRoutes from './logo/index.js'
 
@@ -116,8 +116,8 @@ const routes: FastifyPluginAsync = async (fastify) => {
   // Register discovery routes (missing content suggestions)
   await fastify.register(discoveryRoutes)
 
-  // Register Jellyseerr routes (content requests)
-  await fastify.register(jellyseerrRoutes)
+  // Register Seerr routes (content requests)
+  await fastify.register(seerrRoutes)
 
   // Register API keys routes
   await fastify.register(apiKeysRoutes)

@@ -25,7 +25,7 @@ import {
   // Common
   createChildLogger,
   // Watching libraries
-  processWatchingLibrariesForAllUsers,
+  processWatchingFavoritesForAllUsers,
   getJobProgress,
   getAllJobProgress,
   subscribeToJob,
@@ -161,11 +161,11 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
     description: 'Sync ratings from Trakt for all connected users',
     cron: '0 */6 * * *', // Every 6 hours
   },
-  // === Watching Libraries Job ===
   {
-    name: 'sync-watching-libraries',
-    description: 'Sync "Shows You Watch" libraries for all users',
-    cron: '0 */4 * * *', // Every 4 hours
+    name: 'sync-watching-favorites',
+    description:
+      'Reconcile Shows You Watch with media server series favorites (Emby/Jellyfin) for all users',
+    cron: '0 */4 * * *',
   },
   // === Assistant Suggestions Job ===
   {
@@ -1009,9 +1009,8 @@ async function runJob(name: string, jobId: string): Promise<void> {
         )
         break
       }
-      // === Watching Libraries Job ===
-      case 'sync-watching-libraries': {
-        const result = await processWatchingLibrariesForAllUsers(jobId)
+      case 'sync-watching-favorites': {
+        const result = await processWatchingFavoritesForAllUsers(jobId)
         logger.info(
           {
             job: name,
@@ -1020,7 +1019,7 @@ async function runJob(name: string, jobId: string): Promise<void> {
             failed: result.failed,
             users: result.users.length,
           },
-          `✅ Watching libraries sync complete`
+          `✅ Watching favorites sync complete`
         )
         break
       }
@@ -1146,7 +1145,7 @@ async function runJob(name: string, jobId: string): Promise<void> {
 
         // Step 1: Check prerequisites
         setJobStep(jobId, 0, 'Checking prerequisites')
-        addLog(jobId, 'info', '🔍 Checking Jellyseerr configuration and user enablement...')
+        addLog(jobId, 'info', '🔍 Checking Seerr configuration and user enablement...')
 
         const result = await generateDiscoveryForAllUsers(DEFAULT_DISCOVERY_CONFIG, jobId)
 

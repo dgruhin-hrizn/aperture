@@ -98,8 +98,8 @@ export interface DiscoveryRequest {
   mediaType: MediaType
   tmdbId: number
   title: string
-  jellyseerrRequestId: number | null
-  jellyseerrMediaId: number | null
+  seerrRequestId: number | null
+  seerrMediaId: number | null
   status: DiscoveryRequestStatus
   statusMessage: string | null
   discoveryCandidateId: string | null

@@ -181,6 +181,21 @@ export interface MediaServerProvider {
    */
   getSeriesWatchHistory(apiKey: string, userId: string, sinceDate?: Date): Promise<WatchedEpisode[]>
 
+  /**
+   * List favorited series item ids for a user (paginated)
+   */
+  getFavoriteSeriesIdsForUser(apiKey: string, userId: string): Promise<string[]>
+
+  /**
+   * Mark a series item as favorite for a user
+   */
+  favoriteSeriesItem(apiKey: string, userId: string, itemId: string): Promise<void>
+
+  /**
+   * Remove favorite from a series item for a user (idempotent)
+   */
+  unfavoriteSeriesItem(apiKey: string, userId: string, itemId: string): Promise<void>
+
   // =========================================================================
   // Playlists
   // =========================================================================

@@ -66,3 +66,28 @@ export {
   poolCandidateToRaw,
 } from './storage.js'
 
+// Browse: distinct people in library (actors + directors)
+export {
+  listPeopleForBrowse,
+  type PersonBrowseRow,
+  type ListPeopleBrowseOptions,
+  type ListPeopleBrowseResult,
+} from './peopleBrowse.js'
+
+// TMDb credits vs library gap
+export {
+  getPersonCreditsGap,
+  flattenCombinedCredits,
+  flattenCombinedCreditsWithRoles,
+  creditsRoleKindFromEntry,
+  formatCreditsGapGroupLabel,
+  type PersonCreditsGapOptions,
+  type PersonCreditsGapRow,
+  type PersonCreditsGapResult,
+  type PersonCreditsGapGroup,
+  type CreditsRoleKind,
+} from './personCreditsGap.js'
+
+// Person portrait push (media server item id from sync)
+export { findPersonMediaServerItemIdForName } from './personPortraitPush.js'
+

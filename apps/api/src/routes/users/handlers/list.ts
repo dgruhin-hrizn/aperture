@@ -3,6 +3,8 @@ import { query, queryOne } from '../../../lib/db.js'
 import { requireAuth, requireAdmin, type SessionUser } from '../../../plugins/auth.js'
 import type { UserRow, UserListResponse, UserUpdateBody } from '../types.js'
 
+const USER_ROW_SELECT = `id, username, display_name, email, provider, provider_user_id, is_admin, is_enabled, movies_enabled, series_enabled, discover_enabled, discover_request_enabled, can_manage_watch_history, seerr_user_id, created_at, updated_at`
+
 export function registerListHandlers(fastify: FastifyInstance) {
   /**
    * GET /api/users
@@ -13,7 +15,7 @@ export function registerListHandlers(fastify: FastifyInstance) {
     { preHandler: requireAdmin, schema: { tags: ["users"] } },
     async (_request, reply) => {
       const result = await query<UserRow>(
-        `SELECT id, username, display_name, provider, provider_user_id, is_admin, is_enabled, movies_enabled, series_enabled, discover_enabled, discover_request_enabled, can_manage_watch_history, created_at, updated_at
+        `SELECT ${USER_ROW_SELECT}
          FROM users
          ORDER BY username ASC`
       )
@@ -42,7 +44,7 @@ export function registerListHandlers(fastify: FastifyInstance) {
       }
 
       const user = await queryOne<UserRow>(
-        `SELECT id, username, display_name, provider, provider_user_id, is_admin, is_enabled, movies_enabled, series_enabled, discover_enabled, discover_request_enabled, can_manage_watch_history, created_at, updated_at
+        `SELECT ${USER_ROW_SELECT}
          FROM users WHERE id = $1`,
         [id]
       )
@@ -64,7 +66,7 @@ export function registerListHandlers(fastify: FastifyInstance) {
     { preHandler: requireAdmin, schema: { tags: ["users"] } },
     async (request, reply) => {
       const { id } = request.params
-      const { displayName, isEnabled, moviesEnabled, seriesEnabled, discoverEnabled, discoverRequestEnabled, canManageWatchHistory } = request.body
+      const { displayName, isEnabled, moviesEnabled, seriesEnabled, discoverEnabled, discoverRequestEnabled, canManageWatchHistory, seerrUserId } = request.body
 
       // Build update query dynamically
       const updates: string[] = []
@@ -114,6 +116,11 @@ export function registerListHandlers(fastify: FastifyInstance) {
         values.push(canManageWatchHistory)
       }
 
+      if (seerrUserId !== undefined) {
+        updates.push(`seerr_user_id = $${paramIndex++}`)
+        values.push(seerrUserId)
+      }
+
       // If both movies and series are disabled, disable overall is_enabled
       if (moviesEnabled === false && seriesEnabled === false) {
         updates.push(`is_enabled = false`)
@@ -127,7 +134,7 @@ export function registerListHandlers(fastify: FastifyInstance) {
       const user = await queryOne<UserRow>(
         `UPDATE users SET ${updates.join(', ')}, updated_at = NOW()
          WHERE id = $${paramIndex}
-         RETURNING id, username, display_name, provider, provider_user_id, is_admin, is_enabled, movies_enabled, series_enabled, discover_enabled, discover_request_enabled, can_manage_watch_history, created_at, updated_at`,
+         RETURNING ${USER_ROW_SELECT}`,
         values
       )
 

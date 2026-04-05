@@ -84,7 +84,7 @@ export const jobDefinitions: JobDefinition[] = [
   },
   {
     name: 'auto-request-top-picks',
-    description: 'Automatically request missing Top Picks content via Jellyseerr',
+    description: 'Automatically request missing Top Picks content via Seerr',
     cron: '0 0 * * 0', // Weekly on Sunday at midnight (configurable via settings)
   },
   // === Trakt Sync Job ===
@@ -93,11 +93,12 @@ export const jobDefinitions: JobDefinition[] = [
     description: 'Sync ratings from Trakt for all connected users',
     cron: '0 */6 * * *', // Every 6 hours
   },
-  // === Watching Libraries Job ===
+  // === Shows You Watch (favorites sync) ===
   {
-    name: 'sync-watching-libraries',
-    description: 'Sync "Shows You Watch" libraries for all users',
-    cron: '0 */4 * * *', // Every 4 hours
+    name: 'sync-watching-favorites',
+    description:
+      'Reconcile Shows You Watch with media server series favorites (Emby/Jellyfin) for all users',
+    cron: '0 */4 * * *', // Every 4 hours (stagger from STRM job in Admin → Jobs)
   },
   // === Assistant Suggestions Job ===
   {

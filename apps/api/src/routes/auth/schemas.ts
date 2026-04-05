@@ -69,6 +69,11 @@ export const authSchemas = {
         description: 'Sort preferences for browse pages',
         example: { movies: { sortBy: 'title', sortOrder: 'asc' } }
       },
+      similarMediaView: {
+        type: 'string',
+        enum: ['list', 'graph'],
+        description: 'Default tab for Similar Movies/Series on media detail',
+      },
     },
   },
 
@@ -137,6 +142,11 @@ export const updatePreferencesSchema = {
       sidebarCollapsed: { type: 'boolean', description: 'Whether the sidebar should be collapsed' },
       viewModes: { type: 'object', additionalProperties: true, description: 'View mode preferences per page' },
       browseSort: { type: 'object', additionalProperties: true, description: 'Sort preferences for browse pages' },
+      similarMediaView: {
+        type: 'string',
+        enum: ['list', 'graph'],
+        description: 'Default tab for Similar Movies/Series on media detail',
+      },
     },
   },
 }

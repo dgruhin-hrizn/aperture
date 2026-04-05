@@ -1,6 +1,6 @@
 /**
  * OpenAPI/Swagger Configuration
- * 
+ *
  * Organized by concern for maintainability.
  */
 
@@ -11,7 +11,7 @@ import type { FastifySwaggerUiOptions } from '@fastify/swagger-ui'
 // API Information
 // =============================================================================
 
-const API_VERSION = '0.6.4'
+const API_VERSION = '0.7.0'
 
 const apiInfo = {
   title: 'Aperture API',
@@ -87,7 +87,8 @@ const tags = [
   // === Setup & Authentication (First Priority) ===
   {
     name: 'auth',
-    description: 'Authentication via media server credentials. Handles login/logout, session management, and user UI preferences.',
+    description:
+      'Authentication via media server credentials. Handles login/logout, session management, and user UI preferences.',
     externalDocs: {
       description: 'Logging In Guide',
       url: `${DOCS_BASE}/features/logging-in.md`,
@@ -95,7 +96,8 @@ const tags = [
   },
   {
     name: 'setup',
-    description: 'Initial setup wizard for first-time configuration. Guides through media server connection, library selection, and AI provider setup. Admin only.',
+    description:
+      'Initial setup wizard for first-time configuration. Guides through media server connection, library selection, and AI provider setup. Admin only.',
     externalDocs: {
       description: 'Setup Wizard Guide',
       url: `${DOCS_BASE}/admin/setup-wizard.md`,
@@ -103,7 +105,8 @@ const tags = [
   },
   {
     name: 'settings',
-    description: 'System configuration including media server, AI providers, recommendation algorithm tuning, and integration settings. Most endpoints are admin only.',
+    description:
+      'System configuration including media server, AI providers, recommendation algorithm tuning, and integration settings. Most endpoints are admin only.',
     externalDocs: {
       description: 'Integrations Overview',
       url: `${DOCS_BASE}/admin/integrations-overview.md`,
@@ -113,13 +116,15 @@ const tags = [
   // === Health & Monitoring ===
   {
     name: 'health',
-    description: 'Health check and monitoring endpoints. Returns server status, version info, and dependency health.',
+    description:
+      'Health check and monitoring endpoints. Returns server status, version info, and dependency health.',
   },
 
   // === User Management ===
   {
     name: 'users',
-    description: 'User account management including profiles, permissions, and admin user operations. Admin endpoints require admin privileges.',
+    description:
+      'User account management including profiles, permissions, and admin user operations. Admin endpoints require admin privileges.',
     externalDocs: {
       description: 'User Management Guide',
       url: `${DOCS_BASE}/admin/user-management.md`,
@@ -127,7 +132,8 @@ const tags = [
   },
   {
     name: 'dashboard',
-    description: 'User dashboard data including watch statistics, recent activity, and personalized metrics.',
+    description:
+      'User dashboard data including watch statistics, recent activity, and personalized metrics.',
     externalDocs: {
       description: 'Dashboard Features',
       url: `${DOCS_BASE}/features/dashboard.md`,
@@ -135,7 +141,8 @@ const tags = [
   },
   {
     name: 'ratings',
-    description: 'User ratings (1-10 scale) for movies and series. Ratings influence recommendation algorithm and can sync with Trakt.',
+    description:
+      'User ratings (1-10 scale) for movies and series. Ratings influence recommendation algorithm and can sync with Trakt.',
     externalDocs: {
       description: 'Ratings Guide',
       url: `${DOCS_BASE}/features/ratings.md`,
@@ -143,7 +150,8 @@ const tags = [
   },
   {
     name: 'watching',
-    description: 'Currently watching content and watch progress tracking. Synced from media server watch history.',
+    description:
+      'Currently watching content and watch progress tracking. Synced from media server watch history.',
     externalDocs: {
       description: 'Watch History',
       url: `${DOCS_BASE}/features/watch-history.md`,
@@ -153,7 +161,8 @@ const tags = [
   // === Media Library ===
   {
     name: 'movies',
-    description: 'Movie library browsing, filtering, and metadata. Includes genres, collections/franchises, and enriched data from TMDb/OMDb.',
+    description:
+      'Movie library browsing, filtering, and metadata. Includes genres, collections/franchises, and enriched data from TMDb/OMDb.',
     externalDocs: {
       description: 'Movie Details',
       url: `${DOCS_BASE}/features/movie-detail.md`,
@@ -161,7 +170,8 @@ const tags = [
   },
   {
     name: 'series',
-    description: 'TV series library with seasons, episodes, and metadata. Includes enriched data and watch progress per episode.',
+    description:
+      'TV series library with seasons, episodes, and metadata. Includes enriched data and watch progress per episode.',
     externalDocs: {
       description: 'Series Details',
       url: `${DOCS_BASE}/features/series-detail.md`,
@@ -169,7 +179,8 @@ const tags = [
   },
   {
     name: 'search',
-    description: 'Global search across movies, series, and people. Supports fuzzy matching and filters.',
+    description:
+      'Global search across movies, series, and people. Supports fuzzy matching and filters.',
     externalDocs: {
       description: 'Global Search',
       url: `${DOCS_BASE}/features/global-search.md`,
@@ -177,13 +188,15 @@ const tags = [
   },
   {
     name: 'media',
-    description: 'Media file proxying and image endpoints. Proxies requests to Emby/Jellyfin for posters, backdrops, and streaming URLs.',
+    description:
+      'Media file proxying and image endpoints. Proxies requests to Emby/Jellyfin for posters, backdrops, and streaming URLs.',
   },
 
   // === AI & Recommendations ===
   {
     name: 'recommendations',
-    description: 'AI-powered personalized recommendations using semantic similarity. Requires embeddings to be generated. Supports configurable algorithm weights for similarity, novelty, ratings, and diversity.',
+    description:
+      'AI-powered personalized recommendations using semantic similarity. Requires embeddings to be generated. Supports configurable algorithm weights for similarity, novelty, ratings, and diversity.',
     externalDocs: {
       description: 'Recommendations Guide',
       url: `${DOCS_BASE}/features/recommendations.md`,
@@ -191,7 +204,8 @@ const tags = [
   },
   {
     name: 'ai-assistant',
-    description: 'AI chat assistant for conversational media discovery. Uses configured chat model to answer questions about your library and provide recommendations.',
+    description:
+      'AI chat assistant for conversational media discovery. Uses configured chat model to answer questions about your library and provide recommendations.',
     externalDocs: {
       description: 'AI Assistant Guide',
       url: `${DOCS_BASE}/features/ai-assistant.md`,
@@ -199,7 +213,8 @@ const tags = [
   },
   {
     name: 'discovery',
-    description: 'Content discovery features including curated suggestions, genre exploration, and mood-based browsing.',
+    description:
+      'Content discovery features including curated suggestions, genre exploration, and mood-based browsing.',
     externalDocs: {
       description: 'Discovery Features',
       url: `${DOCS_BASE}/features/discovery.md`,
@@ -207,7 +222,8 @@ const tags = [
   },
   {
     name: 'similarity',
-    description: 'Similar content lookup and interactive similarity graph exploration. Uses AI embeddings to find semantically similar movies/series.',
+    description:
+      'Similar content lookup and interactive similarity graph exploration. Uses AI embeddings to find semantically similar movies/series.',
     externalDocs: {
       description: 'Similarity Graphs',
       url: `${DOCS_BASE}/features/similarity-graphs.md`,
@@ -215,7 +231,8 @@ const tags = [
   },
   {
     name: 'top-picks',
-    description: 'Curated top picks generated per user based on their taste profile. Refreshed on configurable schedule.',
+    description:
+      'Curated top picks generated per user based on their taste profile. Refreshed on configurable schedule.',
     externalDocs: {
       description: 'Top Picks Guide',
       url: `${DOCS_BASE}/features/top-picks.md`,
@@ -239,7 +256,8 @@ const tags = [
   // === Administration ===
   {
     name: 'admin',
-    description: 'Administrative functions including system status, database management, and global settings. All endpoints require admin privileges.',
+    description:
+      'Administrative functions including system status, database management, and global settings. All endpoints require admin privileges.',
     externalDocs: {
       description: 'Admin Guide',
       url: `${DOCS_BASE}/admin-guide.md`,
@@ -247,7 +265,8 @@ const tags = [
   },
   {
     name: 'jobs',
-    description: 'Background job management including library sync, enrichment, embedding generation, and recommendation runs. View status, trigger manually, or configure schedules. Admin only.',
+    description:
+      'Background job management including library sync, enrichment, embedding generation, and recommendation runs. View status, trigger manually, or configure schedules. Admin only.',
     externalDocs: {
       description: 'Jobs Overview',
       url: `${DOCS_BASE}/admin/jobs-overview.md`,
@@ -255,7 +274,8 @@ const tags = [
   },
   {
     name: 'backup',
-    description: 'Database backup and restore functionality. Create snapshots, download backups, and restore from previous states. Admin only.',
+    description:
+      'Database backup and restore functionality. Create snapshots, download backups, and restore from previous states. Admin only.',
     externalDocs: {
       description: 'Backup & Restore Guide',
       url: `${DOCS_BASE}/admin/backup-restore.md`,
@@ -263,11 +283,13 @@ const tags = [
   },
   {
     name: 'api-keys',
-    description: 'API key creation and management for programmatic access. Keys are prefixed with `apt_` and can have expiration dates. Admin only.',
+    description:
+      'API key creation and management for programmatic access. Keys are prefixed with `apt_` and can have expiration dates. Admin only.',
   },
   {
     name: 'api-errors',
-    description: 'Error tracking and diagnostics. View recent API errors, stack traces, and error patterns for debugging. Admin only.',
+    description:
+      'Error tracking and diagnostics. View recent API errors, stack traces, and error patterns for debugging. Admin only.',
     externalDocs: {
       description: 'API Errors Guide',
       url: `${DOCS_BASE}/admin/api-errors.md`,
@@ -277,23 +299,26 @@ const tags = [
   // === Integrations ===
   {
     name: 'trakt',
-    description: 'Trakt.tv integration for syncing watch history, ratings, and watchlists. Requires Trakt account connection.',
+    description:
+      'Trakt.tv integration for syncing watch history, ratings, and watchlists. Requires Trakt account connection.',
     externalDocs: {
       description: 'Trakt Integration',
       url: `${DOCS_BASE}/features/trakt-integration.md`,
     },
   },
   {
-    name: 'jellyseerr',
-    description: 'Jellyseerr/Overseerr integration for requesting new content. Shows request status on movie/series pages.',
+    name: 'seerr',
+    description:
+      'Seerr/Overseerr integration for requesting new content. Shows request status on movie/series pages.',
     externalDocs: {
-      description: 'Jellyseerr Setup',
-      url: `${DOCS_BASE}/admin/jellyseerr.md`,
+      description: 'Seerr Setup',
+      url: `${DOCS_BASE}/admin/seerr.md`,
     },
   },
   {
     name: 'mdblist',
-    description: 'MDBList integration for additional ratings and list imports. Provides Trakt, IMDb, and community list data.',
+    description:
+      'MDBList integration for additional ratings and list imports. Provides Trakt, IMDb, and community list data.',
     externalDocs: {
       description: 'MDBList Setup',
       url: `${DOCS_BASE}/admin/mdblist.md`,
@@ -364,16 +389,36 @@ export const schemas = {
       id: { type: 'string' as const, format: 'uuid', description: 'Unique movie identifier' },
       providerItemId: { type: 'string' as const, description: 'ID from Emby/Jellyfin' },
       title: { type: 'string' as const, description: 'Movie title' },
-      originalTitle: { type: 'string' as const, nullable: true, description: 'Original language title' },
+      originalTitle: {
+        type: 'string' as const,
+        nullable: true,
+        description: 'Original language title',
+      },
       year: { type: 'integer' as const, nullable: true, description: 'Release year' },
-      genres: { type: 'array' as const, items: { type: 'string' as const }, description: 'Genre list' },
+      genres: {
+        type: 'array' as const,
+        items: { type: 'string' as const },
+        description: 'Genre list',
+      },
       overview: { type: 'string' as const, nullable: true, description: 'Plot summary' },
       communityRating: { type: 'number' as const, nullable: true, description: 'Rating from 0-10' },
-      runtimeMinutes: { type: 'integer' as const, nullable: true, description: 'Runtime in minutes' },
+      runtimeMinutes: {
+        type: 'integer' as const,
+        nullable: true,
+        description: 'Runtime in minutes',
+      },
       posterUrl: { type: 'string' as const, nullable: true, description: 'Poster image URL' },
       backdropUrl: { type: 'string' as const, nullable: true, description: 'Backdrop image URL' },
-      rtCriticScore: { type: 'integer' as const, nullable: true, description: 'Rotten Tomatoes critic score' },
-      awardsSummary: { type: 'string' as const, nullable: true, description: 'Awards and nominations' },
+      rtCriticScore: {
+        type: 'integer' as const,
+        nullable: true,
+        description: 'Rotten Tomatoes critic score',
+      },
+      awardsSummary: {
+        type: 'string' as const,
+        nullable: true,
+        description: 'Awards and nominations',
+      },
     },
     example: {
       id: '123e4567-e89b-12d3-a456-426614174000',
@@ -436,13 +481,33 @@ export const schemas = {
       imdbId: { type: 'string' as const, nullable: true, description: 'IMDb ID (e.g., tt0133093)' },
       tmdbId: { type: 'string' as const, nullable: true, description: 'TMDb ID' },
       // Enrichment scores
-      rtCriticScore: { type: 'integer' as const, nullable: true, description: 'Rotten Tomatoes critic score (0-100)' },
-      rtAudienceScore: { type: 'integer' as const, nullable: true, description: 'Rotten Tomatoes audience score (0-100)' },
-      metacriticScore: { type: 'integer' as const, nullable: true, description: 'Metacritic score (0-100)' },
-      letterboxdScore: { type: 'number' as const, nullable: true, description: 'Letterboxd rating (0-5)' },
+      rtCriticScore: {
+        type: 'integer' as const,
+        nullable: true,
+        description: 'Rotten Tomatoes critic score (0-100)',
+      },
+      rtAudienceScore: {
+        type: 'integer' as const,
+        nullable: true,
+        description: 'Rotten Tomatoes audience score (0-100)',
+      },
+      metacriticScore: {
+        type: 'integer' as const,
+        nullable: true,
+        description: 'Metacritic score (0-100)',
+      },
+      letterboxdScore: {
+        type: 'number' as const,
+        nullable: true,
+        description: 'Letterboxd rating (0-5)',
+      },
       // Collections
       collectionId: { type: 'string' as const, nullable: true },
-      collectionName: { type: 'string' as const, nullable: true, description: 'Franchise name (e.g., "The Matrix Collection")' },
+      collectionName: {
+        type: 'string' as const,
+        nullable: true,
+        description: 'Franchise name (e.g., "The Matrix Collection")',
+      },
       // Keywords
       keywords: { type: 'array' as const, nullable: true, items: { type: 'string' as const } },
     },
@@ -479,14 +544,22 @@ export const schemas = {
       title: { type: 'string' as const, description: 'Series title' },
       originalTitle: { type: 'string' as const, nullable: true },
       year: { type: 'integer' as const, nullable: true, description: 'First air year' },
-      endYear: { type: 'integer' as const, nullable: true, description: 'Last air year (null if ongoing)' },
+      endYear: {
+        type: 'integer' as const,
+        nullable: true,
+        description: 'Last air year (null if ongoing)',
+      },
       genres: { type: 'array' as const, items: { type: 'string' as const } },
       overview: { type: 'string' as const, nullable: true },
       communityRating: { type: 'number' as const, nullable: true },
       status: { type: 'string' as const, nullable: true, description: 'Continuing, Ended, etc.' },
       totalSeasons: { type: 'integer' as const, nullable: true },
       totalEpisodes: { type: 'integer' as const, nullable: true },
-      network: { type: 'string' as const, nullable: true, description: 'Original network/streaming service' },
+      network: {
+        type: 'string' as const,
+        nullable: true,
+        description: 'Original network/streaming service',
+      },
       posterUrl: { type: 'string' as const, nullable: true },
       backdropUrl: { type: 'string' as const, nullable: true },
     },
@@ -604,8 +677,16 @@ export const schemas = {
       id: { type: 'string' as const, format: 'uuid' },
       movieId: { type: 'string' as const, format: 'uuid', nullable: true },
       seriesId: { type: 'string' as const, format: 'uuid', nullable: true },
-      rating: { type: 'integer' as const, minimum: 1, maximum: 10, description: 'Rating from 1-10' },
-      source: { type: 'string' as const, description: 'Where the rating came from (manual, trakt, etc.)' },
+      rating: {
+        type: 'integer' as const,
+        minimum: 1,
+        maximum: 10,
+        description: 'Rating from 1-10',
+      },
+      source: {
+        type: 'string' as const,
+        description: 'Where the rating came from (manual, trakt, etc.)',
+      },
       createdAt: { type: 'string' as const, format: 'date-time' },
       updatedAt: { type: 'string' as const, format: 'date-time' },
       // Joined fields

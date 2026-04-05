@@ -84,7 +84,7 @@ export interface TopPicksConfig {
   // Hybrid mode weights
   hybridLocalWeight: number
   hybridExternalWeight: number
-  // Auto-request settings (Jellyseerr integration)
+  // Auto-request settings (Seerr integration)
   moviesAutoRequestEnabled: boolean
   moviesAutoRequestLimit: number
   seriesAutoRequestEnabled: boolean

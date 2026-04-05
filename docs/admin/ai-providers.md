@@ -174,7 +174,7 @@ Google's Gemini models.
 
 | Purpose | Recommended Model |
 |---------|-------------------|
-| Embeddings | text-embedding-004 |
+| Embeddings | gemini-embedding-001 |
 | Text | gemini-1.5-flash |
 | Chat | gemini-1.5-pro |
 
@@ -276,4 +276,4 @@ After configuring:
 
 ---
 
-**Previous:** [Jellyseerr Integration](jellyseerr.md) | **Next:** [Embedding Models](embedding-models.md)
+**Previous:** [Seerr Integration](seerr.md) | **Next:** [Embedding Models](embedding-models.md)

@@ -118,7 +118,7 @@ export function registerProviderHandlers(fastify: FastifyInstance) {
         const newUser = await queryOne<UserRow>(
           `INSERT INTO users (username, display_name, provider, provider_user_id, is_admin, is_enabled, movies_enabled, series_enabled, max_parental_rating)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-           RETURNING id, username, display_name, provider, provider_user_id, is_admin, is_enabled, movies_enabled, series_enabled, max_parental_rating, created_at, updated_at`,
+           RETURNING *`,
           [providerUser.name, providerUser.name, provider.type, providerUserId, providerUser.isAdmin, enableMovies || enableSeries, enableMovies, enableSeries, providerUser.maxParentalRating ?? null]
         )
 

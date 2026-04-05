@@ -1,6 +1,6 @@
-# Jellyseerr Integration
+# Seerr Integration
 
-Connect to Jellyseerr (or Overseerr) to enable content requests from the Discovery page.
+Connect to Seerr (or Overseerr) to enable content requests from the Discovery page.
 
 ![Admin Settings - Integrations](../images/admin/admin-settings-setup-integrations.png)
 
@@ -10,7 +10,7 @@ Navigate to **Admin → Settings → Setup → Integrations**
 
 ---
 
-## What Jellyseerr Provides
+## What Seerr Provides
 
 | Feature | Description |
 |---------|-------------|
@@ -23,17 +23,17 @@ Navigate to **Admin → Settings → Setup → Integrations**
 
 ## Prerequisites
 
-- Jellyseerr or Overseerr installed and running
+- Seerr or Overseerr installed and running
 - API access enabled
-- Users configured in Jellyseerr
+- Users configured in Seerr
 
 ---
 
 ## Getting Your API Key
 
-### Jellyseerr
+### Seerr
 
-1. Open Jellyseerr web interface
+1. Open Seerr web interface
 2. Go to **Settings → General**
 3. Find **API Key** section
 4. Click **View** or **Copy**
@@ -50,13 +50,13 @@ Navigate to **Admin → Settings → Setup → Integrations**
 ## Configuration
 
 1. Navigate to Admin → Settings → Setup → Integrations
-2. Find Jellyseerr section
+2. Find Seerr section
 3. Enter:
 
 | Field | Value |
 |-------|-------|
-| **URL** | Full Jellyseerr URL (e.g., `http://192.168.1.100:5055`) |
-| **API Key** | Your Jellyseerr API key |
+| **URL** | Full Seerr URL (e.g., `http://192.168.1.100:5055`) |
+| **API Key** | Your Seerr API key |
 
 4. Click **Test Connection**
 5. Click **Save**
@@ -65,13 +65,13 @@ Navigate to **Admin → Settings → Setup → Integrations**
 
 ## User Mapping
 
-Jellyseerr needs to map Aperture users to Jellyseerr users:
+Seerr needs to map Aperture users to Seerr users:
 
 ### Automatic Mapping
 
 If usernames match between:
 - Aperture (from media server)
-- Jellyseerr
+- Seerr
 
 Users are mapped automatically.
 
@@ -79,13 +79,13 @@ Users are mapped automatically.
 
 If usernames differ:
 1. Users may need to link accounts manually
-2. Or admin configures mapping in Jellyseerr
+2. Or admin configures mapping in Seerr
 
 ---
 
 ## Discovery Integration
 
-With Jellyseerr configured:
+With Seerr configured:
 
 ### Request Button
 
@@ -116,14 +116,14 @@ Control who can request:
 | Level | Access |
 |-------|--------|
 | **Admin** | All requests |
-| **User** | Based on Jellyseerr quota |
+| **User** | Based on Seerr quota |
 | **Guest** | Usually no requests |
 
-Configure in Jellyseerr's user settings.
+Configure in Seerr's user settings.
 
 ### Quota Management
 
-Jellyseerr can limit:
+Seerr can limit:
 - Movies per week
 - Series per week
 - Total pending requests
@@ -134,7 +134,7 @@ Jellyseerr can limit:
 
 1. User finds content on Discovery page
 2. Clicks **Request**
-3. Request created in Jellyseerr
+3. Request created in Seerr
 4. Admin reviews (if auto-approve disabled)
 5. Content downloads via Radarr/Sonarr
 6. Appears in library
@@ -147,37 +147,37 @@ Jellyseerr can limit:
 ### "Connection refused"
 
 - Verify URL is correct
-- Check Jellyseerr is running
+- Check Seerr is running
 - Ensure port is accessible
 
 ### "Unauthorized"
 
 - API key is invalid or expired
-- Generate new key in Jellyseerr
+- Generate new key in Seerr
 - Check key permissions
 
 ### Request Button Not Showing
 
 - User may not have request permission
 - User mapping may have failed
-- Check Jellyseerr user settings
+- Check Seerr user settings
 
 ### Requests Not Updating
 
-- Check Jellyseerr is processing requests
-- Verify Radarr/Sonarr connection in Jellyseerr
-- Look for errors in Jellyseerr logs
+- Check Seerr is processing requests
+- Verify Radarr/Sonarr connection in Seerr
+- Look for errors in Seerr logs
 
 ---
 
-## Without Jellyseerr
+## Without Seerr
 
-If not using Jellyseerr:
+If not using Seerr:
 - Discovery still works
 - Shows "Not Available" instead of request button
 - Users can manually request through other means
 
-Discovery is fully functional without Jellyseerr, just without the request workflow.
+Discovery is fully functional without Seerr, just without the request workflow.
 
 ---
 

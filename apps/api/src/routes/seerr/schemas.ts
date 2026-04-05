@@ -1,19 +1,19 @@
 /**
- * Jellyseerr Integration OpenAPI Schemas
+ * Seerr Integration OpenAPI Schemas
  * 
- * Integration with Jellyseerr/Overseerr for content requests.
+ * Integration with Seerr/Overseerr for content requests.
  * Allows users to request movies/series not in their library.
  */
 
-export const jellyseerrSchemas = {
-  // Jellyseerr config
-  JellyseerrConfig: {
+export const seerrSchemas = {
+  // Seerr config
+  SeerrConfig: {
     type: 'object',
-    description: 'Jellyseerr integration configuration',
+    description: 'Seerr integration configuration',
     properties: {
-      configured: { type: 'boolean', description: 'Whether Jellyseerr is configured' },
-      enabled: { type: 'boolean', description: 'Whether Jellyseerr integration is enabled' },
-      url: { type: 'string', description: 'Jellyseerr base URL' },
+      configured: { type: 'boolean', description: 'Whether Seerr is configured' },
+      enabled: { type: 'boolean', description: 'Whether Seerr integration is enabled' },
+      url: { type: 'string', description: 'Seerr base URL' },
       hasApiKey: { type: 'boolean', description: 'Whether API key is set' },
     },
     example: {
@@ -25,11 +25,11 @@ export const jellyseerrSchemas = {
   },
 
   // Media status
-  JellyseerrMediaStatus: {
+  SeerrMediaStatus: {
     type: 'object',
-    description: 'Status of a media item in Jellyseerr',
+    description: 'Status of a media item in Seerr',
     properties: {
-      exists: { type: 'boolean', description: 'Whether the media exists in Jellyseerr database' },
+      exists: { type: 'boolean', description: 'Whether the media exists in Seerr database' },
       status: { 
         type: 'string', 
         enum: ['unknown', 'pending', 'processing', 'partially_available', 'available'],
@@ -52,11 +52,11 @@ export const jellyseerrSchemas = {
   },
 
   // Status response
-  JellyseerrStatusResponse: {
+  SeerrStatusResponse: {
     type: 'object',
-    description: 'Combined status from Jellyseerr and Aperture',
+    description: 'Combined status from Seerr and Aperture',
     properties: {
-      jellyseerrStatus: { $ref: 'JellyseerrMediaStatus#' },
+      seerrStatus: { $ref: 'SeerrMediaStatus#' },
       apertureRequest: { 
         type: 'object', 
         nullable: true,
@@ -67,9 +67,9 @@ export const jellyseerrSchemas = {
   },
 
   // TV Season info
-  JellyseerrSeason: {
+  SeerrSeason: {
     type: 'object',
-    description: 'Season information from Jellyseerr',
+    description: 'Season information from Seerr',
     properties: {
       seasonNumber: { type: 'integer', description: 'Season number (0 = specials)' },
       episodeCount: { type: 'integer', description: 'Number of episodes in season' },
@@ -82,14 +82,14 @@ export const jellyseerrSchemas = {
   },
 
   // TV details response
-  JellyseerrTVDetails: {
+  SeerrTVDetails: {
     type: 'object',
     description: 'TV show details with season breakdown',
     properties: {
       id: { type: 'integer', description: 'TMDb ID' },
       name: { type: 'string', description: 'Show name' },
       numberOfSeasons: { type: 'integer', description: 'Total number of seasons' },
-      seasons: { type: 'array', items: { $ref: 'JellyseerrSeason#' }, description: 'Season details' },
+      seasons: { type: 'array', items: { $ref: 'SeerrSeason#' }, description: 'Season details' },
     },
   },
 
@@ -106,9 +106,9 @@ export const jellyseerrSchemas = {
       status: { 
         type: 'string', 
         enum: ['pending', 'submitted', 'approved', 'declined', 'available', 'failed'],
-        description: 'Request status: pending (not yet sent), submitted (sent to Jellyseerr), approved (accepted), declined (rejected), available (downloaded), failed (error)'
+        description: 'Request status: pending (not yet sent), submitted (sent to Seerr), approved (accepted), declined (rejected), available (downloaded), failed (error)'
       },
-      jellyseerrRequestId: { type: 'integer', nullable: true, description: 'Jellyseerr request ID if submitted' },
+      seerrRequestId: { type: 'integer', nullable: true, description: 'Seerr request ID if submitted' },
       discoveryCandidateId: { type: 'string', format: 'uuid', nullable: true, description: 'Discovery candidate that triggered this request' },
       createdAt: { type: 'string', format: 'date-time' },
       updatedAt: { type: 'string', format: 'date-time' },
@@ -120,7 +120,7 @@ export const jellyseerrSchemas = {
       tmdbId: 550,
       title: 'Fight Club',
       status: 'approved',
-      jellyseerrRequestId: 42,
+      seerrRequestId: 42,
       createdAt: '2024-01-15T10:30:00Z',
       updatedAt: '2024-01-15T11:00:00Z',
     },
@@ -173,13 +173,13 @@ export const jellyseerrSchemas = {
   },
 
   // Test connection response
-  JellyseerrTestResponse: {
+  SeerrTestResponse: {
     type: 'object',
-    description: 'Result of Jellyseerr connection test',
+    description: 'Result of Seerr connection test',
     properties: {
       success: { type: 'boolean' },
       message: { type: 'string' },
-      version: { type: 'string', description: 'Jellyseerr version if successful' },
+      version: { type: 'string', description: 'Seerr version if successful' },
     },
     example: {
       success: true,
@@ -190,57 +190,57 @@ export const jellyseerrSchemas = {
 } as const
 
 // Route-specific schemas
-export const getJellyseerrConfigSchema = {
-  tags: ['jellyseerr'],
-  summary: 'Get Jellyseerr configuration',
-  description: 'Get Jellyseerr integration configuration (admin only). API key is not exposed.',
+export const getSeerrConfigSchema = {
+  tags: ['seerr'],
+  summary: 'Get Seerr configuration',
+  description: 'Get Seerr integration configuration (admin only). API key is not exposed.',
 }
 
-export const updateJellyseerrConfigSchema = {
-  tags: ['jellyseerr'],
-  summary: 'Update Jellyseerr configuration',
-  description: 'Update Jellyseerr integration settings (admin only). Get API key from Jellyseerr Settings > General.',
+export const updateSeerrConfigSchema = {
+  tags: ['seerr'],
+  summary: 'Update Seerr configuration',
+  description: 'Update Seerr integration settings (admin only). Get API key from Seerr Settings > General.',
   body: {
     type: 'object',
     additionalProperties: true,
     properties: {
-      url: { type: 'string', description: 'Jellyseerr base URL (e.g., http://localhost:5055)', example: 'http://192.168.1.100:5055' },
-      apiKey: { type: 'string', description: 'Jellyseerr API key' },
+      url: { type: 'string', description: 'Seerr base URL (e.g., http://localhost:5055)', example: 'http://192.168.1.100:5055' },
+      apiKey: { type: 'string', description: 'Seerr API key' },
       enabled: { type: 'boolean', description: 'Enable/disable integration' },
     },
   },
 }
 
-export const testJellyseerrSchema = {
-  tags: ['jellyseerr'],
-  summary: 'Test Jellyseerr connection',
-  description: 'Test Jellyseerr API connection with provided or saved credentials (admin only).',
+export const testSeerrSchema = {
+  tags: ['seerr'],
+  summary: 'Test Seerr connection',
+  description: 'Test Seerr API connection with provided or saved credentials (admin only).',
   body: {
     type: 'object',
     additionalProperties: true,
     properties: {
-      url: { type: 'string', description: 'Jellyseerr URL to test (optional, uses saved if not provided)' },
+      url: { type: 'string', description: 'Seerr URL to test (optional, uses saved if not provided)' },
       apiKey: { type: 'string', description: 'API key to test (optional, uses saved if not provided)' },
     },
   },
 }
 
 export const getMediaStatusSchema = {
-  tags: ['jellyseerr'],
+  tags: ['seerr'],
   summary: 'Get media status',
-  description: 'Get availability and request status for a specific media item from Jellyseerr.',
+  description: 'Get availability and request status for a specific media item from Seerr.',
   params: {
     type: 'object',
     required: ['mediaType', 'tmdbId'],
     properties: {
-      mediaType: { type: 'string', enum: ['movie', 'tv'], description: 'Media type (note: use "tv" not "series" for Jellyseerr API)' },
+      mediaType: { type: 'string', enum: ['movie', 'tv'], description: 'Media type (note: use "tv" not "series" for Seerr API)' },
       tmdbId: { type: 'string', description: 'TMDb ID' },
     },
   },
 }
 
 export const getTVDetailsSchema = {
-  tags: ['jellyseerr'],
+  tags: ['seerr'],
   summary: 'Get TV show details',
   description: 'Get TV show details with season information. Used for the season selection modal when requesting series.',
   params: {
@@ -253,14 +253,14 @@ export const getTVDetailsSchema = {
 }
 
 export const createRequestSchema = {
-  tags: ['jellyseerr'],
+  tags: ['seerr'],
   summary: 'Create content request',
-  description: 'Create a content request to Jellyseerr. For series, you can optionally specify which seasons to request.',
+  description: 'Create a content request to Seerr. For series, you can optionally specify which seasons to request.',
   body: { $ref: 'CreateRequestBody#' },
 }
 
 export const getRequestsSchema = {
-  tags: ['jellyseerr'],
+  tags: ['seerr'],
   summary: 'Get user requests',
   description: 'Get content requests for the current user. Optionally filter by media type or status.',
   querystring: {
@@ -274,16 +274,16 @@ export const getRequestsSchema = {
 }
 
 export const batchStatusSchema = {
-  tags: ['jellyseerr'],
+  tags: ['seerr'],
   summary: 'Batch check status',
-  description: 'Check Jellyseerr status for multiple items at once. More efficient than individual calls for lists.',
+  description: 'Check Seerr status for multiple items at once. More efficient than individual calls for lists.',
   body: { $ref: 'BatchStatusRequest#' },
 }
 
 export const getRequestStatusSchema = {
-  tags: ['jellyseerr'],
+  tags: ['seerr'],
   summary: 'Get request status',
-  description: 'Get detailed status of a specific content request including Jellyseerr status.',
+  description: 'Get detailed status of a specific content request including Seerr status.',
   params: {
     type: 'object',
     required: ['requestId'],

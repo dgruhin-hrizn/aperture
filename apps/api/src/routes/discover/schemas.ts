@@ -35,6 +35,11 @@ export const discoverSchemas = {
     properties: {
       name: { type: 'string' },
       imageUrl: { type: 'string', nullable: true },
+      tmdbFallbackImageUrl: {
+        type: 'string',
+        nullable: true,
+        description: 'TMDb profile image when the media server has no portrait',
+      },
       movies: { type: 'array', items: { $ref: 'ContentItem#' } },
       series: { type: 'array', items: { $ref: 'ContentItem#' } },
       stats: { $ref: 'PersonStats#' },
@@ -59,6 +64,26 @@ export const discoverSchemas = {
       movies: { type: 'array', items: { $ref: 'ContentItem#' } },
       series: { type: 'array', items: { $ref: 'ContentItem#' } },
       stats: { $ref: 'StudioStats#' },
+    },
+  },
+
+  PersonBrowseRow: {
+    type: 'object',
+    properties: {
+      name: { type: 'string' },
+      credits: { type: 'integer' },
+      movieCredits: { type: 'integer' },
+      seriesCredits: { type: 'integer' },
+    },
+  },
+
+  PeopleListResponse: {
+    type: 'object',
+    properties: {
+      people: { type: 'array', items: { $ref: 'PersonBrowseRow#' } },
+      total: { type: 'integer' },
+      page: { type: 'integer' },
+      pageSize: { type: 'integer' },
     },
   },
 } as const
@@ -86,6 +111,23 @@ export const getStudioSchema = {
     required: ['name'],
     properties: {
       name: { type: 'string', description: 'Studio name (URL encoded)' },
+    },
+  },
+}
+
+export const getPeopleListSchema = {
+  tags: ['discovery'],
+  summary: 'List people in library',
+  description:
+    'Distinct actor and director names from synced movies and series, with library visibility matching Browse lists.',
+  querystring: {
+    type: 'object',
+    properties: {
+      search: { type: 'string', description: 'Optional case-insensitive name filter' },
+      page: { type: 'string', description: '1-based page number' },
+      pageSize: { type: 'string', description: 'Page size (max 50)' },
+      sortBy: { type: 'string', enum: ['name', 'credits'], description: 'Sort field' },
+      showAll: { type: 'string', enum: ['true', 'false'], description: 'Include disabled libraries' },
     },
   },
 }

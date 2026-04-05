@@ -73,7 +73,7 @@ export interface DiscoveryStatus {
   seriesCount: number
 }
 
-export interface JellyseerrMediaStatus {
+export interface SeerrMediaStatus {
   exists: boolean
   status: 'unknown' | 'pending' | 'processing' | 'partially_available' | 'available'
   requested: boolean
@@ -87,8 +87,8 @@ export interface DiscoveryRequest {
   mediaType: MediaType
   tmdbId: number
   title: string
-  jellyseerrRequestId: number | null
-  jellyseerrMediaId: number | null
+  seerrRequestId: number | null
+  seerrMediaId: number | null
   status: 'pending' | 'submitted' | 'approved' | 'declined' | 'available' | 'failed'
   statusMessage: string | null
   createdAt: string

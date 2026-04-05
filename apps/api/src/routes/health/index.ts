@@ -23,27 +23,25 @@ const healthRoutes: FastifyPluginAsync = async (fastify) => {
     '/health',
     { schema: healthCheckSchema },
     async (_request, reply) => {
-    const dbConnected = await dbHealthCheck()
+      const dbConnected = await dbHealthCheck()
 
-    const health: HealthResponse = {
-      ok: dbConnected,
-      name: 'Aperture',
-      version: '0.6.4',
-      time: new Date().toISOString(),
-      database: {
-        connected: dbConnected,
-      },
+      const health: HealthResponse = {
+        ok: dbConnected,
+        name: 'Aperture',
+        version: '0.7.0',
+        time: new Date().toISOString(),
+        database: {
+          connected: dbConnected,
+        },
+      }
+
+      const statusCode = health.ok ? 200 : 503
+      return reply.status(statusCode).send(health)
     }
-
-    const statusCode = health.ok ? 200 : 503
-    return reply.status(statusCode).send(health)
-  })
+  )
 
   // Readiness check (for Kubernetes/Docker)
-  fastify.get(
-    '/ready',
-    { schema: readyCheckSchema },
-    async (_request, reply) => {
+  fastify.get('/ready', { schema: readyCheckSchema }, async (_request, reply) => {
     const dbConnected = await dbHealthCheck()
 
     if (!dbConnected) {
@@ -54,13 +52,9 @@ const healthRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   // Liveness check (for Kubernetes/Docker)
-  fastify.get(
-    '/live',
-    { schema: liveCheckSchema },
-    async (_request, reply) => {
-      return reply.send({ live: true })
-    }
-  )
+  fastify.get('/live', { schema: liveCheckSchema }, async (_request, reply) => {
+    return reply.send({ live: true })
+  })
 }
 
 export default healthRoutes

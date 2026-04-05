@@ -208,4 +208,4 @@ If few list items match your library:
 
 ---
 
-**Previous:** [OMDb Integration](omdb.md) | **Next:** [Jellyseerr Integration](jellyseerr.md)
+**Previous:** [OMDb Integration](omdb.md) | **Next:** [Seerr Integration](seerr.md)

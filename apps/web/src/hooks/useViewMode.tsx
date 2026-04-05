@@ -9,7 +9,14 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 
 type ViewMode = 'grid' | 'list'
 
-type PageKey = 'discovery' | 'topPicks' | 'watchHistory' | 'watching' | 'browse' | 'recommendations'
+type PageKey =
+  | 'discovery'
+  | 'topPicks'
+  | 'watchHistory'
+  | 'watching'
+  | 'browse'
+  | 'browsePeople'
+  | 'recommendations'
 
 interface ViewModeContextValue {
   getViewMode: (page: PageKey) => ViewMode
@@ -30,6 +37,7 @@ function getInitialViewModes(): Record<PageKey, ViewMode> {
     watchHistory: DEFAULT_VIEW_MODE,
     watching: DEFAULT_VIEW_MODE,
     browse: DEFAULT_VIEW_MODE,
+    browsePeople: 'list',
     recommendations: DEFAULT_VIEW_MODE,
   }
   

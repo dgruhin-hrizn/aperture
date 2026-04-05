@@ -20,7 +20,7 @@ import {
   enrichMetadata,
   enrichStudioLogos,
   enrichMDBListMetadata,
-  processWatchingLibrariesForAllUsers,
+  processWatchingFavoritesForAllUsers,
   createBackup,
   refreshPricingCache,
   getPricingCacheStatus,
@@ -272,9 +272,8 @@ export async function runJob(name: string, jobId: string): Promise<void> {
         )
         break
       }
-      // === Watching Libraries Job ===
-      case 'sync-watching-libraries': {
-        const result = await processWatchingLibrariesForAllUsers(jobId)
+      case 'sync-watching-favorites': {
+        const result = await processWatchingFavoritesForAllUsers(jobId)
         logger.info(
           {
             job: name,
@@ -283,7 +282,7 @@ export async function runJob(name: string, jobId: string): Promise<void> {
             failed: result.failed,
             users: result.users.length,
           },
-          `✅ Watching libraries sync complete`
+          `✅ Watching favorites sync complete`
         )
         break
       }
@@ -406,7 +405,7 @@ export async function runJob(name: string, jobId: string): Promise<void> {
         createJobProgress(jobId, 'generate-discovery-suggestions', 2)
 
         setJobStep(jobId, 0, 'Checking prerequisites')
-        addLog(jobId, 'info', '🔍 Checking Jellyseerr configuration and user enablement...')
+        addLog(jobId, 'info', '🔍 Checking Seerr configuration and user enablement...')
 
         const result = await generateDiscoveryForAllUsers(DEFAULT_DISCOVERY_CONFIG, jobId)
 

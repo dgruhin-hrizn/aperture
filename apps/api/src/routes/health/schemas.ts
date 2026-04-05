@@ -1,6 +1,6 @@
 /**
  * Health Check OpenAPI Schemas
- * 
+ *
  * Health, readiness, and liveness endpoints for monitoring.
  * All endpoints are public (no authentication required).
  */
@@ -11,9 +11,12 @@ export const healthSchemas = {
     type: 'object',
     description: 'Detailed health status',
     properties: {
-      ok: { type: 'boolean', description: 'Overall health status (true if all components healthy)' },
+      ok: {
+        type: 'boolean',
+        description: 'Overall health status (true if all components healthy)',
+      },
       name: { type: 'string', description: 'Application name', example: 'aperture-api' },
-      version: { type: 'string', description: 'API version', example: '0.6.4' },
+      version: { type: 'string', description: 'API version', example: '0.7.0' },
       time: { type: 'string', format: 'date-time', description: 'Current server time (ISO 8601)' },
       database: {
         type: 'object',
@@ -25,7 +28,7 @@ export const healthSchemas = {
     example: {
       ok: true,
       name: 'aperture-api',
-      version: '0.6.4',
+      version: '0.7.0',
       time: '2024-01-15T10:30:00Z',
       database: { connected: true },
     },
@@ -55,20 +58,23 @@ export const healthSchemas = {
 export const healthCheckSchema = {
   tags: ['health'],
   summary: 'Health check',
-  description: 'Comprehensive health check including database connectivity. Use for monitoring dashboards.',
+  description:
+    'Comprehensive health check including database connectivity. Use for monitoring dashboards.',
   security: [],
 }
 
 export const readyCheckSchema = {
   tags: ['health'],
   summary: 'Readiness check',
-  description: 'Kubernetes readiness probe. Returns 200 when the app is ready to serve traffic, 503 otherwise.',
+  description:
+    'Kubernetes readiness probe. Returns 200 when the app is ready to serve traffic, 503 otherwise.',
   security: [],
 }
 
 export const liveCheckSchema = {
   tags: ['health'],
   summary: 'Liveness check',
-  description: 'Kubernetes liveness probe. Returns 200 if the process is alive. A failed liveness check typically triggers a container restart.',
+  description:
+    'Kubernetes liveness probe. Returns 200 if the process is alive. A failed liveness check typically triggers a container restart.',
   security: [],
 }

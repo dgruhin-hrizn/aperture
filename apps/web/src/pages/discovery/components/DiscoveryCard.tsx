@@ -3,7 +3,7 @@ import { Box } from '@mui/material'
 import { MediaPosterCard, type Genre } from '../../../components/MediaPosterCard'
 import { DiscoveryDetailPopper } from './DiscoveryDetailPopper'
 import { SeasonSelectModal, type SeasonInfo } from './SeasonSelectModal'
-import type { DiscoveryCandidate, JellyseerrMediaStatus } from '../types'
+import type { DiscoveryCandidate, SeerrMediaStatus } from '../types'
 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w500'
 
@@ -12,7 +12,7 @@ interface DiscoveryCardProps {
   canRequest: boolean
   onRequest: (candidate: DiscoveryCandidate, seasons?: number[]) => Promise<void>
   isRequesting: boolean
-  cachedStatus?: JellyseerrMediaStatus
+  cachedStatus?: SeerrMediaStatus
   fetchTVDetails?: (tmdbId: number) => Promise<{ seasons: SeasonInfo[]; title: string; posterPath?: string } | null>
 }
 
@@ -81,8 +81,8 @@ export function DiscoveryCard({
     : `https://www.themoviedb.org/tv/${candidate.tmdbId}`
   const primaryUrl = imdbUrl || tmdbUrl
 
-  // Convert cachedStatus to JellyseerrStatus format for MediaPosterCard
-  const jellyseerrStatus = cachedStatus ? {
+  // Convert cachedStatus to SeerrStatus format for MediaPosterCard
+  const seerrStatus = cachedStatus ? {
     requested: cachedStatus.requested,
     requestStatus: cachedStatus.requestStatus,
   } : undefined
@@ -100,7 +100,7 @@ export function DiscoveryCard({
         rank={candidate.rank}
         mediaType={candidate.mediaType === 'movie' ? 'movie' : 'series'}
         inLibrary={false}
-        jellyseerrStatus={jellyseerrStatus}
+        seerrStatus={seerrStatus}
         canRequest={canRequest}
         isRequesting={isRequesting}
         onRequest={handleRequest}

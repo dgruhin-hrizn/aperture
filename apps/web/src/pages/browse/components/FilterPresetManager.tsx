@@ -27,7 +27,7 @@ import MoreVertIcon from '@mui/icons-material/MoreVert'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
-import type { MovieFilters, SeriesFilters } from './FilterPopper'
+import type { MovieFilters, SeriesFilters, WatchStatusFilter } from './FilterPopper'
 
 export interface FilterPreset {
   id: string
@@ -43,6 +43,10 @@ export interface FilterPreset {
     contentRatings?: string[]
     resolutions?: string[]
     status?: string[]
+    countries?: string[]
+    watchStatus?: WatchStatusFilter
+    minWatchers?: number | null
+    maxWatchers?: number | null
     genre?: string
     collection?: string
     network?: string
@@ -96,7 +100,11 @@ export function FilterPresetManager({
         f.rtScore[0] > 0 ||
         f.metacritic[0] > 0 ||
         f.contentRatings.length > 0 ||
-        f.resolutions.length > 0
+        f.resolutions.length > 0 ||
+        f.countries.length > 0 ||
+        f.watchStatus !== 'any' ||
+        f.minWatchers !== null ||
+        f.maxWatchers !== null
       )
     } else {
       const f = currentFilters as SeriesFilters
@@ -105,7 +113,11 @@ export function FilterPresetManager({
         f.rtScore[0] > 0 ||
         f.metacritic[0] > 0 ||
         f.contentRatings.length > 0 ||
-        f.status.length > 0
+        f.status.length > 0 ||
+        f.countries.length > 0 ||
+        f.watchStatus !== 'any' ||
+        f.minWatchers !== null ||
+        f.maxWatchers !== null
       )
     }
   }

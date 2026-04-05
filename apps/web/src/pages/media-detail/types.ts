@@ -1,5 +1,7 @@
 // Unified types for both Movies and Series
 
+import type { ConnectionReason } from '../../components/SimilarityGraph/types'
+
 export type MediaType = 'movie' | 'series'
 
 export type StudioItem = string | { id?: string; name: string }
@@ -119,6 +121,7 @@ export interface SimilarItem {
   genres?: string[]
   network?: string | null
   similarity: number
+  reasons?: ConnectionReason[]
 }
 
 export interface RecommendationInsights {
