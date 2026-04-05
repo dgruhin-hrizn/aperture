@@ -47,6 +47,8 @@ export interface MediaPosterCardProps {
   // Library status
   inLibrary?: boolean
   libraryId?: string | null // For linking to detail page
+  /** When false, hide the lower-left "In library" chip (hover overlay unchanged; dimming / link unchanged) */
+  showInLibraryCornerBadge?: boolean
 
   // Seerr status
   seerrStatus?: SeerrStatus
@@ -80,6 +82,7 @@ export function MediaPosterCard({
   rank,
   mediaType,
   inLibrary = false,
+  showInLibraryCornerBadge = true,
   libraryId,
   seerrStatus,
   canRequest = false,
@@ -103,8 +106,8 @@ export function MediaPosterCard({
   const isRequested = seerrStatus?.requested || false
   const requestStatus = seerrStatus?.requestStatus
 
-  // Determine if the item should be greyed out (already requested but not in library)
-  const isGreyedOut = isRequested && !inLibrary
+  // Greyed out: in library (owned / not requestable) or pending Seerr request
+  const isGreyedOut = inLibrary || (isRequested && !inLibrary)
 
   const handleRequest = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -144,14 +147,15 @@ export function MediaPosterCard({
         overflow: 'hidden',
         backgroundColor: 'background.paper',
         transition: 'transform 0.2s, box-shadow 0.2s, opacity 0.2s',
-        cursor: 'pointer',
+        cursor: inLibrary ? 'default' : 'pointer',
         opacity: isGreyedOut ? 0.6 : 1,
         height: compactMeta ? 'auto' : '100%',
         display: 'flex',
         flexDirection: 'column',
         '&:hover': {
-          transform: 'translateY(-4px)',
-          boxShadow: (theme) => `0 12px 24px ${alpha(theme.palette.common.black, 0.3)}`,
+          transform: inLibrary ? 'none' : 'translateY(-4px)',
+          boxShadow: (theme) =>
+            inLibrary ? undefined : `0 12px 24px ${alpha(theme.palette.common.black, 0.3)}`,
         },
       }}
       onClick={handleCardClick}

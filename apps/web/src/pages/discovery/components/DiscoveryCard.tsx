@@ -24,6 +24,11 @@ interface DiscoveryCardProps {
   cachedStatus?: SeerrMediaStatus
   fetchTVDetails?: (tmdbId: number) => Promise<{ seasons: SeasonInfo[]; title: string; posterPath?: string } | null>
   resolveGenreName: ResolveDiscoveryGenreName
+  /** Local library item (e.g. streaming charts): dim card, link to detail */
+  inLibrary?: boolean
+  libraryId?: string | null
+  /** Hide numeric rank badge (streaming charts use trend icons instead) */
+  showRank?: boolean
 }
 
 export function DiscoveryCard({
@@ -34,6 +39,9 @@ export function DiscoveryCard({
   cachedStatus,
   fetchTVDetails,
   resolveGenreName,
+  inLibrary = false,
+  libraryId = null,
+  showRank = true,
 }: DiscoveryCardProps) {
   const { t } = useTranslation()
   const [detailOpen, setDetailOpen] = useState(false)
@@ -44,12 +52,15 @@ export function DiscoveryCard({
   const [seasonData, setSeasonData] = useState<{ seasons: SeasonInfo[]; title: string; posterPath?: string } | null>(null)
 
   const posterUrl = candidate.posterPath
-    ? `${TMDB_IMAGE_BASE}${candidate.posterPath}`
+    ? candidate.posterPath.startsWith('http')
+      ? candidate.posterPath
+      : `${TMDB_IMAGE_BASE}${candidate.posterPath}`
     : null
 
   const getSourceColor = (source: string) => {
     if (source.startsWith('tmdb')) return '#01b4e4'
     if (source.startsWith('trakt')) return '#ed1c24'
+    if (source.startsWith('justwatch')) return '#0ea5e9'
     return '#6366f1'
   }
 
@@ -91,6 +102,10 @@ export function DiscoveryCard({
     name: resolveGenreName(g.id, g.name),
   }))
 
+  const isStreamingCharts = candidate.source === 'justwatch_streaming'
+  const isTmdbGenreStrip = candidate.source === 'tmdb_genre_row'
+  const hideSourceAndMatch = isStreamingCharts || isTmdbGenreStrip
+
   return (
     <Box sx={{ position: 'relative', height: '100%' }}>
       <MediaPosterCard
@@ -98,16 +113,18 @@ export function DiscoveryCard({
         title={candidate.title}
         year={candidate.releaseYear}
         posterUrl={posterUrl}
-        rank={candidate.rank}
+        rank={showRank ? candidate.rank : undefined}
         mediaType={candidate.mediaType === 'movie' ? 'movie' : 'series'}
-        inLibrary={false}
+        inLibrary={inLibrary}
+        showInLibraryCornerBadge={!isStreamingCharts}
+        libraryId={libraryId ?? undefined}
         seerrStatus={seerrStatus}
         canRequest={canRequest}
         isRequesting={isRequesting}
         onRequest={handleRequest}
-        sourceLabel={discoverySourceLabel(candidate.source, t)}
-        sourceColor={getSourceColor(candidate.source)}
-        matchScore={candidate.finalScore}
+        sourceLabel={hideSourceAndMatch ? undefined : discoverySourceLabel(candidate.source, t)}
+        sourceColor={hideSourceAndMatch ? undefined : getSourceColor(candidate.source)}
+        matchScore={hideSourceAndMatch ? undefined : candidate.finalScore}
         overview={candidate.overview}
         voteAverage={candidate.voteAverage}
         genres={genres}

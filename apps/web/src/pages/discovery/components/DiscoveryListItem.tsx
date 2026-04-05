@@ -71,7 +71,9 @@ export function DiscoveryListItem({
   const [seasonData, setSeasonData] = useState<{ seasons: SeasonInfo[]; title: string; posterPath?: string } | null>(null)
 
   const posterUrl = candidate.posterPath && !imageError
-    ? `${TMDB_IMAGE_BASE}${candidate.posterPath}`
+    ? candidate.posterPath.startsWith('http')
+      ? candidate.posterPath
+      : `${TMDB_IMAGE_BASE}${candidate.posterPath}`
     : FALLBACK_POSTER
 
   const isRequested = cachedStatus?.requested || false

@@ -25,6 +25,7 @@ import ExploreIcon from '@mui/icons-material/Explore'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
+import LiveTvIcon from '@mui/icons-material/LiveTv'
 import GridViewIcon from '@mui/icons-material/GridView'
 import ViewListIcon from '@mui/icons-material/ViewList'
 import AutorenewIcon from '@mui/icons-material/Autorenew'
@@ -35,9 +36,17 @@ import {
   invalidateDiscoveryCache,
   useDiscoveryGenres,
 } from './hooks'
-import { DiscoveryCard, DiscoveryFilters, DiscoveryListItem } from './components'
+import {
+  DiscoveryCard,
+  DiscoveryFilters,
+  DiscoveryListItem,
+  StreamingDiscoverySection,
+  TmdbGenreRowsSection,
+} from './components'
 import { useViewMode } from '../../hooks/useViewMode'
 import type { DiscoveryCandidate, DiscoveryFilterOptions, MediaType } from './types'
+
+type DiscoveryTab = 'movie' | 'series' | 'streaming'
 import type { SeerrRequestOptions } from '../../types/seerrRequest'
 
 // Local storage key for persisting filter preferences
@@ -109,9 +118,10 @@ export function DiscoveryPage() {
   })
   const { viewMode, setViewMode } = useViewMode('discovery')
 
-  const [mediaType, setMediaType] = useState<MediaType>('movie')
+  const [discoveryTab, setDiscoveryTab] = useState<DiscoveryTab>('movie')
+  const genreMediaType: MediaType = discoveryTab === 'series' ? 'series' : 'movie'
   const { genres: genreOptions, loading: genresLoading, resolveGenreName } =
-    useDiscoveryGenres(mediaType)
+    useDiscoveryGenres(genreMediaType)
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
@@ -124,11 +134,13 @@ export function DiscoveryPage() {
     saveFiltersToStorage(newFilters)
   }, [])
 
-  const candidates = mediaType === 'movie' ? movieCandidates : seriesCandidates
-  const run = mediaType === 'movie' ? movieRun : seriesRun
+  const candidates =
+    discoveryTab === 'movie' ? movieCandidates : discoveryTab === 'series' ? seriesCandidates : []
+  const run = discoveryTab === 'movie' ? movieRun : discoveryTab === 'series' ? seriesRun : null
 
   const handleRefresh = async () => {
-    const result = await refresh(mediaType)
+    if (discoveryTab === 'streaming') return
+    const result = await refresh(discoveryTab)
     if (result.success) {
       setSnackbar({ open: true, message: t('discovery.snackbarRefreshed'), severity: 'success' })
     } else {
@@ -208,63 +220,67 @@ export function DiscoveryPage() {
           )}
         </Box>
 
-        {/* Grid/List toggle always in upper right */}
-        <ToggleButtonGroup
-          value={viewMode}
-          exclusive
-          onChange={(_, v) => v && setViewMode(v)}
-          size="small"
-          aria-label={t('discovery.title')}
-        >
-          <ToggleButton value="grid" aria-label={t('discovery.gridView')}>
-            <GridViewIcon fontSize="small" />
-          </ToggleButton>
-          <ToggleButton value="list" aria-label={t('discovery.listView')}>
-            <ViewListIcon fontSize="small" />
-          </ToggleButton>
-        </ToggleButtonGroup>
-      </Box>
-
-      {/* Action buttons row */}
-      <Box display="flex" gap={1} mb={2}>
-        {isMobile ? (
-          <Tooltip
-            title={
-              isJobRunning ? t('discovery.jobRunning') : refreshing ? t('discovery.refreshing') : t('discovery.refresh')
-            }
-          >
-            <span>
-              <IconButton
-                onClick={handleRefresh}
-                disabled={refreshing || isJobRunning}
-                size="small"
-                sx={{ border: 1, borderColor: 'divider' }}
-              >
-                {refreshing || isJobRunning ? <CircularProgress size={18} /> : <RefreshIcon fontSize="small" />}
-              </IconButton>
-            </span>
-          </Tooltip>
-        ) : (
-          <Button
-            variant="outlined"
-            startIcon={refreshing || isJobRunning ? <CircularProgress size={16} /> : <RefreshIcon />}
-            onClick={handleRefresh}
-            disabled={refreshing || isJobRunning}
+        {/* Grid/List toggle — hidden on Streaming tab */}
+        {discoveryTab !== 'streaming' && (
+          <ToggleButtonGroup
+            value={viewMode}
+            exclusive
+            onChange={(_, v) => v && setViewMode(v)}
             size="small"
+            aria-label={t('discovery.title')}
           >
-            {isJobRunning
-              ? t('discovery.jobRunningLabel')
-              : refreshing
-                ? t('discovery.refreshing')
-                : t('discovery.refresh')}
-          </Button>
+            <ToggleButton value="grid" aria-label={t('discovery.gridView')}>
+              <GridViewIcon fontSize="small" />
+            </ToggleButton>
+            <ToggleButton value="list" aria-label={t('discovery.listView')}>
+              <ViewListIcon fontSize="small" />
+            </ToggleButton>
+          </ToggleButtonGroup>
         )}
       </Box>
 
+      {/* Action buttons row — AI refresh only on Movies / TV tabs */}
+      {discoveryTab !== 'streaming' && (
+        <Box display="flex" gap={1} mb={2}>
+          {isMobile ? (
+            <Tooltip
+              title={
+                isJobRunning ? t('discovery.jobRunning') : refreshing ? t('discovery.refreshing') : t('discovery.refresh')
+              }
+            >
+              <span>
+                <IconButton
+                  onClick={handleRefresh}
+                  disabled={refreshing || isJobRunning}
+                  size="small"
+                  sx={{ border: 1, borderColor: 'divider' }}
+                >
+                  {refreshing || isJobRunning ? <CircularProgress size={18} /> : <RefreshIcon fontSize="small" />}
+                </IconButton>
+              </span>
+            </Tooltip>
+          ) : (
+            <Button
+              variant="outlined"
+              startIcon={refreshing || isJobRunning ? <CircularProgress size={16} /> : <RefreshIcon />}
+              onClick={handleRefresh}
+              disabled={refreshing || isJobRunning}
+              size="small"
+            >
+              {isJobRunning
+                ? t('discovery.jobRunningLabel')
+                : refreshing
+                  ? t('discovery.refreshing')
+                  : t('discovery.refresh')}
+            </Button>
+          )}
+        </Box>
+      )}
+
       {/* Tabs */}
       <Tabs
-        value={mediaType}
-        onChange={(_, v) => setMediaType(v)}
+        value={discoveryTab}
+        onChange={(_, v) => setDiscoveryTab(v)}
         sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}
       >
         <Tab
@@ -291,7 +307,7 @@ export function DiscoveryPage() {
             </Box>
           }
           sx={{
-            color: mediaType === 'movie' ? '#6366f1' : 'text.secondary',
+            color: discoveryTab === 'movie' ? '#6366f1' : 'text.secondary',
             '&.Mui-selected': { color: '#6366f1' },
           }}
         />
@@ -319,19 +335,52 @@ export function DiscoveryPage() {
             </Box>
           }
           sx={{
-            color: mediaType === 'series' ? '#ec4899' : 'text.secondary',
+            color: discoveryTab === 'series' ? '#ec4899' : 'text.secondary',
             '&.Mui-selected': { color: '#ec4899' },
           }}
         />
+        {status?.streamingDiscoveryEnabled && (
+          <Tab
+            value="streaming"
+            icon={<LiveTvIcon />}
+            iconPosition="start"
+            label={t('discovery.tabStreaming')}
+            sx={{
+              color: discoveryTab === 'streaming' ? 'primary.main' : 'text.secondary',
+              '&.Mui-selected': { color: 'primary.main' },
+            }}
+          />
+        )}
       </Tabs>
 
-      {/* Filters */}
-      <DiscoveryFilters
-        filters={filters}
-        onFiltersChange={handleFiltersChange}
-        genreOptions={genreOptions}
-        genresLoading={genresLoading}
-      />
+      {discoveryTab === 'streaming' ? (
+        <>
+          {status?.requestEnabled ? (
+            <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
+              {t('discovery.alertRequestEnabled')}
+            </Alert>
+          ) : (
+            <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
+              {t('discovery.alertRequestDisabled')}
+            </Alert>
+          )}
+          <StreamingDiscoverySection requestEnabled={status?.requestEnabled ?? false} />
+        </>
+      ) : (
+        <>
+          {/* Filters */}
+          <DiscoveryFilters
+            filters={filters}
+            onFiltersChange={handleFiltersChange}
+            genreOptions={genreOptions}
+            genresLoading={genresLoading}
+          />
+
+          <TmdbGenreRowsSection
+            mediaType={discoveryTab}
+            requestEnabled={status?.requestEnabled ?? false}
+            resolveGenreName={resolveGenreName}
+          />
 
       {/* Job Running Banner */}
       <Fade in={isJobRunning} timeout={300}>
@@ -400,7 +449,7 @@ export function DiscoveryPage() {
         <LoadingSkeleton />
       ) : candidates.length === 0 ? (
         <Alert severity="info" sx={{ borderRadius: 2 }}>
-          {mediaType === 'movie' ? t('discovery.emptyMovie') : t('discovery.emptySeries')}
+          {discoveryTab === 'movie' ? t('discovery.emptyMovie') : t('discovery.emptySeries')}
         </Alert>
       ) : viewMode === 'grid' ? (
         <Grid container spacing={2}>
@@ -453,6 +502,8 @@ export function DiscoveryPage() {
           />
         </Box>
       </Fade>
+        </>
+      )}
 
       {/* Snackbar */}
       <Snackbar

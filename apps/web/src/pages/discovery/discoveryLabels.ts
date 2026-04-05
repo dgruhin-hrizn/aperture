@@ -1,6 +1,8 @@
 import type { TFunction } from 'i18next'
 
 const SOURCE_TO_KEY: Record<string, string> = {
+  justwatch_streaming: 'justwatchStreaming',
+  tmdb_genre_row: 'tmdbGenreRow',
   tmdb_recommendations: 'tmdbRecommendations',
   tmdb_similar: 'tmdbSimilar',
   tmdb_discover: 'tmdbDiscover',

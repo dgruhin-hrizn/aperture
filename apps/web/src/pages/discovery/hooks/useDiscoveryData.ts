@@ -35,7 +35,7 @@ function buildFilterQueryString(filters: DiscoveryFilterOptions): string {
 
 // Cache configuration
 const CACHE_KEY = 'aperture_discovery_cache'
-const CACHE_VERSION = 2 // Bumped to clear stale genre data
+const CACHE_VERSION = 3 // Bumped for streaming discovery status field
 const CACHE_TTL_MS = 60 * 60 * 1000 // 1 hour (discovery data changes less frequently)
 
 interface DiscoveryCache {
@@ -120,7 +120,15 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
         setStatus(data)
         return data as DiscoveryStatus
       } else if (response.status === 403) {
-        const fallbackStatus = { enabled: false, requestEnabled: false, movieRun: null, seriesRun: null, movieCount: 0, seriesCount: 0 }
+        const fallbackStatus = {
+          enabled: false,
+          requestEnabled: false,
+          streamingDiscoveryEnabled: false,
+          movieRun: null,
+          seriesRun: null,
+          movieCount: 0,
+          seriesCount: 0,
+        }
         setStatus(fallbackStatus)
         return fallbackStatus
       } else {
@@ -367,12 +375,14 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
           )
           
           if (!cacheStale) {
-            // Cache is still valid, use it
+            // Cache is still valid for candidate rows; keep status from fetchStatus() above.
+            // Do not restore cached.status — it predates flags like streamingDiscoveryEnabled and would hide new UI after toggles.
             setMovieCandidates(cached.movieCandidates)
             setSeriesCandidates(cached.seriesCandidates)
             setMovieRun(cached.movieRun)
             setSeriesRun(cached.seriesRun)
-            if (cached.status) setStatus(cached.status)
+            if (freshStatus) setStatus(freshStatus)
+            else if (cached.status) setStatus(cached.status)
             setLoading(false)
             isFirstLoad.current = false
             

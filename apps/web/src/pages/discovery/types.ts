@@ -67,10 +67,32 @@ export interface DiscoveryRun {
 export interface DiscoveryStatus {
   enabled: boolean
   requestEnabled: boolean
+  /** JustWatch streaming charts (system flag + user discovery). */
+  streamingDiscoveryEnabled?: boolean
   movieRun: DiscoveryRun | null
   seriesRun: DiscoveryRun | null
   movieCount: number
   seriesCount: number
+}
+
+/** API: GET /api/discovery/streaming/* normalized row */
+export interface StreamingChartRow {
+  jwNodeId: string
+  objectId: number
+  objectType: string
+  title: string
+  releaseYear: number | null
+  overview: string | null
+  tmdbId: number | null
+  imdbId: string | null
+  posterPath: string | null
+  chartRank: number | null
+  chartTrend: string | null
+  daysInTop10: number | null
+  topRank: number | null
+  inLibrary: boolean
+  localMovieId?: string | null
+  localSeriesId?: string | null
 }
 
 export interface SeerrMediaStatus {

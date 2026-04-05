@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Box,
@@ -6,6 +6,7 @@ import {
   Tab,
   Paper,
   Button,
+  Typography,
 } from '@mui/material'
 import BuildIcon from '@mui/icons-material/Build'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
@@ -19,6 +20,7 @@ import StorageIcon from '@mui/icons-material/Storage'
 import ExtensionIcon from '@mui/icons-material/Extension'
 import HandymanIcon from '@mui/icons-material/Handyman'
 import MemoryIcon from '@mui/icons-material/Memory'
+import CategoryIcon from '@mui/icons-material/Category'
 import { useSettingsData } from './hooks'
 import {
   LibraryConfigSection,
@@ -37,6 +39,8 @@ import {
   OMDbConfigSection,
   MDBListConfigSection,
   SeerrConfigSection,
+  StreamingDiscoverySettings,
+  DiscoveryGenreStripsSettings,
   BackupSection,
   PosterRepairSection,
   LegacyEmbeddingsSection,
@@ -80,11 +84,12 @@ function adminMainParamFromIndex(index: number): string {
   return ADMIN_MAIN_TAB_KEYS[index] ?? 'setup'
 }
 
-const SETUP_SUB_KEYS = ['media', 'integrations'] as const
+const SETUP_SUB_KEYS = ['media', 'integrations', 'genre-discovery'] as const
 const AI_SUB_KEYS = ['output', 'features', 'algorithm'] as const
 
 function setupSubIndexFromParam(p: string | null): number {
   if (p === 'integrations') return 1
+  if (p === 'genre-discovery') return 2
   return 0
 }
 
@@ -109,13 +114,49 @@ export function SettingsPage() {
   const [tabValue, setTabValue] = useState(() => adminMainIndexFromParam(searchParams.get('tab')))
   const [setupSubTab, setSetupSubTab] = useState(() => setupSubIndexFromParam(searchParams.get('setupSub')))
   const [aiSubTab, setAiSubTab] = useState(() => aiSubIndexFromParam(searchParams.get('aiSub')))
+  const [tmdbReady, setTmdbReady] = useState(false)
+  const [tmdbConfigured, setTmdbConfigured] = useState(false)
   const settings = useSettingsData(true) // Admin-only page now
+
+  const fetchTmdbStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/settings/tmdb', { credentials: 'include' })
+      if (!res.ok) {
+        setTmdbConfigured(false)
+        return
+      }
+      const data = (await res.json()) as { isConfigured?: boolean }
+      setTmdbConfigured(Boolean(data.isConfigured))
+    } catch {
+      setTmdbConfigured(false)
+    } finally {
+      setTmdbReady(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    void fetchTmdbStatus()
+  }, [fetchTmdbStatus])
 
   useEffect(() => {
     setTabValue(adminMainIndexFromParam(searchParams.get('tab')))
     setSetupSubTab(setupSubIndexFromParam(searchParams.get('setupSub')))
     setAiSubTab(aiSubIndexFromParam(searchParams.get('aiSub')))
   }, [searchParams])
+
+  useEffect(() => {
+    if (!tmdbReady || tmdbConfigured) return
+    if (setupSubTab !== 2) return
+    setSetupSubTab(1)
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.set('setupSub', 'integrations')
+        return next
+      },
+      { replace: true }
+    )
+  }, [tmdbReady, tmdbConfigured, setupSubTab, setSearchParams])
 
   const updateAdminSettingsParams = (updates: Record<string, string | null>) => {
     setSearchParams(
@@ -139,6 +180,7 @@ export function SettingsPage() {
   const handleSetupSubChange = (_: React.SyntheticEvent, v: number) => {
     setSetupSubTab(v)
     updateAdminSettingsParams({ setupSub: setupSubParamFromIndex(v) })
+    if (v === 1 || v === 2) void fetchTmdbStatus()
   }
 
   const handleAiSubChange = (_: React.SyntheticEvent, v: number) => {
@@ -210,6 +252,17 @@ export function SettingsPage() {
             >
               <Tab icon={<StorageIcon />} iconPosition="start" label={t('settingsPage.subMediaServer')} />
               <Tab icon={<ExtensionIcon />} iconPosition="start" label={t('settingsPage.subIntegrations')} />
+              <Tab
+                icon={<CategoryIcon />}
+                iconPosition="start"
+                label={t('settingsPage.subGenreDiscovery')}
+                disabled={!tmdbReady || !tmdbConfigured}
+                title={
+                  tmdbReady && !tmdbConfigured
+                    ? t('settingsPage.genreDiscoveryTabDisabled')
+                    : undefined
+                }
+              />
             </Tabs>
 
             {/* Media Server Sub-tab */}
@@ -244,7 +297,24 @@ export function SettingsPage() {
                   <MDBListConfigSection />
                   <SeerrConfigSection />
                 </Box>
+                <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <StreamingDiscoverySettings />
+                </Box>
               </Box>
+            </TabPanel>
+
+            <TabPanel value={setupSubTab} index={2}>
+              {!tmdbReady ? (
+                <Box sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
+                  <Typography color="text.secondary">{t('settingsPage.genreDiscoveryLoading')}</Typography>
+                </Box>
+              ) : !tmdbConfigured ? (
+                <Typography color="text.secondary" sx={{ py: 2 }}>
+                  {t('settingsPage.genreDiscoveryRequiresTmdb')}
+                </Typography>
+              ) : (
+                <DiscoveryGenreStripsSettings />
+              )}
             </TabPanel>
 
           </TabPanel>
