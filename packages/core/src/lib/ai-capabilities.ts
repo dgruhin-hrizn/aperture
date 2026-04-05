@@ -33,7 +33,7 @@ export interface ModelMetadata {
   inputCostPerMillion?: number
   outputCostPerMillion?: number
   notes?: string
-  
+
   // Custom models (added by user for Ollama/OpenAI-compatible)
   isCustom?: boolean
 }
@@ -115,22 +115,6 @@ export const PROVIDERS: ProviderMetadata[] = [
         quality: 'standard',
         costTier: 'low',
         inputCostPerMillion: 0.02,
-      },
-      {
-        id: 'text-embedding-ada-002',
-        name: 'text-embedding-ada-002',
-        description:
-          'Legacy OpenAI embedding model. Prefer text-embedding-3-small for better quality and pricing.',
-        capabilities: {
-          supportsToolCalling: false,
-          supportsToolStreaming: false,
-          supportsObjectGeneration: false,
-          supportsEmbeddings: true,
-        },
-        embeddingDimensions: 1536,
-        quality: 'standard',
-        costTier: 'low',
-        inputCostPerMillion: 0.1,
       },
     ],
     chatModels: [
@@ -909,8 +893,8 @@ export const PROVIDERS: ProviderMetadata[] = [
     supportsExploration: true,
     requiresApiKey: true,
     requiresBaseUrl: false,
-    embeddingModels: [],      // Custom models only - user adds their own
-    chatModels: [],           // Custom models only - user adds their own
+    embeddingModels: [], // Custom models only - user adds their own
+    chatModels: [], // Custom models only - user adds their own
     textGenerationModels: [],
     explorationModels: [],
   },
@@ -927,8 +911,8 @@ export const PROVIDERS: ProviderMetadata[] = [
     supportsExploration: true,
     requiresApiKey: true,
     requiresBaseUrl: false,
-    embeddingModels: [],      // Custom models only - user adds their own
-    chatModels: [],           // Custom models only - user adds their own
+    embeddingModels: [], // Custom models only - user adds their own
+    chatModels: [], // Custom models only - user adds their own
     textGenerationModels: [],
     explorationModels: [],
   },
@@ -984,7 +968,8 @@ export function getModel(
 export function getProvidersForFunction(fn: AIFunction): ProviderMetadata[] {
   return PROVIDERS.filter((p) => {
     if (fn === 'embeddings') return p.supportsEmbeddings
-    if (fn === 'chat') return p.supportsChat && p.chatModels.some((m) => m.capabilities.supportsToolCalling)
+    if (fn === 'chat')
+      return p.supportsChat && p.chatModels.some((m) => m.capabilities.supportsToolCalling)
     if (fn === 'textGeneration') return p.supportsTextGeneration
     if (fn === 'exploration') return p.supportsExploration
     return false
@@ -1181,4 +1166,3 @@ export async function getPricingForModelAsync(
     embeddingDimensions: model?.embeddingDimensions,
   }
 }
-
