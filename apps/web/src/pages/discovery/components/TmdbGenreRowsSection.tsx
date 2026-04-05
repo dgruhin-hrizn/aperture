@@ -25,6 +25,8 @@ interface StripEntry {
   excludeGenreIds?: number[]
   yearStart?: number
   yearEnd?: number
+  /** Rolling end year (current calendar year at fetch time). */
+  yearEndCurrent?: boolean
   state: 'idle' | 'loading' | 'loaded'
   strip: StripState | null
 }
@@ -38,14 +40,28 @@ function rowQueueKey(
   originCountry?: string,
   excludeGenreIds?: number[],
   yearStart?: number,
-  yearEnd?: number
+  yearEnd?: number,
+  yearEndCurrent?: boolean
 ): string {
   const c = (originCountry ?? '').trim().toUpperCase()
   const cc = c && /^[A-Z]{2}$/.test(c) ? c : ''
   const ex = (excludeGenreIds ?? []).join('|')
   const ys = yearStart !== undefined ? String(yearStart) : ''
-  const ye = yearEnd !== undefined ? String(yearEnd) : ''
+  const ye =
+    yearEndCurrent === true ? 'c' : yearEnd !== undefined ? String(yearEnd) : ''
   return `${genreIds.join('|')}::${limit}::${cc}::${ex}::${ys}::${ye}`
+}
+
+function stripRowKey(e: StripEntry): string {
+  return rowQueueKey(
+    e.genreIds,
+    e.limit,
+    e.originCountry,
+    e.excludeGenreIds,
+    e.yearStart,
+    e.yearEnd,
+    e.yearEndCurrent
+  )
 }
 
 function parseQueueKey(key: string): {
@@ -55,6 +71,7 @@ function parseQueueKey(key: string): {
   excludeGenreIds?: number[]
   yearStart?: number
   yearEnd?: number
+  yearEndCurrent?: boolean
 } | null {
   const parts = key.split('::')
   if (parts.length < 2) return null
@@ -85,17 +102,22 @@ function parseQueueKey(key: string): {
   const yeRaw = parts[5] ?? ''
   let yearStart: number | undefined
   let yearEnd: number | undefined
+  let yearEndCurrent: boolean | undefined
   if (ysRaw !== '') {
     const y = parseInt(ysRaw, 10)
     if (!Number.isFinite(y) || y < STRIP_QUEUE_YEAR_MIN || y > STRIP_QUEUE_YEAR_MAX) return null
     yearStart = y
   }
   if (yeRaw !== '') {
-    const y = parseInt(yeRaw, 10)
-    if (!Number.isFinite(y) || y < STRIP_QUEUE_YEAR_MIN || y > STRIP_QUEUE_YEAR_MAX) return null
-    yearEnd = y
+    if (yeRaw === 'c') {
+      yearEndCurrent = true
+    } else {
+      const y = parseInt(yeRaw, 10)
+      if (!Number.isFinite(y) || y < STRIP_QUEUE_YEAR_MIN || y > STRIP_QUEUE_YEAR_MAX) return null
+      yearEnd = y
+    }
   }
-  return { genreIds, limit, originCountry, excludeGenreIds, yearStart, yearEnd }
+  return { genreIds, limit, originCountry, excludeGenreIds, yearStart, yearEnd, yearEndCurrent }
 }
 
 function buildQuery(params: Record<string, string | undefined>): string {
@@ -132,14 +154,7 @@ function LazyGenreStripRow({
   children: React.ReactNode
 }) {
   const ref = useRef<HTMLDivElement>(null)
-  const rk = rowQueueKey(
-    entry.genreIds,
-    entry.limit,
-    entry.originCountry,
-    entry.excludeGenreIds,
-    entry.yearStart,
-    entry.yearEnd
-  )
+  const rk = stripRowKey(entry)
 
   useEffect(() => {
     if (entry.state !== 'idle') return
@@ -224,6 +239,7 @@ export function TmdbGenreRowsSection({
                 excludeGenreIds?: number[]
                 yearStart?: number
                 yearEnd?: number
+                yearEndCurrent?: boolean
               }
             | number[]
           >
@@ -236,6 +252,7 @@ export function TmdbGenreRowsSection({
                 excludeGenreIds?: number[]
                 yearStart?: number
                 yearEnd?: number
+                yearEndCurrent?: boolean
               }
             | number[]
           >
@@ -266,8 +283,10 @@ export function TmdbGenreRowsSection({
           const excludeGenreIds = Array.isArray(row.excludeGenreIds)
             ? row.excludeGenreIds.filter((id) => typeof id === 'number' && id >= 1)
             : undefined
+          const yearEndCurrent = row.yearEndCurrent === true
           const yearStart = typeof row.yearStart === 'number' ? row.yearStart : undefined
-          const yearEnd = typeof row.yearEnd === 'number' ? row.yearEnd : undefined
+          const yearEnd =
+            yearEndCurrent ? undefined : typeof row.yearEnd === 'number' ? row.yearEnd : undefined
           return {
             genreIds: Array.isArray(row.genreIds) ? row.genreIds : [],
             limit: lim,
@@ -276,6 +295,7 @@ export function TmdbGenreRowsSection({
             excludeGenreIds,
             yearStart,
             yearEnd,
+            yearEndCurrent: yearEndCurrent ? true : undefined,
             state: 'idle' as const,
             strip: null,
           }
@@ -299,8 +319,10 @@ export function TmdbGenreRowsSection({
       excludeGenreIds?: number[]
       yearStart?: number
       yearEnd?: number
+      yearEndCurrent?: boolean
     }): Promise<StripState> => {
-      const { genreIds, limit, originCountry, excludeGenreIds, yearStart, yearEnd } = params
+      const { genreIds, limit, originCountry, excludeGenreIds, yearStart, yearEnd, yearEndCurrent } =
+        params
       const qs = buildQuery({
         mediaType,
         genreIds: genreIds.join(','),
@@ -308,7 +330,12 @@ export function TmdbGenreRowsSection({
         withOriginCountry: originCountry,
         excludeGenreIds: excludeGenreIds?.length ? excludeGenreIds.join(',') : undefined,
         yearStart: yearStart !== undefined ? String(yearStart) : undefined,
-        yearEnd: yearEnd !== undefined ? String(yearEnd) : undefined,
+        yearEnd:
+          yearEndCurrent === true
+            ? 'today'
+            : yearEnd !== undefined
+              ? String(yearEnd)
+              : undefined,
       })
       const res = await fetch(`/api/discovery/tmdb-genre-row${qs}`, { credentials: 'include' })
       if (!res.ok) {
@@ -345,14 +372,11 @@ export function TmdbGenreRowsSection({
       void processQueue()
       return
     }
-    const { genreIds, limit, originCountry, excludeGenreIds, yearStart, yearEnd } = parsed
+    const { genreIds, limit, originCountry, excludeGenreIds, yearStart, yearEnd, yearEndCurrent } =
+      parsed
 
     setStripEntries((prev) =>
-      prev.map((e) =>
-        rowQueueKey(e.genreIds, e.limit, e.originCountry, e.excludeGenreIds, e.yearStart, e.yearEnd) === key
-          ? { ...e, state: 'loading' }
-          : e
-      )
+      prev.map((e) => (stripRowKey(e) === key ? { ...e, state: 'loading' } : e))
     )
 
     try {
@@ -363,18 +387,15 @@ export function TmdbGenreRowsSection({
         excludeGenreIds,
         yearStart,
         yearEnd,
+        yearEndCurrent,
       })
       setStripEntries((prev) =>
-        prev.map((e) =>
-          rowQueueKey(e.genreIds, e.limit, e.originCountry, e.excludeGenreIds, e.yearStart, e.yearEnd) === key
-            ? { ...e, state: 'loaded', strip }
-            : e
-        )
+        prev.map((e) => (stripRowKey(e) === key ? { ...e, state: 'loaded', strip } : e))
       )
     } catch {
       setStripEntries((prev) =>
         prev.map((e) =>
-          rowQueueKey(e.genreIds, e.limit, e.originCountry, e.excludeGenreIds, e.yearStart, e.yearEnd) === key
+          stripRowKey(e) === key
             ? {
                 ...e,
                 state: 'loaded',
@@ -395,10 +416,7 @@ export function TmdbGenreRowsSection({
 
   const enqueueLoad = useCallback(
     (key: string) => {
-      const cur = stripEntriesRef.current.find(
-        (e) =>
-          rowQueueKey(e.genreIds, e.limit, e.originCountry, e.excludeGenreIds, e.yearStart, e.yearEnd) === key
-      )
+      const cur = stripEntriesRef.current.find((e) => stripRowKey(e) === key)
       if (!cur || cur.state !== 'idle') return
       if (queuedRef.current.has(key)) return
       queuedRef.current.add(key)
@@ -540,7 +558,7 @@ export function TmdbGenreRowsSection({
 
         {stripEntries.map((entry, i) => (
           <LazyGenreStripRow
-            key={`${i}-${rowQueueKey(entry.genreIds, entry.limit, entry.originCountry, entry.excludeGenreIds, entry.yearStart, entry.yearEnd)}`}
+            key={`${i}-${stripRowKey(entry)}`}
             entry={entry}
             topMargin={i === 0 ? 0 : 3}
             onVisible={enqueueLoad}

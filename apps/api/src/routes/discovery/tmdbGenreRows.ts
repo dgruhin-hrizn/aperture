@@ -56,6 +56,20 @@ function parseYearQueryParam(raw: string | undefined): { value?: number; bad: bo
   return { value: y, bad: false }
 }
 
+/** yearEnd: numeric year, or `today` / `current` (rolling calendar year). */
+function parseYearEndQueryParam(raw: string | undefined): {
+  value?: number
+  current?: boolean
+  bad: boolean
+} {
+  if (raw === undefined || raw.trim() === '') return { bad: false }
+  const s = raw.trim().toLowerCase()
+  if (s === 'today' || s === 'current') return { current: true, bad: false }
+  const y = sanitizeGenreStripYear(raw)
+  if (y === undefined) return { bad: true }
+  return { value: y, bad: false }
+}
+
 function rawToCandidateJson(
   c: RawCandidate,
   rank: number,
@@ -167,9 +181,18 @@ export function registerTmdbGenreRowsRoutes(fastify: FastifyInstance) {
     }
 
     const ys = parseYearQueryParam(request.query.yearStart)
-    const ye = parseYearQueryParam(request.query.yearEnd)
+    const ye = parseYearEndQueryParam(request.query.yearEnd)
     if (ys.bad || ye.bad) {
-      return reply.status(400).send({ error: 'yearStart and yearEnd must be integers between 1900 and 2100 when set' })
+      return reply.status(400).send({
+        error:
+          'yearStart must be an integer between 1900 and 2100 when set; yearEnd must be a year in that range, or "today" / "current" for the current calendar year',
+      })
+    }
+    const nowYear = new Date().getFullYear()
+    if (ys.value !== undefined && ye.current && ys.value > nowYear) {
+      return reply.status(400).send({
+        error: 'yearStart must be less than or equal to the current year when yearEnd is today',
+      })
     }
     if (ys.value !== undefined && ye.value !== undefined && ys.value > ye.value) {
       return reply.status(400).send({ error: 'yearStart must be less than or equal to yearEnd' })
@@ -182,7 +205,8 @@ export function registerTmdbGenreRowsRoutes(fastify: FastifyInstance) {
       targetCount: limit,
       userId: currentUser.id,
       yearStart: ys.value,
-      yearEnd: ye.value,
+      yearEnd: ye.current ? undefined : ye.value,
+      yearEndCurrent: ye.current === true ? true : undefined,
     })
 
     const items = sliced.map((c) => ({

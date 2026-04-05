@@ -52,6 +52,34 @@ import type { SeerrRequestOptions } from '../../types/seerrRequest'
 // Local storage key for persisting filter preferences
 const FILTERS_STORAGE_KEY = 'aperture_discovery_filters'
 
+/** Movies / TV only: "popular" = main TMDb Discover pool; "genre" = admin genre strips */
+const BROWSE_SUBTAB_STORAGE_KEY = 'aperture_discovery_browse_subtab'
+type BrowseSubTab = 'popular' | 'genre'
+
+function loadBrowseSubTabs(): { movie: BrowseSubTab; series: BrowseSubTab } {
+  try {
+    const raw = localStorage.getItem(BROWSE_SUBTAB_STORAGE_KEY)
+    if (raw) {
+      const j = JSON.parse(raw) as { movie?: string; series?: string }
+      return {
+        movie: j.movie === 'genre' ? 'genre' : 'popular',
+        series: j.series === 'genre' ? 'genre' : 'popular',
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return { movie: 'popular', series: 'popular' }
+}
+
+function saveBrowseSubTabs(movie: BrowseSubTab, series: BrowseSubTab) {
+  try {
+    localStorage.setItem(BROWSE_SUBTAB_STORAGE_KEY, JSON.stringify({ movie, series }))
+  } catch {
+    // ignore
+  }
+}
+
 function loadFiltersFromStorage(): DiscoveryFilterOptions {
   try {
     const stored = localStorage.getItem(FILTERS_STORAGE_KEY)
@@ -119,6 +147,11 @@ export function DiscoveryPage() {
   const { viewMode, setViewMode } = useViewMode('discovery')
 
   const [discoveryTab, setDiscoveryTab] = useState<DiscoveryTab>('movie')
+  const initialBrowse = loadBrowseSubTabs()
+  const [browseSubMovie, setBrowseSubMovie] = useState<BrowseSubTab>(initialBrowse.movie)
+  const [browseSubSeries, setBrowseSubSeries] = useState<BrowseSubTab>(initialBrowse.series)
+  const browseSubTab: BrowseSubTab =
+    discoveryTab === 'series' ? browseSubSeries : discoveryTab === 'movie' ? browseSubMovie : 'popular'
   const genreMediaType: MediaType = discoveryTab === 'series' ? 'series' : 'movie'
   const { genres: genreOptions, loading: genresLoading, resolveGenreName } =
     useDiscoveryGenres(genreMediaType)
@@ -137,6 +170,20 @@ export function DiscoveryPage() {
   const candidates =
     discoveryTab === 'movie' ? movieCandidates : discoveryTab === 'series' ? seriesCandidates : []
   const run = discoveryTab === 'movie' ? movieRun : discoveryTab === 'series' ? seriesRun : null
+
+  const handleBrowseSubChange = useCallback(
+    (_: React.SyntheticEvent, v: BrowseSubTab | null) => {
+      if (v == null) return
+      if (discoveryTab === 'movie') {
+        setBrowseSubMovie(v)
+        saveBrowseSubTabs(v, browseSubSeries)
+      } else if (discoveryTab === 'series') {
+        setBrowseSubSeries(v)
+        saveBrowseSubTabs(browseSubMovie, v)
+      }
+    },
+    [discoveryTab, browseSubMovie, browseSubSeries]
+  )
 
   const handleRefresh = async () => {
     if (discoveryTab === 'streaming') return
@@ -220,8 +267,8 @@ export function DiscoveryPage() {
           )}
         </Box>
 
-        {/* Grid/List toggle — hidden on Streaming tab */}
-        {discoveryTab !== 'streaming' && (
+        {/* Grid/List toggle — main pool only, not genre strips or Streaming */}
+        {discoveryTab !== 'streaming' && browseSubTab === 'popular' && (
           <ToggleButtonGroup
             value={viewMode}
             exclusive
@@ -239,8 +286,8 @@ export function DiscoveryPage() {
         )}
       </Box>
 
-      {/* Action buttons row — AI refresh only on Movies / TV tabs */}
-      {discoveryTab !== 'streaming' && (
+      {/* Action buttons row — refresh applies to the main discovery pool */}
+      {discoveryTab !== 'streaming' && browseSubTab === 'popular' && (
         <Box display="flex" gap={1} mb={2}>
           {isMobile ? (
             <Tooltip
@@ -353,33 +400,34 @@ export function DiscoveryPage() {
         )}
       </Tabs>
 
+      {/* Movies / TV: browse by overall popularity vs genre strips */}
+      {(discoveryTab === 'movie' || discoveryTab === 'series') && (
+        <Tabs
+          value={browseSubTab}
+          onChange={handleBrowseSubChange}
+          sx={{ borderBottom: 1, borderColor: 'divider', mb: 2, minHeight: 40 }}
+        >
+          <Tab value="popular" label={t('discovery.tabBrowsePopular')} sx={{ textTransform: 'none' }} />
+          <Tab value="genre" label={t('discovery.tabBrowseGenre')} sx={{ textTransform: 'none' }} />
+        </Tabs>
+      )}
+
       {discoveryTab === 'streaming' ? (
-        <>
-          {status?.requestEnabled ? (
-            <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
-              {t('discovery.alertRequestEnabled')}
-            </Alert>
-          ) : (
-            <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
-              {t('discovery.alertRequestDisabled')}
-            </Alert>
-          )}
-          <StreamingDiscoverySection requestEnabled={status?.requestEnabled ?? false} />
-        </>
+        <StreamingDiscoverySection requestEnabled={status?.requestEnabled ?? false} />
+      ) : browseSubTab === 'genre' ? (
+        <TmdbGenreRowsSection
+          mediaType={discoveryTab === 'series' ? 'series' : 'movie'}
+          requestEnabled={status?.requestEnabled ?? false}
+          resolveGenreName={resolveGenreName}
+        />
       ) : (
         <>
-          {/* Filters */}
+          {/* Filters — main TMDb Discover pool */}
           <DiscoveryFilters
             filters={filters}
             onFiltersChange={handleFiltersChange}
             genreOptions={genreOptions}
             genresLoading={genresLoading}
-          />
-
-          <TmdbGenreRowsSection
-            mediaType={discoveryTab}
-            requestEnabled={status?.requestEnabled ?? false}
-            resolveGenreName={resolveGenreName}
           />
 
       {/* Job Running Banner */}
@@ -424,17 +472,6 @@ export function DiscoveryPage() {
             </>
           )}
         </Typography>
-      )}
-
-      {/* Request capability notice */}
-      {status?.requestEnabled ? (
-        <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
-          {t('discovery.alertRequestEnabled')}
-        </Alert>
-      ) : (
-        <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
-          {t('discovery.alertRequestDisabled')}
-        </Alert>
       )}
 
       {/* Error */}

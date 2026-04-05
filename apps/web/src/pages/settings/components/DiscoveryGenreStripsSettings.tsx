@@ -32,6 +32,10 @@ import {
   IconButton,
   Stack,
   Paper,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material'
 import CategoryIcon from '@mui/icons-material/Category'
 import SaveIcon from '@mui/icons-material/Save'
@@ -64,6 +68,8 @@ interface GenreRowState {
   /** Inclusive year bounds for Discover (optional). */
   yearStart?: number
   yearEnd?: number
+  /** Rolling end at the current calendar year (mutually exclusive with a fixed yearEnd). */
+  yearEndCurrent?: boolean
 }
 
 function newRowId(): string {
@@ -118,6 +124,7 @@ function normalizeRowsForSave(
   excludeGenreIds?: number[]
   yearStart?: number
   yearEnd?: number
+  yearEndCurrent?: boolean
 }[] {
   return rows
     .filter((r) => r.genreIds.length > 0)
@@ -137,6 +144,7 @@ function normalizeRowsForSave(
         excludeGenreIds?: number[]
         yearStart?: number
         yearEnd?: number
+        yearEndCurrent?: boolean
       } = {
         genreIds: r.genreIds,
         limit: lim,
@@ -145,7 +153,8 @@ function normalizeRowsForSave(
       if (originCountry) base.originCountry = originCountry
       if (excludeGenreIds.length > 0) base.excludeGenreIds = excludeGenreIds
       if (r.yearStart !== undefined) base.yearStart = r.yearStart
-      if (r.yearEnd !== undefined) base.yearEnd = r.yearEnd
+      if (r.yearEndCurrent) base.yearEndCurrent = true
+      else if (r.yearEnd !== undefined) base.yearEnd = r.yearEnd
       return base
     })
 }
@@ -161,6 +170,7 @@ function rowEditorFieldsEqual(a: GenreRowState, b: GenreRowState): boolean {
   if (a.originCountry.trim().toUpperCase() !== b.originCountry.trim().toUpperCase()) return false
   if (a.yearStart !== b.yearStart) return false
   if (a.yearEnd !== b.yearEnd) return false
+  if (!!a.yearEndCurrent !== !!b.yearEndCurrent) return false
   return true
 }
 
@@ -191,6 +201,7 @@ function parseRowsFromApi(raw: unknown): GenreRowState[] {
       excludeGenreIds?: unknown
       yearStart?: unknown
       yearEnd?: unknown
+      yearEndCurrent?: unknown
     }
     const genreIds = Array.isArray(o.genreIds) ? [...o.genreIds] : []
     const excludeGenreIds = Array.isArray(o.excludeGenreIds)
@@ -203,7 +214,8 @@ function parseRowsFromApi(raw: unknown): GenreRowState[] {
     const label = typeof o.label === 'string' ? o.label : ''
     const originCountry = typeof o.originCountry === 'string' ? o.originCountry : ''
     const yearStart = typeof o.yearStart === 'number' ? o.yearStart : undefined
-    const yearEnd = typeof o.yearEnd === 'number' ? o.yearEnd : undefined
+    const yearEndCurrent = o.yearEndCurrent === true
+    const yearEnd = yearEndCurrent ? undefined : typeof o.yearEnd === 'number' ? o.yearEnd : undefined
     return {
       rowId: newRowId(),
       genreIds,
@@ -213,6 +225,7 @@ function parseRowsFromApi(raw: unknown): GenreRowState[] {
       originCountry,
       yearStart,
       yearEnd,
+      yearEndCurrent: yearEndCurrent ? true : undefined,
     }
   })
 }
@@ -227,6 +240,7 @@ function cloneRowState(r: GenreRowState): GenreRowState {
     originCountry: r.originCountry,
     yearStart: r.yearStart,
     yearEnd: r.yearEnd,
+    yearEndCurrent: r.yearEndCurrent,
   }
 }
 
@@ -273,6 +287,12 @@ function GenreStripRowCard({
     )
     return [anyOpt, ...sorted]
   }, [countryOptions, countryAny])
+
+  const yearEndMode: 'none' | 'current' | 'fixed' = row.yearEndCurrent
+    ? 'current'
+    : row.yearEnd !== undefined
+      ? 'fixed'
+      : 'none'
 
   return (
     <Paper
@@ -459,27 +479,56 @@ function GenreStripRowCard({
             fullWidth
             size="small"
           />
-          <TextField
-            type="number"
-            label={t('settingsDiscoveryGenreStrips.fieldYearEnd')}
-            value={row.yearEnd ?? ''}
-            onChange={(e) => {
-              const raw = e.target.value
-              if (raw === '') {
-                onPatch({ yearEnd: undefined })
-                return
-              }
-              const v = parseInt(raw, 10)
-              onPatch({ yearEnd: Number.isFinite(v) ? v : row.yearEnd })
-            }}
-            onBlur={() => {
-              const v = clampStripYear(row.yearEnd)
-              if (v !== row.yearEnd) onPatch({ yearEnd: v })
-            }}
-            inputProps={{ min: STRIP_YEAR_MIN, max: STRIP_YEAR_MAX }}
-            fullWidth
-            size="small"
-          />
+          <Box>
+            <FormControl fullWidth size="small">
+              <InputLabel id={`genre-strip-ye-${row.rowId}`}>
+                {t('settingsDiscoveryGenreStrips.fieldYearEnd')}
+              </InputLabel>
+              <Select
+                labelId={`genre-strip-ye-${row.rowId}`}
+                label={t('settingsDiscoveryGenreStrips.fieldYearEnd')}
+                value={yearEndMode}
+                onChange={(e) => {
+                  const v = e.target.value as 'none' | 'current' | 'fixed'
+                  if (v === 'none') onPatch({ yearEnd: undefined, yearEndCurrent: false })
+                  else if (v === 'current') onPatch({ yearEnd: undefined, yearEndCurrent: true })
+                  else
+                    onPatch({
+                      yearEndCurrent: false,
+                      yearEnd: row.yearEnd ?? new Date().getFullYear(),
+                    })
+                }}
+              >
+                <MenuItem value="none">{t('settingsDiscoveryGenreStrips.fieldYearEndOptionNone')}</MenuItem>
+                <MenuItem value="current">{t('settingsDiscoveryGenreStrips.fieldYearEndOptionToday')}</MenuItem>
+                <MenuItem value="fixed">{t('settingsDiscoveryGenreStrips.fieldYearEndOptionFixed')}</MenuItem>
+              </Select>
+            </FormControl>
+            {yearEndMode === 'fixed' ? (
+              <TextField
+                type="number"
+                label={t('settingsDiscoveryGenreStrips.fieldYearEndFixed')}
+                value={row.yearEnd ?? ''}
+                onChange={(e) => {
+                  const raw = e.target.value
+                  if (raw === '') {
+                    onPatch({ yearEnd: undefined })
+                    return
+                  }
+                  const v = parseInt(raw, 10)
+                  onPatch({ yearEnd: Number.isFinite(v) ? v : row.yearEnd })
+                }}
+                onBlur={() => {
+                  const v = clampStripYear(row.yearEnd)
+                  if (v !== row.yearEnd) onPatch({ yearEnd: v })
+                }}
+                inputProps={{ min: STRIP_YEAR_MIN, max: STRIP_YEAR_MAX }}
+                fullWidth
+                size="small"
+                sx={{ mt: 1 }}
+              />
+            ) : null}
+          </Box>
         </Box>
 
         <Box

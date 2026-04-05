@@ -1415,8 +1415,10 @@ export interface GenreStripRowConfig {
   excludeGenreIds?: number[]
   /** Inclusive release / first-air year lower bound (Discover date filters). */
   yearStart?: number
-  /** Inclusive release / first-air year upper bound. */
+  /** Inclusive release / first-air year upper bound. Mutually exclusive with {@link yearEndCurrent}. */
   yearEnd?: number
+  /** When true, the end bound is the current calendar year at fetch time (rolling “today”). */
+  yearEndCurrent?: boolean
 }
 
 /** Trim and cap length; empty after trim → undefined. */
@@ -1502,6 +1504,7 @@ export function validateGenreStripRows(rows: unknown): GenreStripRowConfig[] | n
         excludeGenreIds?: unknown
         yearStart?: unknown
         yearEnd?: unknown
+        yearEndCurrent?: unknown
       }
       if (!Array.isArray(o.genreIds)) return null
       const ids = parsePositiveIntIds(o.genreIds as unknown[])
@@ -1525,16 +1528,23 @@ export function validateGenreStripRows(rows: unknown): GenreStripRowConfig[] | n
         excludeIds = ex.length > 0 ? ex : undefined
       }
       const oRec = o as Record<string, unknown>
+      const yearEndCurrent = o.yearEndCurrent === true
       const ys = parseOptionalYearField(oRec, 'yearStart')
       const ye = parseOptionalYearField(oRec, 'yearEnd')
       if (ys === 'invalid' || ye === 'invalid') return null
-      if (ys !== undefined && ye !== undefined && ys > ye) return null
+      if (yearEndCurrent && 'yearEnd' in o && o.yearEnd !== undefined && o.yearEnd !== null && o.yearEnd !== '') {
+        return null
+      }
+      const currentYear = new Date().getFullYear()
+      if (yearEndCurrent && ys !== undefined && ys > currentYear) return null
+      if (!yearEndCurrent && ys !== undefined && ye !== undefined && ys > ye) return null
       const row: GenreStripRowConfig = { genreIds: ids, limit: lim }
       if (label) row.label = label
       if (originCountry) row.originCountry = originCountry
       if (excludeIds) row.excludeGenreIds = excludeIds
       if (ys !== undefined) row.yearStart = ys
-      if (ye !== undefined) row.yearEnd = ye
+      if (yearEndCurrent) row.yearEndCurrent = true
+      else if (ye !== undefined) row.yearEnd = ye
       out.push(row)
       continue
     }
@@ -1583,7 +1593,8 @@ function serializeGenreStripRowsForStorage(rows: GenreStripRowConfig[]): string 
     if (r.originCountry) base.originCountry = r.originCountry
     if (r.excludeGenreIds?.length) base.excludeGenreIds = r.excludeGenreIds
     if (r.yearStart !== undefined) base.yearStart = r.yearStart
-    if (r.yearEnd !== undefined) base.yearEnd = r.yearEnd
+    if (r.yearEndCurrent) base.yearEndCurrent = true
+    else if (r.yearEnd !== undefined) base.yearEnd = r.yearEnd
     return base
   })
   return JSON.stringify(payload)

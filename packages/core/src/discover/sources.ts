@@ -106,8 +106,10 @@ export interface GenreStripDiscoverFilters {
   withOriginCountry?: string
   /** Inclusive calendar year lower bound (movies: primary_release_date; TV: first_air_date). */
   yearStart?: number
-  /** Inclusive calendar year upper bound. */
+  /** Inclusive calendar year upper bound. Ignored when {@link yearEndCurrent} is true. */
   yearEnd?: number
+  /** Use {@link Date#getFullYear} as the inclusive end year at request time. */
+  yearEndCurrent?: boolean
   /** How many titles to return after exclusions (strip “max titles”). */
   targetCount: number
   userId: string
@@ -120,19 +122,23 @@ export async function fetchGenreStripDiscoverCandidates(
   const targetCount = Math.max(1, Math.min(GENRE_STRIP_MAX_ROW_LIMIT, filters.targetCount))
   const sortBy = 'vote_count.desc' as const
   const withoutGenres = filters.withoutGenreIds?.length ? filters.withoutGenreIds : undefined
+  const effectiveYearEnd =
+    filters.yearEndCurrent === true
+      ? new Date().getFullYear()
+      : filters.yearEnd
   const dateFilters =
     mediaType === 'movie'
       ? {
           releaseDateGte:
             filters.yearStart !== undefined ? `${filters.yearStart}-01-01` : undefined,
           releaseDateLte:
-            filters.yearEnd !== undefined ? `${filters.yearEnd}-12-31` : undefined,
+            effectiveYearEnd !== undefined ? `${effectiveYearEnd}-12-31` : undefined,
         }
       : {
           firstAirDateGte:
             filters.yearStart !== undefined ? `${filters.yearStart}-01-01` : undefined,
           firstAirDateLte:
-            filters.yearEnd !== undefined ? `${filters.yearEnd}-12-31` : undefined,
+            effectiveYearEnd !== undefined ? `${effectiveYearEnd}-12-31` : undefined,
         }
   const base = {
     sortBy,
