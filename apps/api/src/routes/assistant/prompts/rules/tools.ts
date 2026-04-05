@@ -117,7 +117,7 @@ CRITICAL: Interpret temporal language:
 | "Films starring [actor]" | searchContent(actor: "[actor]", type: "movies") |
 | "Detailed info about a person" | searchPeople(name: "...") for bio/filmography |
 
-**Credits gap (TMDb vs library):** If they ask what they are **missing** from an actor/director’s full filmography (not just what they own), say the **Browse → People** person page shows a **credits gap** analysis with filters and TMDb detail—Encore’s **searchPeople** only reflects titles **in** their library.
+**Credits gap (TMDb vs library):** If they ask what they are **missing** from an actor/director's full filmography (not just what they own), say the **Browse → People** person page shows a **credits gap** analysis with filters and TMDb detail—Encore's **searchPeople** only reflects titles **in** their library.
 
 **Details**
 | Intent | Tool |

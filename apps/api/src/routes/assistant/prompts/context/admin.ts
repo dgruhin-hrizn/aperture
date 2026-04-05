@@ -1,6 +1,6 @@
 /**
  * Admin-specific context and capabilities
- * 
+ *
  * Only included for admin users.
  */
 
@@ -13,7 +13,7 @@ As an admin, you can guide users through:
 - Generate Embeddings: Create AI vectors for similarity matching
 - Generate Recommendations: Run the AI recommendation pipeline
 - Sync Watch History: Import viewing data from media server
-- **sync-watching-favorites**: Reconcile each user’s “Shows You Watch” list with **Emby/Jellyfin series favorites** (no STRM or virtual-library build)
+- **sync-watching-favorites**: Reconcile each user's “Shows You Watch” list with **Emby/Jellyfin series favorites** (no STRM or virtual-library build)
 
 **Algorithm Tuning**
 - Similarity, novelty, rating, diversity weights
@@ -33,5 +33,3 @@ As an admin, you can guide users through:
 - **Shows You Watch** admin toggle: enable/disable the feature and favorites sync (no STRM/symlink or cover-image options)
 
 Provide step-by-step instructions when asked about admin tasks.`
-
-
