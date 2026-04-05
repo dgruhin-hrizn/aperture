@@ -538,7 +538,7 @@
     },
     "insights": {
       "recommendedForYou": "Für Sie empfohlen",
-      "matchSubtitle": "{{pct}} % Übereinstimmung basierend auf Ihrem Anzeigeverlauf",
+      "matchSubtitle": "{{pct}} % Übereinstimmung basierend auf Ihrem Anzeigeverlauf",
       "subtitleMovie": "Wie ähnlich ist dieser Film den Filmen, die Ihnen gefallen haben?",
       "subtitleSeries": "Wie ähnlich ist diese Serie den Serien, die Ihnen gefallen haben?",
       "howWeCalculated": "Wie wir Ihren Match berechnet haben",
@@ -1771,7 +1771,7 @@
     "labelEpisodesPerWk": "Episoden/Woche",
     "labelChatPerUserWk": "Chat-Nachrichten/Benutzer/Woche",
     "localNoteTitle": "Selbstgehostete Modelle erkannt!",
-    "localNoteBody": "Die lokale Ausführung von KI bedeutet für diese Funktionen API-Kosten von 0,00 $. Es fallen nur Ihre Rechenkosten (Strom, Hardware) an.",
+    "localNoteBody": "Die lokale Ausführung von KI bedeutet für diese Funktionen API-Kosten von 0,00 $. Es fallen nur Ihre Rechenkosten (Strom, Hardware) an.",
     "initialCosts": "Kosten für die anfängliche Einbettung",
     "initialCaption": "Einmalige Kosten für die Einbettung Ihrer gesamten Bibliothek ({{movies}} Filme, {{series}} Serien, {{episodes}} Episoden)",
     "recurringTitle": "Wöchentlich wiederkehrende Kosten",
@@ -1833,7 +1833,7 @@
         "description": "Wie viele Elemente aus Ihrer Bibliothek sollen als potenzielle Empfehlungen bewertet werden?",
         "increase": "Gründlichere Suche, berücksichtigt die gesamte Bibliothek, aber langsamere Verarbeitung.",
         "decrease": "Schnellere Generierung, aber möglicherweise fehlen einige gute Übereinstimmungen mit weniger beliebten Artikeln.",
-        "example": "Stellen Sie ∞ (unbegrenzt) ein, um die besten Ergebnisse zu erzielen, wenn Sie Zeit haben, oder 10–20 km für schnellere tägliche Läufe."
+        "example": "Stellen Sie ∞ (unbegrenzt) ein, um die besten Ergebnisse zu erzielen, wenn Sie Zeit haben, oder 10–20 km für schnellere tägliche Läufe."
       },
       "selectedCount": {
         "title": "Empfehlungen pro Benutzer",
@@ -2450,9 +2450,9 @@
     "playsCount": "{{count}} spielt",
     "playsPlus": "10+ Spiele",
     "episodesWatched": "{{count}} Episoden",
-    "avgCompletion": "{{pct}} % durchschnittlicher Abschluss",
+    "avgCompletion": "{{pct}} % durchschnittlicher Abschluss",
     "seriesEps": "{{count}} eps",
-    "avgShort": "{{pct}} % durchschn"
+    "avgShort": "{{pct}} % durchschn"
   },
   "watching": {
     "subtitle": "Verfolgen Sie Serien, die Sie gerade ansehen, und sehen Sie sich kommende Folgen an",
