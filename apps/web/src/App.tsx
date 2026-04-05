@@ -1,5 +1,7 @@
 import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { I18nextProvider } from 'react-i18next'
+import i18n from './i18n/config'
 import { ThemeProvider } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
 import { theme } from './theme'
@@ -197,15 +199,17 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <BrowserRouter>
-        <SetupProvider>
-          <AuthProvider>
-            <AppRoutes />
-          </AuthProvider>
-        </SetupProvider>
-      </BrowserRouter>
-    </ThemeProvider>
+    <I18nextProvider i18n={i18n}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <BrowserRouter>
+          <SetupProvider>
+            <AuthProvider>
+              <AppRoutes />
+            </AuthProvider>
+          </SetupProvider>
+        </BrowserRouter>
+      </ThemeProvider>
+    </I18nextProvider>
   )
 }

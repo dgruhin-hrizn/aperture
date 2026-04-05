@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { syncUiLanguageFromServer } from '@/i18n/syncUiLanguage'
 
 interface User {
   id: string
@@ -80,6 +81,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const data = await response.json()
     setUser(data.user)
+
+    try {
+      await syncUiLanguageFromServer()
+    } catch {
+      // ignore locale sync failures
+    }
   }
 
   const logout = async () => {

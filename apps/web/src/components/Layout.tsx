@@ -44,32 +44,37 @@ import { WelcomeModal, useWelcomeModal } from './WelcomeModal'
 import { ExplorationConfigModal } from './ExplorationConfigModal'
 import { RunningJobsWidget } from './RunningJobsWidget'
 import { GlobalSearch } from './GlobalSearch'
+import { useTranslation } from 'react-i18next'
+import { applyEffectiveUiLanguage } from '@/i18n/syncUiLanguage'
 
 const DRAWER_WIDTH = 260
 const DRAWER_WIDTH_COLLAPSED = 72
 
+type NavItem = { textKey: string; icon: React.ReactElement; path: string; feature: string | null }
+
 // Base user-facing navigation items (some may be conditionally hidden)
-const baseUserMenuItems = [
-  { text: 'Dashboard', icon: <HomeIcon />, path: '/', feature: null },
-  { text: 'Recommendations', icon: <AutoAwesomeIcon />, path: '/recommendations', feature: null },
-  { text: 'Shows You Watch', icon: <AddToQueueIcon />, path: '/watching', feature: 'watching' },
-  { text: 'Top Picks', icon: <WhatshotIcon />, path: '/top-picks', feature: null },
-  { text: 'Playlists', icon: <PlaylistPlayIcon />, path: '/playlists', feature: null },
-  { text: 'Explore', icon: <HubOutlinedIcon />, path: '/explore', feature: null },
-  { text: 'Discover', icon: <ExploreIcon />, path: '/discovery', feature: null },
-  { text: 'My Requests', icon: <PlaylistAddCheckIcon />, path: '/my-requests', feature: null },
-  { text: 'Browse', icon: <VideoLibraryIcon />, path: '/browse', feature: null },
-  { text: 'Watch History', icon: <HistoryIcon />, path: '/history', feature: null },
-  { text: 'Watch Stats', icon: <InsightsIcon />, path: '/stats', feature: null },
+const baseUserMenuItems: NavItem[] = [
+  { textKey: 'nav.dashboard', icon: <HomeIcon />, path: '/', feature: null },
+  { textKey: 'nav.recommendations', icon: <AutoAwesomeIcon />, path: '/recommendations', feature: null },
+  { textKey: 'nav.showsYouWatch', icon: <AddToQueueIcon />, path: '/watching', feature: 'watching' },
+  { textKey: 'nav.topPicks', icon: <WhatshotIcon />, path: '/top-picks', feature: null },
+  { textKey: 'nav.playlists', icon: <PlaylistPlayIcon />, path: '/playlists', feature: null },
+  { textKey: 'nav.explore', icon: <HubOutlinedIcon />, path: '/explore', feature: null },
+  { textKey: 'nav.discover', icon: <ExploreIcon />, path: '/discovery', feature: null },
+  { textKey: 'nav.myRequests', icon: <PlaylistAddCheckIcon />, path: '/my-requests', feature: null },
+  { textKey: 'nav.browse', icon: <VideoLibraryIcon />, path: '/browse', feature: null },
+  { textKey: 'nav.watchHistory', icon: <HistoryIcon />, path: '/history', feature: null },
+  { textKey: 'nav.watchStats', icon: <InsightsIcon />, path: '/stats', feature: null },
 ]
 
 // Admin navigation items (shown only to admins)
-const adminMenuItems = [
-  { text: 'Admin', icon: <AdminPanelSettingsIcon />, path: '/admin' },
-  { text: 'Gap Analysis', icon: <FactCheckIcon />, path: '/admin/gaps' },
+const adminMenuItems: { textKey: string; icon: React.ReactElement; path: string }[] = [
+  { textKey: 'nav.admin', icon: <AdminPanelSettingsIcon />, path: '/admin' },
+  { textKey: 'nav.gapAnalysis', icon: <FactCheckIcon />, path: '/admin/gaps' },
 ]
 
 export function Layout() {
+  const { t, i18n } = useTranslation()
   const theme = useTheme()
   const navigate = useNavigate()
   const location = useLocation()
@@ -91,7 +96,7 @@ export function Layout() {
     return true
   })
 
-  // Fetch user's sidebar preference on mount
+  // Fetch user's sidebar preference on mount; align i18n with effective UI language (single request)
   useEffect(() => {
     const fetchPreferences = async () => {
       try {
@@ -101,12 +106,15 @@ export function Layout() {
           if (prefs.sidebarCollapsed !== undefined) {
             setCollapsed(prefs.sidebarCollapsed)
           }
+          if (prefs.effectiveUiLanguage && typeof prefs.effectiveUiLanguage === 'string') {
+            await applyEffectiveUiLanguage(prefs.effectiveUiLanguage)
+          }
         }
       } catch {
         // Ignore errors, use default
       }
     }
-    fetchPreferences()
+    void fetchPreferences()
   }, [])
 
   // Fetch watching library config to check if feature is enabled
@@ -205,7 +213,7 @@ export function Layout() {
         onClick={handleCollapseToggle}
       >
         {collapsed ? (
-          <Tooltip title="Expand sidebar" placement="right">
+          <Tooltip title={t('nav.expandSidebar')} placement="right">
             <Box
               component="img"
               src="/aperture.svg"
@@ -230,7 +238,7 @@ export function Layout() {
                 letterSpacing: '-0.01em',
               }}
             >
-              Aperture
+              {t('common.appName')}
             </Typography>
           </Box>
         )}
@@ -239,8 +247,8 @@ export function Layout() {
       {/* User Navigation */}
       <List>
         {userMenuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
-            <Tooltip title={collapsed ? item.text : ''} placement="right" arrow>
+          <ListItem key={item.path} disablePadding>
+            <Tooltip title={collapsed ? t(item.textKey) : ''} placement="right" arrow>
               <ListItemButton
                 selected={isPathActive(item.path)}
                 onClick={() => handleNavClick(item.path)}
@@ -260,7 +268,7 @@ export function Layout() {
                 </ListItemIcon>
                 {!collapsed && (
                   <ListItemText
-                    primary={item.text}
+                    primary={t(item.textKey)}
                     primaryTypographyProps={{
                       fontWeight: isPathActive(item.path) ? 600 : 400,
                     }}
@@ -281,8 +289,8 @@ export function Layout() {
           <Divider sx={{ mx: 2, my: 1 }} />
           <List>
             {adminMenuItems.map((item) => (
-              <ListItem key={item.text} disablePadding>
-                <Tooltip title={collapsed ? item.text : ''} placement="right" arrow>
+              <ListItem key={item.path} disablePadding>
+                <Tooltip title={collapsed ? t(item.textKey) : ''} placement="right" arrow>
                   <ListItemButton
                     selected={isAdminPathActive(item.path)}
                     onClick={() => handleNavClick(item.path)}
@@ -302,7 +310,7 @@ export function Layout() {
                     </ListItemIcon>
                     {!collapsed && (
                       <ListItemText
-                        primary={item.text}
+                        primary={t(item.textKey)}
                         primaryTypographyProps={{
                           fontWeight: isAdminPathActive(item.path) ? 600 : 400,
                         }}
@@ -329,7 +337,7 @@ export function Layout() {
         }}
       >
         <Tooltip
-          title={collapsed ? 'Expand sidebar (v0.7.1)' : 'Collapse sidebar'}
+          title={collapsed ? t('nav.expandSidebarVersion') : t('nav.collapseSidebar')}
           placement="right"
         >
           <IconButton
@@ -413,7 +421,7 @@ export function Layout() {
                 letterSpacing: '-0.01em',
               }}
             >
-              Aperture
+              {t('common.appName')}
             </Typography>
           </Box>
 
@@ -453,7 +461,7 @@ export function Layout() {
                     {user.displayName || user.username}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {user.isAdmin ? 'Administrator' : 'User'}
+                    {user.isAdmin ? t('nav.roleLabelAdmin') : t('nav.roleLabelUser')}
                   </Typography>
                 </Box>
                 <Divider />
@@ -461,26 +469,26 @@ export function Layout() {
                   <ListItemIcon>
                     <SettingsIcon fontSize="small" />
                   </ListItemIcon>
-                  Settings
+                  {t('nav.settings')}
                 </MenuItem>
                 <MenuItem onClick={() => { handleUserMenuClose(); navigate('/history'); }}>
                   <ListItemIcon>
                     <PersonIcon fontSize="small" />
                   </ListItemIcon>
-                  My Watch History
+                  {t('nav.myWatchHistory')}
                 </MenuItem>
                 <MenuItem onClick={() => { handleUserMenuClose(); showWelcome(); }}>
                   <ListItemIcon>
                     <HelpOutlineIcon fontSize="small" />
                   </ListItemIcon>
-                  How It Works
+                  {t('nav.howItWorks')}
                 </MenuItem>
                 <Divider />
                 <MenuItem onClick={handleLogout}>
                   <ListItemIcon>
                     <LogoutIcon fontSize="small" />
                   </ListItemIcon>
-                  Logout
+                  {t('nav.logout')}
                 </MenuItem>
               </Menu>
             </>
@@ -561,7 +569,7 @@ export function Layout() {
           }),
         }}
       >
-        <Outlet />
+        <Outlet key={i18n.language} />
       </Box>
 
       {/* Welcome Modal - shows on first visit */}
