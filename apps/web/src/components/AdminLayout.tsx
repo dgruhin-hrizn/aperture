@@ -56,21 +56,24 @@ export function AdminLayout() {
     return () => clearInterval(interval)
   }, [fetchRunningJobsCount])
 
-  // Determine active tab based on current path
-  const getActiveTab = () => {
+  // Determine active tab based on current path (no tab selected on /admin/gaps)
+  const getActiveTab = (): number | false => {
     const path = location.pathname
-    
+    if (path === '/admin/gaps' || path.startsWith('/admin/gaps/')) {
+      return false
+    }
+
     // Check for exact match first
     const exactMatch = adminTabs.findIndex((tab) => tab.path === path)
     if (exactMatch !== -1) return exactMatch
-    
+
     // Check for prefix match (e.g., /admin/users/123 matches /admin/users)
     for (let i = adminTabs.length - 1; i >= 0; i--) {
       if (path.startsWith(adminTabs[i].path) && adminTabs[i].path !== '/admin') {
         return i
       }
     }
-    
+
     // Default to Overview
     return 0
   }
@@ -108,7 +111,7 @@ export function AdminLayout() {
         elevation={0}
       >
         <Tabs
-          value={activeTab}
+          value={activeTab === false ? false : activeTab}
           onChange={handleTabChange}
           variant="scrollable"
           scrollButtons="auto"

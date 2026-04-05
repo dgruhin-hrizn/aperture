@@ -43,6 +43,8 @@ export interface MoviePosterProps {
   onExploreClick?: () => void
   /** Hide the explore button */
   hideExploreButton?: boolean
+  /** Hide the year line under the title (e.g. collections / non-movie posters). */
+  hideYear?: boolean
   loading?: boolean
   /** Make poster fill container width with 2:3 aspect ratio (for responsive grids) */
   responsive?: boolean
@@ -75,6 +77,7 @@ export function MoviePoster({
   hideWatchingToggle = false,
   onExploreClick,
   hideExploreButton = false,
+  hideYear = false,
   loading = false,
   responsive = false,
   children,
@@ -397,9 +400,11 @@ export function MoviePoster({
         >
           {title}
         </Typography>
-        <Typography variant="caption" color="text.secondary" display="block">
-          {year || 'Unknown year'}
-        </Typography>
+        {!hideYear && (
+          <Typography variant="caption" color="text.secondary" display="block">
+            {year || 'Unknown year'}
+          </Typography>
+        )}
         {genres && genres.length > 0 && (
           <Typography variant="caption" color="text.secondary" noWrap>
             {genres[0]}

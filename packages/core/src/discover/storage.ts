@@ -14,6 +14,7 @@ import type {
   ScoredCandidate,
   DiscoveryRunStatus,
   DiscoveryRequestStatus,
+  DiscoveryRequestSource,
   DiscoveryFilterOptions,
   PoolCandidate,
   RawCandidate,
@@ -844,7 +845,8 @@ export async function createDiscoveryRequest(
   mediaType: MediaType,
   tmdbId: number,
   title: string,
-  discoveryCandidateId?: string
+  discoveryCandidateId?: string,
+  source: DiscoveryRequestSource = 'discovery'
 ): Promise<string> {
   // Validate that the discovery candidate exists before linking
   // (candidates may be cleaned up during refresh, but we still want to allow the request)
@@ -863,10 +865,10 @@ export async function createDiscoveryRequest(
 
   const result = await queryOne<{ id: string }>(
     `INSERT INTO discovery_requests (
-      user_id, media_type, tmdb_id, title, discovery_candidate_id, status
-    ) VALUES ($1, $2, $3, $4, $5, 'pending')
+      user_id, media_type, tmdb_id, title, discovery_candidate_id, status, source
+    ) VALUES ($1, $2, $3, $4, $5, 'pending', $6)
     RETURNING id`,
-    [userId, mediaType, tmdbId, title, validCandidateId]
+    [userId, mediaType, tmdbId, title, validCandidateId, source]
   )
 
   if (!result) {
@@ -916,6 +918,7 @@ export async function getDiscoveryRequests(
   options: {
     mediaType?: MediaType
     status?: DiscoveryRequestStatus
+    source?: DiscoveryRequestSource
     limit?: number
   } = {}
 ): Promise<DiscoveryRequest[]> {
@@ -931,6 +934,11 @@ export async function getDiscoveryRequests(
   if (options.status) {
     sql += ` AND status = $${paramIndex}`
     params.push(options.status)
+    paramIndex++
+  }
+  if (options.source) {
+    sql += ` AND source = $${paramIndex}`
+    params.push(options.source)
     paramIndex++
   }
 
@@ -952,6 +960,7 @@ export async function getDiscoveryRequests(
     status: DiscoveryRequestStatus
     status_message: string | null
     discovery_candidate_id: string | null
+    source: DiscoveryRequestSource
     created_at: Date
     updated_at: Date
   }>(sql, params)
@@ -967,6 +976,7 @@ export async function getDiscoveryRequests(
     status: row.status,
     statusMessage: row.status_message,
     discoveryCandidateId: row.discovery_candidate_id,
+    source: row.source ?? 'discovery',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }))
@@ -991,6 +1001,7 @@ export async function hasExistingRequest(
     status: DiscoveryRequestStatus
     status_message: string | null
     discovery_candidate_id: string | null
+    source: DiscoveryRequestSource
     created_at: Date
     updated_at: Date
   }>(
@@ -1014,6 +1025,7 @@ export async function hasExistingRequest(
     status: result.status,
     statusMessage: result.status_message,
     discoveryCandidateId: result.discovery_candidate_id,
+    source: result.source ?? 'discovery',
     createdAt: result.created_at,
     updatedAt: result.updated_at,
   }

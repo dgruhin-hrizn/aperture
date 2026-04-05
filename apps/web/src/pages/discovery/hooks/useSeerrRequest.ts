@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import type { MediaType, SeerrMediaStatus } from '../types'
 import type { SeasonInfo } from '../components/SeasonSelectModal'
+import type { SeerrRequestOptions } from '../../../types/seerrRequest'
 
 // TV details response from Seerr API
 export interface TVDetailsResponse {
@@ -120,7 +121,8 @@ export function useSeerrRequest() {
     mediaType: MediaType,
     title: string,
     discoveryCandidateId?: string,
-    seasons?: number[] // Optional seasons array for TV requests
+    seasons?: number[],
+    seerrOptions?: SeerrRequestOptions
   ): Promise<{ success: boolean; error?: string }> => {
     setRequesting(tmdbId)
     try {
@@ -133,7 +135,14 @@ export function useSeerrRequest() {
           mediaType,
           title,
           discoveryCandidateId,
-          seasons, // Pass seasons to the API
+          seasons,
+          ...(seerrOptions?.rootFolder !== undefined ? { rootFolder: seerrOptions.rootFolder } : {}),
+          ...(seerrOptions?.profileId !== undefined ? { profileId: seerrOptions.profileId } : {}),
+          ...(seerrOptions?.serverId !== undefined ? { serverId: seerrOptions.serverId } : {}),
+          ...(seerrOptions?.languageProfileId !== undefined
+            ? { languageProfileId: seerrOptions.languageProfileId }
+            : {}),
+          ...(seerrOptions?.is4k !== undefined ? { is4k: seerrOptions.is4k } : {}),
         }),
       })
 

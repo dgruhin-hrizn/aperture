@@ -35,6 +35,8 @@ import FilterListIcon from '@mui/icons-material/FilterList'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import { MediaPosterCard, type SeerrStatus } from '../../../components/MediaPosterCard'
+import { RequestSeerrOptionsDialog } from '../../../components/RequestSeerrOptionsDialog'
+import type { SeerrRequestOptions } from '../../../types/seerrRequest'
 import { SeasonSelectModal, type SeasonInfo } from '../../discovery/components/SeasonSelectModal'
 
 // ISO 639-1 language code to display name mapping
@@ -171,6 +173,9 @@ export function TopPicksPreviewModal({
     const [seasonModalOpen, setSeasonModalOpen] = useState(false)
     const [seasonModalLoading, setSeasonModalLoading] = useState(false)
     const [seasonData, setSeasonData] = useState<{ seasons: SeasonInfo[]; title: string; posterPath?: string; tmdbId: number } | null>(null)
+
+    const [sessionSeerrOptions, setSessionSeerrOptions] = useState<SeerrRequestOptions | null>(null)
+    const [seerrOptionsDialogOpen, setSeerrOptionsDialogOpen] = useState(false)
 
     // Language filtering - initialize with saved values
     const [selectedLanguages, setSelectedLanguages] = useState<string[]>(savedLanguages)
@@ -354,6 +359,7 @@ export function TopPicksPreviewModal({
             // Reset state when opening
             setRequestingItems(new Set())
             setStatusCache(new Map())
+            setSessionSeerrOptions(null)
 
             // Fetch preview and then Seerr statuses
             const init = async () => {
@@ -402,6 +408,7 @@ export function TopPicksPreviewModal({
                     tmdbId: item.tmdbId,
                     title: item.title,
                     seasons, // Include seasons for series requests
+                    ...(sessionSeerrOptions ?? {}),
                 }),
             })
 
@@ -466,6 +473,7 @@ export function TopPicksPreviewModal({
                         mediaType: mediaType === 'movies' ? 'movie' : 'series',
                         tmdbId: item.tmdbId,
                         title: item.title,
+                        ...(sessionSeerrOptions ?? {}),
                     }),
                 })
 
@@ -759,7 +767,23 @@ export function TopPicksPreviewModal({
                 </TabPanel>
             </DialogContent>
 
-            <DialogActions sx={{ p: 2 }}>
+            <DialogActions sx={{ p: 2, flexWrap: 'wrap', gap: 1 }}>
+                {tabValue === 1 && seerrConfigured && (
+                    <>
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => setSeerrOptionsDialogOpen(true)}
+                        >
+                            Seerr options{sessionSeerrOptions ? ' (set)' : ''}
+                        </Button>
+                        {sessionSeerrOptions && (
+                            <Button size="small" onClick={() => setSessionSeerrOptions(null)}>
+                                Clear options
+                            </Button>
+                        )}
+                    </>
+                )}
                 {tabValue === 1 && seerrConfigured && getRequestableItems().length > 0 && mediaType === 'movies' && (
                     <Button
                         variant="contained"
@@ -793,6 +817,17 @@ export function TopPicksPreviewModal({
                 posterPath={seasonData?.posterPath}
                 seasons={seasonData?.seasons || []}
                 loading={seasonModalLoading}
+            />
+
+            <RequestSeerrOptionsDialog
+                open={seerrOptionsDialogOpen}
+                mediaType={mediaType === 'movies' ? 'movie' : 'series'}
+                title={`${mediaType === 'movies' ? 'Movies' : 'Series'} preview requests`}
+                onClose={() => setSeerrOptionsDialogOpen(false)}
+                onConfirm={(opts) => {
+                    setSessionSeerrOptions(opts)
+                    setSeerrOptionsDialogOpen(false)
+                }}
             />
         </Dialog>
     )

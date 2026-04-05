@@ -31,6 +31,7 @@ import { useDiscoveryData, useSeerrRequest, useDiscoveryJobStatus, invalidateDis
 import { DiscoveryCard, DiscoveryFilters, DiscoveryListItem } from './components'
 import { useViewMode } from '../../hooks/useViewMode'
 import type { DiscoveryCandidate, DiscoveryFilterOptions, MediaType } from './types'
+import type { SeerrRequestOptions } from '../../types/seerrRequest'
 
 // Local storage key for persisting filter preferences
 const FILTERS_STORAGE_KEY = 'aperture_discovery_filters'
@@ -125,13 +126,18 @@ export function DiscoveryPage() {
     }
   }
 
-  const handleRequest = useCallback(async (candidate: DiscoveryCandidate, seasons?: number[]) => {
+  const handleRequest = useCallback(async (
+    candidate: DiscoveryCandidate,
+    seasons?: number[],
+    seerrOptions?: SeerrRequestOptions
+  ) => {
     const result = await submitRequest(
       candidate.tmdbId,
       candidate.mediaType,
       candidate.title,
       candidate.id,
-      seasons // Pass seasons for TV series requests
+      seasons,
+      seerrOptions
     )
     if (result.success) {
       markAsRequested(candidate.tmdbId)

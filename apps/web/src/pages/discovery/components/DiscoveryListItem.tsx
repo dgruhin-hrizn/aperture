@@ -25,6 +25,8 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
 import { RankBadge } from '@aperture/ui'
 import { DiscoveryDetailPopper } from './DiscoveryDetailPopper'
 import { SeasonSelectModal, type SeasonInfo } from './SeasonSelectModal'
+import { RequestSeerrOptionsDialog } from '../../../components/RequestSeerrOptionsDialog'
+import type { SeerrRequestOptions } from '../../../types/seerrRequest'
 import type { DiscoveryCandidate, SeerrMediaStatus } from '../types'
 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w500'
@@ -33,7 +35,11 @@ const FALLBACK_POSTER = '/NO_POSTER_FOUND.png'
 interface DiscoveryListItemProps {
   candidate: DiscoveryCandidate
   canRequest: boolean
-  onRequest: (candidate: DiscoveryCandidate, seasons?: number[]) => Promise<void>
+  onRequest: (
+    candidate: DiscoveryCandidate,
+    seasons?: number[],
+    seerrOptions?: SeerrRequestOptions
+  ) => Promise<void>
   isRequesting: boolean
   cachedStatus?: SeerrMediaStatus
   fetchTVDetails?: (tmdbId: number) => Promise<{ seasons: SeasonInfo[]; title: string; posterPath?: string } | null>
@@ -52,7 +58,8 @@ export function DiscoveryListItem({
   const [imageError, setImageError] = useState(false)
   const [detailOpen, setDetailOpen] = useState(false)
   
-  // Season selection modal state
+  const [optionsDialogOpen, setOptionsDialogOpen] = useState(false)
+  const [pendingSeerrOpts, setPendingSeerrOpts] = useState<SeerrRequestOptions | null>(null)
   const [seasonModalOpen, setSeasonModalOpen] = useState(false)
   const [seasonModalLoading, setSeasonModalLoading] = useState(false)
   const [seasonData, setSeasonData] = useState<{ seasons: SeasonInfo[]; title: string; posterPath?: string } | null>(null)
@@ -83,25 +90,31 @@ export function DiscoveryListItem({
     return theme.palette.primary.main
   }
 
-  const handleRequest = async (e: React.MouseEvent) => {
+  const handleRequest = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (!isRequesting && !isRequested && canRequest) {
-      // For series, open the season selection modal
-      if (candidate.mediaType === 'series' && fetchTVDetails) {
-        setSeasonModalLoading(true)
-        setSeasonModalOpen(true)
-        const details = await fetchTVDetails(candidate.tmdbId)
-        setSeasonData(details)
-        setSeasonModalLoading(false)
-      } else {
-        // For movies, request directly
-        await onRequest(candidate)
-      }
+      setOptionsDialogOpen(true)
+    }
+  }
+
+  const handleOptionsConfirm = async (opts: SeerrRequestOptions) => {
+    setOptionsDialogOpen(false)
+    if (candidate.mediaType === 'movie') {
+      await onRequest(candidate, undefined, opts)
+      return
+    }
+    if (fetchTVDetails) {
+      setPendingSeerrOpts(opts)
+      setSeasonModalLoading(true)
+      setSeasonModalOpen(true)
+      const details = await fetchTVDetails(candidate.tmdbId)
+      setSeasonData(details)
+      setSeasonModalLoading(false)
     }
   }
 
   const handleSeasonSubmit = async (seasons: number[]) => {
-    await onRequest(candidate, seasons)
+    await onRequest(candidate, seasons, pendingSeerrOpts ?? undefined)
   }
 
   // IMDb URL if available, fallback to TMDb
@@ -135,7 +148,7 @@ export function DiscoveryListItem({
       {/* Main row: Poster + Content + Desktop Actions */}
       <Box sx={{ display: 'flex', flexDirection: 'row' }}>
         <CardActionArea
-          onClick={() => !seasonModalOpen && window.open(primaryUrl, '_blank')}
+          onClick={() => !seasonModalOpen && !optionsDialogOpen && window.open(primaryUrl, '_blank')}
           sx={{ display: 'flex', flexGrow: 1, alignItems: 'stretch' }}
         >
           {/* Poster Section */}
@@ -555,11 +568,20 @@ export function DiscoveryListItem({
       />
 
       {/* Season Selection Modal (for series) */}
+      <RequestSeerrOptionsDialog
+        open={optionsDialogOpen}
+        mediaType={candidate.mediaType === 'movie' ? 'movie' : 'series'}
+        title={candidate.title}
+        onClose={() => setOptionsDialogOpen(false)}
+        onConfirm={handleOptionsConfirm}
+      />
+
       <SeasonSelectModal
         open={seasonModalOpen}
         onClose={() => {
           setSeasonModalOpen(false)
           setSeasonData(null)
+          setPendingSeerrOpts(null)
         }}
         onSubmit={handleSeasonSubmit}
         title={seasonData?.title || candidate.title}

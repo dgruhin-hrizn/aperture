@@ -1,8 +1,10 @@
 import React, { useState } from 'react'
 import { Box } from '@mui/material'
 import { MediaPosterCard, type Genre } from '../../../components/MediaPosterCard'
+import { RequestSeerrOptionsDialog } from '../../../components/RequestSeerrOptionsDialog'
 import { DiscoveryDetailPopper } from './DiscoveryDetailPopper'
 import { SeasonSelectModal, type SeasonInfo } from './SeasonSelectModal'
+import type { SeerrRequestOptions } from '../../../types/seerrRequest'
 import type { DiscoveryCandidate, SeerrMediaStatus } from '../types'
 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w500'
@@ -10,7 +12,11 @@ const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w500'
 interface DiscoveryCardProps {
   candidate: DiscoveryCandidate
   canRequest: boolean
-  onRequest: (candidate: DiscoveryCandidate, seasons?: number[]) => Promise<void>
+  onRequest: (
+    candidate: DiscoveryCandidate,
+    seasons?: number[],
+    seerrOptions?: SeerrRequestOptions
+  ) => Promise<void>
   isRequesting: boolean
   cachedStatus?: SeerrMediaStatus
   fetchTVDetails?: (tmdbId: number) => Promise<{ seasons: SeasonInfo[]; title: string; posterPath?: string } | null>
@@ -25,8 +31,8 @@ export function DiscoveryCard({
   fetchTVDetails,
 }: DiscoveryCardProps) {
   const [detailOpen, setDetailOpen] = useState(false)
-  
-  // Season selection modal state
+  const [optionsDialogOpen, setOptionsDialogOpen] = useState(false)
+  const [pendingSeerrOpts, setPendingSeerrOpts] = useState<SeerrRequestOptions | null>(null)
   const [seasonModalOpen, setSeasonModalOpen] = useState(false)
   const [seasonModalLoading, setSeasonModalLoading] = useState(false)
   const [seasonData, setSeasonData] = useState<{ seasons: SeasonInfo[]; title: string; posterPath?: string } | null>(null)
@@ -54,24 +60,30 @@ export function DiscoveryCard({
     return '#6366f1'
   }
 
-  const handleRequest = async () => {
+  const handleRequest = () => {
     if (!isRequesting && !cachedStatus?.requested && canRequest) {
-      // For series, open the season selection modal
-      if (candidate.mediaType === 'series' && fetchTVDetails) {
-        setSeasonModalLoading(true)
-        setSeasonModalOpen(true)
-        const details = await fetchTVDetails(candidate.tmdbId)
-        setSeasonData(details)
-        setSeasonModalLoading(false)
-      } else {
-        // For movies, request directly
-        await onRequest(candidate)
-      }
+      setOptionsDialogOpen(true)
+    }
+  }
+
+  const handleOptionsConfirm = async (opts: SeerrRequestOptions) => {
+    setOptionsDialogOpen(false)
+    if (candidate.mediaType === 'movie') {
+      await onRequest(candidate, undefined, opts)
+      return
+    }
+    if (fetchTVDetails) {
+      setPendingSeerrOpts(opts)
+      setSeasonModalLoading(true)
+      setSeasonModalOpen(true)
+      const details = await fetchTVDetails(candidate.tmdbId)
+      setSeasonData(details)
+      setSeasonModalLoading(false)
     }
   }
 
   const handleSeasonSubmit = async (seasons: number[]) => {
-    await onRequest(candidate, seasons)
+    await onRequest(candidate, seasons, pendingSeerrOpts ?? undefined)
   }
 
   // IMDb URL if available, fallback to TMDb
@@ -111,7 +123,15 @@ export function DiscoveryCard({
         voteAverage={candidate.voteAverage}
         genres={genres}
         onShowDetails={() => setDetailOpen(true)}
-        onClick={() => !seasonModalOpen && window.open(primaryUrl, '_blank')}
+        onClick={() => !seasonModalOpen && !optionsDialogOpen && window.open(primaryUrl, '_blank')}
+      />
+
+      <RequestSeerrOptionsDialog
+        open={optionsDialogOpen}
+        mediaType={candidate.mediaType === 'movie' ? 'movie' : 'series'}
+        title={candidate.title}
+        onClose={() => setOptionsDialogOpen(false)}
+        onConfirm={handleOptionsConfirm}
       />
 
       {/* Detail Popper */}
@@ -127,6 +147,7 @@ export function DiscoveryCard({
         onClose={() => {
           setSeasonModalOpen(false)
           setSeasonData(null)
+          setPendingSeerrOpts(null)
         }}
         onSubmit={handleSeasonSubmit}
         title={seasonData?.title || candidate.title}

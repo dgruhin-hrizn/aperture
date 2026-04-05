@@ -110,6 +110,7 @@ export const seerrSchemas = {
       },
       seerrRequestId: { type: 'integer', nullable: true, description: 'Seerr request ID if submitted' },
       discoveryCandidateId: { type: 'string', format: 'uuid', nullable: true, description: 'Discovery candidate that triggered this request' },
+      source: { type: 'string', enum: ['discovery', 'gap_analysis'], description: 'Where the request was created' },
       createdAt: { type: 'string', format: 'date-time' },
       updatedAt: { type: 'string', format: 'date-time' },
     },
@@ -137,6 +138,11 @@ export const seerrSchemas = {
       title: { type: 'string', description: 'Content title (for display purposes)' },
       discoveryCandidateId: { type: 'string', format: 'uuid', description: 'Optional: link to discovery candidate' },
       seasons: { type: 'array', items: { type: 'integer' }, description: 'Season numbers to request (series only). If omitted, requests all seasons.' },
+      rootFolder: { type: 'string', description: 'Radarr/Sonarr root folder path (optional)' },
+      profileId: { type: 'integer', description: 'Quality profile id (optional)' },
+      serverId: { type: 'integer', description: 'Radarr or Sonarr server id when multiple instances exist (optional)' },
+      languageProfileId: { type: 'integer', description: 'Sonarr language profile id for TV (optional)' },
+      is4k: { type: 'boolean', description: 'Request via 4K Radarr/Sonarr server path (optional)' },
     },
     example: {
       tmdbId: 550,
@@ -259,6 +265,38 @@ export const createRequestSchema = {
   body: { $ref: 'CreateRequestBody#' },
 }
 
+export const listRadarrServiceSchema = {
+  tags: ['seerr'],
+  summary: 'List Radarr servers',
+  description: 'Proxy to Seerr GET /service/radarr for request UI (root folders and profiles per server).',
+}
+
+export const getRadarrServiceSchema = {
+  tags: ['seerr'],
+  summary: 'Radarr server profiles and root folders',
+  params: {
+    type: 'object',
+    required: ['id'],
+    properties: { id: { type: 'string', description: 'Radarr server id' } },
+  },
+}
+
+export const listSonarrServiceSchema = {
+  tags: ['seerr'],
+  summary: 'List Sonarr servers',
+  description: 'Proxy to Seerr GET /service/sonarr for request UI.',
+}
+
+export const getSonarrServiceSchema = {
+  tags: ['seerr'],
+  summary: 'Sonarr server profiles and root folders',
+  params: {
+    type: 'object',
+    required: ['id'],
+    properties: { id: { type: 'string', description: 'Sonarr server id' } },
+  },
+}
+
 export const getRequestsSchema = {
   tags: ['seerr'],
   summary: 'Get user requests',
@@ -269,6 +307,7 @@ export const getRequestsSchema = {
       mediaType: { type: 'string', enum: ['movie', 'series'], description: 'Filter by media type' },
       status: { type: 'string', enum: ['pending', 'submitted', 'approved', 'declined', 'available', 'failed'], description: 'Filter by status' },
       limit: { type: 'string', description: 'Maximum results', default: '50', example: '25' },
+      source: { type: 'string', enum: ['discovery', 'gap_analysis'], description: 'Filter by origin (Discovery vs Gap Analysis)' },
     },
   },
 }

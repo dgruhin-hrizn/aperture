@@ -14,6 +14,11 @@ import {
   Alert,
   Button,
   Tooltip,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Stack,
 } from '@mui/material'
 import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
@@ -34,6 +39,7 @@ interface DiscoveryRequestRow {
   status: string
   statusMessage: string | null
   discoveryCandidateId: string | null
+  source?: 'discovery' | 'gap_analysis'
   createdAt: string
   updatedAt: string
   seerrLive: SeerrLive
@@ -70,16 +76,21 @@ function statusColor(row: DiscoveryRequestRow): 'default' | 'primary' | 'seconda
   return 'default'
 }
 
+type SourceFilter = 'all' | 'discovery' | 'gap_analysis'
+
 export function MyRequestsPage() {
   const [rows, setRows] = useState<DiscoveryRequestRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all')
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/seerr/requests', { credentials: 'include' })
+      const u = new URL('/api/seerr/requests', window.location.origin)
+      if (sourceFilter !== 'all') u.searchParams.set('source', sourceFilter)
+      const res = await fetch(u.toString(), { credentials: 'include' })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         throw new Error(data.error || data.message || 'Could not load requests')
@@ -91,7 +102,7 @@ export function MyRequestsPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [sourceFilter])
 
   useEffect(() => {
     void load()
@@ -110,9 +121,26 @@ export function MyRequestsPage() {
           My Requests
         </Typography>
       </Box>
-      <Typography variant="body2" color="text.secondary" mb={3}>
-        Content you requested through Discovery. Status is synced from Seerr when available.
+      <Typography variant="body2" color="text.secondary" mb={2}>
+        Content you requested through Discovery or Gap Analysis (admin). Status is synced from Seerr when
+        available.
       </Typography>
+
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mb={3} alignItems={{ sm: 'center' }}>
+        <FormControl size="small" sx={{ minWidth: 220 }}>
+          <InputLabel id="req-source-filter">Source</InputLabel>
+          <Select
+            labelId="req-source-filter"
+            label="Source"
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value as SourceFilter)}
+          >
+            <MenuItem value="all">All</MenuItem>
+            <MenuItem value="discovery">Discovery</MenuItem>
+            <MenuItem value="gap_analysis">Gap Analysis</MenuItem>
+          </Select>
+        </FormControl>
+      </Stack>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -138,6 +166,7 @@ export function MyRequestsPage() {
                 <TableRow>
                   <TableCell>Title</TableCell>
                   <TableCell width={100}>Type</TableCell>
+                  <TableCell width={130}>Source</TableCell>
                   <TableCell width={140}>Requested</TableCell>
                   <TableCell width={180}>Status</TableCell>
                   <TableCell width={160} align="right">
@@ -161,6 +190,14 @@ export function MyRequestsPage() {
                         size="small"
                         label={r.mediaType === 'movie' ? 'Movie' : 'Series'}
                         variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        label={r.source === 'gap_analysis' ? 'Gap Analysis' : 'Discovery'}
+                        variant="outlined"
+                        color={r.source === 'gap_analysis' ? 'secondary' : 'default'}
                       />
                     </TableCell>
                     <TableCell>
