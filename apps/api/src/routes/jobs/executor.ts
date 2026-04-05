@@ -33,6 +33,7 @@ import {
   failJob,
   syncUsersFromMediaServer,
   createChildLogger,
+  runLibraryGapAnalysis,
 } from '@aperture/core'
 import { syncAllTraktRatings } from '../trakt/index.js'
 import { refreshAssistantSuggestions } from '../assistant/jobs/refreshSuggestions.js'
@@ -401,6 +402,27 @@ export async function runJob(name: string, jobId: string): Promise<void> {
         break
       }
       // === Discovery Suggestions Job ===
+      case 'refresh-library-gaps': {
+        createJobProgress(jobId, 'refresh-library-gaps', 4)
+        const result = await runLibraryGapAnalysis({ jobId })
+        completeJob(jobId, {
+          runId: result.runId,
+          collectionsScanned: result.collectionsScanned,
+          totalParts: result.totalParts,
+          ownedParts: result.ownedParts,
+          missingCount: result.missingCount,
+        })
+        logger.info(
+          {
+            job: name,
+            jobId,
+            runId: result.runId,
+            missingCount: result.missingCount,
+          },
+          `✅ Library gap analysis complete`
+        )
+        break
+      }
       case 'generate-discovery-suggestions': {
         createJobProgress(jobId, 'generate-discovery-suggestions', 2)
 
