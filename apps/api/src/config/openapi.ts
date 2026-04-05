@@ -11,7 +11,7 @@ import type { FastifySwaggerUiOptions } from '@fastify/swagger-ui'
 // API Information
 // =============================================================================
 
-const API_VERSION = '0.7.0'
+const API_VERSION = '0.7.1'
 
 const apiInfo = {
   title: 'Aperture API',
