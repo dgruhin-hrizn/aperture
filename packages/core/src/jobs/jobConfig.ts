@@ -44,7 +44,6 @@ const ENV_DEFAULTS: Record<
 
   // === EVERY HOUR (staggered by 15 mins) ===
   'sync-series-watch-history': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 1 },
-  'sync-watching-libraries': { scheduleType: 'interval', hour: 0, minute: 15, intervalHours: 1 },
   'sync-watching-favorites': { scheduleType: 'interval', hour: 0, minute: 30, intervalHours: 1 },
 
   // === EVERY 2 HOURS ===

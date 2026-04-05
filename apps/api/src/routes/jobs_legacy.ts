@@ -25,7 +25,6 @@ import {
   // Common
   createChildLogger,
   // Watching libraries
-  processWatchingLibrariesForAllUsers,
   processWatchingFavoritesForAllUsers,
   getJobProgress,
   getAllJobProgress,
@@ -161,12 +160,6 @@ const jobDefinitions: Omit<JobInfo, 'lastRun' | 'status' | 'currentJobId'>[] = [
     name: 'sync-trakt-ratings',
     description: 'Sync ratings from Trakt for all connected users',
     cron: '0 */6 * * *', // Every 6 hours
-  },
-  // === Watching Libraries Job ===
-  {
-    name: 'sync-watching-libraries',
-    description: 'Sync "Shows You Watch" libraries for all users',
-    cron: '0 */4 * * *', // Every 4 hours
   },
   {
     name: 'sync-watching-favorites',
@@ -1013,21 +1006,6 @@ async function runJob(name: string, jobId: string): Promise<void> {
             errors: result.errors,
           },
           `✅ Trakt ratings sync complete`
-        )
-        break
-      }
-      // === Watching Libraries Job ===
-      case 'sync-watching-libraries': {
-        const result = await processWatchingLibrariesForAllUsers(jobId)
-        logger.info(
-          {
-            job: name,
-            jobId,
-            success: result.success,
-            failed: result.failed,
-            users: result.users.length,
-          },
-          `✅ Watching libraries sync complete`
         )
         break
       }

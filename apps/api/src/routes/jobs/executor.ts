@@ -20,7 +20,6 @@ import {
   enrichMetadata,
   enrichStudioLogos,
   enrichMDBListMetadata,
-  processWatchingLibrariesForAllUsers,
   processWatchingFavoritesForAllUsers,
   createBackup,
   refreshPricingCache,
@@ -270,21 +269,6 @@ export async function runJob(name: string, jobId: string): Promise<void> {
             errors: result.errors,
           },
           `✅ Trakt ratings sync complete`
-        )
-        break
-      }
-      // === Watching Libraries Job ===
-      case 'sync-watching-libraries': {
-        const result = await processWatchingLibrariesForAllUsers(jobId)
-        logger.info(
-          {
-            job: name,
-            jobId,
-            success: result.success,
-            failed: result.failed,
-            users: result.users.length,
-          },
-          `✅ Watching libraries sync complete`
         )
         break
       }

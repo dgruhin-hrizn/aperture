@@ -351,15 +351,10 @@ export interface UserAiExplanationUpdate {
 
 export interface WatchingLibraryConfig {
   enabled: boolean
-  movieLibraryName: string
-  seriesLibraryName: string
-  libraryNamePrefix: string
 }
 
 export interface WatchingLibraryConfigUpdate {
   enabled?: boolean
-  movieLibraryName?: string
-  seriesLibraryName?: string
 }
 
 // =============================================================================

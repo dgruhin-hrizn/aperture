@@ -93,12 +93,7 @@ export const jobDefinitions: JobDefinition[] = [
     description: 'Sync ratings from Trakt for all connected users',
     cron: '0 */6 * * *', // Every 6 hours
   },
-  // === Watching Libraries Job ===
-  {
-    name: 'sync-watching-libraries',
-    description: 'Sync "Shows You Watch" libraries for all users',
-    cron: '0 */4 * * *', // Every 4 hours
-  },
+  // === Shows You Watch (favorites sync) ===
   {
     name: 'sync-watching-favorites',
     description:

@@ -408,16 +408,8 @@ export {
   type PreviewResult,
 } from './topPicks/index.js'
 
-// Watching Libraries
+// Shows You Watch (DB list + media server favorites sync)
 export {
-  getWatchingLibraryName,
-  ensureUserWatchingLibrary,
-  refreshUserWatchingLibrary,
-  updateUserWatchingLibraryPermissions,
-  getUserWatchingLibraryInfo,
-  writeWatchingSeriesForUser,
-  processWatchingForUser,
-  processWatchingLibrariesForAllUsers,
   getUpcomingEpisodes,
   getUpcomingEpisodeForSeries,
   type UpcomingEpisode,

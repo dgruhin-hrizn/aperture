@@ -307,11 +307,13 @@ export function registerAiOutputHandlers(fastify: FastifyInstance) {
   fastify.patch<{
     Body: {
       enabled?: boolean
-      useSymlinks?: boolean
     }
   }>('/api/settings/watching', { preHandler: requireAdmin, schema: updateWatchingLibraryConfigSchema }, async (request, reply) => {
     try {
-      const config = await setWatchingLibraryConfig(request.body)
+      const body = request.body as { enabled?: boolean }
+      const config = await setWatchingLibraryConfig(
+        body.enabled !== undefined ? { enabled: body.enabled } : {}
+      )
       return reply.send({
         ...config,
         message: 'Watching library configuration updated',

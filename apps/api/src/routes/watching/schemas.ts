@@ -1,8 +1,7 @@
 /**
  * Watching (Shows You Watch) OpenAPI Schemas
- * 
- * "Shows You Watch" feature for tracking currently-watching series.
- * Creates a virtual library in the media server for easy access.
+ *
+ * Tracks series in Aperture and syncs with media server series favorites.
  */
 
 export const watchingSchemas = {
@@ -76,7 +75,7 @@ export const getWatchingIdsSchema = {
 export const addToWatchingSchema = {
   tags: ['watching'],
   summary: 'Add to watching',
-  description: 'Add a series to the user\'s "Shows You Watch" list. The virtual library in the media server will be updated.',
+  description: 'Add a series to the user\'s "Shows You Watch" list and favorite it on the media server when possible.',
   params: {
     type: 'object',
     required: ['seriesId'],
@@ -101,8 +100,9 @@ export const removeFromWatchingSchema = {
 
 export const refreshWatchingSchema = {
   tags: ['watching'],
-  summary: 'Refresh watching library',
-  description: 'Regenerate the user\'s "Shows You Watch" virtual library in the media server. Use this if the library gets out of sync.',
+  summary: 'Sync watching with media server favorites',
+  description:
+    'Reconcile the user\'s "Shows You Watch" list with series favorites on the media server (bidirectional).',
 }
 
 export const checkWatchingSchema = {

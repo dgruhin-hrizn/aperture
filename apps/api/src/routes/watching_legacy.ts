@@ -10,7 +10,6 @@ import { query, queryOne } from '../lib/db.js'
 import { requireAuth } from '../plugins/auth.js'
 import {
   getUpcomingEpisodes,
-  processWatchingForUser,
   reconcileWatchingFavoritesForUser,
   favoriteWatchingSeriesOnMediaServer,
   unfavoriteWatchingSeriesOnMediaServer,
@@ -213,41 +212,67 @@ const watchingRoutes: FastifyPluginAsync = async (fastify) => {
 
   /**
    * POST /api/watching/refresh
-   * Regenerate user's watching library in Emby
+   * Reconcile Shows You Watch with media server series favorites
    */
   fastify.post<{
-    Reply: { success: boolean; message: string; written: number; libraryCreated: boolean }
+    Reply: {
+      success: boolean
+      message: string
+      skipped: boolean
+      reason?: string
+      pushedToServer: number
+      removedFromDb: number
+      pulledIntoDb: number
+      pushErrors: number
+    }
   }>('/api/watching/refresh', { preHandler: requireAuth, schema: { tags: ["watching"] } }, async (request, reply) => {
     const user = request.user!
 
     try {
-      const result = await processWatchingForUser(
-        user.id,
-        user.providerUserId,
-        user.displayName || user.username
-      )
+      const result = await reconcileWatchingFavoritesForUser(user.id, user.providerUserId)
 
-      try {
-        await reconcileWatchingFavoritesForUser(user.id, user.providerUserId)
-      } catch (reconcileErr) {
-        fastify.log.warn({ reconcileErr, userId: user.id }, 'Watching favorites reconcile failed after refresh')
+      if (result.skipped) {
+        const msg =
+          result.reason === 'watching_disabled'
+            ? 'Shows You Watch is disabled'
+            : result.reason === 'no_api_key'
+              ? 'Media server API key not configured'
+              : result.reason === 'no_provider_user_id'
+                ? 'Account is not linked to the media server'
+                : result.reason === 'list_favorites_failed'
+                  ? 'Could not read favorites from media server'
+                  : 'Sync skipped'
+        return reply.send({
+          success: true,
+          message: msg,
+          skipped: true,
+          reason: result.reason,
+          pushedToServer: 0,
+          removedFromDb: 0,
+          pulledIntoDb: 0,
+          pushErrors: 0,
+        })
       }
 
       return reply.send({
         success: true,
-        message: result.written > 0 
-          ? `Library updated with ${result.written} series`
-          : 'No series in watching list',
-        written: result.written,
-        libraryCreated: result.libraryCreated,
+        message: 'Shows You Watch synced with media server favorites',
+        skipped: false,
+        pushedToServer: result.pushedToServer,
+        removedFromDb: result.removedFromDb,
+        pulledIntoDb: result.pulledIntoDb,
+        pushErrors: result.pushErrors,
       })
     } catch (err) {
-      fastify.log.error({ err, userId: user.id }, 'Failed to refresh watching library')
+      fastify.log.error({ err, userId: user.id }, 'Failed to sync watching favorites')
       return reply.status(500).send({
         success: false,
-        message: 'Failed to refresh library',
-        written: 0,
-        libraryCreated: false,
+        message: 'Failed to sync with media server',
+        skipped: false,
+        pushedToServer: 0,
+        removedFromDb: 0,
+        pulledIntoDb: 0,
+        pushErrors: 0,
       })
     }
   })

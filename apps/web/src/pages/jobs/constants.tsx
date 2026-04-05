@@ -9,7 +9,6 @@ import AutorenewIcon from '@mui/icons-material/Autorenew'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import SyncIcon from '@mui/icons-material/Sync'
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
-import AddToQueueIcon from '@mui/icons-material/AddToQueue'
 import FavoriteIcon from '@mui/icons-material/Favorite'
 import BusinessIcon from '@mui/icons-material/Business'
 import StreamIcon from '@mui/icons-material/Stream'
@@ -72,14 +71,9 @@ export const GLOBAL_JOB_CATEGORIES: JobCategory[] = [
   },
   {
     title: 'Curated Libraries',
-    description: 'Top Picks popularity lists and Shows You Watch libraries',
+    description: 'Top Picks popularity lists and Shows You Watch favorites sync',
     color: '#f59e0b',
-    jobs: [
-      'refresh-top-picks',
-      'auto-request-top-picks',
-      'sync-watching-libraries',
-      'sync-watching-favorites',
-    ],
+    jobs: ['refresh-top-picks', 'auto-request-top-picks', 'sync-watching-favorites'],
   },
   {
     title: 'Discovery & Suggestions',
@@ -123,7 +117,6 @@ export const JOB_ICONS: Record<string, React.ReactNode> = {
   'enrich-mdblist': <StreamIcon />,
   'refresh-top-picks': <TrendingUpIcon />,
   'auto-request-top-picks': <SendIcon />,
-  'sync-watching-libraries': <AddToQueueIcon />,
   'sync-watching-favorites': <FavoriteIcon />,
   'sync-trakt-ratings': <SyncIcon />,
   'refresh-ai-pricing': <AttachMoneyIcon />,
@@ -152,7 +145,6 @@ export const JOB_COLORS: Record<string, string> = {
   'enrich-mdblist': '#6366f1',
   'refresh-top-picks': '#f59e0b',
   'auto-request-top-picks': '#f97316',
-  'sync-watching-libraries': '#06b6d4',
   'sync-watching-favorites': '#e11d48',
   'sync-trakt-ratings': '#ed1c24',
   'refresh-ai-pricing': '#22c55e',

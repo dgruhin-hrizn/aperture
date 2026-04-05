@@ -45,6 +45,18 @@ interface CachedData {
 
 const CACHE_VERSION = 1
 
+/** Response from POST /api/watching/refresh (favorites reconcile) */
+export interface WatchingRefreshResult {
+  success: boolean
+  message: string
+  skipped: boolean
+  reason?: string
+  pushedToServer: number
+  removedFromDb: number
+  pulledIntoDb: number
+  pushErrors: number
+}
+
 export interface WatchingContextValue {
   /** Set of series IDs the user is watching */
   watchingIds: Set<string>
@@ -66,8 +78,8 @@ export interface WatchingContextValue {
   toggleWatching: (seriesId: string) => Promise<void>
   /** Force refresh from server (invalidates cache) */
   refresh: () => Promise<void>
-  /** Refresh the Emby library */
-  refreshLibrary: () => Promise<{ written: number; libraryCreated: boolean }>
+  /** Reconcile Shows You Watch with media server series favorites */
+  refreshLibrary: () => Promise<WatchingRefreshResult>
 }
 
 export const WatchingContext = createContext<WatchingContextValue | null>(null)
@@ -265,7 +277,7 @@ export function WatchingProvider({ children }: WatchingProviderProps) {
         throw new Error('Failed to refresh library')
       }
 
-      const data = await response.json()
+      const data = (await response.json()) as WatchingRefreshResult
       return data
     } catch (err) {
       console.error('Failed to refresh library:', err)

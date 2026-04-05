@@ -429,15 +429,13 @@ export const watchingLibraryConfigSchema = {
 
 export const updateWatchingLibraryConfigSchema = {
   tags: ['settings'],
-  summary: 'Update watching library configuration',
-  description: 'Update configuration for the "Shows You Watch" library feature (admin only).',
+  summary: 'Update Shows You Watch feature',
+  description: 'Enable or disable the "Shows You Watch" list and media server favorites sync (admin only).',
   body: {
     type: 'object' as const,
     additionalProperties: true,
     properties: {
       enabled: { type: 'boolean' as const },
-      movieLibraryName: { type: 'string' as const },
-      seriesLibraryName: { type: 'string' as const },
     },
   },
 }
