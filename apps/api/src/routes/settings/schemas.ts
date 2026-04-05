@@ -1000,6 +1000,8 @@ const SUPPORTED_LOCALE_CODES = [
   'fr',
   'it',
   'pt',
+  'nl',
+  'ru',
   'ja',
   'zh',
   'ko',

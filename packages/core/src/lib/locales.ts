@@ -7,7 +7,7 @@ export const DEFAULT_LOCALE = 'en' as const
 
 export type AppLocaleCode = (typeof APP_LOCALE_OPTIONS)[number]['code']
 
-/** Curated list for settings dropdowns and validation (includes Hindi, Arabic, and Hebrew in addition to the original nine). */
+/** Curated list for settings dropdowns and validation (keep in sync with `apps/web` i18n `supportedLngs`). */
 export const APP_LOCALE_OPTIONS = [
   { code: 'en' as const, label: 'English' },
   { code: 'es' as const, label: 'Español' },
@@ -15,6 +15,8 @@ export const APP_LOCALE_OPTIONS = [
   { code: 'fr' as const, label: 'Français' },
   { code: 'it' as const, label: 'Italiano' },
   { code: 'pt' as const, label: 'Português' },
+  { code: 'nl' as const, label: 'Nederlands' },
+  { code: 'ru' as const, label: 'Русский' },
   { code: 'ja' as const, label: '日本語' },
   { code: 'zh' as const, label: '中文' },
   { code: 'ko' as const, label: '한국어' },
@@ -51,6 +53,8 @@ export function appLocaleToTmdbLanguage(code: string | null | undefined): string
     fr: 'fr-FR',
     it: 'it-IT',
     pt: 'pt-BR',
+    nl: 'nl-NL',
+    ru: 'ru-RU',
     ja: 'ja-JP',
     zh: 'zh-CN',
     ko: 'ko-KR',

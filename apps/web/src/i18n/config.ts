@@ -8,6 +8,8 @@ import de from './locales/de/translation.json'
 import fr from './locales/fr/translation.json'
 import it from './locales/it/translation.json'
 import pt from './locales/pt/translation.json'
+import nl from './locales/nl/translation.json'
+import ru from './locales/ru/translation.json'
 import ja from './locales/ja/translation.json'
 import zh from './locales/zh/translation.json'
 import ko from './locales/ko/translation.json'
@@ -29,6 +31,8 @@ void i18n
       fr: { translation: fr },
       it: { translation: it },
       pt: { translation: pt },
+      nl: { translation: nl },
+      ru: { translation: ru },
       ja: { translation: ja },
       zh: { translation: zh },
       ko: { translation: ko },
@@ -37,7 +41,22 @@ void i18n
       he: { translation: he },
     },
     fallbackLng: 'en',
-    supportedLngs: ['en', 'es', 'de', 'fr', 'it', 'pt', 'ja', 'zh', 'ko', 'hi', 'ar', 'he'],
+    supportedLngs: [
+      'en',
+      'es',
+      'de',
+      'fr',
+      'it',
+      'pt',
+      'nl',
+      'ru',
+      'ja',
+      'zh',
+      'ko',
+      'hi',
+      'ar',
+      'he',
+    ],
     interpolation: { escapeValue: false },
     detection: {
       order: ['localStorage', 'navigator'],

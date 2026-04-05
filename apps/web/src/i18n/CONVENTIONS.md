@@ -31,7 +31,7 @@ From `apps/web`:
 
 ### Linguistic translation at scale
 
-Filling **all** missing strings (~1.4k per locale × 11 locales) is done in batches: translate each `chunk-NN.json` per target language, then apply with `apply-translated-chunk.mjs`. Cursor subagents or an MT API with a glossary for product terms (`Aperture`, `TMDb`, `Seerr`, etc.) work well; preserve `{{…}}` interpolation and `_plural` keys exactly.
+Filling **all** missing strings (~1.4k per locale × 13 non-English locales) is done in batches: translate each `chunk-NN.json` per target language, then apply with `apply-translated-chunk.mjs`. Cursor subagents or an MT API with a glossary for product terms (`Aperture`, `TMDb`, `Seerr`, etc.) work well; preserve `{{…}}` interpolation and `_plural` keys exactly.
 
 ## Pluralization
 

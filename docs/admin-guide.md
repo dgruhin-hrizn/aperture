@@ -88,7 +88,7 @@ Start here if you're new to Aperture:
 
 ### Language defaults (admin)
 
-Under **Admin → Settings → System**, **Language defaults** sets the instance-wide default **UI language** and default **AI output language** (taste synopses, recommendation explanations, assistant replies, etc.). Users can override both under **Settings → Preferences → Language** (`uiLanguage` / `aiLanguage` in stored preferences; `null` means “use server default”). Supported locale codes match `APP_LOCALE_OPTIONS` in core: `en`, `es`, `de`, `fr`, `it`, `pt`, `ja`, `zh`, `ko`, `hi`, `ar`, `he`.
+Under **Admin → Settings → System**, **Language defaults** sets the instance-wide default **UI language** and default **AI output language** (taste synopses, recommendation explanations, assistant replies, etc.). Users can override both under **Settings → Preferences → Language** (`uiLanguage` / `aiLanguage` in stored preferences; `null` means “use server default”). Supported locale codes match `APP_LOCALE_OPTIONS` in core: `en`, `es`, `de`, `fr`, `it`, `pt`, `nl`, `ru`, `ja`, `zh`, `ko`, `hi`, `ar`, `he`.
 
 ### Gap Analysis (admin)
 
