@@ -1,5 +1,6 @@
 import { query, queryOne } from '../lib/db.js'
 import { createChildLogger } from '../lib/logger.js'
+import { normalizeAppLocale, type AppLocaleCode } from '../lib/locales.js'
 
 const logger = createChildLogger('system-settings')
 
@@ -900,6 +901,50 @@ export async function setAiExplanationConfig(
     )
   }
   return getAiExplanationConfig()
+}
+
+// ============================================================================
+// Language defaults (UI + AI output)
+// ============================================================================
+
+export interface SystemLanguageDefaults {
+  defaultUiLanguage: AppLocaleCode
+  defaultAiLanguage: AppLocaleCode
+}
+
+/**
+ * Instance-wide default locales when a user has not set an override.
+ */
+export async function getSystemLanguageDefaults(): Promise<SystemLanguageDefaults> {
+  const ui = await getSystemSetting('default_ui_language')
+  const ai = await getSystemSetting('default_ai_language')
+  return {
+    defaultUiLanguage: normalizeAppLocale(ui),
+    defaultAiLanguage: normalizeAppLocale(ai),
+  }
+}
+
+/**
+ * Update language defaults (admin).
+ */
+export async function setSystemLanguageDefaults(
+  defaults: Partial<SystemLanguageDefaults>
+): Promise<SystemLanguageDefaults> {
+  if (defaults.defaultUiLanguage !== undefined) {
+    await setSystemSetting(
+      'default_ui_language',
+      normalizeAppLocale(defaults.defaultUiLanguage),
+      'Default UI language when user has no override (BCP-47 code)'
+    )
+  }
+  if (defaults.defaultAiLanguage !== undefined) {
+    await setSystemSetting(
+      'default_ai_language',
+      normalizeAppLocale(defaults.defaultAiLanguage),
+      'Default AI synopsis/explanation language when user has no override (BCP-47 code)'
+    )
+  }
+  return getSystemLanguageDefaults()
 }
 
 // ============================================================================

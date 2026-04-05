@@ -6,6 +6,10 @@
 
 import { query, queryOne } from './db.js'
 import { createChildLogger } from './logger.js'
+import {
+  isValidAppLocale,
+  type AppLocaleCode,
+} from './locales.js'
 
 const logger = createChildLogger('user-settings')
 
@@ -76,6 +80,14 @@ export interface UserUiPreferences {
   browseFilterPresets?: BrowseFilterPreset[]
   /** Movie/series detail: Similar Media section tab */
   similarMediaView?: 'list' | 'graph'
+  /**
+   * BCP-47 UI locale override. Omit or null to use system default.
+   */
+  uiLanguage?: string | null
+  /**
+   * BCP-47 locale for AI-generated synopsis/explanations. Omit or null to use system default.
+   */
+  aiLanguage?: string | null
 }
 
 /**
@@ -401,6 +413,32 @@ export async function updateUserUiPreferences(
 
   logger.info({ userId, preferences }, 'Updated user UI preferences')
   return updatedUi
+}
+
+/**
+ * Effective UI locale: user override, else system default.
+ */
+export async function resolveEffectiveUiLanguage(userId: string): Promise<AppLocaleCode> {
+  const { getSystemLanguageDefaults } = await import('../settings/systemSettings.js')
+  const prefs = await getUserUiPreferences(userId)
+  const system = await getSystemLanguageDefaults()
+  if (isValidAppLocale(prefs.uiLanguage)) {
+    return prefs.uiLanguage
+  }
+  return system.defaultUiLanguage
+}
+
+/**
+ * Effective AI output locale: user override, else system default.
+ */
+export async function resolveEffectiveAiLanguage(userId: string): Promise<AppLocaleCode> {
+  const { getSystemLanguageDefaults } = await import('../settings/systemSettings.js')
+  const prefs = await getUserUiPreferences(userId)
+  const system = await getSystemLanguageDefaults()
+  if (isValidAppLocale(prefs.aiLanguage)) {
+    return prefs.aiLanguage
+  }
+  return system.defaultAiLanguage
 }
 
 /**

@@ -266,6 +266,17 @@ export {
   type SeriesTasteSynopsis,
 } from './lib/tasteSeriesSynopsis.js'
 
+// Locales (UI + AI)
+export {
+  DEFAULT_LOCALE,
+  APP_LOCALE_OPTIONS,
+  isValidAppLocale,
+  normalizeAppLocale,
+  getLocaleInstructionName,
+  buildAiLanguageInstruction,
+  type AppLocaleCode,
+} from './lib/locales.js'
+
 // User Settings
 export {
   getUserSettings,
@@ -277,6 +288,8 @@ export {
   getEffectiveAiExplanationSetting,
   getUserUiPreferences,
   updateUserUiPreferences,
+  resolveEffectiveUiLanguage,
+  resolveEffectiveAiLanguage,
   addBrowseFilterPreset,
   updateBrowseFilterPreset,
   deleteBrowseFilterPreset,
@@ -338,6 +351,9 @@ export {
   detectPathMappings,
   getAiExplanationConfig,
   setAiExplanationConfig,
+  getSystemLanguageDefaults,
+  setSystemLanguageDefaults,
+  type SystemLanguageDefaults,
   getWatchingLibraryConfig,
   setWatchingLibraryConfig,
   getLibraryTitleConfig,
