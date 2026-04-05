@@ -112,15 +112,15 @@ export function createRecommendationTools(ctx: ToolContext) {
           return {
             id: `recs-empty-${Date.now()}`,
             items: [],
-            description:
-              'No recommendations generated yet. Ask an admin to run the recommendation job.',
+            descriptionKey: 'carouselRecommendationsEmpty',
           }
         }
 
         return {
           id: `recs-${Date.now()}`,
-          title: 'Your AI Recommendations',
-          description: `${items.length} personalized picks for you`,
+          titleKey: 'carouselRecommendationsTitle',
+          descriptionKey: 'carouselRecommendationsDesc',
+          descriptionParams: { count: items.length },
           items,
         }
       },
@@ -186,10 +186,14 @@ export function createRecommendationTools(ctx: ToolContext) {
           }
         }
 
-        const title = genre ? `Top Rated ${genre}` : 'Top Rated'
         return {
           id: `top-rated-${Date.now()}`,
-          title,
+          ...(genre
+            ? {
+                titleKey: 'carouselTopRatedGenreTitle' as const,
+                titleParams: { genre },
+              }
+            : { titleKey: 'carouselTopRatedTitle' as const }),
           items,
         }
       },
@@ -272,8 +276,9 @@ export function createRecommendationTools(ctx: ToolContext) {
 
         return {
           id: `unwatched-${Date.now()}`,
-          title: 'Unwatched Content',
-          description: `${items.length} titles you haven't watched yet`,
+          titleKey: 'carouselUnwatchedTitle',
+          descriptionKey: 'carouselUnwatchedDesc',
+          descriptionParams: { count: items.length },
           items,
         }
       },

@@ -22,10 +22,61 @@ export interface ContentItem {
   actions?: Action[]
 }
 
+/** Mirrors API `ContentCarouselI18nKey` allowlist (client resolves under `assistantToolUi.<key>`). */
+export type ContentCarouselI18nKey =
+  | 'carouselRecommendationsTitle'
+  | 'carouselRecommendationsDesc'
+  | 'carouselRecommendationsEmpty'
+  | 'carouselTopRatedTitle'
+  | 'carouselTopRatedGenreTitle'
+  | 'carouselUnwatchedTitle'
+  | 'carouselUnwatchedDesc'
+  | 'carouselWatchHistoryTitle'
+  | 'carouselWatchHistoryDesc'
+  | 'carouselRatingsTitle'
+  | 'carouselRatingsDesc'
+  | 'carouselRankingSeriesMostEpisodes'
+  | 'carouselRankingSeriesMostSeasons'
+  | 'carouselRankingHighestRatedSeries'
+  | 'carouselRankingLowestRatedSeries'
+  | 'carouselRankingNewestSeries'
+  | 'carouselRankingOldestSeries'
+  | 'carouselRankingLongestMovies'
+  | 'carouselRankingHighestRatedMovies'
+  | 'carouselRankingLowestRatedMovies'
+  | 'carouselRankingNewestMovies'
+  | 'carouselRankingOldestMovies'
+  | 'carouselSearchTitleDefault'
+  | 'carouselSearchTitleQuery'
+  | 'carouselSearchTitleGenreMovies'
+  | 'carouselSearchTitleGenreSeries'
+  | 'carouselSearchTitleGenreBoth'
+  | 'carouselSearchNoResults'
+  | 'carouselSemanticTitleMovies'
+  | 'carouselSemanticTitleSeries'
+  | 'carouselSemanticTitleBoth'
+  | 'carouselSemanticEmpty'
+  | 'carouselSemanticDesc'
+  | 'carouselSemanticError'
+  | 'carouselSimilarTitle'
+  | 'carouselSimilarLookupNotFound'
+  | 'carouselSimilarNoEmbedding'
+  | 'carouselSimilarEmptyMovie'
+  | 'carouselSimilarEmptySeries'
+  | 'carouselSimilarDescMovie'
+  | 'carouselSimilarDescSeries'
+  | 'carouselSimilarDescMovieUnwatched'
+  | 'carouselSimilarDescSeriesUnwatched'
+  | 'carouselSimilarError'
+
 export interface ContentCarouselData {
   id: string
   title?: string
   description?: string
+  titleKey?: ContentCarouselI18nKey
+  descriptionKey?: ContentCarouselI18nKey
+  titleParams?: Record<string, string | number>
+  descriptionParams?: Record<string, string | number>
   items: ContentItem[]
 }
 

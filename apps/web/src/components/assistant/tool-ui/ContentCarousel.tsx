@@ -15,11 +15,31 @@ interface ContentCarouselProps {
   onPlay?: (id: string, href: string) => void
 }
 
+function useCarouselHeaderText(data: ContentCarouselData) {
+  const { t } = useTranslation()
+  const title = data.titleKey
+    ? t(`assistantToolUi.${data.titleKey}`, {
+        ...(data.titleParams ?? {}),
+        defaultValue: data.title,
+      })
+    : data.title
+  const description = data.descriptionKey
+    ? t(`assistantToolUi.${data.descriptionKey}`, {
+        ...(data.descriptionParams ?? {}),
+        defaultValue: data.description,
+      })
+    : data.description
+  const resolvedTitle = typeof title === 'string' && title.length > 0 ? title : undefined
+  const resolvedDescription = typeof description === 'string' && description.length > 0 ? description : undefined
+  return { resolvedTitle, resolvedDescription }
+}
+
 export function ContentCarousel({ data, onPlay }: ContentCarouselProps) {
   const { t } = useTranslation()
   const theme = useTheme()
   const rtl = theme.direction === 'rtl'
   const scrollRef = useRef<HTMLDivElement>(null)
+  const { resolvedTitle, resolvedDescription } = useCarouselHeaderText(data)
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
@@ -33,25 +53,42 @@ export function ContentCarousel({ data, onPlay }: ContentCarouselProps) {
     }
   }
 
-  // Don't render anything for empty results - the AI shouldn't be making
-  // redundant tool calls that return nothing
-  if (data.items.length === 0) {
-    return null
+  const hasHeader = Boolean(resolvedTitle || resolvedDescription)
+  const isEmpty = data.items.length === 0
+
+  if (isEmpty) {
+    if (!hasHeader) return null
+    return (
+      <Box sx={{ my: 2, width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
+        <Box sx={{ mb: 1.5 }}>
+          {resolvedTitle && (
+            <Typography variant="subtitle1" fontWeight={600} sx={{ color: '#e4e4e7' }}>
+              {resolvedTitle}
+            </Typography>
+          )}
+          {resolvedDescription && (
+            <Typography variant="caption" color="text.secondary">
+              {resolvedDescription}
+            </Typography>
+          )}
+        </Box>
+      </Box>
+    )
   }
 
   return (
     <Box sx={{ my: 2, width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
       {/* Header */}
-      {(data.title || data.description) && (
+      {hasHeader && (
         <Box sx={{ mb: 1.5 }}>
-          {data.title && (
+          {resolvedTitle && (
             <Typography variant="subtitle1" fontWeight={600} sx={{ color: '#e4e4e7' }}>
-              {data.title}
+              {resolvedTitle}
             </Typography>
           )}
-          {data.description && (
+          {resolvedDescription && (
             <Typography variant="caption" color="text.secondary">
-              {data.description}
+              {resolvedDescription}
             </Typography>
           )}
         </Box>
@@ -133,4 +170,3 @@ export function ContentCarousel({ data, onPlay }: ContentCarouselProps) {
     </Box>
   )
 }
-

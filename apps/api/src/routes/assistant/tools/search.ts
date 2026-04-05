@@ -7,8 +7,41 @@ import { z } from 'zod'
 import { getActiveEmbeddingTableName } from '@aperture/core'
 import { query, queryOne } from '../../../lib/db.js'
 import { buildPlayLink } from '../helpers/mediaServer.js'
+import type { ContentCarouselI18nKey } from '../schemas/contentCarousel.js'
 import type { ContentItem } from '../schemas/index.js'
 import type { ToolContext, MovieResult, SeriesResult } from '../types.js'
+
+function searchContentTitleKey(
+  searchQuery: string | undefined,
+  genre: string | undefined,
+  type: 'movies' | 'series' | 'both'
+): { titleKey: ContentCarouselI18nKey; titleParams?: Record<string, string | number> } {
+  if (searchQuery) {
+    return { titleKey: 'carouselSearchTitleQuery', titleParams: { query: searchQuery } }
+  }
+  if (genre) {
+    if (type === 'movies') return { titleKey: 'carouselSearchTitleGenreMovies', titleParams: { genre } }
+    if (type === 'series') return { titleKey: 'carouselSearchTitleGenreSeries', titleParams: { genre } }
+    return { titleKey: 'carouselSearchTitleGenreBoth', titleParams: { genre } }
+  }
+  return { titleKey: 'carouselSearchTitleDefault' }
+}
+
+function semanticSearchTitleKey(type: 'movies' | 'series' | 'both'): ContentCarouselI18nKey {
+  if (type === 'movies') return 'carouselSemanticTitleMovies'
+  if (type === 'series') return 'carouselSemanticTitleSeries'
+  return 'carouselSemanticTitleBoth'
+}
+
+function similarSuccessDescriptionKey(
+  foundType: 'movie' | 'series',
+  excludeWatched: boolean
+): ContentCarouselI18nKey {
+  if (foundType === 'movie') {
+    return excludeWatched ? 'carouselSimilarDescMovieUnwatched' : 'carouselSimilarDescMovie'
+  }
+  return excludeWatched ? 'carouselSimilarDescSeriesUnwatched' : 'carouselSimilarDescSeries'
+}
 
 // Helper to format content item for Tool UI
 function formatContentItem(
@@ -289,19 +322,15 @@ export function createSearchTools(ctx: ToolContext) {
           return {
             id: `search-empty-${Date.now()}`,
             items: [],
-            description: 'No results found. Try adjusting your filters.',
+            descriptionKey: 'carouselSearchNoResults',
           }
         }
 
-        // Build title
-        let title = 'Search Results'
-        if (searchQuery) title = `Results for "${searchQuery}"`
-        else if (genre)
-          title = `${genre} ${type === 'movies' ? 'Movies' : type === 'series' ? 'Series' : 'Content'}`
-
+        const { titleKey, titleParams } = searchContentTitleKey(searchQuery, genre, type)
         return {
           id: `search-${Date.now()}`,
-          title,
+          titleKey,
+          ...(titleParams ? { titleParams } : {}),
           items,
         }
       },
@@ -409,17 +438,17 @@ export function createSearchTools(ctx: ToolContext) {
             return {
               id: `semantic-empty-${Date.now()}`,
               items: [],
-              description: `No content found matching "${concept}". Try a different description.`,
+              descriptionKey: 'carouselSemanticEmpty',
+              descriptionParams: { concept },
             }
           }
 
-          // Build descriptive title
-          const typeLabel =
-            type === 'movies' ? 'Movies' : type === 'series' ? 'TV Series' : 'Content'
           return {
             id: `semantic-${Date.now()}`,
-            title: `${typeLabel} matching "${concept}"`,
-            description: `Found ${finalItems.length} titles matching your search`,
+            titleKey: semanticSearchTitleKey(type),
+            titleParams: { concept },
+            descriptionKey: 'carouselSemanticDesc',
+            descriptionParams: { count: finalItems.length },
             items: finalItems,
           }
         } catch (err) {
@@ -427,7 +456,10 @@ export function createSearchTools(ctx: ToolContext) {
           return {
             id: `semantic-error-${Date.now()}`,
             items: [],
-            description: `Search failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+            descriptionKey: 'carouselSemanticError',
+            descriptionParams: {
+              message: err instanceof Error ? err.message : 'Unknown error',
+            },
           }
         }
       },
@@ -532,7 +564,8 @@ export function createSearchTools(ctx: ToolContext) {
             return {
               id: `similar-error-${Date.now()}`,
               items: [],
-              description: `"${title}" not found in your library.`,
+              descriptionKey: 'carouselSimilarLookupNotFound',
+              descriptionParams: { title },
             }
           }
 
@@ -556,7 +589,8 @@ export function createSearchTools(ctx: ToolContext) {
               return {
                 id: `similar-error-${Date.now()}`,
                 items: [],
-                description: `"${movie.title}" doesn't have embeddings generated yet. Run the embedding job first.`,
+                descriptionKey: 'carouselSimilarNoEmbedding',
+                descriptionParams: { title: movie.title },
               }
             }
 
@@ -597,7 +631,8 @@ export function createSearchTools(ctx: ToolContext) {
               return {
                 id: `similar-error-${Date.now()}`,
                 items: [],
-                description: `"${series.title}" doesn't have embeddings generated yet. Run the embedding job first.`,
+                descriptionKey: 'carouselSimilarNoEmbedding',
+                descriptionParams: { title: series.title },
               }
             }
 
@@ -637,17 +672,28 @@ export function createSearchTools(ctx: ToolContext) {
             return {
               id: `similar-empty-${Date.now()}`,
               items: [],
-              description: foundTitle
-                ? `No similar ${foundType === 'movie' ? 'movies' : 'series'} found for "${foundTitle}". The title may not have embeddings generated yet.`
-                : `"${title}" not found in your library.`,
+              ...(foundTitle
+                ? {
+                    descriptionKey:
+                      foundType === 'movie' ? 'carouselSimilarEmptyMovie' : 'carouselSimilarEmptySeries',
+                    descriptionParams: { title: foundTitle },
+                  }
+                : {
+                    descriptionKey: 'carouselSimilarLookupNotFound',
+                    descriptionParams: { title },
+                  }),
             }
           }
 
-          const unwatchedNote = excludeWatched ? " that you haven't watched" : ''
           return {
             id: `similar-${Date.now()}`,
-            title: `Similar to "${foundTitle}"`,
-            description: `Found ${items.length} ${foundType === 'movie' ? 'movies' : 'series'} similar to this ${foundType}${unwatchedNote}`,
+            titleKey: 'carouselSimilarTitle',
+            titleParams: { title: foundTitle },
+            descriptionKey: similarSuccessDescriptionKey(
+              foundType === 'series' ? 'series' : 'movie',
+              excludeWatched
+            ),
+            descriptionParams: { count: items.length },
             items,
           }
         } catch (err) {
@@ -655,7 +701,10 @@ export function createSearchTools(ctx: ToolContext) {
           return {
             id: `similar-error-${Date.now()}`,
             items: [],
-            description: `Failed to find similar content: ${err instanceof Error ? err.message : 'Unknown error'}`,
+            descriptionKey: 'carouselSimilarError',
+            descriptionParams: {
+              message: err instanceof Error ? err.message : 'Unknown error',
+            },
           }
         }
       },

@@ -113,8 +113,9 @@ export function createHistoryTools(ctx: ToolContext) {
 
         return {
           id: `history-${Date.now()}`,
-          title: 'Your Recent Watch History',
-          description: `Found ${items.length} items in your watch history`,
+          titleKey: 'carouselWatchHistoryTitle',
+          descriptionKey: 'carouselWatchHistoryDesc',
+          descriptionParams: { count: items.length },
           items,
         }
       },
@@ -226,8 +227,9 @@ export function createHistoryTools(ctx: ToolContext) {
 
         return {
           id: `ratings-${Date.now()}`,
-          title: 'Your Ratings',
-          description: `Found ${items.length} rated items`,
+          titleKey: 'carouselRatingsTitle',
+          descriptionKey: 'carouselRatingsDesc',
+          descriptionParams: { count: items.length },
           items,
         }
       },

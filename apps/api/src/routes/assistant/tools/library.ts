@@ -6,7 +6,53 @@ import { nullSafe } from './utils.js'
 import { z } from 'zod'
 import { query, queryOne } from '../../../lib/db.js'
 import { buildPlayLink } from '../helpers/mediaServer.js'
+import type { ContentCarouselI18nKey } from '../schemas/contentCarousel.js'
 import type { ToolContext } from '../types.js'
+
+function rankingTitleKey(
+  rankBy:
+    | 'most_episodes'
+    | 'most_seasons'
+    | 'highest_rated'
+    | 'lowest_rated'
+    | 'newest'
+    | 'oldest'
+    | 'longest_runtime',
+  mediaType: 'movies' | 'series'
+): ContentCarouselI18nKey {
+  if (mediaType === 'series') {
+    switch (rankBy) {
+      case 'most_episodes':
+        return 'carouselRankingSeriesMostEpisodes'
+      case 'most_seasons':
+        return 'carouselRankingSeriesMostSeasons'
+      case 'highest_rated':
+        return 'carouselRankingHighestRatedSeries'
+      case 'lowest_rated':
+        return 'carouselRankingLowestRatedSeries'
+      case 'newest':
+        return 'carouselRankingNewestSeries'
+      case 'oldest':
+        return 'carouselRankingOldestSeries'
+      default:
+        return 'carouselRankingSeriesMostEpisodes'
+    }
+  }
+  switch (rankBy) {
+    case 'longest_runtime':
+      return 'carouselRankingLongestMovies'
+    case 'highest_rated':
+      return 'carouselRankingHighestRatedMovies'
+    case 'lowest_rated':
+      return 'carouselRankingLowestRatedMovies'
+    case 'newest':
+      return 'carouselRankingNewestMovies'
+    case 'oldest':
+      return 'carouselRankingOldestMovies'
+    default:
+      return 'carouselRankingLongestMovies'
+  }
+}
 
 export function createLibraryTools(ctx: ToolContext) {
   return {
@@ -47,7 +93,7 @@ export function createLibraryTools(ctx: ToolContext) {
             )
             return {
               id: `ranking-${Date.now()}`,
-              title: 'Series with Most Episodes',
+              titleKey: rankingTitleKey('most_episodes', 'series'),
               items: results.rows.map((r, i) => ({
                 rank: i + 1,
                 id: r.id,
@@ -79,7 +125,7 @@ export function createLibraryTools(ctx: ToolContext) {
             )
             return {
               id: `ranking-${Date.now()}`,
-              title: 'Series with Most Seasons',
+              titleKey: rankingTitleKey('most_seasons', 'series'),
               items: results.rows.map((r, i) => ({
                 rank: i + 1,
                 id: r.id,
@@ -111,7 +157,7 @@ export function createLibraryTools(ctx: ToolContext) {
             )
             return {
               id: `ranking-${Date.now()}`,
-              title: rankBy === 'highest_rated' ? 'Highest Rated Series' : 'Lowest Rated Series',
+              titleKey: rankingTitleKey(rankBy, 'series'),
               items: results.rows.map((r, i) => ({
                 rank: i + 1,
                 id: r.id,
@@ -142,7 +188,7 @@ export function createLibraryTools(ctx: ToolContext) {
             )
             return {
               id: `ranking-${Date.now()}`,
-              title: rankBy === 'newest' ? 'Newest Series' : 'Oldest Series',
+              titleKey: rankingTitleKey(rankBy, 'series'),
               items: results.rows.map((r, i) => ({
                 rank: i + 1,
                 id: r.id,
@@ -175,7 +221,7 @@ export function createLibraryTools(ctx: ToolContext) {
             )
             return {
               id: `ranking-${Date.now()}`,
-              title: 'Longest Movies',
+              titleKey: rankingTitleKey('longest_runtime', 'movies'),
               items: results.rows.map((r, i) => {
                 const hours = Math.floor(r.runtime_minutes / 60)
                 const mins = r.runtime_minutes % 60
@@ -211,7 +257,7 @@ export function createLibraryTools(ctx: ToolContext) {
             )
             return {
               id: `ranking-${Date.now()}`,
-              title: rankBy === 'highest_rated' ? 'Highest Rated Movies' : 'Lowest Rated Movies',
+              titleKey: rankingTitleKey(rankBy, 'movies'),
               items: results.rows.map((r, i) => ({
                 rank: i + 1,
                 id: r.id,
@@ -242,7 +288,7 @@ export function createLibraryTools(ctx: ToolContext) {
             )
             return {
               id: `ranking-${Date.now()}`,
-              title: rankBy === 'newest' ? 'Newest Movies' : 'Oldest Movies',
+              titleKey: rankingTitleKey(rankBy, 'movies'),
               items: results.rows.map((r, i) => ({
                 rank: i + 1,
                 id: r.id,
