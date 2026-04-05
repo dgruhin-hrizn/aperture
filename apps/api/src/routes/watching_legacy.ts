@@ -8,9 +8,12 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { query, queryOne } from '../lib/db.js'
 import { requireAuth } from '../plugins/auth.js'
-import { 
-  getUpcomingEpisodes, 
+import {
+  getUpcomingEpisodes,
   processWatchingForUser,
+  reconcileWatchingFavoritesForUser,
+  favoriteWatchingSeriesOnMediaServer,
+  unfavoriteWatchingSeriesOnMediaServer,
 } from '@aperture/core/watching'
 
 interface WatchingSeriesRow {
@@ -168,6 +171,12 @@ const watchingRoutes: FastifyPluginAsync = async (fastify) => {
 
     fastify.log.info({ userId, seriesId, title: series.title }, 'Added series to watching list')
 
+    try {
+      await favoriteWatchingSeriesOnMediaServer(request.user!.providerUserId, seriesId)
+    } catch (err) {
+      fastify.log.warn({ err, userId, seriesId }, 'Failed to favorite series on media server (watching saved)')
+    }
+
     return reply.send({ success: true, message: `Added "${series.title}" to watching list` })
   })
 
@@ -193,6 +202,12 @@ const watchingRoutes: FastifyPluginAsync = async (fastify) => {
 
     fastify.log.info({ userId, seriesId }, 'Removed series from watching list')
 
+    try {
+      await unfavoriteWatchingSeriesOnMediaServer(request.user!.providerUserId, seriesId)
+    } catch (err) {
+      fastify.log.warn({ err, userId, seriesId }, 'Failed to unfavorite series on media server (watching removed)')
+    }
+
     return reply.send({ success: true, message: 'Removed from watching list' })
   })
 
@@ -211,6 +226,12 @@ const watchingRoutes: FastifyPluginAsync = async (fastify) => {
         user.providerUserId,
         user.displayName || user.username
       )
+
+      try {
+        await reconcileWatchingFavoritesForUser(user.id, user.providerUserId)
+      } catch (reconcileErr) {
+        fastify.log.warn({ reconcileErr, userId: user.id }, 'Watching favorites reconcile failed after refresh')
+      }
 
       return reply.send({
         success: true,

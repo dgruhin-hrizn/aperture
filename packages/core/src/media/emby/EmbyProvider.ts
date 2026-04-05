@@ -48,6 +48,11 @@ import {
   markSeriesUnplayed,
 } from './series.js'
 import {
+  getFavoriteSeriesIdsForUser as fetchFavoriteSeriesIdsForUser,
+  favoriteSeriesItem as postFavoriteSeriesItem,
+  unfavoriteSeriesItem as deleteFavoriteSeriesItem,
+} from './favorites.js'
+import {
   createOrUpdatePlaylist,
   createPlaylistWithOverview,
   deletePlaylist,
@@ -175,6 +180,18 @@ export class EmbyProvider extends EmbyProviderBase implements MediaServerProvide
 
   async getSeriesWatchHistory(apiKey: string, userId: string, sinceDate?: Date): Promise<WatchedEpisode[]> {
     return getSeriesWatchHistory(this, apiKey, userId, sinceDate)
+  }
+
+  async getFavoriteSeriesIdsForUser(apiKey: string, userId: string): Promise<string[]> {
+    return fetchFavoriteSeriesIdsForUser(this, apiKey, userId)
+  }
+
+  async favoriteSeriesItem(apiKey: string, userId: string, itemId: string): Promise<void> {
+    return postFavoriteSeriesItem(this, apiKey, userId, itemId)
+  }
+
+  async unfavoriteSeriesItem(apiKey: string, userId: string, itemId: string): Promise<void> {
+    return deleteFavoriteSeriesItem(this, apiKey, userId, itemId)
   }
 
   // Playlists

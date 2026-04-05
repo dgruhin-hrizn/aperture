@@ -25,3 +25,10 @@ export {
   type UpcomingEpisode,
 } from './upcomingEpisodes.js'
 
+export {
+  reconcileWatchingFavoritesForUser,
+  favoriteWatchingSeriesOnMediaServer,
+  unfavoriteWatchingSeriesOnMediaServer,
+  type ReconcileWatchingFavoritesResult,
+} from './favoriteSync.js'
+

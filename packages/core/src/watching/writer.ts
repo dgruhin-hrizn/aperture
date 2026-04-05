@@ -31,6 +31,7 @@ import {
   completeJob,
   failJob,
 } from '../jobs/index.js'
+import { reconcileWatchingFavoritesForUser } from './favoriteSync.js'
 
 const logger = createChildLogger('watching-writer')
 
@@ -708,10 +709,9 @@ export async function processWatchingLibrariesForAllUsers(jobId?: string): Promi
       return { success: 0, failed: 0, jobId: actualJobId, users: [] }
     }
 
-    setJobStep(actualJobId, 0, 'Finding users with watching items')
-    addLog(actualJobId, 'info', '🔍 Finding users with watching series...')
+    setJobStep(actualJobId, 0, 'Finding users with media server accounts')
+    addLog(actualJobId, 'info', '🔍 Finding users for watching library and favorite sync...')
 
-    // Only get users who have at least one item in their watching list
     const usersResult = await query<{
       id: string
       provider_user_id: string
@@ -719,23 +719,25 @@ export async function processWatchingLibrariesForAllUsers(jobId?: string): Promi
       username: string
       watching_count: number
     }>(`
-      SELECT u.id, u.provider_user_id, u.display_name, u.username, COUNT(uws.id) as watching_count
+      SELECT u.id, u.provider_user_id, u.display_name, u.username,
+             COUNT(uws.id)::int as watching_count
       FROM users u
-      INNER JOIN user_watching_series uws ON uws.user_id = u.id
+      LEFT JOIN user_watching_series uws ON uws.user_id = u.id
       WHERE u.is_enabled = true
+        AND u.provider_user_id IS NOT NULL
+        AND TRIM(u.provider_user_id) <> ''
       GROUP BY u.id, u.provider_user_id, u.display_name, u.username
-      HAVING COUNT(uws.id) > 0
     `)
 
     const totalUsers = usersResult.rows.length
 
     if (totalUsers === 0) {
-      addLog(actualJobId, 'info', '📭 No users have items in their watching list')
+      addLog(actualJobId, 'info', '📭 No enabled users with a linked media server account')
       completeJob(actualJobId, { success: 0, failed: 0 })
       return { success: 0, failed: 0, jobId: actualJobId, users: [] }
     }
 
-    addLog(actualJobId, 'info', `👥 Found ${totalUsers} user(s) with watching items`)
+    addLog(actualJobId, 'info', `👥 Found ${totalUsers} user(s) to process`)
     setJobStep(actualJobId, 1, 'Processing watching libraries', totalUsers)
 
     let success = 0
@@ -754,6 +756,12 @@ export async function processWatchingLibrariesForAllUsers(jobId?: string): Promi
 
         // Process the user's watching library (incremental update)
         const result = await processWatchingForUser(user.id, user.provider_user_id, displayName)
+
+        try {
+          await reconcileWatchingFavoritesForUser(user.id, user.provider_user_id)
+        } catch (reconcileErr) {
+          logger.warn({ reconcileErr, userId: user.id }, 'Watching favorites reconcile failed')
+        }
 
         users.push({
           userId: user.id,

@@ -421,6 +421,10 @@ export {
   getUpcomingEpisodes,
   getUpcomingEpisodeForSeries,
   type UpcomingEpisode,
+  reconcileWatchingFavoritesForUser,
+  favoriteWatchingSeriesOnMediaServer,
+  unfavoriteWatchingSeriesOnMediaServer,
+  type ReconcileWatchingFavoritesResult,
 } from './watching/index.js'
 
 // Trakt Integration
