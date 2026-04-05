@@ -34,11 +34,14 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import AddToQueueIcon from '@mui/icons-material/AddToQueue'
 import CheckIcon from '@mui/icons-material/Check'
+import AccessTimeIcon from '@mui/icons-material/AccessTime'
+import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import { MoviePoster, RankBadge, getProxiedImageUrl, FALLBACK_POSTER_URL, HeartRating } from '@aperture/ui'
 import { useAuth } from '@/hooks/useAuth'
 import { useUserRatings } from '@/hooks/useUserRatings'
 import { useWatching } from '@/hooks/useWatching'
 import { useViewMode } from '@/hooks/useViewMode'
+import { formatRuntime } from '@/pages/media-detail/hooks'
 
 interface MovieRecommendation {
   movie_id: string
@@ -56,6 +59,8 @@ interface MovieRecommendation {
     genres: string[]
     overview: string | null
     community_rating: number | null
+    runtime_minutes: number | null
+    tmdb_id: string | null
   }
 }
 
@@ -75,6 +80,9 @@ interface SeriesRecommendation {
     genres: string[]
     overview: string | null
     community_rating: number | null
+    total_seasons: number | null
+    total_episodes: number | null
+    tmdb_id: string | null
   }
 }
 
@@ -86,6 +94,28 @@ interface RunInfo {
 }
 
 type MediaType = 'movies' | 'series'
+
+function recommendationMetaLine(
+  mediaType: MediaType,
+  rec: MovieRecommendation | SeriesRecommendation
+): string | null {
+  if (mediaType === 'movies' && 'movie' in rec) {
+    const m = rec.movie
+    const rt =
+      m.runtime_minutes != null && m.runtime_minutes > 0 ? formatRuntime(m.runtime_minutes) : ''
+    if (m.year != null && rt) return `${m.year} · ${rt}`
+    if (rt) return rt
+    return m.year != null ? String(m.year) : null
+  }
+  const s = (rec as SeriesRecommendation).series
+  const se =
+    s.total_seasons != null && s.total_episodes != null
+      ? `${s.total_seasons} season${s.total_seasons === 1 ? '' : 's'} · ${s.total_episodes} ep${s.total_episodes === 1 ? '' : 's'}`
+      : ''
+  if (s.year != null && se) return `${s.year} · ${se}`
+  if (se) return se
+  return s.year != null ? String(s.year) : null
+}
 
 export function MyRecommendationsPage() {
   const navigate = useNavigate()
@@ -125,6 +155,7 @@ export function MyRecommendationsPage() {
   const { viewMode, setViewMode } = useViewMode('recommendations')
   const [regenerating, setRegenerating] = useState(false)
   const [regenerateMessage, setRegenerateMessage] = useState<string | null>(null)
+  const [trailerLoadingId, setTrailerLoadingId] = useState<string | null>(null)
 
   const fetchMovieRecommendations = async () => {
     if (!user) return
@@ -260,6 +291,19 @@ export function MyRecommendationsPage() {
       }
     }
   }
+
+  const openTrailer = useCallback(async (movieId: string) => {
+    setTrailerLoadingId(movieId)
+    try {
+      const res = await fetch(`/api/movies/${movieId}/trailer`, { credentials: 'include' })
+      const data = (await res.json()) as { trailerUrl?: string | null; error?: string }
+      if (data.trailerUrl) {
+        window.open(data.trailerUrl, '_blank', 'noopener,noreferrer')
+      }
+    } finally {
+      setTrailerLoadingId(null)
+    }
+  }, [])
 
   const LoadingSkeleton = () => (
     <Box>
@@ -442,12 +486,14 @@ export function MyRecommendationsPage() {
           {recommendations.map((rec, index) => {
             const { id, item, navigateTo } = getItemProps(rec)
             const type = mediaType === 'movies' ? 'movie' : 'series'
+            const metaLine = recommendationMetaLine(mediaType, rec)
             return (
               <Grid item xs={6} sm={4} md={3} lg={2} key={id}>
                 <Box position="relative">
                   <MoviePoster
                     title={item.title}
                     year={item.year}
+                    metaLine={metaLine ?? undefined}
                     posterUrl={item.poster_url}
                     genres={item.genres}
                     rating={item.community_rating}
@@ -462,7 +508,35 @@ export function MyRecommendationsPage() {
                     hideWatchingToggle={type !== 'series'}
                     responsive
                     onClick={() => navigate(navigateTo)}
-                  />
+                  >
+                    {type === 'movie' && (
+                      <Tooltip title="Watch trailer">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            void openTrailer(id)
+                          }}
+                          disabled={trailerLoadingId === id}
+                          sx={{
+                            position: 'absolute',
+                            bottom: 8,
+                            left: 8,
+                            zIndex: 4,
+                            bgcolor: 'rgba(0,0,0,0.55)',
+                            color: 'white',
+                            '&:hover': { bgcolor: 'rgba(0,0,0,0.75)' },
+                          }}
+                        >
+                          {trailerLoadingId === id ? (
+                            <CircularProgress size={18} color="inherit" />
+                          ) : (
+                            <PlayArrowIcon fontSize="small" />
+                          )}
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </MoviePoster>
                   <RankBadge rank={index + 1} size="medium" />
                 </Box>
               </Grid>
@@ -479,8 +553,10 @@ export function MyRecommendationsPage() {
 
             const handleOpenTmdb = (e: React.MouseEvent) => {
               e.stopPropagation()
+              const tid = item.tmdb_id
+              if (!tid) return
               const tmdbType = type === 'movie' ? 'movie' : 'tv'
-              window.open(`https://www.themoviedb.org/${tmdbType}/${id}`, '_blank')
+              window.open(`https://www.themoviedb.org/${tmdbType}/${tid}`, '_blank', 'noopener,noreferrer')
             }
 
             const handleWatchingClick = (e: React.MouseEvent) => {
@@ -580,6 +656,26 @@ export function MyRecommendationsPage() {
                             </Typography>
                           </Box>
                         )}
+                        {type === 'movie' && 'runtime_minutes' in item && item.runtime_minutes ? (
+                          <Box display="flex" alignItems="center" gap={0.5}>
+                            <AccessTimeIcon sx={{ fontSize: { xs: 12, md: 14 }, color: 'text.secondary' }} />
+                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
+                              {formatRuntime(item.runtime_minutes)}
+                            </Typography>
+                          </Box>
+                        ) : null}
+                        {type === 'series' &&
+                        'total_seasons' in item &&
+                        item.total_seasons != null &&
+                        item.total_episodes != null ? (
+                          <Box display="flex" alignItems="center" gap={0.5}>
+                            <AccessTimeIcon sx={{ fontSize: { xs: 12, md: 14 }, color: 'text.secondary' }} />
+                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
+                              {item.total_seasons} season{item.total_seasons === 1 ? '' : 's'} · {item.total_episodes} ep
+                              {item.total_episodes === 1 ? '' : 's'}
+                            </Typography>
+                          </Box>
+                        ) : null}
                       </Box>
 
                       {/* Genres */}
@@ -614,6 +710,50 @@ export function MyRecommendationsPage() {
                         {item.overview || 'No description available.'}
                       </Typography>
 
+                      {/* Desktop: trailer + TMDb */}
+                      {!isMobile && (
+                        <Box display="flex" alignItems="center" gap={0.5} mt={1}>
+                          {type === 'movie' && (
+                            <Tooltip title="Watch trailer">
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  void openTrailer(id)
+                                }}
+                                disabled={trailerLoadingId === id}
+                                sx={{
+                                  p: 0.5,
+                                  backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                                  '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.2) },
+                                }}
+                              >
+                                {trailerLoadingId === id ? (
+                                  <CircularProgress size={16} />
+                                ) : (
+                                  <PlayArrowIcon sx={{ fontSize: 18 }} />
+                                )}
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                          {item.tmdb_id && (
+                            <Tooltip title="View on TMDb">
+                              <IconButton
+                                onClick={handleOpenTmdb}
+                                size="small"
+                                sx={{
+                                  p: 0.5,
+                                  backgroundColor: alpha(theme.palette.grey[500], 0.1),
+                                  '&:hover': { backgroundColor: alpha(theme.palette.grey[500], 0.2) },
+                                }}
+                              >
+                                <OpenInNewIcon sx={{ fontSize: 18 }} />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        </Box>
+                      )}
+
                       {/* Mobile: Inline actions */}
                       {isMobile && (
                         <Box display="flex" alignItems="center" gap={1} mt={1} onClick={handleRatingClick}>
@@ -643,19 +783,44 @@ export function MyRecommendationsPage() {
                               </IconButton>
                             </Tooltip>
                           )}
-                          <Tooltip title="View on TMDb">
-                            <IconButton
-                              onClick={handleOpenTmdb}
-                              size="small"
-                              sx={{
-                                p: 0.5,
-                                backgroundColor: alpha(theme.palette.grey[500], 0.1),
-                                '&:hover': { backgroundColor: alpha(theme.palette.grey[500], 0.2) },
-                              }}
-                            >
-                              <OpenInNewIcon sx={{ fontSize: 16 }} />
-                            </IconButton>
-                          </Tooltip>
+                          {type === 'movie' && (
+                            <Tooltip title="Watch trailer">
+                              <IconButton
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  void openTrailer(id)
+                                }}
+                                size="small"
+                                disabled={trailerLoadingId === id}
+                                sx={{
+                                  p: 0.5,
+                                  backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                                  '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.2) },
+                                }}
+                              >
+                                {trailerLoadingId === id ? (
+                                  <CircularProgress size={14} />
+                                ) : (
+                                  <PlayArrowIcon sx={{ fontSize: 16 }} />
+                                )}
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                          {item.tmdb_id && (
+                            <Tooltip title="View on TMDb">
+                              <IconButton
+                                onClick={handleOpenTmdb}
+                                size="small"
+                                sx={{
+                                  p: 0.5,
+                                  backgroundColor: alpha(theme.palette.grey[500], 0.1),
+                                  '&:hover': { backgroundColor: alpha(theme.palette.grey[500], 0.2) },
+                                }}
+                              >
+                                <OpenInNewIcon sx={{ fontSize: 16 }} />
+                              </IconButton>
+                            </Tooltip>
+                          )}
                         </Box>
                       )}
                     </CardContent>

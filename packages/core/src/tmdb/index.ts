@@ -43,6 +43,7 @@ export type { ApiLogCallback } from './client.js'
 // Movie functions
 export {
   getMovieDetails,
+  getMovieVideos,
   getMovieKeywords,
   getMovieCredits,
   getMovieEnrichmentData,
@@ -122,6 +123,8 @@ export type {
   TMDbCollectionDetails,
   TMDbCollectionPart,
   TMDbMovieDetails,
+  TMDbVideo,
+  TMDbVideosResponse,
   TMDbMovieKeywordsResponse,
   TMDbMovieCreditsResponse,
   TMDbTVDetails,

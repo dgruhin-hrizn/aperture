@@ -45,6 +45,8 @@ export interface MoviePosterProps {
   hideExploreButton?: boolean
   /** Hide the year line under the title (e.g. collections / non-movie posters). */
   hideYear?: boolean
+  /** When set, shown instead of the default year line under the title (e.g. "2024 · 2h 15m"). */
+  metaLine?: string | null
   loading?: boolean
   /** Make poster fill container width with 2:3 aspect ratio (for responsive grids) */
   responsive?: boolean
@@ -78,6 +80,7 @@ export function MoviePoster({
   onExploreClick,
   hideExploreButton = false,
   hideYear = false,
+  metaLine,
   loading = false,
   responsive = false,
   children,
@@ -402,7 +405,9 @@ export function MoviePoster({
         </Typography>
         {!hideYear && (
           <Typography variant="caption" color="text.secondary" display="block">
-            {year || 'Unknown year'}
+            {metaLine != null && metaLine !== ''
+              ? metaLine
+              : year || 'Unknown year'}
           </Typography>
         )}
         {genres && genres.length > 0 && (

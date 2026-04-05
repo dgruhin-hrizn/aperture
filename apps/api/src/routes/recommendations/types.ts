@@ -21,6 +21,8 @@ export interface MovieRecommendationCandidate {
     genres: string[]
     community_rating: number | null
     overview: string | null
+    runtime_minutes: number | null
+    tmdb_id: string | null
   }
 }
 
@@ -43,6 +45,9 @@ export interface SeriesRecommendationCandidate {
     genres: string[]
     community_rating: number | null
     overview: string | null
+    total_seasons: number | null
+    total_episodes: number | null
+    tmdb_id: string | null
   }
 }
 

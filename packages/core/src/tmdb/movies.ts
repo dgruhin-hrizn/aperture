@@ -8,6 +8,7 @@ import type {
   TMDbMovieDetails,
   TMDbMovieKeywordsResponse,
   TMDbMovieCreditsResponse,
+  TMDbVideosResponse,
   MovieEnrichmentData,
   ProductionCompanyData,
 } from './types.js'
@@ -22,6 +23,16 @@ export async function getMovieDetails(
   options: { onLog?: ApiLogCallback } = {}
 ): Promise<TMDbMovieDetails | null> {
   return tmdbRequest<TMDbMovieDetails>(`/movie/${tmdbId}`, options)
+}
+
+/**
+ * Get movie videos (trailers, teasers, etc.) from TMDb
+ */
+export async function getMovieVideos(
+  tmdbId: number,
+  options: { onLog?: ApiLogCallback } = {}
+): Promise<TMDbVideosResponse | null> {
+  return tmdbRequest<TMDbVideosResponse>(`/movie/${tmdbId}/videos`, options)
 }
 
 /**

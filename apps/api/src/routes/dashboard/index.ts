@@ -18,6 +18,11 @@ interface DashboardRecommendation {
   posterUrl: string | null
   genres: string[]
   matchScore: number | null
+  /** Movie only */
+  runtimeMinutes?: number | null
+  /** Series only */
+  totalSeasons?: number | null
+  totalEpisodes?: number | null
 }
 
 interface DashboardTopPick {
@@ -131,6 +136,7 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
           poster_url: string | null
           genres: string[]
           final_score: number | null
+          runtime_minutes: number | null
         }>(
           `
           SELECT 
@@ -139,7 +145,8 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
             m.year,
             m.poster_url,
             m.genres,
-            rc.final_score
+            rc.final_score,
+            m.runtime_minutes
           FROM recommendation_candidates rc
           JOIN recommendation_runs rr ON rr.id = rc.run_id
           JOIN movies m ON m.id = rc.movie_id
@@ -162,6 +169,8 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
           poster_url: string | null
           genres: string[]
           final_score: number | null
+          total_seasons: number | null
+          total_episodes: number | null
         }>(
           `
           SELECT 
@@ -170,7 +179,9 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
             s.year,
             s.poster_url,
             s.genres,
-            rc.final_score
+            rc.final_score,
+            s.total_seasons,
+            s.total_episodes
           FROM recommendation_candidates rc
           JOIN recommendation_runs rr ON rr.id = rc.run_id
           JOIN series s ON s.id = rc.series_id
@@ -410,6 +421,7 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
         posterUrl: r.poster_url,
         genres: r.genres || [],
         matchScore: r.final_score ? Math.round(r.final_score * 100) : null,
+        runtimeMinutes: r.runtime_minutes,
       }))
       const seriesRecs = seriesRecsResult.rows.map((r) => ({
         id: r.series_id,
@@ -419,6 +431,8 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
         posterUrl: r.poster_url,
         genres: r.genres || [],
         matchScore: r.final_score ? Math.round(r.final_score * 100) : null,
+        totalSeasons: r.total_seasons,
+        totalEpisodes: r.total_episodes,
       }))
       // Interleave: movie, series, movie, series, ...
       const recommendations: DashboardRecommendation[] = []

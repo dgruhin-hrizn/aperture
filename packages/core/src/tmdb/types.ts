@@ -87,6 +87,21 @@ export interface TMDbMovieDetails {
   production_companies: TMDbProductionCompany[]
 }
 
+export interface TMDbVideo {
+  id: string
+  key: string
+  name: string
+  site: string
+  type: string
+  official: boolean
+  published_at: string
+}
+
+export interface TMDbVideosResponse {
+  id: number
+  results: TMDbVideo[]
+}
+
 export interface TMDbMovieKeywordsResponse {
   id: number
   keywords: TMDbKeyword[]

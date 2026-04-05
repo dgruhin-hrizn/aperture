@@ -479,6 +479,7 @@ export {
   findTVByTvdbId,
   // Movie functions
   getMovieDetails,
+  getMovieVideos,
   getMovieKeywords,
   getMovieCredits,
   getMovieEnrichmentData,
@@ -513,6 +514,8 @@ export {
   type TMDbCollectionDetails,
   type TMDbCollectionPart,
   type TMDbMovieDetails,
+  type TMDbVideo,
+  type TMDbVideosResponse,
   type TMDbMovieKeywordsResponse,
   type TMDbMovieCreditsResponse,
   type TMDbTVDetails,

@@ -11,6 +11,7 @@ import {
   registerWatchStatsHandler,
   registerFiltersHandlers,
   registerFranchisesHandler,
+  registerTrailerHandler,
 } from './handlers/index.js'
 import { moviesComponentSchemas } from './schemas.js'
 
@@ -27,6 +28,7 @@ const moviesRoutes: FastifyPluginAsync = async (fastify) => {
   registerWatchStatsHandler(fastify)
   registerFiltersHandlers(fastify)
   registerFranchisesHandler(fastify)
+  registerTrailerHandler(fastify)
 }
 
 export default moviesRoutes
