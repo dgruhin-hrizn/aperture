@@ -911,6 +911,41 @@ export async function updateDiscoveryRequestStatus(
 }
 
 /**
+ * Count discovery requests for a user (same filters as getDiscoveryRequests, no limit/offset).
+ */
+export async function countDiscoveryRequests(
+  userId: string,
+  options: {
+    mediaType?: MediaType
+    status?: DiscoveryRequestStatus
+    source?: DiscoveryRequestSource
+  } = {}
+): Promise<number> {
+  let sql = `SELECT COUNT(*)::int AS c FROM discovery_requests WHERE user_id = $1`
+  const params: (string | number)[] = [userId]
+  let paramIndex = 2
+
+  if (options.mediaType) {
+    sql += ` AND media_type = $${paramIndex}`
+    params.push(options.mediaType)
+    paramIndex++
+  }
+  if (options.status) {
+    sql += ` AND status = $${paramIndex}`
+    params.push(options.status)
+    paramIndex++
+  }
+  if (options.source) {
+    sql += ` AND source = $${paramIndex}`
+    params.push(options.source)
+    paramIndex++
+  }
+
+  const row = await queryOne<{ c: number }>(sql, params)
+  return row?.c ?? 0
+}
+
+/**
  * Get discovery requests for a user
  */
 export async function getDiscoveryRequests(
@@ -920,6 +955,7 @@ export async function getDiscoveryRequests(
     status?: DiscoveryRequestStatus
     source?: DiscoveryRequestSource
     limit?: number
+    offset?: number
   } = {}
 ): Promise<DiscoveryRequest[]> {
   let sql = `SELECT * FROM discovery_requests WHERE user_id = $1`
@@ -944,9 +980,14 @@ export async function getDiscoveryRequests(
 
   sql += ` ORDER BY created_at DESC`
 
-  if (options.limit) {
+  if (options.limit != null) {
     sql += ` LIMIT $${paramIndex}`
     params.push(options.limit)
+    paramIndex++
+  }
+  if (options.offset != null && options.offset > 0) {
+    sql += ` OFFSET $${paramIndex}`
+    params.push(options.offset)
   }
 
   const result = await query<{

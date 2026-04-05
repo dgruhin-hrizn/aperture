@@ -824,6 +824,7 @@ export {
   createDiscoveryRequest,
   updateDiscoveryRequestStatus,
   getDiscoveryRequests,
+  countDiscoveryRequests,
   hasExistingRequest,
   // Types
   type MediaType,

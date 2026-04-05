@@ -55,6 +55,7 @@ export {
   createDiscoveryRequest,
   updateDiscoveryRequestStatus,
   getDiscoveryRequests,
+  countDiscoveryRequests,
   hasExistingRequest,
   // Pool storage (shared candidates)
   upsertPoolCandidates,

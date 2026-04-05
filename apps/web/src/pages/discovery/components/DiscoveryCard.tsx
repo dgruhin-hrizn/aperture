@@ -86,13 +86,6 @@ export function DiscoveryCard({
     await onRequest(candidate, seasons, pendingSeerrOpts ?? undefined)
   }
 
-  // IMDb URL if available, fallback to TMDb
-  const imdbUrl = candidate.imdbId ? `https://www.imdb.com/title/${candidate.imdbId}` : null
-  const tmdbUrl = candidate.mediaType === 'movie'
-    ? `https://www.themoviedb.org/movie/${candidate.tmdbId}`
-    : `https://www.themoviedb.org/tv/${candidate.tmdbId}`
-  const primaryUrl = imdbUrl || tmdbUrl
-
   // Convert cachedStatus to SeerrStatus format for MediaPosterCard
   const seerrStatus = cachedStatus ? {
     requested: cachedStatus.requested,
@@ -123,7 +116,7 @@ export function DiscoveryCard({
         voteAverage={candidate.voteAverage}
         genres={genres}
         onShowDetails={() => setDetailOpen(true)}
-        onClick={() => !seasonModalOpen && !optionsDialogOpen && window.open(primaryUrl, '_blank')}
+        onClick={() => !seasonModalOpen && !optionsDialogOpen && setDetailOpen(true)}
       />
 
       <RequestSeerrOptionsDialog

@@ -14,6 +14,7 @@ import {
   createDiscoveryRequest,
   updateDiscoveryRequestStatus,
   getDiscoveryRequests,
+  countDiscoveryRequests,
   hasExistingRequest,
   getSystemSetting,
   resolveSeerrUserIdForProfile,
@@ -69,6 +70,53 @@ async function ensureSeerrUserIdForRequest(userId: string): Promise<number | nul
     ])
   }
   return resolved
+}
+
+/**
+ * Resolve Aperture library UUIDs for TMDb IDs so available requests can link to /movies/:id or /series/:id.
+ */
+async function attachLibraryMediaIds<
+  T extends { mediaType: 'movie' | 'series'; tmdbId: number },
+>(rows: T[]): Promise<(T & { libraryMediaId: string | null })[]> {
+  if (rows.length === 0) return []
+
+  const movieTmdbIds = [
+    ...new Set(rows.filter((r) => r.mediaType === 'movie').map((r) => String(r.tmdbId))),
+  ]
+  const seriesTmdbIds = [
+    ...new Set(rows.filter((r) => r.mediaType === 'series').map((r) => String(r.tmdbId))),
+  ]
+
+  const movieMap = new Map<string, string>()
+  const seriesMap = new Map<string, string>()
+
+  if (movieTmdbIds.length > 0) {
+    const res = await query<{ id: string; tmdb_id: string }>(
+      `SELECT id, tmdb_id FROM movies WHERE tmdb_id = ANY($1::text[])`,
+      [movieTmdbIds]
+    )
+    for (const row of res.rows) {
+      movieMap.set(row.tmdb_id, row.id)
+    }
+  }
+  if (seriesTmdbIds.length > 0) {
+    const res = await query<{ id: string; tmdb_id: string }>(
+      `SELECT id, tmdb_id FROM series WHERE tmdb_id = ANY($1::text[])`,
+      [seriesTmdbIds]
+    )
+    for (const row of res.rows) {
+      seriesMap.set(row.tmdb_id, row.id)
+    }
+  }
+
+  return rows.map((r) => {
+    const key = String(r.tmdbId)
+    const libraryMediaId =
+      r.mediaType === 'movie'
+        ? movieMap.get(key) ?? null
+        : seriesMap.get(key) ?? null
+    return { ...r, libraryMediaId }
+  })
 }
 
 const seerrRoutes: FastifyPluginAsync = async (fastify) => {
@@ -480,31 +528,53 @@ const seerrRoutes: FastifyPluginAsync = async (fastify) => {
    * Get user's content requests
    */
   fastify.get<{
-    Querystring: { mediaType?: string; status?: string; limit?: string; source?: string }
+    Querystring: {
+      mediaType?: string
+      status?: string
+      limit?: string
+      offset?: string
+      source?: string
+    }
   }>(
     '/api/seerr/requests',
     { preHandler: requireAuth, schema: getRequestsSchema },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
-      const { mediaType, status, limit, source } = request.query
+      const { mediaType, status, limit, offset, source } = request.query
 
-      const requests = await getDiscoveryRequests(currentUser.id, {
+      const filter = {
         mediaType: mediaType as 'movie' | 'series' | undefined,
         status: status as any,
         source:
           source === 'gap_analysis' || source === 'discovery'
-            ? source
+            ? (source as 'discovery' | 'gap_analysis')
             : undefined,
-        limit: limit ? parseInt(limit, 10) : 50,
-      })
+      }
+
+      const pageSizeRaw = limit ? parseInt(limit, 10) : 25
+      const pageSize = Number.isFinite(pageSizeRaw)
+        ? Math.min(100, Math.max(1, pageSizeRaw))
+        : 25
+      const offsetRaw = offset ? parseInt(offset, 10) : 0
+      const offsetN = Number.isFinite(offsetRaw) && offsetRaw > 0 ? offsetRaw : 0
+
+      const [total, requests] = await Promise.all([
+        countDiscoveryRequests(currentUser.id, filter),
+        getDiscoveryRequests(currentUser.id, {
+          ...filter,
+          limit: pageSize,
+          offset: offsetN,
+        }),
+      ])
 
       if (!(await isSeerrConfigured())) {
-        return reply.send({
-          requests: requests.map((r) => ({
+        const withLibrary = await attachLibraryMediaIds(
+          requests.map((r) => ({
             ...r,
             seerrLive: null,
-          })),
-        })
+          }))
+        )
+        return reply.send({ requests: withLibrary, total })
       }
 
       const enriched = await Promise.all(
@@ -517,7 +587,8 @@ const seerrRoutes: FastifyPluginAsync = async (fastify) => {
         })
       )
 
-      return reply.send({ requests: enriched })
+      const withLibrary = await attachLibraryMediaIds(enriched)
+      return reply.send({ requests: withLibrary, total })
     }
   )
 

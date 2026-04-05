@@ -14,6 +14,7 @@ import {
   createDiscoveryRequest,
   updateDiscoveryRequestStatus,
   getDiscoveryRequests,
+  countDiscoveryRequests,
   hasExistingRequest,
   type SeerrConfig,
 } from '@aperture/core'
@@ -284,21 +285,40 @@ const seerrRoutes: FastifyPluginAsync = async (fastify) => {
    * Get user's content requests
    */
   fastify.get<{
-    Querystring: { mediaType?: string; status?: string; limit?: string }
+    Querystring: { mediaType?: string; status?: string; limit?: string; offset?: string; source?: string }
   }>(
     '/api/seerr/requests',
     { preHandler: requireAuth, schema: { tags: ["seerr"] } },
     async (request, reply) => {
       const currentUser = request.user as SessionUser
-      const { mediaType, status, limit } = request.query
+      const { mediaType, status, limit, offset, source } = request.query
 
-      const requests = await getDiscoveryRequests(currentUser.id, {
+      const filter = {
         mediaType: mediaType as 'movie' | 'series' | undefined,
         status: status as any,
-        limit: limit ? parseInt(limit, 10) : 50,
-      })
+        source:
+          source === 'gap_analysis' || source === 'discovery'
+            ? (source as 'discovery' | 'gap_analysis')
+            : undefined,
+      }
 
-      return reply.send({ requests })
+      const pageSizeRaw = limit ? parseInt(limit, 10) : 25
+      const pageSize = Number.isFinite(pageSizeRaw)
+        ? Math.min(100, Math.max(1, pageSizeRaw))
+        : 25
+      const offsetRaw = offset ? parseInt(offset, 10) : 0
+      const offsetN = Number.isFinite(offsetRaw) && offsetRaw > 0 ? offsetRaw : 0
+
+      const [total, requests] = await Promise.all([
+        countDiscoveryRequests(currentUser.id, filter),
+        getDiscoveryRequests(currentUser.id, {
+          ...filter,
+          limit: pageSize,
+          offset: offsetN,
+        }),
+      ])
+
+      return reply.send({ requests, total })
     }
   )
 

@@ -117,12 +117,9 @@ export function DiscoveryListItem({
     await onRequest(candidate, seasons, pendingSeerrOpts ?? undefined)
   }
 
-  // IMDb URL if available, fallback to TMDb
-  const imdbUrl = candidate.imdbId ? `https://www.imdb.com/title/${candidate.imdbId}` : null
   const tmdbUrl = candidate.mediaType === 'movie'
     ? `https://www.themoviedb.org/movie/${candidate.tmdbId}`
     : `https://www.themoviedb.org/tv/${candidate.tmdbId}`
-  const primaryUrl = imdbUrl || tmdbUrl
 
   const matchPercent = Math.round(candidate.finalScore * 100)
 
@@ -148,7 +145,7 @@ export function DiscoveryListItem({
       {/* Main row: Poster + Content + Desktop Actions */}
       <Box sx={{ display: 'flex', flexDirection: 'row' }}>
         <CardActionArea
-          onClick={() => !seasonModalOpen && !optionsDialogOpen && window.open(primaryUrl, '_blank')}
+          onClick={() => !seasonModalOpen && !optionsDialogOpen && setDetailOpen(true)}
           sx={{ display: 'flex', flexGrow: 1, alignItems: 'stretch' }}
         >
           {/* Poster Section */}
@@ -373,11 +370,11 @@ export function DiscoveryListItem({
                     <InfoOutlinedIcon sx={{ fontSize: 16 }} />
                   </IconButton>
                 </Tooltip>
-                <Tooltip title={imdbUrl ? 'View on IMDb' : 'View on TMDb'}>
+                <Tooltip title="View on TMDb">
                   <IconButton
                     onClick={(e) => {
                       e.stopPropagation()
-                      window.open(primaryUrl, '_blank')
+                      window.open(tmdbUrl, '_blank', 'noopener,noreferrer')
                     }}
                     size="small"
                     sx={{
@@ -501,11 +498,11 @@ export function DiscoveryListItem({
                 </IconButton>
               </Tooltip>
               
-              <Tooltip title={imdbUrl ? 'View on IMDb' : 'View on TMDb'}>
+              <Tooltip title="View on TMDb">
                 <IconButton
                   onClick={(e) => {
                     e.stopPropagation()
-                    window.open(primaryUrl, '_blank')
+                    window.open(tmdbUrl, '_blank', 'noopener,noreferrer')
                   }}
                   sx={{
                     backgroundColor: alpha(theme.palette.grey[500], 0.1),

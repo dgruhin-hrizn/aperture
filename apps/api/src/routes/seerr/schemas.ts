@@ -306,7 +306,8 @@ export const getRequestsSchema = {
     properties: {
       mediaType: { type: 'string', enum: ['movie', 'series'], description: 'Filter by media type' },
       status: { type: 'string', enum: ['pending', 'submitted', 'approved', 'declined', 'available', 'failed'], description: 'Filter by status' },
-      limit: { type: 'string', description: 'Maximum results', default: '50', example: '25' },
+      limit: { type: 'string', description: 'Page size (max 100)', default: '25', example: '25' },
+      offset: { type: 'string', description: 'Rows to skip for pagination', default: '0', example: '0' },
       source: { type: 'string', enum: ['discovery', 'gap_analysis'], description: 'Filter by origin (Discovery vs Gap Analysis)' },
     },
   },
