@@ -1,7 +1,11 @@
 import type { FastifyInstance } from 'fastify'
+import { createChildLogger } from '@aperture/core'
+import { cleanupUserLibraries } from '@aperture/core/strm'
 import { query, queryOne } from '../../../lib/db.js'
 import { requireAuth, requireAdmin, type SessionUser } from '../../../plugins/auth.js'
 import type { UserRow, UserListResponse, UserUpdateBody } from '../types.js'
+
+const listLogger = createChildLogger('users-list')
 
 const USER_ROW_SELECT = `id, username, display_name, email, provider, provider_user_id, is_admin, is_enabled, movies_enabled, series_enabled, discover_enabled, discover_request_enabled, can_manage_watch_history, seerr_user_id, created_at, updated_at`
 
@@ -140,6 +144,27 @@ export function registerListHandlers(fastify: FastifyInstance) {
 
       if (!user) {
         return reply.status(404).send({ error: 'User not found' } as never)
+      }
+
+      const disableAllRecommendations =
+        isEnabled === false ||
+        (moviesEnabled === false && seriesEnabled === false)
+
+      if (disableAllRecommendations) {
+        void cleanupUserLibraries(id).catch((err: unknown) =>
+          listLogger.error({ err, userId: id }, 'cleanupUserLibraries after disabling recommendations')
+        )
+      } else {
+        if (moviesEnabled === false) {
+          void cleanupUserLibraries(id, 'movies').catch((err: unknown) =>
+            listLogger.error({ err, userId: id }, 'cleanupUserLibraries after disabling movie recommendations')
+          )
+        }
+        if (seriesEnabled === false) {
+          void cleanupUserLibraries(id, 'series').catch((err: unknown) =>
+            listLogger.error({ err, userId: id }, 'cleanupUserLibraries after disabling series recommendations')
+          )
+        }
       }
 
       return reply.send(user)

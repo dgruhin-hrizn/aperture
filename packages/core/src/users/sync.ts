@@ -21,6 +21,7 @@ import {
   completeJob,
   failJob,
 } from '../jobs/progress.js'
+import { cleanupUserLibraries } from '../strm/cleanup.js'
 
 const logger = createChildLogger('user-sync')
 
@@ -57,13 +58,14 @@ export async function syncUsersFromMediaServer(
 
     // Get existing users from our database
     const existingUsers = await query<{ 
+      id: string
       provider_user_id: string
       email: string | null
       email_locked: boolean
       is_admin: boolean
       provider_disabled: boolean
     }>(
-      'SELECT provider_user_id, email, email_locked, is_admin, provider_disabled FROM users WHERE provider_user_id IS NOT NULL'
+      'SELECT id, provider_user_id, email, email_locked, is_admin, provider_disabled FROM users WHERE provider_user_id IS NOT NULL'
     )
     const existingUserMap = new Map(
       existingUsers.rows.map(u => [u.provider_user_id, u])
@@ -137,6 +139,12 @@ export async function syncUsersFromMediaServer(
           )
           updated++
           addLog(jobId, 'info', `🔄 Updated user: ${pu.name}`)
+
+          if (pu.isDisabled && !existing.provider_disabled) {
+            void cleanupUserLibraries(existing.id).catch((err) =>
+              logger.error({ err, userId: existing.id }, 'Failed to clean STRM libraries after user disabled on media server')
+            )
+          }
         }
       }
     }

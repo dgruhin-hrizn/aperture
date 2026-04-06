@@ -61,6 +61,7 @@ import {
   refreshUserSeriesLibrary,
   updateUserSeriesLibraryPermissions,
 } from './series/library.js'
+import { reconcileStaleStrmLibraries } from './cleanup.js'
 
 const logger = createChildLogger('strm-writer')
 
@@ -86,12 +87,20 @@ export async function processStrmForAllUsers(
       provider_user_id: string
       display_name: string | null
       username: string
-    }>('SELECT id, provider_user_id, display_name, username FROM users WHERE is_enabled = true AND movies_enabled = true')
+    }>(
+      'SELECT id, provider_user_id, display_name, username FROM users WHERE is_enabled = true AND movies_enabled = true AND provider_disabled = false'
+    )
 
     const totalUsers = users.rows.length
 
     if (totalUsers === 0) {
       addLog(actualJobId, 'warn', '⚠️ No users enabled for movies')
+      try {
+        await reconcileStaleStrmLibraries(actualJobId)
+      } catch (err) {
+        logger.warn({ err }, 'reconcile stale STRM libraries failed')
+        addLog(actualJobId, 'warn', `Reconcile skipped: ${err instanceof Error ? err.message : String(err)}`)
+      }
       const result: ProcessStrmResult = { success: 0, failed: 0, skipped: 0, jobId: actualJobId, users: [] }
       completeJob(actualJobId, result)
       return result
@@ -196,7 +205,14 @@ export async function processStrmForAllUsers(
     } else {
       addLog(actualJobId, 'info', `🎉 All ${success} user(s) processed successfully! (${totalRecommendations} total recommendations)`)
     }
-    
+
+    try {
+      await reconcileStaleStrmLibraries(actualJobId)
+    } catch (err) {
+      logger.warn({ err }, 'reconcile stale STRM libraries failed')
+      addLog(actualJobId, 'warn', `Reconcile skipped: ${err instanceof Error ? err.message : String(err)}`)
+    }
+
     completeJob(actualJobId, finalResult)
     return finalResult
   } catch (err) {
@@ -228,12 +244,20 @@ export async function processSeriesStrmForAllUsers(
       provider_user_id: string
       display_name: string | null
       username: string
-    }>('SELECT id, provider_user_id, display_name, username FROM users WHERE is_enabled = true AND series_enabled = true')
+    }>(
+      'SELECT id, provider_user_id, display_name, username FROM users WHERE is_enabled = true AND series_enabled = true AND provider_disabled = false'
+    )
 
     const totalUsers = users.rows.length
 
     if (totalUsers === 0) {
       addLog(actualJobId, 'warn', '⚠️ No users enabled for TV series')
+      try {
+        await reconcileStaleStrmLibraries(actualJobId)
+      } catch (err) {
+        logger.warn({ err }, 'reconcile stale STRM libraries failed')
+        addLog(actualJobId, 'warn', `Reconcile skipped: ${err instanceof Error ? err.message : String(err)}`)
+      }
       const result: ProcessStrmResult = { success: 0, failed: 0, skipped: 0, jobId: actualJobId, users: [] }
       completeJob(actualJobId, result)
       return result
@@ -333,6 +357,13 @@ export async function processSeriesStrmForAllUsers(
       addLog(actualJobId, 'info', `✅ Completed: ${success} succeeded, ${skipped} skipped (${totalRecommendations} total series)`)
     } else {
       addLog(actualJobId, 'info', `🎉 All ${success} user(s) processed successfully! (${totalRecommendations} total series)`)
+    }
+
+    try {
+      await reconcileStaleStrmLibraries(actualJobId)
+    } catch (err) {
+      logger.warn({ err }, 'reconcile stale STRM libraries failed')
+      addLog(actualJobId, 'warn', `Reconcile skipped: ${err instanceof Error ? err.message : String(err)}`)
     }
 
     completeJob(actualJobId, finalResult)

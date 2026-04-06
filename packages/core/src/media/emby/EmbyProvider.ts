@@ -31,6 +31,7 @@ import {
   getMovieLibraries,
   getTvShowLibraries,
   createVirtualLibrary,
+  deleteVirtualLibrary as deleteVirtualLibraryFromServer,
   getUserLibraryAccess,
   updateUserLibraryAccess,
   refreshLibrary,
@@ -108,6 +109,10 @@ export class EmbyProvider extends EmbyProviderBase implements MediaServerProvide
     collectionType: 'movies' | 'tvshows'
   ): Promise<LibraryCreateResult> {
     return createVirtualLibrary(this, apiKey, name, path, collectionType)
+  }
+
+  async deleteVirtualLibrary(apiKey: string, name: string): Promise<void> {
+    return deleteVirtualLibraryFromServer(this, apiKey, name)
   }
 
   async getUserLibraryAccess(

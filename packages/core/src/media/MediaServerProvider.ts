@@ -82,6 +82,11 @@ export interface MediaServerProvider {
   ): Promise<LibraryCreateResult>
 
   /**
+   * Remove a virtual library from the media server by its display name
+   */
+  deleteVirtualLibrary(apiKey: string, name: string): Promise<void>
+
+  /**
    * Get user's current library access settings
    */
   getUserLibraryAccess(

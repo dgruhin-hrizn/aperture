@@ -15,3 +15,9 @@ export {
   type ProcessStrmResult,
 } from './StrmWriter.js'
 
+export {
+  cleanupUserLibraries,
+  reconcileStaleStrmLibraries,
+  type StrmLibraryMediaType,
+} from './cleanup.js'
+

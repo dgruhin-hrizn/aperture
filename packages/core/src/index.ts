@@ -168,6 +168,9 @@ export {
   // Types for library creation transparency
   type UserLibraryResult,
   type ProcessStrmResult,
+  cleanupUserLibraries,
+  reconcileStaleStrmLibraries,
+  type StrmLibraryMediaType,
 } from './strm/index.js'
 
 // Channels

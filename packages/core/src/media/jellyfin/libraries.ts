@@ -94,6 +94,22 @@ export async function createVirtualLibrary(
 }
 
 /**
+ * Remove a virtual library from the media server by display name.
+ * Uses DELETE /Library/VirtualFolders (Jellyfin API).
+ */
+export async function deleteVirtualLibrary(
+  provider: JellyfinProviderBase,
+  apiKey: string,
+  name: string
+): Promise<void> {
+  await provider.fetch(
+    `/Library/VirtualFolders?name=${encodeURIComponent(name)}&refreshLibrary=true`,
+    apiKey,
+    { method: 'DELETE' }
+  )
+}
+
+/**
  * Set the sort title for a library to force it to appear at the top
  * @param provider - Jellyfin provider instance
  * @param apiKey - API key for authentication
