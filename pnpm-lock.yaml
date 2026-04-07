@@ -184,9 +184,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^4.3.4
         version: 4.7.0(vite@6.4.1(@types/node@22.19.3)(tsx@4.21.0)(yaml@2.8.2))
-      google-translate-api-x:
-        specifier: 10.7.1
-        version: 10.7.1
+      openai:
+        specifier: ^4.77.0
+        version: 4.104.0(zod@3.25.76)
       vite:
         specifier: ^6.0.6
         version: 6.4.1(@types/node@22.19.3)(tsx@4.21.0)(yaml@2.8.2)
@@ -2570,10 +2570,6 @@ packages:
   globals@14.0.0:
     resolution: {integrity: sha512-oahGvuMGQlPw/ivIYBjVSrWAfWLBeku5tpPE2fOPLi+WHffIWbuh2tCjhyQhTBPMf5E9jDEH4FOmTYgYwbKwtQ==}
     engines: {node: '>=18'}
-
-  google-translate-api-x@10.7.1:
-    resolution: {integrity: sha512-OdZDS6jRWzn1woOk62aOKQ5OyVaJSA+eyc6CktOWxo36IWfstOjwG/dkvnGl3Z2Sbpmk1A+jc2WwrBiRjqaY2A==}
-    engines: {node: '>=14.0.0'}
 
   gopd@1.2.0:
     resolution: {integrity: sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==}
@@ -6096,8 +6092,6 @@ snapshots:
       path-scurry: 2.0.1
 
   globals@14.0.0: {}
-
-  google-translate-api-x@10.7.1: {}
 
   gopd@1.2.0: {}
 
