@@ -252,7 +252,21 @@ export async function writeSeriesStrmFilesForUser(
     [latestRun.id]
   )
 
-  const totalSeries = recommendations.rows.length
+  let recommendationRows = recommendations.rows
+  const includeWatched = await (await import('../../recommender/watchedExclusion.js')).getUserIncludeWatched(userId)
+  if (!includeWatched) {
+    const watchedIds = await (await import('../../recommender/watchedExclusion.js')).getExpandedWatchedSeriesIds(userId)
+    const beforeCount = recommendationRows.length
+    recommendationRows = recommendationRows.filter((rec) => !watchedIds.has(rec.series_id))
+    if (recommendationRows.length < beforeCount) {
+      logger.info(
+        { userId, removed: beforeCount - recommendationRows.length },
+        'Filtered watched series from STRM library output (safety net)'
+      )
+    }
+  }
+
+  const totalSeries = recommendationRows.length
   logger.info({ count: totalSeries }, '📺 Found series recommendations')
 
   const expectedFolders = new Set<string>()
@@ -264,8 +278,8 @@ export async function writeSeriesStrmFilesForUser(
   const INTERVAL_MS = 60 * 1000 // 1 minute between each rank
 
   // Process each series
-  for (let i = 0; i < recommendations.rows.length; i++) {
-    const rec = recommendations.rows[i]
+  for (let i = 0; i < recommendationRows.length; i++) {
+    const rec = recommendationRows[i]
     
     // Parse actors JSON
     let actors: Actor[] | null = null

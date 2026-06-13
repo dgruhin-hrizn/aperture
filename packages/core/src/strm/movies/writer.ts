@@ -177,7 +177,21 @@ export async function writeStrmFilesForUser(
     [latestRun.id]
   )
 
-  const totalMovies = recommendations.rows.length
+  let recommendationRows = recommendations.rows
+  const includeWatched = await (await import('../../recommender/watchedExclusion.js')).getUserIncludeWatched(userId)
+  if (!includeWatched) {
+    const watchedIds = await (await import('../../recommender/watchedExclusion.js')).getExpandedWatchedMovieIds(userId)
+    const beforeCount = recommendationRows.length
+    recommendationRows = recommendationRows.filter((rec) => !watchedIds.has(rec.movie_id))
+    if (recommendationRows.length < beforeCount) {
+      logger.info(
+        { userId, removed: beforeCount - recommendationRows.length },
+        'Filtered watched movies from STRM library output (safety net)'
+      )
+    }
+  }
+
+  const totalMovies = recommendationRows.length
   logger.info({ count: totalMovies }, '🎬 Found recommendations, preparing files...')
 
   // Collect expected folders and image downloads
@@ -190,8 +204,8 @@ export async function writeStrmFilesForUser(
   const INTERVAL_MS = 60 * 1000 // 1 minute between each rank
 
   // Prepare all file tasks (fast - just builds strings in memory)
-  for (let i = 0; i < recommendations.rows.length; i++) {
-    const rec = recommendations.rows[i]
+  for (let i = 0; i < recommendationRows.length; i++) {
+    const rec = recommendationRows[i]
     const movie: Movie = {
       id: rec.movie_id,
       providerItemId: rec.provider_item_id,

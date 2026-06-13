@@ -238,9 +238,11 @@ async function getSeriesCandidates(
   const tableName = await getActiveEmbeddingTableName('series_embeddings')
   const vectorStr = `[${tasteProfile.join(',')}]`
 
+  const queryLimit = includeWatched ? maxCandidates : maxCandidates + watchedSeriesIds.size
+
   // Build query with optional parental rating filter
   let ratingFilter = ''
-  const params: (string | number)[] = [vectorStr, model, maxCandidates * 2]
+  const params: (string | number)[] = [vectorStr, model, queryLimit]
 
   if (maxParentalRating !== null) {
     // Map parental rating to content ratings
@@ -612,20 +614,14 @@ export async function generateSeriesRecommendationsForUser(
       // Only exclude disliked series (not watched ones)
       excludeIds = new Set(dislikedIds)
     } else {
-      const allWatchedResult = await query<{ series_id: string }>(
-        `SELECT DISTINCT e.series_id 
-         FROM watch_history wh
-         JOIN episodes e ON e.id = wh.episode_id
-         WHERE wh.user_id = $1 AND wh.media_type = 'episode'`,
-        [user.id]
-      )
-      excludeIds = new Set([
-        ...allWatchedResult.rows.map((r) => r.series_id),
-        ...dislikedIds,
-      ])
+      const { getExpandedWatchedSeriesIds } = await import('../watchedExclusion.js')
+      excludeIds = await getExpandedWatchedSeriesIds(user.id)
+      for (const dislikedId of dislikedIds) {
+        excludeIds.add(dislikedId)
+      }
       logger.info(
-        { userId: user.id, totalWatched: allWatchedResult.rows.length, dislikedCount: dislikedIds.size, excludeTotal: excludeIds.size },
-        `📋 Loaded ${allWatchedResult.rows.length} watched + ${dislikedIds.size} disliked = ${excludeIds.size} series to exclude`
+        { userId: user.id, excludeTotal: excludeIds.size, dislikedCount: dislikedIds.size },
+        `📋 Loaded ${excludeIds.size} series to exclude (watched duplicates + disliked)`
       )
     }
 
@@ -727,13 +723,35 @@ export async function generateSeriesRecommendationsForUser(
       effectiveDiversityWeight
     )
 
+    const finalSelected = includeWatched
+      ? selected
+      : (await import('../watchedExclusion.js')).filterByWatchedIds(
+          selected.map((candidate) => ({ ...candidate, id: candidate.seriesId })),
+          excludeIds
+        )
+
+    if (!includeWatched && finalSelected.length < selected.length) {
+      logger.info(
+        {
+          userId: user.id,
+          removed: selected.length - finalSelected.length,
+        },
+        'Filtered watched series from final recommendations (safety net)'
+      )
+    }
+
+    const finalSelectedRanks = new Map<string, number>()
+    finalSelected.forEach((candidate, index) => {
+      finalSelectedRanks.set(candidate.seriesId, index + 1)
+    })
+
     // Log selected series
     logger.info(
-      { userId: user.id, selectedCount: selected.length },
-      `Selected ${selected.length} series:`
+      { userId: user.id, selectedCount: finalSelected.length },
+      `Selected ${finalSelected.length} series:`
     )
-    for (let i = 0; i < Math.min(selected.length, 10); i++) {
-      const s = selected[i]
+    for (let i = 0; i < Math.min(finalSelected.length, 10); i++) {
+      const s = finalSelected[i]
       logger.info(
         { rank: i + 1, title: s.title, year: s.year, score: s.finalScore.toFixed(3) },
         `  ${i + 1}. ${s.title} (${s.year}) - Score: ${s.finalScore.toFixed(3)}`
@@ -742,20 +760,20 @@ export async function generateSeriesRecommendationsForUser(
 
     // 7. Store results
     logger.info({ runId }, '💾 Storing candidates...')
-    await storeSeriesCandidates(runId, scoredCandidates, selected, selectedRanks)
+    await storeSeriesCandidates(runId, scoredCandidates, finalSelected, finalSelectedRanks)
 
     // 8. Store evidence (similar watched series for each recommendation)
     logger.info({ runId }, '📊 Storing recommendation evidence...')
-    await storeSeriesEvidence(runId, selected, watchedSeries)
+    await storeSeriesEvidence(runId, finalSelected, watchedSeries)
 
     // 9. Generate AI explanations for selected recommendations
     logger.info({ runId }, '🤖 Generating AI explanations...')
     try {
       // Fetch overviews for selected series
-      const seriesOverviews = await getSeriesOverviews(selected.map((s) => s.seriesId))
+      const seriesOverviews = await getSeriesOverviews(finalSelected.map((s) => s.seriesId))
 
       // Prepare data for explanation generation
-      const seriesForExplanation: SeriesForExplanation[] = selected.map((s) => ({
+      const seriesForExplanation: SeriesForExplanation[] = finalSelected.map((s) => ({
         seriesId: s.seriesId,
         title: s.title,
         year: s.year,
@@ -781,14 +799,14 @@ export async function generateSeriesRecommendationsForUser(
     }
 
     const duration = Date.now() - startTime
-    await finalizeSeriesRun(runId, scoredCandidates.length, selected.length, duration, 'completed')
+    await finalizeSeriesRun(runId, scoredCandidates.length, finalSelected.length, duration, 'completed')
 
     logger.info(
-      { userId: user.id, username: user.username, selected: selected.length, duration },
-      `🎉 Series recommendations complete: ${selected.length} picks in ${duration}ms`
+      { userId: user.id, username: user.username, selected: finalSelected.length, duration },
+      `🎉 Series recommendations complete: ${finalSelected.length} picks in ${duration}ms`
     )
 
-    return { runId, recommendations: selected }
+    return { runId, recommendations: finalSelected }
   } catch (err) {
     const error = err instanceof Error ? err.message : 'Unknown error'
     logger.error({ userId: user.id, err }, `❌ Series recommendation generation failed: ${error}`)

@@ -179,22 +179,20 @@ export async function generateRecommendationsForUser(
 
     // Get ALL watched movie IDs for filtering (not just the ones used for taste profile)
     // Also exclude disliked movies if dislike_behavior is 'exclude'
+    // Includes duplicate library copies that share TMDb/IMDb IDs with watched titles
     let excludeIds: Set<string>
     if (includeWatched) {
       // Only exclude disliked movies (not watched ones)
       excludeIds = new Set(dislikedIds)
     } else {
-      const allWatchedResult = await query<{ movie_id: string }>(
-        `SELECT movie_id FROM watch_history WHERE user_id = $1 AND media_type = 'movie'`,
-        [user.id]
-      )
-      excludeIds = new Set([
-        ...allWatchedResult.rows.map((r) => r.movie_id),
-        ...dislikedIds,
-      ])
+      const { getExpandedWatchedMovieIds } = await import('../watchedExclusion.js')
+      excludeIds = await getExpandedWatchedMovieIds(user.id)
+      for (const dislikedId of dislikedIds) {
+        excludeIds.add(dislikedId)
+      }
       logger.info(
-        { userId: user.id, totalWatched: allWatchedResult.rows.length, excludeTotal: excludeIds.size },
-        `📋 Loaded ${allWatchedResult.rows.length} watched + ${dislikedIds.size} disliked = ${excludeIds.size} movies to exclude`
+        { userId: user.id, excludeTotal: excludeIds.size, dislikedCount: dislikedIds.size },
+        `📋 Loaded ${excludeIds.size} movies to exclude (watched duplicates + disliked)`
       )
     }
 
@@ -324,13 +322,35 @@ export async function generateRecommendationsForUser(
       effectiveDiversityWeight
     )
 
+    const finalSelected = includeWatched
+      ? selected
+      : (await import('../watchedExclusion.js')).filterByWatchedIds(
+          selected.map((candidate) => ({ ...candidate, id: candidate.movieId })),
+          excludeIds
+        )
+
+    if (!includeWatched && finalSelected.length < selected.length) {
+      logger.info(
+        {
+          userId: user.id,
+          removed: selected.length - finalSelected.length,
+        },
+        'Filtered watched movies from final recommendations (safety net)'
+      )
+    }
+
+    const finalSelectedRanks = new Map<string, number>()
+    finalSelected.forEach((candidate, index) => {
+      finalSelectedRanks.set(candidate.movieId, index + 1)
+    })
+
     // Log selected movies
     logger.info(
-      { userId: user.id, selectedCount: selected.length },
-      `Selected ${selected.length} movies for recommendation:`
+      { userId: user.id, selectedCount: finalSelected.length },
+      `Selected ${finalSelected.length} movies for recommendation:`
     )
-    for (let i = 0; i < Math.min(selected.length, 10); i++) {
-      const s = selected[i]
+    for (let i = 0; i < Math.min(finalSelected.length, 10); i++) {
+      const s = finalSelected[i]
       logger.info(
         {
           rank: i + 1,
@@ -345,17 +365,17 @@ export async function generateRecommendationsForUser(
 
     // 6. Store results
     logger.info({ runId }, '💾 Storing candidates and evidence...')
-    await storeCandidates(runId, scoredCandidates, selected, selectedRanks)
-    await storeEvidence(runId, selected, watched)
+    await storeCandidates(runId, scoredCandidates, finalSelected, finalSelectedRanks)
+    await storeEvidence(runId, finalSelected, watched)
 
     // 7. Generate AI explanations for selected recommendations
     logger.info({ runId }, '🤖 Generating AI explanations...')
     try {
       // Fetch overviews for selected movies
-      const movieOverviews = await getMovieOverviews(selected.map((s) => s.movieId))
+      const movieOverviews = await getMovieOverviews(finalSelected.map((s) => s.movieId))
 
       // Prepare data for explanation generation
-      const moviesForExplanation: MovieForExplanation[] = selected.map((s) => ({
+      const moviesForExplanation: MovieForExplanation[] = finalSelected.map((s) => ({
         movieId: s.movieId,
         title: s.title,
         year: s.year,
@@ -379,20 +399,20 @@ export async function generateRecommendationsForUser(
     }
 
     const duration = Date.now() - startTime
-    await finalizeRun(runId, scoredCandidates.length, selected.length, duration, 'completed')
+    await finalizeRun(runId, scoredCandidates.length, finalSelected.length, duration, 'completed')
 
     logger.info(
       {
         userId: user.id,
         username: user.username,
         candidates: scoredCandidates.length,
-        selected: selected.length,
+        selected: finalSelected.length,
         duration,
       },
-      `🎉 Recommendations complete for ${user.username}: ${selected.length} picks in ${duration}ms`
+      `🎉 Recommendations complete for ${user.username}: ${finalSelected.length} picks in ${duration}ms`
     )
 
-    return { runId, recommendations: selected }
+    return { runId, recommendations: finalSelected }
   } catch (err) {
     const error = err instanceof Error ? err.message : 'Unknown error'
     logger.error({ userId: user.id, err }, `❌ Recommendation generation failed: ${error}`)
