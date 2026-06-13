@@ -1,29 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { useState, useEffect, useCallback, type ReactNode } from 'react'
 import { syncUiLanguageFromServer } from '@/i18n/syncUiLanguage'
-
-interface User {
-  id: string
-  username: string
-  displayName: string | null
-  provider: 'emby' | 'jellyfin'
-  providerUserId: string
-  isAdmin: boolean
-  isEnabled: boolean
-  canManageWatchHistory: boolean
-  avatarUrl: string | null
-}
-
-interface AuthContextType {
-  user: User | null
-  loading: boolean
-  sessionError: string | null
-  login: (username: string, password: string) => Promise<void>
-  logout: () => Promise<void>
-  checkAuth: () => Promise<void>
-  clearSessionError: () => void
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+import { AuthContext, type User } from './auth-context'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -57,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     }
   }, [])
-  
+
   const clearSessionError = useCallback(() => {
     setSessionError(null)
   }, [])
@@ -106,12 +83,3 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     </AuthContext.Provider>
   )
 }
-
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider')
-  }
-  return context
-}
-

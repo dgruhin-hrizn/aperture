@@ -219,7 +219,7 @@ export function useSimilarityData(
       setFocusType(initialType)
       setHistory([])
     }
-  }, [initialId, initialType])
+  }, [initialId, initialType, focusId])
 
   // Progress simulation for loading phases
   // In production, this could be replaced with SSE for real progress

@@ -85,7 +85,7 @@ export function Breadcrumbs({ items, currentLabel }: BreadcrumbsProps) {
     }
 
     return breadcrumbs
-  }, [items, location.pathname, params.id, currentLabel])
+  }, [items, location.pathname, params.id, currentLabel, t])
 
   // Don't render if only one item or empty
   if (breadcrumbItems.length <= 1) {

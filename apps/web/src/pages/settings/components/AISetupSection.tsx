@@ -23,7 +23,8 @@ import {
   Storage as StorageIcon,
   HubOutlined as HubOutlinedIcon,
 } from '@mui/icons-material'
-import { AIFunctionCard, type FunctionConfig, type AIFunction } from '../../../components/AIFunctionCard'
+import { AIFunctionCard, type AIFunction } from '../../../components/AIFunctionCard'
+import { type FunctionConfig } from '../../../components/aiProviderInfo'
 import { CostEstimatorSection } from './CostEstimatorSection'
 
 interface AIConfig {

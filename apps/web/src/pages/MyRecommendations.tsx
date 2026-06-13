@@ -176,7 +176,7 @@ export function MyRecommendationsPage() {
     title: string | null
   }>({ open: false, watchUrl: null, title: null })
 
-  const fetchMovieRecommendations = async () => {
+  const fetchMovieRecommendations = useCallback(async () => {
     if (!user) return
 
     try {
@@ -194,9 +194,9 @@ export function MyRecommendationsPage() {
     } finally {
       setMovieLoading(false)
     }
-  }
+  }, [user, t])
 
-  const fetchSeriesRecommendations = async () => {
+  const fetchSeriesRecommendations = useCallback(async () => {
     if (!user) return
 
     try {
@@ -214,12 +214,12 @@ export function MyRecommendationsPage() {
     } finally {
       setSeriesLoading(false)
     }
-  }
+  }, [user, t])
 
   useEffect(() => {
     fetchMovieRecommendations()
     fetchSeriesRecommendations()
-  }, [user])
+  }, [fetchMovieRecommendations, fetchSeriesRecommendations])
 
   const handleRegenerate = async () => {
     if (!user || regenerating) return

@@ -16,6 +16,7 @@ import {
   getDiscoveryRequests,
   countDiscoveryRequests,
   hasExistingRequest,
+  type DiscoveryRequestStatus,
 } from '@aperture/core'
 
 const seerrRoutes: FastifyPluginAsync = async (fastify) => {
@@ -292,7 +293,7 @@ const seerrRoutes: FastifyPluginAsync = async (fastify) => {
 
       const filter = {
         mediaType: mediaType as 'movie' | 'series' | undefined,
-        status: status as any,
+        status: status as DiscoveryRequestStatus | undefined,
         source:
           source === 'gap_analysis' || source === 'discovery'
             ? (source as 'discovery' | 'gap_analysis')
@@ -413,7 +414,7 @@ const seerrRoutes: FastifyPluginAsync = async (fastify) => {
         
         // Update Aperture status if Seerr status changed
         if (seerrStatus) {
-          let newStatus = apertureRequest.status
+          let newStatus = apertureRequest.status as DiscoveryRequestStatus
           if (seerrStatus.status === 'approved' && apertureRequest.status !== 'approved') {
             newStatus = 'approved'
           } else if (seerrStatus.status === 'declined' && apertureRequest.status !== 'declined') {
@@ -423,7 +424,7 @@ const seerrRoutes: FastifyPluginAsync = async (fastify) => {
           }
           
           if (newStatus !== apertureRequest.status) {
-            await updateDiscoveryRequestStatus(requestId, newStatus as any)
+            await updateDiscoveryRequestStatus(requestId, newStatus)
           }
         }
       }

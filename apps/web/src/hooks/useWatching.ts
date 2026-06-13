@@ -5,7 +5,7 @@
  */
 
 import { useContext } from 'react'
-import { WatchingContext } from './WatchingContext'
+import { WatchingContext } from './watching-context'
 
 export { WatchingProvider } from './WatchingContext'
 export type {
@@ -13,7 +13,7 @@ export type {
   WatchingSeries,
   UpcomingEpisode,
   WatchingRefreshResult,
-} from './WatchingContext'
+} from './watching-context'
 
 export function useWatching() {
   const context = useContext(WatchingContext)

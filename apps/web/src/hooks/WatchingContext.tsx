@@ -1,41 +1,19 @@
 /**
- * WatchingContext
- * 
- * Context and provider for managing the user's "Shows You Watch" list state.
+ * WatchingProvider
+ *
+ * Provider for managing the user's "Shows You Watch" list state.
  * Includes caching with 1-day TTL to avoid slow re-fetches of enrichment data.
  */
 
-import { useState, useEffect, useCallback, createContext, useRef } from 'react'
-import type { ReactNode } from 'react'
+import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
+import {
+  WatchingContext,
+  type WatchingRefreshResult,
+  type WatchingSeries,
+} from './watching-context'
 
 const CACHE_KEY = 'aperture_watching_cache'
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 1 day in milliseconds
-
-export interface UpcomingEpisode {
-  seasonNumber: number
-  episodeNumber: number
-  title: string
-  airDate: string
-  source: 'emby' | 'tmdb'
-}
-
-export interface WatchingSeries {
-  id: string
-  seriesId: string
-  title: string
-  year: number | null
-  posterUrl: string | null
-  backdropUrl: string | null
-  genres: string[]
-  overview: string | null
-  communityRating: number | null
-  network: string | null
-  status: string | null
-  totalSeasons: number | null
-  totalEpisodes: number | null
-  addedAt: string
-  upcomingEpisode: UpcomingEpisode | null
-}
 
 interface CachedData {
   series: WatchingSeries[]
@@ -45,45 +23,6 @@ interface CachedData {
 
 const CACHE_VERSION = 1
 
-/** Response from POST /api/watching/refresh (favorites reconcile) */
-export interface WatchingRefreshResult {
-  success: boolean
-  message: string
-  skipped: boolean
-  reason?: string
-  pushedToServer: number
-  removedFromDb: number
-  pulledIntoDb: number
-  pushErrors: number
-}
-
-export interface WatchingContextValue {
-  /** Set of series IDs the user is watching */
-  watchingIds: Set<string>
-  /** Full series data with enrichment */
-  series: WatchingSeries[]
-  /** Whether initial data is loading */
-  loading: boolean
-  /** Error message if any */
-  error: string | null
-  /** Whether a refresh is in progress */
-  refreshing: boolean
-  /** Check if a series is in the watching list */
-  isWatching: (seriesId: string) => boolean
-  /** Add a series to the watching list */
-  addToWatching: (seriesId: string) => Promise<void>
-  /** Remove a series from the watching list */
-  removeFromWatching: (seriesId: string) => Promise<void>
-  /** Toggle watching status for a series */
-  toggleWatching: (seriesId: string) => Promise<void>
-  /** Force refresh from server (invalidates cache) */
-  refresh: () => Promise<void>
-  /** Reconcile Shows You Watch with media server series favorites */
-  refreshLibrary: () => Promise<WatchingRefreshResult>
-}
-
-export const WatchingContext = createContext<WatchingContextValue | null>(null)
-
 interface WatchingProviderProps {
   children: ReactNode
 }
@@ -92,22 +31,22 @@ function getCache(): CachedData | null {
   try {
     const cached = localStorage.getItem(CACHE_KEY)
     if (!cached) return null
-    
+
     const data: CachedData = JSON.parse(cached)
-    
+
     // Check version
     if (data.version !== CACHE_VERSION) {
       localStorage.removeItem(CACHE_KEY)
       return null
     }
-    
+
     // Check TTL
     const age = Date.now() - data.timestamp
     if (age > CACHE_TTL_MS) {
       localStorage.removeItem(CACHE_KEY)
       return null
     }
-    
+
     return data
   } catch {
     localStorage.removeItem(CACHE_KEY)
@@ -166,7 +105,7 @@ export function WatchingProvider({ children }: WatchingProviderProps) {
       setSeries(data.series)
       setWatchingIds(new Set(data.series.map((s: WatchingSeries) => s.seriesId)))
       setError(null)
-      
+
       // Cache the result
       setCache(data.series)
     } catch (err) {
@@ -287,7 +226,7 @@ export function WatchingProvider({ children }: WatchingProviderProps) {
     }
   }, [])
 
-  const value: WatchingContextValue = {
+  const value = {
     watchingIds,
     series,
     loading,

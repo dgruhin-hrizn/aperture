@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -96,7 +96,7 @@ export function UsersPage() {
   // Global AI config (to know if per-user overrides are enabled globally)
   const [globalAiConfig, setGlobalAiConfig] = useState<GlobalAiConfig | null>(null)
 
-  const fetchGlobalAiConfig = async () => {
+  const fetchGlobalAiConfig = useCallback(async () => {
     try {
       const response = await fetch('/api/settings/ai-explanation', { credentials: 'include' })
       if (response.ok) {
@@ -106,9 +106,9 @@ export function UsersPage() {
     } catch {
       // Silently fail
     }
-  }
+  }, [])
 
-  const fetchProviderUsers = async () => {
+  const fetchProviderUsers = useCallback(async () => {
     setLoading(true)
     try {
       const response = await fetch('/api/users/provider', { credentials: 'include' })
@@ -126,12 +126,12 @@ export function UsersPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [t])
 
   useEffect(() => {
     fetchProviderUsers()
     fetchGlobalAiConfig()
-  }, [])
+  }, [fetchProviderUsers, fetchGlobalAiConfig])
 
   const handleSyncUsers = async () => {
     setSyncingUsers(true)

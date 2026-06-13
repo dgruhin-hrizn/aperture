@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Box,
@@ -29,11 +29,7 @@ export function WatchingSection() {
   const [success, setSuccess] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
 
-  useEffect(() => {
-    void fetchConfig()
-  }, [])
-
-  const fetchConfig = async () => {
+  const fetchConfig = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch('/api/settings/watching', { credentials: 'include' })
@@ -46,7 +42,11 @@ export function WatchingSection() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [t])
+
+  useEffect(() => {
+    void fetchConfig()
+  }, [fetchConfig])
 
   const handleSave = async () => {
     if (!config) return

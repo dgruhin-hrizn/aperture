@@ -452,7 +452,7 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
     }
     
     checkAndExpand()
-  }, [filters, loading, movieCandidates.length, seriesCandidates.length, expandDiscovery])
+  }, [filters, loading, movieCandidates, seriesCandidates, expandDiscovery])
 
   // Refetch candidates (used when job completes externally)
   const refetchCandidates = useCallback(async () => {

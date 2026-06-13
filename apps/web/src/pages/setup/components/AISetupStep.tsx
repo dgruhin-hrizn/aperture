@@ -20,7 +20,8 @@ import {
   HubOutlined as HubOutlinedIcon,
 } from '@mui/icons-material'
 import { useTranslation } from 'react-i18next'
-import { AIFunctionCard, type FunctionConfig, type AIFunction } from '../../../components/AIFunctionCard'
+import { AIFunctionCard, type AIFunction } from '../../../components/AIFunctionCard'
+import { type FunctionConfig } from '../../../components/aiProviderInfo'
 import type { SetupWizardContext } from '../types'
 
 interface AISetupStepProps {

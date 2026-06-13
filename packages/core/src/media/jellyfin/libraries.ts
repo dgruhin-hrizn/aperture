@@ -6,15 +6,20 @@ import type { Library, LibraryCreateResult } from '../types.js'
 import type { JellyfinLibrary, JellyfinUser } from './types.js'
 import type { JellyfinProviderBase } from './base.js'
 
+type JellyfinVirtualFoldersResponse = JellyfinLibrary[] | { Items: JellyfinLibrary[] }
+
 export async function getLibraries(
   provider: JellyfinProviderBase,
   apiKey: string
 ): Promise<Library[]> {
   // Jellyfin may return an array directly
-  const response = await provider.fetch<JellyfinLibrary[]>('/Library/VirtualFolders', apiKey)
+  const response = await provider.fetch<JellyfinVirtualFoldersResponse>(
+    '/Library/VirtualFolders',
+    apiKey
+  )
 
   // Handle both array response and object with Items property
-  const libraries = Array.isArray(response) ? response : (response as any).Items || []
+  const libraries = Array.isArray(response) ? response : response.Items ?? []
 
   return libraries.map((lib: JellyfinLibrary) => ({
     // Jellyfin uses Id for VirtualFolders API

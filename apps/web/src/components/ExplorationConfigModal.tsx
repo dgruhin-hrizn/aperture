@@ -214,18 +214,3 @@ export function ExplorationConfigModal({ open: controlledOpen, onClose }: Explor
     </Dialog>
   )
 }
-
-// Hook to manually trigger the modal (optional)
-export function useExplorationConfigModal() {
-  const [open, setOpen] = useState(false)
-
-  const showModal = () => setOpen(true)
-  const hideModal = () => setOpen(false)
-  const resetModal = () => {
-    localStorage.removeItem(STORAGE_KEY)
-    setOpen(true)
-  }
-
-  return { open, showModal, hideModal, resetModal }
-}
-

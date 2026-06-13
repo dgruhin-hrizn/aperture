@@ -249,7 +249,7 @@ export function BackupSection() {
     } catch (err) {
       console.error('Failed to poll job progress:', err)
     }
-  }, [fetchData])
+  }, [fetchData, showLogs, t])
 
   // Set up polling when job is active
   useEffect(() => {

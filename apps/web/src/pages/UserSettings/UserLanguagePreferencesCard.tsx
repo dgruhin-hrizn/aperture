@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import {
   Box,
   Typography,
@@ -36,7 +36,7 @@ export function UserLanguagePreferencesCard() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -69,11 +69,11 @@ export function UserLanguagePreferencesCard() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [t])
 
   useEffect(() => {
     void load()
-  }, [])
+  }, [load])
 
   const save = async () => {
     setSaving(true)

@@ -8,7 +8,7 @@
 import { useWatching } from '@/hooks/useWatching'
 
 // Re-export types from context for convenience
-export type { WatchingSeries, UpcomingEpisode } from '@/hooks/WatchingContext'
+export type { WatchingSeries, UpcomingEpisode } from '@/hooks/watching-context'
 
 export function useWatchingData() {
   const {

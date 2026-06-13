@@ -19,6 +19,7 @@ import {
   useMediaQuery,
   Stack,
 } from '@mui/material'
+import type { SelectChangeEvent } from '@mui/material/Select'
 import FilterListIcon from '@mui/icons-material/FilterList'
 import ClearIcon from '@mui/icons-material/Clear'
 import type { DiscoveryFilterOptions } from '../types'
@@ -95,7 +96,7 @@ export function DiscoveryFilters({
     onFiltersChange({})
   }
 
-  const handleLanguageChange = (event: any) => {
+  const handleLanguageChange = (event: SelectChangeEvent<string[]>) => {
     const value = event.target.value as string[]
     onFiltersChange({
       ...filters,
@@ -103,7 +104,7 @@ export function DiscoveryFilters({
     })
   }
 
-  const handleGenreChange = (event: any) => {
+  const handleGenreChange = (event: SelectChangeEvent<number[]>) => {
     const value = event.target.value as number[]
     onFiltersChange({
       ...filters,

@@ -146,7 +146,7 @@ export function DiscoveryDetailPopper({
     return () => {
       cancelled = true
     }
-  }, [open, candidate?.id, candidate?.tmdbId, candidate?.mediaType, streamingNeedsTmdbFetch])
+  }, [open, candidate, streamingNeedsTmdbFetch])
 
   const displayCandidate = useMemo(() => {
     if (!candidate) return null

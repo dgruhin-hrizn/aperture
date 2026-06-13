@@ -219,14 +219,13 @@ export function ExplorePage() {
   }, [])
 
   // Save recent searches to localStorage
-  const saveRecentSearch = (query: string) => {
-    const updated = [query, ...recentSearches.filter((s) => s !== query)].slice(
-      0,
-      MAX_RECENT_SEARCHES
-    )
-    setRecentSearches(updated)
-    localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated))
-  }
+  const saveRecentSearch = useCallback((query: string) => {
+    setRecentSearches((prev) => {
+      const updated = [query, ...prev.filter((s) => s !== query)].slice(0, MAX_RECENT_SEARCHES)
+      localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated))
+      return updated
+    })
+  }, [])
 
   // Fetch graph data for browse sources
   const { data: browseData, loading: browseLoading, loadingStatus: browseLoadingStatus, refetch } = useGraphData(
@@ -317,7 +316,7 @@ export function ExplorePage() {
       stopSemanticLoadingProgress()
       setSemanticSearch({ query, loading: false, results: null })
     }
-  }, [mediaFilter, hideWatched, startSemanticLoadingProgress, stopSemanticLoadingProgress])
+  }, [mediaFilter, hideWatched, startSemanticLoadingProgress, stopSemanticLoadingProgress, saveRecentSearch])
 
   // Handle browse source selection
   const handleBrowseSourceSelect = (source: GraphSource) => {

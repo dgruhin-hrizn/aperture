@@ -300,17 +300,3 @@ export function WelcomeModal({ open: controlledOpen, onClose }: WelcomeModalProp
     </Dialog>
   )
 }
-
-// Hook to manually trigger the welcome modal
-export function useWelcomeModal() {
-  const [open, setOpen] = useState(false)
-
-  const showWelcome = () => setOpen(true)
-  const hideWelcome = () => setOpen(false)
-  const resetWelcome = () => {
-    localStorage.removeItem(STORAGE_KEY)
-    setOpen(true)
-  }
-
-  return { open, showWelcome, hideWelcome, resetWelcome }
-}

@@ -64,12 +64,7 @@ export function LibraryTitlesSection() {
   })
   const [uploadingFor, setUploadingFor] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchConfig()
-    fetchImages()
-  }, [t])
-
-  const fetchConfig = async () => {
+  const fetchConfig = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch('/api/settings/library-titles')
@@ -82,7 +77,7 @@ export function LibraryTitlesSection() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [t])
 
   const fetchImages = useCallback(async () => {
     try {
@@ -117,6 +112,11 @@ export function LibraryTitlesSection() {
       console.error('Failed to load library images', err)
     }
   }, [])
+
+  useEffect(() => {
+    void fetchConfig()
+    void fetchImages()
+  }, [fetchConfig, fetchImages])
 
   const handleUpload = useCallback(async (libraryTypeId: string, file: File) => {
     setUploadingFor(libraryTypeId)

@@ -480,6 +480,7 @@ export function TopPicksSection() {
     }, 500)
     return () => clearTimeout(timeout)
   }, [
+    config,
     config?.moviesPopularitySource,
     config?.moviesHybridExternalSource,
     config?.mdblistMoviesListId,
@@ -512,6 +513,7 @@ export function TopPicksSection() {
     }, 500)
     return () => clearTimeout(timeout)
   }, [
+    config,
     config?.seriesPopularitySource,
     config?.seriesHybridExternalSource,
     config?.mdblistSeriesListId,
@@ -683,13 +685,7 @@ export function TopPicksSection() {
   ])
 
   // Fetch config on mount
-  useEffect(() => {
-    fetchConfig()
-    fetchImages()
-    checkMDBListConfig()
-  }, [fetchImages, checkMDBListConfig])
-
-  const fetchConfig = async () => {
+  const fetchConfig = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch('/api/settings/top-picks')
@@ -702,7 +698,13 @@ export function TopPicksSection() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [t])
+
+  useEffect(() => {
+    void fetchConfig()
+    void fetchImages()
+    void checkMDBListConfig()
+  }, [fetchConfig, fetchImages, checkMDBListConfig])
 
   const handleSave = async () => {
     if (!config) return

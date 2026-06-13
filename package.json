@@ -21,8 +21,8 @@
     "kill": "pkill -f vite 2>/dev/null; pkill -f tsx 2>/dev/null; lsof -ti :3456 | xargs kill -9 2>/dev/null; lsof -ti :5173 | xargs kill -9 2>/dev/null; echo '✅ Killed vite and api processes'",
     "build": "pnpm -r build",
     "typecheck": "pnpm --filter './packages/*' run build && pnpm -r typecheck",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix --max-warnings 0",
     "validate": "pnpm lint && pnpm typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -55,6 +55,6 @@
     "typescript-eslint": "^8.18.1"
   },
   "lint-staged": {
-    "*.{ts,tsx}": "eslint --fix"
+    "*.{ts,tsx}": "eslint --fix --max-warnings 0"
   }
 }

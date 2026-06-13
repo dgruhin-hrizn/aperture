@@ -150,7 +150,7 @@ export function SearchPage() {
   useEffect(() => {
     const debounce = setTimeout(performSearch, query ? 300 : 0)
     return () => clearTimeout(debounce)
-  }, [performSearch])
+  }, [performSearch, query])
 
   // Update URL params
   useEffect(() => {

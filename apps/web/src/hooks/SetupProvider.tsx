@@ -1,24 +1,5 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
-
-interface SetupStatus {
-  needsSetup: boolean
-  isAdmin: boolean
-  canAccessSetup: boolean // true if needs setup OR user is admin
-  configured: {
-    mediaServer: boolean
-    openai: boolean
-  }
-}
-
-interface SetupContextType {
-  status: SetupStatus | null
-  loading: boolean
-  error: string | null
-  refresh: () => Promise<void>
-  markComplete: () => void
-}
-
-const SetupContext = createContext<SetupContextType | undefined>(undefined)
+import { useState, useEffect, useCallback, type ReactNode } from 'react'
+import { SetupContext, type SetupStatus } from './setup-context'
 
 export function SetupProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<SetupStatus | null>(null)
@@ -59,12 +40,3 @@ export function SetupProvider({ children }: { children: ReactNode }) {
     </SetupContext.Provider>
   )
 }
-
-export function useSetupStatus() {
-  const context = useContext(SetupContext)
-  if (context === undefined) {
-    throw new Error('useSetupStatus must be used within a SetupProvider')
-  }
-  return context
-}
-

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Box,
@@ -31,11 +31,7 @@ export function AiExplanationSection() {
   const [success, setSuccess] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
 
-  useEffect(() => {
-    fetchConfig()
-  }, [])
-
-  const fetchConfig = async () => {
+  const fetchConfig = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch('/api/settings/ai-explanation')
@@ -48,7 +44,11 @@ export function AiExplanationSection() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [t])
+
+  useEffect(() => {
+    void fetchConfig()
+  }, [fetchConfig])
 
   const handleSave = async () => {
     if (!config) return

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Card,
@@ -37,7 +37,7 @@ export function LegacyEmbeddingsSection() {
   const [success, setSuccess] = useState<string | null>(null)
   const [showConfirm, setShowConfirm] = useState(false)
 
-  const fetchLegacyInfo = async () => {
+  const fetchLegacyInfo = useCallback(async () => {
     try {
       setLoading(true)
       const res = await fetch('/api/settings/ai/embeddings/legacy')
@@ -49,11 +49,11 @@ export function LegacyEmbeddingsSection() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [t])
 
   useEffect(() => {
-    fetchLegacyInfo()
-  }, [])
+    void fetchLegacyInfo()
+  }, [fetchLegacyInfo])
 
   const handleDelete = async () => {
     try {

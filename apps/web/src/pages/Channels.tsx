@@ -125,7 +125,7 @@ export function ChannelsPage() {
   const [generatingAIName, setGeneratingAIName] = useState(false)
   const [generatingAIDescription, setGeneratingAIDescription] = useState(false)
 
-  const fetchChannels = async () => {
+  const fetchChannels = useCallback(async () => {
     try {
       const response = await fetch('/api/channels', { credentials: 'include' })
       if (response.ok) {
@@ -140,9 +140,9 @@ export function ChannelsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [t])
 
-  const fetchGenres = async () => {
+  const fetchGenres = useCallback(async () => {
     setLoadingGenres(true)
     try {
       const response = await fetch('/api/genres', { credentials: 'include' })
@@ -155,7 +155,7 @@ export function ChannelsPage() {
     } finally {
       setLoadingGenres(false)
     }
-  }
+  }, [])
 
   // Debounced movie search
   const searchMovies = useCallback(async (query: string) => {
@@ -183,7 +183,7 @@ export function ChannelsPage() {
   useEffect(() => {
     fetchChannels()
     fetchGenres()
-  }, [])
+  }, [fetchChannels, fetchGenres])
 
   useEffect(() => {
     const timer = setTimeout(() => {

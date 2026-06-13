@@ -1051,14 +1051,14 @@ export function BrowsePage() {
     resetMovies()
     const debounce = setTimeout(() => fetchMovies(1, false), movieSearch ? 300 : 0)
     return () => clearTimeout(debounce)
-  }, [movieSearch, movieGenre, collection, movieFilters, movieSortBy, movieSortOrder])
+  }, [movieSearch, movieGenre, collection, movieFilters, movieSortBy, movieSortOrder, fetchMovies, resetMovies])
 
   // Initial series fetch and filter changes
   useEffect(() => {
     resetSeries()
     const debounce = setTimeout(() => fetchSeries(1, false), seriesSearch ? 300 : 0)
     return () => clearTimeout(debounce)
-  }, [seriesSearch, seriesGenre, network, seriesFilters, seriesSortBy, seriesSortOrder])
+  }, [seriesSearch, seriesGenre, network, seriesFilters, seriesSortBy, seriesSortOrder, fetchSeries, resetSeries])
 
   // People fetch
   useEffect(() => {
@@ -1066,7 +1066,7 @@ export function BrowsePage() {
     resetPeople()
     const debounce = setTimeout(() => fetchPeople(1, false), peopleSearch ? 300 : 0)
     return () => clearTimeout(debounce)
-  }, [tabIndex, peopleSearch, peopleSortBy])
+  }, [tabIndex, peopleSearch, peopleSortBy, fetchPeople, resetPeople])
 
   // Infinite scroll for movies
   useEffect(() => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   Box,
   Typography,
@@ -152,35 +152,7 @@ export function UserSettingsPage() {
   const [savingEmail, setSavingEmail] = useState(false)
   const [emailSuccess, setEmailSuccess] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchUserSettings()
-    fetchAiExplanationPref()
-    fetchDislikeBehavior()
-    fetchIncludeWatched()
-    fetchSimilarityPrefs()
-    fetchTraktStatus()
-    fetchEmailSettings()
-    
-    // Check for Trakt callback params
-    const params = new URLSearchParams(window.location.hash.split('?')[1] || '')
-    if (params.get('trakt') === 'success') {
-      const username = params.get('username')
-      setTraktMessage({
-        type: 'success',
-        text: t('userSettings.traktSuccessConnect', { username: username ?? '' }),
-      })
-      fetchTraktStatus()
-      // Clean URL
-      window.history.replaceState(null, '', window.location.pathname + '#/settings')
-    } else if (params.get('trakt') === 'error') {
-      const message = params.get('message') || t('userSettings.traktErrUnknown')
-      setTraktMessage({ type: 'error', text: t('userSettings.traktFailConnect', { message }) })
-      // Clean URL
-      window.history.replaceState(null, '', window.location.pathname + '#/settings')
-    }
-  }, [t])
-
-  const fetchUserSettings = async () => {
+  const fetchUserSettings = useCallback(async () => {
     setLoadingUserSettings(true)
     setUserSettingsError(null)
     try {
@@ -199,7 +171,7 @@ export function UserSettingsPage() {
     } finally {
       setLoadingUserSettings(false)
     }
-  }
+  }, [t])
 
   const saveUserSettings = async () => {
     setSavingUserSettings(true)
@@ -229,7 +201,7 @@ export function UserSettingsPage() {
     }
   }
 
-  const fetchAiExplanationPref = async () => {
+  const fetchAiExplanationPref = useCallback(async () => {
     setLoadingAiPref(true)
     try {
       const response = await fetch('/api/settings/user/ai-explanation', { credentials: 'include' })
@@ -242,7 +214,7 @@ export function UserSettingsPage() {
     } finally {
       setLoadingAiPref(false)
     }
-  }
+  }, [])
 
   const saveAiExplanationPref = async (enabled: boolean | null) => {
     if (!aiExplanationPref) return
@@ -276,7 +248,7 @@ export function UserSettingsPage() {
     }
   }
 
-  const fetchDislikeBehavior = async () => {
+  const fetchDislikeBehavior = useCallback(async () => {
     setLoadingDislikePref(true)
     try {
       const response = await fetch('/api/settings/user/dislike-behavior', { credentials: 'include' })
@@ -289,7 +261,7 @@ export function UserSettingsPage() {
     } finally {
       setLoadingDislikePref(false)
     }
-  }
+  }, [])
 
   const saveDislikeBehavior = async (behavior: 'exclude' | 'penalize') => {
     setSavingDislikePref(true)
@@ -313,7 +285,7 @@ export function UserSettingsPage() {
     }
   }
 
-  const fetchIncludeWatched = async () => {
+  const fetchIncludeWatched = useCallback(async () => {
     if (!user?.id) return
     setLoadingIncludeWatched(true)
     try {
@@ -327,7 +299,7 @@ export function UserSettingsPage() {
     } finally {
       setLoadingIncludeWatched(false)
     }
-  }
+  }, [user?.id])
 
   const saveIncludeWatched = async (value: boolean) => {
     if (!user?.id) return
@@ -352,7 +324,7 @@ export function UserSettingsPage() {
     }
   }
 
-  const fetchSimilarityPrefs = async () => {
+  const fetchSimilarityPrefs = useCallback(async () => {
     setLoadingSimilarityPrefs(true)
     try {
       const response = await fetch('/api/settings/user/similarity-prefs', { credentials: 'include' })
@@ -366,7 +338,7 @@ export function UserSettingsPage() {
     } finally {
       setLoadingSimilarityPrefs(false)
     }
-  }
+  }, [])
 
   const saveSimilarityPref = async (key: 'fullFranchiseMode' | 'hideWatched', value: boolean) => {
     setSavingSimilarityPrefs(true)
@@ -394,7 +366,7 @@ export function UserSettingsPage() {
     }
   }
 
-  const fetchTraktStatus = async () => {
+  const fetchTraktStatus = useCallback(async () => {
     setLoadingTrakt(true)
     try {
       const response = await fetch('/api/trakt/status', { credentials: 'include' })
@@ -407,7 +379,7 @@ export function UserSettingsPage() {
     } finally {
       setLoadingTrakt(false)
     }
-  }
+  }, [])
 
   const connectTrakt = async () => {
     try {
@@ -463,7 +435,7 @@ export function UserSettingsPage() {
     }
   }
 
-  const fetchEmailSettings = async () => {
+  const fetchEmailSettings = useCallback(async () => {
     if (!user?.id) return
     setLoadingEmail(true)
     try {
@@ -481,7 +453,44 @@ export function UserSettingsPage() {
     } finally {
       setLoadingEmail(false)
     }
-  }
+  }, [user?.id])
+
+  useEffect(() => {
+    fetchUserSettings()
+    fetchAiExplanationPref()
+    fetchDislikeBehavior()
+    fetchIncludeWatched()
+    fetchSimilarityPrefs()
+    fetchTraktStatus()
+    fetchEmailSettings()
+
+    // Check for Trakt callback params
+    const params = new URLSearchParams(window.location.hash.split('?')[1] || '')
+    if (params.get('trakt') === 'success') {
+      const username = params.get('username')
+      setTraktMessage({
+        type: 'success',
+        text: t('userSettings.traktSuccessConnect', { username: username ?? '' }),
+      })
+      fetchTraktStatus()
+      // Clean URL
+      window.history.replaceState(null, '', window.location.pathname + '#/settings')
+    } else if (params.get('trakt') === 'error') {
+      const message = params.get('message') || t('userSettings.traktErrUnknown')
+      setTraktMessage({ type: 'error', text: t('userSettings.traktFailConnect', { message }) })
+      // Clean URL
+      window.history.replaceState(null, '', window.location.pathname + '#/settings')
+    }
+  }, [
+    t,
+    fetchUserSettings,
+    fetchAiExplanationPref,
+    fetchDislikeBehavior,
+    fetchIncludeWatched,
+    fetchSimilarityPrefs,
+    fetchTraktStatus,
+    fetchEmailSettings,
+  ])
 
   const saveEmailSettings = async (newEmail?: string, newNotificationsEnabled?: boolean) => {
     if (!user?.id) return

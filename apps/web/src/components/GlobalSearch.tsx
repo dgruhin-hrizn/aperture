@@ -67,6 +67,14 @@ export function GlobalSearch() {
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
 
+  const handleClose = useCallback(() => {
+    setOpen(false)
+    setQuery('')
+    setResults([])
+    setSuggestions([])
+    setSelectedIndex(-1)
+  }, [])
+
   // Handle keyboard shortcut (Cmd/Ctrl + K)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -81,7 +89,7 @@ export function GlobalSearch() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [open])
+  }, [open, handleClose])
 
   // Focus input when dialog opens
   useEffect(() => {
@@ -89,14 +97,6 @@ export function GlobalSearch() {
       setTimeout(() => inputRef.current?.focus(), 100)
     }
   }, [open])
-
-  const handleClose = useCallback(() => {
-    setOpen(false)
-    setQuery('')
-    setResults([])
-    setSuggestions([])
-    setSelectedIndex(-1)
-  }, [])
 
   const handleSearch = useCallback(async (searchQuery: string) => {
     if (!searchQuery || searchQuery.trim().length < 2) {

@@ -1,30 +1,12 @@
 /**
- * useViewMode Hook
- * 
+ * ViewModeProvider
+ *
  * Manages per-page view mode preferences (grid/list) with database persistence.
  * Uses localStorage as a cache for instant loading, syncs with server in background.
  */
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
-
-type ViewMode = 'grid' | 'list'
-
-type PageKey =
-  | 'discovery'
-  | 'topPicks'
-  | 'watchHistory'
-  | 'watching'
-  | 'browse'
-  | 'browsePeople'
-  | 'recommendations'
-
-interface ViewModeContextValue {
-  getViewMode: (page: PageKey) => ViewMode
-  setViewMode: (page: PageKey, mode: ViewMode) => void
-  loading: boolean
-}
-
-const ViewModeContext = createContext<ViewModeContextValue | null>(null)
+import { useState, useEffect, useCallback, type ReactNode } from 'react'
+import { ViewModeContext, type PageKey, type ViewMode } from './view-mode-context'
 
 const DEFAULT_VIEW_MODE: ViewMode = 'grid'
 const STORAGE_KEY = 'aperture-view-modes'
@@ -40,7 +22,7 @@ function getInitialViewModes(): Record<PageKey, ViewMode> {
     browsePeople: 'list',
     recommendations: DEFAULT_VIEW_MODE,
   }
-  
+
   try {
     const cached = localStorage.getItem(STORAGE_KEY)
     if (cached) {
@@ -49,7 +31,7 @@ function getInitialViewModes(): Record<PageKey, ViewMode> {
   } catch {
     // localStorage not available or invalid JSON
   }
-  
+
   return defaults
 }
 
@@ -133,23 +115,4 @@ export function ViewModeProvider({ children }: ViewModeProviderProps) {
       {children}
     </ViewModeContext.Provider>
   )
-}
-
-export function useViewMode(page: PageKey) {
-  const context = useContext(ViewModeContext)
-  if (!context) {
-    throw new Error('useViewMode must be used within a ViewModeProvider')
-  }
-
-  const viewMode = context.getViewMode(page)
-  const setViewMode = useCallback(
-    (mode: ViewMode) => context.setViewMode(page, mode),
-    [context, page]
-  )
-
-  return {
-    viewMode,
-    setViewMode,
-    loading: context.loading,
-  }
 }

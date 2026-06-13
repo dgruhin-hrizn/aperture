@@ -7,6 +7,8 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 
+ENV HUSKY=0
+
 # Enable corepack for pnpm
 RUN corepack enable && corepack prepare pnpm@10.0.0 --activate
 
@@ -36,14 +38,17 @@ RUN pnpm -r build
 FROM node:20-alpine AS prod-deps
 WORKDIR /app
 
+ENV HUSKY=0
+
 RUN corepack enable && corepack prepare pnpm@10.0.0 --activate
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/
 COPY packages/core/package.json packages/core/
 
-# Install only production dependencies
-RUN pnpm install --prod --frozen-lockfile
+# Install only production dependencies (skip prepare/husky; rebuild native modules)
+RUN pnpm install --prod --frozen-lockfile --ignore-scripts && \
+    pnpm rebuild sharp
 
 # ===================================================================
 # Stage 4: Runtime
