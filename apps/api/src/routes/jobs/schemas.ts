@@ -237,11 +237,41 @@ const updateJobConfig = {
         enum: ['daily', 'weekly', 'interval', 'manual'],
         description: 'Schedule type: daily (runs once per day), weekly (runs once per week), interval (runs every N hours), manual (only runs when triggered)',
       },
-      scheduleHour: { type: 'number' as const, nullable: true, minimum: 0, maximum: 23, description: 'Hour to run (0-23). Required for daily/weekly.' },
-      scheduleMinute: { type: 'number' as const, nullable: true, minimum: 0, maximum: 59, description: 'Minute to run (0-59). Defaults to 0.' },
-      scheduleDayOfWeek: { type: 'number' as const, nullable: true, minimum: 0, maximum: 6, description: 'Day of week (0=Sunday, 6=Saturday). Required for weekly.' },
-      scheduleIntervalHours: { type: 'number' as const, nullable: true, minimum: 1, description: 'Interval in hours (1,2,3,4,6,8,12). Use scheduleIntervalMinutes for 15 or 30.' },
-      scheduleIntervalMinutes: { type: 'number' as const, nullable: true, enum: [15, 30], description: 'Sub-hour interval: 15 or 30 minutes. Mutually exclusive with scheduleIntervalHours.' },
+      scheduleHour: {
+        anyOf: [
+          { type: 'null' as const },
+          { type: 'number' as const, minimum: 0, maximum: 23 },
+        ],
+        description: 'Hour to run (0-23). Required for daily/weekly.',
+      },
+      scheduleMinute: {
+        anyOf: [
+          { type: 'null' as const },
+          { type: 'number' as const, minimum: 0, maximum: 59 },
+        ],
+        description: 'Minute to run (0-59). Defaults to 0.',
+      },
+      scheduleDayOfWeek: {
+        anyOf: [
+          { type: 'null' as const },
+          { type: 'number' as const, minimum: 0, maximum: 6 },
+        ],
+        description: 'Day of week (0=Sunday, 6=Saturday). Required for weekly.',
+      },
+      scheduleIntervalHours: {
+        anyOf: [
+          { type: 'null' as const },
+          { type: 'number' as const, enum: [1, 2, 3, 4, 6, 8, 12] },
+        ],
+        description: 'Interval in hours (1,2,3,4,6,8,12). Use scheduleIntervalMinutes for 15 or 30.',
+      },
+      scheduleIntervalMinutes: {
+        anyOf: [
+          { type: 'null' as const },
+          { type: 'number' as const, enum: [15, 30] },
+        ],
+        description: 'Sub-hour interval: 15 or 30 minutes. Mutually exclusive with scheduleIntervalHours.',
+      },
       isEnabled: { type: 'boolean' as const, description: 'Whether the job is enabled' },
     },
     example: {

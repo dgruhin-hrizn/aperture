@@ -139,16 +139,31 @@ export function JobConfigDialog({
 
     try {
       const subHour = scheduleType === 'interval' && intervalMinutesTotal < 60
-      await onSave({
-        scheduleType,
-        scheduleHour: scheduleType === 'interval' || scheduleType === 'manual' ? null : hour,
-        scheduleMinute: scheduleType === 'interval' || scheduleType === 'manual' ? null : 0,
-        scheduleDayOfWeek: scheduleType === 'weekly' ? dayOfWeek : null,
-        scheduleIntervalHours:
-          scheduleType === 'interval' && !subHour ? intervalMinutesTotal / 60 : null,
-        scheduleIntervalMinutes: scheduleType === 'interval' && subHour ? intervalMinutesTotal : null,
-        isEnabled,
-      })
+      const payload: Parameters<typeof onSave>[0] = { scheduleType, isEnabled }
+
+      if (scheduleType === 'interval' || scheduleType === 'manual') {
+        payload.scheduleHour = null
+        payload.scheduleMinute = null
+      } else {
+        payload.scheduleHour = hour
+        payload.scheduleMinute = 0
+      }
+
+      if (scheduleType === 'weekly') {
+        payload.scheduleDayOfWeek = dayOfWeek
+      } else {
+        payload.scheduleDayOfWeek = null
+      }
+
+      if (scheduleType === 'interval') {
+        if (subHour) {
+          payload.scheduleIntervalMinutes = intervalMinutesTotal
+        } else {
+          payload.scheduleIntervalHours = intervalMinutesTotal / 60
+        }
+      }
+
+      await onSave(payload)
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : t('admin.jobsPage.ui.configFailedSave'))

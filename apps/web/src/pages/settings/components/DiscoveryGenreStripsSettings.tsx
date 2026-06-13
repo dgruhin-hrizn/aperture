@@ -803,7 +803,8 @@ export function DiscoveryGenreStripsSettings() {
       }
 
       if (!settingsRes.ok) {
-        setError(t('settingsDiscoveryGenreStrips.loadError'))
+        const errData = (await settingsRes.json().catch(() => ({}))) as { error?: string }
+        setError(errData.error || t('settingsDiscoveryGenreStrips.loadError'))
         return
       }
       const data = (await settingsRes.json()) as {

@@ -213,8 +213,11 @@ export function useJobsData(): UseJobsDataReturn {
     })
 
     if (!response.ok) {
-      const data = await response.json()
-      throw new Error(data.error || 'Failed to update job configuration')
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string
+        message?: string
+      }
+      throw new Error(data.message || data.error || 'Failed to update job configuration')
     }
 
     // Refresh jobs to get updated schedule
