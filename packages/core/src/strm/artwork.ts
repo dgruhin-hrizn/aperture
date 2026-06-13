@@ -12,6 +12,30 @@ import { getConfig } from './config.js'
 
 const logger = createChildLogger('artwork-symlinks')
 
+type PathPrefixes = {
+  mediaServerPathPrefix: string
+  localMediaPathPrefix: string
+}
+
+let pathPrefixOverride: PathPrefixes | null = null
+
+/** @internal Override path prefixes in unit tests */
+export function setPathPrefixOverrideForTests(override: PathPrefixes | null): void {
+  pathPrefixOverride = override
+}
+
+async function getPathPrefixes(): Promise<PathPrefixes> {
+  if (pathPrefixOverride) {
+    return pathPrefixOverride
+  }
+
+  const config = await getConfig()
+  return {
+    mediaServerPathPrefix: config.mediaServerPathPrefix,
+    localMediaPathPrefix: config.localMediaPathPrefix,
+  }
+}
+
 export interface SymlinkArtworkOptions {
   /** Media server path to the original folder (what Emby sees, e.g., /mnt/Television/Show) */
   mediaServerPath: string
@@ -46,10 +70,18 @@ const VIDEO_EXTENSIONS = new Set([
 ])
 
 /**
- * Subtitle file extensions to skip (we create our own symlinks with proper naming)
+ * Subtitle file extensions handled by basename-matched sidecar symlinks
  */
 const SUBTITLE_EXTENSIONS = new Set([
   '.srt', '.sub', '.idx', '.ass', '.ssa', '.vtt', '.smi', '.pgs', '.sup',
+])
+
+/**
+ * Other sidecar extensions keyed to the video basename (Emby trickplay, chapters, etc.)
+ */
+const VIDEO_BASENAME_SIDECAR_EXTENSIONS = new Set([
+  '.bif',
+  '.xml',
 ])
 
 /**
@@ -66,11 +98,22 @@ function isVideoFile(filename: string): boolean {
  */
 function isSubtitleFile(filename: string): boolean {
   const lowerName = filename.toLowerCase()
-  // Check for direct subtitle extensions
   for (const ext of SUBTITLE_EXTENSIONS) {
     if (lowerName.endsWith(ext)) return true
   }
   return false
+}
+
+/**
+ * Sidecar files that must share the media file basename for Emby to associate them.
+ */
+export function isBasenameMatchedSidecar(filename: string): boolean {
+  if (isSubtitleFile(filename)) {
+    return true
+  }
+
+  const ext = path.extname(filename).toLowerCase()
+  return VIDEO_BASENAME_SIDECAR_EXTENSIONS.has(ext)
 }
 
 /**
@@ -110,6 +153,10 @@ export function isCompetingPosterFile(filename: string): boolean {
   return /(?:^|[-_.])(poster|folder|cover)(?:[-_.]|\.)/.test(lower)
 }
 
+function matchesOriginalBasename(filename: string, originalBasename: string): boolean {
+  return filename.toLowerCase().startsWith(originalBasename.toLowerCase())
+}
+
 /**
  * Symlink artwork files from original media folder to target folder.
  * 
@@ -119,6 +166,7 @@ export function isCompetingPosterFile(filename: string): boolean {
  * Automatically skips:
  * - Video files (.mp4, .mkv, etc.) - we create our own symlinks/STRMs
  * - NFO files - we create our own with custom metadata
+ * - Basename-matched sidecars (.srt, .bif, etc.) - handled by symlinkBasenameMatchedSidecars
  * - Files in the skipFiles list (poster.jpg, fanart.jpg, etc.)
  * - Season folders (if skipSeasonFolders is true)
  * 
@@ -134,12 +182,12 @@ export async function symlinkArtwork(options: SymlinkArtworkOptions): Promise<nu
     title = 'unknown',
   } = options
 
-  const config = await getConfig()
+  const { mediaServerPathPrefix, localMediaPathPrefix } = await getPathPrefixes()
   
   // Convert media server path to local path for reading directory
   const localPath = mediaServerPath.replace(
-    config.mediaServerPathPrefix,
-    config.localMediaPathPrefix
+    mediaServerPathPrefix,
+    localMediaPathPrefix
   )
 
   let symlinksCreated = 0
@@ -158,8 +206,8 @@ export async function symlinkArtwork(options: SymlinkArtworkOptions): Promise<nu
       // Skip video files - we create our own symlinks/STRMs for the main video
       if (isVideoFile(file)) continue
 
-      // Skip subtitle files - we create our own symlinks with proper naming
-      if (isSubtitleFile(file)) continue
+      // Skip basename-matched sidecars - we create renamed symlinks separately
+      if (isBasenameMatchedSidecar(file)) continue
 
       // Skip NFO files - we create our own with custom metadata
       if (isNfoFile(file)) continue
@@ -232,31 +280,62 @@ export function getMovieFolderFromFilePath(filePath: string): string {
   return path.dirname(filePath)
 }
 
-export interface SymlinkSubtitlesOptions {
+export interface SymlinkBasenameMatchedSidecarsOptions {
   /** Media server path to the original folder (what Emby sees) */
   mediaServerPath: string
   /** Local path where symlinks should be created */
   targetPath: string
   /** Base filename for our video (without extension), e.g. "Movie Name (2020) [id]" */
   targetBasename: string
-  /** Original video filename (without extension) to match against subtitles */
+  /** Original video filename (without extension) to match against sidecars */
   originalBasename: string
   /** Title for logging */
   title?: string
 }
 
+async function removeStaleMisnamedSidecars(
+  targetPath: string,
+  originalBasename: string,
+  targetBasename: string
+): Promise<void> {
+  let targetFiles: string[]
+  try {
+    targetFiles = await fs.readdir(targetPath)
+  } catch {
+    return
+  }
+
+  for (const file of targetFiles) {
+    if (!isBasenameMatchedSidecar(file)) continue
+    if (!matchesOriginalBasename(file, originalBasename)) continue
+
+    const suffix = file.substring(originalBasename.length)
+    const expectedName = `${targetBasename}${suffix}`
+    if (file === expectedName) continue
+
+    try {
+      await fs.unlink(path.join(targetPath, file))
+      logger.debug({ file, expectedName }, 'Removed stale misnamed sidecar symlink')
+    } catch {
+      // Best-effort cleanup
+    }
+  }
+}
+
 /**
- * Symlink subtitle files from original media folder, renaming to match our video file.
- * 
+ * Symlink sidecar files from the original media folder, renaming to match our video file.
+ *
+ * Handles subtitles, Emby BIF trickplay files, chapter XML, and other basename-keyed sidecars.
+ *
  * For example:
- * - Original: "Movie Name - Bluray-1080p.en.srt"
- * - Becomes: "Movie Name (2020) [id].en.srt"
- * 
- * Preserves language tags and subtitle type suffixes.
- * 
- * @returns Number of subtitle symlinks created
+ * - Original: "Release.Name.2026.bif"
+ * - Becomes: "Movie Name (2020).bif"
+ *
+ * @returns Number of sidecar symlinks created
  */
-export async function symlinkSubtitles(options: SymlinkSubtitlesOptions): Promise<number> {
+export async function symlinkBasenameMatchedSidecars(
+  options: SymlinkBasenameMatchedSidecarsOptions
+): Promise<number> {
   const {
     mediaServerPath,
     targetPath,
@@ -265,13 +344,15 @@ export async function symlinkSubtitles(options: SymlinkSubtitlesOptions): Promis
     title = 'unknown',
   } = options
 
-  const config = await getConfig()
-  
+  const { mediaServerPathPrefix, localMediaPathPrefix } = await getPathPrefixes()
+
   // Convert media server path to local path for reading directory
   const localPath = mediaServerPath.replace(
-    config.mediaServerPathPrefix,
-    config.localMediaPathPrefix
+    mediaServerPathPrefix,
+    localMediaPathPrefix
   )
+
+  await removeStaleMisnamedSidecars(targetPath, originalBasename, targetBasename)
 
   let symlinksCreated = 0
 
@@ -280,25 +361,18 @@ export async function symlinkSubtitles(options: SymlinkSubtitlesOptions): Promis
     const originalBasenameLower = originalBasename.toLowerCase()
 
     for (const file of files) {
-      // Only process subtitle files
-      if (!isSubtitleFile(file)) continue
+      if (!isBasenameMatchedSidecar(file)) continue
 
-      // Check if this subtitle matches the original video filename
       const fileLower = file.toLowerCase()
       if (!fileLower.startsWith(originalBasenameLower)) continue
 
-      // Extract the suffix after the original basename (e.g., ".en.srt" or just ".srt")
       const suffix = file.substring(originalBasename.length)
-      
-      // Create new filename with our basename
       const newFilename = `${targetBasename}${suffix}`
-      
-      // Symlink target uses MEDIA SERVER path (what Emby sees)
+
       const originalFilePath = path.join(mediaServerPath, file)
       const symlinkPath = path.join(targetPath, newFilename)
 
       try {
-        // Remove existing file/symlink if present
         try {
           await fs.lstat(symlinkPath)
           await fs.unlink(symlinkPath)
@@ -308,19 +382,26 @@ export async function symlinkSubtitles(options: SymlinkSubtitlesOptions): Promis
 
         await fs.symlink(originalFilePath, symlinkPath)
         symlinksCreated++
-        logger.debug({ original: file, renamed: newFilename, title }, 'Created subtitle symlink')
+        logger.debug({ original: file, renamed: newFilename, title }, 'Created basename-matched sidecar symlink')
       } catch (err) {
-        logger.debug({ err, file, title }, 'Failed to symlink subtitle file')
+        logger.debug({ err, file, title }, 'Failed to symlink basename-matched sidecar file')
       }
     }
 
     if (symlinksCreated > 0) {
-      logger.debug({ title, count: symlinksCreated }, '📝 Symlinked subtitle files')
+      logger.debug({ title, count: symlinksCreated }, '📝 Symlinked basename-matched sidecar files')
     }
   } catch (err) {
-    logger.debug({ err, title, localPath }, 'Could not read original folder for subtitle symlinks')
+    logger.debug({ err, title, localPath }, 'Could not read original folder for basename-matched sidecar symlinks')
   }
 
   return symlinksCreated
 }
 
+/** @deprecated Use symlinkBasenameMatchedSidecars */
+export type SymlinkSubtitlesOptions = SymlinkBasenameMatchedSidecarsOptions
+
+/** @deprecated Use symlinkBasenameMatchedSidecars */
+export async function symlinkSubtitles(options: SymlinkSubtitlesOptions): Promise<number> {
+  return symlinkBasenameMatchedSidecars(options)
+}

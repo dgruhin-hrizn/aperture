@@ -16,7 +16,7 @@ import { getMediaServerProvider } from '../../media/index.js'
 import { downloadImage } from '../images.js'
 import { generateSeriesNfoContent } from './nfo.js'
 import { getEffectiveAiExplanationSetting } from '../../lib/userSettings.js'
-import { symlinkArtwork, SERIES_SKIP_FILES, getSeriesFolderFromSeasonPath } from '../artwork.js'
+import { symlinkArtwork, symlinkBasenameMatchedSidecars, SERIES_SKIP_FILES, getSeriesFolderFromSeasonPath } from '../artwork.js'
 import type { Series, Actor, SeriesImageDownloadTask } from './types.js'
 import type { ImageDownloadTask } from '../types.js'
 
@@ -547,6 +547,16 @@ export async function writeSeriesStrmFilesForUser(
           const nfoPath = path.join(seasonFolderPath, `${episodeFilename}.nfo`)
           await fs.writeFile(nfoPath, generateEpisodeNfoContent(episode, series.title), 'utf-8')
           filesWritten++
+
+          const originalBasename = path.basename(episode.path, path.extname(episode.path))
+          const sourceSeasonFolder = path.dirname(episode.path)
+          await symlinkBasenameMatchedSidecars({
+            mediaServerPath: sourceSeasonFolder,
+            targetPath: seasonFolderPath,
+            targetBasename: episodeFilename,
+            originalBasename,
+            title: `${series.title} S${String(episode.seasonNumber).padStart(2, '0')}E${String(episode.episodeNumber).padStart(2, '0')}`,
+          })
         }
       }
 

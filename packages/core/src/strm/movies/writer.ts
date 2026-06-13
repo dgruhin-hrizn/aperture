@@ -12,7 +12,7 @@ import {
 import { getEffectiveAiExplanationSetting } from '../../lib/userSettings.js'
 import {
   symlinkArtwork,
-  symlinkSubtitles,
+  symlinkBasenameMatchedSidecars,
   MOVIE_SKIP_FILES,
   getMovieFolderFromFilePath,
 } from '../artwork.js'
@@ -341,9 +341,9 @@ export async function writeStrmFilesForUser(
           title: movie.title,
         })
 
-        // Symlink subtitle files with proper naming to match our video file
+        // Symlink sidecar files (subtitles, BIF, etc.) with names matching our video file
         const originalBasename = path.basename(originalPath, path.extname(originalPath))
-        await symlinkSubtitles({
+        await symlinkBasenameMatchedSidecars({
           mediaServerPath: movieFolder,
           targetPath: movieFolderPath,
           targetBasename: baseFilename,

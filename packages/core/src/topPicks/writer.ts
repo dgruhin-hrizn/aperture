@@ -16,7 +16,7 @@ import { resolvePosterUrlForOverlay } from '../strm/posterUrl.js'
 import { getTopPicksConfig } from './config.js'
 import {
   symlinkArtwork,
-  symlinkSubtitles,
+  symlinkBasenameMatchedSidecars,
   SERIES_SKIP_FILES,
   MOVIE_SKIP_FILES,
   getMovieFolderFromFilePath,
@@ -735,9 +735,9 @@ export async function writeTopPicksMovies(
           title: movie.title,
         })
 
-        // Symlink subtitle files with proper naming to match our video file
+        // Symlink sidecar files (subtitles, BIF, etc.) with names matching our video file
         const originalBasename = path.basename(originalPath, path.extname(originalPath))
-        await symlinkSubtitles({
+        await symlinkBasenameMatchedSidecars({
           mediaServerPath: movieFolder,
           targetPath: movieFolderPath,
           targetBasename: baseFilename,
@@ -1142,6 +1142,16 @@ export async function writeTopPicksSeries(
 
         const strmPath = path.join(seasonPath, `${episodeFilename}.strm`)
         await fs.writeFile(strmPath, episodePath, 'utf-8')
+
+        const originalBasename = path.basename(episodePath, path.extname(episodePath))
+        const sourceSeasonFolder = path.dirname(episodePath)
+        await symlinkBasenameMatchedSidecars({
+          mediaServerPath: sourceSeasonFolder,
+          targetPath: seasonPath,
+          targetBasename: episodeFilename,
+          originalBasename,
+          title: `${series.title} ${episodeNum}`,
+        })
       }
 
       // Symlink artwork files from original series folder (even in STRM mode)
