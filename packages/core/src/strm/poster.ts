@@ -1,11 +1,7 @@
 import sharp from 'sharp'
 
-// Emby green color
-const EMBY_GREEN = '#52B54B'
 // Aperture purple accent
 const APERTURE_PURPLE = '#8B5CF6'
-// Top Picks black
-const TOP_PICKS_BLACK = '#000000'
 
 /**
  * Create a ranked poster with badge overlays:

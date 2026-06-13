@@ -2,12 +2,9 @@
  * OMDb Ratings API Functions
  */
 
-import { createChildLogger } from '../lib/logger.js'
 import { omdbRequest } from './client.js'
 import type { OMDbMovieResponse, RatingsData } from './types.js'
 import type { ApiLogCallback } from '../tmdb/client.js'
-
-const logger = createChildLogger('omdb:ratings')
 
 /**
  * Parse Rotten Tomatoes score from OMDb rating string

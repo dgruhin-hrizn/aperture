@@ -186,7 +186,7 @@ export function MDBListSelector({
       } else {
         setManualError(t('settingsMdblistSelector.errListNotFound'))
       }
-    } catch (err) {
+    } catch {
       setManualError(t('settingsMdblistSelector.errLookupFailed'))
     } finally {
       setLoadingManual(false)

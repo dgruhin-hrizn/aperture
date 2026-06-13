@@ -5,7 +5,6 @@ import {
   getTasteSynopsis, 
   getSeriesTasteSynopsis,
   getMediaServerProvider,
-  getMediaServerConfig,
   getMediaServerApiKey
 } from '@aperture/core'
 

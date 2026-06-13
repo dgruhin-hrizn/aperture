@@ -53,7 +53,7 @@ export function FileLocationsSection() {
       } else {
         setError(t('settingsFileLocations.loadError'))
       }
-    } catch (err) {
+    } catch {
       setError(t('settingsFileLocations.errConnect'))
     } finally {
       setLoading(false)
@@ -119,7 +119,7 @@ export function FileLocationsSection() {
         const data = await response.json()
         setError(data.error || t('settingsFileLocations.saveFailed'))
       }
-    } catch (err) {
+    } catch {
       setError(t('settingsFileLocations.saveFailed'))
     } finally {
       setSaving(false)

@@ -360,7 +360,7 @@ function buildWeightedAverageEmbedding(
  * Parse embedding string from database
  */
 function parseEmbedding(embeddingStr: string): number[] {
-  const cleaned = embeddingStr.replace(/[\[\]]/g, '')
+  const cleaned = embeddingStr.replace(/[[\]]/g, '')
   return cleaned.split(',').map((n) => parseFloat(n.trim()))
 }
 

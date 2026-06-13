@@ -15,12 +15,6 @@ import {
 } from '../jobs/progress.js'
 import { getTopPicksConfig } from './config.js'
 import { 
-  getTopMoviesFromTMDB, 
-  getTopSeriesFromTMDB,
-  getTopMoviesFromMDBList,
-  getTopSeriesFromMDBList,
-} from './popularity.js'
-import { 
   isSeerrConfigured, 
   createRequest, 
   getMediaStatus,

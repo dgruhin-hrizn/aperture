@@ -6,7 +6,6 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { query, queryOne } from '../lib/db.js'
 import { requireAuth } from '../plugins/auth.js'
-import { getMediaServerConfig } from '@aperture/core'
 
 interface ContentItem {
   id: string

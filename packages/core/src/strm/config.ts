@@ -1,5 +1,5 @@
 import type { StrmConfig } from './types.js'
-import { getOutputPathConfig, getApertureMediaPath } from '../settings/systemSettings.js'
+import { getOutputPathConfig } from '../settings/systemSettings.js'
 
 // Fixed container paths (set by Docker volume mounts, not configurable)
 const APERTURE_LIBRARIES_PATH = '/aperture-libraries'

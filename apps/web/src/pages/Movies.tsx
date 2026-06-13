@@ -12,7 +12,6 @@ import {
   FormControl,
   InputLabel,
   Pagination,
-  Skeleton,
   Alert,
   Slider,
   Chip,

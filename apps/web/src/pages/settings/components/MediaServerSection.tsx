@@ -110,7 +110,7 @@ export function MediaServerSection() {
         setApiKey('') // Never pre-fill API key for security
         setHasChanges(false)
       }
-    } catch (err) {
+    } catch {
       setError(t('settingsMediaServer.loadError'))
     } finally {
       setLoading(false)
@@ -147,7 +147,7 @@ export function MediaServerSection() {
 
       const result = await response.json()
       setTestResult(result)
-    } catch (err) {
+    } catch {
       setTestResult({ success: false, error: t('settingsMediaServer.testFailedConnect') })
     } finally {
       setTesting(false)
@@ -182,7 +182,7 @@ export function MediaServerSection() {
         const data = await response.json()
         setError(data.error || t('settingsMediaServer.saveFailed'))
       }
-    } catch (err) {
+    } catch {
       setError(t('settingsMediaServer.saveFailed'))
     } finally {
       setSaving(false)

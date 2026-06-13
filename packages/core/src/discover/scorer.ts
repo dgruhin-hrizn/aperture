@@ -6,7 +6,7 @@
 
 import { createChildLogger } from '../lib/logger.js'
 import { query, queryOne } from '../lib/db.js'
-import { getActiveEmbeddingTableName, getCurrentEmbeddingDimensions } from '../lib/ai-provider.js'
+import { getActiveEmbeddingTableName } from '../lib/ai-provider.js'
 import type { MediaType, RawCandidate, ScoredCandidate, DiscoveryConfig } from './types.js'
 import { getUserFranchisePreferences } from '../taste-profile/index.js'
 import { detectFranchiseFromTitle } from '../taste-profile/franchise.js'
@@ -121,7 +121,7 @@ export async function scoreCandidates(
   // Build a map of TMDb ID -> embedding for candidates we have in DB
   const tmdbIds = candidates.map(c => c.tmdbId.toString())
   
-  let embeddingMap = new Map<number, number[]>()
+  const embeddingMap = new Map<number, number[]>()
   
   if (tasteEmbedding && tmdbIds.length > 0) {
     try {

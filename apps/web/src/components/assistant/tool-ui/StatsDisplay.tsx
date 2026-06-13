@@ -5,7 +5,6 @@
 import { Box, Typography, Paper, Chip, LinearProgress } from '@mui/material'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
-import PlayCircleIcon from '@mui/icons-material/PlayCircle'
 import StarIcon from '@mui/icons-material/Star'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import { useTranslation } from 'react-i18next'

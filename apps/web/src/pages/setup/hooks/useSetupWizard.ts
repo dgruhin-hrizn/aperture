@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSetupStatus } from '@/hooks/useSetupStatus'
-import { useAuth } from '@/hooks/useAuth'
 import { useTranslation } from 'react-i18next'
 import {
   STEP_ORDER_IDS,
@@ -35,7 +34,6 @@ export function useSetupWizard(): SetupWizardContext {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { status, markComplete } = useSetupStatus()
-  const { user } = useAuth()
 
   // Navigation state
   const [activeStep, setActiveStep] = useState(0)
@@ -782,7 +780,7 @@ export function useSetupWizard(): SetupWizardContext {
       if (data.providers) {
         setAiProviders(data.providers)
       }
-    } catch (err) {
+    } catch {
       // Non-fatal
     }
   }, [])
@@ -948,7 +946,7 @@ export function useSetupWizard(): SetupWizardContext {
     const jobId = startData.jobId as string
 
     // Poll for progress
-    // eslint-disable-next-line no-constant-condition
+     
     while (true) {
       const pRes = await fetch(`/api/setup/jobs/progress/${jobId}`, { credentials: 'include' })
       const p = await pRes.json()

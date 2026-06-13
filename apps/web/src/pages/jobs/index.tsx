@@ -150,7 +150,6 @@ export function JobsPage() {
   const {
     status: enrichmentStatus,
     clearInterruptedRun,
-    refresh: refreshEnrichmentStatus,
   } = useEnrichmentStatus()
 
   const { prerequisites: discoveryPrerequisites } = useDiscoveryPrerequisites()

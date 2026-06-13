@@ -73,7 +73,7 @@ function ChartTrendBadge({ trend }: { trend: string }) {
   const u = trend.trim().toUpperCase()
   let Icon: typeof TrendingUpIcon = TrendingFlatIcon
   let mainColor = theme.palette.text.secondary
-  let bgAlpha = 0.14
+  const bgAlpha = 0.14
 
   if (u === 'DOWN' || u.startsWith('DOWN')) {
     Icon = TrendingDownIcon

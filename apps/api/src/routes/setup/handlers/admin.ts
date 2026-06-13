@@ -8,7 +8,6 @@ import {
   setSetupCurrentStep,
   markSetupStepCompleted,
   resetSetupProgress,
-  isSetupComplete,
   markSetupComplete,
   getMediaServerConfig,
   getLibraryConfigs,
@@ -16,7 +15,6 @@ import {
   getOutputPathConfig,
   getTopPicksConfig,
   hasOpenAIApiKey,
-  type SetupStepId,
 } from '@aperture/core'
 import { requireAdmin } from '../../../plugins/auth.js'
 import { setupSchemas } from '../schemas.js'

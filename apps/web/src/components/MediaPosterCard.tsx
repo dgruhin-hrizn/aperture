@@ -14,7 +14,6 @@ import {
   alpha,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
-import CheckIcon from '@mui/icons-material/Check'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
 import MovieIcon from '@mui/icons-material/Movie'
@@ -82,7 +81,7 @@ export function MediaPosterCard({
   rank,
   mediaType,
   inLibrary = false,
-  showInLibraryCornerBadge = true,
+  showInLibraryCornerBadge: _showInLibraryCornerBadge = true,
   libraryId,
   seerrStatus,
   canRequest = false,

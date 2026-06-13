@@ -17,7 +17,7 @@ import { downloadImage } from '../images.js'
 import { generateSeriesNfoContent } from './nfo.js'
 import { getEffectiveAiExplanationSetting } from '../../lib/userSettings.js'
 import { symlinkArtwork, symlinkBasenameMatchedSidecars, SERIES_SKIP_FILES, getSeriesFolderFromSeasonPath } from '../artwork.js'
-import type { Series, Actor, SeriesImageDownloadTask } from './types.js'
+import type { Series, Actor } from './types.js'
 import type { ImageDownloadTask } from '../types.js'
 
 const logger = createChildLogger('strm-series-writer')

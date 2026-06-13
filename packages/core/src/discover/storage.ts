@@ -19,7 +19,6 @@ import type {
   PoolCandidate,
   RawCandidate,
   GlobalDiscoverySource,
-  GLOBAL_SOURCES,
 } from './types.js'
 
 const logger = createChildLogger('discover:storage')

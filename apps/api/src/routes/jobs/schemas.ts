@@ -5,25 +5,6 @@
  */
 
 // =============================================================================
-// Job Names Enum (for documentation)
-// =============================================================================
-
-const JOB_NAMES = [
-  'sync-movies',
-  'sync-series', 
-  'enrich-movies',
-  'enrich-series',
-  'embed-movies',
-  'embed-series',
-  'sync-watch-history',
-  'recommendations-movies',
-  'recommendations-series',
-  'top-picks',
-  'discovery-movies',
-  'discovery-series',
-] as const
-
-// =============================================================================
 // Component Schemas
 // =============================================================================
 

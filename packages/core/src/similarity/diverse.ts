@@ -2,7 +2,7 @@ import { createChildLogger } from '../lib/logger.js'
 import { query, queryOne } from '../lib/db.js'
 import { getExplorationModelInstance } from '../lib/ai-provider.js'
 import { generateText } from 'ai'
-import type { SimilarityItem, SimilarityConnection } from './index.js'
+import type { SimilarityItem } from './index.js'
 import type { ConnectionReason } from './reasons.js'
 
 const logger = createChildLogger('similarity:diverse')
@@ -320,13 +320,11 @@ export function analyzeBubble(
 
   // Count items per collection
   const collectionCounts = new Map<string, number>()
-  let itemsWithCollection = 0
 
   for (const item of items) {
     const collection = item.collection_name
     if (collection) {
       collectionCounts.set(collection, (collectionCounts.get(collection) || 0) + 1)
-      itemsWithCollection++
     }
   }
 

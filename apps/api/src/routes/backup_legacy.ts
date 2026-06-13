@@ -11,7 +11,6 @@ import {
   formatBytes,
   cancelBackupProcess,
   cancelJob,
-  type BackupConfig,
 } from '@aperture/core'
 import { requireAdmin } from '../plugins/auth.js'
 import * as fs from 'fs'

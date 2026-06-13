@@ -16,10 +16,7 @@ import {
   getDiscoveryRequests,
   countDiscoveryRequests,
   hasExistingRequest,
-  type SeerrConfig,
 } from '@aperture/core'
-
-type MediaType = 'movie' | 'tv'
 
 const seerrRoutes: FastifyPluginAsync = async (fastify) => {
   /**

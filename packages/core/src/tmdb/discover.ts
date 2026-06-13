@@ -7,7 +7,6 @@
  * - General discovery with filters
  */
 
-import { createChildLogger } from '../lib/logger.js'
 import { tmdbRequest, type ApiLogCallback } from './client.js'
 import type {
   TMDbMovieRecommendationsResponse,
@@ -21,8 +20,6 @@ import type {
   DiscoverMovieFilters,
   DiscoverTVFilters,
 } from './types.js'
-
-const logger = createChildLogger('tmdb:discover')
 
 // ============================================================================
 // Top Picks Source Functions (Popular, Trending, Top Rated)

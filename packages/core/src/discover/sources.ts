@@ -15,7 +15,6 @@ import {
   discoverTV,
   normalizeMovieResult,
   normalizeTVResult,
-  extractYear,
   getMovieDetails,
   getMovieCredits,
   getTVDetails,

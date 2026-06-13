@@ -11,7 +11,6 @@ import {
   readFile,
   fileExists,
   getAbsolutePath,
-  cleanupEntityFiles,
   ensureUploadsDir,
   getUploadsDir,
   type StoredFile,

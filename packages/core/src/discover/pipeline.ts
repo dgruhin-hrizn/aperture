@@ -27,8 +27,6 @@ import {
   upsertPoolCandidates,
   getPoolCandidates,
   poolCandidateToRaw,
-  getUnenrichedPoolCandidates,
-  updatePoolCandidateEnrichment,
 } from './storage.js'
 import {
   addLog,
@@ -41,7 +39,6 @@ import type {
   DiscoveryUser,
   ScoredCandidate,
   RawCandidate,
-  DEFAULT_DISCOVERY_CONFIG,
 } from './types.js'
 
 const logger = createChildLogger('discover:pipeline')

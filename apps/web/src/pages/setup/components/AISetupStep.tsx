@@ -40,7 +40,7 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
 
   const [config, setConfig] = useState<AIConfig | null>(null)
   const [loading, setLoading] = useState(true)
-  const [testResults, setTestResults] = useState<Record<AIFunction, boolean | null>>({
+  const [, setTestResults] = useState<Record<AIFunction, boolean | null>>({
     embeddings: null,
     chat: null,
     textGeneration: null,

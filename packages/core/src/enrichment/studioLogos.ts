@@ -200,7 +200,7 @@ async function enrichStudio(
   pushToEmby: boolean,
   jobId: string
 ): Promise<{ enriched: boolean; pushedToEmby: boolean }> {
-  let result = { enriched: false, pushedToEmby: false }
+  const result = { enriched: false, pushedToEmby: false }
 
   try {
     let tmdbId = studio.tmdb_id
@@ -481,7 +481,6 @@ export async function enrichStudioLogos(jobId: string): Promise<StudioLogoProgre
     // Complete job
     const totalDuration = ((Date.now() - startTime) / 1000).toFixed(1)
     const totalProcessed = progress.studiosProcessed + progress.networksProcessed
-    const totalEnriched = progress.studiosEnriched + progress.networksEnriched
     const avgRate = (totalProcessed / parseFloat(totalDuration)).toFixed(1)
 
     const summary = `Processed ${progress.studiosProcessed} studios (${progress.studiosEnriched} with logos), ${progress.networksProcessed} networks (${progress.networksEnriched} with logos) in ${totalDuration}s (${avgRate}/sec). ${progress.logosPushedToEmby} pushed to Emby.`

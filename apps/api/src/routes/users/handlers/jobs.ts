@@ -191,7 +191,7 @@ export function registerJobHandlers(fastify: FastifyInstance) {
         logger.info({ userId: id, recommendations: recsResult.recommendations.length }, 'Recommendations generated')
 
         // Step 3: Update STRM files
-        const library = await ensureUserLibrary(id, user.provider_user_id, user.display_name || user.username)
+        await ensureUserLibrary(id, user.provider_user_id, user.display_name || user.username)
         const strmResult = await writeStrmFilesForUser(id, user.provider_user_id, user.display_name || user.username)
         await updateUserLibraryPermissions(id, user.provider_user_id)
         await refreshUserLibrary(id)

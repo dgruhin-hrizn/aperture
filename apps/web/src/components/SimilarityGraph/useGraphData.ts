@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { GraphData, GraphNode, SimilarityResult, LoadingStatus } from './types'
+import type { GraphData, SimilarityResult, LoadingStatus } from './types'
 
 type GraphSource = 'ai-movies' | 'ai-series' | 'watching' | 'top-movies' | 'top-series'
 

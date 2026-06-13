@@ -26,8 +26,6 @@ import {
   Select,
   MenuItem,
   Collapse,
-  List,
-  ListItem,
   ListItemText,
   InputLabel,
   OutlinedInput,
@@ -55,7 +53,6 @@ import OutputIcon from '@mui/icons-material/Output'
 import ImageIcon from '@mui/icons-material/Image'
 import PublicIcon from '@mui/icons-material/Public'
 import HomeIcon from '@mui/icons-material/Home'
-import MergeIcon from '@mui/icons-material/Merge'
 import SendIcon from '@mui/icons-material/Send'
 import { ImageUpload } from '../../../components/ImageUpload'
 import { DEFAULT_LIBRARY_IMAGES } from '../../setup/constants'
@@ -224,8 +221,8 @@ export function TopPicksSection() {
   const [previewLoading, setPreviewLoading] = useState(false)
 
   // MDBList item counts state
-  const [moviesListCounts, setMoviesListCounts] = useState<{ total: number } | null>(null)
-  const [seriesListCounts, setSeriesListCounts] = useState<{ total: number } | null>(null)
+  const [, setMoviesListCounts] = useState<{ total: number } | null>(null)
+  const [, setSeriesListCounts] = useState<{ total: number } | null>(null)
 
   // Library match state
   const [moviesLibraryMatch, setMoviesLibraryMatch] = useState<LibraryMatchResult | null>(null)

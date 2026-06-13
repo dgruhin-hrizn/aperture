@@ -29,7 +29,6 @@ export function AICapabilityBanner({
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { 
-    features, 
     chat, 
     embeddings, 
     textGeneration,

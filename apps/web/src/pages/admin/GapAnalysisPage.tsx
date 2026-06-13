@@ -13,7 +13,6 @@ import {
   DialogTitle,
   Grid,
   LinearProgress,
-  Skeleton,
   Typography,
   Paper,
   TextField,

@@ -45,7 +45,6 @@ import { useAuth } from '@/hooks/useAuth'
 import { useWatching } from '@/hooks/useWatching'
 import { useUserRatings } from '@/hooks/useUserRatings'
 import { useViewMode } from '@/hooks/useViewMode'
-import { formatWatchHistoryRelativeDate } from '@/lib/formatWatchHistoryRelativeDate'
 import { WatchHistoryMovieListItem, WatchHistorySeriesListItem } from './watch-history/components'
 
 interface MovieWatchHistoryItem {
@@ -253,8 +252,6 @@ export function MyWatchHistoryPage() {
     : seriesHistory
 
   const isLoading = tabValue === 0 ? movieLoading : seriesLoading
-  const currentHistory = tabValue === 0 ? filteredMovies : filteredSeries
-  const currentPagination = tabValue === 0 ? moviePagination : seriesPagination
 
   if (movieLoading && seriesLoading && movieHistory.length === 0 && seriesHistory.length === 0) {
     return (

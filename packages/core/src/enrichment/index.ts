@@ -279,7 +279,7 @@ const BATCH_SIZE = 100
 /**
  * Create a logging callback for API calls during enrichment
  */
-function createApiLogger(jobId: string, itemTitle: string): ApiLogCallback {
+function createApiLogger(jobId: string, _itemTitle: string): ApiLogCallback {
   return (service, endpoint, status, details) => {
     const serviceLabel = service.toUpperCase()
     const statusIcon = status === 'success' ? '✓' : status === 'not_found' ? '○' : '✗'

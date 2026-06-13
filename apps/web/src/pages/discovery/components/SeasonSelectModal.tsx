@@ -58,7 +58,7 @@ export function SeasonSelectModal({
   onClose,
   onSubmit,
   title,
-  posterPath,
+  posterPath: _posterPath,
   seasons,
   loading = false,
 }: SeasonSelectModalProps) {

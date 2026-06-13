@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import type { FastifyPluginAsync } from 'fastify'
 import { requireAuth, type SessionUser } from '../../plugins/auth.js'
 import {
   generateGraphPlaylistName,

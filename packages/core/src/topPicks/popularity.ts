@@ -426,7 +426,7 @@ export async function getTopMoviesFromMDBList(
   }
 
   // Fetch list items (get more than needed since some won't match)
-  let listItems = await getListItems(listId, { limit: count * 3, sort: sortOption, order })
+  const listItems = await getListItems(listId, { limit: count * 3, sort: sortOption, order })
 
   if (listItems.length === 0) {
     logger.warn({ listId }, 'MDBList returned empty list')

@@ -123,7 +123,7 @@ export async function processStrmForAllUsers(
 
         // Step 1: Create empty directory first (Emby requires folder to exist for library creation)
         const { ensureUserDirectory } = await import('./movies/writer.js')
-        const dirResult = await ensureUserDirectory(user.id, user.provider_user_id, displayName)
+        await ensureUserDirectory(user.id, user.provider_user_id, displayName)
         
         // Step 2: Create library BEFORE adding files (so Emby uses our CollectionType, not auto-detect)
         const libraryResult = await ensureUserLibrary(user.id, user.provider_user_id, displayName)

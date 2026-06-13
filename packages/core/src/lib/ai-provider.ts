@@ -8,7 +8,7 @@
 import { createOpenAI } from '@ai-sdk/openai'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
-import { ollama, createOllama } from 'ai-sdk-ollama'
+import { createOllama } from 'ai-sdk-ollama'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createGroq } from '@ai-sdk/groq'
 import { createDeepSeek } from '@ai-sdk/deepseek'
@@ -18,9 +18,7 @@ import type { LanguageModel, EmbeddingModel } from 'ai'
 import { getSystemSetting, setSystemSetting } from '../settings/systemSettings.js'
 import { createChildLogger } from './logger.js'
 import {
-  getProvider,
   getModel,
-  getDefaultModel,
   validateCapabilityForFeature,
   getEmbeddingDimensions,
   getModelsForFunction,
@@ -231,7 +229,7 @@ function createProviderInstance(providerConfig: ProviderConfig): unknown {
       })
       break
 
-    case 'ollama':
+    case 'ollama': {
       // Extended timeout for slow local inference (5 minutes)
       // Ollama on CPU or with large models can take several minutes to respond
       const ollamaFetch: typeof fetch = (url, options) => {
@@ -246,6 +244,7 @@ function createProviderInstance(providerConfig: ProviderConfig): unknown {
         fetch: ollamaFetch,
       })
       break
+    }
 
     case 'openai-compatible':
       instance = createOpenAICompatible({

@@ -15,9 +15,7 @@ import type {
   MediaType,
   UserTasteData,
   ProfileBuildOptions,
-  ProfileUpdateResult,
 } from './types.js'
-import { DEFAULT_REFRESH_INTERVAL_DAYS } from './types.js'
 
 export * from './types.js'
 export { 
@@ -628,7 +626,7 @@ export async function updateCustomInterestEmbedding(
  */
 function parseEmbedding(embeddingStr: string): number[] {
   // Remove brackets and split by comma
-  const cleaned = embeddingStr.replace(/[\[\]]/g, '')
+  const cleaned = embeddingStr.replace(/[[\]]/g, '')
   return cleaned.split(',').map((n) => parseFloat(n.trim()))
 }
 

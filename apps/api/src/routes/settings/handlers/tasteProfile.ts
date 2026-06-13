@@ -19,9 +19,7 @@ import {
   addTasteProfileItemSchema,
   updateTasteProfileItemSchema,
   deleteTasteProfileItemSchema,
-  customInterestsSchema,
   addCustomInterestSchema,
-  updateCustomInterestSchema,
   deleteCustomInterestSchema,
 } from '../schemas.js'
 

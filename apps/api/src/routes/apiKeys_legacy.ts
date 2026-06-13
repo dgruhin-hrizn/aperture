@@ -8,10 +8,8 @@ import {
   deleteApiKey,
   updateApiKey,
   EXPIRATION_OPTIONS,
-  type ApiKey,
-  type ApiKeyWithUser,
 } from '@aperture/core'
-import { requireAuth, requireAdmin } from '../plugins/auth.js'
+import { requireAuth } from '../plugins/auth.js'
 
 interface CreateApiKeyBody {
   name: string

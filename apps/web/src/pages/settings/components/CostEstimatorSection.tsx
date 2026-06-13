@@ -18,7 +18,6 @@ import {
   CardContent,
   CircularProgress,
   TextField,
-  InputAdornment,
 } from '@mui/material'
 import InfoIcon from '@mui/icons-material/Info'
 import PaymentsIcon from '@mui/icons-material/Payments'

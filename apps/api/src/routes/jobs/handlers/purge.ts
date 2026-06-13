@@ -2,7 +2,7 @@
  * Jobs Database Purge Handlers
  */
 
-import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
+import type { FastifyInstance } from 'fastify'
 import {
   purgeMovieDatabase,
   getMovieDatabaseStats,

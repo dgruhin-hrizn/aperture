@@ -2,7 +2,7 @@
  * Person card for Tool UI
  * Shows actor/director with filmography
  */
-import { Box, Typography, Avatar, Chip, Link } from '@mui/material'
+import { Box, Typography, Avatar, Chip } from '@mui/material'
 import PersonIcon from '@mui/icons-material/Person'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'

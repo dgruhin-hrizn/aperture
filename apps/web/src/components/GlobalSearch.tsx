@@ -61,7 +61,7 @@ export function GlobalSearch() {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
-  const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([])
+  const [, setSuggestions] = useState<SearchSuggestion[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const inputRef = useRef<HTMLInputElement>(null)

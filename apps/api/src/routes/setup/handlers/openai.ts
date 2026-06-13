@@ -4,7 +4,6 @@
 
 import type { FastifyInstance } from 'fastify'
 import {
-  hasOpenAIApiKey,
   getOpenAIApiKey,
   setOpenAIApiKey,
 } from '@aperture/core'

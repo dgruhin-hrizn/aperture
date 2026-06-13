@@ -20,15 +20,6 @@ export const moviesComponentSchemas = {
 }
 
 // =============================================================================
-// Schema References (for use in route schemas)
-// Fastify uses $id + $ref pattern: register with $id, reference with $ref: 'name#'
-// =============================================================================
-
-const MovieRef = { $ref: 'Movie#' }
-const SimilarMovieRef = { $ref: 'SimilarMovie#' }
-const ErrorRef = { $ref: 'Error#' }
-
-// =============================================================================
 // List Movies Schema
 // =============================================================================
 

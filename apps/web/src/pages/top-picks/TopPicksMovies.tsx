@@ -18,7 +18,7 @@ import GridViewIcon from '@mui/icons-material/GridView'
 import ViewListIcon from '@mui/icons-material/ViewList'
 import PeopleIcon from '@mui/icons-material/People'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
-import { MoviePoster, RankBadge, getRankStyle, getRankTextColor } from '@aperture/ui'
+import { MoviePoster, RankBadge } from '@aperture/ui'
 import { useUserRatings } from '../../hooks/useUserRatings'
 
 interface PopularMovie {

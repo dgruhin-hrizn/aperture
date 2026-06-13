@@ -1,4 +1,4 @@
-import { Box, Typography, FormControlLabel, Checkbox, Switch, Divider } from '@mui/material'
+import { Box, Typography, FormControlLabel, Switch, Divider } from '@mui/material'
 import { useTranslation } from 'react-i18next'
 import { CONNECTION_COLORS, type ConnectionType } from './types'
 import { connectionTypeLabel } from '../../i18n/connectionTypeLabel'

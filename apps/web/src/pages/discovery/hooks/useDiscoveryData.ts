@@ -341,7 +341,7 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
     }
     // Note: We intentionally don't include `expanding` in deps to prevent callback recreation
     // The `expanding` check uses a ref pattern internally
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [filters, fetchSeerrStatus])
 
   // Check if filters have changed

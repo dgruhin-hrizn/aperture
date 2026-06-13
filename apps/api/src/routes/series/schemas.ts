@@ -19,15 +19,6 @@ export const seriesComponentSchemas = {
 }
 
 // =============================================================================
-// Schema References (for use in route schemas)
-// Fastify uses $id + $ref pattern: register with $id, reference with $ref: 'name#'
-// =============================================================================
-
-const SeriesRef = { $ref: 'Series#' }
-const EpisodeRef = { $ref: 'Episode#' }
-const ErrorRef = { $ref: 'Error#' }
-
-// =============================================================================
 // List Series Schema
 // =============================================================================
 

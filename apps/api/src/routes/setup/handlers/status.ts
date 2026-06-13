@@ -2,7 +2,7 @@
  * Setup Status and Progress Handlers
  */
 
-import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
+import type { FastifyInstance } from 'fastify'
 import {
   getSetupProgress,
   setSetupCurrentStep,

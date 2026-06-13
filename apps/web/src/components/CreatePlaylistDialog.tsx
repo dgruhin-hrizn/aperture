@@ -74,7 +74,7 @@ export function CreatePlaylistDialog({
 
       const data = await response.json()
       setName(data.name)
-    } catch (err) {
+    } catch {
       setError(t('playlists.errGenerateName'))
     } finally {
       setGeneratingName(false)
@@ -99,7 +99,7 @@ export function CreatePlaylistDialog({
 
       const data = await response.json()
       setDescription(data.description)
-    } catch (err) {
+    } catch {
       setError(t('playlists.errGenerateDescription'))
     } finally {
       setGeneratingDescription(false)

@@ -1,8 +1,6 @@
-import { Box, Typography, Card, Skeleton, Avatar } from '@mui/material'
+import { Box, Typography, Card, Skeleton } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import MovieIcon from '@mui/icons-material/Movie'
-import TvIcon from '@mui/icons-material/Tv'
 import FavoriteIcon from '@mui/icons-material/Favorite'
 import { getProxiedImageUrl, FALLBACK_POSTER_URL } from '@aperture/ui'
 

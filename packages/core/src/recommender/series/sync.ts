@@ -13,7 +13,6 @@ import {
 } from '../../jobs/progress.js'
 import { randomUUID } from 'crypto'
 import type { Series, Episode } from '../../media/types.js'
-import type { MediaServerProvider } from '../../media/MediaServerProvider.js'
 
 const logger = createChildLogger('sync-series')
 

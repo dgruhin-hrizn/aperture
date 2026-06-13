@@ -11,7 +11,7 @@
  * as a bonus after selection.
  */
 
-import type { ScoringConfig, BaseCandidate } from './scoring.js'
+import type { BaseCandidate } from './scoring.js'
 
 /**
  * Extended candidate with optional network field (for TV series)

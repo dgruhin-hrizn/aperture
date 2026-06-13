@@ -6,7 +6,6 @@
 import { query, queryOne } from '../lib/db.js'
 import {
   getCachedOrFetchCombinedCredits,
-  normalizePersonNameKey,
   resolveTmdbPersonId,
   type TmdbCombinedCreditEntry,
   type TmdbCombinedCreditsResponse,

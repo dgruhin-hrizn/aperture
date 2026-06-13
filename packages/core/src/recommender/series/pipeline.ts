@@ -550,7 +550,7 @@ export async function generateSeriesRecommendationsForUser(
     logger.info({ userId: user.id }, '🧠 Getting series taste profile...')
     
     // Try to get stored profile first (will rebuild if stale)
-    let storedProfile = await getUserTasteProfile(user.id, 'series')
+    const storedProfile = await getUserTasteProfile(user.id, 'series')
     let tasteProfile: number[] | null = storedProfile?.embedding || null
     
     // If no stored profile or missing embedding, build using legacy method as fallback
@@ -717,7 +717,7 @@ export async function generateSeriesRecommendationsForUser(
       { userId: user.id, targetCount: cfg.selectedCount, diversityWeight: effectiveDiversityWeight },
       '🎲 Applying diversity and selecting...'
     )
-    const { selected, selectedRanks } = applySeriesDiversityAndSelect(
+    const { selected } = applySeriesDiversityAndSelect(
       scoredCandidates,
       cfg.selectedCount,
       effectiveDiversityWeight

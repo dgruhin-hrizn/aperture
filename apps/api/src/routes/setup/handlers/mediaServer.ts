@@ -6,7 +6,6 @@ import type { FastifyInstance } from 'fastify'
 import dgram from 'dgram'
 import {
   getMediaServerTypes,
-  getMediaServerConfig,
   setMediaServerConfig,
   testMediaServerConnection,
   getSystemSetting,

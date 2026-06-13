@@ -4,14 +4,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Box,
   Typography,
-  TextField,
-  InputAdornment,
   Paper,
   Divider,
   Switch,
   FormControlLabel,
-  IconButton,
-  Tooltip,
   ToggleButtonGroup,
   ToggleButton,
   List,
@@ -19,10 +15,8 @@ import {
   ListItemIcon,
   ListItemText,
   Collapse,
-  CircularProgress,
   Chip,
 } from '@mui/material'
-import SearchIcon from '@mui/icons-material/Search'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
@@ -31,7 +25,6 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import HistoryIcon from '@mui/icons-material/History'
-import ClearIcon from '@mui/icons-material/Clear'
 import {
   useGraphData,
   useSimilarityData,

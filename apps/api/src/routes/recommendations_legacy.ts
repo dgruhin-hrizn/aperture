@@ -3,8 +3,6 @@ import { query, queryOne } from '../lib/db.js'
 import { requireAuth, type SessionUser } from '../plugins/auth.js'
 import { regenerateUserRecommendations, regenerateUserSeriesRecommendations } from '@aperture/core'
 
-type MediaType = 'movie' | 'series'
-
 interface MovieRecommendationCandidate {
   id: string
   movie_id: string

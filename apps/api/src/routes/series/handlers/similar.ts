@@ -35,7 +35,7 @@ export function registerSimilarHandler(fastify: FastifyInstance) {
         }))
 
         return reply.send({ similar })
-      } catch (error) {
+      } catch {
         // Series not found or no embedding
         return reply.send({ similar: [], message: 'No embedding found for this series' })
       }

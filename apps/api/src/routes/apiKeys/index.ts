@@ -9,7 +9,7 @@ import {
   updateApiKey,
   EXPIRATION_OPTIONS,
 } from '@aperture/core'
-import { requireAuth, requireAdmin } from '../../plugins/auth.js'
+import { requireAuth } from '../../plugins/auth.js'
 import {
   apiKeysSchemas,
   listApiKeysSchema,
