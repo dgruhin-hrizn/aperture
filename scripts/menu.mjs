@@ -77,6 +77,7 @@ const menu = [
   { key: 'h', label: 'Check API health (localhost:3456)', cmd: 'curl -s http://localhost:3456/health | jq' },
   { key: 'r', label: 'Restart Docker app', cmd: 'docker compose restart app' },
   { key: 'z', label: 'Kill local dev processes (vite / api ports)', cmd: 'pnpm kill' },
+  { key: '/', label: 'Deploy menu (build / GHCR / prod)', cmd: 'pnpm ship' },
   { key: '0', label: 'Debug: Seerr gap (script)', cmd: 'pnpm debug:seerr-gap' },
 
   { section: '' },
