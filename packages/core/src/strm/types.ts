@@ -62,6 +62,8 @@ export interface ImageDownloadTask {
   matchScore?: number
   /** Mode for poster overlay: 'recommendation' (default) or 'top-picks' */
   mode?: 'recommendation' | 'top-picks'
+  /** Alternate poster URLs to try when the primary fetch or overlay fails */
+  fallbackUrls?: string[]
 }
 
 /**

@@ -10,6 +10,24 @@ const logger = createChildLogger('strm-images')
  * For posters, applies the ranked overlay with rank and match percentage
  */
 export async function downloadImage(task: ImageDownloadTask): Promise<boolean> {
+  const urls = [task.url, ...(task.fallbackUrls ?? [])]
+  for (let i = 0; i < urls.length; i++) {
+    const attemptTask = { ...task, url: urls[i] }
+    const success = await downloadImageOnce(attemptTask)
+    if (success) {
+      return true
+    }
+    if (i < urls.length - 1) {
+      logger.info(
+        { title: task.movieTitle, filename: task.path.split('/').pop(), attempt: i + 1 },
+        '↩️ Trying fallback poster URL'
+      )
+    }
+  }
+  return false
+}
+
+async function downloadImageOnce(task: ImageDownloadTask): Promise<boolean> {
   const filename = task.path.split('/').pop()
   try {
     logger.info({ url: task.url.substring(0, 80), filename, isPoster: task.isPoster }, '📥 Downloading image...')

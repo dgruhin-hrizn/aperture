@@ -1,6 +1,6 @@
 /**
  * Resolve poster URLs for Top Picks / recommendation overlay generation.
- * Prefers TMDB (reliable public fetch) over media-server URLs stored in the DB.
+ * Prefers the library's media-server poster when available; TMDB is the fallback.
  */
 
 import { createChildLogger } from '../lib/logger.js'
@@ -33,29 +33,57 @@ export function buildTmdbPosterUrl(posterPath: string): string {
 }
 
 /**
- * Resolve the best poster URL for burning a rank overlay.
- * TMDB is preferred when tmdb_id is available; DB poster_url is the fallback.
+ * Order poster URL candidates: library (Emby/Jellyfin) first, TMDB second.
+ * Exported for unit tests.
+ */
+export function orderPosterUrlCandidates(
+  libraryPosterUrl: string | null,
+  tmdbPosterUrl: string | null
+): string[] {
+  const candidates: string[] = []
+  if (libraryPosterUrl) {
+    candidates.push(libraryPosterUrl)
+  }
+  if (tmdbPosterUrl && !candidates.includes(tmdbPosterUrl)) {
+    candidates.push(tmdbPosterUrl)
+  }
+  return candidates
+}
+
+/**
+ * Resolve poster URL candidates for burning a rank overlay.
+ * Library poster_url is tried first (already working in the user's server);
+ * TMDB is used when the library has no poster or the library fetch fails.
+ */
+export async function resolvePosterUrlCandidates(
+  options: ResolvePosterUrlOptions
+): Promise<string[]> {
+  const { mediaType, tmdbId, posterUrl } = options
+
+  let libraryUrl: string | null = null
+  if (posterUrl) {
+    libraryUrl = await augmentMediaServerImageUrl(posterUrl)
+  }
+
+  let tmdbUrl: string | null = null
+  if (tmdbId) {
+    const tmdbIdNum = parseInt(tmdbId, 10)
+    if (!Number.isNaN(tmdbIdNum)) {
+      tmdbUrl = await resolveTmdbPosterUrl(mediaType, tmdbIdNum)
+    }
+  }
+
+  return orderPosterUrlCandidates(libraryUrl, tmdbUrl)
+}
+
+/**
+ * Resolve the primary poster URL for burning a rank overlay.
  */
 export async function resolvePosterUrlForOverlay(
   options: ResolvePosterUrlOptions
 ): Promise<string | null> {
-  const { mediaType, tmdbId, posterUrl } = options
-
-  if (tmdbId) {
-    const tmdbIdNum = parseInt(tmdbId, 10)
-    if (!Number.isNaN(tmdbIdNum)) {
-      const tmdbUrl = await resolveTmdbPosterUrl(mediaType, tmdbIdNum)
-      if (tmdbUrl) {
-        return tmdbUrl
-      }
-    }
-  }
-
-  if (posterUrl) {
-    return augmentMediaServerImageUrl(posterUrl)
-  }
-
-  return null
+  const candidates = await resolvePosterUrlCandidates(options)
+  return candidates[0] ?? null
 }
 
 async function resolveTmdbPosterUrl(

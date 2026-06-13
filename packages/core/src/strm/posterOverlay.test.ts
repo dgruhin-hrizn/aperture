@@ -5,6 +5,7 @@ import { isCompetingPosterFile } from './artwork.js'
 import {
   buildTmdbPosterUrl,
   isMediaServerPosterUrl,
+  orderPosterUrlCandidates,
 } from './posterUrl.js'
 import { createTopPicksPoster } from './poster.js'
 
@@ -14,6 +15,14 @@ test('isMediaServerPosterUrl detects Emby/Jellyfin primary image URLs', () => {
     true
   )
   assert.equal(isMediaServerPosterUrl('https://image.tmdb.org/t/p/w500/abc.jpg'), false)
+})
+
+test('orderPosterUrlCandidates prefers library poster before TMDB', () => {
+  const library = 'http://emby:8096/Items/1/Images/Primary?tag=abc'
+  const tmdb = 'https://image.tmdb.org/t/p/w500/abc.jpg'
+  assert.deepEqual(orderPosterUrlCandidates(library, tmdb), [library, tmdb])
+  assert.deepEqual(orderPosterUrlCandidates(null, tmdb), [tmdb])
+  assert.deepEqual(orderPosterUrlCandidates(library, null), [library])
 })
 
 test('buildTmdbPosterUrl builds w500 image URL', () => {

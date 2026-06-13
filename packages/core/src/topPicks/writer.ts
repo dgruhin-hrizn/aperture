@@ -12,7 +12,7 @@ import { createChildLogger } from '../lib/logger.js'
 import { getConfig } from '../strm/config.js'
 import { downloadImage } from '../strm/images.js'
 import { sanitizeFilename } from '../strm/filenames.js'
-import { resolvePosterUrlForOverlay } from '../strm/posterUrl.js'
+import { resolvePosterUrlCandidates } from '../strm/posterUrl.js'
 import { getTopPicksConfig } from './config.js'
 import {
   symlinkArtwork,
@@ -47,12 +47,12 @@ async function queueTopPicksPoster(
     outputPath: string
   }
 ): Promise<void> {
-  const resolvedUrl = await resolvePosterUrlForOverlay({
+  const candidates = await resolvePosterUrlCandidates({
     mediaType: options.mediaType,
     tmdbId: options.tmdbId,
     posterUrl: options.posterUrl,
   })
-  if (!resolvedUrl) {
+  if (candidates.length === 0) {
     logger.warn(
       { title: options.title, rank: options.rank, mediaType: options.mediaType },
       'No poster URL available for Top Picks overlay'
@@ -60,7 +60,8 @@ async function queueTopPicksPoster(
     return
   }
   imageDownloads.push({
-    url: resolvedUrl,
+    url: candidates[0],
+    fallbackUrls: candidates.length > 1 ? candidates.slice(1) : undefined,
     path: options.outputPath,
     movieTitle: options.title,
     isPoster: true,
