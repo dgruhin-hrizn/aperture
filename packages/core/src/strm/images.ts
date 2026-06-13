@@ -43,6 +43,19 @@ export async function downloadImage(task: ImageDownloadTask): Promise<boolean> {
           logger.info({ filename, newSizeKB: Math.round(buffer.byteLength / 1024) }, '🎨 Overlay applied successfully')
         }
       } catch (overlayErr) {
+        if (task.mode === 'top-picks') {
+          logger.warn(
+            {
+              err: overlayErr,
+              filename,
+              rank: task.rank,
+              title: task.movieTitle,
+              url: task.url.substring(0, 80),
+            },
+            '⚠️ Failed to apply Top Picks overlay — poster not saved'
+          )
+          return false
+        }
         logger.warn({ err: overlayErr, filename }, '⚠️ Failed to apply overlay, saving original')
       }
     }

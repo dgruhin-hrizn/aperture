@@ -12,6 +12,7 @@ import { createChildLogger } from '../lib/logger.js'
 import { getConfig } from '../strm/config.js'
 import { downloadImage } from '../strm/images.js'
 import { sanitizeFilename } from '../strm/filenames.js'
+import { resolvePosterUrlForOverlay } from '../strm/posterUrl.js'
 import { getTopPicksConfig } from './config.js'
 import {
   symlinkArtwork,
@@ -28,6 +29,84 @@ const logger = createChildLogger('top-picks-writer')
 // Time interval between ranks for dateAdded ordering (1 day per rank)
 // Using days instead of minutes for more reliable sorting in Emby
 const INTERVAL_MS = 24 * 60 * 60 * 1000
+
+interface PosterDownloadFailure {
+  title: string
+  rank: number
+  mediaType: 'movie' | 'series'
+}
+
+async function queueTopPicksPoster(
+  imageDownloads: ImageDownloadTask[],
+  options: {
+    mediaType: 'movie' | 'series'
+    tmdbId: string | null
+    posterUrl: string | null
+    title: string
+    rank: number
+    outputPath: string
+  }
+): Promise<void> {
+  const resolvedUrl = await resolvePosterUrlForOverlay({
+    mediaType: options.mediaType,
+    tmdbId: options.tmdbId,
+    posterUrl: options.posterUrl,
+  })
+  if (!resolvedUrl) {
+    logger.warn(
+      { title: options.title, rank: options.rank, mediaType: options.mediaType },
+      'No poster URL available for Top Picks overlay'
+    )
+    return
+  }
+  imageDownloads.push({
+    url: resolvedUrl,
+    path: options.outputPath,
+    movieTitle: options.title,
+    isPoster: true,
+    rank: options.rank,
+    mode: 'top-picks',
+  })
+}
+
+async function downloadQueuedImages(
+  imageDownloads: ImageDownloadTask[],
+  mediaType: 'movie' | 'series'
+): Promise<PosterDownloadFailure[]> {
+  const failed: PosterDownloadFailure[] = []
+  if (imageDownloads.length === 0) {
+    return failed
+  }
+
+  const IMAGE_BATCH_SIZE = 10
+  const mediaLabel = mediaType === 'series' ? 'series' : 'movie'
+
+  logger.info(
+    { count: imageDownloads.length, mediaType },
+    '📥 Starting Top Picks image downloads...'
+  )
+
+  for (let i = 0; i < imageDownloads.length; i += IMAGE_BATCH_SIZE) {
+    const batch = imageDownloads.slice(i, i + IMAGE_BATCH_SIZE)
+    const results = await Promise.all(batch.map((task) => downloadImage(task)))
+    for (let j = 0; j < batch.length; j++) {
+      const task = batch[j]
+      if (!results[j] && task.isPoster && task.mode === 'top-picks') {
+        failed.push({
+          title: task.movieTitle,
+          rank: task.rank!,
+          mediaType,
+        })
+        logger.warn(
+          { title: task.movieTitle, rank: task.rank, mediaType },
+          `⚠️ Failed to write Top Picks ${mediaLabel} poster with rank overlay`
+        )
+      }
+    }
+  }
+
+  return failed
+}
 
 /**
  * Escape special XML characters
@@ -495,6 +574,7 @@ export async function writeTopPicksMovies(
 
   const now = Date.now()
   let written = 0
+  const imageDownloads: ImageDownloadTask[] = []
 
   for (const popular of movies) {
     // Get full movie metadata from the database
@@ -643,30 +723,6 @@ export async function writeTopPicksMovies(
       const nfoContent = generateTopPicksMovieNfo(movie, dateAdded)
       await fs.writeFile(nfoPath, nfoContent, 'utf-8')
 
-      // Download poster with Top Picks badge (poster.jpg in folder)
-      if (config.downloadImages && movie.posterUrl) {
-        const posterTask: ImageDownloadTask = {
-          url: movie.posterUrl,
-          path: path.join(movieFolderPath, 'poster.jpg'),
-          movieTitle: movie.title,
-          isPoster: true,
-          rank: movie.rank,
-          mode: 'top-picks',
-        }
-        await downloadImage(posterTask)
-      }
-
-      // Download backdrop (fanart.jpg in folder)
-      if (config.downloadImages && movie.backdropUrl) {
-        const backdropTask: ImageDownloadTask = {
-          url: movie.backdropUrl,
-          path: path.join(movieFolderPath, 'fanart.jpg'),
-          movieTitle: movie.title,
-          isPoster: false,
-        }
-        await downloadImage(backdropTask)
-      }
-
       // Symlink other artwork files from original movie folder
       if (originalPath) {
         const movieFolder = getMovieFolderFromFilePath(originalPath)
@@ -689,6 +745,25 @@ export async function writeTopPicksMovies(
           title: movie.title,
         })
       }
+
+      if (config.downloadImages) {
+        await queueTopPicksPoster(imageDownloads, {
+          mediaType: 'movie',
+          tmdbId: movie.tmdbId,
+          posterUrl: movie.posterUrl,
+          title: movie.title,
+          rank: movie.rank,
+          outputPath: path.join(movieFolderPath, 'poster.jpg'),
+        })
+        if (movie.backdropUrl) {
+          imageDownloads.push({
+            url: movie.backdropUrl,
+            path: path.join(movieFolderPath, 'fanart.jpg'),
+            movieTitle: movie.title,
+            isPoster: false,
+          })
+        }
+      }
     } else {
       // STRM MODE: Flat file structure (original behavior)
       // Get original file path for STRM content
@@ -705,32 +780,37 @@ export async function writeTopPicksMovies(
       const nfoContent = generateTopPicksMovieNfo(movie, dateAdded)
       await fs.writeFile(nfoPath, nfoContent, 'utf-8')
 
-      // Download poster with Top Picks badge
-      if (config.downloadImages && movie.posterUrl) {
-        const posterTask: ImageDownloadTask = {
-          url: movie.posterUrl,
-          path: path.join(localPath, `${baseFilename}-poster.jpg`),
-          movieTitle: movie.title,
-          isPoster: true,
+      if (config.downloadImages) {
+        await queueTopPicksPoster(imageDownloads, {
+          mediaType: 'movie',
+          tmdbId: movie.tmdbId,
+          posterUrl: movie.posterUrl,
+          title: movie.title,
           rank: movie.rank,
-          mode: 'top-picks',
+          outputPath: path.join(localPath, `${baseFilename}-poster.jpg`),
+        })
+        if (movie.backdropUrl) {
+          imageDownloads.push({
+            url: movie.backdropUrl,
+            path: path.join(localPath, `${baseFilename}-fanart.jpg`),
+            movieTitle: movie.title,
+            isPoster: false,
+          })
         }
-        await downloadImage(posterTask)
-      }
-
-      // Download backdrop
-      if (config.downloadImages && movie.backdropUrl) {
-        const backdropTask: ImageDownloadTask = {
-          url: movie.backdropUrl,
-          path: path.join(localPath, `${baseFilename}-fanart.jpg`),
-          movieTitle: movie.title,
-          isPoster: false,
-        }
-        await downloadImage(backdropTask)
       }
     }
 
     written++
+  }
+
+  if (config.downloadImages && imageDownloads.length > 0) {
+    const posterFailures = await downloadQueuedImages(imageDownloads, 'movie')
+    if (posterFailures.length > 0) {
+      logger.warn(
+        { count: posterFailures.length, titles: posterFailures.map((f) => f.title) },
+        '⚠️ Some Top Picks movie posters are missing rank overlays'
+      )
+    }
   }
 
   const duration = Date.now() - startTime
@@ -774,6 +854,7 @@ export async function writeTopPicksSeries(
 
   const now = Date.now()
   let written = 0
+  const imageDownloads: ImageDownloadTask[] = []
 
   for (const popular of seriesList) {
     // Get full series metadata from the database
@@ -933,19 +1014,6 @@ export async function writeTopPicksSeries(
     )
     await fs.writeFile(nfoPath, nfoContent, 'utf-8')
 
-    // Download our custom poster with Top Picks rank badge
-    if (config.downloadImages && series.posterUrl) {
-      const posterTask: ImageDownloadTask = {
-        url: series.posterUrl,
-        path: path.join(seriesPath, 'poster.jpg'),
-        movieTitle: series.title,
-        isPoster: true,
-        rank: series.rank,
-        mode: 'top-picks',
-      }
-      await downloadImage(posterTask)
-    }
-
     // Create Season 00 (Specials) folder with a sorting placeholder episode
     // This tricks Emby into sorting series by our rank in the home "Latest" row
     // because Emby uses the latest episode's dateadded for series sorting
@@ -984,7 +1052,6 @@ export async function writeTopPicksSeries(
       )
 
       // Create symlinks to each season folder
-      // Season folders contain their own poster.jpg which Emby should use
       for (const season of seasons.rows) {
         const seasonFolderName = `Season ${String(season.season_number).padStart(2, '0')}`
         const symlinkPath = path.join(seriesPath, seasonFolderName)
@@ -1011,13 +1078,12 @@ export async function writeTopPicksSeries(
 
       // If no artwork was symlinked, try to download fanart
       if (artworkCount === 0 && config.downloadImages && series.backdropUrl) {
-        const backdropTask: ImageDownloadTask = {
+        imageDownloads.push({
           url: series.backdropUrl,
           path: path.join(seriesPath, 'fanart.jpg'),
           movieTitle: series.title,
           isPoster: false,
-        }
-        await downloadImage(backdropTask)
+        })
       }
 
       logger.info(
@@ -1090,13 +1156,12 @@ export async function writeTopPicksSeries(
 
       // If no artwork was symlinked, try to download fanart
       if (artworkCount === 0 && config.downloadImages && series.backdropUrl) {
-        const backdropTask: ImageDownloadTask = {
+        imageDownloads.push({
           url: series.backdropUrl,
           path: path.join(seriesPath, 'fanart.jpg'),
           movieTitle: series.title,
           isPoster: false,
-        }
-        await downloadImage(backdropTask)
+        })
       }
 
       logger.info(
@@ -1109,7 +1174,28 @@ export async function writeTopPicksSeries(
       )
     }
 
+    if (config.downloadImages) {
+      await queueTopPicksPoster(imageDownloads, {
+        mediaType: 'series',
+        tmdbId: series.tmdbId,
+        posterUrl: series.posterUrl,
+        title: series.title,
+        rank: series.rank,
+        outputPath: path.join(seriesPath, 'poster.jpg'),
+      })
+    }
+
     written++
+  }
+
+  if (config.downloadImages && imageDownloads.length > 0) {
+    const posterFailures = await downloadQueuedImages(imageDownloads, 'series')
+    if (posterFailures.length > 0) {
+      logger.warn(
+        { count: posterFailures.length, titles: posterFailures.map((f) => f.title) },
+        '⚠️ Some Top Picks series posters are missing rank overlays'
+      )
+    }
   }
 
   const duration = Date.now() - startTime

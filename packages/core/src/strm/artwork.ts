@@ -80,6 +80,36 @@ function isNfoFile(filename: string): boolean {
   return path.extname(filename).toLowerCase() === '.nfo'
 }
 
+const POSTER_IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp'])
+
+/**
+ * Alternate local poster filenames Emby may prefer over our custom poster.jpg.
+ * Skip symlinking these so the overlaid poster.jpg stays authoritative.
+ */
+export function isCompetingPosterFile(filename: string): boolean {
+  const lower = filename.toLowerCase()
+  const ext = path.extname(lower)
+  if (!POSTER_IMAGE_EXTENSIONS.has(ext)) {
+    return false
+  }
+
+  // Already handled via explicit skip lists
+  if (lower === 'poster.jpg' || lower === 'fanart.jpg') {
+    return false
+  }
+
+  if (lower === 'folder.jpg' || lower === 'cover.jpg' || lower === 'poster.png') {
+    return true
+  }
+
+  // season01-poster.jpg, show-poster.png, etc.
+  if (/-poster\.(jpg|jpeg|png|webp)$/.test(lower)) {
+    return true
+  }
+
+  return /(?:^|[-_.])(poster|folder|cover)(?:[-_.]|\.)/.test(lower)
+}
+
 /**
  * Symlink artwork files from original media folder to target folder.
  * 
@@ -133,6 +163,9 @@ export async function symlinkArtwork(options: SymlinkArtworkOptions): Promise<nu
 
       // Skip NFO files - we create our own with custom metadata
       if (isNfoFile(file)) continue
+
+      // Skip alternate poster files so our custom poster.jpg with rank overlay wins
+      if (isCompetingPosterFile(file)) continue
 
       // Check if it's a file (not a directory) - except for special folders we might want
       const localFilePath = path.join(localPath, file)
