@@ -15,19 +15,10 @@ import {
 import { randomUUID } from 'crypto'
 import type { Movie, PaginatedResult } from '../../media/types.js'
 import type { MediaServerProvider } from '../../media/MediaServerProvider.js'
+import { clampRating } from '../shared/syncHelpers.js'
 
 const logger = createChildLogger('sync')
 
-/**
- * Clamp a rating value to fit within NUMERIC(5,2) column constraints (max 999.99)
- * Ratings from media servers should be 0-10 (community) or 0-100 (critic),
- * but bad metadata can sometimes have unexpected values
- */
-function clampRating(rating: number | null | undefined): number | null {
-  if (rating === null || rating === undefined) return null
-  // Clamp to valid range for NUMERIC(5,2) - max is 999.99
-  return Math.min(Math.max(0, rating), 999.99)
-}
 
 // ============================================================================
 // PERFORMANCE TUNING CONSTANTS
