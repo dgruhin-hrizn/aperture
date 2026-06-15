@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Box,
@@ -108,11 +108,6 @@ export function DiscoveryPage() {
   // Filter state - persisted to localStorage
   const [filters, setFilters] = useState<DiscoveryFilterOptions>(() => loadFiltersFromStorage())
 
-  // Memoize filters to avoid unnecessary re-renders (deep comparison via JSON key)
-  const filtersKey = JSON.stringify(filters)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const stableFilters = useMemo(() => filters, [filtersKey])
-
   const {
     status,
     movieCandidates,
@@ -127,7 +122,7 @@ export function DiscoveryPage() {
     refresh,
     markAsRequested,
     refetchCandidates,
-  } = useDiscoveryData(stableFilters)
+  } = useDiscoveryData(filters)
 
   const { submitRequest, isRequesting, fetchTVDetails } = useSeerrRequest()
 
