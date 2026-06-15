@@ -1,72 +1,20 @@
-/**
- * AI generation for graph playlist names and descriptions
- */
-
 import { createChildLogger } from '../lib/logger.js'
-import { getTextGenerationModelInstance } from '../lib/ai-provider.js'
-import { generateText } from 'ai'
-import { query } from '../lib/db.js'
-import { buildAiLanguageInstruction, DEFAULT_LOCALE, type AppLocaleCode } from '../lib/locales.js'
-import { resolveEffectiveAiLanguage } from '../lib/userSettings.js'
+import {
+  fetchMoviesWithOverviewByIds,
+  fetchSeriesWithOverviewByIds,
+  generatePlaylistText,
+  type MediaItem,
+} from '../lib/ai-playlist-generation.js'
 
 const logger = createChildLogger('graphPlaylists')
 
-interface MediaItem {
-  id: string
-  title: string
-  year: number | null
-  genres: string[]
-  overview: string | null
-}
-
-/**
- * Fetch movie details by IDs
- */
-async function getMovieDetails(movieIds: string[]): Promise<MediaItem[]> {
-  if (movieIds.length === 0) return []
-
-  const result = await query<{
-    id: string
-    title: string
-    year: number | null
-    genres: string[]
-    overview: string | null
-  }>(
-    'SELECT id, title, year, genres, overview FROM movies WHERE id = ANY($1)',
-    [movieIds]
-  )
-  return result.rows
-}
-
-/**
- * Fetch series details by IDs
- */
-async function getSeriesDetails(seriesIds: string[]): Promise<MediaItem[]> {
-  if (seriesIds.length === 0) return []
-
-  const result = await query<{
-    id: string
-    title: string
-    year: number | null
-    genres: string[]
-    overview: string | null
-  }>(
-    'SELECT id, title, year, genres, overview FROM series WHERE id = ANY($1)',
-    [seriesIds]
-  )
-  return result.rows
-}
-
-/**
- * Build context from movies and series for AI prompts
- */
 async function buildGraphContext(
   movieIds: string[],
   seriesIds: string[]
 ): Promise<{ context: string; items: MediaItem[] }> {
   const [movies, series] = await Promise.all([
-    getMovieDetails(movieIds),
-    getSeriesDetails(seriesIds),
+    fetchMoviesWithOverviewByIds(movieIds),
+    fetchSeriesWithOverviewByIds(seriesIds),
   ])
 
   const allItems = [...movies, ...series]
@@ -74,28 +22,24 @@ async function buildGraphContext(
     return { context: '', items: [] }
   }
 
-  // Build title list
   const titleList = allItems
     .map((item) => `"${item.title}" (${item.year || 'N/A'})`)
     .join(', ')
 
-  // Collect all unique genres
   const allGenres = [...new Set(allItems.flatMap((item) => item.genres || []))]
 
-  // Build context
   const contextParts: string[] = []
   contextParts.push(`TITLES: ${titleList}`)
-  
+
   if (allGenres.length > 0) {
     contextParts.push(`GENRES: ${allGenres.join(', ')}`)
   }
 
-  // Add a few overviews for thematic context (not all - too verbose)
   const overviews = allItems
     .filter((item) => item.overview)
     .slice(0, 3)
     .map((item) => `${item.title}: ${item.overview?.substring(0, 150)}...`)
-  
+
   if (overviews.length > 0) {
     contextParts.push(`SAMPLE SYNOPSES:\n${overviews.join('\n')}`)
   }
@@ -103,9 +47,6 @@ async function buildGraphContext(
   return { context: contextParts.join('\n\n'), items: allItems }
 }
 
-/**
- * Generate an AI-powered playlist name from graph items
- */
 export async function generateGraphPlaylistName(
   movieIds: string[],
   seriesIds: string[],
@@ -120,43 +61,12 @@ export async function generateGraphPlaylistName(
   }
 
   try {
-    const aiLocale: AppLocaleCode = userId
-      ? await resolveEffectiveAiLanguage(userId)
-      : DEFAULT_LOCALE
-    const langBlock = `\n\n${buildAiLanguageInstruction(aiLocale)}`
-    const model = await getTextGenerationModelInstance()
-    const { text } = await generateText({
-      model,
-      system: `You are a creative playlist naming expert. Generate a single catchy, memorable playlist name based on the provided movies/shows.
-
-Rules:
-- Keep it short (2-4 words max)
-- Be creative and evocative - capture what connects these titles
-- Find the common thread: franchise, director, era, mood, theme
-- Can use alliteration, wordplay, or cultural references
-- Don't use generic words like "Collection", "Playlist", "Mix"
-- If it's clearly a franchise (Star Wars, Marvel, etc.), reference it cleverly
-
-Examples of good names:
-- "Galaxy Far Away" (Star Wars movies)
-- "Nolan's Mind Games" (Christopher Nolan films)
-- "Caped Crusaders" (superhero movies)
-- "Cozy Mysteries" (detective/mystery)
-- "Midnight Thrills" (horror/thriller mix)
-- "Epic Quests" (adventure/fantasy)
-
-Return ONLY the playlist name, nothing else.${langBlock}`,
+    const cleanName = await generatePlaylistText({
+      mode: 'graph',
+      kind: 'name',
       prompt: context,
-      temperature: 0.9,
-      maxOutputTokens: 50,
+      userId,
     })
-
-    if (!text) {
-      throw new Error('No response from AI')
-    }
-
-    // Remove quotes if AI added them
-    const cleanName = text.trim().replace(/^["']|["']$/g, '')
     logger.info({ name: cleanName }, 'Generated graph playlist name')
     return cleanName
   } catch (error) {
@@ -165,9 +75,6 @@ Return ONLY the playlist name, nothing else.${langBlock}`,
   }
 }
 
-/**
- * Generate an AI-powered playlist description from graph items
- */
 export async function generateGraphPlaylistDescription(
   movieIds: string[],
   seriesIds: string[],
@@ -192,45 +99,17 @@ export async function generateGraphPlaylistDescription(
   const mediaType = hasMovies && hasSeries ? 'movies and shows' : hasMovies ? 'movies' : 'shows'
 
   try {
-    const aiLocale: AppLocaleCode = userId
-      ? await resolveEffectiveAiLanguage(userId)
-      : DEFAULT_LOCALE
-    const langBlock = `\n\n${buildAiLanguageInstruction(aiLocale)}`
-    const model = await getTextGenerationModelInstance()
-    const { text } = await generateText({
-      model,
-      system: `You are a movie curator writing a brief playlist description. This playlist was created from a similarity graph exploration, so the items are connected by themes, genres, or creative relationships.
-
-Write 1-2 sentences that capture what makes this collection special.
-
-Rules:
-- Be concise and engaging
-- Highlight what connects these ${mediaType} (themes, franchises, directors, mood)
-- Don't just list genres - describe the experience
-- If a playlist name is provided, the description should complement it
-- Write in third person
-- This collection has ${itemCount} items
-
-Examples:
-- "Journey through the complete saga of galactic conflicts and family drama. 12 films that defined a generation."
-- "Dark, atmospheric thrillers where nothing is as it seems. Prepare for twist endings and sleepless nights."
-- "A curated selection of mind-bending narratives from cinema's most innovative directors."
-
-Return ONLY the description, nothing else.${langBlock}`,
+    const description = await generatePlaylistText({
+      mode: 'graph',
+      kind: 'description',
       prompt: context + nameContext,
-      temperature: 0.8,
-      maxOutputTokens: 150,
+      userId,
+      descriptionOptions: { playlistName, itemCount, mediaType },
     })
-
-    if (!text) {
-      throw new Error('No response from AI')
-    }
-
-    logger.info({ descriptionLength: text.length }, 'Generated graph playlist description')
-    return text.trim()
+    logger.info({ descriptionLength: description.length }, 'Generated graph playlist description')
+    return description
   } catch (error) {
     logger.error({ error }, 'Failed to generate graph playlist description')
     throw new Error('Failed to generate playlist description. Please try again.')
   }
 }
-

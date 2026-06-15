@@ -1,15 +1,17 @@
 import { createChildLogger } from '../lib/logger.js'
 import { getTextGenerationModelInstance } from '../lib/ai-provider.js'
 import { generateText } from 'ai'
-import { query, queryOne } from '../lib/db.js'
-import { buildAiLanguageInstruction, DEFAULT_LOCALE, type AppLocaleCode } from '../lib/locales.js'
+import { queryOne } from '../lib/db.js'
+import { buildAiLanguageInstruction } from '../lib/locales.js'
 import { resolveEffectiveAiLanguage } from '../lib/userSettings.js'
+import {
+  fetchMoviesBasicByIds,
+  fetchMoviesFullByIds,
+  generatePlaylistText,
+} from '../lib/ai-playlist-generation.js'
 
 const logger = createChildLogger('channels')
 
-/**
- * Build context string from genres, example movies, and preferences
- */
 async function buildPlaylistContext(
   genres: string[],
   exampleMovieIds: string[],
@@ -22,15 +24,8 @@ async function buildPlaylistContext(
   }
 
   if (exampleMovieIds.length > 0) {
-    const moviesResult = await query<{
-      title: string
-      year: number | null
-      genres: string[]
-    }>(
-      'SELECT title, year, genres FROM movies WHERE id = ANY($1)',
-      [exampleMovieIds]
-    )
-    const movieList = moviesResult.rows
+    const movies = await fetchMoviesBasicByIds(exampleMovieIds)
+    const movieList = movies
       .map((m) => `"${m.title}" (${m.year || 'N/A'})`)
       .join(', ')
     contextParts.push(`EXAMPLE MOVIES: ${movieList}`)
@@ -43,12 +38,6 @@ async function buildPlaylistContext(
   return contextParts.join('\n')
 }
 
-/**
- * Generate AI-powered text preferences for a channel based on:
- * - User's taste profile/synopsis
- * - Selected genres
- * - Example movies
- */
 export async function generateAIPreferences(
   userId: string,
   genres: string[],
@@ -56,28 +45,13 @@ export async function generateAIPreferences(
 ): Promise<string> {
   logger.info({ userId, genres, exampleMovieCount: exampleMovieIds.length }, 'Generating AI preferences')
 
-  // Get user's taste synopsis
   const tasteProfile = await queryOne<{ taste_synopsis: string | null }>(
     'SELECT taste_synopsis FROM user_preferences WHERE user_id = $1',
     [userId]
   )
 
-  // Get example movie details
-  let exampleMovies: Array<{ title: string; year: number | null; genres: string[]; overview: string | null }> = []
-  if (exampleMovieIds.length > 0) {
-    const moviesResult = await query<{
-      title: string
-      year: number | null
-      genres: string[]
-      overview: string | null
-    }>(
-      'SELECT title, year, genres, overview FROM movies WHERE id = ANY($1)',
-      [exampleMovieIds]
-    )
-    exampleMovies = moviesResult.rows
-  }
+  const exampleMovies = await fetchMoviesFullByIds(exampleMovieIds)
 
-  // Build context for AI
   const contextParts: string[] = []
 
   if (tasteProfile?.taste_synopsis) {
@@ -135,9 +109,6 @@ Write in first person as if the user is describing what they want. Keep it conci
   }
 }
 
-/**
- * Generate an AI-powered playlist name
- */
 export async function generateAIPlaylistName(
   genres: string[],
   exampleMovieIds: string[],
@@ -153,52 +124,18 @@ export async function generateAIPlaylistName(
   }
 
   try {
-    const aiLocale: AppLocaleCode = userId
-      ? await resolveEffectiveAiLanguage(userId)
-      : DEFAULT_LOCALE
-    const langBlock = `\n\n${buildAiLanguageInstruction(aiLocale)}`
-    const model = await getTextGenerationModelInstance()
-    const { text } = await generateText({
-      model,
-      system: `You are a creative playlist naming expert. Generate a single catchy, memorable playlist name based on the provided context.
-
-Rules:
-- Keep it short (2-4 words max)
-- Be creative and evocative, not generic
-- Capture the mood/vibe of the movies
-- Can use alliteration, wordplay, or cultural references
-- Don't use generic words like "Collection", "Playlist", "Mix"
-- Don't include genre names directly unless cleverly incorporated
-
-Examples of good names:
-- "Neon Noir Nights" (cyberpunk/noir)
-- "Popcorn Apocalypse" (action/disaster)
-- "Cozy Crimes" (mystery/comfort)
-- "Starlight Escapes" (sci-fi/adventure)
-- "Midnight Mayhem" (horror/thriller)
-- "Retro Rewind" (80s movies)
-
-Return ONLY the playlist name, nothing else.${langBlock}`,
+    return await generatePlaylistText({
+      mode: 'channel',
+      kind: 'name',
       prompt: context,
-      temperature: 0.9,
-      maxOutputTokens: 50,
+      userId,
     })
-
-    if (!text) {
-      throw new Error('No response from AI')
-    }
-
-    // Remove quotes if AI added them
-    return text.trim().replace(/^["']|["']$/g, '')
   } catch (error) {
     logger.error({ error }, 'Failed to generate AI playlist name')
     throw new Error('Failed to generate playlist name. Please try again.')
   }
 }
 
-/**
- * Generate an AI-powered playlist description
- */
 export async function generateAIPlaylistDescription(
   genres: string[],
   exampleMovieIds: string[],
@@ -217,41 +154,15 @@ export async function generateAIPlaylistDescription(
   const nameContext = playlistName ? `\nPLAYLIST NAME: "${playlistName}"` : ''
 
   try {
-    const aiLocale: AppLocaleCode = userId
-      ? await resolveEffectiveAiLanguage(userId)
-      : DEFAULT_LOCALE
-    const langBlock = `\n\n${buildAiLanguageInstruction(aiLocale)}`
-    const model = await getTextGenerationModelInstance()
-    const { text } = await generateText({
-      model,
-      system: `You are a movie curator writing a brief playlist description. Write 1-2 sentences that capture what makes this playlist special.
-
-Rules:
-- Be concise and engaging
-- Highlight the mood, themes, or experience
-- Don't list genres directly - describe the feeling
-- If a playlist name is provided, the description should complement it
-- Write in third person (describe the playlist, not "you")
-
-Examples:
-- "A pulse-pounding journey through high-stakes heists and impossible escapes. Every film delivers edge-of-your-seat tension."
-- "Heartwarming tales of unlikely friendships and second chances. Perfect for when you need to believe in happy endings."
-- "Dark, atmospheric thrillers where nothing is as it seems. Prepare for twist endings and sleepless nights."
-
-Return ONLY the description, nothing else.${langBlock}`,
+    return await generatePlaylistText({
+      mode: 'channel',
+      kind: 'description',
       prompt: context + nameContext,
-      temperature: 0.8,
-      maxOutputTokens: 150,
+      userId,
+      descriptionOptions: { playlistName },
     })
-
-    if (!text) {
-      throw new Error('No response from AI')
-    }
-
-    return text.trim()
   } catch (error) {
     logger.error({ error }, 'Failed to generate AI playlist description')
     throw new Error('Failed to generate playlist description. Please try again.')
   }
 }
-
