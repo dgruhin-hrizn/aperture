@@ -26,6 +26,14 @@ import type { ImageDownloadTask } from '../strm/types.js'
 
 const logger = createChildLogger('top-picks-writer')
 
+/** Symlink fanart from source; poster/nfo are still written or downloaded separately */
+const TOP_PICKS_SERIES_ARTWORK_SKIP = SERIES_SKIP_FILES.filter(
+  (f) => f.toLowerCase() !== 'fanart.jpg'
+)
+const TOP_PICKS_MOVIE_ARTWORK_SKIP = MOVIE_SKIP_FILES.filter(
+  (f) => f.toLowerCase() !== 'fanart.jpg'
+)
+
 // Time interval between ranks for dateAdded ordering (1 day per rank)
 // Using days instead of minutes for more reliable sorting in Emby
 const INTERVAL_MS = 24 * 60 * 60 * 1000
@@ -730,7 +738,7 @@ export async function writeTopPicksMovies(
         await symlinkArtwork({
           mediaServerPath: movieFolder,
           targetPath: movieFolderPath,
-          skipFiles: MOVIE_SKIP_FILES,
+          skipFiles: TOP_PICKS_MOVIE_ARTWORK_SKIP,
           skipSeasonFolders: false,
           mediaType: 'movie',
           title: movie.title,
@@ -1068,24 +1076,14 @@ export async function writeTopPicksSeries(
       }
 
       // Symlink all other artwork files from original series folder
-      const artworkCount = await symlinkArtwork({
+      await symlinkArtwork({
         mediaServerPath: originalSeriesFolder,
         targetPath: seriesPath,
-        skipFiles: SERIES_SKIP_FILES,
+        skipFiles: TOP_PICKS_SERIES_ARTWORK_SKIP,
         skipSeasonFolders: true,
         mediaType: 'series',
         title: series.title,
       })
-
-      // If no artwork was symlinked, try to download fanart
-      if (artworkCount === 0 && config.downloadImages && series.backdropUrl) {
-        imageDownloads.push({
-          url: series.backdropUrl,
-          path: path.join(seriesPath, 'fanart.jpg'),
-          movieTitle: series.title,
-          isPoster: false,
-        })
-      }
 
       logger.info(
         {
@@ -1156,24 +1154,14 @@ export async function writeTopPicksSeries(
       }
 
       // Symlink artwork files from original series folder (even in STRM mode)
-      const artworkCount = await symlinkArtwork({
+      await symlinkArtwork({
         mediaServerPath: originalSeriesFolder,
         targetPath: seriesPath,
-        skipFiles: SERIES_SKIP_FILES,
+        skipFiles: TOP_PICKS_SERIES_ARTWORK_SKIP,
         skipSeasonFolders: true,
         mediaType: 'series',
         title: series.title,
       })
-
-      // If no artwork was symlinked, try to download fanart
-      if (artworkCount === 0 && config.downloadImages && series.backdropUrl) {
-        imageDownloads.push({
-          url: series.backdropUrl,
-          path: path.join(seriesPath, 'fanart.jpg'),
-          movieTitle: series.title,
-          isPoster: false,
-        })
-      }
 
       logger.info(
         {
@@ -1194,6 +1182,14 @@ export async function writeTopPicksSeries(
         rank: series.rank,
         outputPath: path.join(seriesPath, 'poster.jpg'),
       })
+      if (series.backdropUrl) {
+        imageDownloads.push({
+          url: series.backdropUrl,
+          path: path.join(seriesPath, 'fanart.jpg'),
+          movieTitle: series.title,
+          isPoster: false,
+        })
+      }
     }
 
     written++
