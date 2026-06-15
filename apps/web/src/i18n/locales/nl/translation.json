@@ -923,7 +923,32 @@
     "connectedVia": "Verbonden via:",
     "noDirectConnections": "Geen directe verbindingen",
     "percentSimilar": "{{pct}}% vergelijkbaar",
-    "moreCount": "+{{count}} meer"
+    "moreCount": "+{{count}} meer",
+    "loading": {
+      "fetching": {
+        "message1": "Finding similar content…",
+        "message2": "Exploring your library…",
+        "message3": "Discovering connections…",
+        "detail1": "Analyzing embeddings",
+        "detail2": "Computing similarity scores",
+        "detail3": "Finding related titles"
+      },
+      "validating": {
+        "message1": "Validating connections…",
+        "message2": "Filtering false positives…",
+        "message3": "AI quality check in progress…",
+        "detail1": "Checking genre compatibility",
+        "detail2": "Verifying thematic relationships",
+        "detail3": "Consulting AI for edge cases"
+      },
+      "building": {
+        "message1": "Building graph visualization…",
+        "message2": "Arranging nodes…",
+        "message3": "Finalizing connections…",
+        "detail1": "Calculating optimal layout",
+        "detail2": "Preparing visual elements"
+      }
+    }
   },
   "studioDetail": {
     "errorLoad": "Kan studiogegevens niet laden",

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { GraphData, SimilarityResult, LoadingStatus } from './types'
 
 type GraphSource = 'ai-movies' | 'ai-series' | 'watching' | 'top-movies' | 'top-series'
@@ -33,41 +34,40 @@ interface UseSimilarityDataReturn extends UseGraphDataReturn {
   startOver: () => void
 }
 
-// Loading phase messages
-const LOADING_PHASES = {
+const LOADING_PHASE_KEYS = {
   fetching: {
     messages: [
-      'Finding similar content...',
-      'Exploring your library...',
-      'Discovering connections...',
+      'similarityGraph.loading.fetching.message1',
+      'similarityGraph.loading.fetching.message2',
+      'similarityGraph.loading.fetching.message3',
     ],
     details: [
-      'Analyzing embeddings',
-      'Computing similarity scores',
-      'Finding related titles',
+      'similarityGraph.loading.fetching.detail1',
+      'similarityGraph.loading.fetching.detail2',
+      'similarityGraph.loading.fetching.detail3',
     ],
   },
   validating: {
     messages: [
-      'Validating connections...',
-      'Filtering false positives...',
-      'AI quality check in progress...',
+      'similarityGraph.loading.validating.message1',
+      'similarityGraph.loading.validating.message2',
+      'similarityGraph.loading.validating.message3',
     ],
     details: [
-      'Checking genre compatibility',
-      'Verifying thematic relationships',
-      'Consulting AI for edge cases',
+      'similarityGraph.loading.validating.detail1',
+      'similarityGraph.loading.validating.detail2',
+      'similarityGraph.loading.validating.detail3',
     ],
   },
   building: {
     messages: [
-      'Building graph visualization...',
-      'Arranging nodes...',
-      'Finalizing connections...',
+      'similarityGraph.loading.building.message1',
+      'similarityGraph.loading.building.message2',
+      'similarityGraph.loading.building.message3',
     ],
     details: [
-      'Calculating optimal layout',
-      'Preparing visual elements',
+      'similarityGraph.loading.building.detail1',
+      'similarityGraph.loading.building.detail2',
     ],
   },
 }
@@ -77,6 +77,7 @@ export function useGraphData(
   source: GraphSource,
   options: UseGraphDataOptions = {}
 ): UseGraphDataReturn {
+  const { t } = useTranslation()
   const [data, setData] = useState<GraphData | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadingStatus, setLoadingStatus] = useState<LoadingStatus | null>(null)
@@ -91,7 +92,7 @@ export function useGraphData(
     phaseStartRef.current = Date.now()
     setLoadingStatus({
       phase: 'fetching',
-      message: randomItem(LOADING_PHASES.fetching.messages),
+      message: t(randomItem(LOADING_PHASE_KEYS.fetching.messages)),
       progress: 5,
     })
     
@@ -104,28 +105,28 @@ export function useGraphData(
         if (elapsed < 1000) {
           return {
             phase: 'fetching',
-            message: randomItem(LOADING_PHASES.fetching.messages),
-            detail: randomItem(LOADING_PHASES.fetching.details),
+            message: t(randomItem(LOADING_PHASE_KEYS.fetching.messages)),
+            detail: t(randomItem(LOADING_PHASE_KEYS.fetching.details)),
             progress: Math.min(40, 5 + (elapsed / 1000) * 35),
           }
         } else if (elapsed < 4000) {
           const progress = 40 + ((elapsed - 1000) / 3000) * 50
           return {
             phase: 'validating',
-            message: randomItem(LOADING_PHASES.validating.messages),
-            detail: randomItem(LOADING_PHASES.validating.details),
+            message: t(randomItem(LOADING_PHASE_KEYS.validating.messages)),
+            detail: t(randomItem(LOADING_PHASE_KEYS.validating.details)),
             progress: Math.min(90, progress),
           }
         } else {
           return {
             phase: 'building',
-            message: randomItem(LOADING_PHASES.building.messages),
+            message: t(randomItem(LOADING_PHASE_KEYS.building.messages)),
             progress: Math.min(95, 90 + ((elapsed - 4000) / 2000) * 5),
           }
         }
       })
     }, 300)
-  }, [])
+  }, [t])
   
   const stopLoadingProgress = useCallback(() => {
     if (loadingTimerRef.current) {
@@ -194,6 +195,7 @@ export function useSimilarityData(
   initialId: string | null,
   options: { limit?: number; depth?: number } = {}
 ): UseSimilarityDataReturn {
+  const { t } = useTranslation()
   const [data, setData] = useState<GraphData | null>(null)
   const [loading, setLoading] = useState(false)
   const [loadingStatus, setLoadingStatus] = useState<LoadingStatus | null>(null)
@@ -229,8 +231,8 @@ export function useSimilarityData(
     // Start with fetching phase
     setLoadingStatus({
       phase: 'fetching',
-      message: randomItem(LOADING_PHASES.fetching.messages),
-      detail: randomItem(LOADING_PHASES.fetching.details),
+      message: t(randomItem(LOADING_PHASE_KEYS.fetching.messages)),
+      detail: t(randomItem(LOADING_PHASE_KEYS.fetching.details)),
       progress: 5,
     })
     
@@ -251,8 +253,8 @@ export function useSimilarityData(
           const progress = Math.min(30, 5 + (elapsed / validatingDelay) * 25)
           return {
             phase: 'fetching',
-            message: randomItem(LOADING_PHASES.fetching.messages),
-            detail: randomItem(LOADING_PHASES.fetching.details),
+            message: t(randomItem(LOADING_PHASE_KEYS.fetching.messages)),
+            detail: t(randomItem(LOADING_PHASE_KEYS.fetching.details)),
             progress,
           }
         } else if (elapsed < buildingDelay) {
@@ -261,22 +263,22 @@ export function useSimilarityData(
           const progress = 30 + validatingProgress * 60
           return {
             phase: 'validating',
-            message: randomItem(LOADING_PHASES.validating.messages),
-            detail: randomItem(LOADING_PHASES.validating.details),
+            message: t(randomItem(LOADING_PHASE_KEYS.validating.messages)),
+            detail: t(randomItem(LOADING_PHASE_KEYS.validating.details)),
             progress: Math.min(90, progress),
           }
         } else {
           // Building phase (90-95%)
           return {
             phase: 'building',
-            message: randomItem(LOADING_PHASES.building.messages),
-            detail: randomItem(LOADING_PHASES.building.details),
+            message: t(randomItem(LOADING_PHASE_KEYS.building.messages)),
+            detail: t(randomItem(LOADING_PHASE_KEYS.building.details)),
             progress: Math.min(95, 90 + ((elapsed - buildingDelay) / 2000) * 5),
           }
         }
       })
     }, 300) // Update every 300ms for smooth progress
-  }, [depth])
+  }, [depth, t])
   
   const stopLoadingProgress = useCallback(() => {
     if (loadingTimerRef.current) {
