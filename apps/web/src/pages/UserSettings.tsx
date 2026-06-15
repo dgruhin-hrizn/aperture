@@ -29,8 +29,6 @@ import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import TuneIcon from '@mui/icons-material/Tune'
 import TextFieldsIcon from '@mui/icons-material/TextFields'
-import VisibilityIcon from '@mui/icons-material/Visibility'
-import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { Breadcrumbs } from '@/components/Breadcrumbs'
@@ -112,18 +110,6 @@ export function UserSettingsPage() {
   const [savingAiPref, setSavingAiPref] = useState(false)
   const [aiPrefError, setAiPrefError] = useState<string | null>(null)
   const [aiPrefSuccess, setAiPrefSuccess] = useState<string | null>(null)
-
-  // Dislike behavior preference state
-  const [dislikeBehavior, setDislikeBehavior] = useState<'exclude' | 'penalize'>('exclude')
-  const [loadingDislikePref, setLoadingDislikePref] = useState(false)
-  const [savingDislikePref, setSavingDislikePref] = useState(false)
-  const [dislikePrefSuccess, setDislikePrefSuccess] = useState<string | null>(null)
-
-  // Include watched preference state
-  const [includeWatched, setIncludeWatched] = useState(false)
-  const [loadingIncludeWatched, setLoadingIncludeWatched] = useState(false)
-  const [savingIncludeWatched, setSavingIncludeWatched] = useState(false)
-  const [includeWatchedSuccess, setIncludeWatchedSuccess] = useState<string | null>(null)
 
   // Similarity graph preferences state
   const [similarityFullFranchise, setSimilarityFullFranchise] = useState(false)
@@ -245,82 +231,6 @@ export function UserSettingsPage() {
       setAiPrefError(t('userSettings.errConnectServer'))
     } finally {
       setSavingAiPref(false)
-    }
-  }
-
-  const fetchDislikeBehavior = useCallback(async () => {
-    setLoadingDislikePref(true)
-    try {
-      const response = await fetch('/api/settings/user/dislike-behavior', { credentials: 'include' })
-      if (response.ok) {
-        const data = await response.json()
-        setDislikeBehavior(data.dislikeBehavior || 'exclude')
-      }
-    } catch {
-      // Silently fail - use default
-    } finally {
-      setLoadingDislikePref(false)
-    }
-  }, [])
-
-  const saveDislikeBehavior = async (behavior: 'exclude' | 'penalize') => {
-    setSavingDislikePref(true)
-    setDislikePrefSuccess(null)
-    try {
-      const response = await fetch('/api/settings/user/dislike-behavior', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ dislikeBehavior: behavior }),
-      })
-      if (response.ok) {
-        setDislikeBehavior(behavior)
-        setDislikePrefSuccess(t('userSettings.preferenceSaved'))
-        setTimeout(() => setDislikePrefSuccess(null), 3000)
-      }
-    } catch {
-      // Silently fail
-    } finally {
-      setSavingDislikePref(false)
-    }
-  }
-
-  const fetchIncludeWatched = useCallback(async () => {
-    if (!user?.id) return
-    setLoadingIncludeWatched(true)
-    try {
-      const response = await fetch(`/api/recommendations/${user.id}/preferences`, { credentials: 'include' })
-      if (response.ok) {
-        const data = await response.json()
-        setIncludeWatched(data.includeWatched ?? false)
-      }
-    } catch {
-      // Silently fail - use default
-    } finally {
-      setLoadingIncludeWatched(false)
-    }
-  }, [user?.id])
-
-  const saveIncludeWatched = async (value: boolean) => {
-    if (!user?.id) return
-    setSavingIncludeWatched(true)
-    setIncludeWatchedSuccess(null)
-    try {
-      const response = await fetch(`/api/recommendations/${user.id}/preferences`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ includeWatched: value }),
-      })
-      if (response.ok) {
-        setIncludeWatched(value)
-        setIncludeWatchedSuccess(t('userSettings.preferenceSaved'))
-        setTimeout(() => setIncludeWatchedSuccess(null), 3000)
-      }
-    } catch {
-      // Silently fail
-    } finally {
-      setSavingIncludeWatched(false)
     }
   }
 
@@ -458,8 +368,6 @@ export function UserSettingsPage() {
   useEffect(() => {
     fetchUserSettings()
     fetchAiExplanationPref()
-    fetchDislikeBehavior()
-    fetchIncludeWatched()
     fetchSimilarityPrefs()
     fetchTraktStatus()
     fetchEmailSettings()
@@ -485,8 +393,6 @@ export function UserSettingsPage() {
     t,
     fetchUserSettings,
     fetchAiExplanationPref,
-    fetchDislikeBehavior,
-    fetchIncludeWatched,
     fetchSimilarityPrefs,
     fetchTraktStatus,
     fetchEmailSettings,
@@ -941,126 +847,6 @@ export function UserSettingsPage() {
                   </Card>
                 </Grid>
               )}
-
-              {/* Include Watched Content */}
-              <Grid item xs={12} lg={6}>
-                <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, height: '100%' }}>
-                  <CardContent>
-                    <Box display="flex" alignItems="center" gap={1} mb={1}>
-                      <VisibilityIcon color="primary" />
-                      <Typography variant="h6">{t('userSettings.watchedRecsTitle')}</Typography>
-                    </Box>
-                    <Typography variant="body2" color="text.secondary" mb={3}>
-                      {t('userSettings.watchedRecsSubtitle')}
-                    </Typography>
-
-                    {includeWatchedSuccess && (
-                      <Alert severity="success" sx={{ mb: 2 }} onClose={() => setIncludeWatchedSuccess(null)}>
-                        {includeWatchedSuccess}
-                      </Alert>
-                    )}
-
-                    {loadingIncludeWatched ? (
-                      <Box display="flex" justifyContent="center" py={4}>
-                        <CircularProgress />
-                      </Box>
-                    ) : (
-                      <>
-                        <FormControlLabel
-                          control={
-                            <Switch
-                              checked={includeWatched}
-                              onChange={(e) => saveIncludeWatched(e.target.checked)}
-                              disabled={savingIncludeWatched}
-                            />
-                          }
-                          label={
-                            <Box>
-                              <Typography variant="body1" fontWeight="medium">
-                                {includeWatched
-                                  ? t('userSettings.includeWatchedTitle')
-                                  : t('userSettings.newContentOnlyTitle')}
-                              </Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                {includeWatched
-                                  ? t('userSettings.includeWatchedDesc')
-                                  : t('userSettings.newContentOnlyDesc')}
-                              </Typography>
-                            </Box>
-                          }
-                          sx={{ alignItems: 'flex-start', ml: 0 }}
-                        />
-
-                        <Divider sx={{ my: 3 }} />
-
-                        <Typography variant="caption" color="text.secondary">
-                          {t('userSettings.watchedRecsFooter')}
-                        </Typography>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-              </Grid>
-
-              {/* Disliked Content Behavior */}
-              <Grid item xs={12} lg={6}>
-                <Card sx={{ backgroundColor: 'background.default', borderRadius: 2, height: '100%' }}>
-                  <CardContent>
-                    <Box display="flex" alignItems="center" gap={1} mb={1}>
-                      <ThumbDownIcon color="primary" />
-                      <Typography variant="h6">{t('userSettings.dislikedTitle')}</Typography>
-                    </Box>
-                    <Typography variant="body2" color="text.secondary" mb={3}>
-                      {t('userSettings.dislikedSubtitle')}
-                    </Typography>
-
-                    {dislikePrefSuccess && (
-                      <Alert severity="success" sx={{ mb: 2 }} onClose={() => setDislikePrefSuccess(null)}>
-                        {dislikePrefSuccess}
-                      </Alert>
-                    )}
-
-                    {loadingDislikePref ? (
-                      <Box display="flex" justifyContent="center" py={4}>
-                        <CircularProgress />
-                      </Box>
-                    ) : (
-                      <>
-                        <FormControlLabel
-                          control={
-                            <Switch
-                              checked={dislikeBehavior === 'exclude'}
-                              onChange={(e) => saveDislikeBehavior(e.target.checked ? 'exclude' : 'penalize')}
-                              disabled={savingDislikePref}
-                            />
-                          }
-                          label={
-                            <Box>
-                              <Typography variant="body1" fontWeight="medium">
-                                {dislikeBehavior === 'exclude'
-                                  ? t('userSettings.excludeDislikedTitle')
-                                  : t('userSettings.penalizeDislikedTitle')}
-                              </Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                {dislikeBehavior === 'exclude'
-                                  ? t('userSettings.excludeDislikedDesc')
-                                  : t('userSettings.penalizeDislikedDesc')}
-                              </Typography>
-                            </Box>
-                          }
-                          sx={{ alignItems: 'flex-start', ml: 0 }}
-                        />
-
-                        <Divider sx={{ my: 3 }} />
-
-                        <Typography variant="caption" color="text.secondary">
-                          {t('userSettings.dislikedFooter')}
-                        </Typography>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-              </Grid>
 
               {/* Similarity Graph Preferences */}
               <Grid item xs={12} lg={6}>
