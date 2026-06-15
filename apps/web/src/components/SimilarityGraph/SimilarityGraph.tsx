@@ -83,6 +83,11 @@ export const SimilarityGraph = memo(function SimilarityGraph({
     const centerId = data.nodes.find(n => n.isCenter)?.id || ''
     return `${centerId}:${nodeIds}`
   }, [data])
+  const dataRef = useRef(data)
+
+  useEffect(() => {
+    dataRef.current = data
+  }, [data])
 
   // Build node connection map for tooltips
   const nodeConnectionMap = useMemo(() => {
@@ -161,7 +166,8 @@ export const SimilarityGraph = memo(function SimilarityGraph({
 
   // D3 force simulation
   useEffect(() => {
-    if (!data || !svgRef.current || data.nodes.length === 0) return
+    const graphData = dataRef.current
+    if (!graphData || !svgRef.current || graphData.nodes.length === 0) return
 
     const svg = d3.select(svgRef.current)
     svg.selectAll('*').remove()
@@ -198,7 +204,7 @@ export const SimilarityGraph = memo(function SimilarityGraph({
       .append('g')
       .attr('class', 'edges')
       .selectAll<SVGLineElement, GraphEdge>('line')
-      .data(data.edges)
+      .data(graphData.edges)
       .join('line')
       .attr('stroke', (d) => CONNECTION_COLORS[getPrimaryConnectionType(d.reasons)])
       .attr('stroke-width', (d) => Math.max(1, d.similarity * 4))
@@ -218,7 +224,7 @@ export const SimilarityGraph = memo(function SimilarityGraph({
       .append('g')
       .attr('class', 'nodes')
       .selectAll<SVGGElement, GraphNode>('g')
-      .data(data.nodes)
+      .data(graphData.nodes)
       .join('g')
       .attr('class', 'node')
       .style('cursor', 'pointer')
@@ -363,8 +369,8 @@ export const SimilarityGraph = memo(function SimilarityGraph({
     }
 
     // Pre-position nodes in a circle around center for smoother initial layout
-    const centerNode = data.nodes.find(n => n.isCenter)
-    const otherNodes = data.nodes.filter(n => !n.isCenter)
+    const centerNode = graphData.nodes.find(n => n.isCenter)
+    const otherNodes = graphData.nodes.filter(n => !n.isCenter)
     const radius = Math.min(width, height) * 0.3
     
     // Place center node at center
@@ -385,14 +391,14 @@ export const SimilarityGraph = memo(function SimilarityGraph({
     
     // Create simulation with gentler initial energy
     const simulation = d3
-      .forceSimulation<GraphNode>(data.nodes)
+      .forceSimulation<GraphNode>(graphData.nodes)
       .alpha(0.4) // Start with lower energy (default is 1)
       .alphaDecay(0.02) // Slightly faster settling
       .velocityDecay(0.4) // More friction for smoother movement
       .force(
         'link',
         d3
-          .forceLink<GraphNode, GraphEdge>(data.edges)
+          .forceLink<GraphNode, GraphEdge>(graphData.edges)
           .id((d) => d.id)
           .distance((d) => {
             // Moderate distance between nodes (200-300 range)
@@ -433,7 +439,7 @@ export const SimilarityGraph = memo(function SimilarityGraph({
       if (hasCentered) return
       hasCentered = true
       
-      const centerNode = data.nodes.find((n: GraphNode) => n.isCenter) as GraphNode | undefined
+      const centerNode = graphData.nodes.find((n: GraphNode) => n.isCenter) as GraphNode | undefined
       if (centerNode && centerNode.x !== undefined && centerNode.y !== undefined) {
         // Pan to center without changing zoom level (scale = 1)
         const translateX = width / 2 - centerNode.x
@@ -453,7 +459,7 @@ export const SimilarityGraph = memo(function SimilarityGraph({
       if (hasCentered) return
       hasCentered = true
       
-      const centerNode = data.nodes.find((n: GraphNode) => n.isCenter) as GraphNode | undefined
+      const centerNode = graphData.nodes.find((n: GraphNode) => n.isCenter) as GraphNode | undefined
       if (centerNode && centerNode.x !== undefined && centerNode.y !== undefined) {
         const translateX = width / 2 - centerNode.x
         const translateY = height / 2 - centerNode.y
@@ -470,8 +476,6 @@ export const SimilarityGraph = memo(function SimilarityGraph({
     return () => {
       simulation.stop()
     }
-    // Use dataKey instead of data to prevent re-renders when data reference changes but content is same
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataKey, dimensions, compact, getPrimaryConnectionType])
 
   if (loading) {
