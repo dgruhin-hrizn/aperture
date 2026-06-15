@@ -51,18 +51,48 @@ interface BackendMessage {
   created_at: string
 }
 
-// Convert backend messages to UIMessage format
-// Using type assertions because the runtime format works with assistant-ui
-// even if TypeScript types don't align perfectly
+type AssistantRole = 'user' | 'assistant' | 'system'
+
+interface AssistantTextPart {
+  type: 'text'
+  text: string
+}
+
+interface AssistantToolCallPart {
+  type: 'tool-call'
+  toolCallId: string
+  toolName: string
+  args: unknown
+  argsText?: string
+  isError?: boolean
+  result?: unknown
+}
+
+type AssistantMessagePart = AssistantTextPart | AssistantToolCallPart
+
+interface AssistantToolInvocation {
+  state: 'result'
+  toolCallId: string
+  toolName: string
+  args: unknown
+  result?: unknown
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function normalizeRole(role: string): AssistantRole {
+  if (role === 'user' || role === 'assistant' || role === 'system') {
+    return role
+  }
+  return 'assistant'
+}
+
 function convertToUIMessages(messages: BackendMessage[]): UIMessage[] {
   return messages.map((msg) => {
-    // Build the content array (parts) - use 'any' to bypass strict type checking
-    // as the runtime structure is compatible with assistant-ui
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const content: any[] = []
-    // Also build toolInvocations array for AI SDK compatibility
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const toolInvocations: any[] = []
+    const content: AssistantMessagePart[] = []
+    const toolInvocations: AssistantToolInvocation[] = []
     
     // Add text part if there's content
     if (msg.content) {
@@ -97,7 +127,7 @@ function convertToUIMessages(messages: BackendMessage[]): UIMessage[] {
     // Return message with multiple format properties for compatibility
     return {
       id: msg.id,
-      role: msg.role as 'user' | 'assistant' | 'system',
+      role: normalizeRole(msg.role),
       content,
       parts: content,
       ...(toolInvocations.length > 0 && { toolInvocations }),
@@ -192,13 +222,18 @@ function MessageSaver({
         let textContent = ''
         const toolInvocations: Array<{ toolCallId: string; toolName: string; args: unknown; result?: unknown }> = []
         
-        // Collect all parts from the content array
-        // Use 'any' type as ThreadMessage content types don't perfectly match
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        for (const part of msg.content as any[]) {
-          if (part.type === 'text') {
+        const contentParts = Array.isArray(msg.content) ? msg.content : []
+        for (const part of contentParts) {
+          if (!isRecord(part) || typeof part.type !== 'string') {
+            continue
+          }
+          if (part.type === 'text' && typeof part.text === 'string') {
             textContent += part.text
-          } else if (part.type === 'tool-call') {
+          } else if (
+            part.type === 'tool-call' &&
+            typeof part.toolCallId === 'string' &&
+            typeof part.toolName === 'string'
+          ) {
             // In ThreadMessage, the result is embedded directly in the tool-call part
             toolInvocations.push({
               toolCallId: part.toolCallId,
