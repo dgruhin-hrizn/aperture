@@ -4,6 +4,7 @@
 
 import type { EmbyProviderBase } from './base.js'
 import { logger } from './base.js'
+import { isEmbyNotFoundError } from './fetchHelpers.js'
 
 interface EmbyItemsIdResponse {
   Items: { Id: string }[]
@@ -75,8 +76,7 @@ export async function unfavoriteSeriesItem(
   try {
     await provider.fetch(path, apiKey, { method: 'DELETE' })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    if (msg.includes('404')) {
+    if (isEmbyNotFoundError(err)) {
       logger.debug({ userId, itemId }, 'Unfavorite noop (already not favorite)')
       return
     }

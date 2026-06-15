@@ -1,11 +1,16 @@
 /**
  * Emby Provider Base
- *
- * Core class with constructor, authentication helpers, and fetch functionality.
- * Extended by other modules for specific functionality.
  */
 
 import { createChildLogger } from '../../lib/logger.js'
+import {
+  EMBY_FETCH_TIMEOUT_MS,
+  embyConnectionError,
+  embyHttpError,
+  embyTimeoutError,
+  parseEmbyResponseBody,
+  summarizeEmbyItemsResponse,
+} from './fetchHelpers.js'
 
 export const logger = createChildLogger('emby-provider')
 
@@ -18,7 +23,7 @@ export class EmbyProviderBase {
   protected readonly clientVersion = '1.0.0'
 
   constructor(baseUrl: string) {
-    this.baseUrl = baseUrl.replace(/\/$/, '') // Remove trailing slash
+    this.baseUrl = baseUrl.replace(/\/$/, '')
   }
 
   getAuthHeader(apiKey: string): string {
@@ -35,9 +40,8 @@ export class EmbyProviderBase {
 
     logger.debug({ method: options.method || 'GET', url }, '📡 Emby API Request')
 
-    // Add 60 second timeout with AbortController (increased from 30s for large libraries)
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 60000)
+    const timeoutId = setTimeout(() => controller.abort(), EMBY_FETCH_TIMEOUT_MS)
 
     const startTime = Date.now()
     let response: Response
@@ -51,15 +55,14 @@ export class EmbyProviderBase {
       clearTimeout(timeoutId)
       const duration = Date.now() - startTime
       if (err instanceof Error && err.name === 'AbortError') {
-        logger.error({ url, duration }, '⏱️ Emby API request timed out after 60 seconds')
-        throw new Error(
-          `Connection to Emby timed out after 60 seconds. Please check that your media server URL (${this.baseUrl}) is accessible from the Aperture container.`
+        logger.error(
+          { url, duration },
+          `⏱️ Emby API request timed out after ${EMBY_FETCH_TIMEOUT_MS / 1000} seconds`
         )
+        throw embyTimeoutError(this.baseUrl)
       }
       logger.error({ url, duration, err }, '❌ Emby API network error')
-      throw new Error(
-        `Failed to connect to Emby at ${this.baseUrl}. Please verify the URL is correct and the server is running.`
-      )
+      throw embyConnectionError(this.baseUrl)
     } finally {
       clearTimeout(timeoutId)
     }
@@ -68,31 +71,23 @@ export class EmbyProviderBase {
     if (!response.ok) {
       const text = await response.text()
       logger.error({ status: response.status, url, body: text, duration }, '❌ Emby API error')
-      throw new Error(`Emby API error: ${response.status} ${response.statusText}`)
+      throw embyHttpError(response.status, response.statusText)
     }
 
-    // Some endpoints return empty response
     const text = await response.text()
     if (!text) {
       logger.debug({ url, duration, empty: true }, '✅ Emby API Response (empty)')
       return {} as T
     }
 
-    const data = JSON.parse(text) as T
+    const data = parseEmbyResponseBody<T>(text)
 
-    // Log response summary
     logger.debug(
       {
         url,
         duration,
         responseSize: text.length,
-        // If it's an items response, log count
-        ...(typeof data === 'object' && data !== null && 'Items' in data
-          ? {
-              itemCount: (data as { Items?: unknown[] }).Items?.length,
-              totalRecordCount: (data as { TotalRecordCount?: number }).TotalRecordCount,
-            }
-          : {}),
+        ...summarizeEmbyItemsResponse(data),
       },
       '✅ Emby API Response'
     )
@@ -100,7 +95,6 @@ export class EmbyProviderBase {
     return data
   }
 
-  // Utility methods for image URLs
   getPosterUrl(itemId: string, imageTag?: string): string {
     const params = imageTag ? `?tag=${imageTag}` : ''
     return `${this.baseUrl}/Items/${itemId}/Images/Primary${params}`
@@ -135,6 +129,3 @@ export class EmbyProviderBase {
     return `${this.baseUrl}/Videos/${itemId}/stream`
   }
 }
-
-
-

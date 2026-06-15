@@ -1,28 +1,24 @@
 import type { EmbyItem, EmbySeries, EmbyEpisode } from './types.js'
 import type { Movie, Series, Episode } from '../types.js'
+import {
+  extractPeopleNames,
+  mapEmbyActors,
+  mapEmbyGuestStars,
+  mapEmbyMediaSources,
+  mapEmbyStudios,
+  mapEmbyUserData,
+  mapEmbyVideoQuality,
+  seriesEndYear,
+} from './mapperHelpers.js'
 
-/**
- * Map an Emby item to the internal Movie type
- */
+export { mapEmbyEpisodeToWatched, mapEmbyItemToWatchedMovie } from './mapperHelpers.js'
+
 export function mapEmbyItemToMovie(item: EmbyItem, baseUrl: string): Movie {
-  // Extract people by type
-  const directors = item.People?.filter((p) => p.Type === 'Director').map((p) => p.Name) || []
-  const writers = item.People?.filter((p) => p.Type === 'Writer').map((p) => p.Name) || []
-  const actors =
-    item.People?.filter((p) => p.Type === 'Actor')
-      .slice(0, 20)
-      .map((p) => ({
-        name: p.Name,
-        role: p.Role,
-        ...(p.Id ? { personId: String(p.Id) } : {}),
-        // Use Persons endpoint for actor images
-        thumb: p.Name ? `${baseUrl}/Persons/${encodeURIComponent(p.Name)}/Images/Primary` : undefined,
-      })) || []
-
-  // Extract video/audio info from first media source
+  const directors = extractPeopleNames(item.People, ['Director'])
+  const writers = extractPeopleNames(item.People, ['Writer'])
+  const actors = mapEmbyActors(item.People, baseUrl)
   const primarySource = item.MediaSources?.[0]
-  const videoStream = primarySource?.MediaStreams?.find((s) => s.Type === 'Video')
-  const audioStream = primarySource?.MediaStreams?.find((s) => s.Type === 'Audio')
+  const quality = mapEmbyVideoQuality(primarySource)
 
   return {
     id: item.Id,
@@ -39,21 +35,11 @@ export function mapEmbyItemToMovie(item: EmbyItem, baseUrl: string): Movie {
     contentRating: item.OfficialRating,
     runtimeTicks: item.RunTimeTicks,
     path: item.Path,
-    mediaSources: item.MediaSources?.map((ms) => ({
-      id: ms.Id,
-      path: ms.Path,
-      container: ms.Container,
-      size: ms.Size,
-      bitrate: ms.Bitrate,
-    })),
+    mediaSources: mapEmbyMediaSources(item.MediaSources),
     posterImageTag: item.ImageTags?.Primary,
     backdropImageTag: item.BackdropImageTags?.[0] || item.ImageTags?.Backdrop,
     parentId: item.ParentId,
-    // New metadata fields - include studio IDs for image lookups
-    studios: item.Studios?.map((s) => ({
-      id: s.Id?.toString(),
-      name: s.Name,
-    })) || [],
+    studios: mapEmbyStudios(item.Studios),
     directors,
     writers,
     actors,
@@ -62,49 +48,15 @@ export function mapEmbyItemToMovie(item: EmbyItem, baseUrl: string): Movie {
     tags: item.Tags || [],
     productionCountries: item.ProductionLocations || [],
     awards: item.Awards,
-    // Video/audio quality
-    videoResolution:
-      videoStream?.Width && videoStream?.Height
-        ? `${videoStream.Width}x${videoStream.Height}`
-        : undefined,
-    videoCodec: videoStream?.Codec,
-    audioCodec: audioStream?.Codec,
-    container: primarySource?.Container,
-    userData: item.UserData
-      ? {
-          playCount: item.UserData.PlayCount,
-          isFavorite: item.UserData.IsFavorite,
-          lastPlayedDate: item.UserData.LastPlayedDate,
-          playbackPositionTicks: item.UserData.PlaybackPositionTicks,
-          played: item.UserData.Played,
-        }
-      : undefined,
+    ...quality,
+    userData: mapEmbyUserData(item.UserData, true),
   }
 }
 
-/**
- * Map an Emby series to the internal Series type
- */
 export function mapEmbyItemToSeries(item: EmbySeries, baseUrl: string): Series {
-  // Extract people by type
-  const directors = item.People?.filter((p) => p.Type === 'Director' || p.Type === 'Creator').map((p) => p.Name) || []
-  const writers = item.People?.filter((p) => p.Type === 'Writer').map((p) => p.Name) || []
-  const actors =
-    item.People?.filter((p) => p.Type === 'Actor')
-      .slice(0, 20)
-      .map((p) => ({
-        name: p.Name,
-        role: p.Role,
-        ...(p.Id ? { personId: String(p.Id) } : {}),
-        // Use Persons endpoint for actor images
-        thumb: p.Name ? `${baseUrl}/Persons/${encodeURIComponent(p.Name)}/Images/Primary` : undefined,
-      })) || []
-
-  // Extract end year from EndDate if available
-  let endYear: number | undefined
-  if (item.EndDate) {
-    endYear = new Date(item.EndDate).getFullYear()
-  }
+  const directors = extractPeopleNames(item.People, ['Director', 'Creator'])
+  const writers = extractPeopleNames(item.People, ['Writer'])
+  const actors = mapEmbyActors(item.People, baseUrl)
 
   return {
     id: item.Id,
@@ -112,7 +64,7 @@ export function mapEmbyItemToSeries(item: EmbySeries, baseUrl: string): Series {
     originalTitle: item.OriginalTitle,
     sortName: item.SortName,
     year: item.ProductionYear,
-    endYear,
+    endYear: seriesEndYear(item.EndDate),
     premiereDate: item.PremiereDate,
     genres: item.Genres || [],
     overview: item.Overview,
@@ -128,10 +80,7 @@ export function mapEmbyItemToSeries(item: EmbySeries, baseUrl: string): Series {
     posterImageTag: item.ImageTags?.Primary,
     backdropImageTag: item.BackdropImageTags?.[0] || item.ImageTags?.Backdrop,
     parentId: item.ParentId,
-    studios: item.Studios?.map((s) => ({
-      id: s.Id?.toString(),
-      name: s.Name,
-    })) || [],
+    studios: mapEmbyStudios(item.Studios),
     directors,
     writers,
     actors,
@@ -141,33 +90,14 @@ export function mapEmbyItemToSeries(item: EmbySeries, baseUrl: string): Series {
     tags: item.Tags || [],
     productionCountries: item.ProductionLocations || [],
     awards: item.Awards,
-    userData: item.UserData
-      ? {
-          playCount: item.UserData.PlayCount,
-          isFavorite: item.UserData.IsFavorite,
-          lastPlayedDate: item.UserData.LastPlayedDate,
-          played: item.UserData.Played,
-        }
-      : undefined,
+    userData: mapEmbyUserData(item.UserData),
   }
 }
 
-/**
- * Map an Emby episode to the internal Episode type
- */
 export function mapEmbyItemToEpisode(item: EmbyEpisode, baseUrl: string): Episode {
-  // Extract people by type
-  const directors = item.People?.filter((p) => p.Type === 'Director').map((p) => p.Name) || []
-  const writers = item.People?.filter((p) => p.Type === 'Writer').map((p) => p.Name) || []
-  const guestStars =
-    item.People?.filter((p) => p.Type === 'GuestStar')
-      .slice(0, 10)
-      .map((p) => ({
-        name: p.Name,
-        role: p.Role,
-        // Use Persons endpoint for person images
-        thumb: p.Name ? `${baseUrl}/Persons/${encodeURIComponent(p.Name)}/Images/Primary` : undefined,
-      })) || []
+  const directors = extractPeopleNames(item.People, ['Director'])
+  const writers = extractPeopleNames(item.People, ['Writer'])
+  const guestStars = mapEmbyGuestStars(item.People, baseUrl)
 
   return {
     id: item.Id,
@@ -183,25 +113,10 @@ export function mapEmbyItemToEpisode(item: EmbyEpisode, baseUrl: string): Episod
     communityRating: item.CommunityRating,
     posterImageTag: item.ImageTags?.Primary,
     path: item.Path,
-    mediaSources: item.MediaSources?.map((ms) => ({
-      id: ms.Id,
-      path: ms.Path,
-      container: ms.Container,
-      size: ms.Size,
-      bitrate: ms.Bitrate,
-    })),
+    mediaSources: mapEmbyMediaSources(item.MediaSources),
     directors,
     writers,
     guestStars,
-    userData: item.UserData
-      ? {
-          playCount: item.UserData.PlayCount,
-          isFavorite: item.UserData.IsFavorite,
-          lastPlayedDate: item.UserData.LastPlayedDate,
-          playbackPositionTicks: item.UserData.PlaybackPositionTicks,
-          played: item.UserData.Played,
-        }
-      : undefined,
+    userData: mapEmbyUserData(item.UserData, true),
   }
 }
-

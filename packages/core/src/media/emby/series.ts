@@ -10,56 +10,26 @@ import type {
   WatchedEpisode,
 } from '../types.js'
 import type { EmbySeries, EmbyEpisode } from './types.js'
-import { mapEmbyItemToSeries, mapEmbyItemToEpisode } from './mappers.js'
+import { mapEmbyItemToSeries, mapEmbyItemToEpisode, mapEmbyEpisodeToWatched } from './mappers.js'
 import { logger, type EmbyProviderBase } from './base.js'
 import { mergeWatchedEpisodes } from '../watchHistoryHelpers.js'
-
-const EPISODE_WATCH_FIELDS =
-  'UserData,UserDataPlayCount,UserDataLastPlayedDate,SeriesId,ParentIndexNumber,IndexNumber,ProviderIds,RunTimeTicks'
+import {
+  buildPaginatedItemsParams,
+  EPISODE_LIST_FIELDS,
+  EPISODE_WATCH_FIELDS,
+  SERIES_LIST_FIELDS,
+} from './requestBuilders.js'
 
 export async function getSeries(
   provider: EmbyProviderBase,
   apiKey: string,
   options: PaginationOptions = {}
 ): Promise<PaginatedResult<Series>> {
-  const params = new URLSearchParams({
-    IncludeItemTypes: 'Series',
-    Recursive: 'true',
-    Fields: [
-      'Overview',
-      'Genres',
-      'ProductionYear',
-      'CommunityRating',
-      'CriticRating',
-      'OriginalTitle',
-      'ParentId',
-      'SortName',
-      'Tagline',
-      'OfficialRating',
-      'PremiereDate',
-      'EndDate',
-      'Studios',
-      'People',
-      'ProviderIds',
-      'Tags',
-      'ProductionLocations',
-      'Awards',
-      'Status',
-      'AirDays',
-      'ChildCount',
-      'RecursiveItemCount',
-      'ImageTags',
-      'BackdropImageTags',
-    ].join(','),
-    StartIndex: String(options.startIndex || 0),
-    Limit: String(options.limit || 100),
-    SortBy: options.sortBy || 'SortName',
-    SortOrder: options.sortOrder || 'Ascending',
+  const params = buildPaginatedItemsParams({
+    ...options,
+    includeItemTypes: 'Series',
+    fields: SERIES_LIST_FIELDS,
   })
-
-  if (options.parentIds && options.parentIds.length > 0) {
-    params.set('ParentId', options.parentIds.join(','))
-  }
 
   logger.info(
     {
@@ -114,32 +84,13 @@ export async function getEpisodes(
   apiKey: string,
   options: PaginationOptions & { seriesId?: string } = {}
 ): Promise<PaginatedResult<Episode>> {
-  const params = new URLSearchParams({
-    IncludeItemTypes: 'Episode',
-    Recursive: 'true',
-    Fields: [
-      'Overview',
-      'ProductionYear',
-      'CommunityRating',
-      'PremiereDate',
-      'Path',
-      'MediaSources',
-      'People',
-      'SeriesName',
-    ].join(','),
-    StartIndex: String(options.startIndex || 0),
-    Limit: String(options.limit || 100),
-    SortBy: options.sortBy || 'SeriesSortName,SortName',
-    SortOrder: options.sortOrder || 'Ascending',
+  const params = buildPaginatedItemsParams({
+    ...options,
+    includeItemTypes: 'Episode',
+    fields: EPISODE_LIST_FIELDS,
+    defaultSortBy: 'SeriesSortName,SortName',
+    seriesId: options.seriesId,
   })
-
-  if (options.seriesId) {
-    params.set('SeriesId', options.seriesId)
-  }
-
-  if (options.parentIds && options.parentIds.length > 0) {
-    params.set('ParentId', options.parentIds.join(','))
-  }
 
   logger.info(
     {
@@ -200,7 +151,7 @@ export async function getSeriesWatchHistory(
   const itemsMap = new Map<string, WatchedEpisode>()
 
   const upsertEpisode = (item: EmbyEpisode) => {
-    const mapped = watchedEpisodeFromEmbyItem(item)
+    const mapped = mapEmbyEpisodeToWatched(item)
     const existing = itemsMap.get(item.Id)
     itemsMap.set(item.Id, existing ? mergeWatchedEpisodes(existing, mapped) : mapped)
   }
@@ -291,7 +242,7 @@ export async function getSeriesWatchHistory(
   let addedFavorites = 0
   for (const item of favoritesResponse.Items) {
     if (!itemsMap.has(item.Id)) {
-      const favorite = watchedEpisodeFromEmbyItem(item)
+      const favorite = mapEmbyEpisodeToWatched(item)
       favorite.isFavorite = true
       itemsMap.set(item.Id, favorite)
       addedFavorites++
@@ -322,24 +273,6 @@ export async function getSeriesWatchHistory(
 
   logger.info({ userId, totalItems: allItems.length }, 'Series watch history complete')
   return allItems
-}
-
-function watchedEpisodeFromEmbyItem(item: EmbyEpisode): WatchedEpisode {
-  return {
-    episodeId: item.Id,
-    seriesId: item.SeriesId,
-    seasonNumber: item.ParentIndexNumber,
-    episodeNumber: item.IndexNumber,
-    playCount: item.UserData?.PlayCount || 0,
-    isFavorite: item.UserData?.IsFavorite || false,
-    lastPlayedDate: item.UserData?.LastPlayedDate,
-    tmdbId: item.ProviderIds?.Tmdb,
-    imdbId: item.ProviderIds?.Imdb,
-    tvdbId: item.ProviderIds?.Tvdb,
-    played: item.UserData?.Played ?? false,
-    playbackPositionTicks: item.UserData?.PlaybackPositionTicks,
-    runtimeTicks: item.RunTimeTicks,
-  }
 }
 
 /**

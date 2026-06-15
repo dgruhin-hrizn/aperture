@@ -5,6 +5,14 @@
 import type { PlaylistCreateResult, PlaylistItem } from '../types.js'
 import type { EmbyItemsResponse } from './types.js'
 import { logger, type EmbyProviderBase } from './base.js'
+import { updateEmbyItem } from './itemUpdates.js'
+import {
+  buildItemSearchParams,
+  buildPlaylistCreateParams,
+  playlistAddItemsPath,
+  playlistItemsPath,
+  playlistRemoveItemsPath,
+} from './requestBuilders.js'
 
 export async function createOrUpdatePlaylist(
   provider: EmbyProviderBase,
@@ -13,34 +21,29 @@ export async function createOrUpdatePlaylist(
   name: string,
   itemIds: string[]
 ): Promise<PlaylistCreateResult> {
-  // First, try to find existing playlist
-  const params = new URLSearchParams({
-    IncludeItemTypes: 'Playlist',
-    Recursive: 'true',
-    SearchTerm: name,
-    UserId: userId,
+  const params = buildItemSearchParams({
+    includeItemTypes: 'Playlist',
+    searchTerm: name,
+    userId,
   })
 
   const existing = await provider.fetch<EmbyItemsResponse>(`/Items?${params}`, apiKey)
   const playlist = existing.Items.find((p) => p.Name === name)
 
   if (playlist) {
-    // Get existing items to delete them by entry ID
     const existingItems = await provider.fetch<{
       Items: Array<{ PlaylistItemId: string }>
-    }>(`/Playlists/${playlist.Id}/Items`, apiKey)
+    }>(playlistItemsPath(playlist.Id), apiKey)
 
-    // Remove all existing items if any
     if (existingItems.Items && existingItems.Items.length > 0) {
-      const entryIds = existingItems.Items.map((item) => item.PlaylistItemId).join(',')
-      await provider.fetch(`/Playlists/${playlist.Id}/Items?EntryIds=${entryIds}`, apiKey, {
+      const entryIds = existingItems.Items.map((item) => item.PlaylistItemId)
+      await provider.fetch(playlistRemoveItemsPath(playlist.Id, entryIds), apiKey, {
         method: 'DELETE',
       })
     }
 
-    // Add new items
     if (itemIds.length > 0) {
-      await provider.fetch(`/Playlists/${playlist.Id}/Items?Ids=${itemIds.join(',')}`, apiKey, {
+      await provider.fetch(playlistAddItemsPath(playlist.Id, itemIds), apiKey, {
         method: 'POST',
       })
     }
@@ -48,16 +51,7 @@ export async function createOrUpdatePlaylist(
     return { playlistId: playlist.Id }
   }
 
-  // Create new playlist
-  const createParams = new URLSearchParams({
-    Name: name,
-    UserId: userId,
-    MediaType: 'Video',
-  })
-
-  if (itemIds.length > 0) {
-    createParams.set('Ids', itemIds.join(','))
-  }
+  const createParams = buildPlaylistCreateParams(name, userId, itemIds)
 
   const created = await provider.fetch<{ Id: string }>(`/Playlists?${createParams}`, apiKey, {
     method: 'POST',
@@ -88,7 +82,7 @@ export async function getPlaylistItems(
       ImageTags?: { Primary?: string }
       RunTimeTicks?: number
     }>
-  }>(`/Playlists/${playlistId}/Items?Fields=ImageTags,ProductionYear,RunTimeTicks`, apiKey)
+  }>(`${playlistItemsPath(playlistId)}?Fields=ImageTags,ProductionYear,RunTimeTicks`, apiKey)
 
   return response.Items.map((item) => ({
     id: item.Id,
@@ -109,7 +103,7 @@ export async function removePlaylistItems(
   entryIds: string[]
 ): Promise<void> {
   if (entryIds.length === 0) return
-  await provider.fetch(`/Playlists/${playlistId}/Items?EntryIds=${entryIds.join(',')}`, apiKey, {
+  await provider.fetch(playlistRemoveItemsPath(playlistId, entryIds), apiKey, {
     method: 'DELETE',
   })
 }
@@ -121,7 +115,7 @@ export async function addPlaylistItems(
   itemIds: string[]
 ): Promise<void> {
   if (itemIds.length === 0) return
-  await provider.fetch(`/Playlists/${playlistId}/Items?Ids=${itemIds.join(',')}`, apiKey, {
+  await provider.fetch(playlistAddItemsPath(playlistId, itemIds), apiKey, {
     method: 'POST',
   })
 }
@@ -141,13 +135,6 @@ export async function getGenres(provider: EmbyProviderBase, apiKey: string): Pro
   return response.Items.map((item) => item.Name)
 }
 
-/**
- * Update playlist overview/description
- * Emby requires posting the full item object back when updating metadata
- * 
- * Note: GET requires user context (/Users/{userId}/Items/{id})
- *       POST uses /Items/{ItemId} with the item's Id from the response
- */
 export async function updatePlaylistOverview(
   provider: EmbyProviderBase,
   apiKey: string,
@@ -156,39 +143,22 @@ export async function updatePlaylistOverview(
   overview: string
 ): Promise<void> {
   logger.info({ userId, playlistId, overviewLength: overview?.length }, 'Updating playlist overview')
-  
+
   try {
-    // Fetch the full item data using user context (required for playlists)
-    logger.debug({ endpoint: `/Users/${userId}/Items/${playlistId}` }, 'Fetching playlist item')
-    const item = await provider.fetch<Record<string, unknown>>(
+    const itemId = await updateEmbyItem(
+      provider,
+      apiKey,
       `/Users/${userId}/Items/${playlistId}`,
-      apiKey
+      (item) => {
+        item.Overview = overview
+      }
     )
-    
-    // Use the item's actual Id for the POST (may differ from playlistId)
-    const itemId = (item.Id as string) || playlistId
-    logger.debug({ itemName: item.Name, itemId, playlistId }, 'Fetched playlist item')
-
-    // Update the overview
-    item.Overview = overview
-
-    // POST the full item back using the item's Id
-    logger.debug({ endpoint: `/Items/${itemId}` }, 'Posting updated item')
-    await provider.fetch(`/Items/${itemId}`, apiKey, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(item),
-    })
     logger.info({ playlistId, itemId }, 'Successfully updated playlist overview')
   } catch (err) {
-    // Log the full error for debugging
     logger.error({ err, userId, playlistId }, 'Failed to set overview for playlist')
   }
 }
 
-/**
- * Create a new playlist with items and optional overview
- */
 export async function createPlaylistWithOverview(
   provider: EmbyProviderBase,
   apiKey: string,
@@ -197,20 +167,14 @@ export async function createPlaylistWithOverview(
   itemIds: string[],
   overview?: string
 ): Promise<PlaylistCreateResult> {
-  // Create the playlist first
   const result = await createOrUpdatePlaylist(provider, apiKey, userId, name, itemIds)
-  
+
   logger.info({ playlistId: result.playlistId, hasOverview: !!overview }, 'Playlist created, setting overview')
 
-  // Set overview if provided
   if (overview) {
-    // Small delay to ensure Emby has fully registered the playlist
-    await new Promise(resolve => setTimeout(resolve, 500))
+    await new Promise((resolve) => setTimeout(resolve, 500))
     await updatePlaylistOverview(provider, apiKey, userId, result.playlistId, overview)
   }
 
   return result
 }
-
-
-

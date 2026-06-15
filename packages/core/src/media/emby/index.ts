@@ -6,6 +6,12 @@ export { EmbyProviderBase } from './base.js'
 export * from './types.js'
 export { mapEmbyItemToMovie, mapEmbyItemToSeries, mapEmbyItemToEpisode } from './mappers.js'
 
+// Helper modules
+export * from './fetchHelpers.js'
+export * from './requestBuilders.js'
+export * from './itemUpdates.js'
+export * from './mapperHelpers.js'
+
 // Module functions (for direct import if needed)
 export * from './auth.js'
 export * from './users.js'

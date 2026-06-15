@@ -4,55 +4,25 @@
 
 import type { Movie, PaginationOptions, PaginatedResult, WatchedItem } from '../types.js'
 import type { EmbyItem, EmbyItemsResponse, EmbyActivityResponse } from './types.js'
-import { mapEmbyItemToMovie } from './mappers.js'
+import { mapEmbyItemToMovie, mapEmbyItemToWatchedMovie } from './mappers.js'
 import { logger, type EmbyProviderBase } from './base.js'
 import { mergeWatchedItems } from '../watchHistoryHelpers.js'
-
-const MOVIE_WATCH_FIELDS =
-  'UserData,UserDataPlayCount,UserDataLastPlayedDate,ProviderIds,RunTimeTicks'
+import {
+  buildPaginatedItemsParams,
+  MOVIE_LIST_FIELDS,
+  MOVIE_WATCH_FIELDS,
+} from './requestBuilders.js'
 
 export async function getMovies(
   provider: EmbyProviderBase,
   apiKey: string,
   options: PaginationOptions = {}
 ): Promise<PaginatedResult<Movie>> {
-  const params = new URLSearchParams({
-    IncludeItemTypes: 'Movie',
-    Recursive: 'true',
-    // Request comprehensive metadata from Emby
-    Fields: [
-      'Overview',
-      'Genres',
-      'ProductionYear',
-      'CommunityRating',
-      'CriticRating',
-      'Path',
-      'MediaSources',
-      'OriginalTitle',
-      'ParentId',
-      'SortName',
-      'Tagline',
-      'OfficialRating',
-      'PremiereDate',
-      'Studios',
-      'People',
-      'ProviderIds',
-      'Tags',
-      'ProductionLocations',
-      'Awards',
-      'ImageTags',
-      'BackdropImageTags',
-    ].join(','),
-    StartIndex: String(options.startIndex || 0),
-    Limit: String(options.limit || 100),
-    SortBy: options.sortBy || 'SortName',
-    SortOrder: options.sortOrder || 'Ascending',
+  const params = buildPaginatedItemsParams({
+    ...options,
+    includeItemTypes: 'Movie',
+    fields: MOVIE_LIST_FIELDS,
   })
-
-  // Filter by parent library IDs if provided
-  if (options.parentIds && options.parentIds.length > 0) {
-    params.set('ParentId', options.parentIds.join(','))
-  }
 
   logger.info(
     {
@@ -170,7 +140,7 @@ async function getWatchHistoryFromItems(
   const itemsMap = new Map<string, WatchedItem>()
 
   const upsertMovie = (item: EmbyItem) => {
-    const mapped = watchedItemFromEmbyMovie(item)
+    const mapped = mapEmbyItemToWatchedMovie(item)
     const existing = itemsMap.get(item.Id)
     itemsMap.set(item.Id, existing ? mergeWatchedItems(existing, mapped) : mapped)
   }
@@ -257,7 +227,7 @@ async function getWatchHistoryFromItems(
   let addedFavorites = 0
   for (const item of favoritesResponse.Items) {
     if (!itemsMap.has(item.Id)) {
-      itemsMap.set(item.Id, watchedItemFromEmbyMovie(item))
+      itemsMap.set(item.Id, mapEmbyItemToWatchedMovie(item))
       addedFavorites++
     } else {
       const existing = itemsMap.get(item.Id)!
@@ -290,20 +260,6 @@ async function getWatchHistoryFromItems(
     'Watch history from Items API complete'
   )
   return allItems
-}
-
-function watchedItemFromEmbyMovie(item: EmbyItem): WatchedItem {
-  return {
-    movieId: item.Id,
-    playCount: item.UserData?.PlayCount || 0,
-    isFavorite: item.UserData?.IsFavorite || false,
-    lastPlayedDate: item.UserData?.LastPlayedDate,
-    tmdbId: item.ProviderIds?.Tmdb,
-    imdbId: item.ProviderIds?.Imdb,
-    played: item.UserData?.Played ?? false,
-    playbackPositionTicks: item.UserData?.PlaybackPositionTicks,
-    runtimeTicks: item.RunTimeTicks,
-  }
 }
 
 /**
