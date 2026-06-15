@@ -1,5 +1,7 @@
 export { BrowseMovieListItem } from './BrowseMovieListItem'
 export { BrowseSeriesListItem } from './BrowseSeriesListItem'
+export { BrowsePersonCard } from './BrowsePersonCard'
+export { BrowsePersonRow } from './BrowsePersonRow'
 export { RangeSlider } from './RangeSlider'
 export { ChipToggleGroup } from './ChipToggleGroup'
 export {
