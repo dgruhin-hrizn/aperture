@@ -918,8 +918,6 @@ export function UserDetailPage() {
         <Tabs value={tabValue} onChange={handleTabChange} sx={{ px: 2, pt: 1 }}>
           <Tab label={t('admin.userDetail.tabRecommendations')} />
           <Tab label={t('admin.userDetail.tabWatchHistory')} />
-          <Tab label={t('admin.userDetail.tabPlaylists')} />
-          <Tab label={t('admin.userDetail.tabDiagnostics')} />
           <Tab label={t('admin.userDetail.tabSettings')} />
         </Tabs>
 
@@ -953,18 +951,6 @@ export function UserDetailPage() {
           </TabPanel>
 
           <TabPanel value={tabValue} index={2}>
-            <Typography color="text.secondary">
-              {t('admin.userDetail.playlistsPlaceholder')}
-            </Typography>
-          </TabPanel>
-
-          <TabPanel value={tabValue} index={3}>
-            <Typography color="text.secondary">
-              {t('admin.userDetail.diagnosticsPlaceholder')}
-            </Typography>
-          </TabPanel>
-
-          <TabPanel value={tabValue} index={4}>
             <UserSettingsTab userId={user.id} user={user} />
           </TabPanel>
         </Box>

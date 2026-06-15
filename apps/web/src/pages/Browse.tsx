@@ -145,47 +145,23 @@ function usePersonBrowsePortrait(personName: string) {
   const onImageError = useCallback(() => {
     if (phaseRef.current === 'proxy') {
       setPhase('pending-tmdb')
-      console.info('[peoplePortrait] Emby/Jellyfin Primary failed, requesting TMDb fallback', {
-        personName,
-        proxiedUrl: getProxiedImageUrl(
-          `/api/media/images/Persons/${encodeURIComponent(personName)}/Images/Primary`,
-          ''
-        ),
-      })
       void fetch(
         `/api/discover/person-profile?name=${encodeURIComponent(personName)}`,
         { credentials: 'include' }
       )
-        .then((r) => {
-          console.info('[peoplePortrait] person-profile response', {
-            personName,
-            ok: r.ok,
-            status: r.status,
-          })
-          return r.json()
-        })
+        .then((r) => r.json())
         .then((data: { imageUrl?: string | null }) => {
           if (data?.imageUrl) {
-            console.info('[peoplePortrait] using TMDb profile image', {
-              personName,
-              imageUrlPrefix: data.imageUrl.slice(0, 48),
-            })
             setTmdbUrl(data.imageUrl)
             setPhase('tmdb')
           } else {
-            console.info('[peoplePortrait] no TMDb imageUrl (null or missing key / no match)', {
-              personName,
-              raw: data,
-            })
             setPhase('none')
           }
         })
-        .catch((err) => {
-          console.info('[peoplePortrait] person-profile fetch failed', { personName, err })
+        .catch(() => {
           setPhase('none')
         })
     } else {
-      console.info('[peoplePortrait] TMDb image also failed, showing initials', { personName })
       setPhase('none')
     }
   }, [personName])
