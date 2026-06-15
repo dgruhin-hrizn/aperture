@@ -13,14 +13,11 @@ import {
 } from '@mui/material'
 import {
   OpenInNew as OpenInNewIcon,
-  Memory as MemoryIcon,
-  SmartToy as SmartToyIcon,
-  AutoFixHigh as AutoFixHighIcon,
   Warning as WarningIcon,
-  HubOutlined as HubOutlinedIcon,
 } from '@mui/icons-material'
 import { useTranslation } from 'react-i18next'
-import { AIFunctionCard, type AIFunction } from '../../../components/AIFunctionCard'
+import type { AIFunction } from '../../../components/AIFunctionCard'
+import { AISetupCardGrid } from '../../../components/AISetupCardGrid'
 import { type FunctionConfig } from '../../../components/aiProviderInfo'
 import type { SetupWizardContext } from '../types'
 
@@ -167,58 +164,7 @@ export function AISetupStep({ wizard }: AISetupStepProps) {
         </Alert>
       )}
 
-      {/* All AI Functions - 2x2 grid */}
-      <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: 'repeat(2, 1fr)' }} gap={2} mb={3}>
-        <AIFunctionCard
-          functionType="embeddings"
-          title={t('setup.aiSetup.cardEmbeddingsTitle')}
-          description={t('setup.aiSetup.cardEmbeddingsDesc')}
-          icon={<MemoryIcon />}
-          iconColor="#2196f3"
-          config={config?.embeddings ?? null}
-          onSave={(c) => handleSave('embeddings', c)}
-          requiredCapability="embeddings"
-          compact
-          isSetup
-        />
-
-        <AIFunctionCard
-          functionType="chat"
-          title={t('setup.aiSetup.cardChatTitle')}
-          description={t('setup.aiSetup.cardChatDesc')}
-          icon={<SmartToyIcon />}
-          iconColor="#9c27b0"
-          config={config?.chat ?? null}
-          onSave={(c) => handleSave('chat', c)}
-          requiredCapability="toolCalling"
-          compact
-          isSetup
-        />
-
-        <AIFunctionCard
-          functionType="textGeneration"
-          title={t('setup.aiSetup.cardTextGenTitle')}
-          description={t('setup.aiSetup.cardTextGenDesc')}
-          icon={<AutoFixHighIcon />}
-          iconColor="#ff9800"
-          config={config?.textGeneration ?? null}
-          onSave={(c) => handleSave('textGeneration', c)}
-          compact
-          isSetup
-        />
-
-        <AIFunctionCard
-          functionType="exploration"
-          title={t('setup.aiSetup.cardExplorationTitle')}
-          description={t('setup.aiSetup.cardExplorationDesc')}
-          icon={<HubOutlinedIcon />}
-          iconColor="#4caf50"
-          config={config?.exploration ?? null}
-          onSave={(c) => handleSave('exploration', c)}
-          compact
-          isSetup
-        />
-      </Box>
+      <AISetupCardGrid config={config} onSave={handleSave} variant="setup" />
 
       {!canContinue && (
         <Alert severity="warning" icon={<WarningIcon />} sx={{ mb: 3 }}>

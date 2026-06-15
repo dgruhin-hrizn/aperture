@@ -16,14 +16,11 @@ import {
   alpha,
 } from '@mui/material'
 import {
-  Memory as MemoryIcon,
-  SmartToy as SmartToyIcon,
-  AutoFixHigh as AutoFixHighIcon,
   Delete as DeleteIcon,
   Storage as StorageIcon,
-  HubOutlined as HubOutlinedIcon,
 } from '@mui/icons-material'
-import { AIFunctionCard, type AIFunction } from '../../../components/AIFunctionCard'
+import type { AIFunction } from '../../../components/AIFunctionCard'
+import { AISetupCardGrid } from '../../../components/AISetupCardGrid'
 import { type FunctionConfig } from '../../../components/aiProviderInfo'
 import { CostEstimatorSection } from './CostEstimatorSection'
 
@@ -257,54 +254,7 @@ export function AISetupSection() {
         </Typography>
       </Box>
 
-      {/* Function Cards - 2x2 grid */}
-      <Box 
-        display="grid" 
-        gridTemplateColumns={{ xs: '1fr', md: 'repeat(2, 1fr)' }} 
-        gap={3}
-      >
-        <AIFunctionCard
-          functionType="embeddings"
-          title={t('settingsAiSetup.cardEmbeddingsTitle')}
-          description={t('settingsAiSetup.cardEmbeddingsDesc')}
-          icon={<MemoryIcon />}
-          iconColor="#2196f3"
-          config={config?.embeddings ?? null}
-          onSave={(c) => handleSave('embeddings', c)}
-          requiredCapability="embeddings"
-        />
-
-        <AIFunctionCard
-          functionType="chat"
-          title={t('settingsAiSetup.cardChatTitle')}
-          description={t('settingsAiSetup.cardChatDesc')}
-          icon={<SmartToyIcon />}
-          iconColor="#9c27b0"
-          config={config?.chat ?? null}
-          onSave={(c) => handleSave('chat', c)}
-          requiredCapability="toolCalling"
-        />
-
-        <AIFunctionCard
-          functionType="textGeneration"
-          title={t('settingsAiSetup.cardTextGenTitle')}
-          description={t('settingsAiSetup.cardTextGenDesc')}
-          icon={<AutoFixHighIcon />}
-          iconColor="#ff9800"
-          config={config?.textGeneration ?? null}
-          onSave={(c) => handleSave('textGeneration', c)}
-        />
-
-        <AIFunctionCard
-          functionType="exploration"
-          title={t('settingsAiSetup.cardExplorationTitle')}
-          description={t('settingsAiSetup.cardExplorationDesc')}
-          icon={<HubOutlinedIcon />}
-          iconColor="#4caf50"
-          config={config?.exploration ?? null}
-          onSave={(c) => handleSave('exploration', c)}
-        />
-      </Box>
+      <AISetupCardGrid config={config} onSave={handleSave} variant="settings" />
 
       {/* Embedding Sets Manager */}
       <EmbeddingSetsManager />
