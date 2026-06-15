@@ -1,0 +1,45 @@
+---
+description: Prevent copy-paste debt — extract on second use; one canonical UI location
+alwaysApply: true
+---
+
+# No duplication
+
+## The second copy rule
+
+If the same logic appears **twice** (or you are about to paste-adapt it), extract a shared module **in the same PR**:
+
+- Identical fetch/queue loops → shared hook (e.g. `useStripLoadQueue`)
+- Identical AI prompts → `packages/core/src/lib/`
+- Identical sync helpers → `recommender/shared/syncHelpers.ts`
+- Identical page layouts → shared component (e.g. `TopPicksMediaPage`, `AISetupCardGrid`)
+- Identical Emby fetch/map/update → `fetchHelpers`, `mapperHelpers`, etc.
+
+**Never** leave "we'll dedupe later" comments. Later is how v0.7.8 happened.
+
+## One canonical settings control
+
+Before adding a preference toggle/select:
+
+1. **Search** for an existing control for the same API field or preference key.
+2. If it exists, **extend that section** — do not add a second control in another tab.
+3. Example: `includeWatched` / dislike behavior live in **AI Algorithm**, not Preferences.
+
+## One canonical data owner
+
+Each remote resource gets **one hook or module** that owns fetch + state:
+
+```ts
+// ❌ BAD — preview fetched in both useTopPicksConfig and useTopPicksLibraryPreview
+// ✅ GOOD — preview state lives only in useTopPicksLibraryPreview
+```
+
+If two hooks would hold the same `useState` + `fetch`, merge or delete one before shipping.
+
+## No pointless wrappers
+
+Do not add a one-line re-export hook/component around an existing `@aperture/ui` or shared utility unless it adds real behavior. Delete unused wrappers immediately.
+
+## Media providers
+
+Emby helper extraction only. **Do not** expand Jellyfin parity or dedup scope unless it directly simplifies Emby.
