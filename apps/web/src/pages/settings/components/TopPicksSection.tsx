@@ -148,6 +148,16 @@ interface TopPicksConfig {
   seriesIncludeUnknownLanguage: boolean
 }
 
+type PreviewCountConfig = Pick<
+  TopPicksConfig,
+  | 'moviesPopularitySource'
+  | 'moviesMinUniqueViewers'
+  | 'moviesTimeWindowDays'
+  | 'seriesPopularitySource'
+  | 'seriesMinUniqueViewers'
+  | 'seriesTimeWindowDays'
+>
+
 interface PreviewCounts {
   movies: number
   series: number
@@ -219,6 +229,39 @@ export function TopPicksSection() {
   // Preview counts state
   const [previewCounts, setPreviewCounts] = useState<PreviewCounts | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
+  const moviesPopularitySource = config?.moviesPopularitySource
+  const moviesMinUniqueViewers = config?.moviesMinUniqueViewers
+  const moviesTimeWindowDays = config?.moviesTimeWindowDays
+  const seriesPopularitySource = config?.seriesPopularitySource
+  const seriesMinUniqueViewers = config?.seriesMinUniqueViewers
+  const seriesTimeWindowDays = config?.seriesTimeWindowDays
+  const previewConfig = useMemo<PreviewCountConfig | null>(() => {
+    if (
+      moviesPopularitySource === undefined ||
+      moviesMinUniqueViewers === undefined ||
+      moviesTimeWindowDays === undefined ||
+      seriesPopularitySource === undefined ||
+      seriesMinUniqueViewers === undefined ||
+      seriesTimeWindowDays === undefined
+    ) {
+      return null
+    }
+    return {
+      moviesPopularitySource,
+      moviesMinUniqueViewers,
+      moviesTimeWindowDays,
+      seriesPopularitySource,
+      seriesMinUniqueViewers,
+      seriesTimeWindowDays,
+    }
+  }, [
+    moviesPopularitySource,
+    moviesMinUniqueViewers,
+    moviesTimeWindowDays,
+    seriesPopularitySource,
+    seriesMinUniqueViewers,
+    seriesTimeWindowDays,
+  ])
 
   // MDBList item counts state
   const [, setMoviesListCounts] = useState<{ total: number } | null>(null)
@@ -632,7 +675,7 @@ export function TopPicksSection() {
   }, [])
 
   // Fetch preview counts (debounced)
-  const fetchPreviewCounts = useCallback(async (cfg: TopPicksConfig) => {
+  const fetchPreviewCounts = useCallback(async (cfg: PreviewCountConfig) => {
     // Only fetch if using emby_history or hybrid mode (needs local watch history data)
     const needsLocalMovies = cfg.moviesPopularitySource === 'emby_history' || cfg.moviesPopularitySource === 'hybrid'
     const needsLocalSeries = cfg.seriesPopularitySource === 'emby_history' || cfg.seriesPopularitySource === 'hybrid'
@@ -665,24 +708,13 @@ export function TopPicksSection() {
     }
   }, [])
 
-  // Debounce preview fetch when settings change
-  // We intentionally watch specific properties, not the whole config object
   useEffect(() => {
-    if (!config) return
+    if (!previewConfig) return
     const timeout = setTimeout(() => {
-      fetchPreviewCounts(config)
+      fetchPreviewCounts(previewConfig)
     }, 300)
     return () => clearTimeout(timeout)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    config?.moviesMinUniqueViewers,
-    config?.moviesTimeWindowDays,
-    config?.seriesMinUniqueViewers,
-    config?.seriesTimeWindowDays,
-    config?.moviesPopularitySource,
-    config?.seriesPopularitySource,
-    fetchPreviewCounts,
-  ])
+  }, [previewConfig, fetchPreviewCounts])
 
   // Fetch config on mount
   const fetchConfig = useCallback(async () => {
