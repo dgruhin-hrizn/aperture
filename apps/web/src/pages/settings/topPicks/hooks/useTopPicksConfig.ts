@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { PreviewCountConfig, PreviewCounts, TopPicksConfig } from '../types'
+import type { TopPicksConfig } from '../types'
 
 export interface UseTopPicksConfigReturn {
   config: TopPicksConfig | null
@@ -10,8 +10,6 @@ export interface UseTopPicksConfigReturn {
   success: string | null
   hasChanges: boolean
   mdblistConfigured: boolean
-  previewCounts: PreviewCounts | null
-  previewLoading: boolean
   setError: (error: string | null) => void
   setSuccess: (success: string | null) => void
   updateConfig: (updates: Partial<TopPicksConfig>) => void
@@ -29,20 +27,6 @@ export function useTopPicksConfig(): UseTopPicksConfigReturn {
   const [success, setSuccess] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
   const [mdblistConfigured, setMdblistConfigured] = useState(false)
-  const [previewCounts, setPreviewCounts] = useState<PreviewCounts | null>(null)
-  const [previewLoading, setPreviewLoading] = useState(false)
-
-  const previewConfig = useMemo<PreviewCountConfig | null>(() => {
-    if (!config) return null
-    return {
-      moviesPopularitySource: config.moviesPopularitySource,
-      moviesMinUniqueViewers: config.moviesMinUniqueViewers,
-      moviesTimeWindowDays: config.moviesTimeWindowDays,
-      seriesPopularitySource: config.seriesPopularitySource,
-      seriesMinUniqueViewers: config.seriesMinUniqueViewers,
-      seriesTimeWindowDays: config.seriesTimeWindowDays,
-    }
-  }, [config])
 
   const checkMDBListConfig = useCallback(async () => {
     try {
@@ -55,45 +39,6 @@ export function useTopPicksConfig(): UseTopPicksConfigReturn {
       setMdblistConfigured(false)
     }
   }, [])
-
-  const fetchPreviewCounts = useCallback(async (cfg: PreviewCountConfig) => {
-    const needsLocalMovies = cfg.moviesPopularitySource === 'emby_history' || cfg.moviesPopularitySource === 'hybrid'
-    const needsLocalSeries = cfg.seriesPopularitySource === 'emby_history' || cfg.seriesPopularitySource === 'hybrid'
-    if (!needsLocalMovies && !needsLocalSeries) {
-      setPreviewCounts(null)
-      return
-    }
-
-    setPreviewLoading(true)
-    try {
-      const response = await fetch('/api/settings/top-picks/preview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          moviesMinViewers: cfg.moviesMinUniqueViewers,
-          moviesTimeWindowDays: cfg.moviesTimeWindowDays,
-          seriesMinViewers: cfg.seriesMinUniqueViewers,
-          seriesTimeWindowDays: cfg.seriesTimeWindowDays,
-        }),
-      })
-      if (response.ok) {
-        setPreviewCounts(await response.json())
-      }
-    } catch {
-      // Silently fail preview
-    } finally {
-      setPreviewLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!previewConfig) return
-    const timeout = setTimeout(() => {
-      void fetchPreviewCounts(previewConfig)
-    }, 300)
-    return () => clearTimeout(timeout)
-  }, [previewConfig, fetchPreviewCounts])
 
   const fetchConfig = useCallback(async () => {
     try {
@@ -178,8 +123,6 @@ export function useTopPicksConfig(): UseTopPicksConfigReturn {
     success,
     hasChanges,
     mdblistConfigured,
-    previewCounts,
-    previewLoading,
     setError,
     setSuccess,
     updateConfig,

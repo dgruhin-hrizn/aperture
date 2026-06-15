@@ -14,18 +14,51 @@ export function useTopPicksLibraryPreview(config: TopPicksConfig | null) {
   const [seriesMatchExpanded, setSeriesMatchExpanded] = useState(false)
   const [previewModalOpen, setPreviewModalOpen] = useState(false)
   const [previewModalMediaType, setPreviewModalMediaType] = useState<TopPicksMediaType>('movies')
+  const moviesPopularitySource = config?.moviesPopularitySource
+  const moviesMinUniqueViewers = config?.moviesMinUniqueViewers
+  const moviesTimeWindowDays = config?.moviesTimeWindowDays
+  const moviesHybridExternalSource = config?.moviesHybridExternalSource
+  const mdblistMoviesListId = config?.mdblistMoviesListId
+  const mdblistMoviesSort = config?.mdblistMoviesSort
+  const moviesLanguages = config?.moviesLanguages
+  const moviesIncludeUnknownLanguage = config?.moviesIncludeUnknownLanguage
+  const seriesPopularitySource = config?.seriesPopularitySource
+  const seriesMinUniqueViewers = config?.seriesMinUniqueViewers
+  const seriesTimeWindowDays = config?.seriesTimeWindowDays
+  const seriesHybridExternalSource = config?.seriesHybridExternalSource
+  const mdblistSeriesListId = config?.mdblistSeriesListId
+  const mdblistSeriesSort = config?.mdblistSeriesSort
+  const seriesLanguages = config?.seriesLanguages
+  const seriesIncludeUnknownLanguage = config?.seriesIncludeUnknownLanguage
 
   const previewConfig = useMemo<PreviewCountConfig | null>(() => {
-    if (!config) return null
-    return {
-      moviesPopularitySource: config.moviesPopularitySource,
-      moviesMinUniqueViewers: config.moviesMinUniqueViewers,
-      moviesTimeWindowDays: config.moviesTimeWindowDays,
-      seriesPopularitySource: config.seriesPopularitySource,
-      seriesMinUniqueViewers: config.seriesMinUniqueViewers,
-      seriesTimeWindowDays: config.seriesTimeWindowDays,
+    if (
+      !moviesPopularitySource ||
+      moviesMinUniqueViewers === undefined ||
+      moviesTimeWindowDays === undefined ||
+      !seriesPopularitySource ||
+      seriesMinUniqueViewers === undefined ||
+      seriesTimeWindowDays === undefined
+    ) {
+      return null
     }
-  }, [config])
+
+    return {
+      moviesPopularitySource,
+      moviesMinUniqueViewers,
+      moviesTimeWindowDays,
+      seriesPopularitySource,
+      seriesMinUniqueViewers,
+      seriesTimeWindowDays,
+    }
+  }, [
+    moviesPopularitySource,
+    moviesMinUniqueViewers,
+    moviesTimeWindowDays,
+    seriesPopularitySource,
+    seriesMinUniqueViewers,
+    seriesTimeWindowDays,
+  ])
 
   const fetchListCounts = useCallback(async (listId: number | null, type: TopPicksMediaType) => {
     if (!listId) { if (type === 'movies') setMoviesListCounts(null); else setSeriesListCounts(null); return }
@@ -76,24 +109,24 @@ export function useTopPicksLibraryPreview(config: TopPicksConfig | null) {
     } catch { /* silent */ } finally { if (type === 'movies') setMoviesMatchLoading(false); else setSeriesMatchLoading(false) }
   }, [fetchLibraryMatch])
 
-  useEffect(() => { if (config?.mdblistMoviesListId) void fetchListCounts(config.mdblistMoviesListId, 'movies'); else setMoviesListCounts(null) }, [config?.mdblistMoviesListId, fetchListCounts])
-  useEffect(() => { if (config?.mdblistSeriesListId) void fetchListCounts(config.mdblistSeriesListId, 'series'); else setSeriesListCounts(null) }, [config?.mdblistSeriesListId, fetchListCounts])
+  useEffect(() => { if (mdblistMoviesListId) void fetchListCounts(mdblistMoviesListId, 'movies'); else setMoviesListCounts(null) }, [mdblistMoviesListId, fetchListCounts])
+  useEffect(() => { if (mdblistSeriesListId) void fetchListCounts(mdblistSeriesListId, 'series'); else setSeriesListCounts(null) }, [mdblistSeriesListId, fetchListCounts])
 
   useEffect(() => {
-    if (!config) return
-    const source = config.moviesPopularitySource
+    if (!moviesPopularitySource) return
+    const source = moviesPopularitySource
     if (source === 'emby_history') { setMoviesLibraryMatch(null); return }
-    const timeout = setTimeout(() => { void fetchSourcePreview('movies', source, config.moviesHybridExternalSource, config.mdblistMoviesListId, config.mdblistMoviesSort, config.moviesLanguages, config.moviesIncludeUnknownLanguage) }, 500)
+    const timeout = setTimeout(() => { void fetchSourcePreview('movies', source, moviesHybridExternalSource, mdblistMoviesListId, mdblistMoviesSort, moviesLanguages, moviesIncludeUnknownLanguage) }, 500)
     return () => clearTimeout(timeout)
-  }, [config, config?.moviesPopularitySource, config?.moviesHybridExternalSource, config?.mdblistMoviesListId, config?.mdblistMoviesSort, config?.moviesLanguages, config?.moviesIncludeUnknownLanguage, fetchSourcePreview])
+  }, [moviesPopularitySource, moviesHybridExternalSource, mdblistMoviesListId, mdblistMoviesSort, moviesLanguages, moviesIncludeUnknownLanguage, fetchSourcePreview])
 
   useEffect(() => {
-    if (!config) return
-    const source = config.seriesPopularitySource
+    if (!seriesPopularitySource) return
+    const source = seriesPopularitySource
     if (source === 'emby_history') { setSeriesLibraryMatch(null); return }
-    const timeout = setTimeout(() => { void fetchSourcePreview('series', source, config.seriesHybridExternalSource, config.mdblistSeriesListId, config.mdblistSeriesSort, config.seriesLanguages, config.seriesIncludeUnknownLanguage) }, 500)
+    const timeout = setTimeout(() => { void fetchSourcePreview('series', source, seriesHybridExternalSource, mdblistSeriesListId, mdblistSeriesSort, seriesLanguages, seriesIncludeUnknownLanguage) }, 500)
     return () => clearTimeout(timeout)
-  }, [config, config?.seriesPopularitySource, config?.seriesHybridExternalSource, config?.mdblistSeriesListId, config?.mdblistSeriesSort, config?.seriesLanguages, config?.seriesIncludeUnknownLanguage, fetchSourcePreview])
+  }, [seriesPopularitySource, seriesHybridExternalSource, mdblistSeriesListId, mdblistSeriesSort, seriesLanguages, seriesIncludeUnknownLanguage, fetchSourcePreview])
 
   const fetchPreviewCounts = useCallback(async (cfg: PreviewCountConfig) => {
     const needsLocalMovies = cfg.moviesPopularitySource === 'emby_history' || cfg.moviesPopularitySource === 'hybrid'
