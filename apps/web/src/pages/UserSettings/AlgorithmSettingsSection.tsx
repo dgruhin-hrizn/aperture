@@ -199,6 +199,9 @@ export function AlgorithmSettingsSection({ userId }: Props) {
         setIncludeWatched(value)
         setSuccess(t('algorithmSettings.successIncludeWatchedSaved'))
         setTimeout(() => setSuccess(null), 3000)
+      } else {
+        const err = (await response.json().catch(() => ({}))) as { error?: string }
+        setError(err.error || t('userSettings.errSavePreference'))
       }
     } catch {
       setError(t('userSettings.errSavePreference'))
@@ -220,6 +223,9 @@ export function AlgorithmSettingsSection({ userId }: Props) {
         setDislikeBehavior(value)
         setSuccess(t('algorithmSettings.successDislikeBehaviorSaved'))
         setTimeout(() => setSuccess(null), 3000)
+      } else {
+        const err = (await response.json().catch(() => ({}))) as { error?: string }
+        setError(err.error || t('userSettings.errSavePreference'))
       }
     } catch {
       setError(t('userSettings.errSavePreference'))
