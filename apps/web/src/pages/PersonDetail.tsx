@@ -159,13 +159,6 @@ export function PersonDetailPage() {
         }
 
         const result = await response.json()
-        console.info('[peoplePortrait] person detail loaded', {
-          name: result.name,
-          hasMediaImageUrl: !!result.imageUrl,
-          tmdbFallbackImageUrl: result.tmdbFallbackImageUrl
-            ? `${String(result.tmdbFallbackImageUrl).slice(0, 56)}…`
-            : result.tmdbFallbackImageUrl,
-        })
         setData(result)
       } catch (err) {
         setError(
@@ -286,17 +279,8 @@ export function PersonDetailPage() {
 
   const handleAvatarError = () => {
     if (avatarPhase === 'media' && proxiedTmdbFallback) {
-      console.info('[peoplePortrait] header: media image error, switching to TMDb fallback', {
-        decodedName,
-        hasTmdbFallback: true,
-      })
       setAvatarPhase('tmdb')
     } else {
-      console.info('[peoplePortrait] header: showing initials', {
-        decodedName,
-        avatarPhase,
-        hadTmdbFallback: !!proxiedTmdbFallback,
-      })
       setAvatarPhase('initials')
     }
   }

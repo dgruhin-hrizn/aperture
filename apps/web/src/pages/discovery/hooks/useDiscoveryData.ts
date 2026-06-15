@@ -259,14 +259,12 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
     
     // Don't expand if already expanding, already attempted, or have enough candidates
     if (expandingRef.current) {
-      console.log('[Discovery] Already expanding, skipping')
       return null
     }
     if (currentCandidates.length >= EXPANSION_THRESHOLD) {
       return null
     }
     if (expansionAttemptedRef.current === expansionKey) {
-      console.log('[Discovery] Already attempted for this filter combination, skipping')
       return null
     }
 
@@ -278,8 +276,6 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
     try {
       // Get existing TMDb IDs to exclude from expansion
       const existingTmdbIds = currentCandidates.map(c => c.tmdbId)
-
-      console.log('[Discovery] Expanding with filters:', { mediaType, filters, excludeCount: existingTmdbIds.length })
 
       const response = await fetch(`/api/discovery/${mediaType === 'movie' ? 'movies' : 'series'}/expand`, {
         method: 'POST',
@@ -304,10 +300,7 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
       const data = await response.json()
       const newCandidates = data.candidates || []
 
-      console.log('[Discovery] Expand returned', newCandidates.length, 'candidates')
-
       if (newCandidates.length === 0) {
-        console.log('[Discovery] No new candidates found, expansion complete')
         return null
       }
 
@@ -344,13 +337,13 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
      
   }, [filters, fetchSeerrStatus])
 
-  // Check if filters have changed
-  const filtersChanged = JSON.stringify(filters) !== JSON.stringify(filtersRef.current)
-  if (filtersChanged) {
-    filtersRef.current = filters
-    // Reset expansion tracking when filters change
-    expansionAttemptedRef.current = ''
-  }
+  useEffect(() => {
+    const filtersChanged = JSON.stringify(filters) !== JSON.stringify(filtersRef.current)
+    if (filtersChanged) {
+      filtersRef.current = filters
+      expansionAttemptedRef.current = ''
+    }
+  }, [filters])
 
   useEffect(() => {
     const load = async () => {
@@ -440,13 +433,11 @@ export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
 
       // Check movies
       if (movieCandidates.length > 0 && movieCandidates.length < EXPANSION_THRESHOLD) {
-        console.log(`[Discovery] Movie count (${movieCandidates.length}) below threshold (${EXPANSION_THRESHOLD}), expanding...`)
         await expandDiscovery('movie', movieCandidates)
       }
 
       // Check series
       if (seriesCandidates.length > 0 && seriesCandidates.length < EXPANSION_THRESHOLD) {
-        console.log(`[Discovery] Series count (${seriesCandidates.length}) below threshold (${EXPANSION_THRESHOLD}), expanding...`)
         await expandDiscovery('series', seriesCandidates)
       }
     }

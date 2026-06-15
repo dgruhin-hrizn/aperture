@@ -163,26 +163,12 @@ function LetterboxdBadge({ score }: { score: number | string }) {
   )
 }
 
-// Helper to get actors from either movie or series
 function getActors(media: Media): Actor[] {
-  if (isSeries(media)) {
-    return media.actors || []
-  }
-  if (isMovie(media)) {
-    return media.actors || []
-  }
-  return []
+  return media.actors || []
 }
 
-// Helper to get studios
 function getStudios(media: Media): StudioItem[] {
-  if (isSeries(media)) {
-    return media.studios || []
-  }
-  if (isMovie(media)) {
-    return media.studios || []
-  }
-  return []
+  return media.studios || []
 }
 
 export function MediaInfoCard({ media, watchStats }: MediaInfoCardProps) {
