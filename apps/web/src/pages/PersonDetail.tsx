@@ -27,6 +27,7 @@ import {
 } from '@aperture/ui'
 import { useUserRatings } from '../hooks/useUserRatings'
 import { useWatching } from '../hooks/useWatching'
+import { usePersonPortrait } from '../hooks/usePersonPortrait'
 import { RotatingBackdrop } from '../components/RotatingBackdrop'
 import { MediaPosterCard } from '../components/MediaPosterCard'
 import { SeasonSelectModal, type SeasonInfo } from './discovery/components/SeasonSelectModal'
@@ -113,7 +114,6 @@ export function PersonDetailPage() {
   const [data, setData] = useState<PersonData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [avatarPhase, setAvatarPhase] = useState<'media' | 'tmdb' | 'initials'>('media')
   const [creditsGap, setCreditsGap] = useState<CreditsGapResponse | null>(null)
   const [creditsGapLoading, setCreditsGapLoading] = useState(false)
   const [seerrStatuses, setSeerrStatuses] = useState<
@@ -149,7 +149,6 @@ export function PersonDetailPage() {
       try {
         setLoading(true)
         setError(null)
-        setAvatarPhase('media')
         const response = await fetch(`/api/discover/person/${encodeURIComponent(name)}`, {
           credentials: 'include',
         })
@@ -219,22 +218,11 @@ export function PersonDetailPage() {
 
   const decodedName = useMemo(() => decodeURIComponent(name || ''), [name])
 
-  const proxiedImageUrl = useMemo(() => {
-    if (!data?.imageUrl) return null
-    return getProxiedImageUrl(data.imageUrl, '')
-  }, [data?.imageUrl])
-
-  const proxiedTmdbFallback = useMemo(() => {
-    if (!data?.tmdbFallbackImageUrl) return null
-    return getProxiedImageUrl(data.tmdbFallbackImageUrl, '')
-  }, [data?.tmdbFallbackImageUrl])
-
-  const avatarSrc = useMemo(() => {
-    if (!data) return undefined
-    if (avatarPhase === 'media') return proxiedImageUrl ?? undefined
-    if (avatarPhase === 'tmdb') return proxiedTmdbFallback ?? undefined
-    return undefined
-  }, [data, avatarPhase, proxiedImageUrl, proxiedTmdbFallback])
+  const { displaySrc: avatarSrc, onImageError: handleAvatarError } = usePersonPortrait({
+    personName: decodedName,
+    mediaImageUrl: data?.imageUrl,
+    tmdbImageUrl: data?.tmdbFallbackImageUrl,
+  })
 
   useEffect(() => {
     setAvatarImgVisible(false)
@@ -275,14 +263,6 @@ export function PersonDetailPage() {
         <Alert severity="error">{error || t('personDetail.notFound')}</Alert>
       </Box>
     )
-  }
-
-  const handleAvatarError = () => {
-    if (avatarPhase === 'media' && proxiedTmdbFallback) {
-      setAvatarPhase('tmdb')
-    } else {
-      setAvatarPhase('initials')
-    }
   }
 
   const markCreditsRowRequested = (tmdbId: number) => {

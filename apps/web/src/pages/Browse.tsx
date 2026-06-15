@@ -32,10 +32,11 @@ import PersonIcon from '@mui/icons-material/Person'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
 import GridViewIcon from '@mui/icons-material/GridView'
 import ViewListIcon from '@mui/icons-material/ViewList'
-import { MoviePoster, getProxiedImageUrl } from '@aperture/ui'
+import { MoviePoster } from '@aperture/ui'
 import { useUserRatings } from '../hooks/useUserRatings'
 import { useWatching } from '../hooks/useWatching'
 import { useViewMode } from '../hooks/useViewMode'
+import { usePersonPortrait } from '../hooks/usePersonPortrait'
 import {
   BrowseMovieListItem,
   BrowseSeriesListItem,
@@ -119,56 +120,6 @@ function personSubtitle(person: BrowsePerson, t: TFunction): string {
     : t('browse.personSubtitle.creditsOnly', { count: person.credits })
 }
 
-/** Media-server portrait first; on failure fetch TMDb profile URL (lazy). */
-function usePersonBrowsePortrait(personName: string) {
-  const raw = `/api/media/images/Persons/${encodeURIComponent(personName)}/Images/Primary`
-  const proxied = getProxiedImageUrl(raw, '')
-  const [phase, setPhase] = useState<'proxy' | 'pending-tmdb' | 'tmdb' | 'none'>('proxy')
-  const [tmdbUrl, setTmdbUrl] = useState<string | null>(null)
-  const phaseRef = useRef(phase)
-  phaseRef.current = phase
-
-  useEffect(() => {
-    setPhase('proxy')
-    setTmdbUrl(null)
-  }, [personName])
-
-  const displaySrc =
-    phase === 'proxy'
-      ? proxied
-      : phase === 'pending-tmdb'
-        ? undefined
-        : phase === 'tmdb' && tmdbUrl
-          ? getProxiedImageUrl(tmdbUrl, '')
-          : undefined
-
-  const onImageError = useCallback(() => {
-    if (phaseRef.current === 'proxy') {
-      setPhase('pending-tmdb')
-      void fetch(
-        `/api/discover/person-profile?name=${encodeURIComponent(personName)}`,
-        { credentials: 'include' }
-      )
-        .then((r) => r.json())
-        .then((data: { imageUrl?: string | null }) => {
-          if (data?.imageUrl) {
-            setTmdbUrl(data.imageUrl)
-            setPhase('tmdb')
-          } else {
-            setPhase('none')
-          }
-        })
-        .catch(() => {
-          setPhase('none')
-        })
-    } else {
-      setPhase('none')
-    }
-  }, [personName])
-
-  return { displaySrc, phase, onImageError }
-}
-
 function browseTabFromSearchParam(tab: string | null): number {
   if (tab === 'series') return 1
   if (tab === 'people') return 2
@@ -183,7 +134,11 @@ function BrowsePersonRow({
   onNavigate: () => void
 }) {
   const { t } = useTranslation()
-  const { displaySrc, phase, onImageError } = usePersonBrowsePortrait(person.name)
+  const { displaySrc, phase, onImageError } = usePersonPortrait({
+    personName: person.name,
+    mediaImageUrl: `/api/media/images/Persons/${encodeURIComponent(person.name)}/Images/Primary`,
+    fetchTmdbFallback: true,
+  })
   const subtitle = personSubtitle(person, t)
   const [avatarImgShown, setAvatarImgShown] = useState(false)
 
@@ -243,7 +198,11 @@ function BrowsePersonCard({
   onNavigate: () => void
 }) {
   const { t } = useTranslation()
-  const { displaySrc, phase, onImageError } = usePersonBrowsePortrait(person.name)
+  const { displaySrc, phase, onImageError } = usePersonPortrait({
+    personName: person.name,
+    mediaImageUrl: `/api/media/images/Persons/${encodeURIComponent(person.name)}/Images/Primary`,
+    fetchTmdbFallback: true,
+  })
   const subtitle = personSubtitle(person, t)
   const [cardImgShown, setCardImgShown] = useState(false)
 
