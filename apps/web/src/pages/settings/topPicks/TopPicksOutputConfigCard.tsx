@@ -4,8 +4,8 @@ import { Trans, useTranslation } from 'react-i18next'
 import { ImageUpload } from '../../../components/ImageUpload'
 import { RECOMMENDED_DIMENSIONS } from './constants'
 import type { LibraryImageInfo, TopPicksConfig } from './types'
-export interface TopPicksOutputSectionProps { config: TopPicksConfig; images: Record<string, LibraryImageInfo>; uploadingFor: string | null; updateConfig: (u: Partial<TopPicksConfig>) => void; handleUpload: (id: string, file: File) => Promise<void>; handleDeleteImage: (id: string) => Promise<void> }
-export function TopPicksOutputSection({ config, images, uploadingFor, updateConfig, handleUpload, handleDeleteImage }: TopPicksOutputSectionProps) { const { t } = useTranslation(); return (      <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
+export interface TopPicksOutputConfigCardProps { config: TopPicksConfig; images: Record<string, LibraryImageInfo>; uploadingFor: string | null; updateConfig: (u: Partial<TopPicksConfig>) => void; handleUpload: (id: string, file: File) => Promise<void>; handleDeleteImage: (id: string) => Promise<void> }
+export function TopPicksOutputConfigCard({ config, images, uploadingFor, updateConfig, handleUpload, handleDeleteImage }: TopPicksOutputConfigCardProps) { const { t } = useTranslation(); return (      <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
         <CardContent>
           <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
             <OutputIcon fontSize="small" color="primary" />

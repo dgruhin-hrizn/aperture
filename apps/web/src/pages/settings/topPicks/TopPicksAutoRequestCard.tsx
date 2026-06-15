@@ -2,8 +2,8 @@ import { Alert, Box, Card, CardContent, Collapse, FormControlLabel, Grid, Switch
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'; import MovieIcon from '@mui/icons-material/Movie'; import SendIcon from '@mui/icons-material/Send'; import TvIcon from '@mui/icons-material/Tv'
 import { Trans, useTranslation } from 'react-i18next'
 import type { TopPicksConfig } from './types'
-export interface TopPicksAutoRequestSectionProps { config: TopPicksConfig; updateConfig: (u: Partial<TopPicksConfig>) => void }
-export function TopPicksAutoRequestSection({ config, updateConfig }: TopPicksAutoRequestSectionProps) { const { t } = useTranslation(); return (      <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
+export interface TopPicksAutoRequestCardProps { config: TopPicksConfig; updateConfig: (u: Partial<TopPicksConfig>) => void }
+export function TopPicksAutoRequestCard({ config, updateConfig }: TopPicksAutoRequestCardProps) { const { t } = useTranslation(); return (      <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
         <CardContent>
           <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
             <SendIcon fontSize="small" color="primary" />

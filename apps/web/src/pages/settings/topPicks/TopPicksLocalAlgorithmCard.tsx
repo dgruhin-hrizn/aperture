@@ -6,15 +6,9 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import TuneIcon from '@mui/icons-material/Tune'
 import { Trans, useTranslation } from 'react-i18next'
 import type { TopPicksConfig } from './types'
-
-export interface TopPicksLocalAlgorithmCardProps { config: TopPicksConfig; updateConfig: (u: Partial<TopPicksConfig>) => void }
-
-export function TopPicksLocalAlgorithmCard({ config, updateConfig }: TopPicksLocalAlgorithmCardProps) {
-  const { t } = useTranslation()
-  const totalWeight = config.uniqueViewersWeight + config.playCountWeight + config.completionWeight
-  const getProportionalPercent = (weight: number) => (totalWeight > 0 ? Math.round((weight / totalWeight) * 100) : 33)
-  return (
-      <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
+export interface TopPicksLocalAlgorithmCardProps { config: TopPicksConfig; updateConfig:(u:Partial<TopPicksConfig>)=>void }
+export function TopPicksLocalAlgorithmCard({config,updateConfig}:TopPicksLocalAlgorithmCardProps){const{t}=useTranslation();const totalWeight=config.uniqueViewersWeight+config.playCountWeight+config.completionWeight;const getProportionalPercent=(w:number)=>(totalWeight>0?Math.round((w/totalWeight)*100):33);const show=config.moviesPopularitySource==='emby_history'||config.moviesPopularitySource==='hybrid'||config.seriesPopularitySource==='emby_history'||config.seriesPopularitySource==='hybrid';if(!show)return null;return(
+<Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
         <CardContent>
           <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
             <Box>
@@ -104,5 +98,4 @@ export function TopPicksLocalAlgorithmCard({ config, updateConfig }: TopPicksLoc
           </Grid>
         </CardContent>
       </Card>
-  )
-}
+)}

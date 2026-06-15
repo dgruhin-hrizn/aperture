@@ -131,4 +131,12 @@ export interface HybridSourceOption {
   label: string
   requiresMdblist?: boolean
 }
+
 export type TopPicksMediaType = 'movies' | 'series'
+
+export interface MediaLibraryPreviewState {
+  libraryMatch: LibraryMatchResult | null
+  matchLoading: boolean
+  matchExpanded: boolean
+  setMatchExpanded: (expanded: boolean) => void
+}

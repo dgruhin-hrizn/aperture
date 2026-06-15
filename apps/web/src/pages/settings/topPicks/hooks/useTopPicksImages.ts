@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { DEFAULT_LIBRARY_IMAGES } from '../../setup/constants'
-import type { LibraryImageInfo } from './types'
+import { DEFAULT_LIBRARY_IMAGES } from '../../../setup/constants'
+import type { LibraryImageInfo } from '../types'
 
 export function useTopPicksImages(setError: (error: string | null) => void) {
   const { t } = useTranslation()

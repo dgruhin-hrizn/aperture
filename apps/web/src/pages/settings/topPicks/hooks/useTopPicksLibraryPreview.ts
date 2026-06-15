@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { HybridExternalSource, LibraryMatchResult, PopularitySource, PreviewCountConfig, PreviewCounts, TopPicksConfig, TopPicksMediaType } from './types'
+import type { HybridExternalSource, LibraryMatchResult, PopularitySource, PreviewCountConfig, PreviewCounts, TopPicksConfig, TopPicksMediaType } from '../types'
 
-export function useTopPicksPreview(config: TopPicksConfig | null) {
+export function useTopPicksLibraryPreview(config: TopPicksConfig | null) {
   const [previewCounts, setPreviewCounts] = useState<PreviewCounts | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [, setMoviesListCounts] = useState<{ total: number } | null>(null)

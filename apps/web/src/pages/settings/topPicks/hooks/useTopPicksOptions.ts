@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { COMMON_LANGUAGES, KNOWN_LANGUAGE_CODES } from './constants'
-import type { HybridSourceOption, PopularitySource, SortOption, SourceOption } from './types'
+import { COMMON_LANGUAGES, KNOWN_LANGUAGE_CODES } from '../constants'
+import type { HybridSourceOption, PopularitySource, SortOption, SourceOption } from '../types'
 
 export function useTopPicksOptions() {
   const { t } = useTranslation()
