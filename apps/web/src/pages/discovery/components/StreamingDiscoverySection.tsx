@@ -25,6 +25,7 @@ import { useSeerrRequest } from '../hooks/useSeerrRequest'
 import type { DiscoveryCandidate, MediaType, SeerrMediaStatus, StreamingChartRow } from '../types'
 import type { SeerrRequestOptions } from '../../../types/seerrRequest'
 import type { ResolveDiscoveryGenreName } from '../hooks/useDiscoveryGenres'
+import { useStripLoadQueue } from '../hooks/useStripLoadQueue'
 
 const PLACEHOLDER_RUN_ID = '00000000-0000-0000-0000-000000000000'
 
@@ -235,10 +236,6 @@ export function StreamingDiscoverySection({ requestEnabled }: { requestEnabled: 
   const stripEntriesRef = useRef(stripEntries)
   stripEntriesRef.current = stripEntries
 
-  const queueRef = useRef<string[]>([])
-  const processingRef = useRef(false)
-  const queuedRef = useRef<Set<string>>(new Set())
-
   const { submitRequest, isRequesting, fetchTVDetails } = useSeerrRequest()
 
   useEffect(() => {
@@ -309,61 +306,53 @@ export function StreamingDiscoverySection({ requestEnabled }: { requestEnabled: 
     [country, language, missingOnly, t]
   )
 
-  const processQueue = useCallback(async () => {
-    if (processingRef.current) return
-    const code = queueRef.current.shift()
-    if (!code) return
-    processingRef.current = true
-    queuedRef.current.delete(code)
+  const processStripItem = useCallback(
+    async (code: string) => {
+      const title = stripEntriesRef.current.find((e) => e.code === code)?.title ?? code
+      setStripEntries((prev) => prev.map((e) => (e.code === code ? { ...e, state: 'loading' } : e)))
 
-    const title = stripEntriesRef.current.find((e) => e.code === code)?.title ?? code
-    setStripEntries((prev) => prev.map((e) => (e.code === code ? { ...e, state: 'loading' } : e)))
-
-    try {
-      const strip = await fetchOneStrip({ title, provider: code })
-      setStripEntries((prev) =>
-        prev.map((e) => (e.code === code ? { ...e, state: 'loaded', strip } : e))
-      )
-    } catch {
-      setStripEntries((prev) =>
-        prev.map((e) =>
-          e.code === code
-            ? {
-                ...e,
-                state: 'loaded',
-                strip: {
-                  title,
-                  rows: [],
-                  seerrStatuses: {},
-                  error: t('discoveryStreaming.loadError'),
-                },
-              }
-            : e
+      try {
+        const strip = await fetchOneStrip({ title, provider: code })
+        setStripEntries((prev) =>
+          prev.map((e) => (e.code === code ? { ...e, state: 'loaded', strip } : e))
         )
-      )
-    } finally {
-      processingRef.current = false
-      void processQueue()
-    }
-  }, [fetchOneStrip, t])
+      } catch {
+        setStripEntries((prev) =>
+          prev.map((e) =>
+            e.code === code
+              ? {
+                  ...e,
+                  state: 'loaded',
+                  strip: {
+                    title,
+                    rows: [],
+                    seerrStatuses: {},
+                    error: t('discoveryStreaming.loadError'),
+                  },
+                }
+              : e
+          )
+        )
+      }
+    },
+    [fetchOneStrip, t]
+  )
+
+  const { enqueue: enqueueStripLoad, reset: resetStripQueue } = useStripLoadQueue(processStripItem)
 
   const enqueueLoad = useCallback(
     (code: string) => {
-      const entry = stripEntriesRef.current.find((e) => e.code === code)
-      if (!entry || entry.state !== 'idle') return
-      if (queuedRef.current.has(code)) return
-      queuedRef.current.add(code)
-      queueRef.current.push(code)
-      void processQueue()
+      enqueueStripLoad(code, () => {
+        const entry = stripEntriesRef.current.find((e) => e.code === code)
+        return entry?.state === 'idle'
+      })
     },
-    [processQueue]
+    [enqueueStripLoad]
   )
 
   useEffect(() => {
     let cancelled = false
-    queueRef.current = []
-    queuedRef.current = new Set()
-    processingRef.current = false
+    resetStripQueue()
     setStripEntries([])
     setLoadingLabels(true)
 
@@ -409,7 +398,7 @@ export function StreamingDiscoverySection({ requestEnabled }: { requestEnabled: 
     return () => {
       cancelled = true
     }
-  }, [country, language, missingOnly, providerStrips, t])
+  }, [country, language, missingOnly, providerStrips, resetStripQueue, t])
 
   useEffect(() => {
     if (!debouncedQ) {

@@ -8,6 +8,7 @@ import { useSeerrRequest } from '../hooks/useSeerrRequest'
 import type { DiscoveryCandidate, MediaType, SeerrMediaStatus } from '../types'
 import type { SeerrRequestOptions } from '../../../types/seerrRequest'
 import type { ResolveDiscoveryGenreName } from '../hooks/useDiscoveryGenres'
+import { useStripLoadQueue } from '../hooks/useStripLoadQueue'
 
 interface StripState {
   candidates: DiscoveryCandidate[]
@@ -207,17 +208,116 @@ export function TmdbGenreRowsSection({
   const stripEntriesRef = useRef(stripEntries)
   stripEntriesRef.current = stripEntries
 
-  const queueRef = useRef<string[]>([])
-  const processingRef = useRef(false)
-  const queuedRef = useRef<Set<string>>(new Set())
-
   const { submitRequest, isRequesting, fetchTVDetails } = useSeerrRequest()
+
+  const fetchOneStrip = useCallback(
+    async (params: {
+      genreIds: number[]
+      limit: number
+      originCountry?: string
+      excludeGenreIds?: number[]
+      yearStart?: number
+      yearEnd?: number
+      yearEndCurrent?: boolean
+    }): Promise<StripState> => {
+      const { genreIds, limit, originCountry, excludeGenreIds, yearStart, yearEnd, yearEndCurrent } =
+        params
+      const qs = buildQuery({
+        mediaType,
+        genreIds: genreIds.join(','),
+        limit: String(limit),
+        withOriginCountry: originCountry,
+        excludeGenreIds: excludeGenreIds?.length ? excludeGenreIds.join(',') : undefined,
+        yearStart: yearStart !== undefined ? String(yearStart) : undefined,
+        yearEnd:
+          yearEndCurrent === true
+            ? 'today'
+            : yearEnd !== undefined
+              ? String(yearEnd)
+              : undefined,
+      })
+      const res = await fetch(`/api/discovery/tmdb-genre-row${qs}`, { credentials: 'include' })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        return {
+          candidates: [],
+          seerrStatuses: {},
+          error: typeof err.error === 'string' ? err.error : t('discoveryGenreRows.loadError'),
+        }
+      }
+      const data = (await res.json()) as {
+        candidates: DiscoveryCandidate[]
+        seerrStatuses?: Record<number, SeerrMediaStatus>
+      }
+      return {
+        candidates: data.candidates || [],
+        seerrStatuses: (data.seerrStatuses || {}) as Record<number, SeerrMediaStatus>,
+        error: null,
+      }
+    },
+    [mediaType, t]
+  )
+
+  const processStripItem = useCallback(
+    async (key: string) => {
+      const parsed = parseQueueKey(key)
+      if (!parsed) return
+      const { genreIds, limit, originCountry, excludeGenreIds, yearStart, yearEnd, yearEndCurrent } =
+        parsed
+
+      setStripEntries((prev) =>
+        prev.map((e) => (stripRowKey(e) === key ? { ...e, state: 'loading' } : e))
+      )
+
+      try {
+        const strip = await fetchOneStrip({
+          genreIds,
+          limit,
+          originCountry,
+          excludeGenreIds,
+          yearStart,
+          yearEnd,
+          yearEndCurrent,
+        })
+        setStripEntries((prev) =>
+          prev.map((e) => (stripRowKey(e) === key ? { ...e, state: 'loaded', strip } : e))
+        )
+      } catch {
+        setStripEntries((prev) =>
+          prev.map((e) =>
+            stripRowKey(e) === key
+              ? {
+                  ...e,
+                  state: 'loaded',
+                  strip: {
+                    candidates: [],
+                    seerrStatuses: {},
+                    error: t('discoveryGenreRows.loadError'),
+                  },
+                }
+              : e
+          )
+        )
+      }
+    },
+    [fetchOneStrip, t]
+  )
+
+  const { enqueue: enqueueStripLoad, reset: resetStripQueue } = useStripLoadQueue(processStripItem)
+
+  const enqueueLoad = useCallback(
+    (key: string) => {
+      enqueueStripLoad(key, () => {
+        const cur = stripEntriesRef.current.find((e) => stripRowKey(e) === key)
+        return cur?.state === 'idle'
+      })
+    },
+    [enqueueStripLoad]
+  )
 
   useEffect(() => {
     let cancelled = false
-    queueRef.current = []
-    queuedRef.current = new Set()
-    processingRef.current = false
+    resetStripQueue()
     setStripEntries([])
     setLoadingConfig(true)
 
@@ -309,122 +409,7 @@ export function TmdbGenreRowsSection({
     return () => {
       cancelled = true
     }
-  }, [mediaType])
-
-  const fetchOneStrip = useCallback(
-    async (params: {
-      genreIds: number[]
-      limit: number
-      originCountry?: string
-      excludeGenreIds?: number[]
-      yearStart?: number
-      yearEnd?: number
-      yearEndCurrent?: boolean
-    }): Promise<StripState> => {
-      const { genreIds, limit, originCountry, excludeGenreIds, yearStart, yearEnd, yearEndCurrent } =
-        params
-      const qs = buildQuery({
-        mediaType,
-        genreIds: genreIds.join(','),
-        limit: String(limit),
-        withOriginCountry: originCountry,
-        excludeGenreIds: excludeGenreIds?.length ? excludeGenreIds.join(',') : undefined,
-        yearStart: yearStart !== undefined ? String(yearStart) : undefined,
-        yearEnd:
-          yearEndCurrent === true
-            ? 'today'
-            : yearEnd !== undefined
-              ? String(yearEnd)
-              : undefined,
-      })
-      const res = await fetch(`/api/discovery/tmdb-genre-row${qs}`, { credentials: 'include' })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        return {
-          candidates: [],
-          seerrStatuses: {},
-          error: typeof err.error === 'string' ? err.error : t('discoveryGenreRows.loadError'),
-        }
-      }
-      const data = (await res.json()) as {
-        candidates: DiscoveryCandidate[]
-        seerrStatuses?: Record<number, SeerrMediaStatus>
-      }
-      return {
-        candidates: data.candidates || [],
-        seerrStatuses: (data.seerrStatuses || {}) as Record<number, SeerrMediaStatus>,
-        error: null,
-      }
-    },
-    [mediaType, t]
-  )
-
-  const processQueue = useCallback(async () => {
-    if (processingRef.current) return
-    const key = queueRef.current.shift()
-    if (!key) return
-    processingRef.current = true
-    queuedRef.current.delete(key)
-
-    const parsed = parseQueueKey(key)
-    if (!parsed) {
-      processingRef.current = false
-      void processQueue()
-      return
-    }
-    const { genreIds, limit, originCountry, excludeGenreIds, yearStart, yearEnd, yearEndCurrent } =
-      parsed
-
-    setStripEntries((prev) =>
-      prev.map((e) => (stripRowKey(e) === key ? { ...e, state: 'loading' } : e))
-    )
-
-    try {
-      const strip = await fetchOneStrip({
-        genreIds,
-        limit,
-        originCountry,
-        excludeGenreIds,
-        yearStart,
-        yearEnd,
-        yearEndCurrent,
-      })
-      setStripEntries((prev) =>
-        prev.map((e) => (stripRowKey(e) === key ? { ...e, state: 'loaded', strip } : e))
-      )
-    } catch {
-      setStripEntries((prev) =>
-        prev.map((e) =>
-          stripRowKey(e) === key
-            ? {
-                ...e,
-                state: 'loaded',
-                strip: {
-                  candidates: [],
-                  seerrStatuses: {},
-                  error: t('discoveryGenreRows.loadError'),
-                },
-              }
-            : e
-        )
-      )
-    } finally {
-      processingRef.current = false
-      void processQueue()
-    }
-  }, [fetchOneStrip, t])
-
-  const enqueueLoad = useCallback(
-    (key: string) => {
-      const cur = stripEntriesRef.current.find((e) => stripRowKey(e) === key)
-      if (!cur || cur.state !== 'idle') return
-      if (queuedRef.current.has(key)) return
-      queuedRef.current.add(key)
-      queueRef.current.push(key)
-      void processQueue()
-    },
-    [processQueue]
-  )
+  }, [mediaType, resetStripQueue])
 
   const handleRequest = useCallback(
     async (
