@@ -1,0 +1,64 @@
+{
+  "id": "groq",
+  "name": "Groq",
+  "type": "cloud",
+  "website": "https://console.groq.com",
+  "logoPath": "/groq.svg",
+  "supportsEmbeddings": false,
+  "supportsChat": true,
+  "supportsTextGeneration": true,
+  "supportsExploration": true,
+  "requiresApiKey": true,
+  "requiresBaseUrl": false,
+  "embeddingModels": [],
+  "chatModels": [
+    {
+      "id": "llama-3.3-70b-versatile",
+      "name": "Llama 3.3 70B Versatile",
+      "description": "Extremely fast inference. Free tier available.",
+      "capabilities": {
+        "supportsToolCalling": true,
+        "supportsToolStreaming": true,
+        "supportsObjectGeneration": true,
+        "supportsEmbeddings": false
+      },
+      "quality": "premium",
+      "speed": "fast",
+      "costTier": "free",
+      "contextWindow": "128K",
+      "notes": "Free tier has rate limits"
+    },
+    {
+      "id": "llama-3.1-8b-instant",
+      "name": "Llama 3.1 8B Instant",
+      "description": "Very fast, smaller model. Good for simple tasks.",
+      "capabilities": {
+        "supportsToolCalling": true,
+        "supportsToolStreaming": true,
+        "supportsObjectGeneration": true,
+        "supportsEmbeddings": false
+      },
+      "quality": "standard",
+      "speed": "fast",
+      "costTier": "free",
+      "contextWindow": "128K"
+    },
+    {
+      "id": "mixtral-8x7b-32768",
+      "name": "Mixtral 8x7B",
+      "description": "MoE model with good tool calling support.",
+      "capabilities": {
+        "supportsToolCalling": true,
+        "supportsToolStreaming": true,
+        "supportsObjectGeneration": true,
+        "supportsEmbeddings": false
+      },
+      "quality": "standard",
+      "speed": "fast",
+      "costTier": "free",
+      "contextWindow": "32K"
+    }
+  ],
+  "textGenerationModels": [],
+  "explorationModels": []
+}

@@ -1,0 +1,68 @@
+{
+  "id": "google",
+  "name": "Google AI",
+  "type": "cloud",
+  "website": "https://aistudio.google.com",
+  "logoPath": "/gemini.svg",
+  "supportsEmbeddings": true,
+  "supportsChat": true,
+  "supportsTextGeneration": true,
+  "supportsExploration": true,
+  "requiresApiKey": true,
+  "requiresBaseUrl": false,
+  "embeddingModels": [
+    {
+      "id": "gemini-embedding-001",
+      "name": "Gemini Embedding 001",
+      "description": "Google Gemini embedding model for semantic search and retrieval. Default output is 3072 dimensions (matches API when output dimensionality is not set).",
+      "capabilities": {
+        "supportsToolCalling": false,
+        "supportsToolStreaming": false,
+        "supportsObjectGeneration": false,
+        "supportsEmbeddings": true
+      },
+      "embeddingDimensions": 3072,
+      "quality": "standard",
+      "costTier": "low",
+      "inputCostPerMillion": 0
+    }
+  ],
+  "chatModels": [
+    {
+      "id": "gemini-2.0-flash",
+      "name": "Gemini 2.0 Flash",
+      "description": "Fast and multimodal. Good tool calling support.",
+      "capabilities": {
+        "supportsToolCalling": true,
+        "supportsToolStreaming": true,
+        "supportsObjectGeneration": true,
+        "supportsEmbeddings": false
+      },
+      "quality": "standard",
+      "speed": "fast",
+      "costTier": "low",
+      "contextWindow": "1M",
+      "inputCostPerMillion": 0.075,
+      "outputCostPerMillion": 0.3
+    },
+    {
+      "id": "gemini-1.5-pro",
+      "name": "Gemini 1.5 Pro",
+      "description": "Most capable Gemini model.",
+      "capabilities": {
+        "supportsToolCalling": true,
+        "supportsToolStreaming": true,
+        "supportsObjectGeneration": true,
+        "supportsEmbeddings": false
+      },
+      "quality": "premium",
+      "speed": "medium",
+      "costTier": "medium",
+      "contextWindow": "2M",
+      "inputCostPerMillion": 1.25,
+      "outputCostPerMillion": 5
+    }
+  ],
+  "textGenerationModels": [],
+  "explorationModels": []
+}

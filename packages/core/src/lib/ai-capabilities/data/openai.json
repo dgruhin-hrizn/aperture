@@ -1,0 +1,151 @@
+{
+  "id": "openai",
+  "name": "OpenAI",
+  "type": "cloud",
+  "website": "https://platform.openai.com",
+  "logoPath": "/openai.svg",
+  "supportsEmbeddings": true,
+  "supportsChat": true,
+  "supportsTextGeneration": true,
+  "supportsExploration": true,
+  "requiresApiKey": true,
+  "requiresBaseUrl": false,
+  "embeddingModels": [
+    {
+      "id": "text-embedding-3-large",
+      "name": "text-embedding-3-large",
+      "description": "Best quality embeddings. Captures nuanced semantic similarities.",
+      "capabilities": {
+        "supportsToolCalling": false,
+        "supportsToolStreaming": false,
+        "supportsObjectGeneration": false,
+        "supportsEmbeddings": true
+      },
+      "embeddingDimensions": 3072,
+      "quality": "premium",
+      "costTier": "low",
+      "inputCostPerMillion": 0.13
+    },
+    {
+      "id": "text-embedding-3-small",
+      "name": "text-embedding-3-small",
+      "description": "Good balance of quality and cost. Suitable for most use cases.",
+      "capabilities": {
+        "supportsToolCalling": false,
+        "supportsToolStreaming": false,
+        "supportsObjectGeneration": false,
+        "supportsEmbeddings": true
+      },
+      "embeddingDimensions": 1536,
+      "quality": "standard",
+      "costTier": "low",
+      "inputCostPerMillion": 0.02
+    }
+  ],
+  "chatModels": [
+    {
+      "id": "gpt-4.1-mini",
+      "name": "GPT-4.1 Mini",
+      "description": "Great balance of capability and cost. Recommended for most use cases.",
+      "capabilities": {
+        "supportsToolCalling": true,
+        "supportsToolStreaming": true,
+        "supportsObjectGeneration": true,
+        "supportsEmbeddings": false
+      },
+      "quality": "standard",
+      "speed": "fast",
+      "costTier": "low",
+      "contextWindow": "1M",
+      "inputCostPerMillion": 0.4,
+      "outputCostPerMillion": 1.6
+    },
+    {
+      "id": "gpt-4.1-nano",
+      "name": "GPT-4.1 Nano",
+      "description": "Fastest and cheapest. Good for simple queries.",
+      "capabilities": {
+        "supportsToolCalling": true,
+        "supportsToolStreaming": true,
+        "supportsObjectGeneration": true,
+        "supportsEmbeddings": false
+      },
+      "quality": "budget",
+      "speed": "fast",
+      "costTier": "low",
+      "contextWindow": "1M",
+      "inputCostPerMillion": 0.1,
+      "outputCostPerMillion": 0.4
+    },
+    {
+      "id": "gpt-4.1",
+      "name": "GPT-4.1",
+      "description": "Full GPT-4.1 model. Best quality, higher cost.",
+      "capabilities": {
+        "supportsToolCalling": true,
+        "supportsToolStreaming": true,
+        "supportsObjectGeneration": true,
+        "supportsEmbeddings": false
+      },
+      "quality": "premium",
+      "speed": "medium",
+      "costTier": "medium",
+      "contextWindow": "1M",
+      "inputCostPerMillion": 2,
+      "outputCostPerMillion": 8
+    },
+    {
+      "id": "gpt-4o",
+      "name": "GPT-4o",
+      "description": "Multimodal model with vision capabilities.",
+      "capabilities": {
+        "supportsToolCalling": true,
+        "supportsToolStreaming": true,
+        "supportsObjectGeneration": true,
+        "supportsEmbeddings": false
+      },
+      "quality": "premium",
+      "speed": "fast",
+      "costTier": "medium",
+      "contextWindow": "128K",
+      "inputCostPerMillion": 2.5,
+      "outputCostPerMillion": 10
+    },
+    {
+      "id": "gpt-4o-mini",
+      "name": "GPT-4o Mini",
+      "description": "Smaller GPT-4o. Good for simpler tasks.",
+      "capabilities": {
+        "supportsToolCalling": true,
+        "supportsToolStreaming": true,
+        "supportsObjectGeneration": true,
+        "supportsEmbeddings": false
+      },
+      "quality": "standard",
+      "speed": "fast",
+      "costTier": "low",
+      "contextWindow": "128K",
+      "inputCostPerMillion": 0.15,
+      "outputCostPerMillion": 0.6
+    },
+    {
+      "id": "o3-mini",
+      "name": "o3 Mini",
+      "description": "Reasoning model. Better at complex problems.",
+      "capabilities": {
+        "supportsToolCalling": true,
+        "supportsToolStreaming": true,
+        "supportsObjectGeneration": true,
+        "supportsEmbeddings": false
+      },
+      "quality": "premium",
+      "speed": "slow",
+      "costTier": "medium",
+      "contextWindow": "200K",
+      "inputCostPerMillion": 1.1,
+      "outputCostPerMillion": 4.4
+    }
+  ],
+  "textGenerationModels": [],
+  "explorationModels": []
+}

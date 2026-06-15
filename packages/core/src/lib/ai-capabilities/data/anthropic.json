@@ -1,0 +1,154 @@
+{
+  "id": "anthropic",
+  "name": "Anthropic",
+  "type": "cloud",
+  "website": "https://console.anthropic.com",
+  "logoPath": "/claude.svg",
+  "supportsEmbeddings": false,
+  "supportsChat": true,
+  "supportsTextGeneration": true,
+  "supportsExploration": true,
+  "requiresApiKey": true,
+  "requiresBaseUrl": false,
+  "embeddingModels": [],
+  "chatModels": [
+    {
+      "id": "claude-opus-4-5",
+      "name": "Claude Opus 4.5",
+      "description": "Most capable model. Extended thinking, web search, tool search.",
+      "capabilities": {
+        "supportsToolCalling": true,
+        "supportsToolStreaming": true,
+        "supportsObjectGeneration": true,
+        "supportsEmbeddings": false
+      },
+      "quality": "premium",
+      "speed": "slow",
+      "costTier": "high",
+      "contextWindow": "200K",
+      "inputCostPerMillion": 15,
+      "outputCostPerMillion": 75
+    },
+    {
+      "id": "claude-sonnet-4-5",
+      "name": "Claude Sonnet 4.5",
+      "description": "Best balance of intelligence and speed. Extended thinking support.",
+      "capabilities": {
+        "supportsToolCalling": true,
+        "supportsToolStreaming": true,
+        "supportsObjectGeneration": true,
+        "supportsEmbeddings": false
+      },
+      "quality": "premium",
+      "speed": "medium",
+      "costTier": "medium",
+      "contextWindow": "200K",
+      "inputCostPerMillion": 3,
+      "outputCostPerMillion": 15
+    },
+    {
+      "id": "claude-haiku-4-5",
+      "name": "Claude Haiku 4.5",
+      "description": "Fast and efficient. Good for high-volume tasks.",
+      "capabilities": {
+        "supportsToolCalling": true,
+        "supportsToolStreaming": true,
+        "supportsObjectGeneration": true,
+        "supportsEmbeddings": false
+      },
+      "quality": "standard",
+      "speed": "fast",
+      "costTier": "low",
+      "contextWindow": "200K",
+      "inputCostPerMillion": 1,
+      "outputCostPerMillion": 5
+    },
+    {
+      "id": "claude-opus-4-1",
+      "name": "Claude Opus 4.1",
+      "description": "Previous generation flagship. Excellent reasoning.",
+      "capabilities": {
+        "supportsToolCalling": true,
+        "supportsToolStreaming": true,
+        "supportsObjectGeneration": true,
+        "supportsEmbeddings": false
+      },
+      "quality": "premium",
+      "speed": "slow",
+      "costTier": "high",
+      "contextWindow": "200K",
+      "inputCostPerMillion": 15,
+      "outputCostPerMillion": 75
+    },
+    {
+      "id": "claude-sonnet-4-0",
+      "name": "Claude Sonnet 4",
+      "description": "Balanced performance. Tool use and web search support.",
+      "capabilities": {
+        "supportsToolCalling": true,
+        "supportsToolStreaming": true,
+        "supportsObjectGeneration": true,
+        "supportsEmbeddings": false
+      },
+      "quality": "premium",
+      "speed": "medium",
+      "costTier": "medium",
+      "contextWindow": "200K",
+      "inputCostPerMillion": 3,
+      "outputCostPerMillion": 15
+    },
+    {
+      "id": "claude-3-7-sonnet-latest",
+      "name": "Claude 3.7 Sonnet",
+      "description": "Extended thinking support. Good for complex reasoning.",
+      "capabilities": {
+        "supportsToolCalling": true,
+        "supportsToolStreaming": true,
+        "supportsObjectGeneration": true,
+        "supportsEmbeddings": false
+      },
+      "quality": "premium",
+      "speed": "medium",
+      "costTier": "medium",
+      "contextWindow": "200K",
+      "inputCostPerMillion": 3,
+      "outputCostPerMillion": 15
+    },
+    {
+      "id": "claude-3-5-sonnet-latest",
+      "name": "Claude 3.5 Sonnet",
+      "description": "Excellent for coding, analysis, and complex tasks.",
+      "capabilities": {
+        "supportsToolCalling": true,
+        "supportsToolStreaming": true,
+        "supportsObjectGeneration": true,
+        "supportsEmbeddings": false
+      },
+      "quality": "premium",
+      "speed": "medium",
+      "costTier": "medium",
+      "contextWindow": "200K",
+      "inputCostPerMillion": 3,
+      "outputCostPerMillion": 15
+    },
+    {
+      "id": "claude-3-5-haiku-latest",
+      "name": "Claude 3.5 Haiku",
+      "description": "Fast and efficient. Good for simpler tasks.",
+      "capabilities": {
+        "supportsToolCalling": true,
+        "supportsToolStreaming": true,
+        "supportsObjectGeneration": true,
+        "supportsEmbeddings": false
+      },
+      "quality": "standard",
+      "speed": "fast",
+      "costTier": "low",
+      "contextWindow": "200K",
+      "inputCostPerMillion": 0.8,
+      "outputCostPerMillion": 4
+    }
+  ],
+  "textGenerationModels": [],
+  "explorationModels": []
+}

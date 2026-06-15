@@ -1,0 +1,17 @@
+{
+  "id": "openai-compatible",
+  "name": "OpenAI-Compatible",
+  "type": "openai-compatible",
+  "website": "",
+  "supportsEmbeddings": true,
+  "supportsChat": true,
+  "supportsTextGeneration": true,
+  "supportsExploration": true,
+  "requiresApiKey": false,
+  "requiresBaseUrl": true,
+  "defaultBaseUrl": "http://localhost:1234/v1",
+  "embeddingModels": [],
+  "chatModels": [],
+  "textGenerationModels": [],
+  "explorationModels": []
+}

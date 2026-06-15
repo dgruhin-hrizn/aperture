@@ -1,0 +1,52 @@
+{
+  "id": "deepseek",
+  "name": "DeepSeek",
+  "type": "cloud",
+  "website": "https://platform.deepseek.com",
+  "logoPath": "/deepseek.svg",
+  "supportsEmbeddings": false,
+  "supportsChat": true,
+  "supportsTextGeneration": true,
+  "supportsExploration": true,
+  "requiresApiKey": true,
+  "requiresBaseUrl": false,
+  "embeddingModels": [],
+  "chatModels": [
+    {
+      "id": "deepseek-chat",
+      "name": "DeepSeek Chat",
+      "description": "Very cost effective. Good general purpose model.",
+      "capabilities": {
+        "supportsToolCalling": true,
+        "supportsToolStreaming": true,
+        "supportsObjectGeneration": true,
+        "supportsEmbeddings": false
+      },
+      "quality": "standard",
+      "speed": "fast",
+      "costTier": "low",
+      "contextWindow": "64K",
+      "inputCostPerMillion": 0.14,
+      "outputCostPerMillion": 0.28
+    },
+    {
+      "id": "deepseek-reasoner",
+      "name": "DeepSeek Reasoner",
+      "description": "Strong reasoning capabilities.",
+      "capabilities": {
+        "supportsToolCalling": true,
+        "supportsToolStreaming": true,
+        "supportsObjectGeneration": true,
+        "supportsEmbeddings": false
+      },
+      "quality": "premium",
+      "speed": "slow",
+      "costTier": "low",
+      "contextWindow": "64K",
+      "inputCostPerMillion": 0.55,
+      "outputCostPerMillion": 2.19
+    }
+  ],
+  "textGenerationModels": [],
+  "explorationModels": []
+}

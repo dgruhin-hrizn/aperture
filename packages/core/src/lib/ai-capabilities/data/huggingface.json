@@ -1,0 +1,17 @@
+{
+  "id": "huggingface",
+  "name": "Hugging Face",
+  "type": "cloud",
+  "website": "https://huggingface.co",
+  "logoPath": "/huggingface.svg",
+  "supportsEmbeddings": true,
+  "supportsChat": true,
+  "supportsTextGeneration": true,
+  "supportsExploration": true,
+  "requiresApiKey": true,
+  "requiresBaseUrl": false,
+  "embeddingModels": [],
+  "chatModels": [],
+  "textGenerationModels": [],
+  "explorationModels": []
+}

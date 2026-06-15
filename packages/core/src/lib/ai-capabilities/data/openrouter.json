@@ -1,0 +1,17 @@
+{
+  "id": "openrouter",
+  "name": "OpenRouter",
+  "type": "cloud",
+  "website": "https://openrouter.ai",
+  "logoPath": "/openrouter.svg",
+  "supportsEmbeddings": true,
+  "supportsChat": true,
+  "supportsTextGeneration": true,
+  "supportsExploration": true,
+  "requiresApiKey": true,
+  "requiresBaseUrl": false,
+  "embeddingModels": [],
+  "chatModels": [],
+  "textGenerationModels": [],
+  "explorationModels": []
+}
