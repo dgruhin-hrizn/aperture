@@ -1,0 +1,42 @@
+---
+description: Stop god files before they start — split thresholds and growth rules
+alwaysApply: true
+---
+
+# No god files
+
+Do **not** keep adding logic to an already-large file. Split **before** the change lands.
+
+## Hard limits
+
+| File kind | Split when |
+|-----------|------------|
+| React page (`*Page.tsx`, `*Section.tsx`) | **> 250 lines** or mixing tabs + fetch + filters + section UI |
+| API handler registrar | **> 1 route group** — extract per domain immediately |
+| Core module (sync, provider, AI) | **> 300 lines** or multiple responsibilities |
+| Static provider/model catalog | **> ~80 lines of data** — move to `data/*.json` + typed loader |
+
+## Before adding code, ask
+
+1. Does this file already do more than one job? **Extract first, then implement.**
+2. Am I adding a second copy of logic that exists elsewhere? See `no-duplication.mdc`.
+3. Am I adding a third concern to a page that should be a thin shell? Create `hooks/`, `*Tab.tsx`, or `components/` first.
+
+## Page growth pattern (use from the start)
+
+```
+pages/MyFeature/
+  MyFeaturePage.tsx    # tabs, URL state, composition only
+  types.ts, constants.ts
+  hooks/useMyFeature*.ts
+  components/ or *Tab.tsx
+```
+
+Do not wait for a "cleanup PR" — that is how Browse, UserSettings, TopPicks, and profile handlers became risky refactors.
+
+## API / core growth pattern
+
+- Registrar file: `register*Handlers(fastify)` only.
+- Shared auth/SSE: `shared.ts`.
+- One module per domain (`watchHistory.ts`, `syncLibrary.ts`, …).
+- Shared movie/series logic: `recommender/shared/` from the second duplicate.

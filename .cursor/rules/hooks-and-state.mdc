@@ -1,0 +1,54 @@
+---
+description: Prevent hook bugs — correct setter types, narrow deps, no unused hooks
+globs: "**/hooks/**"
+alwaysApply: false
+---
+
+# Hooks and state
+
+These rules prevent the Browse setter typing bug, duplicate Top Picks preview fetches, and broad re-fetch effects.
+
+## Return types must match what you return
+
+When a hook exposes `setState`, type it as `Dispatch<SetStateAction<T>>` — **never** as `T`.
+
+```ts
+import type { Dispatch, SetStateAction } from 'react'
+
+interface Result {
+  movieGenre: string
+  setMovieGenre: Dispatch<SetStateAction<string>>  // not string
+}
+```
+
+After writing the interface, confirm callers can invoke setters (TypeScript should not error on `setMovieGenre('x')`).
+
+Prefer inferring the return type from the hook body when the surface is large, instead of hand-writing a wrong interface.
+
+## Effect dependencies
+
+`useEffect` / `useCallback` deps must list **only inputs that change the result**:
+
+```ts
+// ❌ BAD — any config edit re-fetches preview
+useEffect(() => { void fetchPreview() }, [config])
+
+// ✅ GOOD
+const { moviesPopularitySource, mdblistMoviesListId } = config ?? {}
+useEffect(() => { void fetchPreview() }, [moviesPopularitySource, mdblistMoviesListId])
+```
+
+Do not depend on whole objects (`config`, `user`, `filters`) when a few fields drive the effect.
+
+## No speculative hooks
+
+Do not create a generic hook (e.g. `useUserPreference`) until **at least one call site** uses it in the same PR. Unused abstractions drift untested.
+
+## Fetch ownership
+
+- One hook owns each fetch + its loading/error/result state.
+- Child components receive data via props; they do not re-fetch the same endpoint unless intentionally isolated (e.g. lazy tab).
+
+## Fast refresh
+
+Do not export hooks from the same file as React components. Split `*Provider.tsx` / `use*.ts` / `*-context.ts` (see `lint-typecheck.mdc`).

@@ -57,8 +57,20 @@ WORKDIR /app
 
 # Install dependencies:
 # - fontconfig: Sharp SVG text rendering (needed for poster overlays)
-# - postgresql-client: pg_dump and pg_restore for database backup/restore
-RUN apk add --no-cache fontconfig postgresql-client
+# - postgresql16-client: pg_dump and pg_restore for database backup/restore
+#
+# The client major version is PINNED to 16 to match the pgvector/pgvector:pg16
+# database used by every docker-compose file in this repo. Do not replace this
+# with the unpinned `postgresql-client` package: that tracks Alpine's current
+# default major (18 as of Alpine 3.23), and pg_dump 17+ writes custom-format
+# archives with header version 1.16, which pg_restore 16 refuses to read:
+#
+#   pg_restore: error: unsupported version (1.16) in file header
+#
+# That makes backups unrestorable with the tools inside the aperture-db
+# container. pg_dump also refuses to run against a server newer than itself,
+# so client and server majors must be bumped together, in the same change.
+RUN apk add --no-cache fontconfig postgresql16-client
 
 # Add non-root user
 RUN addgroup --system --gid 1001 nodejs && \

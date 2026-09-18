@@ -1,0 +1,43 @@
+---
+description: Prevent silent failures — user-facing saves and required ops must show errors
+globs: apps/web/**
+alwaysApply: false
+---
+
+# User-visible errors
+
+## Required operations
+
+Any save, delete, or preference update the user explicitly triggers must:
+
+1. Set loading state while in flight.
+2. On failure: set an **error** string/state and show it in existing Alert/UI — not `console.error` only.
+3. On success: clear error and show success feedback where the UI already does.
+
+```ts
+// ❌ BAD — user thinks save worked
+try {
+  await savePrefs(data)
+} catch { /* ignore */ }
+
+// ✅ GOOD
+try {
+  await savePrefs(data)
+  setSuccess(t('settings.saved'))
+} catch {
+  setError(t('settings.saveFailed'))
+}
+```
+
+This applied to UserSettings email, algorithm, and similarity saves during cleanup.
+
+## Optional / background loads
+
+Preview counts, status probes, and non-blocking enrichment **may** fail quietly, but:
+
+- Do not duplicate the same fetch in two hooks (one may fail silently while the other shows data).
+- Prefer `loading` + optional inline hint over totally hidden failure when the UI has a dedicated preview area.
+
+## Empty catch blocks
+
+Avoid `catch {}` and `catch { /* silent */ }` in settings and user-triggered flows. If failure is truly ignorable, comment **why** (e.g. "optional analytics beacon").

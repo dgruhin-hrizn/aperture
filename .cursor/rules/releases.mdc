@@ -1,0 +1,43 @@
+---
+description: Version bumps and release notes — keep all version locations in sync
+globs: "**/package.json,docs/release-notes/**,README.md,apps/api/src/config/openapi.ts,apps/api/src/routes/health/**,apps/web/src/components/Layout.tsx,apps/web/src/pages/setup/SetupPage.tsx,docs/support-questionnaire.md"
+alwaysApply: false
+---
+
+# Releases and versioning
+
+## When bumping version
+
+Update **every** location that reports the app version. Search for the current version string before and after.
+
+Typical locations:
+
+| Location | Example |
+|----------|---------|
+| `packages/core/package.json` | `"version": "0.7.8"` |
+| `apps/api/package.json` | same |
+| `apps/web/package.json` | same |
+| `README.md` | version badge |
+| `apps/api/src/config/openapi.ts` | `API_VERSION` |
+| `apps/api/src/routes/health/index.ts` | hardcoded `version` |
+| `apps/api/src/routes/health/schemas.ts` | OpenAPI examples |
+| `apps/web/src/components/Layout.tsx` | sidebar `v0.7.x` |
+| `apps/web/src/pages/setup/SetupPage.tsx` | `APP_VERSION` |
+| `docs/support-questionnaire.md` | example version |
+
+## Release notes
+
+Create `docs/release-notes/vX.Y.Z.md` following the v0.7.7/v0.7.8 structure:
+
+1. Title + one-line summary (maintenance vs feature release; baseline version)
+2. **At a glance** table
+3. **Summary for users** and **Summary for admins**
+4. Database migrations section (even if “none”)
+5. API/operator notes
+6. Update instructions (Docker + operator checklist)
+7. Full changelog (notable commits since previous release)
+
+## Branching
+
+- Day-to-day work merges to **`dev`**; **`main`** receives release merges.
+- Ensure local `dev` tracks **`origin/dev`** so pushes trigger CI on the correct branch.

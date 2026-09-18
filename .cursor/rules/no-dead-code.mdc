@@ -1,0 +1,33 @@
+---
+description: Prevent slop accumulation — no legacy files, debug traces, or unused exports
+alwaysApply: true
+---
+
+# No dead code
+
+Ship only what is wired. Cleanup PRs exist because these rules were violated.
+
+## Never commit
+
+- `*_legacy.ts` / duplicate route files "for reference"
+- `console.log` / `[Discovery]` debug traces
+- Unused hooks, components, or one-line wrappers with zero imports
+- `eslint-disable` to bypass `exhaustive-deps` or `only-export-components` (fix the cause)
+- Placeholder admin tabs that render empty shells (hide until implemented)
+
+## After every extract/split
+
+1. **Grep** for imports of the old symbol; update or delete.
+2. **Grep** for duplicate controls/state (same API field, same fetch URL).
+3. Run **`pnpm validate`** — unused imports and wrong hook types must be zero.
+
+## Refactor workflow
+
+- **One large split per PR** on `dev`; do not leave half-extracted modules from parallel work.
+- Preserve route URLs and API contracts unless the task explicitly changes them.
+- Delete the code you replaced in the **same PR**, not a follow-up.
+
+## i18n and types
+
+- User-visible strings → `t('…')` + English key + locale sync (`i18n-web.mdc`).
+- No `any`; hook/event types from React and MUI (`lint-typecheck.mdc`).
