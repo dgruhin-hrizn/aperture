@@ -16,6 +16,7 @@ import {
   cancelJob,
 } from '@aperture/core'
 import { requireAdmin } from '../../../plugins/auth.js'
+import { createJobProgressToken } from '../../../lib/jobProgressToken.js'
 import { backupSchemas } from '../schemas.js'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -202,9 +203,13 @@ export async function registerOperationsHandlers(fastify: FastifyInstance) {
             fastify.log.error({ err, jobId }, 'Background restore failed')
           })
 
+          // A restore drops and recreates every table, including `sessions`, so the
+          // admin who started it loses their session partway through. Hand back a
+          // signed token so the UI can keep reading progress without a session.
           return reply.send({
             success: true,
             jobId,
+            progressToken: createJobProgressToken(jobId),
             filename,
             message: 'Restore started. Track progress with /api/jobs/progress/:jobId',
           })

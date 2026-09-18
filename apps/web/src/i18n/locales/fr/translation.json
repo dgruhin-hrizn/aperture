@@ -1698,7 +1698,16 @@
     "restoreButton": "Restaurer la base de données",
     "uploadSuccess": "Sauvegarde téléchargée : {{filename}} ({{size}})",
     "configSaved": "Configuration de sauvegarde enregistrée",
-    "sessionExpired": "Session expirée. Veuillez actualiser et réessayer."
+    "sessionExpired": "Session expirée. Veuillez actualiser et réessayer.",
+    "operationFailed": "Operation failed",
+    "backupCompleteIn": "Backup created successfully ({{seconds}}s)",
+    "restoreCompleteRelogin": "Database restored successfully ({{seconds}}s). You have been signed out because the restore replaced the session data.",
+    "restoreCompleteSignedOut": "The restore replaced all data, including active sessions. Sign in again to continue.",
+    "goToLogin": "Go to login",
+    "restoreInProgressNotice": "Restoring can take several minutes on large databases. Keep this page open; progress continues to update even though you have been signed out.",
+    "restoreSignsYouOut": "Restoring replaces all data, including sessions, so you will be signed out when it finishes. Progress will keep updating on this page.",
+    "skipPreRestoreBackup": "Skip the safety backup",
+    "skipPreRestoreBackupHelp": "A backup of current data is taken before restoring. On a large database this roughly doubles the time. Skip it only if you already have a backup you trust."
   },
   "settingsTmdb": {
     "title": "Intégration TMDb",

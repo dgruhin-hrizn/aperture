@@ -20,11 +20,29 @@ Your PostgreSQL database must meet these requirements:
 
 | Requirement | Details |
 |-------------|---------|
-| PostgreSQL Version | 14 or higher (16+ recommended) |
+| PostgreSQL Version | 14 to 17 (17 recommended) — see the version ceiling below |
 | pgvector Extension | **Required** - not included in standard PostgreSQL |
 | pgcrypto Extension | Required (usually included by default) |
 | Database | A dedicated database for Aperture |
 | User Permissions | Full privileges on the Aperture database |
+
+### Version ceiling: do not exceed PostgreSQL 17
+
+Aperture's container bundles the PostgreSQL **17** client tools (`pg_dump` / `pg_restore`) for
+its backup feature. `pg_dump` refuses to run against a server newer than itself:
+
+```
+pg_dump: error: aborting because of server version mismatch
+pg_dump: detail: server version: 18.x; pg_dump version: 17.x
+```
+
+On a PostgreSQL 18 or newer server, **backups stop working entirely** — scheduled and manual
+alike. Aperture detects this at startup and logs an explicit error, but it cannot work around
+it. Keep your server at 17 or lower until a release bundles a newer client.
+
+Running an older server (14 to 16) is fine. Backups still succeed, but the archives are
+written by the 17 client, so restoring them needs `pg_restore` 17 or newer rather than the
+tools on your database host. Aperture logs a warning noting this.
 
 ### Why pgvector is Required
 

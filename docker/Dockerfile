@@ -57,20 +57,27 @@ WORKDIR /app
 
 # Install dependencies:
 # - fontconfig: Sharp SVG text rendering (needed for poster overlays)
-# - postgresql16-client: pg_dump and pg_restore for database backup/restore
+# - postgresql17-client: pg_dump and pg_restore for database backup/restore
 #
-# The client major version is PINNED to 16 to match the pgvector/pgvector:pg16
-# database used by every docker-compose file in this repo. Do not replace this
-# with the unpinned `postgresql-client` package: that tracks Alpine's current
-# default major (18 as of Alpine 3.23), and pg_dump 17+ writes custom-format
-# archives with header version 1.16, which pg_restore 16 refuses to read:
+# The client major is PINNED to 17 while the bundled database is pgvector:pg16.
+# That pairing is deliberate, not an oversight:
 #
-#   pg_restore: error: unsupported version (1.16) in file header
+#   - pg_dump 17 works against a PostgreSQL 16 server (a newer client may talk
+#     to an older server; only the reverse is forbidden).
+#   - pg_restore 17 reads archives written by ANY older pg_dump, so it can
+#     restore backups from every previous Aperture release. A pinned-16 client
+#     cannot read the 1.16 archives that releases before 0.7.10 produced:
 #
-# That makes backups unrestorable with the tools inside the aperture-db
-# container. pg_dump also refuses to run against a server newer than itself,
-# so client and server majors must be bumped together, in the same change.
-RUN apk add --no-cache fontconfig postgresql16-client
+#       pg_restore: error: unsupported version (1.16) in file header
+#
+#   - It also keeps working unchanged for anyone who moves their database to 17.
+#
+# Do NOT replace this with the unpinned `postgresql-client` package: that tracks
+# Alpine's current default major (18 as of Alpine 3.23), and an 18 client refuses
+# to run against a 16 or 17 server, which disables backups entirely.
+#
+# apps/api verifies this pairing at startup (see clientCompatibility.ts).
+RUN apk add --no-cache fontconfig postgresql17-client
 
 # Add non-root user
 RUN addgroup --system --gid 1001 nodejs && \
