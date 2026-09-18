@@ -11,6 +11,7 @@ import {
   type JobProgress,
 } from '@aperture/core'
 import { requireAdmin } from '../../../plugins/auth.js'
+import { verifyJobProgressToken } from '../../../lib/jobProgressToken.js'
 import { jobSchemas } from '../schemas.js'
 
 const logger = createChildLogger('jobs-progress')
@@ -18,13 +19,25 @@ const logger = createChildLogger('jobs-progress')
 export async function registerProgressHandlers(fastify: FastifyInstance) {
   /**
    * GET /api/jobs/progress/:jobId
-   * Get detailed progress for a specific job run
+   * Get detailed progress for a specific job run.
+   *
+   * Accepts an admin session OR a signed progress token for this job. The token
+   * path exists because a database restore drops the `sessions` table mid-run,
+   * which would otherwise make the operation impossible to monitor. See
+   * lib/jobProgressToken.ts.
    */
-  fastify.get<{ Params: { jobId: string } }>(
+  fastify.get<{ Params: { jobId: string }; Querystring: { token?: string } }>(
     '/api/jobs/progress/:jobId',
-    { preHandler: requireAdmin, schema: jobSchemas.getJobProgress },
+    { schema: jobSchemas.getJobProgress },
     async (request, reply) => {
       const { jobId } = request.params
+
+      if (!verifyJobProgressToken(request.query.token, jobId)) {
+        // No valid token: fall back to normal admin auth.
+        await requireAdmin(request, reply)
+        if (reply.sent) return
+      }
+
       const progress = getJobProgress(jobId)
 
       if (!progress) {

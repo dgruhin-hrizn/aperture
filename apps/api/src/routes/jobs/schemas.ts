@@ -271,13 +271,27 @@ const updateJobConfig = {
 const getJobProgress = {
   tags: ['jobs'],
   summary: 'Get job progress',
-  description: 'Get detailed progress for a specific job run including items processed and estimated time remaining.',
+  description:
+    'Get detailed progress for a specific job run including items processed and estimated time remaining. ' +
+    'Requires an admin session, or a signed progress token for this job. The token exists so a database ' +
+    'restore stays observable after it drops the sessions table.',
   params: {
     type: 'object' as const,
     properties: {
       jobId: { type: 'string' as const, format: 'uuid', description: 'Job run ID' },
     },
     required: ['jobId'] as string[],
+  },
+  querystring: {
+    type: 'object' as const,
+    properties: {
+      token: {
+        type: 'string' as const,
+        description:
+          'Signed progress token scoped to this job ID, returned when starting a restore. ' +
+          'Used instead of session auth while the sessions table is being replaced.',
+      },
+    },
   },
 }
 
