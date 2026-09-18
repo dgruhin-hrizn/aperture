@@ -1,6 +1,6 @@
 import { buildServer } from './server.js'
 import { validateEnv, getDatabaseUrl } from './config/env.js'
-import { runMigrations, getMigrationStatus, detectInterruptedEnrichmentRuns } from '@aperture/core'
+import { runMigrations, getMigrationStatus, detectInterruptedEnrichmentRuns, checkDatabaseClientCompatibility } from '@aperture/core'
 import { closePool } from './lib/db.js'
 import { initializeScheduler, stopScheduler } from './lib/scheduler.js'
 import path from 'path'
@@ -31,6 +31,10 @@ async function main() {
 
   const migrationsDir = path.resolve(__dirname, '../../../db/migrations')
   const databaseUrl = getDatabaseUrl()
+
+  // Preflight: the bundled pg_dump/pg_restore major must track the server major,
+  // or backups silently stop working. Logs and continues; never throws.
+  await checkDatabaseClientCompatibility()
 
   // Run migrations if enabled
   if (env.RUN_MIGRATIONS_ON_START) {

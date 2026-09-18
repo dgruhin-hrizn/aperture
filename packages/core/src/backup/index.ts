@@ -20,3 +20,9 @@ export {
   type RestoreResult,
 } from './backupService.js'
 
+export {
+  checkDatabaseClientCompatibility,
+  type DatabaseClientCompatibility,
+  type DatabaseClientStatus,
+} from './clientCompatibility.js'
+
