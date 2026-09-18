@@ -48,8 +48,8 @@ Older backups are automatically deleted.
 Backups stored in `/backups` volume mount:
 ```
 /backups/
-├── aperture-backup-2025-01-15.sql.gz
-├── aperture-backup-2025-01-14.sql.gz
+├── aperture_backup_2025-01-15_02-00-00.dump
+├── aperture_backup_2025-01-14_02-00-00.dump
 └── ...
 ```
 
@@ -100,10 +100,36 @@ Recommended: Download backups for offsite storage.
 
 ### Structure
 
-Backups are compressed PostgreSQL dumps:
-- Format: `.sql.gz`
+Backups are PostgreSQL custom-format archives written by `pg_dump -F c`:
+
+- Format: `.dump` (compressed internally at level 6)
 - Contains: Full database schema and data
+- Restored with: `pg_restore`, not `psql`
 - Size: Depends on library size
+
+Older installations may still have `.sql.gz` files from previous versions. Those are plain
+SQL and restore through `psql`. Aperture's restore handles both automatically.
+
+### Restoring outside Aperture
+
+The admin panel restore is the supported path. If you restore by hand, use the tools from
+the **app** container rather than the database container — they are guaranteed to match the
+version that wrote the backup:
+
+```bash
+docker exec -i aperture-db pg_restore -U app -d aperture --no-owner --no-acl \
+  < /path/to/aperture_backup_2025-01-15_02-00-00.dump
+```
+
+Restoring into a database that already has tables fails with "already exists" errors. Clear
+it first:
+
+```bash
+docker exec -i aperture-db psql -U app -d aperture \
+  -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
+```
+
+Aperture's own restore adds `--clean --if-exists`, so it does not need this step.
 
 ### Typical Sizes
 
@@ -204,6 +230,42 @@ In Admin → Jobs → database-backup configuration:
 3. Ensure sufficient disk space
 4. Review error messages
 
+#### `unsupported version (1.16) in file header`
+
+The tools you are restoring with are older than the tools that wrote the backup.
+`pg_restore` can read archives from older versions of `pg_dump`, but never from newer ones.
+
+This happens when restoring inside the `aperture-db` container using a backup written by a
+newer client. Restore with a `pg_restore` at least as new as the one that created the file:
+
+```bash
+docker run --rm -i --network container:aperture-db -e PGPASSWORD=app \
+  pgvector/pgvector:pg17 \
+  pg_restore -h 127.0.0.1 -U app -d aperture --no-owner --no-acl \
+  < /path/to/backup.dump
+```
+
+Aperture logs both versions at startup, so `docker logs aperture` will tell you which
+client it is using.
+
+#### `relation "..." already exists`
+
+The database already contains tables. Aperture creates its schema on first start, so a fresh
+install is never empty. Drop the schema before restoring — see
+[Restoring outside Aperture](#restoring-outside-aperture).
+
+#### `unrecognized configuration parameter "transaction_timeout"`
+
+Harmless. A newer `pg_restore` emitted a session setting that an older server does not
+recognize. Your data still restores correctly, but `pg_restore` exits non-zero, so check row
+counts rather than the exit code.
+
+#### `aborting because of server version mismatch`
+
+`pg_dump` refuses to run against a server newer than itself, so backups cannot be created.
+This means your database was upgraded past the version Aperture's bundled client supports.
+See [PostgreSQL 17 Migration](postgres-17-migration.md).
+
 ### Backup Too Large
 
 - More backups = more space needed
@@ -231,4 +293,4 @@ Backups contain sensitive data:
 
 ---
 
-**Previous:** [Maintenance](maintenance.md) | **Next:** [Database Management](database-management.md)
+**Previous:** [Maintenance](maintenance.md) | **Next:** [PostgreSQL 17 Migration](postgres-17-migration.md)

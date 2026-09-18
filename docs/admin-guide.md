@@ -146,6 +146,7 @@ Under **Admin → Settings → System**, **Language defaults** sets the instance
 |-------|-------------|
 | [Maintenance](admin/maintenance.md) | Poster repair, legacy cleanup |
 | [Backup & Restore](admin/backup-restore.md) | Protect your data |
+| [PostgreSQL 17 Migration](admin/postgres-17-migration.md) | Upgrade the bundled database |
 | [Database Management](admin/database-management.md) | Stats and purge |
 
 ### Troubleshooting
@@ -251,6 +252,7 @@ All admin documentation files:
 ### System
 - [admin/maintenance.md](admin/maintenance.md)
 - [admin/backup-restore.md](admin/backup-restore.md)
+- [admin/postgres-17-migration.md](admin/postgres-17-migration.md)
 - [admin/database-management.md](admin/database-management.md)
 - [admin/external-database.md](admin/external-database.md)
 - [admin/api-errors.md](admin/api-errors.md)
