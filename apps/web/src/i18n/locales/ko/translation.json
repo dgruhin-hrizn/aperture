@@ -1698,7 +1698,16 @@
     "restoreButton": "데이터베이스 복원",
     "uploadSuccess": "업로드된 백업: {{filename}} ({{size}})",
     "configSaved": "백업 구성이 저장되었습니다.",
-    "sessionExpired": "세션이 만료되었습니다. 새로고침한 후 다시 시도해 주세요."
+    "sessionExpired": "세션이 만료되었습니다. 새로고침한 후 다시 시도해 주세요.",
+    "operationFailed": "Operation failed",
+    "backupCompleteIn": "Backup created successfully ({{seconds}}s)",
+    "restoreCompleteRelogin": "Database restored successfully ({{seconds}}s). You have been signed out because the restore replaced the session data.",
+    "restoreCompleteSignedOut": "The restore replaced all data, including active sessions. Sign in again to continue.",
+    "goToLogin": "Go to login",
+    "restoreInProgressNotice": "Restoring can take several minutes on large databases. Keep this page open; progress continues to update even though you have been signed out.",
+    "restoreSignsYouOut": "Restoring replaces all data, including sessions, so you will be signed out when it finishes. Progress will keep updating on this page.",
+    "skipPreRestoreBackup": "Skip the safety backup",
+    "skipPreRestoreBackupHelp": "A backup of current data is taken before restoring. On a large database this roughly doubles the time. Skip it only if you already have a backup you trust."
   },
   "settingsTmdb": {
     "title": "TMDb 통합",
