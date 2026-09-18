@@ -106,11 +106,24 @@ echo "  size         : $DB_SIZE"
 # ---------------------------------------------------------------------------
 bold "==> Step 2/6  Dumping database"
 
-COUNTS_BEFORE="$(docker exec "$DB_CONTAINER" psql -U "$PGUSER" -d "$PGDATABASE" -tAc "
-  SELECT string_agg(fmt, E'\n' ORDER BY fmt) FROM (
-    SELECT relname || '=' || n_live_tup AS fmt
-    FROM pg_stat_user_tables WHERE n_live_tup > 0
-  ) t")"
+# Exact per-table counts. pg_stat_user_tables.n_live_tup is only an ESTIMATE
+# maintained by ANALYZE/autovacuum and can be badly stale, which produces false
+# "counts differ" alarms on a perfectly good migration. query_to_xml lets us run
+# a real COUNT(*) per table from a single statement.
+COUNT_SQL="
+SELECT coalesce(string_agg(t.relname || '=' || t.cnt, E'\n' ORDER BY t.relname), '(no tables)')
+FROM (
+  SELECT c.relname,
+         (xpath('/row/cnt/text()',
+                query_to_xml(format('SELECT count(*) AS cnt FROM %I.%I', n.nspname, c.relname),
+                             false, true, '')))[1]::text::bigint AS cnt
+  FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE c.relkind = 'r' AND n.nspname = 'public'
+) t
+WHERE t.cnt > 0;"
+
+COUNTS_BEFORE="$(docker exec "$DB_CONTAINER" psql -U "$PGUSER" -d "$PGDATABASE" -tAc "$COUNT_SQL")"
 
 TIMESTAMP="$(date +%Y-%m-%d_%H-%M-%S)"
 DUMP_NAME="aperture_pre_pg17_${TIMESTAMP}.dump"
@@ -186,23 +199,22 @@ bold "==> Step 6/6  Restoring"
 docker exec -i "$DB_CONTAINER" pg_restore -U "$PGUSER" -d "$PGDATABASE" \
   --no-owner --no-acl < "$DUMP_PATH" || true   # warnings exit non-zero; row counts are the real check
 
-docker exec "$DB_CONTAINER" psql -U "$PGUSER" -d "$PGDATABASE" -c 'ANALYZE' >/dev/null
-
-COUNTS_AFTER="$(docker exec "$DB_CONTAINER" psql -U "$PGUSER" -d "$PGDATABASE" -tAc "
-  SELECT string_agg(fmt, E'\n' ORDER BY fmt) FROM (
-    SELECT relname || '=' || n_live_tup AS fmt
-    FROM pg_stat_user_tables WHERE n_live_tup > 0
-  ) t")"
+COUNTS_AFTER="$(docker exec "$DB_CONTAINER" psql -U "$PGUSER" -d "$PGDATABASE" -tAc "$COUNT_SQL")"
 
 if [[ "$COUNTS_BEFORE" == "$COUNTS_AFTER" ]]; then
-  green "Row counts match across every table."
+  green "Row counts match exactly across every table:"
+  echo "$COUNTS_AFTER" | sed 's/^/    /'
 else
-  red "Row counts differ between before and after:"
-  diff <(echo "$COUNTS_BEFORE") <(echo "$COUNTS_AFTER") || true
+  red "ROW COUNTS DIFFER. These are exact counts, so this is a real mismatch:"
+  diff <(echo "$COUNTS_BEFORE") <(echo "$COUNTS_AFTER") | sed 's/^/    /' || true
   echo
-  echo "Estimates from ANALYZE can differ slightly on large tables. Review the list above."
+  echo "Your pre-migration data is still intact in:"
+  echo "    $DUMP_PATH"
+  echo
   echo "To roll back: set the image back to pgvector/pgvector:pg16 in $COMPOSE_FILE,"
-  echo "remove the volume, and restore $DUMP_PATH the same way."
+  echo "run 'docker compose -f $COMPOSE_FILE down', remove the volume, start the db,"
+  echo "and restore that file. PostgreSQL 16 can read it."
+  exit 1
 fi
 
 bold "==> Done"

@@ -235,8 +235,13 @@ In Admin → Jobs → database-backup configuration:
 The tools you are restoring with are older than the tools that wrote the backup.
 `pg_restore` can read archives from older versions of `pg_dump`, but never from newer ones.
 
-This happens when restoring inside the `aperture-db` container using a backup written by a
-newer client. Restore with a `pg_restore` at least as new as the one that created the file:
+**Aperture's own restore is not affected.** It uses the PostgreSQL 17 client bundled in the
+app container, which reads every archive Aperture has ever written. Restore through
+Admin → Settings → System and this does not arise.
+
+You will hit it if you restore by hand *inside* the `aperture-db` container, because the
+bundled database is PostgreSQL 16 and its `pg_restore` cannot read a 1.16 archive. Use a
+client at least as new as the one that wrote the file:
 
 ```bash
 docker run --rm -i --network container:aperture-db -e PGPASSWORD=app \
