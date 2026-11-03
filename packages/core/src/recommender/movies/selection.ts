@@ -20,14 +20,16 @@ export interface MovieSelectionResult {
 export function applyDiversityAndSelect(
   candidates: Candidate[],
   count: number,
-  diversityWeight: number
+  diversityWeight: number,
+  exploration?: { ids: ReadonlySet<string>; count: number }
 ): MovieSelectionResult {
   // Use shared diversity selection (without network diversity for movies)
   const result: SelectionResult<Candidate> = applyDiversitySelection(
     candidates,
     count,
     diversityWeight,
-    false // Movies don't have network diversity
+    false, // Movies don't have network diversity
+    exploration
   )
 
   // Copy diversityBoost to diversityScore for backward compatibility

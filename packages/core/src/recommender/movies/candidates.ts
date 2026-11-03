@@ -12,7 +12,7 @@ export async function getCandidates(
   limit: number,
   includeWatched: boolean = false,
   maxParentalRating: number | null = null,
-  history?: { userId: string; cooldownDays: number; allowedSourceIds?: string[] }
+  history?: { userId: string; cooldownDays: number; allowedSourceIds?: string[]; explorationGenres?: string[] }
 ): Promise<Candidate[]> {
   const vectorStr = `[${tasteProfile.join(',')}]`
 
@@ -61,6 +61,13 @@ export async function getCandidates(
   const params: unknown[] = [vectorStr, queryLimit, modelId]
   if (history) params.push(history.userId, history.cooldownDays)
   if (history?.allowedSourceIds) params.push(history.allowedSourceIds)
+  let explorationFilter = ''
+  if (history?.explorationGenres?.length) {
+    params.push(history.explorationGenres)
+    explorationFilter = `AND m.community_rating >= 7 AND cardinality(m.genres) > 0
+      AND NOT (m.genres && $${params.length}::text[])`
+  }
+  const sort = explorationFilter ? 'm.community_rating DESC, e.embedding <=> $1::halfvec' : 'e.embedding <=> $1::halfvec'
 
   // Use pgvector to find similar movies, filtered by enabled libraries, parental rating, and model
   const result = await query<{
@@ -80,8 +87,8 @@ export async function getCandidates(
      FROM ${tableName} e
      JOIN movies m ON m.id = e.movie_id
      ${historyJoin}
-     WHERE e.model = $3 ${libraryFilter} ${parentalFilter} ${historyFilter}
-     ORDER BY e.embedding <=> $1::halfvec
+     WHERE e.model = $3 ${libraryFilter} ${parentalFilter} ${historyFilter} ${explorationFilter}
+     ORDER BY ${sort}
      LIMIT $2`,
     params
   )

@@ -100,7 +100,8 @@ export function applyDiversitySelection<T extends SelectableCandidate>(
   candidates: T[],
   targetCount: number,
   diversityWeight: number,
-  useNetworkDiversity: boolean = false
+  useNetworkDiversity: boolean = false,
+  exploration?: { ids: ReadonlySet<string>; count: number }
 ): SelectionResult<T> {
   const selected: T[] = []
   const selectedRanks = new Map<string, number>()
@@ -123,11 +124,14 @@ export function applyDiversitySelection<T extends SelectableCandidate>(
   // Allow one returning title in small lists and reserve the other slots for new titles.
   const repeatLimit = Math.max(1, Math.floor(targetCount / 5))
   let repeatCount = 0
+  let explorationRemaining = exploration?.count ?? 0
 
   while (selected.length < targetCount && remaining.size > 0) {
     let bestId: string | null = null
     let bestScore = -Infinity
     let bestDiversityBoost = 0
+    let bestExplorationPriority = false
+    const reserveExploration = targetCount - selected.length <= explorationRemaining
 
     // Find the best candidate considering both base score and diversity
     for (const id of remaining) {
@@ -153,7 +157,10 @@ export function applyDiversitySelection<T extends SelectableCandidate>(
       // Calculate selection score: blend base score with diversity
       const selectionScore = baseScore * (1 - diversityWeight) + diversityBoost * diversityWeight
 
-      if (selectionScore > bestScore) {
+      const explorationPriority = reserveExploration && (exploration?.ids.has(id) ?? false)
+      if ((explorationPriority && !bestExplorationPriority)
+        || (explorationPriority === bestExplorationPriority && selectionScore > bestScore)) {
+        bestExplorationPriority = explorationPriority
         bestScore = selectionScore
         bestId = id
         bestDiversityBoost = diversityBoost
@@ -169,6 +176,7 @@ export function applyDiversitySelection<T extends SelectableCandidate>(
     const best = candidateMap.get(bestId)!
     remaining.delete(bestId)
     if (best.previouslySuggested) repeatCount++
+    if (exploration?.ids.has(bestId)) explorationRemaining--
 
     // Update candidate with selection info
     best.diversityBoost = bestDiversityBoost
