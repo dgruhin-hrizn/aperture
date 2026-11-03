@@ -19,6 +19,7 @@ type MediaType = 'movies' | 'series'
 interface Output {
   user_id: string
   provider_user_id: string
+  provider_access_token: string | null
   media_type: MediaType
   group_key: string
   provider_playlist_id: string
@@ -27,14 +28,15 @@ interface Output {
 
 async function removeOutput(provider: EmbyProvider, apiKey: string, output: Output): Promise<void> {
   try {
+    const token = output.provider_access_token ?? apiKey
     const item = await provider.fetch<{ Id: string; Type: string; Name: string }>(
       `/Users/${encodeURIComponent(output.provider_user_id)}/Items/${encodeURIComponent(output.provider_playlist_id)}`,
-      apiKey
+      token
     )
     if (item.Id !== output.provider_playlist_id || item.Type !== 'Playlist' || item.Name !== output.name) {
       throw new Error('The tracked Emby item no longer matches the managed recommendation playlist')
     }
-    await provider.deletePlaylist(apiKey, output.provider_playlist_id)
+    await provider.deletePlaylist(token, output.provider_playlist_id)
   } catch (err) {
     if (!isEmbyNotFoundError(err)) throw err
   }
@@ -47,7 +49,7 @@ async function removeOutput(provider: EmbyProvider, apiKey: string, output: Outp
 export async function cleanupEmbyRecommendationPlaylists(userId?: string, mediaType?: MediaType): Promise<void> {
   const mode = await getAiRecsOutputConfig()
   const { rows } = await query<Output>(
-    `SELECT p.*, u.provider_user_id FROM emby_recommendation_playlists p JOIN users u ON u.id = p.user_id
+    `SELECT p.*, u.provider_user_id, u.provider_access_token FROM emby_recommendation_playlists p JOIN users u ON u.id = p.user_id
      WHERE ($1::uuid IS NULL OR p.user_id = $1)
        AND ($2::text IS NULL OR p.media_type = $2)
        AND ($1 IS NOT NULL OR NOT u.is_enabled OR u.provider_disabled
@@ -81,8 +83,10 @@ export async function publishEmbyRecommendationPlaylists(
     [userId, providerUserId]
   )
   const { rows: existing } = await query<Output>(
-    'SELECT p.*, $3::text AS provider_user_id FROM emby_recommendation_playlists p WHERE user_id = $1 AND media_type = $2',
-    [userId, mediaType, providerUserId]
+    `SELECT p.*, u.provider_user_id, u.provider_access_token
+     FROM emby_recommendation_playlists p JOIN users u ON u.id = p.user_id
+     WHERE p.user_id = $1 AND p.media_type = $2`,
+    [userId, mediaType]
   )
   const userToken = owner?.provider_access_token
   if (!userToken) {
@@ -128,6 +132,9 @@ export async function publishEmbyRecommendationPlaylists(
       }
     }
 
+    const otherUsers = (await provider.getUsers(apiKey)).filter((user) =>
+      user.id !== providerUserId && !user.isAdmin && !user.isDisabled
+    )
     for (const output of outputs) {
       let playlistId = existing.find((entry) => entry.group_key === output.key && entry.name === output.name)?.provider_playlist_id
       if (playlistId) {
@@ -157,7 +164,12 @@ export async function publishEmbyRecommendationPlaylists(
           [userId, mediaType, output.key, playlistId, output.name]
         )
       }
-      await provider.fetch(`/Items/${encodeURIComponent(playlistId)}/MakePrivate`, userToken, { method: 'POST' })
+      // Emby creates user playlists private by default. Confirm the current
+      // audience directly, including when the server disables playlist sharing.
+      for (const viewer of otherUsers) {
+        const visible = await getVisibleRecommendationItems(provider, apiKey, viewer.id, [playlistId], 'Playlist')
+        if (visible.has(playlistId)) throw new Error('Another Emby user can access the recommendation playlist')
+      }
       const endpoint = `/Playlists/${encodeURIComponent(playlistId)}/Items`
       const user = new URLSearchParams({ UserId: providerUserId })
       const current = await provider.fetch<{ Items: Array<{ PlaylistItemId: string }> }>(`${endpoint}?${user}`, userToken)
