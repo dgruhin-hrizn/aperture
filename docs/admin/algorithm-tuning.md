@@ -118,6 +118,18 @@ How many items to generate per user.
 | **50** | Default, good variety |
 | **100** | Extensive options |
 
+### Repeat suggestion cooldown
+
+Set the cooldown independently for movies and TV under **AI Recommendations → Algorithm**. Each defaults to **180 days** and accepts 1–36,500 days. Aperture tracks when a completed run last selected a title for the user, including alternate library copies with the same title and year. History survives routine pruning of recommendation runs.
+
+After the cooldown, at most one fifth of the requested picks can be returning titles, rounded down with one slot allowed for small lists. A list can be shorter when there are too few eligible titles. TV groups share suggestion history and select an overlapping title at most once per refresh.
+
+### Movie themes and exploration
+
+Movie scoring can add a small theme bonus when deduplicated TMDb and MDBList keywords recur across recent viewing. This uses stored metadata and does not require regenerating embeddings. User ratings use a ten-point scale throughout taste, genre, and franchise weighting.
+
+Movie lists with at least five requested picks reserve one fifth of their slots for exploration when eligible titles are available. The independent pool draws from films rated at least 7 that fall outside the viewer’s three most-watched genres. The usual source, watch, dislike, and repeat restrictions still apply.
+
 ### Recent Watch Limit
 
 How many recent watches to analyze for taste profile.

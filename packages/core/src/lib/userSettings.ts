@@ -74,6 +74,8 @@ export interface BrowseFilterPreset {
 }
 
 export interface UserUiPreferences {
+  dismissedAdminRelease?: string
+  dismissedUserRelease?: string
   sidebarCollapsed?: boolean
   viewModes?: PageViewModes
   browseSort?: BrowseSortPreference

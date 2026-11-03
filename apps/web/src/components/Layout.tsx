@@ -41,6 +41,7 @@ import MenuOpenIcon from '@mui/icons-material/MenuOpen'
 import FactCheckIcon from '@mui/icons-material/FactCheck'
 import { useAuth } from '@/hooks/useAuth'
 import { WelcomeModal } from './WelcomeModal'
+import { ReleaseHighlightsModal, RELEASE_HIGHLIGHTS_VERSION } from './ReleaseHighlightsModal'
 import { useWelcomeModal } from './useWelcomeModal'
 import { ExplorationConfigModal } from './ExplorationConfigModal'
 import { RunningJobsWidget } from './RunningJobsWidget'
@@ -85,6 +86,13 @@ export function Layout() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [watchingEnabled, setWatchingEnabled] = useState(true) // Default to true until we know
   const { user, logout } = useAuth()
+  const userId = user?.id
+  const isAdmin = user?.isAdmin ?? false
+  const releasePreference = isAdmin ? 'dismissedAdminRelease' : 'dismissedUserRelease'
+  const releaseKey = userId ? `${userId}:${releasePreference}` : null
+  const [releaseNotice, setReleaseNotice] = useState<{ key: string; open: boolean } | null>(null)
+  const releaseOpen = releaseNotice?.key === releaseKey && releaseNotice?.open === true
+  const canShowOtherPrompts = releaseNotice?.key === releaseKey && !releaseOpen
   const { open: welcomeOpen, showWelcome, hideWelcome } = useWelcomeModal()
 
   const drawerWidth = collapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH
@@ -99,24 +107,31 @@ export function Layout() {
 
   // Fetch user's sidebar preference on mount; align i18n with effective UI language (single request)
   useEffect(() => {
+    if (!releaseKey) return
+    const controller = new AbortController()
     const fetchPreferences = async () => {
       try {
-        const response = await fetch('/api/auth/me/preferences', { credentials: 'include' })
+        const response = await fetch('/api/auth/me/preferences', { credentials: 'include', signal: controller.signal })
         if (response.ok) {
           const prefs = await response.json()
+          if (controller.signal.aborted) return
+          setReleaseNotice({ key: releaseKey, open: prefs[releasePreference] !== RELEASE_HIGHLIGHTS_VERSION })
           if (prefs.sidebarCollapsed !== undefined) {
             setCollapsed(prefs.sidebarCollapsed)
           }
           if (prefs.effectiveUiLanguage && typeof prefs.effectiveUiLanguage === 'string') {
             await applyEffectiveUiLanguage(prefs.effectiveUiLanguage)
           }
+          return
         }
       } catch {
-        // Ignore errors, use default
+        // Other prompts can still appear if preferences are unavailable.
       }
+      if (!controller.signal.aborted) setReleaseNotice({ key: releaseKey, open: false })
     }
     void fetchPreferences()
-  }, [])
+    return () => controller.abort()
+  }, [releaseKey, releasePreference])
 
   // Fetch watching library config to check if feature is enabled
   useEffect(() => {
@@ -133,6 +148,17 @@ export function Layout() {
     }
     fetchWatchingConfig()
   }, [])
+
+  const dismissRelease = async () => {
+    const response = await fetch('/api/auth/me/preferences', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ [releasePreference]: RELEASE_HIGHLIGHTS_VERSION }),
+    })
+    if (!response.ok) throw new Error('Could not save release dismissal')
+    setReleaseNotice((notice) => notice?.key === releaseKey ? { ...notice, open: false } : notice)
+  }
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen)
@@ -363,7 +389,7 @@ export function Layout() {
               fontSize: '0.7rem',
             }}
           >
-            v0.7.11-dev.2
+            v0.7.11-dev.3
           </Typography>
         )}
       </Box>
@@ -580,13 +606,16 @@ export function Layout() {
       </Box>
 
       {/* Welcome Modal - shows on first visit */}
-      <WelcomeModal />
+      {canShowOtherPrompts && <WelcomeModal />}
 
       {/* Welcome Modal - manually triggered from menu */}
       <WelcomeModal open={welcomeOpen} onClose={hideWelcome} />
 
       {/* Exploration Config Modal - prompts admins to configure new AI provider */}
-      <ExplorationConfigModal />
+      {canShowOtherPrompts && <ExplorationConfigModal />}
+      {releaseOpen && (
+        <ReleaseHighlightsModal key={releaseKey} isAdmin={isAdmin} onDismiss={dismissRelease} />
+      )}
     </Box>
   )
 }

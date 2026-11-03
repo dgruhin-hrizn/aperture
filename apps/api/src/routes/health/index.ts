@@ -28,7 +28,7 @@ const healthRoutes: FastifyPluginAsync = async (fastify) => {
       const health: HealthResponse = {
         ok: dbConnected,
         name: 'Aperture',
-        version: '0.7.11-dev.2',
+        version: '0.7.11-dev.3',
         time: new Date().toISOString(),
         database: {
           connected: dbConnected,
