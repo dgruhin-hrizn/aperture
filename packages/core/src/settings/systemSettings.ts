@@ -615,7 +615,7 @@ function isValidChatAssistantModel(model: string): model is ChatAssistantModel {
 // AI Recommendations Output Format Settings
 // ============================================================================
 
-export type AiRecsOutputMode = 'library' | 'off'
+export type AiRecsOutputMode = 'library' | 'off' | 'playlist'
 
 export interface AiRecsOutputConfig {
   moviesOutputMode: AiRecsOutputMode
@@ -633,8 +633,8 @@ export async function getAiRecsOutputConfig(): Promise<AiRecsOutputConfig> {
   const movies = await getSystemSetting('ai_recs_movies_use_symlinks')
   const series = await getSystemSetting('ai_recs_series_use_symlinks')
   return {
-    moviesOutputMode: moviesMode === 'off' ? 'off' : 'library',
-    seriesOutputMode: seriesMode === 'off' ? 'off' : 'library',
+    moviesOutputMode: moviesMode === 'off' || moviesMode === 'playlist' ? moviesMode : 'library',
+    seriesOutputMode: seriesMode === 'off' || seriesMode === 'playlist' ? seriesMode : 'library',
     moviesUseSymlinks: movies !== 'false', // Defaults to true (symlinks recommended)
     seriesUseSymlinks: series !== 'false', // Defaults to true (symlinks recommended)
   }

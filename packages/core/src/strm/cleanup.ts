@@ -9,6 +9,7 @@ import { query, queryOne } from '../lib/db.js'
 import { createChildLogger } from '../lib/logger.js'
 import { getMediaServerProvider } from '../media/index.js'
 import { getAiRecsOutputConfig, getMediaServerApiKey } from '../settings/systemSettings.js'
+import { cleanupEmbyRecommendationPlaylists } from './embyPlaylists.js'
 import { getConfig } from './config.js'
 import { getUserFolderName } from './filenames.js'
 import { addLog } from '../jobs/progress.js'
@@ -50,6 +51,8 @@ export async function cleanupUserLibraries(
     logger.warn({ userId }, 'cleanupUserLibraries: user not found')
     return
   }
+
+  await cleanupEmbyRecommendationPlaylists(userId, mediaType)
 
   const sql = `SELECT id, name, media_type, series_group_id, provider_library_id FROM strm_libraries
      WHERE user_id = $1
@@ -153,6 +156,7 @@ export async function reconcileStaleStrmLibraries(jobId?: string): Promise<void>
     username: string
   }
 
+  await cleanupEmbyRecommendationPlaylists()
   const output = await getAiRecsOutputConfig()
   const result = await query<StaleRow>(
     `SELECT sl.id, sl.name, sl.media_type, sl.series_group_id, sl.provider_library_id, sl.user_id,
@@ -169,7 +173,7 @@ export async function reconcileStaleStrmLibraries(jobId?: string): Promise<void>
          u.provider_disabled OR NOT u.is_enabled OR NOT u.series_enabled OR $2
        ))
      )`,
-    [output.moviesOutputMode === 'off', output.seriesOutputMode === 'off']
+    [output.moviesOutputMode !== 'library', output.seriesOutputMode !== 'library']
   )
 
   if (result.rows.length === 0) {

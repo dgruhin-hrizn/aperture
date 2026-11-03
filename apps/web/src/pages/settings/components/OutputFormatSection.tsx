@@ -23,9 +23,10 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 
-type OutputMode = 'library' | 'off'
+type OutputMode = 'library' | 'off' | 'playlist'
 
 interface OutputFormatConfig {
+  embyPlaylistsSupported: boolean
   moviesOutputMode: OutputMode
   seriesOutputMode: OutputMode
   moviesUseSymlinks: boolean
@@ -158,6 +159,9 @@ export function OutputFormatSection() {
                 sx={{ mb: 1 }}
               >
                 <MenuItem value="library">{t('settingsOutputFormat.publishLibrary')}</MenuItem>
+                {config.embyPlaylistsSupported && (
+                  <MenuItem value="playlist">{t('settingsOutputFormat.publishPlaylist')}</MenuItem>
+                )}
                 <MenuItem value="off">{t('settingsOutputFormat.publishOff')}</MenuItem>
               </TextField>
               <FormControlLabel
@@ -207,6 +211,9 @@ export function OutputFormatSection() {
                 sx={{ mb: 1 }}
               >
                 <MenuItem value="library">{t('settingsOutputFormat.publishLibrary')}</MenuItem>
+                {config.embyPlaylistsSupported && (
+                  <MenuItem value="playlist">{t('settingsOutputFormat.publishPlaylist')}</MenuItem>
+                )}
                 <MenuItem value="off">{t('settingsOutputFormat.publishOff')}</MenuItem>
               </TextField>
               <FormControlLabel
@@ -244,6 +251,10 @@ export function OutputFormatSection() {
             </Card>
           </Grid>
         </Grid>
+
+        {(config.moviesOutputMode === 'playlist' || config.seriesOutputMode === 'playlist') && (
+          <Alert severity="info" sx={{ mt: 2 }}>{t('settingsOutputFormat.publishPlaylistHelp')}</Alert>
+        )}
 
         {/* Explanation Cards */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 3 }}>
