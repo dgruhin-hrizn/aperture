@@ -123,24 +123,13 @@ export async function processStrmForAllUsers(
       try {
         addLog(actualJobId, 'info', `📁 Processing STRM for ${displayName}...`)
 
-        // Step 1: Create empty directory first (Emby requires folder to exist for library creation)
-        const { ensureUserDirectory } = await import('./movies/writer.js')
-        await ensureUserDirectory(user.id, user.provider_user_id, displayName)
-        
-        // Step 2: Create library BEFORE adding files (so Emby uses our CollectionType, not auto-detect)
-        const libraryResult = await ensureUserLibrary(user.id, user.provider_user_id, displayName)
-        if (libraryResult.created) {
-          addLog(actualJobId, 'info', `  📚 Created new library in media server: ${libraryResult.name}`)
-        } else {
-          addLog(actualJobId, 'debug', `  📚 Library already exists in media server: ${libraryResult.name}`)
-        }
-
-        // Step 3: Now write STRM files (library already exists with correct type)
         const strmResult = await writeStrmFilesForUser(user.id, user.provider_user_id, displayName)
         addLog(actualJobId, 'debug', `  📝 STRM files written: ${strmResult.written} files at ${strmResult.localPath}`)
 
         // Skip further processing if no recommendations
         if (strmResult.written === 0) {
+          if (strmResult.withheldReason) addLog(actualJobId, 'warn', strmResult.withheldReason)
+          await refreshUserLibrary(user.id)
           addLog(actualJobId, 'info', `⏭️ No recommendations for ${displayName}`)
           userResults.push({
             userId: user.id,
@@ -156,7 +145,8 @@ export async function processStrmForAllUsers(
           continue
         }
 
-        // Step 4: Refresh library to pick up new STRM files
+        const libraryResult = await ensureUserLibrary(user.id, user.provider_user_id, displayName)
+        // Refresh library to pick up new STRM files
         await refreshUserLibrary(user.id)
         addLog(actualJobId, 'debug', `  🔄 Library refreshed`)
 

@@ -14,7 +14,7 @@ import { getUserSeriesLibraryName } from './library.js'
 import { getConfig } from '../config.js'
 import { getAiRecsOutputConfig, getMediaServerApiKey } from '../../settings/systemSettings.js'
 import { EmbyProvider, getMediaServerProvider } from '../../media/index.js'
-import { getAllowedSeriesSourceIds, getVisibleEpisodePaths, readRecommendationLibraryAccess } from '../../media/emby/recommendationAccess.js'
+import { assertPrivateRecommendationLibrary, getAllowedRecommendationSourceIds, getVisibleRecommendationItems } from '../../media/emby/recommendationAccess.js'
 import { downloadImage } from '../images.js'
 import { generateSeriesNfoContent } from './nfo.js'
 import { getEffectiveAiExplanationSetting } from '../../lib/userSettings.js'
@@ -330,29 +330,15 @@ export async function writeSeriesStrmFilesForUser(
       if (!embyApiKey) throw new Error('Emby API key unavailable')
       const baseName = await getUserSeriesLibraryName(userId, displayName, config)
       const libraryName = group ? `${baseName} – ${group.name}` : baseName
-      const matchingOutputs = (await provider.getLibraries(embyApiKey)).filter(
-        (library) => library.name.toLowerCase() === libraryName.toLowerCase()
-          || library.locations?.includes(embyPath) || library.id === previousLibraryId
-      )
-      const guids = new Set(matchingOutputs.map((library) => library.guid.toLowerCase()))
-      const otherViewers = (await provider.getUsers(embyApiKey)).filter(
-        (user) => !user.isAdmin && !user.isDisabled && user.id !== providerUserId
-      )
-      for (const viewer of otherViewers) {
-        const policy = await readRecommendationLibraryAccess(provider, embyApiKey, viewer.id)
-        if (policy.enableAllFolders || policy.enabledFolders.some((id) => guids.has(id))) {
-          withheldReason = 'Another Emby user can access this generated TV library. Review Emby library access.'
-          throw new Error(withheldReason)
-        }
-      }
-      const allowed = new Set(await getAllowedSeriesSourceIds(provider, embyApiKey, providerUserId))
+      await assertPrivateRecommendationLibrary(provider, embyApiKey, providerUserId, libraryName, embyPath, previousLibraryId)
+      const allowed = new Set(await getAllowedRecommendationSourceIds(provider, embyApiKey, providerUserId, 'tvshows'))
       recommendationRows = recommendationRows.filter(
         (row) => row.provider_library_id && allowed.has(row.provider_library_id)
           && (!group || group.sourceIds.includes(row.provider_library_id))
       )
     } catch (err) {
       logger.warn({ err, userId }, 'Withholding TV output because Emby source access could not be verified')
-      withheldReason ??= 'Could not verify Emby source or output access'
+      withheldReason = err instanceof Error ? err.message : 'Could not verify Emby source or output access'
       recommendationRows = []
     }
   }
@@ -376,13 +362,14 @@ export async function writeSeriesStrmFilesForUser(
       try {
         if (!embyApiKey) continue
         const { rows } = await getOutputEpisodes(rec.series_id)
-        const visible = await getVisibleEpisodePaths(
-          provider, embyApiKey, providerUserId, rec.provider_item_id,
-          rows.filter((episode) => episode.path).map((episode) => episode.provider_item_id)
+        const visible = await getVisibleRecommendationItems(
+          provider, embyApiKey, providerUserId,
+          rows.filter((episode) => episode.path).map((episode) => episode.provider_item_id),
+          'Episode', rec.provider_item_id
         )
         verifiedEpisodes = rows.filter(
           (episode) => episode.path && path.extname(episode.path).toLowerCase() !== '.strm'
-            && visible.get(episode.provider_item_id) === episode.path
+            && visible.get(episode.provider_item_id)?.Path === episode.path
         )
         if (verifiedEpisodes.length === 0) continue
       } catch (err) {

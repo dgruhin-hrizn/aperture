@@ -12,7 +12,7 @@ export async function getCandidates(
   limit: number,
   includeWatched: boolean = false,
   maxParentalRating: number | null = null,
-  history?: { userId: string; cooldownDays: number }
+  history?: { userId: string; cooldownDays: number; allowedSourceIds?: string[] }
 ): Promise<Candidate[]> {
   const vectorStr = `[${tasteProfile.join(',')}]`
 
@@ -50,12 +50,17 @@ export async function getCandidates(
   const historyFilter = history
     ? "AND (h.last_suggested_at IS NULL OR h.last_suggested_at <= NOW() - $5::int * INTERVAL '24 hours')"
     : ''
-  const libraryFilter = hasLibraryConfigs
+  const libraryFilter = history?.allowedSourceIds ? "AND m.provider_library_id = ANY($6::text[])"
+    : hasLibraryConfigs
     ? `AND EXISTS (
          SELECT 1 FROM library_config lc
          WHERE lc.provider_library_id = m.provider_library_id AND lc.is_enabled = true
        )`
     : ''
+
+  const params: unknown[] = [vectorStr, queryLimit, modelId]
+  if (history) params.push(history.userId, history.cooldownDays)
+  if (history?.allowedSourceIds) params.push(history.allowedSourceIds)
 
   // Use pgvector to find similar movies, filtered by enabled libraries, parental rating, and model
   const result = await query<{
@@ -76,7 +81,7 @@ export async function getCandidates(
      WHERE e.model = $3 ${libraryFilter} ${parentalFilter} ${historyFilter}
      ORDER BY e.embedding <=> $1::halfvec
      LIMIT $2`,
-    history ? [vectorStr, queryLimit, modelId, history.userId, history.cooldownDays] : [vectorStr, queryLimit, modelId]
+    params
   )
 
   // Filter out watched movies if not including them
