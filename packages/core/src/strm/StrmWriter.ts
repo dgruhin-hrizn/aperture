@@ -61,6 +61,7 @@ import {
   refreshUserSeriesLibrary,
   updateUserSeriesLibraryPermissions,
 } from './series/library.js'
+import { publishEmbyRecommendationPlaylists } from './embyPlaylists.js'
 import { getAiRecsOutputConfig } from '../settings/systemSettings.js'
 import { getSeriesRecommendationGroups } from '../recommender/series/groups.js'
 import { getMediaServerProvider } from '../media/index.js'
@@ -86,6 +87,7 @@ export async function processStrmForAllUsers(
     addLog(actualJobId, 'info', '🔍 Finding enabled users...')
 
     const mode = (await getAiRecsOutputConfig()).moviesOutputMode
+    if (mode === 'playlist') await reconcileStaleStrmLibraries(actualJobId)
     const users = await query<{
       id: string
       provider_user_id: string
@@ -125,6 +127,24 @@ export async function processStrmForAllUsers(
       
       try {
         addLog(actualJobId, 'info', `📁 Processing STRM for ${displayName}...`)
+
+        if (mode === 'playlist') {
+          const published = await publishEmbyRecommendationPlaylists(user.id, user.provider_user_id, displayName, 'movies')
+          userResults.push({
+            userId: user.id,
+            providerUserId: user.provider_user_id,
+            username: user.username,
+            displayName,
+            status: published.count ? 'success' : 'skipped',
+            recommendationCount: published.count,
+            libraryName: published.names.join(', '),
+          })
+          if (published.count) success++
+          else skipped++
+          totalRecommendations += published.count
+          updateJobProgress(actualJobId, i + 1, totalUsers, `${success + skipped}/${totalUsers} users`)
+          continue
+        }
 
         const strmResult = await writeStrmFilesForUser(user.id, user.provider_user_id, displayName)
         addLog(actualJobId, 'debug', `  📝 STRM files written: ${strmResult.written} files at ${strmResult.localPath}`)
@@ -235,6 +255,7 @@ export async function processSeriesStrmForAllUsers(
     addLog(actualJobId, 'info', '🔍 Finding enabled users...')
 
     const mode = (await getAiRecsOutputConfig()).seriesOutputMode
+    if (mode === 'playlist') await reconcileStaleStrmLibraries(actualJobId)
     const users = await query<{
       id: string
       provider_user_id: string
@@ -274,6 +295,24 @@ export async function processSeriesStrmForAllUsers(
 
       try {
         addLog(actualJobId, 'info', `📺 Processing Series STRM for ${displayName}...`)
+
+        if (mode === 'playlist') {
+          const published = await publishEmbyRecommendationPlaylists(user.id, user.provider_user_id, displayName, 'series')
+          userResults.push({
+            userId: user.id,
+            providerUserId: user.provider_user_id,
+            username: user.username,
+            displayName,
+            status: published.count ? 'success' : 'skipped',
+            recommendationCount: published.count,
+            libraryName: published.names.join(', '),
+          })
+          if (published.count) success++
+          else skipped++
+          totalRecommendations += published.count
+          updateJobProgress(actualJobId, i + 1, totalUsers, `${success + skipped}/${totalUsers} users`)
+          continue
+        }
 
         const provider = await getMediaServerProvider()
         const groups = provider.type === 'emby' ? await getSeriesRecommendationGroups() : []

@@ -1708,6 +1708,8 @@
   "settingsOutputFormat": {
     "publishMode": "Media server output",
     "publishLibrary": "Generated library",
+    "publishPlaylist": "Private Emby playlist (preview)",
+    "publishPlaylistHelp": "Playlists use the original Emby items. Each recipient must sign into Aperture with Emby before the next library sync.",
     "publishOff": "Off (remove generated output)",
     "title": "AI Recommendations Output Format",
     "subtitle": "Choose how AI recommendation files are created for the media server",
