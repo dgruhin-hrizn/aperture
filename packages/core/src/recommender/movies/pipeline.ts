@@ -1,4 +1,7 @@
 // Re-organized pipeline - imports from modular files
+import { EmbyProvider, getMediaServerProvider } from '../../media/index.js'
+import { getMediaServerApiKey } from '../../settings/systemSettings.js'
+import { getAllowedRecommendationSourceIds } from '../../media/emby/recommendationAccess.js'
 import { createChildLogger } from '../../lib/logger.js'
 import { query, queryOne } from '../../lib/db.js'
 import {
@@ -196,13 +199,20 @@ export async function generateRecommendationsForUser(
       )
     }
 
+    const provider = await getMediaServerProvider()
+    let allowedSourceIds: string[] | undefined
+    if (provider instanceof EmbyProvider) {
+      const apiKey = await getMediaServerApiKey()
+      if (!apiKey) throw new Error('An Emby API key is required to verify movie source access')
+      allowedSourceIds = await getAllowedRecommendationSourceIds(provider, apiKey, user.providerUserId, 'movies')
+    }
     const candidates = await getCandidates(
       tasteProfile,
       excludeIds,
       cfg.maxCandidates,
       includeWatched,
       user.maxParentalRating ?? null,
-      { userId: user.id, cooldownDays: cfg.repeatCooldownDays }
+      { userId: user.id, cooldownDays: cfg.repeatCooldownDays, allowedSourceIds }
     )
     logger.info(
       { userId: user.id, candidateCount: candidates.length },

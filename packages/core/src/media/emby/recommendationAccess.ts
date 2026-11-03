@@ -1,5 +1,5 @@
 import { query } from '../../lib/db.js'
-import { getEnabledTvLibraryIds } from '../../lib/libraryConfig.js'
+import { getEnabledLibraryIds, getEnabledTvLibraryIds } from '../../lib/libraryConfig.js'
 import type { EmbyUser } from './types.js'
 import type { EmbyProvider } from './EmbyProvider.js'
 
@@ -15,15 +15,16 @@ export async function readRecommendationLibraryAccess(provider: EmbyProvider, ap
 }
 
 /** Resolve Emby policy GUIDs to the item IDs stored by Aperture's catalog sync. */
-export async function getAllowedSeriesSourceIds(
+export async function getAllowedRecommendationSourceIds(
   provider: EmbyProvider,
   apiKey: string,
-  providerUserId: string
+  providerUserId: string,
+  mediaType: 'movies' | 'tvshows'
 ): Promise<string[]> {
   const [libraries, access, configured, generated] = await Promise.all([
-    provider.getTvShowLibraries(apiKey),
+    mediaType === 'movies' ? provider.getMovieLibraries(apiKey) : provider.getTvShowLibraries(apiKey),
     readRecommendationLibraryAccess(provider, apiKey, providerUserId),
-    getEnabledTvLibraryIds(),
+    mediaType === 'movies' ? getEnabledLibraryIds() : getEnabledTvLibraryIds(),
     query<{ provider_library_id: string }>(
       'SELECT provider_library_id FROM strm_libraries WHERE provider_library_id IS NOT NULL'
     ),
@@ -38,34 +39,60 @@ export async function getAllowedSeriesSourceIds(
     .map((library) => library.id)
 }
 
-/** Verify paths against the user's current view, without resolving by title or external ID. */
-export async function getVisibleEpisodePaths(
+export async function assertPrivateRecommendationLibrary(
+  provider: EmbyProvider,
+  apiKey: string,
+  ownerId: string,
+  libraryName: string,
+  libraryPath: string,
+  previousLibraryId?: string | null
+): Promise<void> {
+  const [libraries, users] = await Promise.all([provider.getLibraries(apiKey), provider.getUsers(apiKey)])
+  const outputs = libraries.filter((library) =>
+    library.name.toLowerCase() === libraryName.toLowerCase()
+    || library.locations?.includes(libraryPath)
+    || library.id === previousLibraryId
+  )
+  const guids = new Set(outputs.map((library) => library.guid.toLowerCase()))
+  for (const user of users) {
+    if (user.isAdmin || user.isDisabled || user.id === ownerId) continue
+    const access = await readRecommendationLibraryAccess(provider, apiKey, user.id)
+    if (access.enableAllFolders || access.enabledFolders.some((id) => guids.has(id))) {
+      throw new Error('Another Emby user can access this generated library. Review Emby library access.')
+    }
+  }
+}
+
+interface VisibleItem {
+  Id: string
+  Path?: string
+  SeriesId?: string
+}
+
+/** Resolve exact IDs against the user's current view, preserving the provider's original paths. */
+export async function getVisibleRecommendationItems(
   provider: EmbyProvider,
   apiKey: string,
   providerUserId: string,
-  seriesId: string,
-  episodeIds: string[]
-): Promise<Map<string, string>> {
-  const visible = new Map<string, string>()
-  for (let offset = 0; offset < episodeIds.length; offset += 50) {
-    const ids = episodeIds.slice(offset, offset + 50)
+  itemIds: string[],
+  type: 'Movie' | 'Series' | 'Episode',
+  seriesId?: string
+): Promise<Map<string, VisibleItem>> {
+  const visible = new Map<string, VisibleItem>()
+  for (let offset = 0; offset < itemIds.length; offset += 50) {
+    const ids = new Set(itemIds.slice(offset, offset + 50))
     const params = new URLSearchParams({
       UserId: providerUserId,
-      ParentId: seriesId,
-      Ids: ids.join(','),
+      Ids: [...ids].join(','),
       Recursive: 'true',
-      IncludeItemTypes: 'Episode',
+      IncludeItemTypes: type,
       Fields: 'Path',
-      Limit: String(ids.length),
+      Limit: String(ids.size),
     })
-    const { Items } = await provider.fetch<{ Items: Array<{ Id: string; SeriesId?: string; Path?: string }> }>(
-      `/Items?${params}`,
-      apiKey
-    )
-    for (const episode of Items) {
-      if (episode.SeriesId === seriesId && episode.Path && ids.includes(episode.Id)) {
-        visible.set(episode.Id, episode.Path)
-      }
+    if (seriesId) params.set('ParentId', seriesId)
+    const { Items } = await provider.fetch<{ Items: VisibleItem[] }>(`/Items?${params}`, apiKey)
+    for (const item of Items) {
+      if (ids.has(item.Id) && (!seriesId || item.SeriesId === seriesId)) visible.set(item.Id, item)
     }
   }
   return visible

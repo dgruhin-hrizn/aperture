@@ -10,7 +10,7 @@ import { query, queryOne } from '../../lib/db.js'
 import { EmbyProvider, getMediaServerProvider } from '../../media/index.js'
 import { getMediaServerApiKey } from '../../settings/systemSettings.js'
 import { getSeriesRecommendationGroups } from './groups.js'
-import { getAllowedSeriesSourceIds } from '../../media/emby/recommendationAccess.js'
+import { getAllowedRecommendationSourceIds } from '../../media/emby/recommendationAccess.js'
 import { finalizeRun } from '../storage.js'
 import { suggestionTitleKeySql } from '../shared/suggestionHistory.js'
 import {
@@ -634,7 +634,7 @@ export async function generateSeriesRecommendationsForUser(
     if (provider instanceof EmbyProvider) {
       const apiKey = await getMediaServerApiKey()
       if (!apiKey) throw new Error('An Emby API key is required to verify series source access')
-      allowedSourceIds = await getAllowedSeriesSourceIds(provider, apiKey, user.providerUserId)
+      allowedSourceIds = await getAllowedRecommendationSourceIds(provider, apiKey, user.providerUserId, 'tvshows')
     }
     const groups = provider instanceof EmbyProvider ? await getSeriesRecommendationGroups() : []
     const candidatePools = new Map<string | null, Set<string>>()
