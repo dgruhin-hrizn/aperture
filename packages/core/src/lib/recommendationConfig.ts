@@ -7,6 +7,7 @@ export interface MediaTypeConfig {
   maxCandidates: number
   selectedCount: number
   recentWatchLimit: number
+  repeatCooldownDays: number
   similarityWeight: number
   noveltyWeight: number
   ratingWeight: number
@@ -35,6 +36,7 @@ interface RecommendationConfigRow {
   movie_max_candidates: number
   movie_selected_count: number
   movie_recent_watch_limit: number
+  movie_repeat_cooldown_days: number
   movie_similarity_weight: string
   movie_novelty_weight: string
   movie_rating_weight: string
@@ -42,6 +44,7 @@ interface RecommendationConfigRow {
   series_max_candidates: number
   series_selected_count: number
   series_recent_watch_limit: number
+  series_repeat_cooldown_days: number
   series_similarity_weight: string
   series_novelty_weight: string
   series_rating_weight: string
@@ -54,6 +57,7 @@ const MOVIE_DEFAULTS: MediaTypeConfig = {
   maxCandidates: 50000,
   selectedCount: 12,
   recentWatchLimit: 50,
+  repeatCooldownDays: 180,
   similarityWeight: 0.4,
   noveltyWeight: 0.2,
   ratingWeight: 0.2,
@@ -64,6 +68,7 @@ const SERIES_DEFAULTS: MediaTypeConfig = {
   maxCandidates: 50000,
   selectedCount: 12,
   recentWatchLimit: 100,
+  repeatCooldownDays: 180,
   similarityWeight: 0.4,
   noveltyWeight: 0.2,
   ratingWeight: 0.2,
@@ -77,9 +82,9 @@ export async function getRecommendationConfig(): Promise<RecommendationConfig> {
   const row = await queryOne<RecommendationConfigRow>(
     `SELECT 
       movie_max_candidates, movie_selected_count, movie_recent_watch_limit,
-      movie_similarity_weight, movie_novelty_weight, movie_rating_weight, movie_diversity_weight,
+      movie_repeat_cooldown_days, movie_similarity_weight, movie_novelty_weight, movie_rating_weight, movie_diversity_weight,
       series_max_candidates, series_selected_count, series_recent_watch_limit,
-      series_similarity_weight, series_novelty_weight, series_rating_weight, series_diversity_weight,
+      series_repeat_cooldown_days, series_similarity_weight, series_novelty_weight, series_rating_weight, series_diversity_weight,
       updated_at
      FROM recommendation_config WHERE id = 1`
   )
@@ -98,6 +103,7 @@ export async function getRecommendationConfig(): Promise<RecommendationConfig> {
       maxCandidates: row.movie_max_candidates,
       selectedCount: row.movie_selected_count,
       recentWatchLimit: row.movie_recent_watch_limit,
+      repeatCooldownDays: row.movie_repeat_cooldown_days,
       similarityWeight: parseFloat(row.movie_similarity_weight),
       noveltyWeight: parseFloat(row.movie_novelty_weight),
       ratingWeight: parseFloat(row.movie_rating_weight),
@@ -107,6 +113,7 @@ export async function getRecommendationConfig(): Promise<RecommendationConfig> {
       maxCandidates: row.series_max_candidates,
       selectedCount: row.series_selected_count,
       recentWatchLimit: row.series_recent_watch_limit,
+      repeatCooldownDays: row.series_repeat_cooldown_days,
       similarityWeight: parseFloat(row.series_similarity_weight),
       noveltyWeight: parseFloat(row.series_novelty_weight),
       ratingWeight: parseFloat(row.series_rating_weight),
@@ -160,6 +167,10 @@ export async function updateMovieRecommendationConfig(
     setClauses.push(`movie_recent_watch_limit = $${paramIndex++}`)
     values.push(updates.recentWatchLimit)
   }
+  if (updates.repeatCooldownDays !== undefined) {
+    setClauses.push(`movie_repeat_cooldown_days = $${paramIndex++}`)
+    values.push(updates.repeatCooldownDays)
+  }
   if (updates.similarityWeight !== undefined) {
     setClauses.push(`movie_similarity_weight = $${paramIndex++}`)
     values.push(updates.similarityWeight)
@@ -211,6 +222,10 @@ export async function updateSeriesRecommendationConfig(
   if (updates.recentWatchLimit !== undefined) {
     setClauses.push(`series_recent_watch_limit = $${paramIndex++}`)
     values.push(updates.recentWatchLimit)
+  }
+  if (updates.repeatCooldownDays !== undefined) {
+    setClauses.push(`series_repeat_cooldown_days = $${paramIndex++}`)
+    values.push(updates.repeatCooldownDays)
   }
   if (updates.similarityWeight !== undefined) {
     setClauses.push(`series_similarity_weight = $${paramIndex++}`)
@@ -269,6 +284,7 @@ export async function resetMovieRecommendationConfig(): Promise<RecommendationCo
       movie_novelty_weight = $5,
       movie_rating_weight = $6,
       movie_diversity_weight = $7,
+      movie_repeat_cooldown_days = $8,
       updated_at = NOW()
      WHERE id = 1`,
     [
@@ -279,6 +295,7 @@ export async function resetMovieRecommendationConfig(): Promise<RecommendationCo
       MOVIE_DEFAULTS.noveltyWeight,
       MOVIE_DEFAULTS.ratingWeight,
       MOVIE_DEFAULTS.diversityWeight,
+      MOVIE_DEFAULTS.repeatCooldownDays,
     ]
   )
 
@@ -299,6 +316,7 @@ export async function resetSeriesRecommendationConfig(): Promise<RecommendationC
       series_novelty_weight = $5,
       series_rating_weight = $6,
       series_diversity_weight = $7,
+      series_repeat_cooldown_days = $8,
       updated_at = NOW()
      WHERE id = 1`,
     [
@@ -309,6 +327,7 @@ export async function resetSeriesRecommendationConfig(): Promise<RecommendationC
       SERIES_DEFAULTS.noveltyWeight,
       SERIES_DEFAULTS.ratingWeight,
       SERIES_DEFAULTS.diversityWeight,
+      SERIES_DEFAULTS.repeatCooldownDays,
     ]
   )
 

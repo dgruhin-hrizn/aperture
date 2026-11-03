@@ -21,6 +21,7 @@ export async function loadConfig(): Promise<PipelineConfig> {
       ratingWeight: dbConfig.movie.ratingWeight,
       diversityWeight: dbConfig.movie.diversityWeight,
       recentWatchLimit: dbConfig.movie.recentWatchLimit,
+      repeatCooldownDays: dbConfig.movie.repeatCooldownDays,
     }
   } catch (err) {
     logger.warn({ err }, 'Failed to load movie recommendation config from DB, using fallback')
@@ -44,6 +45,7 @@ export async function loadSeriesConfig(): Promise<PipelineConfig> {
       ratingWeight: dbConfig.series.ratingWeight,
       diversityWeight: dbConfig.series.diversityWeight,
       recentWatchLimit: dbConfig.series.recentWatchLimit,
+      repeatCooldownDays: dbConfig.series.repeatCooldownDays,
     }
   } catch (err) {
     logger.warn({ err }, 'Failed to load series recommendation config from DB, using fallback')

@@ -118,6 +118,7 @@ export async function getEffectiveAlgorithmConfig(
   try {
     const dbConfig = await getRecommendationConfig()
     adminConfig = {
+      repeatCooldownDays: dbConfig[mediaType].repeatCooldownDays,
       maxCandidates: mediaType === 'movie' ? dbConfig.movie.maxCandidates : dbConfig.series.maxCandidates,
       selectedCount: mediaType === 'movie' ? dbConfig.movie.selectedCount : dbConfig.series.selectedCount,
       similarityWeight: mediaType === 'movie' ? dbConfig.movie.similarityWeight : dbConfig.series.similarityWeight,
@@ -130,6 +131,7 @@ export async function getEffectiveAlgorithmConfig(
     logger.warn('Failed to load admin config, using fallback defaults')
     adminConfig = {
       maxCandidates: 50000,
+      repeatCooldownDays: 180,
       selectedCount: 12,
       ...DEFAULT_WEIGHTS,
     }
@@ -161,6 +163,7 @@ export async function getEffectiveAlgorithmConfig(
   const effectiveConfig: PipelineConfig = {
     maxCandidates: adminConfig.maxCandidates, // User can't override this
     selectedCount: adminConfig.selectedCount, // User can't override this
+    repeatCooldownDays: adminConfig.repeatCooldownDays,
     ...normalizedWeights,
   }
 

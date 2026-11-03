@@ -15,6 +15,9 @@ import {
   setLibraryEnabled,
   syncLibraryConfigsFromProvider,
   getMediaServerConfig,
+  getSeriesRecommendationGroups,
+  setSeriesRecommendationGroups,
+  type SeriesRecommendationGroup,
 } from '@aperture/core'
 import { requireAdmin } from '../../../plugins/auth.js'
 import {
@@ -37,6 +40,63 @@ export function registerLibraryHandlers(fastify: FastifyInstance) {
       return reply.status(500).send({ error: 'Failed to get library configurations' })
     }
   })
+
+  fastify.get('/api/settings/libraries/series-groups', { preHandler: requireAdmin }, async (request, reply) => {
+    if (!request.user?.isAdmin) return reply.code(403).send({ error: 'Admin access required' })
+    const config = await getMediaServerConfig()
+    return { supported: config.type === 'emby', groups: await getSeriesRecommendationGroups() }
+  })
+
+  fastify.put<{ Body: { groups: SeriesRecommendationGroup[] } }>(
+    '/api/settings/libraries/series-groups',
+    {
+      preHandler: requireAdmin,
+      schema: {
+        body: {
+          type: 'object',
+          required: ['groups'],
+          properties: {
+            groups: {
+              type: 'array',
+              maxItems: 20,
+              items: {
+                type: 'object',
+                required: ['id', 'name', 'sourceIds'],
+                additionalProperties: false,
+                properties: {
+                  id: { type: 'string', format: 'uuid' },
+                  name: { type: 'string', minLength: 1, maxLength: 80 },
+                  sourceIds: {
+                    type: 'array',
+                    minItems: 1,
+                    uniqueItems: true,
+                    items: { type: 'string', minLength: 1, maxLength: 255 },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      if (!request.user?.isAdmin) return reply.code(403).send({ error: 'Admin access required' })
+      if ((await getMediaServerConfig()).type !== 'emby') {
+        return reply.code(400).send({ error: 'TV recommendation groups are available for Emby' })
+      }
+      const groups = request.body.groups.map((group) => ({ ...group, id: group.id.toLowerCase(), name: group.name.trim() }))
+      const sources = new Set((await getLibraryConfigs())
+        .filter((library) => library.collectionType === 'tvshows')
+        .map((library) => library.providerLibraryId))
+      if (new Set(groups.map((group) => group.id)).size !== groups.length
+        || new Set(groups.map((group) => group.name.toLowerCase())).size !== groups.length
+        || groups.some((group) => !group.name || group.sourceIds.some((id) => !sources.has(id)))) {
+        return reply.code(400).send({ error: 'Each group needs a unique name and valid TV source libraries' })
+      }
+      await setSeriesRecommendationGroups(groups)
+      return { groups }
+    }
+  )
 
   /**
    * POST /api/settings/libraries/sync

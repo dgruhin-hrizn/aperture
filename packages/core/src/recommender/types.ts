@@ -26,6 +26,7 @@ export interface Candidate {
   ratingScore: number
   diversityScore: number
   diversityBoost: number // Used by shared selection algorithm
+  previouslySuggested?: boolean
   finalScore: number
 }
 
@@ -37,6 +38,7 @@ export interface PipelineConfig {
   ratingWeight: number
   diversityWeight: number
   recentWatchLimit: number
+  repeatCooldownDays: number
 }
 
 // Fallback defaults (used only if DB fetch fails)
@@ -48,5 +50,6 @@ export const FALLBACK_CONFIG: PipelineConfig = {
   ratingWeight: 0.2,
   diversityWeight: 0.2,
   recentWatchLimit: 50,
+  repeatCooldownDays: 180,
 }
 

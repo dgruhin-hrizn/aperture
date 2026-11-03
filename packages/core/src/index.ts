@@ -1066,3 +1066,9 @@ export {
   type ApiKeyWithUser,
   type CreateApiKeyResult,
 } from './apiKeys.js'
+
+export {
+  getSeriesRecommendationGroups,
+  setSeriesRecommendationGroups,
+  type SeriesRecommendationGroup,
+} from './recommender/series/groups.js'

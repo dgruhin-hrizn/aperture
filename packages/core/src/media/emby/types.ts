@@ -34,6 +34,7 @@ export interface EmbyLibrary {
   Name: string
   CollectionType: string
   Path?: string
+  Locations?: string[]
   RefreshStatus?: string
   LibraryOptions?: Record<string, unknown> // Full library options object from Emby
 }

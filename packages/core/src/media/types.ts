@@ -31,6 +31,7 @@ export interface Library {
   name: string
   collectionType: string
   path?: string
+  locations?: string[]
   refreshStatus?: string
 }
 

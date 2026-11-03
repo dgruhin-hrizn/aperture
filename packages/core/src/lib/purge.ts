@@ -77,6 +77,8 @@ export async function purgeMovieDatabase(): Promise<PurgeResult> {
     const runsResult = await client.query('DELETE FROM recommendation_runs')
     logger.info(`Deleted ${runsResult.rowCount} recommendation runs`)
 
+    await client.query('DELETE FROM recommendation_suggestion_history')
+
     // 7. Clear user preferences (taste profiles)
     const prefsResult = await client.query('DELETE FROM user_preferences')
     result.userPreferencesCleared = prefsResult.rowCount || 0

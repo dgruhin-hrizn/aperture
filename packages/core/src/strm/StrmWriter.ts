@@ -55,13 +55,15 @@ export * from './filenames.js'
 // Import functions needed for processStrmForAllUsers
 import { writeStrmFilesForUser } from './movies/writer.js'
 import { ensureUserLibrary, refreshUserLibrary, updateUserLibraryPermissions } from './movies/library.js'
-import { writeSeriesStrmFilesForUser } from './series/writer.js'
+import { getLatestSeriesOutputRunId, writeSeriesStrmFilesForUser } from './series/writer.js'
 import {
   ensureUserSeriesLibrary,
   refreshUserSeriesLibrary,
   updateUserSeriesLibraryPermissions,
 } from './series/library.js'
-import { reconcileStaleStrmLibraries } from './cleanup.js'
+import { getSeriesRecommendationGroups } from '../recommender/series/groups.js'
+import { getMediaServerProvider } from '../media/index.js'
+import { cleanupRetiredSeriesOutputs, reconcileStaleStrmLibraries } from './cleanup.js'
 
 const logger = createChildLogger('strm-writer')
 
@@ -278,57 +280,55 @@ export async function processSeriesStrmForAllUsers(
       try {
         addLog(actualJobId, 'info', `📺 Processing Series STRM for ${displayName}...`)
 
-        // Step 1: Write STRM files
-        const strmResult = await writeSeriesStrmFilesForUser(user.id, user.provider_user_id, displayName)
-        addLog(actualJobId, 'debug', `  📝 Series STRM files written: ${strmResult.seriesCount} series (${strmResult.written} episode files) at ${strmResult.localPath}`)
+        const provider = await getMediaServerProvider()
+        const groups = provider.type === 'emby' ? await getSeriesRecommendationGroups() : []
+        const outputs = groups.length ? groups : [null]
+        const runId = await getLatestSeriesOutputRunId(user.id)
+        await cleanupRetiredSeriesOutputs(user, outputs.map((group) => group?.id ?? null))
 
-        // Skip library creation/permissions if no recommendations (prevents 400 errors)
-        if (strmResult.seriesCount === 0) {
-          addLog(actualJobId, 'info', `⏭️ Skipping TV library sync for ${displayName} (no recommendations yet)`)
-          userResults.push({
-            userId: user.id,
-            providerUserId: user.provider_user_id,
-            username: user.username,
-            displayName,
-            status: 'skipped',
-            recommendationCount: 0,
-            error: 'No recommendations generated (insufficient watch history)',
-          })
-          skipped++
-          updateJobProgress(actualJobId, i + 1, totalUsers, `${success + skipped}/${totalUsers} users (${totalRecommendations} series)`)
-          continue
+        let recommendationCount = 0
+        let libraryCreated = false
+        const libraryNames: string[] = []
+        const outputErrors: string[] = []
+        for (const group of outputs) {
+          const groupId = group?.id ?? null
+          try {
+            const strmResult = await writeSeriesStrmFilesForUser(user.id, user.provider_user_id, displayName, group, runId)
+            if (strmResult.seriesCount === 0) {
+              if (strmResult.withheldReason) {
+                addLog(actualJobId, 'warn', `${displayName}: ${strmResult.withheldReason}`)
+              }
+              await refreshUserSeriesLibrary(user.id, groupId)
+              continue
+            }
+
+            const library = await ensureUserSeriesLibrary(user.id, user.provider_user_id, displayName, group)
+            await updateUserSeriesLibraryPermissions(user.id, user.provider_user_id, groupId)
+            await refreshUserSeriesLibrary(user.id, groupId)
+            recommendationCount += strmResult.seriesCount
+            libraryCreated ||= library.created
+            libraryNames.push(library.name)
+          } catch (err) {
+            outputErrors.push(`${group?.name ?? 'TV'}: ${err instanceof Error ? err.message : String(err)}`)
+          }
         }
 
-        // Step 2: Ensure the TV library exists in the media server
-        const libraryResult = await ensureUserSeriesLibrary(user.id, user.provider_user_id, displayName)
-        if (libraryResult.created) {
-          addLog(actualJobId, 'info', `  📺 Created new TV library in media server: ${libraryResult.name}`)
-        } else {
-          addLog(actualJobId, 'debug', `  📺 TV library already exists in media server: ${libraryResult.name}`)
-        }
-
-        // Step 3: Refresh library
-        await refreshUserSeriesLibrary(user.id)
-        addLog(actualJobId, 'debug', `  🔄 TV library refreshed`)
-
-        // Step 4: Update user permissions
-        await updateUserSeriesLibraryPermissions(user.id, user.provider_user_id)
-        addLog(actualJobId, 'debug', `  🔐 User permissions updated`)
+        if (outputErrors.length > 0) throw new Error(outputErrors.join(' | '))
 
         userResults.push({
           userId: user.id,
           providerUserId: user.provider_user_id,
           username: user.username,
           displayName,
-          status: 'success',
-          recommendationCount: strmResult.seriesCount,
-          libraryName: libraryResult.name,
-          libraryCreated: libraryResult.created,
+          status: recommendationCount > 0 ? 'success' : 'skipped',
+          recommendationCount,
+          libraryName: libraryNames.join(', '),
+          libraryCreated,
         })
 
-        success++
-        totalRecommendations += strmResult.seriesCount
-        addLog(actualJobId, 'info', `✅ Completed Series STRM processing for ${displayName} (${strmResult.seriesCount} series, ${strmResult.written} episodes)`)
+        if (recommendationCount > 0) success++
+        else skipped++
+        totalRecommendations += recommendationCount
         updateJobProgress(actualJobId, i + 1, totalUsers, `${success + skipped}/${totalUsers} users (${totalRecommendations} series)`)
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error'

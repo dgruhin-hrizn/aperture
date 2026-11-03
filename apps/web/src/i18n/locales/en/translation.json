@@ -1864,6 +1864,8 @@
     "sectionWeights": "WEIGHTS",
     "maxCandidatesLabel": "Max Candidates:",
     "recsPerUser": "Recs Per User",
+    "repeatCooldownDays": "Repeat suggestion cooldown (days)",
+    "repeatCooldownHelp": "After the cooldown, returning titles can take up to 20% of the requested slots, with one slot allowed for small lists.",
     "watchHistoryDepth": "Watch History Depth",
     "weightSimilarity": "Similarity",
     "weightDiscovery": "Discovery",
