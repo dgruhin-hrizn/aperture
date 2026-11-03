@@ -105,7 +105,7 @@ export const updateLibrarySchema = {
   params: {
     type: 'object' as const,
     properties: {
-      id: { type: 'string' as const, format: 'uuid', description: 'Library config ID' },
+      id: { type: 'string' as const, minLength: 1, maxLength: 255, description: 'Library ID from the media server' },
     },
     required: ['id'] as string[],
   },
