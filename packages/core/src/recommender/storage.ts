@@ -50,6 +50,7 @@ export async function storeCandidates(
         novelty: c.novelty,
         rating: c.ratingScore,
         diversity: c.diversityScore,
+        themeBoost: c.themeBoost,
       }),
     }
   })
