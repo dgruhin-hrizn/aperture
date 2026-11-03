@@ -13,6 +13,7 @@ import { getMediaServerApiKey } from '../../settings/systemSettings.js'
 import { getConfig } from '../config.js'
 import { getEffectiveLibraryTitle } from '../../lib/userSettings.js'
 import { syncLibraryTypeImage } from '../../uploads/mediaServerSync.js'
+import type { SeriesRecommendationGroup } from '../../recommender/series/groups.js'
 import type { StrmConfig } from '../types.js'
 
 const logger = createChildLogger('strm-series-library')
@@ -34,7 +35,8 @@ export async function getUserSeriesLibraryName(
 export async function ensureUserSeriesLibrary(
   userId: string,
   providerUserId: string,
-  displayName: string
+  displayName: string,
+  group: SeriesRecommendationGroup | null = null
 ): Promise<{ libraryId: string; libraryGuid: string; created: boolean; name: string }> {
   const config = await getConfig()
   const provider = await getMediaServerProvider()
@@ -48,9 +50,12 @@ export async function ensureUserSeriesLibrary(
   const { getUserFolderName } = await import('../filenames.js')
   const userFolder = getUserFolderName(displayName, providerUserId)
 
-  const libraryName = await getUserSeriesLibraryName(userId, displayName, config)
+  const baseName = await getUserSeriesLibraryName(userId, displayName, config)
+  const libraryName = group ? `${baseName} – ${group.name}` : baseName
+  const groupId = group?.id ?? null
+  const outputFolder = group ? `${userId}-group-${group.id}` : userFolder
   // Library path includes 'aperture-tv' subfolder for AI series recommendations
-  const libraryPath = path.join(config.libraryPathPrefix, 'aperture-tv', userFolder)
+  const libraryPath = path.join(config.libraryPathPrefix, 'aperture-tv', outputFolder)
 
   logger.info({ userId, libraryName, libraryPath }, '📺 Checking series library status...')
 
@@ -61,35 +66,43 @@ export async function ensureUserSeriesLibrary(
     name: string
   }>(
     `SELECT provider_library_id, provider_library_guid, name FROM strm_libraries
-     WHERE user_id = $1 AND media_type = 'series'`,
-    [userId]
+     WHERE user_id = $1 AND media_type = 'series'
+       AND series_group_id IS NOT DISTINCT FROM $2::uuid`,
+    [userId, groupId]
   )
 
-  // If library name changed, delete the old record so we create a new one
-  if (dbRecord && dbRecord.name !== libraryName) {
-    logger.info({ userId, oldName: dbRecord.name, newName: libraryName }, 'Series library name changed, clearing old record')
-    await query(
-      `DELETE FROM strm_libraries WHERE user_id = $1 AND media_type = 'series'`,
-      [userId]
-    )
+  const libraries = await provider.getLibraries(apiKey)
+  const existingLib = libraries.find((lib) => lib.name.toLowerCase() === libraryName.toLowerCase())
+  if (existingLib && provider.type === 'emby' && existingLib.id !== dbRecord?.provider_library_id
+    && !existingLib.locations?.includes(libraryPath)) {
+    throw new Error(`Emby already has an unrelated library named ${libraryName}`)
   }
 
-  // Check if the library actually exists in the media server
-  const libraries = await provider.getLibraries(apiKey)
-  const existingLib = libraries.find((lib) => lib.name === libraryName)
+  // If the managed name changed, remove only the library we previously created.
+  if (dbRecord && dbRecord.name !== libraryName && !existingLib) {
+    const previous = libraries.find((lib) => lib.id === dbRecord.provider_library_id)
+    if (previous) await provider.deleteVirtualLibrary(apiKey, previous.name)
+    logger.info({ userId, oldName: dbRecord.name, newName: libraryName }, 'Series library name changed, clearing old record')
+    await query(
+      `DELETE FROM strm_libraries WHERE user_id = $1 AND media_type = 'series'
+       AND series_group_id IS NOT DISTINCT FROM $2::uuid`,
+      [userId, groupId]
+    )
+  }
 
   if (existingLib) {
     logger.info({ libraryName, libraryId: existingLib.id }, '📺 Series library exists in media server')
 
     // Ensure we have an up-to-date database record
     await query(
-      `DELETE FROM strm_libraries WHERE user_id = $1 AND media_type = 'series'`,
-      [userId]
+      `DELETE FROM strm_libraries WHERE user_id = $1 AND media_type = 'series'
+       AND series_group_id IS NOT DISTINCT FROM $2::uuid`,
+      [userId, groupId]
     )
     await query(
-      `INSERT INTO strm_libraries (user_id, name, path, provider_library_id, provider_library_guid, media_type)
-       VALUES ($1, $2, $3, $4, $5, 'series')`,
-      [userId, libraryName, libraryPath, existingLib.id, existingLib.guid]
+      `INSERT INTO strm_libraries (user_id, name, path, provider_library_id, provider_library_guid, media_type, series_group_id)
+       VALUES ($1, $2, $3, $4, $5, 'series', $6)`,
+      [userId, existingLib.name, libraryPath, existingLib.id, existingLib.guid, groupId]
     )
 
     // Push global library image to this library
@@ -109,8 +122,9 @@ export async function ensureUserSeriesLibrary(
   if (dbRecord) {
     logger.info({ userId }, 'Clearing stale database record (library was deleted from media server)')
     await query(
-      `DELETE FROM strm_libraries WHERE user_id = $1 AND media_type = 'series'`,
-      [userId]
+      `DELETE FROM strm_libraries WHERE user_id = $1 AND media_type = 'series'
+       AND series_group_id IS NOT DISTINCT FROM $2::uuid`,
+      [userId, groupId]
     )
   }
 
@@ -124,9 +138,9 @@ export async function ensureUserSeriesLibrary(
 
   // Store the mapping
   await query(
-    `INSERT INTO strm_libraries (user_id, name, path, provider_library_id, provider_library_guid, media_type)
-     VALUES ($1, $2, $3, $4, $5, 'series')`,
-    [userId, libraryName, libraryPath, result.libraryId, libraryGuid]
+    `INSERT INTO strm_libraries (user_id, name, path, provider_library_id, provider_library_guid, media_type, series_group_id)
+     VALUES ($1, $2, $3, $4, $5, 'series', $6)`,
+    [userId, libraryName, libraryPath, result.libraryId, libraryGuid, groupId]
   )
 
   // Push global library image to this library
@@ -141,7 +155,7 @@ export async function ensureUserSeriesLibrary(
  * Refresh a user's AI TV library in the media server
  * Also hides library items from Continue Watching for all users
  */
-export async function refreshUserSeriesLibrary(userId: string): Promise<void> {
+export async function refreshUserSeriesLibrary(userId: string, groupId: string | null = null): Promise<void> {
   const provider = await getMediaServerProvider()
   const apiKey = await getMediaServerApiKey()
 
@@ -151,8 +165,9 @@ export async function refreshUserSeriesLibrary(userId: string): Promise<void> {
 
   const library = await queryOne<{ provider_library_id: string }>(
     `SELECT provider_library_id FROM strm_libraries
-     WHERE user_id = $1 AND media_type = 'series'`,
-    [userId]
+     WHERE user_id = $1 AND media_type = 'series'
+       AND series_group_id IS NOT DISTINCT FROM $2::uuid`,
+    [userId, groupId]
   )
 
   if (!library?.provider_library_id) {
@@ -169,7 +184,8 @@ export async function refreshUserSeriesLibrary(userId: string): Promise<void> {
  */
 export async function updateUserSeriesLibraryPermissions(
   userId: string,
-  providerUserId: string
+  providerUserId: string,
+  groupId: string | null = null
 ): Promise<void> {
   const provider = await getMediaServerProvider()
   const apiKey = await getMediaServerApiKey()
@@ -181,8 +197,9 @@ export async function updateUserSeriesLibraryPermissions(
   // Get user's AI series library
   const library = await queryOne<{ provider_library_id: string; provider_library_guid: string }>(
     `SELECT provider_library_id, provider_library_guid FROM strm_libraries
-     WHERE user_id = $1 AND media_type = 'series'`,
-    [userId]
+     WHERE user_id = $1 AND media_type = 'series'
+       AND series_group_id IS NOT DISTINCT FROM $2::uuid`,
+    [userId, groupId]
   )
 
   if (!library?.provider_library_guid) {

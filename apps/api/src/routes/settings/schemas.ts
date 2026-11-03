@@ -140,6 +140,7 @@ export const updateRecommendationConfigSchema = {
       enabled: { type: 'boolean' as const, description: 'Enable/disable recommendations for this media type' },
       maxCandidates: { type: 'integer' as const, minimum: 10, description: 'Maximum candidates to evaluate. Use a very large number (e.g., 999999999) for unlimited.', example: 500 },
       selectedCount: { type: 'integer' as const, minimum: 1, maximum: 100, description: 'Number of recommendations to select', example: 20 },
+      repeatCooldownDays: { type: 'integer' as const, minimum: 1, maximum: 36500, description: 'Days before a previously suggested title can return', example: 180 },
       recentWatchLimit: { type: 'integer' as const, minimum: 1, description: 'Number of recent watches to consider for similarity', example: 50 },
       similarityWeight: { type: 'number' as const, minimum: 0, maximum: 1, description: 'Weight for semantic similarity to watched content (0-1)', example: 0.4 },
       noveltyWeight: { type: 'number' as const, minimum: 0, maximum: 1, description: 'Weight for content novelty/freshness (0-1)', example: 0.2 },

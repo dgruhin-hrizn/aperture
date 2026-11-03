@@ -23,6 +23,7 @@ import RefreshIcon from '@mui/icons-material/Refresh'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import type { LibraryConfig } from '../types'
+import { SeriesRecommendationGroups } from './SeriesRecommendationGroups'
 
 interface LibraryConfigSectionProps {
   libraries: LibraryConfig[]
@@ -212,6 +213,7 @@ export function LibraryConfigSection({
 
             <TabPanel value={tabValue} index={1}>
               {renderLibraryList(tvLibraries, 'tvshows')}
+              <SeriesRecommendationGroups libraries={tvLibraries} />
             </TabPanel>
           </>
         )}

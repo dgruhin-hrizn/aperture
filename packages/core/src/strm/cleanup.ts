@@ -21,6 +21,8 @@ interface StrmLibraryRow {
   id: string
   name: string
   media_type: string
+  series_group_id: string | null
+  provider_library_id: string | null
 }
 
 interface UserForCleanup {
@@ -49,7 +51,7 @@ export async function cleanupUserLibraries(
     return
   }
 
-  const sql = `SELECT id, name, media_type FROM strm_libraries
+  const sql = `SELECT id, name, media_type, series_group_id, provider_library_id FROM strm_libraries
      WHERE user_id = $1
      AND (
        ($2::text IS NULL AND (
@@ -68,37 +70,26 @@ export async function cleanupUserLibraries(
   await removeStrmLibraryRecords(user, result.rows)
 }
 
+export async function cleanupRetiredSeriesOutputs(
+  user: UserForCleanup,
+  activeGroupIds: Array<string | null>
+): Promise<void> {
+  const { rows } = await query<StrmLibraryRow>(
+    "SELECT id, name, media_type, series_group_id, provider_library_id FROM strm_libraries WHERE user_id = $1 AND media_type = 'series'",
+    [user.id]
+  )
+  const retired = rows.filter((row) => !activeGroupIds.includes(row.series_group_id))
+  if (retired.length > 0) await removeStrmLibraryRecords(user, retired)
+}
+
 async function removeStrmLibraryRecords(
   user: UserForCleanup,
   rows: StrmLibraryRow[]
 ): Promise<void> {
   const displayName = user.display_name || user.username
-  const apiKey = await getMediaServerApiKey()
-  if (!apiKey) {
-    logger.warn('cleanup: no media server API key; skipping server delete and deleting DB rows only')
-  } else {
-    const provider = await getMediaServerProvider()
-    for (const row of rows) {
-      try {
-        await provider.deleteVirtualLibrary(apiKey, row.name)
-        logger.info({ userId: user.id, name: row.name }, 'Deleted virtual library from media server')
-      } catch (err) {
-        logger.warn(
-          { err, userId: user.id, name: row.name },
-          'cleanup: media server delete failed (library may already be gone)'
-        )
-      }
-    }
-  }
-
-  const ids = rows.map((r) => r.id)
-  await query(`DELETE FROM strm_libraries WHERE id = ANY($1::uuid[])`, [ids])
-  logger.info({ userId: user.id, count: ids.length }, 'Removed strm_libraries rows')
-
   const config = await getConfig()
   const userFolder = getUserFolderName(displayName, user.provider_user_id)
   const touchedMovies = rows.some((r) => r.media_type === 'movies')
-  const touchedSeries = rows.some((r) => r.media_type === 'series')
 
   if (touchedMovies) {
     const localMovies = path.join(config.strmRoot, 'aperture', userFolder)
@@ -109,14 +100,35 @@ async function removeStrmLibraryRecords(
       logger.warn({ err, path: localMovies }, 'cleanup: failed to remove movie output directory')
     }
   }
-  if (touchedSeries) {
-    const localSeries = path.join(config.strmRoot, 'aperture-tv', userFolder)
+  for (const row of rows.filter((record) => record.media_type === 'series')) {
+    const folder = row.series_group_id ? `${user.id}-group-${row.series_group_id}` : userFolder
+    const localSeries = path.join(config.strmRoot, 'aperture-tv', folder)
     try {
       await fs.rm(localSeries, { recursive: true, force: true })
       logger.info({ path: localSeries }, 'Removed local series STRM directory')
     } catch (err) {
-      logger.warn({ err, path: localSeries }, 'cleanup: failed to remove series output directory')
+      logger.error({ err, path: localSeries }, 'cleanup: failed to remove series output directory')
+      throw err
     }
+  }
+
+  const apiKey = await getMediaServerApiKey()
+  const ids: string[] = []
+  if (apiKey) {
+    const provider = await getMediaServerProvider()
+    const libraries = await provider.getLibraries(apiKey)
+    for (const row of rows) {
+      try {
+        const library = libraries.find((lib) => lib.id === row.provider_library_id)
+        if (library) await provider.deleteVirtualLibrary(apiKey, library.name)
+        ids.push(row.id)
+      } catch (err) {
+        logger.warn({ err, userId: user.id, name: row.name }, 'Could not delete virtual library; will retry cleanup')
+      }
+    }
+  }
+  if (ids.length > 0) {
+    await query('DELETE FROM strm_libraries WHERE id = ANY($1::uuid[])', [ids])
   }
 }
 
@@ -142,7 +154,7 @@ export async function reconcileStaleStrmLibraries(jobId?: string): Promise<void>
   }
 
   const result = await query<StaleRow>(
-    `SELECT sl.id, sl.name, sl.media_type, sl.user_id,
+    `SELECT sl.id, sl.name, sl.media_type, sl.series_group_id, sl.provider_library_id, sl.user_id,
             u.provider_user_id, u.display_name, u.username
      FROM strm_libraries sl
      JOIN users u ON u.id = sl.user_id
@@ -185,7 +197,7 @@ export async function reconcileStaleStrmLibraries(jobId?: string): Promise<void>
       }
       byUser.set(key, entry)
     }
-    entry.rows.push({ id: row.id, name: row.name, media_type: row.media_type })
+    entry.rows.push(row)
   }
 
   for (const { user, rows } of byUser.values()) {

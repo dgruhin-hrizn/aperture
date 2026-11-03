@@ -201,7 +201,8 @@ export async function generateRecommendationsForUser(
       excludeIds,
       cfg.maxCandidates,
       includeWatched,
-      user.maxParentalRating ?? null
+      user.maxParentalRating ?? null,
+      { userId: user.id, cooldownDays: cfg.repeatCooldownDays }
     )
     logger.info(
       { userId: user.id, candidateCount: candidates.length },

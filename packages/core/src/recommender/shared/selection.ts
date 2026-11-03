@@ -18,6 +18,7 @@ import type { BaseCandidate } from './scoring.js'
  */
 export interface SelectableCandidate extends BaseCandidate {
   network?: string | null
+  previouslySuggested?: boolean
 }
 
 /**
@@ -119,6 +120,10 @@ export function applyDiversitySelection<T extends SelectableCandidate>(
   // Track selected titles to avoid duplicates (different versions of same content)
   const selectedTitles = new Set<string>()
 
+  // Allow one returning title in small lists and reserve the other slots for new titles.
+  const repeatLimit = Math.max(1, Math.floor(targetCount / 5))
+  let repeatCount = 0
+
   while (selected.length < targetCount && remaining.size > 0) {
     let bestId: string | null = null
     let bestScore = -Infinity
@@ -127,6 +132,8 @@ export function applyDiversitySelection<T extends SelectableCandidate>(
     // Find the best candidate considering both base score and diversity
     for (const id of remaining) {
       const candidate = candidateMap.get(id)!
+      if (candidate.previouslySuggested && repeatCount >= repeatLimit) continue
+
       const baseScore = baseScores.get(id)!
 
       // Skip duplicate titles (e.g., different versions of same movie/series)
@@ -161,6 +168,7 @@ export function applyDiversitySelection<T extends SelectableCandidate>(
     // Select the best candidate
     const best = candidateMap.get(bestId)!
     remaining.delete(bestId)
+    if (best.previouslySuggested) repeatCount++
 
     // Update candidate with selection info
     best.diversityBoost = bestDiversityBoost

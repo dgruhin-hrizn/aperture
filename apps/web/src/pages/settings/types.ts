@@ -12,6 +12,7 @@ export interface MediaTypeConfig {
   maxCandidates: number
   selectedCount: number
   recentWatchLimit: number
+  repeatCooldownDays: number
   similarityWeight: number
   noveltyWeight: number
   ratingWeight: number

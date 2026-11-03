@@ -209,6 +209,18 @@ function MediaTypeCard({
           />
         </FormControl>
 
+        <TextField
+          fullWidth
+          sx={{ mb: 2 }}
+          size="small"
+          label={t('settingsRecAlgo.repeatCooldownDays')}
+          helperText={t('settingsRecAlgo.repeatCooldownHelp')}
+          type="number"
+          value={config.repeatCooldownDays}
+          onChange={(e) => onUpdateField('repeatCooldownDays', Math.min(36500, Math.max(1, parseInt(e.target.value) || 1)))}
+          inputProps={{ min: 1, max: 36500 }}
+        />
+
         {/* Weights */}
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
           <Typography variant="caption" color="text.secondary" fontWeight={600}>
