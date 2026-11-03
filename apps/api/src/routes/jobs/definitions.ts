@@ -6,6 +6,12 @@
 import type { JobDefinition } from './types.js'
 
 export const jobDefinitions: JobDefinition[] = [
+  {
+    name: 'import-media-server',
+    description: 'Import users, movies, TV, and watch history from the media server. Uses no AI tokens and publishes nothing.',
+    cron: null,
+    manualOnly: true,
+  },
   // === User Sync Job ===
   {
     name: 'sync-users',

@@ -3,6 +3,7 @@
  * Central job execution logic
  */
 
+import { randomUUID } from 'node:crypto'
 import {
   syncMovies,
   generateMissingEmbeddings,
@@ -31,6 +32,8 @@ import {
   addLog,
   completeJob,
   failJob,
+  getJobProgress,
+  isJobCancelled,
   syncUsersFromMediaServer,
   createChildLogger,
   runLibraryGapAnalysis,
@@ -48,6 +51,23 @@ export async function runJob(name: string, jobId: string): Promise<void> {
     logger.info({ job: name, jobId }, `🚀 Starting job: ${name}`)
 
     switch (name) {
+      case 'import-media-server': {
+        const steps = ['sync-users', 'sync-movies', 'sync-series', 'sync-movie-watch-history', 'sync-series-watch-history']
+        createJobProgress(jobId, name, steps.length)
+        for (const [index, step] of steps.entries()) {
+          if (isJobCancelled(jobId)) return
+          if (activeJobs.has(step)) throw new Error(`Wait for ${step} to finish before importing`)
+          setJobStep(jobId, index, step)
+          const childId = randomUUID()
+          activeJobs.set(step, childId)
+          await runJob(step, childId)
+          const progress = getJobProgress(childId)
+          if (progress?.status !== 'completed') throw new Error(`${step} did not complete`)
+          addLog(jobId, 'info', `Finished ${step}`)
+        }
+        if (!isJobCancelled(jobId)) completeJob(jobId, { stepsCompleted: steps.length })
+        break
+      }
       case 'sync-users': {
         const result = await syncUsersFromMediaServer(jobId)
         logger.info(
