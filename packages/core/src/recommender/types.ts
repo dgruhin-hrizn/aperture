@@ -26,6 +26,8 @@ export interface Candidate {
   ratingScore: number
   diversityScore: number
   diversityBoost: number // Used by shared selection algorithm
+  keywords?: string[]
+  themeBoost?: number
   previouslySuggested?: boolean
   finalScore: number
 }
