@@ -1,4 +1,43 @@
 {
+  "releaseHighlights": {
+    "saveError": "Aperture could not save your dismissal. Try again.",
+    "admin": {
+      "title": "What’s new for Aperture admins",
+      "action": "Open output settings",
+      "groups": {
+        "title": "Group Emby TV sources",
+        "body": "Under Settings → Setup → Media Server, open the TV Shows library tab to map sources to named outputs. Run TV recommendations and TV library sync after saving."
+      },
+      "outputs": {
+        "title": "Choose how to publish AI Picks",
+        "body": "Under AI Recommendations → Output, choose a generated library, private Emby playlist preview, or Off for movies and TV separately. Off removes the managed output. Emby playlist recipients must sign in to Aperture with Emby first."
+      },
+      "cooldown": {
+        "title": "Control when picks can return",
+        "body": "Under AI Recommendations → Algorithm, set the movie and TV cooldowns. Both default to 180 days. Each list limits returning titles after the cooldown."
+      },
+      "jobs": {
+        "title": "Import without using AI tokens",
+        "body": "Admin → Jobs separates import, publishing, and AI processing. Import Media Server syncs users, the catalog, and watch history without generating or publishing picks."
+      }
+    },
+    "user": {
+      "title": "What’s new in your AI Picks",
+      "action": "Open AI Picks",
+      "freshness": {
+        "title": "Fewer repeat picks",
+        "body": "Recently suggested movies and shows take a break. Older picks can return gradually, leaving room for more titles you haven’t been suggested."
+      },
+      "exploration": {
+        "title": "More variety in movie recommendations",
+        "body": "Movie picks can make room for well-rated films outside your most-watched genres. Shared themes and your ratings also help shape the list."
+      },
+      "playback": {
+        "title": "New ways to find your picks in Emby",
+        "body": "If your admin enables them, you may see separate TV groups or private playlists. The playlist preview opens original Emby items, keeping playback attached to those items."
+      }
+    }
+  },
   "common": {
     "appName": "Aperture",
     "save": "Save",

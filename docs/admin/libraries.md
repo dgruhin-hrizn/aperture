@@ -65,6 +65,14 @@ After toggling:
 
 ---
 
+## Emby TV recommendation groups
+
+In **Settings → Setup → Media Server → Libraries → TV Shows**, add a group, enter a name, and select one or more source libraries. For example, an Anime source can feed an Anime output and Series plus Miniseries can feed a separate Series output. The group name is appended to the user’s configured TV output title. Save, generate TV recommendations, and run TV library sync.
+
+With no groups configured, the TV job uses one combined output. A group ranks titles from sources enabled in Aperture and accessible to the recipient in Emby. Groups with no eligible picks are skipped. When groups overlap, the first group to select a title gets it. Grouped outputs can be generated libraries or private Emby playlists, depending on the selected output mode.
+
+Emby source item IDs can be numeric. Aperture maps those item IDs to the folder identifiers Emby uses for access policies.
+
 ## Library Selection Strategy
 
 ### Recommended: Enable

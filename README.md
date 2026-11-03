@@ -153,6 +153,7 @@ All schedules are configurable in **Admin → Jobs**.
 
 | Guide                                  | Description                                                  |
 | -------------------------------------- | ------------------------------------------------------------ |
+| [0.7.11 release notes](docs/release-notes/v0.7.11.md) | Emby publishing, recommendation freshness, and upgrade notes |
 | [Admin Guide](docs/admin-guide.md)     | Setup walkthrough, job management, algorithm tuning          |
 | [User Guide](docs/user-guide.md)       | Features for end users, ratings, channels                    |
 | [Configuration](docs/configuration.md) | Volume setup, reverse proxy, Trakt integration               |

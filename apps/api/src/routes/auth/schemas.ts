@@ -56,6 +56,8 @@ export const authSchemas = {
     type: 'object',
     description: 'User UI preferences stored in Aperture',
     properties: {
+      dismissedAdminRelease: { type: 'string', minLength: 1, maxLength: 40 },
+      dismissedUserRelease: { type: 'string', minLength: 1, maxLength: 40 },
       sidebarCollapsed: { type: 'boolean', description: 'Whether the sidebar is collapsed' },
       viewModes: { 
         type: 'object', 

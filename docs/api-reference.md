@@ -29,7 +29,7 @@ Complete reference for all Aperture API endpoints.
 | `POST /api/auth/logout` | End session                                |
 | `GET /api/auth/me`      | Get current user                           |
 | `GET /api/auth/me/preferences` | Get UI preferences; includes `effectiveUiLanguage` and `effectiveAiLanguage` |
-| `PATCH /api/auth/me/preferences` | Update UI prefs (`uiLanguage`, `aiLanguage`, …); response includes effective locales |
+| `PATCH /api/auth/me/preferences` | Update UI preferences. Includes `dismissedAdminRelease` and `dismissedUserRelease` for versioned release dialogs. |
 
 ---
 
@@ -247,6 +247,8 @@ The assistant has access to these tools for content discovery:
 | `GET /api/jobs/:name/config`           | Get job schedule config   |
 | `PATCH /api/jobs/:name/config`         | Update job schedule       |
 | `GET /api/jobs/:name/history`          | Get job run history       |
+
+Use `POST /api/jobs/import-media-server/run` to import users, catalog, and watch history without invoking a model or publishing picks.
 | `GET /api/jobs/progress/stream/:jobId` | SSE stream for progress   |
 | `GET /api/jobs/scheduler/status`       | Get scheduler status      |
 
@@ -276,3 +278,16 @@ All endpoints require an authenticated **admin** session.
 | `GET /api/admin/purge/stats`   | Get database statistics |
 | `POST /api/admin/purge/movies` | Purge all movie data    |
 
+
+
+### Recommendation publication settings
+
+These endpoints require an administrator account.
+
+| Endpoint | Behavior |
+| --- | --- |
+| `PATCH /api/settings/libraries/:id` | Set `isEnabled` using the media server's library ID, including numeric Emby IDs |
+| `GET /api/settings/libraries/series-groups` | Return whether groups are supported and the configured `groups` |
+| `PUT /api/settings/libraries/series-groups` | Replace the ordered group list. Each entry has a UUID `id`, `name`, and `sourceIds` containing TV source IDs. |
+| `PATCH /api/settings/ai-recs/output` | Set `moviesOutputMode` or `seriesOutputMode` to `library`, `playlist` (Emby), or `off` |
+| `PATCH /api/settings/recommendations/movies` and `/series` | Set `repeatCooldownDays` for the respective media type |
