@@ -719,8 +719,8 @@ function calculatePreferenceScore(stats: FranchiseStats): number {
 
   // Rating bonus/penalty (0 to 0.3)
   if (stats.avgRating !== null) {
-    // Normalize rating to 0-1 (assuming 1-10 scale, adjust for 1-5)
-    const normalizedRating = stats.avgRating > 5 ? stats.avgRating / 10 : stats.avgRating / 5
+    // Normalize rating to 0-1 (stored on a 1-10 scale)
+    const normalizedRating = stats.avgRating / 10
     // Convert to -0.15 to +0.3 range
     score += (normalizedRating - 0.5) * 0.6
   }
@@ -997,7 +997,7 @@ function calculateGenreWeight(stat: GenreStats, allStats: GenreStats[]): number 
 
   // Rating adjustment: +/- 0.3 based on average rating
   if (stat.avgRating !== null) {
-    const normalizedRating = stat.avgRating > 5 ? stat.avgRating / 10 : stat.avgRating / 5
+    const normalizedRating = stat.avgRating / 10
     // Convert 0-1 rating to -0.3 to +0.3 adjustment
     weight += (normalizedRating - 0.5) * 0.6
   }

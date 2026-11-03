@@ -131,10 +131,9 @@ export function calculateEngagementWeight(item: WatchedItem, mediaType: MediaTyp
 
   // User rating bonus (if they bothered to rate it, it matters to them)
   if (item.rating !== undefined) {
-    // Ratings typically 1-10 or 1-5
     // High rating = boost, low rating = penalty
-    const normalizedRating = item.rating > 5 ? item.rating / 10 : item.rating / 5
-    // 0.5 rating = 0.75x, 1.0 rating = 1.25x
+    const normalizedRating = item.rating / 10
+    // 5/10 = 0.875x, 1.0 rating = 1.25x
     weight *= 0.5 + normalizedRating * 0.75
   }
 
