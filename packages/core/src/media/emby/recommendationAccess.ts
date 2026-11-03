@@ -75,7 +75,7 @@ export async function getVisibleRecommendationItems(
   apiKey: string,
   providerUserId: string,
   itemIds: string[],
-  type: 'Movie' | 'Series' | 'Episode',
+  type: 'Movie' | 'Series' | 'Episode' | 'Playlist',
   seriesId?: string
 ): Promise<Map<string, VisibleItem>> {
   const visible = new Map<string, VisibleItem>()
@@ -89,7 +89,8 @@ export async function getVisibleRecommendationItems(
       Fields: 'Path',
       Limit: String(ids.size),
     })
-    if (seriesId) params.set('ParentId', seriesId)
+    // Emby can bypass user library filtering for queries scoped by ParentId.
+    // Check SeriesId on the returned item instead.
     const { Items } = await provider.fetch<{ Items: VisibleItem[] }>(`/Items?${params}`, apiKey)
     for (const item of Items) {
       if (ids.has(item.Id) && (!seriesId || item.SeriesId === seriesId)) visible.set(item.Id, item)
