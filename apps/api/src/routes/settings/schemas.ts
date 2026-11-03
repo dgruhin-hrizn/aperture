@@ -365,6 +365,8 @@ export const updateAiRecsOutputConfigSchema = {
     type: 'object' as const,
     additionalProperties: true,
     properties: {
+      moviesOutputMode: { type: 'string' as const, enum: ['library', 'off'] },
+      seriesOutputMode: { type: 'string' as const, enum: ['library', 'off'] },
       format: { type: 'string' as const, enum: ['poster', 'strm', 'both', 'none'] },
       strmPath: { type: 'string' as const },
       posterFormat: { type: 'string' as const, enum: ['png', 'jpg', 'webp'] },
