@@ -310,17 +310,21 @@
       "resume": "Resume",
       "dismiss": "Dismiss",
       "categories": {
+        "mediaImport": {
+          "title": "Import from media server",
+          "description": "Import users, catalog, and watch history. These jobs use no AI tokens."
+        },
         "movieSync": {
           "title": "Sync",
           "description": "Sync movies and watch history from your media server"
         },
         "movieAi": {
           "title": "AI Processing",
-          "description": "Machine learning tasks for movies"
+          "description": "Generate movie embeddings and picks. These jobs can use AI tokens."
         },
         "movieLib": {
-          "title": "Aperture Libraries",
-          "description": "Build AI recommendation libraries in your media server"
+          "title": "Publish to media server",
+          "description": "Publish existing picks to your media server without using AI tokens."
         },
         "seriesSync": {
           "title": "Sync",
@@ -328,11 +332,11 @@
         },
         "seriesAi": {
           "title": "AI Processing",
-          "description": "Machine learning tasks for TV series"
+          "description": "Generate TV embeddings and picks. These jobs can use AI tokens."
         },
         "seriesLib": {
-          "title": "Aperture Libraries",
-          "description": "Build AI recommendation libraries in your media server"
+          "title": "Publish to media server",
+          "description": "Publish existing picks to your media server without using AI tokens."
         },
         "globalMeta": {
           "title": "Metadata Enrichment",
@@ -344,7 +348,7 @@
         },
         "globalDiscovery": {
           "title": "Discovery & Suggestions",
-          "description": "AI-powered content discovery and recommendations"
+          "description": "Generate discovery and assistant suggestions. These jobs can use AI tokens."
         },
         "globalIntegrations": {
           "title": "Integrations",
