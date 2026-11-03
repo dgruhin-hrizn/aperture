@@ -6,6 +6,10 @@ on:
     tags: ['v*']
   workflow_dispatch: # Allow manual trigger
 
+concurrency:
+  group: docker-build-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
@@ -99,7 +103,7 @@ jobs:
             echo "tags=${IMAGE}:dev" >> "$GITHUB_OUTPUT"
             echo "needs_merge=false" >> "$GITHUB_OUTPUT"
           else
-            echo "tags=${IMAGE}:build-amd64" >> "$GITHUB_OUTPUT"
+            echo "tags=${IMAGE}:build-amd64-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
             echo "needs_merge=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -161,7 +165,7 @@ jobs:
           context: .
           file: ./docker/Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-arm64
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-arm64-${{ github.run_id }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=arm64
           cache-to: type=gha,mode=max,scope=arm64
@@ -195,6 +199,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          flavor: latest=${{ contains(github.ref_name, '-dev.') && 'false' || 'auto' }}
           tags: |
             type=raw,value=dev,enable=${{ github.ref == 'refs/heads/dev' }}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
@@ -212,5 +217,5 @@ jobs:
           done <<< "$TAGS"
 
           docker buildx imagetools create "${ARGS[@]}" \
-            "${IMAGE}:build-amd64" \
-            "${IMAGE}:build-arm64"
+            "${IMAGE}:build-amd64-${{ github.run_id }}" \
+            "${IMAGE}:build-arm64-${{ github.run_id }}"

@@ -19,7 +19,7 @@ import {
   CompleteStep,
 } from './components'
 
-const APP_VERSION = '0.7.10'
+const APP_VERSION = '0.7.11-dev.1'
 
 export function SetupPage() {
   const { t } = useTranslation()
