@@ -206,14 +206,24 @@ export async function generateRecommendationsForUser(
       if (!apiKey) throw new Error('An Emby API key is required to verify movie source access')
       allowedSourceIds = await getAllowedRecommendationSourceIds(provider, apiKey, user.providerUserId, 'movies')
     }
-    const candidates = await getCandidates(
-      tasteProfile,
-      excludeIds,
-      cfg.maxCandidates,
-      includeWatched,
-      user.maxParentalRating ?? null,
-      { userId: user.id, cooldownDays: cfg.repeatCooldownDays, allowedSourceIds }
-    )
+    const explorationCount = Math.floor(cfg.selectedCount / 5)
+    const familiar = explorationCount > 0 ? await query<{ genre: string }>(
+      `SELECT genre FROM movies CROSS JOIN LATERAL unnest(genres) AS genres(genre)
+       WHERE id = ANY($1::uuid[]) GROUP BY genre ORDER BY count(*) DESC, genre LIMIT 3`,
+      [watched.slice(0, 50).map((movie) => movie.movieId)]
+    ) : null
+    const familiarGenres = familiar?.rows.map((row) => row.genre) ?? []
+    const history = { userId: user.id, cooldownDays: cfg.repeatCooldownDays, allowedSourceIds }
+    const [matches, exploration] = await Promise.all([
+      getCandidates(tasteProfile, excludeIds, cfg.maxCandidates, false, user.maxParentalRating ?? null, history),
+      familiarGenres.length ? getCandidates(
+        tasteProfile, excludeIds, Math.min(cfg.maxCandidates, Math.max(50, explorationCount * 10)),
+        false, user.maxParentalRating ?? null, { ...history, explorationGenres: familiarGenres }
+      ) : [],
+    ])
+    const explorationIds = new Set(exploration.map((candidate) => candidate.id))
+    const candidates = [...new Map([...matches, ...exploration].map((candidate) => [candidate.id, candidate])).values()]
+
     logger.info(
       { userId: user.id, candidateCount: candidates.length },
       `Found ${candidates.length} candidate movies`
@@ -330,7 +340,8 @@ export async function generateRecommendationsForUser(
     const { selected } = applyDiversityAndSelect(
       scoredCandidates,
       cfg.selectedCount,
-      effectiveDiversityWeight
+      effectiveDiversityWeight,
+      { ids: explorationIds, count: explorationCount }
     )
 
     const finalSelected = includeWatched
