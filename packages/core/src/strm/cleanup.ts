@@ -8,7 +8,7 @@ import path from 'path'
 import { query, queryOne } from '../lib/db.js'
 import { createChildLogger } from '../lib/logger.js'
 import { getMediaServerProvider } from '../media/index.js'
-import { getMediaServerApiKey } from '../settings/systemSettings.js'
+import { getAiRecsOutputConfig, getMediaServerApiKey } from '../settings/systemSettings.js'
 import { getConfig } from './config.js'
 import { getUserFolderName } from './filenames.js'
 import { addLog } from '../jobs/progress.js'
@@ -153,6 +153,7 @@ export async function reconcileStaleStrmLibraries(jobId?: string): Promise<void>
     username: string
   }
 
+  const output = await getAiRecsOutputConfig()
   const result = await query<StaleRow>(
     `SELECT sl.id, sl.name, sl.media_type, sl.series_group_id, sl.provider_library_id, sl.user_id,
             u.provider_user_id, u.display_name, u.username
@@ -161,13 +162,14 @@ export async function reconcileStaleStrmLibraries(jobId?: string): Promise<void>
      WHERE sl.user_id IS NOT NULL
      AND (
        (sl.media_type = 'movies' AND sl.channel_id IS NULL AND (
-         u.provider_disabled OR NOT u.is_enabled OR NOT u.movies_enabled
+         u.provider_disabled OR NOT u.is_enabled OR NOT u.movies_enabled OR $1
        ))
        OR
        (sl.media_type = 'series' AND (
-         u.provider_disabled OR NOT u.is_enabled OR NOT u.series_enabled
+         u.provider_disabled OR NOT u.is_enabled OR NOT u.series_enabled OR $2
        ))
-     )`
+     )`,
+    [output.moviesOutputMode === 'off', output.seriesOutputMode === 'off']
   )
 
   if (result.rows.length === 0) {

@@ -1706,6 +1706,9 @@
     "tabTvShows": "TV Shows ({{count}})"
   },
   "settingsOutputFormat": {
+    "publishMode": "Media server output",
+    "publishLibrary": "Generated library",
+    "publishOff": "Off (remove generated output)",
     "title": "AI Recommendations Output Format",
     "subtitle": "Choose how AI recommendation files are created for the media server",
     "loadFailed": "Failed to load output format configuration",

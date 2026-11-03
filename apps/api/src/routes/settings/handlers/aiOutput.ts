@@ -22,6 +22,7 @@ import type { FastifyInstance } from 'fastify'
 import {
   getAiRecsOutputConfig,
   setAiRecsOutputConfig,
+  reconcileStaleStrmLibraries,
   getAiExplanationConfig,
   setAiExplanationConfig,
   getUserAiExplanationSettings,
@@ -72,12 +73,20 @@ export function registerAiOutputHandlers(fastify: FastifyInstance) {
    */
   fastify.patch<{
     Body: {
+      moviesOutputMode?: 'library' | 'off'
+      seriesOutputMode?: 'library' | 'off'
       moviesUseSymlinks?: boolean
       seriesUseSymlinks?: boolean
     }
   }>('/api/settings/ai-recs/output', { preHandler: requireAdmin, schema: updateAiRecsOutputConfigSchema }, async (request, reply) => {
     try {
+      if (!request.user?.isAdmin && (request.body.moviesOutputMode || request.body.seriesOutputMode)) {
+        return reply.code(403).send({ error: 'Admin access required' })
+      }
       const config = await setAiRecsOutputConfig(request.body)
+      if (request.body.moviesOutputMode === 'off' || request.body.seriesOutputMode === 'off') {
+        await reconcileStaleStrmLibraries()
+      }
       return reply.send({
         ...config,
         message: 'AI recommendations output format configuration updated',

@@ -61,6 +61,7 @@ import {
   refreshUserSeriesLibrary,
   updateUserSeriesLibraryPermissions,
 } from './series/library.js'
+import { getAiRecsOutputConfig } from '../settings/systemSettings.js'
 import { getSeriesRecommendationGroups } from '../recommender/series/groups.js'
 import { getMediaServerProvider } from '../media/index.js'
 import { cleanupRetiredSeriesOutputs, reconcileStaleStrmLibraries } from './cleanup.js'
@@ -84,13 +85,15 @@ export async function processStrmForAllUsers(
     setJobStep(actualJobId, 0, 'Finding enabled users')
     addLog(actualJobId, 'info', '🔍 Finding enabled users...')
 
+    const mode = (await getAiRecsOutputConfig()).moviesOutputMode
     const users = await query<{
       id: string
       provider_user_id: string
       display_name: string | null
       username: string
     }>(
-      'SELECT id, provider_user_id, display_name, username FROM users WHERE is_enabled = true AND movies_enabled = true AND provider_disabled = false'
+      'SELECT id, provider_user_id, display_name, username FROM users WHERE $1 AND is_enabled = true AND movies_enabled = true AND provider_disabled = false',
+      [mode !== 'off']
     )
 
     const totalUsers = users.rows.length
@@ -231,13 +234,15 @@ export async function processSeriesStrmForAllUsers(
     setJobStep(actualJobId, 0, 'Finding enabled users')
     addLog(actualJobId, 'info', '🔍 Finding enabled users...')
 
+    const mode = (await getAiRecsOutputConfig()).seriesOutputMode
     const users = await query<{
       id: string
       provider_user_id: string
       display_name: string | null
       username: string
     }>(
-      'SELECT id, provider_user_id, display_name, username FROM users WHERE is_enabled = true AND series_enabled = true AND provider_disabled = false'
+      'SELECT id, provider_user_id, display_name, username FROM users WHERE $1 AND is_enabled = true AND series_enabled = true AND provider_disabled = false',
+      [mode !== 'off']
     )
 
     const totalUsers = users.rows.length
