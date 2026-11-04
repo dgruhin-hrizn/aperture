@@ -10,6 +10,7 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  ListSubheader,
   Toolbar,
   Typography,
   useTheme,
@@ -30,6 +31,8 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import LogoutIcon from '@mui/icons-material/Logout'
 import PersonIcon from '@mui/icons-material/Person'
 import SettingsIcon from '@mui/icons-material/Settings'
+import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined'
+import { ColorModeToggle } from '@/appearance/ColorModeToggle'
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline'
 import WhatshotIcon from '@mui/icons-material/Whatshot'
 import InsightsIcon from '@mui/icons-material/Insights'
@@ -80,6 +83,7 @@ const adminMenuItems: { textKey: string; icon: React.ReactElement; path: string 
 export function Layout() {
   const { t, i18n } = useTranslation()
   const theme = useTheme()
+  const studio = theme.aperture.name === 'studio'
   const navigate = useNavigate()
   const location = useLocation()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
@@ -97,7 +101,7 @@ export function Layout() {
   const canShowOtherPrompts = releaseNotice?.key === releaseKey && !releaseOpen
   const { open: welcomeOpen, showWelcome, hideWelcome } = useWelcomeModal()
 
-  const drawerWidth = collapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH
+  const drawerWidth = collapsed ? DRAWER_WIDTH_COLLAPSED : studio ? 228 : DRAWER_WIDTH
 
   // Filter menu items based on feature flags
   const userMenuItems = baseUserMenuItems.filter(item => {
@@ -261,8 +265,8 @@ export function Layout() {
             />
             <Typography
               sx={{
-                fontFamily: '"Open Sans", sans-serif',
-                fontWeight: 600,
+                fontFamily: studio ? theme.typography.fontFamily : '"Open Sans", sans-serif',
+                fontWeight: studio ? 800 : 600,
                 fontSize: '1.5rem',
                 color: 'text.primary',
                 letterSpacing: '-0.01em',
@@ -277,36 +281,45 @@ export function Layout() {
       {/* User Navigation */}
       <List>
         {userMenuItems.map((item) => (
-          <ListItem key={item.path} disablePadding>
-            <Tooltip title={collapsed ? t(item.textKey) : ''} placement="right" arrow>
-              <ListItemButton
-                selected={isPathActive(item.path)}
-                onClick={() => handleNavClick(item.path)}
-                sx={{
-                  justifyContent: collapsed ? 'center' : 'flex-start',
-                  px: collapsed ? 2 : 3,
-                }}
-              >
-                <ListItemIcon
+          <React.Fragment key={item.path}>
+            {studio && !collapsed && ['/', '/top-picks', '/history'].includes(item.path) && (
+              <ListSubheader disableSticky sx={{ bgcolor: 'transparent', typography: 'overline', lineHeight: 2.5, px: 3, mt: item.path === '/' ? 0 : 1.5 }}>
+                {t(item.path === '/' ? 'appearance.forYou' : item.path === '/history' ? 'appearance.activity' : 'appearance.yourLibrary')}
+              </ListSubheader>
+            )}
+            <ListItem disablePadding>
+              <Tooltip title={collapsed ? t(item.textKey) : ''} placement="right" arrow>
+                <ListItemButton
+                  selected={isPathActive(item.path)}
+                  aria-current={isPathActive(item.path) ? 'page' : undefined}
+                  onClick={() => handleNavClick(item.path)}
                   sx={{
-                    color: isPathActive(item.path) ? 'primary.main' : 'text.secondary',
-                    minWidth: collapsed ? 0 : 40,
-                    mr: collapsed ? 0 : 1,
+                    justifyContent: collapsed ? 'center' : 'flex-start',
+                    px: collapsed ? 2 : studio ? 2 : 3,
+                    ...(studio ? { py: 1, '& .MuiListItemText-primary': { fontSize: '0.8125rem', fontWeight: 600 } } : {}),
                   }}
                 >
-                  {item.icon}
-                </ListItemIcon>
-                {!collapsed && (
-                  <ListItemText
-                    primary={t(item.textKey)}
-                    primaryTypographyProps={{
-                      fontWeight: isPathActive(item.path) ? 600 : 400,
+                  <ListItemIcon
+                    sx={{
+                      color: isPathActive(item.path) ? 'primary.main' : 'text.secondary',
+                      minWidth: collapsed ? 0 : studio ? 28 : 40,
+                      mr: collapsed ? 0 : studio ? 0.5 : 1,
                     }}
-                  />
-                )}
-              </ListItemButton>
-            </Tooltip>
-          </ListItem>
+                  >
+                    {item.icon}
+                  </ListItemIcon>
+                  {!collapsed && (
+                    <ListItemText
+                      primary={t(item.textKey)}
+                      primaryTypographyProps={{
+                        fontWeight: isPathActive(item.path) ? 600 : 400,
+                      }}
+                    />
+                  )}
+                </ListItemButton>
+              </Tooltip>
+            </ListItem>
+          </React.Fragment>
         ))}
       </List>
 
@@ -332,8 +345,8 @@ export function Layout() {
                     <ListItemIcon
                       sx={{
                         color: isAdminPathActive(item.path) ? 'primary.main' : 'text.secondary',
-                        minWidth: collapsed ? 0 : 40,
-                        mr: collapsed ? 0 : 1,
+                        minWidth: collapsed ? 0 : studio ? 28 : 40,
+                        mr: collapsed ? 0 : studio ? 0.5 : 1,
                       }}
                     >
                       {item.icon}
@@ -392,7 +405,7 @@ export function Layout() {
               fontSize: '0.7rem',
             }}
           >
-            v0.7.11-dev.7
+            v0.7.11-dev.8
           </Typography>
         )}
       </Box>
@@ -420,6 +433,7 @@ export function Layout() {
             color="inherit"
             edge="start"
             onClick={handleDrawerToggle}
+            aria-label={t(mobileOpen ? 'nav.collapseSidebar' : 'nav.expandSidebar')}
             sx={{ display: { md: 'none' } }}
           >
             <MenuIcon />
@@ -431,9 +445,9 @@ export function Layout() {
               display: { xs: 'flex', md: 'none' },
               alignItems: 'center',
               gap: 1,
-              position: 'absolute',
-              left: '50%',
-              transform: 'translateX(-50%)',
+              position: studio ? 'static' : 'absolute',
+              left: studio ? undefined : '50%',
+              transform: studio ? undefined : 'translateX(-50%)',
             }}
           >
             <Box
@@ -444,7 +458,8 @@ export function Layout() {
             />
             <Typography
               sx={{
-                fontFamily: '"Open Sans", sans-serif',
+                display: studio ? { xs: 'none', sm: 'block' } : undefined,
+                fontFamily: studio ? theme.typography.fontFamily : '"Open Sans", sans-serif',
                 fontWeight: 600,
                 fontSize: '1.1rem',
                 color: 'text.primary',
@@ -462,6 +477,8 @@ export function Layout() {
 
           {/* Global Search */}
           <GlobalSearch />
+
+          <ColorModeToggle />
 
           {/* User menu */}
           {user && (
@@ -501,6 +518,10 @@ export function Layout() {
                   </Typography>
                 </Box>
                 <Divider />
+                <MenuItem onClick={() => { handleUserMenuClose(); navigate('/settings?tab=preferences#appearance'); }}>
+                  <ListItemIcon><PaletteOutlinedIcon fontSize="small" /></ListItemIcon>
+                  {t('appearance.title')}
+                </MenuItem>
                 <MenuItem onClick={() => { handleUserMenuClose(); navigate('/settings'); }}>
                   <ListItemIcon>
                     <SettingsIcon fontSize="small" />
@@ -592,6 +613,7 @@ export function Layout() {
         component="main"
         sx={{
           flexGrow: 1,
+          minWidth: 0,
           p: { xs: 2, sm: 3 },
           width: { md: `calc(100% - ${drawerWidth}px)` },
           maxWidth: '100%',

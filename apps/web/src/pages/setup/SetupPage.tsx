@@ -72,7 +72,7 @@ export function SetupPage() {
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: 'background.default',
-        backgroundImage: 'radial-gradient(circle at 50% 50%, #1a1a2e 0%, #0f0f0f 100%)',
+        backgroundImage: 'var(--ap-backdrop-fallback, radial-gradient(circle at 50% 50%, #1a1a2e 0%, #0f0f0f 100%))',
         p: 2,
         position: 'relative',
       }}

@@ -109,7 +109,7 @@ export function BrowseSeriesListItem({
             alignSelf: 'stretch',
             flexShrink: 0,
             overflow: 'hidden',
-            bgcolor: 'grey.900',
+            bgcolor: 'var(--ap-placeholder, #212121)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

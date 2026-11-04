@@ -58,7 +58,7 @@ function AIButton({
             color: 'primary.main',
             '&:hover': {
               bgcolor: 'primary.main',
-              color: 'white',
+              color: theme => theme.aperture.name === 'studio' ? theme.palette.primary.contrastText : 'white',
             },
             '&.Mui-disabled': {
               bgcolor: alpha(theme.palette.action.disabled, 0.1),

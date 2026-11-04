@@ -163,78 +163,78 @@ export function WatchStatsPage() {
           {/* Summary Cards */}
           <Grid container spacing={2} mb={4}>
             <Grid item xs={6} sm={4} md={2}>
-              <Card sx={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', borderRadius: 2 }}>
+              <Card sx={{ background: 'var(--ap-stat-surface, linear-gradient(135deg, #6366f1 0%, #4f46e5 100%))', borderRadius: 2 }}>
                 <CardContent sx={{ textAlign: 'center', py: 2 }}>
-                  <MovieIcon sx={{ fontSize: 32, color: 'white', mb: 1 }} />
-                  <Typography variant="h4" fontWeight={700} color="white">
+                  <MovieIcon sx={{ fontSize: 32, color: 'var(--ap-stat-icon, white)', mb: 1 }} />
+                  <Typography variant="h4" fontWeight={700} color="var(--ap-stat-ink, white)">
                     {stats.totalMovies}
                   </Typography>
-                  <Typography variant="caption" color="rgba(255,255,255,0.8)">
+                  <Typography variant="caption" color="var(--ap-stat-label, rgba(255,255,255,0.8))">
                     {t('watchStats.summaryMovies')}
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
             <Grid item xs={6} sm={4} md={2}>
-              <Card sx={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', borderRadius: 2 }}>
+              <Card sx={{ background: 'var(--ap-stat-surface, linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%))', borderRadius: 2 }}>
                 <CardContent sx={{ textAlign: 'center', py: 2 }}>
-                  <TvIcon sx={{ fontSize: 32, color: 'white', mb: 1 }} />
-                  <Typography variant="h4" fontWeight={700} color="white">
+                  <TvIcon sx={{ fontSize: 32, color: 'var(--ap-stat-icon, white)', mb: 1 }} />
+                  <Typography variant="h4" fontWeight={700} color="var(--ap-stat-ink, white)">
                     {stats.totalSeries}
                   </Typography>
-                  <Typography variant="caption" color="rgba(255,255,255,0.8)">
+                  <Typography variant="caption" color="var(--ap-stat-label, rgba(255,255,255,0.8))">
                     {t('watchStats.summaryTvSeries')}
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
             <Grid item xs={6} sm={4} md={2}>
-              <Card sx={{ background: 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)', borderRadius: 2 }}>
+              <Card sx={{ background: 'var(--ap-stat-surface, linear-gradient(135deg, #ec4899 0%, #db2777 100%))', borderRadius: 2 }}>
                 <CardContent sx={{ textAlign: 'center', py: 2 }}>
-                  <PlayArrowIcon sx={{ fontSize: 32, color: 'white', mb: 1 }} />
-                  <Typography variant="h4" fontWeight={700} color="white">
+                  <PlayArrowIcon sx={{ fontSize: 32, color: 'var(--ap-stat-icon, white)', mb: 1 }} />
+                  <Typography variant="h4" fontWeight={700} color="var(--ap-stat-ink, white)">
                     {stats.totalEpisodes}
                   </Typography>
-                  <Typography variant="caption" color="rgba(255,255,255,0.8)">
+                  <Typography variant="caption" color="var(--ap-stat-label, rgba(255,255,255,0.8))">
                     {t('watchStats.summaryEpisodes')}
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
             <Grid item xs={6} sm={4} md={2}>
-              <Card sx={{ background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)', borderRadius: 2 }}>
+              <Card sx={{ background: 'var(--ap-stat-surface, linear-gradient(135deg, #f97316 0%, #ea580c 100%))', borderRadius: 2 }}>
                 <CardContent sx={{ textAlign: 'center', py: 2 }}>
-                  <AccessTimeIcon sx={{ fontSize: 32, color: 'white', mb: 1 }} />
-                  <Typography variant="h4" fontWeight={700} color="white">
+                  <AccessTimeIcon sx={{ fontSize: 32, color: 'var(--ap-stat-icon, white)', mb: 1 }} />
+                  <Typography variant="h4" fontWeight={700} color="var(--ap-stat-ink, white)">
                     {formatWatchTime(stats.totalWatchTimeMinutes)}
                   </Typography>
-                  <Typography variant="caption" color="rgba(255,255,255,0.8)">
+                  <Typography variant="caption" color="var(--ap-stat-label, rgba(255,255,255,0.8))">
                     {t('watchStats.summaryWatchTime')}
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
             <Grid item xs={6} sm={4} md={2}>
-              <Card sx={{ background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', borderRadius: 2 }}>
+              <Card sx={{ background: 'var(--ap-stat-surface, linear-gradient(135deg, #22c55e 0%, #16a34a 100%))', borderRadius: 2 }}>
                 <CardContent sx={{ textAlign: 'center', py: 2 }}>
-                  <PlayArrowIcon sx={{ fontSize: 32, color: 'white', mb: 1 }} />
-                  <Typography variant="h4" fontWeight={700} color="white">
+                  <PlayArrowIcon sx={{ fontSize: 32, color: 'var(--ap-stat-icon, white)', mb: 1 }} />
+                  <Typography variant="h4" fontWeight={700} color="var(--ap-stat-ink, white)">
                     {stats.totalPlays}
                   </Typography>
-                  <Typography variant="caption" color="rgba(255,255,255,0.8)">
+                  <Typography variant="caption" color="var(--ap-stat-label, rgba(255,255,255,0.8))">
                     {t('watchStats.summaryTotalPlays')}
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
             <Grid item xs={6} sm={4} md={2}>
-              <Card sx={{ background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', borderRadius: 2 }}>
+              <Card sx={{ background: 'var(--ap-stat-surface, linear-gradient(135deg, #ef4444 0%, #dc2626 100%))', borderRadius: 2 }}>
                 <CardContent sx={{ textAlign: 'center', py: 2 }}>
-                  <FavoriteIcon sx={{ fontSize: 32, color: 'white', mb: 1 }} />
-                  <Typography variant="h4" fontWeight={700} color="white">
+                  <FavoriteIcon sx={{ fontSize: 32, color: 'var(--ap-stat-icon, white)', mb: 1 }} />
+                  <Typography variant="h4" fontWeight={700} color="var(--ap-stat-ink, white)">
                     {stats.totalFavorites}
                   </Typography>
-                  <Typography variant="caption" color="rgba(255,255,255,0.8)">
+                  <Typography variant="caption" color="var(--ap-stat-label, rgba(255,255,255,0.8))">
                     {t('watchStats.summaryFavorites')}
                   </Typography>
                 </CardContent>
@@ -268,14 +268,14 @@ export function WatchStatsPage() {
                               <Cell key={`cell-${index}`} fill={GENRE_COLORS[index % GENRE_COLORS.length]} />
                             ))}
                           </Pie>
-                          <Tooltip 
-                            contentStyle={{ 
-                              backgroundColor: '#1a1a1a', 
-                              border: '1px solid #2a2a2a',
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: 'var(--ap-surface-1, #1a1a1a)',
+                              border: '1px solid var(--ap-border, #2a2a2a)',
                               borderRadius: 8,
-                              color: '#f5f5f5',
+                              color: 'var(--ap-text, #f5f5f5)',
                             }}
-                            itemStyle={{ color: '#f5f5f5' }}
+                            itemStyle={{ color: 'var(--ap-text, #f5f5f5)' }}
                             formatter={(value, _name, props) => {
                               const payload = props.payload as { genre: string; percentage: number } | undefined
                               const count = typeof value === 'number' ? value : Number(value)
@@ -293,13 +293,13 @@ export function WatchStatsPage() {
                       <Box flex={1}>
                         {stats.genreDistribution.slice(0, 8).map((item, index) => (
                           <Box key={item.genre} display="flex" alignItems="center" gap={1} mb={0.5}>
-                            <Box 
-                              sx={{ 
-                                width: 12, 
-                                height: 12, 
-                                borderRadius: '50%', 
-                                backgroundColor: GENRE_COLORS[index % GENRE_COLORS.length] 
-                              }} 
+                            <Box
+                              sx={{
+                                width: 12,
+                                height: 12,
+                                borderRadius: '50%',
+                                backgroundColor: GENRE_COLORS[index % GENRE_COLORS.length]
+                              }}
                             />
                             <Typography variant="body2" flex={1} noWrap>
                               {item.genre}
@@ -330,37 +330,37 @@ export function WatchStatsPage() {
                   {stats.watchTimeline.length > 0 ? (
                     <ResponsiveContainer width="100%" height={200}>
                       <AreaChart data={stats.watchTimeline}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
-                        <XAxis 
-                          dataKey="month" 
-                          stroke="#666" 
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--ap-border, #2a2a2a)" />
+                        <XAxis
+                          dataKey="month"
+                          stroke="var(--ap-muted, #666)"
                           fontSize={11}
                           tickFormatter={(value) => value.split(' ')[0]}
                         />
-                        <YAxis stroke="#666" fontSize={11} />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: '#1a1a1a', 
-                            border: '1px solid #2a2a2a',
-                            borderRadius: 8 
-                          }} 
+                        <YAxis stroke="var(--ap-muted, #666)" fontSize={11} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'var(--ap-surface-1, #1a1a1a)',
+                            border: '1px solid var(--ap-border, #2a2a2a)',
+                            borderRadius: 8
+                          }}
                         />
                         <Legend />
-                        <Area 
-                          type="monotone" 
-                          dataKey="movies" 
+                        <Area
+                          type="monotone"
+                          dataKey="movies"
                           stackId="1"
-                          stroke="#6366f1" 
-                          fill="#6366f1" 
+                          stroke="#6366f1"
+                          fill="#6366f1"
                           fillOpacity={0.6}
                           name={t('watchStats.chartMovies')}
                         />
-                        <Area 
-                          type="monotone" 
-                          dataKey="episodes" 
+                        <Area
+                          type="monotone"
+                          dataKey="episodes"
                           stackId="1"
-                          stroke="#8b5cf6" 
-                          fill="#8b5cf6" 
+                          stroke="#8b5cf6"
+                          fill="#8b5cf6"
                           fillOpacity={0.6}
                           name={t('watchStats.chartEpisodes')}
                         />
@@ -388,15 +388,15 @@ export function WatchStatsPage() {
                   {stats.decadeDistribution.length > 0 ? (
                     <ResponsiveContainer width="100%" height={200}>
                       <BarChart data={stats.decadeDistribution} layout="vertical">
-                        <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
-                        <XAxis type="number" stroke="#666" fontSize={11} />
-                        <YAxis type="category" dataKey="decade" stroke="#666" fontSize={11} width={50} />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: '#1a1a1a', 
-                            border: '1px solid #2a2a2a',
-                            borderRadius: 8 
-                          }} 
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--ap-border, #2a2a2a)" />
+                        <XAxis type="number" stroke="var(--ap-muted, #666)" fontSize={11} />
+                        <YAxis type="category" dataKey="decade" stroke="var(--ap-muted, #666)" fontSize={11} width={50} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'var(--ap-surface-1, #1a1a1a)',
+                            border: '1px solid var(--ap-border, #2a2a2a)',
+                            borderRadius: 8
+                          }}
                         />
                         <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]}>
                           {stats.decadeDistribution.map((_, index) => (
@@ -424,14 +424,14 @@ export function WatchStatsPage() {
                   {stats.ratingDistribution.length > 0 ? (
                     <ResponsiveContainer width="100%" height={200}>
                       <BarChart data={stats.ratingDistribution}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
-                        <XAxis dataKey="rating" stroke="#666" fontSize={11} />
-                        <YAxis stroke="#666" fontSize={11} />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: '#1a1a1a', 
-                            border: '1px solid #2a2a2a',
-                            borderRadius: 8 
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--ap-border, #2a2a2a)" />
+                        <XAxis dataKey="rating" stroke="var(--ap-muted, #666)" fontSize={11} />
+                        <YAxis stroke="var(--ap-muted, #666)" fontSize={11} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'var(--ap-surface-1, #1a1a1a)',
+                            border: '1px solid var(--ap-border, #2a2a2a)',
+                            borderRadius: 8
                           }}
                           formatter={(value) => {
                             const count = typeof value === 'number' ? value : Number(value)
@@ -469,13 +469,13 @@ export function WatchStatsPage() {
                   {stats.topActors.length > 0 ? (
                     <Box display="flex" flexDirection="column" gap={1.5}>
                       {stats.topActors.map((actor, index) => (
-                        <Box 
-                          key={actor.name} 
-                          display="flex" 
-                          alignItems="center" 
+                        <Box
+                          key={actor.name}
+                          display="flex"
+                          alignItems="center"
                           gap={2}
                           onClick={() => navigate(`/person/${encodeURIComponent(actor.name)}`)}
-                          sx={{ 
+                          sx={{
                             cursor: 'pointer',
                             borderRadius: 1,
                             p: 0.5,
@@ -484,9 +484,9 @@ export function WatchStatsPage() {
                             transition: 'background-color 0.2s',
                           }}
                         >
-                          <Typography 
-                            variant="body2" 
-                            color="text.secondary" 
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
                             sx={{ width: 20, textAlign: 'right', flexShrink: 0 }}
                           >
                             {index + 1}.
@@ -494,8 +494,8 @@ export function WatchStatsPage() {
                           <Avatar
                             src={getProxiedImageUrl(actor.thumb)}
                             alt={actor.name}
-                            sx={{ 
-                              width: 40, 
+                            sx={{
+                              width: 40,
                               height: 40,
                               bgcolor: 'primary.dark',
                               fontSize: '0.875rem',
@@ -509,33 +509,33 @@ export function WatchStatsPage() {
                               <Typography variant="body2" fontWeight={500} noWrap sx={{ flex: 1 }}>
                                 {actor.name}
                               </Typography>
-                              <Chip 
-                                label={t('watchStats.filmsCount', { count: actor.count })} 
-                                size="small" 
-                                sx={{ 
-                                  height: 20, 
+                              <Chip
+                                label={t('watchStats.filmsCount', { count: actor.count })}
+                                size="small"
+                                sx={{
+                                  height: 20,
                                   fontSize: '0.7rem',
                                   backgroundColor: 'rgba(99, 102, 241, 0.2)',
                                   ml: 1,
                                   flexShrink: 0,
-                                }} 
+                                }}
                               />
                             </Box>
-                            <Box 
-                              sx={{ 
-                                height: 4, 
-                                borderRadius: 2, 
+                            <Box
+                              sx={{
+                                height: 4,
+                                borderRadius: 2,
                                 backgroundColor: 'rgba(99, 102, 241, 0.2)',
                                 overflow: 'hidden'
                               }}
                             >
-                              <Box 
-                                sx={{ 
-                                  height: '100%', 
+                              <Box
+                                sx={{
+                                  height: '100%',
                                   width: `${(actor.count / stats.topActors[0].count) * 100}%`,
                                   backgroundColor: '#6366f1',
                                   borderRadius: 2,
-                                }} 
+                                }}
                               />
                             </Box>
                           </Box>
@@ -564,13 +564,13 @@ export function WatchStatsPage() {
                   {stats.topDirectors.length > 0 ? (
                     <Box display="flex" flexDirection="column" gap={1.5}>
                       {stats.topDirectors.map((director, index) => (
-                        <Box 
-                          key={director.name} 
-                          display="flex" 
-                          alignItems="center" 
+                        <Box
+                          key={director.name}
+                          display="flex"
+                          alignItems="center"
                           gap={2}
                           onClick={() => navigate(`/person/${encodeURIComponent(director.name)}`)}
-                          sx={{ 
+                          sx={{
                             cursor: 'pointer',
                             borderRadius: 1,
                             p: 0.5,
@@ -579,9 +579,9 @@ export function WatchStatsPage() {
                             transition: 'background-color 0.2s',
                           }}
                         >
-                          <Typography 
-                            variant="body2" 
-                            color="text.secondary" 
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
                             sx={{ width: 20, textAlign: 'right', flexShrink: 0 }}
                           >
                             {index + 1}.
@@ -589,8 +589,8 @@ export function WatchStatsPage() {
                           <Avatar
                             src={getProxiedImageUrl(director.thumb)}
                             alt={director.name}
-                            sx={{ 
-                              width: 40, 
+                            sx={{
+                              width: 40,
                               height: 40,
                               bgcolor: 'secondary.dark',
                               fontSize: '0.875rem',
@@ -604,33 +604,33 @@ export function WatchStatsPage() {
                               <Typography variant="body2" fontWeight={500} noWrap sx={{ flex: 1 }}>
                                 {director.name}
                               </Typography>
-                              <Chip 
-                                label={t('watchStats.filmsCount', { count: director.count })} 
-                                size="small" 
-                                sx={{ 
-                                  height: 20, 
+                              <Chip
+                                label={t('watchStats.filmsCount', { count: director.count })}
+                                size="small"
+                                sx={{
+                                  height: 20,
                                   fontSize: '0.7rem',
                                   backgroundColor: 'rgba(139, 92, 246, 0.2)',
                                   ml: 1,
                                   flexShrink: 0,
-                                }} 
+                                }}
                               />
                             </Box>
-                            <Box 
-                              sx={{ 
-                                height: 4, 
-                                borderRadius: 2, 
+                            <Box
+                              sx={{
+                                height: 4,
+                                borderRadius: 2,
                                 backgroundColor: 'rgba(139, 92, 246, 0.2)',
                                 overflow: 'hidden'
                               }}
                             >
-                              <Box 
-                                sx={{ 
-                                  height: '100%', 
+                              <Box
+                                sx={{
+                                  height: '100%',
                                   width: `${(director.count / stats.topDirectors[0].count) * 100}%`,
                                   backgroundColor: '#8b5cf6',
                                   borderRadius: 2,
-                                }} 
+                                }}
                               />
                             </Box>
                           </Box>
@@ -662,13 +662,13 @@ export function WatchStatsPage() {
                   {stats.topStudios.length > 0 ? (
                     <Box display="flex" flexDirection="column" gap={1.5}>
                       {stats.topStudios.map((studio, index) => (
-                        <Box 
-                          key={studio.name} 
-                          display="flex" 
-                          alignItems="center" 
+                        <Box
+                          key={studio.name}
+                          display="flex"
+                          alignItems="center"
                           gap={2}
                           onClick={() => navigate(`/studio/${encodeURIComponent(studio.name)}`)}
-                          sx={{ 
+                          sx={{
                             cursor: 'pointer',
                             borderRadius: 1,
                             p: 0.5,
@@ -677,9 +677,9 @@ export function WatchStatsPage() {
                             transition: 'background-color 0.2s',
                           }}
                         >
-                          <Typography 
-                            variant="body2" 
-                            color="text.secondary" 
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
                             sx={{ width: 20, textAlign: 'right', flexShrink: 0 }}
                           >
                             {index + 1}.
@@ -688,8 +688,8 @@ export function WatchStatsPage() {
                             src={getProxiedImageUrl(studio.thumb)}
                             alt={studio.name}
                             variant="rounded"
-                            sx={{ 
-                              width: 40, 
+                            sx={{
+                              width: 40,
                               height: 40,
                               bgcolor: '#f97316',
                               fontSize: '0.75rem',
@@ -703,33 +703,33 @@ export function WatchStatsPage() {
                               <Typography variant="body2" fontWeight={500} noWrap sx={{ flex: 1 }}>
                                 {studio.name}
                               </Typography>
-                              <Chip 
-                                label={t('watchStats.filmsCount', { count: studio.count })} 
-                                size="small" 
-                                sx={{ 
-                                  height: 20, 
+                              <Chip
+                                label={t('watchStats.filmsCount', { count: studio.count })}
+                                size="small"
+                                sx={{
+                                  height: 20,
                                   fontSize: '0.7rem',
                                   backgroundColor: 'rgba(249, 115, 22, 0.2)',
                                   ml: 1,
                                   flexShrink: 0,
-                                }} 
+                                }}
                               />
                             </Box>
-                            <Box 
-                              sx={{ 
-                                height: 4, 
-                                borderRadius: 2, 
+                            <Box
+                              sx={{
+                                height: 4,
+                                borderRadius: 2,
                                 backgroundColor: 'rgba(249, 115, 22, 0.2)',
                                 overflow: 'hidden'
                               }}
                             >
-                              <Box 
-                                sx={{ 
-                                  height: '100%', 
+                              <Box
+                                sx={{
+                                  height: '100%',
                                   width: `${(studio.count / stats.topStudios[0].count) * 100}%`,
                                   backgroundColor: '#f97316',
                                   borderRadius: 2,
-                                }} 
+                                }}
                               />
                             </Box>
                           </Box>
@@ -758,13 +758,13 @@ export function WatchStatsPage() {
                   {stats.topNetworks.length > 0 ? (
                     <Box display="flex" flexDirection="column" gap={1.5}>
                       {stats.topNetworks.map((network, index) => (
-                        <Box 
-                          key={network.name} 
-                          display="flex" 
-                          alignItems="center" 
+                        <Box
+                          key={network.name}
+                          display="flex"
+                          alignItems="center"
                           gap={2}
                           onClick={() => navigate(`/studio/${encodeURIComponent(network.name)}`)}
-                          sx={{ 
+                          sx={{
                             cursor: 'pointer',
                             borderRadius: 1,
                             p: 0.5,
@@ -773,9 +773,9 @@ export function WatchStatsPage() {
                             transition: 'background-color 0.2s',
                           }}
                         >
-                          <Typography 
-                            variant="body2" 
-                            color="text.secondary" 
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
                             sx={{ width: 20, textAlign: 'right', flexShrink: 0 }}
                           >
                             {index + 1}.
@@ -784,8 +784,8 @@ export function WatchStatsPage() {
                             src={getProxiedImageUrl(network.thumb)}
                             alt={network.name}
                             variant="rounded"
-                            sx={{ 
-                              width: 40, 
+                            sx={{
+                              width: 40,
                               height: 40,
                               bgcolor: '#06b6d4',
                               fontSize: '0.75rem',
@@ -799,33 +799,33 @@ export function WatchStatsPage() {
                               <Typography variant="body2" fontWeight={500} noWrap sx={{ flex: 1 }}>
                                 {network.name}
                               </Typography>
-                              <Chip 
-                                label={t('watchStats.networkSeriesCount', { count: network.count })} 
-                                size="small" 
-                                sx={{ 
-                                  height: 20, 
+                              <Chip
+                                label={t('watchStats.networkSeriesCount', { count: network.count })}
+                                size="small"
+                                sx={{
+                                  height: 20,
                                   fontSize: '0.7rem',
                                   backgroundColor: 'rgba(6, 182, 212, 0.2)',
                                   ml: 1,
                                   flexShrink: 0,
-                                }} 
+                                }}
                               />
                             </Box>
-                            <Box 
-                              sx={{ 
-                                height: 4, 
-                                borderRadius: 2, 
+                            <Box
+                              sx={{
+                                height: 4,
+                                borderRadius: 2,
                                 backgroundColor: 'rgba(6, 182, 212, 0.2)',
                                 overflow: 'hidden'
                               }}
                             >
-                              <Box 
-                                sx={{ 
-                                  height: '100%', 
+                              <Box
+                                sx={{
+                                  height: '100%',
                                   width: `${(network.count / stats.topNetworks[0].count) * 100}%`,
                                   backgroundColor: '#06b6d4',
                                   borderRadius: 2,
-                                }} 
+                                }}
                               />
                             </Box>
                           </Box>

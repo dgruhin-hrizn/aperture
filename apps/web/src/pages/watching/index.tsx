@@ -187,7 +187,7 @@ export function WatchingPage() {
                 onClick={() => setAddDialogOpen(true)}
                 size="small"
                 color="primary"
-                sx={{ bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' } }}
+                sx={{ bgcolor: 'primary.main', color: theme => theme.aperture.name === 'studio' ? theme.palette.primary.contrastText : 'white', '&:hover': { bgcolor: 'primary.dark' } }}
               >
                 <AddIcon fontSize="small" />
               </IconButton>

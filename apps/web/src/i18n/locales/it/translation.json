@@ -3675,5 +3675,30 @@
     "sectionBlurb": "Ogni riga è una striscia Discover di TMDb. Se una riga elenca più generi, TMDb restituisce i titoli che corrispondono a tutti. I risultati escludono gli elementi già presenti nella tua libreria, guardati o richiesti.",
     "loadError": "Impossibile caricare la riga del genere",
     "emptyStrip": "Nessun titolo corrisponde a questa riga dopo il filtraggio."
+  },
+  "appearance": {
+    "title": "Aspetto",
+    "description": "Scegli l’aspetto di Aperture. Cambia solo l’interfaccia, non i consigli o le impostazioni di Emby.",
+    "theme": "Tema",
+    "classic": "Classico",
+    "classicDescription": "Il tema scuro originale di Aperture.",
+    "studio": "Studio",
+    "studioDescription": "Accenti cobalto, tipografia nitida e superfici chiare o scure.",
+    "mode": "Modalità colore",
+    "light": "Chiaro",
+    "dark": "Scuro",
+    "system": "Segui dispositivo",
+    "classicModeHint": "Classico mantiene il suo aspetto scuro. La modalità di Studio viene ricordata.",
+    "systemHint": "Il tema segue automaticamente l’aspetto del dispositivo.",
+    "save": "Salva aspetto",
+    "saved": "Aspetto salvato per il tuo account.",
+    "loadError": "Impossibile caricare l’aspetto. Riprova prima di modificarlo.",
+    "saveError": "Impossibile salvare l’aspetto. La scelta precedente resta attiva.",
+    "retry": "Riprova",
+    "switchLight": "Passa alla modalità chiara",
+    "switchDark": "Passa alla modalità scura",
+    "forYou": "Per te",
+    "yourLibrary": "La tua libreria",
+    "activity": "Attività"
   }
 }

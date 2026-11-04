@@ -290,7 +290,7 @@ export function MyRecommendationsPage() {
         sx={{
           height: 6,
           borderRadius: 3,
-          backgroundColor: 'grey.800',
+          backgroundColor: 'var(--ap-progress-track, #424242)',
           '& .MuiLinearProgress-bar': {
             backgroundColor: color,
             borderRadius: 3,
@@ -640,7 +640,7 @@ export function MyRecommendationsPage() {
                         alignSelf: 'stretch',
                         flexShrink: 0,
                         overflow: 'hidden',
-                        bgcolor: 'grey.900',
+                        bgcolor: 'var(--ap-placeholder, #212121)',
                       }}
                     >
                       <Box
@@ -926,7 +926,7 @@ export function MyRecommendationsPage() {
                           sx={{
                             height: 4,
                             borderRadius: 2,
-                            backgroundColor: 'grey.800',
+                            backgroundColor: 'var(--ap-progress-track, #424242)',
                             '& .MuiLinearProgress-bar': {
                               backgroundColor: '#6366f1',
                               borderRadius: 2,
@@ -949,7 +949,7 @@ export function MyRecommendationsPage() {
                           sx={{
                             height: 4,
                             borderRadius: 2,
-                            backgroundColor: 'grey.800',
+                            backgroundColor: 'var(--ap-progress-track, #424242)',
                             '& .MuiLinearProgress-bar': {
                               backgroundColor: '#10b981',
                               borderRadius: 2,
@@ -972,7 +972,7 @@ export function MyRecommendationsPage() {
                           sx={{
                             height: 4,
                             borderRadius: 2,
-                            backgroundColor: 'grey.800',
+                            backgroundColor: 'var(--ap-progress-track, #424242)',
                             '& .MuiLinearProgress-bar': {
                               backgroundColor: '#f59e0b',
                               borderRadius: 2,

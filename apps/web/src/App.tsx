@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { I18nextProvider } from 'react-i18next'
 import i18n from './i18n/config'
 import { RtlProviders } from './RtlProviders'
+import { AppearanceProvider } from './appearance/AppearanceProvider'
 import { AuthProvider } from './hooks/AuthProvider'
 import { useAuth } from './hooks/useAuth'
 import { WatchingProvider } from './hooks/useWatching'
@@ -202,15 +203,17 @@ function AppRoutes() {
 export default function App() {
   return (
     <I18nextProvider i18n={i18n}>
-      <RtlProviders>
-        <BrowserRouter>
-          <SetupProvider>
-            <AuthProvider>
-              <AppRoutes />
-            </AuthProvider>
-          </SetupProvider>
-        </BrowserRouter>
-      </RtlProviders>
+      <BrowserRouter>
+        <SetupProvider>
+          <AuthProvider>
+            <AppearanceProvider>
+              <RtlProviders>
+                <AppRoutes />
+              </RtlProviders>
+            </AppearanceProvider>
+          </AuthProvider>
+        </SetupProvider>
+      </BrowserRouter>
     </I18nextProvider>
   )
 }

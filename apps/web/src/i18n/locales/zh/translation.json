@@ -3675,5 +3675,30 @@
     "sectionBlurb": "每行都是一个 TMDb Discover 条带。 如果一行列出了多个流派，TMDb 将返回与所有流派匹配的标题。 结果排除您图书馆中已有的、已观看或请求的项目。",
     "loadError": "无法加载流派行",
     "emptyStrip": "过滤后没有标题与此行匹配。"
+  },
+  "appearance": {
+    "title": "外观",
+    "description": "选择 Aperture 的外观。仅更改界面，不影响推荐或 Emby 设置。",
+    "theme": "主题",
+    "classic": "经典",
+    "classicDescription": "Aperture 原有的深色主题。",
+    "studio": "Studio",
+    "studioDescription": "钴蓝色点缀、清晰字体和浅色或深色界面。",
+    "mode": "颜色模式",
+    "light": "浅色",
+    "dark": "深色",
+    "system": "跟随设备",
+    "classicModeHint": "经典主题保留原有深色外观。Studio 的颜色模式会被记住。",
+    "systemHint": "主题会自动跟随设备的外观设置。",
+    "save": "保存外观",
+    "saved": "已为你的账户保存外观。",
+    "loadError": "无法加载外观。请重试后再进行更改。",
+    "saveError": "无法保存外观。之前的选择仍然有效。",
+    "retry": "重试",
+    "switchLight": "切换到浅色模式",
+    "switchDark": "切换到深色模式",
+    "forYou": "为你推荐",
+    "yourLibrary": "你的媒体库",
+    "activity": "活动"
   }
 }

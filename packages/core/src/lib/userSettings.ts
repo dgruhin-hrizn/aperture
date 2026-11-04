@@ -74,6 +74,8 @@ export interface BrowseFilterPreset {
 }
 
 export interface UserUiPreferences {
+  /** Optional, per-user appearance. Absent preserves the original dark theme. */
+  appearance?: { theme: 'classic' | 'studio'; mode: 'light' | 'dark' | 'system' }
   dismissedAdminRelease?: string
   dismissedUserRelease?: string
   sidebarCollapsed?: boolean

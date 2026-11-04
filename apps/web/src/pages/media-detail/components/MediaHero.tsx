@@ -217,7 +217,7 @@ export function MediaHero({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                bgcolor: 'grey.800',
+                bgcolor: 'var(--ap-progress-track, #424242)',
               }}
             >
               {isMovie(media) ? (
@@ -255,7 +255,7 @@ export function MediaHero({
               <Chip
                 label={t('mediaDetail.hero.available')}
                 size="small"
-                sx={{ bgcolor: 'success.main', color: 'white', fontWeight: 600 }}
+                sx={{ bgcolor: 'success.main', color: theme => theme.aperture.name === 'studio' ? theme.palette.success.contrastText : 'white', fontWeight: 600 }}
               />
             )}
             {/* Movie watch status */}
@@ -268,7 +268,7 @@ export function MediaHero({
                     : t('mediaDetail.hero.watched')
                 }
                 size="small"
-                sx={{ bgcolor: 'primary.main', color: 'white', fontWeight: 600 }}
+                sx={{ bgcolor: 'primary.main', color: theme => theme.aperture.name === 'studio' ? theme.palette.primary.contrastText : 'white', fontWeight: 600 }}
               />
             )}
           </Box>
@@ -277,7 +277,7 @@ export function MediaHero({
           <Typography
             variant="h3"
             fontWeight={700}
-            sx={{ mb: 1, textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}
+            sx={theme => ({ mb: 1, textShadow: theme.aperture.name === 'classic' ? '2px 2px 4px rgba(0,0,0,0.5)' : 'none', ...(theme.aperture.name === 'studio' ? { fontFamily: '"Barlow Condensed", sans-serif', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.015em', fontSize: { xs: '2.5rem', md: '3.5rem' } } : {}) })}
           >
             {media.title}
           </Typography>

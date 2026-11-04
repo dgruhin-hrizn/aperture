@@ -45,10 +45,10 @@ function MarkdownLink({ href, children }: { href?: string; children?: ReactNode 
         rel="noopener noreferrer"
         sx={{
           mt: 1,
-          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+          background: 'var(--ap-primary-action, linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%))',
           textTransform: 'none',
           '&:hover': {
-            background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+            background: 'var(--ap-primary-hover, linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%))',
           },
         }}
       >
@@ -166,7 +166,7 @@ function AssistantMessage() {
           sx={{
             width: 36,
             height: 36,
-            background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+            background: 'var(--ap-primary-action, linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%))',
             flexShrink: 0,
           }}
         >
@@ -183,7 +183,7 @@ function AssistantMessage() {
                     sx={{
                       maxWidth: '90%',
                       p: 2,
-                      bgcolor: 'rgba(26, 26, 26, 0.7)',
+                      bgcolor: 'var(--ap-panel-translucent, rgba(26, 26, 26, 0.7))',
                       borderRadius: 2,
                       borderTopLeftRadius: 0,
                     }}
@@ -197,7 +197,7 @@ function AssistantMessage() {
                         '& li': { mb: 0.75 },
                         '& strong': { color: '#818cf8' },
                         '& code': {
-                          bgcolor: '#2a2a2a',
+                          bgcolor: 'var(--ap-surface-2, #2a2a2a)',
                           px: 0.5,
                           py: 0.25,
                           borderRadius: 0.5,
@@ -285,7 +285,7 @@ function ThreadWelcome({ suggestions }: { suggestions: string[] }) {
           width: 64,
           height: 64,
           mb: 2,
-          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+          background: 'var(--ap-primary-action, linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%))',
         }}
       >
         <SmartToyIcon sx={{ fontSize: 36 }} />
@@ -306,7 +306,7 @@ function ThreadWelcome({ suggestions }: { suggestions: string[] }) {
             sx={{
               px: 2,
               py: 1,
-              bgcolor: 'rgba(26, 26, 26, 0.7)',
+              bgcolor: 'var(--ap-panel-translucent, rgba(26, 26, 26, 0.7))',
               border: '1px solid rgba(255, 255, 255, 0.1)',
               borderRadius: 2,
               cursor: 'pointer',
@@ -336,7 +336,7 @@ function LoadingIndicator() {
         sx={{
           width: 36,
           height: 36,
-          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+          background: 'var(--ap-primary-action, linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%))',
         }}
       >
         <SmartToyIcon fontSize="small" />
@@ -345,7 +345,7 @@ function LoadingIndicator() {
         sx={{
           maxWidth: '80%',
           p: 2,
-          bgcolor: 'rgba(26, 26, 26, 0.7)',
+          bgcolor: 'var(--ap-panel-translucent, rgba(26, 26, 26, 0.7))',
           borderRadius: 2,
           borderTopLeftRadius: 0,
         }}
@@ -389,10 +389,10 @@ function Composer() {
               onKeyDown={handleKeyDown}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  bgcolor: 'rgba(26, 26, 26, 0.7)',
+                  bgcolor: 'var(--ap-panel-translucent, rgba(26, 26, 26, 0.7))',
                   borderRadius: 3,
                   '& fieldset': {
-                    borderColor: '#2a2a2a',
+                    borderColor: 'var(--ap-surface-2, #2a2a2a)',
                   },
                   '&:hover fieldset': {
                     borderColor: '#3a3a3a',
@@ -478,7 +478,7 @@ function HistoricalAssistantMessage({ message }: { message: HistoricalMessage })
         sx={{
           width: 36,
           height: 36,
-          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+          background: 'var(--ap-primary-action, linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%))',
           flexShrink: 0,
         }}
       >
@@ -491,7 +491,7 @@ function HistoricalAssistantMessage({ message }: { message: HistoricalMessage })
             sx={{
               maxWidth: '90%',
               p: 2,
-              bgcolor: 'rgba(26, 26, 26, 0.7)',
+              bgcolor: 'var(--ap-panel-translucent, rgba(26, 26, 26, 0.7))',
               borderRadius: 2,
               borderTopLeftRadius: 0,
               mb: 2,

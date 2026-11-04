@@ -898,7 +898,7 @@ export function ChannelsPage() {
                     onClick={handleGenerateAIPreferences}
                     disabled={generatingAIPreferences || (formData.genreFilters.length === 0 && formData.exampleMovies.length === 0)}
                     sx={{
-                      '&:hover': { backgroundColor: 'primary.main', color: 'white' },
+                      '&:hover': { backgroundColor: 'primary.main', color: theme => theme.aperture.name === 'studio' ? theme.palette.primary.contrastText : 'white' },
                     }}
                   >
                     {generatingAIPreferences ? (
@@ -935,7 +935,7 @@ export function ChannelsPage() {
                     onClick={handleGenerateAIName}
                     disabled={generatingAIName || (formData.genreFilters.length === 0 && formData.exampleMovies.length === 0)}
                     sx={{
-                      '&:hover': { backgroundColor: 'primary.main', color: 'white' },
+                      '&:hover': { backgroundColor: 'primary.main', color: theme => theme.aperture.name === 'studio' ? theme.palette.primary.contrastText : 'white' },
                     }}
                   >
                     {generatingAIName ? (
@@ -970,7 +970,7 @@ export function ChannelsPage() {
                     onClick={handleGenerateAIDescription}
                     disabled={generatingAIDescription || (formData.genreFilters.length === 0 && formData.exampleMovies.length === 0)}
                     sx={{
-                      '&:hover': { backgroundColor: 'primary.main', color: 'white' },
+                      '&:hover': { backgroundColor: 'primary.main', color: theme => theme.aperture.name === 'studio' ? theme.palette.primary.contrastText : 'white' },
                     }}
                   >
                     {generatingAIDescription ? (

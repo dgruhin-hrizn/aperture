@@ -19,6 +19,7 @@ import {
   alpha,
   useTheme,
   Tooltip,
+  ButtonBase,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import MovieIcon from '@mui/icons-material/Movie'
@@ -191,6 +192,13 @@ export function GlobalSearch() {
     <>
       {/* Search trigger button in header */}
       <Tooltip title={searchShortcutTooltip}>
+        {theme.aperture.name === 'studio' ? (
+          <ButtonBase onClick={() => setOpen(true)} aria-label={searchShortcutTooltip}
+            sx={{ display: 'flex', gap: 1, borderRadius: 1, px: { xs: 1, md: 1.5 }, py: 1, mr: 1, color: 'text.secondary', textAlign: 'start', bgcolor: { md: 'background.default' }, minWidth: 0, width: { md: 280 } }}>
+            <SearchIcon fontSize="small" />
+            <Typography variant="body2" noWrap sx={{ display: { xs: 'none', md: 'block' } }}>{t('globalSearch.placeholder')}</Typography>
+          </ButtonBase>
+        ) : (
         <IconButton
           onClick={() => setOpen(true)}
           color="inherit"
@@ -198,6 +206,7 @@ export function GlobalSearch() {
         >
           <SearchIcon />
         </IconButton>
+        )}
       </Tooltip>
 
       {/* Search Dialog */}

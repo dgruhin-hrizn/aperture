@@ -132,7 +132,7 @@ export function MoviePoster({
           height: responsive ? 'auto' : dimensions.height,
           borderRadius: 2,
           overflow: 'hidden',
-          backgroundColor: 'grey.900',
+          backgroundColor: 'var(--ap-placeholder, #212121)',
           transition: 'transform 0.3s ease, box-shadow 0.3s ease',
           transform: isHovered ? 'scale(1.05)' : 'scale(1)',
         }}
@@ -173,12 +173,12 @@ export function MoviePoster({
               top: 8,
               right: 8,
               backgroundColor: 'rgba(0, 0, 0, 0.75)',
-              color: 'warning.main',
+              color: 'var(--ap-image-warning, #f59e0b)',
               fontWeight: 600,
               fontSize: '0.7rem',
               height: 24,
               '& .MuiChip-icon': {
-                color: 'warning.main',
+                color: 'var(--ap-image-warning, #f59e0b)',
               },
               zIndex: 2,
             }}

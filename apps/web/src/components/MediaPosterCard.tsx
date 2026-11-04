@@ -314,7 +314,7 @@ export function MediaPosterCard({
                 <IconButton
                   sx={{
                     backgroundColor: 'primary.main',
-                    color: 'white',
+                    color: theme => theme.aperture.name === 'studio' ? theme.palette.primary.contrastText : 'white',
                     '&:hover': { backgroundColor: 'primary.dark' },
                     width: 56,
                     height: 56,

@@ -87,7 +87,7 @@ export function MovieInsights({ insights, mediaType = 'movie' }: MovieInsightsPr
                   size="small"
                   sx={{
                     bgcolor: 'primary.main',
-                    color: 'white',
+                    color: theme => theme.aperture.name === 'studio' ? theme.palette.primary.contrastText : 'white',
                     fontWeight: 700,
                     height: 22,
                   }}
@@ -129,7 +129,7 @@ export function MovieInsights({ insights, mediaType = 'movie' }: MovieInsightsPr
                     <LinearProgress
                       variant="determinate"
                       value={(insights.scores?.similarity || 0) * 100}
-                      sx={{ mt: 1, borderRadius: 1, bgcolor: 'grey.800', '& .MuiLinearProgress-bar': { bgcolor: 'info.main' } }}
+                      sx={{ mt: 1, borderRadius: 1, bgcolor: 'var(--ap-progress-track, #424242)', '& .MuiLinearProgress-bar': { bgcolor: 'info.main' } }}
                     />
                   </Paper>
                 </Tooltip>
@@ -151,7 +151,7 @@ export function MovieInsights({ insights, mediaType = 'movie' }: MovieInsightsPr
                     <LinearProgress
                       variant="determinate"
                       value={(insights.scores?.novelty || 0) * 100}
-                      sx={{ mt: 1, borderRadius: 1, bgcolor: 'grey.800', '& .MuiLinearProgress-bar': { bgcolor: 'success.main' } }}
+                      sx={{ mt: 1, borderRadius: 1, bgcolor: 'var(--ap-progress-track, #424242)', '& .MuiLinearProgress-bar': { bgcolor: 'success.main' } }}
                     />
                   </Paper>
                 </Tooltip>
@@ -173,7 +173,7 @@ export function MovieInsights({ insights, mediaType = 'movie' }: MovieInsightsPr
                     <LinearProgress
                       variant="determinate"
                       value={(insights.scores?.rating || 0) * 100}
-                      sx={{ mt: 1, borderRadius: 1, bgcolor: 'grey.800', '& .MuiLinearProgress-bar': { bgcolor: 'warning.main' } }}
+                      sx={{ mt: 1, borderRadius: 1, bgcolor: 'var(--ap-progress-track, #424242)', '& .MuiLinearProgress-bar': { bgcolor: 'warning.main' } }}
                     />
                   </Paper>
                 </Tooltip>
@@ -195,7 +195,7 @@ export function MovieInsights({ insights, mediaType = 'movie' }: MovieInsightsPr
                     <LinearProgress
                       variant="determinate"
                       value={(insights.scores?.diversity || 0) * 100}
-                      sx={{ mt: 1, borderRadius: 1, bgcolor: 'grey.800', '& .MuiLinearProgress-bar': { bgcolor: 'secondary.main' } }}
+                      sx={{ mt: 1, borderRadius: 1, bgcolor: 'var(--ap-progress-track, #424242)', '& .MuiLinearProgress-bar': { bgcolor: 'secondary.main' } }}
                     />
                   </Paper>
                 </Tooltip>
@@ -216,7 +216,7 @@ export function MovieInsights({ insights, mediaType = 'movie' }: MovieInsightsPr
                       size="small"
                       sx={{
                         bgcolor: 'success.main',
-                        color: 'white',
+                        color: theme => theme.aperture.name === 'studio' ? theme.palette.success.contrastText : 'white',
                         fontWeight: 500,
                       }}
                       icon={<ThumbUpIcon sx={{ color: 'white !important', fontSize: 16 }} />}
@@ -286,7 +286,7 @@ export function MovieInsights({ insights, mediaType = 'movie' }: MovieInsightsPr
                           bgcolor: 'background.default',
                         }}
                       >
-                        <Box sx={{ height: 160, bgcolor: 'grey.800', position: 'relative' }}>
+                        <Box sx={{ height: 160, bgcolor: 'var(--ap-progress-track, #424242)', position: 'relative' }}>
                           <Box
                             component="img"
                             src={getProxiedImageUrl(item.poster_url)}

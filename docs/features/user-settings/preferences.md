@@ -2,6 +2,12 @@
 
 Preferences control how Aperture displays content and behaves for your account.
 
+## Appearance
+
+Select **Classic** to keep the original dark theme, or **Studio** for the new theme with **Light**, **Dark**, and **Follow device** modes. Save your choice under **Preferences → Appearance**. You can also reach it directly from your avatar menu. Existing accounts remain on Classic until they opt in.
+
+See [Appearance](appearance.md) for switching modes, account persistence, and returning to Classic. Appearance changes only the interface; recommendation and media-server settings stay separate.
+
 ![User Settings - Preferences](../../images/user-settings/user-settings-preferences.png)
 
 ## Accessing Preferences

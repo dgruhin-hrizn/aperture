@@ -201,7 +201,7 @@ export function RotatingBackdrop({
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.6) 70%, rgba(18,18,18,1) 100%)',
+          background: 'var(--ap-rotating-fade, linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.6) 70%, rgba(18,18,18,1) 100%))',
           zIndex: 1,
         }}
       />

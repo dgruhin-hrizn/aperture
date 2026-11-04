@@ -3675,5 +3675,30 @@
     "sectionBlurb": "Cada fila es una tira de TMDb Discover. Si una fila enumera varios géneros, TMDb devuelve títulos que coinciden con todos ellos. Los resultados excluyen los elementos que ya están en su biblioteca, vistos o solicitados.",
     "loadError": "No se pudo cargar la fila de género",
     "emptyStrip": "Ningún título coincide con esta fila después del filtrado."
+  },
+  "appearance": {
+    "title": "Apariencia",
+    "description": "Elige el aspecto de Aperture. Solo cambia tu interfaz, no tus recomendaciones ni los ajustes de Emby.",
+    "theme": "Tema",
+    "classic": "Clásico",
+    "classicDescription": "El tema oscuro original de Aperture.",
+    "studio": "Studio",
+    "studioDescription": "Acentos cobalto, tipografía clara y superficies claras u oscuras.",
+    "mode": "Modo de color",
+    "light": "Claro",
+    "dark": "Oscuro",
+    "system": "Seguir dispositivo",
+    "classicModeHint": "Clásico conserva su aspecto oscuro. Se recuerda el modo de Studio.",
+    "systemHint": "El tema sigue automáticamente la apariencia del dispositivo.",
+    "save": "Guardar apariencia",
+    "saved": "Apariencia guardada para tu cuenta.",
+    "loadError": "No se pudo cargar la apariencia. Reintenta antes de hacer cambios.",
+    "saveError": "No se pudo guardar la apariencia. Tu selección anterior sigue activa.",
+    "retry": "Reintentar",
+    "switchLight": "Cambiar al modo claro",
+    "switchDark": "Cambiar al modo oscuro",
+    "forYou": "Para ti",
+    "yourLibrary": "Tu biblioteca",
+    "activity": "Actividad"
   }
 }

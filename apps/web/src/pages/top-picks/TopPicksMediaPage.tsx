@@ -289,7 +289,7 @@ export function TopPicksMediaPage({ mediaType }: TopPicksMediaPageProps) {
                     height: 120,
                     objectFit: 'cover',
                     borderRadius: 1,
-                    backgroundColor: 'grey.800',
+                    backgroundColor: 'var(--ap-progress-track, #424242)',
                     flexShrink: 0,
                   }}
                 />

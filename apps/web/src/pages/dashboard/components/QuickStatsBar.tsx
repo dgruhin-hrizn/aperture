@@ -46,8 +46,8 @@ function StatCard({ icon, label, value, color, loading }: StatCardProps) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: `${color}20`,
-          color: color,
+          backgroundColor: `var(--ap-surface-2, ${color}20)`,
+          color: `var(--ap-stat-icon, ${color})`,
         }}
       >
         {icon}
