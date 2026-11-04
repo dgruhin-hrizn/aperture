@@ -1,16 +1,8 @@
-/**
- * Upcoming Episode Data Fetcher
- * 
- * Fetches upcoming episode information for series, using:
- * 1. Emby episodes table (premiere_date for future episodes)
- * 2. TMDB API fallback (next_episode_to_air)
- */
-
-import { createChildLogger } from '../lib/logger.js'
-import { query, queryOne } from '../lib/db.js'
+/** Upcoming episode lookups: local data first, shared bounded TMDb fallback. */
+import { query } from '../lib/db.js'
+import { AsyncCache, concurrencyLimit } from '../lib/asyncCache.js'
+import { getTMDbApiKey } from '../settings/systemSettings.js'
 import { tmdbRequest } from '../tmdb/client.js'
-
-const logger = createChildLogger('upcoming-episodes')
 
 export interface UpcomingEpisode {
   seriesId: string
@@ -18,169 +10,142 @@ export interface UpcomingEpisode {
   episodeNumber: number
   title: string
   overview: string | null
-  airDate: string // ISO date string
+  airDate: string
   source: 'emby' | 'tmdb'
 }
-
 interface TMDbNextEpisode {
-  id: number
   name: string
   overview: string | null
   air_date: string | null
   season_number: number
   episode_number: number
 }
-
-interface TMDbTVDetailsWithNextEpisode {
-  id: number
-  name: string
+interface TMDbDetails {
   next_episode_to_air: TMDbNextEpisode | null
-  last_episode_to_air: TMDbNextEpisode | null
+}
+interface LocalEpisode {
+  series_id: string
+  season_number: number
+  episode_number: number
+  title: string
+  overview: string | null
+  premiere_date: string | Date
+}
+export interface UpcomingEpisodeBatch {
+  episodes: Map<string, UpcomingEpisode>
+  /** Confirmed episodes OR confirmed absence. Failed remote reads are omitted. */
+  resolvedSeriesIds: string[]
+}
+const forecasts = new AsyncCache<{ episode: TMDbNextEpisode | null } | null>(30 * 60_000, 2000)
+const limitRemote = concurrencyLimit(4)
+
+async function localUpcoming(seriesIds: string[], today: string) {
+  const result = new Map<string, UpcomingEpisode>()
+  if (!seriesIds.length) return result
+  const rows = await query<LocalEpisode>(
+    `SELECT DISTINCT ON (series_id)
+            series_id, season_number, episode_number, title, overview, premiere_date
+     FROM episodes WHERE series_id = ANY($1) AND premiere_date >= $2
+     ORDER BY series_id, premiere_date ASC, season_number ASC, episode_number ASC`,
+    [seriesIds, today]
+  )
+  for (const row of rows.rows)
+    result.set(row.series_id, {
+      seriesId: row.series_id,
+      seasonNumber: row.season_number,
+      episodeNumber: row.episode_number,
+      title: row.title,
+      overview: row.overview,
+      airDate:
+        row.premiere_date instanceof Date
+          ? row.premiere_date.toISOString().slice(0, 10)
+          : row.premiere_date.slice(0, 10),
+      source: 'emby',
+    })
+  return result
+}
+async function remoteUpcoming(apiKey: string, tmdbId: string, today: string) {
+  // Cache only public forecast data. Include configuration and UTC day, never user membership.
+  return forecasts.get(JSON.stringify([apiKey, tmdbId, today]), () =>
+    limitRemote(async () => {
+      const data = await tmdbRequest<TMDbDetails>(`/tv/${tmdbId}`, {
+        apiKey,
+        timeoutMs: 5000,
+        maxRetries: 1,
+      })
+      if (!data) return null
+      const next = data.next_episode_to_air
+      return {
+        episode:
+          next?.air_date && /^\d{4}-\d{2}-\d{2}$/.test(next.air_date) && next.air_date >= today
+            ? next
+            : null,
+      }
+    })
+  )
+}
+function fromRemote(seriesId: string, next: TMDbNextEpisode): UpcomingEpisode {
+  return {
+    seriesId,
+    seasonNumber: next.season_number,
+    episodeNumber: next.episode_number,
+    title: next.name,
+    overview: next.overview,
+    airDate: next.air_date!,
+    source: 'tmdb',
+  }
 }
 
-/**
- * Get upcoming episode for a single series
- * First checks Emby data, falls back to TMDB
- */
+/** A batch can resolve incrementally without turning an upstream failure into "no episodes". */
+export async function getUpcomingEpisodeBatch(
+  seriesIds: string[],
+  options: { localOnly?: boolean } = {}
+): Promise<UpcomingEpisodeBatch> {
+  const ids = [...new Set(seriesIds)],
+    today = new Date().toISOString().slice(0, 10)
+  const episodes = await localUpcoming(ids, today)
+  const resolved = new Set(episodes.keys())
+  const remaining = ids.filter((id) => !episodes.has(id))
+  if (options.localOnly || !remaining.length) return { episodes, resolvedSeriesIds: [...resolved] }
+  const rows = await query<{ id: string; tmdb_id: string | null }>(
+    'SELECT id, tmdb_id FROM series WHERE id = ANY($1)',
+    [remaining]
+  )
+  // One configuration query per batch, rather than one per series.
+  const apiKey = await getTMDbApiKey()
+  await Promise.all(
+    rows.rows.map(async (row) => {
+      if (!apiKey || !row.tmdb_id || !/^\d+$/.test(row.tmdb_id)) {
+        resolved.add(row.id)
+        return
+      }
+      const data = await remoteUpcoming(apiKey, row.tmdb_id, today)
+      if (!data) return
+      resolved.add(row.id)
+      if (data.episode) episodes.set(row.id, fromRemote(row.id, data.episode))
+    })
+  )
+  return { episodes, resolvedSeriesIds: [...resolved] }
+}
+
+/** Backward-compatible full-result helpers; UI callers use small authenticated batches. */
+export async function getUpcomingEpisodes(
+  seriesIds: string[],
+  options: { localOnly?: boolean } = {}
+): Promise<Map<string, UpcomingEpisode>> {
+  return (await getUpcomingEpisodeBatch(seriesIds, options)).episodes
+}
 export async function getUpcomingEpisodeForSeries(
   seriesId: string,
   tmdbId: string | null
 ): Promise<UpcomingEpisode | null> {
-  const today = new Date().toISOString().split('T')[0]
-
-  // First, try to get from Emby episodes table
-  const embyEpisode = await queryOne<{
-    season_number: number
-    episode_number: number
-    title: string
-    overview: string | null
-    premiere_date: string
-  }>(
-    `SELECT season_number, episode_number, title, overview, premiere_date
-     FROM episodes
-     WHERE series_id = $1 
-       AND premiere_date >= $2
-     ORDER BY premiere_date ASC, season_number ASC, episode_number ASC
-     LIMIT 1`,
-    [seriesId, today]
-  )
-
-  if (embyEpisode && embyEpisode.premiere_date) {
-    return {
-      seriesId,
-      seasonNumber: embyEpisode.season_number,
-      episodeNumber: embyEpisode.episode_number,
-      title: embyEpisode.title,
-      overview: embyEpisode.overview,
-      airDate: embyEpisode.premiere_date,
-      source: 'emby',
-    }
-  }
-
-  // Fallback to TMDB if we have a tmdb_id
-  if (tmdbId) {
-    try {
-      const tmdbData = await tmdbRequest<TMDbTVDetailsWithNextEpisode>(`/tv/${tmdbId}`)
-      
-      if (tmdbData?.next_episode_to_air && tmdbData.next_episode_to_air.air_date) {
-        return {
-          seriesId,
-          seasonNumber: tmdbData.next_episode_to_air.season_number,
-          episodeNumber: tmdbData.next_episode_to_air.episode_number,
-          title: tmdbData.next_episode_to_air.name,
-          overview: tmdbData.next_episode_to_air.overview,
-          airDate: tmdbData.next_episode_to_air.air_date,
-          source: 'tmdb',
-        }
-      }
-    } catch (err) {
-      logger.debug({ err, tmdbId, seriesId }, 'Failed to fetch TMDB data for upcoming episode')
-    }
-  }
-
-  return null
-}
-
-/**
- * Get upcoming episodes for multiple series
- * Returns a map of seriesId -> UpcomingEpisode
- */
-export async function getUpcomingEpisodes(
-  seriesIds: string[]
-): Promise<Map<string, UpcomingEpisode>> {
-  const result = new Map<string, UpcomingEpisode>()
-  
-  if (seriesIds.length === 0) {
-    return result
-  }
-
-  const today = new Date().toISOString().split('T')[0]
-
-  // Batch query for Emby episodes
-  const embyEpisodes = await query<{
-    series_id: string
-    season_number: number
-    episode_number: number
-    title: string
-    overview: string | null
-    premiere_date: string
-  }>(
-    `SELECT DISTINCT ON (series_id) 
-            series_id, season_number, episode_number, title, overview, premiere_date
-     FROM episodes
-     WHERE series_id = ANY($1)
-       AND premiere_date >= $2
-     ORDER BY series_id, premiere_date ASC, season_number ASC, episode_number ASC`,
-    [seriesIds, today]
-  )
-
-  // Add Emby results to map
-  for (const ep of embyEpisodes.rows) {
-    result.set(ep.series_id, {
-      seriesId: ep.series_id,
-      seasonNumber: ep.season_number,
-      episodeNumber: ep.episode_number,
-      title: ep.title,
-      overview: ep.overview,
-      airDate: ep.premiere_date,
-      source: 'emby',
-    })
-  }
-
-  // Find series without Emby data that have TMDB IDs
-  const seriesNeedingTmdb = seriesIds.filter((id) => !result.has(id))
-  
-  if (seriesNeedingTmdb.length > 0) {
-    // Get TMDB IDs for these series
-    const tmdbIds = await query<{ id: string; tmdb_id: string }>(
-      `SELECT id, tmdb_id FROM series 
-       WHERE id = ANY($1) AND tmdb_id IS NOT NULL`,
-      [seriesNeedingTmdb]
-    )
-
-    // Fetch from TMDB (with rate limiting consideration)
-    for (const row of tmdbIds.rows) {
-      try {
-        const tmdbData = await tmdbRequest<TMDbTVDetailsWithNextEpisode>(`/tv/${row.tmdb_id}`)
-        
-        if (tmdbData?.next_episode_to_air && tmdbData.next_episode_to_air.air_date) {
-          result.set(row.id, {
-            seriesId: row.id,
-            seasonNumber: tmdbData.next_episode_to_air.season_number,
-            episodeNumber: tmdbData.next_episode_to_air.episode_number,
-            title: tmdbData.next_episode_to_air.name,
-            overview: tmdbData.next_episode_to_air.overview,
-            airDate: tmdbData.next_episode_to_air.air_date,
-            source: 'tmdb',
-          })
-        }
-      } catch (err) {
-        logger.debug({ err, tmdbId: row.tmdb_id, seriesId: row.id }, 'Failed to fetch TMDB data')
-      }
-    }
-  }
-
-  return result
+  const today = new Date().toISOString().slice(0, 10)
+  const local = (await localUpcoming([seriesId], today)).get(seriesId)
+  if (local) return local
+  const apiKey = await getTMDbApiKey()
+  if (!apiKey || !tmdbId || !/^\d+$/.test(tmdbId)) return null
+  const data = await remoteUpcoming(apiKey, tmdbId, today)
+  return data?.episode ? fromRemote(seriesId, data.episode) : null
 }
 
 /**
@@ -193,7 +158,6 @@ export function formatUpcomingEpisode(episode: UpcomingEpisode): string {
     day: 'numeric',
     year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
   })
-  
+
   return `S${episode.seasonNumber}E${episode.episodeNumber} - ${episode.title} (${dateStr})`
 }
-

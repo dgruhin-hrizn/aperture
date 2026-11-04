@@ -7,6 +7,7 @@
 
 export {
   getUpcomingEpisodes,
+  getUpcomingEpisodeBatch,
   getUpcomingEpisodeForSeries,
   type UpcomingEpisode,
 } from './upcomingEpisodes.js'
