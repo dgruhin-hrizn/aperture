@@ -75,12 +75,13 @@ export async function getCandidates(
     title: string
     year: number | null
     genres: string[]
+    collection_name: string | null
     keywords: string[]
     community_rating: number | null
     similarity: number
     previously_suggested: boolean
   }>(
-    `SELECT m.id, m.title, m.year, m.genres, m.community_rating,
+    `SELECT m.id, m.title, m.year, m.genres, m.collection_name, m.community_rating,
             COALESCE(m.keywords, '{}') || COALESCE(m.mdblist_keywords, '{}') AS keywords,
             1 - (e.embedding <=> $1::halfvec) as similarity,
             ${history ? 'h.last_suggested_at IS NOT NULL' : 'FALSE'} AS previously_suggested
@@ -104,6 +105,7 @@ export async function getCandidates(
     title: row.title,
     year: row.year,
     genres: row.genres || [],
+    collectionName: row.collection_name,
     keywords: row.keywords,
     communityRating: row.community_rating,
     similarity: row.similarity,

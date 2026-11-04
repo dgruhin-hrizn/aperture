@@ -1,229 +1,68 @@
 # AI Algorithm Weights
 
-Customize how Aperture's AI generates your personalized recommendations by adjusting scoring weights.
+Adjust how Aperture ranks personalized movie and TV recommendations in **Settings → AI Algorithm**.
+Movie and TV weights are configured separately. Enable custom settings to override the server defaults.
 
 ![User Settings - AI Algorithm](../../images/user-settings/user-settings-ai-algorithm.png)
 
-## Accessing Algorithm Settings
+## The four weights
 
-1. Click your avatar in the top navigation bar
-2. Select **Settings**
-3. Click the **AI Algorithm** tab
+| Weight | Effect |
+| --- | --- |
+| **Similarity** | Favors candidates whose embeddings resemble your stored taste profile. |
+| **Novelty** | Rewards some unfamiliar genres alongside genres from your viewing history. |
+| **Community Rating** | Favors higher community ratings. Missing ratings receive a neutral fallback. |
+| **Diversity** | Balances the picks already selected by genre and, for TV, network. |
 
----
+The internal setting names are `similarityWeight`, `noveltyWeight`, `ratingWeight`, and
+`diversityWeight`. The sliders show percentages, and Aperture normalizes the saved values by
+their total when generating recommendations. For example, equal values give the four factors equal
+relative weight. A zero value removes that factor's direct contribution to scoring.
 
-## How Weights Work
+Similarity, novelty, and community rating produce a base score. Aperture then applies franchise, genre,
+and custom-interest preferences. Diversity is blended in during selection so it can change which
+candidates enter the final list. An explicit custom diversity weight uses your normalized setting.
+Server-default diversity can also adjust to how focused or varied your viewing history appears.
 
-### Scoring System
+## Viewing history and preferences
 
-Each recommendation candidate is scored using weighted factors:
+Completed plays and favorites supply positive taste signals. Rewatches, TV completion, explicit
+ratings, and the recency of viewing affect the stored taste profile. Partially played titles can be
+excluded from new suggestions once playback reaches 5% while contributing to taste through an
+explicit favorite.
 
-```
-Final Score = (Factor1 × Weight1) + (Factor2 × Weight2) + ...
-```
+Your excluded analysis libraries are omitted from profile building and history analysis. Your
+admin's source-library configuration and Emby access determine which libraries can supply picks.
 
-Higher weights = more influence on final ranking.
+The recent-history limit controls the movie or TV sample used for discovery scoring and fallback
+profile building. Stored taste profiles use the eligible history and their configured refresh interval.
+Profile updates therefore follow the refresh and lock settings in Watcher Identity.
 
-### Default vs Custom
+Custom interests influence the first 100 candidates after initial scoring. Their embeddings must
+match the active embedding model. Existing interests saved with an older model can be recreated
+with the current model to contribute again.
 
-- **Server defaults** — Set by your admin
-- **Your customization** — Adjust to your preferences
-- Your settings override server defaults
+## Watched and disliked titles
 
----
+**Include watched content** permits eligible rewatch suggestions. The suggestion cooldown and
+returning-title limit still apply.
 
-## Movie Weights
+Titles rated 1–3 hearts follow the saved dislike behavior in both movie and TV generation.
 
-### Similarity Weight
+| Behavior | Effect |
+| --- | --- |
+| **Exclude** | Removes explicitly disliked title IDs from the candidate list, including when rewatching is enabled. |
+| **Penalize** | Reduces their score. For a positive score, 20% remains before variety is applied. |
 
-How much to favor movies similar to what you've enjoyed.
+Explicit ratings also affect the influence of watched titles when a taste profile is rebuilt.
+See [Ratings](../ratings.md) for details.
 
-| Setting | Effect |
-|---------|--------|
-| **High** | Strong preference for "more of what you like" |
-| **Medium** | Balanced with other factors |
-| **Low** | More variety, less similarity focus |
+## Saving and applying changes
 
-**Increase if:** You want recommendations closely matching your taste
-**Decrease if:** You want to discover new genres/styles
+Slider changes save automatically. They take effect when recommendations are next generated.
+Use **Reset to Server Defaults** to return to your admin's weights.
 
-### Popularity Weight
+For closer matches, increase similarity. For more exploration, increase novelty or diversity.
+For a stronger preference for well-rated titles, increase community rating.
 
-How much to consider general audience popularity.
-
-| Setting | Effect |
-|---------|--------|
-| **High** | Favor widely-loved, mainstream content |
-| **Medium** | Balanced consideration |
-| **Low** | Hidden gems over popular hits |
-
-**Increase if:** You enjoy popular, well-known movies
-**Decrease if:** You prefer indie/obscure content
-
-### Recency Weight
-
-How much to prefer newer releases.
-
-| Setting | Effect |
-|---------|--------|
-| **High** | Strong preference for recent movies |
-| **Medium** | Balanced across all years |
-| **Low** | Classics weighted equally with new releases |
-
-**Increase if:** You want to stay current
-**Decrease if:** You love classic films
-
-### Rating Weight
-
-How much community/critic ratings influence recommendations.
-
-| Setting | Effect |
-|---------|--------|
-| **High** | Favor highly-rated content |
-| **Medium** | Balanced consideration |
-| **Low** | Rating matters less than other factors |
-
-**Increase if:** You trust critic/audience scores
-**Decrease if:** You have unconventional taste
-
-### Diversity Weight
-
-How much to ensure variety in your recommendations.
-
-| Setting | Effect |
-|---------|--------|
-| **High** | Active effort to diversify genres/styles |
-| **Medium** | Some variety ensured |
-| **Low** | Recommendations may cluster in preferences |
-
-**Increase if:** You want to branch out
-**Decrease if:** You know what you like
-
----
-
-## Series Weights
-
-The same weight categories apply to TV series:
-
-| Weight | Series-Specific Considerations |
-|--------|--------------------------------|
-| **Similarity** | Based on series you've watched |
-| **Popularity** | TV-specific trending data |
-| **Recency** | Recent premieres vs classics |
-| **Rating** | Series average ratings |
-| **Diversity** | Variety in show types |
-
-### Series-Specific Factors
-
-Some weights may include:
-
-- **Completed series** preference
-- **Ongoing series** preference
-- **Episode count** considerations
-- **Network/streaming** preferences
-
----
-
-## Using the Sliders
-
-### Adjusting Weights
-
-1. Find the weight you want to adjust
-2. Drag the slider left (decrease) or right (increase)
-3. Watch the preview of how it affects recommendations
-4. Click **Save** when satisfied
-
-### Weight Scale
-
-Typically 0-100 or 0-10 scale:
-
-| Range | Meaning |
-|-------|---------|
-| **0-20** | Minimal influence |
-| **20-40** | Low influence |
-| **40-60** | Moderate influence |
-| **60-80** | High influence |
-| **80-100** | Maximum influence |
-
-### Relative Weights
-
-What matters is the **ratio** between weights:
-
-- All at 50 = all equally weighted
-- Similarity at 80, others at 40 = similarity twice as important
-- Setting one to 0 = completely ignores that factor
-
----
-
-## Preview Mode
-
-Some interfaces show a preview:
-
-### Before/After
-
-See how weight changes affect your recommendations:
-
-- **Current picks** with existing weights
-- **Preview picks** with new weights
-- Highlighted items that would change ranking
-
-### Testing Changes
-
-1. Adjust weights
-2. View preview
-3. Decide if changes improve recommendations
-4. Save or discard
-
----
-
-## Presets
-
-Quick preset options may be available:
-
-| Preset | Description |
-|--------|-------------|
-| **Balanced** | All weights equal |
-| **Similarity Focus** | Emphasizes taste match |
-| **Discovery** | Emphasizes variety and diversity |
-| **Quality** | Emphasizes ratings |
-| **Trending** | Emphasizes popularity and recency |
-
-Click a preset to apply those weights instantly.
-
----
-
-## Tips
-
-### Start Balanced
-
-Begin with default weights, then adjust one at a time to see effects.
-
-### Small Adjustments
-
-Small changes (10-20 points) can have noticeable effects. Avoid extreme swings.
-
-### Give It Time
-
-After changing weights, generate new recommendations and watch a few before adjusting again.
-
-### Consider Your Goals
-
-| Goal | Weight Adjustments |
-|------|-------------------|
-| More of what I love | ↑ Similarity |
-| Expand my horizons | ↑ Diversity, ↓ Similarity |
-| Quality over quantity | ↑ Rating |
-| Stay current | ↑ Recency |
-| Find hidden gems | ↓ Popularity |
-
----
-
-## Reset to Defaults
-
-Click **Reset to Server Defaults** to restore admin-configured weights.
-
-This doesn't delete your watch history or ratings—just the weight customizations.
-
----
-
-**Next:** [Watcher Identity](watcher-identity.md)
+See [Your AI Picks](../recommendations.md) and [Watcher Identity](watcher-identity.md).

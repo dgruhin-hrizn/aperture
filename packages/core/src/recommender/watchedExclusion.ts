@@ -33,24 +33,22 @@ export const WATCH_HISTORY_TASTE_SQL = `(wh.played = true OR wh.is_favorite = tr
  */
 export async function getExpandedWatchedMovieIds(userId: string): Promise<Set<string>> {
   const result = await query<{ id: string }>(
-    `SELECT DISTINCT m.id
-     FROM movies m
-     WHERE m.id IN (
-       SELECT wh.movie_id FROM watch_history wh
-       WHERE wh.user_id = $1 AND wh.media_type = 'movie' AND ${WATCH_HISTORY_EXCLUDABLE_SQL}
-     )
-     OR m.tmdb_id IN (
-       SELECT DISTINCT m2.tmdb_id FROM watch_history wh
-       JOIN movies m2 ON m2.id = wh.movie_id
-       WHERE wh.user_id = $1 AND wh.media_type = 'movie' AND m2.tmdb_id IS NOT NULL
+    `WITH watched AS MATERIALIZED (
+       SELECT DISTINCT m.id, m.tmdb_id, m.imdb_id
+       FROM watch_history wh
+       JOIN movies m ON m.id = wh.movie_id
+       WHERE wh.user_id = $1 AND wh.media_type = 'movie'
          AND ${WATCH_HISTORY_EXCLUDABLE_SQL}
      )
-     OR m.imdb_id IN (
-       SELECT DISTINCT m2.imdb_id FROM watch_history wh
-       JOIN movies m2 ON m2.id = wh.movie_id
-       WHERE wh.user_id = $1 AND wh.media_type = 'movie' AND m2.imdb_id IS NOT NULL
-         AND ${WATCH_HISTORY_EXCLUDABLE_SQL}
-     )`,
+     SELECT id FROM watched
+     UNION
+     SELECT m.id FROM movies m
+     JOIN (SELECT DISTINCT tmdb_id FROM watched WHERE tmdb_id IS NOT NULL) w
+       ON w.tmdb_id = m.tmdb_id
+     UNION
+     SELECT m.id FROM movies m
+     JOIN (SELECT DISTINCT imdb_id FROM watched WHERE imdb_id IS NOT NULL) w
+       ON w.imdb_id = m.imdb_id`,
     [userId]
   )
   return new Set(result.rows.map((r) => r.id))
@@ -62,38 +60,27 @@ export async function getExpandedWatchedMovieIds(userId: string): Promise<Set<st
  */
 export async function getExpandedWatchedSeriesIds(userId: string): Promise<Set<string>> {
   const result = await query<{ id: string }>(
-    `SELECT DISTINCT s.id
-     FROM series s
-     WHERE s.id IN (
-       SELECT DISTINCT e.series_id
+    `WITH watched AS MATERIALIZED (
+       SELECT DISTINCT m.id, m.tmdb_id, m.imdb_id, m.tvdb_id
        FROM watch_history wh
        JOIN episodes e ON e.id = wh.episode_id
-       WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND ${WATCH_HISTORY_EXCLUDABLE_SQL}
-     )
-     OR s.tmdb_id IN (
-       SELECT DISTINCT s2.tmdb_id
-       FROM watch_history wh
-       JOIN episodes e ON e.id = wh.episode_id
-       JOIN series s2 ON s2.id = e.series_id
-       WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND s2.tmdb_id IS NOT NULL
+       JOIN series m ON m.id = e.series_id
+       WHERE wh.user_id = $1 AND wh.media_type = 'episode'
          AND ${WATCH_HISTORY_EXCLUDABLE_SQL}
      )
-     OR s.imdb_id IN (
-       SELECT DISTINCT s2.imdb_id
-       FROM watch_history wh
-       JOIN episodes e ON e.id = wh.episode_id
-       JOIN series s2 ON s2.id = e.series_id
-       WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND s2.imdb_id IS NOT NULL
-         AND ${WATCH_HISTORY_EXCLUDABLE_SQL}
-     )
-     OR s.tvdb_id IN (
-       SELECT DISTINCT s2.tvdb_id
-       FROM watch_history wh
-       JOIN episodes e ON e.id = wh.episode_id
-       JOIN series s2 ON s2.id = e.series_id
-       WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND s2.tvdb_id IS NOT NULL
-         AND ${WATCH_HISTORY_EXCLUDABLE_SQL}
-     )`,
+     SELECT id FROM watched
+     UNION
+     SELECT m.id FROM series m
+     JOIN (SELECT DISTINCT tmdb_id FROM watched WHERE tmdb_id IS NOT NULL) w
+       ON w.tmdb_id = m.tmdb_id
+     UNION
+     SELECT m.id FROM series m
+     JOIN (SELECT DISTINCT imdb_id FROM watched WHERE imdb_id IS NOT NULL) w
+       ON w.imdb_id = m.imdb_id
+     UNION
+     SELECT m.id FROM series m
+     JOIN (SELECT DISTINCT tvdb_id FROM watched WHERE tvdb_id IS NOT NULL) w
+       ON w.tvdb_id = m.tvdb_id`,
     [userId]
   )
   return new Set(result.rows.map((r) => r.id))

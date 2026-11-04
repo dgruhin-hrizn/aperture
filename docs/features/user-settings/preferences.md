@@ -46,15 +46,15 @@ Control how low ratings affect your recommendations.
 
 | Option | Effect |
 |--------|--------|
-| **Exclude** | Items similar to 1-3 star ratings are completely excluded |
-| **Penalize** | Items similar to dislikes are ranked lower but may appear |
+| **Exclude** | Explicitly disliked title IDs rated 1–3 hearts are excluded |
+| **Penalize** | Explicitly disliked titles receive a lower score but may appear |
 
 ### When to Use Each
 
 **Exclude (Default):**
 - Strong preferences about what you don't like
 - Want cleaner recommendations
-- Genres you never want to see
+- Titles you want to keep out of your picks
 
 **Penalize:**
 - Open to being surprised
@@ -64,9 +64,9 @@ Control how low ratings affect your recommendations.
 ### How It Works
 
 1. You rate a movie 2 hearts
-2. AI identifies similar content
-3. **Exclude:** Similar content removed from candidates
-4. **Penalize:** Similar content gets lower scores
+2. Aperture applies your saved dislike behavior on the next recommendation run
+3. **Exclude** removes that title ID from candidates
+4. **Penalize** reduces its score before variety is applied
 
 ---
 

@@ -53,7 +53,7 @@ Top recommendations show medal badges:
 
 Each recommendation shows:
 
-- **Percentage** — Overall match to your taste (e.g., 87%)
+- **Percentage** — A ranking score derived from the recommendation algorithm
 - **Visual bar** — Filled portion represents strength
 
 ---
@@ -93,26 +93,19 @@ If enabled by your admin, a natural language explanation:
 
 ### Input Data
 
-The AI considers:
-
-1. **Watch History** — What you've watched
-2. **Ratings** — How you rated content
-3. **Time Patterns** — When you watch
-4. **Genres** — Your genre preferences
-5. **People** — Directors, actors you favor
-6. **Franchises** — Collections you engage with
+Aperture builds a stored taste profile from completed plays and favorites. Engagement, explicit
+ratings, and viewing recency affect the influence of those titles. It retrieves candidates using
+embedding similarity, then applies your franchise, genre, and compatible custom-interest preferences.
+Movie candidates can also receive a small bonus for themes shared by multiple history titles.
 
 ### Scoring Factors
 
-Each candidate is scored with configurable weights:
-
-| Factor | Default Weight | Description |
-|--------|----------------|-------------|
-| **Similarity** | Varies | Match to your taste profile |
-| **Popularity** | Varies | General audience appeal |
-| **Recency** | Varies | Preference for newer content |
-| **Rating** | Varies | Community/critic scores |
-| **Diversity** | Varies | Variety in the list |
+| Factor | Description |
+| --- | --- |
+| **Similarity** | Match to your stored taste profile. |
+| **Discovery** | A mix of familiar and unfamiliar genres relative to your viewing history. |
+| **Quality** | Community ratings. |
+| **Variety** | Genre and, for TV, network diversity within the selected list. |
 
 You can customize these weights in [AI Algorithm Settings](user-settings/ai-algorithm.md).
 
@@ -120,9 +113,13 @@ You can customize these weights in [AI Algorithm Settings](user-settings/ai-algo
 
 Content is excluded if:
 
-- You've already watched it
-- You've rated it 1-3 hearts (if exclude mode enabled)
-- It's in an excluded library
+- You've already watched it or progressed at least 5%, with watched content disabled
+- You've rated that title ID 1–3 hearts, with exclude mode enabled
+- Its source is disabled or inaccessible to your Emby account
+- It is still within your suggestion cooldown
+
+Library exclusions in Watcher Identity control which viewing history shapes your taste.
+Taste profiles follow their refresh interval and lock settings.
 
 ---
 

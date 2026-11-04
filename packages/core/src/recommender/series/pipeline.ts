@@ -27,8 +27,11 @@ import { averageEmbeddings } from '../shared/index.js'
 import {
   calculateRatingScore,
   calculateNoveltyScore,
+  calculateBaseScore,
   applyDiversitySelection,
 } from '../shared/index.js'
+import { applyDislikePenalty } from '../shared/scoring.js'
+import { getUserExcludedLibraries } from '../../lib/libraryExclusions.js'
 import { storeSeriesEvidence, getSeriesOverviews } from './storage.js'
 import {
   generateSeriesExplanations,
@@ -41,13 +44,12 @@ import { syncSeriesWatchHistoryForUser } from './sync.js'
 import {
   getUserTasteProfile,
   storeTasteProfile as storeNewTasteProfile,
-  getFranchiseBoost,
-  getGenreBoost,
-  getCustomInterestBoost,
+  loadPreferenceBoosts,
   detectAndUpdateFranchises,
 } from '../../taste-profile/index.js'
-import { getItemFranchise } from '../../taste-profile/franchise.js'
-import { getDislikedSeriesIds } from './taste.js'
+import { detectFranchiseFromTitle } from '../../taste-profile/franchise.js'
+import { getCandidateEmbeddings } from '../shared/embeddings.js'
+import { getUserSeriesRatings } from './taste.js'
 import { WATCH_HISTORY_TASTE_SQL } from '../watchedExclusion.js'
 import { loadConfigForUser } from '../config.js'
 import type { PipelineConfig } from '../types.js'
@@ -79,6 +81,7 @@ export interface SeriesCandidate {
   genres: string[]
   network: string | null
   status: string | null
+  communityRating?: number | null
   similarity: number
   novelty: number
   ratingScore: number
@@ -94,6 +97,7 @@ export type SeriesPipelineConfig = PipelineConfig
  * Get user's series watch history with engagement weighting
  */
 async function getSeriesWatchHistory(userId: string, limit: number): Promise<WatchedSeriesData[]> {
+  const excludedLibraries = await getUserExcludedLibraries(userId)
   const result = await query<{
     series_id: string
     episodes_watched: number
@@ -111,10 +115,11 @@ async function getSeriesWatchHistory(userId: string, limit: number): Promise<Wat
      JOIN episodes e ON e.id = wh.episode_id
      JOIN series s ON s.id = e.series_id
      WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND (${WATCH_HISTORY_TASTE_SQL})
+       AND (s.provider_library_id IS NULL OR s.provider_library_id != ALL($3::text[]))
      GROUP BY e.series_id, s.total_episodes
      ORDER BY MAX(wh.last_played_at) DESC NULLS LAST
      LIMIT $2`,
-    [userId, limit]
+    [userId, limit, excludedLibraries]
   )
 
   return result.rows.map((row) => {
@@ -231,9 +236,8 @@ async function storeSeriesTasteProfile(userId: string, profile: number[]): Promi
  */
 async function getSeriesCandidates(
   tasteProfile: number[],
-  watchedSeriesIds: Set<string>,
+  excludedSeriesIds: Set<string>,
   maxCandidates: number,
-  includeWatched: boolean,
   maxParentalRating: number | null,
   userId: string,
   cooldownDays: number,
@@ -249,7 +253,8 @@ async function getSeriesCandidates(
   const tableName = await getActiveEmbeddingTableName('series_embeddings')
   const vectorStr = `[${tasteProfile.join(',')}]`
 
-  const queryLimit = includeWatched ? maxCandidates : maxCandidates + watchedSeriesIds.size
+  // This set contains only dislikes when watched recommendations are enabled.
+  const queryLimit = maxCandidates + excludedSeriesIds.size
 
   // Build query with optional parental rating filter
   let ratingFilter = ''
@@ -303,11 +308,8 @@ async function getSeriesCandidates(
     params
   )
 
-  // Filter out watched series if not including them
-  let candidates = result.rows
-  if (!includeWatched) {
-    candidates = candidates.filter((c) => !watchedSeriesIds.has(c.series_id))
-  }
+  // Apply exclusions even when rewatching is enabled, since dislikes still apply.
+  let candidates = result.rows.filter((c) => !excludedSeriesIds.has(c.series_id))
 
   // Limit to maxCandidates
   candidates = candidates.slice(0, maxCandidates)
@@ -320,6 +322,7 @@ async function getSeriesCandidates(
     genres: row.genres || [],
     network: row.network,
     status: row.status,
+    communityRating: row.community_rating,
     similarity: row.similarity,
     previouslySuggested: row.previously_suggested,
     novelty: 0,
@@ -338,18 +341,6 @@ async function scoreSeriesCandidates(
   watchedSeries: WatchedSeriesData[],
   config: SeriesPipelineConfig
 ): Promise<SeriesCandidate[]> {
-  // Get ratings for candidates
-  const seriesIds = candidates.map((c) => c.seriesId)
-  const ratingsResult = await query<{ id: string; community_rating: number | null }>(
-    `SELECT id, community_rating FROM series WHERE id = ANY($1)`,
-    [seriesIds]
-  )
-
-  const ratingsMap = new Map<string, number | null>()
-  for (const row of ratingsResult.rows) {
-    ratingsMap.set(row.id, row.community_rating)
-  }
-
   // Compute genre distribution from watched series for novelty
   const watchedGenres = new Map<string, number>()
   const watchedSeriesResult = await query<{ genres: string[] }>(
@@ -368,16 +359,13 @@ async function scoreSeriesCandidates(
   // Score each candidate using shared scoring functions
   return candidates.map((candidate) => {
     // Use shared rating score calculation (handles bad data, proper scaling)
-    const ratingScore = calculateRatingScore(ratingsMap.get(candidate.seriesId))
+    const ratingScore = calculateRatingScore(candidate.communityRating)
 
     // Use shared novelty score calculation (handles missing genres)
     const noveltyScore = calculateNoveltyScore(candidate.genres, watchedGenres, totalWatchedGenres)
 
     // Compute final score
-    const finalScore =
-      config.similarityWeight * candidate.similarity +
-      config.noveltyWeight * noveltyScore +
-      config.ratingWeight * ratingScore
+    const finalScore = calculateBaseScore(candidate.similarity, noveltyScore, ratingScore, config)
 
     return {
       ...candidate,
@@ -385,7 +373,7 @@ async function scoreSeriesCandidates(
       ratingScore,
       finalScore,
     }
-  })
+  }).sort((a, b) => b.finalScore - a.finalScore)
 }
 
 interface SeriesSelectionResult {
@@ -589,16 +577,17 @@ export async function generateSeriesRecommendationsForUser(
     logger.info({ userId: user.id }, '💾 Stored series taste profile (legacy)')
 
     // 3. Get user's preferences for including watched content and handling disliked content
-    const userPrefs = await queryOne<{ include_watched: boolean; settings: { dislikeBehavior?: string } | null }>(
-      `SELECT include_watched, settings FROM user_preferences WHERE user_id = $1`,
+    const userPrefs = await queryOne<{ include_watched: boolean; dislike_behavior: string | null }>(
+      `SELECT include_watched, dislike_behavior FROM user_preferences WHERE user_id = $1`,
       [user.id]
     )
     const includeWatched = userPrefs?.include_watched ?? false
-    const dislikeBehavior = userPrefs?.settings?.dislikeBehavior ?? 'exclude'
+    const dislikeBehavior = userPrefs?.dislike_behavior ?? 'exclude'
+    const userRatings = await getUserSeriesRatings(user.id)
 
     // Get disliked series IDs if dislike_behavior is 'exclude'
     const dislikedIds = dislikeBehavior === 'exclude' 
-      ? await getDislikedSeriesIds(user.id) 
+      ? new Set([...userRatings].filter(([, rating]) => rating <= 3).map(([id]) => id))
       : new Set<string>()
     
     if (dislikedIds.size > 0) {
@@ -647,7 +636,6 @@ export async function generateSeriesRecommendationsForUser(
         tasteProfile,
         excludeIds,
         cfg.maxCandidates,
-        includeWatched,
         user.maxParentalRating ?? null,
         user.id,
         cfg.repeatCooldownDays,
@@ -678,31 +666,31 @@ export async function generateSeriesRecommendationsForUser(
     let genreBoostCount = 0
     let interestBoostCount = 0
     
-    // Get embeddings for top candidates to apply custom interest boost
-    // (only fetch for top 100 to limit performance impact)
-    const topCandidateIds = scoredCandidates.slice(0, 100).map((c) => c.seriesId)
-    const { getSeriesEmbedding } = await import('./embeddings.js')
-    
+    const boosts = await loadPreferenceBoosts(user.id, 'series')
+    // Custom interests only apply to the top 100 candidates before preference boosts.
+    const embeddings = boosts.hasCustomInterests
+      ? await getCandidateEmbeddings(scoredCandidates.slice(0, 100).map((candidate) => candidate.seriesId), 'series')
+      : new Map<string, number[]>()
+
     for (const candidate of scoredCandidates) {
       // Get franchise boost (1.0 = neutral, up to 1.5 for loved franchises)
-      const franchiseName = await getItemFranchise(candidate.seriesId, 'series')
-      const franchiseBoost = await getFranchiseBoost(user.id, franchiseName, 'series')
+      const franchiseName = detectFranchiseFromTitle(candidate.title)
+      const franchiseBoost = await boosts.getFranchiseBoost(franchiseName)
       
       // Get genre boost (1.0 = neutral, 0.5-1.5 range)
-      const genreBoost = await getGenreBoost(user.id, candidate.genres || [])
+      const genreBoost = boosts.getGenreBoost(candidate.genres || [])
       
       // Get custom interest boost (only for top candidates with embeddings)
-      let interestBoost = 1.0
-      if (topCandidateIds.includes(candidate.seriesId)) {
-        const embedding = await getSeriesEmbedding(candidate.seriesId)
-        if (embedding) {
-          interestBoost = await getCustomInterestBoost(user.id, embedding)
-        }
-      }
-      
+      const embedding = embeddings.get(candidate.seriesId)
+      const interestBoost = embedding ? boosts.getCustomInterestBoost(embedding) : 1.0
+
       // Apply boosts to final score
       const originalScore = candidate.finalScore
-      candidate.finalScore = originalScore * franchiseBoost * genreBoost * interestBoost
+      candidate.finalScore = applyDislikePenalty(
+        originalScore * franchiseBoost * genreBoost * interestBoost,
+        userRatings.get(candidate.seriesId),
+        dislikeBehavior
+      )
       
       if (franchiseBoost !== 1.0) {
         franchiseBoostCount++
@@ -745,9 +733,7 @@ export async function generateSeriesRecommendationsForUser(
     const selectedGroups = new Map<string, string | null>()
     const selectedTitles = new Set<string>()
     const titleKey = (candidate: SeriesCandidate) => `${candidate.title.toLowerCase()}|${candidate.year || 'unknown'}`
-    const eligibleCandidates = includeWatched
-      ? scoredCandidates
-      : (await import('../watchedExclusion.js')).filterByWatchedIds(scoredCandidates, excludeIds)
+    const eligibleCandidates = (await import('../watchedExclusion.js')).filterByWatchedIds(scoredCandidates, excludeIds)
     for (const [groupId, pool] of candidatePools) {
       const { selected, selectedRanks } = applySeriesDiversityAndSelect(
         eligibleCandidates.filter((candidate) => pool.has(candidate.id) && !selectedTitles.has(titleKey(candidate))),

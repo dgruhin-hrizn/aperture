@@ -1,5 +1,6 @@
 import { createChildLogger } from '../../lib/logger.js'
 import { mergeWatchHistorySyncRow } from '../watchHistorySyncRows.js'
+import { loadSeriesWatchHistoryCatalog, type SeriesWatchHistoryCatalog } from '../watchHistoryCatalog.js'
 import { query, queryOne } from '../../lib/db.js'
 import { getMediaServerProvider } from '../../media/index.js'
 import { getMediaServerApiKey, getMediaServerConfig } from '../../settings/systemSettings.js'
@@ -18,7 +19,8 @@ const logger = createChildLogger('sync-series')
 export async function syncSeriesWatchHistoryForUser(
   userId: string,
   providerUserId: string,
-  fullSync: boolean = false
+  fullSync: boolean = false,
+  sharedCatalog?: SeriesWatchHistoryCatalog
 ): Promise<{ synced: number; removed: number }> {
   const provider = await getMediaServerProvider()
   const apiKey = await getMediaServerApiKey()
@@ -47,80 +49,8 @@ export async function syncSeriesWatchHistoryForUser(
   const excludedLibraryIds = await getUserExcludedLibraries(userId)
   const excludedSet = new Set(excludedLibraryIds)
 
-  // Get all series and episodes we have in our database
-  const [allSeries, allEpisodes] = await Promise.all([
-    query<{
-      id: string
-      provider_item_id: string
-      provider_library_id: string | null
-      tmdb_id: string | null
-      imdb_id: string | null
-      tvdb_id: string | null
-    }>(
-      'SELECT id, provider_item_id, provider_library_id, tmdb_id, imdb_id, tvdb_id FROM series WHERE provider_item_id IS NOT NULL'
-    ),
-    query<{
-      id: string
-      provider_item_id: string
-      series_id: string
-      season_number: number
-      episode_number: number
-      provider_library_id: string | null
-      runtime_minutes: number | null
-    }>(
-      `SELECT e.id, e.provider_item_id, e.series_id, e.season_number, e.episode_number, e.runtime_minutes, s.provider_library_id
-       FROM episodes e
-       JOIN series s ON e.series_id = s.id
-       WHERE e.provider_item_id IS NOT NULL`
-    ),
-  ])
-
-  const providerSeriesIdToDbId = new Map<string, string>()
-  const tmdbIdToSeriesId = new Map<string, string>()
-  const imdbIdToSeriesId = new Map<string, string>()
-  const tvdbIdToSeriesId = new Map<string, string>()
-  for (const series of allSeries.rows) {
-    providerSeriesIdToDbId.set(series.provider_item_id, series.id)
-    if (series.tmdb_id) tmdbIdToSeriesId.set(series.tmdb_id, series.id)
-    if (series.imdb_id) imdbIdToSeriesId.set(series.imdb_id, series.id)
-    if (series.tvdb_id) tvdbIdToSeriesId.set(series.tvdb_id, series.id)
-  }
-
-  const providerIdToEpisodeId = new Map<string, string>()
-  const episodeKeyToId = new Map<string, string>()
-  const episodeIdToLibraryId = new Map<string, string | null>()
-  const episodeIdToRuntimeTicks = new Map<string, number>()
-  for (const episode of allEpisodes.rows) {
-    providerIdToEpisodeId.set(episode.provider_item_id, episode.id)
-    episodeKeyToId.set(
-      `${episode.series_id}:${episode.season_number}:${episode.episode_number}`,
-      episode.id
-    )
-    episodeIdToLibraryId.set(episode.id, episode.provider_library_id)
-    if (episode.runtime_minutes) {
-      episodeIdToRuntimeTicks.set(episode.id, episode.runtime_minutes * 600000000)
-    }
-  }
-
-  const resolveEpisodeId = (item: (typeof watchedEpisodes)[number]): string | undefined => {
-    const byProviderId = providerIdToEpisodeId.get(item.episodeId)
-    if (byProviderId) return byProviderId
-
-    let seriesDbId = providerSeriesIdToDbId.get(item.seriesId)
-    if (!seriesDbId && item.tmdbId) seriesDbId = tmdbIdToSeriesId.get(item.tmdbId)
-    if (!seriesDbId && item.imdbId) seriesDbId = imdbIdToSeriesId.get(item.imdbId)
-    if (!seriesDbId && item.tvdbId) seriesDbId = tvdbIdToSeriesId.get(item.tvdbId)
-
-    if (
-      seriesDbId &&
-      item.seasonNumber != null &&
-      item.episodeNumber != null
-    ) {
-      return episodeKeyToId.get(`${seriesDbId}:${item.seasonNumber}:${item.episodeNumber}`)
-    }
-
-    return undefined
-  }
+  const catalog = sharedCatalog ?? await loadSeriesWatchHistoryCatalog()
+  if (sharedCatalog) await catalog.refreshMissing(watchedEpisodes)
 
   // Get current episode watch history for this user
   const existingHistory = await query<{ episode_id: string }>(
@@ -146,12 +76,13 @@ export async function syncSeriesWatchHistoryForUser(
   let excludedCount = 0
   let fallbackMappedCount = 0
   for (const item of watchedEpisodes) {
-    const episodeId = resolveEpisodeId(item)
+    const episodeId = catalog.resolve(item)
     if (episodeId) {
-      if (!providerIdToEpisodeId.has(item.episodeId)) {
+      if (!catalog.isProviderMatch(item)) {
         fallbackMappedCount++
       }
-      const libraryId = episodeIdToLibraryId.get(episodeId)
+      const metadata = catalog.entries.get(episodeId)!
+      const libraryId = metadata.provider_library_id
       if (libraryId && excludedSet.has(libraryId)) {
         excludedCount++
         continue
@@ -164,7 +95,7 @@ export async function syncSeriesWatchHistoryForUser(
         isFavorite: item.isFavorite,
         played: item.played ?? false,
         playbackPositionTicks: item.playbackPositionTicks ?? null,
-        runtimeTicks: item.runtimeTicks ?? episodeIdToRuntimeTicks.get(episodeId) ?? null,
+        runtimeTicks: item.runtimeTicks ?? (metadata.runtime_minutes ? metadata.runtime_minutes * 600000000 : null),
       }
       const existing = toSyncMap.get(episodeId)
       toSyncMap.set(
@@ -219,7 +150,8 @@ export async function syncSeriesWatchHistoryForUser(
   // Only do this on full sync (delta sync only adds/updates)
   let removed = 0
   if (fullSync && existingEpisodeIds.size > 0) {
-    const toRemove = [...existingEpisodeIds].filter((id) => !syncedEpisodeIds.has(id))
+    const toRemove = [...existingEpisodeIds].filter((id) => !syncedEpisodeIds.has(id)
+      && (!sharedCatalog || catalog.entries.has(id)))
     if (toRemove.length > 0) {
       const deleteResult = await query(
         `DELETE FROM watch_history WHERE user_id = $1 AND episode_id = ANY($2::uuid[]) AND media_type = 'episode'`,
@@ -320,6 +252,8 @@ export async function syncSeriesWatchHistoryForAllUsers(
     const syncMode = fullSync ? 'full' : 'delta'
     addLog(jobId, 'info', `🔄 Sync mode: ${syncMode}`)
 
+    const catalog = await loadSeriesWatchHistoryCatalog()
+
     // Step 3: Sync each user
     setJobStep(jobId, 2, 'Syncing series watch history', users.length)
 
@@ -336,7 +270,8 @@ export async function syncSeriesWatchHistoryForAllUsers(
         const syncResult = await syncSeriesWatchHistoryForUser(
           user.id,
           user.provider_user_id,
-          fullSync
+          fullSync,
+          catalog
         )
         totalItems += syncResult.synced
         success++

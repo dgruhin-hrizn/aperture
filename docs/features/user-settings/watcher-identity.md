@@ -77,14 +77,15 @@ Franchises detected from your watch history with their influence level:
 
 ### How Weights Work
 
-- **Higher weight** = More influence on recommendations
-- **Lower weight** = Less influence
-- **Weight of 0** = Franchise excluded
+- Preference scores range from **−1** to **+1**
+- **−1** halves the score of matching candidates
+- **0** gives a neutral multiplier
+- **+1** gives a 1.5× multiplier
 
 ### Adjusting Weights
 
 1. Find the franchise
-2. Use the slider to adjust (0-1 scale)
+2. Use the slider to adjust the preference score
 3. Changes save automatically
 
 ### Deleting Franchises
@@ -100,7 +101,7 @@ Click the **X** next to any franchise to remove it from consideration:
 | Goal                            | Action                    |
 | ------------------------------- | ------------------------- |
 | Too many Marvel recommendations | Lower MCU weight          |
-| Done with a franchise           | Set weight to 0 or delete |
+| Less of a franchise             | Lower its preference score |
 | Want more of a series           | Increase its weight       |
 | Franchise was a one-time watch  | Delete it                 |
 
@@ -125,7 +126,10 @@ Genres you watch more get higher weights automatically, but you can adjust:
 
 - **Override high genres** — Lower weight if getting too many
 - **Boost low genres** — Increase weight to see more
-- **Suppress genres** — Set to 0 to exclude
+- **Reduce a genre's influence** — Set its weight toward 0
+
+Genre weights range from 0 to 2, with 1 neutral. Aperture averages the weights of a candidate's
+matched genres and converts that average to a multiplier from 0.5× to 1.5×.
 
 ### Adjusting Weights
 

@@ -54,14 +54,13 @@ export function calculateNoveltyScore(
   totalWatchedGenres: number
 ): number {
   // Default for items without genre data - neutral score
-  if (!itemGenres || itemGenres.length === 0) {
+  if (!itemGenres || itemGenres.length === 0 || totalWatchedGenres === 0) {
     return 0.5
   }
 
   // Calculate how novel each genre is (1 = completely new, 0 = very common)
   const genreNovelties = itemGenres.map((genre) => {
     const count = watchedGenreCounts.get(genre) || 0
-    if (totalWatchedGenres === 0) return 0.5 // No watch history = neutral
     return 1 - count / totalWatchedGenres
   })
 
@@ -121,11 +120,21 @@ export function calculateBaseScore(
   ratingScore: number,
   config: Pick<ScoringConfig, 'similarityWeight' | 'noveltyWeight' | 'ratingWeight'>
 ): number {
+  // Diversity is blended during selection. Normalize the other weights here so
+  // that selection does not discount them a second time.
+  const totalWeight = config.similarityWeight + config.noveltyWeight + config.ratingWeight
+  if (totalWeight === 0) return 0
   return (
     config.similarityWeight * similarity +
     config.noveltyWeight * novelty +
     config.ratingWeight * ratingScore
-  )
+  ) / totalWeight
+}
+
+/** Use the same reduced influence as a disliked item in the movie taste profile. */
+export function applyDislikePenalty(score: number, rating: number | undefined, behavior: string): number {
+  if (behavior !== 'penalize' || rating === undefined || rating > 3) return score
+  return score - Math.abs(score) * 0.8
 }
 
 
