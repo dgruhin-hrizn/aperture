@@ -17,7 +17,7 @@ import { EmbyProvider, getMediaServerProvider } from '../../media/index.js'
 import { assertPrivateRecommendationLibrary, getAllowedRecommendationSourceIds, getVisibleRecommendationItems } from '../../media/emby/recommendationAccess.js'
 import { downloadImage } from '../images.js'
 import { generateSeriesNfoContent } from './nfo.js'
-import { getEffectiveAiExplanationSetting } from '../../lib/userSettings.js'
+import { getEffectiveAiExplanationSetting, resolveEffectiveAiLanguage } from '../../lib/userSettings.js'
 import { symlinkArtwork, symlinkBasenameMatchedSidecars, SERIES_SKIP_FILES, getSeriesFolderFromSeasonPath } from '../artwork.js'
 import type { SeriesRecommendationGroup } from '../../recommender/series/groups.js'
 import type { Series, Actor } from './types.js'
@@ -239,6 +239,7 @@ export async function writeSeriesStrmFilesForUser(
 
   // Check if AI explanation should be included for this user
   const includeAiExplanation = await getEffectiveAiExplanationSetting(userId)
+  const aiLocale = includeAiExplanation ? await resolveEffectiveAiLanguage(userId) : undefined
   logger.info({ userId, includeAiExplanation }, '🎯 AI explanation setting resolved')
 
   await fs.mkdir(localPath, { recursive: true })
@@ -456,6 +457,7 @@ export async function writeSeriesStrmFilesForUser(
       includeImageUrls: !config.downloadImages,
       dateAdded,
       includeAiExplanation,
+      aiLocale,
       rank: series.rank,
     })
     await fs.writeFile(seriesNfoPath, nfoContent, 'utf-8')

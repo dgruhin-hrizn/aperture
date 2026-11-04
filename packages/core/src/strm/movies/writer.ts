@@ -9,7 +9,7 @@ import { generateNfoContent } from './nfo.js'
 import {
   getStrmContent,
 } from '../filenames.js'
-import { getEffectiveAiExplanationSetting } from '../../lib/userSettings.js'
+import { getEffectiveAiExplanationSetting, resolveEffectiveAiLanguage } from '../../lib/userSettings.js'
 import {
   symlinkArtwork,
   symlinkBasenameMatchedSidecars,
@@ -124,6 +124,7 @@ export async function writeStrmFilesForUser(
 
   // Check if AI explanation should be included for this user
   const includeAiExplanation = await getEffectiveAiExplanationSetting(userId)
+  const aiLocale = includeAiExplanation ? await resolveEffectiveAiLanguage(userId) : undefined
   logger.info({ userId, includeAiExplanation }, '🎯 AI explanation setting resolved')
 
   // Ensure directory exists on local mount
@@ -346,6 +347,7 @@ export async function writeStrmFilesForUser(
         includeImageUrls: !config.downloadImages,
         dateAdded,
         includeAiExplanation,
+        aiLocale,
         rank: movie.rank,
       })
       await fs.writeFile(path.join(movieFolderPath, 'movie.nfo'), nfoContent, 'utf-8')
@@ -452,6 +454,7 @@ export async function writeStrmFilesForUser(
         includeImageUrls: !config.downloadImages,
         dateAdded,
         includeAiExplanation,
+        aiLocale,
         rank: movie.rank,
       })
       await fs.writeFile(path.join(movieFolderPath, 'movie.nfo'), nfoContent, 'utf-8')
