@@ -75,6 +75,9 @@ jobs:
       - name: Test upcoming episodes loading, caches and ownership
         run: pnpm test:upcoming
 
+      - name: Test LAN and reverse proxy access and sessions
+        run: pnpm test:browser-access
+
   docker-amd64:
     name: Build Docker Image (amd64)
     needs: [detect-changes, validate]
