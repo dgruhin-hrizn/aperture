@@ -15,7 +15,7 @@ interface TonightItem {
 }
 
 type TonightResult =
-  | { status: 'unsupported' | 'sign-in' }
+  | { status: 'unsupported' | 'sign-in' | 'stale-pick' }
   | { status: 'ready'; resume: TonightItem[]; picks: TonightItem[] }
 
 interface ResumeItem {
@@ -52,16 +52,21 @@ function itemUrl(baseUrl: string, serverId: string, itemId: string): string {
   return url.toString()
 }
 
-export async function getEmbyTonight(userId: string): Promise<TonightResult> {
+function titleKey(pick: Pick): string {
+  return `${pick.media_type}|${pick.title.toLowerCase()}|${pick.year ?? ''}`
+}
+
+export async function getEmbyTonight(userId: string, dismissId?: string): Promise<TonightResult> {
   const config = await getMediaServerConfig()
-  if (config.type !== 'emby' || !config.baseUrl) return { status: 'unsupported' }
+  const baseUrl = config.baseUrl
+  if (config.type !== 'emby' || !baseUrl) return { status: 'unsupported' }
   const account = await queryOne<{ provider_user_id: string; provider_access_token: string | null }>(
     "SELECT provider_user_id, provider_access_token FROM users WHERE id = $1 AND provider = 'emby' AND NOT provider_disabled",
     [userId]
   )
   if (!account?.provider_access_token) return { status: 'sign-in' }
 
-  const provider = new EmbyProvider(config.baseUrl)
+  const provider = new EmbyProvider(baseUrl)
   const { provider_user_id: embyId, provider_access_token: token } = account
   const params = new URLSearchParams({ IncludeItemTypes: 'Movie,Episode', EnableUserData: 'true', Limit: '30' })
   const [resumable, server] = await Promise.all([
@@ -69,7 +74,7 @@ export async function getEmbyTonight(userId: string): Promise<TonightResult> {
     provider.fetch<{ Id: string }>('/System/Info/Public', ''),
   ])
   const resumeIds = resumable.Items.map((item) => item.Id)
-  const [catalog, suggestions] = await Promise.all([
+  const [catalog, suggestions, snoozes] = await Promise.all([
     query<CatalogItem>(
       `SELECT m.provider_item_id AS item_id, m.title, NULL::text AS detail, m.poster_url
        FROM movies m WHERE m.provider_item_id = ANY($1::text[]) AND m.provider_library_id IS NOT NULL
@@ -110,6 +115,10 @@ export async function getEmbyTonight(userId: string): Promise<TonightResult> {
        ORDER BY selected_rank ASC NULLS LAST, final_score DESC, item_id`,
       [userId]
     ),
+    query<{ title_key: string }>(
+      'SELECT title_key FROM tonight_snoozes WHERE user_id = $1 AND expires_at > now()',
+      [userId]
+    ),
   ])
 
   const catalogById = new Map(catalog.rows.map((item) => [item.item_id, item]))
@@ -129,37 +138,60 @@ export async function getEmbyTonight(userId: string): Promise<TonightResult> {
       title: media.title,
       detail: media.detail,
       posterUrl: media.poster_url,
-      embyUrl: itemUrl(config.baseUrl, server.Id, item.Id),
+      embyUrl: itemUrl(baseUrl, server.Id, item.Id),
       minutes: duration > position ? Math.ceil((duration - position) / ticksPerMinute) : undefined,
       progress: duration > 0 ? Math.min(100, position / duration * 100) : undefined,
     })
   }
 
-  const candidates = suggestions.rows.filter((pick) => !inProgress.has(pick.item_id))
-  const picks: TonightItem[] = []
+  const hidden = new Set(snoozes.rows.map((row) => row.title_key))
+  const requested = suggestions.rows.find((pick) => pick.item_id === dismissId)
+  const pending = dismissId !== undefined && !(requested && hidden.has(titleKey(requested)))
+  const limit = pending ? 4 : 3
+  const candidates = suggestions.rows.filter((pick) => !inProgress.has(pick.item_id) && !hidden.has(titleKey(pick)))
+  const selected: Pick[] = []
   const titles = new Set<string>()
-  for (let offset = 0; offset < candidates.length && picks.length < 3; offset += 24) {
+  for (let offset = 0; offset < candidates.length && selected.length < limit; offset += 24) {
     const batch = candidates.slice(offset, offset + 24)
     const [movies, series] = await Promise.all([
       getVisibleRecommendationItems(provider, token, embyId, batch.filter((p) => p.media_type === 'movie').map((p) => p.item_id), 'Movie'),
       getVisibleRecommendationItems(provider, token, embyId, batch.filter((p) => p.media_type === 'series').map((p) => p.item_id), 'Series'),
     ])
     for (const pick of batch) {
-      const key = `${pick.media_type}|${pick.title.toLowerCase()}|${pick.year ?? ''}`
+      const key = titleKey(pick)
       if (titles.has(key) || !(pick.media_type === 'movie' ? movies : series).has(pick.item_id)) continue
       titles.add(key)
-      picks.push({
-        id: pick.item_id,
-        title: pick.title,
-        detail: pick.detail,
-        posterUrl: pick.poster_url,
-        embyUrl: itemUrl(config.baseUrl, server.Id, pick.item_id),
-        minutes: pick.minutes ?? undefined,
-        reason: pick.reason,
-      })
-      if (picks.length === 3) break
+      selected.push(pick)
+      if (selected.length === limit) break
     }
   }
+
+  if (pending) {
+    const index = selected.slice(0, 3).findIndex((pick) => pick.item_id === dismissId)
+    if (index < 0) return { status: 'stale-pick' }
+    const [dismissed] = selected.splice(index, 1)
+    await query(
+      `WITH expired AS (
+         DELETE FROM tonight_snoozes
+         WHERE user_id = $1 AND title_key <> $2 AND expires_at <= now()
+       )
+       INSERT INTO tonight_snoozes (user_id, title_key, expires_at)
+       VALUES ($1, $2, now() + interval '12 hours')
+       ON CONFLICT (user_id, title_key) DO UPDATE SET expires_at = EXCLUDED.expires_at
+       WHERE tonight_snoozes.expires_at <= now()`,
+      [userId, titleKey(dismissed)]
+    )
+  }
+
+  const picks = selected.map((pick) => ({
+    id: pick.item_id,
+    title: pick.title,
+    detail: pick.detail,
+    posterUrl: pick.poster_url,
+    embyUrl: itemUrl(baseUrl, server.Id, pick.item_id),
+    minutes: pick.minutes ?? undefined,
+    reason: pick.reason,
+  }))
 
   return { status: 'ready', resume, picks }
 }
