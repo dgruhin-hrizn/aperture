@@ -181,3 +181,9 @@ In [Watcher Identity](user-settings/watcher-identity.md):
 ---
 
 **Next:** [Top Picks](top-picks.md)
+
+## Tonight
+
+Open **Tonight** in Aperture’s sidebar when signed in with Emby. Continue Watching shows up to four in-progress movies or episodes from the synced catalog. Tonight’s picks shows up to three eligible titles from your latest completed movie and TV runs and skips titles already in progress. **Open in Emby** opens the original movie, episode, or series in the Emby web client.
+
+The page reads saved recommendations and current Emby playback state. It uses no model tokens and does not publish playlists or edit your Emby Home screen.

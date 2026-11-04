@@ -6,7 +6,7 @@ interface Explanation {
 export function parseExplanationResponse(content: string): Explanation[] {
   const fenced = content.match(/```(?:json)?\s*([\s\S]*?)```/i)
   const source = (fenced?.[1] ?? content).trim()
-  const start = source.search(/[\[{]/)
+  const start = source.search(/[[{]/)
   const json = start >= 0 ? source.slice(start) : source
 
   let parsed: unknown

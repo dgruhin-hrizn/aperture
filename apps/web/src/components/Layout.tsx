@@ -21,6 +21,7 @@ import {
   Tooltip,
 } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
+import NightsStayOutlinedIcon from '@mui/icons-material/NightsStayOutlined'
 import HomeIcon from '@mui/icons-material/Home'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import HistoryIcon from '@mui/icons-material/History'
@@ -57,6 +58,7 @@ type NavItem = { textKey: string; icon: React.ReactElement; path: string; featur
 // Base user-facing navigation items (some may be conditionally hidden)
 const baseUserMenuItems: NavItem[] = [
   { textKey: 'nav.dashboard', icon: <HomeIcon />, path: '/', feature: null },
+  { textKey: 'tonight.title', icon: <NightsStayOutlinedIcon />, path: '/tonight', feature: 'emby' },
   { textKey: 'nav.recommendations', icon: <AutoAwesomeIcon />, path: '/recommendations', feature: null },
   { textKey: 'nav.showsYouWatch', icon: <AddToQueueIcon />, path: '/watching', feature: 'watching' },
   { textKey: 'nav.topPicks', icon: <WhatshotIcon />, path: '/top-picks', feature: null },
@@ -99,6 +101,7 @@ export function Layout() {
 
   // Filter menu items based on feature flags
   const userMenuItems = baseUserMenuItems.filter(item => {
+    if (item.feature === 'emby' && user?.provider !== 'emby') return false
     if (item.feature === 'watching' && !watchingEnabled) {
       return false
     }
@@ -389,7 +392,7 @@ export function Layout() {
               fontSize: '0.7rem',
             }}
           >
-            v0.7.11-dev.4
+            v0.7.11-dev.5
           </Typography>
         )}
       </Box>

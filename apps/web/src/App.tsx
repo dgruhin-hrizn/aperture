@@ -15,6 +15,7 @@ import { AdminLayout } from './components/AdminLayout'
 import { AssistantModal } from './components/AssistantModal'
 import { LoginPage } from './pages/Login'
 import { SetupPage } from './pages/setup'
+import { TonightPage } from './pages/Tonight'
 import { DashboardPage } from './pages/dashboard'
 import { MyRecommendationsPage } from './pages/MyRecommendations'
 import { MyWatchHistoryPage } from './pages/MyWatchHistory'
@@ -154,6 +155,7 @@ function AppRoutes() {
       >
         {/* User Routes */}
         <Route index element={<DashboardPage />} />
+        <Route path="tonight" element={<TonightPage />} />
         <Route path="recommendations" element={<MyRecommendationsPage />} />
         <Route path="watching" element={<WatchingPage />} />
         <Route path="top-picks" element={<TopPicksPage />} />
