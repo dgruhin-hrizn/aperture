@@ -50,6 +50,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useUserRatings } from '@/hooks/useUserRatings'
 import { useWatching } from '@/hooks/useWatching'
 import { useViewMode } from '@/hooks/useViewMode'
+import { EmbyHomePins } from './EmbyHomePins'
 import { formatRuntime } from '@/pages/media-detail/hooks'
 
 interface MovieRecommendation {
@@ -412,6 +413,8 @@ export function MyRecommendationsPage() {
           </Button>
         )}
       </Box>
+
+      <EmbyHomePins key={user?.id} />
 
       {/* Tabs */}
       <Tabs
