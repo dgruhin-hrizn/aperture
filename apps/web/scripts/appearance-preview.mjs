@@ -116,6 +116,35 @@ const fixture = {
         failPreferences = body.count ?? 1
         return send({ ok: true })
       }
+      // Reproduce the shared external-title dialog from Gap Analysis, using synthetic data.
+      const gapPart = { tmdbId: 2, title: 'Kindergarten Cop 2', releaseYear: 2016,
+        releaseDate: '2016-05-17', posterPath: null, inLibrary: false, seerrStatus: 'none' }
+      const gapSummary = { collectionId: 1, collectionName: 'Kindergarten Cop Collection',
+        collectionPosterPath: null, totalReleased: 2, ownedCount: 1, seerrCount: 0, missingCount: 1 }
+      if (p === '/api/admin/gap-analysis/latest') return send({
+        prerequisites: { tmdbConfigured: true, moviesWithCollectionCount: 1 }, activeRun: null,
+        run: { id: 'fixture-gap', status: 'completed', collectionsScanned: 1, totalParts: 2,
+          ownedParts: 1, missingCount: 1, startedAt: '2026-11-04T12:00:00Z', completedAt: '2026-11-04T12:01:00Z' },
+        collectionSummaries: [gapSummary],
+      })
+      if (p === '/api/admin/gap-analysis/results') return send({ rows: [{ ...gapPart, ...gapSummary,
+        id: 'fixture-gap-row', title: gapPart.title, requestStatus: null }], total: 1, page: 1, pageSize: 500 })
+      if (p === '/api/admin/gap-analysis/collection-parts') return send({ collections: {
+        1: { ...gapSummary, parts: [{ ...gapPart, tmdbId: 1, title: 'Kindergarten Cop',
+          releaseYear: 1990, inLibrary: true }, gapPart] },
+      } })
+      if (p === '/api/seerr/config') return send({ configured: true, enabled: true, hasApiKey: true })
+      if (p === '/api/discover/tmdb/movie/2') return send({
+        mediaType: 'movie', tmdbId: 2, imdbId: 'tt4763168', title: gapPart.title,
+        originalTitle: null, tagline: null, overview: 'Assigned to recover sensitive stolen data, a gruff FBI agent goes undercover as a kindergarten teacher, but the school’s liberal, politically correct environment is more than he bargained for.',
+        posterPath: null, backdropPath: null, releaseYear: 2016, runtimeMinutes: 100,
+        voteAverage: 4.9, voteCount: 281, genres: [{ id: 35, name: 'Comedy' }],
+        directors: ['Don Michael Paul'], creators: [], numberOfSeasons: null, numberOfEpisodes: null, status: null,
+        castMembers: [['Dolph Lundgren', 'Agent Reed'], ['Sarah Strange', 'Miss Sinclaire'],
+          ['Bill Bellamy', 'Agent Sanders'], ['Andre Tricoteux', 'Valmir'], ['Aleks Paunovic', 'Zogu'],
+          ['Fiona Vroom', 'Michelle'], ['Rebecca Olson', 'Katja'], ['Jody Thompson', 'Hot Mom']]
+          .map(([name, character], id) => ({ id, name, character, profilePath: null })),
+      })
       if (p === '/api/setup/status')
         return send({
           needsSetup: false,
@@ -267,8 +296,9 @@ const fixture = {
 const loaded = await loadConfigFromFile({}, path.join(webRoot, 'vite.config.ts'))
 const configFile = loaded.config
 configFile.root = webRoot
-configFile.server = { port: 3460, strictPort: true, host: '127.0.0.1' }
+const port = Number(process.env.APERTURE_PREVIEW_PORT || 3460)
+configFile.server = { port, strictPort: true, host: '127.0.0.1' }
 configFile.plugins = [...configFile.plugins, fixture]
 const server = await createServer({ ...configFile, configFile: false })
 await server.listen()
-console.log('Isolated appearance fixture: http://127.0.0.1:3460/settings?tab=preferences')
+console.log(`Isolated appearance fixture: http://127.0.0.1:${port}/settings?tab=preferences`)

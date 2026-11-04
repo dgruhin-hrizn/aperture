@@ -75,3 +75,11 @@ The implementation was checked with synthetic accounts in the real application o
 - The settings screen was inspected at 320px and desktop widths. Arabic Studio light rendered with RTL direction and no horizontal page overflow. The mobile header retained navigation, search, mode switching, and the avatar.
 
 Lint, web production build, API/core/UI type checks, and the seven focused tests pass. The production build reports the existing assistant dependency `toJSONSchema` warning and large-bundle warning. No release, deployment, or live-server integration test is implied by these results.
+
+## External-title dialog contrast correction
+
+`TmdbExternalDetailModal` is shared by Gap Analysis and other TMDb-only detail views. Its original black translucent panels and black artwork gradient conflicted with Studio light's dark text. Light mode now uses opaque `background.paper` panels, divider borders, a pale artwork gradient, and palette-aware chips/hover states. Artwork cannot change the contrast behind panel text. Studio dark and Classic retain their existing black overlays. Trailer, request, TMDb/IMDb links, director and cast content remain in the same component; the close control also has a localized accessible label.
+
+The isolated appearance fixture now includes a movie collection and its external-title details at `/admin/gaps`. Use `APERTURE_PREVIEW_PORT=3462 node apps/web/scripts/appearance-preview.mjs` to run a second fixture without replacing an existing preview. Movie metadata is fixture data, images are omitted, and API calls cannot reach Unraid, Emby, Seerr or an AI provider. The fixture is for visual review, not a live integration check.
+
+Checked in the browser on 2026-11-04: Studio light shows `#14213b` primary and `#53647f` secondary text on solid white panels; the synopsis, cast and all four actions are readable. Studio dark and switching back to Classic retain light text and their original dark panel treatment. The seven appearance compatibility/preference tests and `pnpm validate` pass. No production settings or preferences were changed.
