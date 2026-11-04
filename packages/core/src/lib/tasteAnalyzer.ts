@@ -5,6 +5,7 @@
  * Output is designed for AI consumption without specific movie/show titles.
  */
 
+import { WATCH_HISTORY_TASTE_SQL } from '../recommender/watchedExclusion.js'
 import { query } from './db.js'
 import { createChildLogger } from './logger.js'
 import { getActiveEmbeddingTableName, getActiveEmbeddingModelId } from './ai-provider.js'
@@ -145,7 +146,7 @@ async function getGenreDistribution(
       SELECT unnest(m.genres) as genre, COUNT(*) as count
       FROM watch_history wh
       JOIN movies m ON m.id = wh.movie_id
-      WHERE wh.user_id = $1 AND wh.media_type = 'movie'
+      WHERE wh.user_id = $1 AND wh.media_type = 'movie' AND ${WATCH_HISTORY_TASTE_SQL}
         AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
       GROUP BY unnest(m.genres)
       ORDER BY count DESC
@@ -159,7 +160,7 @@ async function getGenreDistribution(
       FROM watch_history wh
       JOIN episodes e ON e.id = wh.episode_id
       JOIN series s ON s.id = e.series_id
-      WHERE wh.user_id = $1 AND wh.media_type = 'episode'
+      WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND ${WATCH_HISTORY_TASTE_SQL}
         AND (CARDINALITY($2::text[]) = 0 OR s.provider_library_id::text != ALL($2::text[]))
       GROUP BY unnest(s.genres)
       ORDER BY count DESC
@@ -190,7 +191,7 @@ async function getDecadeDistribution(
       SELECT (FLOOR(m.year / 10) * 10)::TEXT || 's' as decade, COUNT(*) as count
       FROM watch_history wh
       JOIN movies m ON m.id = wh.movie_id
-      WHERE wh.user_id = $1 AND wh.media_type = 'movie' AND m.year IS NOT NULL
+      WHERE wh.user_id = $1 AND wh.media_type = 'movie' AND ${WATCH_HISTORY_TASTE_SQL} AND m.year IS NOT NULL
         AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
       GROUP BY FLOOR(m.year / 10)
       ORDER BY count DESC
@@ -204,7 +205,7 @@ async function getDecadeDistribution(
       FROM watch_history wh
       JOIN episodes e ON e.id = wh.episode_id
       JOIN series s ON s.id = e.series_id
-      WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND s.year IS NOT NULL
+      WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND ${WATCH_HISTORY_TASTE_SQL} AND s.year IS NOT NULL
         AND (CARDINALITY($2::text[]) = 0 OR s.provider_library_id::text != ALL($2::text[]))
       GROUP BY FLOOR(s.year / 10)
       ORDER BY count DESC
@@ -240,7 +241,7 @@ async function getMovieViewingPatterns(
       COUNT(CASE WHEN wh.is_favorite THEN 1 END) as favorite_count
     FROM watch_history wh
     JOIN movies m ON m.id = wh.movie_id
-    WHERE wh.user_id = $1 AND wh.media_type = 'movie'
+    WHERE wh.user_id = $1 AND wh.media_type = 'movie' AND ${WATCH_HISTORY_TASTE_SQL}
       AND (CARDINALITY($2::text[]) = 0 OR m.provider_library_id::text != ALL($2::text[]))
   `,
     [userId, excludedLibraryIds]
@@ -281,7 +282,7 @@ async function getSeriesViewingPatterns(
       FROM watch_history wh
       JOIN episodes e ON e.id = wh.episode_id
       JOIN series s ON s.id = e.series_id
-      WHERE wh.user_id = $1 AND wh.media_type = 'episode'
+      WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND ${WATCH_HISTORY_TASTE_SQL}
         AND (CARDINALITY($2::text[]) = 0 OR s.provider_library_id::text != ALL($2::text[]))
       GROUP BY e.series_id, s.total_episodes
     )
@@ -310,7 +311,7 @@ async function getSeriesViewingPatterns(
   }
 }
 
-async function calculateTasteDiversity(
+export async function calculateTasteDiversity(
   userId: string,
   mediaType: 'movie' | 'series',
   excludedLibraryIds: string[]
@@ -336,7 +337,7 @@ async function calculateTasteDiversity(
         FROM watch_history wh
         JOIN movies m ON m.id = wh.movie_id
         JOIN ${tableName} e ON e.movie_id = m.id AND e.model = $2
-        WHERE wh.user_id = $1 AND wh.media_type = 'movie'
+        WHERE wh.user_id = $1 AND wh.media_type = 'movie' AND ${WATCH_HISTORY_TASTE_SQL}
           AND (CARDINALITY($3::text[]) = 0 OR m.provider_library_id::text != ALL($3::text[]))
         LIMIT 100
       ),
@@ -355,14 +356,18 @@ async function calculateTasteDiversity(
 
     const result = await query<{ avg_distance: string }>(
       `
-      WITH user_embeddings AS (
-        SELECT DISTINCT se.embedding
+      WITH watched_series AS MATERIALIZED (
+        SELECT DISTINCT ep.series_id
         FROM watch_history wh
         JOIN episodes ep ON ep.id = wh.episode_id
-        JOIN series s ON s.id = ep.series_id
+        WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND ${WATCH_HISTORY_TASTE_SQL}
+      ),
+      user_embeddings AS (
+        SELECT DISTINCT se.embedding
+        FROM watched_series w
+        JOIN series s ON s.id = w.series_id
         JOIN ${tableName} se ON se.series_id = s.id AND se.model = $2
-        WHERE wh.user_id = $1 AND wh.media_type = 'episode'
-          AND (CARDINALITY($3::text[]) = 0 OR s.provider_library_id::text != ALL($3::text[]))
+        WHERE (CARDINALITY($3::text[]) = 0 OR s.provider_library_id::text != ALL($3::text[]))
         LIMIT 100
       ),
       centroid AS (

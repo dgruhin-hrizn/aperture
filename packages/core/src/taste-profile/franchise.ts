@@ -12,6 +12,7 @@
  * - User ratings within franchise
  */
 
+import { WATCH_HISTORY_TASTE_SQL } from '../recommender/watchedExclusion.js'
 import { query } from '../lib/db.js'
 import { createChildLogger } from '../lib/logger.js'
 import { bulkUpdateFranchisePreferences, bulkUpdateGenreWeights } from './index.js'
@@ -496,7 +497,7 @@ async function detectMovieFranchises(userId: string): Promise<FranchiseStats[]> 
      FROM watch_history wh
      JOIN movies m ON m.id = wh.movie_id
      LEFT JOIN user_ratings ur ON ur.movie_id = m.id AND ur.user_id = wh.user_id
-     WHERE wh.user_id = $1 AND wh.media_type = 'movie'
+     WHERE wh.user_id = $1 AND wh.media_type = 'movie' AND ${WATCH_HISTORY_TASTE_SQL}
      ${libraryExclusionClause}`,
     [userId, ...excludedLibraryIds]
   )
@@ -583,7 +584,7 @@ async function detectSeriesFranchises(userId: string): Promise<FranchiseStats[]>
      JOIN episodes e ON e.id = wh.episode_id
      JOIN series s ON s.id = e.series_id
      LEFT JOIN user_ratings ur ON ur.series_id = s.id AND ur.user_id = wh.user_id
-     WHERE wh.user_id = $1 AND wh.media_type = 'episode'
+     WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND ${WATCH_HISTORY_TASTE_SQL}
      GROUP BY s.id, s.title
      ${libraryExclusionClause}`,
     [userId, ...excludedLibraryIds]
@@ -859,7 +860,7 @@ async function detectMovieGenres(userId: string): Promise<GenreStats[]> {
      FROM watch_history wh
      JOIN movies m ON m.id = wh.movie_id
      LEFT JOIN user_ratings ur ON ur.movie_id = m.id AND ur.user_id = wh.user_id
-     WHERE wh.user_id = $1 AND wh.media_type = 'movie'
+     WHERE wh.user_id = $1 AND wh.media_type = 'movie' AND ${WATCH_HISTORY_TASTE_SQL}
      ${libraryExclusionClause}`,
     [userId, ...excludedLibraryIds]
   )
@@ -894,7 +895,7 @@ async function detectSeriesGenres(userId: string): Promise<GenreStats[]> {
      JOIN episodes e ON e.id = wh.episode_id
      JOIN series s ON s.id = e.series_id
      LEFT JOIN user_ratings ur ON ur.series_id = s.id AND ur.user_id = wh.user_id
-     WHERE wh.user_id = $1 AND wh.media_type = 'episode'
+     WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND ${WATCH_HISTORY_TASTE_SQL}
      GROUP BY s.id, s.genres
      ${libraryExclusionClause}`,
     [userId, ...excludedLibraryIds]

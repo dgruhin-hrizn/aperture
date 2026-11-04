@@ -21,7 +21,8 @@ import { randomUUID } from 'crypto'
 
 // Import from modular files
 import { loadConfigForUser } from '../config.js'
-import { getWatchHistory, buildTasteProfile as buildLegacyTasteProfile, storeTasteProfile as storeLegacyTasteProfile, getUserMovieRatings, getDislikedMovieIds } from './taste.js'
+import { getWatchHistory, buildTasteProfile as buildLegacyTasteProfile, storeTasteProfile as storeLegacyTasteProfile, getUserMovieRatings } from './taste.js'
+import { applyDislikePenalty } from '../shared/scoring.js'
 import { getCandidates } from './candidates.js'
 import { scoreCandidates } from './scoring.js'
 import { applyDiversityAndSelect } from './selection.js'
@@ -40,12 +41,11 @@ import { syncWatchHistoryForUser } from './sync.js'
 import {
   getUserTasteProfile,
   storeTasteProfile as storeNewTasteProfile,
-  getFranchiseBoost,
-  getGenreBoost,
-  getCustomInterestBoost,
+  loadPreferenceBoosts,
   detectAndUpdateFranchises,
 } from '../../taste-profile/index.js'
-import { getItemFranchise } from '../../taste-profile/franchise.js'
+import { detectFranchiseFromTitle } from '../../taste-profile/franchise.js'
+import { getCandidateEmbeddings } from '../shared/embeddings.js'
 
 // Re-export types
 export * from '../types.js'
@@ -115,11 +115,13 @@ export async function generateRecommendationsForUser(
 
     // 2. Get user's watch history and ratings (now from synced data)
     logger.info({ userId: user.id }, '📊 Fetching watch history and ratings...')
-    const [watched, userRatings, dislikedIds] = await Promise.all([
+    const [watched, userRatings] = await Promise.all([
       getWatchHistory(user.id, cfg.recentWatchLimit),
       getUserMovieRatings(user.id),
-      dislikeBehavior === 'exclude' ? getDislikedMovieIds(user.id) : Promise.resolve(new Set<string>()),
     ])
+    const dislikedIds = dislikeBehavior === 'exclude'
+      ? new Set([...userRatings].filter(([, rating]) => rating <= 3).map(([id]) => id))
+      : new Set<string>()
     logger.info(
       { userId: user.id, watchedCount: watched.length, ratingsCount: userRatings.size, dislikedCount: dislikedIds.size },
       `Found ${watched.length} watched movies, ${userRatings.size} ratings, ${dislikedIds.size} disliked`
@@ -259,31 +261,31 @@ export async function generateRecommendationsForUser(
     let genreBoostCount = 0
     let interestBoostCount = 0
     
-    // Get embeddings for top candidates to apply custom interest boost
-    // (only fetch for top 100 to limit performance impact)
-    const topCandidateIds = scoredCandidates.slice(0, 100).map((c) => c.id)
-    const { getMovieEmbedding } = await import('./embeddings.js')
-    
+    const boosts = await loadPreferenceBoosts(user.id, 'movie')
+    // Custom interests only apply to the top 100 candidates before preference boosts.
+    const embeddings = boosts.hasCustomInterests
+      ? await getCandidateEmbeddings(scoredCandidates.slice(0, 100).map((candidate) => candidate.id), 'movie')
+      : new Map<string, number[]>()
+
     for (const candidate of scoredCandidates) {
       // Get franchise boost (1.0 = neutral, up to 1.5 for loved franchises)
-      const franchiseName = await getItemFranchise(candidate.id, 'movie')
-      const franchiseBoost = await getFranchiseBoost(user.id, franchiseName, 'movie')
+      const franchiseName = candidate.collectionName || detectFranchiseFromTitle(candidate.title)
+      const franchiseBoost = await boosts.getFranchiseBoost(franchiseName)
       
       // Get genre boost (1.0 = neutral, 0.5-1.5 range)
-      const genreBoost = await getGenreBoost(user.id, candidate.genres || [])
+      const genreBoost = boosts.getGenreBoost(candidate.genres || [])
       
       // Get custom interest boost (only for top candidates with embeddings)
-      let interestBoost = 1.0
-      if (topCandidateIds.includes(candidate.id)) {
-        const embedding = await getMovieEmbedding(candidate.id)
-        if (embedding) {
-          interestBoost = await getCustomInterestBoost(user.id, embedding)
-        }
-      }
-      
+      const embedding = embeddings.get(candidate.id)
+      const interestBoost = embedding ? boosts.getCustomInterestBoost(embedding) : 1.0
+
       // Apply boosts to final score
       const originalScore = candidate.finalScore
-      candidate.finalScore = originalScore * franchiseBoost * genreBoost * interestBoost
+      candidate.finalScore = applyDislikePenalty(
+        originalScore * franchiseBoost * genreBoost * interestBoost,
+        userRatings.get(candidate.id),
+        dislikeBehavior
+      )
       
       if (franchiseBoost !== 1.0) {
         franchiseBoostCount++

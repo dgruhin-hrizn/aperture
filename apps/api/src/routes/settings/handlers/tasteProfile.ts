@@ -383,13 +383,13 @@ export function registerTasteProfileHandlers(fastify: FastifyInstance) {
         return reply.status(400).send({ error: 'interestText must be 500 characters or less' })
       }
 
-      const { addCustomInterest, getEmbeddingModel, getEmbeddingModelInstance } = await import('@aperture/core')
+      const { addCustomInterest, getActiveEmbeddingModelId, getEmbeddingModelInstance } = await import('@aperture/core')
       const { embed } = await import('ai')
 
       let embedding: number[] | undefined
       let embeddingModel: string | undefined
       try {
-        const modelId = await getEmbeddingModel()
+        const modelId = await getActiveEmbeddingModelId()
         if (modelId) {
           const model = await getEmbeddingModelInstance()
           const result = await embed({ model, value: interestText.trim() })

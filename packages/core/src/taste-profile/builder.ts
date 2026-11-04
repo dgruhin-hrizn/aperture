@@ -10,6 +10,7 @@
  * - Recency (more recent = higher weight)
  */
 
+import { WATCH_HISTORY_TASTE_SQL } from '../recommender/watchedExclusion.js'
 import { query } from '../lib/db.js'
 import { createChildLogger } from '../lib/logger.js'
 import { getActiveEmbeddingModelId, getActiveEmbeddingTableName } from '../lib/ai-provider.js'
@@ -190,7 +191,7 @@ async function getMovieWatchHistory(userId: string): Promise<WatchedItem[]> {
      FROM watch_history wh
      JOIN movies m ON m.id = wh.movie_id
      LEFT JOIN user_ratings ur ON ur.movie_id = m.id AND ur.user_id = wh.user_id
-     WHERE wh.user_id = $1 AND wh.media_type = 'movie'
+     WHERE wh.user_id = $1 AND wh.media_type = 'movie' AND ${WATCH_HISTORY_TASTE_SQL}
      ${libraryExclusionClause}
      ORDER BY wh.last_played_at DESC NULLS LAST`,
     [userId, ...excludedLibraryIds]
@@ -245,7 +246,7 @@ async function getSeriesWatchHistory(userId: string): Promise<WatchedItem[]> {
      JOIN episodes e ON e.id = wh.episode_id
      JOIN series s ON s.id = e.series_id
      LEFT JOIN user_ratings ur ON ur.series_id = s.id AND ur.user_id = wh.user_id
-     WHERE wh.user_id = $1 AND wh.media_type = 'episode'
+     WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND ${WATCH_HISTORY_TASTE_SQL}
      GROUP BY s.id, s.title, s.total_episodes, s.genres
      ${libraryExclusionClause}
      ORDER BY MAX(wh.last_played_at) DESC NULLS LAST`,

@@ -20,6 +20,7 @@ export interface Candidate {
   title: string
   year: number | null
   genres: string[]
+  collectionName?: string | null
   communityRating: number | null
   similarity: number
   novelty: number

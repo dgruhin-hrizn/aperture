@@ -9,6 +9,7 @@ import { createChildLogger } from './logger.js'
 import { query, queryOne } from './db.js'
 import { getRecommendationConfig } from './recommendationConfig.js'
 import type { PipelineConfig } from '../recommender/types.js'
+import { getUserExcludedLibraries } from './libraryExclusions.js'
 
 const logger = createChildLogger('user-algorithm-settings')
 
@@ -241,17 +242,14 @@ export async function getSmartDiversityWeight(
       const userOverrides = mediaType === 'movie' ? userSettings.movie : userSettings.series
       if (userOverrides?.diversityWeight !== undefined) {
         // User has explicitly set diversity weight, don't auto-adjust
-        return userOverrides.diversityWeight
+        return baseDiversityWeight
       }
     }
 
     // Get user's taste diversity score
-    const { analyzeMovieTaste, analyzeSeriesTaste } = await import('./tasteAnalyzer.js')
-    const analysis = mediaType === 'movie' 
-      ? await analyzeMovieTaste(userId)
-      : await analyzeSeriesTaste(userId)
-
-    const diversityScore = analysis.diversity.score
+    const { calculateTasteDiversity } = await import('./tasteAnalyzer.js')
+    const excludedLibraryIds = await getUserExcludedLibraries(userId)
+    const { score: diversityScore } = await calculateTasteDiversity(userId, mediaType, excludedLibraryIds)
 
     let adjustedWeight = baseDiversityWeight
 

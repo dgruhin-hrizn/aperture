@@ -190,28 +190,33 @@ export function registerListHandler(fastify: FastifyInstance) {
         params.push(userId)
       }
 
-      if (minWatchers) {
-        const n = parseInt(minWatchers, 10)
-        if (!isNaN(n) && n > 0) {
-          whereClause += whereClause ? ' AND ' : ' WHERE '
-          whereClause += `(SELECT COUNT(DISTINCT wh.user_id)::int FROM watch_history wh
-            INNER JOIN episodes e ON e.id = wh.episode_id WHERE e.series_id = series.id) >= $${paramIndex++}`
-          params.push(n)
-        }
+      const minimumWatchers = Number.parseInt(minWatchers ?? '', 10)
+      const maximumWatchers = Number.parseInt(maxWatchers ?? '', 10)
+      const hasMinimumWatchers = Number.isFinite(minimumWatchers) && minimumWatchers > 0
+      const hasMaximumWatchers = Number.isFinite(maximumWatchers) && maximumWatchers >= 0
+      const watcherJoin = hasMinimumWatchers || hasMaximumWatchers
+        ? ` LEFT JOIN (
+          SELECT e.series_id AS item_id, COUNT(DISTINCT wh.user_id)::int AS watcher_count
+          FROM watch_history wh JOIN episodes e ON e.id = wh.episode_id
+          JOIN (SELECT id FROM series${whereClause}) matching ON matching.id = e.series_id
+          GROUP BY e.series_id
+        ) watchers ON watchers.item_id = series.id`
+        : ''
+
+      if (hasMinimumWatchers) {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `COALESCE(watchers.watcher_count, 0) >= $${paramIndex++}`
+        params.push(minimumWatchers)
       }
-      if (maxWatchers) {
-        const n = parseInt(maxWatchers, 10)
-        if (!isNaN(n) && n >= 0) {
-          whereClause += whereClause ? ' AND ' : ' WHERE '
-          whereClause += `(SELECT COUNT(DISTINCT wh.user_id)::int FROM watch_history wh
-            INNER JOIN episodes e ON e.id = wh.episode_id WHERE e.series_id = series.id) <= $${paramIndex++}`
-          params.push(n)
-        }
+      if (hasMaximumWatchers) {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `COALESCE(watchers.watcher_count, 0) <= $${paramIndex++}`
+        params.push(maximumWatchers)
       }
 
       // Get total count
       const countResult = await queryOne<{ count: string }>(
-        `SELECT COUNT(*) as count FROM series${whereClause}`,
+        `SELECT COUNT(*) as count FROM series${watcherJoin}${whereClause}`,
         params
       )
       const total = parseInt(countResult?.count || '0', 10)
@@ -251,7 +256,7 @@ export function registerListHandler(fastify: FastifyInstance) {
                 community_rating, status, total_seasons, total_episodes, network,
                 poster_url, backdrop_url, created_at, updated_at,
                 rt_critic_score, awards_summary
-         FROM series${whereClause}
+         FROM series${watcherJoin}${whereClause}
          ORDER BY ${orderClause}
          LIMIT $${paramIndex++} OFFSET $${paramIndex}`,
         params

@@ -5,7 +5,7 @@
  * similarity graphs, explore, and discovery features.
  */
 
-import { query, queryOne } from '../lib/db.js'
+import { query, queryOne, transaction } from '../lib/db.js'
 import { createChildLogger } from '../lib/logger.js'
 import type {
   TasteProfile,
@@ -359,47 +359,37 @@ export async function bulkUpdateFranchisePreferences(
   clearFirst: boolean = false,
   targetMediaType?: MediaType
 ): Promise<number> {
-  // In reset mode, clear franchises for the target media type only
-  // This ensures excluded libraries don't leave orphan preferences
-  if (clearFirst && targetMediaType) {
-    await query(
-      `DELETE FROM user_franchise_preferences WHERE user_id = $1 AND media_type = $2`,
-      [userId, targetMediaType]
-    )
-    logger.debug({ userId, targetMediaType }, 'Cleared franchise preferences for media type')
-  } else if (clearFirst) {
-    // Fallback: clear all if no targetMediaType specified (legacy behavior)
-    await query(`DELETE FROM user_franchise_preferences WHERE user_id = $1`, [userId])
-    logger.debug({ userId }, 'Cleared all franchise preferences for reset')
-  }
-
-  let updated = 0
-
-  for (const franchise of franchises) {
-    // Only update auto-detected preferences, don't overwrite user-set ones
-    const result = await query(
-      `INSERT INTO user_franchise_preferences 
-         (user_id, franchise_name, media_type, preference_score, is_user_set, items_watched, total_engagement)
-       VALUES ($1, $2, $3, $4, false, $5, $6)
-       ON CONFLICT (user_id, franchise_name, media_type) 
-       DO UPDATE SET 
-         preference_score = CASE WHEN user_franchise_preferences.is_user_set THEN user_franchise_preferences.preference_score ELSE $4 END,
-         items_watched = $5,
-         total_engagement = $6
-       WHERE NOT user_franchise_preferences.is_user_set OR user_franchise_preferences.items_watched != $5`,
-      [
-        userId,
-        franchise.franchiseName,
-        franchise.mediaType,
-        franchise.preferenceScore,
-        franchise.itemsWatched,
-        franchise.totalEngagement,
-      ]
-    )
-    if (result.rowCount && result.rowCount > 0) updated++
-  }
-
-  return updated
+  if (franchises.length === 0 && !clearFirst) return 0
+  return transaction(async (client) => {
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))', ['franchise-preferences', userId])
+    if (clearFirst) {
+      const typeFilter = targetMediaType ? ' AND media_type = $2' : ''
+      await client.query(`DELETE FROM user_franchise_preferences WHERE user_id = $1${typeFilter}`,
+        targetMediaType ? [userId, targetMediaType] : [userId])
+    }
+    let updated = 0
+    for (const batch of preferenceBatches(franchises, (item) => JSON.stringify([item.franchiseName, item.mediaType]))) {
+      const result = await client.query(
+        `INSERT INTO user_franchise_preferences
+           (user_id, franchise_name, media_type, preference_score, is_user_set, items_watched, total_engagement)
+         SELECT $1, franchise_name, media_type, preference_score, false, items_watched, total_engagement
+         FROM unnest($2::text[], $3::text[], $4::numeric[], $5::int[], $6::int[])
+           AS incoming(franchise_name, media_type, preference_score, items_watched, total_engagement)
+         ON CONFLICT (user_id, franchise_name, media_type) DO UPDATE SET
+           preference_score = CASE WHEN user_franchise_preferences.is_user_set
+             THEN user_franchise_preferences.preference_score ELSE EXCLUDED.preference_score END,
+           items_watched = EXCLUDED.items_watched,
+           total_engagement = EXCLUDED.total_engagement
+         WHERE NOT user_franchise_preferences.is_user_set
+           OR user_franchise_preferences.items_watched != EXCLUDED.items_watched`,
+        [userId, batch.map((item) => item.franchiseName), batch.map((item) => item.mediaType),
+          batch.map((item) => item.preferenceScore), batch.map((item) => item.itemsWatched),
+          batch.map((item) => item.totalEngagement)]
+      )
+      updated += result.rowCount ?? 0
+    }
+    return updated
+  })
 }
 
 /**
@@ -488,32 +478,23 @@ export async function bulkUpdateGenreWeights(
   genres: Array<{ genre: string; weight: number }>,
   clearFirst: boolean = false
 ): Promise<number> {
-  // In reset mode, clear ALL genres (including user-set) to start fresh
-  // This ensures excluded libraries don't leave orphan preferences
-  if (clearFirst) {
-    await query(
-      `DELETE FROM user_genre_weights WHERE user_id = $1`,
-      [userId]
-    )
-    logger.debug({ userId }, 'Cleared all genre weights for reset')
-  }
-
-  let updated = 0
-
-  for (const { genre, weight } of genres) {
-    const clampedWeight = Math.max(0, Math.min(2, weight))
-    const result = await query(
-      `INSERT INTO user_genre_weights (user_id, genre, weight, is_user_set)
-       VALUES ($1, $2, $3, false)
-       ON CONFLICT (user_id, genre) 
-       DO UPDATE SET weight = $3
-       WHERE NOT user_genre_weights.is_user_set`,
-      [userId, genre, clampedWeight]
-    )
-    if (result.rowCount && result.rowCount > 0) updated++
-  }
-
-  return updated
+  if (genres.length === 0 && !clearFirst) return 0
+  return transaction(async (client) => {
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))', ['genre-weights', userId])
+    if (clearFirst) await client.query('DELETE FROM user_genre_weights WHERE user_id = $1', [userId])
+    let updated = 0
+    for (const batch of preferenceBatches(genres, (item) => item.genre)) {
+      const result = await client.query(
+        `INSERT INTO user_genre_weights (user_id, genre, weight, is_user_set)
+         SELECT $1, genre, weight, false FROM unnest($2::text[], $3::numeric[]) AS incoming(genre, weight)
+         ON CONFLICT (user_id, genre) DO UPDATE SET weight = EXCLUDED.weight
+         WHERE NOT user_genre_weights.is_user_set`,
+        [userId, batch.map((item) => item.genre), batch.map((item) => Math.max(0, Math.min(2, item.weight)))]
+      )
+      updated += result.rowCount ?? 0
+    }
+    return updated
+  })
 }
 
 /**
@@ -663,7 +644,10 @@ export async function getGenreBoost(userId: string, genres: string[]): Promise<n
 
   const weights = await getUserGenreWeights(userId)
   const weightMap = new Map(weights.map((w) => [w.genre.toLowerCase(), w.weight]))
+  return calculateGenreBoost(genres, weightMap)
+}
 
+function calculateGenreBoost(genres: string[], weightMap: Map<string, number>): number {
   let totalWeight = 0
   let count = 0
 
@@ -717,10 +701,28 @@ export async function getCustomInterestBoost(
   userId: string,
   candidateEmbedding: number[]
 ): Promise<number> {
-  const interests = await getUserCustomInterests(userId)
-  
-  // No custom interests = no boost
-  if (interests.length === 0) return 1.0
+  const interests = await getActiveEmbeddedInterests(await getUserCustomInterests(userId))
+  return calculateCustomInterestBoost(candidateEmbedding, interests)
+}
+
+async function getActiveEmbeddedInterests(interests: CustomInterest[]): Promise<CustomInterest[]> {
+  const embedded = interests.filter((interest) => interest.embedding?.length)
+  if (embedded.length === 0) return []
+
+  const { getActiveEmbeddingModelId } = await import('../lib/ai-provider.js')
+  const modelId = await getActiveEmbeddingModelId()
+  if (!modelId) return []
+
+  // Older OpenAI interests stored only the model name, without a provider prefix.
+  const legacyModelId = modelId.startsWith('openai:') ? modelId.slice('openai:'.length) : null
+  return embedded.filter((interest) => interest.embeddingModel === modelId
+    || (legacyModelId !== null && interest.embeddingModel === legacyModelId))
+}
+
+function calculateCustomInterestBoost(
+  candidateEmbedding: number[],
+  interests: CustomInterest[]
+): number {
   
   // Filter to interests that have embeddings
   const interestsWithEmbeddings = interests.filter((i) => i.embedding && i.embedding.length > 0)
@@ -749,4 +751,49 @@ export async function getCustomInterestBoost(
   if (maxWeightedSimilarity >= 0.5) return 1.15
   if (maxWeightedSimilarity >= 0.3) return 1.05
   return 1.0
+}
+
+/** Load shared preferences once per scoring pass. Franchise lookups are cached per name. */
+export async function loadPreferenceBoosts(userId: string, mediaType: MediaType) {
+  const [weights, interests] = await Promise.all([
+    getUserGenreWeights(userId),
+    getUserCustomInterests(userId),
+  ])
+  const weightMap = new Map(weights.map((weight) => [weight.genre.toLowerCase(), weight.weight]))
+  const embeddedInterests = await getActiveEmbeddedInterests(interests)
+  const franchiseBoosts = new Map<string, Promise<number>>()
+
+  return {
+    hasCustomInterests: embeddedInterests.length > 0,
+    getGenreBoost: (genres: string[]) => calculateGenreBoost(genres, weightMap),
+    getCustomInterestBoost: (embedding: number[]) => calculateCustomInterestBoost(embedding, embeddedInterests),
+    getFranchiseBoost(franchiseName: string | null): Promise<number> {
+      if (!franchiseName) return Promise.resolve(1.0)
+      let boost = franchiseBoosts.get(franchiseName)
+      if (!boost) {
+        boost = getFranchiseBoost(userId, franchiseName, mediaType)
+        franchiseBoosts.set(franchiseName, boost)
+      }
+      return boost
+    },
+  }
+}
+
+/** Keep duplicate keys in input order while bounding each SQL batch. */
+function preferenceBatches<T>(items: T[], key: (item: T) => string): T[][] {
+  const batches: T[][] = []
+  let batch: T[] = []
+  const keys = new Set<string>()
+  for (const item of items) {
+    const itemKey = key(item)
+    if (batch.length === 1000 || keys.has(itemKey)) {
+      batches.push(batch)
+      batch = []
+      keys.clear()
+    }
+    batch.push(item)
+    keys.add(itemKey)
+  }
+  if (batch.length > 0) batches.push(batch)
+  return batches
 }
