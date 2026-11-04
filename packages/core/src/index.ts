@@ -1072,3 +1072,5 @@ export {
   setSeriesRecommendationGroups,
   type SeriesRecommendationGroup,
 } from './recommender/series/groups.js'
+
+export { addEmbyHomePin, EmbyHomeConflict, getEmbyHomeSections, removeEmbyHomePin } from './media/emby/homeSections.js'

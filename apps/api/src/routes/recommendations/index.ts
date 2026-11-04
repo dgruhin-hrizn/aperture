@@ -13,6 +13,7 @@ import {
   registerPreferencesHandlers,
 } from './handlers/index.js'
 import { recommendationComponentSchemas } from './schemas.js'
+import { registerEmbyHomeHandlers } from './handlers/embyHome.js'
 
 const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
   // Register component schemas for $ref usage
@@ -24,6 +25,7 @@ const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
   await registerSeriesHandlers(fastify)
   await registerHistoryHandlers(fastify)
   await registerPreferencesHandlers(fastify)
+  await registerEmbyHomeHandlers(fastify)
 }
 
 export default recommendationsRoutes

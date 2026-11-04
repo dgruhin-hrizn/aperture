@@ -30,6 +30,12 @@ The private playlist preview needs the recipient’s Emby session. Each recipien
 
 When switching modes, Aperture cleans up managed output from the old mode. If Emby is unavailable or a playlist owner’s session has expired, the next sync can retry cleanup. Run the relevant library sync to publish after a mode change.
 
+### Pin an Emby playlist to Home
+
+After a library sync creates a private Aperture-managed playlist, open **AI Picks → Emby Home** as the playlist recipient and choose **Pin to Emby Home**. This requires Emby’s Home Sections API and an active Emby sign-in to Aperture. Refresh Emby Home to see the shelf.
+
+**Unpin from Emby Home** removes the section Aperture created for that playlist. Existing Emby shelves, their settings and order, and the playlist itself stay in place. Shelves added directly in Emby remain manageable there.
+
 ## STRM Files
 
 ### What Are STRM Files?

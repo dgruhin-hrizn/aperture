@@ -1,4 +1,12 @@
 {
+  "embyHomePins": {
+    "title": "Emby Home",
+    "description": "Pin a private AI Picks playlist to your Emby Home screen. Unpin removes the shelf and keeps the playlist.",
+    "pin": "Pin to Emby Home",
+    "unpin": "Unpin from Emby Home",
+    "manageInEmby": "Already on Home · manage in Emby",
+    "error": "Could not load Emby Home."
+  },
   "releaseHighlights": {
     "saveError": "Aperture could not save your dismissal. Try again.",
     "admin": {
