@@ -58,6 +58,7 @@ import {
   createPlaylistWithOverview,
   deletePlaylist,
   getPlaylistItems,
+  getPlaylistPreview,
   removePlaylistItems,
   addPlaylistItems,
   getGenres,
@@ -223,8 +224,11 @@ export class EmbyProvider extends EmbyProviderBase implements MediaServerProvide
     return deletePlaylist(this, apiKey, playlistId)
   }
 
-  async getPlaylistItems(apiKey: string, playlistId: string): Promise<PlaylistItem[]> {
-    return getPlaylistItems(this, apiKey, playlistId)
+  async getPlaylistItems(apiKey: string, playlistId: string, limit?: number): Promise<PlaylistItem[]> {
+    return getPlaylistItems(this, apiKey, playlistId, limit)
+  }
+  async getPlaylistPreview(apiKey: string, playlistId: string) {
+    return getPlaylistPreview(this, apiKey, playlistId)
   }
 
   async removePlaylistItems(apiKey: string, playlistId: string, entryIds: string[]): Promise<void> {

@@ -1,4 +1,6 @@
-import { useEffect, useState, useCallback } from 'react'
+import { apiFetch, apiJson } from '../../../lib/api'
+import { cachedResource } from '../../../hooks/cachedResource'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import type {
   Media,
   MediaType,
@@ -52,161 +54,73 @@ export function useMediaDetail(
   // Series-specific
   const [seasons, setSeasons] = useState<Record<number, Episode[]>>({})
 
+  const identity = `${userId}:${mediaType}:${id}`
+  const currentIdentity = useRef(identity)
+  currentIdentity.current = identity
+  const [loadedIdentity, setLoadedIdentity] = useState<string | null>(null)
   useEffect(() => {
-    const fetchMedia = async () => {
-      if (!id) return
-
-      setLoading(true)
-      setError(null)
-
-      try {
-        const endpoint = mediaType === 'movie' ? `/api/movies/${id}` : `/api/series/${id}`
-
-        // Fetch media and media server info in parallel
-        const fetchPromises: Promise<Response>[] = [
-          fetch(endpoint, { credentials: 'include' }),
-          fetch('/api/settings/media-server', { credentials: 'include' }),
-        ]
-
-        // For series, also fetch episodes
-        if (mediaType === 'series') {
-          fetchPromises.push(fetch(`/api/series/${id}/episodes`, { credentials: 'include' }))
+    if (!id) return
+    const controller = new AbortController()
+    const signal = controller.signal
+    const scope = userId ?? 'anonymous'
+    setRatingLoading(false)
+    setLoading(true)
+    setError(null)
+    setSimilar([])
+    setInsights(null)
+    setWatchStats(null)
+    setWatchStatus(null)
+    setUserRating(null)
+    setSeasons({})
+    const base = `/api/${mediaType === 'movie' ? 'movies' : 'series'}/${id}`
+    // Only the primary title controls the main skeleton. Optional sections settle independently.
+    void apiJson<Media>(base, signal)
+      .then((data) => {
+        if (!signal.aborted) {
+          setMedia({ ...data, type: mediaType } as Media)
+          setLoadedIdentity(identity)
         }
-
-        const responses = await Promise.all(fetchPromises)
-        const [mediaResponse, mediaServerResponse, episodesResponse] = responses
-
-        // Process media server info
-        if (mediaServerResponse.ok) {
-          const mediaServerData = await mediaServerResponse.json()
-          setMediaServer(mediaServerData)
-        }
-
-        if (mediaResponse.ok) {
-          const data = await mediaResponse.json()
-          // Add type to the media object
-          const mediaWithType = { ...data, type: mediaType } as Media
-          setMedia(mediaWithType)
-
-          // Process episodes for series
-          if (mediaType === 'series' && episodesResponse?.ok) {
-            const episodesData = await episodesResponse.json()
-            setSeasons(episodesData.seasons || {})
-          }
-
-          // Fetch similar items (same default count as graph neighbors)
-          const similarEndpoint =
-            mediaType === 'movie'
-              ? `/api/movies/${id}/similar?limit=${DEFAULT_SIMILAR_MEDIA_LIMIT}`
-              : `/api/series/${id}/similar?limit=${DEFAULT_SIMILAR_MEDIA_LIMIT}`
-
-          const similarResponse = await fetch(similarEndpoint, { credentials: 'include' })
-          if (similarResponse.ok) {
-            const similarData = await similarResponse.json()
-            setSimilar(similarData.similar || [])
-          }
-
-          // Fetch watch stats (how many users watched)
-          const watchStatsEndpoint =
-            mediaType === 'movie'
-              ? `/api/movies/${id}/watch-stats`
-              : `/api/series/${id}/watch-stats`
-          
-          const watchStatsResponse = await fetch(watchStatsEndpoint, { credentials: 'include' })
-          if (watchStatsResponse.ok) {
-            const statsData = await watchStatsResponse.json()
-            setWatchStats(statsData)
-          }
-
-          // Fetch user-specific data
-          if (userId) {
-            const userFetchPromises: Promise<Response>[] = []
-
-            // Insights endpoint (media-type specific)
-            const insightsUrl =
-              mediaType === 'movie'
-                ? `/api/recommendations/${userId}/movie/${id}/insights`
-                : `/api/recommendations/${userId}/series/${id}/insights`
-            userFetchPromises.push(
-              fetch(insightsUrl, { credentials: 'include' })
-            )
-
-            // Movie-specific: watch history
-            if (mediaType === 'movie') {
-              userFetchPromises.push(
-                fetch(`/api/users/${userId}/watch-history?pageSize=1000&sortBy=title`, {
-                  credentials: 'include',
-                })
-              )
-            }
-
-            // Rating endpoint (shared but different for movies/series)
-            userFetchPromises.push(
-              fetch(
-                mediaType === 'movie' ? `/api/ratings/movie/${id}` : '/api/ratings',
-                { credentials: 'include' }
-              )
-            )
-
-            const userResponses = await Promise.all(userFetchPromises)
-
-            if (mediaType === 'movie') {
-              const [insightsResponse, watchHistoryResponse, ratingResponse] = userResponses
-
-              if (insightsResponse.ok) {
-                const insightsData = await insightsResponse.json()
-                setInsights(insightsData)
-              }
-
-              if (watchHistoryResponse.ok) {
-                const watchData = await watchHistoryResponse.json()
-                const watchedMovie = watchData.history?.find(
-                  (h: { movie_id: string }) => h.movie_id === id
-                )
-                if (watchedMovie) {
-                  setWatchStatus({
-                    isWatched: true,
-                    playCount: watchedMovie.play_count || 1,
-                    lastWatched: watchedMovie.last_played_at,
-                  })
-                } else {
-                  setWatchStatus({ isWatched: false, playCount: 0, lastWatched: null })
-                }
-              }
-
-              if (ratingResponse.ok) {
-                const ratingData = await ratingResponse.json()
-                setUserRating(ratingData.rating)
-              }
-            } else {
-              const [insightsResponse, ratingResponse] = userResponses
-
-              if (insightsResponse.ok) {
-                const insightsData = await insightsResponse.json()
-                setInsights(insightsData)
-              }
-
-              if (ratingResponse.ok) {
-                const ratingsData = await ratingResponse.json()
-                const seriesRating = ratingsData.ratings?.find(
-                  (r: { series_id: string }) => r.series_id === id
-                )
-                setUserRating(seriesRating?.rating || null)
-              }
-            }
-          }
-        } else {
-          setError(`${mediaType === 'movie' ? 'Movie' : 'Series'} not found`)
-        }
-      } catch {
-        setError('Could not connect to server')
-      } finally {
-        setLoading(false)
-      }
+      })
+      .catch(() => {
+        if (!signal.aborted) setError('Could not load title')
+      })
+      .finally(() => {
+        if (!signal.aborted) setLoading(false)
+      })
+    const optional = <T>(url: string, apply: (value: T) => void) => {
+      void apiJson<T>(url, signal)
+        .then((value) => {
+          if (!signal.aborted) apply(value)
+        })
+        .catch(() => {})
     }
-
-    fetchMedia()
-  }, [mediaType, id, userId])
+    void cachedResource<MediaServerInfo>(scope, '/api/settings/media-server', signal)
+      .then((data) => {
+        if (!signal.aborted) setMediaServer(data)
+      })
+      .catch(() => {})
+    optional<{ similar: SimilarItem[] }>(
+      `${base}/similar?limit=${DEFAULT_SIMILAR_MEDIA_LIMIT}`,
+      (data) => setSimilar(data.similar || [])
+    )
+    optional<WatchStats>(`${base}/watch-stats`, setWatchStats)
+    if (mediaType === 'series')
+      optional<{ seasons: Record<number, Episode[]> }>(`${base}/episodes`, (data) =>
+        setSeasons(data.seasons || {})
+      )
+    if (userId) {
+      optional<RecommendationInsights>(
+        `/api/recommendations/${userId}/${mediaType}/${id}/insights`,
+        setInsights
+      )
+      optional<{ rating: number | null }>(`/api/ratings/${mediaType}/${id}`, (data) =>
+        setUserRating(data.rating ?? null)
+      )
+      if (mediaType === 'movie')
+        optional<WatchStatus>(`/api/users/${userId}/watch-history/movies/${id}`, setWatchStatus)
+    }
+    return () => controller.abort()
+  }, [mediaType, id, userId, identity])
 
   const clearWatchStatus = useCallback(() => {
     setWatchStatus({ isWatched: false, playCount: 0, lastWatched: null })
@@ -223,36 +137,36 @@ export function useMediaDetail(
 
         if (rating === null || rating === 0) {
           // Delete rating
-          const response = await fetch(endpoint, {
+          const response = await apiFetch(endpoint, {
             method: 'DELETE',
             credentials: 'include',
           })
-          if (response.ok) {
+          if (response.ok && currentIdentity.current === identity) {
             setUserRating(null)
           }
         } else {
           // Set rating
-          const response = await fetch(endpoint, {
+          const response = await apiFetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify({ rating }),
           })
-          if (response.ok) {
+          if (response.ok && currentIdentity.current === identity) {
             setUserRating(rating)
           }
         }
       } catch (err) {
         console.error('Failed to update rating:', err)
       } finally {
-        setRatingLoading(false)
+        if (currentIdentity.current === identity) setRatingLoading(false)
       }
     },
-    [mediaType, id]
+    [mediaType, id, identity]
   )
 
   return {
-    media,
+    media: loadedIdentity === identity ? media : null,
     mediaType,
     similar,
     insights,
@@ -261,7 +175,7 @@ export function useMediaDetail(
     watchStats,
     userRating,
     ratingLoading,
-    loading,
+    loading: loading || (loadedIdentity !== identity && !error),
     error,
     seasons,
     clearWatchStatus,
@@ -275,4 +189,3 @@ export function formatRuntime(minutes: number | null | undefined): string {
   const mins = minutes % 60
   return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`
 }
-

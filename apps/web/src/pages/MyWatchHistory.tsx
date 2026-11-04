@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import { apiFetch } from '../lib/api'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -93,6 +94,8 @@ export function MyWatchHistoryPage() {
   const { user } = useAuth()
   const { isWatching, toggleWatching } = useWatching()
   const { getRating, setRating } = useUserRatings()
+  const requests = useRef<{ movie?: AbortController; series?: AbortController }>({})
+  useEffect(() => { const current = requests.current; return () => { current.movie?.abort(); current.series?.abort() } }, [])
   const [tabValue, setTabValue] = useState(0) // 0 = Movies, 1 = Series
   
   // Movies state
@@ -165,53 +168,65 @@ export function MyWatchHistoryPage() {
     }
   }
 
-  const fetchMovieHistory = useCallback(async (page: number, sort: string) => {
+  const fetchMovieHistory = useCallback(async (page: number, sort: string, parentSignal?: AbortSignal) => {
     if (!user) return
+    requests.current.movie?.abort()
+    const request = new AbortController()
+    requests.current.movie = request
+    const signal = parentSignal ? AbortSignal.any([request.signal, parentSignal]) : request.signal
     
     setMovieLoading(true)
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/users/${user.id}/watch-history?page=${page}&pageSize=50&sortBy=${sort}`,
-        { credentials: 'include' }
+        { credentials: 'include', signal }
       )
       if (response.ok) {
         const data: WatchHistoryResponse<MovieWatchHistoryItem> = await response.json()
+        if (signal?.aborted) return
         setMovieHistory(data.history)
         setMoviePagination(data.pagination)
       }
     } catch (err) {
       console.error('Failed to fetch movie watch history:', err)
     } finally {
-      setMovieLoading(false)
+      if (!signal?.aborted) setMovieLoading(false)
     }
   }, [user])
 
-  const fetchSeriesHistory = useCallback(async (page: number, sort: string) => {
+  const fetchSeriesHistory = useCallback(async (page: number, sort: string, parentSignal?: AbortSignal) => {
     if (!user) return
+    requests.current.series?.abort()
+    const request = new AbortController()
+    requests.current.series = request
+    const signal = parentSignal ? AbortSignal.any([request.signal, parentSignal]) : request.signal
     
     setSeriesLoading(true)
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/users/${user.id}/series-watch-history?page=${page}&pageSize=50&sortBy=${sort}`,
-        { credentials: 'include' }
+        { credentials: 'include', signal }
       )
       if (response.ok) {
         const data: WatchHistoryResponse<SeriesWatchHistoryItem> = await response.json()
+        if (signal?.aborted) return
         setSeriesHistory(data.history)
         setSeriesPagination(data.pagination)
       }
     } catch (err) {
       console.error('Failed to fetch series watch history:', err)
     } finally {
-      setSeriesLoading(false)
+      if (!signal?.aborted) setSeriesLoading(false)
     }
   }, [user])
 
-  // Fetch both on mount
   useEffect(() => {
-    fetchMovieHistory(1, movieSortBy)
-    fetchSeriesHistory(1, seriesSortBy)
-  }, [fetchMovieHistory, fetchSeriesHistory, movieSortBy, seriesSortBy])
+    const controller = new AbortController()
+    if (tabValue === 0) void fetchMovieHistory(1, movieSortBy, controller.signal)
+    else void fetchSeriesHistory(1, seriesSortBy, controller.signal)
+    const currentRequests = requests.current
+    return () => { controller.abort(); currentRequests.movie?.abort(); currentRequests.series?.abort() }
+  }, [fetchMovieHistory, fetchSeriesHistory, movieSortBy, seriesSortBy, tabValue])
 
   const handleMoviePageChange = (_: React.ChangeEvent<unknown>, page: number) => {
     fetchMovieHistory(page, movieSortBy)

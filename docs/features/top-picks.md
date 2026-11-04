@@ -165,3 +165,7 @@ Each item shows if you've watched it:
 ---
 
 **Next:** [Discovery](discovery.md)
+
+## Loading and performance
+
+See [UI loading and request efficiency](../ui-performance.md) for selected-tab loading, bounded requests, cache behavior and dev.11 correctness fixes. Existing settings and actions remain available.

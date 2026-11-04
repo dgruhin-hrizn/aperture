@@ -235,7 +235,8 @@ export interface MediaServerProvider {
   /**
    * Get items in a playlist
    */
-  getPlaylistItems(apiKey: string, playlistId: string): Promise<PlaylistItem[]>
+  getPlaylistItems(apiKey: string, playlistId: string, limit?: number): Promise<PlaylistItem[]>
+  getPlaylistPreview(apiKey: string, playlistId: string): Promise<{ items: PlaylistItem[]; total: number }>
 
   /**
    * Remove items from a playlist

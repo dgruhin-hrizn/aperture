@@ -1,3 +1,5 @@
+import { useUserPreferences, saveUserPreferences } from '../../../hooks/userPreferences'
+import { invalidateCachedResource } from '../../../hooks/cachedResource'
 import { useCallback, useEffect, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import type { FilterPreset, MovieFilters, SeriesFilters, SortField, SortOrder } from '../components'
@@ -21,9 +23,23 @@ interface PreferencesResponse {
 
 interface UseBrowseFilterPresetsResult {
   filterPresets: FilterPreset[]
-  persistSortPreferences: (type: BrowsePreferenceType, sortBy: SortField, sortOrder: SortOrder) => Promise<void>
-  handleSaveMoviePreset: (name: string, movieFilters: MovieFilters, movieGenre: string, collection: string) => Promise<void>
-  handleSaveSeriesPreset: (name: string, seriesFilters: SeriesFilters, seriesGenre: string, network: string) => Promise<void>
+  persistSortPreferences: (
+    type: BrowsePreferenceType,
+    sortBy: SortField,
+    sortOrder: SortOrder
+  ) => Promise<void>
+  handleSaveMoviePreset: (
+    name: string,
+    movieFilters: MovieFilters,
+    movieGenre: string,
+    collection: string
+  ) => Promise<void>
+  handleSaveSeriesPreset: (
+    name: string,
+    seriesFilters: SeriesFilters,
+    seriesGenre: string,
+    network: string
+  ) => Promise<void>
   handleLoadMoviePreset: (
     preset: FilterPreset,
     setMovieFilters: Dispatch<SetStateAction<MovieFilters>>,
@@ -47,53 +63,37 @@ export function useBrowseFilterPresets({
   setSeriesSortOrder,
 }: UseBrowseFilterPresetsOptions): UseBrowseFilterPresetsResult {
   const [filterPresets, setFilterPresets] = useState<FilterPreset[]>([])
-  const [preferencesLoaded, setPreferencesLoaded] = useState(false)
+  const shared = useUserPreferences()
+  const userId = shared.userId
+  const preferencesLoaded = Boolean(shared.data)
 
   const persistSortPreferences = useCallback(
     async (type: BrowsePreferenceType, sortBy: SortField, sortOrder: SortOrder) => {
       if (!preferencesLoaded) return
 
       try {
-        await fetch('/api/auth/me/preferences', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ browseSort: { [type]: { sortBy, sortOrder } } }),
-        })
+        if (userId)
+          await saveUserPreferences(userId, { browseSort: { [type]: { sortBy, sortOrder } } })
       } catch (err) {
         console.error('Failed to persist sort preferences:', err)
       }
     },
-    [preferencesLoaded]
+    [preferencesLoaded, userId]
   )
 
-  const loadPreferences = useCallback(async () => {
-    try {
-      const res = await fetch('/api/auth/me/preferences', { credentials: 'include' })
-      if (!res.ok) return
-
-      const prefs = (await res.json()) as PreferencesResponse
-      if (prefs.browseSort?.movies) {
-        setMovieSortBy(prefs.browseSort.movies.sortBy || 'title')
-        setMovieSortOrder(prefs.browseSort.movies.sortOrder || 'asc')
-      }
-      if (prefs.browseSort?.series) {
-        setSeriesSortBy(prefs.browseSort.series.sortBy || 'title')
-        setSeriesSortOrder(prefs.browseSort.series.sortOrder || 'asc')
-      }
-      if (prefs.browseFilterPresets) {
-        setFilterPresets(prefs.browseFilterPresets)
-      }
-    } catch (err) {
-      console.error('Failed to load browse preferences:', err)
-    } finally {
-      setPreferencesLoaded(true)
-    }
-  }, [setMovieSortBy, setMovieSortOrder, setSeriesSortBy, setSeriesSortOrder])
-
   useEffect(() => {
-    void loadPreferences()
-  }, [loadPreferences])
+    if (!shared.data) return
+    const prefs = shared.data as PreferencesResponse
+    if (prefs.browseSort?.movies) {
+      setMovieSortBy(prefs.browseSort.movies.sortBy || 'title')
+      setMovieSortOrder(prefs.browseSort.movies.sortOrder || 'asc')
+    }
+    if (prefs.browseSort?.series) {
+      setSeriesSortBy(prefs.browseSort.series.sortBy || 'title')
+      setSeriesSortOrder(prefs.browseSort.series.sortOrder || 'asc')
+    }
+    setFilterPresets(prefs.browseFilterPresets ?? [])
+  }, [shared.data, setMovieSortBy, setMovieSortOrder, setSeriesSortBy, setSeriesSortOrder])
 
   const handleSaveMoviePreset = useCallback(
     async (name: string, movieFilters: MovieFilters, movieGenre: string, collection: string) => {
@@ -113,6 +113,7 @@ export function useBrowseFilterPresets({
           }),
         })
         if (res.ok) {
+          if (userId) invalidateCachedResource(userId, '/api/auth/me/preferences')
           const preset = (await res.json()) as FilterPreset
           setFilterPresets((prev) => [...prev, preset])
         }
@@ -120,7 +121,7 @@ export function useBrowseFilterPresets({
         console.error('Failed to save filter preset:', err)
       }
     },
-    []
+    [userId]
   )
 
   const handleSaveSeriesPreset = useCallback(
@@ -141,6 +142,7 @@ export function useBrowseFilterPresets({
           }),
         })
         if (res.ok) {
+          if (userId) invalidateCachedResource(userId, '/api/auth/me/preferences')
           const preset = (await res.json()) as FilterPreset
           setFilterPresets((prev) => [...prev, preset])
         }
@@ -148,38 +150,48 @@ export function useBrowseFilterPresets({
         console.error('Failed to save filter preset:', err)
       }
     },
-    []
+    [userId]
   )
 
-  const handleDeletePreset = useCallback(async (id: string) => {
-    try {
-      const res = await fetch(`/api/auth/me/filter-presets/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      })
-      if (res.ok) {
-        setFilterPresets((prev) => prev.filter((preset) => preset.id !== id))
+  const handleDeletePreset = useCallback(
+    async (id: string) => {
+      try {
+        const res = await fetch(`/api/auth/me/filter-presets/${id}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        })
+        if (res.ok) {
+          if (userId) invalidateCachedResource(userId, '/api/auth/me/preferences')
+          setFilterPresets((prev) => prev.filter((preset) => preset.id !== id))
+        }
+      } catch (err) {
+        console.error('Failed to delete filter preset:', err)
       }
-    } catch (err) {
-      console.error('Failed to delete filter preset:', err)
-    }
-  }, [])
+    },
+    [userId]
+  )
 
-  const handleRenamePreset = useCallback(async (id: string, newName: string) => {
-    try {
-      const res = await fetch(`/api/auth/me/filter-presets/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ name: newName }),
-      })
-      if (res.ok) {
-        setFilterPresets((prev) => prev.map((preset) => (preset.id === id ? { ...preset, name: newName } : preset)))
+  const handleRenamePreset = useCallback(
+    async (id: string, newName: string) => {
+      try {
+        const res = await fetch(`/api/auth/me/filter-presets/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ name: newName }),
+        })
+        if (res.ok) {
+          if (userId) invalidateCachedResource(userId, '/api/auth/me/preferences')
+          setFilterPresets((prev) =>
+            prev.map((preset) => (preset.id === id ? { ...preset, name: newName } : preset))
+          )
+        }
+      } catch (err) {
+        console.error('Failed to rename filter preset:', err)
       }
-    } catch (err) {
-      console.error('Failed to rename filter preset:', err)
-    }
-  }, [])
+    },
+    [userId]
+  )
 
   const handleLoadMoviePreset = useCallback(
     (
@@ -188,17 +200,40 @@ export function useBrowseFilterPresets({
       setMovieGenre: Dispatch<SetStateAction<string>>,
       setCollection: Dispatch<SetStateAction<string>>
     ) => {
-      if (preset.filters.yearRange) setMovieFilters((filters) => ({ ...filters, yearRange: preset.filters.yearRange! }))
-      if (preset.filters.runtimeRange) setMovieFilters((filters) => ({ ...filters, runtimeRange: preset.filters.runtimeRange! }))
-      if (preset.filters.communityRating) setMovieFilters((filters) => ({ ...filters, communityRating: preset.filters.communityRating! }))
-      if (preset.filters.rtScore) setMovieFilters((filters) => ({ ...filters, rtScore: preset.filters.rtScore! }))
-      if (preset.filters.metacritic) setMovieFilters((filters) => ({ ...filters, metacritic: preset.filters.metacritic! }))
-      if (preset.filters.contentRatings) setMovieFilters((filters) => ({ ...filters, contentRatings: preset.filters.contentRatings! }))
-      if (preset.filters.resolutions) setMovieFilters((filters) => ({ ...filters, resolutions: preset.filters.resolutions! }))
-      if (preset.filters.countries) setMovieFilters((filters) => ({ ...filters, countries: preset.filters.countries! }))
-      if (preset.filters.watchStatus) setMovieFilters((filters) => ({ ...filters, watchStatus: preset.filters.watchStatus! }))
-      if (preset.filters.minWatchers !== undefined) setMovieFilters((filters) => ({ ...filters, minWatchers: preset.filters.minWatchers ?? null }))
-      if (preset.filters.maxWatchers !== undefined) setMovieFilters((filters) => ({ ...filters, maxWatchers: preset.filters.maxWatchers ?? null }))
+      if (preset.filters.yearRange)
+        setMovieFilters((filters) => ({ ...filters, yearRange: preset.filters.yearRange! }))
+      if (preset.filters.runtimeRange)
+        setMovieFilters((filters) => ({ ...filters, runtimeRange: preset.filters.runtimeRange! }))
+      if (preset.filters.communityRating)
+        setMovieFilters((filters) => ({
+          ...filters,
+          communityRating: preset.filters.communityRating!,
+        }))
+      if (preset.filters.rtScore)
+        setMovieFilters((filters) => ({ ...filters, rtScore: preset.filters.rtScore! }))
+      if (preset.filters.metacritic)
+        setMovieFilters((filters) => ({ ...filters, metacritic: preset.filters.metacritic! }))
+      if (preset.filters.contentRatings)
+        setMovieFilters((filters) => ({
+          ...filters,
+          contentRatings: preset.filters.contentRatings!,
+        }))
+      if (preset.filters.resolutions)
+        setMovieFilters((filters) => ({ ...filters, resolutions: preset.filters.resolutions! }))
+      if (preset.filters.countries)
+        setMovieFilters((filters) => ({ ...filters, countries: preset.filters.countries! }))
+      if (preset.filters.watchStatus)
+        setMovieFilters((filters) => ({ ...filters, watchStatus: preset.filters.watchStatus! }))
+      if (preset.filters.minWatchers !== undefined)
+        setMovieFilters((filters) => ({
+          ...filters,
+          minWatchers: preset.filters.minWatchers ?? null,
+        }))
+      if (preset.filters.maxWatchers !== undefined)
+        setMovieFilters((filters) => ({
+          ...filters,
+          maxWatchers: preset.filters.maxWatchers ?? null,
+        }))
       if (preset.filters.genre) setMovieGenre(preset.filters.genre)
       if (preset.filters.collection) setCollection(preset.filters.collection)
     },
@@ -212,17 +247,40 @@ export function useBrowseFilterPresets({
       setSeriesGenre: Dispatch<SetStateAction<string>>,
       setNetwork: Dispatch<SetStateAction<string>>
     ) => {
-      if (preset.filters.yearRange) setSeriesFilters((filters) => ({ ...filters, yearRange: preset.filters.yearRange! }))
-      if (preset.filters.seasonsRange) setSeriesFilters((filters) => ({ ...filters, seasonsRange: preset.filters.seasonsRange! }))
-      if (preset.filters.communityRating) setSeriesFilters((filters) => ({ ...filters, communityRating: preset.filters.communityRating! }))
-      if (preset.filters.rtScore) setSeriesFilters((filters) => ({ ...filters, rtScore: preset.filters.rtScore! }))
-      if (preset.filters.metacritic) setSeriesFilters((filters) => ({ ...filters, metacritic: preset.filters.metacritic! }))
-      if (preset.filters.contentRatings) setSeriesFilters((filters) => ({ ...filters, contentRatings: preset.filters.contentRatings! }))
-      if (preset.filters.status) setSeriesFilters((filters) => ({ ...filters, status: preset.filters.status! }))
-      if (preset.filters.countries) setSeriesFilters((filters) => ({ ...filters, countries: preset.filters.countries! }))
-      if (preset.filters.watchStatus) setSeriesFilters((filters) => ({ ...filters, watchStatus: preset.filters.watchStatus! }))
-      if (preset.filters.minWatchers !== undefined) setSeriesFilters((filters) => ({ ...filters, minWatchers: preset.filters.minWatchers ?? null }))
-      if (preset.filters.maxWatchers !== undefined) setSeriesFilters((filters) => ({ ...filters, maxWatchers: preset.filters.maxWatchers ?? null }))
+      if (preset.filters.yearRange)
+        setSeriesFilters((filters) => ({ ...filters, yearRange: preset.filters.yearRange! }))
+      if (preset.filters.seasonsRange)
+        setSeriesFilters((filters) => ({ ...filters, seasonsRange: preset.filters.seasonsRange! }))
+      if (preset.filters.communityRating)
+        setSeriesFilters((filters) => ({
+          ...filters,
+          communityRating: preset.filters.communityRating!,
+        }))
+      if (preset.filters.rtScore)
+        setSeriesFilters((filters) => ({ ...filters, rtScore: preset.filters.rtScore! }))
+      if (preset.filters.metacritic)
+        setSeriesFilters((filters) => ({ ...filters, metacritic: preset.filters.metacritic! }))
+      if (preset.filters.contentRatings)
+        setSeriesFilters((filters) => ({
+          ...filters,
+          contentRatings: preset.filters.contentRatings!,
+        }))
+      if (preset.filters.status)
+        setSeriesFilters((filters) => ({ ...filters, status: preset.filters.status! }))
+      if (preset.filters.countries)
+        setSeriesFilters((filters) => ({ ...filters, countries: preset.filters.countries! }))
+      if (preset.filters.watchStatus)
+        setSeriesFilters((filters) => ({ ...filters, watchStatus: preset.filters.watchStatus! }))
+      if (preset.filters.minWatchers !== undefined)
+        setSeriesFilters((filters) => ({
+          ...filters,
+          minWatchers: preset.filters.minWatchers ?? null,
+        }))
+      if (preset.filters.maxWatchers !== undefined)
+        setSeriesFilters((filters) => ({
+          ...filters,
+          maxWatchers: preset.filters.maxWatchers ?? null,
+        }))
       if (preset.filters.genre) setSeriesGenre(preset.filters.genre)
       if (preset.filters.network) setNetwork(preset.filters.network)
     },

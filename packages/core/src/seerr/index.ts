@@ -25,6 +25,7 @@ export {
   createRequest,
   getRequest,
   getRequestStatus,
+  batchGetRequestStatus,
   deleteRequest,
   // Batch Operations
   batchGetMediaStatus,

@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/api'
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -76,28 +77,33 @@ export function WatchStatsPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const controller = new AbortController()
+    setLoading(true)
     const fetchStats = async () => {
       if (!user) return
 
       try {
-        const response = await fetch(`/api/users/${user.id}/watch-stats`, {
-          credentials: 'include',
+        const response = await apiFetch(`/api/users/${user.id}/watch-stats`, {
+          credentials: 'include', signal: controller.signal,
         })
         if (response.ok) {
           const data = await response.json()
+          if (controller.signal.aborted) return
           setStats(data)
           setError(null)
         } else {
           setError(t('watchStats.errorLoadFailed'))
         }
       } catch {
+        if (controller.signal.aborted) return
         setError(t('watchStats.errorConnect'))
       } finally {
-        setLoading(false)
+        if (!controller.signal.aborted) setLoading(false)
       }
     }
 
     fetchStats()
+    return () => controller.abort()
   }, [user, t])
 
   const formatWatchTime = (minutes: number) => {

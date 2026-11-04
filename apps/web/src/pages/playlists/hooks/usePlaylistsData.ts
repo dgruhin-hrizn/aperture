@@ -1,5 +1,15 @@
-import { useState, useEffect, useCallback } from 'react'
-import type { Channel, Movie, PlaylistItem, FormData, SnackbarState, GraphPlaylist, GraphPlaylistItem } from '../types'
+import { useAuth } from '../../../hooks/useAuth'
+import { apiFetch } from '../../../lib/api'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import type {
+  Channel,
+  Movie,
+  PlaylistItem,
+  FormData,
+  SnackbarState,
+  GraphPlaylist,
+  GraphPlaylistItem,
+} from '../types'
 
 const initialFormData: FormData = {
   name: '',
@@ -10,9 +20,22 @@ const initialFormData: FormData = {
 }
 
 export function usePlaylistsData() {
+  const userId = useAuth().user?.id
+  const activeUser = useRef(userId)
+  activeUser.current = userId
+  const viewRequest = useRef<AbortController | null>(null)
+  const editorRequest = useRef<AbortController | null>(null)
+  useEffect(
+    () => () => {
+      viewRequest.current?.abort()
+      editorRequest.current?.abort()
+    },
+    [userId]
+  )
   const [channels, setChannels] = useState<Channel[]>([])
   const [graphPlaylists, setGraphPlaylists] = useState<GraphPlaylist[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingGraph, setLoadingGraph] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingChannel, setEditingChannel] = useState<Channel | null>(null)
@@ -46,88 +69,123 @@ export function usePlaylistsData() {
 
   // Delete confirmation dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [deletingPlaylist, setDeletingPlaylist] = useState<{ id: string; name: string; type: 'channel' | 'graph' } | null>(null)
+  const [deletingPlaylist, setDeletingPlaylist] = useState<{
+    id: string
+    name: string
+    type: 'channel' | 'graph'
+  } | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
-  const fetchChannels = async () => {
-    try {
-      const response = await fetch('/api/channels', { credentials: 'include' })
-      if (response.ok) {
-        const data = await response.json()
-        setChannels(data.channels)
-        setError(null)
-      } else {
-        setError('Failed to load playlists')
-      }
-    } catch {
-      setError('Could not connect to server')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchGraphPlaylists = useCallback(async () => {
-    try {
-      const response = await fetch('/api/graph-playlists', { credentials: 'include' })
-      if (response.ok) {
-        const data = await response.json()
-        setGraphPlaylists(data.playlists || [])
-      }
-    } catch {
-      // Silent fail - graph playlists are optional
-      console.error('Failed to fetch graph playlists')
-    }
-  }, [])
-
-  const fetchGenres = async () => {
-    setLoadingGenres(true)
-    try {
-      const response = await fetch('/api/genres', { credentials: 'include' })
-      if (response.ok) {
-        const data = await response.json()
-        setAvailableGenres(data.genres)
-      }
-    } catch {
-      console.error('Failed to fetch genres')
-    } finally {
-      setLoadingGenres(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchChannels()
-    fetchGenres()
-    fetchGraphPlaylists()
-  }, [fetchGraphPlaylists])
-
-  const fetchExampleMovies = async (movieIds: string[]): Promise<Movie[]> => {
-    if (movieIds.length === 0) return []
-
-    const movies: Movie[] = []
-    for (const id of movieIds) {
+  const fetchChannels = useCallback(
+    async (signal?: AbortSignal) => {
       try {
-        const response = await fetch(`/api/movies/${id}`, { credentials: 'include' })
+        const response = await apiFetch('/api/channels', { signal })
         if (response.ok) {
-          const movie = await response.json()
-          movies.push({
-            id: movie.id,
-            title: movie.title,
-            year: movie.year,
-            poster_url: movie.poster_url,
-          })
+          const data = await response.json()
+          if (signal?.aborted || activeUser.current !== userId) return
+          setChannels(data.channels)
+          setError(null)
+        } else {
+          setError('Failed to load playlists')
         }
       } catch {
-        // Skip failed movie fetches
+        if (signal?.aborted || activeUser.current !== userId) return
+        setError('Could not connect to server')
+      } finally {
+        if (!signal?.aborted && activeUser.current === userId) setLoading(false)
       }
+    },
+    [userId]
+  )
+
+  const fetchGraphPlaylists = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        const response = await apiFetch('/api/graph-playlists', { signal })
+        if (response.ok) {
+          const data = await response.json()
+          if (signal?.aborted || activeUser.current !== userId) return
+          setGraphPlaylists(data.playlists || [])
+        }
+      } catch {
+        if (signal?.aborted || activeUser.current !== userId) return
+        // Silent fail - graph playlists are optional
+        console.error('Failed to fetch graph playlists')
+      } finally {
+        if (!signal?.aborted && activeUser.current === userId) setLoadingGraph(false)
+      }
+    },
+    [userId]
+  )
+
+  const fetchGenres = useCallback(
+    async (signal?: AbortSignal) => {
+      setLoadingGenres(true)
+      try {
+        const response = await apiFetch('/api/genres', { signal })
+        if (response.ok) {
+          const data = await response.json()
+          if (signal?.aborted || activeUser.current !== userId) return
+          setAvailableGenres(data.genres)
+        }
+      } catch {
+        if (signal?.aborted || activeUser.current !== userId) return
+        console.error('Failed to fetch genres')
+      } finally {
+        if (!signal?.aborted && activeUser.current === userId) setLoadingGenres(false)
+      }
+    },
+    [userId]
+  )
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setChannels([])
+    setGraphPlaylists([])
+    setDialogOpen(false)
+    setPlaylistDialogOpen(false)
+    setGraphPlaylistDialogOpen(false)
+    setLoading(true)
+    setLoadingGraph(true)
+    setError(null)
+    if (!userId) {
+      setLoading(false)
+      setLoadingGraph(false)
+      return
     }
-    return movies
+    void fetchChannels(controller.signal)
+    void fetchGraphPlaylists(controller.signal)
+    return () => controller.abort()
+  }, [userId, fetchChannels, fetchGraphPlaylists])
+
+  useEffect(() => {
+    if (!dialogOpen) return
+    const controller = new AbortController()
+    void fetchGenres(controller.signal)
+    return () => controller.abort()
+  }, [dialogOpen, fetchGenres])
+
+  const fetchExampleMovies = async (movieIds: string[], signal: AbortSignal): Promise<Movie[]> => {
+    if (movieIds.length === 0) return []
+
+    const response = await apiFetch(`/api/movies/summaries?ids=${movieIds.join(',')}`, { signal })
+    if (!response.ok) return []
+    const data = (await response.json()) as { movies: Movie[] }
+    return data.movies
   }
 
   const handleOpenDialog = async (channel?: Channel) => {
+    editorRequest.current?.abort()
+    const controller = new AbortController()
+    editorRequest.current = controller
     if (channel) {
       setEditingChannel(channel)
       // Fetch example movie details
-      const exampleMovies = await fetchExampleMovies(channel.example_movie_ids || [])
+      const exampleMovies = await fetchExampleMovies(
+        channel.example_movie_ids || [],
+        controller.signal
+      ).catch(() => [])
+      if (controller.signal.aborted || activeUser.current !== userId) return
       setFormData({
         name: channel.name,
         description: channel.description || '',
@@ -143,6 +201,7 @@ export function usePlaylistsData() {
   }
 
   const handleCloseDialog = () => {
+    editorRequest.current?.abort()
     setDialogOpen(false)
     setEditingChannel(null)
     setFormData(initialFormData)
@@ -169,6 +228,7 @@ export function usePlaylistsData() {
       })
 
       if (response.ok) {
+        window.dispatchEvent(new Event('aperture:playlist-changed'))
         handleCloseDialog()
         fetchChannels()
         setSnackbar({
@@ -198,9 +258,10 @@ export function usePlaylistsData() {
 
     setDeleteLoading(true)
     try {
-      const url = deletingPlaylist.type === 'channel'
-        ? `/api/channels/${deletingPlaylist.id}`
-        : `/api/graph-playlists/${deletingPlaylist.id}`
+      const url =
+        deletingPlaylist.type === 'channel'
+          ? `/api/channels/${deletingPlaylist.id}`
+          : `/api/graph-playlists/${deletingPlaylist.id}`
 
       const response = await fetch(url, {
         method: 'DELETE',
@@ -208,6 +269,7 @@ export function usePlaylistsData() {
       })
 
       if (response.ok) {
+        window.dispatchEvent(new Event('aperture:playlist-changed'))
         if (deletingPlaylist.type === 'channel') {
           fetchChannels()
         } else {
@@ -244,6 +306,7 @@ export function usePlaylistsData() {
       })
 
       if (response.ok) {
+        window.dispatchEvent(new Event('aperture:playlist-changed'))
         const data = await response.json()
         fetchChannels()
         setSnackbar({
@@ -279,25 +342,33 @@ export function usePlaylistsData() {
 
   // Playlist view/edit functions
   const handleViewPlaylist = async (channel: Channel) => {
+    viewRequest.current?.abort()
+    const controller = new AbortController()
+    viewRequest.current = controller
     setViewingChannel(channel)
     setPlaylistDialogOpen(true)
     setLoadingPlaylist(true)
     setPlaylistItems([])
 
     try {
-      const response = await fetch(`/api/channels/${channel.id}/items`, { credentials: 'include' })
+      const response = await apiFetch(`/api/channels/${channel.id}/items`, {
+        signal: controller.signal,
+      })
       if (response.ok) {
         const data = await response.json()
+        if (controller.signal.aborted || activeUser.current !== userId) return
         setPlaylistItems(data.items || [])
       }
     } catch {
+      if (controller.signal.aborted) return
       setSnackbar({ open: true, message: 'Failed to load playlist', severity: 'error' })
     } finally {
-      setLoadingPlaylist(false)
+      if (!controller.signal.aborted) setLoadingPlaylist(false)
     }
   }
 
   const handleClosePlaylistDialog = () => {
+    viewRequest.current?.abort()
     setPlaylistDialogOpen(false)
     setViewingChannel(null)
     setPlaylistItems([])
@@ -314,6 +385,7 @@ export function usePlaylistsData() {
       })
 
       if (response.ok) {
+        window.dispatchEvent(new Event('aperture:playlist-changed'))
         setPlaylistItems(playlistItems.filter((item) => item.playlistItemId !== entryId))
         setSnackbar({ open: true, message: 'Movie removed from playlist', severity: 'success' })
       } else {
@@ -339,6 +411,7 @@ export function usePlaylistsData() {
       })
 
       if (response.ok) {
+        window.dispatchEvent(new Event('aperture:playlist-changed'))
         // Refresh the playlist items
         const itemsResponse = await fetch(`/api/channels/${viewingChannel.id}/items`, {
           credentials: 'include',
@@ -364,25 +437,33 @@ export function usePlaylistsData() {
 
   // Graph playlist view functions
   const handleViewGraphPlaylist = async (playlist: GraphPlaylist) => {
+    viewRequest.current?.abort()
+    const controller = new AbortController()
+    viewRequest.current = controller
     setViewingGraphPlaylist(playlist)
     setGraphPlaylistDialogOpen(true)
     setLoadingGraphPlaylist(true)
     setGraphPlaylistItems([])
 
     try {
-      const response = await fetch(`/api/graph-playlists/${playlist.id}/items`, { credentials: 'include' })
+      const response = await apiFetch(`/api/graph-playlists/${playlist.id}/items`, {
+        signal: controller.signal,
+      })
       if (response.ok) {
         const data = await response.json()
+        if (controller.signal.aborted || activeUser.current !== userId) return
         setGraphPlaylistItems(data.items || [])
       }
     } catch {
+      if (controller.signal.aborted) return
       setSnackbar({ open: true, message: 'Failed to load playlist', severity: 'error' })
     } finally {
-      setLoadingGraphPlaylist(false)
+      if (!controller.signal.aborted) setLoadingGraphPlaylist(false)
     }
   }
 
   const handleCloseGraphPlaylistDialog = () => {
+    viewRequest.current?.abort()
     setGraphPlaylistDialogOpen(false)
     setViewingGraphPlaylist(null)
     setGraphPlaylistItems([])
@@ -393,6 +474,7 @@ export function usePlaylistsData() {
     channels,
     graphPlaylists,
     loading,
+    loadingGraph,
     error,
     availableGenres,
     loadingGenres,

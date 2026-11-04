@@ -1,4 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import { apiFetch } from '../lib/api'
+import { useAuth } from '../hooks/useAuth'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link as RouterLink } from 'react-router-dom'
 import {
@@ -90,6 +92,10 @@ type SourceFilter = 'all' | 'discovery' | 'gap_analysis'
 
 export function MyRequestsPage() {
   const { t } = useTranslation()
+  const { user } = useAuth()
+  const userId = user?.id
+  const modalController = useRef<AbortController | null>(null)
+  const [owner, setOwner] = useState<string | undefined>(undefined)
   const [rows, setRows] = useState<DiscoveryRequestRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -103,15 +109,16 @@ export function MyRequestsPage() {
   const [tmdbModalError, setTmdbModalError] = useState<string | null>(null)
   const [tmdbModalData, setTmdbModalData] = useState<TmdbExternalDetailPayload | null>(null)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true)
     setError(null)
     try {
       const u = new URL('/api/seerr/requests', window.location.origin)
       if (sourceFilter !== 'all') u.searchParams.set('source', sourceFilter)
+      u.searchParams.set('includeLive', 'false')
       u.searchParams.set('limit', String(rowsPerPage))
       u.searchParams.set('offset', String(page * rowsPerPage))
-      const res = await fetch(u.toString(), { credentials: 'include' })
+      const res = await apiFetch(u.toString(), { signal })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         throw new Error(data.error || data.message || t('myRequests.errorLoad'))
@@ -120,19 +127,46 @@ export function MyRequestsPage() {
         requests?: DiscoveryRequestRow[]
         total?: number
       }
+      if (signal?.aborted) return
       const list = data.requests || []
+      setOwner(userId)
       setRows(list)
       setTotal(typeof data.total === 'number' ? data.total : list.length)
     } catch (e) {
+      if (signal?.aborted) return
+      setOwner(userId)
       setError(e instanceof Error ? e.message : t('myRequests.errorLoad'))
     } finally {
-      setLoading(false)
+      if (!signal?.aborted) setLoading(false)
     }
-  }, [sourceFilter, page, rowsPerPage, t])
+  }, [sourceFilter, page, rowsPerPage, t, userId])
 
   useEffect(() => {
-    void load()
+    const controller = new AbortController()
+    void load(controller.signal)
+    return () => controller.abort()
   }, [load])
+
+  useEffect(() => {
+    setRows([]); setTotal(0); setPage(0); setTmdbModalOpen(false)
+    return () => modalController.current?.abort()
+  }, [userId])
+
+  const requestIds = (owner === userId ? rows : []).flatMap(row => row.seerrRequestId ? [row.seerrRequestId] : []).join(',')
+  useEffect(() => {
+    if (!requestIds || loading) return
+    const controller = new AbortController()
+    void apiFetch('/api/seerr/requests/status/batch', {
+      method: 'POST', signal: controller.signal, headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requestIds: [...new Set(requestIds.split(',').map(Number))] }),
+    }).then(async response => {
+      if (!response.ok) return
+      const data = await response.json() as { statuses: Record<string, SeerrLive> }
+      if (!controller.signal.aborted) setRows(previous => previous.map(row => ({ ...row, seerrLive: row.seerrRequestId ? data.statuses[row.seerrRequestId] ?? row.seerrLive : row.seerrLive })))
+    }).catch(() => {})
+    return () => controller.abort()
+  }, [requestIds, loading, page, rowsPerPage, sourceFilter, userId])
+
 
   useEffect(() => {
     if (total === 0) return
@@ -141,12 +175,15 @@ export function MyRequestsPage() {
   }, [total, rowsPerPage, page])
 
   const openTmdbModal = (r: DiscoveryRequestRow) => {
+    modalController.current?.abort()
+    const controller = new AbortController()
+    modalController.current = controller
     setTmdbModalOpen(true)
     setTmdbModalLoading(true)
     setTmdbModalError(null)
     setTmdbModalData(null)
     const path = r.mediaType === 'movie' ? 'movie' : 'tv'
-    void fetch(`/api/discover/tmdb/${path}/${r.tmdbId}`, { credentials: 'include' })
+    void apiFetch(`/api/discover/tmdb/${path}/${r.tmdbId}`, { signal: controller.signal })
       .then(async (res) => {
         if (!res.ok) {
           const j = (await res.json().catch(() => ({}))) as { error?: string }
@@ -154,14 +191,16 @@ export function MyRequestsPage() {
         }
         return res.json() as Promise<TmdbExternalDetailPayload>
       })
-      .then((payload) => setTmdbModalData(payload))
+      .then((payload) => { if (!controller.signal.aborted) setTmdbModalData(payload) })
       .catch((e: unknown) => {
+        if (controller.signal.aborted) return
         setTmdbModalError(e instanceof Error ? e.message : t('myRequests.errorLoadDetails'))
       })
-      .finally(() => setTmdbModalLoading(false))
+      .finally(() => { if (!controller.signal.aborted) setTmdbModalLoading(false) })
   }
 
   const closeTmdbModal = () => {
+    modalController.current?.abort()
     setTmdbModalOpen(false)
     setTmdbModalError(null)
     setTmdbModalData(null)
@@ -211,7 +250,7 @@ export function MyRequestsPage() {
       )}
 
       <Paper variant="outlined" sx={{ borderRadius: 2 }}>
-        {loading ? (
+        {loading || owner !== userId ? (
           <Box display="flex" justifyContent="center" py={6}>
             <CircularProgress />
           </Box>
@@ -316,7 +355,7 @@ export function MyRequestsPage() {
             </Table>
           </TableContainer>
         )}
-        {!loading && total > 0 && (
+        {!loading && owner === userId && total > 0 && (
           <TablePagination
             component="div"
             count={total}

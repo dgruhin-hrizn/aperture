@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/api'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Alert, Box, Button, Card, CardContent, Grid, LinearProgress, Skeleton, Stack, Typography } from '@mui/material'
@@ -96,7 +97,8 @@ export function TonightPage() {
   useEffect(() => {
     if (!userId) return
     const controller = new AbortController()
-    fetch('/api/recommendations/me/tonight', { credentials: 'include', signal: controller.signal })
+    setData(null); setFailed(false)
+    apiFetch('/api/recommendations/me/tonight', { credentials: 'include', signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error('Tonight unavailable')
         const result: TonightResponse = await response.json()

@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import { apiFetch } from '../lib/api'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { useNavigate } from 'react-router-dom'
@@ -137,6 +138,11 @@ export function MyRecommendationsPage() {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const { user } = useAuth()
+  const userId = user?.id
+  const userRef = useRef(userId)
+  userRef.current = userId
+  const translate = useRef(t)
+  translate.current = t
   const { getRating, setRating } = useUserRatings()
   const { isWatching, toggleWatching } = useWatching()
   
@@ -177,50 +183,57 @@ export function MyRecommendationsPage() {
     title: string | null
   }>({ open: false, watchUrl: null, title: null })
 
-  const fetchMovieRecommendations = useCallback(async () => {
-    if (!user) return
+  const fetchMovieRecommendations = useCallback(async (signal?: AbortSignal) => {
+    if (!userId) return
 
     try {
-      const response = await fetch(`/api/recommendations/${user.id}`, { credentials: 'include' })
+      const response = await apiFetch(`/api/recommendations/${userId}`, { credentials: 'include', signal })
       if (response.ok) {
         const data = await response.json()
+        if (signal?.aborted || userRef.current !== userId) return
         setMovieRecommendations(data.recommendations || [])
         setMovieRunInfo(data.run)
         setMovieError(null)
       } else {
-        setMovieError(t('myRecommendations.errorLoadMovies'))
+        setMovieError(translate.current('myRecommendations.errorLoadMovies'))
       }
     } catch {
-      setMovieError(t('myRecommendations.errorConnect'))
+      if (signal?.aborted || userRef.current !== userId) return
+      setMovieError(translate.current('myRecommendations.errorConnect'))
     } finally {
       setMovieLoading(false)
     }
-  }, [user, t])
+  }, [userId])
 
-  const fetchSeriesRecommendations = useCallback(async () => {
-    if (!user) return
+  const fetchSeriesRecommendations = useCallback(async (signal?: AbortSignal) => {
+    if (!userId) return
 
     try {
-      const response = await fetch(`/api/recommendations/${user.id}/series`, { credentials: 'include' })
+      const response = await apiFetch(`/api/recommendations/${userId}/series`, { credentials: 'include', signal })
       if (response.ok) {
         const data = await response.json()
+        if (signal?.aborted || userRef.current !== userId) return
         setSeriesRecommendations(data.recommendations || [])
         setSeriesRunInfo(data.run)
         setSeriesError(null)
       } else {
-        setSeriesError(t('myRecommendations.errorLoadSeries'))
+        setSeriesError(translate.current('myRecommendations.errorLoadSeries'))
       }
     } catch {
-      setSeriesError(t('myRecommendations.errorConnect'))
+      if (signal?.aborted || userRef.current !== userId) return
+      setSeriesError(translate.current('myRecommendations.errorConnect'))
     } finally {
       setSeriesLoading(false)
     }
-  }, [user, t])
+  }, [userId])
 
   useEffect(() => {
-    fetchMovieRecommendations()
-    fetchSeriesRecommendations()
-  }, [fetchMovieRecommendations, fetchSeriesRecommendations])
+    const controller = new AbortController()
+    if (mediaType === 'movies') { setMovieLoading(true); void fetchMovieRecommendations(controller.signal) }
+    else { setSeriesLoading(true); void fetchSeriesRecommendations(controller.signal) }
+    return () => controller.abort()
+  }, [mediaType, fetchMovieRecommendations, fetchSeriesRecommendations])
+  useEffect(() => { setMovieRecommendations([]); setSeriesRecommendations([]); setMovieRunInfo(null); setSeriesRunInfo(null) }, [userId])
 
   const handleRegenerate = async () => {
     if (!user || regenerating) return

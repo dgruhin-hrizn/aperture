@@ -1,3 +1,4 @@
+import { loadUserPreferences } from '../hooks/userPreferences'
 import { isRtlLocale } from './localeDirection'
 import i18n from './config'
 
@@ -17,11 +18,9 @@ export async function applyEffectiveUiLanguage(lng: string): Promise<void> {
  * Loads the signed-in user's effective UI language from the API and applies it.
  * Call after login and whenever server-side language preferences may have changed.
  */
-export async function syncUiLanguageFromServer(): Promise<string | null> {
+export async function syncUiLanguageFromServer(userId?: string): Promise<string | null> {
   try {
-    const res = await fetch('/api/auth/me/preferences', { credentials: 'include' })
-    if (!res.ok) return null
-    const prefs = (await res.json()) as { effectiveUiLanguage?: string }
+    const prefs = userId ? await loadUserPreferences(userId, new AbortController().signal) : await fetch('/api/auth/me/preferences', { credentials: 'include', signal: AbortSignal.timeout(15000) }).then(async response => response.ok ? response.json() : {})
     const lng = prefs.effectiveUiLanguage
     if (lng && typeof lng === 'string') {
       await applyEffectiveUiLanguage(lng)

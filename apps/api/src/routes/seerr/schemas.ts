@@ -309,6 +309,7 @@ export const getRequestsSchema = {
       limit: { type: 'string', description: 'Page size (max 100)', default: '25', example: '25' },
       offset: { type: 'string', description: 'Rows to skip for pagination', default: '0', example: '0' },
       source: { type: 'string', enum: ['discovery', 'gap_analysis'], description: 'Filter by origin (Discovery vs Gap Analysis)' },
+      includeLive: { type: 'string', enum: ['true', 'false'], description: 'Return saved rows without optional Seerr enrichment when false' },
     },
   },
 }
