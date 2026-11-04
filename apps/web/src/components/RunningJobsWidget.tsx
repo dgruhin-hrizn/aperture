@@ -1,5 +1,5 @@
-import { cachedResource } from '../hooks/cachedResource'
-import React, { useState, useEffect, useCallback } from 'react'
+import { useActiveJobs } from '../hooks/useActiveJobs'
+import React, { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Box,
@@ -15,23 +15,6 @@ import {
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorIcon from '@mui/icons-material/Error'
 import { useAuth } from '@/hooks/useAuth'
-
-interface JobProgress {
-  jobId: string
-  jobName: string
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
-  startedAt: string
-  completedAt?: string
-  currentStep: string
-  currentStepIndex: number
-  totalSteps: number
-  stepProgress: number
-  overallProgress: number
-  itemsProcessed: number
-  itemsTotal: number
-  currentItem?: string
-  error?: string
-}
 
 function prettifyJobName(jobName: string): string {
   return jobName.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
@@ -54,7 +37,7 @@ function formatDuration(startedAt: string): string {
 export function RunningJobsWidget() {
   const { t } = useTranslation()
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
-  const [jobs, setJobs] = useState<JobProgress[]>([])
+  const jobs = useActiveJobs()
   const { user } = useAuth()
 
   const getJobDisplayName = useCallback(
@@ -78,48 +61,6 @@ export function RunningJobsWidget() {
     [t]
   )
   const open = Boolean(anchorEl)
-  const userId = user?.id
-  const isAdmin = user?.isAdmin
-  useEffect(() => {
-    if (!userId || !isAdmin) { setJobs([]); return }
-    let disposed = false
-    let timer: ReturnType<typeof setTimeout> | undefined
-    let controller: AbortController | undefined
-    let version = 0
-    const poll = async () => {
-      if (disposed || document.visibilityState === 'hidden') return
-      const requestVersion = ++version
-      const current = new AbortController()
-      controller = current
-      let running = false
-      try {
-        const data = await cachedResource<{ jobs?: JobProgress[] }>(userId, '/api/jobs/active', current.signal, 1000)
-        if (current.signal.aborted || disposed || requestVersion !== version) return
-        setJobs(data.jobs || [])
-        running = (data.jobs || []).some(job => job.status === 'running')
-      } catch { /* Keep the previous status on transient errors. */ }
-      finally {
-        if (!disposed && !current.signal.aborted && requestVersion === version) timer = setTimeout(() => void poll(), running ? 2000 : 60_000)
-      }
-    }
-    const visibility = () => {
-      version++
-      clearTimeout(timer)
-      controller?.abort()
-      if (document.visibilityState !== 'hidden') void poll()
-    }
-    void poll()
-    document.addEventListener('visibilitychange', visibility)
-    window.addEventListener('aperture:jobs-changed', visibility)
-    return () => {
-      disposed = true
-      clearTimeout(timer)
-      controller?.abort()
-      document.removeEventListener('visibilitychange', visibility)
-      window.removeEventListener('aperture:jobs-changed', visibility)
-    }
-  }, [userId, isAdmin])
-
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(anchorEl ? null : event.currentTarget)
   }

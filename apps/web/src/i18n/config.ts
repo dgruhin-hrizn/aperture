@@ -3,44 +3,51 @@ import { initReactI18next } from 'react-i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
 
 import en from './locales/en/translation.json'
-import es from './locales/es/translation.json'
-import de from './locales/de/translation.json'
-import fr from './locales/fr/translation.json'
-import it from './locales/it/translation.json'
-import pt from './locales/pt/translation.json'
-import nl from './locales/nl/translation.json'
-import ru from './locales/ru/translation.json'
-import ja from './locales/ja/translation.json'
-import zh from './locales/zh/translation.json'
-import ko from './locales/ko/translation.json'
-import hi from './locales/hi/translation.json'
-import ar from './locales/ar/translation.json'
-import he from './locales/he/translation.json'
+import type { BackendModule } from 'i18next'
+
+const localeLoaders = {
+  es: () => import('./locales/es/translation.json'),
+  de: () => import('./locales/de/translation.json'),
+  fr: () => import('./locales/fr/translation.json'),
+  it: () => import('./locales/it/translation.json'),
+  pt: () => import('./locales/pt/translation.json'),
+  nl: () => import('./locales/nl/translation.json'),
+  ru: () => import('./locales/ru/translation.json'),
+  ja: () => import('./locales/ja/translation.json'),
+  zh: () => import('./locales/zh/translation.json'),
+  ko: () => import('./locales/ko/translation.json'),
+  hi: () => import('./locales/hi/translation.json'),
+  ar: () => import('./locales/ar/translation.json'),
+  he: () => import('./locales/he/translation.json'),
+}
+const localeBackend: BackendModule = {
+  type: 'backend',
+  init() {},
+  read(language, _namespace, callback) {
+    const code = language.split('-')[0] as keyof typeof localeLoaders
+    const loader = localeLoaders[code]
+    if (!loader) {
+      callback(null, {})
+      return
+    }
+    void loader()
+      .then((module) => callback(null, module.default))
+      .catch((error) => callback(error, null))
+  },
+}
+
 import { isRtlLocale } from './localeDirection'
 
 const i18nInit = i18n
   .use(LanguageDetector)
+  .use(localeBackend)
   .use(initReactI18next)
   .init({
     react: {
       useSuspense: false,
     },
-    resources: {
-      en: { translation: en },
-      es: { translation: es },
-      de: { translation: de },
-      fr: { translation: fr },
-      it: { translation: it },
-      pt: { translation: pt },
-      nl: { translation: nl },
-      ru: { translation: ru },
-      ja: { translation: ja },
-      zh: { translation: zh },
-      ko: { translation: ko },
-      hi: { translation: hi },
-      ar: { translation: ar },
-      he: { translation: he },
-    },
+    partialBundledLanguages: true,
+    resources: { en: { translation: en } },
     fallbackLng: 'en',
     supportedLngs: [
       'en',

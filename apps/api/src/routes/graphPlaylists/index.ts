@@ -8,6 +8,7 @@ import {
   getGraphPlaylist,
   deleteGraphPlaylist,
   getGraphPlaylistItems,
+  getGraphPlaylistPreview,
 } from '@aperture/core'
 import { graphPlaylistsSchemas } from './schemas.js'
 
@@ -195,6 +196,13 @@ const graphPlaylistRoutes: FastifyPluginAsync = async (fastify) => {
       }
     }
   )
+
+  fastify.get<{ Params: { id: string } }>('/api/graph-playlists/:id/preview', { preHandler: requireAuth }, async (request, reply) => {
+    const playlist = await getGraphPlaylist(request.params.id)
+    if (!playlist) return reply.code(404).send({ error: 'Playlist not found' })
+    if (playlist.ownerId !== request.user!.id) return reply.code(403).send({ error: 'Forbidden' })
+    return getGraphPlaylistPreview(playlist.id, request.user!.id)
+  })
 
   /**
    * GET /api/graph-playlists/:id/items

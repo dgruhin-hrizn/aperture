@@ -23,11 +23,18 @@ import { browseTabFromSearchParam } from './browse/constants'
 import { BrowseMoviesTab } from './browse/BrowseMoviesTab'
 import { BrowsePeopleTab } from './browse/BrowsePeopleTab'
 import { BrowseSeriesTab } from './browse/BrowseSeriesTab'
-import { useBrowseFilterPresets, useBrowseMovies, useBrowsePeople, useBrowseSeries } from './browse/hooks'
+import {
+  useBrowseFilterPresets,
+  useBrowseMovies,
+  useBrowsePeople,
+  useBrowseSeries,
+} from './browse/hooks'
+import { useUserPreferences } from '../hooks/userPreferences'
 import { useViewMode } from '../hooks/useViewMode'
 
 export function BrowsePage() {
   const { t } = useTranslation()
+  const preferences = useUserPreferences()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [searchParams, setSearchParams] = useSearchParams()
@@ -50,8 +57,24 @@ export function BrowsePage() {
     void presetsRef.current?.persistSortPreferences('series', sortBy, sortOrder)
   }, [])
 
-  const movies = useBrowseMovies({ tabIndex, persistSortPreferences: persistMovieSort })
-  const series = useBrowseSeries({ tabIndex, persistSortPreferences: persistSeriesSort })
+  const savedSort = preferences.data?.browseSort as
+    | {
+        movies?: { sortBy?: SortField; sortOrder?: SortOrder }
+        series?: { sortBy?: SortField; sortOrder?: SortOrder }
+      }
+    | undefined
+  const movies = useBrowseMovies({
+    tabIndex,
+    ready: !preferences.loading,
+    initialSort: savedSort?.movies,
+    persistSortPreferences: persistMovieSort,
+  })
+  const series = useBrowseSeries({
+    tabIndex,
+    ready: !preferences.loading,
+    initialSort: savedSort?.series,
+    persistSortPreferences: persistSeriesSort,
+  })
   const people = useBrowsePeople({ tabIndex, initialTabIsPeople: initialTabIndex === 2 })
   const presets = useBrowseFilterPresets({
     setMovieSortBy: movies.setMovieSortBy,
@@ -112,7 +135,12 @@ export function BrowsePage() {
           )}
         </Box>
 
-        <ToggleButtonGroup value={currentViewMode} exclusive onChange={handleViewModeChange} size="small">
+        <ToggleButtonGroup
+          value={currentViewMode}
+          exclusive
+          onChange={handleViewModeChange}
+          size="small"
+        >
           <ToggleButton value="grid">
             <GridViewIcon fontSize="small" />
           </ToggleButton>

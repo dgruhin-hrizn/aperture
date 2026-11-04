@@ -789,6 +789,7 @@ export {
   getGraphPlaylist,
   deleteGraphPlaylist,
   getGraphPlaylistItems,
+  getGraphPlaylistPreview,
   // Types
   type GraphPlaylist,
   type CreateGraphPlaylistInput,
@@ -813,6 +814,7 @@ export {
   createRequest as createSeerrRequest,
   getRequest as getSeerrRequest,
   getRequestStatus as getSeerrRequestStatus,
+  batchGetRequestStatus as batchGetSeerrRequestStatus,
   deleteRequest as deleteSeerrRequest,
   // Batch Operations
   batchGetMediaStatus as batchGetSeerrMediaStatus,

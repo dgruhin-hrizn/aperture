@@ -1,3 +1,4 @@
+import { apiFetch } from '../../lib/api'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
@@ -108,18 +109,22 @@ export function TopPicksMediaPage({ mediaType }: TopPicksMediaPageProps) {
   )
 
   useEffect(() => {
+    const controller = new AbortController()
+    setLoading(true)
     const fetchTopPicks = async () => {
       try {
-        const response = await fetch(`/api/top-picks/${isMovie ? 'movies' : 'series'}`, {
-          credentials: 'include',
+        const response = await apiFetch(`/api/top-picks/${isMovie ? 'movies' : 'series'}`, {
+          credentials: 'include', signal: controller.signal,
         })
         if (response.ok) {
           if (isMovie) {
             const data = await response.json() as TopPicksMovieResponse
+            if (controller.signal.aborted) return
             setItems(data.movies.map((movie) => ({ ...movie, mediaType: 'movie', id: movie.movieId })))
             setConfig(data.config)
           } else {
             const data = await response.json() as TopPicksSeriesResponse
+            if (controller.signal.aborted) return
             setItems(data.series.map((show) => ({ ...show, mediaType: 'series', id: show.seriesId })))
             setConfig(data.config)
           }
@@ -128,13 +133,15 @@ export function TopPicksMediaPage({ mediaType }: TopPicksMediaPageProps) {
           setError(t(isMovie ? 'topPicksPage.errorLoadMovies' : 'topPicksPage.errorLoadSeries'))
         }
       } catch {
+        if (controller.signal.aborted) return
         setError(t('topPicksPage.errorConnect'))
       } finally {
-        setLoading(false)
+        if (!controller.signal.aborted) setLoading(false)
       }
     }
 
     void fetchTopPicks()
+    return () => controller.abort()
   }, [isMovie, t])
 
   if (loading) {

@@ -1,3 +1,5 @@
+import { useAuth } from './useAuth'
+import { apiFetch, apiJson } from '../lib/api'
 /**
  * WatchingProvider
  *
@@ -12,205 +14,252 @@ import {
   type WatchingSeries,
 } from './watching-context'
 
-const CACHE_KEY = 'aperture_watching_cache'
+const CACHE_KEY = 'aperture_watching_v2:'
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 1 day in milliseconds
 
 interface CachedData {
+  userId: string
   series: WatchingSeries[]
   timestamp: number
   version: number // For cache invalidation on schema changes
 }
 
-const CACHE_VERSION = 1
+const CACHE_VERSION = 2
 
 interface WatchingProviderProps {
   children: ReactNode
 }
 
-function getCache(): CachedData | null {
+function getCache(userId: string): CachedData | null {
   try {
-    const cached = localStorage.getItem(CACHE_KEY)
+    const cached = localStorage.getItem(CACHE_KEY + userId)
     if (!cached) return null
 
     const data: CachedData = JSON.parse(cached)
 
     // Check version
-    if (data.version !== CACHE_VERSION) {
-      localStorage.removeItem(CACHE_KEY)
+    if (data.version !== CACHE_VERSION || data.userId !== userId) {
+      localStorage.removeItem(CACHE_KEY + userId)
       return null
     }
 
     // Check TTL
     const age = Date.now() - data.timestamp
     if (age > CACHE_TTL_MS) {
-      localStorage.removeItem(CACHE_KEY)
+      localStorage.removeItem(CACHE_KEY + userId)
       return null
     }
 
     return data
   } catch {
-    localStorage.removeItem(CACHE_KEY)
     return null
   }
 }
 
-function setCache(series: WatchingSeries[]): void {
+function setCache(userId: string, series: WatchingSeries[]): void {
   try {
     const data: CachedData = {
+      userId,
       series,
       timestamp: Date.now(),
       version: CACHE_VERSION,
     }
-    localStorage.setItem(CACHE_KEY, JSON.stringify(data))
+    localStorage.setItem(CACHE_KEY + userId, JSON.stringify(data))
   } catch (err) {
     console.warn('Failed to cache watching data:', err)
   }
 }
 
-function clearCache(): void {
+function clearCache(userId: string): void {
   try {
-    localStorage.removeItem(CACHE_KEY)
+    localStorage.removeItem(CACHE_KEY + userId)
   } catch {
     // Ignore errors
   }
 }
 
 export function WatchingProvider({ children }: WatchingProviderProps) {
+  const { user } = useAuth()
+  const userId = user?.id
+  const activeUser = useRef(userId)
+  activeUser.current = userId
+  const [owner, setOwner] = useState<string | undefined>()
+  const loadController = useRef<AbortController | null>(null)
   const [series, setSeries] = useState<WatchingSeries[]>([])
   const [watchingIds, setWatchingIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
-  const fetchedRef = useRef(false)
 
-  // Fetch full watching data
-  const fetchWatchingData = useCallback(async (useCache = true) => {
-    // Check cache first
-    if (useCache) {
-      const cached = getCache()
-      if (cached) {
-        setSeries(cached.series)
-        setWatchingIds(new Set(cached.series.map(s => s.seriesId)))
-        setLoading(false)
-        return
+  const fetchWatchingData = useCallback(
+    async (useCache = true) => {
+      if (!userId) return
+      loadController.current?.abort()
+      const controller = new AbortController()
+      loadController.current = controller
+      const current = () => !controller.signal.aborted && activeUser.current === userId
+      setLoading(true)
+      try {
+        const cached = useCache ? getCache(userId) : null
+        let rows: WatchingSeries[] | undefined
+        if (cached) {
+          const membership = await apiJson<{ seriesIds: string[] }>(
+            '/api/watching/ids',
+            controller.signal
+          )
+          if (
+            membership.seriesIds.length === cached.series.length &&
+            membership.seriesIds.every((id) => cached.series.some((s) => s.seriesId === id))
+          )
+            rows = cached.series
+        }
+        if (!rows)
+          rows = (await apiJson<{ series: WatchingSeries[] }>('/api/watching', controller.signal))
+            .series
+        if (!current()) return
+        setOwner(userId)
+        setSeries(rows)
+        setWatchingIds(new Set(rows.map((s) => s.seriesId)))
+        setError(null)
+        if (!cached || rows !== cached.series) setCache(userId, rows)
+      } catch (err) {
+        if (current()) {
+          clearCache(userId)
+          setOwner(userId)
+          setSeries([])
+          setWatchingIds(new Set())
+          setError(err instanceof Error ? err.message : 'Could not load watching list')
+        }
+      } finally {
+        if (current()) setLoading(false)
       }
-    }
+    },
+    [userId]
+  )
 
-    try {
-      const response = await fetch('/api/watching', { credentials: 'include' })
-      if (!response.ok) {
-        throw new Error('Failed to load watching list')
-      }
-      const data = await response.json()
-      setSeries(data.series)
-      setWatchingIds(new Set(data.series.map((s: WatchingSeries) => s.seriesId)))
-      setError(null)
-
-      // Cache the result
-      setCache(data.series)
-    } catch (err) {
-      console.error('Failed to fetch watching data:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load watching list')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  // Initial fetch on mount
   useEffect(() => {
-    if (!fetchedRef.current) {
-      fetchedRef.current = true
-      fetchWatchingData(true)
-    }
-  }, [fetchWatchingData])
-
-  const isWatching = useCallback((seriesId: string) => {
-    return watchingIds.has(seriesId)
-  }, [watchingIds])
-
-  const addToWatching = useCallback(async (seriesId: string) => {
-    // Optimistic update for IDs
-    setWatchingIds((prev) => new Set([...prev, seriesId]))
-
+    // Legacy cache has no owner and must never seed a signed-in user's state.
     try {
-      const response = await fetch(`/api/watching/${seriesId}`, {
-        method: 'POST',
-        credentials: 'include',
-      })
+      localStorage.removeItem('aperture_watching_cache')
+    } catch {
+      /* storage may be disabled */
+    }
+    setSeries([])
+    setWatchingIds(new Set())
+    setOwner(undefined)
+    setError(null)
+    setRefreshing(false)
+    void fetchWatchingData(true)
+    return () => loadController.current?.abort()
+  }, [fetchWatchingData, userId])
 
-      if (!response.ok) {
-        // Revert on failure
-        setWatchingIds((prev) => {
-          const next = new Set(prev)
-          next.delete(seriesId)
-          return next
+  const isWatching = useCallback(
+    (seriesId: string) => {
+      return owner === userId && watchingIds.has(seriesId)
+    },
+    [watchingIds, owner, userId]
+  )
+
+  const addToWatching = useCallback(
+    async (seriesId: string) => {
+      if (!userId) return
+      // Optimistic update for IDs
+      setWatchingIds((prev) => new Set([...prev, seriesId]))
+
+      try {
+        const response = await apiFetch(`/api/watching/${seriesId}`, {
+          method: 'POST',
+          credentials: 'include',
         })
-        throw new Error('Failed to add to watching list')
-      }
 
-      // Clear cache and refetch to get enriched data for the new series
-      clearCache()
-      await fetchWatchingData(false)
-    } catch (err) {
-      console.error('Failed to add to watching:', err)
-      throw err
-    }
-  }, [fetchWatchingData])
+        if (activeUser.current !== userId) return
+        if (!response.ok) {
+          // Revert on failure
+          setWatchingIds((prev) => {
+            const next = new Set(prev)
+            next.delete(seriesId)
+            return next
+          })
+          throw new Error('Failed to add to watching list')
+        }
 
-  const removeFromWatching = useCallback(async (seriesId: string) => {
-    // Optimistic update
-    setWatchingIds((prev) => {
-      const next = new Set(prev)
-      next.delete(seriesId)
-      return next
-    })
-    setSeries((prev) => prev.filter((s) => s.seriesId !== seriesId))
-
-    try {
-      const response = await fetch(`/api/watching/${seriesId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      })
-
-      if (!response.ok) {
-        // Revert on failure
-        setWatchingIds((prev) => new Set([...prev, seriesId]))
+        // Clear cache and refetch to get enriched data for the new series
+        clearCache(userId)
         await fetchWatchingData(false)
-        throw new Error('Failed to remove from watching list')
+      } catch (err) {
+        console.error('Failed to add to watching:', err)
+        throw err
       }
+    },
+    [fetchWatchingData, userId]
+  )
 
-      // Update cache with new series list
-      setSeries((current) => {
-        setCache(current)
-        return current
+  const removeFromWatching = useCallback(
+    async (seriesId: string) => {
+      if (!userId) return
+      // Optimistic update
+      setWatchingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(seriesId)
+        return next
       })
-    } catch (err) {
-      console.error('Failed to remove from watching:', err)
-      throw err
-    }
-  }, [fetchWatchingData])
+      setSeries((prev) => prev.filter((s) => s.seriesId !== seriesId))
 
-  const toggleWatching = useCallback(async (seriesId: string) => {
-    if (watchingIds.has(seriesId)) {
-      await removeFromWatching(seriesId)
-    } else {
-      await addToWatching(seriesId)
-    }
-  }, [watchingIds, addToWatching, removeFromWatching])
+      try {
+        const response = await apiFetch(`/api/watching/${seriesId}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        })
+
+        if (activeUser.current !== userId) return
+        if (!response.ok) {
+          // Revert on failure
+          setWatchingIds((prev) => new Set([...prev, seriesId]))
+          await fetchWatchingData(false)
+          throw new Error('Failed to remove from watching list')
+        }
+
+        // Update cache with new series list
+        setSeries((current) => {
+          setCache(userId, current)
+          return current
+        })
+      } catch (err) {
+        console.error('Failed to remove from watching:', err)
+        throw err
+      }
+    },
+    [fetchWatchingData, userId]
+  )
+
+  const toggleWatching = useCallback(
+    async (seriesId: string) => {
+      if (watchingIds.has(seriesId)) {
+        await removeFromWatching(seriesId)
+      } else {
+        await addToWatching(seriesId)
+      }
+    },
+    [watchingIds, addToWatching, removeFromWatching]
+  )
 
   const refresh = useCallback(async () => {
     setLoading(true)
-    clearCache()
+    if (userId) clearCache(userId)
     await fetchWatchingData(false)
-  }, [fetchWatchingData])
+  }, [fetchWatchingData, userId])
 
   const refreshLibrary = useCallback(async () => {
     setRefreshing(true)
     try {
-      const response = await fetch('/api/watching/refresh', {
-        method: 'POST',
-        credentials: 'include',
-      })
+      const response = await apiFetch(
+        '/api/watching/refresh',
+        {
+          method: 'POST',
+          credentials: 'include',
+        },
+        120_000
+      )
 
       if (!response.ok) {
         throw new Error('Failed to refresh library')
@@ -227,10 +276,10 @@ export function WatchingProvider({ children }: WatchingProviderProps) {
   }, [])
 
   const value = {
-    watchingIds,
-    series,
-    loading,
-    error,
+    watchingIds: owner === userId ? watchingIds : new Set<string>(),
+    series: owner === userId ? series : [],
+    loading: Boolean(userId && (loading || owner !== userId)),
+    error: owner === userId ? error : null,
     refreshing,
     isWatching,
     addToWatching,
@@ -240,9 +289,5 @@ export function WatchingProvider({ children }: WatchingProviderProps) {
     refreshLibrary,
   }
 
-  return (
-    <WatchingContext.Provider value={value}>
-      {children}
-    </WatchingContext.Provider>
-  )
+  return <WatchingContext.Provider value={value}>{children}</WatchingContext.Provider>
 }

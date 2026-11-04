@@ -1,4 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import { useUserPreferences, saveUserPreferences } from '../../hooks/userPreferences'
+import { apiJson } from '../../lib/api'
+import { useRef } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   Box,
   Typography,
@@ -24,6 +27,9 @@ type LocaleRow = { code: string; label: string }
  */
 export function UserLanguagePreferencesCard() {
   const { t } = useTranslation()
+  const shared = useUserPreferences()
+  const translate = useRef(t)
+  translate.current = t
   const [locales, setLocales] = useState<LocaleRow[]>([])
   const [uiOverride, setUiOverride] = useState<string>('')
   const [aiOverride, setAiOverride] = useState<string>('')
@@ -36,72 +42,39 @@ export function UserLanguagePreferencesCard() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const [locRes, prefRes, defRes] = await Promise.all([
-        fetch('/api/settings/locales', { credentials: 'include' }),
-        fetch('/api/auth/me/preferences', { credentials: 'include' }),
-        fetch('/api/settings/language-defaults', { credentials: 'include' }),
-      ])
-      if (locRes.ok) {
-        const data = await locRes.json()
-        setLocales(data.locales || [])
-      }
-      if (defRes.ok) {
-        const data = await defRes.json()
-        setSystemUi(data.defaultUiLanguage || 'en')
-        setSystemAi(data.defaultAiLanguage || 'en')
-      }
-      if (prefRes.ok) {
-        const data = await prefRes.json()
-        setUiOverride(data.uiLanguage ?? '')
-        setAiOverride(data.aiLanguage ?? '')
-        setEffectiveUi(data.effectiveUiLanguage || 'en')
-        setEffectiveAi(data.effectiveAiLanguage || 'en')
-      } else {
-        const err = await prefRes.json().catch(() => ({}))
-        setError((err as { error?: string }).error || t('userSettings.errLoadUserSettings'))
-      }
-    } catch {
-      setError(t('language.loadLanguageSettingsFailed'))
-    } finally {
-      setLoading(false)
-    }
-  }, [t])
-
+  const { uiLanguage, aiLanguage, effectiveUiLanguage, effectiveAiLanguage } = shared.data ?? {}
   useEffect(() => {
-    void load()
-  }, [load])
+    setUiOverride(uiLanguage ?? '')
+    setAiOverride(aiLanguage ?? '')
+    setEffectiveUi(effectiveUiLanguage || 'en')
+    setEffectiveAi(effectiveAiLanguage || 'en')
+  }, [uiLanguage, aiLanguage, effectiveUiLanguage, effectiveAiLanguage, shared.userId])
+  useEffect(() => {
+    const controller = new AbortController()
+    setLoading(true)
+    void Promise.all([
+      apiJson<{ locales: LocaleRow[] }>('/api/settings/locales', controller.signal),
+      apiJson<{ defaultUiLanguage: string; defaultAiLanguage: string }>('/api/settings/language-defaults', controller.signal),
+    ]).then(([locales, defaults]) => {
+      if (controller.signal.aborted) return
+      setLocales(locales.locales || []); setSystemUi(defaults.defaultUiLanguage || 'en'); setSystemAi(defaults.defaultAiLanguage || 'en')
+    }).catch(() => { if (!controller.signal.aborted) setError(translate.current('language.loadLanguageSettingsFailed')) })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false) })
+    return () => controller.abort()
+  }, [shared.userId])
 
   const save = async () => {
     setSaving(true)
     setError(null)
     setSuccess(null)
     try {
-      const response = await fetch('/api/auth/me/preferences', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          uiLanguage: uiOverride || null,
-          aiLanguage: aiOverride || null,
-        }),
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setUiOverride(data.uiLanguage ?? '')
-        setAiOverride(data.aiLanguage ?? '')
-        setEffectiveUi(data.effectiveUiLanguage || 'en')
-        setEffectiveAi(data.effectiveAiLanguage || 'en')
-        await syncUiLanguageFromServer()
-        setSuccess(i18n.t('language.saved'))
-        setTimeout(() => setSuccess(null), 4000)
-      } else {
-        const err = await response.json().catch(() => ({}))
-        setError((err as { error?: string }).error || t('userSettings.errSaveSettings'))
-      }
+      if (!shared.userId) return
+      const data = await saveUserPreferences(shared.userId, { uiLanguage: uiOverride || null, aiLanguage: aiOverride || null })
+      setUiOverride(data.uiLanguage ?? ''); setAiOverride(data.aiLanguage ?? '')
+      setEffectiveUi(data.effectiveUiLanguage || 'en'); setEffectiveAi(data.effectiveAiLanguage || 'en')
+      await syncUiLanguageFromServer(shared.userId)
+      setSuccess(i18n.t('language.saved'))
+      setTimeout(() => setSuccess(null), 4000)
     } catch {
       setError(t('userSettings.errConnectServer'))
     } finally {

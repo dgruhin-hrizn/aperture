@@ -1,3 +1,4 @@
+import { apiFetch } from '../../../lib/api'
 import { useState, useEffect, useCallback } from 'react'
 
 interface DashboardStats {
@@ -65,13 +66,14 @@ export function useDashboardData() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchDashboard = useCallback(async () => {
+  const fetchDashboard = useCallback(async (signal?: AbortSignal) => {
     try {
       setLoading(true)
       setError(null)
 
-      const response = await fetch('/api/dashboard', {
+      const response = await apiFetch('/api/dashboard', {
         credentials: 'include',
+        signal,
       })
 
       if (!response.ok) {
@@ -79,25 +81,26 @@ export function useDashboardData() {
       }
 
       const dashboardData = await response.json()
-      setData(dashboardData)
+      if (!signal?.aborted) setData(dashboardData)
     } catch (err) {
+      if (signal?.aborted) return
       console.error('Dashboard fetch error:', err)
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
-      setLoading(false)
+      if (!signal?.aborted) setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    fetchDashboard()
+    const controller = new AbortController()
+    void fetchDashboard(controller.signal)
+    return () => controller.abort()
   }, [fetchDashboard])
 
   return {
     data,
     loading,
     error,
-    refetch: fetchDashboard,
+    refetch: () => fetchDashboard(),
   }
 }
-
-

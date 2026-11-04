@@ -187,3 +187,7 @@ The page reads saved recommendations and current Emby playback state. It uses no
 
 
 Choose **Not tonight** to hide a pick from Tonight for 12 hours. Aperture fills the list with the next eligible saved pick when one is available. This action applies to your account and leaves your ratings, taste profile, and published Emby playlists alone.
+
+## Loading and performance
+
+See [UI loading and request efficiency](../ui-performance.md) for selected-tab loading, bounded requests, cache behavior and dev.11 correctness fixes. Existing settings and actions remain available.

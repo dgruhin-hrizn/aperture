@@ -1,3 +1,6 @@
+import { Suspense } from 'react'
+import { PageLoading } from './PageLoading'
+import { useUserPreferences, saveUserPreferences } from '../hooks/userPreferences'
 import React, { useState, useEffect } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
@@ -113,33 +116,15 @@ export function Layout() {
     return true
   })
 
-  // Fetch user's sidebar preference on mount; align i18n with effective UI language (single request)
+  const sharedPreferences = useUserPreferences()
+  // One shared per-user preference request for layout, appearance and view modes.
   useEffect(() => {
-    if (!releaseKey) return
-    const controller = new AbortController()
-    const fetchPreferences = async () => {
-      try {
-        const response = await fetch('/api/auth/me/preferences', { credentials: 'include', signal: controller.signal })
-        if (response.ok) {
-          const prefs = await response.json()
-          if (controller.signal.aborted) return
-          setReleaseNotice({ key: releaseKey, open: prefs[releasePreference] !== RELEASE_HIGHLIGHTS_VERSION })
-          if (prefs.sidebarCollapsed !== undefined) {
-            setCollapsed(prefs.sidebarCollapsed)
-          }
-          if (prefs.effectiveUiLanguage && typeof prefs.effectiveUiLanguage === 'string') {
-            await applyEffectiveUiLanguage(prefs.effectiveUiLanguage)
-          }
-          return
-        }
-      } catch {
-        // Other prompts can still appear if preferences are unavailable.
-      }
-      if (!controller.signal.aborted) setReleaseNotice({ key: releaseKey, open: false })
-    }
-    void fetchPreferences()
-    return () => controller.abort()
-  }, [releaseKey, releasePreference])
+    if (!releaseKey || sharedPreferences.loading) return
+    const prefs = sharedPreferences.data
+    setReleaseNotice({ key: releaseKey, open: Boolean(prefs && prefs[releasePreference] !== RELEASE_HIGHLIGHTS_VERSION) })
+    if (prefs?.sidebarCollapsed !== undefined) setCollapsed(prefs.sidebarCollapsed)
+    if (prefs?.effectiveUiLanguage && prefs.effectiveUiLanguage !== i18n.language) void applyEffectiveUiLanguage(prefs.effectiveUiLanguage)
+  }, [releaseKey, releasePreference, sharedPreferences.loading, sharedPreferences.data, i18n.language])
 
   // Fetch watching library config to check if feature is enabled
   useEffect(() => {
@@ -158,13 +143,8 @@ export function Layout() {
   }, [])
 
   const dismissRelease = async () => {
-    const response = await fetch('/api/auth/me/preferences', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ [releasePreference]: RELEASE_HIGHLIGHTS_VERSION }),
-    })
-    if (!response.ok) throw new Error('Could not save release dismissal')
+    if (!userId) return
+    await saveUserPreferences(userId, { [releasePreference]: RELEASE_HIGHLIGHTS_VERSION })
     setReleaseNotice((notice) => notice?.key === releaseKey ? { ...notice, open: false } : notice)
   }
 
@@ -178,12 +158,7 @@ export function Layout() {
 
     // Persist preference to server
     try {
-      await fetch('/api/auth/me/preferences', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ sidebarCollapsed: newCollapsed }),
-      })
+      if (userId) await saveUserPreferences(userId, { sidebarCollapsed: newCollapsed })
     } catch {
       // Ignore errors, state is already updated locally
     }
@@ -628,7 +603,7 @@ export function Layout() {
           }),
         }}
       >
-        <Outlet key={i18n.language} />
+        <Suspense fallback={<PageLoading />}><Outlet key={i18n.language} /></Suspense>
       </Box>
 
       {/* Welcome Modal - shows on first visit */}

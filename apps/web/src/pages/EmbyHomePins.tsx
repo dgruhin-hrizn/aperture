@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/api'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Alert, Button, Paper, Stack, Typography } from '@mui/material'
@@ -13,7 +14,7 @@ interface Shelf {
 const endpoint = '/api/recommendations/me/emby-home'
 
 async function getShelves(signal?: AbortSignal): Promise<Shelf[]> {
-  const response = await fetch(endpoint, { credentials: 'include', signal })
+  const response = await apiFetch(endpoint, { credentials: 'include', signal })
   const result = await response.json()
   if (!response.ok) throw new Error(result.error)
   return result.shelves
@@ -37,7 +38,7 @@ export function EmbyHomePins() {
     setSaving(true)
     setError(null)
     try {
-      const response = await fetch(`${endpoint}/${encodeURIComponent(shelf.playlistId)}`, {
+      const response = await apiFetch(`${endpoint}/${encodeURIComponent(shelf.playlistId)}`, {
         method: shelf.pinned ? 'DELETE' : 'PUT',
         credentials: 'include',
       })

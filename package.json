@@ -38,7 +38,8 @@
     "docker:psql": "docker compose exec db psql -U app -d aperture",
     "clean": "pnpm -r exec rm -rf dist node_modules && rm -rf node_modules",
     "prepare": "husky",
-    "test:discovery": "pnpm --filter @aperture/core build && LOG_LEVEL=silent apps/api/node_modules/.bin/tsx --test packages/core/src/lib/asyncCache.test.ts packages/core/src/seerr/provider.test.ts packages/core/src/discover/sources.test.ts apps/api/src/routes/discovery/index.test.ts apps/web/src/pages/discovery/hooks/discoveryRequests.test.ts apps/web/src/pages/discovery/hooks/discoveryHooks.test.ts"
+    "test:discovery": "pnpm --filter @aperture/core build && LOG_LEVEL=silent apps/api/node_modules/.bin/tsx --test packages/core/src/lib/asyncCache.test.ts packages/core/src/seerr/provider.test.ts packages/core/src/discover/sources.test.ts apps/api/src/routes/discovery/index.test.ts apps/web/src/pages/discovery/hooks/discoveryRequests.test.ts apps/web/src/pages/discovery/hooks/discoveryHooks.test.ts",
+    "test:ui-performance": "pnpm --filter @aperture/core build && LOG_LEVEL=silent apps/api/node_modules/.bin/tsx --tsconfig apps/web/tsconfig.json --test apps/web/src/hooks/userPreferences.test.ts apps/web/src/hooks/watchingCache.test.ts apps/web/src/hooks/activeJobs.test.ts apps/web/src/pages/browse/hooks/browseLoading.test.ts apps/web/src/pages/media-detail/hooks/mediaLoading.test.ts apps/web/src/pages/playlists/hooks/playlistLoading.test.ts apps/api/src/routes/uiReadPaths.test.ts apps/api/src/routes/users/handlers/profile/watchHistory.test.ts packages/core/src/tmdb/chartCache.test.ts packages/core/src/media/playlistPreview.test.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

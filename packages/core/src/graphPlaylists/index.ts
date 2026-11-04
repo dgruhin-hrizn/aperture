@@ -13,6 +13,7 @@ export {
   getGraphPlaylist,
   deleteGraphPlaylist,
   getGraphPlaylistItems,
+  getGraphPlaylistPreview,
   type GraphPlaylist,
   type GraphPlaylistItem,
   type CreateGraphPlaylistInput,

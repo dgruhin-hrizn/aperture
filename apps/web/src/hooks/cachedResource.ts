@@ -3,6 +3,7 @@ interface ResourceEntry {
   promise: Promise<unknown>
   subscribers: number
   expires: number
+  value?: unknown
 }
 const resources = new Map<string, ResourceEntry>()
 
@@ -32,8 +33,9 @@ export function cachedResource<T>(
       signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]),
     })
       .then(async (res) => {
-        if (!res.ok) throw new Error('Failed to load discovery data')
+        if (!res.ok) throw new Error('Failed to load data')
         const data: unknown = await res.json()
+        next.value = data
         next.expires = Date.now() + ttlMs
         return data
       })
@@ -79,4 +81,20 @@ export function cachedResource<T>(
 
 export function invalidateCachedResource(userId: string, url: string) {
   resources.delete(JSON.stringify([userId, url]))
+}
+
+/** Shared snapshots for completed preference writes; an older load cannot replace this entry. */
+export function setCachedResource<T>(userId: string, url: string, value: T, ttlMs = 30_000) {
+  resources.set(JSON.stringify([userId, url]), {
+    controller: new AbortController(),
+    promise: Promise.resolve(value),
+    subscribers: 0,
+    expires: Date.now() + ttlMs,
+    value,
+  })
+}
+
+export function peekCachedResource<T>(userId: string, url: string): T | undefined {
+  const entry = resources.get(JSON.stringify([userId, url]))
+  return entry && entry.expires > Date.now() ? (entry.value as T) : undefined
 }

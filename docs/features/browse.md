@@ -193,3 +193,7 @@ Click the heart to rate any item without leaving the page.
 ---
 
 **Next:** [Movie Details](movie-detail.md)
+
+## Loading and performance
+
+See [UI loading and request efficiency](../ui-performance.md) for selected-tab loading, bounded requests, cache behavior and dev.11 correctness fixes. Existing settings and actions remain available.

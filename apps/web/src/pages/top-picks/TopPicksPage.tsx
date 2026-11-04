@@ -1,4 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import { useAuth } from '../../hooks/useAuth'
+import { apiFetch } from '../../lib/api'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
@@ -70,7 +72,10 @@ interface TopPicksConfig {
 }
 
 export function TopPicksPage() {
+  const userId = useAuth().user?.id
   const { t } = useTranslation()
+  const translate = useRef(t)
+  translate.current = t
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const navigate = useNavigate()
@@ -118,45 +123,32 @@ export function TopPicksPage() {
   )
 
   useEffect(() => {
-    const fetchTopMovies = async () => {
+    if (!userId) return
+    const controller = new AbortController()
+    if (tabIndex === 0) setMoviesLoading(true)
+    else setSeriesLoading(true)
+    void (async () => {
       try {
-        const response = await fetch('/api/top-picks/movies', { credentials: 'include' })
-        if (response.ok) {
-          const data = await response.json()
-          setMovies(data.movies)
-          setMoviesConfig(data.config)
-          setMoviesError(null)
-        } else {
-          setMoviesError(t('topPicksPage.errorLoadMovies'))
-        }
+        const response = await apiFetch(`/api/top-picks/${tabIndex === 0 ? 'movies' : 'series'}`, { signal: controller.signal })
+        if (!response.ok) throw new Error('Could not load Top Picks')
+        const data = await response.json()
+        if (controller.signal.aborted) return
+        if (tabIndex === 0) { setMovies(data.movies); setMoviesConfig(data.config); setMoviesError(null) }
+        else { setSeries(data.series); setSeriesConfig(data.config); setSeriesError(null) }
       } catch {
-        setMoviesError(t('topPicksPage.errorConnect'))
+        if (controller.signal.aborted) return
+        if (tabIndex === 0) setMoviesError(translate.current('topPicksPage.errorLoadMovies'))
+        else setSeriesError(translate.current('topPicksPage.errorLoadSeries'))
       } finally {
-        setMoviesLoading(false)
-      }
-    }
-
-    const fetchTopSeries = async () => {
-      try {
-        const response = await fetch('/api/top-picks/series', { credentials: 'include' })
-        if (response.ok) {
-          const data = await response.json()
-          setSeries(data.series)
-          setSeriesConfig(data.config)
-          setSeriesError(null)
-        } else {
-          setSeriesError(t('topPicksPage.errorLoadSeries'))
+        if (!controller.signal.aborted) {
+          if (tabIndex === 0) setMoviesLoading(false)
+          else setSeriesLoading(false)
         }
-      } catch {
-        setSeriesError(t('topPicksPage.errorConnect'))
-      } finally {
-        setSeriesLoading(false)
       }
-    }
-
-    fetchTopMovies()
-    fetchTopSeries()
-  }, [t])
+    })()
+    return () => controller.abort()
+  }, [tabIndex, userId])
+  useEffect(() => { setMovies([]); setSeries([]); setMoviesConfig(null); setSeriesConfig(null) }, [userId])
 
   const config = tabIndex === 0 ? moviesConfig : seriesConfig
   const loading = tabIndex === 0 ? moviesLoading : seriesLoading

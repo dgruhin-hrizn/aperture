@@ -1,3 +1,4 @@
+import { apiFetch } from '../../../lib/api'
 import { useState, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -177,7 +178,7 @@ export function PlaylistDialog({
   const [generatingAIDescription, setGeneratingAIDescription] = useState(false)
 
   // Debounced movie search
-  const searchMovies = useCallback(async (query: string) => {
+  const searchMovies = useCallback(async (query: string, signal?: AbortSignal) => {
     if (!query || query.length < 2) {
       setMovieSearchResults([])
       return
@@ -185,11 +186,12 @@ export function PlaylistDialog({
 
     setSearchingMovies(true)
     try {
-      const response = await fetch(`/api/movies?search=${encodeURIComponent(query)}&pageSize=10`, {
-        credentials: 'include',
+      const response = await apiFetch(`/api/movies?search=${encodeURIComponent(query)}&pageSize=10`, {
+        credentials: 'include', signal,
       })
       if (response.ok) {
         const data = await response.json()
+        if (signal?.aborted) return
         setMovieSearchResults(data.movies)
       }
     } catch {
@@ -200,11 +202,11 @@ export function PlaylistDialog({
   }, [])
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      searchMovies(movieSearch)
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [movieSearch, searchMovies])
+    if (!open) return
+    const controller = new AbortController()
+    const timer = setTimeout(() => { void searchMovies(movieSearch, controller.signal) }, 300)
+    return () => { clearTimeout(timer); controller.abort() }
+  }, [movieSearch, searchMovies, open])
 
   // Reset search when dialog closes
   useEffect(() => {

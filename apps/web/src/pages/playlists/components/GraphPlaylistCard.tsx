@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { usePlaylistPreview } from '../hooks/usePlaylistPreview'
 import { useTranslation } from 'react-i18next'
 import {
   Card,
@@ -35,30 +35,10 @@ interface GraphPlaylistCardProps {
 
 export function GraphPlaylistCard({ playlist, onDelete, onView }: GraphPlaylistCardProps) {
   const { t, i18n } = useTranslation()
-  const [previewItems, setPreviewItems] = useState<GraphPlaylistItem[]>([])
-  const [loadingPreview, setLoadingPreview] = useState(false)
+  const preview = usePlaylistPreview<GraphPlaylistItem>(`/api/graph-playlists/${playlist.id}/preview`)
+  const { items: previewItems, loading: loadingPreview } = preview
 
-  // Fetch preview items when the card mounts
-  useEffect(() => {
-    const fetchPreview = async () => {
-      setLoadingPreview(true)
-      try {
-        const response = await fetch(`/api/graph-playlists/${playlist.id}/items`, {
-          credentials: 'include',
-        })
-        if (response.ok) {
-          const data = await response.json()
-          setPreviewItems((data.items || []).slice(0, 5))
-        }
-      } catch {
-        // Silent fail - preview is nice to have
-      } finally {
-        setLoadingPreview(false)
-      }
-    }
-
-    fetchPreview()
-  }, [playlist.id])
+  const itemCount = preview.total ?? playlist.itemCount
 
   const handleCardClick = () => {
     onView?.(playlist)
@@ -72,7 +52,7 @@ export function GraphPlaylistCard({ playlist, onDelete, onView }: GraphPlaylistC
   const isClickable = !!onView
 
   return (
-    <Card
+    <Card ref={preview.ref}
       sx={{
         backgroundColor: 'background.paper',
         borderRadius: 3,
@@ -199,7 +179,7 @@ export function GraphPlaylistCard({ playlist, onDelete, onView }: GraphPlaylistC
                 </Box>
               ))}
               {/* Show more indicator */}
-              {playlist.itemCount > 5 && (
+              {itemCount > 5 && (
                 <Box
                   sx={{
                     position: 'absolute',
@@ -214,7 +194,7 @@ export function GraphPlaylistCard({ playlist, onDelete, onView }: GraphPlaylistC
                     fontWeight: 600,
                   }}
                 >
-                  {t('playlists.moreCount', { count: playlist.itemCount - 5 })}
+                  {t('playlists.moreCount', { count: itemCount - 5 })}
                 </Box>
               )}
             </Box>
@@ -246,7 +226,7 @@ export function GraphPlaylistCard({ playlist, onDelete, onView }: GraphPlaylistC
             </Typography>
             <Chip
               icon={playlist.sourceItemType === 'series' ? <TvIcon /> : <MovieIcon />}
-              label={t('playlists.graphMovies', { count: playlist.itemCount })}
+              label={t('playlists.graphMovies', { count: itemCount })}
               size="small"
               sx={{
                 bgcolor: 'action.selected',

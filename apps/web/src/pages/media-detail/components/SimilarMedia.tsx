@@ -1,3 +1,4 @@
+import { useUserPreferences, saveUserPreferences } from '../../../hooks/userPreferences'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -130,39 +131,16 @@ export function SimilarMedia({ mediaType, mediaId, mediaTitle, similar }: Simila
     depth: 3,
   })
 
+  const sharedPreferences = useUserPreferences()
   useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      try {
-        const res = await fetch('/api/auth/me/preferences', { credentials: 'include' })
-        if (!res.ok || cancelled) return
-        const prefs = await res.json()
-        if (prefs.similarMediaView === 'graph' || prefs.similarMediaView === 'list') {
-          setViewMode(prefs.similarMediaView)
-        }
-      } catch {
-        // keep default list
-      }
-    }
-    void load()
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const handleViewModeChange = useCallback(async (_: unknown, v: 'list' | 'graph') => {
-    setViewMode(v)
-    try {
-      await fetch('/api/auth/me/preferences', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ similarMediaView: v }),
-      })
-    } catch {
-      // non-fatal
-    }
-  }, [])
+    const mode = sharedPreferences.data?.similarMediaView
+    if (mode === 'graph' || mode === 'list') setViewMode(mode)
+  }, [sharedPreferences.data?.similarMediaView])
+  const handleViewModeChange = useCallback(async (_: unknown, value: 'list' | 'graph') => {
+    setViewMode(value)
+    try { if (sharedPreferences.userId) await saveUserPreferences(sharedPreferences.userId, { similarMediaView: value }) }
+    catch { /* non-fatal */ }
+  }, [sharedPreferences.userId])
 
   // Get current center node title
   const currentTitle =

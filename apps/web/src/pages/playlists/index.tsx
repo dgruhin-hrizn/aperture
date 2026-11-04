@@ -25,6 +25,7 @@ export function PlaylistsPage() {
     channels,
     graphPlaylists,
     loading,
+    loadingGraph,
     error,
     availableGenres,
     loadingGenres,
@@ -70,7 +71,7 @@ export function PlaylistsPage() {
     handleCloseGraphPlaylistDialog,
   } = usePlaylistsData()
 
-  if (loading) {
+  if (loading && loadingGraph) {
     return (
       <Box>
         <Typography variant="h4" fontWeight={700} mb={4}>
@@ -121,10 +122,11 @@ export function PlaylistsPage() {
         </Alert>
       )}
 
-      {channels.length === 0 && graphPlaylists.length === 0 ? (
+      {channels.length === 0 && graphPlaylists.length === 0 && !loading && !loadingGraph ? (
         <EmptyState onCreateClick={() => handleOpenDialog()} />
       ) : (
         <Grid container spacing={3}>
+          {loading && <Grid item xs={12} sm={6} md={4}><Skeleton variant="rectangular" height={280} sx={{ borderRadius: 2 }} /></Grid>}
           {/* Channel-based playlists */}
           {channels.map((channel) => (
             <Grid item xs={12} sm={6} md={4} key={channel.id}>
@@ -138,6 +140,7 @@ export function PlaylistsPage() {
               />
             </Grid>
           ))}
+          {loadingGraph && <Grid item xs={12} sm={6} md={4}><Skeleton variant="rectangular" height={280} sx={{ borderRadius: 2 }} /></Grid>}
           {/* Graph-based playlists */}
           {graphPlaylists.map((playlist) => (
             <Grid item xs={12} sm={6} md={4} key={`graph-${playlist.id}`}>

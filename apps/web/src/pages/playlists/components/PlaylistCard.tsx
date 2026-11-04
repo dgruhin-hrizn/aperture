@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { usePlaylistPreview } from '../hooks/usePlaylistPreview'
 import { useTranslation } from 'react-i18next'
 import {
   Card,
@@ -39,37 +39,10 @@ export function PlaylistCard({
   onView,
 }: PlaylistCardProps) {
   const { t, i18n } = useTranslation()
-  const [previewItems, setPreviewItems] = useState<PlaylistItem[]>([])
-  const [loadingPreview, setLoadingPreview] = useState(false)
-  const [itemCount, setItemCount] = useState<number | null>(null)
-
   const isGenerating = generatingChannelId === channel.id
   const hasPlaylist = !!channel.playlist_id
-
-  // Fetch preview items when the card mounts (if playlist exists)
-  useEffect(() => {
-    if (!channel.playlist_id) return
-
-    const fetchPreview = async () => {
-      setLoadingPreview(true)
-      try {
-        const response = await fetch(`/api/channels/${channel.id}/items`, {
-          credentials: 'include',
-        })
-        if (response.ok) {
-          const data = await response.json()
-          setPreviewItems((data.items || []).slice(0, 5))
-          setItemCount(data.items?.length || 0)
-        }
-      } catch {
-        // Silent fail - preview is nice to have
-      } finally {
-        setLoadingPreview(false)
-      }
-    }
-
-    fetchPreview()
-  }, [channel.id, channel.playlist_id, channel.last_generated_at])
+  const preview = usePlaylistPreview<PlaylistItem>(`/api/channels/${channel.id}/preview`, hasPlaylist)
+  const { items: previewItems, total: itemCount, loading: loadingPreview } = preview
 
   const handleCardClick = () => {
     if (hasPlaylist) {
@@ -93,7 +66,7 @@ export function PlaylistCard({
   }
 
   return (
-    <Card
+    <Card ref={preview.ref}
       sx={{
         backgroundColor: 'background.paper',
         borderRadius: 3,

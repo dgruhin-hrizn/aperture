@@ -244,7 +244,7 @@ export interface GraphPlaylistItem {
 /**
  * Get playlist items from media server and enrich with Aperture UUIDs
  */
-export async function getGraphPlaylistItems(playlistId: string, userId: string): Promise<GraphPlaylistItem[]> {
+async function loadGraphPlaylistPage(playlistId: string, userId: string, preview = false): Promise<{ items: GraphPlaylistItem[]; total: number }> {
   const playlist = await getGraphPlaylist(playlistId)
 
   if (!playlist) {
@@ -263,10 +263,14 @@ export async function getGraphPlaylistItems(playlistId: string, userId: string):
   }
 
   // Get items from media server
-  const mediaServerItems = await provider.getPlaylistItems(apiKey, playlist.mediaServerPlaylistId)
+  const page = preview
+    ? await provider.getPlaylistPreview(apiKey, playlist.mediaServerPlaylistId)
+    : { items: await provider.getPlaylistItems(apiKey, playlist.mediaServerPlaylistId), total: 0 }
+  const mediaServerItems = page.items
+  const total = preview ? page.total : mediaServerItems.length
   
   if (mediaServerItems.length === 0) {
-    return []
+    return { items: [], total }
   }
 
   // Extract media server item IDs
@@ -287,7 +291,7 @@ export async function getGraphPlaylistItems(playlistId: string, userId: string):
   const seriesMap = new Map(seriesResult.rows.map(s => [s.provider_item_id, s.id]))
 
   // Enrich items with Aperture UUIDs and type
-  return mediaServerItems
+  const items = mediaServerItems
     .map(item => {
       const movieId = movieMap.get(item.id)
       const seriesId = seriesMap.get(item.id)
@@ -317,5 +321,14 @@ export async function getGraphPlaylistItems(playlistId: string, userId: string):
       return null
     })
     .filter((item): item is GraphPlaylistItem => item !== null)
+  return { items, total }
+}
+
+export async function getGraphPlaylistItems(playlistId: string, userId: string): Promise<GraphPlaylistItem[]> {
+  return (await loadGraphPlaylistPage(playlistId, userId)).items
+}
+
+export function getGraphPlaylistPreview(playlistId: string, userId: string) {
+  return loadGraphPlaylistPage(playlistId, userId, true)
 }
 
