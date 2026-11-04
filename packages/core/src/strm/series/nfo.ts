@@ -5,6 +5,7 @@
  * This matches the quality and completeness of the movie NFO generator.
  */
 
+import { getPlotHeadings } from '../plotHeadings.js'
 import type { Series, NfoGenerateOptions } from './types.js'
 
 /**
@@ -56,9 +57,10 @@ export function generateSeriesNfoContent(
   // Build the plot - AI explanation first (if enabled), then original overview
   let plot = ''
   if (includeAiExplanation && series.aiExplanation) {
-    plot = '🎯 Why Aperture picked this for you:\n' + series.aiExplanation
+    const headings = getPlotHeadings(options.aiLocale)
+    plot = `🎯 ${headings.why}\n` + series.aiExplanation
     if (series.overview) {
-      plot += '\n\n📖 About this series:\n' + series.overview
+      plot += `\n\n📖 ${headings.series}\n` + series.overview
     }
   } else if (series.overview) {
     plot = series.overview
