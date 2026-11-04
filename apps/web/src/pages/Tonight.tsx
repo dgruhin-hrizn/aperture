@@ -20,7 +20,12 @@ type TonightResponse =
   | { status: 'unsupported' | 'sign-in' }
   | { status: 'ready'; resume: TonightItem[]; picks: TonightItem[] }
 
-function TonightCard({ item, resume }: { item: TonightItem; resume: boolean }) {
+function TonightCard({ item, resume, saving, onSnooze }: {
+  item: TonightItem
+  resume: boolean
+  saving?: boolean
+  onSnooze?: () => void
+}) {
   const { t } = useTranslation()
   const time = item.minutes === undefined ? null : t(resume ? 'tonight.minutesLeft' : 'tonight.minutes', { count: item.minutes })
   const metadata = [item.detail, time].filter(Boolean).join(' · ')
@@ -54,7 +59,7 @@ function TonightCard({ item, resume }: { item: TonightItem; resume: boolean }) {
           />
         )}
         {!resume && item.reason && <Typography variant="body2" color="text.secondary">{item.reason}</Typography>}
-        <Box sx={{ mt: 'auto', pt: 0.5 }}>
+        <Box sx={{ mt: 'auto', pt: 0.5, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
           <Button
             component="a"
             href={item.embyUrl}
@@ -67,6 +72,13 @@ function TonightCard({ item, resume }: { item: TonightItem; resume: boolean }) {
           >
             {t('tonight.openInEmby')}
           </Button>
+          {onSnooze && (
+            <Button size="small" disabled={saving} onClick={onSnooze}
+              aria-label={t('tonight.snoozeTitle', { title: item.title })}
+            >
+              {t('tonight.snooze')}
+            </Button>
+          )}
         </Box>
       </CardContent>
     </Card>
@@ -78,6 +90,8 @@ export function TonightPage() {
   const userId = useAuth().user?.id
   const [data, setData] = useState<TonightResponse | null>(null)
   const [failed, setFailed] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [notice, setNotice] = useState<'saved' | 'error' | null>(null)
 
   useEffect(() => {
     if (!userId) return
@@ -93,6 +107,24 @@ export function TonightPage() {
       })
     return () => controller.abort()
   }, [userId])
+
+  async function snooze(item: TonightItem) {
+    setSaving(true)
+    setNotice(null)
+    try {
+      const response = await fetch(`/api/recommendations/me/tonight/${encodeURIComponent(item.id)}/snooze`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (!response.ok) throw new Error('Could not hide Tonight pick')
+      setData(await response.json())
+      setNotice('saved')
+    } catch {
+      setNotice('error')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <Stack spacing={4} sx={{ maxWidth: 1200, mx: 'auto' }}>
@@ -118,10 +150,17 @@ export function TonightPage() {
             </Box>
             <Box component="section" aria-labelledby="tonight-picks">
               <Typography id="tonight-picks" component="h2" variant="h5" gutterBottom>{t('tonight.picks')}</Typography>
+              {notice && (
+                <Alert severity={notice === 'saved' ? 'success' : 'warning'} sx={{ mb: 2 }} onClose={() => setNotice(null)}>
+                  {t(notice === 'saved' ? 'tonight.snoozed' : 'tonight.snoozeError')}
+                </Alert>
+              )}
               {data.picks.length ? (
                 <Grid container spacing={2}>
                   {data.picks.map((item) => (
-                    <Grid item xs={12} sm={6} md={4} key={item.id}><TonightCard item={item} resume={false} /></Grid>
+                    <Grid item xs={12} sm={6} md={4} key={item.id}>
+                      <TonightCard item={item} resume={false} saving={saving} onSnooze={() => void snooze(item)} />
+                    </Grid>
                   ))}
                 </Grid>
               ) : <Typography color="text.secondary">{t('tonight.noPicks')}</Typography>}
