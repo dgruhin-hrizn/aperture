@@ -1,3 +1,5 @@
+import { useAuth } from '../../../hooks/useAuth'
+import { discoveryResource, mediaKey, requestSignal } from '../hooks/discoveryRequests'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Skeleton, Typography } from '@mui/material'
@@ -12,7 +14,7 @@ import { useStripLoadQueue } from '../hooks/useStripLoadQueue'
 
 interface StripState {
   candidates: DiscoveryCandidate[]
-  seerrStatuses: Record<number, SeerrMediaStatus>
+  seerrStatuses: Record<string, SeerrMediaStatus>
   error: string | null
 }
 
@@ -200,10 +202,12 @@ export function TmdbGenreRowsSection({
   requestEnabled: boolean
   resolveGenreName: ResolveDiscoveryGenreName
 }) {
+  const { user } = useAuth()
+  const userId = user?.id ?? ''
   const { t } = useTranslation()
   const [stripEntries, setStripEntries] = useState<StripEntry[]>([])
   const [loadingConfig, setLoadingConfig] = useState(true)
-  const [seerrLocal, setSeerrLocal] = useState<Record<number, Partial<SeerrMediaStatus>>>({})
+  const [seerrLocal, setSeerrLocal] = useState<Record<string, Partial<SeerrMediaStatus>>>({})
 
   const stripEntriesRef = useRef(stripEntries)
   stripEntriesRef.current = stripEntries
@@ -219,7 +223,7 @@ export function TmdbGenreRowsSection({
       yearStart?: number
       yearEnd?: number
       yearEndCurrent?: boolean
-    }): Promise<StripState> => {
+    }, signal: AbortSignal): Promise<StripState> => {
       const { genreIds, limit, originCountry, excludeGenreIds, yearStart, yearEnd, yearEndCurrent } =
         params
       const qs = buildQuery({
@@ -236,7 +240,7 @@ export function TmdbGenreRowsSection({
               ? String(yearEnd)
               : undefined,
       })
-      const res = await fetch(`/api/discovery/tmdb-genre-row${qs}`, { credentials: 'include' })
+      const res = await fetch(`/api/discovery/tmdb-genre-row${qs}`, { credentials: 'include', signal: requestSignal(signal, 60_000) })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
         return {
@@ -247,11 +251,12 @@ export function TmdbGenreRowsSection({
       }
       const data = (await res.json()) as {
         candidates: DiscoveryCandidate[]
-        seerrStatuses?: Record<number, SeerrMediaStatus>
+        seerrStatuses?: Record<string, SeerrMediaStatus>
+        seerrStatusesByMedia?: Record<string, SeerrMediaStatus>
       }
       return {
         candidates: data.candidates || [],
-        seerrStatuses: (data.seerrStatuses || {}) as Record<number, SeerrMediaStatus>,
+        seerrStatuses: data.seerrStatusesByMedia ?? Object.fromEntries((data.candidates || []).map(c => [mediaKey(c.mediaType, c.tmdbId), data.seerrStatuses?.[c.tmdbId] ?? { exists: false, status: 'unknown', requested: false }])),
         error: null,
       }
     },
@@ -259,7 +264,7 @@ export function TmdbGenreRowsSection({
   )
 
   const processStripItem = useCallback(
-    async (key: string) => {
+    async (key: string, signal: AbortSignal) => {
       const parsed = parseQueueKey(key)
       if (!parsed) return
       const { genreIds, limit, originCountry, excludeGenreIds, yearStart, yearEnd, yearEndCurrent } =
@@ -278,11 +283,13 @@ export function TmdbGenreRowsSection({
           yearStart,
           yearEnd,
           yearEndCurrent,
-        })
+        }, signal)
+        if (signal.aborted) return
         setStripEntries((prev) =>
           prev.map((e) => (stripRowKey(e) === key ? { ...e, state: 'loaded', strip } : e))
         )
       } catch {
+        if (signal.aborted) return
         setStripEntries((prev) =>
           prev.map((e) =>
             stripRowKey(e) === key
@@ -316,6 +323,7 @@ export function TmdbGenreRowsSection({
   )
 
   useEffect(() => {
+    const controller = new AbortController()
     let cancelled = false
     resetStripQueue()
     setStripEntries([])
@@ -323,13 +331,7 @@ export function TmdbGenreRowsSection({
 
     void (async () => {
       try {
-        const res = await fetch('/api/discovery/tmdb-genre-rows/config', { credentials: 'include' })
-        if (!res.ok) {
-          setStripEntries([])
-          setLoadingConfig(false)
-          return
-        }
-        const data = (await res.json()) as {
+        const data = await discoveryResource<{
           movieGenreRows?: Array<
             | {
                 genreIds: number[]
@@ -356,7 +358,7 @@ export function TmdbGenreRowsSection({
               }
             | number[]
           >
-        }
+        }>(userId, '/api/discovery/tmdb-genre-rows/config', controller.signal)
         const rawRows =
           mediaType === 'movie'
             ? Array.isArray(data.movieGenreRows) && data.movieGenreRows.length > 0
@@ -401,6 +403,8 @@ export function TmdbGenreRowsSection({
           }
         })
         setStripEntries(next)
+      } catch {
+        if (!cancelled) setStripEntries([])
       } finally {
         if (!cancelled) setLoadingConfig(false)
       }
@@ -408,8 +412,10 @@ export function TmdbGenreRowsSection({
 
     return () => {
       cancelled = true
+      controller.abort()
+      resetStripQueue()
     }
-  }, [mediaType, resetStripQueue])
+  }, [mediaType, resetStripQueue, userId])
 
   const handleRequest = useCallback(
     async (
@@ -428,7 +434,7 @@ export function TmdbGenreRowsSection({
       if (result.success && candidate.tmdbId) {
         setSeerrLocal((prev) => ({
           ...prev,
-          [candidate.tmdbId]: {
+          [mediaKey(candidate.mediaType, candidate.tmdbId)]: {
             exists: false,
             status: 'pending',
             requested: true,
@@ -441,8 +447,8 @@ export function TmdbGenreRowsSection({
   )
 
   const mergeSeerr = (tmdbId: number, strip: StripState): SeerrMediaStatus | undefined => {
-    const base = strip.seerrStatuses[tmdbId]
-    const loc = seerrLocal[tmdbId]
+    const base = strip.seerrStatuses[mediaKey(mediaType, tmdbId)]
+    const loc = seerrLocal[mediaKey(mediaType, tmdbId)]
     if (!base && !loc) return undefined
     return {
       exists: loc?.exists ?? base?.exists ?? false,

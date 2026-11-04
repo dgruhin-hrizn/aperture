@@ -7,7 +7,7 @@ import { queryOne } from '../../lib/db.js'
 import {
   attachLibraryMatch,
   attachTmdbPosterPaths,
-  batchGetSeerrMediaStatus,
+  batchGetSeerrMediaStatusByMedia,
   buildCacheKey,
   fetchPopularTitles,
   fetchProviders,
@@ -74,7 +74,7 @@ function rowToSeerrItem(row: JustWatchStreamingRow): { tmdbId: number; mediaType
 
 async function attachSeerrStatuses(
   rows: JustWatchStreamingRow[]
-): Promise<Record<number, { exists: boolean; status: string; requested: boolean }>> {
+): Promise<Record<string, { exists: boolean; status: string; requested: boolean }>> {
   const seerrOk = await isSeerrConfigured()
   if (!seerrOk || rows.length === 0) return {}
 
@@ -86,8 +86,8 @@ async function attachSeerrStatuses(
   }
   if (items.length === 0) return {}
 
-  const map = await batchGetSeerrMediaStatus(items)
-  const out: Record<number, { exists: boolean; status: string; requested: boolean }> = {}
+  const map = await batchGetSeerrMediaStatusByMedia(items)
+  const out: Record<string, { exists: boolean; status: string; requested: boolean }> = {}
   for (const [tmdbId, st] of map) {
     out[tmdbId] = st
   }
@@ -156,7 +156,7 @@ export function registerStreamingDiscoveryRoutes(fastify: FastifyInstance) {
         rows = rows.filter((r: JustWatchStreamingRow) => !r.inLibrary && r.tmdbId != null)
       }
       const seerrStatuses = await attachSeerrStatuses(rows)
-      return reply.send({ rows, stale, seerrStatuses })
+      return reply.send({ rows, stale, seerrStatuses: Object.fromEntries(Object.entries(seerrStatuses).map(([key, value]) => [key.split(':')[1], value])), seerrStatusesByMedia: seerrStatuses })
     } catch (e) {
       if (e instanceof Error && e.message === 'JUSTWATCH_UNAVAILABLE') {
         fastify.log.warn({ country }, 'JustWatch popular fetch failed with no cache')
@@ -227,7 +227,7 @@ export function registerStreamingDiscoveryRoutes(fastify: FastifyInstance) {
         rows = rows.filter((r: JustWatchStreamingRow) => !r.inLibrary && r.tmdbId != null)
       }
       const seerrStatuses = await attachSeerrStatuses(rows)
-      return reply.send({ rows, stale, seerrStatuses })
+      return reply.send({ rows, stale, seerrStatuses: Object.fromEntries(Object.entries(seerrStatuses).map(([key, value]) => [key.split(':')[1], value])), seerrStatusesByMedia: seerrStatuses })
     } catch (e) {
       if (e instanceof Error && e.message === 'JUSTWATCH_UNAVAILABLE') {
         return reply.status(502).send({ error: 'Streaming data temporarily unavailable', rows: [], stale: false, seerrStatuses: {} })

@@ -816,6 +816,7 @@ export {
   deleteRequest as deleteSeerrRequest,
   // Batch Operations
   batchGetMediaStatus as batchGetSeerrMediaStatus,
+  batchGetMediaStatusByMedia as batchGetSeerrMediaStatusByMedia,
   listRadarrServers,
   getRadarrServerDetails,
   listSonarrServers,

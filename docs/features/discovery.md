@@ -201,3 +201,9 @@ This ensures you only see truly new suggestions.
 ---
 
 **Next:** [Explore](explore.md)
+
+## Loading and performance
+
+Discover loads the selected section first. Suggestions appear before optional Seerr badges finish, and rows load as you scroll. Background job checks pause while the tab is hidden. These improvements require no setting changes.
+
+See [Discover loading and caching](../discovery-performance.md) for cache lifetimes, current-library validation and performance measurements.

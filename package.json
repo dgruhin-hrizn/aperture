@@ -18,7 +18,7 @@
     "dev:raw": "concurrently -n api,web -c blue,green \"pnpm --filter @aperture/api dev\" \"pnpm --filter @aperture/web dev\"",
     "dev:api": "pnpm --filter @aperture/api dev",
     "dev:web": "pnpm --filter @aperture/web dev",
-    "kill": "pkill -f vite 2>/dev/null; pkill -f tsx 2>/dev/null; lsof -ti :3456 | xargs kill -9 2>/dev/null; lsof -ti :5173 | xargs kill -9 2>/dev/null; echo '✅ Killed vite and api processes'",
+    "kill": "pkill -f vite 2>/dev/null; pkill -f tsx 2>/dev/null; lsof -ti :3456 | xargs kill -9 2>/dev/null; lsof -ti :5173 | xargs kill -9 2>/dev/null; echo '\u2705 Killed vite and api processes'",
     "build": "pnpm -r build",
     "typecheck": "pnpm --filter './packages/*' run build && pnpm -r typecheck",
     "lint": "eslint . --max-warnings 0",
@@ -37,7 +37,8 @@
     "docker:db": "docker compose up -d db",
     "docker:psql": "docker compose exec db psql -U app -d aperture",
     "clean": "pnpm -r exec rm -rf dist node_modules && rm -rf node_modules",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:discovery": "pnpm --filter @aperture/core build && LOG_LEVEL=silent apps/api/node_modules/.bin/tsx --test packages/core/src/lib/asyncCache.test.ts packages/core/src/seerr/provider.test.ts packages/core/src/discover/sources.test.ts apps/api/src/routes/discovery/index.test.ts apps/web/src/pages/discovery/hooks/discoveryRequests.test.ts apps/web/src/pages/discovery/hooks/discoveryHooks.test.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

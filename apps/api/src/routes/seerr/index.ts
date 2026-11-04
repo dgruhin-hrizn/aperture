@@ -8,7 +8,7 @@ import {
   testSeerrConnection,
   getSeerrMediaStatus,
   getSeerrTVDetails,
-  batchGetSeerrMediaStatus,
+  batchGetSeerrMediaStatusByMedia,
   createSeerrRequest,
   getSeerrRequestStatus,
   createDiscoveryRequest,
@@ -627,7 +627,8 @@ const seerrRoutes: FastifyPluginAsync = async (fastify) => {
         mediaType: (item.mediaType === 'movie' ? 'movie' : 'tv') as 'movie' | 'tv',
       }))
 
-      const statusMap = await batchGetSeerrMediaStatus(seerrItems)
+      const typedStatuses = await batchGetSeerrMediaStatusByMedia(seerrItems)
+      const statusMap = new Map([...typedStatuses].map(([key, value]) => [Number(key.split(':')[1]), value]))
 
       // Convert Map to object for JSON response
       const statuses: Record<number, {
@@ -641,7 +642,7 @@ const seerrRoutes: FastifyPluginAsync = async (fastify) => {
         statuses[tmdbId] = status
       }
 
-      return reply.send({ statuses })
+      return reply.send({ statuses, statusesByMedia: Object.fromEntries(typedStatuses) })
     }
   )
 
