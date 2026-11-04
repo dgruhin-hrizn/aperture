@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify'
 import fp from 'fastify-plugin'
+import { sessionCookieOptions } from './browserAccess.js'
 import { query, queryOne } from '../lib/db.js'
 import { validateApiKey } from '@aperture/core'
 
@@ -208,24 +209,15 @@ export async function requireAdmin(
 // Helper to set session cookie
 export function setSessionCookie(reply: FastifyReply, sessionId: string): void {
   const maxAge = SESSION_DURATION_DAYS * 24 * 60 * 60 // seconds
-  // Only use secure cookies if APP_BASE_URL is HTTPS
-  const appBaseUrl = process.env.APP_BASE_URL || ''
-  const useSecureCookies = appBaseUrl.startsWith('https://')
-
   reply.setCookie(SESSION_COOKIE_NAME, sessionId, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: useSecureCookies,
-    path: '/',
+    ...sessionCookieOptions(reply.request),
     maxAge,
   })
 }
 
 // Helper to clear session cookie
 export function clearSessionCookie(reply: FastifyReply): void {
-  reply.clearCookie(SESSION_COOKIE_NAME, {
-    path: '/',
-  })
+  reply.clearCookie(SESSION_COOKIE_NAME, sessionCookieOptions(reply.request))
 }
 
 export { SESSION_COOKIE_NAME }
