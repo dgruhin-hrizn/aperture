@@ -1,494 +1,304 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { DiscoveryCandidate, DiscoveryRun, DiscoveryStatus, MediaType, SeerrMediaStatus, DiscoveryFilterOptions } from '../types'
+import { useAuth } from '../../../hooks/useAuth'
+import type {
+  DiscoveryCandidate,
+  DiscoveryStatus,
+  MediaType,
+  SeerrMediaStatus,
+  DiscoveryFilterOptions,
+} from '../types'
+import {
+  filterQuery,
+  invalidateDiscoveryCache,
+  retireLegacyCache,
+  loadCandidates,
+  mediaKey,
+  requestSignal,
+  type CandidateResponse,
+} from './discoveryRequests'
 
-// Seerr status for candidates (keyed by TMDb ID)
-export type SeerrStatusMap = Record<number, SeerrMediaStatus>
+export { invalidateDiscoveryCache } from './discoveryRequests'
+export type SeerrStatusMap = Record<string, SeerrMediaStatus>
+const EMPTY_FILTERS: DiscoveryFilterOptions = {}
+const EMPTY_CANDIDATES: DiscoveryCandidate[] = []
 
-// Build query string from filter options
-function buildFilterQueryString(filters: DiscoveryFilterOptions): string {
-  const params = new URLSearchParams()
-  
-  if (filters.languages && filters.languages.length > 0) {
-    params.set('languages', filters.languages.join(','))
-    // Include unknown language setting (only relevant when filtering by language)
-    // Default is true, so only pass when explicitly set to false
-    if (filters.includeUnknownLanguage === false) {
-      params.set('includeUnknownLanguage', 'false')
-    }
-  }
-  if (filters.genreIds && filters.genreIds.length > 0) {
-    params.set('genres', filters.genreIds.join(','))
-  }
-  if (filters.yearStart !== undefined) {
-    params.set('yearStart', filters.yearStart.toString())
-  }
-  if (filters.yearEnd !== undefined) {
-    params.set('yearEnd', filters.yearEnd.toString())
-  }
-  if (filters.minSimilarity !== undefined && filters.minSimilarity > 0) {
-    params.set('minSimilarity', filters.minSimilarity.toString())
-  }
-  
-  const qs = params.toString()
-  return qs ? `?${qs}` : ''
-}
-
-// Cache configuration
-const CACHE_KEY = 'aperture_discovery_cache'
-const CACHE_VERSION = 3 // Bumped for streaming discovery status field
-const CACHE_TTL_MS = 60 * 60 * 1000 // 1 hour (discovery data changes less frequently)
-
-interface DiscoveryCache {
-  version: number
-  timestamp: number
-  movieCandidates: DiscoveryCandidate[]
-  seriesCandidates: DiscoveryCandidate[]
-  movieRun: DiscoveryRun | null
-  seriesRun: DiscoveryRun | null
-  status: DiscoveryStatus | null
-}
-
-function loadCache(): DiscoveryCache | null {
-  try {
-    const cached = localStorage.getItem(CACHE_KEY)
-    if (!cached) return null
-    
-    const data = JSON.parse(cached) as DiscoveryCache
-    if (data.version !== CACHE_VERSION) return null
-    if (Date.now() - data.timestamp > CACHE_TTL_MS) return null
-    
-    return data
-  } catch {
-    return null
-  }
-}
-
-function saveCache(cache: Omit<DiscoveryCache, 'version' | 'timestamp'>) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({
-      ...cache,
-      version: CACHE_VERSION,
-      timestamp: Date.now(),
-    }))
-  } catch {
-    // Storage full or unavailable
-  }
-}
-
-function invalidateCache() {
-  localStorage.removeItem(CACHE_KEY)
-}
-
-/**
- * Exported function to invalidate the discovery cache from outside the hook.
- * Used when the discovery job completes to ensure fresh data is fetched.
- */
-export function invalidateDiscoveryCache() {
-  localStorage.removeItem(CACHE_KEY)
-}
-
-// Minimum target count before triggering expansion
-const TARGET_DISPLAY_COUNT = 50
-const EXPANSION_THRESHOLD = 20 // Trigger expansion when below this count
-
-export function useDiscoveryData(filters: DiscoveryFilterOptions = {}) {
-  const [status, setStatus] = useState<DiscoveryStatus | null>(null)
-  const [movieCandidates, setMovieCandidates] = useState<DiscoveryCandidate[]>([])
-  const [seriesCandidates, setSeriesCandidates] = useState<DiscoveryCandidate[]>([])
-  const [movieRun, setMovieRun] = useState<DiscoveryRun | null>(null)
-  const [seriesRun, setSeriesRun] = useState<DiscoveryRun | null>(null)
-  const [seerrStatus, setSeerrStatus] = useState<SeerrStatusMap>({})
-  const [loading, setLoading] = useState(true)
+export function useDiscoveryData(
+  filters: DiscoveryFilterOptions = EMPTY_FILTERS,
+  activeType: MediaType | null = 'movie'
+) {
+  const { user } = useAuth()
+  const userId = user?.id
+  const query = filterQuery(filters)
+  const identity = `${userId}:${activeType}:${query}`
+  const [statusState, setStatusState] = useState<{ userId: string; value: DiscoveryStatus } | null>(
+    null
+  )
+  const status = statusState?.userId === userId ? (statusState?.value ?? null) : null
+  const [lists, setLists] = useState<Record<string, CandidateResponse>>({})
+  const [statuses, setStatuses] = useState<{ userId?: string; values: SeerrStatusMap }>({
+    values: {},
+  })
+  const [validatedKey, setValidatedKey] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
-  const [expanding, setExpanding] = useState(false)
+  const [expandingKey, setExpandingKey] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  
-  // Track if this is the first load (for caching logic)
-  const isFirstLoad = useRef(true)
-  // Track current filters for comparison
-  const filtersRef = useRef(filters)
-  // Track if we've already tried to expand for current filters
-  const expansionAttemptedRef = useRef<string>('')
-  // Track expanding state via ref for use in callbacks (avoids stale closure)
-  const expandingRef = useRef(false)
+  const [revision, setRevision] = useState(0)
+  const expansionAttempts = useRef(new Set<string>())
+  const requestRevision = useRef(0)
+  const currentIdentity = useRef(identity)
+  currentIdentity.current = identity
+  const validated = validatedKey === `${identity}:${revision}`
+  const candidates = validated
+    ? (lists[identity]?.candidates ?? EMPTY_CANDIDATES)
+    : EMPTY_CANDIDATES
 
-  const fetchStatus = useCallback(async () => {
-    try {
-      const response = await fetch('/api/discovery/status', { credentials: 'include' })
-      if (response.ok) {
-        const data = await response.json()
-        setStatus(data)
-        return data as DiscoveryStatus
-      } else if (response.status === 403) {
-        const fallbackStatus = {
-          enabled: false,
-          requestEnabled: false,
-          streamingDiscoveryEnabled: false,
-          movieRun: null,
-          seriesRun: null,
-          movieCount: 0,
-          seriesCount: 0,
-        }
-        setStatus(fallbackStatus)
-        return fallbackStatus
-      } else {
-        setError('Failed to load discovery status')
-        return null
-      }
-    } catch {
-      setError('Could not connect to server')
-      return null
-    }
-  }, [])
+  useEffect(() => {
+    setLists({})
+    setStatuses({ userId, values: {} })
+    setError(null)
+    expansionAttempts.current.clear()
+    retireLegacyCache()
+  }, [userId])
 
-  const fetchSeerrStatus = useCallback(async (candidates: DiscoveryCandidate[]) => {
-    if (candidates.length === 0) return
-
-    try {
-      const items = candidates.map(c => ({
-        tmdbId: c.tmdbId,
-        mediaType: c.mediaType,
-      }))
-
-      const response = await fetch('/api/seerr/status/batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ items }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setSeerrStatus(prev => ({ ...prev, ...data.statuses }))
-      }
-    } catch {
-      console.error('Could not fetch Seerr status')
-    }
-  }, [])
-
-  const fetchCandidates = useCallback(async (mediaType: MediaType, filterOpts: DiscoveryFilterOptions = {}): Promise<{ candidates: DiscoveryCandidate[]; run: DiscoveryRun | null } | null> => {
-    try {
-      const queryString = buildFilterQueryString(filterOpts)
-      const response = await fetch(`/api/discovery/${mediaType === 'movie' ? 'movies' : 'series'}${queryString}`, {
-        credentials: 'include',
-      })
-      if (response.ok) {
-        const data = await response.json()
-        const candidates = data.candidates || []
-        
-        if (mediaType === 'movie') {
-          setMovieCandidates(candidates)
-          setMovieRun(data.run)
-        } else {
-          setSeriesCandidates(candidates)
-          setSeriesRun(data.run)
-        }
-        
-        // Fetch Seerr status for these candidates
-        if (candidates.length > 0) {
-          await fetchSeerrStatus(candidates)
-        }
-        
-        return { candidates, run: data.run }
-      } else if (response.status !== 403) {
-        console.error('Failed to load candidates')
-      }
-      return null
-    } catch {
-      console.error('Could not fetch candidates')
-      return null
-    }
-  }, [fetchSeerrStatus])
-
-  const refresh = useCallback(async (mediaType: MediaType) => {
-    setRefreshing(true)
-    invalidateCache() // Clear cache when manually refreshing
-    try {
-      const response = await fetch(`/api/discovery/refresh/${mediaType === 'movie' ? 'movies' : 'series'}`, {
-        method: 'POST',
-        credentials: 'include',
-      })
-      if (response.ok) {
-        // Refresh the candidates
-        const movieResult = await fetchCandidates('movie')
-        const seriesResult = await fetchCandidates('series')
-        const newStatus = await fetchStatus()
-        
-        // Save to cache
-        saveCache({
-          movieCandidates: movieResult?.candidates || movieCandidates,
-          seriesCandidates: seriesResult?.candidates || seriesCandidates,
-          movieRun: movieResult?.run || movieRun,
-          seriesRun: seriesResult?.run || seriesRun,
-          status: newStatus,
+  useEffect(() => {
+    if (!userId) return
+    const controller = new AbortController()
+    const loadStatus = async () => {
+      try {
+        const response = await fetch('/api/discovery/status', {
+          credentials: 'include',
+          signal: requestSignal(controller.signal),
         })
-        
-        return { success: true }
-      } else {
-        const data = await response.json()
-        return { success: false, error: data.error || 'Failed to refresh' }
-      }
-    } catch {
-      return { success: false, error: 'Could not connect to server' }
-    } finally {
-      setRefreshing(false)
-    }
-  }, [fetchCandidates, fetchStatus, movieCandidates, seriesCandidates, movieRun, seriesRun])
-
-  // Mark an item as requested locally (after successful request)
-  const markAsRequested = useCallback((tmdbId: number) => {
-    setSeerrStatus(prev => ({
-      ...prev,
-      [tmdbId]: {
-        ...prev[tmdbId],
-        exists: false,
-        status: 'pending',
-        requested: true,
-        requestStatus: 'pending',
-      },
-    }))
-  }, [])
-
-  /**
-   * Expand discovery by dynamically fetching more candidates matching current filters
-   * This is called automatically when the filtered count drops below threshold
-   */
-  const expandDiscovery = useCallback(async (mediaType: MediaType, currentCandidates: DiscoveryCandidate[]) => {
-    // Create a key to track if we've already attempted expansion for these filters
-    const expansionKey = `${mediaType}-${JSON.stringify(filters)}`
-    
-    // Don't expand if already expanding, already attempted, or have enough candidates
-    if (expandingRef.current) {
-      return null
-    }
-    if (currentCandidates.length >= EXPANSION_THRESHOLD) {
-      return null
-    }
-    if (expansionAttemptedRef.current === expansionKey) {
-      return null
-    }
-
-    // Mark as attempted BEFORE starting to prevent race conditions
-    expansionAttemptedRef.current = expansionKey
-    expandingRef.current = true
-    setExpanding(true)
-
-    try {
-      // Get existing TMDb IDs to exclude from expansion
-      const existingTmdbIds = currentCandidates.map(c => c.tmdbId)
-
-      const response = await fetch(`/api/discovery/${mediaType === 'movie' ? 'movies' : 'series'}/expand`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          languages: filters.languages,
-          genreIds: filters.genreIds,
-          yearStart: filters.yearStart,
-          yearEnd: filters.yearEnd,
-          excludeTmdbIds: existingTmdbIds,
-          targetCount: TARGET_DISPLAY_COUNT - currentCandidates.length,
-        }),
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('[Discovery] Expand failed:', response.status, errorText)
-        return null
-      }
-
-      const data = await response.json()
-      const newCandidates = data.candidates || []
-
-      if (newCandidates.length === 0) {
-        return null
-      }
-
-      // Merge new candidates with existing ones
-      const merged = [...currentCandidates, ...newCandidates]
-      
-      // Sort by finalScore descending
-      merged.sort((a, b) => b.finalScore - a.finalScore)
-
-      // Update state based on media type
-      if (mediaType === 'movie') {
-        setMovieCandidates(merged)
-      } else {
-        setSeriesCandidates(merged)
-      }
-
-      // Fetch Seerr status for new candidates
-      if (newCandidates.length > 0) {
-        await fetchSeerrStatus(newCandidates)
-      }
-
-      return { candidates: merged, added: newCandidates.length }
-    } catch (err) {
-      console.error('Error expanding discovery:', err)
-      // Reset attempted ref on error so user can retry
-      expansionAttemptedRef.current = ''
-      return null
-    } finally {
-      expandingRef.current = false
-      setExpanding(false)
-    }
-    // Note: We intentionally don't include `expanding` in deps to prevent callback recreation
-    // The `expanding` check uses a ref pattern internally
-     
-  }, [filters, fetchSeerrStatus])
-
-  useEffect(() => {
-    const filtersChanged = JSON.stringify(filters) !== JSON.stringify(filtersRef.current)
-    if (filtersChanged) {
-      filtersRef.current = filters
-      expansionAttemptedRef.current = ''
-    }
-  }, [filters])
-
-  useEffect(() => {
-    const load = async () => {
-      // Only use cache if no filters are applied and it's the first load
-      const hasFilters = (filters.languages && filters.languages.length > 0) ||
-                        (filters.genreIds && filters.genreIds.length > 0) ||
-                        filters.yearStart !== undefined ||
-                        filters.yearEnd !== undefined ||
-                        (filters.minSimilarity !== undefined && filters.minSimilarity > 0)
-      
-      // Try to load from cache first (only if no filters and first load)
-      if (isFirstLoad.current && !hasFilters) {
-        const cached = loadCache()
-        if (cached) {
-          // Always fetch fresh status to check if discovery has been refreshed
-          const freshStatus = await fetchStatus()
-          
-          // Compare run IDs - if server has newer runs, invalidate cache
-          const cacheStale = freshStatus && (
-            (freshStatus.movieRun?.id && freshStatus.movieRun.id !== cached.movieRun?.id) ||
-            (freshStatus.seriesRun?.id && freshStatus.seriesRun.id !== cached.seriesRun?.id)
-          )
-          
-          if (!cacheStale) {
-            // Cache is still valid for candidate rows; keep status from fetchStatus() above.
-            // Do not restore cached.status — it predates flags like streamingDiscoveryEnabled and would hide new UI after toggles.
-            setMovieCandidates(cached.movieCandidates)
-            setSeriesCandidates(cached.seriesCandidates)
-            setMovieRun(cached.movieRun)
-            setSeriesRun(cached.seriesRun)
-            if (freshStatus) setStatus(freshStatus)
-            else if (cached.status) setStatus(cached.status)
-            setLoading(false)
-            isFirstLoad.current = false
-            
-            // Fetch Seerr status for cached candidates (always fresh)
-            const allCandidates = [...cached.movieCandidates, ...cached.seriesCandidates]
-            if (allCandidates.length > 0) {
-              fetchSeerrStatus(allCandidates)
-            }
-            return
+        if (!response.ok) throw new Error('Failed to load discovery status')
+        const value = (await response.json()) as DiscoveryStatus
+        if (!controller.signal.aborted) {
+          setStatusState({ userId, value })
+          if (!value.enabled) {
+            setLists({})
+            invalidateDiscoveryCache(userId)
           }
-          
-          // Cache is stale, invalidate and continue to fetch fresh data
-          invalidateCache()
+        }
+      } catch {
+        if (!controller.signal.aborted) {
+          setStatusState(null)
+          setError('Could not load discovery status')
+          setValidatedKey(null)
         }
       }
-      
-      setLoading(true)
-      
-      // Fetch from server with filters
-      const [newStatus, movieResult, seriesResult] = await Promise.all([
-        fetchStatus(),
-        fetchCandidates('movie', filters),
-        fetchCandidates('series', filters),
-      ])
-      
-      // Only save to cache if no filters are applied
-      if (!hasFilters) {
-        saveCache({
-          movieCandidates: movieResult?.candidates || [],
-          seriesCandidates: seriesResult?.candidates || [],
-          movieRun: movieResult?.run || null,
-          seriesRun: seriesResult?.run || null,
-          status: newStatus,
-        })
-      }
-      
-      isFirstLoad.current = false
-      setLoading(false)
     }
-    load()
-  }, [fetchStatus, fetchCandidates, fetchSeerrStatus, filters])
+    void loadStatus()
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') setRevision((n) => n + 1)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      controller.abort()
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [userId, revision])
 
-  // Auto-expand when filters result in low candidate count
   useEffect(() => {
-    const checkAndExpand = async () => {
-      // Only expand if filters are active and count is low
-      const hasFilters = (filters.languages && filters.languages.length > 0) ||
-                        (filters.genreIds && filters.genreIds.length > 0) ||
-                        filters.yearStart !== undefined ||
-                        filters.yearEnd !== undefined
-
-      if (!hasFilters || loading) {
-        return
-      }
-
-      // Check movies
-      if (movieCandidates.length > 0 && movieCandidates.length < EXPANSION_THRESHOLD) {
-        await expandDiscovery('movie', movieCandidates)
-      }
-
-      // Check series
-      if (seriesCandidates.length > 0 && seriesCandidates.length < EXPANSION_THRESHOLD) {
-        await expandDiscovery('series', seriesCandidates)
-      }
-    }
-    
-    checkAndExpand()
-  }, [filters, loading, movieCandidates, seriesCandidates, expandDiscovery])
-
-  // Refetch candidates (used when job completes externally)
-  const refetchCandidates = useCallback(async () => {
-    setLoading(true)
-    const [newStatus, movieResult, seriesResult] = await Promise.all([
-      fetchStatus(),
-      fetchCandidates('movie', filters),
-      fetchCandidates('series', filters),
-    ])
-    
-    // Update cache with fresh data
-    const hasFilters = (filters.languages && filters.languages.length > 0) ||
-                      (filters.genreIds && filters.genreIds.length > 0) ||
-                      filters.yearStart !== undefined ||
-                      filters.yearEnd !== undefined ||
-                      (filters.minSimilarity !== undefined && filters.minSimilarity > 0)
-    
-    if (!hasFilters) {
-      saveCache({
-        movieCandidates: movieResult?.candidates || [],
-        seriesCandidates: seriesResult?.candidates || [],
-        movieRun: movieResult?.run || null,
-        seriesRun: seriesResult?.run || null,
-        status: newStatus,
+    if (!userId || !activeType || !status?.enabled) return
+    const controller = new AbortController()
+    setValidatedKey(null)
+    setError(null)
+    void loadCandidates(userId, activeType, query, controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) {
+          setLists((prev) =>
+            Object.fromEntries(
+              [...Object.entries(prev).filter(([key]) => key !== identity), [identity, data]].slice(
+                -8
+              )
+            )
+          )
+          setValidatedKey(`${identity}:${revision}`)
+        }
       })
-    }
-    
-    setLoading(false)
-  }, [fetchStatus, fetchCandidates, filters])
+      .catch(() => {
+        if (!controller.signal.aborted) setError('Could not load discovery suggestions')
+      })
+    return () => controller.abort()
+  }, [userId, activeType, query, identity, status?.enabled, revision])
 
+  // Candidate loading finishes before optional availability checks. Obsolete responses never update another list.
+  useEffect(() => {
+    if (!userId || !status?.enabled || !candidates.length) return
+    const controller = new AbortController()
+    const version = requestRevision.current
+    void (async () => {
+      for (let i = 0; i < candidates.length; i += 100) {
+        const batch = candidates.slice(i, i + 100)
+        const response = await fetch('/api/seerr/status/batch', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          signal: requestSignal(controller.signal),
+          body: JSON.stringify({
+            items: batch.map((c) => ({ tmdbId: c.tmdbId, mediaType: c.mediaType })),
+          }),
+        })
+        if (!response.ok) continue
+        const data = await response.json()
+        if (controller.signal.aborted || requestRevision.current !== version) return
+        const values: SeerrStatusMap =
+          data.statusesByMedia ??
+          Object.fromEntries(
+            batch.flatMap((c) =>
+              data.statuses?.[c.tmdbId]
+                ? [[mediaKey(c.mediaType, c.tmdbId), data.statuses[c.tmdbId]]]
+                : []
+            )
+          )
+        setStatuses((prev) => ({
+          userId,
+          values: { ...(prev.userId === userId ? prev.values : {}), ...values },
+        }))
+      }
+    })().catch(() => {
+      /* Availability is optional; suggestions remain usable. */
+    })
+    return () => controller.abort()
+  }, [userId, candidates, status?.enabled])
+
+  // Expand only the visible filtered list. Abort when filters, tabs or users change.
+  useEffect(() => {
+    const hasFilters =
+      filters.languages?.length ||
+      filters.genreIds?.length ||
+      filters.yearStart !== undefined ||
+      filters.yearEnd !== undefined
+    if (
+      !userId ||
+      !activeType ||
+      !status?.enabled ||
+      !hasFilters ||
+      !validated ||
+      !candidates.length ||
+      candidates.length >= 20 ||
+      expansionAttempts.current.has(identity)
+    )
+      return
+    expansionAttempts.current.add(identity)
+    const controller = new AbortController()
+    setExpandingKey(identity)
+    void fetch(`/api/discovery/${activeType === 'movie' ? 'movies' : 'series'}/expand`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      signal: requestSignal(controller.signal, 60_000),
+      body: JSON.stringify({
+        ...filters,
+        excludeTmdbIds: candidates.map((c) => c.tmdbId),
+        targetCount: 50 - candidates.length,
+      }),
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Expansion failed')
+        const data = (await response.json()) as CandidateResponse
+        if (controller.signal.aborted) return
+        setLists((prev) => {
+          const existing = prev[identity]
+          if (!existing) return prev
+          const unique = new Map(
+            [...existing.candidates, ...data.candidates].map((c) => [c.tmdbId, c])
+          )
+          return {
+            ...prev,
+            [identity]: {
+              ...existing,
+              candidates: [...unique.values()].sort((a, b) => b.finalScore - a.finalScore),
+            },
+          }
+        })
+      })
+      .catch(() => {
+        /* Keep the saved suggestions on expansion failure. */
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setExpandingKey(null)
+      })
+    return () => {
+      controller.abort()
+      setExpandingKey(null)
+    }
+  }, [userId, activeType, status?.enabled, filters, identity, candidates, validated])
+
+  const refetchCandidates = useCallback(async () => {
+    if (userId) invalidateDiscoveryCache(userId)
+    expansionAttempts.current.clear()
+    setRevision((n) => n + 1)
+  }, [userId])
+
+  const refresh = useCallback(
+    async (type: MediaType) => {
+      setRefreshing(true)
+      const controller = new AbortController()
+      const startIdentity = currentIdentity.current
+      try {
+        const response = await fetch(
+          `/api/discovery/refresh/${type === 'movie' ? 'movies' : 'series'}`,
+          {
+            method: 'POST',
+            credentials: 'include',
+            signal: requestSignal(controller.signal, 120_000),
+          }
+        )
+        if (!response.ok) {
+          const data = await response.json()
+          return { success: false, error: data.error || 'Failed to refresh' }
+        }
+        if (currentIdentity.current === startIdentity) await refetchCandidates()
+        return { success: true }
+      } catch {
+        return { success: false, error: 'Could not connect to server' }
+      } finally {
+        setRefreshing(false)
+      }
+    },
+    [refetchCandidates]
+  )
+
+  const markAsRequested = useCallback(
+    (tmdbId: number, type: MediaType) => {
+      requestRevision.current++ // A pre-request response must not overwrite the optimistic badge.
+      setStatuses((prev) => ({
+        userId,
+        values: {
+          ...(prev.userId === userId ? prev.values : {}),
+          [mediaKey(type, tmdbId)]: {
+            exists: false,
+            status: 'pending',
+            requested: true,
+            requestStatus: 'pending',
+          },
+        },
+      }))
+      if (userId) invalidateDiscoveryCache(userId)
+    },
+    [userId]
+  )
+
+  const listFor = (type: MediaType) => lists[`${userId}:${type}:${query}`]
   return {
     status,
-    movieCandidates,
-    seriesCandidates,
-    movieRun,
-    seriesRun,
-    seerrStatus,
-    loading,
+    movieCandidates:
+      status?.enabled && activeType === 'movie' && validated
+        ? (listFor('movie')?.candidates ?? EMPTY_CANDIDATES)
+        : EMPTY_CANDIDATES,
+    seriesCandidates:
+      status?.enabled && activeType === 'series' && validated
+        ? (listFor('series')?.candidates ?? EMPTY_CANDIDATES)
+        : EMPTY_CANDIDATES,
+    movieRun: listFor('movie')?.run ?? null,
+    seriesRun: listFor('series')?.run ?? null,
+    seerrStatus: statuses.userId === userId ? statuses.values : {},
+    loading: Boolean(userId && activeType && !error && (!status || (status.enabled && !validated))),
     refreshing,
-    expanding,
+    expanding: expandingKey === identity,
     error,
     refresh,
     markAsRequested,
-    expandDiscovery,
     refetchCandidates,
   }
 }
-

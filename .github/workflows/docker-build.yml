@@ -66,6 +66,9 @@ jobs:
       - name: Test appearance compatibility and preferences
         run: apps/api/node_modules/.bin/tsx --test apps/web/src/appearance/theme.test.cts apps/api/src/routes/auth/appearance.test.ts packages/core/src/lib/appearancePreferences.test.ts
 
+      - name: Test Discovery loading, caches and cancellation
+        run: pnpm test:discovery
+
   docker-amd64:
     name: Build Docker Image (amd64)
     needs: [detect-changes, validate]

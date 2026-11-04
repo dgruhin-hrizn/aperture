@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useAuth } from '../../../hooks/useAuth'
+import { discoveryResource } from './discoveryRequests'
 import type { MediaType } from '../types'
 
 export type ResolveDiscoveryGenreName = (id: number, fallback?: string) => string
@@ -7,7 +9,9 @@ export type ResolveDiscoveryGenreName = (id: number, fallback?: string) => strin
 /**
  * Loads TMDb genre id → label map for the current UI language (via API, keyed by locale).
  */
-export function useDiscoveryGenres(mediaType: MediaType) {
+export function useDiscoveryGenres(mediaType: MediaType | null) {
+  const { user } = useAuth()
+  const userId = user?.id
   const { i18n } = useTranslation()
   const [genres, setGenres] = useState<{ id: number; name: string }[]>([])
   const [loading, setLoading] = useState(true)
@@ -16,6 +20,8 @@ export function useDiscoveryGenres(mediaType: MediaType) {
   const locale = i18n.language
 
   useEffect(() => {
+    if (!mediaType || !userId) { setGenres([]); setLoading(false); return }
+    const controller = new AbortController()
     let cancelled = false
     setLoading(true)
     setError(null)
@@ -25,14 +31,7 @@ export function useDiscoveryGenres(mediaType: MediaType) {
       locale,
     })
 
-    fetch(`/api/discovery/genres?${params.toString()}`, { credentials: 'include' })
-      .then(async (res) => {
-        if (!res.ok) {
-          const text = await res.text().catch(() => '')
-          throw new Error(text || res.statusText)
-        }
-        return res.json() as Promise<{ genres: { id: number; name: string }[] }>
-      })
+    discoveryResource<{ genres: { id: number; name: string }[] }>(userId, `/api/discovery/genres?${params.toString()}`, controller.signal)
       .then((data) => {
         if (!cancelled) setGenres(data.genres ?? [])
       })
@@ -48,8 +47,9 @@ export function useDiscoveryGenres(mediaType: MediaType) {
 
     return () => {
       cancelled = true
+      controller.abort()
     }
-  }, [mediaType, locale])
+  }, [mediaType, locale, userId])
 
   const genreNameById = useMemo(
     () => new Map(genres.map((g) => [g.id, g.name] as const)),

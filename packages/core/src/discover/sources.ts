@@ -34,6 +34,7 @@ import {
 import type { TMDbMovieResult, TMDbTVResult } from '../tmdb/types.js'
 import { GENRE_STRIP_MAX_ROW_LIMIT } from '../settings/systemSettings.js'
 import { getCandidateExclusionTmdbIds } from './filter.js'
+import { AsyncCache } from '../lib/asyncCache.js'
 import type {
   MediaType,
   RawCandidate,
@@ -53,6 +54,8 @@ const PAGE_DELAY_MS = 50              // 50ms delay between page fetches for rat
 
 /** TMDb allows up to ~500 discover pages. */
 const GENRE_STRIP_MAX_DISCOVER_PAGE = 500
+// Cache raw public pages only: library, watched and request exclusions stay per-user and fresh.
+const genrePages = new AsyncCache<Awaited<ReturnType<typeof discoverMovies>> | Awaited<ReturnType<typeof discoverTV>>>(5 * 60_000)
 
 function rawFromMovieResult(movie: TMDbMovieResult): RawCandidate {
   const normalized = normalizeMovieResult(movie)
@@ -155,10 +158,9 @@ export async function fetchGenreStripDiscoverCandidates(
     let totalCatalog = 0
 
     for (let page = 1; page <= totalPagesCap; page++) {
-      const res =
-        mediaType === 'movie'
-          ? await discoverMovies({ ...base, page })
-          : await discoverTV({ ...base, page })
+      const res = await genrePages.get(JSON.stringify([mediaType, base, page]), () =>
+        mediaType === 'movie' ? discoverMovies({ ...base, page }) : discoverTV({ ...base, page })
+      )
 
       if (page > 1) {
         await new Promise((r) => setTimeout(r, PAGE_DELAY_MS))

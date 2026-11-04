@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { cachedResource } from '../hooks/cachedResource'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Box,
@@ -76,38 +77,48 @@ export function RunningJobsWidget() {
     },
     [t]
   )
-  const intervalRef = useRef<NodeJS.Timeout | null>(null)
-
   const open = Boolean(anchorEl)
-
-  const fetchJobs = useCallback(async () => {
-    if (!user?.isAdmin) return
-    
-    try {
-      const response = await fetch('/api/jobs/active', {
-        credentials: 'include',
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setJobs(data.jobs || [])
-      }
-    } catch (error) {
-      console.error('Failed to fetch active jobs:', error)
-    }
-  }, [user?.isAdmin])
-
+  const userId = user?.id
+  const isAdmin = user?.isAdmin
   useEffect(() => {
-    if (!user?.isAdmin) return
-
-    fetchJobs()
-    intervalRef.current = setInterval(fetchJobs, 2000)
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
+    if (!userId || !isAdmin) { setJobs([]); return }
+    let disposed = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let controller: AbortController | undefined
+    let version = 0
+    const poll = async () => {
+      if (disposed || document.visibilityState === 'hidden') return
+      const requestVersion = ++version
+      const current = new AbortController()
+      controller = current
+      let running = false
+      try {
+        const data = await cachedResource<{ jobs?: JobProgress[] }>(userId, '/api/jobs/active', current.signal, 1000)
+        if (current.signal.aborted || disposed || requestVersion !== version) return
+        setJobs(data.jobs || [])
+        running = (data.jobs || []).some(job => job.status === 'running')
+      } catch { /* Keep the previous status on transient errors. */ }
+      finally {
+        if (!disposed && !current.signal.aborted && requestVersion === version) timer = setTimeout(() => void poll(), running ? 2000 : 60_000)
       }
     }
-  }, [user?.isAdmin, fetchJobs])
+    const visibility = () => {
+      version++
+      clearTimeout(timer)
+      controller?.abort()
+      if (document.visibilityState !== 'hidden') void poll()
+    }
+    void poll()
+    document.addEventListener('visibilitychange', visibility)
+    window.addEventListener('aperture:jobs-changed', visibility)
+    return () => {
+      disposed = true
+      clearTimeout(timer)
+      controller?.abort()
+      document.removeEventListener('visibilitychange', visibility)
+      window.removeEventListener('aperture:jobs-changed', visibility)
+    }
+  }, [userId, isAdmin])
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(anchorEl ? null : event.currentTarget)

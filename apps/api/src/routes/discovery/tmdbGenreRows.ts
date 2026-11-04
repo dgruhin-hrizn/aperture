@@ -6,7 +6,7 @@ import { requireAuth, type SessionUser } from '../../plugins/auth.js'
 import { queryOne } from '../../lib/db.js'
 import {
   fetchGenreStripDiscoverCandidates,
-  batchGetSeerrMediaStatus,
+  batchGetSeerrMediaStatusByMedia,
   getGenreStripMovieRows,
   getGenreStripSeriesRows,
   GENRE_STRIP_DEFAULT_ROW_LIMIT,
@@ -213,9 +213,9 @@ export function registerTmdbGenreRowsRoutes(fastify: FastifyInstance) {
       tmdbId: c.tmdbId,
       mediaType: coreMediaType === 'movie' ? ('movie' as const) : ('tv' as const),
     }))
-    const seerrMap = items.length > 0 ? await batchGetSeerrMediaStatus(items) : new Map()
+    const seerrMap = items.length > 0 ? await batchGetSeerrMediaStatusByMedia(items) : new Map()
     const seerrStatuses: Record<
-      number,
+      string,
       { exists: boolean; status: string; requested: boolean; requestStatus?: string }
     > = {}
     for (const [tmdbId, st] of seerrMap) {
@@ -228,6 +228,6 @@ export function registerTmdbGenreRowsRoutes(fastify: FastifyInstance) {
 
     const candidates = sliced.map((c, i) => rawToCandidateJson(c, i + 1, currentUser.id, coreMediaType))
 
-    return reply.send({ candidates, seerrStatuses })
+    return reply.send({ candidates, seerrStatuses: Object.fromEntries(Object.entries(seerrStatuses).map(([key, value]) => [key.split(':')[1], value])), seerrStatusesByMedia: seerrStatuses })
   })
 }

@@ -5,6 +5,7 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify'
+import { createHash } from 'node:crypto'
 import { requireAuth, requireAdmin, type SessionUser } from '../../plugins/auth.js'
 import { queryOne, query } from '../../lib/db.js'
 import {
@@ -173,12 +174,14 @@ const discoveryRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       // Get latest run
-      const run = await getLatestDiscoveryRun(currentUser.id, 'movie')
-
-      // Get candidates with filters
-      const candidates = await getDiscoveryCandidates(currentUser.id, 'movie', filterOptions)
-      const total = await getDiscoveryCandidateCount(currentUser.id, 'movie', filterOptions)
-
+      const [run, candidates, total] = await Promise.all([
+        getLatestDiscoveryRun(currentUser.id, 'movie'),
+        getDiscoveryCandidates(currentUser.id, 'movie', filterOptions),
+        getDiscoveryCandidateCount(currentUser.id, 'movie', filterOptions),
+      ])
+      const etag = '"' + createHash('sha256').update(JSON.stringify([currentUser.id, filterOptions, run, candidates, total])).digest('hex') + '"'
+      reply.header('Cache-Control', 'private, no-cache').header('ETag', etag)
+      if (request.headers['if-none-match'] === etag) return reply.code(304).send()
       return reply.send({
         run,
         candidates,
@@ -228,12 +231,14 @@ const discoveryRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       // Get latest run
-      const run = await getLatestDiscoveryRun(currentUser.id, 'series')
-
-      // Get candidates with filters
-      const candidates = await getDiscoveryCandidates(currentUser.id, 'series', filterOptions)
-      const total = await getDiscoveryCandidateCount(currentUser.id, 'series', filterOptions)
-
+      const [run, candidates, total] = await Promise.all([
+        getLatestDiscoveryRun(currentUser.id, 'series'),
+        getDiscoveryCandidates(currentUser.id, 'series', filterOptions),
+        getDiscoveryCandidateCount(currentUser.id, 'series', filterOptions),
+      ])
+      const etag = '"' + createHash('sha256').update(JSON.stringify([currentUser.id, filterOptions, run, candidates, total])).digest('hex') + '"'
+      reply.header('Cache-Control', 'private, no-cache').header('ETag', etag)
+      if (request.headers['if-none-match'] === etag) return reply.code(304).send()
       return reply.send({
         run,
         candidates,
