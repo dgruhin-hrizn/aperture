@@ -33,6 +33,7 @@ import PersonIcon from '@mui/icons-material/Person'
 import SettingsIcon from '@mui/icons-material/Settings'
 import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined'
 import { ColorModeToggle } from '@/appearance/ColorModeToggle'
+import { APP_VERSION } from '@/version'
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline'
 import WhatshotIcon from '@mui/icons-material/Whatshot'
 import InsightsIcon from '@mui/icons-material/Insights'
@@ -405,7 +406,7 @@ export function Layout() {
               fontSize: '0.7rem',
             }}
           >
-            v0.7.11-dev.8
+            v{APP_VERSION}
           </Typography>
         )}
       </Box>

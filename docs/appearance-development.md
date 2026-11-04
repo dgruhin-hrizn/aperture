@@ -28,6 +28,8 @@ For existing dark-only surfaces and SVG/chart/assistant content, Studio’s `Mui
 
 Manrope and Barlow Condensed use the existing Google Fonts delivery mechanism with sans-serif fallbacks. Barlow Condensed is restricted to Studio media titles. Classic retains its previous typography. On small Studio screens, the brand icon replaces the longer header wordmark to keep search, mode, and account controls accessible.
 
+The API health response and OpenAPI version read the API package version. Sidebar and setup labels use the web package version. Release numbers no longer need separate edits in those screens.
+
 ## Automated checks
 
 From the repository root:
