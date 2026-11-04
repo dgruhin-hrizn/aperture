@@ -5,6 +5,7 @@ import { useSetupWizard } from './hooks/useSetupWizard'
 import { useSetupStatus } from '../../hooks/useSetupStatus'
 import { useTranslation } from 'react-i18next'
 import { STEP_ORDER_IDS } from './constants'
+import { APP_VERSION } from '@/version'
 import {
   RestoreStep,
   MediaServerStep,
@@ -18,8 +19,6 @@ import {
   InitialJobsStep,
   CompleteStep,
 } from './components'
-
-const APP_VERSION = '0.7.11-dev.7'
 
 export function SetupPage() {
   const { t } = useTranslation()

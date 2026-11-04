@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { healthCheck as dbHealthCheck } from '../../lib/db.js'
 import { healthSchemas, healthCheckSchema, readyCheckSchema, liveCheckSchema } from './schemas.js'
+import { APP_VERSION } from '../../lib/appVersion.js'
 
 interface HealthResponse {
   ok: boolean
@@ -28,7 +29,7 @@ const healthRoutes: FastifyPluginAsync = async (fastify) => {
       const health: HealthResponse = {
         ok: dbConnected,
         name: 'Aperture',
-        version: '0.7.11-dev.7',
+        version: APP_VERSION,
         time: new Date().toISOString(),
         database: {
           connected: dbConnected,

@@ -6,12 +6,11 @@
 
 import type { FastifyDynamicSwaggerOptions } from '@fastify/swagger'
 import type { FastifySwaggerUiOptions } from '@fastify/swagger-ui'
+import { APP_VERSION } from '../lib/appVersion.js'
 
 // =============================================================================
 // API Information
 // =============================================================================
-
-const API_VERSION = '0.7.11-dev.7'
 
 const apiInfo = {
   title: 'Aperture API',
@@ -57,7 +56,7 @@ All errors return JSON with an \`error\` field:
 }
 \`\`\`
 `.trim(),
-  version: API_VERSION,
+  version: APP_VERSION,
   contact: {
     name: 'Aperture',
     url: 'https://github.com/dgruhin-hrizn/aperture',
