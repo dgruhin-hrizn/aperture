@@ -31,11 +31,11 @@ export type ApiLogCallback = (
 
 async function rateLimit(): Promise<void> {
   const now = Date.now()
-  const timeSinceLastRequest = now - lastRequestTime
-  if (timeSinceLastRequest < RATE_LIMIT_DELAY_MS) {
-    await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_DELAY_MS - timeSinceLastRequest))
-  }
-  lastRequestTime = Date.now()
+  // Reserve a distinct start slot before yielding, so parallel readers cannot
+  // all wake at once and exceed the shared request rate.
+  const startAt = Math.max(now, lastRequestTime + RATE_LIMIT_DELAY_MS)
+  lastRequestTime = startAt
+  if (startAt > now) await new Promise((resolve) => setTimeout(resolve, startAt - now))
 }
 
 /**
@@ -43,7 +43,13 @@ async function rateLimit(): Promise<void> {
  */
 export async function tmdbRequest<T>(
   endpoint: string,
-  options: { apiKey?: string; onLog?: ApiLogCallback; language?: string } = {}
+  options: {
+    apiKey?: string
+    onLog?: ApiLogCallback
+    language?: string
+    timeoutMs?: number
+    maxRetries?: number
+  } = {}
 ): Promise<T | null> {
   const apiKey = options.apiKey || (await getTMDbApiKey())
   const { onLog, language } = options
@@ -58,7 +64,8 @@ export async function tmdbRequest<T>(
     url += `&language=${encodeURIComponent(language)}`
   }
 
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+  const maxRetries = options.maxRetries ?? MAX_RETRIES
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     await rateLimit()
 
     try {
@@ -66,10 +73,11 @@ export async function tmdbRequest<T>(
         headers: {
           Accept: 'application/json',
         },
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        signal: AbortSignal.timeout(options.timeoutMs ?? REQUEST_TIMEOUT_MS),
       })
 
       if (response.status === 429) {
+        if (attempt === maxRetries) return null
         // Rate limited - wait and retry
         const retryAfter = parseInt(response.headers.get('Retry-After') || '1', 10)
         logger.warn({ retryAfter, attempt }, 'TMDb rate limit hit, waiting...')
@@ -103,7 +111,7 @@ export async function tmdbRequest<T>(
         onLog?.('tmdb', endpoint, 'error', 'Request timed out')
         return null
       }
-      if (attempt === MAX_RETRIES) {
+      if (attempt === maxRetries) {
         logger.error({ err, endpoint }, 'TMDb API request failed after retries')
         onLog?.('tmdb', endpoint, 'error', err instanceof Error ? err.message : 'Unknown error')
         return null
@@ -138,10 +146,7 @@ export async function findMovieByImdbId(
     movie_results?: { id: number }[]
   }
 
-  const result = await tmdbRequest<FindResponse>(
-    `/find/${imdbId}?external_source=imdb_id`,
-    options
-  )
+  const result = await tmdbRequest<FindResponse>(`/find/${imdbId}?external_source=imdb_id`, options)
   if (result && result.movie_results && result.movie_results.length > 0) {
     return result.movie_results[0].id
   }
@@ -159,10 +164,7 @@ export async function findTVByImdbId(
     tv_results?: { id: number }[]
   }
 
-  const result = await tmdbRequest<FindResponse>(
-    `/find/${imdbId}?external_source=imdb_id`,
-    options
-  )
+  const result = await tmdbRequest<FindResponse>(`/find/${imdbId}?external_source=imdb_id`, options)
   if (result && result.tv_results && result.tv_results.length > 0) {
     return result.tv_results[0].id
   }
@@ -180,10 +182,7 @@ export async function findTVByTvdbId(
     tv_results?: { id: number }[]
   }
 
-  const result = await tmdbRequest<FindResponse>(
-    `/find/${tvdbId}?external_source=tvdb_id`,
-    options
-  )
+  const result = await tmdbRequest<FindResponse>(`/find/${tvdbId}?external_source=tvdb_id`, options)
   if (result && result.tv_results && result.tv_results.length > 0) {
     return result.tv_results[0].id
   }
@@ -211,12 +210,10 @@ export async function searchCompanyByName(
     `/search/company?query=${encodeURIComponent(name)}`,
     options
   )
-  
+
   if (result?.results && result.results.length > 0) {
     // Try to find an exact name match first
-    const exactMatch = result.results.find(
-      (c) => c.name.toLowerCase() === name.toLowerCase()
-    )
+    const exactMatch = result.results.find((c) => c.name.toLowerCase() === name.toLowerCase())
     return exactMatch || result.results[0]
   }
   return null
@@ -255,4 +252,3 @@ export async function getNetworkDetails(
 
   return tmdbRequest<NetworkResponse>(`/network/${networkId}`, options)
 }
-

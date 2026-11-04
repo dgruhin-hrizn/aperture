@@ -458,6 +458,7 @@ export {
 // Shows You Watch (DB list + media server favorites sync)
 export {
   getUpcomingEpisodes,
+  getUpcomingEpisodeBatch,
   getUpcomingEpisodeForSeries,
   type UpcomingEpisode,
   reconcileWatchingFavoritesForUser,

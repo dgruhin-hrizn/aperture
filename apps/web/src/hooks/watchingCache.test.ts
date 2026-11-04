@@ -77,7 +77,7 @@ test('cached metadata requires current server membership before display', async 
     renderer = create(tree('user-c'))
     await tick()
   })
-  assert.deepEqual(calls, ['/api/watching/ids', '/api/watching'])
+  assert.deepEqual(calls, ['/api/watching/ids', '/api/watching?includeUpcoming=false'])
   assert.equal(current.isWatching('removed'), false)
   assert.equal(current.isWatching('new'), true)
 })

@@ -1,4 +1,5 @@
 import { useAuth } from './useAuth'
+import { loadUpcomingBatches } from './watchingUpcoming'
 import { apiFetch, apiJson } from '../lib/api'
 /**
  * WatchingProvider
@@ -21,10 +22,12 @@ interface CachedData {
   userId: string
   series: WatchingSeries[]
   timestamp: number
+  upcomingCheckedAt?: number
   version: number // For cache invalidation on schema changes
 }
 
 const CACHE_VERSION = 2
+const UPCOMING_TTL_MS = 30 * 60_000
 
 interface WatchingProviderProps {
   children: ReactNode
@@ -56,12 +59,18 @@ function getCache(userId: string): CachedData | null {
   }
 }
 
-function setCache(userId: string, series: WatchingSeries[]): void {
+function setCache(
+  userId: string,
+  series: WatchingSeries[],
+  timestamp = Date.now(),
+  upcomingCheckedAt = 0
+): void {
   try {
     const data: CachedData = {
       userId,
       series,
-      timestamp: Date.now(),
+      timestamp,
+      upcomingCheckedAt,
       version: CACHE_VERSION,
     }
     localStorage.setItem(CACHE_KEY + userId, JSON.stringify(data))
@@ -86,6 +95,24 @@ export function WatchingProvider({ children }: WatchingProviderProps) {
   const [owner, setOwner] = useState<string | undefined>()
   const loadController = useRef<AbortController | null>(null)
   const [series, setSeries] = useState<WatchingSeries[]>([])
+  const rowsRef = useRef<WatchingSeries[]>([])
+  const cacheInfo = useRef({ timestamp: 0, upcomingCheckedAt: 0 })
+  const updateRows = useCallback((next: WatchingSeries[]) => {
+    rowsRef.current = next
+    setSeries(next)
+  }, [])
+  const [upcomingConsumers, setUpcomingConsumers] = useState(0)
+  const [metadataRevision, setMetadataRevision] = useState(0)
+  const [upcomingLoading, setUpcomingLoading] = useState(false)
+  const [upcomingError, setUpcomingError] = useState(false)
+  const subscribeUpcoming = useCallback(() => {
+    setUpcomingConsumers((n) => n + 1)
+    return () => setUpcomingConsumers((n) => Math.max(0, n - 1))
+  }, [])
+  const refreshUpcoming = useCallback(() => {
+    cacheInfo.current.upcomingCheckedAt = 0
+    setMetadataRevision((n) => n + 1)
+  }, [])
   const [watchingIds, setWatchingIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -114,19 +141,35 @@ export function WatchingProvider({ children }: WatchingProviderProps) {
             rows = cached.series
         }
         if (!rows)
-          rows = (await apiJson<{ series: WatchingSeries[] }>('/api/watching', controller.signal))
-            .series
+          rows = (
+            await apiJson<{ series: WatchingSeries[] }>(
+              '/api/watching?includeUpcoming=false',
+              controller.signal
+            )
+          ).series
         if (!current()) return
+        const usingCache = rows === cached?.series
+        cacheInfo.current = {
+          timestamp: usingCache ? cached!.timestamp : Date.now(),
+          upcomingCheckedAt: usingCache ? (cached!.upcomingCheckedAt ?? 0) : 0,
+        }
+        const today = new Date().toISOString().slice(0, 10)
+        rows = rows.map((row) =>
+          row.upcomingEpisode && row.upcomingEpisode.airDate.slice(0, 10) < today
+            ? { ...row, upcomingEpisode: null }
+            : row
+        )
         setOwner(userId)
-        setSeries(rows)
+        updateRows(rows)
+        setMetadataRevision((n) => n + 1)
         setWatchingIds(new Set(rows.map((s) => s.seriesId)))
         setError(null)
-        if (!cached || rows !== cached.series) setCache(userId, rows)
+        setCache(userId, rows, cacheInfo.current.timestamp, cacheInfo.current.upcomingCheckedAt)
       } catch (err) {
         if (current()) {
           clearCache(userId)
           setOwner(userId)
-          setSeries([])
+          updateRows([])
           setWatchingIds(new Set())
           setError(err instanceof Error ? err.message : 'Could not load watching list')
         }
@@ -134,7 +177,7 @@ export function WatchingProvider({ children }: WatchingProviderProps) {
         if (current()) setLoading(false)
       }
     },
-    [userId]
+    [userId, updateRows]
   )
 
   useEffect(() => {
@@ -144,14 +187,77 @@ export function WatchingProvider({ children }: WatchingProviderProps) {
     } catch {
       /* storage may be disabled */
     }
-    setSeries([])
+    updateRows([])
     setWatchingIds(new Set())
     setOwner(undefined)
     setError(null)
     setRefreshing(false)
+    setUpcomingLoading(false)
+    setUpcomingError(false)
     void fetchWatchingData(true)
     return () => loadController.current?.abort()
-  }, [fetchWatchingData, userId])
+  }, [fetchWatchingData, userId, updateRows])
+
+  const needsUpcoming = upcomingConsumers > 0
+  useEffect(() => {
+    if (!needsUpcoming || !userId || owner !== userId || loading) {
+      setUpcomingLoading(false)
+      return
+    }
+    const today = new Date().toISOString().slice(0, 10)
+    const checked = cacheInfo.current.upcomingCheckedAt
+    if (
+      checked &&
+      Date.now() - checked < UPCOMING_TTL_MS &&
+      new Date(checked).toISOString().slice(0, 10) === today
+    )
+      return
+    const ids = rowsRef.current.map((row) => row.seriesId)
+    if (!ids.length) {
+      setUpcomingLoading(false)
+      return
+    }
+    const controller = new AbortController()
+    const current = () => !controller.signal.aborted && activeUser.current === userId
+    setUpcomingLoading(true)
+    setUpcomingError(false)
+    void loadUpcomingBatches(ids, controller.signal, (batch) => {
+      if (!current()) return
+      const requested = new Set(batch.requestedSeriesIds),
+        owned = new Set(batch.seriesIds),
+        resolved = new Set(batch.resolvedSeriesIds)
+      const rows = rowsRef.current
+        .filter((row) => !requested.has(row.seriesId) || owned.has(row.seriesId))
+        .map((row) =>
+          resolved.has(row.seriesId)
+            ? { ...row, upcomingEpisode: batch.episodes[row.seriesId] ?? null }
+            : row
+        )
+      updateRows(rows)
+      setWatchingIds(new Set(rows.map((row) => row.seriesId)))
+      setCache(
+        userId,
+        rowsRef.current,
+        cacheInfo.current.timestamp,
+        cacheInfo.current.upcomingCheckedAt
+      )
+    })
+      .then((complete) => {
+        if (!current()) return
+        if (complete) cacheInfo.current.upcomingCheckedAt = Date.now()
+        setCache(
+          userId,
+          rowsRef.current,
+          cacheInfo.current.timestamp,
+          cacheInfo.current.upcomingCheckedAt
+        )
+        setUpcomingError(!complete)
+      })
+      .finally(() => {
+        if (current()) setUpcomingLoading(false)
+      })
+    return () => controller.abort()
+  }, [needsUpcoming, userId, owner, loading, metadataRevision, updateRows])
 
   const isWatching = useCallback(
     (seriesId: string) => {
@@ -203,7 +309,7 @@ export function WatchingProvider({ children }: WatchingProviderProps) {
         next.delete(seriesId)
         return next
       })
-      setSeries((prev) => prev.filter((s) => s.seriesId !== seriesId))
+      updateRows(rowsRef.current.filter((s) => s.seriesId !== seriesId))
 
       try {
         const response = await apiFetch(`/api/watching/${seriesId}`, {
@@ -220,16 +326,18 @@ export function WatchingProvider({ children }: WatchingProviderProps) {
         }
 
         // Update cache with new series list
-        setSeries((current) => {
-          setCache(userId, current)
-          return current
-        })
+        setCache(
+          userId,
+          rowsRef.current,
+          cacheInfo.current.timestamp,
+          cacheInfo.current.upcomingCheckedAt
+        )
       } catch (err) {
         console.error('Failed to remove from watching:', err)
         throw err
       }
     },
-    [fetchWatchingData, userId]
+    [fetchWatchingData, userId, updateRows]
   )
 
   const toggleWatching = useCallback(
@@ -281,6 +389,10 @@ export function WatchingProvider({ children }: WatchingProviderProps) {
     loading: Boolean(userId && (loading || owner !== userId)),
     error: owner === userId ? error : null,
     refreshing,
+    upcomingLoading: owner === userId && upcomingLoading,
+    upcomingError: owner === userId && upcomingError,
+    subscribeUpcoming,
+    refreshUpcoming,
     isWatching,
     addToWatching,
     removeFromWatching,

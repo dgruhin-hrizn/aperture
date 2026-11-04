@@ -1,201 +1,29 @@
 # Shows You Watch
 
-Shows You Watch is a curated list of TV series you're actively following, with upcoming episode tracking and progress information.
+Shows You Watch is your personal list of followed TV series, with upcoming episode information. Open it from the sidebar when the feature is enabled.
 
 ![Shows You Watch Page](../images/features/shows-you-watch.png)
 
-## Accessing Shows You Watch
+## Managing your list
 
-Navigate to **Shows You Watch** in the sidebar (TV icon).
+Use **Add Series** to search the synced catalog and follow a show. Following a series in Aperture also favorites it in Emby/Jellyfin; removing it removes the corresponding server favorite. **Sync favorites** reconciles the list with your media-server series favorites. The scheduled favorites-sync job can reconcile enabled users as well.
 
----
+A show does not automatically leave the list just because it ends or you finish watching it. Ended shows can remain followed; the **Airing** filter selects shows whose synced status is Continuing. There are no staleness or minimum-episode settings for this list.
 
-## What's Included
+## Views and filters
 
-Shows You Watch automatically tracks series where:
+Choose **Grid** or **List** view. The **All**, **Airing** and **Upcoming** filters show their current counts; Upcoming is selected initially. Series with upcoming episodes sort by the soonest air date. Open a title for its detail page, or remove a show using its watching control.
 
-1. You've watched recent episodes
-2. The series is still **Continuing** (not ended)
-3. More episodes are expected
+## Upcoming episodes
 
-This is your "currently watching" list for ongoing series.
+Episode cards show season/episode number, title and air date when available. Local synced episode data is preferred; TMDb supplies a fallback schedule. A missing forecast means a future episode has not been confirmed, rather than a guarantee that the series has ended. Ended shows are still checked because synced status can be stale.
 
----
+The saved list and local episodes load first. Remote forecasts fill in progressively while keeping available cards visible. A progress indicator shows that more information is loading. If some lookups fail, known episodes stay visible and a warning offers **Refresh**; this retries episode reads without syncing favorites or changing your list.
 
-## Page Layout
+Forecast work runs only when Dashboard or Shows You Watch needs it. Public forecasts, including confirmed absence, are reused briefly; user membership stays separate and is checked against the server. No new configuration is required. See [Upcoming Episodes loading](../upcoming-episodes-performance.md) for cache lifetimes, ownership checks, failure handling and measurements.
 
-### View Modes
+## In Emby and Jellyfin
 
-Toggle between display modes:
-
-| Mode | Description |
-|------|-------------|
-| **Grid View** | Poster cards with progress badges |
-| **List View** | Detailed rows with upcoming episodes |
-
-### Information Displayed
-
-#### Grid View
-
-Each card shows:
-
-- Series poster
-- Title
-- Progress indicator
-- Next episode badge (if available)
-- Heart rating
-
-#### List View
-
-Each row shows:
-
-| Info | Description |
-|------|-------------|
-| **Poster** | Series thumbnail |
-| **Title** | Series name |
-| **Status** | Current episode / season |
-| **Next Episode** | Title and air date |
-| **Days Until** | Countdown to next episode |
-| **Progress** | Episodes watched / total |
-| **Your Rating** | Heart rating |
-
----
-
-## Upcoming Episodes
-
-### Next Episode Info
-
-For each series, see:
-
-- **Episode title** — Name of the next episode
-- **Air date** — When it airs
-- **Days until** — "In 3 days", "Tomorrow", "Today"
-- **Season/Episode** — e.g., S4E12
-
-### Episode Status
-
-| Status | Meaning |
-|--------|---------|
-| **Today** | Airs today |
-| **Tomorrow** | Airs tomorrow |
-| **In X days** | Countdown |
-| **Aired** | Episode available but unwatched |
-| **TBA** | Next episode not yet scheduled |
-
----
-
-## Progress Tracking
-
-### Watch Progress
-
-Each series shows:
-
-- Current season you're on
-- Episode within that season
-- Overall series percentage
-
-### Behind Count
-
-If you're behind on episodes:
-
-> "3 episodes behind"
-
-Shows how many aired episodes you haven't watched.
-
----
-
-## Rating Shows
-
-Rate series directly from this page:
-
-- **Grid View** — Hover for heart overlay
-- **List View** — Heart rating inline
-
-Ratings affect your series recommendations.
-
----
-
-## Managing Your List
-
-### Automatic Updates
-
-The list updates automatically when:
-
-- You watch new episodes
-- New episodes air
-- Series status changes (ends)
-
-### Series That Leave
-
-A series leaves "Shows You Watch" when:
-
-- It ends (status changes to "Ended")
-- You stop watching (configurable threshold)
-- All episodes are watched
-
-### Refresh
-
-Click refresh to:
-
-- Update episode information
-- Check for newly aired episodes
-- Sync with your media server
-
----
-
-## Shows You Watch Library
-
-### In Your Media Server
-
-Shows You Watch also creates a library in Emby/Jellyfin:
-
-- Library name: "Shows You Watch - YourName" (or custom)
-- Contains your tracked series
-- Updates automatically
-- See [Virtual Libraries](virtual-libraries.md)
-
-### Benefits
-
-- Quick access from your media server
-- One-click continue watching
-- Visible on your media server home screen
-
----
-
-## Settings
-
-Configure Shows You Watch behavior:
-
-| Setting | Effect |
-|---------|--------|
-| **Staleness threshold** | Days without watching before removal |
-| **Include ended** | Whether to show recently-ended series |
-| **Minimum episodes** | Episodes watched to qualify |
-
-Your admin configures server-wide defaults. Some may be user-configurable.
-
----
-
-## Tips
-
-### Stay Current
-
-- Check regularly for new episodes
-- Use "Days until" to plan viewing
-- Mark as watched when you finish
-
-### Manage Behind Shows
-
-- Too many episodes behind? Consider dropping
-- Use the list to prioritize what to catch up on
-- Rate shows to influence recommendations
-
-### Discover New Series
-
-- Shows here don't appear in recommendations
-- Completing a series makes room for new suggestions
-- Check Top Picks and Discovery for new series
-
----
+Shows You Watch uses the media server's series favorites. It does not create an additional STRM library. The media server and its clients control how favorites are displayed. Favorites synchronization is separate from refreshing the upcoming schedule.
 
 **Next:** [Playlists](playlists.md)

@@ -65,3 +65,7 @@ Run `pnpm test:ui-performance` (27 tests), `pnpm test:discovery` (20 tests), and
 Browser checks use Gru's existing data through a temporary read-only loopback gateway, blocking preference writes, playlist mutations, content requests and generation. Verify Recommendations/Top Picks tabs, Browse Movies/TV/People, playlist previews/full viewer/editor, title details, My Requests, Studio light/dark, Classic, French and RTL loading. Theme/language variants can be supplied only to the test gateway response without saving preferences.
 
 Deployment verification records the GHCR digest and compares existing configuration tables, all saved user preferences, Gru's appearance and all Emby Home sections before and after updating only the Aperture app container. Container mounts, ports and restart policy are checked; the database container is retained.
+
+## Upcoming Episodes follow-up
+
+See [Upcoming Episodes loading](upcoming-episodes-performance.md) for the subsequent local-first, progressive forecast optimization, separate forecast freshness, request limits and measurements.

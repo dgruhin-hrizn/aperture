@@ -72,6 +72,9 @@ jobs:
       - name: Test UI loading, account isolation and read endpoints
         run: pnpm test:ui-performance
 
+      - name: Test upcoming episodes loading, caches and ownership
+        run: pnpm test:upcoming
+
   docker-amd64:
     name: Build Docker Image (amd64)
     needs: [detect-changes, validate]
