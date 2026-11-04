@@ -1,4 +1,23 @@
 {
+  "tonight": {
+    "title": "Tonight",
+    "subtitle": "Pick up where you left off, or find something to watch next.",
+    "continueWatching": "Continue Watching",
+    "picks": "Tonight’s picks",
+    "openInEmby": "Open in Emby",
+    "openTitle": "Open {{title}} in Emby",
+    "minutes_one": "{{count}} min",
+    "minutes_other": "{{count}} min",
+    "minutesLeft_one": "{{count}} min left",
+    "minutesLeft_other": "{{count}} min left",
+    "progress": "Playback progress for {{title}}",
+    "noResume": "No in-progress titles are available from your synced Emby libraries.",
+    "noPicks": "No saved recommendations are available to play in Emby yet.",
+    "loading": "Loading Tonight",
+    "error": "Could not load Tonight. Check your Emby connection or sign in again.",
+    "signIn": "Sign in to Aperture with Emby to see your Continue Watching list and picks.",
+    "embyOnly": "Tonight is available with an Emby media server."
+  },
   "embyHomePins": {
     "title": "Emby Home",
     "description": "Pin a private AI Picks playlist to your Emby Home screen. Unpin removes the shelf and keeps the playlist.",

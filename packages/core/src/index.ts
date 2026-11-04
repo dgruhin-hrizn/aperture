@@ -1074,3 +1074,5 @@ export {
 } from './recommender/series/groups.js'
 
 export { addEmbyHomePin, EmbyHomeConflict, getEmbyHomeSections, removeEmbyHomePin } from './media/emby/homeSections.js'
+
+export { getEmbyTonight } from './media/emby/tonight.js'
