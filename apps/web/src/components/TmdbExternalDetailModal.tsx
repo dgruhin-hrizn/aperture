@@ -13,6 +13,7 @@ import {
   IconButton,
   Grid,
   alpha,
+  useTheme,
   CircularProgress,
   Alert,
   Button,
@@ -94,6 +95,8 @@ export function TmdbExternalDetailModal({
   onRequest,
 }: TmdbExternalDetailModalProps) {
   const { t } = useTranslation()
+  const theme = useTheme()
+  const light = theme.palette.mode === 'light'
   const navigate = useNavigate()
   const displaySourceLabel = sourceLabel ?? t('tmdbExternalModal.defaultSource')
   const [heroImageVisible, setHeroImageVisible] = useState(false)
@@ -166,7 +169,9 @@ export function TmdbExternalDetailModal({
   const imdbUrl = data?.imdbId ? `https://www.imdb.com/title/${data.imdbId}` : null
 
   const cardStyle = {
-    backgroundColor: alpha('#000', 0.35),
+    // Text follows the active palette; artwork must not determine its contrast.
+    backgroundColor: light ? theme.palette.background.paper : alpha('#000', 0.35),
+    ...(light && { border: `1px solid ${theme.palette.divider}` }),
     backdropFilter: 'blur(6px)',
     WebkitBackdropFilter: 'blur(6px)',
     borderRadius: 2,
@@ -199,7 +204,8 @@ export function TmdbExternalDetailModal({
         sx={{
           position: 'relative',
           minHeight: { xs: 'auto', md: 500 },
-          bgcolor: '#000',
+          bgcolor: light ? 'background.default' : '#000',
+          color: 'text.primary',
         }}
       >
         {heroImageUrl && (
@@ -224,8 +230,9 @@ export function TmdbExternalDetailModal({
             sx={{
               position: 'absolute',
               inset: 0,
-              background:
-                'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.7) 100%)',
+              background: light
+                ? `linear-gradient(to bottom, ${alpha(theme.palette.background.default, 0.72)} 0%, ${alpha(theme.palette.background.default, 0.94)} 100%)`
+                : 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.7) 100%)',
               opacity: heroImageVisible ? 1 : 0,
               transition: 'opacity 0.55s ease-out',
               zIndex: 1,
@@ -234,6 +241,7 @@ export function TmdbExternalDetailModal({
           />
         )}
         <IconButton
+          aria-label={t('common.close')}
           onClick={(e) => {
             e.stopPropagation()
             onClose()
@@ -285,7 +293,7 @@ export function TmdbExternalDetailModal({
                       }
                       size="small"
                       sx={{
-                        bgcolor: alpha('#8B5CF6', 0.2),
+                        bgcolor: alpha(light ? theme.palette.primary.main : '#8B5CF6', light ? 0.1 : 0.2),
                         '& .MuiChip-icon': { color: 'inherit' },
                       }}
                     />
@@ -367,8 +375,8 @@ export function TmdbExternalDetailModal({
                             label={genre.name}
                             size="small"
                             sx={{
-                              bgcolor: alpha('#fff', 0.1),
-                              '&:hover': { bgcolor: alpha('#fff', 0.15) },
+                              bgcolor: light ? theme.palette.action.hover : alpha('#fff', 0.1),
+                              '&:hover': { bgcolor: light ? theme.palette.action.selected : alpha('#fff', 0.15) },
                             }}
                           />
                         ))}
@@ -499,8 +507,8 @@ export function TmdbExternalDetailModal({
                             size="small"
                             onClick={() => handlePersonClick(name)}
                             sx={{
-                              bgcolor: alpha('#8B5CF6', 0.2),
-                              '&:hover': { bgcolor: alpha('#8B5CF6', 0.3) },
+                              bgcolor: alpha(light ? theme.palette.primary.main : '#8B5CF6', light ? 0.1 : 0.2),
+                              '&:hover': { bgcolor: alpha(light ? theme.palette.primary.main : '#8B5CF6', light ? 0.16 : 0.3) },
                               cursor: 'pointer',
                             }}
                           />
@@ -533,7 +541,7 @@ export function TmdbExternalDetailModal({
                                 cursor: 'pointer',
                                 transition: 'background-color 0.2s',
                                 '&:hover': {
-                                  bgcolor: alpha('#fff', 0.05),
+                                  bgcolor: light ? theme.palette.action.hover : alpha('#fff', 0.05),
                                 },
                               }}
                             >
