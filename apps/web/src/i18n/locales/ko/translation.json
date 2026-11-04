@@ -3675,5 +3675,30 @@
     "sectionBlurb": "각 행은 TMDb Discover 스트립입니다. 행에 여러 장르가 나열되면 TMDb는 모든 장르와 일치하는 제목을 반환합니다. 이미 라이브러리에 있거나 시청했거나 요청한 항목은 결과에서 제외됩니다.",
     "loadError": "장르 행을 로드할 수 없습니다.",
     "emptyStrip": "필터링 후 이 행과 일치하는 제목이 없습니다."
+  },
+  "appearance": {
+    "title": "화면 모양",
+    "description": "Aperture의 모양을 선택하세요. 추천이나 Emby 설정은 변경되지 않습니다.",
+    "theme": "테마",
+    "classic": "클래식",
+    "classicDescription": "Aperture의 기존 어두운 테마입니다.",
+    "studio": "Studio",
+    "studioDescription": "코발트 강조색, 선명한 글꼴, 밝거나 어두운 화면입니다.",
+    "mode": "색상 모드",
+    "light": "밝게",
+    "dark": "어둡게",
+    "system": "기기 설정 따르기",
+    "classicModeHint": "클래식은 기존 어두운 모양을 유지합니다. Studio 모드는 기억됩니다.",
+    "systemHint": "기기의 화면 모양 설정을 자동으로 따릅니다.",
+    "save": "모양 저장",
+    "saved": "계정의 화면 모양을 저장했습니다.",
+    "loadError": "모양을 불러올 수 없습니다. 변경하기 전에 다시 시도하세요.",
+    "saveError": "모양을 저장할 수 없습니다. 이전 선택이 유지됩니다.",
+    "retry": "다시 시도",
+    "switchLight": "밝은 모드로 전환",
+    "switchDark": "어두운 모드로 전환",
+    "forYou": "맞춤 추천",
+    "yourLibrary": "내 라이브러리",
+    "activity": "활동"
   }
 }

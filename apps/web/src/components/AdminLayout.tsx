@@ -152,7 +152,7 @@ export function AdminLayout() {
                         height: 20,
                         minWidth: 20,
                         bgcolor: 'primary.main',
-                        color: 'white',
+                        color: theme => theme.aperture.name === 'studio' ? theme.palette.primary.contrastText : 'white',
                         fontSize: '0.75rem',
                         '& .MuiChip-label': { px: 0.75 },
                       }}

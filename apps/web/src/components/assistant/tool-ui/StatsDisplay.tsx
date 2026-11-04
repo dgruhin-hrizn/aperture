@@ -30,7 +30,7 @@ export function StatsDisplay({ data }: StatsDisplayProps) {
         }}
       >
         {/* Movies */}
-        <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2 }}>
+        <Paper sx={{ p: 2, bgcolor: 'var(--ap-surface-1, #1a1a1a)', borderRadius: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
             <MovieIcon sx={{ color: '#818cf8' }} />
             <Typography variant="caption" color="text.secondary">{t('assistantToolUi.movies')}</Typography>
@@ -41,7 +41,7 @@ export function StatsDisplay({ data }: StatsDisplayProps) {
         </Paper>
 
         {/* Series */}
-        <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2 }}>
+        <Paper sx={{ p: 2, bgcolor: 'var(--ap-surface-1, #1a1a1a)', borderRadius: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
             <TvIcon sx={{ color: '#10b981' }} />
             <Typography variant="caption" color="text.secondary">{t('assistantToolUi.tvSeries')}</Typography>
@@ -58,7 +58,7 @@ export function StatsDisplay({ data }: StatsDisplayProps) {
 
         {/* Runtime */}
         {data.totalRuntimeFormatted && (
-          <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2 }}>
+          <Paper sx={{ p: 2, bgcolor: 'var(--ap-surface-1, #1a1a1a)', borderRadius: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
               <AccessTimeIcon sx={{ color: '#f59e0b' }} />
               <Typography variant="caption" color="text.secondary">{t('assistantToolUi.totalRuntime')}</Typography>
@@ -71,7 +71,7 @@ export function StatsDisplay({ data }: StatsDisplayProps) {
 
         {/* Average Rating */}
         {data.averageRating !== null && data.averageRating !== undefined && (
-          <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2 }}>
+          <Paper sx={{ p: 2, bgcolor: 'var(--ap-surface-1, #1a1a1a)', borderRadius: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
               <StarIcon sx={{ color: '#ffc107' }} />
               <Typography variant="caption" color="text.secondary">{t('assistantToolUi.avgRating')}</Typography>
@@ -85,7 +85,7 @@ export function StatsDisplay({ data }: StatsDisplayProps) {
 
       {/* User activity */}
       {data.watchStats && (
-        <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2, mb: 2 }}>
+        <Paper sx={{ p: 2, bgcolor: 'var(--ap-surface-1, #1a1a1a)', borderRadius: 2, mb: 2 }}>
           <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5, color: '#e4e4e7' }}>
             {t('assistantToolUi.yourActivity')}
           </Typography>
@@ -122,7 +122,7 @@ export function StatsDisplay({ data }: StatsDisplayProps) {
 
       {/* Top genres */}
       {data.topGenres && data.topGenres.length > 0 && (
-        <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2 }}>
+        <Paper sx={{ p: 2, bgcolor: 'var(--ap-surface-1, #1a1a1a)', borderRadius: 2 }}>
           <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5, color: '#e4e4e7' }}>
             {t('assistantToolUi.topGenres')}
           </Typography>
@@ -143,10 +143,10 @@ export function StatsDisplay({ data }: StatsDisplayProps) {
                   sx={{
                     height: 6,
                     borderRadius: 3,
-                    bgcolor: '#2a2a2a',
+                    bgcolor: 'var(--ap-surface-2, #2a2a2a)',
                     '& .MuiLinearProgress-bar': {
                       borderRadius: 3,
-                      background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                      background: 'var(--ap-primary-action, linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%))',
                     },
                   }}
                 />
@@ -168,7 +168,7 @@ export function StudiosDisplay({ data }: StudiosDisplayProps) {
   return (
     <Box sx={{ my: 2 }}>
       {data.studios && data.studios.length > 0 && (
-        <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2, mb: 2 }}>
+        <Paper sx={{ p: 2, bgcolor: 'var(--ap-surface-1, #1a1a1a)', borderRadius: 2, mb: 2 }}>
           <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5, color: '#e4e4e7' }}>
             {t('assistantToolUi.topMovieStudios')}
           </Typography>
@@ -201,7 +201,7 @@ export function StudiosDisplay({ data }: StudiosDisplayProps) {
       )}
 
       {data.networks && data.networks.length > 0 && (
-        <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2 }}>
+        <Paper sx={{ p: 2, bgcolor: 'var(--ap-surface-1, #1a1a1a)', borderRadius: 2 }}>
           <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5, color: '#e4e4e7' }}>
             {t('assistantToolUi.topTvNetworks')}
           </Typography>

@@ -37,7 +37,7 @@ export function ContentDetail({ data }: ContentDetailProps) {
   }
 
   return (
-    <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2, my: 2 }}>
+    <Paper sx={{ p: 2, bgcolor: 'var(--ap-surface-1, #1a1a1a)', borderRadius: 2, my: 2 }}>
       <Box sx={{ display: 'flex', gap: 2 }}>
         {/* Poster */}
         <Box
@@ -47,7 +47,7 @@ export function ContentDetail({ data }: ContentDetailProps) {
             flexShrink: 0,
             borderRadius: 1.5,
             overflow: 'hidden',
-            bgcolor: '#2a2a2a',
+            bgcolor: 'var(--ap-surface-2, #2a2a2a)',
           }}
         >
           {data.image ? (
@@ -167,7 +167,7 @@ export function ContentDetail({ data }: ContentDetailProps) {
                   size="small"
                   sx={{
                     height: 22,
-                    bgcolor: '#2a2a2a',
+                    bgcolor: 'var(--ap-surface-2, #2a2a2a)',
                     color: '#a1a1aa',
                   }}
                 />
@@ -224,9 +224,9 @@ export function ContentDetail({ data }: ContentDetailProps) {
                 startIcon={<PlayArrowIcon />}
                 onClick={handlePlay}
                 sx={{
-                  background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                  background: 'var(--ap-primary-action, linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%))',
                   '&:hover': {
-                    background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                    background: 'var(--ap-primary-hover, linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%))',
                   },
                 }}
               >
@@ -240,7 +240,7 @@ export function ContentDetail({ data }: ContentDetailProps) {
       {/* Overview */}
       {data.overview && (
         <>
-          <Divider sx={{ my: 2, borderColor: '#2a2a2a' }} />
+          <Divider sx={{ my: 2, borderColor: 'var(--ap-surface-2, #2a2a2a)' }} />
           <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
             {data.overview}
           </Typography>
@@ -250,7 +250,7 @@ export function ContentDetail({ data }: ContentDetailProps) {
       {/* Cast */}
       {data.cast && data.cast.length > 0 && (
         <>
-          <Divider sx={{ my: 2, borderColor: '#2a2a2a' }} />
+          <Divider sx={{ my: 2, borderColor: 'var(--ap-surface-2, #2a2a2a)' }} />
           <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ mb: 1, display: 'block' }}>
             {t('assistantToolUi.castHeading')}
           </Typography>

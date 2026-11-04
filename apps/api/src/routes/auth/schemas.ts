@@ -1,3 +1,13 @@
+export const appearancePreferenceSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['theme', 'mode'],
+  properties: {
+    theme: { type: 'string', enum: ['classic', 'studio'] },
+    mode: { type: 'string', enum: ['light', 'dark', 'system'] },
+  },
+} as const
+
 /**
  * Authentication OpenAPI Schemas
  */
@@ -56,6 +66,7 @@ export const authSchemas = {
     type: 'object',
     description: 'User UI preferences stored in Aperture',
     properties: {
+      appearance: appearancePreferenceSchema,
       dismissedAdminRelease: { type: 'string', minLength: 1, maxLength: 40 },
       dismissedUserRelease: { type: 'string', minLength: 1, maxLength: 40 },
       sidebarCollapsed: { type: 'boolean', description: 'Whether the sidebar is collapsed' },
@@ -141,6 +152,7 @@ export const updatePreferencesSchema = {
     additionalProperties: true,
     description: 'Preferences to update (partial)',
     properties: {
+      appearance: appearancePreferenceSchema,
       sidebarCollapsed: { type: 'boolean', description: 'Whether the sidebar should be collapsed' },
       viewModes: { type: 'object', additionalProperties: true, description: 'View mode preferences per page' },
       browseSort: { type: 'object', additionalProperties: true, description: 'Sort preferences for browse pages' },

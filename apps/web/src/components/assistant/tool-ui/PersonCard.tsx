@@ -33,7 +33,7 @@ function PersonCardSingle({ person }: PersonCardProps) {
     <Box
       sx={{
         p: 2,
-        bgcolor: '#1a1a1a',
+        bgcolor: 'var(--ap-surface-1, #1a1a1a)',
         borderRadius: 2,
         mb: 1.5,
       }}
@@ -45,7 +45,7 @@ function PersonCardSingle({ person }: PersonCardProps) {
           sx={{
             width: 64,
             height: 64,
-            bgcolor: '#2a2a2a',
+            bgcolor: 'var(--ap-surface-2, #2a2a2a)',
           }}
         >
           <PersonIcon />
@@ -85,7 +85,7 @@ function PersonCardSingle({ person }: PersonCardProps) {
                 onClick={() => navigate(`/movies/${film.id}`)}
                 sx={{
                   height: 24,
-                  bgcolor: '#2a2a2a',
+                  bgcolor: 'var(--ap-surface-2, #2a2a2a)',
                   color: '#e4e4e7',
                   cursor: 'pointer',
                   '&:hover': {
@@ -120,7 +120,7 @@ function PersonCardSingle({ person }: PersonCardProps) {
                 onClick={() => navigate(`/series/${film.id}`)}
                 sx={{
                   height: 24,
-                  bgcolor: '#2a2a2a',
+                  bgcolor: 'var(--ap-surface-2, #2a2a2a)',
                   color: '#e4e4e7',
                   cursor: 'pointer',
                   '&:hover': {

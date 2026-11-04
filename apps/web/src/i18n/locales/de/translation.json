@@ -3675,5 +3675,30 @@
     "sectionBlurb": "Jede Zeile ist ein TMDb Discover-Streifen. Wenn eine Zeile mehrere Genres auflistet, liefert TMDb Titel, die alle davon erfüllen. Ergebnisse schließen bereits in deiner Bibliothek, gesehen oder angefragt Items aus.",
     "loadError": "Konnte Genre-Zeile nicht laden",
     "emptyStrip": "Keine Titel passen nach Filterung zu dieser Zeile."
+  },
+  "appearance": {
+    "title": "Darstellung",
+    "description": "Wählen Sie das Aussehen von Aperture. Nur die Oberfläche ändert sich, nicht Ihre Empfehlungen oder Emby-Einstellungen.",
+    "theme": "Design",
+    "classic": "Klassisch",
+    "classicDescription": "Das ursprüngliche dunkle Aperture-Design.",
+    "studio": "Studio",
+    "studioDescription": "Kobaltblaue Akzente, klare Schrift und helle oder dunkle Flächen.",
+    "mode": "Farbmodus",
+    "light": "Hell",
+    "dark": "Dunkel",
+    "system": "Gerät folgen",
+    "classicModeHint": "Klassisch behält sein dunkles Aussehen. Der Studio-Farbmodus bleibt gespeichert.",
+    "systemHint": "Das Design folgt automatisch der Darstellung Ihres Geräts.",
+    "save": "Darstellung speichern",
+    "saved": "Darstellung für Ihr Konto gespeichert.",
+    "loadError": "Darstellung konnte nicht geladen werden. Bitte vor Änderungen erneut versuchen.",
+    "saveError": "Darstellung konnte nicht gespeichert werden. Ihre bisherige Auswahl bleibt aktiv.",
+    "retry": "Erneut versuchen",
+    "switchLight": "Zum hellen Modus wechseln",
+    "switchDark": "Zum dunklen Modus wechseln",
+    "forYou": "Für Sie",
+    "yourLibrary": "Ihre Mediathek",
+    "activity": "Aktivität"
   }
 }

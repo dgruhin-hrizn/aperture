@@ -526,9 +526,9 @@ export function AssistantModal() {
               bottom: 24,
               right: 24,
               zIndex: 1000,
-              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              background: 'var(--ap-primary-action, linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%))',
               '&:hover': {
-                background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                background: 'var(--ap-primary-hover, linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%))',
               },
             }}
           >
@@ -548,7 +548,7 @@ export function AssistantModal() {
           sx: {
             height: fullscreen ? '100%' : '95vh',
             maxHeight: fullscreen ? '100%' : '90vh',
-            bgcolor: 'rgba(15, 15, 15, 0.5)',
+            bgcolor: 'var(--ap-modal-translucent, rgba(15, 15, 15, 0.5))',
             backdropFilter: 'blur(10px)',
             backgroundImage: 'none',
             borderRadius: fullscreen ? 0 : 3,
@@ -580,7 +580,7 @@ export function AssistantModal() {
                     alignItems: 'center',
                     gap: 1,
                     p: 1.5,
-                    bgcolor: 'rgba(26, 26, 26, 0.6)',
+                    bgcolor: 'var(--ap-panel-translucent, rgba(26, 26, 26, 0.6))',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
                     borderRadius: 2,
                     color: '#f5f5f5',
@@ -656,7 +656,7 @@ export function AssistantModal() {
                                 fontSize: '0.875rem',
                               },
                               '& .MuiOutlinedInput-root': {
-                                bgcolor: 'rgba(26, 26, 26, 0.6)',
+                                bgcolor: 'var(--ap-panel-translucent, rgba(26, 26, 26, 0.6))',
                               },
                             }}
                           />
@@ -741,7 +741,7 @@ export function AssistantModal() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                    background: 'var(--ap-primary-action, linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%))',
                   }}
                 >
                   <SmartToyIcon sx={{ fontSize: 20, color: '#fff' }} />

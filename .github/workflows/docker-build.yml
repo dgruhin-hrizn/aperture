@@ -63,6 +63,9 @@ jobs:
       - name: Validate
         run: pnpm validate
 
+      - name: Test appearance compatibility and preferences
+        run: apps/api/node_modules/.bin/tsx --test apps/web/src/appearance/theme.test.cts apps/api/src/routes/auth/appearance.test.ts packages/core/src/lib/appearancePreferences.test.ts
+
   docker-amd64:
     name: Build Docker Image (amd64)
     needs: [detect-changes, validate]
@@ -201,7 +204,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           flavor: latest=${{ contains(github.ref_name, '-dev.') && 'false' || 'auto' }}
           tags: |
-            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/dev' }}
+            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/dev' || (startsWith(github.ref, 'refs/tags/v') && contains(github.ref_name, '-dev.')) }}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}

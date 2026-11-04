@@ -29,7 +29,7 @@ Complete reference for all Aperture API endpoints.
 | `POST /api/auth/logout` | End session                                |
 | `GET /api/auth/me`      | Get current user                           |
 | `GET /api/auth/me/preferences` | Get UI preferences; includes `effectiveUiLanguage` and `effectiveAiLanguage` |
-| `PATCH /api/auth/me/preferences` | Update UI preferences. Includes `dismissedAdminRelease` and `dismissedUserRelease` for versioned release dialogs. |
+| `PATCH /api/auth/me/preferences` | Update UI preferences. Includes `dismissedAdminRelease` and `dismissedUserRelease` for release dialogs, and optional `appearance: { theme: "classic" \| "studio", mode: "light" \| "dark" \| "system" }`. Appearance updates require both fields and preserve unrelated settings. |
 
 ---
 

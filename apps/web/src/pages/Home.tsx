@@ -341,7 +341,7 @@ export function HomePage() {
                         top: 8,
                         left: 8,
                         backgroundColor: 'primary.main',
-                        color: 'white',
+                        color: theme => theme.aperture.name === 'studio' ? theme.palette.primary.contrastText : 'white',
                         fontWeight: 600,
                         fontSize: '0.7rem',
                       }}

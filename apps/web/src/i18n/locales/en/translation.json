@@ -3756,5 +3756,30 @@
       "repairSuccessWithFailed": "Successfully repaired {{successful}} poster ({{failed}} failed)",
       "repairSuccessWithFailed_plural": "Successfully repaired {{successful}} posters ({{failed}} failed)"
     }
+  },
+  "appearance": {
+    "title": "Appearance",
+    "description": "Choose your look for Aperture. This changes only your interface, not your recommendations or Emby settings.",
+    "theme": "Theme",
+    "classic": "Classic",
+    "classicDescription": "The original Aperture dark theme.",
+    "studio": "Studio",
+    "studioDescription": "Cobalt accents, crisp typography, and light or dark surfaces.",
+    "mode": "Color mode",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "Follow device",
+    "classicModeHint": "Classic keeps its original dark appearance. Your Studio color mode is remembered.",
+    "systemHint": "Follow device switches automatically with your device’s appearance.",
+    "save": "Save appearance",
+    "saved": "Appearance saved for your account.",
+    "loadError": "Could not load your appearance. Retry before making changes.",
+    "saveError": "Could not save appearance. Your previous choice is still active.",
+    "retry": "Retry",
+    "switchLight": "Switch to light mode",
+    "switchDark": "Switch to dark mode",
+    "forYou": "For you",
+    "yourLibrary": "Your library",
+    "activity": "Activity"
   }
 }

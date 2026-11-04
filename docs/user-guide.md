@@ -88,6 +88,8 @@ Customize your experience with user settings.
 
 22. [Profile Settings](features/user-settings/profile.md) - Email and notifications
 23. [Preferences](features/user-settings/preferences.md) - Library names, view modes, filter presets
+
+    [Appearance](features/user-settings/appearance.md) - Classic and Studio themes; light, dark, and device modes
 24. [AI Algorithm Weights](features/user-settings/ai-algorithm.md) - Customize recommendation scoring
 25. [Watcher Identity](features/user-settings/watcher-identity.md) - Taste profiles and weights
 

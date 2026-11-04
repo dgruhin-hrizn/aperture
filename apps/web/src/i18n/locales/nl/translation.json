@@ -3675,5 +3675,30 @@
     "sectionBlurb": "Elke rij is een TMDb Discover-strip. Als een rij meerdere genres bevat, retourneert TMDb titels die met alle genres overeenkomen. Resultaten sluiten items uit die al in uw bibliotheek staan, bekeken of aangevraagd zijn.",
     "loadError": "Kan genrerij niet laden",
     "emptyStrip": "Na het filteren komen er geen titels overeen met deze rij."
+  },
+  "appearance": {
+    "title": "Weergave",
+    "description": "Kies het uiterlijk van Aperture. Alleen de interface verandert, niet je aanbevelingen of Emby-instellingen.",
+    "theme": "Thema",
+    "classic": "Klassiek",
+    "classicDescription": "Het oorspronkelijke donkere Aperture-thema.",
+    "studio": "Studio",
+    "studioDescription": "Kobaltblauwe accenten, heldere typografie en lichte of donkere vlakken.",
+    "mode": "Kleurmodus",
+    "light": "Licht",
+    "dark": "Donker",
+    "system": "Apparaat volgen",
+    "classicModeHint": "Klassiek behoudt zijn donkere uiterlijk. De Studio-modus wordt onthouden.",
+    "systemHint": "Het thema volgt automatisch de weergave van je apparaat.",
+    "save": "Weergave opslaan",
+    "saved": "Weergave opgeslagen voor je account.",
+    "loadError": "Kan de weergave niet laden. Probeer het opnieuw voordat je wijzigingen aanbrengt.",
+    "saveError": "Kan de weergave niet opslaan. Je vorige keuze blijft actief.",
+    "retry": "Opnieuw proberen",
+    "switchLight": "Naar lichte modus",
+    "switchDark": "Naar donkere modus",
+    "forYou": "Voor jou",
+    "yourLibrary": "Je bibliotheek",
+    "activity": "Activiteit"
   }
 }

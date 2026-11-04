@@ -3675,5 +3675,30 @@
     "sectionBlurb": "Chaque ligne est une bande TMDb Discover. Si une ligne répertorie plusieurs genres, TMDb renvoie les titres qui correspondent à tous. Les résultats excluent les éléments déjà présents dans votre bibliothèque, regardés ou demandés.",
     "loadError": "Impossible de charger la ligne de genre",
     "emptyStrip": "Aucun titre ne correspond à cette ligne après le filtrage."
+  },
+  "appearance": {
+    "title": "Apparence",
+    "description": "Choisissez l’apparence d’Aperture. Seule votre interface change, pas vos recommandations ni les paramètres Emby.",
+    "theme": "Thème",
+    "classic": "Classique",
+    "classicDescription": "Le thème sombre original d’Aperture.",
+    "studio": "Studio",
+    "studioDescription": "Accents cobalt, typographie nette et interface claire ou sombre.",
+    "mode": "Mode de couleur",
+    "light": "Clair",
+    "dark": "Sombre",
+    "system": "Suivre l’appareil",
+    "classicModeHint": "Classique conserve son apparence sombre. Le mode de Studio est mémorisé.",
+    "systemHint": "Le thème suit automatiquement l’apparence de votre appareil.",
+    "save": "Enregistrer l’apparence",
+    "saved": "Apparence enregistrée pour votre compte.",
+    "loadError": "Impossible de charger l’apparence. Réessayez avant de la modifier.",
+    "saveError": "Impossible d’enregistrer l’apparence. Votre choix précédent reste actif.",
+    "retry": "Réessayer",
+    "switchLight": "Passer au mode clair",
+    "switchDark": "Passer au mode sombre",
+    "forYou": "Pour vous",
+    "yourLibrary": "Votre bibliothèque",
+    "activity": "Activité"
   }
 }

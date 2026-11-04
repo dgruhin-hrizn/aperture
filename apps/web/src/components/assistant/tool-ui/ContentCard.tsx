@@ -46,7 +46,7 @@ export function ContentCard({ item, onPlay }: ContentCardProps) {
         display: 'flex',
         gap: 1.5,
         p: 1.5,
-        bgcolor: '#1a1a1a',
+        bgcolor: 'var(--ap-surface-1, #1a1a1a)',
         borderRadius: 2,
         minWidth: 280,
         maxWidth: 320,
@@ -67,7 +67,7 @@ export function ContentCard({ item, onPlay }: ContentCardProps) {
           flexShrink: 0,
           borderRadius: 1,
           overflow: 'hidden',
-          bgcolor: '#2a2a2a',
+          bgcolor: 'var(--ap-surface-2, #2a2a2a)',
           position: 'relative',
         }}
       >
@@ -199,9 +199,9 @@ export function ContentCard({ item, onPlay }: ContentCardProps) {
                 px: 1,
                 py: 0.25,
                 fontSize: 11,
-                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                background: 'var(--ap-primary-action, linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%))',
                 '&:hover': {
-                  background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                  background: 'var(--ap-primary-hover, linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%))',
                 },
               }}
             >
