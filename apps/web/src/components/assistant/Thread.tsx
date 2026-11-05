@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next'
 import { ToolResult } from './ToolResult'
 import { NextReplies } from './NextReplies'
 import { composerActionSx } from './composerStyles'
+import { ReasoningPresetMenu, type ReasoningPresetControl } from './ReasoningPresetMenu'
 import { WebSearchSource, WebSearchToggle, type WebSearchControl } from './WebSearchControls'
 
 function Welcome() {
@@ -161,7 +162,9 @@ function AssistantMessage() {
   )
 }
 
-function Composer({ webSearch }: { webSearch: WebSearchControl }) {
+type ComposerControls = { webSearch: WebSearchControl; reasoning: ReasoningPresetControl }
+
+function Composer({ webSearch, reasoning }: ComposerControls) {
   const { t } = useTranslation(),
     mobile = useMediaQuery(useTheme().breakpoints.down('md'))
   return (
@@ -195,6 +198,7 @@ function Composer({ webSearch }: { webSearch: WebSearchControl }) {
           }}
         >
           <WebSearchToggle {...webSearch} />
+          <ReasoningPresetMenu {...reasoning} />
           <ComposerPrimitive.Input
             placeholder={t(mobile ? 'encore.open' : 'encore.placeholder')}
             aria-label={t('encore.placeholder')}
@@ -251,7 +255,7 @@ function Composer({ webSearch }: { webSearch: WebSearchControl }) {
   )
 }
 
-export function Thread({ webSearch }: { webSearch: WebSearchControl }) {
+export function Thread({ webSearch, reasoning }: ComposerControls) {
   const { t } = useTranslation()
   const empty = useAuiState((state) => state.thread.messages.length === 0)
   return (
@@ -277,7 +281,7 @@ export function Thread({ webSearch }: { webSearch: WebSearchControl }) {
           </ThreadPrimitive.If>
         </Box>
       </ThreadPrimitive.Viewport>
-      <Composer webSearch={webSearch} />
+      <Composer webSearch={webSearch} reasoning={reasoning} />
     </ThreadPrimitive.Root>
   )
 }

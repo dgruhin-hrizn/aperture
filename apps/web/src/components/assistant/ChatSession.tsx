@@ -7,6 +7,7 @@ import { DefaultChatTransport, type UIMessage } from 'ai'
 import { AssistantRuntimeProvider } from '@assistant-ui/react'
 import { useAISDKRuntime } from '@assistant-ui/ai-sdk'
 import { Thread } from './Thread'
+import type { ReasoningPreset } from '@aperture/core'
 
 export function ChatSession({
   conversationId,
@@ -23,15 +24,24 @@ export function ChatSession({
   const { chat: capabilities, isLoading } = useAICapabilities()
   const [webSearch, setWebSearch] = useState(false)
   const requestedSearch = useRef(false)
+  const [selectedPreset, setSelectedPreset] = useState<ReasoningPreset>()
+  const nextPreset = useRef<ReasoningPreset | null | undefined>(undefined)
+  const lastPreset = useRef<ReasoningPreset | undefined>(undefined)
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: '/api/assistant/chat',
         credentials: 'include',
         body: { conversationId, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
-        prepareSendMessagesRequest: ({ messages, body, trigger, messageId }) => ({
-          body: { ...body, messages: messages.slice(-1), trigger, messageId, webSearch: requestedSearch.current },
-        }),
+        prepareSendMessagesRequest: ({ messages, body, trigger, messageId }) => {
+          const reasoningPreset = nextPreset.current === undefined && trigger === 'regenerate-message'
+            ? lastPreset.current
+            : nextPreset.current ?? undefined
+          nextPreset.current = undefined
+          lastPreset.current = reasoningPreset
+          setSelectedPreset(undefined)
+          return { body: { ...body, messages: messages.slice(-1), trigger, messageId, webSearch: requestedSearch.current, reasoningPreset } }
+        },
       }),
     [conversationId]
   )
@@ -72,10 +82,20 @@ export function ChatSession({
               </Button>
             }
           >
-            {chat.error.message}
+            {chat.error.message === 'ENCORE_OUTPUT_LIMIT' ? t('reasoningPresets.outputLimit') : chat.error.message}
           </Alert>
         )}
         <Thread
+          reasoning={{
+            presets: capabilities.reasoningPresets,
+            defaultPreset: capabilities.reasoningDefault,
+            selected: selectedPreset,
+            running,
+            onSelect: (preset) => {
+              nextPreset.current = preset ?? null
+              setSelectedPreset(preset)
+            },
+          }}
           webSearch={{
             enabled: webSearch,
             available: capabilities.supportsWebSearch,

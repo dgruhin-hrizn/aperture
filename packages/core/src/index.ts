@@ -23,6 +23,7 @@ export {
   setFunctionConfig,
   getEmbeddingModelInstance,
   getChatModelInstance,
+  getEncoreModel,
   getTextGenerationModelInstance,
   getAICapabilitiesStatus,
   isAIFunctionConfigured,
@@ -1083,3 +1084,5 @@ export {
 export { addEmbyHomePin, EmbyHomeConflict, getEmbyHomeSections, removeEmbyHomePin } from './media/emby/homeSections.js'
 
 export { getEmbyTonight } from './media/emby/tonight.js'
+
+export { reasoningModelKey, reasoningPresets, reasoningPresetSchema, validateReasoningPreset, UnsupportedReasoningPreset, type ReasoningPreset, type ReasonedModel } from './lib/ai-reasoning.js'

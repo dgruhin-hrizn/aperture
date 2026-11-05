@@ -8,7 +8,7 @@
 import { parseExplanationResponse } from '../shared/explanationResponse.js'
 import { query } from '../../lib/db.js'
 import { createChildLogger } from '../../lib/logger.js'
-import { getTextGenerationModelInstance, getFunctionConfig } from '../../lib/ai-provider.js'
+import { getGenerationCall, getFunctionConfig } from '../../lib/ai-provider.js'
 import { generateText } from 'ai'
 import { buildAiLanguageInstruction, DEFAULT_LOCALE, type AppLocaleCode } from '../../lib/locales.js'
 import { resolveEffectiveAiLanguage } from '../../lib/userSettings.js'
@@ -269,9 +269,9 @@ async function generateBatchExplanations(
   const langBlock = `\n\n${buildAiLanguageInstruction(aiLocale)}`
 
   try {
-    const model = await getTextGenerationModelInstance()
+    const generation = await getGenerationCall('textGeneration', maxOutputTokens, 0.7)
     const { text } = await generateText({
-      model,
+      ...generation,
       system: `You are an expert film curator writing personalized recommendation explanations. You have access to:
 1. The user's taste profile and favorite films
 2. For each recommendation, the SPECIFIC watched movies it's most similar to (via AI embedding analysis)
@@ -294,8 +294,6 @@ For each movie below, I've included which of the user's watched films it's most 
 ${movieList}
 
 Generate personalized explanations referencing the specific similar movies shown for each recommendation.`,
-      temperature: 0.7,
-      maxOutputTokens,
     })
 
     const content = text

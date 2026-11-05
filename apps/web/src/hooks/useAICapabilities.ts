@@ -5,6 +5,7 @@
  * the currently configured providers and models.
  */
 import { useState, useEffect, useCallback } from 'react'
+import type { ReasoningPreset } from '@aperture/core'
 
 interface ModelCapabilities {
   supportsToolCalling: boolean
@@ -51,6 +52,8 @@ interface AICapabilitiesResult {
     supportsTools: boolean
     supportsStreaming: boolean
     supportsWebSearch: boolean
+    reasoningPresets: ReasoningPreset[]
+    reasoningDefault: ReasoningPreset
   }
   textGeneration: {
     configured: boolean
@@ -90,6 +93,8 @@ interface AIFeaturesResponse {
     supportsToolCalling: boolean
     supportsStreaming: boolean
     supportsWebSearch?: boolean
+    reasoningPresets?: ReasoningPreset[]
+    reasoningDefault?: ReasoningPreset
   }
   textGeneration: {
     configured: boolean
@@ -144,6 +149,8 @@ export function useAICapabilities(): AICapabilitiesResult {
     supportsTools: data?.chat.supportsToolCalling ?? false,
     supportsStreaming: data?.chat.supportsStreaming ?? false,
     supportsWebSearch: data?.chat.supportsWebSearch ?? false,
+    reasoningPresets: data?.chat.reasoningPresets ?? [],
+    reasoningDefault: data?.chat.reasoningDefault ?? 'standard' as const,
   }
 
   const textGeneration = {
