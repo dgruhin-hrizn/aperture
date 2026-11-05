@@ -102,7 +102,7 @@ export function WorkbenchResult({ data }: { data: Record<string, unknown> }) {
     ? [current.action as EncoreAction]
     : ((current.actions ?? []) as EncoreAction[])
   return (
-    <Box sx={{ my: 2 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, '&& > *': { my: 0 } }}>
       {error && <Alert severity="error">{error}</Alert>}
       {curations.map((curation) => (
         <CurationCard

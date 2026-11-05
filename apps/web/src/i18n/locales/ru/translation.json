@@ -2782,7 +2782,10 @@
       "moviesWatched": "{{просмотрено}} / {{total}} просмотренных фильмов",
       "watched": "Смотрел",
       "allLoaded": "Все франшизы загружены"
-    }
+    },
+    "retryLoad": "Retry",
+    "gridView": "Grid view",
+    "listView": "List view"
   },
   "channels": {
     "title": "Каналы",

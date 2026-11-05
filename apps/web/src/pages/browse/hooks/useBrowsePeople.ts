@@ -29,6 +29,7 @@ interface BrowsePeopleResult {
   setPeopleSortBy: Dispatch<SetStateAction<PeopleSortBy>>
   peopleHasMore: boolean
   peopleTotal: number
+  reloadPeople: () => void
   peopleLoadMoreRef: RefObject<HTMLDivElement | null>
 }
 
@@ -68,6 +69,7 @@ export function useBrowsePeople({
         setPeopleLoadingMore(true)
       } else {
         setPeopleLoading(true)
+        setPeopleError(null)
       }
 
       try {
@@ -133,6 +135,10 @@ export function useBrowsePeople({
     }
   }, [fetchPeople, peopleSearch, peopleSortBy, resetPeople, tabIndex, user?.id])
 
+  const reloadPeople = useCallback(() => {
+    if (tabIndex === 2) void fetchPeople(1, false, requestRef.current?.signal)
+  }, [fetchPeople, tabIndex])
+
   useEffect(() => {
     if (peopleObserverRef.current) {
       peopleObserverRef.current.disconnect()
@@ -172,6 +178,7 @@ export function useBrowsePeople({
     setPeopleSortBy,
     peopleHasMore,
     peopleTotal,
+    reloadPeople,
     peopleLoadMoreRef,
   }
 }

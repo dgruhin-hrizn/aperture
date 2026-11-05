@@ -932,7 +932,10 @@
     },
     "rangeSlider": {
       "valueRange": "{{开始}} – {{结束}}"
-    }
+    },
+    "retryLoad": "Retry",
+    "gridView": "Grid view",
+    "listView": "List view"
   },
   "mediaDetail": {
     "movieNotFound": "未找到电影",

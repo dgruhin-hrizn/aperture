@@ -760,7 +760,10 @@
     },
     "rangeSlider": {
       "valueRange": "{{시작}} – {{끝}}"
-    }
+    },
+    "retryLoad": "Retry",
+    "gridView": "Grid view",
+    "listView": "List view"
   },
   "login": {
     "title": "다시 오신 것을 환영합니다",

@@ -107,11 +107,16 @@ export function BrowsePage() {
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="flex-start"
+        mb={{ xs: 1.5, md: 3 }}
+      >
         <Box>
-          <Box display="flex" alignItems="center" gap={2} mb={{ xs: 0, sm: 1 }}>
-            <VideoLibraryIcon sx={{ color: 'primary.main', fontSize: 32 }} />
-            <Typography variant="h4" fontWeight={700}>
+          <Box display="flex" alignItems="center" gap={{ xs: 1, md: 2 }} mb={{ xs: 0, sm: 1 }}>
+            <VideoLibraryIcon sx={{ color: 'primary.main', fontSize: { xs: 26, md: 32 } }} />
+            <Typography variant="h4" fontWeight={700} sx={{ fontSize: { xs: 24, md: '1.8rem' } }}>
               {t('browse.title')}
             </Typography>
           </Box>
@@ -141,16 +146,16 @@ export function BrowsePage() {
           onChange={handleViewModeChange}
           size="small"
         >
-          <ToggleButton value="grid">
+          <ToggleButton value="grid" aria-label={t('browse.gridView')}>
             <GridViewIcon fontSize="small" />
           </ToggleButton>
-          <ToggleButton value="list">
+          <ToggleButton value="list" aria-label={t('browse.listView')}>
             <ViewListIcon fontSize="small" />
           </ToggleButton>
         </ToggleButtonGroup>
       </Box>
 
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: { xs: 1, md: 3 } }}>
         <Tabs
           value={tabIndex}
           onChange={handleTabChange}

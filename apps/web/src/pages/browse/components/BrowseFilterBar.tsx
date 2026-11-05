@@ -1,0 +1,24 @@
+import { Box } from '@mui/material'
+import type { ReactNode } from 'react'
+
+/** Mobile pages scroll within a pane; tall filter forms must scroll with their results. */
+export function BrowseFilterBar({ children }: { children: ReactNode }) {
+  return (
+    <Box
+      sx={{
+        position: { xs: 'static', md: 'sticky' },
+        top: { md: 64 },
+        zIndex: 10,
+        bgcolor: 'background.default',
+        py: { xs: 1, md: 2 },
+        mx: { xs: -2, md: -3 },
+        px: { xs: 2, md: 3 },
+        mb: 2,
+        borderBottom: 1,
+        borderColor: 'divider',
+      }}
+    >
+      {children}
+    </Box>
+  )
+}

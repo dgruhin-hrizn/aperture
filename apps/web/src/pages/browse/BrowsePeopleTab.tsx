@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import {
   Alert,
   Box,
+  Button,
   CircularProgress,
   FormControl,
   Grid,
@@ -15,6 +16,7 @@ import {
   Typography,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
+import { BrowseFilterBar } from './components/BrowseFilterBar'
 import type { ViewMode } from '../../hooks/view-mode-context'
 import { BrowsePersonCard, BrowsePersonRow } from './components'
 import { useBrowsePeople } from './hooks'
@@ -33,7 +35,7 @@ function renderPeopleSkeleton(viewMode: ViewMode) {
         <Grid item xs={6} sm={4} md={3} lg={2} key={index}>
           <Skeleton
             variant="rectangular"
-            sx={{ width: '100%', aspectRatio: '2/3', borderRadius: 2 }}
+            sx={{ width: '100%', height: 'auto', aspectRatio: '2/3', borderRadius: 2 }}
           />
           <Skeleton variant="text" width="80%" sx={{ mt: 1 }} />
           <Skeleton variant="text" width="50%" />
@@ -61,20 +63,7 @@ export function BrowsePeopleTab({ viewMode, people }: BrowsePeopleTabProps) {
 
   return (
     <>
-      <Box
-        sx={{
-          position: 'sticky',
-          top: { xs: 56, sm: 64 },
-          zIndex: 10,
-          backgroundColor: 'background.default',
-          py: 2,
-          mx: -3,
-          px: 3,
-          mb: 2,
-          borderBottom: 1,
-          borderColor: 'divider',
-        }}
-      >
+      <BrowseFilterBar>
         <Box display="flex" gap={1.5} flexWrap="wrap" alignItems="center">
           <TextField
             placeholder={t('browse.searchPeoplePlaceholder')}
@@ -96,19 +85,25 @@ export function BrowsePeopleTab({ viewMode, people }: BrowsePeopleTabProps) {
             <Select
               value={people.peopleSortBy}
               label={t('browse.labels.sort')}
-              onChange={(event) =>
-                people.setPeopleSortBy(event.target.value as 'name' | 'credits')
-              }
+              onChange={(event) => people.setPeopleSortBy(event.target.value as 'name' | 'credits')}
             >
               <MenuItem value="name">{t('browse.sort.name')}</MenuItem>
               <MenuItem value="credits">{t('browse.sort.credits')}</MenuItem>
             </Select>
           </FormControl>
         </Box>
-      </Box>
+      </BrowseFilterBar>
 
       {people.peopleError && (
-        <Alert severity="error" sx={{ mb: 4 }}>
+        <Alert
+          severity="error"
+          sx={{ mb: 4 }}
+          action={
+            <Button color="inherit" onClick={people.reloadPeople}>
+              {t('browse.retryLoad')}
+            </Button>
+          }
+        >
           {people.peopleError}
         </Alert>
       )}
@@ -116,11 +111,13 @@ export function BrowsePeopleTab({ viewMode, people }: BrowsePeopleTabProps) {
       {people.peopleLoading ? (
         renderPeopleSkeleton(viewMode)
       ) : people.people.length === 0 ? (
-        <Typography color="text.secondary">
-          {people.peopleSearch
-            ? t('browse.empty.peopleFiltered')
-            : t('browse.empty.peopleNoSync')}
-        </Typography>
+        !people.peopleError && (
+          <Typography color="text.secondary">
+            {people.peopleSearch
+              ? t('browse.empty.peopleFiltered')
+              : t('browse.empty.peopleNoSync')}
+          </Typography>
+        )
       ) : (
         <>
           {viewMode === 'grid' ? (

@@ -17,6 +17,7 @@ import {
   Typography,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
+import { BrowseFilterBar } from './components/BrowseFilterBar'
 import { MoviePoster } from '@aperture/ui'
 import { useUserRatings } from '../../hooks/useUserRatings'
 import type { ViewMode } from '../../hooks/view-mode-context'
@@ -111,20 +112,7 @@ export function BrowseMoviesTab({ viewMode, movies, presets }: BrowseMoviesTabPr
 
   return (
     <>
-      <Box
-        sx={{
-          position: 'sticky',
-          top: { xs: 56, sm: 64 },
-          zIndex: 10,
-          backgroundColor: 'background.default',
-          py: 2,
-          mx: -3,
-          px: 3,
-          mb: 2,
-          borderBottom: 1,
-          borderColor: 'divider',
-        }}
-      >
+      <BrowseFilterBar>
         <Box display="flex" gap={1.5} flexWrap="wrap" alignItems="center">
           <TextField
             placeholder={t('browse.searchMoviesPlaceholder')}
@@ -219,7 +207,7 @@ export function BrowseMoviesTab({ viewMode, movies, presets }: BrowseMoviesTabPr
             ))}
           </Box>
         )}
-      </Box>
+      </BrowseFilterBar>
 
       {movies.moviesError && (
         <Alert severity="error" sx={{ mb: 4 }}>
@@ -231,7 +219,10 @@ export function BrowseMoviesTab({ viewMode, movies, presets }: BrowseMoviesTabPr
         renderSkeleton(viewMode)
       ) : movies.movies.length === 0 ? (
         <Typography color="text.secondary">
-          {movies.movieSearch || movies.movieGenre || movies.collection || movies.activeFilters.length > 0
+          {movies.movieSearch ||
+          movies.movieGenre ||
+          movies.collection ||
+          movies.activeFilters.length > 0
             ? t('browse.empty.moviesFiltered')
             : t('browse.empty.moviesNoSync')}
         </Typography>

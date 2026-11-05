@@ -79,6 +79,7 @@ export default function EncoreWorkspace({
         sx={{
           display: 'flex',
           alignItems: 'center',
+          flexShrink: 0,
           gap: 1,
           px: { xs: 2, md: 3 },
           pt: mobile ? 'calc(env(safe-area-inset-top, 0px) + 12px)' : 2,

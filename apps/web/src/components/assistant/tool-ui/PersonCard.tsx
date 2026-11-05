@@ -151,7 +151,7 @@ export function PersonResult({ data }: PersonResultProps) {
   }
 
   return (
-    <Box sx={{ my: 2 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, '&& > *': { my: 0 } }}>
       {data.people.map((person, index) => (
         <PersonCardSingle key={`${person.name}-${index}`} person={person} />
       ))}

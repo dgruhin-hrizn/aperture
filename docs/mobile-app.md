@@ -17,6 +17,10 @@ The mobile shell owns the visible viewport, a compact header and a floating caps
 
 The dock respects safe areas, has at least 44px touch targets and reserves room for the composer and page content. Its width is capped in landscape; reduced-motion preferences disable press transitions. The page pane scrolls independently; browser Back restores its prior scroll position. The Media Graph sizes itself to the available pane rather than extending beneath navigation.
 
+Mobile Encore tool results use the full transcript width, with the same side gutters as the composer. Recommendation carousels fit two complete cards across a phone and centre a single result. Paging controls sit above the artwork and disable at the ends. Card actions align even when titles or metadata differ. Desktop retains its assistant avatar column.
+
+Library filters scroll with mobile content rather than sticking over posters inside the page pane. People loading placeholders retain poster proportions; failed People reads offer an in-page retry. Posters load lazily and the media image proxy bounds upstream headers and bodies to eight seconds, cancelling abandoned requests. A slow or missing image can fall back without occupying browser connection slots indefinitely and holding up other reads.
+
 The software keyboard can shrink the visible area without shrinking the layout viewport. The shell follows `visualViewport` resize/scroll and focus events, keeps the composer in the usable area and hides the bottom bar while typing. Pinch zoom remains enabled and is not treated as a keyboard. [VisualViewport reference](https://developer.mozilla.org/en-US/docs/Web/API/VisualViewport).
 
 Safe-area insets protect controls around notches and home indicators. The viewport declares `viewport-fit=cover` and `interactive-widget=resizes-content`; a viewport listener handles browsers with different keyboard behavior. Form text stays at least 16px on mobile. [WebKit safe-area guidance](https://webkit.org/blog/7929/designing-websites-for-iphone-x/), [viewport metadata reference](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/meta/name/viewport).
