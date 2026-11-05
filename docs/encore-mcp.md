@@ -62,3 +62,11 @@ MCP does not copy a client's whole conversation into Aperture. It receives tool 
 ## Verification
 
 Ask for a numeric title such as “1917,” compare accessible library counts, and query a title available only to another user. Restricted titles must not appear. Revoke the connection and verify the next request fails. `pnpm test:encore` runs deterministic checks; set `ENCORE_TEST_DATABASE_URL` to a disposable PostgreSQL/pgvector database to run the real database, vector-ranking, HTTP and bundled-stdio integration scenario. CI supplies an isolated database for this test.
+
+## Memory, plans and approved actions
+
+Stage three adds individually selectable `memory:write`, `plans:write`, `playlists:write` and `home:write` permissions. Creating/updating a watch plan or preparing a playlist also requires `library:read`; execute an action with library read, playlist permission, and Home permission when the proposal pins/unpins a row. Native writes require the inline approval button. External clients must obtain explicit human approval before calling `executeEncoreAction` with the exact previewed proposal ID.
+
+Memory tools retain only the fact submitted to Aperture, together with the connection's provenance. Persistent preference facts participate in the existing Taste Profile interest system; temporary facts can expire. Inspect or forget them in Encore → Memory. A complete external chat is never copied implicitly. Connected clients can list plans and export structured schedules; the authenticated native UI also exports ICS calendar copies.
+
+Playlists are tracked by exact IDs, never adopted by matching an arbitrary name. Unknown creation outcomes require reconciliation through an explicitly selected Emby details link and verified management rights. Emby Home support varies by server and client. Only the exact managed row is unpinned; media files are never removed.

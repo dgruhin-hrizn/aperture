@@ -1,3 +1,4 @@
+import { WorkbenchResult } from './WorkbenchResult'
 import { Box, Chip, LinearProgress, Paper, Typography } from '@mui/material'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import { useTranslation } from 'react-i18next'
@@ -12,6 +13,7 @@ export function ToolResult({ toolName, result, isError }: { toolName: string; re
   if (result === undefined) return <Paper variant="outlined" sx={{ p: 2, borderRadius: 3, my: 1 }} aria-live="polite"><Typography variant="body2" color="text.secondary">{t('encore.toolWorking')}</Typography><LinearProgress sx={{ mt: 1.5, borderRadius: 3 }} /></Paper>
   if (!result || typeof result !== 'object') return null
   const data = result as Record<string, unknown>
+  if (['memory','memories','memoryForgotten','watchPlan','plans','planDeleted','actionProposal','actionReceipt','actions','actionCancelled'].includes(String(data.kind))) return <WorkbenchResult data={data} />
   if (data.kind === 'releases') return <ReleaseResults data={data} />
   if (data.kind === 'taste') return <TasteResults data={data} />
   if ('movieGenres' in data || 'seriesGenres' in data || Array.isArray(data.franchises)) return <LibraryGroupsResult data={data} />

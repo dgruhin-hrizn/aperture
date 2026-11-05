@@ -1,3 +1,4 @@
+import { limitEncoreContext } from '../contextBudget.js'
 import { randomUUID } from 'node:crypto'
 import { Readable } from 'node:stream'
 import type { FastifyInstance } from 'fastify'
@@ -43,7 +44,7 @@ export function registerChatHandler(fastify: FastifyInstance, dependencies: { ge
         const last = incoming.at(-1)
         const text = last?.parts.filter((p): p is { type: 'text'; text: string } =>
           typeof p === 'object' && p !== null && 'type' in p && p.type === 'text' && 'text' in p && typeof p.text === 'string')
-        if (last?.role !== 'user' || !text?.length || text.some((p) => p.text.length > 20_000)) {
+        if (last?.role !== 'user' || !text?.length || text.reduce((sum,p)=>sum+p.text.length,0)>20_000) {
           await releaseRun(conversationId, runId)
           return reply.code(400).send({ error: 'A text message is required' })
         }
@@ -62,12 +63,12 @@ export function registerChatHandler(fastify: FastifyInstance, dependencies: { ge
         getActiveEmbeddingModelId(), getMediaServerInfo(), buildSystemPrompt(user.id, user.isAdmin),
       ])
       const tools = createEncoreTools({ userId: user.id, isAdmin: user.isAdmin, embeddingModel,
-        embeddingModelId: embeddingModelId ?? '', mediaServer })
+        embeddingModelId: embeddingModelId ?? '', mediaServer,source:'encore',sourceId:`${conversationId}:${originalMessages.filter(m=>m.role==='user').at(-1)?.id??''}` })
       const agent = new ToolLoopAgent({ model, tools, instructions: `${instructions}\nCurrent UTC date: ${new Date().toISOString()}. User timezone: ${timezone}. Interpret relative dates using that timezone.`,
         maxOutputTokens: 4000, stopWhen: stepCountIs(12),
         onEnd: ({ totalUsage, steps }) => request.log.info({ runId, usage: totalUsage, steps: steps.length }, 'Encore run completed'),
       })
-      const result = await agent.stream({ messages: await convertToModelMessages(originalMessages, { tools, ignoreIncompleteToolCalls: true }),
+      const result = await agent.stream({ messages: await convertToModelMessages(limitEncoreContext(originalMessages), { tools, ignoreIncompleteToolCalls: true }),
         abortSignal: abort.signal, timeout: 180_000 })
       const stream = toUIMessageStream({ stream: result.stream, tools, originalMessages,
         generateMessageId: () => responseId,

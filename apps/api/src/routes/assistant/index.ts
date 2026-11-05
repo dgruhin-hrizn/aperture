@@ -1,3 +1,4 @@
+import { registerWorkbenchHandlers } from './handlers/workbench.js'
 import { registerConnectionHandlers } from './handlers/connections.js'
 import { registerMcpHandler } from './mcp/http.js'
 /**
@@ -17,6 +18,7 @@ const assistantRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Register personalized suggestions endpoint
   registerSuggestionsHandler(fastify)
+  registerWorkbenchHandlers(fastify)
   registerConnectionHandlers(fastify)
   registerMcpHandler(fastify)
 }

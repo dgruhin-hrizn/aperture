@@ -17,7 +17,8 @@ export async function mediaRequest<T>(account: EncoreAccount, path: string, opti
     headers: { 'Content-Type': 'application/json', ...options.headers, 'X-Emby-Token': account.provider_access_token },
   })
   if (!response.ok) throw new Error(`Media server request failed (${response.status})`)
-  return response.status === 204 ? undefined as T : response.json() as Promise<T>
+  const text = await response.text()
+  return !text ? undefined as T : JSON.parse(text) as T
 }
 
 /** Exact IDs from the user's unparented server view include parental/item restrictions. */

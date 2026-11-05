@@ -1,3 +1,6 @@
+import { MemoryPanel } from './MemoryPanel'
+import { PlansPanel } from './PlansPanel'
+import { CollectionsPanel } from './CollectionsPanel'
 import { useState } from 'react'
 import { Alert, Box, CircularProgress, IconButton, Typography, useMediaQuery, useTheme, Tabs, Tab } from '@mui/material'
 import { ConnectionsPanel } from './ConnectionsPanel'
@@ -23,8 +26,11 @@ export default function EncoreWorkspace({ onClose }: { onClose: () => void }) {
       <Box sx={{ flex: 1 }}><Typography component="h1" variant="h6">Encore</Typography><Typography variant="caption" color="text.secondary">{t('encore.subtitle')}</Typography></Box>
       <IconButton aria-label={t('common.close')} onClick={onClose}><CloseIcon /></IconButton>
     </Box>
-    <Tabs value={view} onChange={(_e, value: string) => setView(value)} sx={{ px: 2, borderBottom: '1px solid', borderColor: 'divider' }}><Tab value="chat" label={t('encore.chatTab')} /><Tab value="connections" label={t('encore.connectionsTab')} /></Tabs>
+    <Tabs variant="scrollable" scrollButtons="auto" value={view} onChange={(_e, value: string) => setView(value)} sx={{ px: 2, borderBottom: '1px solid', borderColor: 'divider', '& .MuiTab-root': { textTransform:'none', fontWeight:600, mx:.5 } }}><Tab value="chat" label={t('encore.chatTab')} /><Tab value="memory" label={t('encore.memoryTab')} /><Tab value="plans" label={t('encore.plansTab')} /><Tab value="collections" label={t('encore.collectionsTab')} /><Tab value="connections" label={t('encore.connectionsTab')} /></Tabs>
     {state.error && <Alert severity="error">{state.error}</Alert>}
+    {view === 'memory' && <MemoryPanel />}
+    {view === 'plans' && <PlansPanel />}
+    {view === 'collections' && <CollectionsPanel />}
     {view === 'connections' && <ConnectionsPanel />}
     <Box aria-hidden={view !== 'chat'} sx={{ display: view === 'chat' ? 'flex' : 'none', flex: 1, minHeight: 0, overflow: 'hidden' }}>
       {(!mobile || showHistory) && <ConversationSidebar conversations={state.conversations} activeId={state.active?.conversation.id} disabled={state.busy}

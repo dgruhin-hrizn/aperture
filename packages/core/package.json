@@ -1,6 +1,6 @@
 {
   "name": "@aperture/core",
-  "version": "0.8.0-dev.3.1",
+  "version": "0.8.0-dev.4",
   "private": true,
   "type": "module",
   "exports": {
@@ -62,6 +62,7 @@
     "@ai-sdk/huggingface": "^2.0.84",
     "@ai-sdk/openai": "^4.0.108",
     "@ai-sdk/openai-compatible": "^3.0.84",
+    "@js-temporal/polyfill": "^0.5.1",
     "@openrouter/ai-sdk-provider": "^3.1.0",
     "ai": "^7.0.162",
     "ai-sdk-ollama": "4.6.2",
