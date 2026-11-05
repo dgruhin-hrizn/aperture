@@ -1,5 +1,13 @@
-/* Keep mobile form fields at a readable size without disabling browser zoom. */
+/* App-like scrolling and readable form fields without disabling browser zoom. */
 @media (max-width: 899.95px) {
+  [data-mobile-shell] main,
+  [data-mobile-shell] .encore-thread-viewport {
+    scrollbar-width: none;
+  }
+  [data-mobile-shell] main::-webkit-scrollbar,
+  .encore-thread-viewport::-webkit-scrollbar {
+    display: none;
+  }
   input,
   textarea,
   select,

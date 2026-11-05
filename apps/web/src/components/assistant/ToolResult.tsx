@@ -99,13 +99,15 @@ export function ToolResult({
     content = <StudiosDisplay data={data as unknown as StudiosData} />
   else content = <InformationResult data={data} />
   return (
-    <Box sx={{ my: 1.5, minWidth: 0 }}>
+    <Box
+      sx={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1.5, '&& > *': { my: 0 } }}
+    >
       <Chip
         size="small"
         icon={<CheckCircleOutlineIcon />}
         label={t(`encore.tools.${toolName}`, { defaultValue: t('encore.toolComplete') })}
         variant="outlined"
-        sx={{ mb: 1 }}
+        sx={{ alignSelf: 'flex-start', maxWidth: '100%' }}
       />
       {content}
     </Box>

@@ -69,7 +69,7 @@ export function ProgressResults({ data }: { data: Record<string, unknown> }) {
     ],
   }))
   return (
-    <Box>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3 }}>
         <Typography fontWeight={600}>{String(data.franchiseName)}</Typography>
         <Typography variant="caption" color="text.secondary">

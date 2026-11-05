@@ -94,16 +94,29 @@ function UserMessage() {
 function AssistantMessage() {
   return (
     <MessagePrimitive.Root>
-      <Box sx={{ display: 'flex', gap: { xs: 1, md: 2 }, py: 2, minWidth: 0 }}>
-        <Box sx={{ width: 28, height: 28, flexShrink: 0, color: 'primary.main', pt: 0.25 }}>
+      <Box sx={{ display: 'flex', gap: { xs: 0, md: 2 }, py: { xs: 1, md: 2 }, minWidth: 0 }}>
+        <Box
+          sx={{
+            display: { xs: 'none', md: 'block' },
+            width: 28,
+            height: 28,
+            flexShrink: 0,
+            color: 'primary.main',
+            pt: 0.25,
+          }}
+        >
           <AutoAwesomeOutlinedIcon fontSize="small" />
         </Box>
         <Box
           sx={{
             flex: 1,
             minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1.5,
             overflowWrap: 'anywhere',
-            '& p': { lineHeight: 1.85, mt: 0 },
+            '&& > *': { my: 0 },
+            '& p': { lineHeight: 1.85, m: 0 },
             '& a': { color: 'primary.main' },
             '& pre': { whiteSpace: 'pre-wrap' },
           }}
@@ -137,7 +150,8 @@ function Composer() {
       sx={{
         px: { xs: 1.5, md: 4 },
         pt: 1,
-        pb: { xs: 1.25, md: 2 },
+        pb: { xs: 1, md: 2 },
+        flexShrink: 0,
         maxWidth: 900,
         width: '100%',
         mx: 'auto',
@@ -221,6 +235,7 @@ export function Thread() {
       style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}
     >
       <ThreadPrimitive.Viewport
+        className="encore-thread-viewport"
         autoScroll={!empty}
         scrollToBottomOnInitialize={!empty}
         scrollToBottomOnThreadSwitch={!empty}
@@ -229,7 +244,7 @@ export function Thread() {
         <ThreadPrimitive.Empty>
           <Welcome />
         </ThreadPrimitive.Empty>
-        <Box sx={{ maxWidth: 850, mx: 'auto', px: { xs: 1.5, md: 4 }, py: 2 }}>
+        <Box sx={{ maxWidth: 850, mx: 'auto', px: { xs: 1.5, md: 4 }, py: { xs: 1, md: 2 } }}>
           <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
           <ThreadPrimitive.If running>
             <Typography variant="caption" color="text.secondary" role="status">

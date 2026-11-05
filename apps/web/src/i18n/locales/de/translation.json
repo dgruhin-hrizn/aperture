@@ -760,7 +760,10 @@
     },
     "rangeSlider": {
       "valueRange": "{{start}} – {{end}}"
-    }
+    },
+    "retryLoad": "Retry",
+    "gridView": "Grid view",
+    "listView": "List view"
   },
   "login": {
     "title": "Willkommen zurück",

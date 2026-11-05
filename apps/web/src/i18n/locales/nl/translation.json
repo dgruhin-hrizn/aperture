@@ -2782,7 +2782,10 @@
       "moviesWatched": "{{bekeken}} / {{totaal}} films bekeken",
       "watched": "Bekeken",
       "allLoaded": "Alle franchises geladen"
-    }
+    },
+    "retryLoad": "Retry",
+    "gridView": "Grid view",
+    "listView": "List view"
   },
   "channels": {
     "title": "Kanalen",

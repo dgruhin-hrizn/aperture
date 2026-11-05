@@ -17,6 +17,7 @@ import {
   Typography,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
+import { BrowseFilterBar } from './components/BrowseFilterBar'
 import { MoviePoster } from '@aperture/ui'
 import { useUserRatings } from '../../hooks/useUserRatings'
 import { useWatching } from '../../hooks/useWatching'
@@ -112,20 +113,7 @@ export function BrowseSeriesTab({ viewMode, series, presets }: BrowseSeriesTabPr
 
   return (
     <>
-      <Box
-        sx={{
-          position: 'sticky',
-          top: { xs: 56, sm: 64 },
-          zIndex: 10,
-          backgroundColor: 'background.default',
-          py: 2,
-          mx: -3,
-          px: 3,
-          mb: 2,
-          borderBottom: 1,
-          borderColor: 'divider',
-        }}
-      >
+      <BrowseFilterBar>
         <Box display="flex" gap={1.5} flexWrap="wrap" alignItems="center">
           <TextField
             placeholder={t('browse.searchSeriesPlaceholder')}
@@ -217,7 +205,7 @@ export function BrowseSeriesTab({ viewMode, series, presets }: BrowseSeriesTabPr
             ))}
           </Box>
         )}
-      </Box>
+      </BrowseFilterBar>
 
       {series.seriesError && (
         <Alert severity="error" sx={{ mb: 4 }}>
@@ -229,7 +217,10 @@ export function BrowseSeriesTab({ viewMode, series, presets }: BrowseSeriesTabPr
         renderSkeleton(viewMode)
       ) : series.series.length === 0 ? (
         <Typography color="text.secondary">
-          {series.seriesSearch || series.seriesGenre || series.network || series.activeFilters.length > 0
+          {series.seriesSearch ||
+          series.seriesGenre ||
+          series.network ||
+          series.activeFilters.length > 0
             ? t('browse.empty.seriesFiltered')
             : t('browse.empty.seriesNoSync')}
         </Typography>

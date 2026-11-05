@@ -21,12 +21,13 @@ export function ContentDetail({ data }: ContentDetailProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
 
-  const detailsAction = data.actions.find(a => a.id === 'details')
-  const playAction = data.actions.find(a => a.id === 'play')
+  const detailsAction = data.actions.find((a) => a.id === 'details')
+  const playAction = data.actions.find((a) => a.id === 'play')
 
   const handleDetails = () => {
     if (detailsAction?.href) {
-      if (/^https?:\/\//.test(detailsAction.href)) window.open(detailsAction.href, '_blank', 'noopener,noreferrer')
+      if (/^https?:\/\//.test(detailsAction.href))
+        window.open(detailsAction.href, '_blank', 'noopener,noreferrer')
       else navigate(detailsAction.href)
     }
   }
@@ -39,7 +40,14 @@ export function ContentDetail({ data }: ContentDetailProps) {
 
   return (
     <Paper sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 3, my: 2 }}>
-      <Box sx={{ display: 'flex', gap: 2 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          alignItems: { xs: 'center', sm: 'flex-start' },
+          gap: 2,
+        }}
+      >
         {/* Poster */}
         <Box
           sx={{
@@ -80,18 +88,23 @@ export function ContentDetail({ data }: ContentDetailProps) {
         </Box>
 
         {/* Content */}
-        <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Box sx={{ flex: 1, minWidth: 0, width: '100%' }}>
           {/* Title and type */}
-          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 0.5 }}>
+          <Box
+            sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 1, mb: 0.5 }}
+          >
             <Typography variant="h6" fontWeight={700} sx={{ color: 'text.primary' }}>
               {data.name}
             </Typography>
             <Chip
-              label={data.type === 'movie' ? t('assistantToolUi.movie') : t('assistantToolUi.series')}
+              label={
+                data.type === 'movie' ? t('assistantToolUi.movie') : t('assistantToolUi.series')
+              }
               size="small"
               sx={{
                 height: 20,
-                bgcolor: data.type === 'movie' ? 'rgba(99, 102, 241, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                bgcolor:
+                  data.type === 'movie' ? 'rgba(99, 102, 241, 0.15)' : 'rgba(16, 185, 129, 0.15)',
                 color: data.type === 'movie' ? '#818cf8' : '#10b981',
               }}
             />
@@ -203,7 +216,7 @@ export function ContentDetail({ data }: ContentDetailProps) {
           )}
 
           {/* Action buttons */}
-          <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 2 }}>
             <Button
               variant="outlined"
               startIcon={<InfoIcon />}
@@ -225,9 +238,11 @@ export function ContentDetail({ data }: ContentDetailProps) {
                 startIcon={<PlayArrowIcon />}
                 onClick={handlePlay}
                 sx={{
-                  background: 'var(--ap-primary-action, linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%))',
+                  background:
+                    'var(--ap-primary-action, linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%))',
                   '&:hover': {
-                    background: 'var(--ap-primary-hover, linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%))',
+                    background:
+                      'var(--ap-primary-hover, linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%))',
                   },
                 }}
               >
@@ -252,7 +267,12 @@ export function ContentDetail({ data }: ContentDetailProps) {
       {data.cast && data.cast.length > 0 && (
         <>
           <Divider sx={{ my: 2, borderColor: 'action.hover' }} />
-          <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+          <Typography
+            variant="caption"
+            fontWeight={600}
+            color="text.secondary"
+            sx={{ mb: 1, display: 'block' }}
+          >
             {t('assistantToolUi.castHeading')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
@@ -263,4 +283,3 @@ export function ContentDetail({ data }: ContentDetailProps) {
     </Paper>
   )
 }
-

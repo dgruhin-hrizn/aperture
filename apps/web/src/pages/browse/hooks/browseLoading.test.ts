@@ -43,6 +43,36 @@ function mockData(url: string) {
 }
 const saveSort = () => {}
 
+test('People deadline failures end skeleton loading and can be retried without reloading the page', async () => {
+  let current!: ReturnType<typeof useBrowsePeople>,
+    failing = true,
+    calls = 0
+  globalThis.fetch = async () => {
+    calls++
+    if (failing) throw new DOMException('Request timed out', 'TimeoutError')
+    return Response.json({ people: [{ name: 'Loaded after retry' }], total: 1 })
+  }
+  function Probe() {
+    current = useBrowsePeople({ tabIndex: 2, initialTabIsPeople: true })
+    return null
+  }
+  await act(async () => {
+    renderer = create(wrap(React.createElement(Probe)))
+    await new Promise((resolve) => setTimeout(resolve, 15))
+  })
+  assert.equal(current.peopleLoading, false)
+  assert.equal(current.peopleError, 'browse.errors.connect')
+  failing = false
+  await act(async () => {
+    current.reloadPeople()
+    await tick()
+  })
+  assert.equal(calls, 2)
+  assert.equal(current.peopleError, null)
+  assert.equal(current.peopleLoading, false)
+  assert.equal(current.people[0].name, 'Loaded after retry')
+})
+
 test('People selected: hidden Movies/TV make zero requests and People does not refetch when rows arrive', async () => {
   const calls: string[] = []
   globalThis.fetch = async (input) => {
@@ -75,25 +105,42 @@ test('People repeated intersections start one append and account changes abort o
     pages.push(page)
     if (page > 1) {
       pageSignal = init?.signal as AbortSignal
-      return new Promise<Response>(resolve => { resolvePage = resolve })
+      return new Promise<Response>((resolve) => {
+        resolvePage = resolve
+      })
     }
-    return Response.json({ people: Array.from({ length: PAGE_SIZE }, (_, i) => ({ name: `First ${i}` })), total: 100 })
+    return Response.json({
+      people: Array.from({ length: PAGE_SIZE }, (_, i) => ({ name: `First ${i}` })),
+      total: 100,
+    })
   }
-  function Probe() { current = useBrowsePeople({ tabIndex: 2, initialTabIsPeople: true }); return null }
-  await act(async () => { renderer = create(wrap(React.createElement(Probe))); await new Promise(resolve => setTimeout(resolve, 15)) })
-  const observer = fixture.observers.filter(o => !o.disconnected).at(-1)!
+  function Probe() {
+    current = useBrowsePeople({ tabIndex: 2, initialTabIsPeople: true })
+    return null
+  }
+  await act(async () => {
+    renderer = create(wrap(React.createElement(Probe)))
+    await new Promise((resolve) => setTimeout(resolve, 15))
+  })
+  const observer = fixture.observers.filter((o) => !o.disconnected).at(-1)!
   await act(async () => {
     observer.callback([{ isIntersecting: true } as IntersectionObserverEntry])
     observer.callback([{ isIntersecting: true } as IntersectionObserverEntry])
     await tick()
   })
   assert.deepEqual(pages, [1, 2])
-  await act(async () => { renderer!.update(wrap(React.createElement(Probe), 'other-person-account')); await new Promise(resolve => setTimeout(resolve, 15)) })
+  await act(async () => {
+    renderer!.update(wrap(React.createElement(Probe), 'other-person-account'))
+    await new Promise((resolve) => setTimeout(resolve, 15))
+  })
   assert.equal(pageSignal.aborted, true)
-  await act(async () => { resolvePage(Response.json({ people: [{ name: 'Old account' }], total: 100 })); await tick() })
+  await act(async () => {
+    resolvePage(Response.json({ people: [{ name: 'Old account' }], total: 100 }))
+    await tick()
+  })
   assert.equal(current.people.length, PAGE_SIZE)
   assert.equal(current.people[0].name, 'First 0')
-  assert.ok(!current.people.some(p => p.name === 'Old account'))
+  assert.ok(!current.people.some((p) => p.name === 'Old account'))
 })
 for (const media of ['movies', 'series'] as const) {
   test(`${media}: appending page two preserves page one and does not restart first-page loading`, async () => {

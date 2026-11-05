@@ -2829,6 +2829,9 @@
     "avgShort": "{{pct}}% avg"
   },
   "browse": {
+    "retryLoad": "Retry",
+    "gridView": "Grid view",
+    "listView": "List view",
     "title": "Browse",
     "subtitleLine": "Browse your synced media library • {{count}} {{kind}}",
     "subtitleKindMovies": "movies",

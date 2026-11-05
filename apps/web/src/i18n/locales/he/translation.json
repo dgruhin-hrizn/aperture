@@ -760,7 +760,10 @@
     },
     "rangeSlider": {
       "valueRange": "{{התחל}} – {{end}}"
-    }
+    },
+    "retryLoad": "Retry",
+    "gridView": "Grid view",
+    "listView": "List view"
   },
   "login": {
     "title": "ברוך שובך",
