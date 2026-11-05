@@ -16,6 +16,8 @@ import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import { huggingFaceEmbeddings } from './huggingFaceEmbeddings.js'
 import { createHuggingFace } from '@ai-sdk/huggingface'
 import type { LanguageModel, EmbeddingModel } from 'ai'
+import type { ProviderType } from './ai-capabilities/contracts.js'
+export type { ProviderType } from './ai-capabilities/contracts.js'
 import { getSystemSetting, setSystemSetting } from '../settings/systemSettings.js'
 import { createChildLogger } from './logger.js'
 import {
@@ -33,17 +35,6 @@ const logger = createChildLogger('ai-provider')
 // ============================================================================
 // Types
 // ============================================================================
-
-export type ProviderType =
-  | 'openai'
-  | 'anthropic'
-  | 'ollama'
-  | 'openai-compatible'
-  | 'groq'
-  | 'google'
-  | 'deepseek'
-  | 'openrouter'
-  | 'huggingface'
 
 export interface ProviderConfig {
   provider: ProviderType

@@ -1,9 +1,9 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { listEncoreConnections, createEncoreConnection, revokeEncoreConnection, ENCORE_READ_SCOPES, ENCORE_SCOPES } from '@aperture/core/encore'
+import { listEncoreConnections, createEncoreConnection, revokeEncoreConnection, ENCORE_SCOPES } from '@aperture/core/encore'
+import { connectionBody as createSchema } from '../../../contracts/bodies/encore.js'
 import { requireAuth } from '../../../plugins/auth.js'
 const endpoint = '/api/assistant/connections'
-const createSchema = z.object({ name: z.string().trim().min(1).max(80), scopes: z.array(z.enum(ENCORE_SCOPES)).min(1).default([...ENCORE_READ_SCOPES]), days: z.number().int().min(1).max(365).default(90) })
 export function registerConnectionHandlers(app: FastifyInstance) {
   app.get(endpoint, { preHandler: requireAuth }, async (request) => ({ connections: await listEncoreConnections(request.user!.id), availableScopes: ENCORE_SCOPES, ENCORE_SCOPES }))
   app.post(endpoint, { preHandler: requireAuth }, async (request, reply) => {

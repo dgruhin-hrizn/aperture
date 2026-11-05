@@ -65,6 +65,9 @@ test('persistent memory, planning and approved Emby actions survive corrections,
   const selection=(index:number)=>({id:movies[index].id,type:'movie' as const})
   const app=Fastify();app.addHook('onRequest',async request=>{request.user={id:owner,username:'Journey',displayName:null,provider:'emby',providerUserId:account,isAdmin:false,isEnabled:true,canManageWatchHistory:false,avatarUrl:null}});registerWorkbenchHandlers(app)
   try{
+    const invalidWorkbench = await app.inject({ method: 'POST', url: '/api/assistant/workbench/deleteWatchPlan', payload: { id: 'not-a-uuid' } })
+    assert.equal(invalidWorkbench.statusCode,400)
+    assert.equal(invalidWorkbench.json().error,'Invalid tool arguments')
     const episodeResult=await call<{episodes:Array<{id:string;title:string}>}>('getNextEpisodes',{seriesId})
     assert.deepEqual(episodeResult.episodes.map(episode=>episode.id),[episodeA])
     assert.doesNotMatch(JSON.stringify(episodeResult),/Restricted episode/)

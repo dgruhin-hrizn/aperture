@@ -3,21 +3,13 @@ import { randomUUID } from 'node:crypto'
 import { Readable } from 'node:stream'
 import type { FastifyInstance } from 'fastify'
 import { ToolLoopAgent, convertToModelMessages, createUIMessageStreamResponse, toUIMessageStream, stepCountIs, type UIMessage } from 'ai'
-import { z } from 'zod'
+import { chatBody as bodySchema } from '../../../contracts/bodies/encore.js'
 import { getChatModelInstance, getEmbeddingModelInstance, getActiveEmbeddingModelId } from '@aperture/core'
 import { requireAuth } from '../../../plugins/auth.js'
 import { queryOne } from '../../../lib/db.js'
 import { getMediaServerInfo, buildSystemPrompt } from '../helpers/index.js'
 import { createEncoreTools, getEncoreToolSchemas } from '@aperture/core/encore'
 import { claimRun, loadMessages, releaseRun, saveMessage } from '../messages.js'
-
-const bodySchema = z.object({
-  conversationId: z.string().uuid(),
-  messages: z.array(z.object({ id: z.string().min(1).max(200), role: z.enum(['user', 'assistant']),
-    parts: z.array(z.unknown()).max(100) })).max(100),
-  trigger: z.string().optional(),
-  timezone: z.string().max(80).default('UTC').refine((timeZone) => { try { new Intl.DateTimeFormat('en', { timeZone }); return true } catch { return false } }),
-})
 
 export function registerChatHandler(fastify: FastifyInstance, dependencies: { getModel?: typeof getChatModelInstance } = {}) {
   fastify.post('/api/assistant/chat', { preHandler: requireAuth, bodyLimit: 512_000 }, async (request, reply) => {

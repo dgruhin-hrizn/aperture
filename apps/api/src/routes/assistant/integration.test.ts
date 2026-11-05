@@ -52,6 +52,9 @@ test('real PostgreSQL and MCP HTTP enforce per-user catalogs, scopes, expiry and
       assert.equal(fullListing.tools.length, 44)
       for (const tool of fullListing.tools) assert.equal(tool.inputSchema.type, 'object', tool.name)
       assert.ok(fullListing.tools.some(tool => tool.name === 'proposePlaylist'))
+      const invalidPlaylist = await fullClient.callTool({ name: 'proposePlaylist', arguments: { operation: 'create', items: [{ id: randomUUID(), type: 'movie' }] } })
+      assert.equal(invalidPlaylist.isError,true)
+      assert.match(JSON.stringify(invalidPlaylist.content),/Invalid tool arguments/)
     } finally { await fullClient.close() }
     const bridge = new Client({ name: 'bridge-test', version: '1' })
     try {

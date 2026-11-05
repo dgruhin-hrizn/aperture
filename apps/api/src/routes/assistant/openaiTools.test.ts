@@ -4,9 +4,9 @@ import { createServer } from 'node:http'
 import { after, test } from 'node:test'
 import Fastify from 'fastify'
 import { z } from 'zod'
-import { asSchema, stepCountIs, ToolLoopAgent, toUIMessageStream } from 'ai'
+import { asSchema, jsonSchema, stepCountIs, tool, ToolLoopAgent, toUIMessageStream } from 'ai'
 import { getPool, closePool, getChatModelInstance } from '@aperture/core'
-import { createEncoreTools, getEncoreToolSchemas } from '@aperture/core/encore'
+import { createEncoreTools, getEncoreToolSchemas, validateEncoreToolInput } from '@aperture/core/encore'
 
 process.env.DATABASE_URL ??= 'postgres://unused:unused@127.0.0.1/unused'
 after(closePool)
@@ -60,6 +60,15 @@ test('the shared boundary rejects malformed tool metadata by name before a provi
     }),
     /brokenPlaylist.*object root/
   )
+})
+
+test('direct tool callers retain canonical refinements, transforms and defaults', async () => {
+  await assert.rejects(getEncoreToolSchemas({ unchecked: { inputSchema: jsonSchema({ type: 'object', properties: {} }) } }), /unchecked.*runtime validator/)
+  const definition = tool({ inputSchema: z.object({ name: z.string().trim().min(1), limit: z.number().int().min(1).max(20).default(5) }) })
+  assert.deepEqual(await validateEncoreToolInput(definition, { name: '  Film night  ' }), { name: 'Film night', limit: 5 })
+  await assert.rejects(validateEncoreToolInput(definition, { name: '  ', limit: 0 }), /Invalid tool arguments/)
+  const playlist = createEncoreTools(context).proposePlaylist
+  await assert.rejects(validateEncoreToolInput(playlist, { operation: 'update', items: [{ id: randomUUID(), type: 'movie' }] }), /Invalid tool arguments/)
 })
 
 test(
