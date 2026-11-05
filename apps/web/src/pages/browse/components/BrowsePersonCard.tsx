@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Avatar, Box, Paper, Typography } from '@mui/material'
+import { useVisibleImage } from '../../../hooks/useVisibleImage'
 import { usePersonPortrait } from '../../../hooks/usePersonPortrait'
 import type { BrowsePerson } from '../types'
 import { personSubtitle } from '../utils/personSubtitle'
@@ -12,10 +13,13 @@ interface BrowsePersonCardProps {
 
 export function BrowsePersonCard({ person, onNavigate }: BrowsePersonCardProps) {
   const { t } = useTranslation()
+  const { imageRef, visible } = useVisibleImage()
   const { displaySrc, phase, onImageError } = usePersonPortrait({
+    enabled: visible,
+    tmdbImageUrl: person.tmdbProfilePath
+      ? `https://image.tmdb.org/t/p/w185${person.tmdbProfilePath}`
+      : null,
     personName: person.name,
-    mediaImageUrl: `/api/media/images/Persons/${encodeURIComponent(person.name)}/Images/Primary`,
-    fetchTmdbFallback: true,
   })
   const subtitle = personSubtitle(person, t)
   const [cardImgShown, setCardImgShown] = useState(false)
@@ -27,6 +31,7 @@ export function BrowsePersonCard({ person, onNavigate }: BrowsePersonCardProps) 
   return (
     <Paper
       elevation={0}
+      ref={imageRef}
       onClick={onNavigate}
       sx={{
         borderRadius: 2,
@@ -55,6 +60,8 @@ export function BrowsePersonCard({ person, onNavigate }: BrowsePersonCardProps) 
             component="img"
             src={displaySrc}
             alt=""
+            loading="lazy"
+            decoding="async"
             onLoad={() => setCardImgShown(true)}
             onError={onImageError}
             sx={{

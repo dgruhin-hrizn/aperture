@@ -3621,7 +3621,7 @@
     "searchResults": "Resultados de la búsqueda",
     "emptyStrip": "No hay títulos en esta fila.",
     "loadError": "No se pudieron cargar datos de transmisión",
-    "staleCache": "Mostrando resultados almacenados en caché; Error al actualizar los datos en vivo.",
+    "staleCache": "Se muestran listas en caché; las posiciones pueden haber cambiado.",
     "inLibrary": "en la biblioteca",
     "loadingLabels": "Cargando nombres de servicios…"
   },

@@ -1,4 +1,14 @@
-import { query, queryOne } from '../lib/db.js'
+import { query } from '../lib/db.js'
+import { AsyncCache } from '../lib/asyncCache.js'
+
+interface PeopleSqlRow {
+  name: string | null
+  credits: number
+  movie_credits: number
+  series_credits: number
+  full_total: string
+}
+const pages = new AsyncCache<PeopleSqlRow[]>(30_000, 200)
 
 export interface ListPeopleBrowseOptions {
   search?: string
@@ -14,6 +24,7 @@ export interface PersonBrowseRow {
   credits: number
   movieCredits: number
   seriesCredits: number
+  tmdbProfilePath?: string | null
 }
 
 export interface ListPeopleBrowseResult {
@@ -37,32 +48,18 @@ export async function listPeopleForBrowse(
   const search = options.search?.trim() ?? ''
   const showAll = options.showAll === true
 
-  const configCheck = await queryOne<{ count: string }>(
-    'SELECT COUNT(*)::text AS count FROM library_config'
+  // Visibility is rechecked even on a cache hit: disabling a library immediately changes the key.
+  const configs = await query<{ provider_library_id: string; is_enabled: boolean }>(
+    'SELECT provider_library_id, is_enabled FROM library_config'
   )
-  const hasLibraryConfigs = configCheck && parseInt(configCheck.count, 10) > 0
-  const filterByLibrary = hasLibraryConfigs && !showAll
+  const enabledIds = [
+    ...new Set(configs.rows.filter((row) => row.is_enabled).map((row) => row.provider_library_id)),
+  ].sort()
+  const filterByLibrary = configs.rows.length > 0 && !showAll
+  const libMovie = filterByLibrary ? 'm.provider_library_id = ANY($4::text[])' : 'TRUE'
+  const libSeries = filterByLibrary ? 's.provider_library_id = ANY($4::text[])' : 'TRUE'
 
-  const libMovie = filterByLibrary
-    ? `EXISTS (
-        SELECT 1 FROM library_config lc
-        WHERE lc.provider_library_id = m.provider_library_id
-        AND lc.is_enabled = true
-      )`
-    : 'TRUE'
-
-  const libSeries = filterByLibrary
-    ? `EXISTS (
-        SELECT 1 FROM library_config lc
-        WHERE lc.provider_library_id = s.provider_library_id
-        AND lc.is_enabled = true
-      )`
-    : 'TRUE'
-
-  const orderClause =
-    sortBy === 'credits'
-      ? 'credits DESC NULLS LAST, name ASC'
-      : 'name ASC'
+  const orderClause = sortBy === 'credits' ? 'credits DESC NULLS LAST, name ASC' : 'name ASC'
 
   const searchParam = search.length > 0 ? search : null
 
@@ -105,31 +102,55 @@ filtered AS (
   SELECT * FROM agg
   WHERE ($1::text IS NULL OR name ILIKE '%' || $1 || '%')
 )
-SELECT name, credits, movie_credits, series_credits,
-       COUNT(*) OVER()::bigint AS full_total
-FROM filtered
+SELECT page.*, totals.full_total
+FROM (SELECT COUNT(*)::bigint AS full_total FROM filtered) totals
+LEFT JOIN LATERAL (
+  SELECT name, credits, movie_credits, series_credits FROM filtered
+  ORDER BY ${orderClause}
+  LIMIT $2 OFFSET $3
+) page ON TRUE
 ORDER BY ${orderClause}
-LIMIT $2 OFFSET $3
 `
 
-  const result = await query<{
-    name: string
-    credits: number
-    movie_credits: number
-    series_credits: number
-    full_total: string
-  }>(sql, [searchParam, pageSize, offset])
-
-  const rows = result.rows
+  const key = JSON.stringify([
+    filterByLibrary ? enabledIds : null,
+    sortBy,
+    searchParam,
+    pageSize,
+    offset,
+  ])
+  const rows = await pages.get(
+    key,
+    async () =>
+      (
+        await query<PeopleSqlRow>(
+          sql,
+          filterByLibrary
+            ? [searchParam, pageSize, offset, enabledIds]
+            : [searchParam, pageSize, offset]
+        )
+      ).rows
+  )
   const total = rows.length > 0 ? parseInt(rows[0].full_total, 10) : 0
 
+  const visibleRows = rows.filter((r) => r.name !== null)
+  const cachedPortraits = visibleRows.length
+    ? await query<{ name_key: string; profile_path: string }>(
+        'SELECT name_key, profile_path FROM person_tmdb_profile_cache WHERE name_key = ANY($1::text[]) AND profile_path IS NOT NULL AND not_found = false',
+        [visibleRows.map((r) => r.name!.trim().toLowerCase())]
+      )
+    : { rows: [] }
+  const portraits = new Map(cachedPortraits.rows.map((r) => [r.name_key, r.profile_path]))
   return {
-    people: rows.map((r) => ({
-      name: r.name,
-      credits: r.credits,
-      movieCredits: r.movie_credits,
-      seriesCredits: r.series_credits,
-    })),
+    people: rows
+      .filter((r) => r.name !== null)
+      .map((r) => ({
+        name: r.name!,
+        credits: r.credits,
+        movieCredits: r.movie_credits,
+        seriesCredits: r.series_credits,
+        tmdbProfilePath: portraits.get(r.name!.trim().toLowerCase()) ?? null,
+      })),
     total,
     page,
     pageSize,

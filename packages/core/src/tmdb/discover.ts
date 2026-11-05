@@ -309,7 +309,7 @@ export async function getSimilarMovies(
  */
 export async function discoverMovies(
   filters: DiscoverMovieFilters = {},
-  options: { onLog?: ApiLogCallback } = {}
+  options: { onLog?: ApiLogCallback; apiKey?: string; timeoutMs?: number; maxRetries?: number } = {}
 ): Promise<TMDbMovieDiscoverResponse | null> {
   const params = new URLSearchParams({
     language: 'en-US',
@@ -425,7 +425,7 @@ export async function getSimilarTV(
  */
 export async function discoverTV(
   filters: DiscoverTVFilters = {},
-  options: { onLog?: ApiLogCallback } = {}
+  options: { onLog?: ApiLogCallback; apiKey?: string; timeoutMs?: number; maxRetries?: number } = {}
 ): Promise<TMDbTVDiscoverResponse | null> {
   const params = new URLSearchParams({
     language: 'en-US',

@@ -1,5 +1,7 @@
 # Discover loading and caching
 
+For the subsequent genre-strip, Streaming and People changes, see [Genre strips, Streaming and People loading](discovery-people-performance.md).
+
 Introduced in **0.7.11-dev.10**. These optimizations add no settings or database migrations and preserve recommendation scoring, existing filters, requests, library permissions and appearance preferences.
 
 ## Loading behavior

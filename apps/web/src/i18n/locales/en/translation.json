@@ -2224,7 +2224,7 @@
     "emptyStrip": "No titles in this row.",
     "loadError": "Could not load streaming data",
     "loadingLabels": "Loading service names…",
-    "staleCache": "Showing cached results; live data refresh failed.",
+    "staleCache": "Showing cached charts; rankings may have changed.",
     "inLibrary": "In library"
   },
   "mediaPoster": {

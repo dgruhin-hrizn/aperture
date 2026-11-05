@@ -1,74 +1,71 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { getProxiedImageUrl } from '@aperture/ui'
+import { useCallback, useEffect, useState } from 'react'
+import { cachedResource } from './cachedResource'
+import { useAuth } from './useAuth'
 
-export type PersonPortraitPhase = 'media' | 'pending-tmdb' | 'tmdb' | 'none'
-
-interface UsePersonPortraitOptions {
-  personName: string
-  mediaImageUrl: string | null | undefined
-  tmdbImageUrl?: string | null
-  fetchTmdbFallback?: boolean
+export type PersonPortraitPhase = 'pending-tmdb' | 'tmdb' | 'none'
+interface PortraitState {
+  key: string
+  src?: string
+  phase: PersonPortraitPhase
 }
 
+/** Person artwork comes from TMDb; it never waits for the media server. */
 export function usePersonPortrait({
+  enabled = true,
   personName,
-  mediaImageUrl,
   tmdbImageUrl,
-  fetchTmdbFallback = false,
-}: UsePersonPortraitOptions) {
-  const [phase, setPhase] = useState<PersonPortraitPhase>('media')
-  const [fetchedTmdbUrl, setFetchedTmdbUrl] = useState<string | null>(null)
-  const phaseRef = useRef(phase)
-  phaseRef.current = phase
-
+}: {
+  enabled?: boolean
+  personName: string
+  tmdbImageUrl?: string | null
+}) {
+  const { user } = useAuth()
+  const userId = user?.id ?? ''
+  const key = JSON.stringify([userId, personName, tmdbImageUrl])
+  const [state, setState] = useState<PortraitState>({
+    key,
+    src: tmdbImageUrl ?? undefined,
+    phase: tmdbImageUrl ? 'tmdb' : 'none',
+  })
   useEffect(() => {
-    setPhase('media')
-    setFetchedTmdbUrl(null)
-  }, [personName, mediaImageUrl, tmdbImageUrl])
-
-  const resolvedTmdbUrl = tmdbImageUrl ?? fetchedTmdbUrl
-
-  const displaySrc = useMemo(() => {
-    if (phase === 'media' && mediaImageUrl) {
-      return getProxiedImageUrl(mediaImageUrl, '')
+    const controller = new AbortController()
+    if (!enabled || tmdbImageUrl) {
+      setState({
+        key,
+        src: enabled ? (tmdbImageUrl ?? undefined) : undefined,
+        phase: enabled && tmdbImageUrl ? 'tmdb' : 'none',
+      })
+    } else {
+      setState({ key, phase: 'pending-tmdb' })
+      void cachedResource<{ imageUrl?: string | null }>(
+        userId,
+        `/api/discover/person-profile?name=${encodeURIComponent(personName)}`,
+        controller.signal,
+        5 * 60_000
+      )
+        .then((data) => {
+          if (!controller.signal.aborted)
+            setState({
+              key,
+              src: data.imageUrl ?? undefined,
+              phase: data.imageUrl ? 'tmdb' : 'none',
+            })
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) setState({ key, phase: 'none' })
+        })
     }
-    if (phase === 'tmdb' && resolvedTmdbUrl) {
-      return getProxiedImageUrl(resolvedTmdbUrl, '')
-    }
-    return undefined
-  }, [mediaImageUrl, phase, resolvedTmdbUrl])
+    return () => controller.abort()
+  }, [key, enabled, personName, tmdbImageUrl, userId])
 
-  const onImageError = useCallback(() => {
-    if (phaseRef.current === 'media') {
-      if (tmdbImageUrl) {
-        setPhase('tmdb')
-        return
-      }
-
-      if (fetchTmdbFallback) {
-        setPhase('pending-tmdb')
-        void fetch(
-          `/api/discover/person-profile?name=${encodeURIComponent(personName)}`,
-          { credentials: 'include' }
-        )
-          .then((r) => r.json())
-          .then((data: { imageUrl?: string | null }) => {
-            if (data?.imageUrl) {
-              setFetchedTmdbUrl(data.imageUrl)
-              setPhase('tmdb')
-            } else {
-              setPhase('none')
-            }
-          })
-          .catch(() => {
-            setPhase('none')
-          })
-        return
-      }
-    }
-
-    setPhase('none')
-  }, [fetchTmdbFallback, personName, tmdbImageUrl])
-
-  return { displaySrc, phase, onImageError }
+  const onImageError = useCallback(() => setState({ key, phase: 'none' }), [key])
+  const current: PortraitState =
+    state.key === key
+      ? state
+      : { key, src: tmdbImageUrl ?? undefined, phase: tmdbImageUrl ? 'tmdb' : 'pending-tmdb' }
+  return {
+    displaySrc: enabled ? current.src : undefined,
+    phase: enabled ? current.phase : 'none',
+    onImageError,
+  }
 }

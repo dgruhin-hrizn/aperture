@@ -17,7 +17,7 @@ import {
  */
 export async function attachTmdbPosterPaths(
   rows: JustWatchStreamingRow[],
-  options: { language?: string } = {}
+  options: { language?: string; cachedOnly?: boolean } = {}
 ): Promise<JustWatchStreamingRow[]> {
   const cfg = await getTMDbConfig()
   if (!cfg.enabled || !cfg.hasApiKey) {
@@ -63,10 +63,11 @@ export async function attachTmdbPosterPaths(
   const fetchMovieIds = [...movieIds].filter((id) => !moviePoster.has(id))
   const fetchTvIds = [...tvIds].filter((id) => !tvPoster.has(id))
 
-  await Promise.all([
-    ...fetchMovieIds.map((id) => fetchMoviePoster(id, lang, moviePoster)),
-    ...fetchTvIds.map((id) => fetchTvPoster(id, lang, tvPoster)),
-  ])
+  if (!options.cachedOnly)
+    await Promise.all([
+      ...fetchMovieIds.map((id) => fetchMoviePoster(id, lang, moviePoster)),
+      ...fetchTvIds.map((id) => fetchTvPoster(id, lang, tvPoster)),
+    ])
 
   return rows.map((r) => {
     if (r.tmdbId == null) return r
@@ -110,7 +111,11 @@ async function fetchMoviePoster(
   }
 }
 
-async function fetchTvPoster(id: number, lang: string, out: Map<number, string | null>): Promise<void> {
+async function fetchTvPoster(
+  id: number,
+  lang: string,
+  out: Map<number, string | null>
+): Promise<void> {
   const key = inflightKey('tv', id, lang)
   let p = inflight.get(key)
   if (!p) {

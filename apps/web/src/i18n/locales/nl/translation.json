@@ -3621,7 +3621,7 @@
     "searchResults": "Zoekresultaten",
     "emptyStrip": "Geen titels in deze rij.",
     "loadError": "Kan streaminggegevens niet laden",
-    "staleCache": "Gecachte resultaten tonen; het live vernieuwen van gegevens is mislukt.",
+    "staleCache": "Gecachte lijsten worden getoond; de posities kunnen zijn veranderd.",
     "inLibrary": "In bibliotheek",
     "loadingLabels": "Servicenamen laden…"
   },

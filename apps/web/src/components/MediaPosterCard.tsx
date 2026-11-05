@@ -163,6 +163,8 @@ export function MediaPosterCard({
       <Box sx={{ position: 'relative', aspectRatio: '2/3' }}>
         <CardMedia
           component="img"
+          loading="lazy"
+          decoding="async"
           image={finalPosterUrl}
           alt={title}
           onError={() => setImageError(true)}

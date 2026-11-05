@@ -78,10 +78,7 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
     { preHandler: requireAuth, schema: getPeopleListSchema },
     async (request) => {
       const page = Math.max(1, parseInt(request.query.page || '1', 10) || 1)
-      const pageSize = Math.min(
-        Math.max(1, parseInt(request.query.pageSize || '50', 10) || 50),
-        50
-      )
+      const pageSize = Math.min(Math.max(1, parseInt(request.query.pageSize || '50', 10) || 50), 50)
       const sortBy = request.query.sortBy === 'credits' ? 'credits' : 'name'
       const search = request.query.search?.trim() || undefined
       const showAll = request.query.showAll === 'true'
@@ -110,7 +107,7 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
       if (!raw) {
         return reply.status(400).send({ error: 'Missing name query parameter' })
       }
-      const decodedName = decodeURIComponent(raw)
+      const decodedName = raw
       const { imageUrl, tmdbPersonId } = await resolveTmdbPersonProfileImageUrl(decodedName)
       request.log.info(
         {
@@ -197,7 +194,7 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { name: string } }>(
     '/api/discover/person/:name',
-    { preHandler: requireAuth, schema: { tags: ["discovery"] } },
+    { preHandler: requireAuth, schema: { tags: ['discovery'] } },
     async (request, reply) => {
       const { name } = request.params
       const decodedName = decodeURIComponent(name)
@@ -284,10 +281,10 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
       const imageUrl = `/api/media/images/Persons/${encodeURIComponent(decodedName)}/Images/Primary`
 
       // Count stats
-      const asActorMovies = movieResults.rows.filter(r => r.is_actor).length
-      const asDirectorMovies = movieResults.rows.filter(r => r.is_director).length
-      const asActorSeries = seriesResults.rows.filter(r => r.is_actor).length
-      const asDirectorSeries = seriesResults.rows.filter(r => r.is_director).length
+      const asActorMovies = movieResults.rows.filter((r) => r.is_actor).length
+      const asDirectorMovies = movieResults.rows.filter((r) => r.is_director).length
+      const asActorSeries = seriesResults.rows.filter((r) => r.is_actor).length
+      const asDirectorSeries = seriesResults.rows.filter((r) => r.is_director).length
 
       const tmdbProfile = await resolveTmdbPersonProfileImageUrl(decodedName)
 
@@ -295,7 +292,7 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
         name: decodedName,
         imageUrl,
         tmdbFallbackImageUrl: tmdbProfile.imageUrl,
-        movies: movieResults.rows.map(r => ({
+        movies: movieResults.rows.map((r) => ({
           id: r.id,
           title: r.title,
           year: r.year,
@@ -305,7 +302,7 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
           communityRating: r.community_rating,
           role: r.role || undefined,
         })),
-        series: seriesResults.rows.map(r => ({
+        series: seriesResults.rows.map((r) => ({
           id: r.id,
           title: r.title,
           year: r.year,
@@ -333,7 +330,7 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { name: string } }>(
     '/api/discover/studio/:name',
-    { preHandler: requireAuth, schema: { tags: ["discovery"] } },
+    { preHandler: requireAuth, schema: { tags: ['discovery'] } },
     async (request, reply) => {
       const { name } = request.params
       const decodedName = decodeURIComponent(name)
@@ -396,10 +393,10 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Check if we have logo data from TMDB enrichment or Emby ID for fallback
       // Check both 'studio' and 'network' types since this page handles both
-      const studioLogo = await queryOne<{ 
+      const studioLogo = await queryOne<{
         logo_local_path: string | null
         logo_path: string | null
-        emby_id: string | null 
+        emby_id: string | null
       }>(
         `SELECT logo_local_path, logo_path, emby_id FROM studios_networks 
          WHERE name ILIKE $1
@@ -425,7 +422,7 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
       const response: StudioResponse = {
         name: decodedName,
         imageUrl,
-        movies: movieResults.rows.map(r => ({
+        movies: movieResults.rows.map((r) => ({
           id: r.id,
           title: r.title,
           year: r.year,
@@ -434,7 +431,7 @@ const discoverRoutes: FastifyPluginAsync = async (fastify) => {
           genres: r.genres || [],
           communityRating: r.community_rating,
         })),
-        series: seriesResults.rows.map(r => ({
+        series: seriesResults.rows.map((r) => ({
           id: r.id,
           title: r.title,
           year: r.year,

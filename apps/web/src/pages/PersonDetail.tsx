@@ -220,7 +220,7 @@ export function PersonDetailPage() {
 
   const { displaySrc: avatarSrc, onImageError: handleAvatarError } = usePersonPortrait({
     personName: decodedName,
-    mediaImageUrl: data?.imageUrl,
+    enabled: Boolean(data && data.name === decodedName),
     tmdbImageUrl: data?.tmdbFallbackImageUrl,
   })
 

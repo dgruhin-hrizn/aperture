@@ -8,11 +8,12 @@ test('genre pages are shared while user watch exclusions are queried fresh on ev
   const pool = getPool(),
     originalQuery = pool.query,
     originalFetch = globalThis.fetch
-  let calls = 0
+  let calls = 0,
+    apiKey: string | null = 'test-key'
   Object.assign(pool, {
     query: async (sql: string, params: unknown[]) => {
       let rows: unknown[] = []
-      if (sql.includes('system_settings')) rows = [{ value: 'test-key' }]
+      if (sql.includes('system_settings')) rows = apiKey ? [{ value: apiKey }] : []
       if (sql.includes('FROM watch_history')) rows = [{ tmdb_id: params[0] === 'a' ? '1' : '2' }]
       return { rows, rowCount: rows.length }
     },
@@ -56,6 +57,23 @@ test('genre pages are shared while user watch exclusions are queried fresh on ev
       [1]
     )
     assert.equal(calls, 1)
+    apiKey = 'rotated-genre-key'
+    await fetchGenreStripDiscoverCandidates('movie', {
+      userId: 'a',
+      genreIds: [28],
+      targetCount: 1,
+    })
+    assert.equal(calls, 2, 'a different credential cannot reuse old cached pages')
+    apiKey = null
+    assert.deepEqual(
+      await fetchGenreStripDiscoverCandidates('movie', {
+        userId: 'a',
+        genreIds: [28],
+        targetCount: 1,
+      }),
+      []
+    )
+    assert.equal(calls, 2, 'removing the credential retires access to cached pages')
   } finally {
     globalThis.fetch = originalFetch
     Object.assign(pool, { query: originalQuery })

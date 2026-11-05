@@ -414,9 +414,10 @@ export function DiscoveryPage() {
       )}
 
       {discoveryTab === 'streaming' ? (
-        <StreamingDiscoverySection requestEnabled={status?.requestEnabled ?? false} />
+        <StreamingDiscoverySection key={user?.id} requestEnabled={status?.requestEnabled ?? false} />
       ) : browseSubTab === 'genre' ? (
         <TmdbGenreRowsSection
+          key={`${user?.id}:${discoveryTab}`}
           mediaType={discoveryTab === 'series' ? 'series' : 'movie'}
           requestEnabled={status?.requestEnabled ?? false}
           resolveGenreName={resolveGenreName}
