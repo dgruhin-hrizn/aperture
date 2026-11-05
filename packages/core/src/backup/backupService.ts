@@ -1,7 +1,9 @@
 import { spawn, ChildProcess } from 'child_process'
 import * as fs from 'fs'
 import * as path from 'path'
-import * as zlib from 'zlib'
+import { randomUUID } from 'node:crypto'
+import { queryOne } from '../lib/db.js'
+import { restoreInTransaction } from './restore.js'
 import { createChildLogger } from '../lib/logger.js'
 import { getDatabaseUrl } from '../config/env.js'
 import { getBackupConfig, updateLastBackupInfo } from './backupConfig.js'
@@ -85,7 +87,7 @@ function parseDatabaseUrl(): {
 function generateBackupFilename(): string {
   const now = new Date()
   const timestamp = now.toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19)
-  return `aperture_backup_${timestamp}.dump`
+  return `aperture_backup_${timestamp}_${randomUUID().slice(0, 8)}.dump`
 }
 
 /**
@@ -312,6 +314,8 @@ export async function restoreBackup(
     const dbConfig = parseDatabaseUrl()
     const filePath = path.join(config.backupPath, filename)
 
+    if (path.basename(filename) !== filename) throw new Error('Invalid backup filename')
+
     // Validate backup file exists
     if (!await fileExists(filePath)) {
       throw new Error(`Backup file not found: ${filename}`)
@@ -348,11 +352,7 @@ export async function restoreBackup(
           addLog(jobId, 'info', `✅ Safety backup created: ${preRestoreBackup}`)
         }
       } else {
-        logger.warn({ error: preBackupResult.error }, 'Failed to create pre-restore backup, continuing anyway')
-        if (trackProgress && jobId) {
-          addLog(jobId, 'warn', `⚠️ Could not create safety backup: ${preBackupResult.error}`)
-          addLog(jobId, 'info', '   Continuing with restore anyway...')
-        }
+        throw new Error(`Restore stopped because the safety backup failed: ${preBackupResult.error ?? 'Unknown error'}`)
       }
       stepOffset = 1
     }
@@ -379,95 +379,8 @@ export async function restoreBackup(
       addLog(jobId, 'warn', '⚠️ This will overwrite existing data!')
     }
 
-    // Collect stderr for error reporting
-    let stderr = ''
-    let lastLogTime = Date.now()
-
-    if (isCustomFormat) {
-      // Use pg_restore for custom format (.dump) files
-      // --clean drops existing objects, --if-exists prevents errors
-      const pgRestore = spawn('pg_restore', [
-        '-h', dbConfig.host,
-        '-p', dbConfig.port,
-        '-U', dbConfig.user,
-        '-d', dbConfig.database,
-        '--clean',
-        '--if-exists',
-        '--no-owner',
-        '--no-acl',
-        filePath,
-      ], {
-        env: {
-          ...process.env,
-          PGPASSWORD: dbConfig.password,
-        },
-      })
-
-      pgRestore.stderr.on('data', (data) => {
-        stderr += data.toString()
-        if (trackProgress && jobId && Date.now() - lastLogTime > 2000) {
-          addLog(jobId, 'debug', '   Restore in progress...')
-          lastLogTime = Date.now()
-        }
-      })
-
-      await new Promise<void>((resolve, reject) => {
-        pgRestore.on('error', reject)
-        pgRestore.on('close', (code) => {
-          // pg_restore returns non-zero for warnings too, check stderr for actual errors
-          if (code !== 0 && stderr.toLowerCase().includes('error')) {
-            reject(new Error(`pg_restore exited with code ${code}: ${stderr}`))
-          } else {
-            resolve()
-          }
-        })
-      })
-    } else {
-      // Use psql for plain text SQL files (.sql, .sql.gz)
-      const psql = spawn('psql', [
-        '-h', dbConfig.host,
-        '-p', dbConfig.port,
-        '-U', dbConfig.user,
-        '-d', dbConfig.database,
-        '-v', 'ON_ERROR_STOP=1',
-      ], {
-        env: {
-          ...process.env,
-          PGPASSWORD: dbConfig.password,
-        },
-      })
-
-      psql.stderr.on('data', (data) => {
-        stderr += data.toString()
-        if (trackProgress && jobId && Date.now() - lastLogTime > 2000) {
-          addLog(jobId, 'debug', '   Restore in progress...')
-          lastLogTime = Date.now()
-        }
-      })
-
-      const readStream = fs.createReadStream(filePath)
-
-      await new Promise<void>((resolve, reject) => {
-        psql.on('error', reject)
-        psql.on('close', (code) => {
-          if (code !== 0) {
-            reject(new Error(`psql exited with code ${code}: ${stderr}`))
-          } else {
-            resolve()
-          }
-        })
-
-        if (isCompressed) {
-          const gunzip = zlib.createGunzip()
-          readStream.pipe(gunzip).pipe(psql.stdin)
-          gunzip.on('error', reject)
-        } else {
-          readStream.pipe(psql.stdin)
-        }
-
-        readStream.on('error', reject)
-      })
-    }
+    const server = await queryOne<{ server_version_num: string }>('SHOW server_version_num')
+    await restoreInTransaction(filePath, dbConfig, Number(server?.server_version_num) < 170000)
 
     // Step 5: Finalize
     if (trackProgress && jobId) {

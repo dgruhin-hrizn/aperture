@@ -95,6 +95,7 @@ async function seerrRequest<T>(
     body?: Record<string, unknown>
     config?: SeerrConfig
     timeoutMs?: number
+    onHttpFailure?: (status: number) => void
   } = {}
 ): Promise<T | null> {
   const config = options.config || await getSeerrConfig()
@@ -118,6 +119,7 @@ async function seerrRequest<T>(
     })
 
     if (!response.ok) {
+      options.onHttpFailure?.(response.status)
       const errorText = await response.text().catch(() => 'Unknown error')
       logger.error({ status: response.status, endpoint, error: errorText }, 'Seerr API request failed')
       return null
@@ -192,14 +194,14 @@ export async function searchContent(
  * Get movie details by TMDb ID
  */
 export async function getMovieDetails(tmdbId: number): Promise<SeerrMovieDetails | null> {
-  return seerrRequest<SeerrMovieDetails>(`/movie/${tmdbId}`)
+  return seerrRequest<SeerrMovieDetails>(`/movie/${tmdbId}`, { timeoutMs: 5000 })
 }
 
 /**
  * Get TV show details by TMDb ID
  */
 export async function getTVDetails(tmdbId: number): Promise<SeerrTVDetails | null> {
-  return seerrRequest<SeerrTVDetails>(`/tv/${tmdbId}`)
+  return seerrRequest<SeerrTVDetails>(`/tv/${tmdbId}`, { timeoutMs: 5000 })
 }
 
 /** Jellyseerr / JSON may surface status as number or string; normalize for comparisons. */
@@ -366,6 +368,7 @@ export async function createRequest(
 ): Promise<{
   success: boolean
   requestId?: number
+  uncertain?: boolean
   message?: string
 }> {
   const body: SeerrRequestBody = {
@@ -409,14 +412,17 @@ export async function createRequest(
     }
   }
 
+  let status: number | undefined
   const result = await seerrRequest<SeerrRequestResponse>('/request', {
     method: 'POST',
+    timeoutMs: 10_000,
+    onHttpFailure: (value) => { status = value },
     body: body as unknown as Record<string, unknown>,
   })
 
   clearStatuses()
-  if (!result) {
-    return { success: false, message: 'Failed to create request' }
+  if (!result || !Number.isSafeInteger(result.id) || result.id <= 0) {
+    return { success: false, uncertain: status === undefined || status >= 500, message: 'Failed to create request' }
   }
 
   return {

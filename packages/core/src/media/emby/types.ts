@@ -190,6 +190,7 @@ export interface EmbyEpisode {
   SeasonName?: string
   ParentIndexNumber: number // Season number
   IndexNumber: number // Episode number
+  IndexNumberEnd?: number
   Overview?: string
   PremiereDate?: string
   ProductionYear?: number

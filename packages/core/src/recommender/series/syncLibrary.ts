@@ -1,6 +1,7 @@
 import { query } from '../../lib/db.js'
 import { getEnabledTvLibraryIds } from '../../lib/libraryConfig.js'
 import { getMediaServerProvider } from '../../media/index.js'
+import { EmbyHttpError } from '../../media/emby/fetchHelpers.js'
 import { getMediaServerApiKey, getMediaServerConfig } from '../../settings/systemSettings.js'
 import {
   createJobProgress,
@@ -302,18 +303,60 @@ export async function syncSeries(existingJobId?: string): Promise<SyncSeriesResu
       const baseProcessed = processedEpisodes
       const baseAdded = episodesAdded
       const baseUpdated = episodesUpdated
+      const parentIds = libraryId ? [libraryId] : undefined
+      const libraryLabel = libraryId ? `library ${libraryId}` : 'all libraries'
+      let episodePageSize = EPISODE_PAGE_SIZE
 
       // Use streaming batch processing to avoid memory issues with large libraries
       const streamResult = await streamingBatchProcess<Episode>(
-        // Fetch function
-        (startIndex, limit) =>
-          provider.getEpisodes(apiKey, {
-            startIndex,
-            limit,
-            parentIds: libraryId ? [libraryId] : undefined,
-          }),
+        async (startIndex) => {
+          const initialPageSize = episodePageSize
+          while (true) {
+            let page
+            try {
+              page = await provider.getEpisodes(apiKey, {
+                startIndex,
+                limit: episodePageSize,
+                parentIds,
+              })
+            } catch (err) {
+              if (!(err instanceof EmbyHttpError) || err.status !== 500) throw err
+
+              const { status, serverException } = err
+              const limit = episodePageSize
+              const failure = `Emby returned HTTP ${status}${serverException ? ` (${serverException})` : ''} fetching episodes from ${libraryLabel} at offset ${startIndex} with page size ${limit}`
+              if (limit === 1) {
+                throw new Error(
+                  `${failure}. Check the Emby Server log around ${new Date().toISOString()} for the full exception.`,
+                  { cause: err }
+                )
+              }
+
+              // Retry at the same offset and keep the smaller page size for this library.
+              episodePageSize = Math.max(1, Math.floor(limit / 4))
+              addLog(jobId, 'warn', `${failure}. Retrying with page size ${episodePageSize}.`, {
+                libraryId,
+                startIndex,
+                limit,
+                nextLimit: episodePageSize,
+                status,
+                serverException,
+              })
+              continue
+            }
+
+            if (episodePageSize !== initialPageSize) {
+              addLog(
+                jobId,
+                'info',
+                `Emby retry for ${libraryLabel} at offset ${startIndex} returned ${page.items.length} episodes with page size ${episodePageSize}.`,
+                { libraryId, startIndex, limit: episodePageSize, itemCount: page.items.length }
+              )
+            }
+            return page
+          }
+        },
         episodeCount,
-        EPISODE_PAGE_SIZE,
         // Process batch function - prepares and inserts episodes
         async (episodes) => {
           for (const episode of episodes) {

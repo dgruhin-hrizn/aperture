@@ -1,11 +1,12 @@
 import { createChildLogger } from '../lib/logger.js'
-import { query, queryOne } from '../lib/db.js'
+import { queryWithinCatalog as query, queryOneWithinCatalog as queryOne } from '../encore/scopedDb.js'
 import {
   getEmbeddingModelInstance,
   getActiveEmbeddingModelId,
   getActiveEmbeddingTableName,
 } from '../lib/ai-provider.js'
 import { embed } from 'ai'
+import { getExpandedWatchedMovieIds, getExpandedWatchedSeriesIds, WATCH_HISTORY_EXCLUDABLE_SQL } from '../recommender/watchedExclusion.js'
 import { computeConnectionReasons, type ConnectionReason } from './reasons.js'
 
 const logger = createChildLogger('similarity')
@@ -70,6 +71,8 @@ export interface SimilarityOptions {
   includeCrossMedia?: boolean
   depth?: number // How many levels of connections to fetch (1 = direct only, 2 = include connections of connections)
   userId?: string // If provided, user preferences are applied (hide watched, full franchise mode)
+  /** Request-scoped watched set, reused during graph expansion. */
+  watchedIds?: ReadonlySet<string>
 }
 
 // User similarity preferences
@@ -97,30 +100,21 @@ async function getUserSimilarityPreferences(userId: string): Promise<SimilarityP
   }
 }
 
-/**
- * Get set of watched movie IDs for a user
- */
-async function getUserWatchedMovieIds(userId: string): Promise<Set<string>> {
-  const result = await query<{ movie_id: string }>(
-    `SELECT DISTINCT movie_id FROM watch_history 
-     WHERE user_id = $1 AND movie_id IS NOT NULL AND play_count > 0`,
-    [userId]
-  )
-  return new Set(result.rows.map((r) => r.movie_id))
+async function getSimilarityWatchedIds(
+  type: 'movie' | 'series', options: SimilarityOptions
+): Promise<ReadonlySet<string>> {
+  if (options.watchedIds) return options.watchedIds
+  if (!options.userId) return new Set()
+  const prefs = await getUserSimilarityPreferences(options.userId)
+  if (!prefs.hideWatched) return new Set()
+  return type === 'movie'
+    ? getExpandedWatchedMovieIds(options.userId)
+    : getExpandedWatchedSeriesIds(options.userId)
 }
 
-/**
- * Get set of watched series IDs for a user (any episode watched)
- */
-async function getUserWatchedSeriesIds(userId: string): Promise<Set<string>> {
-  const result = await query<{ series_id: string }>(
-    `SELECT DISTINCT e.series_id 
-     FROM watch_history wh
-     JOIN episodes e ON e.id = wh.episode_id
-     WHERE wh.user_id = $1 AND wh.episode_id IS NOT NULL AND wh.play_count > 0`,
-    [userId]
-  )
-  return new Set(result.rows.map((r) => r.series_id))
+function boundedInteger(value: number | undefined, fallback: number, maximum: number): number {
+  return value !== undefined && Number.isFinite(value)
+    ? Math.min(maximum, Math.max(1, Math.floor(value))) : fallback
 }
 
 // ============================================================================
@@ -131,7 +125,7 @@ export async function getSimilarMovies(
   movieId: string,
   options: SimilarityOptions = {}
 ): Promise<SimilarityResult> {
-  const { limit = 12 } = options
+  const limit = boundedInteger(options.limit, 12, 50)
 
   // Get the source movie
   const sourceMovie = await queryOne<{
@@ -192,6 +186,9 @@ export async function getSimilarMovies(
     return { center, connections: [] }
   }
 
+  const watchedIds = await getSimilarityWatchedIds('movie', options)
+
+  // Apply exclusions before LIMIT so watched neighbours do not leave empty slots.
   // Find similar movies using vector similarity
   const similarMovies = await query<{
     id: string
@@ -212,9 +209,10 @@ export async function getSimilarMovies(
      FROM ${tableName} e
      JOIN movies m ON m.id = e.movie_id
      WHERE m.id != $2 AND e.model = $3
+       AND NOT (m.id = ANY($5::uuid[]))
      ORDER BY e.embedding <=> $1::halfvec
      LIMIT $4`,
-    [embeddingResult.embedding, movieId, modelId, limit]
+    [embeddingResult.embedding, movieId, modelId, limit, [...watchedIds]]
   )
 
   const connections: SimilarityConnection[] = similarMovies.rows.map((row) => {
@@ -252,7 +250,7 @@ export async function getSimilarSeries(
   seriesId: string,
   options: SimilarityOptions = {}
 ): Promise<SimilarityResult> {
-  const { limit = 12 } = options
+  const limit = boundedInteger(options.limit, 12, 50)
 
   // Get the source series
   const sourceSeries = await queryOne<{
@@ -313,6 +311,8 @@ export async function getSimilarSeries(
     return { center, connections: [] }
   }
 
+  const watchedIds = await getSimilarityWatchedIds('series', options)
+
   // Find similar series using vector similarity
   const similarSeries = await query<{
     id: string
@@ -333,9 +333,10 @@ export async function getSimilarSeries(
      FROM ${tableName} e
      JOIN series s ON s.id = e.series_id
      WHERE s.id != $2 AND e.model = $3
+       AND NOT (s.id = ANY($5::uuid[]))
      ORDER BY e.embedding <=> $1::halfvec
      LIMIT $4`,
-    [embeddingResult.embedding, seriesId, modelId, limit]
+    [embeddingResult.embedding, seriesId, modelId, limit, [...watchedIds]]
   )
 
   const connections: SimilarityConnection[] = similarSeries.rows.map((row) => {
@@ -409,7 +410,9 @@ export async function getSimilarWithDepth(
   itemType: 'movie' | 'series',
   options: SimilarityOptions = {}
 ): Promise<GraphData> {
-  const { limit = 6, depth = 1, userId } = options
+  const { userId } = options
+  const limit = boundedInteger(options.limit, 6, 50)
+  const depth = boundedInteger(options.depth, 1, 3)
 
   // Fetch user preferences if userId provided
   const prefs: SimilarityPreferences = userId
@@ -420,8 +423,8 @@ export async function getSimilarWithDepth(
   const watchedIds: Set<string> =
     prefs.hideWatched && userId
       ? itemType === 'movie'
-        ? await getUserWatchedMovieIds(userId)
-        : await getUserWatchedSeriesIds(userId)
+        ? await getExpandedWatchedMovieIds(userId)
+        : await getExpandedWatchedSeriesIds(userId)
       : new Set()
 
   logger.debug(
@@ -504,6 +507,7 @@ export async function getSimilarWithDepth(
 
   // Helper to add a node (respects hideWatched preference)
   const addNode = (item: SimilarityItem, isCenter = false) => {
+    if (!isCenter && !nodes.has(item.id) && nodes.size >= maxNodes) return false
     // Never filter out the center node, but filter others if hideWatched is enabled
     if (!isCenter && prefs.hideWatched && isWatched(item.id)) {
       return false // Don't add watched items
@@ -559,8 +563,8 @@ export async function getSimilarWithDepth(
   // Get the center item's similarity data
   const centerResult =
     itemType === 'movie'
-      ? await getSimilarMovies(itemId, { limit })
-      : await getSimilarSeries(itemId, { limit })
+      ? await getSimilarMovies(itemId, { limit, watchedIds })
+      : await getSimilarSeries(itemId, { limit, watchedIds })
 
   // Add center node
   addNode(centerResult.center, true)
@@ -607,8 +611,8 @@ export async function getSimilarWithDepth(
         // Request more items so we can filter
         const result =
           type === 'movie'
-            ? await getSimilarMovies(id, { limit: levelLimit * 3 })
-            : await getSimilarSeries(id, { limit: levelLimit * 3 })
+            ? await getSimilarMovies(id, { limit: levelLimit * 3, watchedIds })
+            : await getSimilarSeries(id, { limit: levelLimit * 3, watchedIds })
 
         let addedForThisNode = 0
         for (const conn of result.connections) {
@@ -797,14 +801,20 @@ export async function getGraphForSource(
     })
   })
 
+  // Resolve watch exclusions once per media type for this graph request.
+  const watchedByType = new Map(await Promise.all(
+    [...new Set(centerItems.map(item => item.type))].map(async type =>
+      [type, await getSimilarityWatchedIds(type, { userId })] as const)
+  ))
+
   // Get connections for each center node
   for (const centerItem of centerItems) {
     let result: SimilarityResult
 
     if (centerItem.type === 'movie') {
-      result = await getSimilarMovies(centerItem.id, { limit: connectionsPerNode * 2 })
+      result = await getSimilarMovies(centerItem.id, { limit: connectionsPerNode * 2, watchedIds: watchedByType.get(centerItem.type) })
     } else {
-      result = await getSimilarSeries(centerItem.id, { limit: connectionsPerNode * 2 })
+      result = await getSimilarSeries(centerItem.id, { limit: connectionsPerNode * 2, watchedIds: watchedByType.get(centerItem.type) })
     }
 
     // Add connections (limit per node, prioritize connections to other center nodes)
@@ -932,7 +942,7 @@ export async function semanticSearch(
 
   // Search movies
   if (type === 'movie' || type === 'both') {
-    const movieLimit = type === 'both' ? Math.ceil(limit / 2) : limit
+    const movieLimit = limit
     const movieTableName = await getActiveEmbeddingTableName('embeddings')
 
     // Build watched filter clause
@@ -943,6 +953,7 @@ export async function semanticSearch(
            WHERE wh.movie_id = m.id 
              AND wh.user_id = $4 
              AND wh.media_type = 'movie'
+             AND ${WATCH_HISTORY_EXCLUDABLE_SQL}
          )`
         : ''
     const movieParams =
@@ -998,7 +1009,7 @@ export async function semanticSearch(
 
   // Search series
   if (type === 'series' || type === 'both') {
-    const seriesLimit = type === 'both' ? Math.floor(limit / 2) : limit
+    const seriesLimit = limit
     const seriesTableName = await getActiveEmbeddingTableName('series_embeddings')
 
     // Build watched filter clause for series (checks if any episode was watched)
@@ -1010,6 +1021,7 @@ export async function semanticSearch(
            WHERE ep.series_id = s.id 
              AND wh.user_id = $4 
              AND wh.media_type = 'episode'
+             AND ${WATCH_HISTORY_EXCLUDABLE_SQL}
          )`
         : ''
     const seriesParams =

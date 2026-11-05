@@ -90,6 +90,41 @@ export async function buildTasteProfile(
   return profile
 }
 
+/** Use existing explicit preferences when there is no usable watch-history profile. */
+export async function buildStarterTasteProfile(userId: string, mediaType: MediaType) {
+  const modelId = await getActiveEmbeddingModelId()
+  if (!modelId) return { embedding: null, seedIds: [] }
+  const { getUserExcludedLibraries } = await import('../lib/libraryExclusions.js')
+  const excluded = await getUserExcludedLibraries(userId)
+  const table = mediaType === 'movie' ? 'movies' : 'series'
+  const column = mediaType === 'movie' ? 'movie_id' : 'series_id'
+  const [rated, interests] = await Promise.all([
+    query<{ id: string; rating: number }>(
+      `SELECT m.id, r.rating FROM user_ratings r JOIN ${table} m ON m.id = r.${column}
+       WHERE r.user_id = $1 AND r.rating >= 8
+         AND (m.provider_library_id IS NULL OR m.provider_library_id <> ALL($2::text[]))
+         AND NOT EXISTS (
+           SELECT 1 FROM library_config l WHERE l.provider_library_id = m.provider_library_id AND NOT l.is_enabled
+         )
+       ORDER BY r.rating DESC, m.id LIMIT 25`, [userId, excluded]
+    ),
+    query<{ id: string; embedding: string; weight: string }>(
+      `SELECT id, embedding::text, weight FROM user_custom_interests
+       WHERE user_id = $1 AND embedding_model = $2 AND embedding IS NOT NULL
+       ORDER BY created_at DESC, id LIMIT 25`, [userId, modelId]
+    ),
+  ])
+  const seedIds = rated.rows.map(({ id }) => id)
+  const embeddings = await getItemEmbeddings(seedIds, mediaType)
+  const weights = rated.rows.map(({ id, rating }) => ({ id, weight: Number(rating) / 10 }))
+  for (const row of interests.rows) {
+    const id = `interest:${row.id}`
+    embeddings.set(id, parseEmbedding(row.embedding))
+    weights.push({ id, weight: Number(row.weight) })
+  }
+  return { embedding: buildWeightedAverageEmbedding(weights, embeddings), seedIds }
+}
+
 // ============================================================================
 // Engagement Weight Calculation
 // ============================================================================
@@ -144,7 +179,8 @@ export function calculateEngagementWeight(item: WatchedItem, mediaType: MediaTyp
     const daysSince = (Date.now() - item.lastPlayedAt.getTime()) / (1000 * 60 * 60 * 24)
     // Half-life decay: weight halves every 180 days
     // But don't let it go below 0.25 (old items still matter somewhat)
-    const recencyFactor = Math.max(0.25, Math.pow(0.5, daysSince / 180))
+    const recencyFactor = Number.isFinite(daysSince)
+      ? Math.min(1, Math.max(0.25, Math.pow(0.5, Math.max(0, daysSince) / 180))) : 1
     weight *= recencyFactor
   }
 
@@ -316,13 +352,13 @@ async function getItemEmbeddings(
 /**
  * Build weighted average embedding from items and their weights
  */
-function buildWeightedAverageEmbedding(
+export function buildWeightedAverageEmbedding(
   items: Array<{ id: string; weight: number }>,
   embeddings: Map<string, number[]>
 ): number[] | null {
   // Get dimension from first embedding
   const firstEmbedding = embeddings.values().next().value
-  if (!firstEmbedding) return null
+  if (!firstEmbedding || firstEmbedding.length === 0) return null
 
   const dimension = firstEmbedding.length
   const result = new Array(dimension).fill(0)
@@ -330,10 +366,14 @@ function buildWeightedAverageEmbedding(
 
   for (const item of items) {
     const embedding = embeddings.get(item.id)
-    if (!embedding) continue
+    if (!embedding || embedding.length !== dimension || !embedding.every(Number.isFinite)
+      || !Number.isFinite(item.weight) || item.weight <= 0) continue
+    const magnitude = Math.hypot(...embedding)
+    if (!Number.isFinite(magnitude) || magnitude === 0) continue
 
+    // Vector magnitude is not a preference signal; engagement alone determines influence.
     for (let i = 0; i < dimension; i++) {
-      result[i] += embedding[i] * item.weight
+      result[i] += (embedding[i] / magnitude) * item.weight
     }
     totalWeight += item.weight
   }
@@ -347,6 +387,7 @@ function buildWeightedAverageEmbedding(
 
   // L2 normalize for cosine similarity
   const norm = Math.sqrt(result.reduce((sum, val) => sum + val * val, 0))
+  if (!Number.isFinite(norm) || norm === 0) return null
   if (norm > 0) {
     for (let i = 0; i < dimension; i++) {
       result[i] /= norm

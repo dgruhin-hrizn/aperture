@@ -129,7 +129,9 @@ docker exec -i aperture-db psql -U app -d aperture \
   -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
 ```
 
-Aperture's own restore adds `--clean --if-exists`, so it does not need this step.
+Aperture cleans objects listed in a custom archive and applies the restore in a single transaction.
+The restore needs temporary disk space for the expanded SQL. If you requested a safety backup,
+Aperture must finish that backup before starting the restore.
 
 ### Typical Sizes
 
@@ -261,9 +263,9 @@ install is never empty. Drop the schema before restoring — see
 
 #### `unrecognized configuration parameter "transaction_timeout"`
 
-Harmless. A newer `pg_restore` emitted a session setting that an older server does not
-recognize. Your data still restores correctly, but `pg_restore` exits non-zero, so check row
-counts rather than the exit code.
+The PostgreSQL 17 client can emit a setting that PostgreSQL 16 does not recognize.
+Aperture handles the setting in the generated dump header and runs the restore in one transaction.
+When restoring by hand, check that your restore command completed successfully.
 
 #### `aborting because of server version mismatch`
 

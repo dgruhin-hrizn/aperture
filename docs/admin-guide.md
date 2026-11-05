@@ -98,13 +98,15 @@ Under **Admin → Settings → System**, **Language defaults** sets the instance
 
 - **TMDb API key** — Admin → Settings.
 - **Collection metadata** — Run the **Enrich metadata** job so movies get `collection_id` from TMDb.
-- **Seerr** (optional) — Only needed if you want to request missing titles; requests are always explicit (bulk or single).
+- **Seerr** (optional) — When configured and enabled, the scan checks existing availability and requests. Requesting titles also requires Seerr; submissions are always explicit (bulk or single).
 
 **Operations**
 
-- Use **Run analysis** on the page (or schedule the **`refresh-library-gaps`** job under Admin → Jobs). The job only calls TMDb and your database — it **never** requests content from Seerr automatically.
+- Use **Run analysis** on the page (or schedule the **`refresh-library-gaps`** job under Admin → Jobs). The job reads TMDb, your database, and configured Seerr availability/request status. It **never** submits content requests automatically.
 - Gap-initiated requests are stored with `source: gap_analysis` and appear on **My Requests** with a **Gap Analysis** badge; they can be filtered with the Source dropdown.
-- Re-run analysis after large library syncs so counts stay accurate.
+- The last completed snapshot stays visible while a refresh runs or fails. The latest two completed snapshots and five failed runs are retained after a successful scan. First-ever scans can show partial results while running.
+- Newly synced or actively requested movies are removed from actionable gaps immediately. Re-run analysis to refresh collection membership, release dates, removals and external Seerr changes. If a configured upstream service cannot verify its status, the refresh fails and preserves the last successful snapshot.
+- Gap Analysis covers released **movie collection members** across the synced catalog; it does not rank by personal taste or detect missing TV episodes. See the [curation review](curation-review.md) for algorithm details, corrections and planned improvements.
 
 **API** — See [Gap analysis (Admin)](api-reference.md#gap-analysis-admin) in the API reference.
 

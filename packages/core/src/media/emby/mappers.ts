@@ -105,6 +105,7 @@ export function mapEmbyItemToEpisode(item: EmbyEpisode, baseUrl: string): Episod
     seriesName: item.SeriesName,
     seasonNumber: item.ParentIndexNumber,
     episodeNumber: item.IndexNumber,
+    episodeNumberEnd: item.IndexNumberEnd,
     name: item.Name,
     overview: item.Overview,
     premiereDate: item.PremiereDate,

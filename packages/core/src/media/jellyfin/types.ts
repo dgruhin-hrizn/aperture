@@ -30,7 +30,9 @@ export interface JellyfinUser {
 }
 
 export interface JellyfinLibrary {
-  Id: string
+  Id?: string
+  ItemId?: string | null
+  Locations?: string[] | null
   Guid?: string
   Name: string
   CollectionType: string

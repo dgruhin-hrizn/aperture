@@ -21,15 +21,19 @@ export async function getLibraries(
   // Handle both array response and object with Items property
   const libraries = Array.isArray(response) ? response : response.Items ?? []
 
-  return libraries.map((lib: JellyfinLibrary) => ({
-    // Jellyfin uses Id for VirtualFolders API
-    id: lib.Id,
-    guid: lib.Guid || lib.Id, // Jellyfin may use Id for permissions
-    name: lib.Name,
-    collectionType: lib.CollectionType,
-    path: lib.Path,
-    refreshStatus: lib.RefreshStatus,
-  }))
+  return libraries.flatMap((lib) => {
+    const id = lib.ItemId || lib.Id
+    if (!id) return []
+    return [{
+      id,
+      guid: lib.Guid || id,
+      name: lib.Name,
+      collectionType: lib.CollectionType,
+      path: lib.Path ?? lib.Locations?.[0],
+      locations: lib.Locations ?? undefined,
+      refreshStatus: lib.RefreshStatus,
+    }]
+  })
 }
 
 export async function getMovieLibraries(

@@ -6,7 +6,7 @@ import { createChildLogger } from '../../lib/logger.js'
 import {
   EMBY_FETCH_TIMEOUT_MS,
   embyConnectionError,
-  embyHttpError,
+  EmbyHttpError,
   embyTimeoutError,
   parseEmbyResponseBody,
   summarizeEmbyItemsResponse,
@@ -71,7 +71,7 @@ export class EmbyProviderBase {
     if (!response.ok) {
       const text = await response.text()
       logger.error({ status: response.status, url, body: text, duration }, '❌ Emby API error')
-      throw embyHttpError(response.status, response.statusText)
+      throw new EmbyHttpError(response.status, response.statusText, text)
     }
 
     const text = await response.text()

@@ -1,500 +1,229 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { query, queryOne } from '../../lib/db.js'
-import { requireAuth } from '../../plugins/auth.js'
+import {
+  getActiveEmbeddingModelId,
+  getActiveEmbeddingTableName,
+  getEmbeddingModelInstance,
+  literalTitlePattern,
+  MIN_TITLE_RELEVANCE,
+  titleRelevance,
+} from '@aperture/core'
+import { queryViewerCatalog as query, withViewerCatalog } from '@aperture/core/encore'
 import { embed } from 'ai'
-import { getEmbeddingModel, getOpenAIApiKey, getActiveEmbeddingTableName } from '@aperture/core'
-import { createOpenAI } from '@ai-sdk/openai'
+import { requireAuth } from '../../plugins/auth.js'
 import { searchSchemas, searchSchema, searchSuggestionsSchema, searchFiltersSchema } from './schemas.js'
 
-interface SearchResult {
+type MediaType = 'movie' | 'series'
+interface SearchInput {
+  q: string
+  type?: MediaType | 'all'
+  genre?: string
+  yearMin?: string
+  yearMax?: string
+  minRtScore?: string
+  collection?: string
+  network?: string
+  limit?: string
+  semantic?: string
+}
+
+interface SearchRow {
   id: string
-  type: 'movie' | 'series'
   title: string
   original_title: string | null
   year: number | null
-  genres: string[]
+  genres: string[] | null
   overview: string | null
   poster_url: string | null
   community_rating: number | null
   rt_critic_score: number | null
   collection_name: string | null
   network: string | null
-  // Search scoring
   text_rank: number
   fuzzy_similarity: number
   semantic_similarity: number | null
   combined_score: number
 }
 
-interface SearchResponse {
-  results: SearchResult[]
-  total: number
-  query: string
-  filters: {
-    genre?: string
-    year?: { min?: number; max?: number }
-    minRtScore?: number
-    collection?: string
-    network?: string
-    type?: 'movie' | 'series' | 'all'
-  }
+interface SearchEmbedding {
+  modelId: string
+  vector: string
+  movieTable: string
+  seriesTable: string
 }
 
-async function getQueryEmbedding(queryText: string): Promise<number[] | null> {
+async function getQueryEmbedding(value: string): Promise<SearchEmbedding | null> {
   try {
-    const model = await getEmbeddingModel()
-    const apiKey = await getOpenAIApiKey()
-    
-    if (!apiKey) {
-      // OpenAI not configured, skip semantic search
-      return null
-    }
-    
-    const openai = createOpenAI({ apiKey })
-
+    const [model, modelId, movieTable, seriesTable] = await Promise.all([
+      getEmbeddingModelInstance(),
+      getActiveEmbeddingModelId(),
+      getActiveEmbeddingTableName('embeddings'),
+      getActiveEmbeddingTableName('series_embeddings'),
+    ])
+    if (!modelId) return null
     const { embedding } = await embed({
-      model: openai.embedding(model),
-      value: queryText,
+      model, value, maxRetries: 0, abortSignal: AbortSignal.timeout(8000),
     })
-
-    return embedding
+    if (!embedding.length || !embedding.every(Number.isFinite)) return null
+    return { modelId, vector: `[${embedding.join(',')}]`, movieTable, seriesTable }
   } catch {
     return null
   }
 }
 
+function boundedLimit(value: string | undefined, fallback: number, max: number) {
+  const n = Number(value)
+  return Number.isInteger(n) && n > 0 ? Math.min(n, max) : fallback
+}
+
+async function searchMedia(type: MediaType, input: SearchInput, semantic: SearchEmbedding | null) {
+  const movie = type === 'movie'
+  const table = movie ? 'movies' : 'series'
+  const title = input.q.trim()
+  const params: unknown[] = [title, literalTitlePattern(title), boundedLimit(input.limit, 50, 100)]
+  const add = (value: unknown) => `$${params.push(value)}`
+  const filters: string[] = []
+  if (input.genre) filters.push(`${add(input.genre)} = ANY(genres)`)
+  if (input.yearMin) filters.push(`year >= ${add(Number(input.yearMin))}`)
+  if (input.yearMax) filters.push(`year <= ${add(Number(input.yearMax))}`)
+  if (Number(input.minRtScore) > 0) filters.push(`rt_critic_score >= ${add(Number(input.minRtScore))}`)
+  if (movie && input.collection) filters.push(`collection_name = ${add(input.collection)}`)
+  if (!movie && input.network) filters.push(`network = ${add(input.network)}`)
+  const conditions = filters.length ? filters.join(' AND ') : 'TRUE'
+  let semanticCandidates = 'SELECT NULL::uuid AS id, NULL::float8 AS semantic_similarity WHERE FALSE'
+  if (semantic) {
+    const vector = add(semantic.vector)
+    semanticCandidates = `SELECT m.id, 1 - (e.embedding <=> ${vector}::halfvec) AS semantic_similarity
+       FROM ${movie ? semantic.movieTable : semantic.seriesTable} e
+       JOIN ${table} m ON m.id = e.${type}_id
+       WHERE e.model = ${add(semantic.modelId)} AND ${conditions}
+       ORDER BY e.embedding <=> ${vector}::halfvec
+       LIMIT $3`
+  }
+
+  const result = await query<SearchRow>(
+    `WITH text_query AS (
+       SELECT websearch_to_tsquery('english', $1) AS terms
+     ), lexical AS (
+       SELECT id, relevance,
+              COALESCE(ts_rank(search_vector, terms), 0) AS text_rank,
+              GREATEST(similarity(title, $1), COALESCE(similarity(original_title, $1), 0)) AS fuzzy_similarity
+       FROM ${table} CROSS JOIN text_query CROSS JOIN LATERAL (SELECT ${titleRelevance} AS relevance) match
+       WHERE (${conditions}) AND (relevance >= ${MIN_TITLE_RELEVANCE} OR search_vector @@ terms)
+       ORDER BY relevance DESC, text_rank DESC, fuzzy_similarity DESC, id
+       LIMIT $3
+     ), vectors AS (${semanticCandidates}), candidates AS (
+       SELECT COALESCE(l.id, v.id) AS id,
+              COALESCE(l.relevance, 0) AS relevance,
+              COALESCE(l.text_rank, 0) AS text_rank,
+              COALESCE(l.fuzzy_similarity, 0) AS fuzzy_similarity,
+              v.semantic_similarity
+       FROM lexical l FULL JOIN vectors v ON v.id = l.id
+     )
+     SELECT m.id, m.title, m.original_title, m.year, m.genres, m.overview, m.poster_url,
+            m.community_rating, m.rt_critic_score,
+            ${movie ? 'm.collection_name, NULL::text AS network' : 'NULL::text AS collection_name, m.network'},
+            c.text_rank, c.fuzzy_similarity, c.semantic_similarity,
+            c.relevance + c.text_rank * 0.35 + c.fuzzy_similarity * 0.25
+              + GREATEST(COALESCE(c.semantic_similarity, 0), 0) * 0.4 AS combined_score
+     FROM candidates c JOIN ${table} m ON m.id = c.id
+     ORDER BY combined_score DESC, m.id
+     LIMIT $3`,
+    params
+  )
+  return result.rows.map((row) => ({ ...row, type, genres: row.genres ?? [] }))
+}
+
 const searchRoutes: FastifyPluginAsync = async (fastify) => {
-  // Register schemas
   for (const [name, schema] of Object.entries(searchSchemas)) {
     fastify.addSchema({ $id: name, ...schema })
   }
 
-  /**
-   * GET /api/search
-   * Unified search combining full-text, fuzzy, and semantic search
-   */
-  fastify.get<{
-    Querystring: {
-      q: string
-      type?: 'movie' | 'series' | 'all'
-      genre?: string
-      yearMin?: string
-      yearMax?: string
-      minRtScore?: string
-      collection?: string
-      network?: string
-      limit?: string
-      semantic?: string // 'true' to enable semantic search
-    }
-    Reply: SearchResponse
-  }>('/api/search', { preHandler: requireAuth, schema: searchSchema }, async (request, reply) => {
-    const {
-      q: searchQuery,
-      type = 'all',
-      genre,
-      yearMin,
-      yearMax,
-      minRtScore,
-      collection,
-      network,
-      limit: limitStr,
-      semantic: semanticStr,
-    } = request.query
-
-    if (!searchQuery || searchQuery.trim().length < 2) {
-      return reply.send({
-        results: [],
-        total: 0,
-        query: searchQuery || '',
-        filters: { type: type as 'movie' | 'series' | 'all' },
-      })
-    }
-
-    const limit = Math.min(parseInt(limitStr || '50', 10), 100)
-    const useSemantic = semanticStr === 'true'
-    const queryLower = searchQuery.toLowerCase().trim()
-
-    // Build filter conditions
-    const movieFilters: string[] = []
-    const seriesFilters: string[] = []
-    const movieParams: unknown[] = []
-    const seriesParams: unknown[] = []
-
-    // tsquery for full-text search - convert query to tsquery format
-    const tsqueryStr = queryLower
-      .split(/\s+/)
-      .filter((w) => w.length > 0)
-      .map((w) => `${w}:*`)
-      .join(' & ')
-
-    // Genre filter
-    if (genre) {
-      movieFilters.push(`$${movieParams.length + 1} = ANY(genres)`)
-      movieParams.push(genre)
-      seriesFilters.push(`$${seriesParams.length + 1} = ANY(genres)`)
-      seriesParams.push(genre)
-    }
-
-    // Year filter
-    if (yearMin) {
-      movieFilters.push(`year >= $${movieParams.length + 1}`)
-      movieParams.push(parseInt(yearMin, 10))
-      seriesFilters.push(`year >= $${seriesParams.length + 1}`)
-      seriesParams.push(parseInt(yearMin, 10))
-    }
-    if (yearMax) {
-      movieFilters.push(`year <= $${movieParams.length + 1}`)
-      movieParams.push(parseInt(yearMax, 10))
-      seriesFilters.push(`year <= $${seriesParams.length + 1}`)
-      seriesParams.push(parseInt(yearMax, 10))
-    }
-
-    // RT score filter
-    if (minRtScore) {
-      const rtScore = parseInt(minRtScore, 10)
-      if (rtScore > 0) {
-        movieFilters.push(`rt_critic_score >= $${movieParams.length + 1}`)
-        movieParams.push(rtScore)
-        seriesFilters.push(`rt_critic_score >= $${seriesParams.length + 1}`)
-        seriesParams.push(rtScore)
-      }
-    }
-
-    // Collection filter (movies only)
-    if (collection) {
-      movieFilters.push(`collection_name = $${movieParams.length + 1}`)
-      movieParams.push(collection)
-    }
-
-    // Network filter (series only)
-    if (network) {
-      seriesFilters.push(`network = $${seriesParams.length + 1}`)
-      seriesParams.push(network)
-    }
-
-    const movieWhereClause = movieFilters.length > 0 ? ' AND ' + movieFilters.join(' AND ') : ''
-    const seriesWhereClause = seriesFilters.length > 0 ? ' AND ' + seriesFilters.join(' AND ') : ''
-
-    // Get semantic embedding for query if enabled
-    let queryEmbedding: number[] | null = null
-    let movieEmbeddingTable = 'embeddings_1536' // default fallback
-    let seriesEmbeddingTable = 'series_embeddings_1536' // default fallback
-    if (useSemantic) {
-      queryEmbedding = await getQueryEmbedding(searchQuery)
-      // Get the correct embedding table names based on configured model
+  fastify.get<{ Querystring: SearchInput }>('/api/search', {
+    preHandler: requireAuth, schema: searchSchema,
+  }, async (request) => {
+    const { q, type = 'all', genre, yearMin, yearMax, minRtScore, collection, network } = request.query
+    if (q.trim().length < 2) return { results: [], total: 0, query: q, filters: { type } }
+    const results = await withViewerCatalog(request.user!.id, async () => {
+      const semantic = request.query.semantic === 'true' ? await getQueryEmbedding(q.trim()) : null
+      const types: MediaType[] = type === 'all' ? ['movie', 'series'] : [type]
+      const search = (embedding: SearchEmbedding | null) =>
+        Promise.all(types.map((media) => searchMedia(media, request.query, embedding)))
+      let rows
       try {
-        movieEmbeddingTable = await getActiveEmbeddingTableName('embeddings')
-        seriesEmbeddingTable = await getActiveEmbeddingTableName('series_embeddings')
-      } catch {
-        // Fall back to defaults if no embedding model configured
+        rows = await search(semantic)
+      } catch (err) {
+        if (!semantic) throw err
+        request.log.warn({ err }, 'Semantic search failed, using title and text matches')
+        rows = await search(null)
       }
-    }
-
-    const allResults: SearchResult[] = []
-
-    // Search movies - gracefully handle missing search_vector or enrichment data
-    if (type === 'all' || type === 'movie') {
-      const movieQuery = queryEmbedding
-        ? `
-          WITH text_search AS (
-            SELECT id, title, original_title, year, genres, overview, poster_url,
-                   community_rating, rt_critic_score, collection_name,
-                   COALESCE(ts_rank(search_vector, to_tsquery('english', $1)), 0) as text_rank,
-                   similarity(title, $2) as fuzzy_sim
-            FROM movies
-            WHERE (title % $2 OR original_title % $2 OR (search_vector IS NOT NULL AND search_vector @@ to_tsquery('english', $1)))
-            ${movieWhereClause.replace(/\$(\d+)/g, (_, n) => `$${parseInt(n) + 2}`)}
-          ),
-          semantic_search AS (
-            SELECT e.movie_id as id,
-                   1 - (e.embedding <=> $${movieParams.length + 3}::halfvec) as semantic_sim
-            FROM ${movieEmbeddingTable} e
-            WHERE e.movie_id IN (SELECT id FROM text_search)
-          )
-          SELECT t.*, COALESCE(s.semantic_sim, 0) as semantic_similarity
-          FROM text_search t
-          LEFT JOIN semantic_search s ON t.id = s.id
-          ORDER BY (t.text_rank * 0.3 + t.fuzzy_sim * 0.3 + COALESCE(s.semantic_sim, 0) * 0.4) DESC
-          LIMIT $${movieParams.length + 4}
-        `
-        : `
-          SELECT id, title, original_title, year, genres, overview, poster_url,
-                 community_rating, rt_critic_score, collection_name,
-                 COALESCE(ts_rank(search_vector, to_tsquery('english', $1)), 0) as text_rank,
-                 similarity(title, $2) as fuzzy_sim,
-                 0 as semantic_similarity
-          FROM movies
-          WHERE (title % $2 OR original_title % $2 OR (search_vector IS NOT NULL AND search_vector @@ to_tsquery('english', $1)))
-          ${movieWhereClause.replace(/\$(\d+)/g, (_, n) => `$${parseInt(n) + 2}`)}
-          ORDER BY (COALESCE(ts_rank(search_vector, to_tsquery('english', $1)), 0) * 0.4 + similarity(title, $2) * 0.6) DESC
-          LIMIT $${movieParams.length + 3}
-        `
-
-      const movieQueryParams = queryEmbedding
-        ? [tsqueryStr, queryLower, ...movieParams, `[${queryEmbedding.join(',')}]`, limit]
-        : [tsqueryStr, queryLower, ...movieParams, limit]
-
-      const movieResults = await query<{
-        id: string
-        title: string
-        original_title: string | null
-        year: number | null
-        genres: string[]
-        overview: string | null
-        poster_url: string | null
-        community_rating: number | null
-        rt_critic_score: number | null
-        collection_name: string | null
-        text_rank: number
-        fuzzy_sim: number
-        semantic_similarity: number
-      }>(movieQuery, movieQueryParams)
-
-      for (const row of movieResults.rows) {
-        const textScore = row.text_rank || 0
-        const fuzzyScore = row.fuzzy_sim || 0
-        const semanticScore = row.semantic_similarity || 0
-        const combinedScore = queryEmbedding
-          ? textScore * 0.3 + fuzzyScore * 0.3 + semanticScore * 0.4
-          : textScore * 0.4 + fuzzyScore * 0.6
-
-        allResults.push({
-          id: row.id,
-          type: 'movie',
-          title: row.title,
-          original_title: row.original_title,
-          year: row.year,
-          genres: row.genres || [],
-          overview: row.overview,
-          poster_url: row.poster_url,
-          community_rating: row.community_rating,
-          rt_critic_score: row.rt_critic_score,
-          collection_name: row.collection_name,
-          network: null,
-          text_rank: textScore,
-          fuzzy_similarity: fuzzyScore,
-          semantic_similarity: semanticScore > 0 ? semanticScore : null,
-          combined_score: combinedScore,
-        })
-      }
-    }
-
-    // Search series - gracefully handle missing search_vector or enrichment data
-    if (type === 'all' || type === 'series') {
-      const seriesQuery = queryEmbedding
-        ? `
-          WITH text_search AS (
-            SELECT id, title, original_title, year, genres, overview, poster_url,
-                   community_rating, rt_critic_score, network,
-                   COALESCE(ts_rank(search_vector, to_tsquery('english', $1)), 0) as text_rank,
-                   similarity(title, $2) as fuzzy_sim
-            FROM series
-            WHERE (title % $2 OR original_title % $2 OR (search_vector IS NOT NULL AND search_vector @@ to_tsquery('english', $1)))
-            ${seriesWhereClause.replace(/\$(\d+)/g, (_, n) => `$${parseInt(n) + 2}`)}
-          ),
-          semantic_search AS (
-            SELECT e.series_id as id,
-                   1 - (e.embedding <=> $${seriesParams.length + 3}::halfvec) as semantic_sim
-            FROM ${seriesEmbeddingTable} e
-            WHERE e.series_id IN (SELECT id FROM text_search)
-          )
-          SELECT t.*, COALESCE(s.semantic_sim, 0) as semantic_similarity
-          FROM text_search t
-          LEFT JOIN semantic_search s ON t.id = s.id
-          ORDER BY (t.text_rank * 0.3 + t.fuzzy_sim * 0.3 + COALESCE(s.semantic_sim, 0) * 0.4) DESC
-          LIMIT $${seriesParams.length + 4}
-        `
-        : `
-          SELECT id, title, original_title, year, genres, overview, poster_url,
-                 community_rating, rt_critic_score, network,
-                 COALESCE(ts_rank(search_vector, to_tsquery('english', $1)), 0) as text_rank,
-                 similarity(title, $2) as fuzzy_sim,
-                 0 as semantic_similarity
-          FROM series
-          WHERE (title % $2 OR original_title % $2 OR (search_vector IS NOT NULL AND search_vector @@ to_tsquery('english', $1)))
-          ${seriesWhereClause.replace(/\$(\d+)/g, (_, n) => `$${parseInt(n) + 2}`)}
-          ORDER BY (COALESCE(ts_rank(search_vector, to_tsquery('english', $1)), 0) * 0.4 + similarity(title, $2) * 0.6) DESC
-          LIMIT $${seriesParams.length + 3}
-        `
-
-      const seriesQueryParams = queryEmbedding
-        ? [tsqueryStr, queryLower, ...seriesParams, `[${queryEmbedding.join(',')}]`, limit]
-        : [tsqueryStr, queryLower, ...seriesParams, limit]
-
-      const seriesResults = await query<{
-        id: string
-        title: string
-        original_title: string | null
-        year: number | null
-        genres: string[]
-        overview: string | null
-        poster_url: string | null
-        community_rating: number | null
-        rt_critic_score: number | null
-        network: string | null
-        text_rank: number
-        fuzzy_sim: number
-        semantic_similarity: number
-      }>(seriesQuery, seriesQueryParams)
-
-      for (const row of seriesResults.rows) {
-        const textScore = row.text_rank || 0
-        const fuzzyScore = row.fuzzy_sim || 0
-        const semanticScore = row.semantic_similarity || 0
-        const combinedScore = queryEmbedding
-          ? textScore * 0.3 + fuzzyScore * 0.3 + semanticScore * 0.4
-          : textScore * 0.4 + fuzzyScore * 0.6
-
-        allResults.push({
-          id: row.id,
-          type: 'series',
-          title: row.title,
-          original_title: row.original_title,
-          year: row.year,
-          genres: row.genres || [],
-          overview: row.overview,
-          poster_url: row.poster_url,
-          community_rating: row.community_rating,
-          rt_critic_score: row.rt_critic_score,
-          collection_name: null,
-          network: row.network,
-          text_rank: textScore,
-          fuzzy_similarity: fuzzyScore,
-          semantic_similarity: semanticScore > 0 ? semanticScore : null,
-          combined_score: combinedScore,
-        })
-      }
-    }
-
-    // Sort combined results by score
-    allResults.sort((a, b) => b.combined_score - a.combined_score)
-
-    // Limit results
-    const finalResults = allResults.slice(0, limit)
-
-    return reply.send({
-      results: finalResults,
-      total: finalResults.length,
-      query: searchQuery,
+      return rows.flat()
+        .sort((a, b) => b.combined_score - a.combined_score || a.id.localeCompare(b.id))
+        .slice(0, boundedLimit(request.query.limit, 50, 100))
+    })
+    return {
+      results, total: results.length, query: q,
       filters: {
-        type: type as 'movie' | 'series' | 'all',
-        genre,
-        year: yearMin || yearMax ? { min: yearMin ? parseInt(yearMin, 10) : undefined, max: yearMax ? parseInt(yearMax, 10) : undefined } : undefined,
-        minRtScore: minRtScore ? parseInt(minRtScore, 10) : undefined,
-        collection,
-        network,
+        type, genre, minRtScore: minRtScore ? Number(minRtScore) : undefined, collection, network,
+        year: yearMin || yearMax ? { min: yearMin ? Number(yearMin) : undefined, max: yearMax ? Number(yearMax) : undefined } : undefined,
       },
-    })
+    }
   })
 
-  /**
-   * GET /api/search/suggestions
-   * Get search suggestions for autocomplete
-   */
-  fastify.get<{
-    Querystring: {
-      q: string
-      limit?: string
-    }
-  }>('/api/search/suggestions', { preHandler: requireAuth, schema: searchSuggestionsSchema }, async (request, reply) => {
-    const { q: searchQuery, limit: limitStr } = request.query
+  fastify.get<{ Querystring: { q: string; limit?: string } }>('/api/search/suggestions', {
+    preHandler: requireAuth, schema: searchSuggestionsSchema,
+  }, async (request) => {
+    const { q, limit } = request.query
+    const title = q.trim()
+    if (title.length < 2) return { suggestions: [] }
 
-    if (!searchQuery || searchQuery.trim().length < 2) {
-      return reply.send({ suggestions: [] })
-    }
-
-    const limit = Math.min(parseInt(limitStr || '10', 10), 20)
-    const queryLower = searchQuery.toLowerCase().trim()
-
-    // Get matching titles using trigram similarity
-    const results = await query<{
-      title: string
-      type: 'movie' | 'series'
-      year: number | null
-      similarity: number
+    const results = await withViewerCatalog(request.user!.id, () => query<{
+      title: string; type: MediaType; year: number | null
     }>(
-      `(
-        SELECT title, 'movie' as type, year, similarity(title, $1) as similarity
-        FROM movies
-        WHERE title % $1
-        ORDER BY similarity DESC
-        LIMIT $2
-      )
-      UNION ALL
-      (
-        SELECT title, 'series' as type, year, similarity(title, $1) as similarity
-        FROM series
-        WHERE title % $1
-        ORDER BY similarity DESC
-        LIMIT $2
-      )
-      ORDER BY similarity DESC
-      LIMIT $2`,
-      [queryLower, limit]
-    )
-
-    return reply.send({
-      suggestions: results.rows.map((r) => ({
-        title: r.title,
-        type: r.type,
-        year: r.year,
-        label: r.year ? `${r.title} (${r.year})` : r.title,
-      })),
-    })
+      `SELECT title, type, year FROM (
+         SELECT title, 'movie' AS type, year, ${titleRelevance} AS relevance FROM movies
+         UNION ALL
+         SELECT title, 'series' AS type, year, ${titleRelevance} AS relevance FROM series
+       ) matches
+       WHERE relevance >= ${MIN_TITLE_RELEVANCE}
+       ORDER BY relevance DESC, title, year, type
+       LIMIT $3`,
+      [title, literalTitlePattern(title), boundedLimit(limit, 10, 20)]
+    ))
+    return { suggestions: results.rows.map((r) => ({
+      ...r, label: r.year ? `${r.title} (${r.year})` : r.title,
+    })) }
   })
 
-  /**
-   * GET /api/search/filters
-   * Get available filter options
-   */
-  fastify.get('/api/search/filters', { preHandler: requireAuth, schema: searchFiltersSchema }, async (_request, reply) => {
-    // Get unique genres from both movies and series
-    const genreResults = await query<{ genre: string; count: string }>(
-      `SELECT genre, SUM(count)::text as count FROM (
-        SELECT unnest(genres) as genre, COUNT(*) as count FROM movies GROUP BY 1
-        UNION ALL
-        SELECT unnest(genres) as genre, COUNT(*) as count FROM series GROUP BY 1
-      ) combined
-      GROUP BY genre
-      ORDER BY SUM(count) DESC`
-    )
-
-    // Get collections
-    const collectionResults = await query<{ name: string; count: string }>(
-      `SELECT collection_name as name, COUNT(*) as count
-       FROM movies WHERE collection_name IS NOT NULL
-       GROUP BY collection_name
-       ORDER BY COUNT(*) DESC`
-    )
-
-    // Get networks
-    const networkResults = await query<{ network: string; count: string }>(
-      `SELECT network, COUNT(*) as count
-       FROM series WHERE network IS NOT NULL
-       GROUP BY network
-       ORDER BY COUNT(*) DESC
-       LIMIT 50`
-    )
-
-    // Get year range
-    const yearRange = await queryOne<{ min_year: number; max_year: number }>(
-      `SELECT 
-         MIN(LEAST(COALESCE(m.min_year, s.min_year), COALESCE(s.min_year, m.min_year))) as min_year,
-         MAX(GREATEST(COALESCE(m.max_year, s.max_year), COALESCE(s.max_year, m.max_year))) as max_year
-       FROM 
-         (SELECT MIN(year) as min_year, MAX(year) as max_year FROM movies WHERE year IS NOT NULL) m,
-         (SELECT MIN(year) as min_year, MAX(year) as max_year FROM series WHERE year IS NOT NULL) s`
-    )
-
-    return reply.send({
-      genres: genreResults.rows.map((r) => ({ name: r.genre, count: parseInt(r.count, 10) })),
-      collections: collectionResults.rows.map((r) => ({ name: r.name, count: parseInt(r.count, 10) })),
-      networks: networkResults.rows.map((r) => ({ name: r.network, count: parseInt(r.count, 10) })),
-      yearRange: yearRange
-        ? { min: yearRange.min_year, max: yearRange.max_year }
-        : { min: 1900, max: new Date().getFullYear() },
-    })
-  })
+  fastify.get('/api/search/filters', {
+    preHandler: requireAuth, schema: searchFiltersSchema,
+  }, async (request) => withViewerCatalog(request.user!.id, async () => {
+    const [genres, collections, networks, years] = await Promise.all([
+      query<{ name: string; count: number }>(
+        `SELECT genre AS name, COUNT(*)::int AS count FROM (
+           SELECT unnest(genres) AS genre FROM movies
+           UNION ALL
+           SELECT unnest(genres) AS genre FROM series
+         ) combined GROUP BY genre ORDER BY count DESC, name`
+      ),
+      query<{ name: string; count: number }>(
+        `SELECT collection_name AS name, COUNT(*)::int AS count FROM movies
+         WHERE collection_name IS NOT NULL GROUP BY collection_name ORDER BY count DESC, name`
+      ),
+      query<{ name: string; count: number }>(
+        `SELECT network AS name, COUNT(*)::int AS count FROM series
+         WHERE network IS NOT NULL GROUP BY network ORDER BY count DESC, name LIMIT 50`
+      ),
+      query<{ min: number | null; max: number | null }>(
+        `SELECT MIN(year) AS min, MAX(year) AS max FROM (
+           SELECT year FROM movies UNION ALL SELECT year FROM series
+         ) combined`
+      ),
+    ])
+    return {
+      genres: genres.rows, collections: collections.rows, networks: networks.rows,
+      yearRange: { min: years.rows[0]?.min ?? 1900, max: years.rows[0]?.max ?? new Date().getFullYear() },
+    }
+  }))
 }
 
 export default searchRoutes

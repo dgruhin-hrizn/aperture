@@ -3,7 +3,8 @@ import { query } from '../lib/db.js'
 import { AsyncCache, concurrencyLimit } from '../lib/asyncCache.js'
 import { getUpcomingEpisodeBatch } from '../watching/upcomingEpisodes.js'
 import { tmdbRequest } from '../tmdb/client.js'
-import { getCatalogScope } from './access.js'
+import { getCatalogScopeForItems } from './access.js'
+import { encoreCatalogScope, query as scopedQuery } from './scopedDb.js'
 
 export interface ReleaseEvent {
   id: string
@@ -129,12 +130,17 @@ export async function getEncoreReleases(
   if (input.mode === 'following') {
     if (!(await getTMDbApiKey()))
       warnings.push('TMDb is not configured; only locally synced episode forecasts were checked')
-    const scope = await getCatalogScope(userId)
-    const { rows } = await query<{ id: string; title: string }>(
-      `SELECT s.id, s.title FROM user_watching_series w JOIN series s ON s.id = w.series_id
-      WHERE w.user_id = $1 AND s.provider_item_id = ANY($2::text[]) ORDER BY s.title LIMIT 300`,
-      [userId, scope.seriesIds]
+    const candidates = await query<{ provider_item_id: string }>(
+      `SELECT s.provider_item_id FROM user_watching_series w JOIN series s ON s.id = w.series_id
+       WHERE w.user_id = $1 AND s.provider_item_id IS NOT NULL ORDER BY s.title, s.id`, [userId]
     )
+    const scope = await getCatalogScopeForItems(userId, {
+      movieIds: [], seriesIds: candidates.rows.map((row) => row.provider_item_id),
+    })
+    const { rows } = await encoreCatalogScope.run(scope, () => scopedQuery<{ id: string; title: string }>(
+      `SELECT s.id, s.title FROM user_watching_series w JOIN series s ON s.id = w.series_id
+       WHERE w.user_id = $1 ORDER BY s.title, s.id LIMIT 300`, [userId]
+    ))
     const batch = await getUpcomingEpisodeBatch(rows.map((r) => r.id))
     if (batch.resolvedSeriesIds.length < rows.length)
       warnings.push('Some episode forecasts could not be refreshed')

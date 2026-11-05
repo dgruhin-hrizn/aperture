@@ -154,7 +154,7 @@ export const searchSchema = {
     type: 'object',
     required: ['q'],
     properties: {
-      q: { type: 'string', description: 'Search query text', minLength: 1, example: 'matrix' },
+      q: { type: 'string', description: 'Search query text', minLength: 1, maxLength: 240, example: 'matrix' },
       type: { type: 'string', enum: ['movie', 'series', 'all'], description: 'Filter by media type', default: 'all' },
       genre: { type: 'string', description: 'Filter by genre (exact match)', example: 'Action' },
       yearMin: { type: 'string', description: 'Minimum release year', example: '1990' },
@@ -176,7 +176,7 @@ export const searchSuggestionsSchema = {
     type: 'object',
     required: ['q'],
     properties: {
-      q: { type: 'string', description: 'Partial search query', minLength: 1, example: 'mat' },
+      q: { type: 'string', description: 'Partial search query', minLength: 1, maxLength: 240, example: 'mat' },
       limit: { type: 'string', description: 'Maximum suggestions to return (1-20)', default: '10', example: '5' },
     },
   },

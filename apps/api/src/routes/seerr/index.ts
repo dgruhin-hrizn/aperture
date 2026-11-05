@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { requireAuth, requireAdmin, type SessionUser } from '../../plugins/auth.js'
 import { query, queryOne } from '../../lib/db.js'
+import { submitTrackedSeerrRequest } from '../../lib/seerrSubmission.js'
 import {
   getSeerrConfig,
   setSeerrConfig,
@@ -9,14 +10,12 @@ import {
   getSeerrMediaStatus,
   getSeerrTVDetails,
   batchGetSeerrMediaStatusByMedia,
-  createSeerrRequest,
   getSeerrRequestStatus,
   batchGetSeerrRequestStatus,
-  createDiscoveryRequest,
   updateDiscoveryRequestStatus,
   getDiscoveryRequests,
-  countDiscoveryRequests,
   hasExistingRequest,
+  countDiscoveryRequests,
   getSystemSetting,
   resolveSeerrUserIdForProfile,
   listRadarrServers,
@@ -457,15 +456,6 @@ const seerrRoutes: FastifyPluginAsync = async (fastify) => {
         })
       }
 
-      // Check for existing request
-      const existingRequest = await hasExistingRequest(currentUser.id, tmdbId, mediaType)
-      if (existingRequest && ['pending', 'submitted', 'approved'].includes(existingRequest.status)) {
-        return reply.status(409).send({
-          error: 'Request already exists',
-          request: existingRequest,
-        })
-      }
-
       const requireMapping =
         (await getSystemSetting('seerr_require_user_mapping')) === 'true'
       const seerrUserId = await ensureSeerrUserIdForRequest(currentUser.id)
@@ -477,50 +467,21 @@ const seerrRoutes: FastifyPluginAsync = async (fastify) => {
         })
       }
 
-      // Create Aperture request record
-      const apertureRequestId = await createDiscoveryRequest(
-        currentUser.id,
-        mediaType,
-        tmdbId,
-        title,
-        discoveryCandidateId
-      )
-
-      // Submit to Seerr
-      const seerrMediaType = mediaType === 'movie' ? 'movie' : 'tv'
-      const result = await createSeerrRequest(tmdbId, seerrMediaType, {
-        seasons,
-        ...(seerrUserId != null ? { userId: seerrUserId } : {}),
-        ...(rootFolder !== undefined ? { rootFolder } : {}),
-        ...(profileId !== undefined ? { profileId } : {}),
-        ...(serverId !== undefined ? { serverId } : {}),
-        ...(languageProfileId !== undefined ? { languageProfileId } : {}),
-        ...(is4k !== undefined ? { is4k } : {}),
+      const result = await submitTrackedSeerrRequest({
+        userId: currentUser.id, tmdbId, mediaType, title, discoveryCandidateId,
+        options: { seasons, rootFolder, profileId, serverId, languageProfileId, is4k, userId: seerrUserId ?? undefined },
       })
-
-      if (!result.success) {
-        // Update Aperture request as failed
-        await updateDiscoveryRequestStatus(apertureRequestId, 'failed', {
-          statusMessage: result.message,
-        })
-
-        return reply.status(500).send({
-          error: 'Failed to submit request to Seerr',
-          message: result.message,
-          apertureRequestId,
-        })
-      }
-
-      // Update Aperture request with Seerr info
-      await updateDiscoveryRequestStatus(apertureRequestId, 'submitted', {
-        seerrRequestId: result.requestId,
+      if (result.kind === 'duplicate') return reply.code(409).send({
+        error: 'Request already exists', request: result.request ?? undefined,
       })
-
+      if (result.kind !== 'submitted') return reply.code(result.kind === 'unverified' ? 503 : 500).send({
+        error: 'Could not confirm the request in Seerr',
+        message: result.message,
+        apertureRequestId: result.apertureRequestId,
+      })
       return reply.send({
-        success: true,
-        message: 'Request submitted successfully',
-        apertureRequestId,
-        seerrRequestId: result.requestId,
+        success: true, message: 'Request submitted successfully',
+        apertureRequestId: result.apertureRequestId, seerrRequestId: result.seerrRequestId,
       })
     }
   )

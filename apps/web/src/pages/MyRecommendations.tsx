@@ -524,6 +524,9 @@ export function MyRecommendationsPage() {
       ) : recommendations.length === 0 ? (
         <Alert severity="info" sx={{ borderRadius: 2 }}>
           {mediaType === 'movies' ? t('myRecommendations.emptyMovies') : t('myRecommendations.emptySeries')}
+          <Typography variant="body2" sx={{ mt: 0.5 }}>
+            {t('myRecommendations.starterHint')}
+          </Typography>
         </Alert>
       ) : viewMode === 'grid' ? (
         <Grid container spacing={{ xs: 1, sm: 2 }}>

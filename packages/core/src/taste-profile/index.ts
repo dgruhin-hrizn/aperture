@@ -46,13 +46,14 @@ export async function getUserTasteProfile(
   // Try to get existing profile
   const existing = await getStoredProfile(userId, mediaType)
 
+  let compatibleModel = true
   if (existing) {
     // Check if rebuild is needed due to staleness
     let needsRebuild = forceRebuild || isProfileStale(existing)
 
     // Also check if embedding model has changed (dimension mismatch prevention)
     // If the embedding exists, verify it matches the current model
-    if (!needsRebuild && existing.embedding) {
+    if (existing.embedding) {
       const { getActiveEmbeddingModelId } = await import('../lib/ai-provider.js')
       const currentModelId = await getActiveEmbeddingModelId()
       
@@ -65,12 +66,14 @@ export async function getUserTasteProfile(
             'Profile missing embedding model info, rebuilding to ensure dimension compatibility'
           )
           needsRebuild = true
+          compatibleModel = false
         } else if (currentModelId !== existing.embeddingModel) {
           logger.info(
             { userId, mediaType, oldModel: existing.embeddingModel, newModel: currentModelId },
             'Embedding model changed, profile needs rebuild to match new dimensions'
           )
           needsRebuild = true
+          compatibleModel = false
         }
       }
     }
@@ -81,6 +84,9 @@ export async function getUserTasteProfile(
 
     // Respect lock unless explicitly overridden
     if (existing.isLocked && !skipLockCheck) {
+      if (!compatibleModel) {
+        throw new Error('Locked taste profile uses a different or unknown embedding model. Unlock and rebuild it before generating recommendations.')
+      }
       logger.debug({ userId, mediaType }, 'Profile is locked, skipping rebuild')
       return existing
     }
@@ -102,7 +108,7 @@ export async function getUserTasteProfile(
     return await getStoredProfile(userId, mediaType)
   }
 
-  return existing // Return old profile if build failed
+  return compatibleModel ? existing : null // Never reuse a vector from another embedding space.
 }
 
 /**

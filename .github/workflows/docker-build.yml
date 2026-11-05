@@ -1,46 +1,23 @@
 name: Build and Push Docker Image
 
 on:
-  push:
+  pull_request:
     branches: [main, dev]
+  push:
     tags: ['v*']
-  workflow_dispatch: # Allow manual trigger
+  workflow_dispatch:
 
 concurrency:
   group: docker-build-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  detect-changes:
-    name: Detect Docker Changes
-    runs-on: ubuntu-latest
-    outputs:
-      docker: ${{ steps.filter.outputs.docker }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Detect changed paths
-        uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            docker:
-              - 'apps/**'
-              - 'packages/**'
-              - 'docker/**'
-              - 'db/**'
-              - '.dockerignore'
-              - 'package.json'
-              - 'pnpm-lock.yaml'
-              - 'pnpm-workspace.yaml'
-
   validate:
-    name: Lint & Typecheck
+    name: Validate Aperture
     runs-on: ubuntu-latest
     services:
       encore-db:
@@ -97,162 +74,157 @@ jobs:
       - name: Test Encore conversation continuity and ownership
         run: pnpm test:encore
 
+      - name: Test catalog access, curation and Emby sync
+        env:
+          APERTURE_TEST_DATABASE_URL: postgres://encore:encore-test-only@127.0.0.1:5432/aperture_test_audit
+        run: |
+          docker exec "${{ job.services['encore-db'].id }}" createdb -U encore aperture_test_audit
+          pnpm test:audit
+
       - name: Test LAN and reverse proxy access and sessions
         run: pnpm test:browser-access
 
-  docker-amd64:
-    name: Build Docker Image (amd64)
-    needs: [detect-changes, validate]
-    # Tag pushes must bypass the path filter: dorny/paths-filter cannot compute a
-    # diff for a tag (it points at an existing commit), so it reports no changed
-    # paths and the release build would silently publish nothing.
-    if: |
-      always() &&
-      needs.validate.result == 'success' &&
-      (needs.detect-changes.outputs.docker == 'true' ||
-       github.event_name == 'workflow_dispatch' ||
-       startsWith(github.ref, 'refs/tags/v'))
-    runs-on: ubuntu-latest
+  build:
+    name: Build and smoke test (${{ matrix.arch }})
+    needs: validate
+    if: startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
-    outputs:
-      needs_merge: ${{ steps.tags.outputs.needs_merge }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Determine build tags
-        id: tags
+      - name: Build tagged revision
+        id: image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          push: true
+          platforms: linux/${{ matrix.arch }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ matrix.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+          labels: org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
+      - name: Check the exact image that will be published
+        env:
+          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+          IMAGE_ARCH: ${{ matrix.arch }}
         run: |
-          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
-          if [[ "${{ github.ref }}" == "refs/heads/dev" && "${{ github.event_name }}" != "workflow_dispatch" ]]; then
-            echo "tags=${IMAGE}:dev" >> "$GITHUB_OUTPUT"
-            echo "needs_merge=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "tags=${IMAGE}:build-amd64-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
-            echo "needs_merge=true" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          image="$REGISTRY/$IMAGE_NAME@$IMAGE_DIGEST"
+          version=$(docker run --rm --entrypoint node "$image" -p 'require("/app/apps/api/package.json").version')
+          test "$version" = "${GITHUB_REF_NAME#v}"
+          docker run --rm --entrypoint pg_restore "$image" --version
+
+          docker network create aperture-image-test
+          cleanup() {
+            docker rm -fv aperture-image-app aperture-image-db >/dev/null 2>&1 || true
+            docker network rm aperture-image-test >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          docker run -d --name aperture-image-db --network aperture-image-test --network-alias db \
+            -e POSTGRES_USER=fixture -e POSTGRES_PASSWORD=fixture-only -e POSTGRES_DB=fixture \
+            pgvector/pgvector:pg16
+          for i in $(seq 1 30); do
+            if docker exec aperture-image-db pg_isready -h 127.0.0.1 -U fixture -d fixture; then break; fi
+            sleep 1
+          done
+          docker run -d --name aperture-image-app --network aperture-image-test -p 127.0.0.1::3456 \
+            -e DATABASE_URL=postgres://fixture:fixture-only@db:5432/fixture \
+            -e SESSION_SECRET=fixture-release-validation-secret \
+            -e RUN_MIGRATIONS_ON_START=true "$image"
+          host=$(docker port aperture-image-app 3456/tcp)
+          for i in $(seq 1 60); do
+            if curl -fsS --max-time 3 "http://$host/health" |
+              jq -e --arg version "$version" '.ok and .database.connected and .version == $version'; then
+              break
+            fi
+            if [[ "$i" = 60 ]]; then
+              docker logs aperture-image-app --tail 100
+              exit 1
+            fi
+            sleep 1
+          done
+          mkdir -p digests
+          printf '%s\n' "$IMAGE_DIGEST" > "digests/$IMAGE_ARCH"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.arch }}
+          path: digests/
+          if-no-files-found: error
+
+  publish:
+    name: Publish verified image digests
+    needs: build
+    runs-on: ubuntu-latest
+    concurrency:
+      group: aperture-publish-images
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: digest-*
+          path: digests
+          merge-multiple: true
+      - name: Publish the version and release channel
+        run: |
+          set -euo pipefail
+          image="$REGISTRY/$IMAGE_NAME"
+          version="${GITHUB_REF_NAME#v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]; then
+            echo "Unexpected version tag: $GITHUB_REF_NAME" >&2
+            exit 1
           fi
 
-      - name: Extract metadata (labels)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # A Git tag may have moved while the builds were running.
+          git fetch --no-tags origin "refs/tags/$GITHUB_REF_NAME"
+          test "$(git rev-parse 'FETCH_HEAD^{commit}')" = "$(git rev-parse HEAD)"
 
-      - name: Build and push amd64 image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./docker/Dockerfile
-          push: true
-          tags: ${{ steps.tags.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=amd64
-          cache-to: type=gha,mode=max,scope=amd64
-          platforms: linux/amd64
+          exact="$image:$version"
+          if inspection=$(docker buildx imagetools inspect "$exact" 2>&1); then
+            echo "Image version $version is already published. Use a new version to publish another build." >&2
+            exit 1
+          elif [[ "$inspection" != *'not found'* && "$inspection" != *'manifest unknown'* ]]; then
+            printf '%s\n' "$inspection" >&2
+            exit 1
+          fi
 
-  docker-arm64:
-    name: Build Docker Image (arm64)
-    needs: [detect-changes, validate]
-    if: |
-      always() &&
-      needs.validate.result == 'success' &&
-      (needs.detect-changes.outputs.docker == 'true' ||
-       github.event_name == 'workflow_dispatch' ||
-       startsWith(github.ref, 'refs/tags/v')) &&
-      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
-    runs-on: ubuntu-24.04-arm
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (labels)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-
-      - name: Build and push arm64 image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./docker/Dockerfile
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-arm64-${{ github.run_id }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=arm64
-          cache-to: type=gha,mode=max,scope=arm64
-          platforms: linux/arm64
-
-  publish-manifest:
-    name: Publish Multi-Arch Manifest
-    needs: [docker-amd64, docker-arm64]
-    if: |
-      always() &&
-      needs.docker-amd64.result == 'success' &&
-      needs.docker-amd64.outputs.needs_merge == 'true' &&
-      needs.docker-arm64.result == 'success'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (tags)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          flavor: latest=${{ contains(github.ref_name, '-dev.') && 'false' || 'auto' }}
-          tags: |
-            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/dev' || (startsWith(github.ref, 'refs/tags/v') && contains(github.ref_name, '-dev.')) }}
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-
-      - name: Create and push multi-arch manifest
-        run: |
-          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
-          TAGS="${{ steps.meta.outputs.tags }}"
-
-          ARGS=()
-          while IFS= read -r tag; do
-            [[ -n "$tag" ]] && ARGS+=("-t" "$tag")
-          done <<< "$TAGS"
-
-          docker buildx imagetools create "${ARGS[@]}" \
-            "${IMAGE}:build-amd64-${{ github.run_id }}" \
-            "${IMAGE}:build-arm64-${{ github.run_id }}"
+          tags=(-t "$exact")
+          if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            git fetch --no-tags origin main
+            git merge-base --is-ancestor "$GITHUB_SHA" FETCH_HEAD
+            tags+=(-t "$image:latest" -t "$image:${version%.*}")
+          elif [[ "$version" =~ -dev\.[0-9]+$ ]]; then
+            git fetch --no-tags origin dev
+            git merge-base --is-ancestor "$GITHUB_SHA" FETCH_HEAD
+            tags+=(-t "$image:dev")
+          fi
+          docker buildx imagetools create "${tags[@]}" \
+            "$image@$(cat digests/amd64)" "$image@$(cat digests/arm64)"

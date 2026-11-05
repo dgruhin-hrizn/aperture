@@ -845,7 +845,8 @@ export async function createDiscoveryRequest(
   tmdbId: number,
   title: string,
   discoveryCandidateId?: string,
-  source: DiscoveryRequestSource = 'discovery'
+  source: DiscoveryRequestSource = 'discovery',
+  statusMessage?: string
 ): Promise<string> {
   // Validate that the discovery candidate exists before linking
   // (candidates may be cleaned up during refresh, but we still want to allow the request)
@@ -864,10 +865,10 @@ export async function createDiscoveryRequest(
 
   const result = await queryOne<{ id: string }>(
     `INSERT INTO discovery_requests (
-      user_id, media_type, tmdb_id, title, discovery_candidate_id, status, source
-    ) VALUES ($1, $2, $3, $4, $5, 'pending', $6)
+      user_id, media_type, tmdb_id, title, discovery_candidate_id, status, source, status_message
+    ) VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7)
     RETURNING id`,
-    [userId, mediaType, tmdbId, title, validCandidateId, source]
+    [userId, mediaType, tmdbId, title, validCandidateId, source, statusMessage ?? null]
   )
 
   if (!result) {

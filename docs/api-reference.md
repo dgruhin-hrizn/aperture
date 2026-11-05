@@ -263,9 +263,12 @@ All endpoints require an authenticated **admin** session.
 | Endpoint                                  | Description |
 | ----------------------------------------- | ----------- |
 | `GET /api/admin/gap-analysis/latest`      | Prerequisites (TMDb, collection coverage), last completed run, per-collection summaries |
-| `GET /api/admin/gap-analysis/results`     | Paginated missing titles for a run (`runId`, `collectionId`, `search`, `showOwned`, `page`, `pageSize`) |
+| `GET /api/admin/gap-analysis/results`     | Paginated missing titles for a run (`runId`, `collectionId`, `search`, `sortBy`, `sortDir`, `page`, `pageSize`) |
+| `GET /api/admin/gap-analysis/collection-parts` | Released collection members and status; comma-separated `ids`, optional UUID `runId` (defaults to latest completed snapshot) |
 | `POST /api/admin/gap-analysis/refresh`    | Start `refresh-library-gaps` background job (returns `jobId`) |
 | `POST /api/admin/gap-analysis/request`    | Bulk Seerr requests; body `{ items: [{ tmdbId, mediaType, title }] }` — tags rows with `source: gap_analysis` |
+
+The latest completed snapshot stays available during refresh or failure. List, summary and part status include current local ownership and active requests; external Seerr changes need a scan. Refresh reads external status but never submits acquisition requests automatically.
 
 `GET /api/seerr/requests` accepts optional `source=discovery|gap_analysis` to filter **My Requests**.
 

@@ -1086,3 +1086,7 @@ export { addEmbyHomePin, EmbyHomeConflict, getEmbyHomeSections, removeEmbyHomePi
 export { getEmbyTonight } from './media/emby/tonight.js'
 
 export { reasoningModelKey, reasoningPresets, reasoningPresetSchema, validateReasoningPreset, UnsupportedReasoningPreset, type ReasoningPreset, type ReasonedModel } from './lib/ai-reasoning.js'
+
+export { literalTitlePattern, MIN_TITLE_RELEVANCE, titleRelevance } from './lib/titleSearch.js'
+
+export { findTelevisionGapSeries, inspectTelevisionGaps } from './gap-analysis/television.js'
