@@ -15,7 +15,7 @@ export function registerMcpHandler(app: FastifyInstance) {
     if (window && now - window.at < 60_000) {
       if (++window.count > 90) return reply.code(429).header('Retry-After', '60').send({ error: 'Connection request limit reached' })
     } else windows.set(principal.id, { at: now, count: 1 })
-    const handler = createMcpHandler(() => createApertureMcpServer(principal.user_id, principal.scopes))
+    const handler = createMcpHandler(() => createApertureMcpServer(principal.user_id, principal.scopes, principal.id))
     reply.hijack()
     await toNodeHandler(handler)(request.raw, reply.raw, request.body)
   })

@@ -79,6 +79,8 @@ export interface MessageRow {
 // Tool context - passed to all tools
 export interface ToolContext {
   userId: string
+  source?: 'encore' | 'mcp' | 'curation'
+  sourceId?: string
   isAdmin: boolean
   embeddingModel: EmbeddingModel | null
   embeddingModelId: string  // Model ID string for database queries

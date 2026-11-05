@@ -89,7 +89,9 @@
     "dontShowAgain": "Don't show this again",
     "errors": {
       "serverMessage": "{{message}}"
-    }
+    },
+    "edit": "Edit",
+    "remove": "Remove"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -3858,10 +3860,10 @@
       "library_read": "Read accessible collection",
       "profile_read": "Read taste and history",
       "schedules_read": "Read release schedules",
-      "memory_write": "Save preferences",
+      "memory_write": "Save and forget memories",
       "plans_write": "Manage watch plans",
-      "playlists_write": "Manage playlists",
-      "home_write": "Manage home rows",
+      "playlists_write": "Manage owned playlists",
+      "home_write": "Manage owned Home rows",
       "curation_write": "Manage recurring curation"
     },
     "releaseSchedule": "Your release calendar",
@@ -3892,6 +3894,95 @@
       "rent": "Rent",
       "buy": "Buy"
     },
-    "clipboardUnavailable": "Automatic copy is unavailable at this address. Select and copy the token field manually."
+    "clipboardUnavailable": "Automatic copy is unavailable at this address. Select and copy the token field manually.",
+    "memoryTab": "Memory",
+    "plansTab": "Watch plans",
+    "collectionsTab": "Collections",
+    "memoryTitle": "A consultant that remembers you",
+    "memoryIntro": "Inspect, correct or forget what Encore learns. Memories belong to your account and can inform future conversations.",
+    "addMemory": "Add a memory",
+    "memoryEmpty": "No saved memories yet. Tell Encore what you would like it to remember.",
+    "untilForgotten": "Saved until you forget it",
+    "forgetMemory": "Forget",
+    "editMemory": "Save a personal memory",
+    "memoryKey": "Topic",
+    "memoryKeyHelp": "Use one topic per fact, such as spoiler preference. Corrections replace that topic.",
+    "memoryFact": "What should Encore remember?",
+    "memoryKind": "Type",
+    "memoryDays": "Expires after days (optional)",
+    "memoryDaysHelp": "Leave blank for a lasting memory. Temporary context does not change recommendation interests.",
+    "memoryCanonical": "Lasting preferences use your existing Taste Profile interests. Forgetting removes the linked interest only if it has not been edited elsewhere. Other taste settings remain under Taste Profile.",
+    "memoryManageHint": "Inspect or change this in Encore → Memory.",
+    "memoryKinds": {
+      "preference": "Preference",
+      "constraint": "Constraint",
+      "context": "Context",
+      "spoiler": "Spoiler preference"
+    },
+    "memorySources": {
+      "encore": "Saved in Encore",
+      "mcp": "Saved through a connected assistant",
+      "curation": "Saved through curation"
+    },
+    "plansTitle": "Make room for a great watch",
+    "plansIntro": "Ask Encore to plan around your available time. Edit windows, recheck current progress, and export a saved plan to your calendar.",
+    "plansEmpty": "Try “Plan two unwatched episodes for Friday from 8pm, with 90 minutes available.”",
+    "calendarCopy": "Calendar exports are independent copies. Refreshing or deleting a plan does not change events already imported into your calendar.",
+    "planStatus": {
+      "draft": "Draft",
+      "saved": "Saved"
+    },
+    "minutes_one": "{{count}} minute",
+    "minutes_other": "{{count}} minutes",
+    "unplaced": {
+      "unknownRuntime": "Runtime is unknown",
+      "doesNotFit": "Does not fit the available windows",
+      "unavailable": "No longer available",
+      "alreadyWatched": "Already watched"
+    },
+    "savePlan": "Save plan",
+    "recheck": "Recheck availability",
+    "editWindows": "Edit viewing windows",
+    "exportCalendar": "Export calendar",
+    "planName": "Plan name",
+    "timezone": "Timezone",
+    "windowStart": "Local start",
+    "windowMinutes": "Minutes available",
+    "addWindow": "Add viewing window",
+    "breakMinutes": "Break between titles (minutes)",
+    "collectionsTitle": "Your curated corner of Emby",
+    "collectionsIntro": "Ask Encore to build a playlist from your conversation. Review each exact proposal here or in the chat before applying it. Home rows depend on support in your Emby server and client.",
+    "collectionsEmpty": "No managed collections yet. Try “Make a playlist of quiet science fiction films from my library.”",
+    "managedCollection": "Managed collection",
+    "pinned": "Pinned to Home",
+    "playlist": "Playlist",
+    "managedCount_one": "{{count}} managed item",
+    "managedCount_other": "{{count}} managed items",
+    "pin": "Propose Home row",
+    "unpin": "Propose removing Home row",
+    "actionHistory": "Proposals and receipts",
+    "actionStatus": {
+      "proposed": "Awaiting approval",
+      "running": "In progress",
+      "succeeded": "Completed",
+      "failed": "Needs attention",
+      "unknown": "Outcome uncertain",
+      "cancelled": "Cancelled"
+    },
+    "actionOperations": {
+      "create": "Create a private Emby playlist",
+      "update": "Update managed playlist, preserving your manual edits",
+      "pin": "Pin this playlist as a Home row",
+      "unpin": "Remove only the managed Home row"
+    },
+    "actionApprovalHelp": "Approve this exact change to apply it to your Emby account. Media files are never removed.",
+    "approveAction": "Approve and apply",
+    "retryAction": "Retry with reconciliation",
+    "unknownCreate": "Emby may have created this playlist before the connection was interrupted. Check Emby and reconcile the playlist before trying again; Encore will not create another copy.",
+    "actionCompleted": "Confirmed {{date}}",
+    "changeSaved": "Change saved",
+    "noSavedItems": "No saved items to show.",
+    "reconcileUrl": "Emby playlist details link",
+    "reconcile": "Reconcile existing playlist"
   }
 }

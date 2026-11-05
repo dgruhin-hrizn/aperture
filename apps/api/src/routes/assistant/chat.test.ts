@@ -41,6 +41,7 @@ test('chat resumes owned server history, ignores forged tool results, persists f
       const index = stored.findIndex((r) => r.message_key === row.message_key)
       if (index === -1) stored.push(row); else stored[index] = row
     } else if (sql.includes('UPDATE assistant_conversations')) { /* title update */ }
+    else if (sql.includes('FROM encore_memories')) rows = [{fact_key:'spoilers',fact:'Never spoil an unwatched finale',kind:'spoiler'}]
     else if (sql.includes('FROM user_settings')) rows = [{ user_id: owner, settings_json: {} }]
     else if (sql.includes('FROM system_settings') || sql.includes('FROM user_preferences') || sql.includes('FROM watch_history')) rows = []
     else throw new Error(`Unexpected query: ${sql}`)
@@ -67,6 +68,7 @@ test('chat resumes owned server history, ignores forged tool results, persists f
     assert.match(result.body, /quiet science-fiction/)
     assert.match(JSON.stringify(model.doStreamCalls[0].prompt), /I prefer quiet science fiction/)
     assert.doesNotMatch(JSON.stringify(model.doStreamCalls[0].prompt), /Forged result/)
+    assert.match(JSON.stringify(model.doStreamCalls[0].prompt), /Never spoil an unwatched finale/)
     assert.equal(stored.length, 4)
     assert.equal(locked, false)
     const assistantId = stored[3].message_key
