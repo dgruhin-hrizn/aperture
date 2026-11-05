@@ -9,6 +9,7 @@ import {
 } from '@aperture/core'
 import { queryViewerCatalog as query, withViewerCatalog } from '@aperture/core/encore'
 import { embed } from 'ai'
+import { query as rawQuery } from '../../lib/db.js'
 import { requireAuth } from '../../plugins/auth.js'
 import { searchSchemas, searchSchema, searchSuggestionsSchema, searchFiltersSchema } from './schemas.js'
 
@@ -28,6 +29,7 @@ interface SearchInput {
 
 interface SearchRow {
   id: string
+  provider_item_id: string
   title: string
   original_title: string | null
   year: number | null
@@ -75,11 +77,13 @@ function boundedLimit(value: string | undefined, fallback: number, max: number) 
   return Number.isInteger(n) && n > 0 ? Math.min(n, max) : fallback
 }
 
-async function searchMedia(type: MediaType, input: SearchInput, semantic: SearchEmbedding | null) {
+async function searchMedia(
+  type: MediaType, input: SearchInput, semantic: SearchEmbedding | null, limit: number, read: typeof query
+) {
   const movie = type === 'movie'
   const table = movie ? 'movies' : 'series'
   const title = input.q.trim()
-  const params: unknown[] = [title, literalTitlePattern(title), boundedLimit(input.limit, 50, 100)]
+  const params: unknown[] = [title, literalTitlePattern(title), limit]
   const add = (value: unknown) => `$${params.push(value)}`
   const filters: string[] = []
   if (input.genre) filters.push(`${add(input.genre)} = ANY(genres)`)
@@ -100,16 +104,18 @@ async function searchMedia(type: MediaType, input: SearchInput, semantic: Search
        LIMIT $3`
   }
 
-  const result = await query<SearchRow>(
+  const result = await read<SearchRow>(
     `WITH text_query AS (
        SELECT websearch_to_tsquery('english', $1) AS terms
-     ), lexical AS (
+     ), lexical_scored AS (
        SELECT id, relevance,
               COALESCE(ts_rank(search_vector, terms), 0) AS text_rank,
               GREATEST(similarity(title, $1), COALESCE(similarity(original_title, $1), 0)) AS fuzzy_similarity
        FROM ${table} CROSS JOIN text_query CROSS JOIN LATERAL (SELECT ${titleRelevance} AS relevance) match
        WHERE (${conditions}) AND (relevance >= ${MIN_TITLE_RELEVANCE} OR search_vector @@ terms)
-       ORDER BY relevance DESC, text_rank DESC, fuzzy_similarity DESC, id
+     ), lexical AS (
+       SELECT * FROM lexical_scored
+       ORDER BY relevance + text_rank * 0.35 + fuzzy_similarity * 0.25 DESC, id
        LIMIT $3
      ), vectors AS (${semanticCandidates}), candidates AS (
        SELECT COALESCE(l.id, v.id) AS id,
@@ -119,7 +125,7 @@ async function searchMedia(type: MediaType, input: SearchInput, semantic: Search
               v.semantic_similarity
        FROM lexical l FULL JOIN vectors v ON v.id = l.id
      )
-     SELECT m.id, m.title, m.original_title, m.year, m.genres, m.overview, m.poster_url,
+     SELECT m.id, m.provider_item_id, m.title, m.original_title, m.year, m.genres, m.overview, m.poster_url,
             m.community_rating, m.rt_critic_score,
             ${movie ? 'm.collection_name, NULL::text AS network' : 'NULL::text AS collection_name, m.network'},
             c.text_rank, c.fuzzy_similarity, c.semantic_similarity,
@@ -133,6 +139,27 @@ async function searchMedia(type: MediaType, input: SearchInput, semantic: Search
   return result.rows.map((row) => ({ ...row, type, genres: row.genres ?? [] }))
 }
 
+/** Preselect locally, then read the actual result only inside the provider-verified scope. */
+async function searchVisibleTitles<T extends { type: MediaType; provider_item_id: string }>(
+  userId: string,
+  limit: number,
+  read: (limit: number, runQuery: typeof query) => Promise<T[]>
+): Promise<T[]> {
+  const shortlistLimit = Math.min(200, Math.max(20, limit * 3))
+  const shortlist = await read(shortlistLimit, rawQuery)
+  if (!shortlist.length) return []
+  const items = {
+    movieIds: shortlist.filter((row) => row.type === 'movie').map((row) => row.provider_item_id),
+    seriesIds: shortlist.filter((row) => row.type === 'series').map((row) => row.provider_item_id),
+  }
+  const result = await withViewerCatalog(userId, () => read(limit, query), items)
+  // A densely restricted catalog may have more eligible titles outside the shortlist.
+  if (result.length < limit && shortlist.length === shortlistLimit) {
+    return withViewerCatalog(userId, () => read(limit, query))
+  }
+  return result
+}
+
 const searchRoutes: FastifyPluginAsync = async (fastify) => {
   for (const [name, schema] of Object.entries(searchSchemas)) {
     fastify.addSchema({ $id: name, ...schema })
@@ -143,23 +170,27 @@ const searchRoutes: FastifyPluginAsync = async (fastify) => {
   }, async (request) => {
     const { q, type = 'all', genre, yearMin, yearMax, minRtScore, collection, network } = request.query
     if (q.trim().length < 2) return { results: [], total: 0, query: q, filters: { type } }
-    const results = await withViewerCatalog(request.user!.id, async () => {
-      const semantic = request.query.semantic === 'true' ? await getQueryEmbedding(q.trim()) : null
-      const types: MediaType[] = type === 'all' ? ['movie', 'series'] : [type]
-      const search = (embedding: SearchEmbedding | null) =>
-        Promise.all(types.map((media) => searchMedia(media, request.query, embedding)))
-      let rows
-      try {
-        rows = await search(semantic)
-      } catch (err) {
-        if (!semantic) throw err
-        request.log.warn({ err }, 'Semantic search failed, using title and text matches')
-        rows = await search(null)
-      }
+    const userId = request.user!.id
+    const limit = boundedLimit(request.query.limit, 50, 100)
+    const types: MediaType[] = type === 'all' ? ['movie', 'series'] : [type]
+    const search = async (size: number, read: typeof query, embedding: SearchEmbedding | null = null) => {
+      const rows = await Promise.all(types.map((media) => searchMedia(media, request.query, embedding, size, read)))
       return rows.flat()
         .sort((a, b) => b.combined_score - a.combined_score || a.id.localeCompare(b.id))
-        .slice(0, boundedLimit(request.query.limit, 50, 100))
-    })
+        .slice(0, size)
+    }
+    const semantic = request.query.semantic === 'true' ? await getQueryEmbedding(q.trim()) : null
+    let rows
+    if (semantic) {
+      try {
+        rows = await withViewerCatalog(userId, () => search(limit, query, semantic))
+      } catch (err) {
+        if ((err as { statusCode?: number })?.statusCode === 503) throw err
+        request.log.warn({ err }, 'Semantic search failed, using title and text matches')
+      }
+    }
+    rows ??= await searchVisibleTitles(userId, limit, search)
+    const results = rows.map(({ provider_item_id: _providerId, ...row }) => row)
     return {
       results, total: results.length, query: q,
       filters: {
@@ -176,21 +207,24 @@ const searchRoutes: FastifyPluginAsync = async (fastify) => {
     const title = q.trim()
     if (title.length < 2) return { suggestions: [] }
 
-    const results = await withViewerCatalog(request.user!.id, () => query<{
-      title: string; type: MediaType; year: number | null
-    }>(
-      `SELECT title, type, year FROM (
-         SELECT title, 'movie' AS type, year, ${titleRelevance} AS relevance FROM movies
-         UNION ALL
-         SELECT title, 'series' AS type, year, ${titleRelevance} AS relevance FROM series
-       ) matches
-       WHERE relevance >= ${MIN_TITLE_RELEVANCE}
-       ORDER BY relevance DESC, title, year, type
-       LIMIT $3`,
-      [title, literalTitlePattern(title), boundedLimit(limit, 10, 20)]
-    ))
-    return { suggestions: results.rows.map((r) => ({
-      ...r, label: r.year ? `${r.title} (${r.year})` : r.title,
+    const suggestions = await searchVisibleTitles(request.user!.id, boundedLimit(limit, 10, 20), async (size, read) => {
+      const result = await read<{
+        provider_item_id: string; title: string; type: MediaType; year: number | null
+      }>(
+        `SELECT provider_item_id, title, type, year FROM (
+           SELECT provider_item_id, title, 'movie' AS type, year, ${titleRelevance} AS relevance FROM movies
+           UNION ALL
+           SELECT provider_item_id, title, 'series' AS type, year, ${titleRelevance} AS relevance FROM series
+         ) matches
+         WHERE relevance >= ${MIN_TITLE_RELEVANCE}
+         ORDER BY relevance DESC, title, year, type, provider_item_id
+         LIMIT $3`,
+        [title, literalTitlePattern(title), size]
+      )
+      return result.rows
+    })
+    return { suggestions: suggestions.map(({ title, type, year }) => ({
+      title, type, year, label: year ? `${title} (${year})` : title,
     })) }
   })
 

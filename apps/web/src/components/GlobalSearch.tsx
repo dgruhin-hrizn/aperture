@@ -68,7 +68,6 @@ export function GlobalSearch() {
   const [loading, setLoading] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const inputRef = useRef<HTMLInputElement>(null)
-  const debounceRef = useRef<NodeJS.Timeout | null>(null)
 
   const handleClose = useCallback(() => {
     setOpen(false)
@@ -101,58 +100,43 @@ export function GlobalSearch() {
     }
   }, [open])
 
-  const handleSearch = useCallback(async (searchQuery: string) => {
-    if (!searchQuery || searchQuery.trim().length < 2) {
+  const handleSearch = useCallback(async (searchQuery: string, signal: AbortSignal) => {
+    if (searchQuery.trim().length < 2) {
       setResults([])
       setSuggestions([])
+      setLoading(false)
       return
     }
 
     setLoading(true)
-
-    try {
-      // Fetch suggestions for autocomplete
-      const suggestionsRes = await fetch(
-        `/api/search/suggestions?q=${encodeURIComponent(searchQuery)}&limit=5`,
-        { credentials: 'include' }
-      )
-      if (suggestionsRes.ok) {
-        const data = await suggestionsRes.json()
-        setSuggestions(data.suggestions)
-      }
-
-      // Fetch full results
-      const resultsRes = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}&limit=10`, {
-        credentials: 'include',
-      })
-      if (resultsRes.ok) {
-        const data = await resultsRes.json()
-        setResults(data.results)
-        setSelectedIndex(-1)
-      }
-    } catch {
-      // Ignore search errors
-    } finally {
-      setLoading(false)
+    const encoded = encodeURIComponent(searchQuery)
+    const read = async (url: string, apply: (data: Record<string, unknown>) => void) => {
+      const response = await fetch(url, { credentials: 'include', signal })
+      if (!response.ok) return
+      const data = await response.json()
+      if (!signal.aborted) apply(data)
     }
+    await Promise.allSettled([
+      read(`/api/search/suggestions?q=${encoded}&limit=5`, (data) => {
+        setSuggestions(data.suggestions as SearchSuggestion[])
+      }),
+      read(`/api/search?q=${encoded}&limit=10`, (data) => {
+        setResults(data.results as SearchResult[])
+        setSelectedIndex(-1)
+      }),
+    ])
+    if (!signal.aborted) setLoading(false)
   }, [])
 
-  // Debounced search
   useEffect(() => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current)
-    }
-
-    debounceRef.current = setTimeout(() => {
-      handleSearch(query)
-    }, 200)
-
+    if (!open) return
+    const controller = new AbortController()
+    const debounce = setTimeout(() => void handleSearch(query, controller.signal), 200)
     return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current)
-      }
+      clearTimeout(debounce)
+      controller.abort()
     }
-  }, [query, handleSearch])
+  }, [open, query, handleSearch])
 
   const handleResultClick = useCallback(
     (result: SearchResult) => {

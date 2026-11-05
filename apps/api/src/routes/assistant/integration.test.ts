@@ -26,6 +26,7 @@ test('real PostgreSQL and MCP HTTP enforce per-user catalogs, scopes, expiry and
   let exactReads = 0
   let fullCatalogReads = 0
   let allowA = true
+  let includeShortlistFallback = false
   let fixtureEmbedding: number[] | undefined
   let visibleExtra = false
   let visibleSearchFixtures = false
@@ -49,6 +50,7 @@ test('real PostgreSQL and MCP HTTP enforce per-user catalogs, scopes, expiry and
     else fullCatalogReads++
     const items = [
       ...(!isA || allowA ? [{ Id: isA ? movieA : movieB, Type: 'Movie' }] : []),
+      ...(isA && includeShortlistFallback ? [{ Id: `${prefix}-shortlist-visible`, Type: 'Movie' }] : []),
       ...(isA && visibleExtra ? [{ Id: movieC, Type: 'Movie' }] : []),
       ...(isA && visibleSearchFixtures
         ? [{ Id: housemaid, Type: 'Movie' }, { Id: overviewMatch, Type: 'Movie' }, { Id: series, Type: 'Series' }]
@@ -128,9 +130,19 @@ test('real PostgreSQL and MCP HTTP enforce per-user catalogs, scopes, expiry and
       return response.json()
     }
     await pool.query("UPDATE movies SET title = 'Mission: Impossible' WHERE id = $1", [movieAId])
+    const scansBeforeTitle = fullCatalogReads
+    const idsBeforeTitle = exactReads
     assert.equal((await queryRoute('/api/search?q=Mission%3A%20Impossible')).results[0].id, movieAId)
     assert.deepEqual((await queryRoute('/api/search/suggestions?q=Private%20fixture')).suggestions, [])
     assert.equal((await queryRoute('/api/search/suggestions?q=Private%20fixture', true)).suggestions[0].title, 'Private fixture film')
+    assert.equal(fullCatalogReads, scansBeforeTitle)
+    assert.ok(exactReads > idsBeforeTitle)
+    includeShortlistFallback = true
+    await pool.query("INSERT INTO movies(provider_item_id,title) SELECT $1 || n, 'Shortlist Fixture ' || n FROM generate_series(1,21) n", [`${prefix}-shortlist-private-`])
+    await pool.query("INSERT INTO movies(provider_item_id,title) VALUES ($1,'Shortlist Fixture Z')", [`${prefix}-shortlist-visible`])
+    assert.equal((await queryRoute('/api/search/suggestions?q=Shortlist%20Fixture&limit=1')).suggestions[0].title, 'Shortlist Fixture Z')
+    assert.equal(fullCatalogReads, scansBeforeTitle + 1)
+    includeShortlistFallback = false
     assert.deepEqual((await queryRoute('/api/search/filters')).genres, [{ name: 'Drama', count: 2 }])
     assert.equal((await server.inject({ url: `/api/similarity/movie/${movieBId}` })).statusCode, 404)
     assert.doesNotMatch(JSON.stringify(await queryRoute(`/api/similarity/movie/${movieAId}?depth=2`)), /Private fixture film/)
@@ -201,7 +213,7 @@ test('real PostgreSQL and MCP HTTP enforce per-user catalogs, scopes, expiry and
   } finally {
     await client.close(); await server.close(); globalThis.fetch = originalFetch
     await pool.query("DELETE FROM system_settings WHERE key = 'ai_config'")
-    await pool.query('DELETE FROM movies WHERE provider_item_id = ANY($1)', [[movieA, movieB, movieC, housemaid, overviewMatch]])
+    await pool.query('DELETE FROM movies WHERE provider_item_id = ANY($1) OR provider_item_id LIKE $2', [[movieA, movieB, movieC, housemaid, overviewMatch], `${prefix}-shortlist-%`])
     await pool.query('DELETE FROM series WHERE provider_item_id = $1', [series])
     await pool.query('DELETE FROM users WHERE id = ANY($1::uuid[])', [[a, b]])
     await closePool()

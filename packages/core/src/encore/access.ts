@@ -122,8 +122,11 @@ export function getCatalogScopeForItems(userId: string, requested: CatalogScope,
   return readCatalogScope(userId, signal, requested)
 }
 
-export async function withViewerCatalog<T>(userId: string, action: () => Promise<T>): Promise<T> {
-  const scope = await getCatalogScope(userId).catch((cause: unknown) => {
+export async function withViewerCatalog<T>(
+  userId: string, action: () => Promise<T>, candidates?: CatalogScope
+): Promise<T> {
+  const read = candidates ? getCatalogScopeForItems(userId, candidates) : getCatalogScope(userId)
+  const scope = await read.catch((cause: unknown) => {
     throw Object.assign(new Error('The media library is temporarily unavailable', { cause }), { statusCode: 503 })
   })
   return encoreCatalogScope.run(scope, action)
