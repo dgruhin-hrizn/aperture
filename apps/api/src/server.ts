@@ -9,6 +9,7 @@ import authPlugin from './plugins/auth.js'
 import staticPlugin from './plugins/static.js'
 import routes from './routes/index.js'
 import { getSwaggerConfig, swaggerUIConfig } from './config/openapi.js'
+import { requestContractsPlugin } from './contracts/register.js'
 
 export interface ServerOptions {
   logger?: boolean
@@ -42,6 +43,8 @@ export async function buildServer(
 
   // Register request ID plugin
   await fastify.register(requestIdPlugin)
+
+  await fastify.register(requestContractsPlugin)
 
   // Register Swagger/OpenAPI documentation
   await fastify.register(swagger, getSwaggerConfig(appBaseUrl))

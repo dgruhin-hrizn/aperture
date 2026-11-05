@@ -15,8 +15,10 @@ import {
   executeEncoreAction,
   getCatalogScope,
   encoreCatalogScope,
+  validateEncoreToolInput,
 } from '@aperture/core/encore'
 import { requireAuth } from '../../../plugins/auth.js'
+import { approvalBody, curationControlBody } from '../../../contracts/bodies/encore.js'
 const commands = new Set([
   'rememberPreference',
   'forgetMemory',
@@ -49,12 +51,7 @@ export function registerWorkbenchHandlers(app: FastifyInstance) {
     '/api/assistant/curations/:id/control',
     { preHandler: requireAuth },
     async (request, reply) => {
-      const parsed = z
-        .object({
-          operation: z.enum(['enable', 'pause', 'run', 'delete']),
-          approved: z.literal(true),
-        })
-        .safeParse(request.body)
+      const parsed = curationControlBody.safeParse(request.body)
       if (!z.string().uuid().safeParse(request.params.id).success || !parsed.success)
         return reply
           .code(400)
@@ -115,7 +112,8 @@ export function registerWorkbenchHandlers(app: FastifyInstance) {
           sourceId: 'workbench',
         })
         const tool = tools[request.params.command]
-        return await tool.execute!(request.body as never, {
+        const input = await validateEncoreToolInput(tool, request.body)
+        return await tool.execute!(input as never, {
           toolCallId: 'workbench',
           messages: [],
           context: undefined,
@@ -133,7 +131,7 @@ export function registerWorkbenchHandlers(app: FastifyInstance) {
     async (request, reply) => {
       if (
         !z.string().uuid().safeParse(request.params.id).success ||
-        !z.object({ approved: z.literal(true) }).safeParse(request.body).success
+        !approvalBody.safeParse(request.body).success
       )
         return reply.code(400).send({ error: 'Explicit approval of a valid action is required' })
       try {

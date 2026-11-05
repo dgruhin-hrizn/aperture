@@ -75,6 +75,7 @@ export {
 } from './lib/index.js'
 
 // Migrations
+export { providerTypeSchema, aiFunctionSchema } from './lib/ai-capabilities/contracts.js'
 export { runMigrations, getMigrationStatus, type MigrationResult } from './migrations.js'
 
 // Media Server Providers

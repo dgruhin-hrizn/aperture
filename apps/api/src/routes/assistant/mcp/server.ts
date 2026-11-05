@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { McpServer, fromJsonSchema, type JsonSchemaType } from '@modelcontextprotocol/server'
-import { createEncoreContext, createEncoreTools, getEncoreToolSchemas, encoreToolScope, type EncoreScope } from '@aperture/core/encore'
+import { createEncoreContext, createEncoreTools, getEncoreToolSchemas, validateEncoreToolInput, encoreToolScope, type EncoreScope } from '@aperture/core/encore'
 import { APP_VERSION } from '../../../lib/appVersion.js'
 
 export async function createApertureMcpServer(userId: string, scopes: EncoreScope[], connectionId?: string) {
@@ -17,7 +17,8 @@ export async function createApertureMcpServer(userId: string, scopes: EncoreScop
       annotations: { readOnlyHint: !encoreToolScope(name).endsWith(':write') || name.startsWith('list'), destructiveHint: ['forgetMemory','deleteWatchPlan','executeEncoreAction','controlCuration'].includes(name), idempotentHint: !['createWatchPlan','prepareCuration','controlCuration'].includes(name), openWorldHint: ['discoverTitles', 'getReleaseSchedule', 'getFilmography', 'getExternalTitleDetails','executeEncoreAction','controlCuration'].includes(name) },
     }, async (input, context) => {
       try {
-        const output = await execute(input as never, { toolCallId: randomUUID(), messages: [], context: undefined, abortSignal: context.mcpReq.signal })
+        const validated = await validateEncoreToolInput(definition, input)
+        const output = await execute(validated as never, { toolCallId: randomUUID(), messages: [], context: undefined, abortSignal: context.mcpReq.signal })
         return { content: [{ type: 'text' as const, text: JSON.stringify(output) }], structuredContent: output && typeof output === 'object' && !Array.isArray(output) ? output as Record<string, unknown> : { result: output } }
       } catch (error) { return { isError: true, content: [{ type: 'text' as const, text: error instanceof Error ? error.message : 'The Aperture tool could not complete' }] } }
     })
