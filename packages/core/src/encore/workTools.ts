@@ -7,10 +7,30 @@ import { memoryInput, listEncoreMemories, rememberEncoreFact, forgetEncoreFact }
 import { planInput } from './planScheduling.js'
 import { createEncorePlan, listEncorePlans, updateEncorePlan, deleteEncorePlan } from './plans.js'
 import { getEncoreEpisodes } from './liveItems.js'
-import { actionInput } from './collectionTypes.js'
+import { actionInput, selectionSchema } from './collectionTypes.js'
 import { proposeEncoreAction, listEncoreActions, cancelEncoreAction } from './actionProposals.js'
 import { executeEncoreAction } from './actions.js'
 const id = z.string().uuid()
+const playlistActions = actionInput.options[0].or(actionInput.options[1])
+// Function providers require an object at the root, not a top-level union.
+// The canonical union still enforces operation-specific fields before execution.
+const playlistToolInput = z
+  .object({
+    operation: z.enum(['create', 'update']),
+    name: actionInput.options[0].shape.name
+      .optional()
+      .describe('Required when creating a playlist.'),
+    collectionId: actionInput.options[1].shape.collectionId
+      .optional()
+      .describe('Required when updating an owned managed playlist.'),
+    items: selectionSchema,
+  })
+  .transform((input, ctx) => {
+    const parsed = playlistActions.safeParse(input)
+    if (parsed.success) return parsed.data
+    for (const issue of parsed.error.issues) ctx.addIssue(issue)
+    return z.NEVER
+  })
 export function createWorkTools(
   ctx: ToolContext,
   scopes: readonly EncoreScope[] = ENCORE_SCOPES
@@ -72,7 +92,7 @@ export function createWorkTools(
     proposePlaylist: tool({
       description:
         'Prepare an owned Emby playlist create/update proposal with an exact preview. Does not modify Emby until the user approves. Never replace an arbitrary existing playlist by name. Updates preserve manual additions and removals.',
-      inputSchema: actionInput.options[0].or(actionInput.options[1]),
+      inputSchema: playlistToolInput,
       execute: (input) => proposeEncoreAction(ctx.userId, input),
     }),
     proposeHomeRow: tool({

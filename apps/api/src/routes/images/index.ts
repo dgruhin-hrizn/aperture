@@ -35,12 +35,10 @@ interface ImageQuerystring {
   imageType?: string
 }
 
-// Initialize uploads system on module load
-initUploads().catch((err) => {
-  console.error('Failed to initialize uploads:', err)
-})
-
-const imageRoutes: FastifyPluginAsync = async (fastify) => {
+const imageRoutes: FastifyPluginAsync<{ initializeStorage?: boolean }> = async (fastify, options) => {
+  if (options.initializeStorage !== false) {
+    void initUploads().catch((err) => fastify.log.error({ err }, 'Failed to initialize uploads'))
+  }
   // Register multipart support for file uploads
   await fastify.register(multipart, {
     limits: {

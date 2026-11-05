@@ -8,6 +8,7 @@ export {
 } from './permissions.js'
 export { scopeCatalogQuery } from './scopedDb.js'
 export { nullSafe } from './tools/utils.js'
+export { getEncoreToolSchemas } from './toolSchemas.js'
 export type { ToolContext } from './types.js'
 export { createEncoreContext } from './context.js'
 export {

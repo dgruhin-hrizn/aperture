@@ -6,7 +6,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/client/stdio'
 import { MockEmbeddingModelV3 } from 'ai/test'
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
 import { closePool, getPool, runMigrations, getActiveEmbeddingTableName, getCurrentEmbeddingDimensions } from '@aperture/core'
-import { createEncoreConnection, hashEncoreToken, createEncoreContext, createEncoreTools } from '@aperture/core/encore'
+import { createEncoreConnection, hashEncoreToken, createEncoreContext, createEncoreTools, ENCORE_SCOPES } from '@aperture/core/encore'
 import { registerMcpHandler } from './mcp/http.js'
 import { registerConnectionHandlers } from './handlers/connections.js'
 
@@ -43,6 +43,16 @@ test('real PostgreSQL and MCP HTTP enforce per-user catalogs, scopes, expiry and
   const { token, connection } = await createEncoreConnection(a, 'Fixture client', ['library:read', 'profile:read'], 1)
   const client = new Client({ name: 'encore-integration-test', version: '1' })
   try {
+    // A full-permission client must be able to discover every tool, including playlist writes.
+    const full = await createEncoreConnection(a, 'Full schema fixture', [...ENCORE_SCOPES], 1)
+    const fullClient = new Client({ name: 'full-schema-test', version: '1' })
+    try {
+      await fullClient.connect(new StreamableHTTPClientTransport(new URL(`${url}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${full.token}` } } }))
+      const fullListing = await fullClient.listTools()
+      assert.equal(fullListing.tools.length, 44)
+      for (const tool of fullListing.tools) assert.equal(tool.inputSchema.type, 'object', tool.name)
+      assert.ok(fullListing.tools.some(tool => tool.name === 'proposePlaylist'))
+    } finally { await fullClient.close() }
     const bridge = new Client({ name: 'bridge-test', version: '1' })
     try {
       await bridge.connect(new StdioClientTransport({ command: process.execPath,
