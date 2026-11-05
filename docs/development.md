@@ -23,7 +23,7 @@ This guide covers local development setup, available scripts, and contribution g
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 24 LTS (22+ supported by the AI SDK)
 - pnpm 8+
 - Docker and Docker Compose
 - An Emby or Jellyfin server (for testing)

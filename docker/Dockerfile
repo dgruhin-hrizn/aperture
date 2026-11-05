@@ -4,7 +4,7 @@
 # ===================================================================
 
 # Stage 1: Dependencies
-FROM node:20-alpine AS deps
+FROM node:24-alpine AS deps
 WORKDIR /app
 
 ENV HUSKY=0
@@ -35,7 +35,7 @@ RUN pnpm -r build
 
 # ===================================================================
 # Stage 3: Production dependencies only
-FROM node:20-alpine AS prod-deps
+FROM node:24-alpine AS prod-deps
 WORKDIR /app
 
 ENV HUSKY=0
@@ -52,7 +52,7 @@ RUN pnpm install --prod --frozen-lockfile --ignore-scripts && \
 
 # ===================================================================
 # Stage 4: Runtime
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 WORKDIR /app
 
 # Install dependencies:

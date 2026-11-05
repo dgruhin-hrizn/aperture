@@ -1,3 +1,4 @@
+import type { ToolSet } from 'ai'
 /**
  * System help tools with Tool UI output
  */
@@ -6,7 +7,7 @@ import { nullSafe } from './utils.js'
 import { z } from 'zod'
 import type { ToolContext } from '../types.js'
 
-export function createHelpTools(ctx: ToolContext) {
+export function createHelpTools(ctx: ToolContext): ToolSet {
   return {
     getSystemHelp: tool({
       description: 'Get help on how to use Aperture.',

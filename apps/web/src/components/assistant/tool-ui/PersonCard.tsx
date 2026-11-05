@@ -33,8 +33,8 @@ function PersonCardSingle({ person }: PersonCardProps) {
     <Box
       sx={{
         p: 2,
-        bgcolor: 'var(--ap-surface-1, #1a1a1a)',
-        borderRadius: 2,
+        bgcolor: 'background.paper',
+        borderRadius: 3,
         mb: 1.5,
       }}
     >
@@ -45,13 +45,13 @@ function PersonCardSingle({ person }: PersonCardProps) {
           sx={{
             width: 64,
             height: 64,
-            bgcolor: 'var(--ap-surface-2, #2a2a2a)',
+            bgcolor: 'action.hover',
           }}
         >
           <PersonIcon />
         </Avatar>
         <Box>
-          <Typography variant="subtitle1" fontWeight={600} sx={{ color: '#fff' }}>
+          <Typography variant="subtitle1" fontWeight={600} sx={{ color: 'text.primary' }}>
             {person.name}
           </Typography>
           <Chip
@@ -61,7 +61,7 @@ function PersonCardSingle({ person }: PersonCardProps) {
               height: 22,
               mt: 0.5,
               bgcolor: 'rgba(99, 102, 241, 0.15)',
-              color: '#818cf8',
+              color: 'primary.main',
             }}
           />
         </Box>
@@ -71,7 +71,7 @@ function PersonCardSingle({ person }: PersonCardProps) {
       {movies.length > 0 && (
         <Box sx={{ mb: 1.5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-            <MovieIcon sx={{ fontSize: 16, color: '#818cf8' }} />
+            <MovieIcon sx={{ fontSize: 16, color: 'primary.main' }} />
             <Typography variant="caption" fontWeight={600} color="text.secondary">
               {t('assistantToolUi.moviesHeading', { count: movies.length })}
             </Typography>
@@ -85,8 +85,8 @@ function PersonCardSingle({ person }: PersonCardProps) {
                 onClick={() => navigate(`/movies/${film.id}`)}
                 sx={{
                   height: 24,
-                  bgcolor: 'var(--ap-surface-2, #2a2a2a)',
-                  color: '#e4e4e7',
+                  bgcolor: 'action.hover',
+                  color: 'text.primary',
                   cursor: 'pointer',
                   '&:hover': {
                     bgcolor: '#3a3a3a',
@@ -120,8 +120,8 @@ function PersonCardSingle({ person }: PersonCardProps) {
                 onClick={() => navigate(`/series/${film.id}`)}
                 sx={{
                   height: 24,
-                  bgcolor: 'var(--ap-surface-2, #2a2a2a)',
-                  color: '#e4e4e7',
+                  bgcolor: 'action.hover',
+                  color: 'text.primary',
                   cursor: 'pointer',
                   '&:hover': {
                     bgcolor: '#3a3a3a',

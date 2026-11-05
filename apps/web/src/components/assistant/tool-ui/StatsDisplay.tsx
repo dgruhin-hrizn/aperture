@@ -30,23 +30,23 @@ export function StatsDisplay({ data }: StatsDisplayProps) {
         }}
       >
         {/* Movies */}
-        <Paper sx={{ p: 2, bgcolor: 'var(--ap-surface-1, #1a1a1a)', borderRadius: 2 }}>
+        <Paper sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-            <MovieIcon sx={{ color: '#818cf8' }} />
+            <MovieIcon sx={{ color: 'primary.main' }} />
             <Typography variant="caption" color="text.secondary">{t('assistantToolUi.movies')}</Typography>
           </Box>
-          <Typography variant="h4" fontWeight={700} sx={{ color: '#fff' }}>
+          <Typography variant="h4" fontWeight={700} sx={{ color: 'text.primary' }}>
             {data.movieCount.toLocaleString()}
           </Typography>
         </Paper>
 
         {/* Series */}
-        <Paper sx={{ p: 2, bgcolor: 'var(--ap-surface-1, #1a1a1a)', borderRadius: 2 }}>
+        <Paper sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
             <TvIcon sx={{ color: '#10b981' }} />
             <Typography variant="caption" color="text.secondary">{t('assistantToolUi.tvSeries')}</Typography>
           </Box>
-          <Typography variant="h4" fontWeight={700} sx={{ color: '#fff' }}>
+          <Typography variant="h4" fontWeight={700} sx={{ color: 'text.primary' }}>
             {data.seriesCount.toLocaleString()}
           </Typography>
           {data.episodeCount !== undefined && (
@@ -58,12 +58,12 @@ export function StatsDisplay({ data }: StatsDisplayProps) {
 
         {/* Runtime */}
         {data.totalRuntimeFormatted && (
-          <Paper sx={{ p: 2, bgcolor: 'var(--ap-surface-1, #1a1a1a)', borderRadius: 2 }}>
+          <Paper sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
               <AccessTimeIcon sx={{ color: '#f59e0b' }} />
               <Typography variant="caption" color="text.secondary">{t('assistantToolUi.totalRuntime')}</Typography>
             </Box>
-            <Typography variant="body1" fontWeight={600} sx={{ color: '#fff' }}>
+            <Typography variant="body1" fontWeight={600} sx={{ color: 'text.primary' }}>
               {data.totalRuntimeFormatted}
             </Typography>
           </Paper>
@@ -71,12 +71,12 @@ export function StatsDisplay({ data }: StatsDisplayProps) {
 
         {/* Average Rating */}
         {data.averageRating !== null && data.averageRating !== undefined && (
-          <Paper sx={{ p: 2, bgcolor: 'var(--ap-surface-1, #1a1a1a)', borderRadius: 2 }}>
+          <Paper sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
               <StarIcon sx={{ color: '#ffc107' }} />
               <Typography variant="caption" color="text.secondary">{t('assistantToolUi.avgRating')}</Typography>
             </Box>
-            <Typography variant="h4" fontWeight={700} sx={{ color: '#fff' }}>
+            <Typography variant="h4" fontWeight={700} sx={{ color: 'text.primary' }}>
               {Number(data.averageRating).toFixed(1)}
             </Typography>
           </Paper>
@@ -85,14 +85,14 @@ export function StatsDisplay({ data }: StatsDisplayProps) {
 
       {/* User activity */}
       {data.watchStats && (
-        <Paper sx={{ p: 2, bgcolor: 'var(--ap-surface-1, #1a1a1a)', borderRadius: 2, mb: 2 }}>
-          <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5, color: '#e4e4e7' }}>
+        <Paper sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 3, mb: 2 }}>
+          <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5, color: 'text.primary' }}>
             {t('assistantToolUi.yourActivity')}
           </Typography>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
             <Box>
               <Typography variant="caption" color="text.secondary">{t('assistantToolUi.moviesWatched')}</Typography>
-              <Typography variant="h6" fontWeight={600} sx={{ color: '#818cf8' }}>
+              <Typography variant="h6" fontWeight={600} sx={{ color: 'primary.main' }}>
                 {data.watchStats.moviesWatched}
               </Typography>
             </Box>
@@ -122,15 +122,15 @@ export function StatsDisplay({ data }: StatsDisplayProps) {
 
       {/* Top genres */}
       {data.topGenres && data.topGenres.length > 0 && (
-        <Paper sx={{ p: 2, bgcolor: 'var(--ap-surface-1, #1a1a1a)', borderRadius: 2 }}>
-          <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5, color: '#e4e4e7' }}>
+        <Paper sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 3 }}>
+          <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5, color: 'text.primary' }}>
             {t('assistantToolUi.topGenres')}
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
             {data.topGenres.slice(0, 5).map((genre) => (
               <Box key={genre.genre}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                  <Typography variant="caption" sx={{ color: '#e4e4e7' }}>
+                  <Typography variant="caption" sx={{ color: 'text.primary' }}>
                     {genre.genre}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
@@ -143,7 +143,7 @@ export function StatsDisplay({ data }: StatsDisplayProps) {
                   sx={{
                     height: 6,
                     borderRadius: 3,
-                    bgcolor: 'var(--ap-surface-2, #2a2a2a)',
+                    bgcolor: 'action.hover',
                     '& .MuiLinearProgress-bar': {
                       borderRadius: 3,
                       background: 'var(--ap-primary-action, linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%))',
@@ -168,15 +168,15 @@ export function StudiosDisplay({ data }: StudiosDisplayProps) {
   return (
     <Box sx={{ my: 2 }}>
       {data.studios && data.studios.length > 0 && (
-        <Paper sx={{ p: 2, bgcolor: 'var(--ap-surface-1, #1a1a1a)', borderRadius: 2, mb: 2 }}>
-          <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5, color: '#e4e4e7' }}>
+        <Paper sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 3, mb: 2 }}>
+          <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5, color: 'text.primary' }}>
             {t('assistantToolUi.topMovieStudios')}
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
             {data.studios.map((studio) => (
               <Box key={studio.name}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" fontWeight={600} sx={{ color: '#fff' }}>
+                  <Typography variant="body2" fontWeight={600} sx={{ color: 'text.primary' }}>
                     {studio.name}
                   </Typography>
                   <Chip
@@ -185,7 +185,7 @@ export function StudiosDisplay({ data }: StudiosDisplayProps) {
                     sx={{
                       height: 20,
                       bgcolor: 'rgba(99, 102, 241, 0.15)',
-                      color: '#818cf8',
+                      color: 'primary.main',
                     }}
                   />
                 </Box>
@@ -201,15 +201,15 @@ export function StudiosDisplay({ data }: StudiosDisplayProps) {
       )}
 
       {data.networks && data.networks.length > 0 && (
-        <Paper sx={{ p: 2, bgcolor: 'var(--ap-surface-1, #1a1a1a)', borderRadius: 2 }}>
-          <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5, color: '#e4e4e7' }}>
+        <Paper sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 3 }}>
+          <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5, color: 'text.primary' }}>
             {t('assistantToolUi.topTvNetworks')}
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
             {data.networks.map((network) => (
               <Box key={network.name}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" fontWeight={600} sx={{ color: '#fff' }}>
+                  <Typography variant="body2" fontWeight={600} sx={{ color: 'text.primary' }}>
                     {network.name}
                   </Typography>
                   <Chip

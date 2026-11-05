@@ -24,7 +24,7 @@ function normalizeToolArgs(obj: unknown): unknown {
       .filter(([, v]) => v !== null) // Strip nulls
       .map(([k, v]) => {
         // Coerce string numbers to actual numbers
-        if (typeof v === 'string') {
+        if (typeof v === 'string' && !['query', 'title', 'concept', 'excludeTitle', 'name', 'keyword', 'search', 'franchiseName', 'genre', 'tag', 'actor', 'director', 'studio', 'network', 'contentRating', 'topic'].includes(k)) {
           // Check if it's a numeric string (integer)
           if (/^-?\d+$/.test(v)) {
             return [k, parseInt(v, 10)]

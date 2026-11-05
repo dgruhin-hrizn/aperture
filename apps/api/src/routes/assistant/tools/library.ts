@@ -1,3 +1,4 @@
+import type { ToolSet } from 'ai'
 /**
  * Library statistics tools with Tool UI output schemas
  */
@@ -54,7 +55,7 @@ function rankingTitleKey(
   }
 }
 
-export function createLibraryTools(ctx: ToolContext) {
+export function createLibraryTools(ctx: ToolContext): ToolSet {
   return {
     getContentRankings: tool({
       description:

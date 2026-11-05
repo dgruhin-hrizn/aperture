@@ -13,6 +13,7 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createGroq } from '@ai-sdk/groq'
 import { createDeepSeek } from '@ai-sdk/deepseek'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
+import { huggingFaceEmbeddings } from './huggingFaceEmbeddings.js'
 import { createHuggingFace } from '@ai-sdk/huggingface'
 import type { LanguageModel, EmbeddingModel } from 'ai'
 import { getSystemSetting, setSystemSetting } from '../settings/systemSettings.js'
@@ -235,7 +236,9 @@ function createProviderInstance(providerConfig: ProviderConfig): unknown {
       const ollamaFetch: typeof fetch = (url, options) => {
         return fetch(url, {
           ...options,
-          signal: AbortSignal.timeout(300000), // 5 minute timeout
+          signal: options?.signal
+            ? AbortSignal.any([options.signal, AbortSignal.timeout(300000)])
+            : AbortSignal.timeout(300000),
         })
       }
 
@@ -299,7 +302,7 @@ function createProviderInstance(providerConfig: ProviderConfig): unknown {
 /**
  * Get an embedding model instance for the configured provider
  */
-export async function getEmbeddingModelInstance(): Promise<EmbeddingModel<string>> {
+export async function getEmbeddingModelInstance(): Promise<EmbeddingModel> {
   const config = await getFunctionConfig('embeddings')
 
   if (!config) {
@@ -334,8 +337,7 @@ export async function getEmbeddingModelInstance(): Promise<EmbeddingModel<string
       return (provider as any).embedding(modelId)
 
     case 'huggingface':
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (provider as any).textEmbeddingModel(modelId)
+      return huggingFaceEmbeddings(config)
 
     default:
       throw new Error(`Provider ${config.provider} does not support embeddings`)

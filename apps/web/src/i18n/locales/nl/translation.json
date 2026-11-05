@@ -349,6 +349,10 @@
         "globalIntegrations": {
           "title": "Integraties",
           "description": "Synchroniseer met Trakt en update AI-prijsgegevens"
+        },
+        "mediaImport": {
+          "title": "Import from media server",
+          "description": "Import users, catalog, and watch history. These jobs use no AI tokens."
         }
       },
       "jobNames": {
@@ -1671,7 +1675,12 @@
     "symlinkWarningTitle": "Belangrijk:",
     "symlinkWarningBody": "Symlinks vereisen dat Aperture toegang heeft tot uw mediabestanden via exact dezelfde paden die uw mediaserver gebruikt. Als u Aperture in Docker gebruikt, zorg er dan voor dat de volumemounts overeenkomen.",
     "saving": "Besparing…",
-    "saveChanges": "Wijzigingen opslaan"
+    "saveChanges": "Wijzigingen opslaan",
+    "publishMode": "Media server output",
+    "publishLibrary": "Generated library",
+    "publishPlaylist": "Private Emby playlist (preview)",
+    "publishPlaylistHelp": "Playlists use the original Emby items. Each recipient must sign into Aperture with Emby before the next library sync.",
+    "publishOff": "Off (remove generated output)"
   },
   "settingsMdblistSelector": {
     "placeholderClick": "Klik om een ​​lijst te selecteren…",
@@ -1863,7 +1872,9 @@
         "decrease": "Kan soortgelijke items clusteren als ze allemaal goed scoren.",
         "example": "Hoge diversiteit voorkomt dat je 10 Marvel-films op rij krijgt, zelfs als de gebruiker er dol op is."
       }
-    }
+    },
+    "repeatCooldownDays": "Repeat suggestion cooldown (days)",
+    "repeatCooldownHelp": "After the cooldown, returning titles can take up to 20% of the requested slots, with one slot allowed for small lists."
   },
   "settingsWatching": {
     "title": "Laat zien waar je naar kijkt",
@@ -3700,5 +3711,122 @@
     "forYou": "Voor jou",
     "yourLibrary": "Je bibliotheek",
     "activity": "Activiteit"
+  },
+  "tonight": {
+    "title": "Tonight",
+    "subtitle": "Pick up where you left off, or find something to watch next.",
+    "continueWatching": "Continue Watching",
+    "picks": "Tonight’s picks",
+    "openInEmby": "Open in Emby",
+    "snooze": "Not tonight",
+    "snoozeTitle": "Hide {{title}} from Tonight for 12 hours",
+    "snoozed": "Pick hidden from Tonight for 12 hours.",
+    "snoozeError": "Could not hide this pick. Refresh Tonight and try again.",
+    "openTitle": "Open {{title}} in Emby",
+    "minutes_one": "{{count}} min",
+    "minutes_other": "{{count}} min",
+    "minutesLeft_one": "{{count}} min left",
+    "minutesLeft_other": "{{count}} min left",
+    "progress": "Playback progress for {{title}}",
+    "noResume": "No in-progress titles are available from your synced Emby libraries.",
+    "noPicks": "No saved recommendations are available to play in Emby yet.",
+    "loading": "Loading Tonight",
+    "error": "Could not load Tonight. Check your Emby connection or sign in again.",
+    "signIn": "Sign in to Aperture with Emby to see your Continue Watching list and picks.",
+    "embyOnly": "Tonight is available with an Emby media server."
+  },
+  "embyHomePins": {
+    "title": "Emby Home",
+    "description": "Pin a private AI Picks playlist to your Emby Home screen. Unpin removes the shelf and keeps the playlist.",
+    "pin": "Pin to Emby Home",
+    "unpin": "Unpin from Emby Home",
+    "manageInEmby": "Already on Home · manage in Emby",
+    "error": "Could not load Emby Home."
+  },
+  "releaseHighlights": {
+    "saveError": "Aperture could not save your dismissal. Try again.",
+    "admin": {
+      "title": "What’s new for Aperture admins",
+      "action": "Open output settings",
+      "groups": {
+        "title": "Group Emby TV sources",
+        "body": "Under Settings → Setup → Media Server, open the TV Shows library tab to map sources to named outputs. Run TV recommendations and TV library sync after saving."
+      },
+      "outputs": {
+        "title": "Choose how to publish AI Picks",
+        "body": "Under AI Recommendations → Output, choose a generated library, private Emby playlist preview, or Off for movies and TV separately. Off removes the managed output. Emby playlist recipients must sign in to Aperture with Emby first."
+      },
+      "cooldown": {
+        "title": "Control when picks can return",
+        "body": "Under AI Recommendations → Algorithm, set the movie and TV cooldowns. Both default to 180 days. Each list limits returning titles after the cooldown."
+      },
+      "jobs": {
+        "title": "Import without using AI tokens",
+        "body": "Admin → Jobs separates import, publishing, and AI processing. Import Media Server syncs users, the catalog, and watch history without generating or publishing picks."
+      }
+    },
+    "user": {
+      "title": "What’s new in your AI Picks",
+      "action": "Open AI Picks",
+      "freshness": {
+        "title": "Fewer repeat picks",
+        "body": "Recently suggested movies and shows take a break. Older picks can return gradually, leaving room for more titles you haven’t been suggested."
+      },
+      "exploration": {
+        "title": "More variety in movie recommendations",
+        "body": "Movie picks can make room for well-rated films outside your most-watched genres. Shared themes and your ratings also help shape the list."
+      },
+      "playback": {
+        "title": "New ways to find your picks in Emby",
+        "body": "If your admin enables them, you may see separate TV groups or private playlists. The playlist preview opens original Emby items, keeping playback attached to those items."
+      }
+    }
+  },
+  "encore": {
+    "open": "Ask Encore",
+    "subtitle": "Your personal movie and TV consultant",
+    "eyebrow": "A little less browsing. A lot more watching.",
+    "welcome": "What are we watching next?",
+    "intro": "Find your next favorite, explore your collection, and get a thoughtful recommendation that fits your evening.",
+    "newConversation": "New conversation",
+    "conversations": "Your conversations",
+    "rename": "Rename conversation",
+    "delete": "Delete conversation",
+    "retry": "Try again",
+    "toolWorking": "Checking your collection…",
+    "toolComplete": "Collection checked",
+    "placeholder": "Ask about a movie, a mood, or your next night in…",
+    "send": "Send message",
+    "stop": "Stop response",
+    "thinking": "Encore is working…",
+    "footer": "Personal recommendations, grounded in your collection.",
+    "prompts": {
+      "tonight": "I have 90 minutes. What should I watch tonight?",
+      "discover": "Find a hidden gem I haven’t watched.",
+      "taste": "What have you learned about my movie and TV taste?",
+      "similar": "Find something atmospheric and thought-provoking."
+    },
+    "tools": {
+      "searchContent": "Searched your collection",
+      "semanticSearch": "Matched your mood",
+      "findSimilarContent": "Found similar titles",
+      "getMyRecommendations": "Your personal picks",
+      "getWatchHistory": "Checked your watch history",
+      "getContentDetails": "Title details",
+      "getLibraryStats": "Your collection at a glance",
+      "getUserRatings": "Your ratings",
+      "getTopRated": "Highly rated in your collection",
+      "getUnwatched": "Still to discover",
+      "searchPeople": "People and filmography",
+      "getTopStudios": "Your studios and networks",
+      "getContentRankings": "Collection rankings",
+      "getAvailableGenres": "Genres in your collection",
+      "searchByKeyword": "Themes and keywords",
+      "getFranchises": "Your franchises",
+      "getAwardWinners": "Award-winning titles",
+      "getTopByRtScore": "Critics’ favorites",
+      "getFranchiseProgress": "Franchise progress",
+      "getSystemHelp": "Aperture help"
+    }
   }
 }

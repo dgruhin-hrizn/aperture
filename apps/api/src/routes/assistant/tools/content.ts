@@ -1,3 +1,4 @@
+import type { ToolSet } from 'ai'
 /**
  * Content details tool with Tool UI output schema
  */
@@ -9,7 +10,7 @@ import type { ToolContext } from '../types.js'
 import { buildPlayLink } from '../helpers/mediaServer.js'
 import type { ContentDetail } from '../schemas/index.js'
 
-export function createContentTools(ctx: ToolContext) {
+export function createContentTools(ctx: ToolContext): ToolSet {
   return {
     getContentDetails: tool({
       description:

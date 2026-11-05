@@ -1,3 +1,4 @@
+import type { ToolSet } from 'ai'
 /**
  * Watch history and ratings tools with Tool UI output schemas
  */
@@ -9,7 +10,7 @@ import { buildPlayLink } from '../helpers/mediaServer.js'
 import type { ContentItem } from '../schemas/index.js'
 import type { ToolContext } from '../types.js'
 
-export function createHistoryTools(ctx: ToolContext) {
+export function createHistoryTools(ctx: ToolContext): ToolSet {
   return {
     getWatchHistory: tool({
       description: 'Get the user\'s watch history. Use for "what have I watched", "my history".',

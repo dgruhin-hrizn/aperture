@@ -62,7 +62,7 @@ export function ContentCarousel({ data, onPlay }: ContentCarouselProps) {
       <Box sx={{ my: 2, width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
         <Box sx={{ mb: 1.5 }}>
           {resolvedTitle && (
-            <Typography variant="subtitle1" fontWeight={600} sx={{ color: '#e4e4e7' }}>
+            <Typography variant="subtitle1" fontWeight={600} sx={{ color: 'text.primary' }}>
               {resolvedTitle}
             </Typography>
           )}
@@ -82,7 +82,7 @@ export function ContentCarousel({ data, onPlay }: ContentCarouselProps) {
       {hasHeader && (
         <Box sx={{ mb: 1.5 }}>
           {resolvedTitle && (
-            <Typography variant="subtitle1" fontWeight={600} sx={{ color: '#e4e4e7' }}>
+            <Typography variant="subtitle1" fontWeight={600} sx={{ color: 'text.primary' }}>
               {resolvedTitle}
             </Typography>
           )}
