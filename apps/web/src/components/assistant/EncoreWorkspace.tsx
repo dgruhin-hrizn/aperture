@@ -72,7 +72,7 @@ export default function EncoreWorkspace({
         flexDirection: 'column',
         height: '100%',
         minHeight: 0,
-        bgcolor: 'background.paper',
+        bgcolor: mobile ? 'background.default' : 'background.paper',
       }}
     >
       <Box
@@ -83,7 +83,7 @@ export default function EncoreWorkspace({
           px: { xs: 2, md: 3 },
           pt: mobile ? 'calc(env(safe-area-inset-top, 0px) + 12px)' : 2,
           pb: mobile ? 1 : 1.5,
-          borderBottom: 1,
+          borderBottom: mobile ? 0 : 1,
           borderColor: 'divider',
         }}
       >
@@ -98,7 +98,7 @@ export default function EncoreWorkspace({
               placeItems: 'center',
               width: 36,
               height: 36,
-              borderRadius: 2.5,
+              borderRadius: mobile ? '50%' : 2.5,
               bgcolor: 'primary.main',
               color: 'primary.contrastText',
               flexShrink: 0,

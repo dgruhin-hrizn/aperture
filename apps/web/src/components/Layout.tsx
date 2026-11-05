@@ -43,9 +43,11 @@ export function Layout() {
         mobile
           ? {
               '--ap-header-height': { xs: '57px', sm: '65px' },
+              '--ap-dock-height': '68px',
+              '--ap-dock-rise': '16px',
               '--ap-nav-height': viewport?.keyboard
                 ? '0px'
-                : 'calc(73px + env(safe-area-inset-bottom, 0px))',
+                : 'calc(var(--ap-dock-height) + var(--ap-dock-rise) + max(12px, env(safe-area-inset-bottom, 0px)))',
               '--ap-content-height':
                 'calc(var(--ap-viewport-height, 100dvh) - var(--ap-header-height) - var(--ap-nav-height) - env(safe-area-inset-top, 0px))',
               '--ap-layout-inset': '-16px',

@@ -13,7 +13,9 @@ Mobile opens into Encore, with five primary destinations at the bottom: Discover
 
 ## Interaction and layout
 
-The mobile shell owns the visible viewport, a compact header and safe-area-aware bottom navigation. Its page pane scrolls independently; browser Back restores its prior scroll position. The Media Graph sizes itself to the available pane rather than extending beneath navigation.
+The mobile shell owns the visible viewport, a compact header and a floating capsule dock. Four quiet, labelled destinations surround a raised circular Encore action. A shared set of line icons, a translucent surface and a fine rim give the dock its own shape without a full-width background strip or rectangular selection tiles. The Encore action retains its accessible name, current-page state and working indicator.
+
+The dock respects safe areas, has at least 44px touch targets and reserves room for the composer and page content. Its width is capped in landscape; reduced-motion preferences disable press transitions. The page pane scrolls independently; browser Back restores its prior scroll position. The Media Graph sizes itself to the available pane rather than extending beneath navigation.
 
 The software keyboard can shrink the visible area without shrinking the layout viewport. The shell follows `visualViewport` resize/scroll and focus events, keeps the composer in the usable area and hides the bottom bar while typing. Pinch zoom remains enabled and is not treated as a keyboard. [VisualViewport reference](https://developer.mozilla.org/en-US/docs/Web/API/VisualViewport).
 

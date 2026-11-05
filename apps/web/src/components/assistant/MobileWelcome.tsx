@@ -59,12 +59,12 @@ export function MobileWelcome() {
               alignItems: 'flex-start',
               textAlign: 'start',
               p: 1.75,
-              borderRadius: 3.5,
+              borderRadius: '24px',
               borderColor: 'divider',
               textTransform: 'none',
               color: 'text.primary',
               minHeight: 116,
-              bgcolor: 'background.default',
+              bgcolor: 'background.paper',
               lineHeight: 1.4,
             }}
           >

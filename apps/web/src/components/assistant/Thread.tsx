@@ -130,7 +130,8 @@ function AssistantMessage() {
 }
 
 function Composer() {
-  const { t } = useTranslation()
+  const { t } = useTranslation(),
+    mobile = useMediaQuery(useTheme().breakpoints.down('md'))
   return (
     <Box
       sx={{
@@ -151,8 +152,8 @@ function Composer() {
             alignItems: 'flex-end',
             gap: 1,
             p: 1.25,
-            borderRadius: 4,
-            bgcolor: 'background.default',
+            borderRadius: { xs: '28px', md: 4 },
+            bgcolor: { xs: 'background.paper', md: 'background.default' },
             '& textarea': { maxHeight: 144, overflowY: 'auto' },
             '&:focus-within': {
               borderColor: 'primary.main',
@@ -161,7 +162,7 @@ function Composer() {
           }}
         >
           <ComposerPrimitive.Input
-            placeholder={t('encore.placeholder')}
+            placeholder={t(mobile ? 'encore.open' : 'encore.placeholder')}
             aria-label={t('encore.placeholder')}
             rows={1}
             enterKeyHint="send"
