@@ -6,6 +6,7 @@
 
 import { query, queryOne } from './db.js'
 import { createChildLogger } from './logger.js'
+import { getLibraryTypeLabel, processLibraryTitle } from './libraryTitles.js'
 import {
   isValidAppLocale,
   type AppLocaleCode,
@@ -289,74 +290,41 @@ export async function getEffectiveAiExplanationSetting(userId: string): Promise<
 // Library Title Template Processing
 // ============================================================================
 
-export interface TitleTemplateContext {
-  username: string
-  type: 'Movies' | 'TV Series'
-  count?: number
-  date?: string
-}
-
-/**
- * Process a library title template by replacing merge tags with actual values
- *
- * Supported tags:
- * - {{username}} - User's display name
- * - {{type}} - Media type ('Movies' or 'TV Series')
- * - {{count}} - Number of recommendations (optional)
- * - {{date}} - Date of last recommendation run (optional)
- */
-export function processLibraryTitle(template: string, context: TitleTemplateContext): string {
-  return (
-    template
-      .replace(/\{\{username\}\}/gi, context.username)
-      .replace(/\{\{type\}\}/gi, context.type)
-      .replace(/\{\{count\}\}/gi, context.count !== undefined ? String(context.count) : '')
-      .replace(/\{\{date\}\}/gi, context.date || '')
-      // Clean up any leftover empty segments (e.g., "Title -  " becomes "Title")
-      .replace(/\s+-\s*$/g, '')
-      .replace(/\s+\(\s*\)/g, '')
-      .trim()
-  )
-}
-
-/**
- * Get the effective library title for a user
- *
- * Priority:
- * 1. User's custom library name (if set)
- * 2. Global template with merge tags replaced
- */
-export async function getEffectiveLibraryTitle(
+/** Resolve settings once when publishing several recommendation groups. */
+export async function getLibraryTitleRenderer(
   userId: string,
   displayName: string,
   mediaType: 'movies' | 'series',
   count?: number
-): Promise<string> {
-  // Check for user's custom library name
+): Promise<(group?: string) => string> {
   const settings = await getUserSettings(userId)
+  const custom = mediaType === 'movies' ? settings.libraryName : settings.seriesLibraryName
+  if (custom) return group => group ? `${custom} – ${group}` : custom
 
-  if (mediaType === 'movies' && settings.libraryName) {
-    return settings.libraryName
-  }
-
-  if (mediaType === 'series' && settings.seriesLibraryName) {
-    return settings.seriesLibraryName
-  }
-
-  // Use global template
   const { getLibraryTitleConfig } = await import('../settings/systemSettings.js')
-  const titleConfig = await getLibraryTitleConfig()
-
-  const template = mediaType === 'movies' ? titleConfig.moviesTemplate : titleConfig.seriesTemplate
-
-  const context: TitleTemplateContext = {
+  const [config, locale] = await Promise.all([
+    getLibraryTitleConfig(),
+    resolveEffectiveUiLanguage(userId),
+  ])
+  const template = mediaType === 'movies' ? config.moviesTemplate : config.seriesTemplate
+  const context = {
     username: displayName,
-    type: mediaType === 'movies' ? 'Movies' : 'TV Series',
+    type: getLibraryTypeLabel(mediaType, locale),
     count,
     date: new Date().toISOString().split('T')[0],
   }
+  return group => processLibraryTitle(template, { ...context, group })
+}
 
-  return processLibraryTitle(template, context)
+export async function getEffectiveLibraryTitle(
+  userId: string,
+  displayName: string,
+  mediaType: 'movies' | 'series',
+  count?: number,
+  group?: string
+): Promise<string> {
+  const render = await getLibraryTitleRenderer(userId, displayName, mediaType, count)
+  return render(group)
 }
 
 // ============================================================================

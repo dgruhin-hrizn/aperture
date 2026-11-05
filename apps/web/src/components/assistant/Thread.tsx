@@ -13,6 +13,9 @@ import {
 } from '@assistant-ui/react'
 import { useTranslation } from 'react-i18next'
 import { ToolResult } from './ToolResult'
+import { NextReplies } from './NextReplies'
+import { composerActionSx } from './composerStyles'
+import { WebSearchSource, WebSearchToggle, type WebSearchControl } from './WebSearchControls'
 
 function Welcome() {
   const { t } = useTranslation()
@@ -71,17 +74,20 @@ function Welcome() {
 function UserMessage() {
   return (
     <MessagePrimitive.Root>
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', py: 1.5 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', py: { xs: 1.25, md: 1.5 } }}>
         <Paper
           elevation={0}
           sx={{
-            px: 2.5,
-            py: 1.5,
+            px: { xs: 1.75, md: 2.5 },
+            py: { xs: 1.125, md: 1.5 },
+            fontSize: { xs: 16, md: 'inherit' },
+            lineHeight: { xs: 1.5, md: 'inherit' },
             maxWidth: '85%',
             borderRadius: '22px 22px 5px 22px',
             bgcolor: 'primary.main',
             color: 'primary.contrastText',
             overflowWrap: 'anywhere',
+            '& p': { my: { xs: 0, md: undefined }, lineHeight: { xs: 'inherit', md: undefined } },
           }}
         >
           <MessagePrimitive.Content />
@@ -94,7 +100,7 @@ function UserMessage() {
 function AssistantMessage() {
   return (
     <MessagePrimitive.Root>
-      <Box sx={{ display: 'flex', gap: { xs: 0, md: 2 }, py: { xs: 1, md: 2 }, minWidth: 0 }}>
+      <Box sx={{ display: 'flex', gap: { xs: 0, md: 2 }, py: { xs: 1.25, md: 2 }, minWidth: 0 }}>
         <Box
           sx={{
             display: { xs: 'none', md: 'block' },
@@ -116,7 +122,11 @@ function AssistantMessage() {
             gap: 1.5,
             overflowWrap: 'anywhere',
             '&& > *': { my: 0 },
-            '& p': { lineHeight: 1.85, m: 0 },
+            fontSize: { xs: 16, md: 'inherit' },
+            lineHeight: { xs: 1.625, md: 'inherit' },
+            '& p': { lineHeight: { xs: 1.625, md: 1.85 }, m: 0 },
+            '& ol, & ul': { paddingInlineStart: { xs: '1.35em', md: undefined } },
+            '& li + li': { mt: { xs: 0.5, md: 0 } },
             '& a': { color: 'primary.main' },
             '& pre': { whiteSpace: 'pre-wrap' },
           }}
@@ -124,6 +134,7 @@ function AssistantMessage() {
           <MessagePrimitive.Content
             components={{
               Text: ({ text }) => <ReactMarkdown>{text}</ReactMarkdown>,
+              Source: WebSearchSource,
               tools: {
                 Fallback: ({ toolName, result, isError, status }) => (
                   <ToolResult
@@ -136,13 +147,14 @@ function AssistantMessage() {
               },
             }}
           />
+          <NextReplies />
         </Box>
       </Box>
     </MessagePrimitive.Root>
   )
 }
 
-function Composer() {
+function Composer({ webSearch }: { webSearch: WebSearchControl }) {
   const { t } = useTranslation(),
     mobile = useMediaQuery(useTheme().breakpoints.down('md'))
   return (
@@ -165,8 +177,8 @@ function Composer() {
             display: 'flex',
             alignItems: 'flex-end',
             gap: 1,
-            p: 1.25,
-            borderRadius: { xs: '28px', md: 4 },
+            p: { xs: 1, md: 1.25 },
+            borderRadius: { xs: '32px', md: 4 },
             bgcolor: { xs: 'background.paper', md: 'background.default' },
             '& textarea': { maxHeight: 144, overflowY: 'auto' },
             '&:focus-within': {
@@ -175,6 +187,7 @@ function Composer() {
             },
           }}
         >
+          <WebSearchToggle {...webSearch} />
           <ComposerPrimitive.Input
             placeholder={t(mobile ? 'encore.open' : 'encore.placeholder')}
             aria-label={t('encore.placeholder')}
@@ -182,14 +195,17 @@ function Composer() {
             enterKeyHint="send"
             style={{
               width: '100%',
+              minWidth: 0,
+              boxSizing: 'border-box',
               resize: 'none',
               background: 'transparent',
               border: 0,
               outline: 'none',
               color: 'inherit',
               font: 'inherit',
-              padding: '8px 10px',
+              padding: '10px 4px',
               fontSize: 16,
+              lineHeight: '24px',
             }}
           />
           <ThreadPrimitive.If running={false}>
@@ -198,6 +214,7 @@ function Composer() {
                 aria-label={t('encore.send')}
                 color="primary"
                 sx={{
+                  ...composerActionSx,
                   bgcolor: 'primary.main',
                   color: 'primary.contrastText',
                   '&:hover': { bgcolor: 'primary.dark' },
@@ -209,7 +226,7 @@ function Composer() {
           </ThreadPrimitive.If>
           <ThreadPrimitive.If running>
             <ComposerPrimitive.Cancel asChild>
-              <IconButton aria-label={t('encore.stop')} color="primary">
+              <IconButton aria-label={t('encore.stop')} color="primary" sx={composerActionSx}>
                 <StopRoundedIcon />
               </IconButton>
             </ComposerPrimitive.Cancel>
@@ -227,7 +244,7 @@ function Composer() {
   )
 }
 
-export function Thread() {
+export function Thread({ webSearch }: { webSearch: WebSearchControl }) {
   const { t } = useTranslation()
   const empty = useAuiState((state) => state.thread.messages.length === 0)
   return (
@@ -253,7 +270,7 @@ export function Thread() {
           </ThreadPrimitive.If>
         </Box>
       </ThreadPrimitive.Viewport>
-      <Composer />
+      <Composer webSearch={webSearch} />
     </ThreadPrimitive.Root>
   )
 }

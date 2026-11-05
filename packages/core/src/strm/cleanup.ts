@@ -123,7 +123,7 @@ async function removeStrmLibraryRecords(
     for (const row of rows) {
       try {
         const library = libraries.find((lib) => lib.id === row.provider_library_id)
-        if (library) await provider.deleteVirtualLibrary(apiKey, library.name)
+        if (library) await provider.deleteVirtualLibrary(apiKey, library)
         ids.push(row.id)
       } catch (err) {
         logger.warn({ err, userId: user.id, name: row.name }, 'Could not delete virtual library; will retry cleanup')

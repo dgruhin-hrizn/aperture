@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
+import { getLibraryTypeLabel, processLibraryTitle } from '@aperture/core/library-titles'
 import {
   Box,
   Typography,
@@ -49,7 +50,7 @@ const RECOMMENDED_DIMENSIONS = {
 }
 
 export function LibraryTitlesSection() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [config, setConfig] = useState<LibraryTitleConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -217,16 +218,14 @@ export function LibraryTitlesSection() {
     updateConfig({ [field]: currentValue + tag })
   }
 
-  const previewTitle = (template: string, typeLabel: string) => {
-    return template
-      .replace(/\{\{username\}\}/gi, 'John')
-      .replace(/\{\{type\}\}/gi, typeLabel)
-      .replace(/\{\{count\}\}/gi, '20')
-      .replace(/\{\{date\}\}/gi, new Date().toISOString().split('T')[0])
-      .replace(/\s+-\s*$/g, '')
-      .replace(/\s+\(\s*\)/g, '')
-      .trim()
-  }
+  const previewTitle = (template: string, mediaType: 'movies' | 'series', group?: string) =>
+    processLibraryTitle(template, {
+      username: 'John',
+      type: getLibraryTypeLabel(mediaType, i18n.resolvedLanguage),
+      count: 20,
+      date: new Date().toISOString().split('T')[0],
+      group,
+    })
 
   if (loading) {
     return (
@@ -329,7 +328,7 @@ export function LibraryTitlesSection() {
                   sx={{ mb: 1 }}
                 />
                 <Stack direction="row" gap={0.5} flexWrap="wrap" mb={1}>
-                  {config.supportedMergeTags.map((tag) => (
+                  {config.supportedMergeTags.filter(tag => tag.tag !== '{{group}}').map((tag) => (
                     <Chip
                       key={`movies-${tag.tag}`}
                       label={tag.tag}
@@ -346,7 +345,7 @@ export function LibraryTitlesSection() {
                 </Stack>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
                   {t('settingsLibraryTitles.previewLabel')}{' '}
-                  <strong>{previewTitle(config.moviesTemplate, t('settingsLibraryTitles.previewMovies'))}</strong>
+                  <strong>{previewTitle(config.moviesTemplate, 'movies')}</strong>
                 </Typography>
 
                 {/* Cover Image */}
@@ -409,8 +408,8 @@ export function LibraryTitlesSection() {
                   ))}
                 </Stack>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-                  {t('settingsLibraryTitles.previewLabel')}{' '}
-                  <strong>{previewTitle(config.seriesTemplate, t('settingsLibraryTitles.previewTvSeries'))}</strong>
+                  {t('settingsLibraryTitles.previewGroupLabel')}{' '}
+                  <strong>{previewTitle(config.seriesTemplate, 'series', 'Anime')}</strong>
                 </Typography>
 
                 {/* Cover Image */}

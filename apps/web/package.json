@@ -1,6 +1,6 @@
 {
   "name": "@aperture/web",
-  "version": "0.8.0-dev.7.3",
+  "version": "0.8.0-dev.8",
   "private": true,
   "type": "module",
   "scripts": {

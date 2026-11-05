@@ -24,9 +24,10 @@ const logger = createChildLogger('strm-series-library')
 export async function getUserSeriesLibraryName(
   userId: string,
   displayName: string,
-  _config: StrmConfig
+  _config: StrmConfig,
+  groupName?: string
 ): Promise<string> {
-  return getEffectiveLibraryTitle(userId, displayName, 'series')
+  return getEffectiveLibraryTitle(userId, displayName, 'series', undefined, groupName)
 }
 
 /**
@@ -50,8 +51,7 @@ export async function ensureUserSeriesLibrary(
   const { getUserFolderName } = await import('../filenames.js')
   const userFolder = getUserFolderName(displayName, providerUserId)
 
-  const baseName = await getUserSeriesLibraryName(userId, displayName, config)
-  const libraryName = group ? `${baseName} – ${group.name}` : baseName
+  const libraryName = await getUserSeriesLibraryName(userId, displayName, config, group?.name)
   const groupId = group?.id ?? null
   const outputFolder = group ? `${userId}-group-${group.id}` : userFolder
   // Library path includes 'aperture-tv' subfolder for AI series recommendations
@@ -81,7 +81,7 @@ export async function ensureUserSeriesLibrary(
   // If the managed name changed, remove only the library we previously created.
   if (dbRecord && dbRecord.name !== libraryName && !existingLib) {
     const previous = libraries.find((lib) => lib.id === dbRecord.provider_library_id)
-    if (previous) await provider.deleteVirtualLibrary(apiKey, previous.name)
+    if (previous) await provider.deleteVirtualLibrary(apiKey, previous)
     logger.info({ userId, oldName: dbRecord.name, newName: libraryName }, 'Series library name changed, clearing old record')
     await query(
       `DELETE FROM strm_libraries WHERE user_id = $1 AND media_type = 'series'

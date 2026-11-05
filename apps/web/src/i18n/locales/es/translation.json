@@ -2195,7 +2195,8 @@
     "previewMovies": "Cine",
     "previewTvSeries": "Series de TV",
     "saving": "Ahorro…",
-    "saveTemplates": "Guardar plantillas"
+    "saveTemplates": "Guardar plantillas",
+    "previewGroupLabel": "Grouped TV example"
   },
   "connectionTypes": {
     "director": "Mismo director",
@@ -4075,7 +4076,14 @@
     "nextEpisodes": "Your next episodes",
     "episodeAvailability": "Synchronized episode metadata. Planning rechecks live availability and progress.",
     "noNextEpisodes": "No synchronized unwatched episodes found for this show.",
-    "franchiseTruncated": "This view is limited to the first 200 accessible titles."
+    "franchiseTruncated": "This view is limited to the first 200 accessible titles.",
+    "webSearch": "Web search",
+    "webSearchChecking": "Checking web search support",
+    "webSearchOff": "Turn on web search for this conversation",
+    "webSearchOn": "Web search is on. Public lookups use your configured OpenAI provider.",
+    "webSearchUnavailable": "Web search requires a compatible OpenAI chat model.",
+    "webSearchWorking": "Searching the web…",
+    "nextReplies": "Suggested replies"
   },
   "mobile": {
     "primaryNavigation": "Primary navigation",

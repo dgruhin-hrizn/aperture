@@ -1,4 +1,5 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useAICapabilities } from '../../hooks/useAICapabilities'
 import { Alert, Box, Button } from '@mui/material'
 import { useTranslation } from 'react-i18next'
 import { useChat } from '@ai-sdk/react'
@@ -19,6 +20,9 @@ export function ChatSession({
   onComplete: () => void
 }) {
   const { t } = useTranslation()
+  const { chat: capabilities, isLoading } = useAICapabilities()
+  const [webSearch, setWebSearch] = useState(false)
+  const requestedSearch = useRef(false)
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
@@ -26,7 +30,7 @@ export function ChatSession({
         credentials: 'include',
         body: { conversationId, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
         prepareSendMessagesRequest: ({ messages, body, trigger, messageId }) => ({
-          body: { ...body, messages: messages.slice(-1), trigger, messageId },
+          body: { ...body, messages: messages.slice(-1), trigger, messageId, webSearch: requestedSearch.current },
         }),
       }),
     [conversationId]
@@ -71,7 +75,18 @@ export function ChatSession({
             {chat.error.message}
           </Alert>
         )}
-        <Thread />
+        <Thread
+          webSearch={{
+            enabled: webSearch,
+            available: capabilities.supportsWebSearch,
+            loading: isLoading,
+            running,
+            onToggle: () => {
+              requestedSearch.current = !webSearch
+              setWebSearch(!webSearch)
+            },
+          }}
+        />
       </Box>
     </AssistantRuntimeProvider>
   )

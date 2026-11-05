@@ -62,7 +62,7 @@ export async function ensureUserLibrary(
   }
   if (dbRecord && dbRecord.name !== libraryName && !existingLib) {
     const previous = libraries.find((lib) => lib.id === dbRecord.provider_library_id)
-    if (previous) await provider.deleteVirtualLibrary(apiKey, previous.name)
+    if (previous) await provider.deleteVirtualLibrary(apiKey, previous)
   }
 
   if (existingLib) {

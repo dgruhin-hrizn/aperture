@@ -15,6 +15,8 @@ Conversation history is stored on the server and restored when you return. Tool 
 
 External discovery uses TMDb; release information uses TMDb and TVmaze. Cards distinguish local results, external finds, upcoming releases and unknown availability. Regional dates are forecasts with source/freshness information, not proof that an episode is playable. Streaming-provider information is attributed to JustWatch through TMDb and does not verify your subscription.
 
+The globe beside the composer enables Web search for the open conversation when the configured OpenAI Responses model supports it. It starts off when you open a conversation. Search uses the configured provider’s billing and shows links returned by the provider. Suggested replies can appear below the latest answer. Tap one to fill the composer with an editable draft.
+
 ## Memory
 
 State a lasting preference or ask Encore to remember something. Use the Memory tab to inspect, correct, expire or forget a fact. Examples: “Remember that I avoid future-episode spoilers,” or “For this month, we only have short viewing windows.” Passing moods and another person's preferences should remain in the current request rather than becoming your permanent taste.

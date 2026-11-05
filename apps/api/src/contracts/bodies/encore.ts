@@ -9,6 +9,7 @@ export const chatBody = z.object({
     parts: z.array(z.unknown()).max(100),
   })).max(100),
   trigger: z.string().optional(),
+  webSearch: z.boolean().default(false),
   timezone: z.string().max(80).default('UTC').refine(timeZone => {
     try { new Intl.DateTimeFormat('en', { timeZone }); return true } catch { return false }
   }, 'Invalid timezone'),
