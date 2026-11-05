@@ -1,3 +1,4 @@
+import type { ToolSet } from 'ai'
 /**
  * People and studios tools with Tool UI output schemas
  */
@@ -7,7 +8,7 @@ import { z } from 'zod'
 import { query } from '../../../lib/db.js'
 import type { ToolContext } from '../types.js'
 
-export function createPeopleTools(ctx: ToolContext) {
+export function createPeopleTools(ctx: ToolContext): ToolSet {
   return {
     searchPeople: tool({
       description: 'Search for actors, directors, or writers. Returns filmography with images.',

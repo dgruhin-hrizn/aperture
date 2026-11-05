@@ -1,189 +1,88 @@
-/**
- * Chat streaming handler with AI SDK v5 + Tool UI
- * https://www.tool-ui.com/docs/quick-start
- *
- * Uses a custom stream transformer to buffer tool calls until complete,
- * avoiding issues with @assistant-ui/react expecting tool args to stream in order.
- * See: https://www.aha.io/engineering/articles/streaming-ai-responses-incomplete-json
- */
+import { randomUUID } from 'node:crypto'
 import { Readable } from 'node:stream'
-import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
-import { streamText, convertToModelMessages, stepCountIs, type UIMessage } from 'ai'
-import { getChatModelInstance, getEmbeddingModelInstance, getFunctionConfig, getActiveEmbeddingModelId, type AIFunction } from '@aperture/core'
-import { requireAuth, type SessionUser } from '../../../plugins/auth.js'
+import type { FastifyInstance } from 'fastify'
+import { ToolLoopAgent, convertToModelMessages, createUIMessageStreamResponse, toUIMessageStream, stepCountIs, type UIMessage } from 'ai'
+import { z } from 'zod'
+import { getChatModelInstance, getEmbeddingModelInstance, getActiveEmbeddingModelId } from '@aperture/core'
+import { requireAuth } from '../../../plugins/auth.js'
+import { queryOne } from '../../../lib/db.js'
 import { getMediaServerInfo, buildSystemPrompt } from '../helpers/index.js'
 import { createTools } from '../tools/index.js'
+import { claimRun, loadMessages, releaseRun, saveMessage } from '../messages.js'
 
-interface ChatBody {
-  messages: UIMessage[]
-  system?: string
-}
+const bodySchema = z.object({
+  conversationId: z.string().uuid(),
+  messages: z.array(z.object({ id: z.string().min(1).max(200), role: z.enum(['user', 'assistant']),
+    parts: z.array(z.unknown()).max(100) })).max(100),
+  trigger: z.string().optional(),
+})
 
-/**
- * Creates a TransformStream that transforms tool-input streaming events
- * into a single complete event. This fixes compatibility issues with
- * @assistant-ui/react which expects tool args to be appended in order.
- *
- * Some models (like GPT-4.1-mini) stream JSON properties in different orders,
- * breaking the "append only" assumption in assistant-ui.
- *
- * Strategy:
- * - Skip tool-input-start (we'll emit tool-input-available instead)
- * - Skip tool-input-delta (causes the argsText error)
- * - Keep tool-input-available (has complete args, frontend needs this)
- * - Keep tool-output-available (has results)
- */
-function createToolBufferingStream(): TransformStream<Uint8Array, Uint8Array> {
-  const decoder = new TextDecoder()
-  const encoder = new TextEncoder()
-
-  // Buffer for accumulating SSE data
-  let buffer = ''
-
-  return new TransformStream({
-    transform(chunk, controller) {
-      buffer += decoder.decode(chunk, { stream: true })
-
-      // Process complete SSE events (end with \n\n)
-      const events = buffer.split('\n\n')
-      // Keep the last incomplete event in the buffer
-      buffer = events.pop() || ''
-
-      for (const event of events) {
-        if (!event.trim()) continue
-
-        // Parse SSE event to get data
-        const lines = event.split('\n')
-        let eventData = ''
-
-        for (const line of lines) {
-          if (line.startsWith('data:')) {
-            eventData = line.slice(5).trim()
-          }
+export function registerChatHandler(fastify: FastifyInstance, dependencies: { getModel?: typeof getChatModelInstance } = {}) {
+  fastify.post('/api/assistant/chat', { preHandler: requireAuth, bodyLimit: 512_000 }, async (request, reply) => {
+    const parsed = bodySchema.safeParse(request.body)
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid conversation or messages', code: 'INVALID_CHAT' })
+    const user = request.user!
+    if (!user.isEnabled) return reply.code(403).send({ error: 'This account is disabled' })
+    const { conversationId, messages: incoming, trigger } = parsed.data
+    if (!await queryOne('SELECT id FROM assistant_conversations WHERE id = $1 AND user_id = $2', [conversationId, user.id]))
+      return reply.code(404).send({ error: 'Conversation not found' })
+    const runId = randomUUID()
+    if (!await claimRun(conversationId, user.id, runId))
+      return reply.code(409).send({ error: 'This conversation is already running', code: 'RUN_ACTIVE' })
+    const abort = new AbortController()
+    reply.raw.on('close', () => { if (!reply.raw.writableFinished) abort.abort() })
+    try {
+      const history = await loadMessages(conversationId)
+      let originalMessages = history
+      let responseId: string = randomUUID()
+      if (trigger === 'regenerate-message') {
+        const last = history.at(-1)
+        if (last?.role === 'assistant') { responseId = last.id; originalMessages = history.slice(0, -1) }
+      } else {
+        const last = incoming.at(-1)
+        const text = last?.parts.filter((p): p is { type: 'text'; text: string } =>
+          typeof p === 'object' && p !== null && 'type' in p && p.type === 'text' && 'text' in p && typeof p.text === 'string')
+        if (last?.role !== 'user' || !text?.length || text.some((p) => p.text.length > 20_000)) {
+          await releaseRun(conversationId, runId)
+          return reply.code(400).send({ error: 'A text message is required' })
         }
-
-        // Parse JSON data to check the type field
-        let dataType = ''
-        try {
-          const parsed = JSON.parse(eventData)
-          dataType = parsed.type || ''
-        } catch {
-          // If we can't parse, pass through
+        // Ignore fabricated client tool/system history; use the owned server transcript.
+        const message: UIMessage = { id: last.id, role: 'user', parts: text }
+        const existing = history.find((m) => m.id === message.id)
+        if (existing && JSON.stringify(existing.parts) !== JSON.stringify(message.parts)) {
+          await releaseRun(conversationId, runId)
+          return reply.code(409).send({ error: 'Message ID already exists' })
         }
-
-        // Filter out ONLY the streaming delta events
-        // - tool-input-start: SKIP (we'll use tool-input-available instead)
-        // - tool-input-delta: SKIP (causes the argsText append error)
-        // - tool-input-available: KEEP (has complete args, needed by frontend)
-        // - tool-output-available: KEEP (has results)
-        if (dataType === 'tool-input-start' || dataType === 'tool-input-delta') {
-          continue // Skip streaming events
-        }
-
-        // Emit the event
-        controller.enqueue(encoder.encode(event + '\n\n'))
+        await saveMessage(conversationId, message)
+        originalMessages = existing ? history : [...history, message]
       }
-    },
-    flush(controller) {
-      // Emit any remaining buffered data
-      if (buffer.trim()) {
-        controller.enqueue(encoder.encode(buffer))
-      }
-    },
-  })
-}
-
-export function registerChatHandler(fastify: FastifyInstance) {
-  fastify.post<{ Body: ChatBody }>(
-    '/api/assistant/chat',
-    { preHandler: requireAuth, schema: { tags: ["ai-assistant"] } },
-    async (request: FastifyRequest<{ Body: ChatBody }>, reply: FastifyReply) => {
-      const user = request.user as SessionUser
-      const { messages } = request.body
-
-      if (!messages || !Array.isArray(messages)) {
-        return reply.status(400).send({ error: 'Messages array is required' })
-      }
-
-      try {
-        const chatModel = await getChatModelInstance()
-        const embeddingModel = await getEmbeddingModelInstance()
-        const chatConfig = await getFunctionConfig('chat' as AIFunction)
-        const embeddingModelId = await getActiveEmbeddingModelId()
-        const mediaServer = await getMediaServerInfo()
-        const systemPrompt = await buildSystemPrompt(user.id, user.isAdmin)
-
-        if (!embeddingModelId) {
-          return reply.status(500).send({ error: 'Embedding model not configured' })
-        }
-
-        // Create tool context
-        const toolContext = {
-          userId: user.id,
-          isAdmin: user.isAdmin,
-          embeddingModel,
-          embeddingModelId, // Format: "provider:model" (e.g., "openai:text-embedding-3-large")
-          mediaServer,
-        }
-
-        // Create tools with context
-        const tools = createTools(toolContext)
-
-        fastify.log.info({ toolCount: Object.keys(tools).length, model: chatConfig?.model ?? 'unknown' }, 'Starting chat stream')
-
-        // Stream the response using AI SDK v5
-        // stopWhen allows the model to continue generating text after tool results
-        const result = streamText({
-          model: chatModel,
-          system: systemPrompt,
-          messages: convertToModelMessages(messages),
-          tools,
-          toolChoice: 'auto',
-          stopWhen: stepCountIs(5), // Stop after 5 steps (allows tool calls + follow-up responses)
-          onStepFinish: (step) => {
-            fastify.log.info(
-              {
-                stepKeys: Object.keys(step),
-                hasText: !!step.text,
-                textLength: step.text?.length,
-                toolCallCount: step.toolCalls?.length ?? 0,
-                toolResultCount: step.toolResults?.length ?? 0,
-              },
-              'Step finished'
-            )
-          },
-        })
-
-        // Get the UI Message Stream Response (Web Response)
-        const webResponse = result.toUIMessageStreamResponse()
-
-        // Forward status + headers to Fastify
-        reply.status(webResponse.status)
-        webResponse.headers.forEach((value: string, key: string) => reply.header(key, value))
-
-        // Pipe through the tool buffering transform to fix streaming order issues
-        // Then pipe to Node response
-        const bufferedStream = webResponse.body!.pipeThrough(createToolBufferingStream())
-        const nodeStream = Readable.fromWeb(
-          bufferedStream as Parameters<typeof Readable.fromWeb>[0]
-        )
-
-        return reply.send(nodeStream)
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error'
-        const errorStack = err instanceof Error ? err.stack : undefined
-        fastify.log.error({ err, errorMessage, errorStack }, 'Assistant chat error')
-
-        if (reply.raw.headersSent) {
-          reply.raw.end()
-          return
-        }
-
-        return reply.status(500).send({
-          error: 'Failed to process chat request',
-          message: errorMessage,
-        })
-      }
+      const [model, embeddingModel, embeddingModelId, mediaServer, instructions] = await Promise.all([
+        (dependencies.getModel ?? getChatModelInstance)(), getEmbeddingModelInstance().catch(() => null),
+        getActiveEmbeddingModelId(), getMediaServerInfo(), buildSystemPrompt(user.id, user.isAdmin),
+      ])
+      const tools = createTools({ userId: user.id, isAdmin: user.isAdmin, embeddingModel,
+        embeddingModelId: embeddingModelId ?? '', mediaServer })
+      const agent = new ToolLoopAgent({ model, tools, instructions: `${instructions}\nCurrent UTC date: ${new Date().toISOString()}.`,
+        maxOutputTokens: 4000, stopWhen: stepCountIs(12),
+        onEnd: ({ totalUsage, steps }) => request.log.info({ runId, usage: totalUsage, steps: steps.length }, 'Encore run completed'),
+      })
+      const result = await agent.stream({ messages: await convertToModelMessages(originalMessages, { tools, ignoreIncompleteToolCalls: true }),
+        abortSignal: abort.signal, timeout: 180_000 })
+      const stream = toUIMessageStream({ stream: result.stream, tools, originalMessages,
+        generateMessageId: () => responseId,
+        onError: (error) => { request.log.error({ err: error, runId }, 'Encore stream failed'); return 'Encore could not complete this response. Please retry.' },
+        onEnd: async ({ responseMessage }) => {
+          try { await saveMessage(conversationId, responseMessage) }
+          finally { await releaseRun(conversationId, runId) }
+        },
+      })
+      const response = createUIMessageStreamResponse({ stream })
+      response.headers.forEach((value, key) => reply.header(key, value))
+      return reply.send(Readable.fromWeb(response.body! as Parameters<typeof Readable.fromWeb>[0]))
+    } catch (error) {
+      await releaseRun(conversationId, runId)
+      request.log.error({ err: error, runId }, 'Encore run failed')
+      return reply.code(502).send({ error: 'Encore is unavailable. Check the configured chat provider and retry.', code: 'CHAT_UNAVAILABLE' })
     }
-  )
+  })
 }

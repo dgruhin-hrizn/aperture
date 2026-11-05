@@ -80,7 +80,7 @@ export interface MessageRow {
 export interface ToolContext {
   userId: string
   isAdmin: boolean
-  embeddingModel: EmbeddingModel<string>
+  embeddingModel: EmbeddingModel | null
   embeddingModelId: string  // Model ID string for database queries
   mediaServer: MediaServerInfo | null
 }

@@ -37,7 +37,7 @@ export function ContentDetail({ data }: ContentDetailProps) {
   }
 
   return (
-    <Paper sx={{ p: 2, bgcolor: 'var(--ap-surface-1, #1a1a1a)', borderRadius: 2, my: 2 }}>
+    <Paper sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 3, my: 2 }}>
       <Box sx={{ display: 'flex', gap: 2 }}>
         {/* Poster */}
         <Box
@@ -47,7 +47,7 @@ export function ContentDetail({ data }: ContentDetailProps) {
             flexShrink: 0,
             borderRadius: 1.5,
             overflow: 'hidden',
-            bgcolor: 'var(--ap-surface-2, #2a2a2a)',
+            bgcolor: 'action.hover',
           }}
         >
           {data.image ? (
@@ -82,7 +82,7 @@ export function ContentDetail({ data }: ContentDetailProps) {
         <Box sx={{ flex: 1, minWidth: 0 }}>
           {/* Title and type */}
           <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 0.5 }}>
-            <Typography variant="h6" fontWeight={700} sx={{ color: '#fff' }}>
+            <Typography variant="h6" fontWeight={700} sx={{ color: 'text.primary' }}>
               {data.name}
             </Typography>
             <Chip
@@ -167,8 +167,8 @@ export function ContentDetail({ data }: ContentDetailProps) {
                   size="small"
                   sx={{
                     height: 22,
-                    bgcolor: 'var(--ap-surface-2, #2a2a2a)',
-                    color: '#a1a1aa',
+                    bgcolor: 'action.hover',
+                    color: 'text.secondary',
                   }}
                 />
               ))}
@@ -209,7 +209,7 @@ export function ContentDetail({ data }: ContentDetailProps) {
               onClick={handleDetails}
               sx={{
                 borderColor: '#3a3a3a',
-                color: '#a1a1aa',
+                color: 'text.secondary',
                 '&:hover': {
                   borderColor: '#6366f1',
                   bgcolor: 'rgba(99, 102, 241, 0.1)',
@@ -240,7 +240,7 @@ export function ContentDetail({ data }: ContentDetailProps) {
       {/* Overview */}
       {data.overview && (
         <>
-          <Divider sx={{ my: 2, borderColor: 'var(--ap-surface-2, #2a2a2a)' }} />
+          <Divider sx={{ my: 2, borderColor: 'action.hover' }} />
           <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
             {data.overview}
           </Typography>
@@ -250,7 +250,7 @@ export function ContentDetail({ data }: ContentDetailProps) {
       {/* Cast */}
       {data.cast && data.cast.length > 0 && (
         <>
-          <Divider sx={{ my: 2, borderColor: 'var(--ap-surface-2, #2a2a2a)' }} />
+          <Divider sx={{ my: 2, borderColor: 'action.hover' }} />
           <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ mb: 1, display: 'block' }}>
             {t('assistantToolUi.castHeading')}
           </Typography>
