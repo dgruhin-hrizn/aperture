@@ -43,6 +43,7 @@ export function ProgressResults({ data }: { data: Record<string, unknown> }) {
     id: string
     title: string
     image: string | null
+    overview?: string
     year: number | null
     rating: number | null
     watched: boolean
@@ -54,6 +55,7 @@ export function ProgressResults({ data }: { data: Record<string, unknown> }) {
     type: 'movie',
     name: movie.title,
     image: movie.image,
+    overview: movie.overview,
     rating: movie.rating === null ? null : Number(movie.rating),
     subtitle: [
       movie.year,

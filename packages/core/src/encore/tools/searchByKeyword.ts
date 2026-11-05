@@ -1,3 +1,4 @@
+import { contentOverviewExcerpt } from './shared/search.js';
 import type { ToolSet } from 'ai';
 import { tool } from 'ai';
 import { nullSafe } from './utils.js';
@@ -22,6 +23,7 @@ searchByKeyword: tool({
           title: string
           year: number | null
           posterUrl: string | null
+          overview?: string
           providerItemId: string | null
           matchedKeywords: string[]
         }> = []
@@ -31,11 +33,12 @@ searchByKeyword: tool({
             id: string
             title: string
             year: number | null
+            overview: string | null
             poster_url: string | null
             provider_item_id: string | null
             keywords: string[]
           }>(
-            `SELECT id, title, year, poster_url, provider_item_id, keywords
+            `SELECT id, title, year, overview, poster_url, provider_item_id, keywords
              FROM movies 
              WHERE keywords IS NOT NULL 
                AND EXISTS (SELECT 1 FROM unnest(keywords) k WHERE k ILIKE $1)
@@ -51,6 +54,7 @@ searchByKeyword: tool({
               title: m.title,
               year: m.year,
               posterUrl: m.poster_url,
+              overview: contentOverviewExcerpt(m.overview),
               providerItemId: m.provider_item_id,
               matchedKeywords: m.keywords.filter((k) => k.toLowerCase().includes(keywordLower)),
             })
@@ -62,11 +66,12 @@ searchByKeyword: tool({
             id: string
             title: string
             year: number | null
+            overview: string | null
             poster_url: string | null
             provider_item_id: string | null
             keywords: string[]
           }>(
-            `SELECT id, title, year, poster_url, provider_item_id, keywords
+            `SELECT id, title, year, overview, poster_url, provider_item_id, keywords
              FROM series 
              WHERE keywords IS NOT NULL 
                AND EXISTS (SELECT 1 FROM unnest(keywords) k WHERE k ILIKE $1)
@@ -82,6 +87,7 @@ searchByKeyword: tool({
               title: s.title,
               year: s.year,
               posterUrl: s.poster_url,
+              overview: contentOverviewExcerpt(s.overview),
               providerItemId: s.provider_item_id,
               matchedKeywords: s.keywords.filter((k) => k.toLowerCase().includes(keywordLower)),
             })
@@ -98,6 +104,7 @@ searchByKeyword: tool({
             title: r.title,
             year: r.year,
             image: r.posterUrl,
+            overview: r.overview,
             detailsUrl: `/${r.type === 'movie' ? 'movies' : 'series'}/${r.id}`,
             playUrl: buildPlayLink(ctx.mediaServer, r.providerItemId, r.type),
             matchedKeywords: r.matchedKeywords,

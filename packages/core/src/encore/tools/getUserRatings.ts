@@ -1,3 +1,4 @@
+import { contentOverviewExcerpt } from './shared/search.js';
 import type { ToolSet } from 'ai';
 import { tool } from 'ai';
 import { nullSafe } from './utils.js';
@@ -35,13 +36,14 @@ getUserRatings: tool({
           id: string
           title: string
           year: number | null
+          overview: string | null
           poster_url: string | null
           genres: string[]
           community_rating: number | null
           provider_item_id: string | null
           rating: number
         }>(
-          `SELECT m.id, m.title, m.year, m.poster_url, m.genres, m.community_rating,
+          `SELECT m.id, m.title, m.year, m.overview, m.poster_url, m.genres, m.community_rating,
            m.provider_item_id, ur.rating
            FROM user_ratings ur JOIN movies m ON m.id = ur.movie_id
            ${whereClause} AND ur.movie_id IS NOT NULL
@@ -60,6 +62,7 @@ getUserRatings: tool({
             name: m.title,
             subtitle,
             image: m.poster_url,
+            overview: contentOverviewExcerpt(m.overview),
             rating: m.community_rating,
             userRating: m.rating,
             actions: [
@@ -75,13 +78,14 @@ getUserRatings: tool({
           id: string
           title: string
           year: number | null
+          overview: string | null
           poster_url: string | null
           genres: string[]
           community_rating: number | null
           provider_item_id: string | null
           rating: number
         }>(
-          `SELECT s.id, s.title, s.year, s.poster_url, s.genres, s.community_rating,
+          `SELECT s.id, s.title, s.year, s.overview, s.poster_url, s.genres, s.community_rating,
            s.provider_item_id, ur.rating
            FROM user_ratings ur JOIN series s ON s.id = ur.series_id
            ${whereClause} AND ur.series_id IS NOT NULL
@@ -100,6 +104,7 @@ getUserRatings: tool({
             name: s.title,
             subtitle,
             image: s.poster_url,
+            overview: contentOverviewExcerpt(s.overview),
             rating: s.community_rating,
             userRating: s.rating,
             actions: [

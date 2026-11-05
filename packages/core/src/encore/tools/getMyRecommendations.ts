@@ -6,7 +6,7 @@ import { query } from '../scopedDb.js';
 import { buildPlayLink } from '../helpers/mediaServer.js';
 import type { ContentItem } from '../schemas/index.js';
 import type { ToolContext, MovieResult, SeriesResult } from '../types.js';
-import { formatContentItem } from './shared/recommendations.js';
+import { formatContentItem } from './shared/search.js';
 export function createGetMyRecommendationsTool(ctx: ToolContext): ToolSet { return {
 getMyRecommendations: tool({
       description: "Get the user's current AI-generated personalized recommendations.",
@@ -24,11 +24,12 @@ getMyRecommendations: tool({
             year: number | null
             rank: number
             genres: string[]
+            overview: string | null
             poster_url: string | null
             community_rating: number | null
             provider_item_id: string | null
           }>(
-            `SELECT m.id, m.title, m.year, rc.selected_rank as rank, m.genres, m.poster_url, 
+            `SELECT m.id, m.title, m.year, rc.selected_rank as rank, m.genres, m.overview, m.poster_url,
              m.community_rating, m.provider_item_id
              FROM recommendation_candidates rc
              JOIN recommendation_runs rr ON rr.id = rc.run_id
@@ -52,11 +53,12 @@ getMyRecommendations: tool({
             year: number | null
             rank: number
             genres: string[]
+            overview: string | null
             poster_url: string | null
             community_rating: number | null
             provider_item_id: string | null
           }>(
-            `SELECT s.id, s.title, s.year, rc.selected_rank as rank, s.genres, s.poster_url,
+            `SELECT s.id, s.title, s.year, rc.selected_rank as rank, s.genres, s.overview, s.poster_url,
              s.community_rating, s.provider_item_id
              FROM recommendation_candidates rc
              JOIN recommendation_runs rr ON rr.id = rc.run_id

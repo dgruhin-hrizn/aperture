@@ -6,7 +6,7 @@ import { query } from '../scopedDb.js';
 import { buildPlayLink } from '../helpers/mediaServer.js';
 import type { ContentItem } from '../schemas/index.js';
 import type { ToolContext, MovieResult, SeriesResult } from '../types.js';
-import { formatContentItem } from './shared/recommendations.js';
+import { formatContentItem } from './shared/search.js';
 export function createGetTopRatedTool(ctx: ToolContext): ToolSet { return {
 getTopRated: tool({
       description: 'Get the highest-rated content in the library.',
@@ -31,7 +31,7 @@ getTopRated: tool({
           params.push(limit)
 
           const movies = await query<MovieResult & { provider_item_id?: string }>(
-            `SELECT id, title, year, genres, community_rating, poster_url, provider_item_id
+            `SELECT id, title, year, genres, community_rating, overview, poster_url, provider_item_id
              FROM movies ${whereClause}
              ORDER BY community_rating DESC LIMIT $${paramIndex}`,
             params
@@ -56,7 +56,7 @@ getTopRated: tool({
           params.push(limit)
 
           const series = await query<SeriesResult & { provider_item_id?: string }>(
-            `SELECT id, title, year, genres, network, community_rating, poster_url, provider_item_id
+            `SELECT id, title, year, genres, network, community_rating, overview, poster_url, provider_item_id
              FROM series ${whereClause}
              ORDER BY community_rating DESC LIMIT $${paramIndex}`,
             params

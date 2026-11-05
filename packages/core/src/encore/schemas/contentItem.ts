@@ -20,6 +20,7 @@ export const ContentItemSchema = z.object({
   source: z.string().optional(),
   sourceUrl: z.string().optional(),
   subtitle: z.string().optional().describe('Year, genres, or other info'),
+  overview: z.string().max(280).optional().describe('Short excerpt from the media synopsis'),
   image: z.string().nullable().optional().describe('Poster image URL'),
   rating: z.number().nullable().optional().describe('Community rating 0-10'),
   userRating: z.number().nullable().optional().describe('User rating 1-10'),

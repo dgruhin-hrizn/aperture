@@ -66,7 +66,7 @@ semanticSearch: tool({
             const movieResults = await query<
               MovieResult & { provider_item_id?: string; similarity: number }
             >(
-              `SELECT m.id, m.title, m.year, m.genres, m.community_rating, m.poster_url, m.provider_item_id,
+              `SELECT m.id, m.title, m.year, m.genres, m.community_rating, m.overview, m.poster_url, m.provider_item_id,
                       1 - (e.embedding <=> $1::halfvec) as similarity
                FROM ${movieTableName} e
                JOIN movies m ON m.id = e.movie_id
@@ -95,7 +95,7 @@ semanticSearch: tool({
             const seriesResults = await query<
               SeriesResult & { provider_item_id?: string; similarity: number }
             >(
-              `SELECT s.id, s.title, s.year, s.genres, s.network, s.community_rating, s.poster_url, s.provider_item_id,
+              `SELECT s.id, s.title, s.year, s.genres, s.network, s.community_rating, s.overview, s.poster_url, s.provider_item_id,
                       1 - (se.embedding <=> $1::halfvec) as similarity
                FROM ${seriesTableName} se
                JOIN series s ON s.id = se.series_id

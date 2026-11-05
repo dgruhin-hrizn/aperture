@@ -149,7 +149,7 @@ findSimilarContent: tool({
               : [movie.id, modelId, embeddingStr, limit]
 
             const similar = await query<MovieResult & { provider_item_id?: string }>(
-              `SELECT m.id, m.title, m.year, m.genres, m.community_rating, m.poster_url, m.provider_item_id
+              `SELECT m.id, m.title, m.year, m.genres, m.community_rating, m.overview, m.poster_url, m.provider_item_id
                FROM ${movieEmbeddingTable} e JOIN movies m ON m.id = e.movie_id
                WHERE e.movie_id != $1 AND e.model = $2 ${watchedFilter}
                ORDER BY e.embedding <=> $3::halfvec 
@@ -196,7 +196,7 @@ findSimilarContent: tool({
               : [series.id, modelId, embeddingStr, limit]
 
             const similar = await query<SeriesResult & { provider_item_id?: string }>(
-              `SELECT s.id, s.title, s.year, s.genres, s.network, s.community_rating, s.poster_url, s.provider_item_id
+              `SELECT s.id, s.title, s.year, s.genres, s.network, s.community_rating, s.overview, s.poster_url, s.provider_item_id
                FROM ${seriesEmbeddingTable} se 
                JOIN series s ON s.id = se.series_id
                WHERE se.series_id != $1 

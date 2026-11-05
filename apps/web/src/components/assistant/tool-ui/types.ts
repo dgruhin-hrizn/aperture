@@ -18,6 +18,7 @@ export interface ContentItem {
   sourceUrl?: string
   source?: string
   subtitle?: string
+  overview?: string
   image?: string | null
   rating?: number | null
   userRating?: number | null
@@ -80,7 +81,16 @@ export interface ContentCarouselData {
   descriptionKey?: ContentCarouselI18nKey
   titleParams?: Record<string, string | number>
   descriptionParams?: Record<string, string | number>
-  items: ContentItem[]
+  items: Array<
+    Omit<ContentItem, 'name'> & {
+      name?: string
+      title?: string
+      year?: number | null
+      value?: string
+      detailsUrl?: string
+      playUrl?: string | null
+    }
+  >
 }
 
 export interface FilmographyItem {
@@ -167,5 +177,3 @@ export interface ContentDetailData {
   lastWatched?: string | null
   actions: Action[]
 }
-
-

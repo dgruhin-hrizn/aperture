@@ -1,20 +1,20 @@
-import { Box, Button, Chip, Paper, Typography } from '@mui/material'
-import PlayArrowIcon from '@mui/icons-material/PlayArrow'
+import { Box, Chip, Paper, Typography } from '@mui/material'
 import LocalMoviesOutlinedIcon from '@mui/icons-material/LocalMoviesOutlined'
 import StarRoundedIcon from '@mui/icons-material/StarRounded'
 import { useTranslation } from 'react-i18next'
 import { useEffect, useState } from 'react'
 import { getProxiedImageUrl, FALLBACK_POSTER_URL } from '@aperture/ui'
+import { ContentCardActions } from './ContentCardActions'
 import type { ContentItem } from './types'
 
 export function ContentCard({
   item,
   onPlay,
-  compactOnMobile = false,
+  featured = false,
 }: {
   item: ContentItem
   onPlay?: (id: string, href: string) => void
-  compactOnMobile?: boolean
+  featured?: boolean
 }) {
   const { t } = useTranslation()
   const [imageFailed, setImageFailed] = useState(false)
@@ -28,7 +28,7 @@ export function ContentCard({
         width: '100%',
         minWidth: 0,
         display: 'flex',
-        flexDirection: compactOnMobile ? { xs: 'row', sm: 'column' } : 'column',
+        flexDirection: featured ? 'row' : 'column',
         borderRadius: 3,
         overflow: 'hidden',
         bgcolor: 'background.paper',
@@ -45,7 +45,7 @@ export function ContentCard({
           flexShrink: 0,
           bgcolor: 'action.hover',
           textDecoration: 'none',
-          ...(compactOnMobile && { width: { xs: 'clamp(80px, 25%, 100px)', sm: '100%' } }),
+          ...(featured && { width: { xs: 'clamp(80px, 25%, 105px)', sm: 116 } }),
         }}
       >
         {item.image ? (
@@ -61,7 +61,7 @@ export function ContentCard({
               height: '100%',
               display: 'block',
               objectFit: 'cover',
-              ...(compactOnMobile && { position: { xs: 'absolute', sm: 'static' }, inset: 0 }),
+              ...(featured && { position: 'absolute', inset: 0 }),
             }}
           />
         ) : (
@@ -74,16 +74,7 @@ export function ContentCard({
               p: 2,
             }}
           >
-            {compactOnMobile ? (
-              <>
-                <LocalMoviesOutlinedIcon sx={{ display: { xs: 'block', sm: 'none' } }} />
-                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
-                  {item.name}
-                </Box>
-              </>
-            ) : (
-              item.name
-            )}
+            <LocalMoviesOutlinedIcon aria-hidden />
           </Box>
         )}
         {item.rank && (
@@ -102,11 +93,11 @@ export function ContentCard({
       </Box>
       <Box
         sx={{
-          p: 1.5,
+          p: featured ? { xs: 1.25, sm: 1.5 } : 1.25,
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
-          gap: compactOnMobile ? { xs: 0.5, sm: 0.75 } : 0.75,
+          gap: 0.5,
           minWidth: 0,
         }}
       >
@@ -129,7 +120,8 @@ export function ContentCard({
             WebkitBoxOrient: 'vertical',
             overflow: 'hidden',
             lineHeight: '20px',
-            minHeight: compactOnMobile ? { xs: 0, sm: 40 } : 40,
+            minHeight: featured ? 0 : 40,
+            fontSize: featured ? '1rem' : undefined,
             overflowWrap: 'anywhere',
           }}
         >
@@ -139,9 +131,9 @@ export function ContentCard({
           <Box
             sx={{
               display: 'flex',
-              flexDirection: compactOnMobile ? { xs: 'row', sm: 'column' } : 'column',
-              gap: compactOnMobile ? { xs: 1, sm: 0.75 } : 0.75,
-              alignItems: compactOnMobile ? { xs: 'center', sm: 'stretch' } : 'stretch',
+              flexDirection: featured ? 'row' : 'column',
+              gap: featured ? 1 : 0.5,
+              alignItems: featured ? 'center' : 'stretch',
             }}
           >
             {item.subtitle && (
@@ -163,37 +155,30 @@ export function ContentCard({
             )}
           </Box>
         )}
-        {play?.href && (
-          <Box sx={{ mt: 'auto', pt: 0.5 }}>
-            <Button
-              size="small"
-              fullWidth
-              variant="outlined"
-              startIcon={<PlayArrowIcon />}
-              href={play.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={
-                onPlay
-                  ? (e) => {
-                      e.preventDefault()
-                      onPlay(item.id, play.href!)
-                    }
-                  : undefined
-              }
-              sx={{
-                borderRadius: 3,
-                ...(compactOnMobile && {
-                  width: { xs: 'auto', sm: '100%' },
-                  minHeight: { xs: 44, sm: 'initial' },
-                  px: { xs: 1.75, sm: 1.25 },
-                }),
-              }}
-            >
-              {t('assistantToolUi.play')}
-            </Button>
-          </Box>
+        {item.overview && (
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{
+              fontSize: featured ? '0.8125rem' : '0.75rem',
+              lineHeight: 1.35,
+              display: '-webkit-box',
+              WebkitBoxOrient: 'vertical',
+              WebkitLineClamp: 2,
+              overflow: 'hidden',
+              overflowWrap: 'anywhere',
+            }}
+          >
+            {item.overview}
+          </Typography>
         )}
+        <ContentCardActions
+          item={item}
+          detailsHref={details?.href}
+          playHref={play?.href}
+          onPlay={onPlay}
+          featured={featured}
+        />
       </Box>
     </Paper>
   )

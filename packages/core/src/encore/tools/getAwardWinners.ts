@@ -1,3 +1,4 @@
+import { contentOverviewExcerpt } from './shared/search.js';
 import type { ToolSet } from 'ai';
 import { tool } from 'ai';
 import { nullSafe } from './utils.js';
@@ -36,6 +37,7 @@ getAwardWinners: tool({
           title: string
           year: number | null
           posterUrl: string | null
+          overview?: string
           providerItemId: string | null
           awards: string
           rtScore: number | null
@@ -46,12 +48,13 @@ getAwardWinners: tool({
             id: string
             title: string
             year: number | null
+            overview: string | null
             poster_url: string | null
             provider_item_id: string | null
             awards_summary: string
             rt_critic_score: number | null
           }>(
-            `SELECT id, title, year, poster_url, provider_item_id, awards_summary, rt_critic_score
+            `SELECT id, title, year, overview, poster_url, provider_item_id, awards_summary, rt_critic_score
              FROM movies 
              WHERE awards_summary IS NOT NULL 
                AND awards_summary ~* $1
@@ -68,6 +71,7 @@ getAwardWinners: tool({
               title: m.title,
               year: m.year,
               posterUrl: m.poster_url,
+              overview: contentOverviewExcerpt(m.overview),
               providerItemId: m.provider_item_id,
               awards: m.awards_summary,
               rtScore: m.rt_critic_score,
@@ -80,12 +84,13 @@ getAwardWinners: tool({
             id: string
             title: string
             year: number | null
+            overview: string | null
             poster_url: string | null
             provider_item_id: string | null
             awards_summary: string
             rt_critic_score: number | null
           }>(
-            `SELECT id, title, year, poster_url, provider_item_id, awards_summary, rt_critic_score
+            `SELECT id, title, year, overview, poster_url, provider_item_id, awards_summary, rt_critic_score
              FROM series 
              WHERE awards_summary IS NOT NULL 
                AND awards_summary ~* $1
@@ -102,6 +107,7 @@ getAwardWinners: tool({
               title: s.title,
               year: s.year,
               posterUrl: s.poster_url,
+              overview: contentOverviewExcerpt(s.overview),
               providerItemId: s.provider_item_id,
               awards: s.awards_summary,
               rtScore: s.rt_critic_score,
@@ -123,6 +129,7 @@ getAwardWinners: tool({
             title: r.title,
             year: r.year,
             image: r.posterUrl,
+            overview: r.overview,
             detailsUrl: `/${r.type === 'movie' ? 'movies' : 'series'}/${r.id}`,
             playUrl: buildPlayLink(ctx.mediaServer, r.providerItemId, r.type),
             awards: r.awards,

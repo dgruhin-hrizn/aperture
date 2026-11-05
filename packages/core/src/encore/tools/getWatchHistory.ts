@@ -1,3 +1,4 @@
+import { contentOverviewExcerpt } from './shared/search.js';
 import type { ToolSet } from 'ai';
 import { tool } from 'ai';
 import { nullSafe } from './utils.js';
@@ -21,6 +22,7 @@ getWatchHistory: tool({
             id: string
             title: string
             year: number | null
+            overview: string | null
             poster_url: string | null
             genres: string[]
             community_rating: number | null
@@ -28,7 +30,7 @@ getWatchHistory: tool({
             last_played_at: Date
             play_count: number
           }>(
-            `SELECT m.id, m.title, m.year, m.poster_url, m.genres, m.community_rating,
+            `SELECT m.id, m.title, m.year, m.overview, m.poster_url, m.genres, m.community_rating,
              m.provider_item_id, wh.last_played_at, wh.play_count
              FROM watch_history wh JOIN movies m ON m.id = wh.movie_id
              WHERE wh.user_id = $1 AND wh.movie_id IS NOT NULL
@@ -48,6 +50,7 @@ getWatchHistory: tool({
               name: m.title,
               subtitle,
               image: m.poster_url,
+              overview: contentOverviewExcerpt(m.overview),
               rating: m.community_rating,
               actions: [
                 { id: 'details', label: 'Details', href: `/movies/${m.id}`, variant: 'secondary' },
@@ -64,6 +67,7 @@ getWatchHistory: tool({
             id: string
             title: string
             year: number | null
+            overview: string | null
             poster_url: string | null
             genres: string[]
             community_rating: number | null
@@ -71,13 +75,13 @@ getWatchHistory: tool({
             episodes_watched: string
             last_watched: Date
           }>(
-            `SELECT s.id, s.title, s.year, s.poster_url, s.genres, s.community_rating,
+            `SELECT s.id, s.title, s.year, s.overview, s.poster_url, s.genres, s.community_rating,
              s.provider_item_id, COUNT(DISTINCT wh.episode_id) as episodes_watched,
              MAX(wh.last_played_at) as last_watched
              FROM watch_history wh JOIN episodes e ON e.id = wh.episode_id
              JOIN series s ON s.id = e.series_id
              WHERE wh.user_id = $1 AND wh.episode_id IS NOT NULL
-             GROUP BY s.id, s.title, s.year, s.poster_url, s.genres, s.community_rating, s.provider_item_id 
+             GROUP BY s.id, s.title, s.year, s.overview, s.poster_url, s.genres, s.community_rating, s.provider_item_id
              ORDER BY last_watched DESC LIMIT $2`,
             [ctx.userId, limit]
           )
@@ -96,6 +100,7 @@ getWatchHistory: tool({
               name: s.title,
               subtitle,
               image: s.poster_url,
+              overview: contentOverviewExcerpt(s.overview),
               rating: s.community_rating,
               actions: [
                 { id: 'details', label: 'Details', href: `/series/${s.id}`, variant: 'secondary' },
