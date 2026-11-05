@@ -1,3 +1,4 @@
+import { contentOverviewExcerpt } from './shared/search.js';
 import type { ToolSet } from 'ai';
 import { tool } from 'ai';
 import { nullSafe } from './utils.js';
@@ -33,14 +34,16 @@ getContentRankings: tool({
               id: string
               title: string
               year: number | null
+              overview: string | null
               poster_url: string | null
               provider_item_id: string | null
               episode_count: string
             }>(
-              `SELECT s.id, s.title, s.year, s.poster_url, s.provider_item_id,
+              `SELECT s.id, s.title, s.year, s.overview, s.poster_url, s.provider_item_id,
                COUNT(e.id) as episode_count
                FROM series s LEFT JOIN episodes e ON e.series_id = s.id
-               GROUP BY s.id ORDER BY episode_count DESC LIMIT $1`,
+               GROUP BY s.id, s.title, s.year, s.overview, s.poster_url, s.provider_item_id
+               ORDER BY episode_count DESC LIMIT $1`,
               [limit]
             )
             return {
@@ -53,6 +56,7 @@ getContentRankings: tool({
                 name: r.title,
                 year: r.year,
                 image: r.poster_url,
+                overview: contentOverviewExcerpt(r.overview),
                 value: `${parseInt(r.episode_count)} episodes`,
                 detailsUrl: `/series/${r.id}`,
                 playUrl: buildPlayLink(ctx.mediaServer, r.provider_item_id, 'series'),
@@ -65,14 +69,16 @@ getContentRankings: tool({
               id: string
               title: string
               year: number | null
+              overview: string | null
               poster_url: string | null
               provider_item_id: string | null
               season_count: string
             }>(
-              `SELECT s.id, s.title, s.year, s.poster_url, s.provider_item_id,
+              `SELECT s.id, s.title, s.year, s.overview, s.poster_url, s.provider_item_id,
                COUNT(DISTINCT e.season_number) as season_count
                FROM series s LEFT JOIN episodes e ON e.series_id = s.id
-               GROUP BY s.id ORDER BY season_count DESC LIMIT $1`,
+               GROUP BY s.id, s.title, s.year, s.overview, s.poster_url, s.provider_item_id
+               ORDER BY season_count DESC LIMIT $1`,
               [limit]
             )
             return {
@@ -85,6 +91,7 @@ getContentRankings: tool({
                 name: r.title,
                 year: r.year,
                 image: r.poster_url,
+                overview: contentOverviewExcerpt(r.overview),
                 value: `${parseInt(r.season_count)} seasons`,
                 detailsUrl: `/series/${r.id}`,
                 playUrl: buildPlayLink(ctx.mediaServer, r.provider_item_id, 'series'),
@@ -98,11 +105,12 @@ getContentRankings: tool({
               id: string
               title: string
               year: number | null
+              overview: string | null
               poster_url: string | null
               provider_item_id: string | null
               community_rating: number
             }>(
-              `SELECT id, title, year, poster_url, provider_item_id, community_rating
+              `SELECT id, title, year, overview, poster_url, provider_item_id, community_rating
                FROM series WHERE community_rating IS NOT NULL
                ORDER BY community_rating ${order} LIMIT $1`,
               [limit]
@@ -117,6 +125,7 @@ getContentRankings: tool({
                 name: r.title,
                 year: r.year,
                 image: r.poster_url,
+                overview: contentOverviewExcerpt(r.overview),
                 value: `${r.community_rating} rating`,
                 detailsUrl: `/series/${r.id}`,
                 playUrl: buildPlayLink(ctx.mediaServer, r.provider_item_id, 'series'),
@@ -130,10 +139,11 @@ getContentRankings: tool({
               id: string
               title: string
               year: number | null
+              overview: string | null
               poster_url: string | null
               provider_item_id: string | null
             }>(
-              `SELECT id, title, year, poster_url, provider_item_id
+              `SELECT id, title, year, overview, poster_url, provider_item_id
                FROM series WHERE year IS NOT NULL
                ORDER BY year ${order} LIMIT $1`,
               [limit]
@@ -148,6 +158,7 @@ getContentRankings: tool({
                 name: r.title,
                 year: r.year,
                 image: r.poster_url,
+                overview: contentOverviewExcerpt(r.overview),
                 value: `${r.year}`,
                 detailsUrl: `/series/${r.id}`,
                 playUrl: buildPlayLink(ctx.mediaServer, r.provider_item_id, 'series'),
@@ -162,11 +173,12 @@ getContentRankings: tool({
               id: string
               title: string
               year: number | null
+              overview: string | null
               poster_url: string | null
               provider_item_id: string | null
               runtime_minutes: number
             }>(
-              `SELECT id, title, year, poster_url, provider_item_id, runtime_minutes
+              `SELECT id, title, year, overview, poster_url, provider_item_id, runtime_minutes
                FROM movies WHERE runtime_minutes IS NOT NULL
                ORDER BY runtime_minutes DESC LIMIT $1`,
               [limit]
@@ -184,6 +196,7 @@ getContentRankings: tool({
                   name: r.title,
                   year: r.year,
                   image: r.poster_url,
+                  overview: contentOverviewExcerpt(r.overview),
                   value: `${hours}h ${mins}m`,
                   detailsUrl: `/movies/${r.id}`,
                   playUrl: buildPlayLink(ctx.mediaServer, r.provider_item_id, 'movie'),
@@ -198,11 +211,12 @@ getContentRankings: tool({
               id: string
               title: string
               year: number | null
+              overview: string | null
               poster_url: string | null
               provider_item_id: string | null
               community_rating: number
             }>(
-              `SELECT id, title, year, poster_url, provider_item_id, community_rating
+              `SELECT id, title, year, overview, poster_url, provider_item_id, community_rating
                FROM movies WHERE community_rating IS NOT NULL
                ORDER BY community_rating ${order} LIMIT $1`,
               [limit]
@@ -217,6 +231,7 @@ getContentRankings: tool({
                 name: r.title,
                 year: r.year,
                 image: r.poster_url,
+                overview: contentOverviewExcerpt(r.overview),
                 value: `${r.community_rating} rating`,
                 detailsUrl: `/movies/${r.id}`,
                 playUrl: buildPlayLink(ctx.mediaServer, r.provider_item_id, 'movie'),
@@ -230,10 +245,11 @@ getContentRankings: tool({
               id: string
               title: string
               year: number | null
+              overview: string | null
               poster_url: string | null
               provider_item_id: string | null
             }>(
-              `SELECT id, title, year, poster_url, provider_item_id
+              `SELECT id, title, year, overview, poster_url, provider_item_id
                FROM movies WHERE year IS NOT NULL
                ORDER BY year ${order} LIMIT $1`,
               [limit]
@@ -248,6 +264,7 @@ getContentRankings: tool({
                 name: r.title,
                 year: r.year,
                 image: r.poster_url,
+                overview: contentOverviewExcerpt(r.overview),
                 value: `${r.year}`,
                 detailsUrl: `/movies/${r.id}`,
                 playUrl: buildPlayLink(ctx.mediaServer, r.provider_item_id, 'movie'),

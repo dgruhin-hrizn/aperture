@@ -8,6 +8,15 @@
 import type { ContentCarouselI18nKey } from '../../schemas/contentCarousel.js';
 import type { ContentItem } from '../../schemas/index.js';
 import type { MovieResult, SeriesResult } from '../../types.js';
+
+export function contentOverviewExcerpt(overview: string | null | undefined): string | undefined {
+  const text = overview?.trim().replace(/\s+/g, ' ')
+  if (!text || text.length <= 280) return text || undefined
+  const prefix = text.slice(0, 279).replace(/[\uD800-\uDBFF]$/, '')
+  const boundary = prefix.lastIndexOf(' ')
+  return `${boundary > 230 ? prefix.slice(0, boundary) : prefix}…`
+}
+
 export function searchContentTitleKey(
   searchQuery: string | undefined,
   genre: string | undefined,
@@ -51,6 +60,7 @@ export function formatContentItem(
     type,
     name: item.title,
     subtitle,
+    overview: contentOverviewExcerpt(item.overview),
     image: item.poster_url,
     rating: item.community_rating,
     rank,

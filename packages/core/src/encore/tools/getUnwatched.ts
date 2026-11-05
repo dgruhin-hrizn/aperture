@@ -6,7 +6,7 @@ import { query } from '../scopedDb.js';
 import { buildPlayLink } from '../helpers/mediaServer.js';
 import type { ContentItem } from '../schemas/index.js';
 import type { ToolContext, MovieResult, SeriesResult } from '../types.js';
-import { formatContentItem } from './shared/recommendations.js';
+import { formatContentItem } from './shared/search.js';
 export function createGetUnwatchedTool(ctx: ToolContext): ToolSet { return {
 getUnwatched: tool({
       description: 'Get content the user has NOT watched yet.',
@@ -38,7 +38,7 @@ getUnwatched: tool({
           params.push(limit)
 
           const movies = await query<MovieResult & { provider_item_id?: string }>(
-            `SELECT m.id, m.title, m.year, m.genres, m.community_rating, m.poster_url, m.provider_item_id
+            `SELECT m.id, m.title, m.year, m.genres, m.community_rating, m.overview, m.poster_url, m.provider_item_id
              FROM movies m ${whereClause}
              ORDER BY m.community_rating DESC NULLS LAST LIMIT $${paramIndex}`,
             params
@@ -71,7 +71,7 @@ getUnwatched: tool({
           params.push(limit)
 
           const series = await query<SeriesResult & { provider_item_id?: string }>(
-            `SELECT s.id, s.title, s.year, s.genres, s.network, s.community_rating, s.poster_url, s.provider_item_id
+            `SELECT s.id, s.title, s.year, s.genres, s.network, s.community_rating, s.overview, s.poster_url, s.provider_item_id
              FROM series s ${whereClause}
              ORDER BY s.community_rating DESC NULLS LAST LIMIT $${paramIndex}`,
             params

@@ -111,10 +111,10 @@ test('real PostgreSQL and MCP HTTP enforce per-user catalogs, scopes, expiry and
     // Named lookups work without embeddings and rank titles ahead of higher-rated synopsis matches.
     await pool.query(`
       INSERT INTO movies(provider_item_id, title, year, community_rating, overview)
-      VALUES ($1, 'The Housemaid', 2025, 7.0, NULL),
+      VALUES ($1, 'The Housemaid', 2025, 7.0, $3),
              ($2, 'A Different Story', 2025, 9.0, 'A housemaid uncovers a secret.')
-    `, [housemaid, overviewMatch])
-    await pool.query("INSERT INTO series(provider_item_id, title, original_title) VALUES ($1, 'The Hidden Hour', 'Severance')", [series])
+    `, [housemaid, overviewMatch, 'A new job hides a dangerous secret. '.repeat(15)])
+    await pool.query("INSERT INTO series(provider_item_id, title, original_title, overview) VALUES ($1, 'The Hidden Hour', 'Severance', 'A late-night mystery.')", [series])
     await pool.query("UPDATE movies SET title = 'Housemaidsv' WHERE provider_item_id = $1", [movieB])
     visibleSearchFixtures = true
     const search = async (args: Record<string, unknown>) => {
@@ -130,6 +130,15 @@ test('real PostgreSQL and MCP HTTP enforce per-user catalogs, scopes, expiry and
     assert.deepEqual(await search({ query: 'Housemaids', year: 1960 }), [])
     assert.deepEqual(await search({ query: '%' }), [])
     assert.deepEqual(await search({ genre: 'Drama', type: 'movies', limit: 1 }), ['1917'])
+    const excerptResult = await client.callTool({ name: 'searchContent', arguments: { query: 'housemaidsv' } })
+    const [{ overview }] = (excerptResult.structuredContent as { items: { overview: string }[] }).items
+    assert.ok(overview.startsWith('A new job hides a dangerous secret.'))
+    assert.ok(overview.length <= 280)
+    assert.match(overview, /…$/)
+    const rankedSeries = await client.callTool({ name: 'getContentRankings', arguments: { type: 'series', rankBy: 'most_episodes', limit: 1 } })
+    assert.equal(rankedSeries.isError, undefined, JSON.stringify(rankedSeries))
+    const [show] = (rankedSeries.structuredContent as { items: { overview: string }[] }).items
+    assert.equal(show.overview, 'A late-night mystery.')
 
     assert.equal((await server.inject({ method: 'DELETE', url: `/api/assistant/connections/${connection.id}`, headers: { 'x-fixture-other': 'true' } })).statusCode, 404)
     assert.equal((await server.inject({ method: 'DELETE', url: `/api/assistant/connections/${connection.id}` })).statusCode, 204)

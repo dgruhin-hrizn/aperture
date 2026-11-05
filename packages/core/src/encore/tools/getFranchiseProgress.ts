@@ -1,3 +1,4 @@
+import { contentOverviewExcerpt } from './shared/search.js';
 import type { ToolSet } from 'ai';
 import { tool } from 'ai';
 import { nullSafe } from './utils.js';
@@ -17,6 +18,7 @@ getFranchiseProgress: tool({
           id: string
           title: string
           year: number | null
+          overview: string | null
           poster_url: string | null
           provider_item_id: string | null
           community_rating: number | null
@@ -24,7 +26,7 @@ getFranchiseProgress: tool({
           watched: boolean
         }>(
           `SELECT 
-             m.id, m.title, m.year, m.poster_url, m.provider_item_id, 
+             m.id, m.title, m.year, m.overview, m.poster_url, m.provider_item_id,
              m.community_rating, m.rt_critic_score,
              CASE WHEN wh.id IS NOT NULL THEN true ELSE false END as watched
            FROM movies m
@@ -60,6 +62,7 @@ getFranchiseProgress: tool({
             title: m.title,
             year: m.year,
             image: m.poster_url,
+            overview: contentOverviewExcerpt(m.overview),
             detailsUrl: `/movies/${m.id}`,
             playUrl: buildPlayLink(ctx.mediaServer, m.provider_item_id, 'movie'),
             watched: m.watched,

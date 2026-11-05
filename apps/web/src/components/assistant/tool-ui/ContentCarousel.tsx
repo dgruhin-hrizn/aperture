@@ -92,12 +92,34 @@ export function ContentCarousel({
               sx={{
                 display: 'flex',
                 minWidth: 0,
-                flex: { xs: single ? '0 0 100%' : '0 0 calc((100% - 12px) / 2)', sm: '0 0 170px' },
-                maxWidth: { xs: single ? '100%' : 220, sm: 170 },
+                flex: single ? '0 0 100%' : { xs: '0 0 calc((100% - 12px) / 2)', sm: '0 0 170px' },
+                maxWidth: single ? 600 : { xs: 220, sm: 170 },
                 scrollSnapAlign: 'start',
               }}
             >
-              <ContentCard item={item} onPlay={onPlay} compactOnMobile={single} />
+              <ContentCard
+                item={{
+                  ...item,
+                  name: item.name ?? item.title ?? '',
+                  subtitle: item.subtitle ?? [item.year, item.value].filter(Boolean).join(' · '),
+                  actions: item.actions ?? [
+                    ...(item.detailsUrl
+                      ? [
+                          {
+                            id: 'details',
+                            label: t('assistantToolUi.details'),
+                            href: item.detailsUrl,
+                          },
+                        ]
+                      : []),
+                    ...(item.playUrl
+                      ? [{ id: 'play', label: t('assistantToolUi.play'), href: item.playUrl }]
+                      : []),
+                  ],
+                }}
+                onPlay={onPlay}
+                featured={single}
+              />
             </Box>
           ))}
         </Box>

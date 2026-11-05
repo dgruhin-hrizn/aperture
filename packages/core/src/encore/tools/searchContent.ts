@@ -234,7 +234,7 @@ searchContent: tool({
           const { whereClause, values, limitIdx } = buildWhere(isMovie)
           const column = !isMovie && sortColumn === 'runtime_minutes' ? 'community_rating' : sortColumn
           const { rows } = await query<(MovieResult | SeriesResult) & { relevance: number }>(
-            `SELECT id, title, year, genres, community_rating, poster_url, provider_item_id,
+            `SELECT id, title, year, genres, community_rating, overview, poster_url, provider_item_id,
                     ${searchQuery ? `CASE WHEN title_match.relevance >= ${MIN_TITLE_RELEVANCE}
                                          THEN title_match.relevance ELSE 0 END` : '0'} AS relevance
              FROM ${isMovie ? 'movies' : 'series'}

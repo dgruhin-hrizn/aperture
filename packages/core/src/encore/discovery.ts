@@ -4,6 +4,7 @@ import { query } from '../lib/db.js'
 import { getTMDbApiKey } from '../settings/systemSettings.js'
 import { getCatalogScope } from './access.js'
 import type { ContentItem } from './schemas/contentItem.js'
+import { contentOverviewExcerpt } from './tools/shared/search.js'
 
 interface ExternalTitle {
   id: number
@@ -13,6 +14,7 @@ interface ExternalTitle {
   release_date?: string
   first_air_date?: string
   poster_path?: string | null
+  overview?: string
   vote_average?: number
   adult?: boolean
 }
@@ -75,6 +77,7 @@ export async function discoverEncoreTitles(
         type,
         name: r.title ?? r.name ?? '',
         subtitle: date?.slice(0, 4),
+        overview: contentOverviewExcerpt(r.overview),
         image: getImageUrl(r.poster_path ?? null, 'w342'),
         rating: r.vote_average,
         availability: owned ? 'library' : date && date > today ? 'upcoming' : 'external',

@@ -1,3 +1,4 @@
+import { contentOverviewExcerpt } from './shared/search.js';
 import type { ToolSet } from 'ai';
 import { tool } from 'ai';
 import { nullSafe } from './utils.js';
@@ -22,6 +23,7 @@ getTopByRtScore: tool({
           title: string
           year: number | null
           posterUrl: string | null
+          overview?: string
           providerItemId: string | null
           rtCriticScore: number
           rtAudienceScore: number | null
@@ -35,13 +37,14 @@ getTopByRtScore: tool({
             id: string
             title: string
             year: number | null
+            overview: string | null
             poster_url: string | null
             provider_item_id: string | null
             rt_critic_score: number
             rt_audience_score: number | null
             genres: string[]
           }>(
-            `SELECT id, title, year, poster_url, provider_item_id, rt_critic_score, rt_audience_score, genres
+            `SELECT id, title, year, overview, poster_url, provider_item_id, rt_critic_score, rt_audience_score, genres
              FROM movies 
              WHERE rt_critic_score >= $1
                ${genreCondition}
@@ -57,6 +60,7 @@ getTopByRtScore: tool({
               title: m.title,
               year: m.year,
               posterUrl: m.poster_url,
+              overview: contentOverviewExcerpt(m.overview),
               providerItemId: m.provider_item_id,
               rtCriticScore: m.rt_critic_score,
               rtAudienceScore: m.rt_audience_score,
@@ -70,13 +74,14 @@ getTopByRtScore: tool({
             id: string
             title: string
             year: number | null
+            overview: string | null
             poster_url: string | null
             provider_item_id: string | null
             rt_critic_score: number
             rt_audience_score: number | null
             genres: string[]
           }>(
-            `SELECT id, title, year, poster_url, provider_item_id, rt_critic_score, rt_audience_score, genres
+            `SELECT id, title, year, overview, poster_url, provider_item_id, rt_critic_score, rt_audience_score, genres
              FROM series 
              WHERE rt_critic_score >= $1
                ${genreCondition}
@@ -92,6 +97,7 @@ getTopByRtScore: tool({
               title: s.title,
               year: s.year,
               posterUrl: s.poster_url,
+              overview: contentOverviewExcerpt(s.overview),
               providerItemId: s.provider_item_id,
               rtCriticScore: s.rt_critic_score,
               rtAudienceScore: s.rt_audience_score,
@@ -114,6 +120,7 @@ getTopByRtScore: tool({
             title: r.title,
             year: r.year,
             image: r.posterUrl,
+            overview: r.overview,
             detailsUrl: `/${r.type === 'movie' ? 'movies' : 'series'}/${r.id}`,
             playUrl: buildPlayLink(ctx.mediaServer, r.providerItemId, r.type),
             rtCriticScore: r.rtCriticScore,
