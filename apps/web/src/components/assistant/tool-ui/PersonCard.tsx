@@ -82,7 +82,7 @@ function PersonCardSingle({ person }: PersonCardProps) {
                 key={film.id}
                 label={film.year ? `${film.title} (${film.year})` : film.title}
                 size="small"
-                onClick={() => navigate(`/movies/${film.id}`)}
+                onClick={() => film.sourceUrl ? window.open(film.sourceUrl, '_blank', 'noopener,noreferrer') : navigate(`/movies/${film.id}`)}
                 sx={{
                   height: 24,
                   bgcolor: 'action.hover',
@@ -117,7 +117,7 @@ function PersonCardSingle({ person }: PersonCardProps) {
                 key={film.id}
                 label={film.year ? `${film.title} (${film.year})` : film.title}
                 size="small"
-                onClick={() => navigate(`/series/${film.id}`)}
+                onClick={() => film.sourceUrl ? window.open(film.sourceUrl, '_blank', 'noopener,noreferrer') : navigate(`/series/${film.id}`)}
                 sx={{
                   height: 24,
                   bgcolor: 'action.hover',

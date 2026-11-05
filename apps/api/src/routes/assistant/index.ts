@@ -1,3 +1,5 @@
+import { registerConnectionHandlers } from './handlers/connections.js'
+import { registerMcpHandler } from './mcp/http.js'
 /**
  * AI Assistant Routes
  *
@@ -15,6 +17,8 @@ const assistantRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Register personalized suggestions endpoint
   registerSuggestionsHandler(fastify)
+  registerConnectionHandlers(fastify)
+  registerMcpHandler(fastify)
 }
 
 export default assistantRoutes

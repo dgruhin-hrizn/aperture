@@ -15,7 +15,7 @@ function Welcome() {
     <Typography component="h2" variant="h3" sx={{ fontWeight: 650, letterSpacing: '-.04em', my: 2, maxWidth: 580, fontSize: { xs: 32, md: 44 } }}>{t('encore.welcome')}</Typography>
     <Typography color="text.secondary" sx={{ maxWidth: 540, lineHeight: 1.8, mb: 4 }}>{t('encore.intro')}</Typography>
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
-      {['tonight', 'discover', 'taste', 'similar'].map((key) => <Button key={key} variant="outlined" onClick={() => { composer.setText(t(`encore.prompts.${key}`)); composer.send() }} sx={{ justifyContent: 'flex-start', textAlign: 'start', p: 2.5, borderColor: 'divider', borderRadius: 3, color: 'text.primary', textTransform: 'none', lineHeight: 1.5 }}>{t(`encore.prompts.${key}`)}</Button>)}
+      {['tonight', 'discover', 'taste', 'similar', 'releases', 'filmography'].map((key) => <Button key={key} variant="outlined" onClick={() => { composer.setText(t(`encore.prompts.${key}`)); composer.send() }} sx={{ justifyContent: 'flex-start', textAlign: 'start', p: 2.5, borderColor: 'divider', borderRadius: 3, color: 'text.primary', textTransform: 'none', lineHeight: 1.5 }}>{t(`encore.prompts.${key}`)}</Button>)}
     </Box>
   </Box>
 }
@@ -32,7 +32,7 @@ function AssistantMessage() {
     <Box sx={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere', '& p': { lineHeight: 1.85, mt: 0 }, '& a': { color: 'primary.main' }, '& pre': { whiteSpace: 'pre-wrap' } }}>
       <MessagePrimitive.Content components={{
         Text: ({ text }) => <ReactMarkdown>{text}</ReactMarkdown>,
-        tools: { Fallback: ({ toolName, result }) => <ToolResult toolName={toolName} result={result} /> },
+        tools: { Fallback: ({ toolName, result, isError }) => <ToolResult toolName={toolName} result={result} isError={isError} /> },
       }} />
     </Box>
   </Box></MessagePrimitive.Root>

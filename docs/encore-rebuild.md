@@ -20,4 +20,4 @@ Persist explicitly enabled standing instructions and execute them through the sa
 
 ## Release discipline
 
-Each stage is a separate PR into dev, followed by a prerelease (0.8.0-dev.1–4) and its versioned container build. Rebase against current dev before each merge. Keep all app version locations synchronized. Run lint/type checks, the production build, Encore tests and existing regression suites. Wait for CI and container publication before reporting a release as complete. No production Emby collection or account is modified during development validation.
+Each stage is a separate PR into dev, followed by a prerelease (0.8.0-dev.1, dev.3, dev.4 and dev.5) and its versioned container build. Rebase against current dev before each merge. Keep all app version locations synchronized. Run lint/type checks, the production build, Encore tests and existing regression suites. Wait for CI and container publication before reporting a release as complete. No production Emby collection or account is modified during development validation.

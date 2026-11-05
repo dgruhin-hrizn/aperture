@@ -26,7 +26,8 @@ export function ContentDetail({ data }: ContentDetailProps) {
 
   const handleDetails = () => {
     if (detailsAction?.href) {
-      navigate(detailsAction.href)
+      if (/^https?:\/\//.test(detailsAction.href)) window.open(detailsAction.href, '_blank', 'noopener,noreferrer')
+      else navigate(detailsAction.href)
     }
   }
 
@@ -69,7 +70,7 @@ export function ContentDetail({ data }: ContentDetailProps) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#666',
+                color: 'text.secondary',
                 fontSize: 12,
               }}
             >
@@ -208,7 +209,7 @@ export function ContentDetail({ data }: ContentDetailProps) {
               startIcon={<InfoIcon />}
               onClick={handleDetails}
               sx={{
-                borderColor: '#3a3a3a',
+                borderColor: 'divider',
                 color: 'text.secondary',
                 '&:hover': {
                   borderColor: '#6366f1',

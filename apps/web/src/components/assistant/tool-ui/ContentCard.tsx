@@ -15,6 +15,7 @@ export function ContentCard({ item, onPlay }: { item: ContentItem; onPlay?: (id:
       {item.rank && <Chip size="small" label={`#${item.rank}`} sx={{ position: 'absolute', top: 8, insetInlineStart: 8, bgcolor: 'background.paper', fontWeight: 700 }} />}
     </Box>
     <Box sx={{ p: 1.5 }}>
+      <Chip size="small" variant="outlined" label={t(`encore.availability.${item.availability ?? 'library'}`)} sx={{ mb: 1, maxWidth: '100%', height: 20, fontSize: 10 }} />
       <Typography component="a" href={details?.href} variant="body2" fontWeight={650} sx={{ color: 'text.primary', textDecoration: 'none', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', minHeight: 40 }}>{item.name}</Typography>
       <Typography variant="caption" color="text.secondary" noWrap component="div" sx={{ my: .5 }}>{item.subtitle}</Typography>
       {item.rating != null && <Box sx={{ display: 'flex', gap: .4, alignItems: 'center', mb: 1 }}><StarRoundedIcon sx={{ color: 'warning.main', fontSize: 16 }} /><Typography variant="caption">{Number(item.rating).toFixed(1)}</Typography></Box>}

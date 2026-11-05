@@ -3804,7 +3804,9 @@
       "tonight": "I have 90 minutes. What should I watch tonight?",
       "discover": "Find a hidden gem I haven’t watched.",
       "taste": "What have you learned about my movie and TV taste?",
-      "similar": "Find something atmospheric and thought-provoking."
+      "similar": "Find something atmospheric and thought-provoking.",
+      "releases": "What’s coming up for the shows I follow?",
+      "filmography": "Help me explore a director’s complete filmography."
     },
     "tools": {
       "searchContent": "Searched your collection",
@@ -3826,7 +3828,70 @@
       "getAwardWinners": "Award-winning titles",
       "getTopByRtScore": "Critics’ favorites",
       "getFranchiseProgress": "Franchise progress",
-      "getSystemHelp": "Aperture help"
-    }
+      "getSystemHelp": "Aperture help",
+      "discoverTitles": "Discovered beyond your collection",
+      "getFilmography": "Full filmography",
+      "getReleaseSchedule": "Checked release schedules",
+      "getTasteProfile": "Your taste profile",
+      "getExternalTitleDetails": "Verified title details and availability"
+    },
+    "chatTab": "Conversation",
+    "connectionsTab": "Connections",
+    "connectionsTitle": "Bring Aperture to your favorite assistant",
+    "connectionsIntro": "Connect Claude, Codex, or another MCP client to the same collection, taste profile and release schedules Encore uses.",
+    "tokenCreated": "Connection created",
+    "tokenOnce": "Copy this token now. Aperture stores only its hash and cannot show it again.",
+    "tokenLabel": "New connection token",
+    "copyToken": "Copy token",
+    "copied": "Copied",
+    "createConnection": "Create connection",
+    "connectionName": "Connection name",
+    "expiresDays": "Expires in days",
+    "expiresOn": "Expires {{date}}",
+    "revoke": "Revoke",
+    "connectInstructions": "Connect your client",
+    "connectLocal": "Use this Streamable HTTP endpoint with your token as a Bearer credential. Local clients can reach your private Aperture address.",
+    "mcpEndpoint": "MCP endpoint",
+    "bridgeInstructions": "For Claude Desktop or another stdio client, download aperture-mcp.mjs from this release and use Node 22+. Replace the file path and token in this configuration. Cloud connectors need an address reachable from their provider.",
+    "externalMemoryBoundary": "Aperture receives tool calls and information explicitly saved through its tools. Your full Claude or Codex conversation is not automatically copied.",
+    "scopes": {
+      "library_read": "Read accessible collection",
+      "profile_read": "Read taste and history",
+      "schedules_read": "Read release schedules",
+      "memory_write": "Save preferences",
+      "plans_write": "Manage watch plans",
+      "playlists_write": "Manage playlists",
+      "home_write": "Manage home rows",
+      "curation_write": "Manage recurring curation"
+    },
+    "releaseSchedule": "Your release calendar",
+    "dayPrecision": "Dates are forecasts by region. Exact local availability may differ.",
+    "noReleases": "No confirmed releases were found in this window.",
+    "checkedAt": "Checked {{date}}",
+    "tasteTitle": "Your taste, in focus",
+    "movieTaste": "Movies",
+    "seriesTaste": "TV series",
+    "prefer": "Prefer",
+    "avoid": "Avoid",
+    "neutral": "Neutral",
+    "noTaste": "Your profile is taking shape. Ratings and watching history help Aperture understand your taste.",
+    "franchiseProgress": "{{watched}} of {{total}} watched",
+    "availability": {
+      "library": "Library result",
+      "external": "Discover beyond Emby",
+      "upcoming": "Upcoming",
+      "unknown": "Availability unverified"
+    },
+    "streamingTitle": "Where to watch · {{region}}",
+    "noStreaming": "No verified provider listing is available for this region.",
+    "justWatchAttribution": "Availability data: JustWatch via TMDb",
+    "streamingPrecision": "Provider listings do not confirm your subscription access or availability of every episode.",
+    "toolFailed": "This lookup could not finish. Try again or check the connected service.",
+    "providerTypes": {
+      "subscription": "Subscription",
+      "rent": "Rent",
+      "buy": "Buy"
+    },
+    "clipboardUnavailable": "Automatic copy is unavailable at this address. Select and copy the token field manually."
   }
 }
