@@ -32,7 +32,7 @@ import gapAnalysisRoutes from './gap-analysis/index.js'
 import apiKeysRoutes from './apiKeys/index.js'
 import logoRoutes from './logo/index.js'
 
-const routes: FastifyPluginAsync = async (fastify) => {
+const routes: FastifyPluginAsync<{ schemaAudit?: boolean }> = async (fastify, options) => {
   // Register health check routes
   await fastify.register(healthRoutes)
 
@@ -82,7 +82,7 @@ const routes: FastifyPluginAsync = async (fastify) => {
   await fastify.register(dashboardRoutes)
 
   // Register image routes
-  await fastify.register(imageRoutes)
+  await fastify.register(imageRoutes, { initializeStorage: !options.schemaAudit })
 
   // Register media proxy routes (for proxying Emby/Jellyfin images)
   await fastify.register(mediaProxyRoutes)

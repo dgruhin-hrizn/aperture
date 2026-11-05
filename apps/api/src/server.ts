@@ -1,8 +1,9 @@
-import Fastify from 'fastify'
+import Fastify, { type FastifyInstance, type RawServerDefault } from 'fastify'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import browserAccessPlugin from './plugins/browserAccess.js'
 import swagger from '@fastify/swagger'
 import swaggerUI from '@fastify/swagger-ui'
-import { createLogger } from './lib/logger.js'
+import { createLogger, type Logger } from './lib/logger.js'
 import requestIdPlugin from './plugins/requestId.js'
 import authPlugin from './plugins/auth.js'
 import staticPlugin from './plugins/static.js'
@@ -11,11 +12,14 @@ import { getSwaggerConfig, swaggerUIConfig } from './config/openapi.js'
 
 export interface ServerOptions {
   logger?: boolean
+  /** Register and compile contracts without initializing storage. For offline schema audits. */
+  schemaAudit?: boolean
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function buildServer(options: ServerOptions = {}): Promise<any> {
-  const logger = createLogger('api')
+export async function buildServer(
+  options: ServerOptions = {}
+): Promise<FastifyInstance<RawServerDefault, IncomingMessage, ServerResponse, Logger>> {
+  const logger = options.logger === false ? undefined : createLogger('api')
 
   const fastify = Fastify({
     loggerInstance: options.logger !== false ? logger : undefined,
@@ -47,7 +51,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<any> {
   await fastify.register(authPlugin)
 
   // Register routes
-  await fastify.register(routes)
+  await fastify.register(routes, { schemaAudit: options.schemaAudit })
 
   // Register static file serving (production only)
   await fastify.register(staticPlugin)

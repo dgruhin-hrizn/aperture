@@ -8,7 +8,7 @@ import { getChatModelInstance, getEmbeddingModelInstance, getActiveEmbeddingMode
 import { requireAuth } from '../../../plugins/auth.js'
 import { queryOne } from '../../../lib/db.js'
 import { getMediaServerInfo, buildSystemPrompt } from '../helpers/index.js'
-import { createEncoreTools } from '@aperture/core/encore'
+import { createEncoreTools, getEncoreToolSchemas } from '@aperture/core/encore'
 import { claimRun, loadMessages, releaseRun, saveMessage } from '../messages.js'
 
 const bodySchema = z.object({
@@ -64,6 +64,7 @@ export function registerChatHandler(fastify: FastifyInstance, dependencies: { ge
       ])
       const tools = createEncoreTools({ userId: user.id, isAdmin: user.isAdmin, embeddingModel,
         embeddingModelId: embeddingModelId ?? '', mediaServer,source:'encore',sourceId:`${conversationId}:${originalMessages.filter(m=>m.role==='user').at(-1)?.id??''}` })
+      await getEncoreToolSchemas(tools)
       const agent = new ToolLoopAgent({ model, tools, instructions: `${instructions}\nCurrent UTC date: ${new Date().toISOString()}. User timezone: ${timezone}. Interpret relative dates using that timezone.`,
         maxOutputTokens: 4000, stopWhen: stepCountIs(12),
         onEnd: ({ totalUsage, steps }) => request.log.info({ runId, usage: totalUsage, steps: steps.length }, 'Encore run completed'),

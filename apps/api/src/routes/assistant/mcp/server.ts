@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { asSchema } from 'ai'
 import { McpServer, fromJsonSchema, type JsonSchemaType } from '@modelcontextprotocol/server'
-import { createEncoreContext, createEncoreTools, encoreToolScope, type EncoreScope } from '@aperture/core/encore'
+import { createEncoreContext, createEncoreTools, getEncoreToolSchemas, encoreToolScope, type EncoreScope } from '@aperture/core/encore'
 import { APP_VERSION } from '../../../lib/appVersion.js'
 
 export async function createApertureMcpServer(userId: string, scopes: EncoreScope[], connectionId?: string) {
@@ -9,10 +8,11 @@ export async function createApertureMcpServer(userId: string, scopes: EncoreScop
     instructions: 'Aperture is your personal media consultant. Search and semantic tools return only the authenticated user’s accessible library. Public discovery/release tools include explicit source and availability. Never equate an announced release with a playable Emby item. Save only information explicitly offered to Aperture memory tools; full external conversations are not automatically retained.',
   })
   const tools = createEncoreTools({...await createEncoreContext(userId),source:'mcp',sourceId:connectionId}, scopes)
+  const schemas = await getEncoreToolSchemas(tools)
   for (const [name, definition] of Object.entries(tools)) {
     const execute = definition.execute
     if (!execute) continue
-    const schema = await asSchema(definition.inputSchema).jsonSchema
+    const schema = schemas[name]
     server.registerTool(name, { description: typeof definition.description === 'string' ? definition.description : name, inputSchema: fromJsonSchema(schema as JsonSchemaType),
       annotations: { readOnlyHint: !encoreToolScope(name).endsWith(':write') || name.startsWith('list'), destructiveHint: ['forgetMemory','deleteWatchPlan','executeEncoreAction','controlCuration'].includes(name), idempotentHint: !['createWatchPlan','prepareCuration','controlCuration'].includes(name), openWorldHint: ['discoverTitles', 'getReleaseSchedule', 'getFilmography', 'getExternalTitleDetails','executeEncoreAction','controlCuration'].includes(name) },
     }, async (input, context) => {
