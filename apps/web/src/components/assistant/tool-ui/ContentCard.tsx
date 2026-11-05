@@ -1,5 +1,6 @@
 import { Box, Button, Chip, Paper, Typography } from '@mui/material'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
+import LocalMoviesOutlinedIcon from '@mui/icons-material/LocalMoviesOutlined'
 import StarRoundedIcon from '@mui/icons-material/StarRounded'
 import { useTranslation } from 'react-i18next'
 import { useEffect, useState } from 'react'
@@ -9,9 +10,11 @@ import type { ContentItem } from './types'
 export function ContentCard({
   item,
   onPlay,
+  compactOnMobile = false,
 }: {
   item: ContentItem
   onPlay?: (id: string, href: string) => void
+  compactOnMobile?: boolean
 }) {
   const { t } = useTranslation()
   const [imageFailed, setImageFailed] = useState(false)
@@ -25,7 +28,7 @@ export function ContentCard({
         width: '100%',
         minWidth: 0,
         display: 'flex',
-        flexDirection: 'column',
+        flexDirection: compactOnMobile ? { xs: 'row', sm: 'column' } : 'column',
         borderRadius: 3,
         overflow: 'hidden',
         bgcolor: 'background.paper',
@@ -42,6 +45,7 @@ export function ContentCard({
           flexShrink: 0,
           bgcolor: 'action.hover',
           textDecoration: 'none',
+          ...(compactOnMobile && { width: { xs: 'clamp(80px, 25%, 100px)', sm: '100%' } }),
         }}
       >
         {item.image ? (
@@ -52,7 +56,13 @@ export function ContentCard({
             loading="lazy"
             decoding="async"
             onError={() => setImageFailed(true)}
-            sx={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }}
+            sx={{
+              width: '100%',
+              height: '100%',
+              display: 'block',
+              objectFit: 'cover',
+              ...(compactOnMobile && { position: { xs: 'absolute', sm: 'static' }, inset: 0 }),
+            }}
           />
         ) : (
           <Box
@@ -64,7 +74,16 @@ export function ContentCard({
               p: 2,
             }}
           >
-            {item.name}
+            {compactOnMobile ? (
+              <>
+                <LocalMoviesOutlinedIcon sx={{ display: { xs: 'block', sm: 'none' } }} />
+                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                  {item.name}
+                </Box>
+              </>
+            ) : (
+              item.name
+            )}
           </Box>
         )}
         {item.rank && (
@@ -82,7 +101,14 @@ export function ContentCard({
         )}
       </Box>
       <Box
-        sx={{ p: 1.5, flex: 1, display: 'flex', flexDirection: 'column', gap: 0.75, minWidth: 0 }}
+        sx={{
+          p: 1.5,
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: compactOnMobile ? { xs: 0.5, sm: 0.75 } : 0.75,
+          minWidth: 0,
+        }}
       >
         <Chip
           size="small"
@@ -103,20 +129,38 @@ export function ContentCard({
             WebkitBoxOrient: 'vertical',
             overflow: 'hidden',
             lineHeight: '20px',
-            minHeight: 40,
+            minHeight: compactOnMobile ? { xs: 0, sm: 40 } : 40,
+            overflowWrap: 'anywhere',
           }}
         >
           {item.name}
         </Typography>
-        {item.subtitle && (
-          <Typography variant="caption" color="text.secondary" noWrap component="div">
-            {item.subtitle}
-          </Typography>
-        )}
-        {item.rating != null && (
-          <Box sx={{ display: 'flex', gap: 0.4, alignItems: 'center' }}>
-            <StarRoundedIcon sx={{ color: 'warning.main', fontSize: 16 }} />
-            <Typography variant="caption">{Number(item.rating).toFixed(1)}</Typography>
+        {(item.subtitle || item.rating != null) && (
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: compactOnMobile ? { xs: 'row', sm: 'column' } : 'column',
+              gap: compactOnMobile ? { xs: 1, sm: 0.75 } : 0.75,
+              alignItems: compactOnMobile ? { xs: 'center', sm: 'stretch' } : 'stretch',
+            }}
+          >
+            {item.subtitle && (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                noWrap
+                component="div"
+                sx={{ minWidth: 0 }}
+              >
+                {item.subtitle}
+              </Typography>
+            )}
+            {item.rating != null && (
+              <Box sx={{ display: 'flex', gap: 0.4, alignItems: 'center', flexShrink: 0 }}>
+                <StarRoundedIcon sx={{ color: 'warning.main', fontSize: 16 }} />
+                <Typography variant="caption">{Number(item.rating).toFixed(1)}</Typography>
+              </Box>
+            )}
           </Box>
         )}
         {play?.href && (
@@ -137,7 +181,14 @@ export function ContentCard({
                     }
                   : undefined
               }
-              sx={{ borderRadius: 3 }}
+              sx={{
+                borderRadius: 3,
+                ...(compactOnMobile && {
+                  width: { xs: 'auto', sm: '100%' },
+                  minHeight: { xs: 44, sm: 'initial' },
+                  px: { xs: 1.75, sm: 1.25 },
+                }),
+              }}
             >
               {t('assistantToolUi.play')}
             </Button>

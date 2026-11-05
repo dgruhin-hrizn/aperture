@@ -25,7 +25,8 @@ export function ContentCarousel({
         defaultValue: data.description,
       })
     : data.description
-  const controls = edges.previous || edges.next
+  const single = data.items.length === 1
+  const controls = !single && (edges.previous || edges.next)
   if (!data.items.length && !title && !description) return null
   return (
     <Box sx={{ width: '100%', minWidth: 0, maxWidth: '100%' }}>
@@ -75,7 +76,7 @@ export function ContentCarousel({
           sx={{
             display: 'flex',
             gap: '12px',
-            justifyContent: data.items.length === 1 ? 'center' : 'flex-start',
+            justifyContent: single ? 'center' : 'flex-start',
             overflowX: 'auto',
             overflowY: 'hidden',
             py: 0.5,
@@ -91,12 +92,12 @@ export function ContentCarousel({
               sx={{
                 display: 'flex',
                 minWidth: 0,
-                flex: { xs: '0 0 calc((100% - 12px) / 2)', sm: '0 0 170px' },
-                maxWidth: { xs: 220, sm: 170 },
+                flex: { xs: single ? '0 0 100%' : '0 0 calc((100% - 12px) / 2)', sm: '0 0 170px' },
+                maxWidth: { xs: single ? '100%' : 220, sm: 170 },
                 scrollSnapAlign: 'start',
               }}
             >
-              <ContentCard item={item} onPlay={onPlay} />
+              <ContentCard item={item} onPlay={onPlay} compactOnMobile={single} />
             </Box>
           ))}
         </Box>
