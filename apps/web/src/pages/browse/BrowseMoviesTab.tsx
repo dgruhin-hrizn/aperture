@@ -42,7 +42,7 @@ interface BrowseMoviesTabProps {
 
 function renderSkeleton(viewMode: ViewMode) {
   return viewMode === 'grid' ? (
-    <Grid container spacing={2}>
+    <Grid container spacing={{ xs: 1, sm: 2 }}>
       {Array.from({ length: 12 }).map((_, index) => (
         <Grid item xs={6} sm={4} md={3} lg={2} key={index}>
           <MoviePoster title="" loading responsive />
@@ -113,7 +113,7 @@ export function BrowseMoviesTab({ viewMode, movies, presets }: BrowseMoviesTabPr
   return (
     <>
       <BrowseFilterBar>
-        <Box display="flex" gap={1.5} flexWrap="wrap" alignItems="center">
+        <Box display="flex" gap={{ xs: 0.75, sm: 1.5 }} flexWrap="wrap" alignItems="center">
           <TextField
             placeholder={t('browse.searchMoviesPlaceholder')}
             value={movies.movieSearch}
@@ -129,7 +129,7 @@ export function BrowseMoviesTab({ viewMode, movies, presets }: BrowseMoviesTabPr
             }}
           />
 
-          <FormControl size="small" sx={{ width: { xs: '100%', sm: 150 } }}>
+          <FormControl size="small" sx={{ flex: { xs: '1 1 38%', sm: 'none' }, minWidth: 0, width: { sm: 150 } }}>
             <InputLabel>{t('browse.labels.genre')}</InputLabel>
             <Select
               value={movies.movieGenre}
@@ -146,7 +146,7 @@ export function BrowseMoviesTab({ viewMode, movies, presets }: BrowseMoviesTabPr
           </FormControl>
 
           {movies.collections.length > 0 && (
-            <FormControl size="small" sx={{ width: { xs: '100%', sm: 180 } }}>
+            <FormControl size="small" sx={{ flex: { xs: '1 1 38%', sm: 'none' }, minWidth: 0, width: { sm: 180 } }}>
               <InputLabel>{t('browse.labels.franchise')}</InputLabel>
               <Select
                 value={movies.collection}
@@ -229,7 +229,7 @@ export function BrowseMoviesTab({ viewMode, movies, presets }: BrowseMoviesTabPr
       ) : (
         <>
           {viewMode === 'grid' ? (
-            <Grid container spacing={2}>
+            <Grid container spacing={{ xs: 1, sm: 2 }}>
               {movies.movies.map((movie) => (
                 <Grid item xs={6} sm={4} md={3} lg={2} key={movie.id}>
                   <MoviePoster

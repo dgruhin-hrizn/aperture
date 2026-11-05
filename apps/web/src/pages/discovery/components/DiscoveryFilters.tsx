@@ -63,6 +63,7 @@ interface DiscoveryFiltersProps {
   /** TMDb genres for the active tab (movie vs TV), localized via API */
   genreOptions: { id: number; name: string }[]
   genresLoading?: boolean
+  actions?: React.ReactNode
 }
 
 export function DiscoveryFilters({
@@ -71,6 +72,7 @@ export function DiscoveryFilters({
   yearRange,
   genreOptions,
   genresLoading,
+  actions,
 }: DiscoveryFiltersProps) {
   const { t, i18n } = useTranslation()
   const theme = useTheme()
@@ -144,13 +146,15 @@ export function DiscoveryFilters({
   ].reduce((a, b) => a + b, 0)
 
   return (
-    <Box sx={{ mb: 2 }}>
-      <Box display="flex" alignItems="center" gap={1} mb={1}>
+    <Box sx={{ mb: { xs: 1, sm: 2 } }}>
+      <Box display="flex" alignItems="center" flexWrap="wrap" gap={0.75} mb={expanded ? 1 : 0}>
         <Button
           variant={hasActiveFilters ? 'contained' : 'outlined'}
           size="small"
           startIcon={<FilterListIcon />}
           onClick={() => setExpanded(!expanded)}
+          aria-expanded={expanded}
+          aria-controls="discovery-filters"
           sx={{
             bgcolor: hasActiveFilters ? 'primary.main' : 'transparent',
           }}
@@ -173,13 +177,14 @@ export function DiscoveryFilters({
         </Button>
         
         {hasActiveFilters && (
-          <IconButton size="small" onClick={clearFilters} title={t('discovery.filters.clearAll')}>
+          <IconButton size="small" onClick={clearFilters} aria-label={t('discovery.filters.clearAll')}>
             <ClearIcon fontSize="small" />
           </IconButton>
         )}
+        {actions && <Box display="flex" alignItems="center" gap={0.75} sx={{ marginInlineStart: 'auto' }}>{actions}</Box>}
       </Box>
 
-      <Collapse in={expanded}>
+      <Collapse in={expanded} id="discovery-filters">
         <Box
           sx={{
             p: 2,

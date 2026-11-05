@@ -430,12 +430,12 @@ export function PersonDetailPage() {
       <Box
         sx={{
           position: 'relative',
-          mx: -3,
-          mt: -3,
-          px: 3,
-          pt: 3,
-          pb: 4,
-          minHeight: 200,
+          mx: { xs: 'var(--ap-layout-inset)', md: -3 },
+          mt: { xs: -1, sm: -2, md: -3 },
+          px: { xs: 'var(--ap-page-gutter)', md: 3 },
+          pt: { xs: 1.5, sm: 3 },
+          pb: { xs: 1.5, sm: 4 },
+          minHeight: { xs: 0, sm: 200 },
         }}
       >
         {/* Rotating fanart backdrop */}
@@ -447,6 +447,7 @@ export function PersonDetailPage() {
           <IconButton
             onClick={() => navigate(-1)}
             sx={{
+              display: { xs: 'none', md: 'inline-flex' },
               mb: 2,
               bgcolor: 'rgba(0,0,0,0.4)',
               color: 'white',
@@ -456,7 +457,7 @@ export function PersonDetailPage() {
             <ArrowBackIcon />
           </IconButton>
 
-          <Box display="flex" alignItems="center" gap={3}>
+          <Box display="flex" alignItems="center" gap={{ xs: 1.25, sm: 3 }}>
             {/* Person Avatar */}
             <Avatar
               src={avatarSrc ?? undefined}
@@ -471,8 +472,8 @@ export function PersonDetailPage() {
                 },
               }}
               sx={{
-                width: 120,
-                height: 120,
+                width: { xs: 64, sm: 120 },
+                height: { xs: 64, sm: 120 },
                 bgcolor: 'primary.dark',
                 fontSize: '2.5rem',
                 border: '4px solid',
@@ -484,12 +485,12 @@ export function PersonDetailPage() {
             </Avatar>
 
             {/* Person Info */}
-            <Box flex={1}>
+            <Box flex={1} minWidth={0}>
               <Typography 
                 variant="h4" 
                 fontWeight={700} 
                 mb={1}
-                sx={{ textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}
+                sx={{ fontSize: { xs: '1.3rem', sm: undefined }, overflowWrap: 'anywhere', textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}
               >
                 {decodedName}
               </Typography>
@@ -530,10 +531,10 @@ export function PersonDetailPage() {
       </Box>
 
       {/* Content */}
-      <Box sx={{ px: 3, py: 4 }}>
+      <Box sx={{ px: { xs: 0, sm: 3 }, py: { xs: 1, sm: 4 } }}>
         {/* Movies Carousel */}
         {data.movies.length > 0 && (
-          <Box mb={4}>
+          <Box mb={{ xs: 2, sm: 4 }}>
             <BaseCarousel
               title={t('personDetail.moviesCarousel')}
               subtitle={`${data.movies.length} movies featuring ${decodedName}`}
@@ -560,7 +561,7 @@ export function PersonDetailPage() {
 
         {/* Series Carousel */}
         {data.series.length > 0 && (
-          <Box mb={4}>
+          <Box mb={{ xs: 2, sm: 4 }}>
             <BaseCarousel
               title={t('personDetail.seriesCarousel')}
               subtitle={`${data.series.length} series featuring ${decodedName}`}
@@ -596,7 +597,7 @@ export function PersonDetailPage() {
         {!creditsGapLoading &&
           creditsGap?.tmdbPersonId != null &&
           creditsGap.missing.some((g) => g.rows.length > 0) && (
-            <Box mb={4}>
+            <Box mb={{ xs: 2, sm: 4 }}>
               <Typography variant="h6" fontWeight={600} gutterBottom>
                 Not in your library
               </Typography>
@@ -652,7 +653,7 @@ export function PersonDetailPage() {
               )}
 
               {creditsMissingGroupsFiltered.map((group) => (
-                <Box key={group.groupKey} mb={4}>
+                <Box key={group.groupKey} mb={{ xs: 2, sm: 4 }}>
                   <BaseCarousel
                     title={group.label}
                     subtitle={`${group.rows.length} not in your library`}

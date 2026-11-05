@@ -30,7 +30,7 @@ interface BrowsePeopleTabProps {
 
 function renderPeopleSkeleton(viewMode: ViewMode) {
   return viewMode === 'grid' ? (
-    <Grid container spacing={2}>
+    <Grid container spacing={{ xs: 1, sm: 2 }}>
       {Array.from({ length: 12 }).map((_, index) => (
         <Grid item xs={6} sm={4} md={3} lg={2} key={index}>
           <Skeleton
@@ -64,7 +64,7 @@ export function BrowsePeopleTab({ viewMode, people }: BrowsePeopleTabProps) {
   return (
     <>
       <BrowseFilterBar>
-        <Box display="flex" gap={1.5} flexWrap="wrap" alignItems="center">
+        <Box display="flex" gap={{ xs: 0.75, sm: 1.5 }} flexWrap="wrap" alignItems="center">
           <TextField
             placeholder={t('browse.searchPeoplePlaceholder')}
             value={people.peopleSearch}
@@ -121,7 +121,7 @@ export function BrowsePeopleTab({ viewMode, people }: BrowsePeopleTabProps) {
       ) : (
         <>
           {viewMode === 'grid' ? (
-            <Grid container spacing={2}>
+            <Grid container spacing={{ xs: 1, sm: 2 }}>
               {people.people.map((person) => (
                 <Grid item xs={6} sm={4} md={3} lg={2} key={person.name}>
                   <BrowsePersonCard

@@ -1,4 +1,4 @@
-import { Box, Card, CardContent, Stepper, Step, StepLabel, Typography, IconButton, Tooltip } from '@mui/material'
+import { Box, Card, CardContent, Stepper, Step, StepLabel, Typography, IconButton, LinearProgress, Tooltip } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useSetupWizard } from './hooks/useSetupWizard'
@@ -66,22 +66,26 @@ export function SetupPage() {
   return (
     <Box
       sx={{
-        minHeight: '100vh',
+        minHeight: '100dvh',
         display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: { xs: 'flex-start', sm: 'center' },
+        gap: { xs: 1, sm: 0 },
         backgroundColor: 'background.default',
         backgroundImage: 'var(--ap-backdrop-fallback, radial-gradient(circle at 50% 50%, #1a1a2e 0%, #0f0f0f 100%))',
-        p: 2,
+        p: { xs: 1.5, sm: 2 },
+        paddingTop: { xs: 'max(12px, env(safe-area-inset-top, 0px))', sm: 2 },
         position: 'relative',
       }}
     >
       {/* Persistent branding - top left */}
       <Box
         sx={{
-          position: 'fixed',
+          position: { xs: 'static', sm: 'fixed' },
+          alignSelf: { xs: 'flex-start', sm: 'auto' },
           top: 24,
-          left: 24,
+          insetInlineStart: 24,
           display: 'flex',
           alignItems: 'center',
           gap: 1.5,
@@ -113,9 +117,11 @@ export function SetupPage() {
           <IconButton
             onClick={() => navigate(exitPath)}
             sx={{
-              position: 'fixed',
-              top: 20,
-              right: 24,
+              position: { xs: 'absolute', sm: 'fixed' },
+              top: { xs: 'env(safe-area-inset-top, 0px)', sm: 20 },
+              insetInlineEnd: { xs: 8, sm: 24 },
+              width: 44,
+              height: 44,
               zIndex: 10,
               color: 'text.secondary',
               '&:hover': {
@@ -133,9 +139,10 @@ export function SetupPage() {
       <Typography
         variant="caption"
         sx={{
-          position: 'fixed',
+          position: { xs: 'static', sm: 'fixed' },
+          order: { xs: 1, sm: 0 },
           bottom: 16,
-          left: 24,
+          insetInlineStart: 24,
           color: 'text.secondary',
           opacity: 0.6,
           fontFamily: 'monospace',
@@ -154,8 +161,19 @@ export function SetupPage() {
           borderColor: 'divider',
         }}
       >
-        <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
-          <Stepper activeStep={activeStep} sx={{ mb: 4 }} alternativeLabel>
+        <CardContent sx={{ p: { xs: 1.5, sm: 3, md: 4 } }}>
+          <Box sx={{ display: { xs: 'block', sm: 'none' }, mb: 1.5 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, mb: 0.5 }}>
+              <Typography variant="subtitle2">{t(`setup.step.${stepId}.label`)}</Typography>
+              <Typography variant="caption" color="text.secondary">{activeStep + 1} / {STEP_ORDER_IDS.length}</Typography>
+            </Box>
+            <LinearProgress
+              aria-label={t(`setup.step.${stepId}.label`)}
+              variant="determinate"
+              value={((activeStep + 1) / STEP_ORDER_IDS.length) * 100}
+            />
+          </Box>
+          <Stepper activeStep={activeStep} sx={{ display: { xs: 'none', sm: 'flex' }, mb: 4 }} alternativeLabel>
             {STEP_ORDER_IDS.map((id) => (
               <Step key={id}>
                 <StepLabel>{t(`setup.step.${id}.label`)}</StepLabel>

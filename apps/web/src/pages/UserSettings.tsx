@@ -1,5 +1,6 @@
+import { PageTabs } from '@/components/PageTabs'
 import React, { useCallback, useEffect, useState } from 'react'
-import { Box, Grid, Paper, Tab, Tabs, Typography, useTheme } from '@mui/material'
+import { Box, Grid, Paper, Tab, Typography, useTheme } from '@mui/material'
 import SettingsIcon from '@mui/icons-material/Settings'
 import PersonIcon from '@mui/icons-material/Person'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
@@ -155,7 +156,7 @@ export function UserSettingsPage() {
 
   return (
     <Box>
-      <Box sx={{ mb: 3 }}>
+      <Box data-mobile-redundant sx={{ mb: 3 }}>
         <Breadcrumbs />
 
         <Box display="flex" alignItems="center" gap={2} mb={1}>
@@ -170,14 +171,14 @@ export function UserSettingsPage() {
       </Box>
 
       <Paper sx={{ backgroundColor: 'background.paper', borderRadius: 2 }} elevation={0}>
-        <Tabs
+        <PageTabs
           value={tabValue}
           onChange={handleMainTabChange}
           variant={studio ? 'scrollable' : 'standard'}
           scrollButtons={studio ? 'auto' : false}
           allowScrollButtonsMobile={studio}
           sx={{
-            px: 2,
+            px: { xs: 0, sm: 2 },
             borderBottom: 1,
             borderColor: 'divider',
             '& .MuiTab-root': {
@@ -192,9 +193,9 @@ export function UserSettingsPage() {
           <Tab icon={<FingerprintIcon />} iconPosition="start" label={t('userSettings.tabWatcherIdentity')} />
           <Tab icon={<TuneIcon />} iconPosition="start" label={t('userSettings.tabAlgorithm')} />
           <Tab icon={<VideoLibraryIcon />} iconPosition="start" label={t('userSettings.tabPreferences')} />
-        </Tabs>
+        </PageTabs>
 
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: { xs: 1.25, sm: 3 } }}>
           <TabPanel value={tabValue} index={0}>
             <UserProfileTab
               user={user}
@@ -218,7 +219,7 @@ export function UserSettingsPage() {
           </TabPanel>
 
           <TabPanel value={tabValue} index={1}>
-            <Tabs
+            <PageTabs
               value={identityMediaType}
               onChange={(_, value: 'movie' | 'series') => setIdentityMediaType(value)}
               sx={{
@@ -239,7 +240,7 @@ export function UserSettingsPage() {
             >
               <Tab icon={<MovieIcon />} label={t('userSettings.identitySubtabMovies')} value="movie" iconPosition="start" />
               <Tab icon={<TvIcon />} label={t('userSettings.identitySubtabSeries')} value="series" iconPosition="start" />
-            </Tabs>
+            </PageTabs>
             <WatcherIdentitySection mediaType={identityMediaType} />
           </TabPanel>
 
@@ -248,7 +249,7 @@ export function UserSettingsPage() {
           </TabPanel>
 
           <TabPanel value={tabValue} index={3}>
-            <Grid container spacing={3}>
+            <Grid container spacing={{ xs: 1.5, sm: 3 }}>
               <Grid item xs={12}>
                 <AppearanceSettingsCard />
               </Grid>

@@ -173,25 +173,26 @@ export function MediaHero({
     <>
       <Box
         sx={{
-          display: 'flex',
-          gap: 4,
-          flexDirection: { xs: 'column', md: 'row' },
-          mt: { xs: -18, md: -28 },
+          display: { xs: 'grid', sm: 'flex' },
+          gridTemplateColumns: '76px minmax(0, 1fr)',
+          gap: { xs: 1.25, sm: 3, md: 4 },
+          flexDirection: { xs: 'row', sm: 'column', md: 'row' },
+          mt: { xs: -7, sm: -18, md: -28 },
           position: 'relative',
           zIndex: 1,
-          px: 3,
+          px: { xs: 0, sm: 3 },
         }}
       >
         {/* Poster */}
         <Paper
           elevation={8}
           sx={{
-            width: { xs: 200, md: 280 },
-            height: { xs: 300, md: 420 },
+            width: { xs: 76, sm: 200, md: 280 },
+            height: { xs: 114, sm: 300, md: 420 },
             flexShrink: 0,
             borderRadius: 2,
             overflow: 'hidden',
-            alignSelf: { xs: 'center', md: 'flex-start' },
+            alignSelf: { xs: 'flex-start', sm: 'center', md: 'flex-start' },
           }}
         >
           {media.poster_url ? (
@@ -230,255 +231,259 @@ export function MediaHero({
         </Paper>
 
         {/* Info */}
-        <Box sx={{ flex: 1 }}>
-          {/* Status badges */}
-          <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-            {/* Series status */}
-            {isSeries(media) && media.status && (
-              <Chip
-                label={media.status}
-                size="small"
-                color={media.status === 'Continuing' ? 'success' : 'default'}
-                sx={{ fontWeight: 600 }}
-              />
-            )}
-            {isSeries(media) && media.content_rating && (
-              <Chip
-                label={media.content_rating}
-                size="small"
-                variant="outlined"
-                sx={{ fontWeight: 600 }}
-              />
-            )}
-            {/* Movie availability */}
-            {isMovie(media) && (
-              <Chip
-                label={t('mediaDetail.hero.available')}
-                size="small"
-                sx={{ bgcolor: 'success.main', color: theme => theme.aperture.name === 'studio' ? theme.palette.success.contrastText : 'white', fontWeight: 600 }}
-              />
-            )}
-            {/* Movie watch status */}
-            {isMovie(media) && watchStatus?.isWatched && (
-              <Chip
-                icon={<CheckCircleIcon sx={{ fontSize: 16 }} />}
-                label={
-                  watchStatus.playCount > 1
-                    ? t('mediaDetail.hero.watchedCount', { count: watchStatus.playCount })
-                    : t('mediaDetail.hero.watched')
-                }
-                size="small"
-                sx={{ bgcolor: 'primary.main', color: theme => theme.aperture.name === 'studio' ? theme.palette.primary.contrastText : 'white', fontWeight: 600 }}
-              />
-            )}
-          </Box>
-
-          {/* Title */}
-          <Typography
-            variant="h3"
-            fontWeight={700}
-            sx={theme => ({ mb: 1, textShadow: theme.aperture.name === 'classic' ? '2px 2px 4px rgba(0,0,0,0.5)' : 'none', ...(theme.aperture.name === 'studio' ? { fontFamily: '"Barlow Condensed", sans-serif', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.015em', fontSize: { xs: '2.5rem', md: '3.5rem' } } : {}) })}
-          >
-            {media.title}
-          </Typography>
-
-          {media.original_title && media.original_title !== media.title && (
-            <Typography variant="h6" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic' }}>
-              {media.original_title}
-            </Typography>
-          )}
-
-          {/* Tagline (series only) */}
-          {isSeries(media) && media.tagline && (
-            <Typography variant="body1" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic' }}>
-              "{media.tagline}"
-            </Typography>
-          )}
-
-          {/* Meta row */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-            {yearDisplay && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <CalendarTodayIcon fontSize="small" color="action" />
-                <Typography variant="body1">{yearDisplay}</Typography>
-              </Box>
-            )}
-            {/* Movie runtime */}
-            {isMovie(media) && media.runtime_minutes && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <AccessTimeIcon fontSize="small" color="action" />
-                <Typography variant="body1">{formatRuntime(media.runtime_minutes)}</Typography>
-              </Box>
-            )}
-            {/* Series seasons/episodes */}
-            {isSeries(media) && media.total_seasons && (
-              <Typography variant="body1" color="text.secondary">
-                {t('mediaDetail.hero.seasons', { count: media.total_seasons })}
-              </Typography>
-            )}
-            {isSeries(media) && media.total_episodes && (
-              <Typography variant="body1" color="text.secondary">
-                {t('mediaDetail.hero.episodes', { count: media.total_episodes })}
-              </Typography>
-            )}
-            {isSeries(media) && media.average_episode_runtime_minutes != null && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <AccessTimeIcon fontSize="small" color="action" />
-                <Typography variant="body1" color="text.secondary">
-                  {t('mediaDetail.hero.avgPerEpisode', {
-                    runtime: formatRuntime(media.average_episode_runtime_minutes),
-                  })}
-                </Typography>
-              </Box>
-            )}
-            {/* Series network */}
-            {isSeries(media) && media.network && (
-              <Chip label={media.network} size="small" variant="outlined" />
-            )}
-          </Box>
-
-          {/* Genres */}
-          {media.genres && media.genres.length > 0 && (
-            <Box sx={{ display: 'flex', gap: 1, mb: 3, flexWrap: 'wrap' }}>
-              {media.genres.map((genre) => (
+        <Box sx={{ flex: 1, minWidth: 0, display: { xs: 'contents', sm: 'block' } }}>
+          <Box sx={{ gridColumn: 2, minWidth: 0 }}>
+            {/* Status badges */}
+            <Box sx={{ display: 'flex', gap: 0.75, mb: { xs: 0.5, sm: 2 }, flexWrap: 'wrap' }}>
+              {/* Series status */}
+              {isSeries(media) && media.status && (
                 <Chip
-                  key={genre}
-                  label={genre}
+                  label={media.status}
                   size="small"
-                  sx={{
-                    bgcolor: 'rgba(255,255,255,0.1)',
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' },
-                  }}
+                  color={media.status === 'Continuing' ? 'success' : 'default'}
+                  sx={{ fontWeight: 600 }}
                 />
-              ))}
-            </Box>
-          )}
-
-          {/* Action buttons */}
-          <Box sx={{ 
-            display: 'flex', 
-            flexDirection: { xs: 'column', sm: 'row' },
-            gap: { xs: 1.5, sm: 2 }, 
-            mb: 3,
-            alignItems: { xs: 'stretch', sm: 'center' }
-          }}>
-            <HeartRating
-              value={userRating}
-              onChange={onRatingChange}
-              loading={ratingLoading}
-              size="medium"
-              showValue
-            />
-            {/* Series watching toggle */}
-            {isSeries(media) && onWatchingToggle && (
-              <Tooltip
-                title={
-                  isWatching
-                    ? t('mediaDetail.hero.removeFromWatchingList')
-                    : t('mediaDetail.hero.addToWatchingList')
-                }
-              >
-                <Button
-                  variant={isWatching ? 'contained' : 'outlined'}
-                  startIcon={isWatching ? <PlaylistAddCheckIcon /> : <AddToQueueIcon />}
-                  onClick={onWatchingToggle}
-                  sx={{
-                    borderRadius: 2,
-                    ...(isWatching && {
-                      background:
-                        'linear-gradient(135deg, rgba(99, 102, 241, 0.9) 0%, rgba(139, 92, 246, 0.9) 100%)',
-                    }),
-                  }}
-                >
-                  {isWatching ? t('mediaDetail.hero.watching') : t('mediaDetail.hero.addToWatching')}
-                </Button>
-              </Tooltip>
-            )}
-            {media.tmdb_id && (
-              <Tooltip title={t('mediaDetail.hero.trailerTooltip')}>
-                <span>
-                  <Button
-                    variant="outlined"
-                    startIcon={
-                      trailerLoading ? (
-                        <CircularProgress size={18} color="inherit" />
-                      ) : (
-                        <OndemandVideoIcon />
-                      )
-                    }
-                    onClick={handleOpenTrailer}
-                    disabled={trailerLoading}
-                    sx={{ borderRadius: 2 }}
-                  >
-                    {t('mediaDetail.hero.trailer')}
-                  </Button>
-                </span>
-              </Tooltip>
-            )}
-            <Button
-              variant="outlined"
-              startIcon={<PlayArrowIcon />}
-              onClick={handlePlayOnMediaServer}
-              disabled={!mediaServer?.baseUrl}
-              sx={{ borderRadius: 2 }}
-            >
-              {mediaServer?.type === 'jellyfin' ? t('mediaDetail.hero.openJellyfin') : t('mediaDetail.hero.openEmby')}
-            </Button>
-            {/* Movie mark unwatched */}
-            {isMovie(media) && watchStatus?.isWatched && canManageWatchHistory && (
-              <Tooltip title={t('mediaDetail.hero.markUnwatchedTooltip')}>
-                <Button
+              )}
+              {isSeries(media) && media.content_rating && (
+                <Chip
+                  label={media.content_rating}
+                  size="small"
                   variant="outlined"
-                  color="warning"
-                  startIcon={<VisibilityOffIcon />}
-                  onClick={() => setConfirmOpen(true)}
-                  sx={{ borderRadius: 2 }}
-                >
-                  {t('mediaDetail.hero.markUnwatched')}
-                </Button>
-              </Tooltip>
-            )}
-          </Box>
+                  sx={{ fontWeight: 600 }}
+                />
+              )}
+              {/* Movie availability */}
+              {isMovie(media) && (
+                <Chip
+                  label={t('mediaDetail.hero.available')}
+                  size="small"
+                  sx={{ bgcolor: 'success.main', color: theme => theme.aperture.name === 'studio' ? theme.palette.success.contrastText : 'white', fontWeight: 600 }}
+                />
+              )}
+              {/* Movie watch status */}
+              {isMovie(media) && watchStatus?.isWatched && (
+                <Chip
+                  icon={<CheckCircleIcon sx={{ fontSize: 16 }} />}
+                  label={
+                    watchStatus.playCount > 1
+                      ? t('mediaDetail.hero.watchedCount', { count: watchStatus.playCount })
+                      : t('mediaDetail.hero.watched')
+                  }
+                  size="small"
+                  sx={{ bgcolor: 'primary.main', color: theme => theme.aperture.name === 'studio' ? theme.palette.primary.contrastText : 'white', fontWeight: 600 }}
+                />
+              )}
+            </Box>
 
-          {/* Community Rating */}
-          {media.community_rating && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <StarIcon sx={{ color: 'warning.main' }} />
-                <Typography variant="h6" fontWeight={600}>
-                  {Number(media.community_rating).toFixed(1)}
+            {/* Title */}
+            <Typography
+              variant="h3"
+              fontWeight={700}
+              sx={theme => ({ mb: 1, overflowWrap: 'anywhere', textShadow: theme.aperture.name === 'classic' ? '2px 2px 4px rgba(0,0,0,0.5)' : 'none', ...(theme.aperture.name === 'studio' ? { fontFamily: '"Barlow Condensed", sans-serif', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.015em', fontSize: { xs: '1.65rem', sm: '2.5rem', md: '3.5rem' } } : { fontSize: { xs: '1.4rem', sm: undefined } }) })}
+            >
+              {media.title}
+            </Typography>
+
+            {media.original_title && media.original_title !== media.title && (
+              <Typography variant="h6" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic' }}>
+                {media.original_title}
+              </Typography>
+            )}
+
+            {/* Tagline (series only) */}
+            {isSeries(media) && media.tagline && (
+              <Typography variant="body1" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic' }}>
+                "{media.tagline}"
+              </Typography>
+            )}
+
+            {/* Meta row */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.75, sm: 2 }, mb: { xs: 0.75, sm: 3 }, flexWrap: 'wrap' }}>
+              {yearDisplay && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <CalendarTodayIcon fontSize="small" color="action" />
+                  <Typography variant="body1">{yearDisplay}</Typography>
+                </Box>
+              )}
+              {/* Movie runtime */}
+              {isMovie(media) && media.runtime_minutes && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <AccessTimeIcon fontSize="small" color="action" />
+                  <Typography variant="body1">{formatRuntime(media.runtime_minutes)}</Typography>
+                </Box>
+              )}
+              {/* Series seasons/episodes */}
+              {isSeries(media) && media.total_seasons && (
+                <Typography variant="body1" color="text.secondary">
+                  {t('mediaDetail.hero.seasons', { count: media.total_seasons })}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {t('mediaDetail.hero.outOfTen')}
+              )}
+              {isSeries(media) && media.total_episodes && (
+                <Typography variant="body1" color="text.secondary">
+                  {t('mediaDetail.hero.episodes', { count: media.total_episodes })}
                 </Typography>
-              </Box>
-              {/* Series critic rating */}
-              {isSeries(media) && media.critic_rating && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    {t('mediaDetail.hero.critic')}
-                  </Typography>
-                  <Typography variant="body1" fontWeight={600}>
-                    {Number(media.critic_rating).toFixed(0)}%
+              )}
+              {isSeries(media) && media.average_episode_runtime_minutes != null && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <AccessTimeIcon fontSize="small" color="action" />
+                  <Typography variant="body1" color="text.secondary">
+                    {t('mediaDetail.hero.avgPerEpisode', {
+                      runtime: formatRuntime(media.average_episode_runtime_minutes),
+                    })}
                   </Typography>
                 </Box>
               )}
+              {/* Series network */}
+              {isSeries(media) && media.network && (
+                <Chip label={media.network} size="small" variant="outlined" />
+              )}
             </Box>
-          )}
 
-          {/* Overview */}
-          {media.overview && (
-            <Typography
-              variant="body1"
-              color="text.secondary"
-              sx={{
-                lineHeight: 1.7,
-                maxWidth: 600,
-              }}
-            >
-              {media.overview}
-            </Typography>
-          )}
+            {/* Genres */}
+            {media.genres && media.genres.length > 0 && (
+              <Box sx={{ display: 'flex', gap: 0.75, mb: { xs: 0, sm: 3 }, flexWrap: 'wrap' }}>
+                {media.genres.map((genre) => (
+                  <Chip
+                    key={genre}
+                    label={genre}
+                    size="small"
+                    sx={{
+                      bgcolor: 'rgba(255,255,255,0.1)',
+                      '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' },
+                    }}
+                  />
+                ))}
+              </Box>
+            )}
+
+          </Box>
+          <Box sx={{ gridColumn: '1 / -1' }}>
+            {/* Action buttons */}
+            <Box sx={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: { xs: 0.5, sm: 2 },
+              mb: { xs: 1, sm: 3 },
+              alignItems: 'center',
+            }}>
+              <HeartRating
+                value={userRating}
+                onChange={onRatingChange}
+                loading={ratingLoading}
+                size="medium"
+                showValue
+              />
+              {/* Series watching toggle */}
+              {isSeries(media) && onWatchingToggle && (
+                <Tooltip
+                  title={
+                    isWatching
+                      ? t('mediaDetail.hero.removeFromWatchingList')
+                      : t('mediaDetail.hero.addToWatchingList')
+                  }
+                >
+                  <Button
+                    variant={isWatching ? 'contained' : 'outlined'}
+                    startIcon={isWatching ? <PlaylistAddCheckIcon /> : <AddToQueueIcon />}
+                    onClick={onWatchingToggle}
+                    sx={{
+                      borderRadius: 2,
+                      ...(isWatching && {
+                        background:
+                          'linear-gradient(135deg, rgba(99, 102, 241, 0.9) 0%, rgba(139, 92, 246, 0.9) 100%)',
+                      }),
+                    }}
+                  >
+                    {isWatching ? t('mediaDetail.hero.watching') : t('mediaDetail.hero.addToWatching')}
+                  </Button>
+                </Tooltip>
+              )}
+              {media.tmdb_id && (
+                <Tooltip title={t('mediaDetail.hero.trailerTooltip')}>
+                  <span>
+                    <Button
+                      variant="outlined"
+                      startIcon={
+                        trailerLoading ? (
+                          <CircularProgress size={18} color="inherit" />
+                        ) : (
+                          <OndemandVideoIcon />
+                        )
+                      }
+                      onClick={handleOpenTrailer}
+                      disabled={trailerLoading}
+                      sx={{ borderRadius: 2 }}
+                    >
+                      {t('mediaDetail.hero.trailer')}
+                    </Button>
+                  </span>
+                </Tooltip>
+              )}
+              <Button
+                variant="outlined"
+                startIcon={<PlayArrowIcon />}
+                onClick={handlePlayOnMediaServer}
+                disabled={!mediaServer?.baseUrl}
+                sx={{ borderRadius: 2 }}
+              >
+                {mediaServer?.type === 'jellyfin' ? t('mediaDetail.hero.openJellyfin') : t('mediaDetail.hero.openEmby')}
+              </Button>
+              {/* Movie mark unwatched */}
+              {isMovie(media) && watchStatus?.isWatched && canManageWatchHistory && (
+                <Tooltip title={t('mediaDetail.hero.markUnwatchedTooltip')}>
+                  <Button
+                    variant="outlined"
+                    color="warning"
+                    startIcon={<VisibilityOffIcon />}
+                    onClick={() => setConfirmOpen(true)}
+                    sx={{ borderRadius: 2 }}
+                  >
+                    {t('mediaDetail.hero.markUnwatched')}
+                  </Button>
+                </Tooltip>
+              )}
+            </Box>
+
+            {/* Community Rating */}
+            {media.community_rating && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <StarIcon sx={{ color: 'warning.main' }} />
+                  <Typography variant="h6" fontWeight={600}>
+                    {Number(media.community_rating).toFixed(1)}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {t('mediaDetail.hero.outOfTen')}
+                  </Typography>
+                </Box>
+                {/* Series critic rating */}
+                {isSeries(media) && media.critic_rating && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      {t('mediaDetail.hero.critic')}
+                    </Typography>
+                    <Typography variant="body1" fontWeight={600}>
+                      {Number(media.critic_rating).toFixed(0)}%
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            )}
+
+            {/* Overview */}
+            {media.overview && (
+              <Typography
+                variant="body1"
+                color="text.secondary"
+                sx={{
+                  lineHeight: 1.7,
+                  maxWidth: 600,
+                }}
+              >
+                {media.overview}
+              </Typography>
+            )}
+          </Box>
         </Box>
       </Box>
 

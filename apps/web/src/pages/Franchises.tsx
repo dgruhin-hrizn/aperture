@@ -197,15 +197,15 @@ export function FranchisesPage() {
 
   return (
     <Box>
-      <Typography variant="h4" fontWeight={700} mb={1}>
+      <Typography data-mobile-redundant variant="h4" fontWeight={700} mb={1}>
         {t('browse.franchises.title')}
       </Typography>
-      <Typography variant="body1" color="text.secondary" mb={4}>
+      <Typography data-mobile-redundant variant="body1" color="text.secondary" mb={{ xs: 1.5, sm: 4 }}>
         {t('browse.franchises.subtitle')}
       </Typography>
 
       {/* Stats Cards */}
-      <Grid container spacing={2} mb={4}>
+      <Grid container spacing={{ xs: 1, sm: 2 }} mb={{ xs: 1.5, sm: 4 }}>
         <Grid item xs={6} sm={3}>
           <StatCard
             value={stats ? stats.totalFranchises : <Skeleton width={40} sx={{ mx: 'auto' }} />}
@@ -235,7 +235,7 @@ export function FranchisesPage() {
       </Grid>
 
       {/* Filters */}
-      <Box display="flex" gap={2} mb={4} flexWrap="wrap" alignItems="center">
+      <Box display="flex" gap={2} mb={{ xs: 1.5, sm: 4 }} flexWrap="wrap" alignItems="center">
         <TextField
           placeholder={t('browse.franchises.searchPlaceholder')}
           value={search}
@@ -391,7 +391,7 @@ export function FranchisesPage() {
 
               <Collapse in={expandedFranchises.has(franchise.name)}>
                 <CardContent sx={{ pt: 0 }}>
-                  <Grid container spacing={2} mt={1}>
+                  <Grid container spacing={{ xs: 1, sm: 2 }} mt={1}>
                     {franchise.movies.map((movie) => (
                       <Grid item xs={4} sm={3} md={2} lg={1.5} key={movie.id}>
                         <Box position="relative">

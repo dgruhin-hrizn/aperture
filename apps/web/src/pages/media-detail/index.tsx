@@ -91,11 +91,11 @@ export function MediaDetailPage({ mediaType }: MediaDetailPageProps) {
       {insights && <MovieInsights insights={insights} mediaType={mediaType} />}
 
       {/* Main Content */}
-      <Box sx={{ mt: 4, px: { xs: 2, sm: 3 } }}>
-        <Grid container spacing={3}>
+      <Box sx={{ mt: { xs: 1, sm: 4 }, px: { xs: 0, sm: 3 } }}>
+        <Grid container spacing={{ xs: 1.25, sm: 3 }}>
           {/* Left Column - Info */}
           <Grid item xs={12} md={6}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.25, sm: 3 } }}>
               <MediaInfoCard media={media} watchStats={watchStats} />
               {/* Episodes List (Series only) */}
               {isSeries(media) && Object.keys(seasons).length > 0 && (
@@ -117,7 +117,7 @@ export function MediaDetailPage({ mediaType }: MediaDetailPageProps) {
       </Box>
 
       {/* Bottom padding */}
-      <Box sx={{ pb: 4 }} />
+      <Box sx={{ pb: { xs: 1, sm: 4 } }} />
     </Box>
   )
 }

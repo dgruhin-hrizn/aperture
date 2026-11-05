@@ -7,6 +7,15 @@ import { RunningJobsWidget } from '../RunningJobsWidget'
 import { ColorModeToggle } from '@/appearance/ColorModeToggle'
 import { AccountMenu } from './AccountMenu'
 import { pathActive, type NavItem } from './navigation'
+
+const pageTitles: Record<string, string> = {
+  '/movies': 'browse.movies.title',
+  '/series': 'browse.series.title',
+  '/search': 'search.title',
+  '/franchises': 'browse.franchises.title',
+  '/admin/gaps': 'nav.gapAnalysis',
+}
+
 export function AppHeader({
   mobile,
   drawerWidth,
@@ -22,6 +31,7 @@ export function AppHeader({
     { pathname } = useLocation(),
     navigate = useNavigate()
   const title =
+    pageTitles[pathname] ??
     items.find((item) => pathActive(pathname, item.path))?.textKey ??
     (pathname === '/you'
       ? 'mobile.you'
@@ -30,7 +40,8 @@ export function AppHeader({
         : pathname.startsWith('/admin')
           ? 'nav.admin'
           : 'common.appName')
-  const detail = /^\/(movies|series|person|studio)\/.+/.test(pathname)
+  const adminDetail = pathname.startsWith('/admin/users/')
+  const detail = adminDetail || /^\/(movies|series|person|studio)\/.+/.test(pathname)
   return (
     <AppBar
       position={mobile ? 'static' : 'fixed'}
@@ -46,7 +57,13 @@ export function AppHeader({
         borderColor: 'divider',
       }}
     >
-      <Toolbar sx={{ minHeight: { xs: 56, sm: 64 }, px: { xs: 2, sm: 3 }, gap: 1 }}>
+      <Toolbar
+        sx={{
+          minHeight: mobile ? 'calc(var(--ap-header-height) - 1px)' : 64,
+          px: mobile ? 'var(--ap-page-gutter)' : 3,
+          gap: 1,
+        }}
+      >
         {mobile && (
           <>
             {detail ? (
@@ -54,7 +71,7 @@ export function AppHeader({
                 aria-label={t('mobile.back')}
                 onClick={() => {
                   if (window.history.state?.idx > 0) void navigate(-1)
-                  else void navigate('/browse')
+                  else void navigate(adminDetail ? '/admin/users' : '/browse')
                 }}
                 sx={{ width: 44, height: 44, ml: -1 }}
               >
@@ -65,15 +82,15 @@ export function AppHeader({
                 component={Link}
                 to="/encore"
                 aria-label={t('encore.open')}
-                sx={{ display: 'flex', alignItems: 'center' }}
+                sx={{ display: 'grid', placeItems: 'center', width: 44, height: 44, ml: -1 }}
               >
-                <Box component="img" src="/aperture.svg" alt="" sx={{ width: 30, height: 30 }} />
+                <Box component="img" src="/aperture.svg" alt="" sx={{ width: { xs: 26, sm: 30 }, height: { xs: 26, sm: 30 } }} />
               </Box>
             )}
             <Typography
               component="h1"
               fontWeight={700}
-              sx={{ flex: 1, minWidth: 0, fontSize: 20 }}
+              sx={{ flex: 1, minWidth: 0, fontSize: { xs: 18, sm: 20 } }}
               noWrap
             >
               {t(

@@ -127,13 +127,13 @@ export function LoginPage() {
     <Box
       sx={{
         position: 'relative',
-        minHeight: '100vh',
+        minHeight: '100dvh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
         px: 2,
-        py: 4,
+        py: { xs: 2, sm: 4 },
         backgroundColor: '#09090f',
         backgroundImage: `
           radial-gradient(circle at 22% 18%, ${alpha(theme.palette.primary.main, 0.34)} 0%, transparent 32%),
@@ -195,16 +195,16 @@ export function LoginPage() {
           boxShadow: `0 24px 80px ${alpha(theme.palette.common.black, 0.52)}`,
         }}
       >
-        <CardContent sx={{ p: { xs: 3, sm: 4.5 } }}>
-          <Box textAlign="center" mb={4.5}>
+        <CardContent sx={{ p: { xs: 2, sm: 4.5 } }}>
+          <Box textAlign="center" mb={{ xs: 2, sm: 4.5 }}>
             <Box
               sx={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: 76,
-                height: 76,
-                mb: 2,
+                width: { xs: 54, sm: 76 },
+                height: { xs: 54, sm: 76 },
+                mb: { xs: 1, sm: 2 },
                 borderRadius: 3,
                 background: `linear-gradient(145deg, ${alpha(theme.palette.common.white, 0.12)}, ${alpha(theme.palette.common.white, 0.02)})`,
                 border: '1px solid',
@@ -216,7 +216,7 @@ export function LoginPage() {
                 component="img"
                 src="/aperture.svg"
                 alt="Aperture"
-                sx={{ width: 46, height: 46 }}
+                sx={{ width: { xs: 34, sm: 46 }, height: { xs: 34, sm: 46 } }}
               />
             </Box>
             <Typography

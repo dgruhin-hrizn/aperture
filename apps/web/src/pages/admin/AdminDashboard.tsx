@@ -116,7 +116,7 @@ export function AdminDashboard() {
 
   return (
     <Box>
-      <Grid container spacing={3}>
+      <Grid container spacing={{ xs: 1, sm: 3 }} sx={{ "& .MuiCardContent-root": { p: { xs: 1.25, sm: 2 }, "&:last-child": { pb: { xs: 1.25, sm: 3 } } } }}>
         <Grid item xs={12} md={6} lg={4}>
           <StatusCard
             title={t('admin.dashboard.systemStatus')}

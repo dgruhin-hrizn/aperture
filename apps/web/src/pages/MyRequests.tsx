@@ -1,3 +1,4 @@
+import { requestTableSx } from './myRequestsTableStyles'
 import { apiFetch } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
@@ -213,18 +214,18 @@ export function MyRequestsPage() {
   }
 
   return (
-    <Box sx={{ maxWidth: 1100, mx: 'auto', p: { xs: 2, md: 3 } }}>
-      <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+    <Box sx={{ maxWidth: 1100, mx: 'auto', p: { xs: 0, md: 3 } }}>
+      <Box data-mobile-redundant display="flex" alignItems="center" gap={1.5} mb={1}>
         <PlaylistAddCheckIcon color="primary" fontSize="large" />
         <Typography variant="h4" fontWeight={700}>
           {t('nav.myRequests')}
         </Typography>
       </Box>
-      <Typography variant="body2" color="text.secondary" mb={2}>
+      <Typography data-mobile-redundant variant="body2" color="text.secondary" mb={2}>
         {t('myRequests.pageSubtitle')}
       </Typography>
 
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mb={3} alignItems={{ sm: 'center' }}>
+      <Stack direction="row" spacing={2} mb={{ xs: 1, sm: 3 }} alignItems="center">
         <FormControl size="small" sx={{ minWidth: 220 }}>
           <InputLabel id="req-source-filter">{t('myRequests.source')}</InputLabel>
           <Select
@@ -251,19 +252,23 @@ export function MyRequestsPage() {
 
       <Paper variant="outlined" sx={{ borderRadius: 2 }}>
         {loading || owner !== userId ? (
-          <Box display="flex" justifyContent="center" py={6}>
+          <Box display="flex" justifyContent="center" py={{ xs: 2, sm: 6 }}>
             <CircularProgress />
           </Box>
         ) : total === 0 ? (
-          <Box py={6} px={2} textAlign="center">
+          <Box py={{ xs: 2, sm: 6 }} px={2} textAlign="center">
             <Typography color="text.secondary">
               {t('myRequests.empty')}
             </Typography>
           </Box>
         ) : (
           <TableContainer>
-            <Table size="small">
-              <TableHead>
+            <Table
+              size="small"
+              role="table"
+              sx={requestTableSx}
+            >
+              <TableHead role="rowgroup">
                 <TableRow>
                   <TableCell>{t('myRequests.tableTitle')}</TableCell>
                   <TableCell width={100}>{t('myRequests.tableType')}</TableCell>
@@ -275,9 +280,9 @@ export function MyRequestsPage() {
                   </TableCell>
                 </TableRow>
               </TableHead>
-              <TableBody>
+              <TableBody role="rowgroup">
                 {rows.map((r) => (
-                  <TableRow key={r.id} hover>
+                  <TableRow key={r.id} role="row" hover>
                     <TableCell>
                       <Typography fontWeight={600}>{r.title}</Typography>
                       {r.seerrRequestId != null && (
@@ -368,6 +373,18 @@ export function MyRequestsPage() {
             }}
             rowsPerPageOptions={[10, 25, 50, 100]}
             labelRowsPerPage={t('common.rowsPerPage')}
+            sx={{
+              '& .MuiTablePagination-toolbar': {
+                px: { xs: 1, sm: undefined },
+              },
+              '& .MuiTablePagination-spacer': { display: { xs: 'none', sm: 'block' } },
+              '& .MuiTablePagination-selectLabel': {
+                position: { xs: 'absolute', sm: 'static' },
+                clipPath: { xs: 'inset(50%)', sm: 'none' },
+              },
+              '& .MuiTablePagination-input': { mr: { xs: 1, sm: 4 }, ml: { xs: 0, sm: 1 } },
+              '& .MuiTablePagination-actions': { ml: { xs: 'auto', sm: 2.5 } },
+            }}
           />
         )}
       </Paper>

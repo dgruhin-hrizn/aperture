@@ -42,18 +42,18 @@ export function DashboardPage() {
       <Box
         sx={{
           display: 'flex',
-          flexDirection: { xs: 'column', sm: 'row' },
-          alignItems: { xs: 'stretch', sm: 'center' },
+          flexDirection: 'row',
+          alignItems: 'center',
           justifyContent: 'space-between',
-          gap: { xs: 2, sm: 0 },
-          mb: 3,
+          gap: { xs: 1, sm: 0 },
+          mb: { xs: 1.5, sm: 3 },
         }}
       >
         <Box>
-          <Typography variant="h4" fontWeight={700}>
+          <Typography variant="h4" fontWeight={700} sx={{ fontSize: { xs: "1.25rem", sm: undefined }, overflowWrap: "anywhere" }}>
             {greeting}, {user?.displayName || user?.username}
           </Typography>
-          <Typography variant="body1" color="text.secondary">
+          <Typography variant="body1" color="text.secondary" sx={{ display: { xs: "none", sm: "block" } }}>
             {t('dashboard.subtitle')}
           </Typography>
         </Box>
@@ -79,7 +79,7 @@ export function DashboardPage() {
       )}
 
       {/* Quick Stats */}
-      <Box sx={{ mb: 4 }}>
+      <Box sx={{ mb: { xs: 2, sm: 4 } }}>
         <QuickStatsBar
           moviesWatched={data?.stats.moviesWatched || 0}
           seriesWatched={data?.stats.seriesWatched || 0}
@@ -90,7 +90,7 @@ export function DashboardPage() {
       </Box>
 
       {/* Your AI Movie Recommendations */}
-      <Box sx={{ mb: 4 }}>
+      <Box sx={{ mb: { xs: 2, sm: 4 } }}>
         <MediaCarousel
           title={t('dashboard.aiMovieRecommendations')}
           subtitle={t('dashboard.subtitlePersonalized')}
@@ -105,7 +105,7 @@ export function DashboardPage() {
       </Box>
 
       {/* Your AI Series Recommendations */}
-      <Box sx={{ mb: 4 }}>
+      <Box sx={{ mb: { xs: 2, sm: 4 } }}>
         <MediaCarousel
           title={t('dashboard.aiSeriesRecommendations')}
           subtitle={t('dashboard.subtitlePersonalized')}
@@ -121,7 +121,7 @@ export function DashboardPage() {
 
       {/* Shows You Watch - Upcoming Episodes */}
       {(watchingLoading || upcomingLoading || upcomingError || upcomingShows.length > 0) && (
-        <Box sx={{ mb: 4 }}>
+        <Box sx={{ mb: { xs: 2, sm: 4 } }}>
           <WatchingCarousel
             title={t('dashboard.upcomingEpisodes')}
             subtitle={t('dashboard.subtitleFromWatching')}
@@ -148,7 +148,7 @@ export function DashboardPage() {
       )}
 
       {/* Top Pick Movies */}
-      <Box sx={{ mb: 4 }}>
+      <Box sx={{ mb: { xs: 2, sm: 4 } }}>
         <MediaCarousel
           title={t('dashboard.topPickMovies')}
           subtitle={t('dashboard.subtitlePopularMovies')}
@@ -160,7 +160,7 @@ export function DashboardPage() {
       </Box>
 
       {/* Top Pick Series */}
-      <Box sx={{ mb: 4 }}>
+      <Box sx={{ mb: { xs: 2, sm: 4 } }}>
         <MediaCarousel
           title={t('dashboard.topPickSeries')}
           subtitle={t('dashboard.subtitlePopularSeries')}
@@ -172,7 +172,7 @@ export function DashboardPage() {
       </Box>
 
       {/* Bottom section: Recent Watches + Recent Ratings */}
-      <Grid container spacing={3}>
+      <Grid container spacing={{ xs: 1.5, sm: 3 }}>
         <Grid item xs={12} md={6}>
           <RecentWatchesList watches={data?.recentWatches || []} loading={loading} />
         </Grid>

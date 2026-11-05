@@ -120,15 +120,15 @@ export function SeriesPage() {
 
   return (
     <Box>
-      <Typography variant="h4" fontWeight={700} mb={1}>
+      <Typography data-mobile-redundant variant="h4" fontWeight={700} mb={1}>
         {t('browse.series.title')}
       </Typography>
-      <Typography variant="body1" color="text.secondary" mb={4}>
+      <Typography data-mobile-redundant variant="body1" color="text.secondary" mb={{ xs: 1.5, sm: 4 }}>
         {t('browse.series.subtitle')}
       </Typography>
 
       {/* Filters */}
-      <Box display="flex" gap={2} mb={4} flexWrap="wrap" alignItems="center">
+      <Box display="flex" gap={2} mb={{ xs: 1.5, sm: 4 }} flexWrap="wrap" alignItems="center">
         <TextField
           placeholder={t('browse.series.searchPlaceholder')}
           value={search}
@@ -240,7 +240,7 @@ export function SeriesPage() {
       )}
 
       {loading ? (
-        <Grid container spacing={2}>
+        <Grid container spacing={{ xs: 1, sm: 2 }}>
           {Array.from({ length: 12 }).map((_, i) => (
             <Grid item xs={6} sm={4} md={3} lg={2} key={i}>
               <MoviePoster title="" loading responsive />
@@ -255,7 +255,7 @@ export function SeriesPage() {
         </Typography>
       ) : (
         <>
-          <Grid container spacing={2}>
+          <Grid container spacing={{ xs: 1, sm: 2 }}>
             {series.map((show) => (
               <Grid item xs={6} sm={4} md={3} lg={2} key={show.id}>
                 <MoviePoster

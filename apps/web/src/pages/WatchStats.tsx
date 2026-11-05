@@ -120,7 +120,7 @@ export function WatchStatsPage() {
       <Box>
         <Skeleton variant="text" width={300} height={48} sx={{ mb: 1 }} />
         <Skeleton variant="text" width={200} height={24} sx={{ mb: 4 }} />
-        <Grid container spacing={3}>
+        <Grid container spacing={{ xs: 1.5, sm: 3 }}>
           {[...Array(6)].map((_, i) => (
             <Grid item xs={12} md={6} lg={4} key={i}>
               <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 2 }} />
@@ -148,7 +148,7 @@ export function WatchStatsPage() {
   return (
     <Box>
       {/* Header */}
-      <Box mb={4}>
+      <Box data-mobile-redundant mb={4}>
         <Box display="flex" alignItems="center" gap={2} mb={1}>
           <InsightsIcon sx={{ color: 'primary.main', fontSize: 32 }} />
           <Typography variant="h4" fontWeight={700}>
@@ -167,7 +167,7 @@ export function WatchStatsPage() {
       ) : (
         <>
           {/* Summary Cards */}
-          <Grid container spacing={2} mb={4}>
+          <Grid container spacing={{ xs: 1, sm: 2 }} mb={{ xs: 1.5, sm: 4 }} sx={{ "& .MuiCardContent-root": { p: { xs: 1, sm: 2 }, "&:last-child": { pb: { xs: 1, sm: 3 } } }, "& .MuiTypography-h4": { fontSize: { xs: "1.25rem", sm: undefined } }, "& .MuiSvgIcon-root": { fontSize: { xs: 21, sm: 32 }, mb: { xs: 0.25, sm: 1 } } }}>
             <Grid item xs={6} sm={4} md={2}>
               <Card sx={{ background: 'var(--ap-stat-surface, linear-gradient(135deg, #6366f1 0%, #4f46e5 100%))', borderRadius: 2 }}>
                 <CardContent sx={{ textAlign: 'center', py: 2 }}>
@@ -249,7 +249,7 @@ export function WatchStatsPage() {
           </Grid>
 
           {/* Charts Row 1 */}
-          <Grid container spacing={3} mb={3}>
+          <Grid container spacing={{ xs: 1.5, sm: 3 }} mb={{ xs: 1.5, sm: 3 }}>
             {/* Genre Distribution */}
             <Grid item xs={12} md={6}>
               <Card sx={{ borderRadius: 2, height: '100%' }}>
@@ -383,7 +383,7 @@ export function WatchStatsPage() {
           </Grid>
 
           {/* Charts Row 2 */}
-          <Grid container spacing={3} mb={3}>
+          <Grid container spacing={{ xs: 1.5, sm: 3 }} mb={{ xs: 1.5, sm: 3 }}>
             {/* Decade Distribution */}
             <Grid item xs={12} md={6}>
               <Card sx={{ borderRadius: 2, height: '100%' }}>
@@ -461,7 +461,7 @@ export function WatchStatsPage() {
           </Grid>
 
           {/* Charts Row 3 - Top Actors & Directors */}
-          <Grid container spacing={3}>
+          <Grid container spacing={{ xs: 1.5, sm: 3 }}>
             {/* Top Actors */}
             <Grid item xs={12} md={6}>
               <Card sx={{ borderRadius: 2 }}>
@@ -654,7 +654,7 @@ export function WatchStatsPage() {
           </Grid>
 
           {/* Charts Row 4 - Studios & Networks */}
-          <Grid container spacing={3} mt={0}>
+          <Grid container spacing={{ xs: 1.5, sm: 3 }} mt={0}>
             {/* Top Studios */}
             <Grid item xs={12} md={6}>
               <Card sx={{ borderRadius: 2 }}>

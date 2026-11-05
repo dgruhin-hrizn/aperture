@@ -19,9 +19,9 @@ export function MediaBackdrop({ backdropUrl, title, onBack }: MediaBackdropProps
     <Box
       sx={{
         position: 'relative',
-        height: { xs: 250, md: 350 },
-        mx: -3,
-        mt: -3,
+        height: { xs: 92, sm: 250, md: 350 },
+        mx: { xs: 'var(--ap-layout-inset)', md: -3 },
+        mt: { xs: -1, sm: -2, md: -3 },
         mb: 0,
         overflow: 'hidden',
       }}
@@ -67,6 +67,7 @@ export function MediaBackdrop({ backdropUrl, title, onBack }: MediaBackdropProps
         aria-label={t('common.back')}
         sx={{
           position: 'absolute',
+          display: { xs: 'none', md: 'inline-flex' },
           top: 16,
           left: 16,
           bgcolor: 'rgba(0,0,0,0.5)',

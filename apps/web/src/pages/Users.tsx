@@ -449,7 +449,7 @@ export function UsersPage() {
   if (isMobile) {
     return (
       <Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: { xs: 1, sm: 3 }, flexWrap: 'wrap', gap: 1 }}>
           <Typography variant="body2" color="text.secondary">
             {t('admin.usersPage.subtitleMobile', { provider: providerLabel })}
           </Typography>
@@ -476,7 +476,7 @@ export function UsersPage() {
           </Stack>
         </Box>
 
-        <Stack spacing={2}>
+        <Stack spacing={{ xs: 1, sm: 2 }}>
           {sortedUsers.length === 0 ? (
             <Paper sx={{ p: 4, textAlign: 'center', backgroundColor: 'background.paper', borderRadius: 2 }}>
               <Typography variant="body2" color="text.secondary">
@@ -493,9 +493,9 @@ export function UsersPage() {
                   opacity: user.isDisabled ? 0.5 : 1,
                 }}
               >
-                <CardContent>
+                <CardContent sx={{ p: { xs: 1, sm: 2 }, "&:last-child": { pb: { xs: 1, sm: 3 } } }}>
                   {/* User header with name and status */}
-                  <Stack direction="row" alignItems="flex-start" justifyContent="space-between" mb={2}>
+                  <Stack direction="row" alignItems="flex-start" justifyContent="space-between" mb={{ xs: 1, sm: 2 }}>
                     <Stack direction="row" spacing={1.5} alignItems="center" flex={1}>
                       <Avatar
                         sx={{
@@ -570,7 +570,7 @@ export function UsersPage() {
                   {user.isImported && (
                     <>
                       {/* Media toggles in a compact row */}
-                      <Stack direction="row" alignItems="center" spacing={2} mb={1.5}>
+                      <Stack direction="row" alignItems="center" spacing={{ xs: 0.75, sm: 2 }} useFlexGap flexWrap="wrap" mb={{ xs: 0.75, sm: 1.5 }}>
                         <Stack direction="row" alignItems="center" spacing={1}>
                           <MovieIcon fontSize="small" color="action" />
                           <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>{t('admin.usersPage.movies')}</Typography>
@@ -596,7 +596,7 @@ export function UsersPage() {
                       </Stack>
 
                       {/* Discovery toggles in a compact row */}
-                      <Stack direction="row" alignItems="center" spacing={2} mb={1.5}>
+                      <Stack direction="row" alignItems="center" spacing={{ xs: 0.75, sm: 2 }} useFlexGap flexWrap="wrap" mb={{ xs: 0.75, sm: 1.5 }}>
                         <Stack direction="row" alignItems="center" spacing={1}>
                           <HubOutlinedIcon fontSize="small" color="action" />
                           <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>{t('admin.usersPage.discover')}</Typography>

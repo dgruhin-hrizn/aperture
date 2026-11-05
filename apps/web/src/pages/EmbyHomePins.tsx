@@ -54,8 +54,8 @@ export function EmbyHomePins() {
   if (!shelves.length && error === null) return null
 
   return (
-    <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
-      <Stack spacing={1.5}>
+    <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, mb: { xs: 1.25, sm: 3 } }}>
+      <Stack spacing={{ xs: 0.75, sm: 1.5 }}>
         <Typography variant="subtitle1">{t('embyHomePins.title')}</Typography>
         <Typography variant="body2" color="text.secondary">{t('embyHomePins.description')}</Typography>
         {error !== null && <Alert severity="warning">{error || t('embyHomePins.error')}</Alert>}

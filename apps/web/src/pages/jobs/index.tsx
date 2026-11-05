@@ -1,7 +1,8 @@
+import { PageTabs } from '@/components/PageTabs'
 import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
-import { Box, Typography, Chip, Alert, Stack, Tabs, Tab, Button, AlertTitle } from '@mui/material'
+import { Box, Typography, Chip, Alert, Stack, Tab, Button, AlertTitle } from '@mui/material'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
@@ -230,7 +231,7 @@ export function JobsPage() {
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+        <Alert severity="error" sx={{ mb: { xs: 1, sm: 3 }, borderRadius: 2 }}>
           {error}
         </Alert>
       )}
@@ -240,7 +241,7 @@ export function JobsPage() {
         <Alert
           severity="warning"
           icon={<WarningAmberIcon />}
-          sx={{ mb: 3, borderRadius: 2 }}
+          sx={{ mb: { xs: 1, sm: 3 }, borderRadius: 2 }}
           action={
             <Stack direction="row" spacing={1}>
               <Button
@@ -286,7 +287,7 @@ export function JobsPage() {
       )}
 
       {/* Tabs */}
-      <Tabs
+      <PageTabs
         value={tabValue}
         onChange={(_, newValue) => setTabValue(newValue)}
         variant="scrollable"
@@ -368,7 +369,7 @@ export function JobsPage() {
           iconPosition="start"
           label={t('admin.jobsPage.tabSchedule')}
         />
-      </Tabs>
+      </PageTabs>
 
       {/* Movies Tab */}
       <TabPanel value={tabValue} index={0}>

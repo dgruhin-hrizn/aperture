@@ -37,13 +37,13 @@ export function MobileNavigation({
         flexShrink: 0,
         px: { xs: 1.5, sm: 3 },
         pt: 'var(--ap-dock-rise)',
-        pb: 'max(12px, env(safe-area-inset-bottom, 0px))',
+        pb: 'max(var(--ap-dock-bottom), env(safe-area-inset-bottom, 0px))',
       }}
     >
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr 76px 1fr 1fr',
+          gridTemplateColumns: { xs: '1fr 1fr 62px 1fr 1fr', sm: '1fr 1fr 76px 1fr 1fr' },
           gridTemplateRows: 'minmax(0, 1fr)',
           alignItems: 'center',
           height: 'var(--ap-dock-height)',
@@ -78,15 +78,15 @@ export function MobileNavigation({
               sx={
                 encore
                   ? {
-                      width: 72,
-                      height: 72,
+                      width: { xs: 58, sm: 72 },
+                      height: { xs: 58, sm: 72 },
                       justifySelf: 'center',
                       borderRadius: '50%',
                       bgcolor: 'background.default',
-                      transform: 'translateY(-14px)',
+                      transform: { xs: 'translateY(-9px)', sm: 'translateY(-14px)' },
                       boxShadow: `0 6px 24px ${alpha(theme.palette.primary.main, active ? 0.22 : 0.12)}`,
                       transition: 'transform 160ms ease, box-shadow 160ms ease',
-                      '&:active': { transform: 'translateY(-12px) scale(.94)' },
+                      '&:active': { transform: { xs: 'translateY(-7px) scale(.94)', sm: 'translateY(-12px) scale(.94)' } },
                       '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
                     }
                   : {
@@ -123,8 +123,8 @@ export function MobileNavigation({
                 >
                   <Box
                     sx={{
-                      width: 60,
-                      height: 60,
+                      width: { xs: 48, sm: 60 },
+                      height: { xs: 48, sm: 60 },
                       display: 'grid',
                       placeItems: 'center',
                       borderRadius: '50%',
@@ -134,14 +134,14 @@ export function MobileNavigation({
                       boxShadow: `inset 0 1px 0 ${alpha('#ffffff', 0.28)}`,
                     }}
                   >
-                    <MobileNavIcon name={item.id} sx={{ fontSize: 30 }} />
+                    <MobileNavIcon name={item.id} sx={{ fontSize: { xs: 25, sm: 30 } }} />
                   </Box>
                 </Badge>
               ) : (
                 <>
                   <MobileNavIcon
                     name={item.id}
-                    sx={{ fontSize: 24, color: active ? 'primary.main' : 'inherit' }}
+                    sx={{ fontSize: { xs: 21, sm: 24 }, color: active ? 'primary.main' : 'inherit' }}
                   />
                   <Box
                     component="span"

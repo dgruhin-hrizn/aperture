@@ -162,11 +162,11 @@ export function TopPicksMediaPage({ mediaType }: TopPicksMediaPageProps) {
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={4} flexWrap="wrap" gap={2}>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={{ xs: 1, sm: 4 }} flexWrap="wrap" gap={{ xs: 0.75, sm: 2 }}>
         <Box>
           <Box display="flex" alignItems="center" gap={2} mb={1}>
             {headerIcon}
-            <Typography variant="h4" fontWeight={700}>
+            <Typography variant="h4" fontWeight={700} sx={{ fontSize: { xs: "1.25rem", sm: undefined } }}>
               {t(isMovie ? 'topPicksPage.pageTitleMovies' : 'topPicksPage.pageTitleSeries')}
             </Typography>
           </Box>
