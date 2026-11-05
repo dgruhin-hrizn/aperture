@@ -1,4 +1,5 @@
-import { Alert, Box, Chip, LinearProgress, Paper, Stack, Typography } from '@mui/material'
+import { ToolCard, ToolPreview } from './ToolCard'
+import { Alert, Box, Chip, LinearProgress, Stack, Typography } from '@mui/material'
 import { useTranslation } from 'react-i18next'
 import { ContentCarousel } from './tool-ui'
 import type { ContentItem } from './tool-ui'
@@ -13,30 +14,37 @@ export function ProgressResults({ data }: { data: Record<string, unknown> }) {
       runtime_minutes: number | null
     }>
     return (
-      <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3 }}>
+      <ToolCard variant="outlined">
         <Typography fontWeight={600}>{t('encore.nextEpisodes')}</Typography>
         <Typography variant="caption" color="text.secondary">
           {t('encore.episodeAvailability')}
         </Typography>
-        <Stack spacing={1.5} sx={{ mt: 2 }}>
-          {episodes.map((episode) => (
-            <Box key={episode.id}>
-              <Stack direction="row" alignItems="center" gap={1}>
+        <Box sx={{ mt: 1 }}>
+          <ToolPreview>
+            {episodes.map((episode) => (
+              <Stack
+                key={episode.id}
+                direction="row"
+                alignItems="baseline"
+                flexWrap="wrap"
+                gap={0.75}
+                sx={{ py: 0.25 }}
+              >
                 <Chip size="small" label={`S${episode.season_number} E${episode.episode_number}`} />
-                <Typography variant="body2" fontWeight={600}>
+                <Typography variant="body2" fontWeight={600} sx={{ flex: '1 1 100px' }}>
                   {episode.title}
                 </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {episode.runtime_minutes
+                    ? t('encore.minutes', { count: episode.runtime_minutes })
+                    : t('encore.unplaced.unknownRuntime')}
+                </Typography>
               </Stack>
-              <Typography variant="caption" color="text.secondary">
-                {episode.runtime_minutes
-                  ? t('encore.minutes', { count: episode.runtime_minutes })
-                  : t('encore.unplaced.unknownRuntime')}
-              </Typography>
-            </Box>
-          ))}
-        </Stack>
+            ))}
+          </ToolPreview>
+        </Box>
         {!episodes.length && <Typography sx={{ mt: 2 }}>{t('encore.noNextEpisodes')}</Typography>}
-      </Paper>
+      </ToolCard>
     )
   }
   const movies = data.movies as Array<{
@@ -71,8 +79,8 @@ export function ProgressResults({ data }: { data: Record<string, unknown> }) {
     ],
   }))
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+      <ToolCard variant="outlined">
         <Typography fontWeight={600}>{String(data.franchiseName)}</Typography>
         <Typography variant="caption" color="text.secondary">
           {t('encore.franchiseProgress', {
@@ -90,7 +98,7 @@ export function ProgressResults({ data }: { data: Record<string, unknown> }) {
             {t('encore.franchiseTruncated')}
           </Alert>
         )}
-      </Paper>
+      </ToolCard>
       <ContentCarousel data={{ id: String(data.id), items }} />
     </Box>
   )

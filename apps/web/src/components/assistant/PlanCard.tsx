@@ -1,3 +1,4 @@
+import { ToolCard, ToolCardHeading, ToolPreview } from './ToolCard'
 import { useState } from 'react'
 import {
   Alert,
@@ -8,7 +9,6 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  Paper,
   Stack,
   TextField,
   Typography,
@@ -50,47 +50,49 @@ export function PlanCard({
     }
   }
   return (
-    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, my: 1 }}>
-      <Stack direction="row" alignItems="center" gap={1}>
-        <EventAvailableOutlinedIcon color="primary" />
-        <Typography variant="h6" sx={{ flex: 1 }}>
-          {plan.name}
-        </Typography>
-        <Chip size="small" label={t(`encore.planStatus.${plan.status}`)} />
-      </Stack>
+    <ToolCard variant="outlined">
+      <ToolCardHeading
+        icon={<EventAvailableOutlinedIcon fontSize="small" />}
+        title={plan.name}
+        status={<Chip size="small" label={t(`encore.planStatus.${plan.status}`)} />}
+      />
       <Typography variant="caption" color="text.secondary">
         {plan.schedule.timezone} ·{' '}
         {t('encore.checkedAt', { date: new Date(plan.schedule.checkedAt).toLocaleString() })}
       </Typography>
-      <Stack spacing={1.5} sx={{ my: 2 }}>
-        {plan.schedule.slots.map((slot) => (
-          <Box
-            key={slot.id}
-            sx={{
-              borderInlineStart: '3px solid',
-              borderColor: 'primary.main',
-              paddingInlineStart: 2,
-            }}
-          >
-            <Typography fontWeight={600}>{slot.title}</Typography>
-            <Typography variant="body2" color="text.secondary">
-              {format(slot.start)} –{' '}
-              {new Date(slot.end).toLocaleTimeString(undefined, {
-                timeZone: plan.schedule.timezone,
-                timeStyle: 'short',
-              })}{' '}
-              · {t('encore.minutes', { count: slot.minutes ?? 0 })}
-            </Typography>
-          </Box>
+      <Box sx={{ my: 1 }}>
+        <ToolPreview limit={3}>
+          {plan.schedule.slots.map((slot) => (
+            <Box
+              key={slot.id}
+              sx={{
+                borderInlineStart: '3px solid',
+                borderColor: 'primary.main',
+                paddingInlineStart: 1,
+              }}
+            >
+              <Typography fontWeight={600}>{slot.title}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {format(slot.start)} –{' '}
+                {new Date(slot.end).toLocaleTimeString(undefined, {
+                  timeZone: plan.schedule.timezone,
+                  timeStyle: 'short',
+                })}{' '}
+                · {t('encore.minutes', { count: slot.minutes ?? 0 })}
+              </Typography>
+            </Box>
+          ))}
+        </ToolPreview>
+      </Box>
+      <ToolPreview limit={3}>
+        {plan.schedule.unplaced.map((item) => (
+          <Typography key={item.id} variant="body2" color="text.secondary" sx={{ py: 0.25 }}>
+            {item.title} · {t(`encore.unplaced.${item.reason}`, { defaultValue: item.reason })}
+          </Typography>
         ))}
-      </Stack>
-      {plan.schedule.unplaced.map((item) => (
-        <Typography key={item.id} variant="body2" color="text.secondary" sx={{ my: 1 }}>
-          {item.title} · {t(`encore.unplaced.${item.reason}`, { defaultValue: item.reason })}
-        </Typography>
-      ))}
-      <Stack direction="row" flexWrap="wrap" gap={1}>
-        <Button disabled={busy} onClick={() => void update('save')}>
+      </ToolPreview>
+      <Stack sx={{ mt: 0.75 }} direction="row" flexWrap="wrap" gap={0.5}>
+        <Button variant="outlined" disabled={busy} onClick={() => void update('save')}>
           {t('encore.savePlan')}
         </Button>
         <Button disabled={busy} onClick={() => void update('refresh')}>
@@ -202,6 +204,6 @@ export function PlanCard({
           </Button>
         </DialogActions>
       </Dialog>
-    </Paper>
+    </ToolCard>
   )
 }

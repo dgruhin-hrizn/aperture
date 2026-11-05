@@ -2,15 +2,16 @@
  * Content detail view for Tool UI
  * Rich display of a single movie or series
  */
-import { Box, Typography, Paper, Chip, Button, Divider } from '@mui/material'
-import PlayArrowIcon from '@mui/icons-material/PlayArrow'
-import InfoIcon from '@mui/icons-material/Info'
+import { useId, useState } from 'react'
+import { Box, Typography, Chip, Button, Divider, Stack } from '@mui/material'
+import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
 import StarIcon from '@mui/icons-material/Star'
 import FavoriteIcon from '@mui/icons-material/Favorite'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
-import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { getProxiedImageUrl } from '@aperture/ui'
+import { ToolCard } from '../ToolCard'
+import { ContentCardActions } from './ContentCardActions'
 import type { ContentDetailData } from './types'
 
 interface ContentDetailProps {
@@ -19,40 +20,29 @@ interface ContentDetailProps {
 
 export function ContentDetail({ data }: ContentDetailProps) {
   const { t } = useTranslation()
-  const navigate = useNavigate()
-
-  const detailsAction = data.actions.find((a) => a.id === 'details')
-  const playAction = data.actions.find((a) => a.id === 'play')
-
-  const handleDetails = () => {
-    if (detailsAction?.href) {
-      if (/^https?:\/\//.test(detailsAction.href))
-        window.open(detailsAction.href, '_blank', 'noopener,noreferrer')
-      else navigate(detailsAction.href)
-    }
-  }
-
-  const handlePlay = () => {
-    if (playAction?.href) {
-      window.open(playAction.href, '_blank')
-    }
-  }
+  const [expanded, setExpanded] = useState(false)
+  const detailsId = useId()
+  const detailsHref = data.actions.find((action) => action.id === 'details')?.href
+  const playHref = data.actions.find((action) => action.id === 'play')?.href
+  const hasExtras = Boolean(
+    data.cast?.length || data.tagline || data.director || data.network || data.status
+  )
+  const hasMore = hasExtras || (data.overview?.length ?? 0) > 120
 
   return (
-    <Paper sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 3, my: 2 }}>
+    <ToolCard variant="outlined">
       <Box
         sx={{
           display: 'flex',
-          flexDirection: { xs: 'column', sm: 'row' },
-          alignItems: { xs: 'center', sm: 'flex-start' },
-          gap: 2,
+          alignItems: 'flex-start',
+          gap: { xs: 1.25, sm: 2 },
         }}
       >
         {/* Poster */}
         <Box
           sx={{
-            width: 120,
-            height: 180,
+            width: { xs: 78, sm: 120 },
+            aspectRatio: '2 / 3',
             flexShrink: 0,
             borderRadius: 1.5,
             overflow: 'hidden',
@@ -80,6 +70,7 @@ export function ContentDetail({ data }: ContentDetailProps) {
                 justifyContent: 'center',
                 color: 'text.secondary',
                 fontSize: 12,
+                textAlign: 'center',
               }}
             >
               {t('assistantToolUi.noImage')}
@@ -93,7 +84,7 @@ export function ContentDetail({ data }: ContentDetailProps) {
           <Box
             sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 1, mb: 0.5 }}
           >
-            <Typography variant="h6" fontWeight={700} sx={{ color: 'text.primary' }}>
+            <Typography variant="subtitle1" fontWeight={700} sx={{ lineHeight: 1.25 }}>
               {data.name}
             </Typography>
             <Chip
@@ -112,20 +103,13 @@ export function ContentDetail({ data }: ContentDetailProps) {
 
           {/* Year / Year Range */}
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            {data.yearRange || data.year}
-            {data.runtime && ` · ${data.runtime}`}
-            {data.contentRating && ` · ${data.contentRating}`}
+            {[data.yearRange || data.year, data.runtime, data.contentRating]
+              .filter(Boolean)
+              .join(' · ')}
           </Typography>
 
-          {/* Tagline */}
-          {data.tagline && (
-            <Typography variant="body2" fontStyle="italic" color="text.secondary" sx={{ mb: 1 }}>
-              "{data.tagline}"
-            </Typography>
-          )}
-
           {/* Ratings */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap', mb: 0.75 }}>
             {data.communityRating && (
               <Chip
                 icon={<StarIcon sx={{ fontSize: 14 }} />}
@@ -173,7 +157,7 @@ export function ContentDetail({ data }: ContentDetailProps) {
 
           {/* Genres */}
           {data.genres && data.genres.length > 0 && (
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1.5 }}>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 0.75 }}>
               {data.genres.map((genre) => (
                 <Chip
                   key={genre}
@@ -189,22 +173,9 @@ export function ContentDetail({ data }: ContentDetailProps) {
             </Box>
           )}
 
-          {/* Director / Network */}
-          {(data.director || data.network) && (
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-              {[
-                data.director && t('assistantToolUi.directorPrefix', { name: data.director }),
-                data.network && t('assistantToolUi.networkPrefix', { name: data.network }),
-                data.status,
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-            </Typography>
-          )}
-
           {/* Series info */}
           {data.type === 'series' && (data.seasonCount || data.episodeCount) && (
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
               {t('assistantToolUi.seriesCounts', {
                 seasons: data.seasonCount ?? 0,
                 episodes: data.episodeCount ?? 0,
@@ -214,72 +185,83 @@ export function ContentDetail({ data }: ContentDetailProps) {
                 t('assistantToolUi.episodesWatchedSuffix', { count: data.episodesWatched })}
             </Typography>
           )}
-
-          {/* Action buttons */}
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 2 }}>
-            <Button
-              variant="outlined"
-              startIcon={<InfoIcon />}
-              onClick={handleDetails}
-              sx={{
-                borderColor: 'divider',
-                color: 'text.secondary',
-                '&:hover': {
-                  borderColor: '#6366f1',
-                  bgcolor: 'rgba(99, 102, 241, 0.1)',
-                },
-              }}
-            >
-              {t('assistantToolUi.viewDetails')}
-            </Button>
-            {playAction && (
-              <Button
-                variant="contained"
-                startIcon={<PlayArrowIcon />}
-                onClick={handlePlay}
-                sx={{
-                  background:
-                    'var(--ap-primary-action, linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%))',
-                  '&:hover': {
-                    background:
-                      'var(--ap-primary-hover, linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%))',
-                  },
-                }}
-              >
-                {t('assistantToolUi.playOnEmby')}
-              </Button>
-            )}
-          </Box>
         </Box>
       </Box>
+      <Stack gap={0.75} sx={{ mt: 1 }}>
+        <Box id={detailsId}>
+          {data.overview && (
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{
+                lineHeight: 1.55,
+                ...(!expanded &&
+                  hasMore && {
+                    display: '-webkit-box',
+                    WebkitLineClamp: 3,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                  }),
+              }}
+            >
+              {data.overview}
+            </Typography>
+          )}
+          <Box hidden={!expanded || !hasExtras}>
+            <Divider sx={{ my: 0.75 }} />
+            <Stack gap={0.5}>
+              {data.tagline && (
+                <Typography variant="body2" fontStyle="italic" color="text.secondary">
+                  {data.tagline}
+                </Typography>
+              )}
+              {/* Director / Network */}
+              {(data.director || data.network || data.status) && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                  {[
+                    data.director && t('assistantToolUi.directorPrefix', { name: data.director }),
+                    data.network && t('assistantToolUi.networkPrefix', { name: data.network }),
+                    data.status,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </Typography>
+              )}
 
-      {/* Overview */}
-      {data.overview && (
-        <>
-          <Divider sx={{ my: 2, borderColor: 'action.hover' }} />
-          <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-            {data.overview}
-          </Typography>
-        </>
-      )}
-
-      {/* Cast */}
-      {data.cast && data.cast.length > 0 && (
-        <>
-          <Divider sx={{ my: 2, borderColor: 'action.hover' }} />
-          <Typography
-            variant="caption"
-            fontWeight={600}
-            color="text.secondary"
-            sx={{ mb: 1, display: 'block' }}
-          >
-            {t('assistantToolUi.castHeading')}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {data.cast.join(', ')}
-          </Typography>
-        </>
-      )}
-    </Paper>
+              {data.cast && data.cast.length > 0 && (
+                <Box>
+                  <Typography variant="caption" fontWeight={600} color="text.secondary">
+                    {t('assistantToolUi.castHeading')}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {data.cast.join(', ')}
+                  </Typography>
+                </Box>
+              )}
+            </Stack>
+          </Box>
+        </Box>
+        <Stack direction="row" alignItems="center" flexWrap="wrap" columnGap={0.75}>
+          <ContentCardActions
+            item={{ id: data.contentId, type: data.type, name: data.name }}
+            detailsHref={detailsHref}
+            playHref={playHref}
+            featured
+          />
+          {hasMore && (
+            <Button
+              size="small"
+              aria-controls={detailsId}
+              aria-expanded={expanded}
+              onClick={() => setExpanded(!expanded)}
+              endIcon={<ExpandMoreRoundedIcon sx={{ rotate: expanded ? '180deg' : '0deg' }} />}
+              sx={{ minHeight: 44, maxWidth: '100%' }}
+            >
+              {t(expanded ? 'encore.hideCardDetails' : 'encore.showCardDetails')}
+            </Button>
+          )}
+        </Stack>
+      </Stack>
+    </ToolCard>
   )
 }

@@ -12,7 +12,13 @@ export interface WebSearchControl {
   onToggle: () => void
 }
 
-export function WebSearchToggle({ available, enabled, loading, running, onToggle }: WebSearchControl) {
+export function WebSearchToggle({
+  available,
+  enabled,
+  loading,
+  running,
+  onToggle,
+}: WebSearchControl) {
   const { t } = useTranslation()
   const label = t('encore.webSearch')
   const hint = loading
@@ -66,6 +72,10 @@ export function WebSearchSource() {
       underline="always"
       sx={{
         alignSelf: 'flex-start',
+        display: 'inline-flex',
+        alignItems: 'center',
+        minHeight: { xs: 44, sm: 32 },
+        boxSizing: 'border-box',
         bgcolor: 'action.hover',
         px: 1.25,
         py: 0.75,

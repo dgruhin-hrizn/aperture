@@ -3921,6 +3921,8 @@
     "movieReleaseSchedule": "Movie releases",
     "followedReleaseSchedule": "Upcoming episodes for shows you follow",
     "showFewerReleases": "Show fewer",
+    "showCardDetails": "More info",
+    "hideCardDetails": "Show less",
     "showAllReleases": "Show all {{count}} results",
     "releaseSchedule": "Your release calendar",
     "dayPrecision": "Dates are forecasts by region. Exact local availability may differ.",

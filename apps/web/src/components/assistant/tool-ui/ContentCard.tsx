@@ -41,7 +41,7 @@ export function ContentCard({
         sx={{
           display: 'block',
           position: 'relative',
-          aspectRatio: '2 / 3',
+          aspectRatio: featured ? '2 / 3' : { xs: '4 / 5', sm: '2 / 3' },
           flexShrink: 0,
           bgcolor: 'action.hover',
           textDecoration: 'none',
@@ -61,7 +61,8 @@ export function ContentCard({
               height: '100%',
               display: 'block',
               objectFit: 'cover',
-              ...(featured && { position: 'absolute', inset: 0 }),
+              position: 'absolute',
+              inset: 0,
             }}
           />
         ) : (
@@ -120,7 +121,7 @@ export function ContentCard({
             WebkitBoxOrient: 'vertical',
             overflow: 'hidden',
             lineHeight: '20px',
-            minHeight: featured ? 0 : 40,
+            minHeight: featured ? 0 : { xs: 20, sm: 40 },
             fontSize: featured ? '1rem' : undefined,
             overflowWrap: 'anywhere',
           }}
