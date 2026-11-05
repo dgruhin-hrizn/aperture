@@ -1,3 +1,5 @@
+import { mobileActionRowsSx } from '@/components/mobileDensity'
+import { ViewModeToggle } from '@/components/ViewModeToggle'
 /**
  * Shows You Watch Page
  *
@@ -27,8 +29,6 @@ import AddIcon from '@mui/icons-material/Add'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import TvIcon from '@mui/icons-material/Tv'
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
-import GridViewIcon from '@mui/icons-material/GridView'
-import ViewListIcon from '@mui/icons-material/ViewList'
 import { useWatchingData } from './hooks'
 import { useUserRatings } from '../../hooks/useUserRatings'
 import { useViewMode } from '../../hooks/useViewMode'
@@ -139,7 +139,7 @@ export function WatchingPage() {
   if (loading) {
     return (
       <Box>
-        <Typography variant="h4" fontWeight={700} mb={4}>
+        <Typography data-mobile-redundant variant="h4" fontWeight={700} mb={4}>
           {t('nav.showsYouWatch')}
         </Typography>
         <Box display="flex" flexDirection="column" gap={2}>
@@ -153,91 +153,83 @@ export function WatchingPage() {
 
   return (
     <Box>
-      {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" gap={2} mb={2}>
-        <Box>
-          <Typography variant="h4" fontWeight={700} mb={{ xs: 0, sm: 0.5 }}>
-            {t('nav.showsYouWatch')}
-          </Typography>
-          {!isMobile && (
-            <Typography variant="body2" color="text.secondary">
-              {t('watching.subtitle')}
+      <Box sx={mobileActionRowsSx}>
+        {/* Header */}
+        <Box display="flex" justifyContent="space-between" alignItems="flex-start" gap={2} mb={{ xs: 0, sm: 2 }}>
+          <Box data-mobile-redundant>
+            <Typography variant="h4" fontWeight={700} mb={{ xs: 0, sm: 0.5 }}>
+              {t('nav.showsYouWatch')}
             </Typography>
-          )}
+            {!isMobile && (
+              <Typography variant="body2" color="text.secondary">
+                {t('watching.subtitle')}
+              </Typography>
+            )}
+          </Box>
+          <Box display="flex" gap={1} alignItems="center">
+            {/* Grid/List toggle always in upper right */}
+            <ViewModeToggle value={viewMode} onChange={setViewMode} />
+          </Box>
         </Box>
-        <Box display="flex" gap={1} alignItems="center">
-          {/* Grid/List toggle always in upper right */}
-          <ToggleButtonGroup
-            value={viewMode}
-            exclusive
-            onChange={(_, value) => value && setViewMode(value)}
-            size="small"
-          >
-            <ToggleButton value="grid">
-              <GridViewIcon fontSize="small" />
-            </ToggleButton>
-            <ToggleButton value="list">
-              <ViewListIcon fontSize="small" />
-            </ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
-      </Box>
 
-      {/* Action buttons row */}
-      <Box display="flex" gap={1} mb={2}>
-        {isMobile ? (
-          <>
-            <Tooltip
-              title={refreshing ? t('watching.tooltipSyncing') : t('watching.tooltipSyncFavorites')}
-            >
-              <span>
+        {/* Action buttons row */}
+        <Box display="flex" gap={1} mb={{ xs: 0, sm: 2 }}>
+          {isMobile ? (
+            <>
+              <Tooltip
+                title={refreshing ? t('watching.tooltipSyncing') : t('watching.tooltipSyncFavorites')}
+              >
+                <span>
+                  <IconButton
+                    aria-label={t('watching.tooltipSyncFavorites')}
+                    onClick={handleRefresh}
+                    disabled={refreshing || series.length === 0}
+                    size="small"
+                    sx={{ border: 1, borderColor: 'divider' }}
+                  >
+                    <RefreshIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title={t('watching.tooltipAddSeries')}>
                 <IconButton
-                  onClick={handleRefresh}
-                  disabled={refreshing || series.length === 0}
+                  aria-label={t('watching.tooltipAddSeries')}
+                  onClick={() => setAddDialogOpen(true)}
                   size="small"
-                  sx={{ border: 1, borderColor: 'divider' }}
+                  color="primary"
+                  sx={{
+                    bgcolor: 'primary.main',
+                    color: (theme) =>
+                      theme.aperture.name === 'studio' ? theme.palette.primary.contrastText : 'white',
+                    '&:hover': { bgcolor: 'primary.dark' },
+                  }}
                 >
-                  <RefreshIcon fontSize="small" />
+                  <AddIcon fontSize="small" />
                 </IconButton>
-              </span>
-            </Tooltip>
-            <Tooltip title={t('watching.tooltipAddSeries')}>
-              <IconButton
+              </Tooltip>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="outlined"
+                startIcon={<RefreshIcon />}
+                onClick={handleRefresh}
+                disabled={refreshing || series.length === 0}
+                size="small"
+              >
+                {refreshing ? t('watching.tooltipSyncing') : t('watching.syncFavorites')}
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
                 onClick={() => setAddDialogOpen(true)}
                 size="small"
-                color="primary"
-                sx={{
-                  bgcolor: 'primary.main',
-                  color: (theme) =>
-                    theme.aperture.name === 'studio' ? theme.palette.primary.contrastText : 'white',
-                  '&:hover': { bgcolor: 'primary.dark' },
-                }}
               >
-                <AddIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </>
-        ) : (
-          <>
-            <Button
-              variant="outlined"
-              startIcon={<RefreshIcon />}
-              onClick={handleRefresh}
-              disabled={refreshing || series.length === 0}
-              size="small"
-            >
-              {refreshing ? t('watching.tooltipSyncing') : t('watching.syncFavorites')}
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => setAddDialogOpen(true)}
-              size="small"
-            >
-              {t('watching.addSeries')}
-            </Button>
-          </>
-        )}
+                {t('watching.addSeries')}
+              </Button>
+            </>
+          )}
+        </Box>
       </Box>
 
       {/* Stats & Controls */}
@@ -248,7 +240,7 @@ export function WatchingPage() {
           justifyContent="space-between"
           alignItems={{ xs: 'stretch', md: 'center' }}
           gap={2}
-          mb={3}
+          mb={{ xs: 1, sm: 3 }}
         >
           {/* Stats - hidden on mobile since counts are in tabs */}
           {!isMobile && (
@@ -382,7 +374,7 @@ export function WatchingPage() {
         </Box>
       ) : (
         /* Grid View */
-        <Grid container spacing={2}>
+        <Grid container spacing={{ xs: 1, sm: 2 }}>
           {filteredSeries.map((item) => (
             <Grid item xs={6} sm={4} md={3} lg={2} key={item.id}>
               <WatchingCard series={item} onRemove={handleRemove} />

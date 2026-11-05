@@ -74,10 +74,10 @@ export function PlaylistsPage() {
   if (loading && loadingGraph) {
     return (
       <Box>
-        <Typography variant="h4" fontWeight={700} mb={4}>
+        <Typography data-mobile-redundant variant="h4" fontWeight={700} mb={4}>
           {t('playlists.pageTitle')}
         </Typography>
-        <Grid container spacing={3}>
+        <Grid container spacing={{ xs: 1, sm: 3 }}>
           {Array.from({ length: 3 }).map((_, i) => (
             <Grid item xs={12} sm={6} md={4} key={i}>
               <Skeleton variant="rectangular" height={280} sx={{ borderRadius: 2 }} />
@@ -90,15 +90,16 @@ export function PlaylistsPage() {
 
   return (
     <Box>
-      <Box 
+      <Box
+        data-mobile-actions
         display="flex" 
-        flexDirection={{ xs: 'column', sm: 'row' }}
+        flexDirection="row"
         justifyContent="space-between" 
         alignItems={{ xs: 'stretch', sm: 'center' }}
         gap={{ xs: 2, sm: 0 }}
         mb={4}
       >
-        <Box>
+        <Box data-mobile-redundant>
           <Typography variant="h4" fontWeight={700} mb={1}>
             {t('playlists.pageTitle')}
           </Typography>
@@ -125,7 +126,7 @@ export function PlaylistsPage() {
       {channels.length === 0 && graphPlaylists.length === 0 && !loading && !loadingGraph ? (
         <EmptyState onCreateClick={() => handleOpenDialog()} />
       ) : (
-        <Grid container spacing={3}>
+        <Grid container spacing={{ xs: 1, sm: 3 }}>
           {loading && <Grid item xs={12} sm={6} md={4}><Skeleton variant="rectangular" height={280} sx={{ borderRadius: 2 }} /></Grid>}
           {/* Channel-based playlists */}
           {channels.map((channel) => (

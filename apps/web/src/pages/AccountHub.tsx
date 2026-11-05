@@ -47,10 +47,10 @@ export function AccountHub() {
   }
   return (
     <Box sx={{ maxWidth: 760, mx: 'auto', pb: 2 }}>
-      <Stack direction="row" spacing={2} alignItems="center" sx={{ py: 2, mb: 2 }}>
+      <Stack direction="row" spacing={{ xs: 1.25, sm: 2 }} alignItems="center" sx={{ py: { xs: 0.5, sm: 2 }, mb: { xs: 1, sm: 2 } }}>
         <Avatar
           src={user?.avatarUrl ?? undefined}
-          sx={{ width: 64, height: 64, bgcolor: 'primary.main', fontSize: 26 }}
+          sx={{ width: { xs: 44, sm: 64 }, height: { xs: 44, sm: 64 }, bgcolor: 'primary.main', fontSize: 26 }}
         >
           {user?.username[0].toUpperCase()}
         </Avatar>
@@ -61,7 +61,7 @@ export function AccountHub() {
           <Typography color="text.secondary">{t('mobile.accountIntro')}</Typography>
         </Box>
       </Stack>
-      <Paper variant="outlined" sx={{ borderRadius: 4, overflow: 'hidden', mb: 3 }}>
+      <Paper variant="outlined" sx={{ borderRadius: 4, overflow: 'hidden', mb: { xs: 1.5, sm: 3 } }}>
         <List disablePadding>
           {[
             { path: '/settings', textKey: 'nav.settings', icon: <SettingsOutlinedIcon /> },
@@ -71,7 +71,7 @@ export function AccountHub() {
               icon: <PaletteOutlinedIcon />,
             },
           ].map((item) => (
-            <ListItemButton component={Link} to={item.path} key={item.path} sx={{ minHeight: 60 }}>
+            <ListItemButton component={Link} to={item.path} key={item.path} sx={{ minHeight: { xs: 44, sm: 60 } }}>
               <ListItemIcon>{item.icon}</ListItemIcon>
               <ListItemText primary={t(item.textKey)} />
               <ChevronRightIcon fontSize="small" color="action" />
@@ -82,10 +82,10 @@ export function AccountHub() {
       <Typography variant="overline" color="text.secondary">
         {t('mobile.yourAperture')}
       </Typography>
-      <Paper variant="outlined" sx={{ borderRadius: 4, overflow: 'hidden', mt: 1, mb: 3 }}>
+      <Paper variant="outlined" sx={{ borderRadius: 4, overflow: 'hidden', mt: 1, mb: { xs: 1.5, sm: 3 } }}>
         <List disablePadding>
           {secondary.map((item) => (
-            <ListItemButton key={item.path} component={Link} to={item.path} sx={{ minHeight: 58 }}>
+            <ListItemButton key={item.path} component={Link} to={item.path} sx={{ minHeight: { xs: 44, sm: 58 } }}>
               <ListItemIcon>{item.icon}</ListItemIcon>
               <ListItemText primary={t(item.textKey)} />
               <ChevronRightIcon fontSize="small" color="action" />
@@ -98,14 +98,14 @@ export function AccountHub() {
           <Typography variant="overline" color="text.secondary">
             {t('nav.roleLabelAdmin')}
           </Typography>
-          <Paper variant="outlined" sx={{ borderRadius: 4, mt: 1, mb: 3 }}>
-            <List>
+          <Paper variant="outlined" sx={{ borderRadius: 4, mt: 1, mb: { xs: 1.5, sm: 3 } }}>
+            <List disablePadding>
               {adminNavigation.map((item) => (
                 <ListItemButton
                   key={item.path}
                   component={Link}
                   to={item.path}
-                  sx={{ minHeight: 56 }}
+                  sx={{ minHeight: { xs: 44, sm: 56 } }}
                 >
                   <ListItemIcon>{item.icon}</ListItemIcon>
                   <ListItemText primary={t(item.textKey)} />
@@ -119,7 +119,7 @@ export function AccountHub() {
       <Button startIcon={<HelpOutlineIcon />} onClick={onWelcome} sx={{ minHeight: 48 }}>
         {t('nav.howItWorks')}
       </Button>
-      <Divider sx={{ my: 2 }} />
+      <Divider sx={{ my: { xs: 0.75, sm: 2 } }} />
       {error && <Alert severity="error">{error}</Alert>}
       <Button
         color="error"
@@ -130,7 +130,7 @@ export function AccountHub() {
       >
         {t('nav.logout')}
       </Button>
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 3 }}>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: { xs: 1, sm: 3 } }}>
         Aperture · {APP_VERSION}
       </Typography>
     </Box>

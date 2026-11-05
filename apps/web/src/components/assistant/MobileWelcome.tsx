@@ -15,7 +15,7 @@ export function MobileWelcome() {
     { id: 'curate', icon: <PlaylistPlayIcon /> },
   ]
   return (
-    <Box sx={{ px: 2.5, pt: { xs: 3, sm: 5 }, pb: 2, maxWidth: 650, mx: 'auto' }}>
+    <Box sx={{ px: { xs: 1.5, sm: 2.5 }, pt: { xs: 1.25, sm: 5 }, pb: 1, maxWidth: 650, mx: 'auto' }}>
       <Typography
         variant="overline"
         color="primary.main"
@@ -26,12 +26,12 @@ export function MobileWelcome() {
       <Typography
         component="h2"
         sx={{
-          fontSize: 'clamp(30px, 8.2vw, 42px)',
+          fontSize: { xs: 'clamp(24px, 6.8vw, 32px)', sm: 42 },
           fontWeight: 750,
           lineHeight: 1.15,
           letterSpacing: '-.045em',
-          mt: 1,
-          mb: 1.5,
+          mt: { xs: 0.5, sm: 1 },
+          mb: { xs: 0.75, sm: 1.5 },
           maxWidth: 350,
         }}
       >
@@ -40,11 +40,11 @@ export function MobileWelcome() {
       <Typography
         variant="body2"
         color="text.secondary"
-        sx={{ lineHeight: 1.7, maxWidth: 420, mb: 3 }}
+        sx={{ lineHeight: { xs: 1.5, sm: 1.7 }, maxWidth: 420, mb: { xs: 1.5, sm: 3 } }}
       >
         {t('mobile.welcomeIntro')}
       </Typography>
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.25 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: { xs: 0.75, sm: 1.25 } }}>
         {prompts.map((prompt) => (
           <Button
             variant="outlined"
@@ -58,17 +58,17 @@ export function MobileWelcome() {
               flexDirection: 'column',
               alignItems: 'flex-start',
               textAlign: 'start',
-              p: 1.75,
-              borderRadius: '24px',
+              p: { xs: 1, sm: 1.75 },
+              borderRadius: { xs: 2, sm: '24px' },
               borderColor: 'divider',
               textTransform: 'none',
               color: 'text.primary',
-              minHeight: 116,
+              minHeight: { xs: 82, sm: 116 },
               bgcolor: 'background.paper',
               lineHeight: 1.4,
             }}
           >
-            <Box sx={{ color: 'primary.main', mb: 1 }}>{prompt.icon}</Box>
+            <Box sx={{ color: 'primary.main', mb: { xs: 0.25, sm: 1 } }}>{prompt.icon}</Box>
             <Typography fontSize={13} fontWeight={700}>
               {t(`mobile.prompts.${prompt.id}.title`)}
             </Typography>
@@ -85,7 +85,7 @@ export function MobileWelcome() {
       <Typography
         variant="caption"
         color="text.secondary"
-        sx={{ display: 'block', mt: 2, fontSize: 11, lineHeight: 1.6 }}
+        sx={{ display: 'block', mt: { xs: 1, sm: 2 }, fontSize: 11, lineHeight: 1.6 }}
       >
         {t('mobile.suggestionFirst')}
       </Typography>

@@ -1,3 +1,6 @@
+import { mobileActionRowsSx } from '@/components/mobileDensity'
+import { PageTabs } from '@/components/PageTabs'
+import { ViewModeToggle } from '@/components/ViewModeToggle'
 import { apiFetch } from '../lib/api'
 import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -9,8 +12,6 @@ import {
   Grid,
   Skeleton,
   Alert,
-  ToggleButton,
-  ToggleButtonGroup,
   Chip,
   Card,
   CardActionArea,
@@ -18,7 +19,6 @@ import {
   LinearProgress,
   Button,
   CircularProgress,
-  Tabs,
   Tab,
   IconButton,
   Tooltip,
@@ -26,8 +26,6 @@ import {
   useTheme,
   useMediaQuery,
 } from '@mui/material'
-import GridViewIcon from '@mui/icons-material/GridView'
-import ViewListIcon from '@mui/icons-material/ViewList'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import MovieIcon from '@mui/icons-material/Movie'
@@ -355,7 +353,7 @@ export function MyRecommendationsPage() {
 
   const LoadingSkeleton = () => (
     <Box>
-      <Grid container spacing={2}>
+      <Grid container spacing={{ xs: 1, sm: 2 }}>
         {[...Array(12)].map((_, i) => (
           <Grid item xs={6} sm={4} md={3} lg={2} key={i}>
             <Skeleton variant="rectangular" sx={{ width: '100%', aspectRatio: '2/3', borderRadius: 1 }} />
@@ -367,76 +365,67 @@ export function MyRecommendationsPage() {
 
   return (
     <Box>
-      {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-        <Box>
-          <Box display="flex" alignItems="center" gap={2} mb={{ xs: 0, sm: 1 }}>
-            <AutoAwesomeIcon sx={{ color: 'primary.main', fontSize: 32 }} />
-            <Typography variant="h4" fontWeight={700}>
-              {t('myRecommendations.pageTitle')}
-            </Typography>
+      <Box sx={mobileActionRowsSx}>
+        {/* Header */}
+        <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={{ xs: 0, sm: 2 }}>
+          <Box data-mobile-redundant>
+            <Box display="flex" alignItems="center" gap={2} mb={{ xs: 0, sm: 1 }}>
+              <AutoAwesomeIcon sx={{ color: 'primary.main', fontSize: 32 }} />
+              <Typography variant="h4" fontWeight={700}>
+                {t('myRecommendations.pageTitle')}
+              </Typography>
+            </Box>
+            {!isMobile && (
+              <Typography variant="body1" color="text.secondary">
+                {t('myRecommendations.subtitle')}
+              </Typography>
+            )}
           </Box>
-          {!isMobile && (
-            <Typography variant="body1" color="text.secondary">
-              {t('myRecommendations.subtitle')}
-            </Typography>
-          )}
+
+          {/* Grid/List toggle always in upper right */}
+          <ViewModeToggle value={viewMode} onChange={setViewMode} />
         </Box>
 
-        {/* Grid/List toggle always in upper right */}
-        <ToggleButtonGroup
-          value={viewMode}
-          exclusive
-          onChange={(_, v) => v && setViewMode(v)}
-          size="small"
-        >
-          <ToggleButton value="grid">
-            <GridViewIcon fontSize="small" />
-          </ToggleButton>
-          <ToggleButton value="list">
-            <ViewListIcon fontSize="small" />
-          </ToggleButton>
-        </ToggleButtonGroup>
-      </Box>
-
-      {/* Action buttons row */}
-      <Box display="flex" gap={1} mb={2}>
-        {isMobile ? (
-          <Tooltip title={regenerating ? t('myRecommendations.regenerateRegenerating') : t('myRecommendations.regenerate')}>
-            <span>
-              <IconButton
-                onClick={handleRegenerate}
-                disabled={regenerating}
-                size="small"
-                sx={{ border: 1, borderColor: 'divider' }}
-              >
-                {regenerating ? <CircularProgress size={18} /> : <RefreshIcon fontSize="small" />}
-              </IconButton>
-            </span>
-          </Tooltip>
-        ) : (
-          <Button
-            variant="outlined"
-            startIcon={regenerating ? <CircularProgress size={16} /> : <RefreshIcon />}
-            onClick={handleRegenerate}
-            disabled={regenerating}
-            size="small"
-          >
-            {regenerating ? t('myRecommendations.regenerateRegenerating') : t('myRecommendations.regenerate')}
-          </Button>
-        )}
+        {/* Action buttons row */}
+        <Box display="flex" gap={1} mb={{ xs: 0, sm: 2 }}>
+          {isMobile ? (
+            <Tooltip title={regenerating ? t('myRecommendations.regenerateRegenerating') : t('myRecommendations.regenerate')}>
+              <span>
+                <IconButton
+                  aria-label={t('myRecommendations.regenerate')}
+                  onClick={handleRegenerate}
+                  disabled={regenerating}
+                  size="small"
+                  sx={{ border: 1, borderColor: 'divider' }}
+                >
+                  {regenerating ? <CircularProgress size={18} /> : <RefreshIcon fontSize="small" />}
+                </IconButton>
+              </span>
+            </Tooltip>
+          ) : (
+            <Button
+              variant="outlined"
+              startIcon={regenerating ? <CircularProgress size={16} /> : <RefreshIcon />}
+              onClick={handleRegenerate}
+              disabled={regenerating}
+              size="small"
+            >
+              {regenerating ? t('myRecommendations.regenerateRegenerating') : t('myRecommendations.regenerate')}
+            </Button>
+          )}
+        </Box>
       </Box>
 
       <EmbyHomePins key={user?.id} />
 
       {/* Tabs */}
-      <Tabs
+      <PageTabs
         value={mediaType}
         onChange={(_, v) => {
           setMediaType(v)
           setRegenerateMessage(null)
         }}
-        sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}
+        sx={{ borderBottom: 1, borderColor: 'divider', mb: { xs: 1, sm: 3 } }}
       >
         <Tab
           value="movies"
@@ -494,7 +483,7 @@ export function MyRecommendationsPage() {
             '&.Mui-selected': { color: '#ec4899' },
           }}
         />
-      </Tabs>
+      </PageTabs>
 
       {/* Run Info */}
       {runInfo && runInfo.created_at && (
@@ -537,7 +526,7 @@ export function MyRecommendationsPage() {
           {mediaType === 'movies' ? t('myRecommendations.emptyMovies') : t('myRecommendations.emptySeries')}
         </Alert>
       ) : viewMode === 'grid' ? (
-        <Grid container spacing={2}>
+        <Grid container spacing={{ xs: 1, sm: 2 }}>
           {recommendations.map((rec, index) => {
             const { id, item, navigateTo } = getItemProps(rec)
             const type = mediaType === 'movies' ? 'movie' : 'series'

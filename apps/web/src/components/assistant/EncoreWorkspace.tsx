@@ -81,9 +81,9 @@ export default function EncoreWorkspace({
           alignItems: 'center',
           flexShrink: 0,
           gap: 1,
-          px: { xs: 2, md: 3 },
-          pt: mobile ? 'calc(env(safe-area-inset-top, 0px) + 12px)' : 2,
-          pb: mobile ? 1 : 1.5,
+          px: { xs: 1.5, sm: 2, md: 3 },
+          pt: mobile ? { xs: 'calc(env(safe-area-inset-top, 0px) + 4px)', sm: 'calc(env(safe-area-inset-top, 0px) + 12px)' } : 2,
+          pb: mobile ? { xs: 0.5, sm: 1 } : 1.5,
           borderBottom: mobile ? 0 : 1,
           borderColor: 'divider',
         }}
@@ -112,7 +112,7 @@ export default function EncoreWorkspace({
           <Typography
             component="h1"
             fontWeight={750}
-            fontSize={mobile ? 22 : 24}
+            fontSize={{ xs: 18, sm: mobile ? 22 : 24 }}
             letterSpacing="-.035em"
             lineHeight={1.2}
             noWrap

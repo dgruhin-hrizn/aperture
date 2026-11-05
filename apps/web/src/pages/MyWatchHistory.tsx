@@ -1,3 +1,5 @@
+import { ViewModeToggle } from '@/components/ViewModeToggle'
+import { PageTabs } from '@/components/PageTabs'
 import { apiFetch } from '../lib/api'
 import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -15,7 +17,6 @@ import {
   CircularProgress,
   TextField,
   InputAdornment,
-  Tabs,
   Tab,
   LinearProgress,
   IconButton,
@@ -30,8 +31,6 @@ import {
   useTheme,
   useMediaQuery,
 } from '@mui/material'
-import GridViewIcon from '@mui/icons-material/GridView'
-import ViewListIcon from '@mui/icons-material/ViewList'
 import FavoriteIcon from '@mui/icons-material/Favorite'
 import SearchIcon from '@mui/icons-material/Search'
 import HistoryIcon from '@mui/icons-material/History'
@@ -273,7 +272,7 @@ export function MyWatchHistoryPage() {
       <Box>
         <Skeleton variant="text" width={300} height={48} sx={{ mb: 1 }} />
         <Skeleton variant="text" width={200} height={24} sx={{ mb: 4 }} />
-        <Grid container spacing={2}>
+        <Grid container spacing={{ xs: 1, sm: 2 }}>
           {[...Array(12)].map((_, i) => (
             <Grid item xs={6} sm={4} md={3} lg={2} key={i}>
               <Skeleton variant="rectangular" sx={{ width: '100%', aspectRatio: '2/3', borderRadius: 1 }} />
@@ -287,7 +286,7 @@ export function MyWatchHistoryPage() {
   return (
     <Box>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
+      <Box data-mobile-redundant display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
         <Box>
           <Box display="flex" alignItems="center" gap={2} mb={{ xs: 0, sm: 1 }}>
             <HistoryIcon sx={{ color: 'primary.main', fontSize: 32 }} />
@@ -305,20 +304,13 @@ export function MyWatchHistoryPage() {
           )}
         </Box>
         {/* Grid/List toggle always in upper right */}
-        <ToggleButtonGroup
-          value={viewMode}
-          exclusive
-          onChange={(_, v) => v && setViewMode(v)}
-          size="small"
-        >
-          <ToggleButton value="grid"><GridViewIcon fontSize="small" /></ToggleButton>
-          <ToggleButton value="list"><ViewListIcon fontSize="small" /></ToggleButton>
-        </ToggleButtonGroup>
+        {!isMobile && <ViewModeToggle value={viewMode} onChange={setViewMode} />}
       </Box>
 
       {/* Tabs */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs 
+      <Box sx={{ display: { xs: 'flex', sm: 'block' }, alignItems: 'center', gap: 0.75, borderBottom: 1, borderColor: 'divider', mb: { xs: 1, sm: 3 } }}>
+        <PageTabs
+          style={isMobile ? { flex: 1, minWidth: 0 } : undefined}
           value={tabValue} 
           onChange={(_, v) => setTabValue(v)}
           sx={{
@@ -347,12 +339,13 @@ export function MyWatchHistoryPage() {
               '&.Mui-selected': { color: '#ec4899' },
             }}
           />
-        </Tabs>
+        </PageTabs>
+        {isMobile && <ViewModeToggle value={viewMode} onChange={setViewMode} />}
       </Box>
 
       {/* Controls */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
-        <Box display="flex" alignItems="center" gap={2}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={{ xs: 1, sm: 3 }} flexWrap="wrap" gap={1}>
+        <Box display="flex" alignItems="center" gap={{ xs: 0.75, sm: 2 }} sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: 0 }}>
           <TextField
             size="small"
             placeholder={tabValue === 0 ? t('watchHistoryPage.searchMovies') : t('watchHistoryPage.searchSeries')}
@@ -365,7 +358,7 @@ export function MyWatchHistoryPage() {
                 </InputAdornment>
               ),
             }}
-            sx={{ width: 250 }}
+            sx={{ width: { xs: 'auto', sm: 250 }, flex: { xs: 1, sm: 'none' }, minWidth: 0 }}
           />
           <ToggleButtonGroup
             value={tabValue === 0 ? movieSortBy : seriesSortBy}
@@ -373,15 +366,15 @@ export function MyWatchHistoryPage() {
             onChange={tabValue === 0 ? handleMovieSortChange : handleSeriesSortChange}
             size="small"
           >
-            <ToggleButton value="recent">
+            <ToggleButton value="recent" aria-label={t('watchHistoryPage.sortRecent')}>
               <AccessTimeIcon fontSize="small" sx={{ mr: isMobile ? 0 : 0.5 }} />
               {!isMobile && t('watchHistoryPage.sortRecent')}
             </ToggleButton>
-            <ToggleButton value="plays">
+            <ToggleButton value="plays" aria-label={t('watchHistoryPage.sortMostPlayed')}>
               <TrendingUpIcon fontSize="small" sx={{ mr: isMobile ? 0 : 0.5 }} />
               {!isMobile && t('watchHistoryPage.sortMostPlayed')}
             </ToggleButton>
-            <ToggleButton value="title">
+            <ToggleButton value="title" aria-label={t('watchHistoryPage.sortAZ')}>
               <SortByAlphaIcon fontSize="small" sx={{ mr: isMobile ? 0 : 0.5 }} />
               {!isMobile && t('watchHistoryPage.sortAZ')}
             </ToggleButton>
@@ -403,7 +396,7 @@ export function MyWatchHistoryPage() {
             <>
               {/* Grid View */}
               {viewMode === 'grid' && (
-                <Grid container spacing={2}>
+                <Grid container spacing={{ xs: 1, sm: 2 }}>
                   {filteredMovies.map((item) => (
                     <Grid item xs={6} sm={4} md={3} lg={2} key={item.movie_id}>
                       <Box 
@@ -546,7 +539,7 @@ export function MyWatchHistoryPage() {
             <>
               {/* Grid View */}
               {viewMode === 'grid' && (
-                <Grid container spacing={2}>
+                <Grid container spacing={{ xs: 1, sm: 2 }}>
                   {filteredSeries.map((item) => (
                     <Grid item xs={6} sm={4} md={3} lg={2} key={item.series_id}>
                       <Box 

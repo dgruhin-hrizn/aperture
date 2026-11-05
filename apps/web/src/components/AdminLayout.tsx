@@ -1,3 +1,4 @@
+import { PageTabs } from '@/components/PageTabs'
 import { useActiveJobs } from '../hooks/useActiveJobs'
 import { Suspense } from 'react'
 import { PageLoading } from './PageLoading'
@@ -5,7 +6,6 @@ import React from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Box,
-  Tabs,
   Tab,
   Typography,
   Paper,
@@ -70,7 +70,7 @@ export function AdminLayout() {
   return (
     <Box>
       {/* Admin Header */}
-      <Box sx={{ mb: 3 }}>
+      <Box data-mobile-redundant sx={{ mb: 3 }}>
         <Breadcrumbs />
         
         <Box display="flex" alignItems="center" gap={2} mb={1}>
@@ -87,19 +87,19 @@ export function AdminLayout() {
       {/* Tab Navigation */}
       <Paper
         sx={{
-          mb: 3,
+          mb: { xs: 1, sm: 3 },
           backgroundColor: 'background.paper',
           borderRadius: 2,
         }}
         elevation={0}
       >
-        <Tabs
+        <PageTabs
           value={activeTab === false ? false : activeTab}
           onChange={handleTabChange}
           variant="scrollable"
           scrollButtons="auto"
           sx={{
-            px: 1,
+            px: { xs: 0, sm: 1 },
             '& .MuiTab-root': {
               minHeight: 56,
               textTransform: 'none',
@@ -151,7 +151,7 @@ export function AdminLayout() {
               }}
             />
           ))}
-        </Tabs>
+        </PageTabs>
       </Paper>
 
       {/* Tab Content */}

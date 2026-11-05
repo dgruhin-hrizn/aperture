@@ -1,8 +1,8 @@
+import { PageTabs } from '@/components/PageTabs'
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Box,
-  Tabs,
   Tab,
   Paper,
   Button,
@@ -203,14 +203,14 @@ export function SettingsPage() {
         }}
         elevation={0}
       >
-        <Tabs
+        <PageTabs
           value={tabValue}
           onChange={handleMainTabChange}
           variant="scrollable"
           scrollButtons="auto"
           orientation={studioSidebar ? 'vertical' : 'horizontal'}
           sx={{
-            px: 2,
+            px: { xs: 0, sm: 2 },
             borderBottom: 1,
             borderColor: 'divider',
             ...(studioSidebar ? { px: 1, py: 2, borderBottom: 0, borderInlineEnd: 1, borderColor: 'divider' } : {}),
@@ -231,9 +231,9 @@ export function SettingsPage() {
           <Tab icon={<AddToQueueIcon />} iconPosition="start" label={t('settingsPage.tabWatching')} />
           <Tab icon={<HandymanIcon />} iconPosition="start" label={t('settingsPage.tabMaintenance')} />
           <Tab icon={<SettingsIcon />} iconPosition="start" label={t('settingsPage.tabSystem')} />
-        </Tabs>
+        </PageTabs>
 
-        <Box sx={{ p: theme.aperture.name === 'studio' ? { xs: 2, sm: 3 } : 3, minWidth: 0 }}>
+        <Box sx={{ p: { xs: 1.25, sm: 3 }, minWidth: 0 }}>
           {/* Setup Tab */}
           <TabPanel value={tabValue} index={0}>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
@@ -242,13 +242,13 @@ export function SettingsPage() {
               </Button>
             </Box>
             {/* Sub-tabs for Setup */}
-            <Tabs
+            <PageTabs
               value={setupSubTab}
               onChange={handleSetupSubChange}
               variant="scrollable"
               scrollButtons="auto"
               sx={{
-                mb: 3,
+                mb: { xs: 1, sm: 3 },
                 borderBottom: 1,
                 borderColor: 'divider',
                 '& .MuiTab-root': {
@@ -272,12 +272,12 @@ export function SettingsPage() {
                     : undefined
                 }
               />
-            </Tabs>
+            </PageTabs>
 
             {/* Media Server Sub-tab */}
             <TabPanel value={setupSubTab} index={0}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 3 } }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: { xs: 1.5, sm: 3 } }}>
                   <MediaServerSection />
                   <LibraryConfigSection
                     libraries={settings.libraries}
@@ -295,18 +295,18 @@ export function SettingsPage() {
 
             {/* Integrations Sub-tab */}
             <TabPanel value={setupSubTab} index={1}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 3 } }}>
                 {/* API Error Alerts */}
                 <ApiErrorAlert maxErrors={5} />
                 
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: { xs: 1.5, sm: 3 } }}>
                   <TraktConfigSection />
                   <TMDbConfigSection />
                   <OMDbConfigSection />
                   <MDBListConfigSection />
                   <SeerrConfigSection />
                 </Box>
-                <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 3 } }}>
                   <StreamingDiscoverySettings />
                 </Box>
               </Box>
@@ -336,13 +336,13 @@ export function SettingsPage() {
           {/* AI Recommendations Tab */}
           <TabPanel value={tabValue} index={2}>
             {/* Sub-tabs for AI Recommendations */}
-            <Tabs
+            <PageTabs
               value={aiSubTab}
               onChange={handleAiSubChange}
               variant="scrollable"
               scrollButtons="auto"
               sx={{
-                mb: 3,
+                mb: { xs: 1, sm: 3 },
                 borderBottom: 1,
                 borderColor: 'divider',
                 '& .MuiTab-root': {
@@ -356,11 +356,11 @@ export function SettingsPage() {
               <Tab icon={<OutputIcon />} iconPosition="start" label={t('settingsPage.subOutput')} />
               <Tab icon={<PsychologyIcon />} iconPosition="start" label={t('settingsPage.subAiFeatures')} />
               <Tab icon={<TuneIcon />} iconPosition="start" label={t('settingsPage.subAlgorithm')} />
-            </Tabs>
+            </PageTabs>
 
             {/* Output Sub-tab */}
             <TabPanel value={aiSubTab} index={0}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 3 } }}>
                 <OutputFormatSection />
                 <LibraryTitlesSection />
               </Box>
@@ -368,7 +368,7 @@ export function SettingsPage() {
 
             {/* AI Features Sub-tab */}
             <TabPanel value={aiSubTab} index={1}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 3 } }}>
                 <AiExplanationSection />
               </Box>
             </TabPanel>
@@ -407,7 +407,7 @@ export function SettingsPage() {
 
           {/* Maintenance Tab */}
           <TabPanel value={tabValue} index={5}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 3 } }}>
               <LegacyEmbeddingsSection />
               <PosterRepairSection />
             </Box>
@@ -415,7 +415,7 @@ export function SettingsPage() {
 
           {/* System Tab */}
           <TabPanel value={tabValue} index={6}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 3 } }}>
               <LanguageDefaultsSection />
               {/* API Keys */}
               <ApiKeysSection />

@@ -32,7 +32,7 @@ function TonightCard({ item, resume, saving, onSnooze }: {
   const metadata = [item.detail, time].filter(Boolean).join(' · ')
 
   return (
-    <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: resume ? 'row' : 'column' }}>
+    <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: resume ? 'row' : { xs: 'row', sm: 'column' } }}>
       <Box
         component="img"
         src={getProxiedImageUrl(item.posterUrl)}
@@ -42,14 +42,14 @@ function TonightCard({ item, resume, saving, onSnooze }: {
         alt=""
         loading="lazy"
         sx={{
-          width: resume ? { xs: 86, sm: 104 } : '100%',
-          height: resume ? 'auto' : { xs: 195, md: 240 },
+          width: { xs: 72, sm: resume ? 104 : '100%' },
+          height: { xs: 'auto', sm: resume ? 'auto' : 195, md: resume ? 'auto' : 240 },
           objectFit: 'cover',
           objectPosition: 'center 30%',
           flexShrink: 0,
         }}
       />
-      <CardContent sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+      <CardContent sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: { xs: 0.5, sm: 1 }, p: { xs: 1, sm: 2 }, '&:last-child': { pb: { xs: 1, sm: 3 } } }}>
         <Typography component="h3" variant="h6">{item.title}</Typography>
         {metadata && <Typography variant="body2" color="text.secondary">{metadata}</Typography>}
         {item.progress !== undefined && (
@@ -129,8 +129,8 @@ export function TonightPage() {
   }
 
   return (
-    <Stack spacing={4} sx={{ maxWidth: 1200, mx: 'auto' }}>
-      <Box>
+    <Stack useFlexGap spacing={{ xs: 1.5, sm: 4 }} sx={{ maxWidth: 1200, mx: 'auto' }}>
+      <Box data-mobile-redundant>
         <Typography component="h1" variant="h4" fontWeight={700} gutterBottom>{t('tonight.title')}</Typography>
         <Typography color="text.secondary">{t('tonight.subtitle')}</Typography>
       </Box>
@@ -143,7 +143,7 @@ export function TonightPage() {
                 {t('tonight.continueWatching')}
               </Typography>
               {data.resume.length ? (
-                <Grid container spacing={2}>
+                <Grid container spacing={{ xs: 1, sm: 2 }}>
                   {data.resume.map((item) => (
                     <Grid item xs={12} sm={6} key={item.id}><TonightCard item={item} resume /></Grid>
                   ))}
@@ -158,7 +158,7 @@ export function TonightPage() {
                 </Alert>
               )}
               {data.picks.length ? (
-                <Grid container spacing={2}>
+                <Grid container spacing={{ xs: 1, sm: 2 }}>
                   {data.picks.map((item) => (
                     <Grid item xs={12} sm={6} md={4} key={item.id}>
                       <TonightCard item={item} resume={false} saving={saving} onSnooze={() => void snooze(item)} />

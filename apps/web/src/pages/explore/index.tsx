@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Box,
   Typography,
-  Paper,
+  Button,
   Divider,
   Switch,
   FormControlLabel,
@@ -25,6 +25,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import HistoryIcon from '@mui/icons-material/History'
+import FilterListIcon from '@mui/icons-material/FilterList'
 import {
   useGraphData,
   useSimilarityData,
@@ -35,6 +36,7 @@ import {
 import { CONNECTION_COLORS, type ConnectionType } from '../../components/SimilarityGraph/types'
 import { connectionTypeLabel } from '../../i18n/connectionTypeLabel'
 import { GraphExplorer } from '../../components/GraphExplorer'
+import { GraphControlsPanel } from './GraphControlsPanel'
 
 type GraphSource = 'ai-movies' | 'ai-series' | 'watching' | 'top-movies' | 'top-series'
 type MediaFilter = 'movie' | 'series' | 'both'
@@ -80,6 +82,7 @@ export function ExplorePage() {
   const [hideWatched, setHideWatched] = useState(true) // Default to hiding watched content
   const [searchQuery, setSearchQuery] = useState('')
   const [browseSectionOpen, setBrowseSectionOpen] = useState(true)
+  const [controlsOpen, setControlsOpen] = useState(false)
   const [recentSearches, setRecentSearches] = useState<string[]>([])
   const [selectedBrowseSource, setSelectedBrowseSource] = useState<GraphSource | null>(null)
 
@@ -460,12 +463,23 @@ export function ExplorePage() {
         display: 'flex', 
         height: 'var(--ap-content-height, calc(100dvh - 64px))',
         // Break out of parent Layout padding
-        m: { xs: -2, sm: 'var(--ap-layout-inset, -24px)' },
-        width: { xs: 'calc(100% + 32px)', sm: 'calc(100% - var(--ap-layout-inset, -24px) * 2)' },
+        mx: 'var(--ap-layout-inset, -24px)',
+        my: { xs: -1, sm: 'var(--ap-layout-inset, -24px)' },
+        width: 'calc(100% - var(--ap-layout-inset, -24px) * 2)',
       }}
     >
       {/* Main Graph Area - Always uses GraphExplorer */}
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <Box sx={{ display: { xs: 'flex', sm: 'none' }, justifyContent: 'flex-end', px: 1.5 }}>
+          <Button
+            size="small"
+            startIcon={<FilterListIcon />}
+            aria-haspopup="dialog"
+            onClick={() => setControlsOpen(true)}
+          >
+            {t('discovery.filters.button')}
+          </Button>
+        </Box>
         <GraphExplorer
           data={displayData}
           loading={loading}
@@ -491,21 +505,7 @@ export function ExplorePage() {
         />
       </Box>
 
-      {/* Right Sidebar - Controls */}
-      <Paper
-        sx={{
-          width: 280,
-          flexShrink: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          borderRadius: 0,
-          borderLeft: 1,
-          borderColor: 'divider',
-          bgcolor: 'background.paper',
-          height: '100%',
-          overflowY: 'auto',
-        }}
-      >
+      <GraphControlsPanel open={controlsOpen} onClose={() => setControlsOpen(false)}>
         {/* Quick Filters */}
         <Box sx={{ px: 2, py: 1.5 }}>
           <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
@@ -694,7 +694,7 @@ export function ExplorePage() {
             label={<Typography variant="caption">{t('mediaGraph.crossMedia')}</Typography>}
           />
         </Box>
-      </Paper>
+      </GraphControlsPanel>
     </Box>
   )
 }

@@ -206,15 +206,15 @@ export function SearchPage() {
 
   return (
     <Box>
-      <Typography variant="h4" fontWeight={700} mb={1}>
+      <Typography data-mobile-redundant variant="h4" fontWeight={700} mb={1}>
         {t('search.title')}
       </Typography>
-      <Typography variant="body1" color="text.secondary" mb={4}>
+      <Typography data-mobile-redundant variant="body1" color="text.secondary" mb={{ xs: 1.5, sm: 4 }}>
         {t('search.subtitle')}
       </Typography>
 
       {/* Search Input */}
-      <Box mb={3}>
+      <Box mb={{ xs: 1.25, sm: 3 }}>
         <TextField
           fullWidth
           placeholder={t('search.placeholder')}
@@ -245,7 +245,7 @@ export function SearchPage() {
       </Box>
 
       {/* Filter Toggle */}
-      <Box display="flex" gap={2} mb={3} flexWrap="wrap" alignItems="center">
+      <Box display="flex" gap={2} mb={{ xs: 1.25, sm: 3 }} flexWrap="wrap" alignItems="center">
         <Button
           variant={showFilters ? 'contained' : 'outlined'}
           startIcon={<FilterListIcon />}
@@ -297,7 +297,7 @@ export function SearchPage() {
       {/* Expanded Filters */}
       {showFilters && filters && (
         <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
-          <Grid container spacing={3}>
+          <Grid container spacing={{ xs: 1.5, sm: 3 }}>
             <Grid item xs={12} sm={6} md={3}>
               <FormControl fullWidth size="small">
                 <InputLabel>{t('browse.labels.genre')}</InputLabel>
@@ -389,7 +389,7 @@ export function SearchPage() {
 
       {/* Active Filter Chips */}
       {hasActiveFilters && (
-        <Box display="flex" gap={1} mb={3} flexWrap="wrap">
+        <Box display="flex" gap={1} mb={{ xs: 1.25, sm: 3 }} flexWrap="wrap">
           {genre && (
             <Chip
               label={t('search.chipGenre', { value: genre })}
@@ -471,7 +471,7 @@ export function SearchPage() {
             {useSemantic ? t('search.semanticSuffix') : ''}
           </Typography>
 
-          <Grid container spacing={2}>
+          <Grid container spacing={{ xs: 1, sm: 2 }}>
             {results.map((result) => (
               <Grid item xs={6} sm={4} md={3} lg={2} key={`${result.type}-${result.id}`}>
                 <MoviePoster

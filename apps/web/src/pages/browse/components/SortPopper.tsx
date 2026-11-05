@@ -168,10 +168,12 @@ export function SortPopper({ type, sortBy, sortOrder, onChange }: SortPopperProp
         startIcon={<SortIcon />}
         endIcon={sortOrder === 'asc' ? <ArrowUpwardIcon fontSize="small" /> : <ArrowDownwardIcon fontSize="small" />}
         onClick={(e) => setAnchorEl(anchorEl ? null : e.currentTarget)}
+        aria-expanded={open}
+        aria-label={`${t('browse.labels.sort')} — ${currentOption.label}, ${getOrderLabel()}`}
         size="small"
         sx={{
           height: 40,
-          px: 1.75,
+          px: { xs: 1, sm: 1.75 },
           borderColor: open ? 'primary.main' : alpha(theme.palette.text.primary, 0.23),
           color: open ? 'primary.main' : 'text.primary',
           backgroundColor: open ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
@@ -181,14 +183,16 @@ export function SortPopper({ type, sortBy, sortOrder, onChange }: SortPopperProp
             borderColor: open ? 'primary.main' : 'text.primary',
             backgroundColor: alpha(theme.palette.primary.main, 0.08),
           },
-          minWidth: 180,
+          minWidth: { xs: 0, sm: 180 },
           justifyContent: 'flex-start',
           '& .MuiButton-endIcon': {
             marginLeft: 'auto',
+            display: { xs: 'none', sm: 'inherit' },
           },
         }}
       >
-        {currentOption.label}: {getOrderLabel()}
+        <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>{t('browse.labels.sort')}</Box>
+        <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>{currentOption.label}: {getOrderLabel()}</Box>
       </Button>
 
       <Popper

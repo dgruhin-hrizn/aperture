@@ -1,10 +1,10 @@
+import { PageTabs } from '@/components/PageTabs'
 import React, { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   Box,
   Typography,
-  Tabs,
   Tab,
   Paper,
   Grid,
@@ -890,7 +890,7 @@ export function UserDetailPage() {
         currentLabel={user.display_name || user.username}
       />
 
-      <Box display="flex" alignItems="center" gap={2} mb={1}>
+      <Box display="flex" flexWrap="wrap" alignItems="center" gap={{ xs: 0.75, sm: 2 }} mb={1}>
         <Typography variant="h5" fontWeight={700}>
           {user.display_name || user.username}
         </Typography>
@@ -915,13 +915,13 @@ export function UserDetailPage() {
       </Typography>
 
       <Paper sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
-        <Tabs value={tabValue} onChange={handleTabChange} sx={{ px: 2, pt: 1 }}>
+        <PageTabs value={tabValue} onChange={handleTabChange} sx={{ px: { xs: 0, sm: 2 }, pt: { xs: 0, sm: 1 } }}>
           <Tab label={t('admin.userDetail.tabRecommendations')} />
           <Tab label={t('admin.userDetail.tabWatchHistory')} />
           <Tab label={t('admin.userDetail.tabSettings')} />
-        </Tabs>
+        </PageTabs>
 
-        <Box p={3}>
+        <Box p={{ xs: 1, sm: 3 }}>
           <TabPanel value={tabValue} index={0}>
             {recommendations.length === 0 ? (
               <Typography color="text.secondary">

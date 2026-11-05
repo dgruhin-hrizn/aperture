@@ -682,14 +682,14 @@ export function GapAnalysisPage() {
   }
 
   return (
-    <Box sx={{ maxWidth: 1400, mx: 'auto', p: { xs: 2, md: 3 }, pb: 10 }}>
-      <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+    <Box sx={{ maxWidth: 1400, mx: 'auto', p: { xs: 0, md: 3 }, pb: { xs: 1.5, sm: 10 } }}>
+      <Box data-mobile-redundant display="flex" alignItems="center" gap={1.5} mb={1}>
         <FactCheckIcon color="primary" fontSize="large" />
         <Typography variant="h4" fontWeight={700}>
           {t('admin.gaps.pageTitle')}
         </Typography>
       </Box>
-      <Typography variant="body2" color="text.secondary" mb={3}>
+      <Typography variant="body2" color="text.secondary" mb={{ xs: 1, sm: 3 }}>
         {t('admin.gaps.pageSubtitle')}
       </Typography>
 
@@ -703,7 +703,7 @@ export function GapAnalysisPage() {
         <LoadingSkeleton />
       ) : (
         <>
-          <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid container spacing={{ xs: 0.75, sm: 2 }} sx={{ mb: { xs: 1.25, sm: 3 }, "& .MuiCardContent-root": { p: { xs: 1, sm: 2 }, "&:last-child": { pb: { xs: 1, sm: 3 } } } }}>
             <Grid item xs={12} md={4}>
               <StatusCard
                 title={t('admin.gaps.statusTmdb')}

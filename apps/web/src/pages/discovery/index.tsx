@@ -8,28 +8,19 @@ import {
   Grid,
   Skeleton,
   Alert,
-  Button,
   CircularProgress,
-  Tabs,
   Tab,
   Chip,
   Snackbar,
-  ToggleButton,
-  ToggleButtonGroup,
-  IconButton,
-  Tooltip,
   useTheme,
   useMediaQuery,
   LinearProgress,
   Fade,
 } from '@mui/material'
 import ExploreIcon from '@mui/icons-material/Explore'
-import RefreshIcon from '@mui/icons-material/Refresh'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 import LiveTvIcon from '@mui/icons-material/LiveTv'
-import GridViewIcon from '@mui/icons-material/GridView'
-import ViewListIcon from '@mui/icons-material/ViewList'
 import AutorenewIcon from '@mui/icons-material/Autorenew'
 import {
   useDiscoveryData,
@@ -46,6 +37,9 @@ import {
   TmdbGenreRowsSection,
 } from './components'
 import { useViewMode } from '../../hooks/useViewMode'
+import { PageTabs } from '@/components/PageTabs'
+import { ViewModeToggle } from '@/components/ViewModeToggle'
+import { DiscoveryRefresh } from './components/DiscoveryRefresh'
 import type { DiscoveryCandidate, DiscoveryFilterOptions, MediaType } from './types'
 
 type DiscoveryTab = 'movie' | 'series' | 'streaming'
@@ -225,7 +219,7 @@ export function DiscoveryPage() {
   if (!loading && status && !status.enabled) {
     return (
       <Box>
-        <Box display="flex" alignItems="center" gap={2} mb={3}>
+        <Box data-mobile-redundant display="flex" alignItems="center" gap={2} mb={3}>
           <ExploreIcon sx={{ color: 'primary.main', fontSize: 32 }} />
           <Typography variant="h4" fontWeight={700}>
             {t('discovery.title')}
@@ -239,7 +233,7 @@ export function DiscoveryPage() {
   }
 
   const LoadingSkeleton = () => (
-    <Grid container spacing={2}>
+    <Grid container spacing={{ xs: 1, sm: 2 }}>
       {[...Array(12)].map((_, i) => (
         <Grid item xs={6} sm={4} md={3} lg={2} key={i}>
           <Skeleton variant="rectangular" sx={{ width: '100%', aspectRatio: '2/3', borderRadius: 2 }} />
@@ -252,84 +246,33 @@ export function DiscoveryPage() {
 
   return (
     <Box>
-      {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-        <Box>
-          <Box display="flex" alignItems="center" gap={2} mb={{ xs: 0, sm: 1 }}>
-            <ExploreIcon sx={{ color: 'primary.main', fontSize: 32 }} />
-            <Typography variant="h4" fontWeight={700}>
-              {t('discovery.title')}
-            </Typography>
+      {!isMobile && (
+        <>
+          <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+            <Box>
+              <Box display="flex" alignItems="center" gap={2} mb={1}>
+                <ExploreIcon sx={{ color: 'primary.main', fontSize: 32 }} />
+                <Typography variant="h4" fontWeight={700}>{t('discovery.title')}</Typography>
+              </Box>
+              <Typography variant="body1" color="text.secondary">{t('discovery.subtitle')}</Typography>
+            </Box>
+            {discoveryTab !== 'streaming' && browseSubTab === 'popular' && (
+              <ViewModeToggle value={viewMode} onChange={setViewMode} />
+            )}
           </Box>
-          {!isMobile && (
-            <Typography variant="body1" color="text.secondary">
-              {t('discovery.subtitle')}
-            </Typography>
+          {discoveryTab !== 'streaming' && browseSubTab === 'popular' && (
+            <Box mb={2}>
+              <DiscoveryRefresh compact={false} refreshing={refreshing} running={isJobRunning} onRefresh={handleRefresh} />
+            </Box>
           )}
-        </Box>
-
-        {/* Grid/List toggle — main pool only, not genre strips or Streaming */}
-        {discoveryTab !== 'streaming' && browseSubTab === 'popular' && (
-          <ToggleButtonGroup
-            value={viewMode}
-            exclusive
-            onChange={(_, v) => v && setViewMode(v)}
-            size="small"
-            aria-label={t('discovery.title')}
-          >
-            <ToggleButton value="grid" aria-label={t('discovery.gridView')}>
-              <GridViewIcon fontSize="small" />
-            </ToggleButton>
-            <ToggleButton value="list" aria-label={t('discovery.listView')}>
-              <ViewListIcon fontSize="small" />
-            </ToggleButton>
-          </ToggleButtonGroup>
-        )}
-      </Box>
-
-      {/* Action buttons row — refresh applies to the main discovery pool */}
-      {discoveryTab !== 'streaming' && browseSubTab === 'popular' && (
-        <Box display="flex" gap={1} mb={2}>
-          {isMobile ? (
-            <Tooltip
-              title={
-                isJobRunning ? t('discovery.jobRunning') : refreshing ? t('discovery.refreshing') : t('discovery.refresh')
-              }
-            >
-              <span>
-                <IconButton
-                  onClick={handleRefresh}
-                  disabled={refreshing || isJobRunning}
-                  size="small"
-                  sx={{ border: 1, borderColor: 'divider' }}
-                >
-                  {refreshing || isJobRunning ? <CircularProgress size={18} /> : <RefreshIcon fontSize="small" />}
-                </IconButton>
-              </span>
-            </Tooltip>
-          ) : (
-            <Button
-              variant="outlined"
-              startIcon={refreshing || isJobRunning ? <CircularProgress size={16} /> : <RefreshIcon />}
-              onClick={handleRefresh}
-              disabled={refreshing || isJobRunning}
-              size="small"
-            >
-              {isJobRunning
-                ? t('discovery.jobRunningLabel')
-                : refreshing
-                  ? t('discovery.refreshing')
-                  : t('discovery.refresh')}
-            </Button>
-          )}
-        </Box>
+        </>
       )}
 
       {/* Tabs */}
-      <Tabs
+      <PageTabs
         value={discoveryTab}
         onChange={(_, v) => setDiscoveryTab(v)}
-        sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}
+        sx={{ borderBottom: 1, borderColor: 'divider', mb: { xs: 0.5, sm: 3 } }}
       >
         <Tab
           value="movie"
@@ -399,18 +342,18 @@ export function DiscoveryPage() {
             }}
           />
         )}
-      </Tabs>
+      </PageTabs>
 
       {/* Movies / TV: browse by overall popularity vs genre strips */}
       {(discoveryTab === 'movie' || discoveryTab === 'series') && (
-        <Tabs
+        <PageTabs
           value={browseSubTab}
           onChange={handleBrowseSubChange}
-          sx={{ borderBottom: 1, borderColor: 'divider', mb: 2, minHeight: 40 }}
+          sx={{ borderBottom: 1, borderColor: 'divider', mb: { xs: 1, sm: 2 }, minHeight: 40 }}
         >
           <Tab value="popular" label={t('discovery.tabBrowsePopular')} sx={{ textTransform: 'none' }} />
           <Tab value="genre" label={t('discovery.tabBrowseGenre')} sx={{ textTransform: 'none' }} />
-        </Tabs>
+        </PageTabs>
       )}
 
       {discoveryTab === 'streaming' ? (
@@ -430,10 +373,16 @@ export function DiscoveryPage() {
             onFiltersChange={handleFiltersChange}
             genreOptions={genreOptions}
             genresLoading={genresLoading}
+            actions={isMobile && (
+              <>
+                <DiscoveryRefresh compact refreshing={refreshing} running={isJobRunning} onRefresh={handleRefresh} />
+                <ViewModeToggle value={viewMode} onChange={setViewMode} />
+              </>
+            )}
           />
 
       {/* Job Running Banner */}
-      <Fade in={isJobRunning} timeout={300}>
+      <Fade in={isJobRunning} timeout={300} mountOnEnter unmountOnExit>
         <Alert
           severity="info"
           icon={<AutorenewIcon sx={{ animation: 'spin 1s linear infinite', '@keyframes spin': { from: { transform: 'rotate(0deg)' }, to: { transform: 'rotate(360deg)' } } }} />}
@@ -461,7 +410,7 @@ export function DiscoveryPage() {
 
       {/* Run Info */}
       {run && run.createdAt && (
-        <Typography variant="caption" color="text.secondary" display="block" mb={2}>
+        <Typography variant="caption" color="text.secondary" display="block" mb={{ xs: 1, sm: 2 }}>
           {t('discovery.lastUpdated', { when: new Date(run.createdAt).toLocaleString() })}
           {run.candidatesStored != null && run.candidatesFetched != null && (
             <>
@@ -491,7 +440,7 @@ export function DiscoveryPage() {
           {discoveryTab === 'movie' ? t('discovery.emptyMovie') : t('discovery.emptySeries')}
         </Alert>
       ) : viewMode === 'grid' ? (
-        <Grid container spacing={2}>
+        <Grid container spacing={{ xs: 1, sm: 2 }}>
           {candidates.map((candidate) => (
             <Grid item xs={6} sm={4} md={3} lg={2} key={candidate.id}>
               <DiscoveryCard
@@ -524,7 +473,7 @@ export function DiscoveryPage() {
       )}
 
       {/* Expanding indicator - shown when dynamically fetching more candidates */}
-      <Fade in={expanding} timeout={300}>
+      <Fade in={expanding} timeout={300} mountOnEnter unmountOnExit>
         <Box sx={{ mt: 3 }}>
           <Box display="flex" alignItems="center" justifyContent="center" gap={2} mb={1}>
             <CircularProgress size={20} />

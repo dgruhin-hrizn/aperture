@@ -1,3 +1,5 @@
+import { ViewModeToggle } from '@/components/ViewModeToggle'
+import { PageTabs } from '@/components/PageTabs'
 import { useAuth } from '../../hooks/useAuth'
 import { apiFetch } from '../../lib/api'
 import React, { useEffect, useState, useCallback, useRef } from 'react'
@@ -10,9 +12,6 @@ import {
   Skeleton,
   Alert,
   Chip,
-  ToggleButton,
-  ToggleButtonGroup,
-  Tabs,
   Tab,
   useTheme,
   useMediaQuery,
@@ -20,8 +19,6 @@ import {
 import WhatshotIcon from '@mui/icons-material/Whatshot'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
-import GridViewIcon from '@mui/icons-material/GridView'
-import ViewListIcon from '@mui/icons-material/ViewList'
 import PeopleIcon from '@mui/icons-material/People'
 import { MoviePoster, RankBadge } from '@aperture/ui'
 import { useUserRatings } from '../../hooks/useUserRatings'
@@ -155,7 +152,7 @@ export function TopPicksPage() {
   const error = tabIndex === 0 ? moviesError : seriesError
 
   const renderLoadingSkeleton = () => (
-    <Grid container spacing={2}>
+    <Grid container spacing={{ xs: 1, sm: 2 }}>
       {[...Array(10)].map((_, i) => (
         <Grid item xs={6} sm={4} md={3} lg={2} key={i}>
           <Skeleton variant="rectangular" sx={{ width: '100%', aspectRatio: '2/3', borderRadius: 1 }} />
@@ -165,7 +162,7 @@ export function TopPicksPage() {
   )
 
   const renderMoviesGrid = () => (
-    <Grid container spacing={2}>
+    <Grid container spacing={{ xs: 1, sm: 2 }}>
       {movies.map((movie) => (
         <Grid item xs={6} sm={4} md={3} lg={2} key={movie.movieId}>
           <Box position="relative">
@@ -217,7 +214,7 @@ export function TopPicksPage() {
   )
 
   const renderSeriesGrid = () => (
-    <Grid container spacing={2}>
+    <Grid container spacing={{ xs: 1, sm: 2 }}>
       {series.map((show) => (
         <Grid item xs={6} sm={4} md={3} lg={2} key={show.seriesId}>
           <Box position="relative">
@@ -326,7 +323,7 @@ export function TopPicksPage() {
   return (
     <Box>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
+      <Box data-mobile-redundant display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
         <Box>
           <Box display="flex" alignItems="center" gap={2} mb={{ xs: 0, sm: 1 }}>
             <WhatshotIcon sx={{ color: '#f97316', fontSize: 32 }} />
@@ -354,24 +351,13 @@ export function TopPicksPage() {
           )}
         </Box>
         {/* Grid/List toggle always in upper right */}
-        <ToggleButtonGroup
-          value={viewMode}
-          exclusive
-          onChange={(_, v) => v && setViewMode(v)}
-          size="small"
-        >
-          <ToggleButton value="grid">
-            <GridViewIcon fontSize="small" />
-          </ToggleButton>
-          <ToggleButton value="list">
-            <ViewListIcon fontSize="small" />
-          </ToggleButton>
-        </ToggleButtonGroup>
+        {!isMobile && <ViewModeToggle value={viewMode} onChange={setViewMode} />}
       </Box>
 
       {/* Tabs */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs 
+      <Box sx={{ display: { xs: 'flex', sm: 'block' }, alignItems: 'center', gap: 0.75, borderBottom: 1, borderColor: 'divider', mb: { xs: 1, sm: 3 } }}>
+        <PageTabs
+          style={isMobile ? { flex: 1, minWidth: 0 } : undefined}
           value={tabIndex} 
           onChange={handleTabChange}
           sx={{
@@ -400,7 +386,8 @@ export function TopPicksPage() {
               '&.Mui-selected': { color: '#ec4899' },
             }}
           />
-        </Tabs>
+        </PageTabs>
+        {isMobile && <ViewModeToggle value={viewMode} onChange={setViewMode} />}
       </Box>
 
       {renderContent()}

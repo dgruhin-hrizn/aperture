@@ -1,13 +1,12 @@
+import { ViewModeToggle } from '@/components/ViewModeToggle'
+import { PageTabs } from '@/components/PageTabs'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { MouseEvent, SyntheticEvent } from 'react'
+import type { SyntheticEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import {
   Box,
   Tab,
-  Tabs,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
   useMediaQuery,
   useTheme,
@@ -15,8 +14,6 @@ import {
 import MovieIcon from '@mui/icons-material/Movie'
 import PersonIcon from '@mui/icons-material/Person'
 import TvIcon from '@mui/icons-material/Tv'
-import GridViewIcon from '@mui/icons-material/GridView'
-import ViewListIcon from '@mui/icons-material/ViewList'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
 import type { SortField, SortOrder } from './browse/components'
 import { browseTabFromSearchParam } from './browse/constants'
@@ -94,8 +91,7 @@ export function BrowsePage() {
   )
 
   const handleViewModeChange = useCallback(
-    (_event: MouseEvent<HTMLElement>, nextViewMode: 'grid' | 'list' | null) => {
-      if (!nextViewMode) return
+    (nextViewMode: 'grid' | 'list') => {
       if (tabIndex === 2) {
         setPeopleViewMode(nextViewMode)
       } else {
@@ -107,7 +103,7 @@ export function BrowsePage() {
 
   return (
     <Box>
-      <Box
+      <Box data-mobile-redundant
         display="flex"
         justifyContent="space-between"
         alignItems="flex-start"
@@ -140,23 +136,12 @@ export function BrowsePage() {
           )}
         </Box>
 
-        <ToggleButtonGroup
-          value={currentViewMode}
-          exclusive
-          onChange={handleViewModeChange}
-          size="small"
-        >
-          <ToggleButton value="grid" aria-label={t('browse.gridView')}>
-            <GridViewIcon fontSize="small" />
-          </ToggleButton>
-          <ToggleButton value="list" aria-label={t('browse.listView')}>
-            <ViewListIcon fontSize="small" />
-          </ToggleButton>
-        </ToggleButtonGroup>
+        {!isMobile && <ViewModeToggle value={currentViewMode} onChange={handleViewModeChange} />}
       </Box>
 
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: { xs: 1, md: 3 } }}>
-        <Tabs
+      <Box sx={{ display: { xs: 'flex', sm: 'block' }, alignItems: 'center', gap: 0.75, borderBottom: 1, borderColor: 'divider', mb: { xs: 1, md: 3 } }}>
+        <PageTabs
+          style={isMobile ? { flex: 1, minWidth: 0 } : undefined}
           value={tabIndex}
           onChange={handleTabChange}
           sx={{
@@ -194,7 +179,8 @@ export function BrowsePage() {
               '&.Mui-selected': { color: '#14b8a6' },
             }}
           />
-        </Tabs>
+        </PageTabs>
+        {isMobile && <ViewModeToggle value={currentViewMode} onChange={handleViewModeChange} />}
       </Box>
 
       {tabIndex === 0 ? (
