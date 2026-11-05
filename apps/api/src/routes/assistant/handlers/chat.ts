@@ -8,7 +8,7 @@ import { getChatModelInstance, getEmbeddingModelInstance, getActiveEmbeddingMode
 import { requireAuth } from '../../../plugins/auth.js'
 import { queryOne } from '../../../lib/db.js'
 import { getMediaServerInfo, buildSystemPrompt } from '../helpers/index.js'
-import { createEncoreTools, getEncoreToolSchemas } from '@aperture/core/encore'
+import { createEncoreTools, getEncoreToolSchemas, releaseLocalDate } from '@aperture/core/encore'
 import { claimRun, loadMessages, releaseRun, saveMessage } from '../messages.js'
 import { encoreWebSearchTool, supportsEncoreWebSearch, webSearchInstructions } from '../../../lib/encoreWebSearch.js'
 import { encoreModelHistory, finishWithNextReplies, nextRepliesInstruction, suggestNextReplies } from '../nextReplies.js'
@@ -63,12 +63,12 @@ export function registerChatHandler(fastify: FastifyInstance, dependencies: { ge
         searchModel ?? getModel(), getEmbeddingModelInstance().catch(() => null),
         getActiveEmbeddingModelId(), getMediaServerInfo(), buildSystemPrompt(user.id, user.isAdmin),
       ])
-      const localTools = createEncoreTools({ userId: user.id, isAdmin: user.isAdmin, embeddingModel,
+      const localTools = createEncoreTools({ userId: user.id, timezone, isAdmin: user.isAdmin, embeddingModel,
         embeddingModelId: embeddingModelId ?? '', mediaServer,source:'encore',sourceId:`${conversationId}:${originalMessages.filter(m=>m.role==='user').at(-1)?.id??''}` })
       const chatTools = { ...localTools, suggestNextReplies }
       await getEncoreToolSchemas(chatTools)
       const tools = webSearch ? { ...chatTools, web_search: encoreWebSearchTool } : chatTools
-      const agent = new ToolLoopAgent({ model, tools, instructions: `${instructions}\nCurrent UTC date: ${new Date().toISOString()}. User timezone: ${timezone}. Interpret relative dates using that timezone.\n${webSearchInstructions[webSearch ? 'enabled' : 'disabled']}\n${nextRepliesInstruction}`,
+      const agent = new ToolLoopAgent({ model, tools, instructions: `${instructions}\nToday's date in the user's timezone (${timezone}): ${releaseLocalDate(timezone)}. Interpret relative dates using that timezone.\n${webSearchInstructions[webSearch ? 'enabled' : 'disabled']}\n${nextRepliesInstruction}`,
         maxOutputTokens: 4000, stopWhen: [stepCountIs(12), finishWithNextReplies],
         onEnd: ({ totalUsage, steps }) => request.log.info({ runId, usage: totalUsage, steps: steps.length }, 'Encore run completed'),
       })

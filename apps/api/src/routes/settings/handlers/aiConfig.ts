@@ -27,6 +27,8 @@
  * - PATCH /api/settings/ai/:function - Update function config
  */
 import type { FastifyInstance } from 'fastify'
+import type { z } from 'zod'
+import type { aiModelDiscoveryBody } from '../../../contracts/bodies/settings.js'
 import { supportsEncoreWebSearch } from '../../../lib/encoreWebSearch.js'
 import {
   getAIConfig,
@@ -40,7 +42,8 @@ import {
   testProviderConnection,
   PROVIDERS,
   getProvidersForFunction,
-  getModelsForFunctionWithCustom,
+  getAIModelOptions,
+  resolveProviderConnection,
   getPricingForModelAsync,
   refreshPricingCache,
   getPricingCacheStatus,
@@ -292,13 +295,22 @@ export function registerAiConfigHandlers(fastify: FastifyInstance) {
         return reply.status(400).send({ error: 'provider and function are required' })
       }
 
-      const models = await getModelsForFunctionWithCustom(provider as ProviderType, fn as AIFunction)
-      return reply.send({ models })
+      const models = await getAIModelOptions(provider as ProviderType, fn as AIFunction)
+      return reply.send(models)
     } catch (err) {
       fastify.log.error({ err }, 'Failed to get AI models')
       return reply.status(500).send({ error: 'Failed to get AI models' })
     }
   })
+
+  fastify.post<{ Body: z.infer<typeof aiModelDiscoveryBody> }>(
+    '/api/settings/ai/models',
+    { preHandler: requireAdmin, schema: { tags: ['settings'] } },
+    async (request) => {
+      const { provider, function: fn, apiKey, baseUrl } = request.body
+      return getAIModelOptions(provider, fn, { apiKey, baseUrl }, true)
+    }
+  )
 
   /**
    * POST /api/settings/ai/custom-models
@@ -627,22 +639,13 @@ export function registerAiConfigHandlers(fastify: FastifyInstance) {
         return reply.status(400).send({ error: 'function, provider, and model are required' })
       }
 
-      let testApiKey = apiKey
-      let testBaseUrl = baseUrl
-      if (!testApiKey || !testBaseUrl) {
-        const savedConfig = await getFunctionConfig(fn as AIFunction)
-        if (savedConfig && savedConfig.provider === provider) {
-          testApiKey = testApiKey || savedConfig.apiKey
-          testBaseUrl = testBaseUrl || savedConfig.baseUrl
-        }
-      }
+      const connection = await resolveProviderConnection(provider as ProviderType, fn as AIFunction, { apiKey, baseUrl })
 
       const result = await testProviderConnection(
         {
           provider: provider as ProviderType,
           model,
-          apiKey: testApiKey,
-          baseUrl: testBaseUrl,
+          ...connection,
         },
         fn as AIFunction
       )
@@ -667,19 +670,6 @@ export function registerAiConfigHandlers(fastify: FastifyInstance) {
 
       if (!['embeddings', 'chat', 'textGeneration', 'exploration'].includes(fn)) {
         return reply.status(400).send({ error: 'Invalid function. Must be embeddings, chat, textGeneration, or exploration' })
-      }
-
-      if (apiKey || baseUrl) {
-        const credentialsJson = await getSystemSetting('ai_provider_credentials')
-        const credentials = credentialsJson ? JSON.parse(credentialsJson) : {}
-        
-        credentials[provider] = {
-          ...(credentials[provider] || {}),
-          ...(apiKey && { apiKey }),
-          ...(baseUrl && { baseUrl }),
-        }
-        
-        await setSystemSetting('ai_provider_credentials', JSON.stringify(credentials), 'Stored credentials for AI providers')
       }
 
       await setFunctionConfig(fn, {

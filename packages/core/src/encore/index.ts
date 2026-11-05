@@ -19,7 +19,7 @@ export {
   hashEncoreToken,
 } from './connections.js'
 export { encoreToolScope } from './toolkit.js'
-export { validateReleaseWindow, getEncoreReleases } from './releases.js'
+export { validateReleaseWindow, getEncoreReleases, releaseLocalDate, resolveReleaseWindow } from './releases.js'
 
 export {
   listEncoreMemories,

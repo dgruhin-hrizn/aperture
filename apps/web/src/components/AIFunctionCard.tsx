@@ -2,7 +2,7 @@
  * Shared AI Function Configuration Card
  * Used in both Admin Settings and Setup Wizard
  */
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useId, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Box,
@@ -60,6 +60,8 @@ export interface ModelInfo {
   isCustom?: boolean
 }
 
+type ModelOptions = { models: ModelInfo[]; source?: 'live' | 'bundled'; error?: string }
+
 export interface AIFunctionCardProps {
   functionType: AIFunction
   title: string
@@ -86,6 +88,7 @@ export function AIFunctionCard({
   isSetup = false,
 }: AIFunctionCardProps) {
   const { t } = useTranslation()
+  const fieldId = useId()
   // Use setup endpoints during first-run (no auth), settings endpoints after
   const apiBase = isSetup ? '/api/setup/ai' : '/api/settings/ai'
 
@@ -107,6 +110,9 @@ export function AIFunctionCard({
   const [loading, setLoading] = useState(false)
   const [providers, setProviders] = useState<ProviderInfo[]>([])
   const [models, setModels] = useState<ModelInfo[]>([])
+  const [modelSource, setModelSource] = useState<ModelOptions['source']>()
+  const [modelError, setModelError] = useState<string>()
+  const modelRequest = useRef<AbortController | null>(null)
   
   // Form state
   const [provider, setProvider] = useState<ProviderType>(config?.provider || 'openai')
@@ -138,6 +144,10 @@ export function AIFunctionCard({
   const isConfigured = Boolean(config)
   const providerInfo = PROVIDER_INFO[provider]
   const selectedModel = models.find(m => m.id === model)
+  const canDiscover = provider === 'openai' || provider === 'openai-compatible'
+  const verifiedTools = provider === 'openai-compatible' && functionType === 'chat' &&
+    (testResult?.success || (config?.toolCallingVerified && config.provider === provider &&
+      config.model === model && config.baseUrl === baseUrl && !apiKey))
   const supportsCustomModels = provider === 'ollama' || provider === 'openai-compatible' || provider === 'openrouter' || provider === 'huggingface'
 
   // Sync form state when config prop changes (e.g., loaded from DB)
@@ -152,7 +162,7 @@ export function AIFunctionCard({
   
   // Check capability warning
   const hasCapabilityWarning = requiredCapability === 'toolCalling' && 
-    selectedModel && !selectedModel.capabilities.supportsToolCalling
+    selectedModel && !selectedModel.capabilities.supportsToolCalling && !verifiedTools
   const hasEmbeddingWarning = requiredCapability === 'embeddings' &&
     selectedModel && !selectedModel.capabilities.supportsEmbeddings
 
@@ -166,68 +176,68 @@ export function AIFunctionCard({
       .finally(() => setLoadingProviders(false))
   }, [functionType, apiBase])
 
-  // Load saved credentials for current provider on mount (if no apiKey in config)
+  // Keep saved keys on the server. A compatible URL can change independently of the key.
   useEffect(() => {
-    if (!config?.apiKey && provider) {
-      fetch(`${apiBase}/credentials/${provider}`, { credentials: 'include' })
-        .then(res => res.ok ? res.json() : null)
-        .then(data => {
-          if (data?.apiKey) setApiKey(data.apiKey)
-          if (data?.baseUrl && !baseUrl) setBaseUrl(data.baseUrl)
-        })
-        .catch(() => {})
-    }
-  }, [apiBase, config?.apiKey, provider, baseUrl])
-
-  // Fetch models when provider changes
-  useEffect(() => {
-    setLoading(true)
-    fetch(`${apiBase}/models?provider=${provider}&function=${functionType}`, { credentials: 'include' })
-      .then(res => res.json())
+    const controller = new AbortController()
+    fetch(`${apiBase}/credentials/${provider}`, { credentials: 'include', signal: controller.signal })
+      .then(res => res.ok ? res.json() : null)
       .then(data => {
-        setModels(data.models || [])
-        // If we have a config model and it's in the list, keep it selected
-        // Otherwise auto-select first model
-        if (data.models?.length > 0) {
-          const configModelExists = config?.model && data.models.find((m: ModelInfo) => m.id === config.model)
-          if (configModelExists && !model) {
-            setModel(config.model)
-          } else if (!model || !data.models.find((m: ModelInfo) => m.id === model)) {
-            setModel(data.models[0].id)
-          }
-        }
+        if (controller.signal.aborted) return
+        setBaseUrl(previous => previous || data?.baseUrl || PROVIDER_INFO[provider]?.defaultBaseUrl || '')
       })
-      .catch(() => setModels([]))
-      .finally(() => setLoading(false))
-  }, [provider, functionType, config?.model, apiBase, model])
+      .catch(() => {})
+    return () => controller.abort()
+  }, [apiBase, provider])
 
-  // Set default base URL when switching providers
-  useEffect(() => {
-    if (providerInfo?.defaultBaseUrl && !baseUrl) {
-      setBaseUrl(providerInfo.defaultBaseUrl)
+  const requestModels = useCallback(async (connection?: { apiKey?: string; baseUrl?: string }) => {
+    modelRequest.current?.abort()
+    const controller = new AbortController()
+    modelRequest.current = controller
+    setLoading(true)
+    setModelError(undefined)
+    try {
+      const url = `${apiBase}/models`
+      const res = await fetch(connection ? url : `${url}?provider=${provider}&function=${functionType}`, {
+        credentials: 'include',
+        signal: controller.signal,
+        ...(connection && {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider, function: functionType, ...connection }),
+        }),
+      })
+      if (!res.ok) throw new Error('Could not load models')
+      const data: ModelOptions = await res.json()
+      if (controller.signal.aborted) return
+      setModels(data.models)
+      setModelSource(data.source)
+      setModelError(data.error)
+      const saved = config?.provider === provider ? config.model : ''
+      setModel(current => {
+        if (current && (current === saved || data.models.some(option => option.id === current))) return current
+        if (saved) return saved
+        return data.source === 'live' ? '' : data.models[0]?.id ?? ''
+      })
+    } catch {
+      if (!controller.signal.aborted) setModelError(t('aiFunctionCard.modelDiscoveryFailed'))
+    } finally {
+      if (!controller.signal.aborted) setLoading(false)
     }
-  }, [provider, baseUrl, providerInfo?.defaultBaseUrl])
+  }, [apiBase, config?.model, config?.provider, functionType, provider, t])
 
-  const handleProviderChange = async (newProvider: ProviderType) => {
+  useEffect(() => {
+    void requestModels()
+    return () => modelRequest.current?.abort()
+  }, [requestModels])
+
+  const handleProviderChange = (newProvider: ProviderType) => {
     setProvider(newProvider)
     setModel('')
+    setModels([])
+    setModelSource(undefined)
+    setApiKey('')
+    setBaseUrl(config?.provider === newProvider ? config.baseUrl || '' : '')
     setTestResult(null)
-    
-    // Fetch saved credentials for this provider
-    try {
-      const res = await fetch(`${apiBase}/credentials/${newProvider}`, { credentials: 'include' })
-      if (res.ok) {
-        const data = await res.json()
-        setApiKey(data.apiKey || '')
-        setBaseUrl(data.baseUrl || PROVIDER_INFO[newProvider]?.defaultBaseUrl || '')
-      } else {
-        setApiKey('')
-        setBaseUrl(PROVIDER_INFO[newProvider]?.defaultBaseUrl || '')
-      }
-    } catch {
-      setApiKey('')
-      setBaseUrl(PROVIDER_INFO[newProvider]?.defaultBaseUrl || '')
-    }
   }
 
   const handleTest = async () => {
@@ -279,18 +289,10 @@ export function AIFunctionCard({
   }
 
   // Refresh models list
-  const refreshModels = useCallback(async () => {
-    setLoading(true)
-    try {
-      const res = await fetch(`${apiBase}/models?provider=${provider}&function=${functionType}`, { credentials: 'include' })
-      const data = await res.json()
-      setModels(data.models || [])
-    } catch {
-      // Ignore
-    } finally {
-      setLoading(false)
-    }
-  }, [apiBase, provider, functionType])
+  const refreshModels = () => requestModels(canDiscover ? {
+    apiKey: apiKey.trim() || undefined,
+    baseUrl: baseUrl.trim() || undefined,
+  } : undefined)
 
   // Test custom model in dialog
   const handleTestCustomModel = async () => {
@@ -313,6 +315,9 @@ export function AIFunctionCard({
       })
       const data = await res.json()
       setDialogTestResult(data)
+      if (data.success && VALID_EMBEDDING_DIMENSIONS.includes(data.embeddingDimensions)) {
+        setNewModelEmbeddingDimensions(data.embeddingDimensions)
+      }
     } catch {
       setDialogTestResult({ success: false, error: t('aiFunctionCard.connectionFailed') })
     } finally {
@@ -478,8 +483,9 @@ export function AIFunctionCard({
         {/* Provider & Model Selection */}
         <Box display="flex" flexDirection="column" gap={2} mb={2}>
           <FormControl size="small" fullWidth>
-            <InputLabel>{t('aiFunctionCard.provider')}</InputLabel>
+            <InputLabel id={`${fieldId}-provider`}>{t('aiFunctionCard.provider')}</InputLabel>
             <Select
+              labelId={`${fieldId}-provider`}
               value={!loadingProviders && providers.length > 0 ? provider : ''}
               label={t('aiFunctionCard.provider')}
               onChange={(e) => handleProviderChange(e.target.value as ProviderType)}
@@ -522,13 +528,18 @@ export function AIFunctionCard({
           </FormControl>
 
           <FormControl size="small" fullWidth>
-            <InputLabel>{t('aiFunctionCard.model')}</InputLabel>
+            <InputLabel id={`${fieldId}-model`}>{t('aiFunctionCard.model')}</InputLabel>
             <Select
-              value={!loading && models.length > 0 ? model : ''}
+              labelId={`${fieldId}-model`}
+              value={loading ? '' : model}
               label={t('aiFunctionCard.model')}
               onChange={(e) => {
                 const value = e.target.value
                 if (value === '__add_custom__') {
+                  setAddModelDialogOpen(true)
+                } else if (provider === 'openai-compatible' && functionType === 'embeddings' &&
+                    !models.find(option => option.id === value)?.embeddingDimensions) {
+                  setNewModelName(value)
                   setAddModelDialogOpen(true)
                 } else {
                   setModel(value)
@@ -556,8 +567,9 @@ export function AIFunctionCard({
                   {t('aiFunctionCard.noModelsAvailable')}
                 </MenuItem>
               )}
+              {!loading && model && !selectedModel && <MenuItem value={model}>{model}</MenuItem>}
               {/* Built-in models */}
-              {[...models].filter(m => !m.isCustom).sort((a, b) => a.name.localeCompare(b.name)).map((m) => (
+              {models.filter(m => !m.isCustom).map((m) => (
                 <MenuItem key={m.id} value={m.id}>
                   <Box>
                     <Typography variant="body2">{m.name}</Typography>
@@ -633,6 +645,24 @@ export function AIFunctionCard({
           </FormControl>
         </Box>
 
+        {canDiscover && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+            <Button size="small" onClick={() => void refreshModels()} disabled={loading}>
+              {t('aiFunctionCard.discoverModels')}
+            </Button>
+            {modelSource === 'live' && (
+              <Typography variant="caption" color="text.secondary">
+                {t('aiFunctionCard.modelsFromEndpoint')}
+              </Typography>
+            )}
+            {modelError && (
+              <Typography variant="caption" color="error.main" role="alert">
+                {modelError}
+              </Typography>
+            )}
+          </Box>
+        )}
+
         {/* Model Info Chips */}
         {selectedModel && (
           <Box display="flex" gap={1} mb={2} flexWrap="wrap">
@@ -646,7 +676,7 @@ export function AIFunctionCard({
                 variant="outlined"
               />
             )}
-            {selectedModel.capabilities.supportsToolCalling && (
+            {(selectedModel.capabilities.supportsToolCalling || verifiedTools) && (
               <Chip
                 label={t('aiFunctionCard.toolCalling')}
                 size="small"
@@ -658,7 +688,9 @@ export function AIFunctionCard({
         )}
 
         {/* Capability Warnings */}
-        {hasCapabilityWarning && (
+        {hasCapabilityWarning && provider === 'openai-compatible' ? (
+          <Alert severity="info" sx={{ mb: 2 }}>{t('aiFunctionCard.verifyCompatibleTools')}</Alert>
+        ) : hasCapabilityWarning && (
           <Alert severity="warning" sx={{ mb: 2 }}>
             <Typography variant="body2" sx={{ mb: 0.5 }}>
               <strong>{t('aiFunctionCard.toolCallingWarningTitle')}</strong>
@@ -679,12 +711,15 @@ export function AIFunctionCard({
         <Box flex={1} />
 
         {/* API Key */}
-        {providerInfo?.requiresApiKey && (
+        {(providerInfo?.requiresApiKey || provider === 'openai-compatible') && (
           <TextField
             label={t('aiFunctionCard.apiKey')}
             type={showApiKey ? 'text' : 'password'}
             value={apiKey || (isConfigured ? '••••••••••••••••' : '')}
-            onChange={(e) => setApiKey(e.target.value.replace(/•/g, ''))}
+            onChange={(e) => {
+              setApiKey(e.target.value.replace(/•/g, ''))
+              setTestResult(null)
+            }}
             size="small"
             fullWidth
             placeholder={t('aiFunctionCard.apiKeyPlaceholder', { provider: providerInfo.name })}
@@ -783,7 +818,10 @@ export function AIFunctionCard({
           <TextField
             label={t('aiFunctionCard.baseUrl')}
             value={baseUrl}
-            onChange={(e) => setBaseUrl(e.target.value)}
+            onChange={(e) => {
+              setBaseUrl(e.target.value)
+              setTestResult(null)
+            }}
             size="small"
             fullWidth
             placeholder={providerInfo.defaultBaseUrl}

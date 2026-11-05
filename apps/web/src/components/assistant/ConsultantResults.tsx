@@ -1,4 +1,15 @@
-import { Alert, Box, Chip, Divider, LinearProgress, Paper, Stack, Typography } from '@mui/material'
+import { useState } from 'react'
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  Divider,
+  LinearProgress,
+  Paper,
+  Stack,
+  Typography,
+} from '@mui/material'
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined'
 import { useTranslation } from 'react-i18next'
 
@@ -10,13 +21,28 @@ function records(value: unknown): Record<string, unknown>[] {
 export function ReleaseResults({ data }: { data: Record<string, unknown> }) {
   const { t } = useTranslation()
   const events = records(data.events)
+  const [expanded, setExpanded] = useState(false)
+  const visibleEvents = expanded ? events : events.slice(0, 5)
   return (
     <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3 }}>
       <Stack direction="row" alignItems="center" spacing={1}>
         <CalendarMonthOutlinedIcon color="primary" />
-        <Typography fontWeight={600}>{t('encore.releaseSchedule')}</Typography>
+        <Typography fontWeight={600}>
+          {t(
+            data.mode === 'movies'
+              ? 'encore.movieReleaseSchedule'
+              : data.mode === 'following'
+                ? 'encore.followedReleaseSchedule'
+                : 'encore.releaseSchedule'
+          )}
+        </Typography>
         <Chip size="small" label={String(data.region ?? '')} />
       </Stack>
+      {typeof data.startDate === 'string' && typeof data.endDate === 'string' && (
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+          {data.startDate === data.endDate ? data.startDate : `${data.startDate} – ${data.endDate}`}
+        </Typography>
+      )}
       <Typography variant="caption" color="text.secondary">
         {t('encore.dayPrecision')}
       </Typography>
@@ -31,7 +57,7 @@ export function ReleaseResults({ data }: { data: Record<string, unknown> }) {
           {t('encore.noReleases')}
         </Typography>
       )}
-      {events.map((event, i) => (
+      {visibleEvents.map((event, i) => (
         <Box key={String(event.id ?? i)} sx={{ pt: 2 }}>
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
             <Typography variant="caption" sx={{ minWidth: 90, color: 'primary.main', pt: 0.4 }}>
@@ -55,9 +81,21 @@ export function ReleaseResults({ data }: { data: Record<string, unknown> }) {
               </Typography>
             </Box>
           </Box>
-          {i < events.length - 1 && <Divider sx={{ mt: 2 }} />}
+          {i < visibleEvents.length - 1 && <Divider sx={{ mt: 2 }} />}
         </Box>
       ))}
+      {events.length > 5 && (
+        <Button
+          size="small"
+          sx={{ mt: 1 }}
+          aria-expanded={expanded}
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded
+            ? t('encore.showFewerReleases')
+            : t('encore.showAllReleases', { count: events.length })}
+        </Button>
+      )}
       {typeof data.retrievedAt === 'string' && (
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
           {t('encore.checkedAt', { date: new Date(data.retrievedAt).toLocaleString() })}

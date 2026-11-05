@@ -4133,7 +4133,7 @@
       "releases": {
         "title": "What’s coming next?",
         "description": "Upcoming episodes and movie releases.",
-        "message": "Help me look up upcoming episodes and movie releases. Ask which region and date range I want."
+        "message": "Show me upcoming episodes and movie releases over the next two weeks."
       },
       "curate": {
         "title": "Build a collection",
