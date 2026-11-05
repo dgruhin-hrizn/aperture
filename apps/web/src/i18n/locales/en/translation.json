@@ -2082,6 +2082,7 @@
     "confirmDrop": "Drop Tables"
   },
   "settingsLibraryTitles": {
+    "previewGroupLabel": "Grouped TV example",
     "loadFailed": "Failed to load library title configuration",
     "fetchFailed": "Failed to fetch config",
     "saveFailed": "Failed to save config",
@@ -3820,6 +3821,13 @@
     "activity": "Activity"
   },
   "encore": {
+    "webSearch": "Web search",
+    "webSearchChecking": "Checking web search support",
+    "webSearchOff": "Turn on web search for this conversation",
+    "webSearchOn": "Web search is on. Public lookups use your configured OpenAI provider.",
+    "webSearchUnavailable": "Web search requires a compatible OpenAI chat model.",
+    "webSearchWorking": "Searching the web…",
+    "nextReplies": "Suggested replies",
     "open": "Ask Encore",
     "subtitle": "Your personal movie and TV consultant",
     "eyebrow": "A little less browsing. A lot more watching.",

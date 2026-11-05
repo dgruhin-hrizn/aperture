@@ -27,6 +27,7 @@
  * - PATCH /api/settings/ai/:function - Update function config
  */
 import type { FastifyInstance } from 'fastify'
+import { supportsEncoreWebSearch } from '../../../lib/encoreWebSearch.js'
 import {
   getAIConfig,
   setAIConfig,
@@ -154,6 +155,7 @@ export function registerAiConfigHandlers(fastify: FastifyInstance) {
           configured: capabilities.chat.configured,
           supportsToolCalling: capabilities.chat.capabilities?.supportsToolCalling ?? false,
           supportsStreaming: capabilities.chat.capabilities?.supportsToolStreaming ?? false,
+          supportsWebSearch: supportsEncoreWebSearch(capabilities.chat.provider, capabilities.chat.model),
         },
         textGeneration: {
           configured: capabilities.textGeneration.configured,

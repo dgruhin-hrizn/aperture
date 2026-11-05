@@ -1,6 +1,6 @@
 {
   "name": "@aperture/core",
-  "version": "0.8.0-dev.7.3",
+  "version": "0.8.0-dev.8",
   "private": true,
   "type": "module",
   "exports": {
@@ -39,6 +39,10 @@
     "./watching": {
       "import": "./dist/watching/index.js",
       "types": "./dist/watching/index.d.ts"
+    },
+    "./library-titles": {
+      "import": "./dist/lib/libraryTitles.js",
+      "types": "./dist/lib/libraryTitles.d.ts"
     },
     "./encore": {
       "import": "./dist/encore/index.js",

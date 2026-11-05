@@ -353,6 +353,7 @@ export function registerAiOutputHandlers(fastify: FastifyInstance) {
         supportedMergeTags: [
           { tag: '{{username}}', description: "User's display name" },
           { tag: '{{type}}', description: 'Media type (Movies or TV Series)' },
+          { tag: '{{group}}', description: 'TV recommendation group name' },
           { tag: '{{count}}', description: 'Number of recommendations (optional)' },
           { tag: '{{date}}', description: 'Date of last recommendation run (optional)' },
         ],

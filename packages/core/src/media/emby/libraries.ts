@@ -18,7 +18,7 @@ export async function getLibraries(provider: EmbyProviderBase, apiKey: string): 
 
   return libraries.map((lib: EmbyLibrary) => ({
     // ItemId is for Items API (/Items/...), Id is for VirtualFolders API
-    id: lib.ItemId || lib.Id || '', // Primary ID for Items API
+    id: String(lib.ItemId || lib.Id || ''), // Primary ID for Items API
     virtualFolderId: lib.Id || '', // VirtualFolder ID for library options
     guid: lib.Guid || lib.ItemId || lib.Id || '', // GUID is used for user permissions
     name: lib.Name,
@@ -97,19 +97,19 @@ export async function createVirtualLibrary(
 }
 
 /**
- * Remove a virtual library from the media server by display name.
- * Uses DELETE /Library/VirtualFolders (Emby API).
+ * Emby resolves virtual folder removal by the library's item ID.
  */
 export async function deleteVirtualLibrary(
   provider: EmbyProviderBase,
   apiKey: string,
-  name: string
+  id: string
 ): Promise<void> {
-  await provider.fetch(
-    `/Library/VirtualFolders?name=${encodeURIComponent(name)}&refreshLibrary=true`,
-    apiKey,
-    { method: 'DELETE' }
-  )
+  if (!id) throw new Error('Emby library ID is required for removal')
+  await provider.fetch('/Library/VirtualFolders/Delete', apiKey, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ Id: id }),
+  })
 }
 
 /**

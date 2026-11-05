@@ -329,8 +329,7 @@ export async function writeSeriesStrmFilesForUser(
   if (provider instanceof EmbyProvider) {
     try {
       if (!embyApiKey) throw new Error('Emby API key unavailable')
-      const baseName = await getUserSeriesLibraryName(userId, displayName, config)
-      const libraryName = group ? `${baseName} – ${group.name}` : baseName
+      const libraryName = await getUserSeriesLibraryName(userId, displayName, config, group?.name)
       await assertPrivateRecommendationLibrary(provider, embyApiKey, providerUserId, libraryName, embyPath, previousLibraryId)
       const allowed = new Set(await getAllowedRecommendationSourceIds(provider, embyApiKey, providerUserId, 'tvshows'))
       recommendationRows = recommendationRows.filter(

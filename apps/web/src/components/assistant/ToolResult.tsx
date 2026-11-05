@@ -36,6 +36,7 @@ export function ToolResult({
   status?: { type: string; reason?: string }
 }) {
   const { t } = useTranslation()
+  if (toolName === 'suggestNextReplies') return null
   if (isError)
     return (
       <ToolResultError message={typeof result === 'string' ? result : t('encore.toolFailed')} />
@@ -50,12 +51,12 @@ export function ToolResult({
     return (
       <Paper variant="outlined" sx={{ p: 2, borderRadius: 3, my: 1 }} aria-live="polite">
         <Typography variant="body2" color="text.secondary">
-          {t('encore.toolWorking')}
+          {t(toolName === 'web_search' ? 'encore.webSearchWorking' : 'encore.toolWorking')}
         </Typography>
         <LinearProgress sx={{ mt: 1.5, borderRadius: 3 }} />
       </Paper>
     )
-  if (!result || typeof result !== 'object') return null
+  if (toolName === 'web_search' || !result || typeof result !== 'object') return null
   const data = result as Record<string, unknown>
   if (
     [

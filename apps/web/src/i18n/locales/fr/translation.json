@@ -2195,7 +2195,8 @@
     "previewMovies": "Films",
     "previewTvSeries": "Séries TV",
     "saving": "Économie…",
-    "saveTemplates": "Enregistrer les modèles"
+    "saveTemplates": "Enregistrer les modèles",
+    "previewGroupLabel": "Exemple avec un groupe de séries"
   },
   "connectionTypes": {
     "director": "Même réalisateur",
@@ -4075,7 +4076,14 @@
     "nextEpisodes": "Your next episodes",
     "episodeAvailability": "Synchronized episode metadata. Planning rechecks live availability and progress.",
     "noNextEpisodes": "No synchronized unwatched episodes found for this show.",
-    "franchiseTruncated": "This view is limited to the first 200 accessible titles."
+    "franchiseTruncated": "This view is limited to the first 200 accessible titles.",
+    "webSearch": "Recherche Web",
+    "webSearchChecking": "Vérification de la disponibilité de la recherche Web",
+    "webSearchOff": "Activer la recherche Web pour cette conversation",
+    "webSearchOn": "La recherche Web est active. Les recherches publiques utilisent votre fournisseur OpenAI configuré.",
+    "webSearchUnavailable": "La recherche Web nécessite un modèle de chat OpenAI compatible.",
+    "webSearchWorking": "Recherche sur le Web…",
+    "nextReplies": "Réponses suggérées"
   },
   "mobile": {
     "primaryNavigation": "Primary navigation",

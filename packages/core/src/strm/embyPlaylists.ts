@@ -1,5 +1,5 @@
 import { query, queryOne } from '../lib/db.js'
-import { getEffectiveLibraryTitle } from '../lib/userSettings.js'
+import { getLibraryTitleRenderer } from '../lib/userSettings.js'
 import { EmbyProvider, getMediaServerProvider } from '../media/index.js'
 import { isEmbyNotFoundError } from '../media/emby/fetchHelpers.js'
 import {
@@ -118,13 +118,13 @@ export async function publishEmbyRecommendationPlaylists(
     const visible = await getVisibleRecommendationItems(
       provider, userToken, providerUserId, eligible.map((row) => row.provider_item_id), movies ? 'Movie' : 'Series'
     )
-    const baseName = await getEffectiveLibraryTitle(userId, displayName, mediaType)
+    const renderTitle = await getLibraryTitleRenderer(userId, displayName, mediaType)
     const outputs = (groups.length ? groups : [null]).flatMap((group) => {
       const ids = [...new Set(eligible.filter((row) =>
         row.series_group_id === (group?.id ?? null) && visible.has(row.provider_item_id)
         && (!group || group.sourceIds.includes(row.provider_library_id))
       ).map((row) => row.provider_item_id))]
-      return ids.length ? [{ key: group?.id ?? '', name: group ? `${baseName} – ${group.name}` : baseName, ids }] : []
+      return ids.length ? [{ key: group?.id ?? '', name: renderTitle(group?.name), ids }] : []
     })
     for (const output of existing) {
       if (!outputs.some((entry) => entry.key === output.group_key && entry.name === output.name)) {

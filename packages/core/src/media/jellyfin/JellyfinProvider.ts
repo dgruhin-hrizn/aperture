@@ -112,8 +112,8 @@ export class JellyfinProvider extends JellyfinProviderBase implements MediaServe
     return createVirtualLibrary(this, apiKey, name, path, collectionType)
   }
 
-  async deleteVirtualLibrary(apiKey: string, name: string): Promise<void> {
-    return deleteVirtualLibraryFromServer(this, apiKey, name)
+  async deleteVirtualLibrary(apiKey: string, library: Pick<Library, 'id' | 'name'>): Promise<void> {
+    return deleteVirtualLibraryFromServer(this, apiKey, library.name)
   }
 
   async getUserLibraryAccess(

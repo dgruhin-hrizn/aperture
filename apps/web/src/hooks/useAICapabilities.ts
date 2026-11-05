@@ -50,6 +50,7 @@ interface AICapabilitiesResult {
     model: string | null
     supportsTools: boolean
     supportsStreaming: boolean
+    supportsWebSearch: boolean
   }
   textGeneration: {
     configured: boolean
@@ -88,6 +89,7 @@ interface AIFeaturesResponse {
     configured: boolean
     supportsToolCalling: boolean
     supportsStreaming: boolean
+    supportsWebSearch?: boolean
   }
   textGeneration: {
     configured: boolean
@@ -141,6 +143,7 @@ export function useAICapabilities(): AICapabilitiesResult {
     model: null as string | null,
     supportsTools: data?.chat.supportsToolCalling ?? false,
     supportsStreaming: data?.chat.supportsStreaming ?? false,
+    supportsWebSearch: data?.chat.supportsWebSearch ?? false,
   }
 
   const textGeneration = {
