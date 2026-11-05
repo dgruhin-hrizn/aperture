@@ -16,8 +16,16 @@ export function embyConnectionError(baseUrl: string): Error {
   )
 }
 
-export function embyHttpError(status: number, statusText: string): Error {
-  return new Error(`Emby API error: ${status} ${statusText}`)
+export class EmbyHttpError extends Error {
+  readonly serverException?: 'SQLiteException'
+
+  constructor(readonly status: number, statusText: string, body: string) {
+    super(`Emby API error: ${status} ${statusText}`)
+    this.name = 'EmbyHttpError'
+    if (body.includes('SQLiteException')) {
+      this.serverException = 'SQLiteException'
+    }
+  }
 }
 
 export function isEmbyNotFoundError(err: unknown): boolean {

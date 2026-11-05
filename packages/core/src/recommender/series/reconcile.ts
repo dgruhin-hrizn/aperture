@@ -48,11 +48,15 @@ export async function reconcileRemovedSeries(
     }
 
     if (lib.expectedEpisodeCount > 0) {
-      if (lib.fetchedEpisodeCount !== lib.expectedEpisodeCount) {
+      const uniqueEpisodeCount = lib.seenEpisodeProviderIds.size
+      if (
+        lib.fetchedEpisodeCount !== lib.expectedEpisodeCount ||
+        uniqueEpisodeCount !== lib.expectedEpisodeCount
+      ) {
         addLog(
           jobId,
           'warn',
-          `⚠️ Skipping stale episode cleanup for library ${lib.libraryId ?? 'all'}: fetched ${lib.fetchedEpisodeCount} but expected ${lib.expectedEpisodeCount}`
+          `⚠️ Skipping stale episode cleanup for library ${lib.libraryId ?? 'all'} after fetching ${lib.fetchedEpisodeCount} episodes (${uniqueEpisodeCount} unique) out of ${lib.expectedEpisodeCount} expected`
         )
       } else {
         const seenEpisodes = [...lib.seenEpisodeProviderIds]
