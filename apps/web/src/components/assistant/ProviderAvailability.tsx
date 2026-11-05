@@ -1,4 +1,5 @@
-import { Alert, Box, Chip, Paper, Stack, Typography } from '@mui/material'
+import { ToolCard } from './ToolCard'
+import { Box, Button, Chip, Stack, Typography } from '@mui/material'
 import { useTranslation } from 'react-i18next'
 export function ProviderAvailability({ data }: { data: Record<string, unknown> }) {
   const { t } = useTranslation()
@@ -7,7 +8,7 @@ export function ProviderAvailability({ data }: { data: Record<string, unknown> }
       ? (data.watchProviders as Record<string, unknown>)
       : null
   return (
-    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3 }}>
+    <ToolCard variant="outlined">
       <Typography variant="subtitle2">
         {t('encore.streamingTitle', { region: String(data.region) })}
       </Typography>
@@ -16,7 +17,7 @@ export function ProviderAvailability({ data }: { data: Record<string, unknown> }
           const names = Array.isArray(providers[key]) ? (providers[key] as string[]) : []
           return (
             names.length > 0 && (
-              <Box key={key} sx={{ mt: 1.5 }}>
+              <Box key={key} sx={{ mt: 0.75 }}>
                 <Typography variant="caption" color="text.secondary">
                   {t(`encore.providerTypes.${key}`)}
                 </Typography>
@@ -30,24 +31,28 @@ export function ProviderAvailability({ data }: { data: Record<string, unknown> }
           )
         })
       ) : (
-        <Typography variant="body2" color="text.secondary" sx={{ my: 2 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
           {t('encore.noStreaming')}
         </Typography>
       )}
-      <Typography
-        component="a"
-        href={typeof providers?.link === 'string' ? providers.link : undefined}
-        target="_blank"
-        rel="noopener noreferrer"
-        variant="caption"
-        color="primary.main"
-        sx={{ display: 'block', mt: 2 }}
-      >
-        {t('encore.justWatchAttribution')}
-      </Typography>
-      <Alert severity="info" sx={{ mt: 1.5 }}>
+      {typeof providers?.link === 'string' ? (
+        <Button
+          size="small"
+          href={providers.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          sx={{ minHeight: 44, maxWidth: '100%', textAlign: 'start' }}
+        >
+          {t('encore.justWatchAttribution')}
+        </Button>
+      ) : (
+        <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.75 }}>
+          {t('encore.justWatchAttribution')}
+        </Typography>
+      )}
+      <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.25 }}>
         {t('encore.streamingPrecision')}
-      </Alert>
-    </Paper>
+      </Typography>
+    </ToolCard>
   )
 }

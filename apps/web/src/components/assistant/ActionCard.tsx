@@ -1,5 +1,6 @@
+import { ToolCard, ToolCardHeading, ToolPreview } from './ToolCard'
 import { useState } from 'react'
-import { Box, Button, Chip, Paper, Stack, TextField, Typography } from '@mui/material'
+import { Box, Button, Chip, Stack, TextField, Typography } from '@mui/material'
 import PlaylistAddCheckOutlinedIcon from '@mui/icons-material/PlaylistAddCheckOutlined'
 import { useTranslation } from 'react-i18next'
 import type { EncoreAction, EncoreCollection } from '@aperture/core/encore'
@@ -22,26 +23,28 @@ export function ActionCard({
     ['failed', 'unknown', 'running'].includes(action.status) &&
     (action.operation !== 'create' || Boolean(collection?.provider_playlist_id))
   return (
-    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, my: 1 }}>
-      <Stack direction="row" gap={1} alignItems="center">
-        <PlaylistAddCheckOutlinedIcon color="primary" />
-        <Typography fontWeight={600} sx={{ flex: 1 }}>
-          {collection?.name ?? t('encore.managedCollection')}
-        </Typography>
-        <Chip
-          size="small"
-          color={action.status === 'succeeded' ? 'success' : 'default'}
-          label={t(`encore.actionStatus.${action.status}`)}
-        />
-      </Stack>
+    <ToolCard variant="outlined">
+      <ToolCardHeading
+        icon={<PlaylistAddCheckOutlinedIcon fontSize="small" />}
+        title={collection?.name ?? t('encore.managedCollection')}
+        status={
+          <Chip
+            size="small"
+            color={action.status === 'succeeded' ? 'success' : 'default'}
+            label={t(`encore.actionStatus.${action.status}`)}
+          />
+        }
+      />
       <Typography variant="body2" color="text.secondary" sx={{ my: 1 }}>
         {t(`encore.actionOperations.${action.operation}`)}
       </Typography>
-      {action.payload.preview?.map((item, index) => (
-        <Typography variant="body2" key={`${item.providerId}-${index}`} sx={{ py: 0.4 }}>
-          {item.title}
-        </Typography>
-      ))}
+      <ToolPreview limit={5}>
+        {action.payload.preview?.map((item, index) => (
+          <Typography variant="body2" key={`${item.providerId}-${index}`} sx={{ py: 0.4 }}>
+            {item.title}
+          </Typography>
+        ))}
+      </ToolPreview>
       {action.error && (
         <Typography role="alert" color="error" variant="body2" sx={{ my: 1 }}>
           {action.error}
@@ -49,10 +52,10 @@ export function ActionCard({
       )}
       {action.status === 'proposed' && (
         <>
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
             {t('encore.actionApprovalHelp')}
           </Typography>
-          <Stack direction="row" gap={1} sx={{ mt: 1.5 }}>
+          <Stack direction="row" flexWrap="wrap" gap={0.5} sx={{ mt: 1.5 }}>
             <Button
               variant="contained"
               disabled={busy}
@@ -106,6 +109,6 @@ export function ActionCard({
           </Typography>
         </Box>
       )}
-    </Paper>
+    </ToolCard>
   )
 }

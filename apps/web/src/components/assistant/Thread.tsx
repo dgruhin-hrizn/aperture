@@ -124,16 +124,23 @@ function AssistantMessage() {
             '&& > *': { my: 0 },
             fontSize: { xs: 16, md: 'inherit' },
             lineHeight: { xs: 1.625, md: 'inherit' },
-            '& p': { lineHeight: { xs: 1.625, md: 1.85 }, m: 0 },
-            '& ol, & ul': { paddingInlineStart: { xs: '1.35em', md: undefined } },
-            '& li + li': { mt: { xs: 0.5, md: 0 } },
-            '& a': { color: 'primary.main' },
-            '& pre': { whiteSpace: 'pre-wrap' },
           }}
         >
           <MessagePrimitive.Content
             components={{
-              Text: ({ text }) => <ReactMarkdown>{text}</ReactMarkdown>,
+              Text: ({ text }) => (
+                <Box
+                  sx={{
+                    '& p': { lineHeight: { xs: 1.625, md: 1.85 }, m: 0 },
+                    '& ol, & ul': { paddingInlineStart: { xs: '1.35em', md: undefined } },
+                    '& li + li': { mt: { xs: 0.5, md: 0 } },
+                    '& a': { color: 'primary.main' },
+                    '& pre': { whiteSpace: 'pre-wrap' },
+                  }}
+                >
+                  <ReactMarkdown>{text}</ReactMarkdown>
+                </Box>
+              ),
               Source: WebSearchSource,
               tools: {
                 Fallback: ({ toolName, result, isError, status }) => (

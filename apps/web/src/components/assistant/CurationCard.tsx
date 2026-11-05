@@ -1,4 +1,5 @@
-import { Alert, Box, Button, Chip, Paper, Stack, Typography } from '@mui/material'
+import { ToolCard, ToolCardHeading, ToolPreview } from './ToolCard'
+import { Alert, Box, Button, Chip, Stack, Typography } from '@mui/material'
 import AutorenewOutlinedIcon from '@mui/icons-material/AutorenewOutlined'
 import { useTranslation } from 'react-i18next'
 import type { EncoreCuration, CurationRun } from '@aperture/core/encore'
@@ -28,18 +29,18 @@ export function CurationCard({
     | undefined
   const selected = (last?.result?.selected ?? []) as Array<{ id: string; title: string }>
   return (
-    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, my: 1 }}>
-      <Stack direction="row" gap={1} alignItems="center">
-        <AutorenewOutlinedIcon color="primary" />
-        <Typography variant="h6" sx={{ flex: 1 }}>
-          {curation.name}
-        </Typography>
-        <Chip
-          size="small"
-          color={curation.enabled ? 'success' : 'default'}
-          label={t(curation.enabled ? 'encore.curationEnabled' : 'encore.curationPaused')}
-        />
-      </Stack>
+    <ToolCard variant="outlined">
+      <ToolCardHeading
+        icon={<AutorenewOutlinedIcon fontSize="small" />}
+        title={curation.name}
+        status={
+          <Chip
+            size="small"
+            color={curation.enabled ? 'success' : 'default'}
+            label={t(curation.enabled ? 'encore.curationEnabled' : 'encore.curationPaused')}
+          />
+        }
+      />
       <Typography variant="body2" sx={{ mt: 1 }}>
         {recipe.concept ??
           recipe.seriesName ??
@@ -83,13 +84,8 @@ export function CurationCard({
             {t(`encore.curationRunStatus.${last.status}`)} ·{' '}
             {format(last.finished_at ?? last.started_at)}
           </Typography>
-          {selected.slice(0, 5).map((item) => (
-            <Typography variant="body2" key={item.id}>
-              {item.title}
-            </Typography>
-          ))}
           {receipt && (
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="text.secondary" component="div">
               {t('encore.curationRunChanges', {
                 added: receipt.add?.length ?? 0,
                 removed: receipt.remove?.length ?? 0,
@@ -97,6 +93,15 @@ export function CurationCard({
               })}
             </Typography>
           )}
+          <Box sx={{ mt: 0.5 }}>
+            <ToolPreview limit={3}>
+              {selected.map((item) => (
+                <Typography variant="body2" key={item.id}>
+                  {item.title}
+                </Typography>
+              ))}
+            </ToolPreview>
+          </Box>
           {last.error && last.error !== curation.last_error && (
             <Typography variant="body2" color="error">
               {last.error}
@@ -104,7 +109,7 @@ export function CurationCard({
           )}
         </Box>
       )}
-      <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 2 }}>
+      <Stack direction="row" flexWrap="wrap" gap={0.5} sx={{ mt: 1 }}>
         <Button
           variant={curation.enabled ? 'outlined' : 'contained'}
           disabled={busy}
@@ -138,6 +143,6 @@ export function CurationCard({
           {t('encore.curationOptIn')}
         </Typography>
       )}
-    </Paper>
+    </ToolCard>
   )
 }

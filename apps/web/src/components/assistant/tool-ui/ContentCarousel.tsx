@@ -31,7 +31,7 @@ export function ContentCarousel({
   return (
     <Box sx={{ width: '100%', minWidth: 0, maxWidth: '100%' }}>
       {(title || description || controls) && (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             {title && (
               <Typography variant="subtitle1" fontWeight={600}>
@@ -79,7 +79,7 @@ export function ContentCarousel({
             justifyContent: single ? 'center' : 'flex-start',
             overflowX: 'auto',
             overflowY: 'hidden',
-            py: 0.5,
+            pb: 0.25,
             scrollSnapType: 'x mandatory',
             overscrollBehaviorX: 'contain',
             scrollbarWidth: 'none',

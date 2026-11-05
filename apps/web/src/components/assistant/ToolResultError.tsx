@@ -1,28 +1,17 @@
-import { Box, Typography } from '@mui/material'
+import { Alert } from '@mui/material'
 import { useTranslation } from 'react-i18next'
 
 export function ToolResultError({ message }: { message: string }) {
   const { t } = useTranslation()
   return (
-    <Box
-      sx={{
-        p: 2,
-        bgcolor: 'var(--ap-panel-translucent, rgba(26, 26, 26, 0.7))',
-        borderRadius: 3,
-        my: 1,
-      }}
+    <Alert
+      severity="error"
+      variant="outlined"
+      sx={{ borderRadius: 2, py: 0, overflowWrap: 'anywhere', whiteSpace: 'pre-wrap' }}
     >
-      <Typography variant="subtitle2" color="error" sx={{ mb: 0.5 }}>
-        {t('assistant.toolErrorTitle')}
-      </Typography>
-      <Typography
-        variant="body2"
-        color="text.secondary"
-        component="pre"
-        sx={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap', m: 0 }}
-      >
-        {t('assistant.toolErrorBody', { message })}
-      </Typography>
-    </Box>
+      <strong>{t('assistant.toolErrorTitle')}</strong>
+      <br />
+      {t('assistant.toolErrorBody', { message })}
+    </Alert>
   )
 }

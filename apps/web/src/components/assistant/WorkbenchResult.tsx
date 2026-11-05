@@ -1,6 +1,7 @@
+import { ToolCard } from './ToolCard'
 import { CurationCard } from './CurationCard'
 import { useEffect, useState } from 'react'
-import { Alert, Box, Chip, Paper, Typography } from '@mui/material'
+import { Alert, Box, Chip, Typography } from '@mui/material'
 import { useTranslation } from 'react-i18next'
 import type {
   EncorePlan,
@@ -102,7 +103,7 @@ export function WorkbenchResult({ data }: { data: Record<string, unknown> }) {
     ? [current.action as EncoreAction]
     : ((current.actions ?? []) as EncoreAction[])
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, '&& > *': { my: 0 } }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, '&& > *': { my: 0 } }}>
       {error && <Alert severity="error">{error}</Alert>}
       {curations.map((curation) => (
         <CurationCard
@@ -117,13 +118,15 @@ export function WorkbenchResult({ data }: { data: Record<string, unknown> }) {
         <PlanCard key={plan.id} plan={plan} busy={busy} command={command} />
       ))}
       {memories.map((memory) => (
-        <Paper key={memory.id} variant="outlined" sx={{ p: 2, borderRadius: 3, my: 1 }}>
+        <ToolCard key={memory.id} variant="outlined">
           <Chip size="small" label={t(`encore.memoryKinds.${memory.kind}`)} />
-          <Typography sx={{ mt: 1 }}>{memory.fact}</Typography>
+          <Typography variant="body2" sx={{ mt: 0.75 }}>
+            {memory.fact}
+          </Typography>
           <Typography variant="caption" color="text.secondary">
             {t('encore.memoryManageHint')}
           </Typography>
-        </Paper>
+        </ToolCard>
       ))}
       {actions.map((action) => (
         <ActionCard
