@@ -87,8 +87,9 @@ export function Layout() {
               position: 'absolute',
               maxHeight: 'calc(var(--ap-viewport-height, 100dvh) - 24px)',
             },
-            '[data-mobile-shell] .MuiButton-root': { minHeight: 44 },
-            '[data-mobile-shell] .MuiIconButton-root': { minWidth: 44, minHeight: 44 },
+            // Dialogs and sheets are portalled outside the shell; include their controls too.
+            'body .MuiButton-root, body .MuiListItemButton-root': { minHeight: 44 },
+            'body .MuiIconButton-root': { minWidth: 44, minHeight: 44 },
             '[data-mobile-shell] :focus-visible': {
               outline: `2px solid ${theme.palette.primary.main}`,
               outlineOffset: 2,
