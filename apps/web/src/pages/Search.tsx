@@ -86,11 +86,13 @@ export function SearchPage() {
 
   // Fetch filter options
   useEffect(() => {
+    const controller = new AbortController()
     const fetchFilters = async () => {
       try {
-        const response = await fetch('/api/search/filters', { credentials: 'include' })
+        const response = await fetch('/api/search/filters', { credentials: 'include', signal: controller.signal })
         if (response.ok) {
           const data = await response.json()
+          if (controller.signal.aborted) return
           setFilters(data)
           if (data.yearRange) {
             setYearRange([data.yearRange.min, data.yearRange.max])
@@ -100,14 +102,17 @@ export function SearchPage() {
         // Ignore filter fetch errors
       }
     }
-    fetchFilters()
+    void fetchFilters()
+    return () => controller.abort()
   }, [])
 
   // Perform search
-  const performSearch = useCallback(async () => {
+  const performSearch = useCallback(async (signal: AbortSignal) => {
     if (!query || query.trim().length < 2) {
       setResults([])
       setTotalResults(0)
+      setLoading(false)
+      setError(null)
       return
     }
 
@@ -125,31 +130,49 @@ export function SearchPage() {
       if (collection) params.set('collection', collection)
       if (network) params.set('network', network)
       if (minRtScore > 0) params.set('minRtScore', String(minRtScore))
-      if (useSemantic) params.set('semantic', 'true')
       if (filters?.yearRange) {
         if (yearRange[0] > filters.yearRange.min) params.set('yearMin', String(yearRange[0]))
         if (yearRange[1] < filters.yearRange.max) params.set('yearMax', String(yearRange[1]))
       }
 
-      const response = await fetch(`/api/search?${params}`, { credentials: 'include' })
-      if (response.ok) {
-        const data = await response.json()
-        setResults(data.results)
-        setTotalResults(data.total)
-      } else {
+      const read = async (values: URLSearchParams) => {
+        const response = await fetch(`/api/search?${values}`, { credentials: 'include', signal })
+        if (!response.ok) return null
+        return (await response.json()) as { results: SearchResult[]; total: number }
+      }
+      // The title pass can render while the optional provider computes an embedding.
+      const enhanced = useSemantic
+        ? read(new URLSearchParams([...params, ['semantic', 'true']])).catch(() => null)
+        : null
+      const basic = await read(params)
+      if (signal.aborted) return
+      if (basic) {
+        setResults(basic.results)
+        setTotalResults(basic.total)
+        setLoading(false)
+      }
+      const final = await enhanced
+      if (signal.aborted) return
+      if (final) {
+        setResults(final.results)
+        setTotalResults(final.total)
+      } else if (!basic) {
         setError(t('search.errors.searchFailed'))
       }
     } catch {
-      setError(t('search.errors.connect'))
+      if (!signal.aborted) setError(t('search.errors.connect'))
     } finally {
-      setLoading(false)
+      if (!signal.aborted) setLoading(false)
     }
   }, [query, type, genre, collection, network, minRtScore, useSemantic, yearRange, filters, t])
 
-  // Debounced search
   useEffect(() => {
-    const debounce = setTimeout(performSearch, query ? 300 : 0)
-    return () => clearTimeout(debounce)
+    const controller = new AbortController()
+    const debounce = setTimeout(() => void performSearch(controller.signal), query ? 300 : 0)
+    return () => {
+      clearTimeout(debounce)
+      controller.abort()
+    }
   }, [performSearch, query])
 
   // Update URL params

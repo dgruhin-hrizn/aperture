@@ -6,16 +6,14 @@ import type { FastifyPluginAsync } from 'fastify'
 import { randomUUID } from 'crypto'
 import {
   getLatestCompletedGapRun,
+  findTelevisionGapSeries,
+  inspectTelevisionGaps,
   getActiveRunningGapRun,
   getGapCollectionSummaries,
   getGapCollectionParts,
   listGapResults,
   getSystemSetting,
   isSeerrConfigured,
-  createSeerrRequest,
-  createDiscoveryRequest,
-  updateDiscoveryRequestStatus,
-  hasExistingRequest,
   resolveSeerrUserIdForProfile,
   getJobProgress,
 } from '@aperture/core'
@@ -24,7 +22,7 @@ import { query, queryOne } from '../../lib/db.js'
 import { runJob } from '../jobs/executor.js'
 import { activeJobs } from '../jobs/state.js'
 
-const BLOCKING_STATUSES = new Set(['pending', 'submitted', 'approved'])
+import { submitTrackedSeerrRequest } from '../../lib/seerrSubmission.js'
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -63,6 +61,43 @@ async function ensureSeerrUserIdForRequest(userId: string): Promise<number | nul
 }
 
 const gapAnalysisRoutes: FastifyPluginAsync = async (fastify) => {
+  fastify.get<{ Querystring: { q?: string } }>(
+    '/api/admin/gap-analysis/tv', {
+      preHandler: requireAdmin,
+      schema: {
+        tags: ['gap-analysis'],
+        querystring: { type: 'object', properties: { q: { type: 'string', maxLength: 120 } } },
+      },
+    }, async (request) => {
+      const text = request.query.q?.trim()
+      return { series: text && text.length >= 2 ? await findTelevisionGapSeries(text) : [] }
+    }
+  )
+
+  fastify.get<{ Params: { id: string } }>(
+    '/api/admin/gap-analysis/tv/:id', {
+      preHandler: requireAdmin,
+      schema: {
+        tags: ['gap-analysis'],
+        params: {
+          type: 'object', required: ['id'], properties: {
+            id: { type: 'string', pattern: '^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$' },
+          },
+        },
+      },
+    }, async (request, reply) => {
+      const { id } = request.params
+      try {
+        const result = await inspectTelevisionGaps(id)
+        if (!result) return reply.code(404).send({ error: 'Series not found' })
+        return result
+      } catch (err) {
+        request.log.warn({ err, id }, 'TV gaps could not be verified')
+        return reply.code(503).send({ error: err instanceof Error ? err.message : 'Could not verify TV gaps' })
+      }
+    }
+  )
+
   /**
    * GET /api/admin/gap-analysis/latest
    * Returns the latest run metadata + per-collection summaries (pure SQL, fast).
@@ -82,8 +117,8 @@ const gapAnalysisRoutes: FastifyPluginAsync = async (fastify) => {
       const latest = await getLatestCompletedGapRun()
 
       let collectionSummaries: Awaited<ReturnType<typeof getGapCollectionSummaries>> = []
-      if (!activeRun && latest) {
-        collectionSummaries = await getGapCollectionSummaries(latest.id)
+      if (latest || activeRun) {
+        collectionSummaries = await getGapCollectionSummaries((latest ?? activeRun)!.id)
       }
 
       return reply.send({
@@ -157,7 +192,10 @@ const gapAnalysisRoutes: FastifyPluginAsync = async (fastify) => {
     '/api/admin/gap-analysis/collection-parts',
     { preHandler: requireAdmin },
     async (request, reply) => {
-      const raw = (request.query as { ids?: string }).ids
+      const { ids: raw, runId } = request.query as { ids?: string; runId?: string }
+      if (runId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(runId)) {
+        return reply.status(400).send({ error: 'Invalid runId' })
+      }
       if (!raw || !String(raw).trim()) {
         return reply
           .status(400)
@@ -165,7 +203,7 @@ const gapAnalysisRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const latest = await getLatestCompletedGapRun()
-      if (!latest) {
+      if (!runId && !latest) {
         return reply.status(404).send({ error: 'No completed gap analysis run' })
       }
 
@@ -174,7 +212,7 @@ const gapAnalysisRoutes: FastifyPluginAsync = async (fastify) => {
         .map((s) => parseInt(s.trim(), 10))
         .filter((n) => Number.isFinite(n))
 
-      const map = await getGapCollectionParts(latest.id, ids)
+      const map = await getGapCollectionParts(runId ?? latest!.id, ids)
       const collections: Record<string, { collectionId: number; collectionName: string; collectionPosterPath: string | null; parts: unknown[] }> = {}
       for (const [id, payload] of map) {
         collections[String(id)] = payload
@@ -259,7 +297,7 @@ const gapAnalysisRoutes: FastifyPluginAsync = async (fastify) => {
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i]
-      if (!item || typeof item.tmdbId !== 'number' || !item.title) {
+      if (!item || !Number.isInteger(item.tmdbId) || item.tmdbId <= 0 || item.tmdbId > 2147483647 || typeof item.title !== 'string' || !item.title.trim()) {
         failed++
         errors.push({ tmdbId: item?.tmdbId ?? 0, title: item?.title ?? '', message: 'Invalid item' })
         continue
@@ -270,46 +308,17 @@ const gapAnalysisRoutes: FastifyPluginAsync = async (fastify) => {
         continue
       }
 
-      const existing = await hasExistingRequest(user.id, item.tmdbId, item.mediaType)
-      if (existing && BLOCKING_STATUSES.has(existing.status)) {
-        skipped++
-        continue
-      }
-
       try {
-        const apertureRequestId = await createDiscoveryRequest(
-          user.id,
-          item.mediaType,
-          item.tmdbId,
-          item.title,
-          undefined,
-          'gap_analysis'
-        )
-
-        const seerrMediaType = item.mediaType === 'movie' ? 'movie' : 'tv'
-        const result = await createSeerrRequest(item.tmdbId, seerrMediaType, {
-          ...(seerrUserId != null ? { userId: seerrUserId } : {}),
-          ...(seerrOptions?.rootFolder !== undefined ? { rootFolder: seerrOptions.rootFolder } : {}),
-          ...(seerrOptions?.profileId !== undefined ? { profileId: seerrOptions.profileId } : {}),
-          ...(seerrOptions?.serverId !== undefined ? { serverId: seerrOptions.serverId } : {}),
-          ...(seerrOptions?.is4k !== undefined ? { is4k: seerrOptions.is4k } : {}),
-          ...(seerrOptions?.languageProfileId !== undefined
-            ? { languageProfileId: seerrOptions.languageProfileId }
-            : {}),
+        const result = await submitTrackedSeerrRequest({
+          userId: user.id, mediaType: item.mediaType, tmdbId: item.tmdbId, title: item.title,
+          source: 'gap_analysis',
+          options: { ...seerrOptions, userId: seerrUserId ?? undefined },
         })
-
-        if (!result.success) {
-          const msg = result.message ?? 'Request failed'
-          await updateDiscoveryRequestStatus(apertureRequestId, 'failed', {
-            statusMessage: msg,
-          })
+        if (result.kind === 'submitted') submitted++
+        else if (result.kind === 'duplicate') skipped++
+        else {
           failed++
-          errors.push({ tmdbId: item.tmdbId, title: item.title, message: msg })
-        } else {
-          await updateDiscoveryRequestStatus(apertureRequestId, 'submitted', {
-            seerrRequestId: result.requestId,
-          })
-          submitted++
+          errors.push({ tmdbId: item.tmdbId, title: item.title, message: result.message })
         }
       } catch (err) {
         failed++

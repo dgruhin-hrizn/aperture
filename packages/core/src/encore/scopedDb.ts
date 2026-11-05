@@ -23,15 +23,30 @@ export function scopeCatalogQuery(text: string, params: unknown[], scope: Catalo
   return { text: prefix, params: [...params, scope.movieIds, scope.seriesIds] }
 }
 
-export async function query<T = Record<string, unknown>>(
+/** For shared services whose background callers use the full catalog. */
+export async function queryWithinCatalog<T = Record<string, unknown>>(
   text: string,
   params: unknown[] = []
 ): Promise<QueryResult<T>> {
   const scope = encoreCatalogScope.getStore()
-  if (!scope) throw new Error('Encore catalog queries require an authenticated scope')
-  if (!/\b(movies|series|episodes)\b/.test(text)) return rawQuery<T>(text, params)
+  if (!scope || !/\b(movies|series|episodes)\b/.test(text)) return rawQuery<T>(text, params)
   const scoped = scopeCatalogQuery(text, params, scope)
   return rawQuery<T>(scoped.text, scoped.params)
+}
+
+export async function queryOneWithinCatalog<T = Record<string, unknown>>(
+  text: string,
+  params: unknown[] = []
+): Promise<T | null> {
+  return (await queryWithinCatalog<T>(text, params)).rows[0] ?? null
+}
+
+export async function query<T = Record<string, unknown>>(
+  text: string,
+  params: unknown[] = []
+): Promise<QueryResult<T>> {
+  if (!encoreCatalogScope.getStore()) throw new Error('Encore catalog queries require an authenticated scope')
+  return queryWithinCatalog<T>(text, params)
 }
 export async function queryOne<T = Record<string, unknown>>(
   text: string,

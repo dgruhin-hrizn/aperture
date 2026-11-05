@@ -25,17 +25,27 @@ const CHUNK_DELAY_MS = 200
 export function isReleasedReleaseDate(releaseDate: string | null | undefined): boolean {
   if (releaseDate == null || typeof releaseDate !== 'string') return false
   const s = releaseDate.trim()
-  if (s.length < 10) return false
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s)
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s)
   if (!m) return false
   const y = Number(m[1])
   const mo = Number(m[2])
   const d = Number(m[3])
   if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d)) return false
+  if (y < 100 || mo < 1 || mo > 12 || d < 1 || d > 31) return false
   const releaseUtc = Date.UTC(y, mo - 1, d)
+  const parsed = new Date(releaseUtc)
+  if (parsed.getUTCFullYear() !== y || parsed.getUTCMonth() !== mo - 1 || parsed.getUTCDate() !== d) return false
   const now = new Date()
   const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
   return releaseUtc <= todayUtc
+}
+
+/** TMDb IDs are positive PostgreSQL integers; never accept partial numeric strings. */
+export function parseTmdbId(value: unknown): number | null {
+  if (typeof value !== 'number' && typeof value !== 'string') return null
+  if (typeof value === 'string' && !/^\d+$/.test(value.trim())) return null
+  const id = Number(value)
+  return Number.isInteger(id) && id > 0 && id <= 2147483647 ? id : null
 }
 
 function parseYear(releaseDate: string | null): number | null {
@@ -206,8 +216,18 @@ async function failGapRun(runId: string, message: string): Promise<void> {
   )
 }
 
-async function clearPreviousGapAnalysisRuns(): Promise<void> {
-  await query(`DELETE FROM gap_analysis_runs`)
+/** Prune only after success; never delete an active scan or the last good fallback. */
+async function pruneGapSnapshots(): Promise<void> {
+  try {
+    await query(`DELETE FROM gap_analysis_runs WHERE id IN (
+      SELECT id FROM (
+        SELECT id, status, ROW_NUMBER() OVER (PARTITION BY status ORDER BY completed_at DESC, id) AS position
+        FROM gap_analysis_runs WHERE status IN ('completed', 'failed')
+      ) ranked WHERE (status = 'completed' AND position > 2) OR (status = 'failed' AND position > 5)
+    )`)
+  } catch (err) {
+    logger.warn({ err }, 'Could not prune old gap snapshots; completed results remain available')
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -221,16 +241,17 @@ export async function getDistinctMovieCollectionIds(): Promise<number[]> {
        SELECT DISTINCT collection_id FROM movies
        WHERE collection_id IS NOT NULL AND trim(collection_id) != ''
      ) AS t
-     ORDER BY collection_id::int ASC`
+     ORDER BY collection_id ASC`
   )
-  return result.rows.map((r) => parseInt(r.collection_id, 10)).filter((n) => Number.isFinite(n))
+  return [...new Set(result.rows.map((r) => parseTmdbId(r.collection_id))
+    .filter((id): id is number => id !== null))].sort((a, b) => a - b)
 }
 
 export async function getLibraryMovieTmdbIdSet(): Promise<Set<string>> {
   const result = await query<{ tmdb_id: string }>(
     `SELECT DISTINCT tmdb_id FROM movies WHERE tmdb_id IS NOT NULL AND tmdb_id != ''`
   )
-  return new Set(result.rows.map((r) => r.tmdb_id))
+  return new Set(result.rows.map((r) => parseTmdbId(r.tmdb_id)).filter((id) => id !== null).map(String))
 }
 
 export async function getMovieTmdbIdsWithActiveDiscoveryRequest(): Promise<Set<number>> {
@@ -271,9 +292,7 @@ export async function runLibraryGapAnalysis(options: { jobId?: string } = {}): P
   }
 
   try {
-    await clearPreviousGapAnalysisRuns()
-    log('Cleared previous gap analysis runs')
-
+    // Keep previous snapshots readable throughout refresh and after any failure.
     if (jobId) setJobStep(jobId, 0, 'Collecting collection IDs from library', 1)
 
     const collectionIds = await getDistinctMovieCollectionIds()
@@ -281,6 +300,7 @@ export async function runLibraryGapAnalysis(options: { jobId?: string } = {}): P
 
     if (collectionIds.length === 0) {
       const id = await insertEmptyRun()
+      await pruneGapSnapshots()
       log('No collections to scan')
       return { runId: id, collectionsScanned: 0, totalParts: 0, ownedParts: 0, missingCount: 0 }
     }
@@ -314,8 +334,16 @@ export async function runLibraryGapAnalysis(options: { jobId?: string } = {}): P
       log(`Fetching collections ${i + 1}-${batchEnd} / ${collectionIds.length}`)
 
       const promises = chunk.map(async (id) => {
-        const data = await fetchCollectionDataAndCache(id, jobId ? { onLog: () => {} } : {})
-        if (data) collectionsData.set(id, data)
+        let notFound = false
+        const data = await fetchCollectionDataAndCache(id, {
+          onLog: (_provider, _endpoint, status) => { if (status === 'not_found') notFound = true },
+        })
+        if (notFound) {
+          log(`TMDb collection ${id} no longer exists; skipped`)
+          return
+        }
+        if (!data) throw new Error(`Could not retrieve TMDb collection ${id}; previous snapshot retained`)
+        collectionsData.set(id, data)
       })
       await Promise.all(promises)
       scannedCollections += chunk.length
@@ -332,19 +360,20 @@ export async function runLibraryGapAnalysis(options: { jobId?: string } = {}): P
         posterPath: string | null
         inLibrary: boolean
       }
-      const chunkParts: PartRow[] = []
+      const uniqueParts = new Map<string, PartRow>()
       for (const cid of chunk) {
         const col = collectionsData.get(cid)
         if (!col) continue
         for (const part of col.parts) {
           if (!isReleasedReleaseDate(part.releaseDate)) continue
-          const partTmdb = Number(part.tmdbId)
-          const inLib = libraryTmdb.has(String(part.tmdbId))
-          chunkParts.push({
+          const partTmdb = parseTmdbId(part.tmdbId)
+          if (partTmdb === null) continue
+          const inLib = libraryTmdb.has(String(partTmdb))
+          uniqueParts.set(`${cid}:${partTmdb}`, {
             collectionId: col.tmdbId,
             collectionName: col.name,
             collectionPosterPath: col.posterPath,
-            tmdbId: Number.isFinite(partTmdb) ? partTmdb : part.tmdbId,
+            tmdbId: partTmdb,
             title: part.title,
             releaseYear: parseYear(part.releaseDate),
             releaseDate: part.releaseDate,
@@ -353,6 +382,8 @@ export async function runLibraryGapAnalysis(options: { jobId?: string } = {}): P
           })
         }
       }
+
+      const chunkParts = [...uniqueParts.values()]
 
       // Seerr cross-reference for non-library parts
       const nonLibIds = [...new Set(
@@ -365,32 +396,30 @@ export async function runLibraryGapAnalysis(options: { jobId?: string } = {}): P
         )
         const noStatus = nonLibIds.filter((id) => !seerrMap.has(id))
         if (noStatus.length > 0) {
-          log(`Seerr: ${noStatus.length} TMDb id(s) returned no status; treated as gaps`)
+          throw new Error(`Seerr status unavailable for ${noStatus.length} title(s); previous snapshot retained`)
         }
       }
 
-      // Insert ALL released parts with status
-      let chunkOwned = 0
-      let chunkMissing = 0
-      for (const part of chunkParts) {
-        const ss = part.inLibrary ? 'available' as SeerrStatus : deriveSeerrStatus(seerrMap.get(part.tmdbId))
-        if (part.inLibrary) chunkOwned++
-        else if (ss === 'none') chunkMissing++
-
-        await query(
-          `INSERT INTO gap_analysis_results (
-            run_id, collection_id, collection_name, collection_poster_path,
-            tmdb_id, title, release_year, release_date, poster_path,
-            in_library, seerr_status
-          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-          ON CONFLICT (run_id, collection_id, tmdb_id) DO NOTHING`,
-          [
-            runId, part.collectionId, part.collectionName, part.collectionPosterPath,
-            part.tmdbId, part.title, part.releaseYear, part.releaseDate, part.posterPath,
-            part.inLibrary, ss,
-          ]
-        )
-      }
+      // One write per chunk. Counters reflect the deduplicated rows actually persisted.
+      const rows = chunkParts.map((part) => ({
+        ...part,
+        seerrStatus: part.inLibrary ? 'available' as SeerrStatus : deriveSeerrStatus(seerrMap.get(part.tmdbId)),
+      }))
+      if (rows.length) await query(
+        `INSERT INTO gap_analysis_results (
+          run_id, collection_id, collection_name, collection_poster_path,
+          tmdb_id, title, release_year, release_date, poster_path, in_library, seerr_status
+        ) SELECT $1::uuid, p."collectionId", p."collectionName", p."collectionPosterPath",
+                 p."tmdbId", p.title, p."releaseYear", p."releaseDate", p."posterPath", p."inLibrary", p."seerrStatus"
+          FROM jsonb_to_recordset($2::jsonb) AS p(
+            "collectionId" int, "collectionName" text, "collectionPosterPath" text,
+            "tmdbId" int, title text, "releaseYear" int, "releaseDate" text,
+            "posterPath" text, "inLibrary" boolean, "seerrStatus" text
+          )`,
+        [runId, JSON.stringify(rows)]
+      )
+      const chunkOwned = rows.filter((part) => part.inLibrary).length
+      const chunkMissing = rows.filter((part) => !part.inLibrary && part.seerrStatus === 'none').length
 
       totalParts += chunkParts.length
       ownedParts += chunkOwned
@@ -425,6 +454,7 @@ export async function runLibraryGapAnalysis(options: { jobId?: string } = {}): P
       [scannedCollections, totalParts, ownedParts, missingParts, runId]
     )
 
+    await pruneGapSnapshots()
     log(`Completed gap run ${runId}`)
     return { runId, collectionsScanned: scannedCollections, totalParts, ownedParts, missingCount: missingParts }
   } catch (err) {
@@ -456,7 +486,7 @@ export async function getGapCollectionSummaries(runId: string): Promise<GapColle
        COUNT(*) FILTER (WHERE in_library)::text                                AS owned_count,
        COUNT(*) FILTER (WHERE NOT in_library AND seerr_status != 'none')::text AS seerr_count,
        COUNT(*) FILTER (WHERE NOT in_library AND seerr_status  = 'none')::text AS missing_count
-     FROM gap_analysis_results
+     FROM (${gapDisplaySql()}) AS r
      WHERE run_id = $1
      GROUP BY collection_id, collection_name, collection_poster_path
      HAVING COUNT(*) FILTER (WHERE NOT in_library AND seerr_status = 'none') > 0
@@ -479,6 +509,16 @@ export async function getGapCollectionSummaries(runId: string): Promise<GapColle
 // Display: paginated gap results (pure SQL)
 // ---------------------------------------------------------------------------
 
+/** Overlay locally known availability/requests so summaries, parts and list agree. */
+function gapDisplaySql(): string {
+  return `SELECT r.id, r.run_id, r.collection_id, r.collection_name, r.collection_poster_path,
+    r.tmdb_id, r.title, r.release_year, r.release_date, r.poster_path,
+    (r.in_library OR EXISTS (SELECT 1 FROM movies m WHERE m.tmdb_id = r.tmdb_id::text)) AS in_library,
+    CASE WHEN r.seerr_status = 'none' AND NOT (${sqlNoActiveDiscoveryRequest('r')})
+      THEN 'requested' ELSE r.seerr_status END AS seerr_status
+    FROM gap_analysis_results r`
+}
+
 /** No active Aperture discovery request for this movie. */
 function sqlNoActiveDiscoveryRequest(alias: string): string {
   return `NOT EXISTS (
@@ -495,15 +535,14 @@ export async function listGapResults(opts: ListGapResultsOptions): Promise<{
   page: number
   pageSize: number
 }> {
-  const page = Math.max(1, opts.page ?? 1)
-  const pageSize = Math.min(500, Math.max(1, opts.pageSize ?? 50))
+  const page = Number.isFinite(opts.page) ? Math.max(1, Math.min(1000000, Math.floor(opts.page!))) : 1
+  const pageSize = Number.isFinite(opts.pageSize) ? Math.min(500, Math.max(1, Math.floor(opts.pageSize!))) : 50
   const offset = (page - 1) * pageSize
 
   const conditions: string[] = [
     'r.run_id = $1',
     'r.in_library = FALSE',
     "r.seerr_status = 'none'",
-    sqlNoActiveDiscoveryRequest('r'),
   ]
   const params: unknown[] = [opts.runId]
   let p = 2
@@ -530,13 +569,13 @@ export async function listGapResults(opts: ListGapResultsOptions): Promise<{
   if (sortBy === 'title') {
     orderSql = `ORDER BY r.title ${dir}, r.collection_name ASC, r.tmdb_id ASC`
   } else if (sortBy === 'release_date') {
-    orderSql = `ORDER BY r.release_date ${dir} NULLS LAST, r.collection_name ASC, r.title ASC`
+    orderSql = `ORDER BY r.release_date ${dir} NULLS LAST, r.collection_name ASC, r.title ASC, r.collection_id ASC, r.tmdb_id ASC`
   } else {
     orderSql = `ORDER BY r.collection_name ${dir}, r.title ASC, r.tmdb_id ASC`
   }
 
   const countRow = await queryOne<{ c: string }>(
-    `SELECT COUNT(*)::text AS c FROM gap_analysis_results r WHERE ${whereSql}`,
+    `SELECT COUNT(*)::text AS c FROM (${gapDisplaySql()}) r WHERE ${whereSql}`,
     params
   )
   const total = parseInt(countRow?.c ?? '0', 10)
@@ -568,7 +607,7 @@ export async function listGapResults(opts: ListGapResultsOptions): Promise<{
        r.in_library, r.seerr_status,
        dr.status AS request_status,
        dr.source AS request_source
-     FROM gap_analysis_results r
+     FROM (${gapDisplaySql()}) r
      LEFT JOIN LATERAL (
        SELECT status, source FROM discovery_requests
        WHERE user_id = $${uidIdx}::uuid AND tmdb_id = r.tmdb_id AND media_type = 'movie'
@@ -608,7 +647,7 @@ export async function getGapCollectionParts(
   runId: string,
   collectionIds: number[]
 ): Promise<Map<number, { collectionId: number; collectionName: string; collectionPosterPath: string | null; parts: GapCollectionPart[] }>> {
-  const ids = [...new Set(collectionIds.filter((n) => Number.isFinite(n)))]
+  const ids = [...new Set(collectionIds.filter((n) => parseTmdbId(n) !== null))]
   const out = new Map<number, { collectionId: number; collectionName: string; collectionPosterPath: string | null; parts: GapCollectionPart[] }>()
   if (ids.length === 0) return out
 
@@ -627,7 +666,7 @@ export async function getGapCollectionParts(
     `SELECT collection_id, collection_name, collection_poster_path,
             tmdb_id, title, release_year, release_date, poster_path,
             in_library, seerr_status
-     FROM gap_analysis_results
+     FROM (${gapDisplaySql()}) AS r
      WHERE run_id = $1 AND collection_id = ANY($2::int[])
      ORDER BY collection_name ASC, release_date DESC NULLS LAST, title ASC`,
     [runId, ids]

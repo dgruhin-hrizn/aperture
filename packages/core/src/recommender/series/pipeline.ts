@@ -5,6 +5,7 @@
  * episode watching history, using both series and episode embeddings.
  */
 
+import { buildStarterTasteProfile } from '../../taste-profile/builder.js'
 import { createChildLogger } from '../../lib/logger.js'
 import { query, queryOne } from '../../lib/db.js'
 import { EmbyProvider, getMediaServerProvider } from '../../media/index.js'
@@ -527,24 +528,16 @@ export async function generateSeriesRecommendationsForUser(
       `Found ${watchedSeries.length} watched series`
     )
 
-    if (watchedSeries.length === 0) {
-      logger.warn(
-        { userId: user.id },
-        '⚠️ User has no series watch history - cannot generate recommendations'
-      )
-      await finalizeRun(runId, 0, 0, Date.now() - startTime, 'completed')
-      return { runId, recommendations: [] }
-    }
 
     // 2. Get or build taste profile using the new persistent system
     logger.info({ userId: user.id }, '🧠 Getting series taste profile...')
     
     // Try to get stored profile first (will rebuild if stale)
-    const storedProfile = await getUserTasteProfile(user.id, 'series')
+    const storedProfile = watchedSeries.length ? await getUserTasteProfile(user.id, 'series') : null
     let tasteProfile: number[] | null = storedProfile?.embedding || null
     
     // If no stored profile or missing embedding, build using legacy method as fallback
-    if (!tasteProfile) {
+    if (!tasteProfile && watchedSeries.length) {
       logger.info({ userId: user.id }, '📊 No stored profile, building from watch history...')
       tasteProfile = await buildSeriesTasteProfile(watchedSeries)
       
@@ -559,9 +552,13 @@ export async function generateSeriesRecommendationsForUser(
         await detectAndUpdateFranchises(user.id, 'series')
         logger.info({ userId: user.id }, '💾 Stored new taste profile and detected franchises')
       }
-    } else {
+    } else if (tasteProfile) {
       logger.info({ userId: user.id }, '✅ Using stored series taste profile')
     }
+
+    const starter = tasteProfile ? null : await buildStarterTasteProfile(user.id, 'series')
+    tasteProfile ??= starter?.embedding ?? null
+    if (starter?.embedding) logger.info({ userId: user.id }, 'Using explicit preferences for starter picks')
 
     if (!tasteProfile) {
       logger.warn(
@@ -573,7 +570,7 @@ export async function generateSeriesRecommendationsForUser(
     }
 
     // Also store in legacy location for backwards compatibility
-    await storeSeriesTasteProfile(user.id, tasteProfile)
+    if (!starter) await storeSeriesTasteProfile(user.id, tasteProfile)
     logger.info({ userId: user.id }, '💾 Stored series taste profile (legacy)')
 
     // 3. Get user's preferences for including watched content and handling disliked content
@@ -618,6 +615,8 @@ export async function generateSeriesRecommendationsForUser(
 
     // 4. Get candidate series
     logger.info({ userId: user.id }, '🔍 Finding candidate series...')
+    for (const seedId of starter?.seedIds ?? []) excludeIds.add(seedId)
+
     const provider = await getMediaServerProvider()
     let allowedSourceIds: string[] | null = null
     if (provider instanceof EmbyProvider) {

@@ -6,7 +6,7 @@ export {
   requireEncoreScope,
   type EncoreScope,
 } from './permissions.js'
-export { scopeCatalogQuery } from './scopedDb.js'
+export { scopeCatalogQuery, query as queryViewerCatalog, queryOne as queryOneViewerCatalog } from './scopedDb.js'
 export { nullSafe } from './tools/utils.js'
 export { getEncoreToolSchemas, validateEncoreToolInput } from './toolSchemas.js'
 export type { ToolContext } from './types.js'
@@ -43,7 +43,7 @@ export {
   getEncoreActionResult,
 } from './actionProposals.js'
 export { executeEncoreAction } from './actions.js'
-export { getCatalogScope } from './access.js'
+export { getCatalogScope, withViewerCatalog } from './access.js'
 export { encoreCatalogScope } from './scopedDb.js'
 export { reconcileEncoreMembership } from './collectionSync.js'
 export type { EncoreMemory } from './memory.js'

@@ -1,3 +1,4 @@
+import { TelevisionGapPanel } from './TelevisionGapPanel.js'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
@@ -263,7 +264,8 @@ export function GapAnalysisPage() {
     void loadLatest()
   }, [loadLatest])
 
-  const displayRunId = activeRun?.id ?? run?.id
+  // Keep the last complete snapshot visible while refreshing. Stream only the first scan.
+  const displayRunId = run?.id ?? activeRun?.id
 
   useEffect(() => {
     if (displayRunId) {
@@ -374,6 +376,7 @@ export function GapAnalysisPage() {
     let cancelled = false
     const u = new URL('/api/admin/gap-analysis/collection-parts', window.location.origin)
     u.searchParams.set('ids', ids.join(','))
+    if (displayRunId) u.searchParams.set('runId', displayRunId)
     void fetch(u.toString(), { credentials: 'include' })
       .then((r) =>
         r.ok ? r.json() : Promise.reject(new Error(t('admin.gaps.errorLoadCollectionParts')))
@@ -393,7 +396,7 @@ export function GapAnalysisPage() {
     return () => {
       cancelled = true
     }
-  }, [collectionIdsForPartsKey, t])
+  }, [collectionIdsForPartsKey, displayRunId, t])
 
   const toggleSelect = (key: string, dimmed: boolean) => {
     if (dimmed) return
@@ -571,9 +574,9 @@ export function GapAnalysisPage() {
             setActiveRun((d.activeRun as GapRun | null) ?? null)
             setRun((d.run as GapRun | null) ?? null)
             setSummaries(d.collectionSummaries || [])
-            const ar = d.activeRun as GapRun | null
-            if (ar?.id) {
-              await loadResults(ar.id)
+            const visibleRun = (d.run ?? d.activeRun) as GapRun | null
+            if (visibleRun?.id) {
+              await loadResults(visibleRun.id)
             }
           }
           if (terminal) {
@@ -692,6 +695,8 @@ export function GapAnalysisPage() {
       <Typography variant="body2" color="text.secondary" mb={{ xs: 1, sm: 3 }}>
         {t('admin.gaps.pageSubtitle')}
       </Typography>
+
+      <TelevisionGapPanel />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>

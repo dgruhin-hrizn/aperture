@@ -192,6 +192,18 @@
       "goToJobs": "Go to Jobs"
     },
     "gaps": {
+      "tv": {
+        "heading": "TV episode gaps",
+        "description": "Check released episodes from TMDb against the files Emby currently has for an imported series. Specials and future episodes are excluded.",
+        "selectSeries": "Search imported TV series",
+        "checking": "Checking the Emby inventory",
+        "checkFailed": "Aperture could not verify the episode inventory. Try again.",
+        "checked": "Verified {{when}}",
+        "none": "No released episode gaps found.",
+        "wholeSeason": "All released episodes missing",
+        "episodeCount_one": "{{count}} missing episode",
+        "episodeCount_other": "{{count}} missing episodes"
+      },
       "pageTitle": "Gap Analysis",
       "pageSubtitle": "Compare TMDB movie collections against your synced library to find missing titles. Requests via Seerr are never automatic — you choose what to request.",
       "errorLoadGapAnalysis": "Failed to load gap analysis",
@@ -2757,6 +2769,7 @@
     "tabSeries": "TV Series",
     "lastUpdated": "Last updated: {{when}}",
     "picksFromCandidates": " • {{selected}} picks from {{total}} candidates",
+    "starterHint": "New here? Rate a few favorites highly or add interests in Watcher Identity to seed your next picks.",
     "emptyMovies": "No movie recommendations generated yet. Your personalized picks will appear here once an admin runs the recommendation job.",
     "emptySeries": "No series recommendations generated yet. Your personalized picks will appear here once an admin runs the recommendation job.",
     "watchTrailer": "Watch trailer",
