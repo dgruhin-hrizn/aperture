@@ -41,7 +41,7 @@ Cold aggregation remains about 0.4 seconds. The improvements remove repeated agg
 
 Run `pnpm test:discovery`, `pnpm test:ui-performance`, `pnpm test:upcoming`, `pnpm test:browser-access`, the appearance suite, `pnpm validate` and `pnpm build`. Regression coverage includes deferred statuses, overlapping movie/TV IDs, account isolation/cancellation, zero upfront poster-detail calls, stale chart refresh/failure, People cache visibility/expiry, empty-page totals, lazy/cancelled portrait reads and duplicate pagination events. The expanded Discovery suite runs in the existing CI validation workflow.
 
-Browser verification uses Gru's data through a read-only local preview. Settings writes, content requests, generation and favorites writes are blocked. This development work does not replace the installed Unraid image.
+Browser verification uses Gru's data through a read-only local preview. Settings writes, content requests, generation and favorites writes are blocked. Development previews do not replace the installed Unraid image. Release deployment is recorded in the [dev.2 release notes](release-notes/v0.8.0-dev.2.md).
 
 The final browser preview passed People browsing/search (120,528 total people; 914 matches for the sample search), movie and TV genre strips, and Streaming charts. The trace recorded **zero Emby person-portrait requests** and no failed API responses. Genre rows returned in 228–823ms cold and 37–38ms on repeat; cached/stale Streaming rows returned in 5–15ms, with optional status updates arriving separately. Gru's saved UI preferences matched their pre-test fingerprint. Unraid remained healthy on dev.13; these are local preview results, not a deployed release.
 
