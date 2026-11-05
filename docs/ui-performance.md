@@ -1,5 +1,7 @@
 # UI loading and request efficiency (dev.11)
 
+For the subsequent genre-strip, Streaming and People changes, see [Genre strips, Streaming and People loading](discovery-people-performance.md).
+
 This release extends the dev.10 Discover work to Recommendations, Top Picks, Playlists, Browse, details, My Requests and shared navigation. It adds no settings or database migrations and does not change recommendation scoring, library configuration, playlists, ratings, watch history or Emby Home sections.
 
 ## Recommendations, Top Picks and activity

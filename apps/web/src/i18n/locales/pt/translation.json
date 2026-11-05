@@ -3632,7 +3632,7 @@
     "searchResults": "Resultados da pesquisa",
     "emptyStrip": "Nenhum título nesta linha.",
     "loadError": "Não foi possível carregar dados de streaming",
-    "staleCache": "Mostrando resultados em cache; atualização de dados em tempo real falhou.",
+    "staleCache": "Exibindo listas em cache; as posições podem ter mudado.",
     "inLibrary": "Na biblioteca",
     "loadingLabels": "Carregando nomes de serviços…"
   },

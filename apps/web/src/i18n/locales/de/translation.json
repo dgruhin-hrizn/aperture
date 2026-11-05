@@ -3632,7 +3632,7 @@
     "searchResults": "Suchergebnisse",
     "emptyStrip": "Keine Titel in dieser Zeile.",
     "loadError": "Konnte Streaming-Daten nicht laden",
-    "staleCache": "Zeige zwischengespeicherte Ergebnisse; Live-Datenaktualisierung fehlgeschlagen.",
+    "staleCache": "Zwischengespeicherte Charts werden angezeigt; die Platzierungen können sich geändert haben.",
     "inLibrary": "In Bibliothek",
     "loadingLabels": "Lade Dienstnamen…"
   },

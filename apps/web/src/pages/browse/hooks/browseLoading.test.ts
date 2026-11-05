@@ -64,6 +64,37 @@ test('People selected: hidden Movies/TV make zero requests and People does not r
   assert.equal(calls.length, 1)
   assert.match(calls[0], /^\/api\/discover\/people\?/)
 })
+
+test('People repeated intersections start one append and account changes abort obsolete pages', async () => {
+  let current!: ReturnType<typeof useBrowsePeople>
+  let resolvePage!: (response: Response) => void
+  let pageSignal!: AbortSignal
+  const pages: number[] = []
+  globalThis.fetch = async (input, init) => {
+    const page = Number(new URL(String(input), 'http://test').searchParams.get('page'))
+    pages.push(page)
+    if (page > 1) {
+      pageSignal = init?.signal as AbortSignal
+      return new Promise<Response>(resolve => { resolvePage = resolve })
+    }
+    return Response.json({ people: Array.from({ length: PAGE_SIZE }, (_, i) => ({ name: `First ${i}` })), total: 100 })
+  }
+  function Probe() { current = useBrowsePeople({ tabIndex: 2, initialTabIsPeople: true }); return null }
+  await act(async () => { renderer = create(wrap(React.createElement(Probe))); await new Promise(resolve => setTimeout(resolve, 15)) })
+  const observer = fixture.observers.filter(o => !o.disconnected).at(-1)!
+  await act(async () => {
+    observer.callback([{ isIntersecting: true } as IntersectionObserverEntry])
+    observer.callback([{ isIntersecting: true } as IntersectionObserverEntry])
+    await tick()
+  })
+  assert.deepEqual(pages, [1, 2])
+  await act(async () => { renderer!.update(wrap(React.createElement(Probe), 'other-person-account')); await new Promise(resolve => setTimeout(resolve, 15)) })
+  assert.equal(pageSignal.aborted, true)
+  await act(async () => { resolvePage(Response.json({ people: [{ name: 'Old account' }], total: 100 })); await tick() })
+  assert.equal(current.people.length, PAGE_SIZE)
+  assert.equal(current.people[0].name, 'First 0')
+  assert.ok(!current.people.some(p => p.name === 'Old account'))
+})
 for (const media of ['movies', 'series'] as const) {
   test(`${media}: appending page two preserves page one and does not restart first-page loading`, async () => {
     let current!: ReturnType<typeof useBrowseMovies> | ReturnType<typeof useBrowseSeries>

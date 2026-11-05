@@ -1,3 +1,4 @@
+import { useAuth } from '../../../hooks/useAuth'
 import { apiFetch } from '../../../lib/api'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -36,6 +37,8 @@ export function useBrowsePeople({
   initialTabIsPeople,
 }: UseBrowsePeopleOptions): BrowsePeopleResult {
   const { t } = useTranslation()
+  const { user } = useAuth()
+  const appendRequest = useRef<symbol | null>(null)
   const [people, setPeople] = useState<BrowsePerson[]>([])
   const [peopleLoading, setPeopleLoading] = useState(() => initialTabIsPeople)
   const [peopleLoadingMore, setPeopleLoadingMore] = useState(false)
@@ -57,7 +60,11 @@ export function useBrowsePeople({
 
   const fetchPeople = useCallback(
     async (page: number, append = false, signal?: AbortSignal) => {
+      if (signal?.aborted) return
+      if (append && appendRequest.current) return
+      const token = Symbol()
       if (append) {
+        appendRequest.current = token
         setPeopleLoadingMore(true)
       } else {
         setPeopleLoading(true)
@@ -75,6 +82,7 @@ export function useBrowsePeople({
           credentials: 'include',
           signal,
         })
+        if (signal?.aborted) return
         if (!response.ok) {
           setPeopleError(t('browse.errors.loadPeople'))
           return
@@ -95,6 +103,7 @@ export function useBrowsePeople({
         if (signal?.aborted) return
         setPeopleError(t('browse.errors.connect'))
       } finally {
+        if (appendRequest.current === token) appendRequest.current = null
         if (!signal?.aborted) {
           setPeopleLoading(false)
           setPeopleLoadingMore(false)
@@ -108,7 +117,10 @@ export function useBrowsePeople({
     if (tabIndex !== 2) return
     const controller = new AbortController()
     requestRef.current = controller
+    appendRequest.current = null
     resetPeople()
+    setPeopleLoading(true)
+    setPeopleLoadingMore(false)
     const debounce = setTimeout(
       () => {
         void fetchPeople(1, false, controller.signal)
@@ -119,7 +131,7 @@ export function useBrowsePeople({
       clearTimeout(debounce)
       controller.abort()
     }
-  }, [fetchPeople, peopleSearch, peopleSortBy, resetPeople, tabIndex])
+  }, [fetchPeople, peopleSearch, peopleSortBy, resetPeople, tabIndex, user?.id])
 
   useEffect(() => {
     if (peopleObserverRef.current) {

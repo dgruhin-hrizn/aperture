@@ -3632,7 +3632,7 @@
     "searchResults": "搜索结果",
     "emptyStrip": "此行中没有标题。",
     "loadError": "无法加载流数据",
-    "staleCache": "显示缓存的结果； 实时数据刷新失败。",
+    "staleCache": "正在显示缓存榜单；排名可能已发生变化。",
     "inLibrary": "在图书馆",
     "loadingLabels": "正在加载服务名称..."
   },
