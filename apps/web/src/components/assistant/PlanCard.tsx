@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import {
+  Alert,
   Box,
   Button,
   Chip,
@@ -26,7 +27,8 @@ export function PlanCard({
 }) {
   const { t } = useTranslation(),
     [edit, setEdit] = useState(false),
-    [input, setInput] = useState(plan.input)
+    [input, setInput] = useState(plan.input),
+    [editError, setEditError] = useState('')
   const format = (date: string) =>
     new Date(date).toLocaleString(undefined, {
       timeZone: plan.schedule.timezone,
@@ -34,6 +36,7 @@ export function PlanCard({
       timeStyle: 'short',
     })
   async function update(operation: 'save' | 'refresh', replacement?: EncorePlan['input']) {
+    setEditError('')
     try {
       await command('updateWatchPlan', {
         id: plan.id,
@@ -42,8 +45,8 @@ export function PlanCard({
         input: replacement,
       })
       setEdit(false)
-    } catch {
-      /* Parent displays failure. */
+    } catch (error) {
+      setEditError(String(error))
     }
   }
   return (
@@ -96,6 +99,7 @@ export function PlanCard({
         <Button
           disabled={busy}
           onClick={() => {
+            setEditError('')
             setInput(plan.input)
             setEdit(true)
           }}
@@ -119,6 +123,7 @@ export function PlanCard({
         <DialogTitle>{t('encore.editWindows')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
+            {editError && <Alert severity="error">{editError}</Alert>}
             <TextField
               label={t('encore.planName')}
               value={input.name}

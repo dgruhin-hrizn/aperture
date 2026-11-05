@@ -29,7 +29,7 @@ Each stage is a separate PR into dev, followed by a prerelease (0.8.0-dev.1, dev
 | Modern runtime and conversation UI | [#120](https://github.com/dgruhin-hrizn/aperture/pull/120) | [dev.1](https://github.com/dgruhin-hrizn/aperture/releases/tag/v0.8.0-dev.1) |
 | Shared consultant capabilities and MCP | [#122](https://github.com/dgruhin-hrizn/aperture/pull/122), [packaging fix #123](https://github.com/dgruhin-hrizn/aperture/pull/123) | [dev.3.1](https://github.com/dgruhin-hrizn/aperture/releases/tag/v0.8.0-dev.3.1) |
 | Memory, plans and approved Emby actions | [#124](https://github.com/dgruhin-hrizn/aperture/pull/124) | [dev.4](https://github.com/dgruhin-hrizn/aperture/releases/tag/v0.8.0-dev.4) |
-| Opt-in recurring curation and complete workbench | This stage-four PR | dev.5 |
+| Opt-in recurring curation and complete workbench | [#125](https://github.com/dgruhin-hrizn/aperture/pull/125) plus editor feedback patch | [dev.5.1](https://github.com/dgruhin-hrizn/aperture/releases/tag/v0.8.0-dev.5.1) |
 
 Discovery and People improvements occupied dev.2 during the rebuild. Stage two's clean-install packaging correction is dev.3.1; use it instead of dev.3. All stages target dev and keep stable latest unchanged. The final workspace has Conversation, Memory, Watch Plans, Collections, Curation and Connections, with 42 native capabilities and 44 MCP capabilities (external clients also receive explicit action/curation execution tools).
 
