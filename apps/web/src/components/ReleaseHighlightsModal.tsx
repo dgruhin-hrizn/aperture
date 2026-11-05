@@ -12,10 +12,10 @@ import {
   Typography,
 } from '@mui/material'
 
-export const RELEASE_HIGHLIGHTS_VERSION = '0.7.11'
+export const RELEASE_HIGHLIGHTS_VERSION = '0.8.0'
 
-const adminTopics = ['groups', 'outputs', 'cooldown', 'jobs'] as const
-const userTopics = ['freshness', 'exploration', 'playback'] as const
+const adminTopics = ['encore', 'connections', 'curation', 'trust'] as const
+const userTopics = ['encore', 'memory', 'planning', 'collections'] as const
 
 export function ReleaseHighlightsModal({
   isAdmin,
@@ -70,7 +70,7 @@ export function ReleaseHighlightsModal({
         <Button
           variant="contained"
           disabled={saving}
-          onClick={() => void dismiss(isAdmin ? '/admin/settings?tab=ai-recs&aiSub=output' : '/recommendations')}
+          onClick={() => void dismiss('/recommendations')}
         >
           {t(`releaseHighlights.${audience}.action`)}
         </Button>

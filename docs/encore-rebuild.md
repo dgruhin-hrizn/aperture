@@ -21,3 +21,16 @@ Persist explicitly enabled standing instructions and execute them through the sa
 ## Release discipline
 
 Each stage is a separate PR into dev, followed by a prerelease (0.8.0-dev.1, dev.3, dev.4 and dev.5) and its versioned container build. Rebase against current dev before each merge. Keep all app version locations synchronized. Run lint/type checks, the production build, Encore tests and existing regression suites. Wait for CI and container publication before reporting a release as complete. No production Emby collection or account is modified during development validation.
+
+## Delivered stages
+
+| Stage | Pull requests | Release |
+| --- | --- | --- |
+| Modern runtime and conversation UI | [#120](https://github.com/dgruhin-hrizn/aperture/pull/120) | [dev.1](https://github.com/dgruhin-hrizn/aperture/releases/tag/v0.8.0-dev.1) |
+| Shared consultant capabilities and MCP | [#122](https://github.com/dgruhin-hrizn/aperture/pull/122), [packaging fix #123](https://github.com/dgruhin-hrizn/aperture/pull/123) | [dev.3.1](https://github.com/dgruhin-hrizn/aperture/releases/tag/v0.8.0-dev.3.1) |
+| Memory, plans and approved Emby actions | [#124](https://github.com/dgruhin-hrizn/aperture/pull/124) | [dev.4](https://github.com/dgruhin-hrizn/aperture/releases/tag/v0.8.0-dev.4) |
+| Opt-in recurring curation and complete workbench | This stage-four PR | dev.5 |
+
+Discovery and People improvements occupied dev.2 during the rebuild. Stage two's clean-install packaging correction is dev.3.1; use it instead of dev.3. All stages target dev and keep stable latest unchanged. The final workspace has Conversation, Memory, Watch Plans, Collections, Curation and Connections, with 42 native capabilities and 44 MCP capabilities (external clients also receive explicit action/curation execution tools).
+
+Validation includes 14 Encore scenarios, 83 existing application regressions, all migrations on a fresh isolated database, production builds, mobile/light/dark browser checks, and amd64/arm64 release builds. Actual media-server writes were tested with a deterministic Emby protocol fixture; no production account, playlist or Home layout was changed during implementation. Deployment-specific Emby/client compatibility remains visible through operation errors and receipts.

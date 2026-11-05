@@ -8,10 +8,10 @@ const token = process.env.APERTURE_MCP_TOKEN
 if (!baseUrl || !token) throw new Error('Set APERTURE_URL and APERTURE_MCP_TOKEN before starting the Aperture MCP bridge')
 const endpoint = new URL(`${baseUrl.replace(/\/$/, '')}/mcp`)
 if (!['http:', 'https:'].includes(endpoint.protocol) || endpoint.username || endpoint.password) throw new Error('APERTURE_URL must be an HTTP(S) URL without embedded credentials')
-const remote = new Client({ name: 'aperture-stdio-bridge', version: '0.8.0-dev.4' })
+const remote = new Client({ name: 'aperture-stdio-bridge', version: '0.8.0-dev.5' })
 await remote.connect(new StreamableHTTPClientTransport(endpoint, { requestInit: { headers: { Authorization: `Bearer ${token}` } } }))
 const handle = serveStdio(() => {
-  const server = new Server({ name: 'Aperture', version: '0.8.0-dev.4' }, { capabilities: { tools: {} },
+  const server = new Server({ name: 'Aperture', version: '0.8.0-dev.5' }, { capabilities: { tools: {} },
     instructions: 'Aperture exposes your accessible media, preferences and sourced release schedules. Only data sent to Aperture memory tools is retained from this client.' })
   server.setRequestHandler('tools/list', async () => remote.listTools())
   server.setRequestHandler('tools/call', async (request) => remote.callTool(request.params))
