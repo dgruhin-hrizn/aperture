@@ -38,13 +38,18 @@ export async function findTelevisionGapSeries(text: string) {
 }
 
 async function getLiveEpisodes(provider: EmbyProvider, key: string, seriesId: string) {
-  const series = await provider.getSeriesById(key, seriesId)
-  if (!series || series.id !== seriesId) throw new Error('A synced Emby series is unavailable')
+  const params = new URLSearchParams({
+    Ids: seriesId, IncludeItemTypes: 'Series', Recursive: 'true', Limit: '1',
+  })
+  const series = await provider.fetch<{ Items: Array<{ Id: string }> }>(`/Items?${params}`, key)
+  if (!series.Items?.some((item) => item.Id === seriesId)) {
+    throw new Error('A synced Emby series is unavailable')
+  }
   const numbers = new Set<string>()
   const ids = new Set<string>()
   let total: number | undefined
   for (let offset = 0; offset < 20_000;) {
-    const page = await provider.getEpisodes(key, { seriesId, limit: 250, startIndex: offset })
+    const page = await provider.getEpisodes(key, { parentIds: [seriesId], limit: 250, startIndex: offset })
     total ??= page.totalRecordCount
     if (!Number.isInteger(total) || total !== page.totalRecordCount || (page.startIndex !== undefined && page.startIndex !== offset)) {
       throw new Error('Emby episode inventory changed during the check')

@@ -90,15 +90,18 @@ test('TV gaps compare released TMDb episodes with a complete Emby inventory', { 
   t.mock.method(globalThis, 'fetch', async (input: string) => {
     const url = new URL(String(input))
     if (url.origin === 'https://emby.invalid') {
-      if (url.pathname.endsWith('/gap-series')) return Response.json({ Id: 'gap-series', Name: 'Inventory Fixture' })
-      if (url.pathname.endsWith('/Items')) return Response.json({
+      if (url.searchParams.get('Ids') === 'gap-series') return Response.json({ Items: [{ Id: 'gap-series' }] })
+      if (url.pathname.endsWith('/Items')) {
+        assert.equal(url.searchParams.get('ParentId'), 'gap-series')
+        return Response.json({
         TotalRecordCount: incomplete ? 2 : 1,
         StartIndex: Number(url.searchParams.get('StartIndex')),
         Items: incomplete && url.searchParams.get('StartIndex') === '1' ? [] : [{
           Id: 'episode-file', SeriesId: 'gap-series', Name: 'Combined file', ParentIndexNumber: 1,
           IndexNumber: 1, IndexNumberEnd: 2, Path: '/fixture/file.mkv',
         }],
-      })
+        })
+      }
     }
     assert.equal(url.origin, 'https://api.themoviedb.org')
     if (url.pathname.endsWith('/tv/12345')) return Response.json({

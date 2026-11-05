@@ -2,6 +2,7 @@ import { spawn, ChildProcess } from 'child_process'
 import * as fs from 'fs'
 import * as path from 'path'
 import { randomUUID } from 'node:crypto'
+import { pipeline } from 'node:stream/promises'
 import { queryOne } from '../lib/db.js'
 import { restoreInTransaction } from './restore.js'
 import { createChildLogger } from '../lib/logger.js'
@@ -106,7 +107,7 @@ async function ensureBackupDir(backupPath: string): Promise<void> {
  * Create a database backup
  * @param jobId Optional job ID for progress tracking
  */
-export async function createBackup(jobId?: string): Promise<BackupResult> {
+export async function createBackup(jobId?: string, options: { prune?: boolean } = {}): Promise<BackupResult> {
   const startTime = Date.now()
   const trackProgress = !!jobId
 
@@ -165,59 +166,46 @@ export async function createBackup(jobId?: string): Promise<BackupResult> {
       activeBackupProcesses.set(jobId, pgDump)
     }
 
-    // Write directly to file (pg_dump handles compression internally)
-    const writeStream = fs.createWriteStream(filePath)
-
-    // Collect stderr for error reporting
+    const partialPath = filePath + '.partial'
+    const writeStream = fs.createWriteStream(partialPath, { flags: 'wx', mode: 0o600 })
     let stderr = ''
-    let wasCancelled = false
-
-    pgDump.stderr.on('data', (data) => {
-      stderr += data.toString()
-      // Log any pg_dump messages
-      if (trackProgress && jobId && data.toString().trim()) {
-        addLog(jobId, 'debug', `   pg_dump: ${data.toString().trim()}`)
-      }
+    pgDump.stderr.on('data', (data: Buffer) => {
+      const message = data.toString()
+      stderr = (stderr + message).slice(-16000)
+      if (jobId && message.trim()) addLog(jobId, 'debug', `   pg_dump: ${message.trim()}`)
     })
-
-    // Pipe pg_dump -> file (compression handled by pg_dump)
-    try {
-      await new Promise<void>((resolve, reject) => {
-        pgDump.stdout.pipe(writeStream)
-
-        writeStream.on('finish', resolve)
-        writeStream.on('error', reject)
-        pgDump.on('error', reject)
-        pgDump.on('close', (code, signal) => {
-          // Check if it was cancelled
-          if (signal === 'SIGTERM' || (jobId && isJobCancelled(jobId))) {
-            wasCancelled = true
-            reject(new Error('Backup cancelled'))
-          } else if (code !== 0) {
-            reject(new Error(`pg_dump exited with code ${code}: ${stderr}`))
-          }
-        })
+    const dumped = new Promise<void>((resolve, reject) => {
+      pgDump.on('error', reject)
+      pgDump.on('close', (code, signal) => {
+        if (signal === 'SIGTERM' || (jobId && isJobCancelled(jobId))) {
+          reject(new Error('Backup cancelled'))
+        } else if (code !== 0) {
+          reject(new Error(`pg_dump exited with ${signal ?? code}: ${stderr}`))
+        } else {
+          resolve()
+        }
       })
-    } finally {
-      // Clean up process tracking
-      if (jobId) {
-        activeBackupProcesses.delete(jobId)
-      }
-    }
-
-    // If cancelled, clean up partial file and return
-    if (wasCancelled || (jobId && isJobCancelled(jobId))) {
+    })
+    const written = pipeline(pgDump.stdout, writeStream)
+    try {
+      await Promise.all([dumped, written])
+      if (jobId && isJobCancelled(jobId)) throw new Error('Backup cancelled')
+      const file = await fs.promises.open(partialPath, 'r')
       try {
-        await fs.promises.unlink(filePath)
-        logger.info({ filename }, 'Deleted partial backup file after cancellation')
-      } catch {
-        // Ignore if file doesn't exist
+        const header = Buffer.alloc(5)
+        await file.read(header)
+        if (header.toString('ascii') !== 'PGDMP') throw new Error('pg_dump did not produce a valid archive')
+      } finally {
+        await file.close()
       }
-      return {
-        success: false,
-        error: 'Backup cancelled by user',
-        duration: Date.now() - startTime,
-      }
+      await fs.promises.rename(partialPath, filePath)
+    } catch (err) {
+      if (pgDump.exitCode === null && pgDump.signalCode === null) pgDump.kill()
+      await Promise.allSettled([dumped, written])
+      await fs.promises.unlink(partialPath).catch(() => undefined)
+      throw err
+    } finally {
+      if (jobId) activeBackupProcesses.delete(jobId)
     }
 
     // Step 3: Finalize
@@ -243,7 +231,7 @@ export async function createBackup(jobId?: string): Promise<BackupResult> {
       addLog(jobId, 'info', '🗑️ Checking for old backups to remove...')
     }
 
-    const pruned = await pruneOldBackups()
+    const pruned = options.prune === false ? 0 : await pruneOldBackups()
     if (pruned > 0 && trackProgress && jobId) {
       addLog(jobId, 'info', `   Removed ${pruned} old backup(s)`)
     }
@@ -344,7 +332,7 @@ export async function restoreBackup(
         addLog(jobId, 'info', '🔒 Creating pre-restore safety backup...')
       }
 
-      const preBackupResult = await createBackup()
+      const preBackupResult = await createBackup(undefined, { prune: false })
       if (preBackupResult.success) {
         preRestoreBackup = preBackupResult.filename
         logger.info({ preRestoreBackup }, 'Pre-restore backup created')
