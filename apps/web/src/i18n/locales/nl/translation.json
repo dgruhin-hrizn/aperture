@@ -2307,7 +2307,41 @@
     "stepDataLi1": "<0>Kijkgeschiedenis:</0> films die je hebt bekeken, inclusief afspeelaantallen en recentheid",
     "stepDataLi2": "<0>Favorieten:</0> films die je als favoriet hebt gemarkeerd, krijgen extra gewicht",
     "stepDataLi3": "<0>Recentheid:</0> Recente horloges beïnvloeden uw smaakprofiel meer dan oudere",
-    "stepDataP2": "U kunt ervoor kiezen om reeds bekeken films op te nemen in of uit te sluiten van uw aanbevelingen in uw voorkeuren."
+    "stepDataP2": "U kunt ervoor kiezen om reeds bekeken films op te nemen in of uit te sluiten van uw aanbevelingen in uw voorkeuren.",
+    "tour": {
+      "progress": "Step {{current}} of {{total}}",
+      "tryThis": "Try this",
+      "remember": "Don’t show this tour again until it changes",
+      "finish": "Finish tour",
+      "reopen": "To revisit this tour, open How It Works from the account menu or the You tab.",
+      "saveFailed": "Aperture couldn’t save your choice. Try again, or clear the checkbox to close the tour.",
+      "steps": {
+        "library": {
+          "title": "Start with your library",
+          "description": "Browse the movies and series you can watch on your media server. Use the Movies, Series, or People tab, or search for a specific title.",
+          "example": "Open a title to find its synopsis, similar titles, and the link to play it on your media server.",
+          "action": "Open Library"
+        },
+        "picks": {
+          "title": "Give your picks a personal touch",
+          "description": "Recommendations uses your synced viewing history and ratings to suggest movies and series. If your list is empty, ask your admin whether recommendations are enabled and a first batch has run.",
+          "example": "Use the heart on a title you’ve watched to rate it. Start with a few favorites and a few you’d rather see less of.",
+          "action": "See recommendations"
+        },
+        "encore": {
+          "title": "Ask Encore for an idea",
+          "description": "Tell Encore what you feel like watching and how much time you have. It can look through your library, help you find upcoming releases, or put together a watch plan.",
+          "example": "“Find an unwatched movie in my library that’s under 90 minutes.”",
+          "action": "Open Encore"
+        },
+        "settings": {
+          "title": "Set up Aperture for you",
+          "description": "Your settings let you choose an appearance and language, and adjust how movie and TV recommendations are ranked.",
+          "example": "Try Studio under Appearance. Choose Light, Dark, or Follow device, then save your choice.",
+          "action": "Open Appearance"
+        }
+      }
+    }
   },
   "explorationConfig": {
     "title": "Nieuwe functie: verkennings-AI",

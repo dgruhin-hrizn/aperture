@@ -4,7 +4,7 @@
  * Per-user settings and preferences including custom library names.
  */
 
-import { query, queryOne } from './db.js'
+import { query, queryOne, transaction } from './db.js'
 import { createChildLogger } from './logger.js'
 import { getLibraryTypeLabel, processLibraryTitle } from './libraryTitles.js'
 import {
@@ -79,6 +79,7 @@ export interface UserUiPreferences {
   appearance?: { theme: 'classic' | 'studio'; mode: 'light' | 'dark' | 'system' }
   dismissedAdminRelease?: string
   dismissedUserRelease?: string
+  dismissedWelcomeTourVersion?: number
   sidebarCollapsed?: boolean
   viewModes?: PageViewModes
   browseSort?: BrowseSortPreference
@@ -346,42 +347,46 @@ export async function updateUserUiPreferences(
   userId: string,
   preferences: Partial<UserUiPreferences>
 ): Promise<UserUiPreferences> {
-  // Ensure settings row exists
-  await query(`INSERT INTO user_settings (user_id) VALUES ($1) ON CONFLICT DO NOTHING`, [userId])
-
-  // Get current settings_json
-  const settings = await getUserSettings(userId)
-  const currentUi = (settings.settingsJson?.ui as UserUiPreferences) || {}
-
-  // Deep merge nested objects
-  const updatedUi: UserUiPreferences = {
-    ...currentUi,
-    ...preferences,
-    // Deep merge viewModes
-    viewModes: preferences.viewModes
-      ? { ...currentUi.viewModes, ...preferences.viewModes }
-      : currentUi.viewModes,
-    // Deep merge browseSort
-    browseSort: preferences.browseSort
-      ? {
-          movies: { ...currentUi.browseSort?.movies, ...preferences.browseSort?.movies },
-          series: { ...currentUi.browseSort?.series, ...preferences.browseSort?.series },
-        }
-      : currentUi.browseSort,
-    // Replace browseFilterPresets entirely if provided (array operations handled separately)
-    browseFilterPresets:
-      preferences.browseFilterPresets !== undefined
-        ? preferences.browseFilterPresets
-        : currentUi.browseFilterPresets,
-  }
-
-  const updatedSettingsJson = { ...settings.settingsJson, ui: updatedUi }
-
-  // Update the settings_json column
-  await query(
-    `UPDATE user_settings SET settings_json = $1, updated_at = NOW() WHERE user_id = $2`,
-    [JSON.stringify(updatedSettingsJson), userId]
-  )
+  const updatedUi = await transaction(async (client) => {
+    await client.query(`INSERT INTO user_settings (user_id) VALUES ($1) ON CONFLICT DO NOTHING`, [
+      userId,
+    ])
+    // Serialize preference saves from different devices so each patch merges with the latest row.
+    const { rows } = await client.query<{ settings_json: Record<string, unknown> }>(
+      'SELECT settings_json FROM user_settings WHERE user_id = $1 FOR UPDATE',
+      [userId]
+    )
+    const settingsJson = rows[0]?.settings_json ?? {}
+    const currentUi = (settingsJson.ui as UserUiPreferences | undefined) ?? {}
+    const next: UserUiPreferences = {
+      ...currentUi,
+      ...preferences,
+      viewModes: preferences.viewModes
+        ? { ...currentUi.viewModes, ...preferences.viewModes }
+        : currentUi.viewModes,
+      browseSort: preferences.browseSort
+        ? {
+            movies: { ...currentUi.browseSort?.movies, ...preferences.browseSort?.movies },
+            series: { ...currentUi.browseSort?.series, ...preferences.browseSort?.series },
+          }
+        : currentUi.browseSort,
+      browseFilterPresets:
+        preferences.browseFilterPresets !== undefined
+          ? preferences.browseFilterPresets
+          : currentUi.browseFilterPresets,
+    }
+    if (preferences.dismissedWelcomeTourVersion !== undefined) {
+      next.dismissedWelcomeTourVersion = Math.max(
+        currentUi.dismissedWelcomeTourVersion ?? 0,
+        preferences.dismissedWelcomeTourVersion
+      )
+    }
+    await client.query(
+      'UPDATE user_settings SET settings_json = $1, updated_at = NOW() WHERE user_id = $2',
+      [JSON.stringify({ ...settingsJson, ui: next }), userId]
+    )
+    return next
+  })
 
   logger.info({ userId, preferences }, 'Updated user UI preferences')
   return updatedUi

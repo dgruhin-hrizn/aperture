@@ -8,6 +8,12 @@ export const appearancePreferenceSchema = {
   },
 } as const
 
+const welcomeTourVersionSchema = {
+  type: 'integer',
+  minimum: 1,
+  description: 'Most recent welcome tour version dismissed by this account',
+} as const
+
 /**
  * Authentication OpenAPI Schemas
  */
@@ -69,6 +75,7 @@ export const authSchemas = {
       appearance: appearancePreferenceSchema,
       dismissedAdminRelease: { type: 'string', minLength: 1, maxLength: 40 },
       dismissedUserRelease: { type: 'string', minLength: 1, maxLength: 40 },
+      dismissedWelcomeTourVersion: welcomeTourVersionSchema,
       sidebarCollapsed: { type: 'boolean', description: 'Whether the sidebar is collapsed' },
       viewModes: { 
         type: 'object', 
@@ -153,6 +160,7 @@ export const updatePreferencesSchema = {
     description: 'Preferences to update (partial)',
     properties: {
       appearance: appearancePreferenceSchema,
+      dismissedWelcomeTourVersion: welcomeTourVersionSchema,
       sidebarCollapsed: { type: 'boolean', description: 'Whether the sidebar should be collapsed' },
       viewModes: { type: 'object', additionalProperties: true, description: 'View mode preferences per page' },
       browseSort: { type: 'object', additionalProperties: true, description: 'Sort preferences for browse pages' },

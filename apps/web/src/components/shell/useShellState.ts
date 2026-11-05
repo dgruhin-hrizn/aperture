@@ -65,6 +65,7 @@ export function useShellState() {
     releaseOpen,
     releaseKey,
     canShowOtherPrompts: releaseNotice?.key === releaseKey && !releaseOpen,
+    preferences: shared.data,
     collapsed,
     watchingEnabled,
     error,

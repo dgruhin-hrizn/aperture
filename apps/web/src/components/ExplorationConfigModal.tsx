@@ -29,9 +29,10 @@ const STORAGE_KEY = 'aperture_exploration_config_dismissed'
 interface ExplorationConfigModalProps {
   open?: boolean
   onClose?: () => void
+  suspended?: boolean
 }
 
-export function ExplorationConfigModal({ open: controlledOpen, onClose }: ExplorationConfigModalProps) {
+export function ExplorationConfigModal({ open: controlledOpen, onClose, suspended }: ExplorationConfigModalProps) {
   const { t } = useTranslation()
   const theme = useTheme()
   const navigate = useNavigate()
@@ -41,7 +42,7 @@ export function ExplorationConfigModal({ open: controlledOpen, onClose }: Explor
   const [explorationConfigured, setExplorationConfigured] = useState<boolean | null>(null)
 
   const isControlled = controlledOpen !== undefined
-  const isOpen = isControlled ? controlledOpen : internalOpen
+  const isOpen = !suspended && (isControlled ? controlledOpen : internalOpen)
 
   // Check if exploration is configured
   useEffect(() => {

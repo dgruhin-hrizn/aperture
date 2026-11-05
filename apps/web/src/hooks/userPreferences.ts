@@ -10,6 +10,7 @@ import { apiFetch } from '../lib/api'
 
 export interface UserPreferences {
   appearance?: { theme: string; mode: string }
+  dismissedWelcomeTourVersion?: number
   viewModes?: Record<string, 'grid' | 'list'>
   uiLanguage?: string | null
   aiLanguage?: string | null

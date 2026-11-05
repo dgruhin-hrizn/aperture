@@ -1,301 +1,250 @@
-import React, { useState, useEffect, useMemo } from 'react'
-import { Trans, useTranslation } from 'react-i18next'
+import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Typography,
+  Alert,
   Box,
-  FormControlLabel,
+  Button,
   Checkbox,
-  Stepper,
-  Step,
-  StepLabel,
-  StepContent,
-  Paper,
-  useTheme,
-  alpha,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControlLabel,
+  IconButton,
+  LinearProgress,
+  Stack,
+  Typography,
 } from '@mui/material'
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
-import MovieFilterIcon from '@mui/icons-material/MovieFilter'
-import PsychologyIcon from '@mui/icons-material/Psychology'
-import RecommendIcon from '@mui/icons-material/Recommend'
-import HistoryIcon from '@mui/icons-material/History'
-import TuneIcon from '@mui/icons-material/Tune'
+import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
+import CloseIcon from '@mui/icons-material/Close'
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder'
+import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
+import VideoLibraryOutlinedIcon from '@mui/icons-material/VideoLibraryOutlined'
 
-const STORAGE_KEY = 'aperture-welcome-dismissed'
+const steps = [
+  { id: 'library', icon: VideoLibraryOutlinedIcon, path: '/browse' },
+  { id: 'picks', icon: FavoriteBorderIcon, path: '/recommendations' },
+  { id: 'encore', icon: AutoAwesomeOutlinedIcon, path: '/encore' },
+  { id: 'settings', icon: TuneOutlinedIcon, path: '/settings?tab=preferences#appearance' },
+] as const
 
 interface WelcomeModalProps {
-  open?: boolean
-  onClose?: () => void
+  dismissed: boolean
+  onDismiss: (signal: AbortSignal) => Promise<void>
+  onClose: (path?: string) => void
 }
 
-export function WelcomeModal({ open: controlledOpen, onClose }: WelcomeModalProps) {
+export function WelcomeModal({ dismissed, onDismiss, onClose }: WelcomeModalProps) {
   const { t } = useTranslation()
-  const theme = useTheme()
-  const [internalOpen, setInternalOpen] = useState(false)
-  const [dontShowAgain, setDontShowAgain] = useState(false)
   const [activeStep, setActiveStep] = useState(0)
+  const [remember, setRemember] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(false)
+  const pendingSave = useRef<AbortController | null>(null)
+  const content = useRef<HTMLDivElement>(null)
+  const errorAlert = useRef<HTMLDivElement>(null)
+  const step = steps[activeStep]
+  const StepIcon = step.icon
+  const lastStep = activeStep === steps.length - 1
+  const key = `welcomeModal.tour.steps.${step.id}` as const
+  const progress = t('welcomeModal.tour.progress', { current: activeStep + 1, total: steps.length })
 
-  const isControlled = controlledOpen !== undefined
-  const isOpen = isControlled ? controlledOpen : internalOpen
-
+  useEffect(() => () => pendingSave.current?.abort(), [])
   useEffect(() => {
-    if (!isControlled) {
-      const dismissed = localStorage.getItem(STORAGE_KEY)
-      if (!dismissed) {
-        setInternalOpen(true)
+    if (content.current) content.current.scrollTop = 0
+  }, [activeStep])
+  useEffect(() => {
+    if (saveError) errorAlert.current?.scrollIntoView({ block: 'nearest' })
+  }, [saveError])
+
+  async function finish(path?: string) {
+    if (pendingSave.current) return
+    if (!remember || dismissed) {
+      onClose(path)
+      return
+    }
+
+    const controller = new AbortController()
+    pendingSave.current = controller
+    setSaving(true)
+    setSaveError(false)
+    try {
+      await onDismiss(controller.signal)
+    } catch {
+      if (!controller.signal.aborted) setSaveError(true)
+      return
+    } finally {
+      if (!controller.signal.aborted) {
+        pendingSave.current = null
+        setSaving(false)
       }
     }
-  }, [isControlled])
-
-  const handleClose = () => {
-    if (dontShowAgain) {
-      localStorage.setItem(STORAGE_KEY, 'true')
-    }
-    if (isControlled) {
-      onClose?.()
-    } else {
-      setInternalOpen(false)
-    }
+    if (!controller.signal.aborted) onClose(path)
   }
-
-  const handleNext = () => {
-    setActiveStep((prev) => prev + 1)
-  }
-
-  const handleBack = () => {
-    setActiveStep((prev) => prev - 1)
-  }
-
-  const steps = useMemo(
-    () => [
-      {
-        label: t('welcomeModal.stepWelcome'),
-        icon: <AutoAwesomeIcon />,
-        content: (
-          <Box>
-            <Typography paragraph>
-              <Trans i18nKey="welcomeModal.stepWelcomeP1" components={{ 0: <strong /> }} />
-            </Typography>
-            <Typography paragraph color="text.secondary">
-              {t('welcomeModal.stepWelcomeP2')}
-            </Typography>
-          </Box>
-        ),
-      },
-      {
-        label: t('welcomeModal.stepHowAi'),
-        icon: <PsychologyIcon />,
-        content: (
-          <Box>
-            <Typography paragraph>
-              <Trans i18nKey="welcomeModal.stepHowAiP1" components={{ 0: <strong /> }} />
-            </Typography>
-            <Box component="ul" sx={{ pl: 2, '& li': { mb: 1 } }}>
-              <li>
-                <Typography variant="body2">
-                  <Trans i18nKey="welcomeModal.stepHowAiLi1" components={{ 0: <strong /> }} />
-                </Typography>
-              </li>
-              <li>
-                <Typography variant="body2">
-                  <Trans i18nKey="welcomeModal.stepHowAiLi2" components={{ 0: <strong /> }} />
-                </Typography>
-              </li>
-              <li>
-                <Typography variant="body2">
-                  <Trans i18nKey="welcomeModal.stepHowAiLi3" components={{ 0: <strong /> }} />
-                </Typography>
-              </li>
-            </Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-              {t('welcomeModal.stepHowAiP2')}
-            </Typography>
-          </Box>
-        ),
-      },
-      {
-        label: t('welcomeModal.stepScoring'),
-        icon: <TuneIcon />,
-        content: (
-          <Box>
-            <Typography paragraph>{t('welcomeModal.stepScoringP1')}</Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              <Paper sx={{ p: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.1) }}>
-                <Typography variant="subtitle2" color="primary">
-                  {t('welcomeModal.stepScoringTaste')}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {t('welcomeModal.stepScoringTasteD')}
-                </Typography>
-              </Paper>
-              <Paper sx={{ p: 1.5, bgcolor: alpha(theme.palette.secondary.main, 0.1) }}>
-                <Typography variant="subtitle2" color="secondary">
-                  {t('welcomeModal.stepScoringGenre')}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {t('welcomeModal.stepScoringGenreD')}
-                </Typography>
-              </Paper>
-              <Paper sx={{ p: 1.5, bgcolor: alpha(theme.palette.success.main, 0.1) }}>
-                <Typography variant="subtitle2" color="success.main">
-                  {t('welcomeModal.stepScoringCommunity')}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {t('welcomeModal.stepScoringCommunityD')}
-                </Typography>
-              </Paper>
-              <Paper sx={{ p: 1.5, bgcolor: alpha(theme.palette.warning.main, 0.1) }}>
-                <Typography variant="subtitle2" color="warning.main">
-                  {t('welcomeModal.stepScoringDiversity')}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {t('welcomeModal.stepScoringDiversityD')}
-                </Typography>
-              </Paper>
-            </Box>
-          </Box>
-        ),
-      },
-      {
-        label: t('welcomeModal.stepSimilar'),
-        icon: <MovieFilterIcon />,
-        content: (
-          <Box>
-            <Typography paragraph>
-              <Trans i18nKey="welcomeModal.stepSimilarP1" components={{ 0: <strong /> }} />
-            </Typography>
-            <Typography paragraph>{t('welcomeModal.stepSimilarP2')}</Typography>
-            <Box component="ul" sx={{ pl: 2, '& li': { mb: 0.5 } }}>
-              <li>
-                <Typography variant="body2">{t('welcomeModal.stepSimilarLi1')}</Typography>
-              </li>
-              <li>
-                <Typography variant="body2">{t('welcomeModal.stepSimilarLi2')}</Typography>
-              </li>
-              <li>
-                <Typography variant="body2">{t('welcomeModal.stepSimilarLi3')}</Typography>
-              </li>
-              <li>
-                <Typography variant="body2">{t('welcomeModal.stepSimilarLi4')}</Typography>
-              </li>
-            </Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-              {t('welcomeModal.stepSimilarP3')}
-            </Typography>
-          </Box>
-        ),
-      },
-      {
-        label: t('welcomeModal.stepData'),
-        icon: <HistoryIcon />,
-        content: (
-          <Box>
-            <Typography paragraph>{t('welcomeModal.stepDataP1')}</Typography>
-            <Box component="ul" sx={{ pl: 2, '& li': { mb: 1 } }}>
-              <li>
-                <Typography variant="body2">
-                  <Trans i18nKey="welcomeModal.stepDataLi1" components={{ 0: <strong /> }} />
-                </Typography>
-              </li>
-              <li>
-                <Typography variant="body2">
-                  <Trans i18nKey="welcomeModal.stepDataLi2" components={{ 0: <strong /> }} />
-                </Typography>
-              </li>
-              <li>
-                <Typography variant="body2">
-                  <Trans i18nKey="welcomeModal.stepDataLi3" components={{ 0: <strong /> }} />
-                </Typography>
-              </li>
-            </Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-              {t('welcomeModal.stepDataP2')}
-            </Typography>
-          </Box>
-        ),
-      },
-    ],
-    [t, theme]
-  )
 
   return (
     <Dialog
-      open={isOpen}
-      onClose={handleClose}
-      maxWidth="md"
+      open
+      onClose={() => void finish()}
+      aria-labelledby="welcome-tour-title"
+      maxWidth="sm"
       fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 3,
-          maxHeight: '85vh',
-        },
+      slotProps={{
+        paper: { sx: { borderRadius: { xs: 2, sm: 3 } } },
       }}
     >
-      <DialogTitle sx={{ pb: 1 }}>
-        <Box display="flex" alignItems="center" gap={1.5}>
-          <AutoAwesomeIcon color="primary" sx={{ fontSize: 32 }} />
-          <Box>
-            <Typography variant="h5" fontWeight={700}>
-              {t('welcomeModal.title')}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {t('welcomeModal.subtitle')}
-            </Typography>
-          </Box>
-        </Box>
+      <DialogTitle component="div" sx={{ px: { xs: 1.5, sm: 3 }, pt: 1.5, pb: 1.5 }}>
+        <Stack direction="row" alignItems="center" spacing={1} useFlexGap>
+          <Box component="img" src="/aperture.svg" alt="" width={30} height={30} />
+          <Typography
+            id="welcome-tour-title"
+            component="h2"
+            variant="subtitle1"
+            fontWeight={700}
+            flex={1}
+          >
+            {t('welcomeModal.title')}
+          </Typography>
+          <IconButton
+            aria-label={t('common.close')}
+            onClick={() => void finish()}
+            disabled={saving}
+            sx={{ width: 44, height: 44 }}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Stack>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          display="block"
+          sx={{ mt: 0.5, mb: 0.75 }}
+        >
+          {progress}
+        </Typography>
+        <LinearProgress
+          variant="determinate"
+          value={((activeStep + 1) / steps.length) * 100}
+          aria-label={t('welcomeModal.title')}
+          aria-valuetext={progress}
+          sx={{ height: 4, borderRadius: 2 }}
+        />
       </DialogTitle>
 
-      <DialogContent>
-        <Stepper activeStep={activeStep} orientation="vertical">
-          {steps.map((step, index) => (
-            <Step key={step.label}>
-              <StepLabel
-                StepIconProps={{
-                  icon: step.icon,
+      <DialogContent
+        ref={content}
+        dividers
+        sx={{ px: { xs: 1.5, sm: 3 }, py: { xs: 1.5, sm: 2.5 } }}
+      >
+        <Stack spacing={{ xs: 1.5, sm: 2 }}>
+          <Stack spacing={1} aria-live="polite" aria-atomic="true">
+            <Stack direction="row" spacing={1} useFlexGap alignItems="center">
+              <Box
+                sx={{
+                  display: 'grid',
+                  placeItems: 'center',
+                  width: 36,
+                  height: 36,
+                  flexShrink: 0,
+                  bgcolor: 'action.selected',
+                  color: 'primary.main',
+                  borderRadius: 1.5,
                 }}
-                sx={{ cursor: 'pointer' }}
-                onClick={() => setActiveStep(index)}
               >
-                <Typography fontWeight={activeStep === index ? 600 : 400}>{step.label}</Typography>
-              </StepLabel>
-              <StepContent>
-                <Box sx={{ py: 1 }}>{step.content}</Box>
-                <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
-                  {index > 0 && (
-                    <Button onClick={handleBack} size="small">
-                      {t('common.back')}
-                    </Button>
-                  )}
-                  {index < steps.length - 1 && (
-                    <Button variant="contained" onClick={handleNext} size="small">
-                      {t('common.continue')}
-                    </Button>
-                  )}
-                </Box>
-              </StepContent>
-            </Step>
-          ))}
-        </Stepper>
+                <StepIcon fontSize="small" />
+              </Box>
+              <Typography
+                component="h3"
+                variant="h5"
+                fontWeight={700}
+                sx={{ fontSize: { xs: '1.15rem', sm: '1.4rem' } }}
+              >
+                {t(`${key}.title`)}
+              </Typography>
+            </Stack>
+            <Typography variant="body2" color="text.secondary">
+              {t(`${key}.description`)}
+            </Typography>
+          </Stack>
+          <Box sx={{ bgcolor: 'action.hover', p: 1.25, borderRadius: 1.5 }}>
+            <Typography variant="subtitle2">{t('welcomeModal.tour.tryThis')}</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {t(`${key}.example`)}
+            </Typography>
+          </Box>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => void finish(step.path)}
+            disabled={saving}
+            sx={{ alignSelf: 'flex-start', minHeight: 44 }}
+          >
+            {t(`${key}.action`)}
+          </Button>
+          {lastStep && (
+            <Typography variant="caption" color="text.secondary">
+              {t('welcomeModal.tour.reopen')}
+            </Typography>
+          )}
+          {saveError && (
+            <Alert ref={errorAlert} severity="error">
+              {t('welcomeModal.tour.saveFailed')}
+            </Alert>
+          )}
+        </Stack>
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, pb: 2, justifyContent: 'space-between' }}>
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={dontShowAgain}
-              onChange={(e) => setDontShowAgain(e.target.checked)}
-              size="small"
-            />
-          }
-          label={<Typography variant="body2">{t('common.dontShowAgain')}</Typography>}
-        />
-        <Button onClick={handleClose} variant="contained" startIcon={<RecommendIcon />}>
-          {t('common.getStarted')}
-        </Button>
+      <DialogActions
+        disableSpacing
+        sx={{
+          px: { xs: 1.5, sm: 3 },
+          py: 1,
+          flexWrap: 'wrap',
+          gap: 0.5,
+          justifyContent: 'flex-start',
+        }}
+      >
+        {!dismissed && (
+          <FormControlLabel
+            sx={{ m: 0, minHeight: 44, flex: { xs: '1 0 100%', sm: '1 1 220px' } }}
+            control={
+              <Checkbox
+                checked={remember}
+                onChange={(event) => {
+                  setRemember(event.target.checked)
+                  setSaveError(false)
+                }}
+                disabled={saving}
+                size="small"
+              />
+            }
+            label={<Typography variant="body2">{t('welcomeModal.tour.remember')}</Typography>}
+          />
+        )}
+        <Stack direction="row" spacing={0.5} sx={{ marginInlineStart: 'auto' }}>
+          {activeStep > 0 && (
+            <Button
+              onClick={() => setActiveStep(activeStep - 1)}
+              disabled={saving}
+              sx={{ minHeight: 44 }}
+            >
+              {t('common.back')}
+            </Button>
+          )}
+          <Button
+            variant="contained"
+            disabled={saving}
+            onClick={() => {
+              if (lastStep) void finish()
+              else setActiveStep(activeStep + 1)
+            }}
+            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : undefined}
+            sx={{ minHeight: 44 }}
+          >
+            {t(lastStep ? 'welcomeModal.tour.finish' : 'common.continue')}
+          </Button>
+        </Stack>
       </DialogActions>
     </Dialog>
   )
