@@ -458,10 +458,10 @@ export function ExplorePage() {
     <Box 
       sx={{ 
         display: 'flex', 
-        height: 'calc(100vh - 64px)', 
+        height: 'var(--ap-content-height, calc(100dvh - 64px))',
         // Break out of parent Layout padding
-        m: { xs: -2, sm: -3 },
-        width: { xs: 'calc(100% + 32px)', sm: 'calc(100% + 48px)' },
+        m: { xs: -2, sm: 'var(--ap-layout-inset, -24px)' },
+        width: { xs: 'calc(100% + 32px)', sm: 'calc(100% - var(--ap-layout-inset, -24px) * 2)' },
       }}
     >
       {/* Main Graph Area - Always uses GraphExplorer */}

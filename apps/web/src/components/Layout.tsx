@@ -1,621 +1,179 @@
-import { Suspense } from 'react'
-import { PageLoading } from './PageLoading'
-import { useUserPreferences, saveUserPreferences } from '../hooks/userPreferences'
-import React, { useState, useEffect } from 'react'
-import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import {
-  AppBar,
-  Box,
-  Drawer,
-  IconButton,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  ListSubheader,
-  Toolbar,
-  Typography,
-  useTheme,
-  useMediaQuery,
-  Avatar,
-  Menu,
-  MenuItem,
-  Divider,
-  Tooltip,
-} from '@mui/material'
-import MenuIcon from '@mui/icons-material/Menu'
-import NightsStayOutlinedIcon from '@mui/icons-material/NightsStayOutlined'
-import HomeIcon from '@mui/icons-material/Home'
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
-import HistoryIcon from '@mui/icons-material/History'
-import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay'
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
-import LogoutIcon from '@mui/icons-material/Logout'
-import PersonIcon from '@mui/icons-material/Person'
-import SettingsIcon from '@mui/icons-material/Settings'
-import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined'
-import { ColorModeToggle } from '@/appearance/ColorModeToggle'
-import { APP_VERSION } from '@/version'
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline'
-import WhatshotIcon from '@mui/icons-material/Whatshot'
-import InsightsIcon from '@mui/icons-material/Insights'
-import AddToQueueIcon from '@mui/icons-material/AddToQueue'
-import HubOutlinedIcon from '@mui/icons-material/HubOutlined'
-import ExploreIcon from '@mui/icons-material/Explore'
-import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
-import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck'
-import MenuOpenIcon from '@mui/icons-material/MenuOpen'
-import FactCheckIcon from '@mui/icons-material/FactCheck'
-import { useAuth } from '@/hooks/useAuth'
-import { WelcomeModal } from './WelcomeModal'
-import { ReleaseHighlightsModal, RELEASE_HIGHLIGHTS_VERSION } from './ReleaseHighlightsModal'
-import { useWelcomeModal } from './useWelcomeModal'
-import { ExplorationConfigModal } from './ExplorationConfigModal'
-import { RunningJobsWidget } from './RunningJobsWidget'
-import { GlobalSearch } from './GlobalSearch'
+import { Suspense, useMemo, useRef, useState } from 'react'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Alert, Box, GlobalStyles, useMediaQuery, useTheme } from '@mui/material'
 import { useTranslation } from 'react-i18next'
-import { applyEffectiveUiLanguage } from '@/i18n/syncUiLanguage'
-
-const DRAWER_WIDTH = 260
-const DRAWER_WIDTH_COLLAPSED = 72
-
-type NavItem = { textKey: string; icon: React.ReactElement; path: string; feature: string | null }
-
-// Base user-facing navigation items (some may be conditionally hidden)
-const baseUserMenuItems: NavItem[] = [
-  { textKey: 'nav.dashboard', icon: <HomeIcon />, path: '/', feature: null },
-  { textKey: 'tonight.title', icon: <NightsStayOutlinedIcon />, path: '/tonight', feature: 'emby' },
-  { textKey: 'nav.recommendations', icon: <AutoAwesomeIcon />, path: '/recommendations', feature: null },
-  { textKey: 'nav.showsYouWatch', icon: <AddToQueueIcon />, path: '/watching', feature: 'watching' },
-  { textKey: 'nav.topPicks', icon: <WhatshotIcon />, path: '/top-picks', feature: null },
-  { textKey: 'nav.playlists', icon: <PlaylistPlayIcon />, path: '/playlists', feature: null },
-  { textKey: 'nav.explore', icon: <HubOutlinedIcon />, path: '/explore', feature: null },
-  { textKey: 'nav.discover', icon: <ExploreIcon />, path: '/discovery', feature: null },
-  { textKey: 'nav.myRequests', icon: <PlaylistAddCheckIcon />, path: '/my-requests', feature: null },
-  { textKey: 'nav.browse', icon: <VideoLibraryIcon />, path: '/browse', feature: null },
-  { textKey: 'nav.watchHistory', icon: <HistoryIcon />, path: '/history', feature: null },
-  { textKey: 'nav.watchStats', icon: <InsightsIcon />, path: '/stats', feature: null },
-]
-
-// Admin navigation items (shown only to admins)
-const adminMenuItems: { textKey: string; icon: React.ReactElement; path: string }[] = [
-  { textKey: 'nav.admin', icon: <AdminPanelSettingsIcon />, path: '/admin' },
-  { textKey: 'nav.gapAnalysis', icon: <FactCheckIcon />, path: '/admin/gaps' },
-]
+import { useAuth } from '@/hooks/useAuth'
+import { PageLoading } from './PageLoading'
+import { WelcomeModal } from './WelcomeModal'
+import { useWelcomeModal } from './useWelcomeModal'
+import { ReleaseHighlightsModal } from './ReleaseHighlightsModal'
+import { ExplorationConfigModal } from './ExplorationConfigModal'
+import { DesktopSidebar } from './shell/DesktopSidebar'
+import { AppHeader } from './shell/AppHeader'
+import { MobileNavigation } from './shell/MobileNavigation'
+import { availableNavigation, isEncoreLocation } from './shell/navigation'
+import { useShellState } from './shell/useShellState'
+import { useMobileViewport } from './shell/useMobileViewport'
+import { usePaneScroll } from './shell/usePaneScroll'
+import { EncoreSurface } from './assistant/EncoreSurface'
 
 export function Layout() {
-  const { t, i18n } = useTranslation()
-  const theme = useTheme()
-  const studio = theme.aperture.name === 'studio'
-  const navigate = useNavigate()
-  const location = useLocation()
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [collapsed, setCollapsed] = useState(false)
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
-  const [watchingEnabled, setWatchingEnabled] = useState(true) // Default to true until we know
-  const { user, logout } = useAuth()
-  const userId = user?.id
-  const isAdmin = user?.isAdmin ?? false
-  const releasePreference = isAdmin ? 'dismissedAdminRelease' : 'dismissedUserRelease'
-  const releaseKey = userId ? `${userId}:${releasePreference}` : null
-  const [releaseNotice, setReleaseNotice] = useState<{ key: string; open: boolean } | null>(null)
-  const releaseOpen = releaseNotice?.key === releaseKey && releaseNotice?.open === true
-  const canShowOtherPrompts = releaseNotice?.key === releaseKey && !releaseOpen
+  const { t, i18n } = useTranslation(),
+    theme = useTheme(),
+    { user } = useAuth(),
+    location = useLocation(),
+    navigate = useNavigate()
+  const mobile = useMediaQuery(theme.breakpoints.down('md')),
+    viewport = useMobileViewport(mobile),
+    state = useShellState()
+  const encore = isEncoreLocation(location.pathname, mobile),
+    drawerWidth = state.collapsed ? 72 : theme.aperture.name === 'studio' ? 228 : 260
+  const [running, setRunning] = useState(false),
+    main = useRef<HTMLElement>(null)
   const { open: welcomeOpen, showWelcome, hideWelcome } = useWelcomeModal()
-
-  const drawerWidth = collapsed ? DRAWER_WIDTH_COLLAPSED : studio ? 228 : DRAWER_WIDTH
-
-  // Filter menu items based on feature flags
-  const userMenuItems = baseUserMenuItems.filter(item => {
-    if (item.feature === 'emby' && user?.provider !== 'emby') return false
-    if (item.feature === 'watching' && !watchingEnabled) {
-      return false
-    }
-    return true
-  })
-
-  const sharedPreferences = useUserPreferences()
-  // One shared per-user preference request for layout, appearance and view modes.
-  useEffect(() => {
-    if (!releaseKey || sharedPreferences.loading) return
-    const prefs = sharedPreferences.data
-    setReleaseNotice({ key: releaseKey, open: Boolean(prefs && prefs[releasePreference] !== RELEASE_HIGHLIGHTS_VERSION) })
-    if (prefs?.sidebarCollapsed !== undefined) setCollapsed(prefs.sidebarCollapsed)
-    if (prefs?.effectiveUiLanguage && prefs.effectiveUiLanguage !== i18n.language) void applyEffectiveUiLanguage(prefs.effectiveUiLanguage)
-  }, [releaseKey, releasePreference, sharedPreferences.loading, sharedPreferences.data, i18n.language])
-
-  // Fetch watching library config to check if feature is enabled
-  useEffect(() => {
-    const fetchWatchingConfig = async () => {
-      try {
-        const response = await fetch('/api/settings/watching', { credentials: 'include' })
-        if (response.ok) {
-          const config = await response.json()
-          setWatchingEnabled(config.enabled ?? true)
-        }
-      } catch {
-        // Ignore errors, default to showing the menu item
-      }
-    }
-    fetchWatchingConfig()
-  }, [])
-
-  const dismissRelease = async () => {
-    if (!userId) return
-    await saveUserPreferences(userId, { [releasePreference]: RELEASE_HIGHLIGHTS_VERSION })
-    setReleaseNotice((notice) => notice?.key === releaseKey ? { ...notice, open: false } : notice)
-  }
-
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen)
-  }
-
-  const handleCollapseToggle = async () => {
-    const newCollapsed = !collapsed
-    setCollapsed(newCollapsed)
-
-    // Persist preference to server
-    try {
-      if (userId) await saveUserPreferences(userId, { sidebarCollapsed: newCollapsed })
-    } catch {
-      // Ignore errors, state is already updated locally
-    }
-  }
-
-  const handleNavClick = (path: string) => {
-    navigate(path)
-    if (isMobile) {
-      setMobileOpen(false)
-    }
-  }
-
-  const handleUserMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget)
-  }
-
-  const handleUserMenuClose = () => {
-    setAnchorEl(null)
-  }
-
-  const handleLogout = async () => {
-    handleUserMenuClose()
-    await logout()
-    navigate('/login')
-  }
-
-  // Check if current path matches or starts with the menu item path
-  const isPathActive = (itemPath: string) => {
-    if (itemPath === '/') {
-      return location.pathname === '/'
-    }
-    return location.pathname === itemPath || location.pathname.startsWith(itemPath + '/')
-  }
-
-    /** Admin sidebar: avoid highlighting "Admin" when on Gap Analysis */
-  const isAdminPathActive = (itemPath: string) => {
-    if (itemPath === '/admin/gaps') {
-      return (
-        location.pathname === '/admin/gaps' || location.pathname.startsWith('/admin/gaps/')
-      )
-    }
-    if (itemPath === '/admin') {
-      if (location.pathname.startsWith('/admin/gaps')) return false
-      return location.pathname === '/admin' || location.pathname.startsWith('/admin/')
-    }
-    return isPathActive(itemPath)
-  }
-
-  const drawer = (
-    <Box sx={{ overflow: 'auto', mt: 2, display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Logo */}
-      <Box
-        px={collapsed ? 2 : 3}
-        mb={3}
-        sx={{
-          display: 'flex',
-          justifyContent: collapsed ? 'center' : 'flex-start',
-          cursor: 'pointer',
-          '&:hover': { opacity: 0.8 },
-          transition: 'opacity 0.2s',
-        }}
-        onClick={handleCollapseToggle}
-      >
-        {collapsed ? (
-          <Tooltip title={t('nav.expandSidebar')} placement="right">
-            <Box
-              component="img"
-              src="/aperture.svg"
-              alt="Aperture"
-              sx={{ width: 40, height: 40 }}
-            />
-          </Tooltip>
-        ) : (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Box
-              component="img"
-              src="/aperture.svg"
-              alt="Aperture"
-              sx={{ width: 40, height: 40 }}
-            />
-            <Typography
-              sx={{
-                fontFamily: studio ? theme.typography.fontFamily : '"Open Sans", sans-serif',
-                fontWeight: studio ? 800 : 600,
-                fontSize: '1.5rem',
-                color: 'text.primary',
-                letterSpacing: '-0.01em',
-              }}
-            >
-              {t('common.appName')}
-            </Typography>
-          </Box>
-        )}
-      </Box>
-
-      {/* User Navigation */}
-      <List>
-        {userMenuItems.map((item) => (
-          <React.Fragment key={item.path}>
-            {studio && !collapsed && ['/', '/top-picks', '/history'].includes(item.path) && (
-              <ListSubheader disableSticky sx={{ bgcolor: 'transparent', typography: 'overline', lineHeight: 2.5, px: 3, mt: item.path === '/' ? 0 : 1.5 }}>
-                {t(item.path === '/' ? 'appearance.forYou' : item.path === '/history' ? 'appearance.activity' : 'appearance.yourLibrary')}
-              </ListSubheader>
-            )}
-            <ListItem disablePadding>
-              <Tooltip title={collapsed ? t(item.textKey) : ''} placement="right" arrow>
-                <ListItemButton
-                  selected={isPathActive(item.path)}
-                  aria-current={isPathActive(item.path) ? 'page' : undefined}
-                  onClick={() => handleNavClick(item.path)}
-                  sx={{
-                    justifyContent: collapsed ? 'center' : 'flex-start',
-                    px: collapsed ? 2 : studio ? 2 : 3,
-                    ...(studio ? { py: 1, '& .MuiListItemText-primary': { fontSize: '0.8125rem', fontWeight: 600 } } : {}),
-                  }}
-                >
-                  <ListItemIcon
-                    sx={{
-                      color: isPathActive(item.path) ? 'primary.main' : 'text.secondary',
-                      minWidth: collapsed ? 0 : studio ? 28 : 40,
-                      mr: collapsed ? 0 : studio ? 0.5 : 1,
-                    }}
-                  >
-                    {item.icon}
-                  </ListItemIcon>
-                  {!collapsed && (
-                    <ListItemText
-                      primary={t(item.textKey)}
-                      primaryTypographyProps={{
-                        fontWeight: isPathActive(item.path) ? 600 : 400,
-                      }}
-                    />
-                  )}
-                </ListItemButton>
-              </Tooltip>
-            </ListItem>
-          </React.Fragment>
-        ))}
-      </List>
-
-      {/* Spacer */}
-      <Box flex={1} />
-
-      {/* Admin Section (only shown to admins) */}
-      {user?.isAdmin && (
-        <>
-          <Divider sx={{ mx: 2, my: 1 }} />
-          <List>
-            {adminMenuItems.map((item) => (
-              <ListItem key={item.path} disablePadding>
-                <Tooltip title={collapsed ? t(item.textKey) : ''} placement="right" arrow>
-                  <ListItemButton
-                    selected={isAdminPathActive(item.path)}
-                    onClick={() => handleNavClick(item.path)}
-                    sx={{
-                      justifyContent: collapsed ? 'center' : 'flex-start',
-                      px: collapsed ? 2 : 3,
-                    }}
-                  >
-                    <ListItemIcon
-                      sx={{
-                        color: isAdminPathActive(item.path) ? 'primary.main' : 'text.secondary',
-                        minWidth: collapsed ? 0 : studio ? 28 : 40,
-                        mr: collapsed ? 0 : studio ? 0.5 : 1,
-                      }}
-                    >
-                      {item.icon}
-                    </ListItemIcon>
-                    {!collapsed && (
-                      <ListItemText
-                        primary={t(item.textKey)}
-                        primaryTypographyProps={{
-                          fontWeight: isAdminPathActive(item.path) ? 600 : 400,
-                        }}
-                      />
-                    )}
-                  </ListItemButton>
-                </Tooltip>
-              </ListItem>
-            ))}
-          </List>
-        </>
-      )}
-
-      {/* Collapse toggle and version at bottom */}
-      <Box
-        px={collapsed ? 1 : 2}
-        py={1.5}
-        sx={{
-          borderTop: 1,
-          borderColor: 'divider',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: collapsed ? 'center' : 'space-between',
-        }}
-      >
-        <Tooltip
-          title={collapsed ? t('nav.expandSidebarVersion') : t('nav.collapseSidebar')}
-          placement="right"
-        >
-          <IconButton
-            onClick={handleCollapseToggle}
-            size="small"
-            sx={{
-              color: 'text.secondary',
-              transform: collapsed ? 'rotate(180deg)' : 'none',
-              transition: 'transform 0.2s',
-            }}
-          >
-            <MenuOpenIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-        {!collapsed && (
-          <Typography
-            variant="caption"
-            sx={{
-              color: 'text.secondary',
-              opacity: 0.6,
-              fontFamily: 'monospace',
-              fontSize: '0.7rem',
-            }}
-          >
-            v{APP_VERSION}
-          </Typography>
-        )}
-      </Box>
-    </Box>
+  const items = useMemo(
+    () => availableNavigation(user?.provider, state.watchingEnabled),
+    [user?.provider, state.watchingEnabled]
   )
-
+  usePaneScroll(main, mobile && !encore)
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      {/* App Bar */}
-      <AppBar
-        position="fixed"
-        sx={{
-          width: { md: `calc(100% - ${drawerWidth}px)` },
-          ml: { md: `${drawerWidth}px` },
-          transition: theme.transitions.create(['width', 'margin'], {
-            easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.leavingScreen,
-          }),
-        }}
-        elevation={0}
-      >
-        <Toolbar>
-          {/* Mobile: Hamburger on left */}
-          <IconButton
-            color="inherit"
-            edge="start"
-            onClick={handleDrawerToggle}
-            aria-label={t(mobileOpen ? 'nav.collapseSidebar' : 'nav.expandSidebar')}
-            sx={{ display: { md: 'none' } }}
-          >
-            <MenuIcon />
-          </IconButton>
-
-          {/* Mobile: Centered logo and name */}
-          <Box
-            sx={{
-              display: { xs: 'flex', md: 'none' },
-              alignItems: 'center',
-              gap: 1,
-              position: studio ? 'static' : 'absolute',
-              left: studio ? undefined : '50%',
-              transform: studio ? undefined : 'translateX(-50%)',
-            }}
-          >
-            <Box
-              component="img"
-              src="/aperture.svg"
-              alt="Aperture"
-              sx={{ width: 28, height: 28 }}
-            />
-            <Typography
-              sx={{
-                display: studio ? { xs: 'none', sm: 'block' } : undefined,
-                fontFamily: studio ? theme.typography.fontFamily : '"Open Sans", sans-serif',
-                fontWeight: 600,
-                fontSize: '1.1rem',
-                color: 'text.primary',
-                letterSpacing: '-0.01em',
-              }}
-            >
-              {t('common.appName')}
-            </Typography>
-          </Box>
-
-          <Box sx={{ flexGrow: 1 }} />
-
-          {/* Running Jobs Widget (admin only) */}
-          <RunningJobsWidget />
-
-          {/* Global Search */}
-          <GlobalSearch />
-
-          <ColorModeToggle />
-
-          {/* User menu */}
-          {user && (
-            <>
-              <IconButton onClick={handleUserMenuOpen} size="small">
-                <Avatar
-                  src={user.avatarUrl || undefined}
-                  sx={{
-                    width: 36,
-                    height: 36,
-                    bgcolor: 'primary.main',
-                  }}
-                >
-                  {user.username[0].toUpperCase()}
-                </Avatar>
-              </IconButton>
-
-              <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={handleUserMenuClose}
-                transformOrigin={{
-                  horizontal: theme.direction === 'rtl' ? 'left' : 'right',
-                  vertical: 'top',
-                }}
-                anchorOrigin={{
-                  horizontal: theme.direction === 'rtl' ? 'left' : 'right',
-                  vertical: 'bottom',
-                }}
-              >
-                <Box px={2} py={1}>
-                  <Typography variant="subtitle2" fontWeight={600}>
-                    {user.displayName || user.username}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {user.isAdmin ? t('nav.roleLabelAdmin') : t('nav.roleLabelUser')}
-                  </Typography>
-                </Box>
-                <Divider />
-                <MenuItem onClick={() => { handleUserMenuClose(); navigate('/settings?tab=preferences#appearance'); }}>
-                  <ListItemIcon><PaletteOutlinedIcon fontSize="small" /></ListItemIcon>
-                  {t('appearance.title')}
-                </MenuItem>
-                <MenuItem onClick={() => { handleUserMenuClose(); navigate('/settings'); }}>
-                  <ListItemIcon>
-                    <SettingsIcon fontSize="small" />
-                  </ListItemIcon>
-                  {t('nav.settings')}
-                </MenuItem>
-                <MenuItem onClick={() => { handleUserMenuClose(); navigate('/history'); }}>
-                  <ListItemIcon>
-                    <PersonIcon fontSize="small" />
-                  </ListItemIcon>
-                  {t('nav.myWatchHistory')}
-                </MenuItem>
-                <MenuItem onClick={() => { handleUserMenuClose(); showWelcome(); }}>
-                  <ListItemIcon>
-                    <HelpOutlineIcon fontSize="small" />
-                  </ListItemIcon>
-                  {t('nav.howItWorks')}
-                </MenuItem>
-                <Divider />
-                <MenuItem onClick={handleLogout}>
-                  <ListItemIcon>
-                    <LogoutIcon fontSize="small" />
-                  </ListItemIcon>
-                  {t('nav.logout')}
-                </MenuItem>
-              </Menu>
-            </>
-          )}
-        </Toolbar>
-      </AppBar>
-
-      {/* Drawer */}
-      <Box
-        component="nav"
-        sx={{
-          width: { md: drawerWidth },
-          flexShrink: { md: 0 },
-          transition: theme.transitions.create('width', {
-            easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.leavingScreen,
-          }),
-        }}
-      >
-        {/* Mobile drawer */}
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{ keepMounted: true }}
-          sx={{
-            display: { xs: 'block', md: 'none' },
-            '& .MuiDrawer-paper': {
-              boxSizing: 'border-box',
-              width: drawerWidth,
-              transition: theme.transitions.create('width', {
-                easing: theme.transitions.easing.sharp,
-                duration: theme.transitions.duration.leavingScreen,
-              }),
-              overflowX: 'hidden',
+    <Box
+      data-mobile-shell={mobile ? 'true' : undefined}
+      sx={
+        mobile
+          ? {
+              '--ap-header-height': { xs: '57px', sm: '65px' },
+              '--ap-nav-height': viewport?.keyboard
+                ? '0px'
+                : 'calc(73px + env(safe-area-inset-bottom, 0px))',
+              '--ap-content-height':
+                'calc(var(--ap-viewport-height, 100dvh) - var(--ap-header-height) - var(--ap-nav-height) - env(safe-area-inset-top, 0px))',
+              '--ap-layout-inset': '-16px',
+              paddingInlineStart:
+                theme.direction === 'rtl'
+                  ? 'env(safe-area-inset-right, 0px)'
+                  : 'env(safe-area-inset-left, 0px)',
+              paddingInlineEnd:
+                theme.direction === 'rtl'
+                  ? 'env(safe-area-inset-left, 0px)'
+                  : 'env(safe-area-inset-right, 0px)',
+              position: 'fixed',
+              top: viewport?.top ?? 0,
+              left: 0,
+              right: 0,
+              height: viewport ? `${viewport.height}px` : '100dvh',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              bgcolor: 'background.default',
+            }
+          : { display: 'flex', minHeight: '100dvh' }
+      }
+    >
+      {mobile && (
+        <GlobalStyles
+          styles={{
+            body: { overflow: 'hidden' },
+            '[data-mobile-shell] *': { scrollbarWidth: 'thin' },
+            '.MuiDialog-root, .MuiDrawer-modal': {
+              height: 'var(--ap-viewport-height, 100dvh)',
+              top: 'var(--ap-viewport-top, 0px)',
+              bottom: 'auto',
+            },
+            '.MuiDialog-root .MuiDialog-paper': {
+              maxHeight: 'calc(var(--ap-viewport-height, 100dvh) - 24px)',
+            },
+            '.MuiDrawer-modal .MuiDrawer-paper': {
+              position: 'absolute',
+              maxHeight: 'calc(var(--ap-viewport-height, 100dvh) - 24px)',
+            },
+            '[data-mobile-shell] .MuiButton-root': { minHeight: 44 },
+            '[data-mobile-shell] .MuiIconButton-root': { minWidth: 44, minHeight: 44 },
+            '[data-mobile-shell] :focus-visible': {
+              outline: `2px solid ${theme.palette.primary.main}`,
+              outlineOffset: 2,
+            },
+            '@media (prefers-reduced-motion: reduce)': {
+              '[data-mobile-shell] *': { scrollBehavior: 'auto' },
             },
           }}
-        >
-          {drawer}
-        </Drawer>
-
-        {/* Desktop drawer */}
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: { xs: 'none', md: 'block' },
-            '& .MuiDrawer-paper': {
-              boxSizing: 'border-box',
-              width: drawerWidth,
-              transition: theme.transitions.create('width', {
-                easing: theme.transitions.easing.sharp,
-                duration: theme.transitions.duration.leavingScreen,
-              }),
-              overflowX: 'hidden',
-            },
-          }}
-          open
-        >
-          {drawer}
-        </Drawer>
-      </Box>
-
-      {/* Main content */}
+        />
+      )}
+      {!mobile && (
+        <DesktopSidebar
+          collapsed={state.collapsed}
+          drawerWidth={drawerWidth}
+          items={items}
+          isAdmin={user?.isAdmin ?? false}
+          onCollapse={() => void state.toggleCollapsed()}
+          onNavigate={(path) => void navigate(path)}
+        />
+      )}
+      {(!mobile || !encore) && (
+        <AppHeader
+          mobile={mobile}
+          drawerWidth={drawerWidth}
+          items={items}
+          onWelcome={showWelcome}
+        />
+      )}
       <Box
         component="main"
-        sx={{
-          flexGrow: 1,
-          minWidth: 0,
-          p: { xs: 2, sm: 3 },
-          width: { md: `calc(100% - ${drawerWidth}px)` },
-          maxWidth: '100%',
-          overflowX: 'hidden',
-          mt: '64px',
-          backgroundColor: 'background.default',
-          minHeight: 'calc(100vh - 64px)',
-          transition: theme.transitions.create(['width', 'margin'], {
-            easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.leavingScreen,
-          }),
-        }}
+        ref={main}
+        sx={
+          mobile
+            ? {
+                flex: 1,
+                minHeight: 0,
+                minWidth: 0,
+                overflowY: encore ? 'hidden' : 'auto',
+                overflowX: 'hidden',
+                overscrollBehavior: 'contain',
+                WebkitOverflowScrolling: 'touch',
+                p: encore ? 0 : 2,
+                paddingInlineStart: encore ? 0 : 2,
+                paddingInlineEnd: encore ? 0 : 2,
+              }
+            : {
+                flexGrow: 1,
+                minWidth: 0,
+                p: 3,
+                width: `calc(100% - ${drawerWidth}px)`,
+                mt: '64px',
+                height: encore ? 'calc(100dvh - 64px)' : undefined,
+                minHeight: 'calc(100dvh - 64px)',
+                overflowX: 'hidden',
+              }
+        }
       >
-        <Suspense fallback={<PageLoading />}><Outlet key={i18n.language} /></Suspense>
+        {state.error && <Alert severity="error">{t('mobile.preferenceError')}</Alert>}
+        <EncoreSurface
+          key={user?.id}
+          visible={encore}
+          mobile={mobile}
+          onRunningChange={setRunning}
+        />
+        {!encore && (
+          <Suspense fallback={<PageLoading />}>
+            <Outlet
+              key={`${user?.id}:${i18n.language}`}
+              context={{ items, onWelcome: showWelcome }}
+            />
+          </Suspense>
+        )}
       </Box>
-
-      {/* Welcome Modal - shows on first visit */}
-      {canShowOtherPrompts && <WelcomeModal />}
-
-      {/* Welcome Modal - manually triggered from menu */}
+      {mobile && !viewport?.keyboard && (
+        <MobileNavigation watchingEnabled={state.watchingEnabled} running={running} />
+      )}
+      {state.canShowOtherPrompts && <WelcomeModal />}
       <WelcomeModal open={welcomeOpen} onClose={hideWelcome} />
-
-      {/* Exploration Config Modal - prompts admins to configure new AI provider */}
-      {canShowOtherPrompts && <ExplorationConfigModal />}
-      {releaseOpen && (
-        <ReleaseHighlightsModal key={releaseKey} isAdmin={isAdmin} onDismiss={dismissRelease} />
+      {state.canShowOtherPrompts && <ExplorationConfigModal />}
+      {state.releaseOpen && (
+        <ReleaseHighlightsModal
+          key={state.releaseKey}
+          isAdmin={user?.isAdmin ?? false}
+          onDismiss={state.dismissRelease}
+        />
       )}
     </Box>
   )

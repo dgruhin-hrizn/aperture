@@ -7,7 +7,7 @@ import { createEncoreContext,createEncoreTools,listEncoreMemories,getEncorePlan,
 import { registerWorkbenchHandlers } from './handlers/workbench.js'
 const database=process.env.ENCORE_TEST_DATABASE_URL
 
-test('persistent memory, planning and approved Emby actions survive corrections, retries and cross-user attempts',{skip:!database},async()=>{
+test('persistent memory, planning and approved Emby actions survive corrections, retries and cross-user attempts',{skip:!database},async(t)=>{
   process.env.DATABASE_URL=database!
   assert.equal((await runMigrations(database!,new URL('../../../../../db/migrations/',import.meta.url).pathname)).error,undefined)
   const pool=getPool(),originalFetch=globalThis.fetch,prefix=randomUUID(),owner=randomUUID(),other=randomUUID(),account=`${prefix}-owner`
@@ -142,7 +142,10 @@ test('persistent memory, planning and approved Emby actions survive corrections,
     assert.equal(recoveredRun.result.recovered,true);assert.equal(recoveredRun.attempts,2);assert.ok(recoveredRun.result.selected[0].id)
     // Manual removals stay excluded across recipe changes and future refreshes.
     playlist.items=playlist.items.filter(item=>item.Id!==movies[0].providerId)
-    await call('controlCuration',{id:curationId,operation:'run',approved:true})
+    // Run now must be immediately claimable even when the application clock is ahead of PostgreSQL.
+    t.mock.timers.enable({apis:['Date'],now:Date.now()+60_000})
+    try { await call('controlCuration',{id:curationId,operation:'run',approved:true}) }
+    finally { t.mock.timers.reset() }
     assert.ok(!playlist.items.some(item=>item.Id===movies[0].providerId))
     const collectionRecord=(await pool.query('SELECT baseline,manual_exclusions FROM encore_collections WHERE id=$1',[done.collection.id])).rows[0]
     assert.ok(!collectionRecord.baseline.includes(movies[2].providerId),'automatic selection does not adopt a manual addition')

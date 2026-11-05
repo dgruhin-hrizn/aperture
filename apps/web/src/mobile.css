@@ -1,0 +1,9 @@
+/* Keep mobile form fields at a readable size without disabling browser zoom. */
+@media (max-width: 899.95px) {
+  input,
+  textarea,
+  select,
+  .MuiInputBase-input {
+    font-size: 16px;
+  }
+}

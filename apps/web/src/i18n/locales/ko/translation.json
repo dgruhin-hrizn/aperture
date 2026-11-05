@@ -4073,5 +4073,58 @@
     "episodeAvailability": "Synchronized episode metadata. Planning rechecks live availability and progress.",
     "noNextEpisodes": "No synchronized unwatched episodes found for this show.",
     "franchiseTruncated": "This view is limited to the first 200 accessible titles."
+  },
+  "mobile": {
+    "primaryNavigation": "Primary navigation",
+    "encore": "Encore",
+    "discover": "Discover",
+    "library": "Library",
+    "watching": "Watching",
+    "picks": "Picks",
+    "you": "You",
+    "account": "Your account",
+    "accountIntro": "Your corner of Aperture.",
+    "yourAperture": "Your Aperture",
+    "back": "Go back",
+    "backToChat": "Back to conversation",
+    "workspace": "Your workspace",
+    "encoreSubtitle": "Your movie & TV consultant",
+    "encoreWorking": "Encore is working",
+    "preferenceError": "Could not save your navigation preference. Try again.",
+    "welcomeEyebrow": "GOOD WATCHES START HERE",
+    "welcomeTitle": "What are we watching?",
+    "welcomeIntro": "A mood, a free evening, a show you love. Let’s find something worth your time.",
+    "suggestionFirst": "Start with a suggestion. You decide what gets saved, played or curated.",
+    "workspaceDescriptions": {
+      "chat": "Find your next watch in conversation",
+      "memory": "What Encore remembers about you",
+      "plans": "Make room for movies and shows",
+      "collections": "Your playlists and Emby Home rows",
+      "curation": "Keep a collection fresh, on your terms",
+      "connections": "Bring Aperture to Claude or Codex"
+    },
+    "prompts": {
+      "tonight": {
+        "title": "Pick something tonight",
+        "description": "Your mood. Your time. Your library.",
+        "message": "Help me choose something from my library to watch tonight. Ask about my mood and available time."
+      },
+      "plan": {
+        "title": "Plan my watching",
+        "description": "Turn free time into a great watch.",
+        "message": "Help me plan watching opportunities this week. Ask about my available dates, viewing windows and timezone."
+      },
+      "releases": {
+        "title": "What’s coming next?",
+        "description": "Upcoming episodes and movie releases.",
+        "message": "Help me look up upcoming episodes and movie releases. Ask which region and date range I want."
+      },
+      "curate": {
+        "title": "Build a collection",
+        "description": "A playlist with a point of view.",
+        "message": "Help me create an Emby playlist from my library. Ask about the mood and preferences before preparing a proposal."
+      }
+    },
+    "search": "Search your library"
   }
 }

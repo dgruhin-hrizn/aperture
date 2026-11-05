@@ -88,6 +88,9 @@ jobs:
       - name: Test upcoming episodes loading, caches and ownership
         run: pnpm test:upcoming
 
+      - name: Test mobile app navigation and keyboard viewport
+        run: pnpm test:mobile
+
       - name: Test Encore conversation continuity and ownership
         run: pnpm test:encore
 
