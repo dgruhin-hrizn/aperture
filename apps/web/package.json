@@ -1,6 +1,6 @@
 {
   "name": "@aperture/web",
-  "version": "0.8.0-dev.3",
+  "version": "0.8.0-dev.3.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -41,7 +41,7 @@
     "stylis-plugin-rtl": "^2.1.1"
   },
   "devDependencies": {
-    "@aperture/core": "workspace:0.8.0-dev.1",
+    "@aperture/core": "workspace:*",
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
     "@types/react-test-renderer": "18.3.1",
