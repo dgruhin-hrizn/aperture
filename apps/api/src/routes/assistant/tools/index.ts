@@ -1,3 +1,4 @@
+import type { ToolSet } from 'ai'
 /**
  * AI Assistant Tools
  *
@@ -16,7 +17,7 @@ import { createDiscoveryTools } from './discovery.js'
 /**
  * Create all assistant tools with the given context
  */
-export function createTools(ctx: ToolContext) {
+export function createTools(ctx: ToolContext): ToolSet {
   return {
     ...createLibraryTools(ctx),
     ...createSearchTools(ctx),

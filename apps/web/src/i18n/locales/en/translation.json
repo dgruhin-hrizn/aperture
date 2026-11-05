@@ -3781,5 +3781,52 @@
     "forYou": "For you",
     "yourLibrary": "Your library",
     "activity": "Activity"
+  },
+  "encore": {
+    "open": "Ask Encore",
+    "subtitle": "Your personal movie and TV consultant",
+    "eyebrow": "A little less browsing. A lot more watching.",
+    "welcome": "What are we watching next?",
+    "intro": "Find your next favorite, explore your collection, and get a thoughtful recommendation that fits your evening.",
+    "newConversation": "New conversation",
+    "conversations": "Your conversations",
+    "rename": "Rename conversation",
+    "delete": "Delete conversation",
+    "retry": "Try again",
+    "toolWorking": "Checking your collection…",
+    "toolComplete": "Collection checked",
+    "placeholder": "Ask about a movie, a mood, or your next night in…",
+    "send": "Send message",
+    "stop": "Stop response",
+    "thinking": "Encore is working…",
+    "footer": "Personal recommendations, grounded in your collection.",
+    "prompts": {
+      "tonight": "I have 90 minutes. What should I watch tonight?",
+      "discover": "Find a hidden gem I haven’t watched.",
+      "taste": "What have you learned about my movie and TV taste?",
+      "similar": "Find something atmospheric and thought-provoking."
+    },
+    "tools": {
+      "searchContent": "Searched your collection",
+      "semanticSearch": "Matched your mood",
+      "findSimilarContent": "Found similar titles",
+      "getMyRecommendations": "Your personal picks",
+      "getWatchHistory": "Checked your watch history",
+      "getContentDetails": "Title details",
+      "getLibraryStats": "Your collection at a glance",
+      "getUserRatings": "Your ratings",
+      "getTopRated": "Highly rated in your collection",
+      "getUnwatched": "Still to discover",
+      "searchPeople": "People and filmography",
+      "getTopStudios": "Your studios and networks",
+      "getContentRankings": "Collection rankings",
+      "getAvailableGenres": "Genres in your collection",
+      "searchByKeyword": "Themes and keywords",
+      "getFranchises": "Your franchises",
+      "getAwardWinners": "Award-winning titles",
+      "getTopByRtScore": "Critics’ favorites",
+      "getFranchiseProgress": "Franchise progress",
+      "getSystemHelp": "Aperture help"
+    }
   }
 }

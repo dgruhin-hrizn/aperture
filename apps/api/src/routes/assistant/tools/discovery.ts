@@ -1,3 +1,4 @@
+import type { ToolSet } from 'ai'
 /**
  * Discovery tools for enriched metadata: keywords, franchises, awards, RT scores
  */
@@ -8,7 +9,7 @@ import { query } from '../../../lib/db.js'
 import { buildPlayLink } from '../helpers/mediaServer.js'
 import type { ToolContext } from '../types.js'
 
-export function createDiscoveryTools(ctx: ToolContext) {
+export function createDiscoveryTools(ctx: ToolContext): ToolSet {
   return {
     searchByKeyword: tool({
       description:

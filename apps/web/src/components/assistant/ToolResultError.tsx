@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 export function ToolResultError({ message }: { message: string }) {
   const { t } = useTranslation()
   return (
-    <Box sx={{ p: 2, bgcolor: 'var(--ap-panel-translucent, rgba(26, 26, 26, 0.7))', borderRadius: 2, my: 1 }}>
+    <Box sx={{ p: 2, bgcolor: 'var(--ap-panel-translucent, rgba(26, 26, 26, 0.7))', borderRadius: 3, my: 1 }}>
       <Typography variant="subtitle2" color="error" sx={{ mb: 0.5 }}>
         {t('assistant.toolErrorTitle')}
       </Typography>

@@ -54,7 +54,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
 
       - name: Install dependencies
@@ -74,6 +74,9 @@ jobs:
 
       - name: Test upcoming episodes loading, caches and ownership
         run: pnpm test:upcoming
+
+      - name: Test Encore conversation continuity and ownership
+        run: pnpm test:encore
 
       - name: Test LAN and reverse proxy access and sessions
         run: pnpm test:browser-access

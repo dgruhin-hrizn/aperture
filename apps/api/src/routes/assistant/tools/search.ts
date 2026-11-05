@@ -1,3 +1,4 @@
+import type { ToolSet } from 'ai'
 /**
  * Search and similarity tools with Tool UI output schemas
  */
@@ -75,7 +76,7 @@ function formatContentItem(
   }
 }
 
-export function createSearchTools(ctx: ToolContext) {
+export function createSearchTools(ctx: ToolContext): ToolSet {
   return {
     searchContent: tool({
       description:
@@ -362,13 +363,14 @@ export function createSearchTools(ctx: ToolContext) {
 
           // Generate embedding for the search concept using AI SDK
           const { embedding: queryEmbedding } = await embed({
-            model: ctx.embeddingModel,
+            model: ctx.embeddingModel ?? (() => { throw new Error('Semantic search requires an embedding provider') })(),
             value: concept,
           })
           const embeddingStr = `[${queryEmbedding.join(',')}]`
 
           const items: ContentItem[] = []
           const seenTitles = new Set<string>() // Deduplicate by title
+          const relevance = new Map<string, number>()
 
           // If user mentioned a title they already watched, exclude it
           const excludeLower = excludeTitle?.toLowerCase()
@@ -399,6 +401,7 @@ export function createSearchTools(ctx: ToolContext) {
               seenTitles.add(titleKey)
               const playLink = buildPlayLink(ctx.mediaServer, m.provider_item_id, 'movie')
               items.push(formatContentItem(m, 'movie', playLink))
+              relevance.set(m.id, m.similarity)
             }
           }
 
@@ -425,11 +428,12 @@ export function createSearchTools(ctx: ToolContext) {
               seenTitles.add(titleKey)
               const playLink = buildPlayLink(ctx.mediaServer, s.provider_item_id, 'series')
               items.push(formatContentItem(s, 'series', playLink))
+              relevance.set(s.id, s.similarity)
             }
           }
 
-          // Sort combined results by rating (since we can't compare similarity scores across tables)
-          items.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+          // Preserve semantic relevance; ratings break ties only. Both tables use the active model.
+          items.sort((a, b) => (relevance.get(b.id) ?? 0) - (relevance.get(a.id) ?? 0) || (b.rating ?? 0) - (a.rating ?? 0))
 
           // Limit final results
           const finalItems = items.slice(0, safeLimit)

@@ -1,3 +1,4 @@
+import type { ToolSet } from 'ai'
 /**
  * Recommendation tools with Tool UI output schemas
  */
@@ -41,7 +42,7 @@ function formatContentItem(
   }
 }
 
-export function createRecommendationTools(ctx: ToolContext) {
+export function createRecommendationTools(ctx: ToolContext): ToolSet {
   return {
     getMyRecommendations: tool({
       description: "Get the user's current AI-generated personalized recommendations.",
