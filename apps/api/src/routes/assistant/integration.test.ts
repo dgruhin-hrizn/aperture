@@ -20,7 +20,9 @@ test('real PostgreSQL and MCP HTTP enforce per-user catalogs, scopes, expiry and
   const prefix = randomUUID(), a = randomUUID(), b = randomUUID()
   const movieA = `${prefix}-a`, movieB = `${prefix}-b`
   const movieC = `${prefix}-c`
+  const housemaid = `${prefix}-housemaid`, overviewMatch = `${prefix}-overview`, series = `${prefix}-series`
   let visibleExtra = false
+  let visibleSearchFixtures = false
   const accountA = `${prefix}-alice`, accountB = `${prefix}-bob`
   await pool.query("INSERT INTO users(id, provider, provider_user_id, provider_access_token, username, is_enabled) VALUES ($1,'emby',$2,'token-a','Alice',true),($3,'emby',$4,'token-b','Bob',true)", [a, accountA, b, accountB])
   await pool.query("INSERT INTO movies(provider_item_id,title,genres,runtime_minutes,community_rating) VALUES ($1,'1917',ARRAY['Drama'],119,8.2),($2,'Private fixture film',ARRAY['Comedy'],85,9.0)", [movieA, movieB])
@@ -31,7 +33,13 @@ test('real PostgreSQL and MCP HTTP enforce per-user catalogs, scopes, expiry and
     const isA = url.pathname.includes(accountA)
     assert.ok(isA || url.pathname.includes(accountB), url.pathname)
     assert.equal(new Headers(init?.headers).get('X-Emby-Token'), isA ? 'token-a' : 'token-b')
-    const items = [{ Id: isA ? movieA : movieB, Type: 'Movie' }, ...(isA && visibleExtra ? [{Id: movieC, Type: 'Movie'}] : [])]
+    const items = [
+      { Id: isA ? movieA : movieB, Type: 'Movie' },
+      ...(isA && visibleExtra ? [{ Id: movieC, Type: 'Movie' }] : []),
+      ...(isA && visibleSearchFixtures
+        ? [{ Id: housemaid, Type: 'Movie' }, { Id: overviewMatch, Type: 'Movie' }, { Id: series, Type: 'Series' }]
+        : []),
+    ]
     return Response.json({ Items: items, TotalRecordCount: items.length })
   }
   const server = Fastify()
@@ -99,6 +107,30 @@ test('real PostgreSQL and MCP HTTP enforce per-user catalogs, scopes, expiry and
     assert.deepEqual(ranked.items.map((i) => i.name), ['Quiet Signal', '1917'])
     const constrained = await semantic({ concept: 'quiet drama', type: 'movies', maxRuntime: 90, genre: 'Drama', excludeWatched: false } as never, options) as { items: Array<{name: string}> }
     assert.deepEqual(constrained.items.map((i) => i.name), ['Quiet Signal'])
+
+    // Named lookups work without embeddings and rank titles ahead of higher-rated synopsis matches.
+    await pool.query(`
+      INSERT INTO movies(provider_item_id, title, year, community_rating, overview)
+      VALUES ($1, 'The Housemaid', 2025, 7.0, NULL),
+             ($2, 'A Different Story', 2025, 9.0, 'A housemaid uncovers a secret.')
+    `, [housemaid, overviewMatch])
+    await pool.query("INSERT INTO series(provider_item_id, title, original_title) VALUES ($1, 'The Hidden Hour', 'Severance')", [series])
+    await pool.query("UPDATE movies SET title = 'Housemaidsv' WHERE provider_item_id = $1", [movieB])
+    visibleSearchFixtures = true
+    const search = async (args: Record<string, unknown>) => {
+      const result = await client.callTool({ name: 'searchContent', arguments: args })
+      assert.equal(result.isError, undefined, JSON.stringify(result))
+      return (result.structuredContent as { items: { name: string }[] }).items.map(({ name }) => name)
+    }
+    assert.deepEqual(await search({ query: 'The Housemaid', limit: 1 }), ['The Housemaid'])
+    assert.deepEqual(await search({ query: ' housemaid ', type: 'movies' }), ['The Housemaid', 'A Different Story'])
+    assert.deepEqual(await search({ query: 'housemaids' }), ['The Housemaid'])
+    assert.deepEqual(await search({ query: 'housemaidsv' }), ['The Housemaid'])
+    assert.deepEqual(await search({ query: 'Severence', type: 'series' }), ['The Hidden Hour'])
+    assert.deepEqual(await search({ query: 'Housemaids', year: 1960 }), [])
+    assert.deepEqual(await search({ query: '%' }), [])
+    assert.deepEqual(await search({ genre: 'Drama', type: 'movies', limit: 1 }), ['1917'])
+
     assert.equal((await server.inject({ method: 'DELETE', url: `/api/assistant/connections/${connection.id}`, headers: { 'x-fixture-other': 'true' } })).statusCode, 404)
     assert.equal((await server.inject({ method: 'DELETE', url: `/api/assistant/connections/${connection.id}` })).statusCode, 204)
     await assert.rejects(client.listTools())
@@ -108,7 +140,8 @@ test('real PostgreSQL and MCP HTTP enforce per-user catalogs, scopes, expiry and
   } finally {
     await client.close(); await server.close(); globalThis.fetch = originalFetch
     await pool.query("DELETE FROM system_settings WHERE key = 'ai_config'")
-    await pool.query('DELETE FROM movies WHERE provider_item_id = ANY($1)', [[movieA, movieB, movieC]])
+    await pool.query('DELETE FROM movies WHERE provider_item_id = ANY($1)', [[movieA, movieB, movieC, housemaid, overviewMatch]])
+    await pool.query('DELETE FROM series WHERE provider_item_id = $1', [series])
     await pool.query('DELETE FROM users WHERE id = ANY($1::uuid[])', [[a, b]])
     await closePool()
   }

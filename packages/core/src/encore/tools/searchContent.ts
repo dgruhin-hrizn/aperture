@@ -9,13 +9,30 @@ import { buildPlayLink } from '../helpers/mediaServer.js';
 import type { ContentItem } from '../schemas/index.js';
 import type { ToolContext, MovieResult, SeriesResult } from '../types.js';
 import { searchContentTitleKey, formatContentItem } from './shared/search.js';
+
+// Reserve higher scores for exact, article-insensitive and substring title matches.
+// Compare complete words for the fuzzy tier so a fragment inside a word is less likely to match.
+const MIN_TITLE_RELEVANCE = 0.5
+const titleRelevance = `CASE
+  WHEN lower($1) IN (lower(title), lower(original_title)) THEN 4
+  WHEN regexp_replace(lower($1), '^(the|an|a) +', '') IN (
+    regexp_replace(lower(title), '^(the|an|a) +', ''),
+    regexp_replace(lower(original_title), '^(the|an|a) +', '')
+  ) THEN 3
+  WHEN title ILIKE $2 OR original_title ILIKE $2 THEN 2
+  WHEN $1 ~ '[[:alnum:]]{4}' THEN GREATEST(
+    strict_word_similarity($1, title), strict_word_similarity($1, original_title)
+  )
+  ELSE 0
+END`
+
 export function createSearchContentTool(ctx: ToolContext): ToolSet { return {
 searchContent: tool({
       description:
-        'Comprehensive search for movies and TV series with ALL available filters. Use for specific queries with known criteria. For conceptual/vague queries like "mind-bending movies", use semanticSearch instead.',
+        'Find movies and TV series in the user’s library by exact or approximate title, original title, keywords, or metadata filters. Use semanticSearch for themes and plot descriptions.',
       inputSchema: nullSafe(z.object({
         // Text search
-        query: z.string().optional().describe('Title or keywords to match'),
+        query: z.string().optional().describe('Title or keywords to match. Pass the title as the user wrote it, without surrounding conversation.'),
 
         // Basic filters
         genre: z
@@ -71,7 +88,7 @@ searchContent: tool({
       })),
       execute: async (params) => {
         const {
-          query: searchQuery,
+          query: rawQuery,
           genre,
           year,
           yearMin,
@@ -95,8 +112,7 @@ searchContent: tool({
           sortOrder = 'desc',
         } = params
 
-        const items: ContentItem[] = []
-        const seenTitles = new Set<string>()
+        const searchQuery = rawQuery?.trim()
         const safeLimit = Math.min(limit ?? 15, 50)
 
         // Helper to build WHERE clause
@@ -106,9 +122,9 @@ searchContent: tool({
           let idx = 1
 
           if (searchQuery) {
-            conditions.push(`(title ILIKE $${idx} OR overview ILIKE $${idx})`)
-            values.push(`%${searchQuery}%`)
-            idx++
+            conditions.push(`(title_match.relevance >= ${MIN_TITLE_RELEVANCE} OR overview ILIKE $2)`)
+            values.push(searchQuery, `%${searchQuery.replace(/[\\%_]/g, '\\$&')}%`)
+            idx += 2
           }
           if (genre) {
             conditions.push(`$${idx} = ANY(genres)`)
@@ -213,42 +229,38 @@ searchContent: tool({
         const order = sortOrder === 'asc' ? 'ASC' : 'DESC'
         const nullsOrder = sortOrder === 'asc' ? 'NULLS FIRST' : 'NULLS LAST'
 
-        if (type === 'movies' || type === 'both') {
-          const { whereClause, values, limitIdx } = buildWhere(true)
-          const movieResult = await query<MovieResult & { provider_item_id?: string }>(
-            `SELECT id, title, year, genres, community_rating, poster_url, provider_item_id
-             FROM movies ${whereClause}
-             ORDER BY ${sortColumn} ${order} ${nullsOrder} LIMIT $${limitIdx}`,
+        const search = async (mediaType: 'movie' | 'series') => {
+          const isMovie = mediaType === 'movie'
+          const { whereClause, values, limitIdx } = buildWhere(isMovie)
+          const column = !isMovie && sortColumn === 'runtime_minutes' ? 'community_rating' : sortColumn
+          const { rows } = await query<(MovieResult | SeriesResult) & { relevance: number }>(
+            `SELECT id, title, year, genres, community_rating, poster_url, provider_item_id,
+                    ${searchQuery ? `CASE WHEN title_match.relevance >= ${MIN_TITLE_RELEVANCE}
+                                         THEN title_match.relevance ELSE 0 END` : '0'} AS relevance
+             FROM ${isMovie ? 'movies' : 'series'}
+             ${searchQuery ? `CROSS JOIN LATERAL (SELECT ${titleRelevance} AS relevance) AS title_match` : ''}
+             ${whereClause}
+             ORDER BY relevance DESC, ${column} ${order} ${nullsOrder}
+             LIMIT $${limitIdx}`,
             values
           )
-
-          for (const m of movieResult.rows) {
-            const titleKey = m.title.toLowerCase()
-            if (!seenTitles.has(titleKey)) {
-              seenTitles.add(titleKey)
-              const playLink = buildPlayLink(ctx.mediaServer, m.provider_item_id, 'movie')
-              items.push(formatContentItem(m, 'movie', playLink))
-            }
-          }
+          return rows.map((row) => ({ row, mediaType }))
         }
 
-        if (type === 'series' || type === 'both') {
-          const { whereClause, values, limitIdx } = buildWhere(false)
-          const seriesResult = await query<SeriesResult & { provider_item_id?: string }>(
-            `SELECT id, title, year, genres, network, community_rating, poster_url, provider_item_id
-             FROM series ${whereClause}
-             ORDER BY ${sortColumn !== 'runtime_minutes' ? sortColumn : 'community_rating'} ${order} ${nullsOrder} LIMIT $${limitIdx}`,
-            values
-          )
+        const results = [
+          ...(type !== 'series' ? await search('movie') : []),
+          ...(type !== 'movies' ? await search('series') : []),
+        ]
+        if (searchQuery) results.sort((a, b) => b.row.relevance - a.row.relevance)
 
-          for (const s of seriesResult.rows) {
-            const titleKey = s.title.toLowerCase()
-            if (!seenTitles.has(titleKey)) {
-              seenTitles.add(titleKey)
-              const playLink = buildPlayLink(ctx.mediaServer, s.provider_item_id, 'series')
-              items.push(formatContentItem(s, 'series', playLink))
-            }
-          }
+        const items: ContentItem[] = []
+        const seenTitles = new Set<string>()
+        for (const { row, mediaType } of results) {
+          const titleKey = row.title.toLowerCase()
+          if (seenTitles.has(titleKey)) continue
+          seenTitles.add(titleKey)
+          items.push(formatContentItem(row, mediaType, buildPlayLink(ctx.mediaServer, row.provider_item_id, mediaType)))
+          if (searchQuery && items.length >= safeLimit) break
         }
 
         if (items.length === 0) {
