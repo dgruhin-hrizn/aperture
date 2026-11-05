@@ -17,6 +17,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 COPY packages/core/package.json packages/core/
+COPY packages/mcp/package.json packages/mcp/
 COPY packages/ui/package.json packages/ui/
 
 # Install all dependencies
@@ -45,6 +46,7 @@ RUN corepack enable && corepack prepare pnpm@10.0.0 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/
 COPY packages/core/package.json packages/core/
+COPY packages/mcp/package.json packages/mcp/
 
 # Install only production dependencies (skip prepare/husky; rebuild native modules)
 RUN pnpm install --prod --frozen-lockfile --ignore-scripts && \
@@ -95,6 +97,9 @@ COPY --from=prod-deps --chown=aperture:nodejs /app/packages/core/node_modules ./
 # Copy built packages
 COPY --from=builder --chown=aperture:nodejs /app/packages/core/dist ./packages/core/dist
 COPY --from=builder --chown=aperture:nodejs /app/packages/core/package.json ./packages/core/
+
+# Copy the optional local MCP bridge
+COPY --from=builder --chown=aperture:nodejs /app/packages/mcp/dist ./packages/mcp/dist
 
 # Copy built API
 COPY --from=builder --chown=aperture:nodejs /app/apps/api/dist ./apps/api/dist

@@ -8,7 +8,7 @@ import { z } from 'zod'
 import { closePool, getPool } from '@aperture/core'
 import { registerChatHandler } from './handlers/chat.js'
 import { decodeMessage, type StoredMessage } from './messages.js'
-import { nullSafe } from './tools/utils.js'
+import { nullSafe } from '@aperture/core/encore'
 
 process.env.DATABASE_URL ??= 'postgres://unused:unused@127.0.0.1/unused'
 after(closePool)

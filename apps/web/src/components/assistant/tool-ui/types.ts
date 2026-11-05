@@ -14,6 +14,9 @@ export interface ContentItem {
   id: string
   type: 'movie' | 'series'
   name: string
+  availability?: 'library' | 'external' | 'upcoming' | 'unknown'
+  sourceUrl?: string
+  source?: string
   subtitle?: string
   image?: string | null
   rating?: number | null
@@ -86,6 +89,7 @@ export interface FilmographyItem {
   title: string
   year?: number | null
   role?: string | null
+  sourceUrl?: string
 }
 
 export interface Person {

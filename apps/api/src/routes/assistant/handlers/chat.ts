@@ -7,7 +7,7 @@ import { getChatModelInstance, getEmbeddingModelInstance, getActiveEmbeddingMode
 import { requireAuth } from '../../../plugins/auth.js'
 import { queryOne } from '../../../lib/db.js'
 import { getMediaServerInfo, buildSystemPrompt } from '../helpers/index.js'
-import { createTools } from '../tools/index.js'
+import { createEncoreTools } from '@aperture/core/encore'
 import { claimRun, loadMessages, releaseRun, saveMessage } from '../messages.js'
 
 const bodySchema = z.object({
@@ -15,6 +15,7 @@ const bodySchema = z.object({
   messages: z.array(z.object({ id: z.string().min(1).max(200), role: z.enum(['user', 'assistant']),
     parts: z.array(z.unknown()).max(100) })).max(100),
   trigger: z.string().optional(),
+  timezone: z.string().max(80).default('UTC').refine((timeZone) => { try { new Intl.DateTimeFormat('en', { timeZone }); return true } catch { return false } }),
 })
 
 export function registerChatHandler(fastify: FastifyInstance, dependencies: { getModel?: typeof getChatModelInstance } = {}) {
@@ -23,7 +24,7 @@ export function registerChatHandler(fastify: FastifyInstance, dependencies: { ge
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid conversation or messages', code: 'INVALID_CHAT' })
     const user = request.user!
     if (!user.isEnabled) return reply.code(403).send({ error: 'This account is disabled' })
-    const { conversationId, messages: incoming, trigger } = parsed.data
+    const { conversationId, messages: incoming, trigger, timezone } = parsed.data
     if (!await queryOne('SELECT id FROM assistant_conversations WHERE id = $1 AND user_id = $2', [conversationId, user.id]))
       return reply.code(404).send({ error: 'Conversation not found' })
     const runId = randomUUID()
@@ -60,9 +61,9 @@ export function registerChatHandler(fastify: FastifyInstance, dependencies: { ge
         (dependencies.getModel ?? getChatModelInstance)(), getEmbeddingModelInstance().catch(() => null),
         getActiveEmbeddingModelId(), getMediaServerInfo(), buildSystemPrompt(user.id, user.isAdmin),
       ])
-      const tools = createTools({ userId: user.id, isAdmin: user.isAdmin, embeddingModel,
+      const tools = createEncoreTools({ userId: user.id, isAdmin: user.isAdmin, embeddingModel,
         embeddingModelId: embeddingModelId ?? '', mediaServer })
-      const agent = new ToolLoopAgent({ model, tools, instructions: `${instructions}\nCurrent UTC date: ${new Date().toISOString()}.`,
+      const agent = new ToolLoopAgent({ model, tools, instructions: `${instructions}\nCurrent UTC date: ${new Date().toISOString()}. User timezone: ${timezone}. Interpret relative dates using that timezone.`,
         maxOutputTokens: 4000, stopWhen: stepCountIs(12),
         onEnd: ({ totalUsage, steps }) => request.log.info({ runId, usage: totalUsage, steps: steps.length }, 'Encore run completed'),
       })
