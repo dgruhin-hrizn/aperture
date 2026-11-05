@@ -35,6 +35,11 @@ export class AsyncCache<T> {
     this.values.clear()
     this.pending.clear()
   }
+
+  delete(key: string) {
+    this.values.delete(key)
+    this.pending.delete(key)
+  }
 }
 
 /** A shared limit avoids multiplying upstream concurrency when several strips load together. */

@@ -796,6 +796,10 @@
     "provider": "Provider",
     "model": "Model",
     "loadingProviders": "Loading…",
+    "discoverModels": "Refresh models",
+    "modelsFromEndpoint": "Models from your endpoint",
+    "modelDiscoveryFailed": "Could not load models. Try refreshing the list.",
+    "verifyCompatibleTools": "Use Test to check whether this model can call Encore’s tools.",
     "loadingModels": "Loading models…",
     "noModelsAvailable": "No models available",
     "customModelsHeader": "Custom Models",
@@ -3914,6 +3918,10 @@
       "home_write": "Manage owned Home rows",
       "curation_write": "Manage recurring curation"
     },
+    "movieReleaseSchedule": "Movie releases",
+    "followedReleaseSchedule": "Upcoming episodes for shows you follow",
+    "showFewerReleases": "Show fewer",
+    "showAllReleases": "Show all {{count}} results",
     "releaseSchedule": "Your release calendar",
     "dayPrecision": "Dates are forecasts by region. Exact local availability may differ.",
     "noReleases": "No confirmed releases were found in this window.",
@@ -4133,7 +4141,7 @@
       "releases": {
         "title": "What’s coming next?",
         "description": "Upcoming episodes and movie releases.",
-        "message": "Help me look up upcoming episodes and movie releases. Ask which region and date range I want."
+        "message": "Show me upcoming episodes and movie releases over the next two weeks."
       },
       "curate": {
         "title": "Build a collection",

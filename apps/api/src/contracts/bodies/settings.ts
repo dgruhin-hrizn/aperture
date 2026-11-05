@@ -3,6 +3,12 @@ import { VALID_EMBEDDING_DIMENSIONS, providerTypeSchema, aiFunctionSchema } from
 
 export const provider = providerTypeSchema
 export const aiFunction = aiFunctionSchema
+export const aiModelDiscoveryBody = z.object({
+  provider: z.enum(['openai', 'openai-compatible']),
+  function: aiFunction,
+  apiKey: z.string().trim().min(1).max(10000).optional(),
+  baseUrl: z.string().trim().url().max(2000).optional(),
+})
 const model = z.object({
   provider, model: z.string().trim().min(1).max(500),
   apiKey: z.string().max(10000).optional(),
@@ -23,6 +29,7 @@ export const settingsBodies = {
   }),
   'PATCH /api/settings/ai/:function': model,
   'POST /api/settings/ai/test': model.extend({ function: aiFunction }),
+  'POST /api/settings/ai/models': aiModelDiscoveryBody,
   'POST /api/settings/ai/custom-models': z.object({
     provider: z.enum(['ollama', 'openai-compatible', 'openrouter', 'huggingface']),
     function: aiFunction, modelId: z.string().min(1).max(500),

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { createEncoreTools, hashEncoreToken, scopeCatalogQuery, validateReleaseWindow } from '@aperture/core/encore'
+import { createEncoreTools, hashEncoreToken, releaseLocalDate, resolveReleaseWindow, scopeCatalogQuery, validateReleaseWindow } from '@aperture/core/encore'
 
 test('catalog scopes bind exact server-visible IDs in joins, aggregates and existing CTEs', () => {
   const result = scopeCatalogQuery('SELECT COUNT(*) FROM movies m JOIN episodes e ON true WHERE m.title = $1', ['1917'], { movieIds: ['visible'], seriesIds: ['show'] })
@@ -25,6 +25,20 @@ test('restricted MCP connections cannot discover tools that expose taste, histor
 test('release windows reject impossible dates, inverted ranges and unbounded calendars', () => {
   validateReleaseWindow('2026-11-01', '2026-11-30')
   for (const [start, end] of [['2026-02-30', '2026-03-01'], ['2026-11-03', '2026-11-02'], ['2026-01-01', '2027-01-01']]) assert.throws(() => validateReleaseWindow(start, end))
+})
+test('release windows resolve from the user’s local date and bound regional TV coverage', () => {
+  const today = releaseLocalDate('America/Los_Angeles', new Date('2026-11-06T02:00:00Z'))
+  assert.equal(today, '2026-11-05')
+  const request = { region: 'US', limit: 20, daysAhead: 14 }
+  assert.deepEqual(resolveReleaseWindow({ ...request, mode: 'movies' }, today), {
+    startDate: '2026-11-05', endDate: '2026-11-19', limited: false,
+  })
+  assert.deepEqual(resolveReleaseWindow({ ...request, mode: 'tvCalendar' }, today), {
+    startDate: '2026-11-05', endDate: '2026-11-11', limited: true,
+  })
+  assert.deepEqual(resolveReleaseWindow({ ...request, mode: 'following', startDate: '2026-12-30', endDate: '2027-01-02' }, today), {
+    startDate: '2026-12-30', endDate: '2027-01-02', limited: false,
+  })
 })
 test('connection credentials use irreversible stable hashes instead of storing raw tokens', () => {
   const token = 'apmcp_fixture'

@@ -79,6 +79,7 @@ export interface MessageRow {
 // Tool context - passed to all tools
 export interface ToolContext {
   userId: string
+  timezone?: string
   source?: 'encore' | 'mcp' | 'curation'
   sourceId?: string
   isAdmin: boolean

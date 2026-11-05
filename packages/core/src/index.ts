@@ -47,6 +47,8 @@ export {
   getProvidersForFunction,
   getModelsForFunction,
   getModelsForFunctionWithCustom,
+  getAIModelOptions,
+  resolveProviderConnection,
   getPricingForModel,
   getPricingForModelAsync,
   PROVIDERS,

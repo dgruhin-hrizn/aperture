@@ -28,6 +28,12 @@ export interface ReleaseQuery {
   region: string
   limit: number
 }
+type ReleaseRequest = Omit<ReleaseQuery, 'startDate' | 'endDate'> & {
+  startDate?: string
+  endDate?: string
+  daysAhead?: number
+}
+const DAY_MS = 86400_000
 const forecasts = new AsyncCache<ReleaseEvent[]>(30 * 60_000, 300)
 const remoteLimit = concurrencyLimit(4)
 export function validateReleaseWindow(start: string, end: string) {
@@ -39,9 +45,31 @@ export function validateReleaseWindow(start: string, end: string) {
     first.toISOString().slice(0, 10) !== start ||
     last.toISOString().slice(0, 10) !== end ||
     +last < +first ||
-    +last - +first > 31 * 86400_000
+    +last - +first > 31 * DAY_MS
   )
     throw new Error('Release windows must be valid dates within 31 days')
+}
+
+export function releaseLocalDate(timezone = 'UTC', now = new Date()): string {
+  return new Intl.DateTimeFormat('sv-SE', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now)
+}
+
+export function resolveReleaseWindow(request: ReleaseRequest, today: string) {
+  const startDate = request.startDate ?? today
+  validateReleaseWindow(startDate, startDate)
+  const endAfter = (days: number) =>
+    new Date(Date.parse(startDate) + days * DAY_MS).toISOString().slice(0, 10)
+  const requestedEnd =
+    request.endDate ?? endAfter(request.daysAhead ?? (request.mode === 'tvCalendar' ? 6 : 14))
+  validateReleaseWindow(startDate, requestedEnd)
+  const endDate =
+    request.mode === 'tvCalendar' && requestedEnd > endAfter(6) ? endAfter(6) : requestedEnd
+  return { startDate, endDate, limited: endDate !== requestedEnd }
 }
 interface MazeEpisode {
   id: number
@@ -68,31 +96,36 @@ async function mazeDay(date: string, region: string): Promise<ReleaseEvent[]> {
           }
         )
       )
-      return data
-        .flat()
-        .map((r) => ({
-          id: `tvmaze:${r.id}`,
-          title: r.show.name,
-          date: r.airdate,
-          precision: 'day',
-          mediaType: 'series',
-          source: 'TVmaze',
-          sourceUrl: r.url ?? r.show.url,
-          releaseType: 'episode',
-          region,
-          season: r.season,
-          episode: r.number,
-          episodeTitle: r.name,
-          availability: 'unknown',
-        }))
+      return data.flat().map((r) => ({
+        id: `tvmaze:${r.id}`,
+        title: r.show.name,
+        date: r.airdate,
+        precision: 'day',
+        mediaType: 'series',
+        source: 'TVmaze',
+        sourceUrl: r.url ?? r.show.url,
+        releaseType: 'episode',
+        region,
+        season: r.season,
+        episode: r.number,
+        episodeTitle: r.name,
+        availability: 'unknown',
+      }))
     })
   )
 }
 
-export async function getEncoreReleases(userId: string, input: ReleaseQuery) {
-  validateReleaseWindow(input.startDate, input.endDate)
+export async function getEncoreReleases(
+  userId: string,
+  request: ReleaseRequest,
+  timezone?: string
+) {
+  const { startDate, endDate, limited } = resolveReleaseWindow(request, releaseLocalDate(timezone))
+  const input = { ...request, startDate, endDate }
   const events: ReleaseEvent[] = [],
-    warnings: string[] = []
+    warnings: string[] = limited
+      ? ['The regional TV calendar covers the first seven days of this window.']
+      : []
   if (input.mode === 'following') {
     if (!(await getTMDbApiKey()))
       warnings.push('TMDb is not configured; only locally synced episode forecasts were checked')
@@ -126,10 +159,8 @@ export async function getEncoreReleases(userId: string, input: ReleaseQuery) {
         })
     }
   } else if (input.mode === 'tvCalendar') {
-    if (new Date(input.endDate).getTime() - new Date(input.startDate).getTime() > 6 * 86400_000)
-      throw new Error('TV calendar requests are limited to seven days')
     const dates: string[] = []
-    for (let at = Date.parse(input.startDate); at <= Date.parse(input.endDate); at += 86400_000)
+    for (let at = Date.parse(input.startDate); at <= Date.parse(input.endDate); at += DAY_MS)
       dates.push(new Date(at).toISOString().slice(0, 10))
     const batches = await Promise.allSettled(dates.map((date) => mazeDay(date, input.region)))
     for (const batch of batches)
@@ -188,6 +219,9 @@ export async function getEncoreReleases(userId: string, input: ReleaseQuery) {
     kind: 'releases' as const,
     retrievedAt: new Date().toISOString(),
     region: input.region,
+    mode: input.mode,
+    startDate,
+    endDate,
     warnings: [...new Set(warnings)],
     events: events
       .filter((e) => {

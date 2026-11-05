@@ -51,18 +51,31 @@ export function createConsultantTools(ctx: ToolContext): ToolSet {
     }),
     getReleaseSchedule: tool({
       description:
-        'Look up sourced release dates: next episodes for followed series, a regional broadcast/streaming TV calendar (up to 7 days), or theatrical/digital movie releases (up to 31 days). Dates are day-precision forecasts, not proof the title is playable or an exact local release time. Do not invent missing dates.',
+        'Look up sourced release dates for followed series, the regional TV calendar, or theatrical/digital movies. Default start is today in the user’s timezone and default end is two weeks ahead (seven dates for the regional TV calendar). Use daysAhead for relative requests. The regional TV calendar covers up to seven dates. Movies and followed series cover up to 31 days ahead. Dates are forecasts at day precision.',
       inputSchema: z.object({
         mode: z.enum(['following', 'tvCalendar', 'movies']).default('following'),
-        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        startDate: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
+        endDate: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
+        daysAhead: z
+          .number()
+          .int()
+          .min(0)
+          .max(31)
+          .optional()
+          .describe('Days after the start date. Use 14 for “next few weeks” and omit endDate.'),
         region: z
           .string()
           .regex(/^[A-Z]{2}$/)
           .default('US'),
         limit: z.number().int().min(1).max(50).default(20),
       }),
-      execute: (input) => getEncoreReleases(ctx.userId, input),
+      execute: (input) => getEncoreReleases(ctx.userId, input, ctx.timezone),
     }),
   }
 }

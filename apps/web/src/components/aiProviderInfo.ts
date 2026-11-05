@@ -25,6 +25,7 @@ export interface FunctionConfig {
   model: string
   apiKey?: string
   baseUrl?: string
+  toolCallingVerified?: boolean
 }
 
 export const PROVIDER_INFO: Record<ProviderType, ProviderInfo> = {
