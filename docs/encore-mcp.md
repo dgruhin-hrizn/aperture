@@ -70,3 +70,11 @@ Stage three adds individually selectable `memory:write`, `plans:write`, `playlis
 Memory tools retain only the fact submitted to Aperture, together with the connection's provenance. Persistent preference facts participate in the existing Taste Profile interest system; temporary facts can expire. Inspect or forget them in Encore → Memory. A complete external chat is never copied implicitly. Connected clients can list plans and export structured schedules; the authenticated native UI also exports ICS calendar copies.
 
 Playlists are tracked by exact IDs, never adopted by matching an arbitrary name. Unknown creation outcomes require reconciliation through an explicitly selected Emby details link and verified management rights. Emby Home support varies by server and client. Only the exact managed row is unpinned; media files are never removed.
+
+## Recurring curation
+
+A recurring rule needs `curation:write`, `playlists:write`, `library:read` and `profile:read`. `prepareCuration` always creates a paused draft. The human reviews its exact recipe, collection and schedule before `controlCuration` enables it. This grants standing authorization for managed playlist updates and any embedding usage. Editing pauses the rule for renewed opt-in. Pause/delete controls and run history are also available in Encore.
+
+Rules authorized by an MCP connection recheck its expiry, revocation and required scopes on every run. Revoking that connection pauses its rules at the next attempted run. Explicitly re-enabling a rule in Encore authorizes it directly under the user's account. Empty results or provider/access failures pause it rather than replacing a playlist with an empty result. Pinning an already managed playlist lets its Home row reflect refreshed membership without rewriting unrelated Home settings.
+
+Primary protocol and implementation references: [MCP documentation](https://modelcontextprotocol.io/docs/getting-started/intro), [Emby playlist API](https://dev.emby.media/doc/restapi/Playlists.html), [Emby private-item operation](https://dev.emby.media/reference/RestAPI/UserLibraryService/postItemsByIdMakeprivate.html), [Temporal timezone behavior](https://tc39.es/proposal-temporal/docs/timezone.html).

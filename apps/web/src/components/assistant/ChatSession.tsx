@@ -7,17 +7,60 @@ import { AssistantRuntimeProvider } from '@assistant-ui/react'
 import { useAISDKRuntime } from '@assistant-ui/ai-sdk'
 import { Thread } from './Thread'
 
-export function ChatSession({ conversationId, messages, onComplete }: { conversationId: string; messages: UIMessage[]; onComplete: () => void }) {
+export function ChatSession({
+  conversationId,
+  messages,
+  onComplete,
+}: {
+  conversationId: string
+  messages: UIMessage[]
+  onComplete: () => void
+}) {
   const { t } = useTranslation()
-  const transport = useMemo(() => new DefaultChatTransport({ api: '/api/assistant/chat', credentials: 'include', body: { conversationId, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }, prepareSendMessagesRequest: ({ messages, body, trigger, messageId }) => ({ body: { ...body, messages: messages.slice(-1), trigger, messageId } }) }), [conversationId])
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: '/api/assistant/chat',
+        credentials: 'include',
+        body: { conversationId, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+        prepareSendMessagesRequest: ({ messages, body, trigger, messageId }) => ({
+          body: { ...body, messages: messages.slice(-1), trigger, messageId },
+        }),
+      }),
+    [conversationId]
+  )
   const chat = useChat({ id: conversationId, messages, transport, onFinish: onComplete })
   const runtime = useAISDKRuntime(chat)
   const { stop } = chat
-  useEffect(() => () => { void stop() }, [stop])
-  return <AssistantRuntimeProvider runtime={runtime}>
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%' }}>
-      {chat.error && <Alert severity="error" action={<Button color="inherit" onClick={() => { chat.clearError(); void chat.regenerate() }}>{t('encore.retry')}</Button>}>{chat.error.message}</Alert>}
-      <Thread />
-    </Box>
-  </AssistantRuntimeProvider>
+  useEffect(
+    () => () => {
+      void stop()
+    },
+    [stop]
+  )
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%' }}>
+        {chat.error && (
+          <Alert
+            severity="error"
+            action={
+              <Button
+                color="inherit"
+                onClick={() => {
+                  chat.clearError()
+                  void chat.regenerate()
+                }}
+              >
+                {t('encore.retry')}
+              </Button>
+            }
+          >
+            {chat.error.message}
+          </Alert>
+        )}
+        <Thread />
+      </Box>
+    </AssistantRuntimeProvider>
+  )
 }

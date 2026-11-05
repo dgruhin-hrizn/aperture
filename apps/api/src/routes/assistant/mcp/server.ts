@@ -14,7 +14,7 @@ export async function createApertureMcpServer(userId: string, scopes: EncoreScop
     if (!execute) continue
     const schema = await asSchema(definition.inputSchema).jsonSchema
     server.registerTool(name, { description: typeof definition.description === 'string' ? definition.description : name, inputSchema: fromJsonSchema(schema as JsonSchemaType),
-      annotations: { readOnlyHint: !encoreToolScope(name).endsWith(':write'), destructiveHint: ['forgetMemory','deleteWatchPlan','executeEncoreAction'].includes(name), idempotentHint: !['createWatchPlan','executeEncoreAction'].includes(name), openWorldHint: ['discoverTitles', 'getReleaseSchedule', 'getFilmography', 'getExternalTitleDetails'].includes(name) },
+      annotations: { readOnlyHint: !encoreToolScope(name).endsWith(':write') || name.startsWith('list'), destructiveHint: ['forgetMemory','deleteWatchPlan','executeEncoreAction','controlCuration'].includes(name), idempotentHint: !['createWatchPlan','prepareCuration','controlCuration'].includes(name), openWorldHint: ['discoverTitles', 'getReleaseSchedule', 'getFilmography', 'getExternalTitleDetails','executeEncoreAction','controlCuration'].includes(name) },
     }, async (input, context) => {
       try {
         const output = await execute(input as never, { toolCallId: randomUUID(), messages: [], context: undefined, abortSignal: context.mcpReq.signal })

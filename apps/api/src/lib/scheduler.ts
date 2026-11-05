@@ -1,3 +1,4 @@
+import { runDueEncoreCurations } from '@aperture/core/encore'
 /**
  * Job Scheduler Service
  * 
@@ -22,6 +23,8 @@ interface ScheduledJob {
   cronExpression: string
   schedule: string // Human-readable
 }
+let encoreTask: ScheduledTask | null = null
+let encoreBusy=false
 const scheduledTasks: Map<string, ScheduledJob> = new Map()
 
 // Job execution function - will be set by the jobs routes
@@ -93,6 +96,12 @@ function scheduleJob(config: JobConfig): void {
  */
 export async function initializeScheduler(): Promise<void> {
   logger.info('🚀 Initializing job scheduler...')
+  encoreTask?.stop()
+  encoreTask=cron.schedule('* * * * *',()=>{
+    if(encoreBusy)return
+    encoreBusy=true
+    void runDueEncoreCurations().catch(err=>logger.error({err},'Encore curation scheduler failed')).finally(()=>{encoreBusy=false})
+  })
 
   try {
     const configs = await getAllJobConfigs()
@@ -167,6 +176,7 @@ export async function refreshAllSchedules(): Promise<void> {
  */
 export function stopScheduler(): void {
   logger.info('🛑 Stopping job scheduler...')
+  encoreTask?.stop();encoreTask=null
   
   for (const [jobName, job] of scheduledTasks) {
     job.task.stop()

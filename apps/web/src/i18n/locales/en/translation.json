@@ -33,8 +33,8 @@
   "releaseHighlights": {
     "saveError": "Aperture could not save your dismissal. Try again.",
     "admin": {
-      "title": "What’s new for Aperture admins",
-      "action": "Open output settings",
+      "title": "Encore: a complete media consultant",
+      "action": "Explore Aperture",
       "groups": {
         "title": "Group Emby TV sources",
         "body": "Under Settings → Setup → Media Server, open the TV Shows library tab to map sources to named outputs. Run TV recommendations and TV library sync after saving."
@@ -50,11 +50,27 @@
       "jobs": {
         "title": "Import without using AI tokens",
         "body": "Admin → Jobs separates import, publishing, and AI processing. Import Media Server syncs users, the catalog, and watch history without generating or publishing picks."
+      },
+      "encore": {
+        "title": "A rebuilt conversation workspace",
+        "body": "Modern tool calling, restored conversations, source-aware movie and TV discovery, regional providers and release calendars."
+      },
+      "connections": {
+        "title": "Aperture MCP",
+        "body": "Connect local Claude, Codex or another MCP client with scoped, expiring and revocable user credentials."
+      },
+      "curation": {
+        "title": "Plans, collections and opt-in curation",
+        "body": "Users can save memories, plan viewing windows, approve private Emby playlists and Home rows, and explicitly enable recurring updates."
+      },
+      "trust": {
+        "title": "Grounded operations and visible receipts",
+        "body": "Current catalog access is checked per user. Actions persist their state and preserve manual edits. Failures and uncertain outcomes remain visible."
       }
     },
     "user": {
-      "title": "What’s new in your AI Picks",
-      "action": "Open AI Picks",
+      "title": "Meet the new Encore",
+      "action": "Explore Aperture",
       "freshness": {
         "title": "Fewer repeat picks",
         "body": "Recently suggested movies and shows take a break. Older picks can return gradually, leaving room for more titles you haven’t been suggested."
@@ -66,6 +82,22 @@
       "playback": {
         "title": "New ways to find your picks in Emby",
         "body": "If your admin enables them, you may see separate TV groups or private playlists. The playlist preview opens original Emby items, keeping playback attached to those items."
+      },
+      "encore": {
+        "title": "A more thoughtful movie and TV consultant",
+        "body": "Discover by mood, compare your collection with external finds, check upcoming releases and keep the conversation going."
+      },
+      "memory": {
+        "title": "Your preferences, under your control",
+        "body": "Encore can remember lasting preferences. Inspect, correct, expire or forget them in its Memory tab."
+      },
+      "planning": {
+        "title": "Make room for a great watch",
+        "body": "Draft plans around your available time, edit viewing windows, recheck progress and export saved plans to your calendar."
+      },
+      "collections": {
+        "title": "Build your corner of Emby",
+        "body": "Approve playlists and supported Home rows from the chat. Suggestions are the default; recurring curation starts only when you enable a rule."
       }
     }
   },
@@ -3911,7 +3943,7 @@
     "memoryKind": "Type",
     "memoryDays": "Expires after days (optional)",
     "memoryDaysHelp": "Leave blank for a lasting memory. Temporary context does not change recommendation interests.",
-    "memoryCanonical": "Lasting preferences use your existing Taste Profile interests. Forgetting removes the linked interest only if it has not been edited elsewhere. Other taste settings remain under Taste Profile.",
+    "memoryCanonical": "Lasting preferences use your existing Taste Profile interests. Forgetting removes the linked interest only if it has not been edited elsewhere. Other taste settings remain under Taste Profile. Conversation history is managed separately.",
     "memoryManageHint": "Inspect or change this in Encore → Memory.",
     "memoryKinds": {
       "preference": "Preference",
@@ -3983,6 +4015,63 @@
     "changeSaved": "Change saved",
     "noSavedItems": "No saved items to show.",
     "reconcileUrl": "Emby playlist details link",
-    "reconcile": "Reconcile existing playlist"
+    "reconcile": "Reconcile existing playlist",
+    "curationTab": "Curation",
+    "curationTitle": "Keep a great collection fresh",
+    "curationIntro": "Start with a suggestion, then opt into a recurring rule for a managed playlist. You control the recipe, schedule and every future run.",
+    "curationEnabled": "Enabled",
+    "curationPaused": "Paused",
+    "curationMovies": "Movie discoveries",
+    "curationEpisodes": "Next episodes",
+    "curationLimit_one": "Up to {{count}} title",
+    "curationLimit_other": "Up to {{count}} titles",
+    "curationRuntime_one": "At most {{count}} minute",
+    "curationRuntime_other": "At most {{count}} minutes",
+    "curationUnwatched": "Unwatched only",
+    "curationRewatches": "Rewatches allowed",
+    "curationDailyAt": "Every day at {{time}} · {{timezone}}",
+    "curationWeeklyAt": "Every {{day}} at {{time}} · {{timezone}}",
+    "curationNext": "Next run: {{date}}",
+    "curationNoNext": "No automatic run scheduled",
+    "curationRunStatus": {
+      "running": "Run in progress",
+      "succeeded": "Playlist checked and refreshed",
+      "failed": "Run paused for attention"
+    },
+    "pauseCuration": "Pause",
+    "enableCuration": "Enable recurring updates",
+    "runCuration": "Run now",
+    "curationOptIn": "Enabling authorizes recurring updates to this managed playlist and any embedding usage your recipe needs. Pause or remove the rule whenever you like.",
+    "editCuration": "Edit recurring rule",
+    "createCuration": "Create recurring rule",
+    "curationName": "Rule name",
+    "curationCollection": "Managed playlist",
+    "curationConcept": "Mood or theme (optional)",
+    "curationConceptHelp": "Leave blank to use the filters below. A mood or theme uses your configured embedding provider each run.",
+    "curationGenre": "Genre (optional)",
+    "curationMaxRuntime": "Maximum minutes",
+    "curationMinRating": "Minimum community score",
+    "curationItemLimit": "Title limit",
+    "curationCadence": "Frequency",
+    "curationDay": "Day",
+    "curationTime": "Local time",
+    "cadences": {
+      "daily": "Daily",
+      "weekly": "Weekly"
+    },
+    "curationDraftHelp": "Saving creates a paused rule. Review its exact settings and enable it when you want automatic updates. Editing an enabled rule pauses it again.",
+    "savePausedRule": "Save paused rule",
+    "curationEmpty": "No recurring rules yet. Create one here or ask Encore to keep an existing collection fresh.",
+    "curationNeedsCollection": "Create a managed playlist with Encore before adding a recurring rule.",
+    "curationSafety": "Runs preserve manual playlist additions and removals. Permission changes, expired connections, unavailable providers or empty eligible results pause the rule and leave a visible result. Home support follows your existing pinned playlist.",
+    "curationMinScore": "Score at least {{score}}",
+    "curationRunChanges": "Added {{added}}, removed {{removed}}; preserved {{manual}} manual additions.",
+    "toolCancelled": "This tool was stopped. No completed result was returned.",
+    "toolIncomplete": "This tool did not finish. Retry or check its current state before assuming an action completed.",
+    "scrollTabs": "Scroll workspace tabs",
+    "nextEpisodes": "Your next episodes",
+    "episodeAvailability": "Synchronized episode metadata. Planning rechecks live availability and progress.",
+    "noNextEpisodes": "No synchronized unwatched episodes found for this show.",
+    "franchiseTruncated": "This view is limited to the first 200 accessible titles."
   }
 }

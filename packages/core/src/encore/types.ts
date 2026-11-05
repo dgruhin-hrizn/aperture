@@ -83,6 +83,6 @@ export interface ToolContext {
   sourceId?: string
   isAdmin: boolean
   embeddingModel: EmbeddingModel | null
-  embeddingModelId: string  // Model ID string for database queries
+  embeddingModelId: string // Model ID string for database queries
   mediaServer: MediaServerInfo | null
 }

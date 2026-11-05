@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { randomUUID } from 'node:crypto'
-import { packViewingWindows,watchPlanCalendar,reconcileEncoreMembership,planInput } from '@aperture/core/encore'
+import { packViewingWindows,watchPlanCalendar,reconcileEncoreMembership,planInput,nextEncoreCurationRun } from '@aperture/core/encore'
 
 test('watch windows enforce hard runtime, episode order, DST ambiguity and calendar escaping',()=>{
   const a=randomUUID(),b=randomUUID(),c=randomUUID()
@@ -21,4 +21,16 @@ test('watch windows enforce hard runtime, episode order, DST ambiguity and calen
 test('collection reconciliation preserves manual additions and removals',()=>{
   const diff=reconcileEncoreMembership(['managed-old','manual'],['managed-old','user-removed'],['user-removed','managed-new'])
   assert.deepEqual(diff.remove,['managed-old']);assert.deepEqual(diff.add,['managed-new']);assert.deepEqual(diff.target,['manual','managed-new'])
+})
+
+test('recurring wall-clock schedules resolve spring gaps and first fall occurrence consistently',()=>{
+  assert.equal(nextEncoreCurationRun({cadence:'weekly',day:7,time:'02:30',timezone:'America/New_York'},new Date('2026-03-07T12:00:00Z')),'2026-03-08T07:30:00Z')
+  assert.equal(nextEncoreCurationRun({cadence:'weekly',day:7,time:'01:30',timezone:'America/New_York'},new Date('2026-10-31T12:00:00Z')),'2026-11-01T05:30:00Z')
+  const diff=reconcileEncoreMembership(['manual'],[],['formerly-removed'],['formerly-removed'])
+  assert.deepEqual(diff.add,[]);assert.deepEqual(diff.manualRemovals,['formerly-removed'])
+})
+
+test('interrupted managed changes do not become manual edits on retry',()=>{
+ const diff=reconcileEncoreMembership(['manual','new'],['old'],['new'],[],{add:['new'],remove:['old'],manualAdditions:['manual'],manualRemovals:[]})
+ assert.deepEqual(diff.manualAdditions,['manual']);assert.deepEqual(diff.manualRemovals,[]);assert.deepEqual(diff.add,[]);assert.deepEqual(diff.remove,[])
 })

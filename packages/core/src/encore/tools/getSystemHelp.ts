@@ -1,14 +1,17 @@
-import type { ToolSet } from 'ai';
-import { tool } from 'ai';
-import { nullSafe } from './utils.js';
-import { z } from 'zod';
-import type { ToolContext } from '../types.js';
-export function createGetSystemHelpTool(ctx: ToolContext): ToolSet { return {
-getSystemHelp: tool({
+import type { ToolSet } from 'ai'
+import { tool } from 'ai'
+import { nullSafe } from './utils.js'
+import { z } from 'zod'
+import type { ToolContext } from '../types.js'
+export function createGetSystemHelpTool(ctx: ToolContext): ToolSet {
+  return {
+    getSystemHelp: tool({
       description: 'Get help on how to use Aperture.',
-      inputSchema: nullSafe(z.object({
-        topic: z.string().optional().describe('Specific topic (ratings, recommendations, jobs)'),
-      })),
+      inputSchema: nullSafe(
+        z.object({
+          topic: z.string().optional().describe('Specific topic (ratings, recommendations, jobs)'),
+        })
+      ),
       execute: async ({ topic }) => {
         const generalHelp = {
           overview: 'Aperture is an AI-powered recommendation system for your media server.',
@@ -19,6 +22,8 @@ getSystemHelp: tool({
             'Virtual "AI Picks" libraries in your media server',
             'Top Picks showing globally popular content',
             'Detailed watch stats with genre/actor/director breakdowns',
+            'Encore: scoped memory, realistic watch plans, sourced discovery/releases and approved Emby actions',
+            'Opt-in recurring curation and individually scoped MCP clients',
           ],
           navigation: {
             Dashboard: 'Overview with recent watches, ratings, trending, and recommendations',
@@ -31,6 +36,36 @@ getSystemHelp: tool({
         }
 
         const topicHelp: Record<string, unknown> = {
+          encore: {
+            title: 'Encore workbench',
+            description:
+              'Open the sparkle button to access Conversation, Memory, Watch Plans, Collections, Curation and Connections. Suggestions are the default; recurring updates require explicit opt-in.',
+          },
+          memory: {
+            title: 'Encore memory',
+            description:
+              'Inspect, correct, expire or forget user-scoped facts in Memory. Lasting preferences use canonical Taste Profile interests. Forgetting memory does not rewrite conversation history.',
+          },
+          plans: {
+            title: 'Watch plans',
+            description:
+              'Give exact titles/shows, viewing dates, local start times, window lengths and timezone. Drafts verify live availability/progress/runtime, keep episodes in order, explain unplaced items and support calendar export after saving.',
+          },
+          playlists: {
+            title: 'Managed playlists and Home rows',
+            description:
+              'Ask Encore to prepare a playlist, review exact titles and approve the proposal inline or in Collections. Only tracked resources are changed. Home rows need Emby support; no media files are deleted. Interrupted writes have persisted receipts and reconciliation.',
+          },
+          curation: {
+            title: 'Recurring curation',
+            description:
+              'Create a paused recipe for an existing managed playlist, with filters or a movie theme and a daily/weekly local schedule. Review and enable it explicitly. Editing pauses it. Failures or empty eligibility pause it with a visible result; manual edits are preserved.',
+          },
+          mcp: {
+            title: 'Aperture MCP',
+            description:
+              'Use Connections for named, scoped, expiring and revocable credentials. Connect via Streamable HTTP or the standalone release bridge. Local clients can use a private Aperture address; cloud clients require network reachability. Full external chats are not copied automatically.',
+          },
           ratings: {
             title: 'Rating System',
             description: 'Aperture uses a 10-heart system compatible with Trakt.tv.',
@@ -84,9 +119,9 @@ getSystemHelp: tool({
 
         // Check for topic match
         if (topic) {
-          const normalizedTopic = topic.toLowerCase()
+          const normalizedTopic = topic.toLowerCase().replace(/[^a-z]/g, '')
           for (const [key, value] of Object.entries(topicHelp)) {
-            if (normalizedTopic.includes(key)) {
+            if (normalizedTopic.includes(key.toLowerCase())) {
               return { id: `help-${key}`, topic: key, help: value, isAdmin: ctx.isAdmin }
             }
           }
@@ -121,12 +156,14 @@ getSystemHelp: tool({
                 'AI Picks output (movies/series)':
                   'STRM files vs symlinks for AI recommendation libraries only—not Shows You Watch',
                 'Library Images': 'Upload 16:9 banners for AI Picks libraries',
-                'Shows You Watch': 'Enable the in-app list and favorites sync (no STRM virtual libraries)',
+                'Shows You Watch':
+                  'Enable the in-app list and favorites sync (no STRM virtual libraries)',
               },
             }
           : null
 
         return { id: `help-general-${Date.now()}`, generalHelp, adminHelp, isAdmin: ctx.isAdmin }
       },
-    })
-}; }
+    }),
+  }
+}
