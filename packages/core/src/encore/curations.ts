@@ -136,11 +136,11 @@ export async function controlEncoreCuration(
     operation === 'pause'
       ? null
       : operation === 'run'
-        ? new Date().toISOString()
+        ? null
         : nextEncoreCurationRun(curation.schedule)
   if (operation !== 'pause') await encoreServer(ctx.userId)
   const result = await queryOne<EncoreCuration>(
-    `UPDATE encore_curations SET enabled=$3,next_run_at=$4,revision=revision+1,source=$5,source_id=$6,
+    `UPDATE encore_curations SET enabled=$3,next_run_at=CASE WHEN $8::boolean THEN now() ELSE $4::timestamptz END,revision=revision+1,source=$5,source_id=$6,
     lease_id=NULL,lease_expires_at=NULL,last_error=NULL,updated_at=now() WHERE id=$1 AND user_id=$2 AND revision=$7 RETURNING *`,
     [
       id,
@@ -150,6 +150,7 @@ export async function controlEncoreCuration(
       ctx.source ?? 'encore',
       ctx.sourceId ?? null,
       curation.revision,
+      operation === 'run',
     ]
   )
   if (!result) throw new Error('This rule changed. Refresh and retry.')

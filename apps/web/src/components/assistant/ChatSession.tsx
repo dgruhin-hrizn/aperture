@@ -11,9 +11,11 @@ export function ChatSession({
   conversationId,
   messages,
   onComplete,
+  onRunningChange,
 }: {
   conversationId: string
   messages: UIMessage[]
+  onRunningChange?: (running: boolean) => void
   onComplete: () => void
 }) {
   const { t } = useTranslation()
@@ -30,6 +32,16 @@ export function ChatSession({
     [conversationId]
   )
   const chat = useChat({ id: conversationId, messages, transport, onFinish: onComplete })
+  const running = chat.status === 'submitted' || chat.status === 'streaming'
+  useEffect(() => {
+    onRunningChange?.(running)
+  }, [running, onRunningChange])
+  useEffect(
+    () => () => {
+      onRunningChange?.(false)
+    },
+    [onRunningChange]
+  )
   const runtime = useAISDKRuntime(chat)
   const { stop } = chat
   useEffect(

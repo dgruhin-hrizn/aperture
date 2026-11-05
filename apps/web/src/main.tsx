@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import './i18n/config'
+import './mobile.css'
 import App from './App'
 
 // A deployment can replace route chunks while a tab still has the previous entry loaded.

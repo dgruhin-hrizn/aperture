@@ -1,6 +1,6 @@
 # Encore media consultant
 
-Open the sparkle button in the bottom-right corner of Aperture. Encore combines conversation, user-scoped library tools, semantic retrieval, external movie/TV metadata, release forecasts and a personal workbench.
+On mobile, Aperture opens into Encore; its central bottom navigation button returns to the conversation. On desktop, open Encore from the sidebar or floating entry button. Encore combines conversation, user-scoped library tools, semantic retrieval, external movie/TV metadata, release forecasts and a personal workbench.
 
 ## Conversation and discoveries
 
@@ -54,3 +54,5 @@ Use the Streamable HTTP endpoint or download the standalone local stdio bridge f
 Admins configure the chat, embedding and metadata providers in existing Aperture settings. Chat is optional for external MCP metadata/library tools; semantic search needs embeddings, and external metadata/schedules need their relevant provider credentials. Provider downtime is reported rather than replaced with invented facts.
 
 Your configured AI providers receive the conversation/context and tool results needed to answer requests, and embedding inputs when enabled. Conversations, memories, plans, connections and managed resources are scoped to your Aperture account. No direct SQL, shell, filesystem administration or general Emby administration is exposed as an agent capability. Use Memory and conversation controls to manage what Aperture retains; imported calendar copies and external-client retention are managed in those applications.
+
+The [mobile app guide](../mobile-app.md) covers primary navigation, conversation continuity, workspace sheets and home-screen launch.

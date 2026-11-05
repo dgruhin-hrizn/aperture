@@ -14,7 +14,7 @@ import { UserRatingsProvider } from './hooks/UserRatingsProvider'
 import { ViewModeProvider } from './hooks/ViewModeProvider'
 import { Layout } from './components/Layout'
 import { AdminLayout } from './components/AdminLayout'
-const AssistantModal = lazy(() => import('./components/AssistantModal').then(module => ({ default: module.AssistantModal })))
+const AccountHub = lazy(() => import('./pages/AccountHub').then(module => ({ default: module.AccountHub })))
 const LoginPage = lazy(() => import('./pages/Login').then(module => ({ default: module.LoginPage })))
 const SetupPage = lazy(() => import('./pages/setup').then(module => ({ default: module.SetupPage })))
 const TonightPage = lazy(() => import('./pages/Tonight').then(module => ({ default: module.TonightPage })))
@@ -47,7 +47,12 @@ const UserDetailPage = lazy(() => import('./pages/UserDetail').then(module => ({
 const JobsPage = lazy(() => import('./pages/jobs').then(module => ({ default: module.JobsPage })))
 const SettingsPage = lazy(() => import('./pages/settings').then(module => ({ default: module.SettingsPage })))
 const GapAnalysisPage = lazy(() => import('./pages/admin/GapAnalysisPage').then(module => ({ default: module.GapAnalysisPage })))
-import { Box, CircularProgress } from '@mui/material'
+import { Box, CircularProgress, useMediaQuery, useTheme } from '@mui/material'
+
+function IndexRoute(){
+  const mobile=useMediaQuery(useTheme().breakpoints.down('md'))
+  return mobile?<Navigate to="/encore" replace/>:<DashboardPage/>
+}
 
 function SetupGuard({ children }: { children: React.ReactNode }) {
   const { status, loading } = useSetupStatus()
@@ -96,13 +101,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   // Wrap with providers so state is available everywhere
-  // Include AssistantModal for AI chat on all authenticated pages
   return (
     <ViewModeProvider>
       <UserRatingsProvider>
         <WatchingProvider>
           {children}
-          <Suspense fallback={null}><AssistantModal /></Suspense>
         </WatchingProvider>
       </UserRatingsProvider>
     </ViewModeProvider>
@@ -159,7 +162,10 @@ function AppRoutes() {
         }
       >
         {/* User Routes */}
-        <Route index element={<DashboardPage />} />
+        <Route index element={<IndexRoute />} />
+        <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="encore" element={null} />
+        <Route path="you" element={<AccountHub />} />
         <Route path="tonight" element={<TonightPage />} />
         <Route path="recommendations" element={<MyRecommendationsPage />} />
         <Route path="watching" element={<WatchingPage />} />

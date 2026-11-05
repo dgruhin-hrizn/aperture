@@ -20,6 +20,7 @@ import {
   useTheme,
   Tooltip,
   ButtonBase,
+  useMediaQuery,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import MovieIcon from '@mui/icons-material/Movie'
@@ -51,6 +52,7 @@ interface SearchSuggestion {
 export function GlobalSearch() {
   const { t } = useTranslation()
   const theme = useTheme()
+  const mobile = useMediaQuery(theme.breakpoints.down('md'))
   const navigate = useNavigate()
   const searchShortcutTooltip = useMemo(
     () =>
@@ -120,10 +122,9 @@ export function GlobalSearch() {
       }
 
       // Fetch full results
-      const resultsRes = await fetch(
-        `/api/search?q=${encodeURIComponent(searchQuery)}&limit=10`,
-        { credentials: 'include' }
-      )
+      const resultsRes = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}&limit=10`, {
+        credentials: 'include',
+      })
       if (resultsRes.ok) {
         const data = await resultsRes.json()
         setResults(data.results)
@@ -192,20 +193,38 @@ export function GlobalSearch() {
     <>
       {/* Search trigger button in header */}
       <Tooltip title={searchShortcutTooltip}>
-        {theme.aperture.name === 'studio' ? (
-          <ButtonBase onClick={() => setOpen(true)} aria-label={searchShortcutTooltip}
-            sx={{ display: 'flex', gap: 1, borderRadius: 1, px: { xs: 1, md: 1.5 }, py: 1, mr: 1, color: 'text.secondary', textAlign: 'start', bgcolor: { md: 'background.default' }, minWidth: 0, width: { md: 280 } }}>
+        {theme.aperture.name === 'studio' && !mobile ? (
+          <ButtonBase
+            onClick={() => setOpen(true)}
+            aria-label={searchShortcutTooltip}
+            sx={{
+              display: 'flex',
+              gap: 1,
+              borderRadius: 1,
+              px: { xs: 1, md: 1.5 },
+              py: 1,
+              mr: 1,
+              color: 'text.secondary',
+              textAlign: 'start',
+              bgcolor: { md: 'background.default' },
+              minWidth: 0,
+              width: { md: 280 },
+            }}
+          >
             <SearchIcon fontSize="small" />
-            <Typography variant="body2" noWrap sx={{ display: { xs: 'none', md: 'block' } }}>{t('globalSearch.placeholder')}</Typography>
+            <Typography variant="body2" noWrap sx={{ display: { xs: 'none', md: 'block' } }}>
+              {t('globalSearch.placeholder')}
+            </Typography>
           </ButtonBase>
         ) : (
-        <IconButton
-          onClick={() => setOpen(true)}
-          color="inherit"
-          sx={{ opacity: 0.8 }}
-        >
-          <SearchIcon />
-        </IconButton>
+          <IconButton
+            onClick={() => setOpen(true)}
+            aria-label={t('mobile.search')}
+            color="inherit"
+            sx={{ opacity: 0.8 }}
+          >
+            <SearchIcon />
+          </IconButton>
         )}
       </Tooltip>
 
@@ -245,11 +264,7 @@ export function GlobalSearch() {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    {loading ? (
-                      <CircularProgress size={20} />
-                    ) : (
-                      <SearchIcon />
-                    )}
+                    {loading ? <CircularProgress size={20} /> : <SearchIcon />}
                   </InputAdornment>
                 ),
                 endAdornment: query && (
@@ -272,9 +287,7 @@ export function GlobalSearch() {
           <Box sx={{ maxHeight: 'calc(80vh - 120px)', overflowY: 'auto' }}>
             {!query && (
               <Box p={4} textAlign="center">
-                <Typography color="text.secondary">
-                  {t('globalSearch.emptyHint')}
-                </Typography>
+                <Typography color="text.secondary">{t('globalSearch.emptyHint')}</Typography>
                 <Typography variant="caption" color="text.disabled" display="block" mt={1}>
                   {t('globalSearch.emptyHintDetail')}
                 </Typography>
@@ -298,7 +311,10 @@ export function GlobalSearch() {
                       onClick={() => handleResultClick(result)}
                       sx={{
                         cursor: 'pointer',
-                        bgcolor: selectedIndex >= 0 && index === selectedIndex ? alpha(theme.palette.primary.main, 0.1) : 'transparent',
+                        bgcolor:
+                          selectedIndex >= 0 && index === selectedIndex
+                            ? alpha(theme.palette.primary.main, 0.1)
+                            : 'transparent',
                         '&:hover': {
                           bgcolor: alpha(theme.palette.primary.main, 0.08),
                         },
@@ -327,7 +343,11 @@ export function GlobalSearch() {
                             )}
                             <Chip
                               size="small"
-                              label={result.type === 'movie' ? t('globalSearch.typeMovie') : t('globalSearch.typeSeries')}
+                              label={
+                                result.type === 'movie'
+                                  ? t('globalSearch.typeMovie')
+                                  : t('globalSearch.typeSeries')
+                              }
                               sx={{ fontSize: '0.65rem', height: 20 }}
                             />
                           </Box>
@@ -344,10 +364,13 @@ export function GlobalSearch() {
                                 <Chip
                                   size="small"
                                   label={`🍅 ${result.rt_critic_score}%`}
-                                  sx={{ 
-                                    fontSize: '0.65rem', 
+                                  sx={{
+                                    fontSize: '0.65rem',
                                     height: 18,
-                                    bgcolor: Number(result.rt_critic_score) >= 60 ? 'success.dark' : 'warning.dark',
+                                    bgcolor:
+                                      Number(result.rt_critic_score) >= 60
+                                        ? 'success.dark'
+                                        : 'warning.dark',
                                   }}
                                 />
                               )}
@@ -449,4 +472,3 @@ export function GlobalSearch() {
     </>
   )
 }
-

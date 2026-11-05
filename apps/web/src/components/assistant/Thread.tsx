@@ -1,15 +1,24 @@
-import { Box, Button, IconButton, Paper, Typography } from '@mui/material'
+import { MobileWelcome } from './MobileWelcome'
+import { Box, Button, IconButton, Paper, Typography, useMediaQuery, useTheme } from '@mui/material'
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
 import StopRoundedIcon from '@mui/icons-material/StopRounded'
 import ReactMarkdown from 'react-markdown'
-import { ThreadPrimitive, MessagePrimitive, ComposerPrimitive, useAui } from '@assistant-ui/react'
+import {
+  ThreadPrimitive,
+  MessagePrimitive,
+  ComposerPrimitive,
+  useAui,
+  useAuiState,
+} from '@assistant-ui/react'
 import { useTranslation } from 'react-i18next'
 import { ToolResult } from './ToolResult'
 
 function Welcome() {
   const { t } = useTranslation()
   const composer = useAui().composer
+  const mobile = useMediaQuery(useTheme().breakpoints.down('md'))
+  if (mobile) return <MobileWelcome />
   return (
     <Box sx={{ maxWidth: 720, mx: 'auto', px: 2, py: { xs: 4, md: 8 } }}>
       <Typography variant="overline" color="primary.main" sx={{ letterSpacing: '.18em' }}>
@@ -125,9 +134,9 @@ function Composer() {
   return (
     <Box
       sx={{
-        px: { xs: 2, md: 4 },
+        px: { xs: 1.5, md: 4 },
         pt: 1,
-        pb: 2,
+        pb: { xs: 1.25, md: 2 },
         maxWidth: 900,
         width: '100%',
         mx: 'auto',
@@ -144,6 +153,7 @@ function Composer() {
             p: 1.25,
             borderRadius: 4,
             bgcolor: 'background.default',
+            '& textarea': { maxHeight: 144, overflowY: 'auto' },
             '&:focus-within': {
               borderColor: 'primary.main',
               boxShadow: '0 0 0 2px var(--ap-focus-ring, rgba(99,102,241,.12))',
@@ -154,6 +164,7 @@ function Composer() {
             placeholder={t('encore.placeholder')}
             aria-label={t('encore.placeholder')}
             rows={1}
+            enterKeyHint="send"
             style={{
               width: '100%',
               resize: 'none',
@@ -163,6 +174,7 @@ function Composer() {
               color: 'inherit',
               font: 'inherit',
               padding: '8px 10px',
+              fontSize: 16,
             }}
           />
           <ThreadPrimitive.If running={false}>
@@ -192,7 +204,7 @@ function Composer() {
       <Typography
         variant="caption"
         color="text.secondary"
-        sx={{ display: 'block', textAlign: 'center', mt: 1 }}
+        sx={{ display: { xs: 'none', md: 'block' }, textAlign: 'center', mt: 1 }}
       >
         {t('encore.footer')}
       </Typography>
@@ -202,17 +214,21 @@ function Composer() {
 
 export function Thread() {
   const { t } = useTranslation()
+  const empty = useAuiState((state) => state.thread.messages.length === 0)
   return (
     <ThreadPrimitive.Root
       style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}
     >
       <ThreadPrimitive.Viewport
+        autoScroll={!empty}
+        scrollToBottomOnInitialize={!empty}
+        scrollToBottomOnThreadSwitch={!empty}
         style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}
       >
         <ThreadPrimitive.Empty>
           <Welcome />
         </ThreadPrimitive.Empty>
-        <Box sx={{ maxWidth: 850, mx: 'auto', px: { xs: 2, md: 4 }, py: 2 }}>
+        <Box sx={{ maxWidth: 850, mx: 'auto', px: { xs: 1.5, md: 4 }, py: 2 }}>
           <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
           <ThreadPrimitive.If running>
             <Typography variant="caption" color="text.secondary" role="status">
