@@ -1,6 +1,6 @@
 import { createChildLogger } from '../lib/logger.js'
 import { query, queryOne } from '../lib/db.js'
-import { getExplorationModelInstance } from '../lib/ai-provider.js'
+import { getGenerationCall } from '../lib/ai-provider.js'
 import { generateText } from 'ai'
 import type { SimilarityItem } from './index.js'
 import type { ConnectionReason } from './reasons.js'
@@ -193,7 +193,7 @@ async function validateWithAI(
   target: SimilarityItem
 ): Promise<{ isValid: boolean; reason: string }> {
   try {
-    const model = await getExplorationModelInstance()
+    const generation = await getGenerationCall('exploration', 50, 0)
 
     const prompt = `Are these two movies thematically related enough to recommend together?
 
@@ -209,10 +209,8 @@ Answer with ONLY "YES" or "NO" followed by a brief reason (max 10 words).
 Example: "YES - both epic space adventures" or "NO - completely different genres and themes"`
 
     const { text } = await generateText({
-      model,
+      ...generation,
       prompt,
-      maxOutputTokens: 50,
-      temperature: 0,
     })
 
     const content = text || ''
@@ -381,7 +379,7 @@ export async function findDiverseContent(
   )
 
   try {
-    const model = await getExplorationModelInstance()
+    const generation = await getGenerationCall('exploration', 300, 0.7)
 
     const prompt = `Given the ${type} "${centerItem.title}" (${centerItem.year || 'unknown year'}), which has these characteristics:
 - Genres: ${centerItem.genres.join(', ') || 'unknown'}
@@ -399,10 +397,8 @@ Return ONLY the movie titles, one per line, without numbers or explanations.
 Focus on well-known, popular films that are likely to be in a home media library.`
 
     const { text } = await generateText({
-      model,
+      ...generation,
       prompt,
-      maxOutputTokens: 300,
-      temperature: 0.7,
     })
 
     const content = text || ''

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { reasoningPresetSchema } from '@aperture/core'
 import { ENCORE_READ_SCOPES, ENCORE_SCOPES } from '@aperture/core/encore'
 
 export const chatBody = z.object({
@@ -10,6 +11,7 @@ export const chatBody = z.object({
   })).max(100),
   trigger: z.string().optional(),
   webSearch: z.boolean().default(false),
+  reasoningPreset: reasoningPresetSchema.optional(),
   timezone: z.string().max(80).default('UTC').refine(timeZone => {
     try { new Intl.DateTimeFormat('en', { timeZone }); return true } catch { return false }
   }, 'Invalid timezone'),

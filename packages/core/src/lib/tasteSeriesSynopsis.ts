@@ -7,7 +7,7 @@
 
 import { query, queryOne } from './db.js'
 import { createChildLogger } from './logger.js'
-import { getTextGenerationModelInstance, isAIFunctionConfigured } from './ai-provider.js'
+import { getGenerationCall, isAIFunctionConfigured } from './ai-provider.js'
 import { streamText } from 'ai'
 import { getUserExcludedLibraries } from './libraryExclusions.js'
 import { analyzeSeriesTaste, formatTasteProfileForAI } from './tasteAnalyzer.js'
@@ -233,9 +233,9 @@ export async function* streamSeriesTasteSynopsis(
   try {
     const aiLocale = await resolveEffectiveAiLanguage(userId)
     const langBlock = `\n\n${buildAiLanguageInstruction(aiLocale)}`
-    const model = await getTextGenerationModelInstance()
+    const generation = await getGenerationCall('textGeneration', 400, 0.4)
     const result = streamText({
-      model,
+      ...generation,
       system: `Write a TV viewer personality profile using this exact structure:
 
 ### What Draws You In
@@ -255,8 +255,6 @@ Rules:
 - Write in second person ("You gravitate toward...")
 - Use **bold** markdown for trait names${langBlock}`,
       prompt: abstractPrompt,
-      temperature: 0.4,
-      maxOutputTokens: 400,
     })
 
     for await (const chunk of result.textStream) {

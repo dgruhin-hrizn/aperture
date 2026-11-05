@@ -1,3 +1,4 @@
+import { registerAiReasoningHandlers } from './handlers/aiReasoning.js'
 /**
  * Settings Routes Module
  * 
@@ -40,6 +41,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   registerRecommendationHandlers(fastify)
   registerUserSettingsHandlers(fastify)
   registerAiConfigHandlers(fastify)
+  registerAiReasoningHandlers(fastify)
   registerIntegrationHandlers(fastify)
   registerTopPicksHandlers(fastify)
   registerAiOutputHandlers(fastify)

@@ -1,5 +1,5 @@
 import { createChildLogger } from '../lib/logger.js'
-import { getTextGenerationModelInstance } from '../lib/ai-provider.js'
+import { getGenerationCall } from '../lib/ai-provider.js'
 import { generateText } from 'ai'
 import { queryOne } from '../lib/db.js'
 import { buildAiLanguageInstruction } from '../lib/locales.js'
@@ -76,9 +76,9 @@ export async function generateAIPreferences(
   try {
     const aiLocale = await resolveEffectiveAiLanguage(userId)
     const langBlock = `\n\n${buildAiLanguageInstruction(aiLocale)}`
-    const model = await getTextGenerationModelInstance()
+    const generation = await getGenerationCall('textGeneration', 500, 0.7)
     const { text } = await generateText({
-      model,
+      ...generation,
       system: `You are a movie curator helping create a custom playlist. Based on the user's taste profile, selected genres, and example movies, generate 2-3 short preference paragraphs that describe what kind of movies should be included in this playlist.
 
 Be specific and actionable. Reference the qualities, themes, and styles evident in the example movies. Consider what makes these movies work together as a collection.
@@ -93,8 +93,6 @@ Focus on:
 
 Write in first person as if the user is describing what they want. Keep it concise but specific - each paragraph should be 1-2 sentences. Don't use bullet points.${langBlock}`,
       prompt: contextParts.join('\n\n'),
-      temperature: 0.7,
-      maxOutputTokens: 500,
     })
 
     if (!text) {

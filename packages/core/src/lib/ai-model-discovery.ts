@@ -35,6 +35,10 @@ const modelList = z.object({
             supportsToolCalling: z.boolean().optional(),
             supportsObjectGeneration: z.boolean().optional(),
             supportsEmbeddings: z.boolean().optional(),
+            reasoning: z.object({
+              levels: z.array(z.union([z.string().max(30), z.boolean()])).max(16),
+              defaultLevel: z.union([z.string().max(30), z.boolean()]).optional(),
+            }).optional().catch(undefined),
           })
           .nullish(),
       })
@@ -81,7 +85,8 @@ export async function discoverEndpointModels(
   fn: AIFunction,
   baseUrl: string,
   apiKey?: string,
-  refresh = false
+  refresh = false,
+  timeout = 8000
 ): Promise<ModelMetadata[]> {
   const key = createHash('sha256')
     .update(JSON.stringify([baseUrl, apiKey]))
@@ -89,7 +94,7 @@ export async function discoverEndpointModels(
   const load = async () => {
     const response = await fetch(`${baseUrl}/models`, {
       headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(timeout),
       redirect: 'error',
     })
     if (!response.ok) throw new Error(`Model endpoint returned HTTP ${response.status}.`)
@@ -133,6 +138,7 @@ export async function discoverEndpointModels(
         supportsToolStreaming: false,
         supportsObjectGeneration: capabilities?.supportsObjectGeneration === true,
         supportsEmbeddings: embedding,
+        ...(capabilities?.reasoning && { reasoning: capabilities.reasoning }),
       },
     })
   }

@@ -2009,6 +2009,17 @@
     "saveChanges": "변경 사항 저장"
   },
   "settingsCostEstimator": {
+    "priceUnknown": "Price unavailable",
+    "partialEstimate": "Totals include only models with known prices.",
+    "chatStyles": {
+      "title": "Encore cost by response style",
+      "default": "Default",
+      "perReply": "{{cost}} per reply",
+      "measured_one": "1 measured reply · {{tokens}} reasoning tokens per reply",
+      "measured_other": "{{count}} measured replies · {{tokens}} reasoning tokens per reply",
+      "estimated": "Estimated token usage until replies are measured",
+      "official": "OpenAI standard API rates"
+    },
     "loading": "비용 데이터 로드 중…",
     "configureFirst": "비용 견적을 보려면 위에서 AI 공급자를 구성하세요.",
     "title": "비용 추정기",
@@ -4176,5 +4187,25 @@
       }
     },
     "search": "Search your library"
+  },
+  "reasoningPresets": {
+    "defaultLabel": "Default response style",
+    "replyLabel": "Response style",
+    "forNextReply": "Next reply style: {{preset}}",
+    "useDefault": "Use default ({{preset}})",
+    "styleOnly": "This model uses the response instructions without a separate effort control.",
+    "outputLimit": "Encore ran out of room for this reply. Choose Quick if available, or try a narrower question.",
+    "quick": {
+      "label": "Quick",
+      "description": "Faster replies for simple questions and lookups."
+    },
+    "standard": {
+      "label": "Standard",
+      "description": "A balance of speed and detail for everyday use."
+    },
+    "expanded": {
+      "label": "Expanded",
+      "description": "More time to work through complex requests and comparisons."
+    }
   }
 }

@@ -1,6 +1,6 @@
 import { generateText } from 'ai'
 import { query } from './db.js'
-import { getTextGenerationModelInstance } from './ai-provider.js'
+import { getGenerationCall } from './ai-provider.js'
 import { buildAiLanguageInstruction, DEFAULT_LOCALE, type AppLocaleCode } from './locales.js'
 import { resolveEffectiveAiLanguage } from './userSettings.js'
 
@@ -177,7 +177,7 @@ export async function generatePlaylistText(params: {
 }): Promise<string> {
   const aiLocale = await resolvePlaylistAiLocale(params.userId)
   const langBlock = `\n\n${buildAiLanguageInstruction(aiLocale)}`
-  const model = await getTextGenerationModelInstance()
+  const generation = await getGenerationCall('textGeneration', params.kind === 'name' ? 50 : 150, params.kind === 'name' ? 0.9 : 0.8)
 
   const system =
     params.kind === 'name'
@@ -185,11 +185,9 @@ export async function generatePlaylistText(params: {
       : buildPlaylistDescriptionSystemPrompt(params.mode, langBlock, params.descriptionOptions)
 
   const { text } = await generateText({
-    model,
+    ...generation,
     system,
     prompt: params.prompt,
-    temperature: params.kind === 'name' ? 0.9 : 0.8,
-    maxOutputTokens: params.kind === 'name' ? 50 : 150,
   })
 
   if (!text) {
