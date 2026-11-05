@@ -44,7 +44,7 @@ export function MediaBackdrop({ backdropUrl, title, onBack }: MediaBackdropProps
           sx={{
             width: '100%',
             height: '100%',
-            background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+            background: 'var(--ap-backdrop-fallback, linear-gradient(135deg, #1a1a2e 0%, #16213e 100%))',
           }}
         />
       )}
@@ -57,7 +57,7 @@ export function MediaBackdrop({ backdropUrl, title, onBack }: MediaBackdropProps
           left: 0,
           right: 0,
           height: '60%',
-          background: 'linear-gradient(to top, rgba(18,18,18,1) 0%, rgba(18,18,18,0) 100%)',
+          background: 'var(--ap-backdrop-fade, linear-gradient(to top, rgba(18,18,18,1) 0%, rgba(18,18,18,0) 100%))',
         }}
       />
 

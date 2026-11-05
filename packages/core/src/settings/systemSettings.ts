@@ -615,7 +615,11 @@ function isValidChatAssistantModel(model: string): model is ChatAssistantModel {
 // AI Recommendations Output Format Settings
 // ============================================================================
 
+export type AiRecsOutputMode = 'library' | 'off' | 'playlist'
+
 export interface AiRecsOutputConfig {
+  moviesOutputMode: AiRecsOutputMode
+  seriesOutputMode: AiRecsOutputMode
   moviesUseSymlinks: boolean
   seriesUseSymlinks: boolean
 }
@@ -624,9 +628,13 @@ export interface AiRecsOutputConfig {
  * Get AI recommendations output format configuration
  */
 export async function getAiRecsOutputConfig(): Promise<AiRecsOutputConfig> {
+  const moviesMode = await getSystemSetting('ai_recs_movies_output_mode')
+  const seriesMode = await getSystemSetting('ai_recs_series_output_mode')
   const movies = await getSystemSetting('ai_recs_movies_use_symlinks')
   const series = await getSystemSetting('ai_recs_series_use_symlinks')
   return {
+    moviesOutputMode: moviesMode === 'off' || moviesMode === 'playlist' ? moviesMode : 'library',
+    seriesOutputMode: seriesMode === 'off' || seriesMode === 'playlist' ? seriesMode : 'library',
     moviesUseSymlinks: movies !== 'false', // Defaults to true (symlinks recommended)
     seriesUseSymlinks: series !== 'false', // Defaults to true (symlinks recommended)
   }
@@ -638,6 +646,12 @@ export async function getAiRecsOutputConfig(): Promise<AiRecsOutputConfig> {
 export async function setAiRecsOutputConfig(
   config: Partial<AiRecsOutputConfig>
 ): Promise<AiRecsOutputConfig> {
+  if (config.moviesOutputMode !== undefined) {
+    await setSystemSetting('ai_recs_movies_output_mode', config.moviesOutputMode)
+  }
+  if (config.seriesOutputMode !== undefined) {
+    await setSystemSetting('ai_recs_series_output_mode', config.seriesOutputMode)
+  }
   if (config.moviesUseSymlinks !== undefined) {
     await setSystemSetting(
       'ai_recs_movies_use_symlinks',

@@ -4,6 +4,25 @@ import { requireAuth, type SessionUser } from '../../../../plugins/auth.js'
 import { requireSelfOrAdmin } from './shared.js'
 
 export function registerWatchHistoryHandlers(fastify: FastifyInstance) {
+  // Exact lookup: independent of history pagination or title ordering.
+  fastify.get<{ Params: { id: string; movieId: string } }>(
+    '/api/users/:id/watch-history/movies/:movieId',
+    { preHandler: requireAuth, schema: { tags: ['users'], params: { type: 'object', required: ['id', 'movieId'], properties: { id: { type: 'string', format: 'uuid' }, movieId: { type: 'string', format: 'uuid' } } } } },
+    async (request, reply) => {
+      const { id, movieId } = request.params
+      if (!requireSelfOrAdmin(id, request.user as SessionUser, reply)) return
+      const row = await queryOne<{ play_count: number; last_played_at: Date | null; played: boolean }>(
+        `SELECT wh.play_count, wh.last_played_at, wh.played AS played
+         FROM watch_history wh JOIN movies m ON m.id = wh.movie_id
+         LEFT JOIN library_config lc ON lc.provider_library_id = m.provider_library_id
+         WHERE wh.user_id = $1 AND wh.movie_id = $2
+           AND (NOT EXISTS (SELECT 1 FROM library_config) OR lc.is_enabled = true)
+         LIMIT 1`, [id, movieId]
+      )
+      return { isWatched: Boolean(row && (row.played || row.play_count > 0)), playCount: row?.play_count ?? 0, lastWatched: row?.last_played_at ?? null }
+    }
+  )
+
   /**
    * GET /api/users/:id/watch-history
    * Get user's watch history with pagination

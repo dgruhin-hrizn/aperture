@@ -10,13 +10,16 @@ import fs from 'fs/promises'
 import path from 'path'
 import { createChildLogger } from '../../lib/logger.js'
 import { query, queryOne } from '../../lib/db.js'
+import { getUserSeriesLibraryName } from './library.js'
 import { getConfig } from '../config.js'
-import { getAiRecsOutputConfig } from '../../settings/systemSettings.js'
-import { getMediaServerProvider } from '../../media/index.js'
+import { getAiRecsOutputConfig, getMediaServerApiKey } from '../../settings/systemSettings.js'
+import { EmbyProvider, getMediaServerProvider } from '../../media/index.js'
+import { assertPrivateRecommendationLibrary, getAllowedRecommendationSourceIds, getVisibleRecommendationItems } from '../../media/emby/recommendationAccess.js'
 import { downloadImage } from '../images.js'
 import { generateSeriesNfoContent } from './nfo.js'
-import { getEffectiveAiExplanationSetting } from '../../lib/userSettings.js'
+import { getEffectiveAiExplanationSetting, resolveEffectiveAiLanguage } from '../../lib/userSettings.js'
 import { symlinkArtwork, symlinkBasenameMatchedSidecars, SERIES_SKIP_FILES, getSeriesFolderFromSeasonPath } from '../artwork.js'
+import type { SeriesRecommendationGroup } from '../../recommender/series/groups.js'
 import type { Series, Actor } from './types.js'
 import type { ImageDownloadTask } from '../types.js'
 
@@ -132,14 +135,48 @@ function generateSortingPlaceholderNfo(seriesTitle: string, rank: number): strin
   return lines.join('\n')
 }
 
+async function getOutputEpisodes(seriesId: string) {
+  return query<{
+    id: string
+    provider_item_id: string
+    season_number: number
+    episode_number: number
+    title: string
+    overview: string | null
+    premiere_date: string | null
+    year: number | null
+    runtime_minutes: number | null
+    path: string | null
+  }>(
+    `SELECT id, provider_item_id, season_number, episode_number, title,
+            overview, premiere_date, year, runtime_minutes, path
+     FROM episodes
+     WHERE series_id = $1
+     ORDER BY season_number, episode_number`,
+    [seriesId]
+  )
+}
+
+export async function getLatestSeriesOutputRunId(userId: string): Promise<string | null> {
+  const latestRun = await queryOne<{ id: string }>(
+    `SELECT id FROM recommendation_runs
+     WHERE user_id = $1 AND media_type = 'series' AND status = 'completed'
+     ORDER BY created_at DESC LIMIT 1`,
+    [userId]
+  )
+  return latestRun?.id ?? null
+}
+
 /**
  * Write STRM files (or symlinks) for a user's series recommendations
  */
 export async function writeSeriesStrmFilesForUser(
   userId: string,
   providerUserId: string,
-  displayName: string
-): Promise<{ written: number; seriesCount: number; deleted: number; localPath: string; embyPath: string }> {
+  displayName: string,
+  group: SeriesRecommendationGroup | null = null,
+  recommendationRunId?: string | null
+): Promise<{ written: number; seriesCount: number; deleted: number; localPath: string; embyPath: string; withheldReason?: string }> {
   const config = await getConfig()
   const outputConfig = await getAiRecsOutputConfig()
   const useSymlinks = outputConfig.seriesUseSymlinks
@@ -154,12 +191,13 @@ export async function writeSeriesStrmFilesForUser(
   // - localPath: where Aperture writes files (inside Aperture container)
   // - embyPath: where media server sees them (inside Emby/Jellyfin container)
   // Both use 'aperture-tv' subfolder for AI series recommendations
-  const localPath = path.join(config.strmRoot, 'aperture-tv', userFolder)
-  const embyPath = path.join(config.libraryPathPrefix, 'aperture-tv', userFolder)
+  const outputFolder = group ? `${userId}-group-${group.id}` : userFolder
+  const localPath = path.join(config.strmRoot, 'aperture-tv', outputFolder)
+  const embyPath = path.join(config.libraryPathPrefix, 'aperture-tv', outputFolder)
 
   // Check for old-format folder and migrate if needed
   const oldFormatPath = path.join(config.strmRoot, 'aperture-tv', providerUserId)
-  if (userFolder !== providerUserId) {
+  if (!(provider instanceof EmbyProvider) && !group && userFolder !== providerUserId) {
     try {
       const oldFolderStats = await fs.stat(oldFormatPath)
       if (oldFolderStats.isDirectory()) {
@@ -178,21 +216,40 @@ export async function writeSeriesStrmFilesForUser(
 
   logger.info({ userId, localPath, embyPath, useSymlinks }, `📺 Starting series ${useSymlinks ? 'symlink' : 'STRM'} file generation`)
 
+  // Remove old Emby output before authorization, including legacy directory symlinks.
+  // A denied, failed, or empty authorization must never leave a previously published path.
+  let previousLibraryId: string | null | undefined
+  if (provider instanceof EmbyProvider) {
+    const previous = await queryOne<{ path: string; provider_library_id: string | null }>(
+      `SELECT path, provider_library_id FROM strm_libraries WHERE user_id = $1 AND media_type = 'series'
+       AND series_group_id IS NOT DISTINCT FROM $2::uuid`,
+      [userId, group?.id ?? null]
+    )
+    previousLibraryId = previous?.provider_library_id
+    const relative = previous && path.relative(path.join(config.libraryPathPrefix, 'aperture-tv'), previous.path)
+    if (relative && relative !== '..' && !relative.includes(path.sep)) {
+      await fs.rm(path.join(config.strmRoot, 'aperture-tv', relative), { recursive: true, force: true })
+    }
+    await fs.rm(localPath, { recursive: true, force: true })
+    if (!group && oldFormatPath !== localPath) {
+      await fs.rm(oldFormatPath, { recursive: true, force: true })
+    }
+  }
+  const embyApiKey = provider instanceof EmbyProvider ? await getMediaServerApiKey() : null
+
   // Check if AI explanation should be included for this user
   const includeAiExplanation = await getEffectiveAiExplanationSetting(userId)
+  const aiLocale = includeAiExplanation ? await resolveEffectiveAiLanguage(userId) : undefined
   logger.info({ userId, includeAiExplanation }, '🎯 AI explanation setting resolved')
 
   await fs.mkdir(localPath, { recursive: true })
 
   // Get user's latest series recommendations
-  const latestRun = await queryOne<{ id: string }>(
-    `SELECT id FROM recommendation_runs
-     WHERE user_id = $1 AND media_type = 'series' AND status = 'completed'
-     ORDER BY created_at DESC LIMIT 1`,
-    [userId]
-  )
+  const runId = recommendationRunId === undefined
+    ? await getLatestSeriesOutputRunId(userId)
+    : recommendationRunId
 
-  if (!latestRun) {
+  if (!runId) {
     logger.warn({ userId }, 'No series recommendations found')
     return { written: 0, seriesCount: 0, deleted: 0, localPath, embyPath }
   }
@@ -201,6 +258,7 @@ export async function writeSeriesStrmFilesForUser(
   const recommendations = await query<{
     series_id: string
     provider_item_id: string
+    provider_library_id: string | null
     title: string
     original_title: string | null
     sort_title: string | null
@@ -235,7 +293,7 @@ export async function writeSeriesStrmFilesForUser(
     rank: number
     final_score: string | null
   }>(
-    `SELECT rc.series_id, s.provider_item_id, s.title, s.original_title, s.sort_title,
+    `SELECT rc.series_id, s.provider_item_id, s.provider_library_id, s.title, s.original_title, s.sort_title,
             s.year, s.end_year, 
             (SELECT MIN(premiere_date) FROM episodes WHERE series_id = s.id) as premiere_date,
             s.overview, s.tagline, s.community_rating, s.critic_rating, s.content_rating,
@@ -248,11 +306,13 @@ export async function writeSeriesStrmFilesForUser(
      FROM recommendation_candidates rc
      JOIN series s ON s.id = rc.series_id
      WHERE rc.run_id = $1 AND rc.is_selected = true
+       AND rc.series_group_id IS NOT DISTINCT FROM $2::uuid
      ORDER BY rc.selected_rank ASC`,
-    [latestRun.id]
+    [runId, group?.id ?? null]
   )
 
   let recommendationRows = recommendations.rows
+  let withheldReason: string | undefined
   const includeWatched = await (await import('../../recommender/watchedExclusion.js')).getUserIncludeWatched(userId)
   if (!includeWatched) {
     const watchedIds = await (await import('../../recommender/watchedExclusion.js')).getExpandedWatchedSeriesIds(userId)
@@ -266,8 +326,25 @@ export async function writeSeriesStrmFilesForUser(
     }
   }
 
-  const totalSeries = recommendationRows.length
-  logger.info({ count: totalSeries }, '📺 Found series recommendations')
+  if (provider instanceof EmbyProvider) {
+    try {
+      if (!embyApiKey) throw new Error('Emby API key unavailable')
+      const libraryName = await getUserSeriesLibraryName(userId, displayName, config, group?.name)
+      await assertPrivateRecommendationLibrary(provider, embyApiKey, providerUserId, libraryName, embyPath, previousLibraryId)
+      const allowed = new Set(await getAllowedRecommendationSourceIds(provider, embyApiKey, providerUserId, 'tvshows'))
+      recommendationRows = recommendationRows.filter(
+        (row) => row.provider_library_id && allowed.has(row.provider_library_id)
+          && (!group || group.sourceIds.includes(row.provider_library_id))
+      )
+    } catch (err) {
+      logger.warn({ err, userId }, 'Withholding TV output because Emby source access could not be verified')
+      withheldReason = err instanceof Error ? err.message : 'Could not verify Emby source or output access'
+      recommendationRows = []
+    }
+  }
+
+  let totalSeries = 0
+  logger.info({ count: recommendationRows.length }, '📺 Found series recommendations')
 
   const expectedFolders = new Set<string>()
   const imageDownloads: ImageDownloadTask[] = []
@@ -280,6 +357,27 @@ export async function writeSeriesStrmFilesForUser(
   // Process each series
   for (let i = 0; i < recommendationRows.length; i++) {
     const rec = recommendationRows[i]
+    let verifiedEpisodes: Awaited<ReturnType<typeof getOutputEpisodes>>['rows'] | undefined
+    if (provider instanceof EmbyProvider) {
+      try {
+        if (!embyApiKey) continue
+        const { rows } = await getOutputEpisodes(rec.series_id)
+        const visible = await getVisibleRecommendationItems(
+          provider, embyApiKey, providerUserId,
+          rows.filter((episode) => episode.path).map((episode) => episode.provider_item_id),
+          'Episode', rec.provider_item_id
+        )
+        verifiedEpisodes = rows.filter(
+          (episode) => episode.path && path.extname(episode.path).toLowerCase() !== '.strm'
+            && visible.get(episode.provider_item_id)?.Path === episode.path
+        )
+        if (verifiedEpisodes.length === 0) continue
+      } catch (err) {
+        logger.warn({ err, userId, seriesId: rec.series_id }, 'Withholding series because Emby episode access could not be verified')
+        continue
+      }
+    }
+    totalSeries++
     
     // Parse actors JSON
     let actors: Actor[] | null = null
@@ -358,6 +456,7 @@ export async function writeSeriesStrmFilesForUser(
       includeImageUrls: !config.downloadImages,
       dateAdded,
       includeAiExplanation,
+      aiLocale,
       rank: series.rank,
     })
     await fs.writeFile(seriesNfoPath, nfoContent, 'utf-8')
@@ -408,7 +507,7 @@ export async function writeSeriesStrmFilesForUser(
     
     logger.debug({ series: series.title, rank: series.rank, dateAdded }, '📅 Created sorting placeholder for home row ordering')
 
-    if (useSymlinks) {
+    if (useSymlinks && !(provider instanceof EmbyProvider)) {
       // SYMLINKS MODE: Symlink entire season folders from original location
       const seasonPaths = await query<{ season_number: number; season_path: string }>(
         `SELECT DISTINCT season_number, 
@@ -460,30 +559,12 @@ export async function writeSeriesStrmFilesForUser(
         '🔗 Series symlinks created'
       )
     } else {
-      // STRM MODE: Create STRM files for each episode
-      const episodes = await query<{
-        id: string
-        provider_item_id: string
-        season_number: number
-        episode_number: number
-        title: string
-        overview: string | null
-        premiere_date: string | null
-        year: number | null
-        runtime_minutes: number | null
-        path: string | null
-      }>(
-        `SELECT id, provider_item_id, season_number, episode_number, title,
-                overview, premiere_date, year, runtime_minutes, path
-         FROM episodes
-         WHERE series_id = $1
-         ORDER BY season_number, episode_number`,
-        [series.id]
-      )
+      // Emby symlinks and STRM output both publish individual episodes.
+      const episodes = verifiedEpisodes ?? (await getOutputEpisodes(series.id)).rows
 
       // Group episodes by season
-      const seasons = new Map<number, typeof episodes.rows>()
-      for (const ep of episodes.rows) {
+      const seasons = new Map<number, typeof episodes>()
+      for (const ep of episodes) {
         if (!seasons.has(ep.season_number)) {
           seasons.set(ep.season_number, [])
         }
@@ -539,8 +620,12 @@ export async function writeSeriesStrmFilesForUser(
             }
           }
 
-          const strmPath = path.join(seasonFolderPath, `${episodeFilename}.strm`)
-          await fs.writeFile(strmPath, episode.path, 'utf-8')
+          if (useSymlinks) {
+            await fs.symlink(episode.path, path.join(seasonFolderPath, episodeFilename + path.extname(episode.path)))
+          } else {
+            const strmPath = path.join(seasonFolderPath, `${episodeFilename}.strm`)
+            await fs.writeFile(strmPath, episode.path, 'utf-8')
+          }
           filesWritten++
 
           // Write episode NFO
@@ -560,7 +645,7 @@ export async function writeSeriesStrmFilesForUser(
         }
       }
 
-      // Download additional images via API (STRM mode only - symlink mode symlinks these)
+      // Download artwork when the output does not link entire source folders.
       if (config.downloadImages) {
         const additionalImages = [
           { url: provider.getBannerUrl(series.providerItemId), filename: 'banner.jpg' },
@@ -580,7 +665,7 @@ export async function writeSeriesStrmFilesForUser(
       }
 
       logger.info(
-        { series: series.title, seasons: seasons.size, episodes: episodes.rows.length },
+        { series: series.title, seasons: seasons.size, episodes: episodes.length },
         '✅ Series processed'
       )
     }
@@ -673,6 +758,7 @@ export async function writeSeriesStrmFilesForUser(
   return {
     written: filesWritten,
     seriesCount: totalSeries,
+    withheldReason,
     deleted,
     localPath,
     embyPath,

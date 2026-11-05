@@ -82,9 +82,9 @@ export interface MediaServerProvider {
   ): Promise<LibraryCreateResult>
 
   /**
-   * Remove a virtual library from the media server by its display name
+   * Remove a resolved virtual library from the media server
    */
-  deleteVirtualLibrary(apiKey: string, name: string): Promise<void>
+  deleteVirtualLibrary(apiKey: string, library: Pick<Library, 'id' | 'name'>): Promise<void>
 
   /**
    * Get user's current library access settings
@@ -235,7 +235,8 @@ export interface MediaServerProvider {
   /**
    * Get items in a playlist
    */
-  getPlaylistItems(apiKey: string, playlistId: string): Promise<PlaylistItem[]>
+  getPlaylistItems(apiKey: string, playlistId: string, limit?: number): Promise<PlaylistItem[]>
+  getPlaylistPreview(apiKey: string, playlistId: string): Promise<{ items: PlaylistItem[]; total: number }>
 
   /**
    * Remove items from a playlist

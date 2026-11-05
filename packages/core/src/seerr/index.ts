@@ -25,9 +25,11 @@ export {
   createRequest,
   getRequest,
   getRequestStatus,
+  batchGetRequestStatus,
   deleteRequest,
   // Batch Operations
   batchGetMediaStatus,
+  batchGetMediaStatusByMedia,
   // Radarr / Sonarr (request options UI)
   listRadarrServers,
   getRadarrServerDetails,

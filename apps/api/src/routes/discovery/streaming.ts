@@ -7,7 +7,7 @@ import { queryOne } from '../../lib/db.js'
 import {
   attachLibraryMatch,
   attachTmdbPosterPaths,
-  batchGetSeerrMediaStatus,
+  batchGetSeerrMediaStatusByMedia,
   buildCacheKey,
   fetchPopularTitles,
   fetchProviders,
@@ -45,7 +45,9 @@ async function assertStreamingDiscoveryAllowed(
   userId: string
 ): Promise<{ ok: true } | { ok: false; statusCode: number; body: Record<string, unknown> }> {
   const [user, streamingOn] = await Promise.all([
-    queryOne<{ discover_enabled: boolean }>(`SELECT discover_enabled FROM users WHERE id = $1`, [userId]),
+    queryOne<{ discover_enabled: boolean }>(`SELECT discover_enabled FROM users WHERE id = $1`, [
+      userId,
+    ]),
     getStreamingDiscoveryEnabled(),
   ])
   if (!user?.discover_enabled) {
@@ -65,7 +67,9 @@ async function assertStreamingDiscoveryAllowed(
   return { ok: true }
 }
 
-function rowToSeerrItem(row: JustWatchStreamingRow): { tmdbId: number; mediaType: 'movie' | 'tv' } | null {
+function rowToSeerrItem(
+  row: JustWatchStreamingRow
+): { tmdbId: number; mediaType: 'movie' | 'tv' } | null {
   if (!row.tmdbId) return null
   if (row.objectType === 'MOVIE') return { tmdbId: row.tmdbId, mediaType: 'movie' }
   if (row.objectType === 'SHOW') return { tmdbId: row.tmdbId, mediaType: 'tv' }
@@ -74,7 +78,7 @@ function rowToSeerrItem(row: JustWatchStreamingRow): { tmdbId: number; mediaType
 
 async function attachSeerrStatuses(
   rows: JustWatchStreamingRow[]
-): Promise<Record<number, { exists: boolean; status: string; requested: boolean }>> {
+): Promise<Record<string, { exists: boolean; status: string; requested: boolean }>> {
   const seerrOk = await isSeerrConfigured()
   if (!seerrOk || rows.length === 0) return {}
 
@@ -86,8 +90,8 @@ async function attachSeerrStatuses(
   }
   if (items.length === 0) return {}
 
-  const map = await batchGetSeerrMediaStatus(items)
-  const out: Record<number, { exists: boolean; status: string; requested: boolean }> = {}
+  const map = await batchGetSeerrMediaStatusByMedia(items)
+  const out: Record<string, { exists: boolean; status: string; requested: boolean }> = {}
   for (const [tmdbId, st] of map) {
     out[tmdbId] = st
   }
@@ -95,18 +99,24 @@ async function attachSeerrStatuses(
 }
 
 export function registerStreamingDiscoveryRoutes(fastify: FastifyInstance) {
-  fastify.get('/api/discovery/streaming/config', { preHandler: requireAuth }, async (request, reply) => {
-    const currentUser = request.user as SessionUser
-    const gate = await assertStreamingDiscoveryAllowed(currentUser.id)
-    if (!gate.ok) {
-      return reply.status(gate.statusCode).send(gate.body)
+  fastify.get(
+    '/api/discovery/streaming/config',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const currentUser = request.user as SessionUser
+      const gate = await assertStreamingDiscoveryAllowed(currentUser.id)
+      if (!gate.ok) {
+        return reply.status(gate.statusCode).send(gate.body)
+      }
+      const providerStrips = await getStreamingDiscoveryProviderStrips()
+      return reply.send({ providerStrips })
     }
-    const providerStrips = await getStreamingDiscoveryProviderStrips()
-    return reply.send({ providerStrips })
-  })
+  )
 
   fastify.get<{
     Querystring: {
+      includeStatuses?: string
+      cachedPostersOnly?: string
       country?: string
       language?: string
       provider?: string
@@ -150,17 +160,35 @@ export function registerStreamingDiscoveryRoutes(fastify: FastifyInstance) {
       )
       let rows = parsePopularEdges(raw)
       rows = await attachLibraryMatch(rows)
-      rows = await attachTmdbPosterPaths(rows, { language })
+      rows = await attachTmdbPosterPaths(rows, {
+        language,
+        cachedOnly: request.query.cachedPostersOnly === 'true',
+      })
       rows = sortStreamingRowsForDiscovery(rows)
       if (missingOnly) {
         rows = rows.filter((r: JustWatchStreamingRow) => !r.inLibrary && r.tmdbId != null)
       }
-      const seerrStatuses = await attachSeerrStatuses(rows)
-      return reply.send({ rows, stale, seerrStatuses })
+      const seerrStatuses =
+        request.query.includeStatuses === 'false' ? {} : await attachSeerrStatuses(rows)
+      return reply.send({
+        rows,
+        stale,
+        seerrStatuses: Object.fromEntries(
+          Object.entries(seerrStatuses).map(([key, value]) => [key.split(':')[1], value])
+        ),
+        seerrStatusesByMedia: seerrStatuses,
+      })
     } catch (e) {
       if (e instanceof Error && e.message === 'JUSTWATCH_UNAVAILABLE') {
         fastify.log.warn({ country }, 'JustWatch popular fetch failed with no cache')
-        return reply.status(502).send({ error: 'Streaming data temporarily unavailable', rows: [], stale: false, seerrStatuses: {} })
+        return reply
+          .status(502)
+          .send({
+            error: 'Streaming data temporarily unavailable',
+            rows: [],
+            stale: false,
+            seerrStatuses: {},
+          })
       }
       const msg = e instanceof Error ? e.message : 'Unknown error'
       fastify.log.error({ err: e }, 'JustWatch popular error')
@@ -171,6 +199,8 @@ export function registerStreamingDiscoveryRoutes(fastify: FastifyInstance) {
   fastify.get<{
     Querystring: {
       q?: string
+      includeStatuses?: string
+      cachedPostersOnly?: string
       country?: string
       language?: string
       provider?: string
@@ -221,16 +251,34 @@ export function registerStreamingDiscoveryRoutes(fastify: FastifyInstance) {
       )
       let rows = parsePopularEdges(raw)
       rows = await attachLibraryMatch(rows)
-      rows = await attachTmdbPosterPaths(rows, { language })
+      rows = await attachTmdbPosterPaths(rows, {
+        language,
+        cachedOnly: request.query.cachedPostersOnly === 'true',
+      })
       rows = sortStreamingRowsForDiscovery(rows)
       if (missingOnly) {
         rows = rows.filter((r: JustWatchStreamingRow) => !r.inLibrary && r.tmdbId != null)
       }
-      const seerrStatuses = await attachSeerrStatuses(rows)
-      return reply.send({ rows, stale, seerrStatuses })
+      const seerrStatuses =
+        request.query.includeStatuses === 'false' ? {} : await attachSeerrStatuses(rows)
+      return reply.send({
+        rows,
+        stale,
+        seerrStatuses: Object.fromEntries(
+          Object.entries(seerrStatuses).map(([key, value]) => [key.split(':')[1], value])
+        ),
+        seerrStatusesByMedia: seerrStatuses,
+      })
     } catch (e) {
       if (e instanceof Error && e.message === 'JUSTWATCH_UNAVAILABLE') {
-        return reply.status(502).send({ error: 'Streaming data temporarily unavailable', rows: [], stale: false, seerrStatuses: {} })
+        return reply
+          .status(502)
+          .send({
+            error: 'Streaming data temporarily unavailable',
+            rows: [],
+            stale: false,
+            seerrStatuses: {},
+          })
       }
       const msg = e instanceof Error ? e.message : 'Unknown error'
       fastify.log.error({ err: e }, 'JustWatch search error')
@@ -256,7 +304,9 @@ export function registerStreamingDiscoveryRoutes(fastify: FastifyInstance) {
       return reply.send({ providers, stale })
     } catch (e) {
       if (e instanceof Error && e.message === 'JUSTWATCH_UNAVAILABLE') {
-        return reply.status(502).send({ error: 'Streaming data temporarily unavailable', providers: [], stale: false })
+        return reply
+          .status(502)
+          .send({ error: 'Streaming data temporarily unavailable', providers: [], stale: false })
       }
       const msg = e instanceof Error ? e.message : 'Unknown error'
       fastify.log.error({ err: e }, 'JustWatch providers error')

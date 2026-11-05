@@ -8,9 +8,10 @@ import {
   testSeerrConnection,
   getSeerrMediaStatus,
   getSeerrTVDetails,
-  batchGetSeerrMediaStatus,
+  batchGetSeerrMediaStatusByMedia,
   createSeerrRequest,
   getSeerrRequestStatus,
+  batchGetSeerrRequestStatus,
   createDiscoveryRequest,
   updateDiscoveryRequestStatus,
   getDiscoveryRequests,
@@ -535,6 +536,7 @@ const seerrRoutes: FastifyPluginAsync = async (fastify) => {
       limit?: string
       offset?: string
       source?: string
+      includeLive?: string
     }
   }>(
     '/api/seerr/requests',
@@ -568,7 +570,7 @@ const seerrRoutes: FastifyPluginAsync = async (fastify) => {
         }),
       ])
 
-      if (!(await isSeerrConfigured())) {
+      if (request.query.includeLive === 'false' || !(await isSeerrConfigured())) {
         const withLibrary = await attachLibraryMediaIds(
           requests.map((r) => ({
             ...r,
@@ -592,6 +594,21 @@ const seerrRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.send({ requests: withLibrary, total })
     }
   )
+
+  // Status enrichment is optional; only IDs belonging to this caller may be checked.
+  fastify.post<{ Body: { requestIds: number[] } }>('/api/seerr/requests/status/batch', {
+    preHandler: requireAuth,
+    schema: { body: { type: 'object', required: ['requestIds'], additionalProperties: false, properties: {
+      requestIds: { type: 'array', minItems: 1, maxItems: 100, uniqueItems: true, items: { type: 'integer', minimum: 1 } },
+    } } },
+  }, async (request, reply) => {
+    const owned = await query<{ seerr_request_id: number }>(
+      'SELECT DISTINCT seerr_request_id FROM discovery_requests WHERE user_id = $1 AND seerr_request_id = ANY($2::integer[])',
+      [request.user!.id, request.body.requestIds]
+    )
+    const statuses = await batchGetSeerrRequestStatus(owned.rows.map(row => row.seerr_request_id))
+    return reply.send({ statuses: Object.fromEntries(statuses) })
+  })
 
   /**
    * POST /api/seerr/status/batch
@@ -627,7 +644,8 @@ const seerrRoutes: FastifyPluginAsync = async (fastify) => {
         mediaType: (item.mediaType === 'movie' ? 'movie' : 'tv') as 'movie' | 'tv',
       }))
 
-      const statusMap = await batchGetSeerrMediaStatus(seerrItems)
+      const typedStatuses = await batchGetSeerrMediaStatusByMedia(seerrItems)
+      const statusMap = new Map([...typedStatuses].map(([key, value]) => [Number(key.split(':')[1]), value]))
 
       // Convert Map to object for JSON response
       const statuses: Record<number, {
@@ -641,7 +659,7 @@ const seerrRoutes: FastifyPluginAsync = async (fastify) => {
         statuses[tmdbId] = status
       }
 
-      return reply.send({ statuses })
+      return reply.send({ statuses, statusesByMedia: Object.fromEntries(typedStatuses) })
     }
   )
 

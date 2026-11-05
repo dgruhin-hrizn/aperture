@@ -4,6 +4,12 @@ Background jobs power Aperture's core functionality, from syncing media to gener
 
 ![Admin Jobs](../images/admin/admin-jobs.png)
 
+## Import, publish, and generate
+
+- **Import Media Server** in the Global tab imports users, the movie and TV catalog, and watch history. It uses no AI tokens and publishes nothing.
+- **Publish to media server** runs movie or TV library sync against existing picks. It writes the configured output or reconciles retired output and uses no AI tokens.
+- **AI Processing** contains embedding generation and recommendation jobs that can use model tokens. Discovery and assistant suggestion jobs can also use tokens.
+
 ## Accessing Jobs
 
 Navigate to **Admin → Jobs**

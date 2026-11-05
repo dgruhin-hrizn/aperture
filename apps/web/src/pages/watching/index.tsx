@@ -1,6 +1,6 @@
 /**
  * Shows You Watch Page
- * 
+ *
  * Displays and manages the user's watching series list.
  */
 
@@ -13,6 +13,7 @@ import {
   Button,
   Alert,
   Skeleton,
+  LinearProgress,
   Snackbar,
   Chip,
   ToggleButtonGroup,
@@ -39,7 +40,18 @@ export function WatchingPage() {
   const { t } = useTranslation()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
-  const { series, loading, error, refreshing, removeSeries, refreshLibrary, refetch } = useWatchingData()
+  const {
+    series,
+    loading,
+    error,
+    refreshing,
+    upcomingLoading,
+    upcomingError,
+    refreshUpcoming,
+    removeSeries,
+    refreshLibrary,
+    refetch,
+  } = useWatchingData()
   const { getRating, setRating } = useUserRatings()
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [snackbar, setSnackbar] = useState<{
@@ -67,7 +79,11 @@ export function WatchingPage() {
     try {
       const result = await refreshLibrary()
       if (!result.success) {
-        setSnackbar({ open: true, message: result.message || t('watching.syncFailed'), severity: 'error' })
+        setSnackbar({
+          open: true,
+          message: result.message || t('watching.syncFailed'),
+          severity: 'error',
+        })
         return
       }
       if (result.skipped) {
@@ -75,10 +91,14 @@ export function WatchingPage() {
         return
       }
       const detail: string[] = []
-      if (result.pushedToServer > 0) detail.push(t('watching.detailFavorited', { count: result.pushedToServer }))
-      if (result.removedFromDb > 0) detail.push(t('watching.detailRemovedLocal', { count: result.removedFromDb }))
-      if (result.pulledIntoDb > 0) detail.push(t('watching.detailAddedFromServer', { count: result.pulledIntoDb }))
-      if (result.pushErrors > 0) detail.push(t('watching.detailPushErrors', { count: result.pushErrors }))
+      if (result.pushedToServer > 0)
+        detail.push(t('watching.detailFavorited', { count: result.pushedToServer }))
+      if (result.removedFromDb > 0)
+        detail.push(t('watching.detailRemovedLocal', { count: result.removedFromDb }))
+      if (result.pulledIntoDb > 0)
+        detail.push(t('watching.detailAddedFromServer', { count: result.pulledIntoDb }))
+      if (result.pushErrors > 0)
+        detail.push(t('watching.detailPushErrors', { count: result.pushErrors }))
       const message =
         detail.length > 0 ? `${result.message} (${detail.join(', ')})` : result.message
       setSnackbar({ open: true, message, severity: 'success' })
@@ -103,7 +123,10 @@ export function WatchingPage() {
       // Sort by upcoming episode air date (soonest first)
       // Series without upcoming episodes go to the end
       if (a.upcomingEpisode && b.upcomingEpisode) {
-        return new Date(a.upcomingEpisode.airDate).getTime() - new Date(b.upcomingEpisode.airDate).getTime()
+        return (
+          new Date(a.upcomingEpisode.airDate).getTime() -
+          new Date(b.upcomingEpisode.airDate).getTime()
+        )
       }
       if (a.upcomingEpisode) return -1
       if (b.upcomingEpisode) return 1
@@ -131,13 +154,7 @@ export function WatchingPage() {
   return (
     <Box>
       {/* Header */}
-      <Box
-        display="flex"
-        justifyContent="space-between"
-        alignItems="flex-start"
-        gap={2}
-        mb={2}
-      >
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" gap={2} mb={2}>
         <Box>
           <Typography variant="h4" fontWeight={700} mb={{ xs: 0, sm: 0.5 }}>
             {t('nav.showsYouWatch')}
@@ -170,7 +187,9 @@ export function WatchingPage() {
       <Box display="flex" gap={1} mb={2}>
         {isMobile ? (
           <>
-            <Tooltip title={refreshing ? t('watching.tooltipSyncing') : t('watching.tooltipSyncFavorites')}>
+            <Tooltip
+              title={refreshing ? t('watching.tooltipSyncing') : t('watching.tooltipSyncFavorites')}
+            >
               <span>
                 <IconButton
                   onClick={handleRefresh}
@@ -187,7 +206,12 @@ export function WatchingPage() {
                 onClick={() => setAddDialogOpen(true)}
                 size="small"
                 color="primary"
-                sx={{ bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' } }}
+                sx={{
+                  bgcolor: 'primary.main',
+                  color: (theme) =>
+                    theme.aperture.name === 'studio' ? theme.palette.primary.contrastText : 'white',
+                  '&:hover': { bgcolor: 'primary.dark' },
+                }}
               >
                 <AddIcon fontSize="small" />
               </IconButton>
@@ -263,10 +287,16 @@ export function WatchingPage() {
             <ToggleButton value="all">
               {t('watching.filterAll', { count: series.length })}
             </ToggleButton>
-            <ToggleButton value="airing" sx={{ color: filter === 'airing' ? 'success.main' : undefined }}>
+            <ToggleButton
+              value="airing"
+              sx={{ color: filter === 'airing' ? 'success.main' : undefined }}
+            >
               {t('watching.filterAiring', { count: airingCount })}
             </ToggleButton>
-            <ToggleButton value="upcoming" sx={{ color: filter === 'upcoming' ? 'primary.main' : undefined }}>
+            <ToggleButton
+              value="upcoming"
+              sx={{ color: filter === 'upcoming' ? 'primary.main' : undefined }}
+            >
               {t('watching.filterUpcoming', { count: upcomingCount })}
             </ToggleButton>
           </ToggleButtonGroup>
@@ -276,6 +306,21 @@ export function WatchingPage() {
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
           {error}
+        </Alert>
+      )}
+
+      {upcomingLoading && <LinearProgress aria-label={t('common.loading')} sx={{ mb: 2 }} />}
+      {upcomingError && (
+        <Alert
+          severity="warning"
+          sx={{ mb: 2 }}
+          action={
+            <Button color="inherit" size="small" onClick={refreshUpcoming}>
+              {t('dashboard.refresh')}
+            </Button>
+          }
+        >
+          {t('dashboard.upcomingEpisodes')}: {t('watching.noEpisodeData')}
         </Alert>
       )}
 
@@ -315,7 +360,11 @@ export function WatchingPage() {
           }}
         >
           <Typography variant="body1" color="text.secondary">
-            {t('watching.noMatchFilter')}
+            {upcomingLoading
+              ? t('common.loading')
+              : upcomingError
+                ? t('watching.noEpisodeData')
+                : t('watching.noMatchFilter')}
           </Typography>
         </Box>
       ) : viewMode === 'list' ? (

@@ -7,6 +7,8 @@ import {
   Paper,
   Button,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material'
 import BuildIcon from '@mui/icons-material/Build'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
@@ -109,6 +111,8 @@ function aiSubParamFromIndex(index: number): string {
 
 export function SettingsPage() {
   const { t } = useTranslation()
+  const theme = useTheme()
+  const studioSidebar = useMediaQuery(theme.breakpoints.up('lg')) && theme.aperture.name === 'studio'
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [tabValue, setTabValue] = useState(() => adminMainIndexFromParam(searchParams.get('tab')))
@@ -195,6 +199,7 @@ export function SettingsPage() {
         sx={{
           backgroundColor: 'background.paper',
           borderRadius: 2,
+          ...(studioSidebar ? { display: 'grid', gridTemplateColumns: '180px minmax(0, 1fr)' } : {}),
         }}
         elevation={0}
       >
@@ -203,12 +208,16 @@ export function SettingsPage() {
           onChange={handleMainTabChange}
           variant="scrollable"
           scrollButtons="auto"
+          orientation={studioSidebar ? 'vertical' : 'horizontal'}
           sx={{
             px: 2,
             borderBottom: 1,
             borderColor: 'divider',
+            ...(studioSidebar ? { px: 1, py: 2, borderBottom: 0, borderInlineEnd: 1, borderColor: 'divider' } : {}),
             '& .MuiTab-root': {
-              minHeight: 56,
+              minHeight: studioSidebar ? 46 : 56,
+              justifyContent: studioSidebar ? 'flex-start' : undefined,
+              textAlign: studioSidebar ? 'start' : undefined,
               textTransform: 'none',
               fontSize: '0.9rem',
               fontWeight: 500,
@@ -224,7 +233,7 @@ export function SettingsPage() {
           <Tab icon={<SettingsIcon />} iconPosition="start" label={t('settingsPage.tabSystem')} />
         </Tabs>
 
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: theme.aperture.name === 'studio' ? { xs: 2, sm: 3 } : 3, minWidth: 0 }}>
           {/* Setup Tab */}
           <TabPanel value={tabValue} index={0}>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>

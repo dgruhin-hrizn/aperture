@@ -68,12 +68,14 @@ export async function deletePlaylist(
   await provider.fetch(`/Items/${playlistId}`, apiKey, { method: 'DELETE' })
 }
 
-export async function getPlaylistItems(
+async function getPlaylistPage(
   provider: EmbyProviderBase,
   apiKey: string,
-  playlistId: string
-): Promise<PlaylistItem[]> {
+  playlistId: string,
+  limit?: number
+): Promise<{ items: PlaylistItem[]; total: number }> {
   const response = await provider.fetch<{
+    TotalRecordCount?: number
     Items: Array<{
       Id: string
       PlaylistItemId: string
@@ -82,9 +84,9 @@ export async function getPlaylistItems(
       ImageTags?: { Primary?: string }
       RunTimeTicks?: number
     }>
-  }>(`${playlistItemsPath(playlistId)}?Fields=ImageTags,ProductionYear,RunTimeTicks`, apiKey)
+  }>(`${playlistItemsPath(playlistId)}?Fields=ImageTags,ProductionYear,RunTimeTicks${limit ? `&Limit=${limit}` : ''}`, apiKey)
 
-  return response.Items.map((item) => ({
+  const items = response.Items.map((item) => ({
     id: item.Id,
     playlistItemId: item.PlaylistItemId,
     title: item.Name,
@@ -94,6 +96,14 @@ export async function getPlaylistItems(
       : null,
     runtime: item.RunTimeTicks ? Math.round(item.RunTimeTicks / 600000000) : null,
   }))
+  return { items, total: response.TotalRecordCount ?? items.length }
+}
+
+export async function getPlaylistItems(provider: EmbyProviderBase, apiKey: string, playlistId: string, limit?: number): Promise<PlaylistItem[]> {
+  return (await getPlaylistPage(provider, apiKey, playlistId, limit)).items
+}
+export async function getPlaylistPreview(provider: EmbyProviderBase, apiKey: string, playlistId: string) {
+  return getPlaylistPage(provider, apiKey, playlistId, 5)
 }
 
 export async function removePlaylistItems(

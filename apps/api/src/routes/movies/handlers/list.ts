@@ -180,22 +180,6 @@ export function registerListHandler(fastify: FastifyInstance) {
         params.push(userId)
       }
 
-      if (minWatchers) {
-        const n = parseInt(minWatchers, 10)
-        if (!isNaN(n) && n > 0) {
-          whereClause += whereClause ? ' AND ' : ' WHERE '
-          whereClause += `(SELECT COUNT(DISTINCT user_id)::int FROM watch_history WHERE movie_id = movies.id) >= $${paramIndex++}`
-          params.push(n)
-        }
-      }
-      if (maxWatchers) {
-        const n = parseInt(maxWatchers, 10)
-        if (!isNaN(n) && n >= 0) {
-          whereClause += whereClause ? ' AND ' : ' WHERE '
-          whereClause += `(SELECT COUNT(DISTINCT user_id)::int FROM watch_history WHERE movie_id = movies.id) <= $${paramIndex++}`
-          params.push(n)
-        }
-      }
 
       // Resolution filter (4K, 1080p, 720p, SD)
       if (resolution) {
@@ -225,9 +209,33 @@ export function registerListHandler(fastify: FastifyInstance) {
         }
       }
 
+      const minimumWatchers = Number.parseInt(minWatchers ?? '', 10)
+      const maximumWatchers = Number.parseInt(maxWatchers ?? '', 10)
+      const hasMinimumWatchers = Number.isFinite(minimumWatchers) && minimumWatchers > 0
+      const hasMaximumWatchers = Number.isFinite(maximumWatchers) && maximumWatchers >= 0
+      const watcherJoin = hasMinimumWatchers || hasMaximumWatchers
+        ? ` LEFT JOIN (
+          SELECT movie_id AS item_id, COUNT(DISTINCT user_id)::int AS watcher_count
+          FROM watch_history wh
+          JOIN (SELECT id FROM movies${whereClause}) matching ON matching.id = wh.movie_id
+          GROUP BY wh.movie_id
+        ) watchers ON watchers.item_id = movies.id`
+        : ''
+
+      if (hasMinimumWatchers) {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `COALESCE(watchers.watcher_count, 0) >= $${paramIndex++}`
+        params.push(minimumWatchers)
+      }
+      if (hasMaximumWatchers) {
+        whereClause += whereClause ? ' AND ' : ' WHERE '
+        whereClause += `COALESCE(watchers.watcher_count, 0) <= $${paramIndex++}`
+        params.push(maximumWatchers)
+      }
+
       // Get total count
       const countResult = await queryOne<{ count: string }>(
-        `SELECT COUNT(*) as count FROM movies${whereClause}`,
+        `SELECT COUNT(*) as count FROM movies${watcherJoin}${whereClause}`,
         params
       )
       const total = parseInt(countResult?.count || '0', 10)
@@ -269,7 +277,7 @@ export function registerListHandler(fastify: FastifyInstance) {
         `SELECT id, provider_item_id, title, original_title, year, genres, overview,
                 community_rating, runtime_minutes, poster_url, backdrop_url, created_at, updated_at,
                 rt_critic_score, awards_summary
-         FROM movies${whereClause}
+         FROM movies${watcherJoin}${whereClause}
          ORDER BY ${orderClause}
          LIMIT $${paramIndex++} OFFSET $${paramIndex}`,
         params

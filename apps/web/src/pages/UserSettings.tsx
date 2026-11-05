@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { Box, Grid, Paper, Tab, Tabs, Typography } from '@mui/material'
+import { Box, Grid, Paper, Tab, Tabs, Typography, useTheme } from '@mui/material'
 import SettingsIcon from '@mui/icons-material/Settings'
 import PersonIcon from '@mui/icons-material/Person'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
@@ -10,6 +10,7 @@ import TuneIcon from '@mui/icons-material/Tune'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
+import { AppearanceSettingsCard } from '@/appearance/AppearanceSettingsCard'
 import { Breadcrumbs } from '@/components/Breadcrumbs'
 import { WatcherIdentitySection } from './UserSettings/WatcherIdentitySection'
 import { AlgorithmSettingsSection } from './UserSettings/AlgorithmSettingsSection'
@@ -28,6 +29,7 @@ import {
 
 export function UserSettingsPage() {
   const { t } = useTranslation()
+  const studio = useTheme().aperture.name === 'studio'
   const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const [tabValue, setTabValue] = useState(() => userSettingsTabIndexFromParam(searchParams.get('tab')))
@@ -171,6 +173,9 @@ export function UserSettingsPage() {
         <Tabs
           value={tabValue}
           onChange={handleMainTabChange}
+          variant={studio ? 'scrollable' : 'standard'}
+          scrollButtons={studio ? 'auto' : false}
+          allowScrollButtonsMobile={studio}
           sx={{
             px: 2,
             borderBottom: 1,
@@ -244,6 +249,9 @@ export function UserSettingsPage() {
 
           <TabPanel value={tabValue} index={3}>
             <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <AppearanceSettingsCard />
+              </Grid>
               <Grid item xs={12} lg={6}>
                 <UserLanguagePreferencesCard />
               </Grid>

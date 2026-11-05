@@ -6,6 +6,10 @@ on:
     tags: ['v*']
   workflow_dispatch: # Allow manual trigger
 
+concurrency:
+  group: docker-build-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
@@ -38,6 +42,19 @@ jobs:
   validate:
     name: Lint & Typecheck
     runs-on: ubuntu-latest
+    services:
+      encore-db:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: encore
+          POSTGRES_PASSWORD: encore-test-only
+          POSTGRES_DB: encore_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U encore -d encore_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      ENCORE_TEST_DATABASE_URL: postgres://encore:encore-test-only@127.0.0.1:5432/encore_test
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -50,7 +67,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
 
       - name: Install dependencies
@@ -58,6 +75,30 @@ jobs:
 
       - name: Validate
         run: pnpm validate
+
+      - name: Compile API schemas and validate published references
+        run: pnpm test:schemas
+
+      - name: Test appearance compatibility and preferences
+        run: apps/api/node_modules/.bin/tsx --test apps/web/src/appearance/theme.test.cts apps/api/src/routes/auth/appearance.test.ts packages/core/src/lib/appearancePreferences.test.ts
+
+      - name: Test Discovery loading, caches and cancellation
+        run: pnpm test:discovery
+
+      - name: Test UI loading, account isolation and read endpoints
+        run: pnpm test:ui-performance
+
+      - name: Test upcoming episodes loading, caches and ownership
+        run: pnpm test:upcoming
+
+      - name: Test mobile app navigation and keyboard viewport
+        run: pnpm test:mobile
+
+      - name: Test Encore conversation continuity and ownership
+        run: pnpm test:encore
+
+      - name: Test LAN and reverse proxy access and sessions
+        run: pnpm test:browser-access
 
   docker-amd64:
     name: Build Docker Image (amd64)
@@ -99,7 +140,7 @@ jobs:
             echo "tags=${IMAGE}:dev" >> "$GITHUB_OUTPUT"
             echo "needs_merge=false" >> "$GITHUB_OUTPUT"
           else
-            echo "tags=${IMAGE}:build-amd64" >> "$GITHUB_OUTPUT"
+            echo "tags=${IMAGE}:build-amd64-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
             echo "needs_merge=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -161,7 +202,7 @@ jobs:
           context: .
           file: ./docker/Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-arm64
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-arm64-${{ github.run_id }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=arm64
           cache-to: type=gha,mode=max,scope=arm64
@@ -195,8 +236,9 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          flavor: latest=${{ contains(github.ref_name, '-dev.') && 'false' || 'auto' }}
           tags: |
-            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/dev' }}
+            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/dev' || (startsWith(github.ref, 'refs/tags/v') && contains(github.ref_name, '-dev.')) }}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -212,5 +254,5 @@ jobs:
           done <<< "$TAGS"
 
           docker buildx imagetools create "${ARGS[@]}" \
-            "${IMAGE}:build-amd64" \
-            "${IMAGE}:build-arm64"
+            "${IMAGE}:build-amd64-${{ github.run_id }}" \
+            "${IMAGE}:build-arm64-${{ github.run_id }}"

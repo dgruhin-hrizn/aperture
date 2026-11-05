@@ -1,3 +1,4 @@
+import { apiFetch } from '../../../lib/api'
 import { useState, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -53,7 +54,7 @@ export function PlaylistViewDialog({
   const [searchingAddMovies, setSearchingAddMovies] = useState(false)
 
   // Search for movies to add to playlist
-  const searchAddMovies = useCallback(async (query: string) => {
+  const searchAddMovies = useCallback(async (query: string, signal?: AbortSignal) => {
     if (!query || query.length < 2) {
       setAddMovieResults([])
       return
@@ -61,11 +62,12 @@ export function PlaylistViewDialog({
 
     setSearchingAddMovies(true)
     try {
-      const response = await fetch(`/api/movies?search=${encodeURIComponent(query)}&pageSize=10`, {
-        credentials: 'include',
+      const response = await apiFetch(`/api/movies?search=${encodeURIComponent(query)}&pageSize=10`, {
+        credentials: 'include', signal,
       })
       if (response.ok) {
         const data = await response.json()
+        if (signal?.aborted) return
         setAddMovieResults(data.movies)
       }
     } catch {
@@ -76,12 +78,10 @@ export function PlaylistViewDialog({
   }, [])
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (open) {
-        searchAddMovies(addMovieSearch)
-      }
-    }, 300)
-    return () => clearTimeout(timer)
+    if (!open) return
+    const controller = new AbortController()
+    const timer = setTimeout(() => { void searchAddMovies(addMovieSearch, controller.signal) }, 300)
+    return () => { clearTimeout(timer); controller.abort() }
   }, [addMovieSearch, searchAddMovies, open])
 
   // Reset search when dialog closes

@@ -9,7 +9,7 @@ const logoRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/api/logo.svg', async (_request, reply) => {
     return reply
       .header('Content-Type', 'image/svg+xml')
-      .header('Cache-Control', 'public, max-age=31536000') // Cache for 1 year
+      .header('Cache-Control', 'public, max-age=3600')
       .send(apertureLogoSvg)
   })
 }

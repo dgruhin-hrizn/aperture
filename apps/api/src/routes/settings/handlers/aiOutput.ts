@@ -21,7 +21,9 @@
 import type { FastifyInstance } from 'fastify'
 import {
   getAiRecsOutputConfig,
+  getMediaServerConfig,
   setAiRecsOutputConfig,
+  reconcileStaleStrmLibraries,
   getAiExplanationConfig,
   setAiExplanationConfig,
   getUserAiExplanationSettings,
@@ -60,7 +62,7 @@ export function registerAiOutputHandlers(fastify: FastifyInstance) {
   fastify.get('/api/settings/ai-recs/output', { preHandler: requireAdmin, schema: aiRecsOutputConfigSchema }, async (_request, reply) => {
     try {
       const config = await getAiRecsOutputConfig()
-      return reply.send(config)
+      return reply.send({ ...config, embyPlaylistsSupported: (await getMediaServerConfig()).type === 'emby' })
     } catch (err) {
       fastify.log.error({ err }, 'Failed to get AI recs output format config')
       return reply.status(500).send({ error: 'Failed to get AI recommendations output format configuration' })
@@ -72,12 +74,24 @@ export function registerAiOutputHandlers(fastify: FastifyInstance) {
    */
   fastify.patch<{
     Body: {
+      moviesOutputMode?: 'library' | 'off' | 'playlist'
+      seriesOutputMode?: 'library' | 'off' | 'playlist'
       moviesUseSymlinks?: boolean
       seriesUseSymlinks?: boolean
     }
   }>('/api/settings/ai-recs/output', { preHandler: requireAdmin, schema: updateAiRecsOutputConfigSchema }, async (request, reply) => {
     try {
+      if (!request.user?.isAdmin && (request.body.moviesOutputMode || request.body.seriesOutputMode)) {
+        return reply.code(403).send({ error: 'Admin access required' })
+      }
+      if ((request.body.moviesOutputMode === 'playlist' || request.body.seriesOutputMode === 'playlist')
+        && (await getMediaServerConfig()).type !== 'emby') {
+        return reply.code(400).send({ error: 'Native recommendation playlists are available for Emby' })
+      }
       const config = await setAiRecsOutputConfig(request.body)
+      if (request.body.moviesOutputMode || request.body.seriesOutputMode) {
+        await reconcileStaleStrmLibraries()
+      }
       return reply.send({
         ...config,
         message: 'AI recommendations output format configuration updated',
@@ -339,6 +353,7 @@ export function registerAiOutputHandlers(fastify: FastifyInstance) {
         supportedMergeTags: [
           { tag: '{{username}}', description: "User's display name" },
           { tag: '{{type}}', description: 'Media type (Movies or TV Series)' },
+          { tag: '{{group}}', description: 'TV recommendation group name' },
           { tag: '{{count}}', description: 'Number of recommendations (optional)' },
           { tag: '{{date}}', description: 'Date of last recommendation run (optional)' },
         ],

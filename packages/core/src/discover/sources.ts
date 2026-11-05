@@ -32,8 +32,9 @@ import {
   getUserTraktTokens,
 } from '../trakt/index.js'
 import type { TMDbMovieResult, TMDbTVResult } from '../tmdb/types.js'
-import { GENRE_STRIP_MAX_ROW_LIMIT } from '../settings/systemSettings.js'
+import { getTMDbApiKey, GENRE_STRIP_MAX_ROW_LIMIT } from '../settings/systemSettings.js'
 import { getCandidateExclusionTmdbIds } from './filter.js'
+import { AsyncCache, concurrencyLimit } from '../lib/asyncCache.js'
 import type {
   MediaType,
   RawCandidate,
@@ -53,6 +54,9 @@ const PAGE_DELAY_MS = 50              // 50ms delay between page fetches for rat
 
 /** TMDb allows up to ~500 discover pages. */
 const GENRE_STRIP_MAX_DISCOVER_PAGE = 500
+// Cache raw public pages only: library, watched and request exclusions stay per-user and fresh.
+const limitGenrePage = concurrencyLimit(4)
+const genrePages = new AsyncCache<Awaited<ReturnType<typeof discoverMovies>> | Awaited<ReturnType<typeof discoverTV>>>(5 * 60_000)
 
 function rawFromMovieResult(movie: TMDbMovieResult): RawCandidate {
   const normalized = normalizeMovieResult(movie)
@@ -148,6 +152,8 @@ export async function fetchGenreStripDiscoverCandidates(
   }
 
   try {
+    const apiKey = await getTMDbApiKey()
+    if (!apiKey) return []
     const excludeIds = await getCandidateExclusionTmdbIds(filters.userId, mediaType)
     const pool: RawCandidate[] = []
     const seenTmdb = new Set<number>()
@@ -155,14 +161,11 @@ export async function fetchGenreStripDiscoverCandidates(
     let totalCatalog = 0
 
     for (let page = 1; page <= totalPagesCap; page++) {
-      const res =
-        mediaType === 'movie'
-          ? await discoverMovies({ ...base, page })
-          : await discoverTV({ ...base, page })
-
-      if (page > 1) {
-        await new Promise((r) => setTimeout(r, PAGE_DELAY_MS))
-      }
+      const res = await genrePages.get(JSON.stringify([apiKey, mediaType, base, page]), () =>
+        limitGenrePage<Awaited<ReturnType<typeof discoverMovies>> | Awaited<ReturnType<typeof discoverTV>>>(() => mediaType === 'movie'
+          ? discoverMovies({ ...base, page }, { apiKey, timeoutMs: 5000, maxRetries: 1 })
+          : discoverTV({ ...base, page }, { apiKey, timeoutMs: 5000, maxRetries: 1 }))
+      )
 
       if (!res || !res.results.length) {
         if (page === 1) return []

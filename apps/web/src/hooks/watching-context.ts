@@ -49,6 +49,11 @@ export interface WatchingContextValue {
   error: string | null
   /** Whether a refresh is in progress */
   refreshing: boolean
+  /** Optional forecast loading does not block membership or library cards. */
+  upcomingLoading: boolean
+  upcomingError: boolean
+  subscribeUpcoming: () => () => void
+  refreshUpcoming: () => void
   /** Check if a series is in the watching list */
   isWatching: (seriesId: string) => boolean
   /** Add a series to the watching list */

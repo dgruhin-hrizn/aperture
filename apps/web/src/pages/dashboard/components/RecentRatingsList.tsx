@@ -161,7 +161,7 @@ export function RecentRatingsList({ ratings, loading }: RecentRatingsListProps) 
                 objectFit: 'cover',
                 borderRadius: 1,
                 flexShrink: 0,
-                backgroundColor: 'grey.800',
+                backgroundColor: 'var(--ap-progress-track, #424242)',
               }}
             />
             <Box sx={{ flex: 1, minWidth: 0 }}>

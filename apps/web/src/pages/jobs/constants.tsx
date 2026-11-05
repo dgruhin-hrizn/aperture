@@ -62,6 +62,12 @@ export const SERIES_JOB_CATEGORIES: JobCategory[] = [
 
 export const GLOBAL_JOB_CATEGORIES: JobCategory[] = [
   {
+    titleKey: 'admin.jobsPage.categories.mediaImport.title',
+    descriptionKey: 'admin.jobsPage.categories.mediaImport.description',
+    color: '#3b82f6',
+    jobs: ['import-media-server', 'sync-users'],
+  },
+  {
     titleKey: 'admin.jobsPage.categories.globalMeta.title',
     descriptionKey: 'admin.jobsPage.categories.globalMeta.description',
     color: '#10b981',
@@ -77,7 +83,7 @@ export const GLOBAL_JOB_CATEGORIES: JobCategory[] = [
     titleKey: 'admin.jobsPage.categories.globalDiscovery.title',
     descriptionKey: 'admin.jobsPage.categories.globalDiscovery.description',
     color: '#ec4899',
-    jobs: ['generate-discovery-suggestions'],
+    jobs: ['generate-discovery-suggestions', 'refresh-assistant-suggestions'],
   },
   {
     titleKey: 'admin.jobsPage.categories.globalIntegrations.title',
@@ -94,6 +100,7 @@ export const JOB_CATEGORIES: JobCategory[] = [
 ]
 
 export const JOB_ICONS: Record<string, React.ReactNode> = {
+  'import-media-server': <SyncIcon />,
   'sync-movies': <MovieIcon />,
   'generate-movie-embeddings': <PsychologyIcon />,
   'sync-movie-watch-history': <HistoryIcon />,

@@ -12,14 +12,29 @@ Navigate to **Admin → Settings → AI Recommendations → Output**
 
 ## Output Formats
 
-Aperture creates virtual libraries using one of two methods:
+Choose a publishing mode independently for movies and TV:
 
 | Format | Description |
 |--------|-------------|
-| **STRM** | Text files containing path to media |
-| **Symlinks** | Filesystem links to original files |
+| **Generated library** | Publish a virtual library with STRM files or symlinks |
+| **Private Emby playlist (preview)** | Publish original Emby items into a managed playlist owned by the recipient |
+| **Off** | Remove managed output from the media server while keeping recommendations available in Aperture |
 
 ---
+
+## Emby permissions and playback
+
+For generated movie and TV libraries, Aperture checks which source libraries the recipient can access and verifies the exact file path against Emby before writing links. TV symlinks point to individual verified episodes. Aperture clears stale links on sync and withholds output when it cannot verify access or another active non-admin can see the generated library, including through **All folders**. This check does not edit other users’ Emby permissions.
+
+The private playlist preview needs the recipient’s Emby session. Each recipient must sign into Aperture with Emby before publication. Aperture creates and updates the managed playlist using that session and checks that other active non-admins cannot see it. A playlist references the original Emby items, while a generated library creates separately indexed items. Playlist placement varies by client. In Emby 4.10, users can choose a playlist for a Home Screen section.
+
+When switching modes, Aperture cleans up managed output from the old mode. If Emby is unavailable or a playlist owner’s session has expired, the next sync can retry cleanup. Run the relevant library sync to publish after a mode change.
+
+### Pin an Emby playlist to Home
+
+After a library sync creates a private Aperture-managed playlist, open **AI Picks → Emby Home** as the playlist recipient and choose **Pin to Emby Home**. This requires Emby’s Home Sections API and an active Emby sign-in to Aperture. Refresh Emby Home to see the shelf.
+
+**Unpin from Emby Home** removes the section Aperture created for that playlist. Existing Emby shelves, their settings and order, and the playlist itself stay in place. Shelves added directly in Emby remain manageable there.
 
 ## STRM Files
 

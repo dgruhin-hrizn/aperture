@@ -1,3 +1,5 @@
+import { getPlotHeadings } from '../plotHeadings.js'
+import type { AppLocaleCode } from '../../lib/locales.js'
 import type { Movie } from '../types.js'
 
 /**
@@ -19,6 +21,7 @@ export interface NfoGenerateOptions {
   dateAdded?: Date
   /** Include AI explanation of why this was recommended (default: true) */
   includeAiExplanation?: boolean
+  aiLocale?: AppLocaleCode
   /** Rank for sort title prefix (e.g., "01 - Movie Title") */
   rank?: number
 }
@@ -87,9 +90,10 @@ export function generateNfoContent(
   // Build the plot - AI explanation first (if enabled), then original overview
   let plot = ''
   if (includeAiExplanation && movie.aiExplanation) {
-    plot = '🎯 Why Aperture picked this for you:\n' + movie.aiExplanation
+    const headings = getPlotHeadings(options.aiLocale)
+    plot = `🎯 ${headings.why}\n` + movie.aiExplanation
     if (movie.overview) {
-      plot += '\n\n📖 About this movie:\n' + movie.overview
+      plot += `\n\n📖 ${headings.movie}\n` + movie.overview
     }
   } else if (movie.overview) {
     plot = movie.overview

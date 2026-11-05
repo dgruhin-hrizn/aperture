@@ -132,7 +132,7 @@ export function SeasonsList({ seasons }: SeasonsListProps) {
                     sx={{
                       width: 80,
                       height: 45,
-                      bgcolor: 'grey.800',
+                      bgcolor: 'var(--ap-progress-track, #424242)',
                       mr: 1,
                     }}
                   >

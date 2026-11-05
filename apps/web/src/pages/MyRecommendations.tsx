@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import { apiFetch } from '../lib/api'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { useNavigate } from 'react-router-dom'
@@ -50,6 +51,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useUserRatings } from '@/hooks/useUserRatings'
 import { useWatching } from '@/hooks/useWatching'
 import { useViewMode } from '@/hooks/useViewMode'
+import { EmbyHomePins } from './EmbyHomePins'
 import { formatRuntime } from '@/pages/media-detail/hooks'
 
 interface MovieRecommendation {
@@ -136,6 +138,11 @@ export function MyRecommendationsPage() {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const { user } = useAuth()
+  const userId = user?.id
+  const userRef = useRef(userId)
+  userRef.current = userId
+  const translate = useRef(t)
+  translate.current = t
   const { getRating, setRating } = useUserRatings()
   const { isWatching, toggleWatching } = useWatching()
   
@@ -176,50 +183,57 @@ export function MyRecommendationsPage() {
     title: string | null
   }>({ open: false, watchUrl: null, title: null })
 
-  const fetchMovieRecommendations = useCallback(async () => {
-    if (!user) return
+  const fetchMovieRecommendations = useCallback(async (signal?: AbortSignal) => {
+    if (!userId) return
 
     try {
-      const response = await fetch(`/api/recommendations/${user.id}`, { credentials: 'include' })
+      const response = await apiFetch(`/api/recommendations/${userId}`, { credentials: 'include', signal })
       if (response.ok) {
         const data = await response.json()
+        if (signal?.aborted || userRef.current !== userId) return
         setMovieRecommendations(data.recommendations || [])
         setMovieRunInfo(data.run)
         setMovieError(null)
       } else {
-        setMovieError(t('myRecommendations.errorLoadMovies'))
+        setMovieError(translate.current('myRecommendations.errorLoadMovies'))
       }
     } catch {
-      setMovieError(t('myRecommendations.errorConnect'))
+      if (signal?.aborted || userRef.current !== userId) return
+      setMovieError(translate.current('myRecommendations.errorConnect'))
     } finally {
       setMovieLoading(false)
     }
-  }, [user, t])
+  }, [userId])
 
-  const fetchSeriesRecommendations = useCallback(async () => {
-    if (!user) return
+  const fetchSeriesRecommendations = useCallback(async (signal?: AbortSignal) => {
+    if (!userId) return
 
     try {
-      const response = await fetch(`/api/recommendations/${user.id}/series`, { credentials: 'include' })
+      const response = await apiFetch(`/api/recommendations/${userId}/series`, { credentials: 'include', signal })
       if (response.ok) {
         const data = await response.json()
+        if (signal?.aborted || userRef.current !== userId) return
         setSeriesRecommendations(data.recommendations || [])
         setSeriesRunInfo(data.run)
         setSeriesError(null)
       } else {
-        setSeriesError(t('myRecommendations.errorLoadSeries'))
+        setSeriesError(translate.current('myRecommendations.errorLoadSeries'))
       }
     } catch {
-      setSeriesError(t('myRecommendations.errorConnect'))
+      if (signal?.aborted || userRef.current !== userId) return
+      setSeriesError(translate.current('myRecommendations.errorConnect'))
     } finally {
       setSeriesLoading(false)
     }
-  }, [user, t])
+  }, [userId])
 
   useEffect(() => {
-    fetchMovieRecommendations()
-    fetchSeriesRecommendations()
-  }, [fetchMovieRecommendations, fetchSeriesRecommendations])
+    const controller = new AbortController()
+    if (mediaType === 'movies') { setMovieLoading(true); void fetchMovieRecommendations(controller.signal) }
+    else { setSeriesLoading(true); void fetchSeriesRecommendations(controller.signal) }
+    return () => controller.abort()
+  }, [mediaType, fetchMovieRecommendations, fetchSeriesRecommendations])
+  useEffect(() => { setMovieRecommendations([]); setSeriesRecommendations([]); setMovieRunInfo(null); setSeriesRunInfo(null) }, [userId])
 
   const handleRegenerate = async () => {
     if (!user || regenerating) return
@@ -289,7 +303,7 @@ export function MyRecommendationsPage() {
         sx={{
           height: 6,
           borderRadius: 3,
-          backgroundColor: 'grey.800',
+          backgroundColor: 'var(--ap-progress-track, #424242)',
           '& .MuiLinearProgress-bar': {
             backgroundColor: color,
             borderRadius: 3,
@@ -412,6 +426,8 @@ export function MyRecommendationsPage() {
           </Button>
         )}
       </Box>
+
+      <EmbyHomePins key={user?.id} />
 
       {/* Tabs */}
       <Tabs
@@ -637,7 +653,7 @@ export function MyRecommendationsPage() {
                         alignSelf: 'stretch',
                         flexShrink: 0,
                         overflow: 'hidden',
-                        bgcolor: 'grey.900',
+                        bgcolor: 'var(--ap-placeholder, #212121)',
                       }}
                     >
                       <Box
@@ -923,7 +939,7 @@ export function MyRecommendationsPage() {
                           sx={{
                             height: 4,
                             borderRadius: 2,
-                            backgroundColor: 'grey.800',
+                            backgroundColor: 'var(--ap-progress-track, #424242)',
                             '& .MuiLinearProgress-bar': {
                               backgroundColor: '#6366f1',
                               borderRadius: 2,
@@ -946,7 +962,7 @@ export function MyRecommendationsPage() {
                           sx={{
                             height: 4,
                             borderRadius: 2,
-                            backgroundColor: 'grey.800',
+                            backgroundColor: 'var(--ap-progress-track, #424242)',
                             '& .MuiLinearProgress-bar': {
                               backgroundColor: '#10b981',
                               borderRadius: 2,
@@ -969,7 +985,7 @@ export function MyRecommendationsPage() {
                           sx={{
                             height: 4,
                             borderRadius: 2,
-                            backgroundColor: 'grey.800',
+                            backgroundColor: 'var(--ap-progress-track, #424242)',
                             '& .MuiLinearProgress-bar': {
                               backgroundColor: '#f59e0b',
                               borderRadius: 2,

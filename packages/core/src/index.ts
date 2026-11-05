@@ -47,6 +47,8 @@ export {
   getProvidersForFunction,
   getModelsForFunction,
   getModelsForFunctionWithCustom,
+  getAIModelOptions,
+  resolveProviderConnection,
   getPricingForModel,
   getPricingForModelAsync,
   PROVIDERS,
@@ -75,6 +77,7 @@ export {
 } from './lib/index.js'
 
 // Migrations
+export { providerTypeSchema, aiFunctionSchema } from './lib/ai-capabilities/contracts.js'
 export { runMigrations, getMigrationStatus, type MigrationResult } from './migrations.js'
 
 // Media Server Providers
@@ -458,6 +461,7 @@ export {
 // Shows You Watch (DB list + media server favorites sync)
 export {
   getUpcomingEpisodes,
+  getUpcomingEpisodeBatch,
   getUpcomingEpisodeForSeries,
   type UpcomingEpisode,
   reconcileWatchingFavoritesForUser,
@@ -789,6 +793,7 @@ export {
   getGraphPlaylist,
   deleteGraphPlaylist,
   getGraphPlaylistItems,
+  getGraphPlaylistPreview,
   // Types
   type GraphPlaylist,
   type CreateGraphPlaylistInput,
@@ -813,9 +818,11 @@ export {
   createRequest as createSeerrRequest,
   getRequest as getSeerrRequest,
   getRequestStatus as getSeerrRequestStatus,
+  batchGetRequestStatus as batchGetSeerrRequestStatus,
   deleteRequest as deleteSeerrRequest,
   // Batch Operations
   batchGetMediaStatus as batchGetSeerrMediaStatus,
+  batchGetMediaStatusByMedia as batchGetSeerrMediaStatusByMedia,
   listRadarrServers,
   getRadarrServerDetails,
   listSonarrServers,
@@ -1066,3 +1073,13 @@ export {
   type ApiKeyWithUser,
   type CreateApiKeyResult,
 } from './apiKeys.js'
+
+export {
+  getSeriesRecommendationGroups,
+  setSeriesRecommendationGroups,
+  type SeriesRecommendationGroup,
+} from './recommender/series/groups.js'
+
+export { addEmbyHomePin, EmbyHomeConflict, getEmbyHomeSections, removeEmbyHomePin } from './media/emby/homeSections.js'
+
+export { getEmbyTonight } from './media/emby/tonight.js'

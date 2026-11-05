@@ -14,7 +14,11 @@ export interface ContentItem {
   id: string
   type: 'movie' | 'series'
   name: string
+  availability?: 'library' | 'external' | 'upcoming' | 'unknown'
+  sourceUrl?: string
+  source?: string
   subtitle?: string
+  overview?: string
   image?: string | null
   rating?: number | null
   userRating?: number | null
@@ -77,7 +81,16 @@ export interface ContentCarouselData {
   descriptionKey?: ContentCarouselI18nKey
   titleParams?: Record<string, string | number>
   descriptionParams?: Record<string, string | number>
-  items: ContentItem[]
+  items: Array<
+    Omit<ContentItem, 'name'> & {
+      name?: string
+      title?: string
+      year?: number | null
+      value?: string
+      detailsUrl?: string
+      playUrl?: string | null
+    }
+  >
 }
 
 export interface FilmographyItem {
@@ -86,6 +99,7 @@ export interface FilmographyItem {
   title: string
   year?: number | null
   role?: string | null
+  sourceUrl?: string
 }
 
 export interface Person {
@@ -163,5 +177,3 @@ export interface ContentDetailData {
   lastWatched?: string | null
   actions: Action[]
 }
-
-

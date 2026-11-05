@@ -58,6 +58,7 @@ import {
   createPlaylistWithOverview,
   deletePlaylist,
   getPlaylistItems,
+  getPlaylistPreview,
   removePlaylistItems,
   addPlaylistItems,
   getGenres,
@@ -111,8 +112,8 @@ export class JellyfinProvider extends JellyfinProviderBase implements MediaServe
     return createVirtualLibrary(this, apiKey, name, path, collectionType)
   }
 
-  async deleteVirtualLibrary(apiKey: string, name: string): Promise<void> {
-    return deleteVirtualLibraryFromServer(this, apiKey, name)
+  async deleteVirtualLibrary(apiKey: string, library: Pick<Library, 'id' | 'name'>): Promise<void> {
+    return deleteVirtualLibraryFromServer(this, apiKey, library.name)
   }
 
   async getUserLibraryAccess(
@@ -223,8 +224,11 @@ export class JellyfinProvider extends JellyfinProviderBase implements MediaServe
     return deletePlaylist(this, apiKey, playlistId)
   }
 
-  async getPlaylistItems(apiKey: string, playlistId: string): Promise<PlaylistItem[]> {
-    return getPlaylistItems(this, apiKey, playlistId)
+  async getPlaylistItems(apiKey: string, playlistId: string, limit?: number): Promise<PlaylistItem[]> {
+    return getPlaylistItems(this, apiKey, playlistId, limit)
+  }
+  async getPlaylistPreview(apiKey: string, playlistId: string) {
+    return getPlaylistPreview(this, apiKey, playlistId)
   }
 
   async removePlaylistItems(apiKey: string, playlistId: string, entryIds: string[]): Promise<void> {

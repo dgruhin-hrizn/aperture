@@ -1,8 +1,10 @@
-import React from 'react'
+import React, { lazy, Suspense } from 'react'
+import { PageLoading } from './components/PageLoading'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { I18nextProvider } from 'react-i18next'
 import i18n from './i18n/config'
 import { RtlProviders } from './RtlProviders'
+import { AppearanceProvider } from './appearance/AppearanceProvider'
 import { AuthProvider } from './hooks/AuthProvider'
 import { useAuth } from './hooks/useAuth'
 import { WatchingProvider } from './hooks/useWatching'
@@ -12,36 +14,45 @@ import { UserRatingsProvider } from './hooks/UserRatingsProvider'
 import { ViewModeProvider } from './hooks/ViewModeProvider'
 import { Layout } from './components/Layout'
 import { AdminLayout } from './components/AdminLayout'
-import { AssistantModal } from './components/AssistantModal'
-import { LoginPage } from './pages/Login'
-import { SetupPage } from './pages/setup'
-import { DashboardPage } from './pages/dashboard'
-import { MyRecommendationsPage } from './pages/MyRecommendations'
-import { MyWatchHistoryPage } from './pages/MyWatchHistory'
-import { MoviesPage } from './pages/Movies'
-import { SeriesPage } from './pages/Series'
-import { MovieDetailPage, SeriesDetailPage } from './pages/media-detail'
-import { PlaylistsPage } from './pages/playlists'
-import { UserSettingsPage } from './pages/UserSettings'
-import { TopPicksMoviesPage, TopPicksSeriesPage, TopPicksPage } from './pages/top-picks'
-import { BrowsePage } from './pages/Browse'
-import { WatchStatsPage } from './pages/WatchStats'
-import { SearchPage } from './pages/Search'
-import { FranchisesPage } from './pages/Franchises'
-import { WatchingPage } from './pages/watching'
-import { PersonDetailPage } from './pages/PersonDetail'
-import { StudioDetailPage } from './pages/StudioDetail'
-import { ExplorePage } from './pages/explore'
-import { DiscoveryPage } from './pages/discovery'
-import { MyRequestsPage } from './pages/MyRequests'
+const AccountHub = lazy(() => import('./pages/AccountHub').then(module => ({ default: module.AccountHub })))
+const LoginPage = lazy(() => import('./pages/Login').then(module => ({ default: module.LoginPage })))
+const SetupPage = lazy(() => import('./pages/setup').then(module => ({ default: module.SetupPage })))
+const TonightPage = lazy(() => import('./pages/Tonight').then(module => ({ default: module.TonightPage })))
+const DashboardPage = lazy(() => import('./pages/dashboard').then(module => ({ default: module.DashboardPage })))
+const MyRecommendationsPage = lazy(() => import('./pages/MyRecommendations').then(module => ({ default: module.MyRecommendationsPage })))
+const MyWatchHistoryPage = lazy(() => import('./pages/MyWatchHistory').then(module => ({ default: module.MyWatchHistoryPage })))
+const MoviesPage = lazy(() => import('./pages/Movies').then(module => ({ default: module.MoviesPage })))
+const SeriesPage = lazy(() => import('./pages/Series').then(module => ({ default: module.SeriesPage })))
+const MovieDetailPage = lazy(() => import('./pages/media-detail').then(module => ({ default: module.MovieDetailPage })))
+const SeriesDetailPage = lazy(() => import('./pages/media-detail').then(module => ({ default: module.SeriesDetailPage })))
+const PlaylistsPage = lazy(() => import('./pages/playlists').then(module => ({ default: module.PlaylistsPage })))
+const UserSettingsPage = lazy(() => import('./pages/UserSettings').then(module => ({ default: module.UserSettingsPage })))
+const TopPicksMoviesPage = lazy(() => import('./pages/top-picks').then(module => ({ default: module.TopPicksMoviesPage })))
+const TopPicksSeriesPage = lazy(() => import('./pages/top-picks').then(module => ({ default: module.TopPicksSeriesPage })))
+const TopPicksPage = lazy(() => import('./pages/top-picks').then(module => ({ default: module.TopPicksPage })))
+const BrowsePage = lazy(() => import('./pages/Browse').then(module => ({ default: module.BrowsePage })))
+const WatchStatsPage = lazy(() => import('./pages/WatchStats').then(module => ({ default: module.WatchStatsPage })))
+const SearchPage = lazy(() => import('./pages/Search').then(module => ({ default: module.SearchPage })))
+const FranchisesPage = lazy(() => import('./pages/Franchises').then(module => ({ default: module.FranchisesPage })))
+const WatchingPage = lazy(() => import('./pages/watching').then(module => ({ default: module.WatchingPage })))
+const PersonDetailPage = lazy(() => import('./pages/PersonDetail').then(module => ({ default: module.PersonDetailPage })))
+const StudioDetailPage = lazy(() => import('./pages/StudioDetail').then(module => ({ default: module.StudioDetailPage })))
+const ExplorePage = lazy(() => import('./pages/explore').then(module => ({ default: module.ExplorePage })))
+const DiscoveryPage = lazy(() => import('./pages/discovery').then(module => ({ default: module.DiscoveryPage })))
+const MyRequestsPage = lazy(() => import('./pages/MyRequests').then(module => ({ default: module.MyRequestsPage })))
 // Admin pages
-import { AdminDashboard } from './pages/admin'
-import { UsersPage } from './pages/Users'
-import { UserDetailPage } from './pages/UserDetail'
-import { JobsPage } from './pages/jobs'
-import { SettingsPage } from './pages/settings'
-import { GapAnalysisPage } from './pages/admin/GapAnalysisPage'
-import { Box, CircularProgress } from '@mui/material'
+const AdminDashboard = lazy(() => import('./pages/admin').then(module => ({ default: module.AdminDashboard })))
+const UsersPage = lazy(() => import('./pages/Users').then(module => ({ default: module.UsersPage })))
+const UserDetailPage = lazy(() => import('./pages/UserDetail').then(module => ({ default: module.UserDetailPage })))
+const JobsPage = lazy(() => import('./pages/jobs').then(module => ({ default: module.JobsPage })))
+const SettingsPage = lazy(() => import('./pages/settings').then(module => ({ default: module.SettingsPage })))
+const GapAnalysisPage = lazy(() => import('./pages/admin/GapAnalysisPage').then(module => ({ default: module.GapAnalysisPage })))
+import { Box, CircularProgress, useMediaQuery, useTheme } from '@mui/material'
+
+function IndexRoute(){
+  const mobile=useMediaQuery(useTheme().breakpoints.down('md'))
+  return mobile?<Navigate to="/encore" replace/>:<DashboardPage/>
+}
 
 function SetupGuard({ children }: { children: React.ReactNode }) {
   const { status, loading } = useSetupStatus()
@@ -90,13 +101,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   // Wrap with providers so state is available everywhere
-  // Include AssistantModal for AI chat on all authenticated pages
   return (
     <ViewModeProvider>
       <UserRatingsProvider>
         <WatchingProvider>
           {children}
-          <AssistantModal />
         </WatchingProvider>
       </UserRatingsProvider>
     </ViewModeProvider>
@@ -153,7 +162,11 @@ function AppRoutes() {
         }
       >
         {/* User Routes */}
-        <Route index element={<DashboardPage />} />
+        <Route index element={<IndexRoute />} />
+        <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="encore" element={null} />
+        <Route path="you" element={<AccountHub />} />
+        <Route path="tonight" element={<TonightPage />} />
         <Route path="recommendations" element={<MyRecommendationsPage />} />
         <Route path="watching" element={<WatchingPage />} />
         <Route path="top-picks" element={<TopPicksPage />} />
@@ -200,15 +213,17 @@ function AppRoutes() {
 export default function App() {
   return (
     <I18nextProvider i18n={i18n}>
-      <RtlProviders>
-        <BrowserRouter>
-          <SetupProvider>
-            <AuthProvider>
-              <AppRoutes />
-            </AuthProvider>
-          </SetupProvider>
-        </BrowserRouter>
-      </RtlProviders>
+      <BrowserRouter>
+        <SetupProvider>
+          <AuthProvider>
+            <AppearanceProvider>
+              <RtlProviders>
+                <Suspense fallback={<PageLoading />}><AppRoutes /></Suspense>
+              </RtlProviders>
+            </AppearanceProvider>
+          </AuthProvider>
+        </SetupProvider>
+      </BrowserRouter>
     </I18nextProvider>
   )
 }

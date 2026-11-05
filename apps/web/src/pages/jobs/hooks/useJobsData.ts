@@ -1,3 +1,5 @@
+import { useAuth } from '../../../hooks/useAuth'
+import { invalidateCachedResource } from '../../../hooks/cachedResource'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import type { Job, JobProgress, ScheduleType } from '../types'
 
@@ -29,6 +31,11 @@ export interface UseJobsDataReturn {
 }
 
 export function useJobsData(): UseJobsDataReturn {
+  const { user } = useAuth()
+  const notifyJobsChanged = () => {
+    if (user) invalidateCachedResource(user.id, '/api/jobs/active')
+    window.dispatchEvent(new Event('aperture:jobs-changed'))
+  }
   const [jobs, setJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -158,6 +165,7 @@ export function useJobsData(): UseJobsDataReturn {
 
       if (response.ok) {
         const data = await response.json()
+        notifyJobsChanged()
         connectToJobStream(jobName, data.jobId)
         await fetchJobs()
       }
@@ -177,6 +185,7 @@ export function useJobsData(): UseJobsDataReturn {
       })
 
       if (response.ok) {
+        notifyJobsChanged()
         await fetchJobs()
       }
     } catch (err) {

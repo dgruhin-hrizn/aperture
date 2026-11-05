@@ -4,7 +4,7 @@
 # ===================================================================
 
 # Stage 1: Dependencies
-FROM node:20-alpine AS deps
+FROM node:24-alpine AS deps
 WORKDIR /app
 
 ENV HUSKY=0
@@ -17,6 +17,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 COPY packages/core/package.json packages/core/
+COPY packages/mcp/package.json packages/mcp/
 COPY packages/ui/package.json packages/ui/
 
 # Install all dependencies
@@ -35,7 +36,7 @@ RUN pnpm -r build
 
 # ===================================================================
 # Stage 3: Production dependencies only
-FROM node:20-alpine AS prod-deps
+FROM node:24-alpine AS prod-deps
 WORKDIR /app
 
 ENV HUSKY=0
@@ -45,6 +46,7 @@ RUN corepack enable && corepack prepare pnpm@10.0.0 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/
 COPY packages/core/package.json packages/core/
+COPY packages/mcp/package.json packages/mcp/
 
 # Install only production dependencies (skip prepare/husky; rebuild native modules)
 RUN pnpm install --prod --frozen-lockfile --ignore-scripts && \
@@ -52,7 +54,7 @@ RUN pnpm install --prod --frozen-lockfile --ignore-scripts && \
 
 # ===================================================================
 # Stage 4: Runtime
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 WORKDIR /app
 
 # Install dependencies:
@@ -96,6 +98,9 @@ COPY --from=prod-deps --chown=aperture:nodejs /app/packages/core/node_modules ./
 COPY --from=builder --chown=aperture:nodejs /app/packages/core/dist ./packages/core/dist
 COPY --from=builder --chown=aperture:nodejs /app/packages/core/package.json ./packages/core/
 
+# Copy the optional local MCP bridge
+COPY --from=builder --chown=aperture:nodejs /app/packages/mcp/dist ./packages/mcp/dist
+
 # Copy built API
 COPY --from=builder --chown=aperture:nodejs /app/apps/api/dist ./apps/api/dist
 COPY --from=builder --chown=aperture:nodejs /app/apps/api/package.json ./apps/api/
@@ -133,7 +138,7 @@ EXPOSE 3456
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget -qO- http://localhost:3456/health || exit 1
+    CMD wget -qO- http://127.0.0.1:3456/health || exit 1
 
 # Start the server
 CMD ["node", "apps/api/dist/index.js"]

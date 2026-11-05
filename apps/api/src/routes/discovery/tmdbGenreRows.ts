@@ -6,7 +6,7 @@ import { requireAuth, type SessionUser } from '../../plugins/auth.js'
 import { queryOne } from '../../lib/db.js'
 import {
   fetchGenreStripDiscoverCandidates,
-  batchGetSeerrMediaStatus,
+  batchGetSeerrMediaStatusByMedia,
   getGenreStripMovieRows,
   getGenreStripSeriesRows,
   GENRE_STRIP_DEFAULT_ROW_LIMIT,
@@ -26,7 +26,10 @@ function parseLimit(raw: string | undefined, fallback: number): number {
   return Math.min(n, GENRE_STRIP_MAX_ROW_LIMIT)
 }
 
-function parseGenreIdsQuery(genreIds: string | undefined, genreId: string | undefined): number[] | null {
+function parseGenreIdsQuery(
+  genreIds: string | undefined,
+  genreId: string | undefined
+): number[] | null {
   if (genreIds !== undefined && genreIds.trim() !== '') {
     const parts = genreIds.split(',').map((s) => parseInt(s.trim(), 10))
     if (parts.some((n) => !Number.isFinite(n) || n < 1)) return null
@@ -113,24 +116,29 @@ function rawToCandidateJson(
 }
 
 export function registerTmdbGenreRowsRoutes(fastify: FastifyInstance) {
-  fastify.get('/api/discovery/tmdb-genre-rows/config', { preHandler: requireAuth }, async (request, reply) => {
-    const currentUser = request.user as SessionUser
-    const user = await queryOne<{ discover_enabled: boolean }>(
-      `SELECT discover_enabled FROM users WHERE id = $1`,
-      [currentUser.id]
-    )
-    if (!user?.discover_enabled) {
-      return reply.status(403).send({ error: 'Discovery not enabled for your account' })
+  fastify.get(
+    '/api/discovery/tmdb-genre-rows/config',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const currentUser = request.user as SessionUser
+      const user = await queryOne<{ discover_enabled: boolean }>(
+        `SELECT discover_enabled FROM users WHERE id = $1`,
+        [currentUser.id]
+      )
+      if (!user?.discover_enabled) {
+        return reply.status(403).send({ error: 'Discovery not enabled for your account' })
+      }
+      const [movieGenreRows, seriesGenreRows] = await Promise.all([
+        getGenreStripMovieRows(),
+        getGenreStripSeriesRows(),
+      ])
+      return reply.send({ movieGenreRows, seriesGenreRows })
     }
-    const [movieGenreRows, seriesGenreRows] = await Promise.all([
-      getGenreStripMovieRows(),
-      getGenreStripSeriesRows(),
-    ])
-    return reply.send({ movieGenreRows, seriesGenreRows })
-  })
+  )
 
   fastify.get<{
     Querystring: {
+      includeStatuses?: string
       mediaType?: string
       genreId?: string
       genreIds?: string
@@ -213,9 +221,12 @@ export function registerTmdbGenreRowsRoutes(fastify: FastifyInstance) {
       tmdbId: c.tmdbId,
       mediaType: coreMediaType === 'movie' ? ('movie' as const) : ('tv' as const),
     }))
-    const seerrMap = items.length > 0 ? await batchGetSeerrMediaStatus(items) : new Map()
+    const seerrMap =
+      request.query.includeStatuses !== 'false' && items.length > 0
+        ? await batchGetSeerrMediaStatusByMedia(items)
+        : new Map()
     const seerrStatuses: Record<
-      number,
+      string,
       { exists: boolean; status: string; requested: boolean; requestStatus?: string }
     > = {}
     for (const [tmdbId, st] of seerrMap) {
@@ -226,8 +237,16 @@ export function registerTmdbGenreRowsRoutes(fastify: FastifyInstance) {
       }
     }
 
-    const candidates = sliced.map((c, i) => rawToCandidateJson(c, i + 1, currentUser.id, coreMediaType))
+    const candidates = sliced.map((c, i) =>
+      rawToCandidateJson(c, i + 1, currentUser.id, coreMediaType)
+    )
 
-    return reply.send({ candidates, seerrStatuses })
+    return reply.send({
+      candidates,
+      seerrStatuses: Object.fromEntries(
+        Object.entries(seerrStatuses).map(([key, value]) => [key.split(':')[1], value])
+      ),
+      seerrStatusesByMedia: seerrStatuses,
+    })
   })
 }

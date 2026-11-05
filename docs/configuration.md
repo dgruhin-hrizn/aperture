@@ -424,6 +424,6 @@ aperture.yourdomain.com {
 
 ### Important Notes
 
-1. **APP_BASE_URL must match your public URL** — Used for OAuth callbacks and cookie settings
-2. **Session cookies** — In production, cookies require HTTPS (`secure: true`)
+1. **APP_BASE_URL must match your public URL** — Used for OAuth callbacks and the canonical trusted browser origin. Keep it set to the public URL when also using a LAN address.
+2. **Session cookies** — HTTPS public access retains Secure cookies; direct HTTP on a separate LAN hostname/IP uses its own host-only session. Sign in separately at each address. See [LAN and reverse-proxy access](lan-reverse-proxy-access.md) for scope and troubleshooting.
 3. **Trakt OAuth** — Redirect URI must exactly match `APP_BASE_URL/api/trakt/callback`

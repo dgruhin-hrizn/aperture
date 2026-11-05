@@ -1,3 +1,5 @@
+import { useAuth } from '../../hooks/useAuth'
+import { mediaKey } from './hooks/discoveryRequests'
 import React, { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -101,12 +103,20 @@ function saveFiltersToStorage(filters: DiscoveryFilterOptions) {
 }
 
 export function DiscoveryPage() {
+  const { user } = useAuth()
   const { t } = useTranslation()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
   // Filter state - persisted to localStorage
   const [filters, setFilters] = useState<DiscoveryFilterOptions>(() => loadFiltersFromStorage())
+
+  const [discoveryTab, setDiscoveryTab] = useState<DiscoveryTab>('movie')
+  const initialBrowse = loadBrowseSubTabs()
+  const [browseSubMovie, setBrowseSubMovie] = useState<BrowseSubTab>(initialBrowse.movie)
+  const [browseSubSeries, setBrowseSubSeries] = useState<BrowseSubTab>(initialBrowse.series)
+  const browseSubTab: BrowseSubTab =
+    discoveryTab === 'series' ? browseSubSeries : discoveryTab === 'movie' ? browseSubMovie : 'popular'
 
   const {
     status,
@@ -122,12 +132,14 @@ export function DiscoveryPage() {
     refresh,
     markAsRequested,
     refetchCandidates,
-  } = useDiscoveryData(filters)
+  } = useDiscoveryData(filters, discoveryTab === 'streaming' || browseSubTab === 'genre' ? null : discoveryTab)
 
   const { submitRequest, isRequesting, fetchTVDetails } = useSeerrRequest()
 
   // Subscribe to discovery job status for real-time updates
   const { isRunning: isJobRunning, progress: jobProgress } = useDiscoveryJobStatus({
+    enabled: status?.enabled === true && user?.isAdmin === true,
+    userId: user?.id,
     onComplete: () => {
       // Invalidate cache and refetch when job completes
       invalidateDiscoveryCache()
@@ -141,15 +153,9 @@ export function DiscoveryPage() {
   })
   const { viewMode, setViewMode } = useViewMode('discovery')
 
-  const [discoveryTab, setDiscoveryTab] = useState<DiscoveryTab>('movie')
-  const initialBrowse = loadBrowseSubTabs()
-  const [browseSubMovie, setBrowseSubMovie] = useState<BrowseSubTab>(initialBrowse.movie)
-  const [browseSubSeries, setBrowseSubSeries] = useState<BrowseSubTab>(initialBrowse.series)
-  const browseSubTab: BrowseSubTab =
-    discoveryTab === 'series' ? browseSubSeries : discoveryTab === 'movie' ? browseSubMovie : 'popular'
   const genreMediaType: MediaType = discoveryTab === 'series' ? 'series' : 'movie'
   const { genres: genreOptions, loading: genresLoading, resolveGenreName } =
-    useDiscoveryGenres(genreMediaType)
+    useDiscoveryGenres(discoveryTab === 'streaming' ? null : genreMediaType)
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
@@ -204,7 +210,7 @@ export function DiscoveryPage() {
       seerrOptions
     )
     if (result.success) {
-      markAsRequested(candidate.tmdbId)
+      markAsRequested(candidate.tmdbId, candidate.mediaType)
       setSnackbar({
         open: true,
         message: t('discovery.snackbarRequestSubmitted', { title: candidate.title }),
@@ -408,9 +414,10 @@ export function DiscoveryPage() {
       )}
 
       {discoveryTab === 'streaming' ? (
-        <StreamingDiscoverySection requestEnabled={status?.requestEnabled ?? false} />
+        <StreamingDiscoverySection key={user?.id} requestEnabled={status?.requestEnabled ?? false} />
       ) : browseSubTab === 'genre' ? (
         <TmdbGenreRowsSection
+          key={`${user?.id}:${discoveryTab}`}
           mediaType={discoveryTab === 'series' ? 'series' : 'movie'}
           requestEnabled={status?.requestEnabled ?? false}
           resolveGenreName={resolveGenreName}
@@ -492,7 +499,7 @@ export function DiscoveryPage() {
                 canRequest={status?.requestEnabled ?? false}
                 onRequest={handleRequest}
                 isRequesting={isRequesting(candidate.tmdbId)}
-                cachedStatus={seerrStatus[candidate.tmdbId]}
+                cachedStatus={seerrStatus[mediaKey(candidate.mediaType, candidate.tmdbId)]}
                 fetchTVDetails={fetchTVDetails}
                 resolveGenreName={resolveGenreName}
               />
@@ -508,7 +515,7 @@ export function DiscoveryPage() {
               canRequest={status?.requestEnabled ?? false}
               onRequest={handleRequest}
               isRequesting={isRequesting(candidate.tmdbId)}
-              cachedStatus={seerrStatus[candidate.tmdbId]}
+              cachedStatus={seerrStatus[mediaKey(candidate.mediaType, candidate.tmdbId)]}
               fetchTVDetails={fetchTVDetails}
               resolveGenreName={resolveGenreName}
             />

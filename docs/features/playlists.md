@@ -201,3 +201,7 @@ Graph playlists can be edited like manual ones:
 ---
 
 **Next:** [Virtual Libraries](virtual-libraries.md)
+
+## Loading and performance
+
+See [UI loading and request efficiency](../ui-performance.md) for selected-tab loading, bounded requests, cache behavior and dev.11 correctness fixes. Existing settings and actions remain available.

@@ -31,7 +31,7 @@ export function getProvidersForFunction(fn: AIFunction): ProviderMetadata[] {
   return PROVIDERS.filter((p) => {
     if (fn === 'embeddings') return p.supportsEmbeddings
     if (fn === 'chat')
-      return p.supportsChat && p.chatModels.some((m) => m.capabilities.supportsToolCalling)
+      return p.supportsChat && (p.id === 'openai-compatible' || p.chatModels.some((m) => m.capabilities.supportsToolCalling))
     if (fn === 'textGeneration') return p.supportsTextGeneration
     if (fn === 'exploration') return p.supportsExploration
     return false

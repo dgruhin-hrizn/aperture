@@ -1,6 +1,6 @@
 {
   "name": "@aperture/core",
-  "version": "0.7.10",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -39,6 +39,14 @@
     "./watching": {
       "import": "./dist/watching/index.js",
       "types": "./dist/watching/index.d.ts"
+    },
+    "./library-titles": {
+      "import": "./dist/lib/libraryTitles.js",
+      "types": "./dist/lib/libraryTitles.d.ts"
+    },
+    "./encore": {
+      "import": "./dist/encore/index.js",
+      "types": "./dist/encore/index.d.ts"
     }
   },
   "scripts": {
@@ -51,21 +59,22 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^2.0.0",
-    "@ai-sdk/deepseek": "^2.0.0",
-    "@ai-sdk/google": "^2.0.0",
-    "@ai-sdk/groq": "^2.0.0",
-    "@ai-sdk/huggingface": "^1.0.13",
-    "@ai-sdk/openai": "^2.0.0",
-    "@ai-sdk/openai-compatible": "^2.0.0",
-    "@openrouter/ai-sdk-provider": "^1.5.4",
-    "ai": "^5.0.0",
-    "ai-sdk-ollama": "2.2.0",
+    "@ai-sdk/anthropic": "^4.0.96",
+    "@ai-sdk/deepseek": "^3.0.79",
+    "@ai-sdk/google": "^4.0.111",
+    "@ai-sdk/groq": "^4.0.76",
+    "@ai-sdk/huggingface": "^2.0.84",
+    "@ai-sdk/openai": "^4.0.108",
+    "@ai-sdk/openai-compatible": "^3.0.84",
+    "@js-temporal/polyfill": "^0.5.1",
+    "@openrouter/ai-sdk-provider": "^3.1.0",
+    "ai": "^7.0.162",
+    "ai-sdk-ollama": "4.6.2",
     "openai": "^4.77.0",
     "pg": "^8.13.1",
     "pino": "^9.5.0",
     "sharp": "^0.33.2",
-    "zod": "^3.24.1"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

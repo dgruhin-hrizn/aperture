@@ -1,238 +1,210 @@
-/**
- * Stats display for Tool UI
- * Shows library statistics and user activity
- */
-import { Box, Typography, Paper, Chip, LinearProgress } from '@mui/material'
-import MovieIcon from '@mui/icons-material/Movie'
-import TvIcon from '@mui/icons-material/Tv'
-import StarIcon from '@mui/icons-material/Star'
-import AccessTimeIcon from '@mui/icons-material/AccessTime'
+import { Box, Typography, LinearProgress, Stack, type SxProps, type Theme } from '@mui/material'
+import MovieOutlinedIcon from '@mui/icons-material/MovieOutlined'
+import TvOutlinedIcon from '@mui/icons-material/TvOutlined'
+import StarOutlineRoundedIcon from '@mui/icons-material/StarOutlineRounded'
+import AccessTimeRoundedIcon from '@mui/icons-material/AccessTimeRounded'
 import { useTranslation } from 'react-i18next'
+import type { ReactNode } from 'react'
+import { ToolCard, ToolPreview } from '../ToolCard'
 import type { StatsData, StudiosData } from './types'
 
-interface StatsDisplayProps {
-  data: StatsData
+const metricsGrid: SxProps<Theme> = {
+  display: 'grid',
+  gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(4, minmax(0, 1fr))' },
+  gap: 1,
 }
 
-export function StatsDisplay({ data }: StatsDisplayProps) {
-  const { t } = useTranslation()
-  const maxGenreCount = data.topGenres?.reduce((max, g) => Math.max(max, g.count), 0) || 1
-
+function Metric({
+  icon,
+  label,
+  value,
+  note,
+}: {
+  icon?: ReactNode
+  label: string
+  value: string | number
+  note?: string
+}) {
   return (
-    <Box sx={{ my: 2 }}>
-      {/* Main stats grid */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-          gap: 1.5,
-          mb: 2,
-        }}
+    <Box sx={{ minWidth: 0 }}>
+      <Stack
+        direction="row"
+        gap={0.5}
+        alignItems="center"
+        sx={{ color: 'primary.main', '& svg': { flexShrink: 0 } }}
       >
-        {/* Movies */}
-        <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-            <MovieIcon sx={{ color: '#818cf8' }} />
-            <Typography variant="caption" color="text.secondary">{t('assistantToolUi.movies')}</Typography>
-          </Box>
-          <Typography variant="h4" fontWeight={700} sx={{ color: '#fff' }}>
-            {data.movieCount.toLocaleString()}
-          </Typography>
-        </Paper>
+        {icon}
+        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.3 }}>
+          {label}
+        </Typography>
+      </Stack>
+      <Typography
+        variant="h6"
+        fontWeight={700}
+        sx={{ fontVariantNumeric: 'tabular-nums', lineHeight: 1.3, mt: 0.25 }}
+      >
+        {value}
+      </Typography>
+      {note && (
+        <Typography variant="caption" color="text.secondary">
+          {note}
+        </Typography>
+      )}
+    </Box>
+  )
+}
 
-        {/* Series */}
-        <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-            <TvIcon sx={{ color: '#10b981' }} />
-            <Typography variant="caption" color="text.secondary">{t('assistantToolUi.tvSeries')}</Typography>
-          </Box>
-          <Typography variant="h4" fontWeight={700} sx={{ color: '#fff' }}>
-            {data.seriesCount.toLocaleString()}
-          </Typography>
-          {data.episodeCount !== undefined && (
-            <Typography variant="caption" color="text.secondary">
-              {t('assistantToolUi.episodesLabel', { count: data.episodeCount })}
-            </Typography>
-          )}
-        </Paper>
-
-        {/* Runtime */}
+export function StatsDisplay({ data }: { data: StatsData }) {
+  const { t } = useTranslation()
+  const maxGenreCount = data.topGenres?.reduce((max, genre) => Math.max(max, genre.count), 0) || 1
+  return (
+    <Stack gap={1}>
+      <ToolCard variant="outlined" sx={metricsGrid}>
+        <Metric
+          icon={<MovieOutlinedIcon fontSize="small" />}
+          label={t('assistantToolUi.movies')}
+          value={data.movieCount.toLocaleString()}
+        />
+        <Metric
+          icon={<TvOutlinedIcon fontSize="small" />}
+          label={t('assistantToolUi.tvSeries')}
+          value={data.seriesCount.toLocaleString()}
+          note={
+            data.episodeCount !== undefined
+              ? t('assistantToolUi.episodesLabel', { count: data.episodeCount })
+              : undefined
+          }
+        />
         {data.totalRuntimeFormatted && (
-          <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-              <AccessTimeIcon sx={{ color: '#f59e0b' }} />
-              <Typography variant="caption" color="text.secondary">{t('assistantToolUi.totalRuntime')}</Typography>
-            </Box>
-            <Typography variant="body1" fontWeight={600} sx={{ color: '#fff' }}>
-              {data.totalRuntimeFormatted}
-            </Typography>
-          </Paper>
+          <Metric
+            icon={<AccessTimeRoundedIcon fontSize="small" />}
+            label={t('assistantToolUi.totalRuntime')}
+            value={data.totalRuntimeFormatted}
+          />
         )}
-
-        {/* Average Rating */}
-        {data.averageRating !== null && data.averageRating !== undefined && (
-          <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-              <StarIcon sx={{ color: '#ffc107' }} />
-              <Typography variant="caption" color="text.secondary">{t('assistantToolUi.avgRating')}</Typography>
-            </Box>
-            <Typography variant="h4" fontWeight={700} sx={{ color: '#fff' }}>
-              {Number(data.averageRating).toFixed(1)}
-            </Typography>
-          </Paper>
+        {data.averageRating != null && (
+          <Metric
+            icon={<StarOutlineRoundedIcon fontSize="small" />}
+            label={t('assistantToolUi.avgRating')}
+            value={Number(data.averageRating).toFixed(1)}
+          />
         )}
-      </Box>
-
-      {/* User activity */}
+      </ToolCard>
       {data.watchStats && (
-        <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2, mb: 2 }}>
-          <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5, color: '#e4e4e7' }}>
+        <ToolCard variant="outlined">
+          <Typography variant="subtitle2" sx={{ mb: 0.75 }}>
             {t('assistantToolUi.yourActivity')}
           </Typography>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-            <Box>
-              <Typography variant="caption" color="text.secondary">{t('assistantToolUi.moviesWatched')}</Typography>
-              <Typography variant="h6" fontWeight={600} sx={{ color: '#818cf8' }}>
-                {data.watchStats.moviesWatched}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography variant="caption" color="text.secondary">{t('assistantToolUi.seriesStarted')}</Typography>
-              <Typography variant="h6" fontWeight={600} sx={{ color: '#10b981' }}>
-                {data.watchStats.seriesStarted}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography variant="caption" color="text.secondary">{t('assistantToolUi.totalPlays')}</Typography>
-              <Typography variant="h6" fontWeight={600} sx={{ color: '#f59e0b' }}>
-                {data.watchStats.totalPlayCount}
-              </Typography>
-            </Box>
+          <Box sx={metricsGrid}>
+            <Metric
+              label={t('assistantToolUi.moviesWatched')}
+              value={data.watchStats.moviesWatched}
+            />
+            <Metric
+              label={t('assistantToolUi.seriesStarted')}
+              value={data.watchStats.seriesStarted}
+            />
+            <Metric
+              label={t('assistantToolUi.totalPlays')}
+              value={data.watchStats.totalPlayCount}
+            />
             {data.ratingStats && (
-              <Box>
-                <Typography variant="caption" color="text.secondary">{t('assistantToolUi.titlesRated')}</Typography>
-                <Typography variant="h6" fontWeight={600} sx={{ color: '#ec4899' }}>
-                  {data.ratingStats.totalRated}
-                </Typography>
-              </Box>
+              <Metric
+                label={t('assistantToolUi.titlesRated')}
+                value={data.ratingStats.totalRated}
+              />
             )}
           </Box>
-        </Paper>
+        </ToolCard>
       )}
-
-      {/* Top genres */}
-      {data.topGenres && data.topGenres.length > 0 && (
-        <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2 }}>
-          <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5, color: '#e4e4e7' }}>
+      {!!data.topGenres?.length && (
+        <ToolCard variant="outlined">
+          <Typography variant="subtitle2" sx={{ mb: 0.75 }}>
             {t('assistantToolUi.topGenres')}
           </Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {data.topGenres.slice(0, 5).map((genre) => (
+          <ToolPreview limit={5}>
+            {data.topGenres.map((genre) => (
               <Box key={genre.genre}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                  <Typography variant="caption" sx={{ color: '#e4e4e7' }}>
-                    {genre.genre}
-                  </Typography>
+                <Stack direction="row" justifyContent="space-between" gap={1}>
+                  <Typography variant="body2">{genre.genre}</Typography>
                   <Typography variant="caption" color="text.secondary">
                     {genre.count}
                   </Typography>
-                </Box>
+                </Stack>
                 <LinearProgress
                   variant="determinate"
                   value={(genre.count / maxGenreCount) * 100}
-                  sx={{
-                    height: 6,
-                    borderRadius: 3,
-                    bgcolor: '#2a2a2a',
-                    '& .MuiLinearProgress-bar': {
-                      borderRadius: 3,
-                      background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                    },
-                  }}
+                  aria-label={genre.genre}
+                  sx={{ height: 4, borderRadius: 2 }}
                 />
               </Box>
             ))}
-          </Box>
-        </Paper>
+          </ToolPreview>
+        </ToolCard>
       )}
-    </Box>
+    </Stack>
   )
 }
 
-interface StudiosDisplayProps {
-  data: StudiosData
-}
-
-export function StudiosDisplay({ data }: StudiosDisplayProps) {
+export function StudiosDisplay({ data }: { data: StudiosData }) {
   const { t } = useTranslation()
+  const groups = [
+    {
+      title: t('assistantToolUi.topMovieStudios'),
+      items: data.studios,
+      countKey: 'assistantToolUi.studioMovieCount',
+    },
+    {
+      title: t('assistantToolUi.topTvNetworks'),
+      items: data.networks,
+      countKey: 'assistantToolUi.networkSeriesCount',
+    },
+  ]
   return (
-    <Box sx={{ my: 2 }}>
-      {data.studios && data.studios.length > 0 && (
-        <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2, mb: 2 }}>
-          <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5, color: '#e4e4e7' }}>
-            {t('assistantToolUi.topMovieStudios')}
-          </Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            {data.studios.map((studio) => (
-              <Box key={studio.name}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" fontWeight={600} sx={{ color: '#fff' }}>
-                    {studio.name}
-                  </Typography>
-                  <Chip
-                    label={t('assistantToolUi.studioMovieCount', { count: studio.movieCount })}
-                    size="small"
-                    sx={{
-                      height: 20,
-                      bgcolor: 'rgba(99, 102, 241, 0.15)',
-                      color: '#818cf8',
-                    }}
-                  />
+    <Stack gap={1}>
+      {groups.map(({ title, items, countKey }) =>
+        items?.length ? (
+          <ToolCard variant="outlined" key={title}>
+            <Typography variant="subtitle2" sx={{ mb: 0.75 }}>
+              {title}
+            </Typography>
+            <ToolPreview limit={3}>
+              {items.map((item) => (
+                <Box
+                  key={item.name}
+                  sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 0.5 }}
+                >
+                  <Stack
+                    direction="row"
+                    flexWrap="wrap"
+                    alignItems="baseline"
+                    justifyContent="space-between"
+                    gap={0.5}
+                  >
+                    <Typography
+                      variant="body2"
+                      fontWeight={650}
+                      sx={{ flex: '1 1 120px', minWidth: 0 }}
+                    >
+                      {item.name}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {t(countKey, {
+                        count: 'movieCount' in item ? item.movieCount : item.seriesCount,
+                      })}
+                    </Typography>
+                  </Stack>
+                  {item.topTitles.length > 0 && (
+                    <Typography variant="caption" color="text.secondary" component="div">
+                      {item.topTitles.map((entry) => entry.title).join(', ')}
+                    </Typography>
+                  )}
                 </Box>
-                {studio.topTitles.length > 0 && (
-                  <Typography variant="caption" color="text.secondary">
-                    {studio.topTitles.map(t => t.title).join(', ')}
-                  </Typography>
-                )}
-              </Box>
-            ))}
-          </Box>
-        </Paper>
+              ))}
+            </ToolPreview>
+          </ToolCard>
+        ) : null
       )}
-
-      {data.networks && data.networks.length > 0 && (
-        <Paper sx={{ p: 2, bgcolor: '#1a1a1a', borderRadius: 2 }}>
-          <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5, color: '#e4e4e7' }}>
-            {t('assistantToolUi.topTvNetworks')}
-          </Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            {data.networks.map((network) => (
-              <Box key={network.name}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" fontWeight={600} sx={{ color: '#fff' }}>
-                    {network.name}
-                  </Typography>
-                  <Chip
-                    label={t('assistantToolUi.networkSeriesCount', { count: network.seriesCount })}
-                    size="small"
-                    sx={{
-                      height: 20,
-                      bgcolor: 'rgba(16, 185, 129, 0.15)',
-                      color: '#10b981',
-                    }}
-                  />
-                </Box>
-                {network.topTitles.length > 0 && (
-                  <Typography variant="caption" color="text.secondary">
-                    {network.topTitles.map(t => t.title).join(', ')}
-                  </Typography>
-                )}
-              </Box>
-            ))}
-          </Box>
-        </Paper>
-      )}
-    </Box>
+    </Stack>
   )
 }
-

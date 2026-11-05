@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Avatar, Box, Typography } from '@mui/material'
+import { useVisibleImage } from '../../../hooks/useVisibleImage'
 import { usePersonPortrait } from '../../../hooks/usePersonPortrait'
 import type { BrowsePerson } from '../types'
 import { personSubtitle } from '../utils/personSubtitle'
@@ -12,10 +13,13 @@ interface BrowsePersonRowProps {
 
 export function BrowsePersonRow({ person, onNavigate }: BrowsePersonRowProps) {
   const { t } = useTranslation()
+  const { imageRef, visible } = useVisibleImage()
   const { displaySrc, phase, onImageError } = usePersonPortrait({
+    enabled: visible,
+    tmdbImageUrl: person.tmdbProfilePath
+      ? `https://image.tmdb.org/t/p/w185${person.tmdbProfilePath}`
+      : null,
     personName: person.name,
-    mediaImageUrl: `/api/media/images/Persons/${encodeURIComponent(person.name)}/Images/Primary`,
-    fetchTmdbFallback: true,
   })
   const subtitle = personSubtitle(person, t)
   const [avatarImgShown, setAvatarImgShown] = useState(false)
@@ -26,6 +30,7 @@ export function BrowsePersonRow({ person, onNavigate }: BrowsePersonRowProps) {
 
   return (
     <Box
+      ref={imageRef}
       onClick={onNavigate}
       display="flex"
       alignItems="center"
@@ -45,6 +50,8 @@ export function BrowsePersonRow({ person, onNavigate }: BrowsePersonRowProps) {
         alt=""
         slotProps={{
           img: {
+            loading: 'lazy',
+            decoding: 'async',
             onLoad: () => setAvatarImgShown(true),
             style: {
               opacity: displaySrc ? (avatarImgShown ? 1 : 0) : 1,

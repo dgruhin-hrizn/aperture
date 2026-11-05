@@ -1,3 +1,4 @@
+import { apiFetch } from '../../../lib/api'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Dispatch, RefObject, SetStateAction } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -8,6 +9,8 @@ import { buildSeriesActiveFilterChips } from '../utils/activeFilterChips'
 
 interface UseBrowseSeriesOptions {
   tabIndex: number
+  ready?: boolean
+  initialSort?: { sortBy?: SortField; sortOrder?: SortOrder }
   persistSortPreferences: (sortBy: SortField, sortOrder: SortOrder) => void
 }
 
@@ -45,14 +48,21 @@ interface BrowseSeriesResult {
   handleSeriesSortChange: (sortBy: SortField, sortOrder: SortOrder) => void
 }
 
-export function useBrowseSeries({ tabIndex, persistSortPreferences }: UseBrowseSeriesOptions): BrowseSeriesResult {
+export function useBrowseSeries({
+  tabIndex,
+  ready = true,
+  initialSort,
+  persistSortPreferences,
+}: UseBrowseSeriesOptions): BrowseSeriesResult {
   const { t } = useTranslation()
   const [series, setSeries] = useState<Series[]>([])
   const [seriesGenres, setSeriesGenres] = useState<string[]>([])
   const [networks, setNetworks] = useState<string[]>([])
   const [seriesContentRatings, setSeriesContentRatings] = useState<ContentRating[]>([])
   const [seriesCountries, setSeriesCountries] = useState<CountryOption[]>([])
-  const [seriesRanges, setSeriesRanges] = useState<FilterRanges & { seasons?: { min: number; max: number } }>({
+  const [seriesRanges, setSeriesRanges] = useState<
+    FilterRanges & { seasons?: { min: number; max: number } }
+  >({
     year: { min: 1950, max: new Date().getFullYear() },
     seasons: { min: 1, max: 30 },
     rating: { min: 0, max: 10 },
@@ -70,6 +80,8 @@ export function useBrowseSeries({ tabIndex, persistSortPreferences }: UseBrowseS
   const [seriesHasMore, setSeriesHasMore] = useState(true)
   const [seriesTotal, setSeriesTotal] = useState(0)
   const seriesObserverRef = useRef<IntersectionObserver | null>(null)
+  const requestRef = useRef<AbortController | null>(null)
+  const metadataLoadedRef = useRef(false)
   const seriesLoadMoreRef = useRef<HTMLDivElement | null>(null)
 
   const resetSeries = useCallback(() => {
@@ -78,8 +90,59 @@ export function useBrowseSeries({ tabIndex, persistSortPreferences }: UseBrowseS
     setSeriesHasMore(true)
   }, [])
 
+  const [sortInitialized, setSortInitialized] = useState(false)
+  useEffect(() => {
+    if (!ready || sortInitialized) return
+    setSeriesSortBy(initialSort?.sortBy ?? 'title')
+    setSeriesSortOrder(initialSort?.sortOrder ?? 'asc')
+    setSortInitialized(true)
+  }, [ready, sortInitialized, initialSort?.sortBy, initialSort?.sortOrder])
+
+  const queryParams = useMemo(() => {
+    const params = new URLSearchParams({
+      pageSize: String(PAGE_SIZE),
+      sortBy: seriesSortBy,
+      sortOrder: seriesSortOrder,
+    })
+    if (seriesSearch) params.set('search', seriesSearch)
+    if (seriesGenre) params.set('genre', seriesGenre)
+    if (network) params.set('network', network)
+
+    if (seriesFilters.yearRange[0] > seriesRanges.year.min)
+      params.set('minYear', String(seriesFilters.yearRange[0]))
+    if (seriesFilters.yearRange[1] < seriesRanges.year.max)
+      params.set('maxYear', String(seriesFilters.yearRange[1]))
+    if (seriesFilters.seasonsRange[0] > (seriesRanges.seasons?.min || 1))
+      params.set('minSeasons', String(seriesFilters.seasonsRange[0]))
+    if (seriesFilters.seasonsRange[1] < (seriesRanges.seasons?.max || 30))
+      params.set('maxSeasons', String(seriesFilters.seasonsRange[1]))
+    if (seriesFilters.communityRating[0] > 0)
+      params.set('minCommunityRating', String(seriesFilters.communityRating[0]))
+    if (seriesFilters.rtScore[0] > 0) params.set('minRtScore', String(seriesFilters.rtScore[0]))
+    if (seriesFilters.metacritic[0] > 0)
+      params.set('minMetacritic', String(seriesFilters.metacritic[0]))
+    seriesFilters.contentRatings.forEach((rating) => params.append('contentRating', rating))
+    seriesFilters.status.forEach((status) => params.append('status', status))
+    seriesFilters.countries.forEach((country) => params.append('country', country))
+    if (seriesFilters.watchStatus !== 'any') params.set('watchStatus', seriesFilters.watchStatus)
+    if (seriesFilters.minWatchers !== null && seriesFilters.minWatchers > 0)
+      params.set('minWatchers', String(seriesFilters.minWatchers))
+    if (seriesFilters.maxWatchers !== null && seriesFilters.maxWatchers >= 0)
+      params.set('maxWatchers', String(seriesFilters.maxWatchers))
+
+    return params.toString()
+  }, [
+    network,
+    seriesFilters,
+    seriesGenre,
+    seriesRanges,
+    seriesSearch,
+    seriesSortBy,
+    seriesSortOrder,
+  ])
+
   const fetchSeries = useCallback(
-    async (page: number, append = false) => {
+    async (page: number, append = false, signal?: AbortSignal) => {
       if (append) {
         setSeriesLoadingMore(true)
       } else {
@@ -87,65 +150,52 @@ export function useBrowseSeries({ tabIndex, persistSortPreferences }: UseBrowseS
       }
 
       try {
-        const params = new URLSearchParams({
-          page: String(page),
-          pageSize: String(PAGE_SIZE),
-          sortBy: seriesSortBy,
-          sortOrder: seriesSortOrder,
-        })
-        if (seriesSearch) params.set('search', seriesSearch)
-        if (seriesGenre) params.set('genre', seriesGenre)
-        if (network) params.set('network', network)
+        const params = new URLSearchParams(queryParams)
+        params.set('page', String(page))
 
-        if (seriesFilters.yearRange[0] > seriesRanges.year.min) params.set('minYear', String(seriesFilters.yearRange[0]))
-        if (seriesFilters.yearRange[1] < seriesRanges.year.max) params.set('maxYear', String(seriesFilters.yearRange[1]))
-        if (seriesFilters.seasonsRange[0] > (seriesRanges.seasons?.min || 1)) params.set('minSeasons', String(seriesFilters.seasonsRange[0]))
-        if (seriesFilters.seasonsRange[1] < (seriesRanges.seasons?.max || 30)) params.set('maxSeasons', String(seriesFilters.seasonsRange[1]))
-        if (seriesFilters.communityRating[0] > 0) params.set('minCommunityRating', String(seriesFilters.communityRating[0]))
-        if (seriesFilters.rtScore[0] > 0) params.set('minRtScore', String(seriesFilters.rtScore[0]))
-        if (seriesFilters.metacritic[0] > 0) params.set('minMetacritic', String(seriesFilters.metacritic[0]))
-        seriesFilters.contentRatings.forEach((rating) => params.append('contentRating', rating))
-        seriesFilters.status.forEach((status) => params.append('status', status))
-        seriesFilters.countries.forEach((country) => params.append('country', country))
-        if (seriesFilters.watchStatus !== 'any') params.set('watchStatus', seriesFilters.watchStatus)
-        if (seriesFilters.minWatchers !== null && seriesFilters.minWatchers > 0) params.set('minWatchers', String(seriesFilters.minWatchers))
-        if (seriesFilters.maxWatchers !== null && seriesFilters.maxWatchers >= 0) params.set('maxWatchers', String(seriesFilters.maxWatchers))
-
-        const response = await fetch(`/api/series?${params}`, { credentials: 'include' })
+        const response = await apiFetch(`/api/series?${params}`, { credentials: 'include', signal })
         if (!response.ok) {
           setSeriesError(t('browse.errors.loadSeries'))
           return
         }
 
         const data = (await response.json()) as SeriesResponse
+        if (signal?.aborted) return
+        setSeriesPage(page)
         if (append) {
           setSeries((prev) => [...prev, ...data.series])
         } else {
           setSeries(data.series)
         }
         setSeriesTotal(data.total)
-        setSeriesHasMore(data.series.length === PAGE_SIZE && (append ? series.length + data.series.length : data.series.length) < data.total)
+        setSeriesHasMore(data.series.length === PAGE_SIZE && page * PAGE_SIZE < data.total)
         setSeriesError(null)
       } catch {
+        if (signal?.aborted) return
         setSeriesError(t('browse.errors.connect'))
       } finally {
-        setSeriesLoading(false)
-        setSeriesLoadingMore(false)
+        if (!signal?.aborted) {
+          setSeriesLoading(false)
+          setSeriesLoadingMore(false)
+        }
       }
     },
-    [network, series.length, seriesFilters, seriesGenre, seriesRanges, seriesSearch, seriesSortBy, seriesSortOrder, t]
+    [queryParams, t]
   )
 
-  const fetchSeriesMetadata = useCallback(async () => {
+  const fetchSeriesMetadata = useCallback(async (signal: AbortSignal) => {
     try {
-      const [genresRes, networksRes, contentRatingsRes, countriesRes, rangesRes] = await Promise.all([
-        fetch('/api/series/genres', { credentials: 'include' }),
-        fetch('/api/series/networks', { credentials: 'include' }),
-        fetch('/api/series/content-ratings', { credentials: 'include' }),
-        fetch('/api/series/countries', { credentials: 'include' }),
-        fetch('/api/series/filter-ranges', { credentials: 'include' }),
-      ])
+      const [genresRes, networksRes, contentRatingsRes, countriesRes, rangesRes] =
+        await Promise.all([
+          apiFetch('/api/series/genres', { credentials: 'include', signal }),
+          apiFetch('/api/series/networks', { credentials: 'include', signal }),
+          apiFetch('/api/series/content-ratings', { credentials: 'include', signal }),
+          apiFetch('/api/series/countries', { credentials: 'include', signal }),
+          apiFetch('/api/series/filter-ranges', { credentials: 'include', signal }),
+        ])
 
+      if (signal.aborted) return
+      metadataLoadedRef.current = true
       if (genresRes.ok) {
         const data = (await genresRes.json()) as { genres?: string[] }
         setSeriesGenres(data.genres || [])
@@ -163,7 +213,9 @@ export function useBrowseSeries({ tabIndex, persistSortPreferences }: UseBrowseS
         setSeriesCountries(data.countries || [])
       }
       if (rangesRes.ok) {
-        const data = (await rangesRes.json()) as FilterRanges & { seasons?: { min: number; max: number } }
+        const data = (await rangesRes.json()) as FilterRanges & {
+          seasons?: { min: number; max: number }
+        }
         setSeriesRanges(data)
         setSeriesFilters((prev) => ({
           ...prev,
@@ -177,16 +229,28 @@ export function useBrowseSeries({ tabIndex, persistSortPreferences }: UseBrowseS
   }, [])
 
   useEffect(() => {
-    void fetchSeriesMetadata()
-  }, [fetchSeriesMetadata])
+    if (tabIndex !== 1 || metadataLoadedRef.current) return
+    const controller = new AbortController()
+    void fetchSeriesMetadata(controller.signal)
+    return () => controller.abort()
+  }, [fetchSeriesMetadata, tabIndex])
 
   useEffect(() => {
+    if (tabIndex !== 1 || !ready || !sortInitialized) return
+    const controller = new AbortController()
+    requestRef.current = controller
     resetSeries()
-    const debounce = setTimeout(() => {
-      void fetchSeries(1, false)
-    }, seriesSearch ? 300 : 0)
-    return () => clearTimeout(debounce)
-  }, [fetchSeries, network, resetSeries, seriesFilters, seriesGenre, seriesSearch, seriesSortBy, seriesSortOrder])
+    const debounce = setTimeout(
+      () => {
+        void fetchSeries(1, false, controller.signal)
+      },
+      seriesSearch ? 300 : 0
+    )
+    return () => {
+      clearTimeout(debounce)
+      controller.abort()
+    }
+  }, [fetchSeries, seriesSearch, resetSeries, tabIndex, ready, sortInitialized])
 
   useEffect(() => {
     if (seriesObserverRef.current) {
@@ -199,8 +263,7 @@ export function useBrowseSeries({ tabIndex, persistSortPreferences }: UseBrowseS
       (entries) => {
         if (entries[0]?.isIntersecting && seriesHasMore && !seriesLoadingMore) {
           const nextPage = seriesPage + 1
-          setSeriesPage(nextPage)
-          void fetchSeries(nextPage, true)
+          void fetchSeries(nextPage, true, requestRef.current?.signal)
         }
       },
       { threshold: 0.1 }

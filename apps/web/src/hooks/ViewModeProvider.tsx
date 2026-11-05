@@ -1,19 +1,17 @@
+import { useUserPreferences, saveUserPreferences } from './userPreferences'
 /**
  * ViewModeProvider
  *
  * Manages per-page view mode preferences (grid/list) with database persistence.
- * Uses localStorage as a cache for instant loading, syncs with server in background.
+ * Shares the account-scoped preference snapshot and persists only changed view modes.
  */
 
-import { useState, useEffect, useCallback, type ReactNode } from 'react'
+import { useState, useEffect, useCallback, useMemo, type ReactNode } from 'react'
 import { ViewModeContext, type PageKey, type ViewMode } from './view-mode-context'
 
 const DEFAULT_VIEW_MODE: ViewMode = 'grid'
-const STORAGE_KEY = 'aperture-view-modes'
-
-// Get initial state from localStorage for instant loading (no flash)
-function getInitialViewModes(): Record<PageKey, ViewMode> {
-  const defaults: Record<PageKey, ViewMode> = {
+function defaultViewModes(): Record<PageKey, ViewMode> {
+  return {
     discovery: DEFAULT_VIEW_MODE,
     topPicks: DEFAULT_VIEW_MODE,
     watchHistory: DEFAULT_VIEW_MODE,
@@ -22,17 +20,6 @@ function getInitialViewModes(): Record<PageKey, ViewMode> {
     browsePeople: 'list',
     recommendations: DEFAULT_VIEW_MODE,
   }
-
-  try {
-    const cached = localStorage.getItem(STORAGE_KEY)
-    if (cached) {
-      return { ...defaults, ...JSON.parse(cached) }
-    }
-  } catch {
-    // localStorage not available or invalid JSON
-  }
-
-  return defaults
 }
 
 interface ViewModeProviderProps {
@@ -40,75 +27,45 @@ interface ViewModeProviderProps {
 }
 
 export function ViewModeProvider({ children }: ViewModeProviderProps) {
-  // Initialize from localStorage for instant load (no flash)
-  const [viewModes, setViewModes] = useState<Record<PageKey, ViewMode>>(getInitialViewModes)
-  const [loading, setLoading] = useState(true)
-
-  // Fetch preferences from API on mount and sync with localStorage
+  const { userId, data, loading } = useUserPreferences()
+  const [local, setLocal] = useState<{
+    userId?: string
+    modes: Partial<Record<PageKey, ViewMode>>
+  }>({ modes: {} })
+  const viewModes = useMemo(
+    () => ({
+      ...defaultViewModes(),
+      ...data?.viewModes,
+      ...(local.userId === userId ? local.modes : {}),
+    }),
+    [data?.viewModes, local, userId]
+  )
   useEffect(() => {
-    const fetchPreferences = async () => {
+    setLocal({ userId, modes: {} })
+  }, [userId, data])
+
+  const getViewMode = useCallback(
+    (page: PageKey): ViewMode => {
+      return viewModes[page] || DEFAULT_VIEW_MODE
+    },
+    [viewModes]
+  )
+
+  const setViewMode = useCallback(
+    async (page: PageKey, mode: ViewMode) => {
+      if (!userId) return
+      setLocal((prev) => ({
+        userId,
+        modes: { ...(prev.userId === userId ? prev.modes : {}), [page]: mode },
+      }))
       try {
-        const response = await fetch('/api/auth/me/preferences', { credentials: 'include' })
-        if (response.ok) {
-          const data = await response.json()
-          // API returns preferences at root level, not nested under 'preferences'
-          if (data.viewModes) {
-            const merged = {
-              ...getInitialViewModes(),
-              ...data.viewModes,
-            }
-            setViewModes(merged)
-            // Update localStorage cache with server data
-            try {
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(merged))
-            } catch {
-              // localStorage not available
-            }
-          }
-        }
+        await saveUserPreferences(userId, { viewModes: { [page]: mode } })
       } catch (err) {
-        console.error('Failed to fetch view mode preferences:', err)
-      } finally {
-        setLoading(false)
+        console.error('Failed to save view mode preference:', err)
       }
-    }
-
-    fetchPreferences()
-  }, [])
-
-  const getViewMode = useCallback((page: PageKey): ViewMode => {
-    return viewModes[page] || DEFAULT_VIEW_MODE
-  }, [viewModes])
-
-  const setViewMode = useCallback(async (page: PageKey, mode: ViewMode) => {
-    // Update local state immediately for responsiveness
-    setViewModes(prev => {
-      const updated = { ...prev, [page]: mode }
-      // Update localStorage cache immediately
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
-      } catch {
-        // localStorage not available
-      }
-      return updated
-    })
-
-    // Persist to database
-    try {
-      await fetch('/api/auth/me/preferences', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          viewModes: {
-            [page]: mode,
-          },
-        }),
-      })
-    } catch (err) {
-      console.error('Failed to save view mode preference:', err)
-    }
-  }, [])
+    },
+    [userId]
+  )
 
   return (
     <ViewModeContext.Provider value={{ getViewMode, setViewMode, loading }}>

@@ -7,6 +7,12 @@
 
 import { createChildLogger } from '../../lib/logger.js'
 import { query, queryOne } from '../../lib/db.js'
+import { EmbyProvider, getMediaServerProvider } from '../../media/index.js'
+import { getMediaServerApiKey } from '../../settings/systemSettings.js'
+import { getSeriesRecommendationGroups } from './groups.js'
+import { getAllowedRecommendationSourceIds } from '../../media/emby/recommendationAccess.js'
+import { finalizeRun } from '../storage.js'
+import { suggestionTitleKeySql } from '../shared/suggestionHistory.js'
 import {
   createJobProgress,
   updateJobProgress,
@@ -21,8 +27,11 @@ import { averageEmbeddings } from '../shared/index.js'
 import {
   calculateRatingScore,
   calculateNoveltyScore,
+  calculateBaseScore,
   applyDiversitySelection,
 } from '../shared/index.js'
+import { applyDislikePenalty } from '../shared/scoring.js'
+import { getUserExcludedLibraries } from '../../lib/libraryExclusions.js'
 import { storeSeriesEvidence, getSeriesOverviews } from './storage.js'
 import {
   generateSeriesExplanations,
@@ -35,13 +44,12 @@ import { syncSeriesWatchHistoryForUser } from './sync.js'
 import {
   getUserTasteProfile,
   storeTasteProfile as storeNewTasteProfile,
-  getFranchiseBoost,
-  getGenreBoost,
-  getCustomInterestBoost,
+  loadPreferenceBoosts,
   detectAndUpdateFranchises,
 } from '../../taste-profile/index.js'
-import { getItemFranchise } from '../../taste-profile/franchise.js'
-import { getDislikedSeriesIds } from './taste.js'
+import { detectFranchiseFromTitle } from '../../taste-profile/franchise.js'
+import { getCandidateEmbeddings } from '../shared/embeddings.js'
+import { getUserSeriesRatings } from './taste.js'
 import { WATCH_HISTORY_TASTE_SQL } from '../watchedExclusion.js'
 import { loadConfigForUser } from '../config.js'
 import type { PipelineConfig } from '../types.js'
@@ -73,10 +81,12 @@ export interface SeriesCandidate {
   genres: string[]
   network: string | null
   status: string | null
+  communityRating?: number | null
   similarity: number
   novelty: number
   ratingScore: number
   diversityBoost: number
+  previouslySuggested?: boolean
   finalScore: number
 }
 
@@ -87,6 +97,7 @@ export type SeriesPipelineConfig = PipelineConfig
  * Get user's series watch history with engagement weighting
  */
 async function getSeriesWatchHistory(userId: string, limit: number): Promise<WatchedSeriesData[]> {
+  const excludedLibraries = await getUserExcludedLibraries(userId)
   const result = await query<{
     series_id: string
     episodes_watched: number
@@ -104,10 +115,11 @@ async function getSeriesWatchHistory(userId: string, limit: number): Promise<Wat
      JOIN episodes e ON e.id = wh.episode_id
      JOIN series s ON s.id = e.series_id
      WHERE wh.user_id = $1 AND wh.media_type = 'episode' AND (${WATCH_HISTORY_TASTE_SQL})
+       AND (s.provider_library_id IS NULL OR s.provider_library_id != ALL($3::text[]))
      GROUP BY e.series_id, s.total_episodes
      ORDER BY MAX(wh.last_played_at) DESC NULLS LAST
      LIMIT $2`,
-    [userId, limit]
+    [userId, limit, excludedLibraries]
   )
 
   return result.rows.map((row) => {
@@ -224,10 +236,12 @@ async function storeSeriesTasteProfile(userId: string, profile: number[]): Promi
  */
 async function getSeriesCandidates(
   tasteProfile: number[],
-  watchedSeriesIds: Set<string>,
+  excludedSeriesIds: Set<string>,
   maxCandidates: number,
-  includeWatched: boolean,
-  maxParentalRating: number | null
+  maxParentalRating: number | null,
+  userId: string,
+  cooldownDays: number,
+  allowedSourceIds: string[] | null
 ): Promise<SeriesCandidate[]> {
   const model = await getActiveEmbeddingModelId()
   if (!model) {
@@ -239,20 +253,21 @@ async function getSeriesCandidates(
   const tableName = await getActiveEmbeddingTableName('series_embeddings')
   const vectorStr = `[${tasteProfile.join(',')}]`
 
-  const queryLimit = includeWatched ? maxCandidates : maxCandidates + watchedSeriesIds.size
+  // This set contains only dislikes when watched recommendations are enabled.
+  const queryLimit = maxCandidates + excludedSeriesIds.size
 
   // Build query with optional parental rating filter
   let ratingFilter = ''
-  const params: (string | number)[] = [vectorStr, model, queryLimit]
+  const params = [vectorStr, model, queryLimit, userId, cooldownDays, allowedSourceIds] as unknown[]
 
   if (maxParentalRating !== null) {
     // Map parental rating to content ratings
     // This is a simplified mapping - adjust based on your data
     ratingFilter = `AND (s.content_rating IS NULL OR s.content_rating IN (
       SELECT unnest(CASE 
-        WHEN $4 >= 18 THEN ARRAY['TV-MA', 'TV-14', 'TV-PG', 'TV-G', 'TV-Y7', 'TV-Y']
-        WHEN $4 >= 14 THEN ARRAY['TV-14', 'TV-PG', 'TV-G', 'TV-Y7', 'TV-Y']
-        WHEN $4 >= 7 THEN ARRAY['TV-PG', 'TV-G', 'TV-Y7', 'TV-Y']
+        WHEN $7 >= 18 THEN ARRAY['TV-MA', 'TV-14', 'TV-PG', 'TV-G', 'TV-Y7', 'TV-Y']
+        WHEN $7 >= 14 THEN ARRAY['TV-14', 'TV-PG', 'TV-G', 'TV-Y7', 'TV-Y']
+        WHEN $7 >= 7 THEN ARRAY['TV-PG', 'TV-G', 'TV-Y7', 'TV-Y']
         ELSE ARRAY['TV-G', 'TV-Y7', 'TV-Y']
       END)
     ))`
@@ -268,6 +283,7 @@ async function getSeriesCandidates(
     status: string | null
     community_rating: number | null
     similarity: number
+    previously_suggested: boolean
   }>(
     `SELECT 
        s.id as series_id,
@@ -277,20 +293,23 @@ async function getSeriesCandidates(
        s.network,
        s.status,
        s.community_rating,
-       1 - (se.embedding <=> $1::halfvec) as similarity
+       1 - (se.embedding <=> $1::halfvec) as similarity,
+       h.last_suggested_at IS NOT NULL AS previously_suggested
      FROM series s
      JOIN ${tableName} se ON se.series_id = s.id AND se.model = $2
-     WHERE 1=1 ${ratingFilter}
+     LEFT JOIN recommendation_suggestion_history h
+       ON h.user_id = $4 AND h.media_type = 'series'
+       AND h.title_key = (${suggestionTitleKeySql('s.title', 's.year')})
+     WHERE (h.last_suggested_at IS NULL OR h.last_suggested_at <= NOW() - $5::int * INTERVAL '24 hours')
+       AND ($6::text[] IS NULL OR s.provider_library_id = ANY($6))
+       ${ratingFilter}
      ORDER BY se.embedding <=> $1::halfvec
      LIMIT $3`,
     params
   )
 
-  // Filter out watched series if not including them
-  let candidates = result.rows
-  if (!includeWatched) {
-    candidates = candidates.filter((c) => !watchedSeriesIds.has(c.series_id))
-  }
+  // Apply exclusions even when rewatching is enabled, since dislikes still apply.
+  let candidates = result.rows.filter((c) => !excludedSeriesIds.has(c.series_id))
 
   // Limit to maxCandidates
   candidates = candidates.slice(0, maxCandidates)
@@ -303,7 +322,9 @@ async function getSeriesCandidates(
     genres: row.genres || [],
     network: row.network,
     status: row.status,
+    communityRating: row.community_rating,
     similarity: row.similarity,
+    previouslySuggested: row.previously_suggested,
     novelty: 0,
     ratingScore: 0,
     diversityBoost: 0,
@@ -320,18 +341,6 @@ async function scoreSeriesCandidates(
   watchedSeries: WatchedSeriesData[],
   config: SeriesPipelineConfig
 ): Promise<SeriesCandidate[]> {
-  // Get ratings for candidates
-  const seriesIds = candidates.map((c) => c.seriesId)
-  const ratingsResult = await query<{ id: string; community_rating: number | null }>(
-    `SELECT id, community_rating FROM series WHERE id = ANY($1)`,
-    [seriesIds]
-  )
-
-  const ratingsMap = new Map<string, number | null>()
-  for (const row of ratingsResult.rows) {
-    ratingsMap.set(row.id, row.community_rating)
-  }
-
   // Compute genre distribution from watched series for novelty
   const watchedGenres = new Map<string, number>()
   const watchedSeriesResult = await query<{ genres: string[] }>(
@@ -350,16 +359,13 @@ async function scoreSeriesCandidates(
   // Score each candidate using shared scoring functions
   return candidates.map((candidate) => {
     // Use shared rating score calculation (handles bad data, proper scaling)
-    const ratingScore = calculateRatingScore(ratingsMap.get(candidate.seriesId))
+    const ratingScore = calculateRatingScore(candidate.communityRating)
 
     // Use shared novelty score calculation (handles missing genres)
     const noveltyScore = calculateNoveltyScore(candidate.genres, watchedGenres, totalWatchedGenres)
 
     // Compute final score
-    const finalScore =
-      config.similarityWeight * candidate.similarity +
-      config.noveltyWeight * noveltyScore +
-      config.ratingWeight * ratingScore
+    const finalScore = calculateBaseScore(candidate.similarity, noveltyScore, ratingScore, config)
 
     return {
       ...candidate,
@@ -367,7 +373,7 @@ async function scoreSeriesCandidates(
       ratingScore,
       finalScore,
     }
-  })
+  }).sort((a, b) => b.finalScore - a.finalScore)
 }
 
 interface SeriesSelectionResult {
@@ -425,7 +431,8 @@ async function storeSeriesCandidates(
   runId: string,
   candidates: SeriesCandidate[],
   selected: SeriesCandidate[],
-  selectedRanks: Map<string, number>
+  selectedRanks: Map<string, number>,
+  selectedGroups: Map<string, string | null>
 ): Promise<void> {
   if (candidates.length === 0) return
 
@@ -446,6 +453,7 @@ async function storeSeriesCandidates(
       finalScore: candidate.finalScore,
       isSelected,
       selectedRank,
+      groupId: selectedGroups.get(candidate.seriesId) ?? null,
     }
   })
 
@@ -453,15 +461,15 @@ async function storeSeriesCandidates(
   await query(
     `INSERT INTO recommendation_candidates (
        run_id, series_id, rank, similarity_score, novelty_score, rating_score,
-       diversity_score, final_score, is_selected, selected_rank
+       diversity_score, final_score, is_selected, selected_rank, series_group_id
      )
      SELECT $1, series_id, rank, similarity_score, novelty_score, rating_score,
-            diversity_score, final_score, is_selected, selected_rank
+            diversity_score, final_score, is_selected, selected_rank, series_group_id
      FROM unnest(
        $2::uuid[], $3::int[], $4::real[], $5::real[], $6::real[],
-       $7::real[], $8::real[], $9::boolean[], $10::int[]
+       $7::real[], $8::real[], $9::boolean[], $10::int[], $11::uuid[]
      ) AS t(series_id, rank, similarity_score, novelty_score, rating_score, 
-            diversity_score, final_score, is_selected, selected_rank)`,
+            diversity_score, final_score, is_selected, selected_rank, series_group_id)`,
     [
       runId,
       data.map((d) => d.seriesId),
@@ -473,27 +481,8 @@ async function storeSeriesCandidates(
       data.map((d) => d.finalScore),
       data.map((d) => d.isSelected),
       data.map((d) => d.selectedRank),
+      data.map((d) => d.groupId),
     ]
-  )
-}
-
-/**
- * Finalize a series recommendation run
- */
-async function finalizeSeriesRun(
-  runId: string,
-  candidateCount: number,
-  selectedCount: number,
-  durationMs: number,
-  status: 'completed' | 'failed',
-  error?: string
-): Promise<void> {
-  await query(
-    `UPDATE recommendation_runs
-     SET status = $2, candidate_count = $3, selected_count = $4,
-         duration_ms = $5, error_message = $6, completed_at = NOW()
-     WHERE id = $1`,
-    [runId, status, candidateCount, selectedCount, durationMs, error || null]
   )
 }
 
@@ -543,7 +532,7 @@ export async function generateSeriesRecommendationsForUser(
         { userId: user.id },
         '⚠️ User has no series watch history - cannot generate recommendations'
       )
-      await finalizeSeriesRun(runId, 0, 0, Date.now() - startTime, 'completed')
+      await finalizeRun(runId, 0, 0, Date.now() - startTime, 'completed')
       return { runId, recommendations: [] }
     }
 
@@ -579,7 +568,7 @@ export async function generateSeriesRecommendationsForUser(
         { userId: user.id },
         '⚠️ Could not build series taste profile - series may be missing embeddings'
       )
-      await finalizeSeriesRun(runId, 0, 0, Date.now() - startTime, 'completed')
+      await finalizeRun(runId, 0, 0, Date.now() - startTime, 'completed')
       return { runId, recommendations: [] }
     }
 
@@ -588,16 +577,17 @@ export async function generateSeriesRecommendationsForUser(
     logger.info({ userId: user.id }, '💾 Stored series taste profile (legacy)')
 
     // 3. Get user's preferences for including watched content and handling disliked content
-    const userPrefs = await queryOne<{ include_watched: boolean; settings: { dislikeBehavior?: string } | null }>(
-      `SELECT include_watched, settings FROM user_preferences WHERE user_id = $1`,
+    const userPrefs = await queryOne<{ include_watched: boolean; dislike_behavior: string | null }>(
+      `SELECT include_watched, dislike_behavior FROM user_preferences WHERE user_id = $1`,
       [user.id]
     )
     const includeWatched = userPrefs?.include_watched ?? false
-    const dislikeBehavior = userPrefs?.settings?.dislikeBehavior ?? 'exclude'
+    const dislikeBehavior = userPrefs?.dislike_behavior ?? 'exclude'
+    const userRatings = await getUserSeriesRatings(user.id)
 
     // Get disliked series IDs if dislike_behavior is 'exclude'
     const dislikedIds = dislikeBehavior === 'exclude' 
-      ? await getDislikedSeriesIds(user.id) 
+      ? new Set([...userRatings].filter(([, rating]) => rating <= 3).map(([id]) => id))
       : new Set<string>()
     
     if (dislikedIds.size > 0) {
@@ -628,13 +618,33 @@ export async function generateSeriesRecommendationsForUser(
 
     // 4. Get candidate series
     logger.info({ userId: user.id }, '🔍 Finding candidate series...')
-    const candidates = await getSeriesCandidates(
-      tasteProfile,
-      excludeIds,
-      cfg.maxCandidates,
-      includeWatched,
-      user.maxParentalRating ?? null
-    )
+    const provider = await getMediaServerProvider()
+    let allowedSourceIds: string[] | null = null
+    if (provider instanceof EmbyProvider) {
+      const apiKey = await getMediaServerApiKey()
+      if (!apiKey) throw new Error('An Emby API key is required to verify series source access')
+      allowedSourceIds = await getAllowedRecommendationSourceIds(provider, apiKey, user.providerUserId, 'tvshows')
+    }
+    const groups = provider instanceof EmbyProvider ? await getSeriesRecommendationGroups() : []
+    const candidatePools = new Map<string | null, Set<string>>()
+    const candidatesById = new Map<string, SeriesCandidate>()
+    for (const group of groups.length ? groups : [null]) {
+      const sources = group
+        ? group.sourceIds.filter((id) => allowedSourceIds?.includes(id))
+        : allowedSourceIds
+      const pool = sources?.length === 0 ? [] : await getSeriesCandidates(
+        tasteProfile,
+        excludeIds,
+        cfg.maxCandidates,
+        user.maxParentalRating ?? null,
+        user.id,
+        cfg.repeatCooldownDays,
+        sources
+      )
+      candidatePools.set(group?.id ?? null, new Set(pool.map((candidate) => candidate.id)))
+      for (const candidate of pool) candidatesById.set(candidate.id, candidate)
+    }
+    const candidates = [...candidatesById.values()]
     logger.info(
       { userId: user.id, candidateCount: candidates.length },
       `Found ${candidates.length} candidate series`
@@ -642,7 +652,7 @@ export async function generateSeriesRecommendationsForUser(
 
     if (candidates.length === 0) {
       logger.warn({ userId: user.id }, '⚠️ No candidate series found')
-      await finalizeSeriesRun(runId, 0, 0, Date.now() - startTime, 'completed')
+      await finalizeRun(runId, 0, 0, Date.now() - startTime, 'completed')
       return { runId, recommendations: [] }
     }
 
@@ -656,31 +666,31 @@ export async function generateSeriesRecommendationsForUser(
     let genreBoostCount = 0
     let interestBoostCount = 0
     
-    // Get embeddings for top candidates to apply custom interest boost
-    // (only fetch for top 100 to limit performance impact)
-    const topCandidateIds = scoredCandidates.slice(0, 100).map((c) => c.seriesId)
-    const { getSeriesEmbedding } = await import('./embeddings.js')
-    
+    const boosts = await loadPreferenceBoosts(user.id, 'series')
+    // Custom interests only apply to the top 100 candidates before preference boosts.
+    const embeddings = boosts.hasCustomInterests
+      ? await getCandidateEmbeddings(scoredCandidates.slice(0, 100).map((candidate) => candidate.seriesId), 'series')
+      : new Map<string, number[]>()
+
     for (const candidate of scoredCandidates) {
       // Get franchise boost (1.0 = neutral, up to 1.5 for loved franchises)
-      const franchiseName = await getItemFranchise(candidate.seriesId, 'series')
-      const franchiseBoost = await getFranchiseBoost(user.id, franchiseName, 'series')
+      const franchiseName = detectFranchiseFromTitle(candidate.title)
+      const franchiseBoost = await boosts.getFranchiseBoost(franchiseName)
       
       // Get genre boost (1.0 = neutral, 0.5-1.5 range)
-      const genreBoost = await getGenreBoost(user.id, candidate.genres || [])
+      const genreBoost = boosts.getGenreBoost(candidate.genres || [])
       
       // Get custom interest boost (only for top candidates with embeddings)
-      let interestBoost = 1.0
-      if (topCandidateIds.includes(candidate.seriesId)) {
-        const embedding = await getSeriesEmbedding(candidate.seriesId)
-        if (embedding) {
-          interestBoost = await getCustomInterestBoost(user.id, embedding)
-        }
-      }
-      
+      const embedding = embeddings.get(candidate.seriesId)
+      const interestBoost = embedding ? boosts.getCustomInterestBoost(embedding) : 1.0
+
       // Apply boosts to final score
       const originalScore = candidate.finalScore
-      candidate.finalScore = originalScore * franchiseBoost * genreBoost * interestBoost
+      candidate.finalScore = applyDislikePenalty(
+        originalScore * franchiseBoost * genreBoost * interestBoost,
+        userRatings.get(candidate.seriesId),
+        dislikeBehavior
+      )
       
       if (franchiseBoost !== 1.0) {
         franchiseBoostCount++
@@ -718,33 +728,25 @@ export async function generateSeriesRecommendationsForUser(
       { userId: user.id, targetCount: cfg.selectedCount, diversityWeight: effectiveDiversityWeight },
       '🎲 Applying diversity and selecting...'
     )
-    const { selected } = applySeriesDiversityAndSelect(
-      scoredCandidates,
-      cfg.selectedCount,
-      effectiveDiversityWeight
-    )
-
-    const finalSelected = includeWatched
-      ? selected
-      : (await import('../watchedExclusion.js')).filterByWatchedIds(
-          selected.map((candidate) => ({ ...candidate, id: candidate.seriesId })),
-          excludeIds
-        )
-
-    if (!includeWatched && finalSelected.length < selected.length) {
-      logger.info(
-        {
-          userId: user.id,
-          removed: selected.length - finalSelected.length,
-        },
-        'Filtered watched series from final recommendations (safety net)'
-      )
-    }
-
+    const finalSelected: SeriesCandidate[] = []
     const finalSelectedRanks = new Map<string, number>()
-    finalSelected.forEach((candidate, index) => {
-      finalSelectedRanks.set(candidate.seriesId, index + 1)
-    })
+    const selectedGroups = new Map<string, string | null>()
+    const selectedTitles = new Set<string>()
+    const titleKey = (candidate: SeriesCandidate) => `${candidate.title.toLowerCase()}|${candidate.year || 'unknown'}`
+    const eligibleCandidates = (await import('../watchedExclusion.js')).filterByWatchedIds(scoredCandidates, excludeIds)
+    for (const [groupId, pool] of candidatePools) {
+      const { selected, selectedRanks } = applySeriesDiversityAndSelect(
+        eligibleCandidates.filter((candidate) => pool.has(candidate.id) && !selectedTitles.has(titleKey(candidate))),
+        cfg.selectedCount,
+        effectiveDiversityWeight
+      )
+      for (const candidate of selected) {
+        finalSelected.push(candidate)
+        finalSelectedRanks.set(candidate.id, selectedRanks.get(candidate.id)!)
+        selectedGroups.set(candidate.id, groupId)
+        selectedTitles.add(titleKey(candidate))
+      }
+    }
 
     // Log selected series
     logger.info(
@@ -761,7 +763,7 @@ export async function generateSeriesRecommendationsForUser(
 
     // 7. Store results
     logger.info({ runId }, '💾 Storing candidates...')
-    await storeSeriesCandidates(runId, scoredCandidates, finalSelected, finalSelectedRanks)
+    await storeSeriesCandidates(runId, scoredCandidates, finalSelected, finalSelectedRanks, selectedGroups)
 
     // 8. Store evidence (similar watched series for each recommendation)
     logger.info({ runId }, '📊 Storing recommendation evidence...')
@@ -800,7 +802,7 @@ export async function generateSeriesRecommendationsForUser(
     }
 
     const duration = Date.now() - startTime
-    await finalizeSeriesRun(runId, scoredCandidates.length, finalSelected.length, duration, 'completed')
+    await finalizeRun(runId, scoredCandidates.length, finalSelected.length, duration, 'completed')
 
     logger.info(
       { userId: user.id, username: user.username, selected: finalSelected.length, duration },
@@ -811,7 +813,7 @@ export async function generateSeriesRecommendationsForUser(
   } catch (err) {
     const error = err instanceof Error ? err.message : 'Unknown error'
     logger.error({ userId: user.id, err }, `❌ Series recommendation generation failed: ${error}`)
-    await finalizeSeriesRun(runId, 0, 0, Date.now() - startTime, 'failed', error)
+    await finalizeRun(runId, 0, 0, Date.now() - startTime, 'failed', error)
     throw err
   }
 }

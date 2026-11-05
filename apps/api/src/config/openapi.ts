@@ -6,12 +6,11 @@
 
 import type { FastifyDynamicSwaggerOptions } from '@fastify/swagger'
 import type { FastifySwaggerUiOptions } from '@fastify/swagger-ui'
+import { APP_VERSION } from '../lib/appVersion.js'
 
 // =============================================================================
 // API Information
 // =============================================================================
-
-const API_VERSION = '0.7.10'
 
 const apiInfo = {
   title: 'Aperture API',
@@ -57,7 +56,7 @@ All errors return JSON with an \`error\` field:
 }
 \`\`\`
 `.trim(),
-  version: API_VERSION,
+  version: APP_VERSION,
   contact: {
     name: 'Aperture',
     url: 'https://github.com/dgruhin-hrizn/aperture',
@@ -769,19 +768,18 @@ export function getSwaggerConfig(appBaseUrl: string): FastifyDynamicSwaggerOptio
 // Aperture logo SVG - exported for use in logo route
 export const apertureLogoSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <defs>
-    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
-    </linearGradient>
+    <path id="blade" d="M7.3 39.4A44 44 0 0 1 73.32 12.69Q74.8 13.6 74.6 15.8L69.9 44.5Q69.6 47.5 67.1 46.1L39 29.9 9.2 41.1Q6.8 42 7.3 39.4Z"/>
   </defs>
-  <circle cx="50" cy="50" r="45" fill="none" stroke="url(#grad)" stroke-width="4"/>
-  <path d="M50 15 L65 35 L85 50 L65 65 L50 85 L35 65 L15 50 L35 35 Z" fill="url(#grad)" opacity="0.9"/>
-  <circle cx="50" cy="50" r="12" fill="#1a1a2e"/>
+  <g fill="#7c65ee">
+    <use href="#blade"/>
+    <use href="#blade" transform="rotate(120 50 50)"/>
+    <use href="#blade" transform="rotate(240 50 50)"/>
+  </g>
 </svg>`
 
 // Custom CSS to style Swagger UI with Aperture branding
 const customCss = `
-  .topbar-wrapper img { content: url("/api/logo.svg"); }
+  .topbar-wrapper img { content: url("/api/logo.svg?v=play-iris"); }
   .topbar-wrapper .link::after { content: "Aperture API"; margin-left: 8px; font-size: 1.5em; font-weight: bold; }
 `
 
@@ -816,5 +814,14 @@ export const swaggerUIConfig: FastifySwaggerUiOptions = {
   theme: {
     title: 'Aperture API',
     css: [{ filename: 'theme.css', content: customCss }],
+    favicon: [
+      {
+        filename: 'aperture.svg',
+        rel: 'icon',
+        type: 'image/svg+xml',
+        sizes: 'any',
+        content: apertureLogoSvg,
+      },
+    ],
   },
 }

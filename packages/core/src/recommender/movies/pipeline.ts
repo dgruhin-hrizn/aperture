@@ -1,4 +1,7 @@
 // Re-organized pipeline - imports from modular files
+import { EmbyProvider, getMediaServerProvider } from '../../media/index.js'
+import { getMediaServerApiKey } from '../../settings/systemSettings.js'
+import { getAllowedRecommendationSourceIds } from '../../media/emby/recommendationAccess.js'
 import { createChildLogger } from '../../lib/logger.js'
 import { query, queryOne } from '../../lib/db.js'
 import {
@@ -18,7 +21,8 @@ import { randomUUID } from 'crypto'
 
 // Import from modular files
 import { loadConfigForUser } from '../config.js'
-import { getWatchHistory, buildTasteProfile as buildLegacyTasteProfile, storeTasteProfile as storeLegacyTasteProfile, getUserMovieRatings, getDislikedMovieIds } from './taste.js'
+import { getWatchHistory, buildTasteProfile as buildLegacyTasteProfile, storeTasteProfile as storeLegacyTasteProfile, getUserMovieRatings } from './taste.js'
+import { applyDislikePenalty } from '../shared/scoring.js'
 import { getCandidates } from './candidates.js'
 import { scoreCandidates } from './scoring.js'
 import { applyDiversityAndSelect } from './selection.js'
@@ -37,12 +41,11 @@ import { syncWatchHistoryForUser } from './sync.js'
 import {
   getUserTasteProfile,
   storeTasteProfile as storeNewTasteProfile,
-  getFranchiseBoost,
-  getGenreBoost,
-  getCustomInterestBoost,
+  loadPreferenceBoosts,
   detectAndUpdateFranchises,
 } from '../../taste-profile/index.js'
-import { getItemFranchise } from '../../taste-profile/franchise.js'
+import { detectFranchiseFromTitle } from '../../taste-profile/franchise.js'
+import { getCandidateEmbeddings } from '../shared/embeddings.js'
 
 // Re-export types
 export * from '../types.js'
@@ -112,11 +115,13 @@ export async function generateRecommendationsForUser(
 
     // 2. Get user's watch history and ratings (now from synced data)
     logger.info({ userId: user.id }, '📊 Fetching watch history and ratings...')
-    const [watched, userRatings, dislikedIds] = await Promise.all([
+    const [watched, userRatings] = await Promise.all([
       getWatchHistory(user.id, cfg.recentWatchLimit),
       getUserMovieRatings(user.id),
-      dislikeBehavior === 'exclude' ? getDislikedMovieIds(user.id) : Promise.resolve(new Set<string>()),
     ])
+    const dislikedIds = dislikeBehavior === 'exclude'
+      ? new Set([...userRatings].filter(([, rating]) => rating <= 3).map(([id]) => id))
+      : new Set<string>()
     logger.info(
       { userId: user.id, watchedCount: watched.length, ratingsCount: userRatings.size, dislikedCount: dislikedIds.size },
       `Found ${watched.length} watched movies, ${userRatings.size} ratings, ${dislikedIds.size} disliked`
@@ -196,13 +201,31 @@ export async function generateRecommendationsForUser(
       )
     }
 
-    const candidates = await getCandidates(
-      tasteProfile,
-      excludeIds,
-      cfg.maxCandidates,
-      includeWatched,
-      user.maxParentalRating ?? null
-    )
+    const provider = await getMediaServerProvider()
+    let allowedSourceIds: string[] | undefined
+    if (provider instanceof EmbyProvider) {
+      const apiKey = await getMediaServerApiKey()
+      if (!apiKey) throw new Error('An Emby API key is required to verify movie source access')
+      allowedSourceIds = await getAllowedRecommendationSourceIds(provider, apiKey, user.providerUserId, 'movies')
+    }
+    const explorationCount = Math.floor(cfg.selectedCount / 5)
+    const familiar = explorationCount > 0 ? await query<{ genre: string }>(
+      `SELECT genre FROM movies CROSS JOIN LATERAL unnest(genres) AS genres(genre)
+       WHERE id = ANY($1::uuid[]) GROUP BY genre ORDER BY count(*) DESC, genre LIMIT 3`,
+      [watched.slice(0, 50).map((movie) => movie.movieId)]
+    ) : null
+    const familiarGenres = familiar?.rows.map((row) => row.genre) ?? []
+    const history = { userId: user.id, cooldownDays: cfg.repeatCooldownDays, allowedSourceIds }
+    const [matches, exploration] = await Promise.all([
+      getCandidates(tasteProfile, excludeIds, cfg.maxCandidates, false, user.maxParentalRating ?? null, history),
+      familiarGenres.length ? getCandidates(
+        tasteProfile, excludeIds, Math.min(cfg.maxCandidates, Math.max(50, explorationCount * 10)),
+        false, user.maxParentalRating ?? null, { ...history, explorationGenres: familiarGenres }
+      ) : [],
+    ])
+    const explorationIds = new Set(exploration.map((candidate) => candidate.id))
+    const candidates = [...new Map([...matches, ...exploration].map((candidate) => [candidate.id, candidate])).values()]
+
     logger.info(
       { userId: user.id, candidateCount: candidates.length },
       `Found ${candidates.length} candidate movies`
@@ -238,31 +261,31 @@ export async function generateRecommendationsForUser(
     let genreBoostCount = 0
     let interestBoostCount = 0
     
-    // Get embeddings for top candidates to apply custom interest boost
-    // (only fetch for top 100 to limit performance impact)
-    const topCandidateIds = scoredCandidates.slice(0, 100).map((c) => c.id)
-    const { getMovieEmbedding } = await import('./embeddings.js')
-    
+    const boosts = await loadPreferenceBoosts(user.id, 'movie')
+    // Custom interests only apply to the top 100 candidates before preference boosts.
+    const embeddings = boosts.hasCustomInterests
+      ? await getCandidateEmbeddings(scoredCandidates.slice(0, 100).map((candidate) => candidate.id), 'movie')
+      : new Map<string, number[]>()
+
     for (const candidate of scoredCandidates) {
       // Get franchise boost (1.0 = neutral, up to 1.5 for loved franchises)
-      const franchiseName = await getItemFranchise(candidate.id, 'movie')
-      const franchiseBoost = await getFranchiseBoost(user.id, franchiseName, 'movie')
+      const franchiseName = candidate.collectionName || detectFranchiseFromTitle(candidate.title)
+      const franchiseBoost = await boosts.getFranchiseBoost(franchiseName)
       
       // Get genre boost (1.0 = neutral, 0.5-1.5 range)
-      const genreBoost = await getGenreBoost(user.id, candidate.genres || [])
+      const genreBoost = boosts.getGenreBoost(candidate.genres || [])
       
       // Get custom interest boost (only for top candidates with embeddings)
-      let interestBoost = 1.0
-      if (topCandidateIds.includes(candidate.id)) {
-        const embedding = await getMovieEmbedding(candidate.id)
-        if (embedding) {
-          interestBoost = await getCustomInterestBoost(user.id, embedding)
-        }
-      }
-      
+      const embedding = embeddings.get(candidate.id)
+      const interestBoost = embedding ? boosts.getCustomInterestBoost(embedding) : 1.0
+
       // Apply boosts to final score
       const originalScore = candidate.finalScore
-      candidate.finalScore = originalScore * franchiseBoost * genreBoost * interestBoost
+      candidate.finalScore = applyDislikePenalty(
+        originalScore * franchiseBoost * genreBoost * interestBoost,
+        userRatings.get(candidate.id),
+        dislikeBehavior
+      )
       
       if (franchiseBoost !== 1.0) {
         franchiseBoostCount++
@@ -319,7 +342,8 @@ export async function generateRecommendationsForUser(
     const { selected } = applyDiversityAndSelect(
       scoredCandidates,
       cfg.selectedCount,
-      effectiveDiversityWeight
+      effectiveDiversityWeight,
+      { ids: explorationIds, count: explorationCount }
     )
 
     const finalSelected = includeWatched

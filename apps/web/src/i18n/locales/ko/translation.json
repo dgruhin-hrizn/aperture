@@ -19,7 +19,9 @@
     "dontShowAgain": "다시 표시하지 않음",
     "errors": {
       "serverMessage": "{{메시지}}"
-    }
+    },
+    "edit": "Edit",
+    "remove": "Remove"
   },
   "nav": {
     "dashboard": "대시보드",
@@ -349,6 +351,10 @@
         "globalIntegrations": {
           "title": "연동",
           "description": "Trakt 동기화 및 AI 가격 데이터 갱신"
+        },
+        "mediaImport": {
+          "title": "Import from media server",
+          "description": "Import users, catalog, and watch history. These jobs use no AI tokens."
         }
       },
       "jobNames": {
@@ -754,7 +760,10 @@
     },
     "rangeSlider": {
       "valueRange": "{{시작}} – {{끝}}"
-    }
+    },
+    "retryLoad": "Retry",
+    "gridView": "Grid view",
+    "listView": "List view"
   },
   "login": {
     "title": "다시 오신 것을 환영합니다",
@@ -1287,6 +1296,11 @@
     "watched": "시청함",
     "watchedCount": "{{count}}× 시청함",
     "viewDetails": "세부정보 보기",
+    "mediaActions": "미디어 작업",
+    "unrated": "평점 없음",
+    "ratingSaveFailed": "평점을 저장할 수 없습니다. 다시 시도하세요.",
+    "watchingSaveFailed": "시청 목록을 업데이트할 수 없습니다. 다시 시도하세요.",
+    "reviewPlaylist": "재생 목록 검토",
     "playOnEmby": "Emby에서 플레이",
     "directorPrefix": "감독: {{이름}}",
     "networkPrefix": "네트워크: {{이름}}",
@@ -1921,7 +1935,12 @@
     "symlinkWarningTitle": "중요한:",
     "symlinkWarningBody": "Symlink를 사용하려면 Aperture가 미디어 서버가 사용하는 것과 정확히 동일한 경로에서 미디어 파일에 액세스할 수 있어야 합니다. Docker에서 Aperture를 실행하는 경우 볼륨 마운트가 일치하는지 확인하세요.",
     "saving": "절약…",
-    "saveChanges": "변경 사항 저장"
+    "saveChanges": "변경 사항 저장",
+    "publishMode": "Media server output",
+    "publishLibrary": "Generated library",
+    "publishPlaylist": "Private Emby playlist (preview)",
+    "publishPlaylistHelp": "Playlists use the original Emby items. Each recipient must sign into Aperture with Emby before the next library sync.",
+    "publishOff": "Off (remove generated output)"
   },
   "settingsMdblistSelector": {
     "placeholderClick": "목록을 선택하려면 클릭하세요…",
@@ -2113,7 +2132,9 @@
         "decrease": "모두 점수가 좋으면 유사한 항목을 함께 묶을 수 있습니다.",
         "example": "다양성이 높으면 사용자가 좋아하는 마블 영화를 연속으로 10편 볼 수 없습니다."
       }
-    }
+    },
+    "repeatCooldownDays": "Repeat suggestion cooldown (days)",
+    "repeatCooldownHelp": "After the cooldown, returning titles can take up to 20% of the requested slots, with one slot allowed for small lists."
   },
   "settingsWatching": {
     "title": "당신이 시청하는 프로그램",
@@ -2179,7 +2200,8 @@
     "previewMovies": "영화 산업",
     "previewTvSeries": "TV 시리즈",
     "saving": "절약…",
-    "saveTemplates": "템플릿 저장"
+    "saveTemplates": "템플릿 저장",
+    "previewGroupLabel": "Grouped TV example"
   },
   "connectionTypes": {
     "director": "같은 감독",
@@ -3621,7 +3643,7 @@
     "searchResults": "검색결과",
     "emptyStrip": "이 행에는 제목이 없습니다.",
     "loadError": "스트리밍 데이터를 로드할 수 없습니다.",
-    "staleCache": "캐시된 결과 표시 중 실시간 데이터 새로고침에 실패했습니다.",
+    "staleCache": "캐시된 차트를 표시합니다. 순위가 변경되었을 수 있습니다.",
     "inLibrary": "도서관에서",
     "loadingLabels": "서비스 이름 로드 중…"
   },
@@ -3675,5 +3697,450 @@
     "sectionBlurb": "각 행은 TMDb Discover 스트립입니다. 행에 여러 장르가 나열되면 TMDb는 모든 장르와 일치하는 제목을 반환합니다. 이미 라이브러리에 있거나 시청했거나 요청한 항목은 결과에서 제외됩니다.",
     "loadError": "장르 행을 로드할 수 없습니다.",
     "emptyStrip": "필터링 후 이 행과 일치하는 제목이 없습니다."
+  },
+  "appearance": {
+    "title": "화면 모양",
+    "description": "Aperture의 모양을 선택하세요. 추천이나 Emby 설정은 변경되지 않습니다.",
+    "theme": "테마",
+    "classic": "클래식",
+    "classicDescription": "Aperture의 기존 어두운 테마입니다.",
+    "studio": "Studio",
+    "studioDescription": "코발트 강조색, 선명한 글꼴, 밝거나 어두운 화면입니다.",
+    "mode": "색상 모드",
+    "light": "밝게",
+    "dark": "어둡게",
+    "system": "기기 설정 따르기",
+    "classicModeHint": "클래식은 기존 어두운 모양을 유지합니다. Studio 모드는 기억됩니다.",
+    "systemHint": "기기의 화면 모양 설정을 자동으로 따릅니다.",
+    "save": "모양 저장",
+    "saved": "계정의 화면 모양을 저장했습니다.",
+    "loadError": "모양을 불러올 수 없습니다. 변경하기 전에 다시 시도하세요.",
+    "saveError": "모양을 저장할 수 없습니다. 이전 선택이 유지됩니다.",
+    "retry": "다시 시도",
+    "switchLight": "밝은 모드로 전환",
+    "switchDark": "어두운 모드로 전환",
+    "forYou": "맞춤 추천",
+    "yourLibrary": "내 라이브러리",
+    "activity": "활동"
+  },
+  "tonight": {
+    "title": "Tonight",
+    "subtitle": "Pick up where you left off, or find something to watch next.",
+    "continueWatching": "Continue Watching",
+    "picks": "Tonight’s picks",
+    "openInEmby": "Open in Emby",
+    "snooze": "Not tonight",
+    "snoozeTitle": "Hide {{title}} from Tonight for 12 hours",
+    "snoozed": "Pick hidden from Tonight for 12 hours.",
+    "snoozeError": "Could not hide this pick. Refresh Tonight and try again.",
+    "openTitle": "Open {{title}} in Emby",
+    "minutes_one": "{{count}} min",
+    "minutes_other": "{{count}} min",
+    "minutesLeft_one": "{{count}} min left",
+    "minutesLeft_other": "{{count}} min left",
+    "progress": "Playback progress for {{title}}",
+    "noResume": "No in-progress titles are available from your synced Emby libraries.",
+    "noPicks": "No saved recommendations are available to play in Emby yet.",
+    "loading": "Loading Tonight",
+    "error": "Could not load Tonight. Check your Emby connection or sign in again.",
+    "signIn": "Sign in to Aperture with Emby to see your Continue Watching list and picks.",
+    "embyOnly": "Tonight is available with an Emby media server."
+  },
+  "embyHomePins": {
+    "title": "Emby Home",
+    "description": "Pin a private AI Picks playlist to your Emby Home screen. Unpin removes the shelf and keeps the playlist.",
+    "pin": "Pin to Emby Home",
+    "unpin": "Unpin from Emby Home",
+    "manageInEmby": "Already on Home · manage in Emby",
+    "error": "Could not load Emby Home."
+  },
+  "releaseHighlights": {
+    "saveError": "Aperture could not save your dismissal. Try again.",
+    "admin": {
+      "title": "What’s new for Aperture admins",
+      "action": "Open output settings",
+      "groups": {
+        "title": "Group Emby TV sources",
+        "body": "Under Settings → Setup → Media Server, open the TV Shows library tab to map sources to named outputs. Run TV recommendations and TV library sync after saving."
+      },
+      "outputs": {
+        "title": "Choose how to publish AI Picks",
+        "body": "Under AI Recommendations → Output, choose a generated library, private Emby playlist preview, or Off for movies and TV separately. Off removes the managed output. Emby playlist recipients must sign in to Aperture with Emby first."
+      },
+      "cooldown": {
+        "title": "Control when picks can return",
+        "body": "Under AI Recommendations → Algorithm, set the movie and TV cooldowns. Both default to 180 days. Each list limits returning titles after the cooldown."
+      },
+      "jobs": {
+        "title": "Import without using AI tokens",
+        "body": "Admin → Jobs separates import, publishing, and AI processing. Import Media Server syncs users, the catalog, and watch history without generating or publishing picks."
+      },
+      "encore": {
+        "title": "A rebuilt conversation workspace",
+        "body": "Modern tool calling, restored conversations, source-aware movie and TV discovery, regional providers and release calendars."
+      },
+      "connections": {
+        "title": "Aperture MCP",
+        "body": "Connect local Claude, Codex or another MCP client with scoped, expiring and revocable user credentials."
+      },
+      "curation": {
+        "title": "Plans, collections and opt-in curation",
+        "body": "Users can save memories, plan viewing windows, approve private Emby playlists and Home rows, and explicitly enable recurring updates."
+      },
+      "trust": {
+        "title": "Grounded operations and visible receipts",
+        "body": "Current catalog access is checked per user. Actions persist their state and preserve manual edits. Failures and uncertain outcomes remain visible."
+      }
+    },
+    "user": {
+      "title": "What’s new in your AI Picks",
+      "action": "Open AI Picks",
+      "freshness": {
+        "title": "Fewer repeat picks",
+        "body": "Recently suggested movies and shows take a break. Older picks can return gradually, leaving room for more titles you haven’t been suggested."
+      },
+      "exploration": {
+        "title": "More variety in movie recommendations",
+        "body": "Movie picks can make room for well-rated films outside your most-watched genres. Shared themes and your ratings also help shape the list."
+      },
+      "playback": {
+        "title": "New ways to find your picks in Emby",
+        "body": "If your admin enables them, you may see separate TV groups or private playlists. The playlist preview opens original Emby items, keeping playback attached to those items."
+      },
+      "encore": {
+        "title": "A more thoughtful movie and TV consultant",
+        "body": "Discover by mood, compare your collection with external finds, check upcoming releases and keep the conversation going."
+      },
+      "memory": {
+        "title": "Your preferences, under your control",
+        "body": "Encore can remember lasting preferences. Inspect, correct, expire or forget them in its Memory tab."
+      },
+      "planning": {
+        "title": "Make room for a great watch",
+        "body": "Draft plans around your available time, edit viewing windows, recheck progress and export saved plans to your calendar."
+      },
+      "collections": {
+        "title": "Build your corner of Emby",
+        "body": "Approve playlists and supported Home rows from the chat. Suggestions are the default; recurring curation starts only when you enable a rule."
+      }
+    }
+  },
+  "encore": {
+    "open": "Ask Encore",
+    "subtitle": "Your personal movie and TV consultant",
+    "eyebrow": "A little less browsing. A lot more watching.",
+    "welcome": "What are we watching next?",
+    "intro": "Find your next favorite, explore your collection, and get a thoughtful recommendation that fits your evening.",
+    "newConversation": "New conversation",
+    "conversations": "Your conversations",
+    "rename": "Rename conversation",
+    "delete": "Delete conversation",
+    "retry": "Try again",
+    "toolWorking": "Checking your collection…",
+    "toolComplete": "Collection checked",
+    "placeholder": "Ask about a movie, a mood, or your next night in…",
+    "send": "Send message",
+    "stop": "Stop response",
+    "thinking": "Encore is working…",
+    "footer": "Personal recommendations, grounded in your collection.",
+    "prompts": {
+      "tonight": "I have 90 minutes. What should I watch tonight?",
+      "discover": "Find a hidden gem I haven’t watched.",
+      "taste": "What have you learned about my movie and TV taste?",
+      "similar": "Find something atmospheric and thought-provoking.",
+      "releases": "What’s coming up for the shows I follow?",
+      "filmography": "Help me explore a director’s complete filmography."
+    },
+    "tools": {
+      "searchContent": "Searched your collection",
+      "semanticSearch": "Matched your mood",
+      "findSimilarContent": "Found similar titles",
+      "getMyRecommendations": "Your personal picks",
+      "getWatchHistory": "Checked your watch history",
+      "getContentDetails": "Title details",
+      "getLibraryStats": "Your collection at a glance",
+      "getUserRatings": "Your ratings",
+      "getTopRated": "Highly rated in your collection",
+      "getUnwatched": "Still to discover",
+      "searchPeople": "People and filmography",
+      "getTopStudios": "Your studios and networks",
+      "getContentRankings": "Collection rankings",
+      "getAvailableGenres": "Genres in your collection",
+      "searchByKeyword": "Themes and keywords",
+      "getFranchises": "Your franchises",
+      "getAwardWinners": "Award-winning titles",
+      "getTopByRtScore": "Critics’ favorites",
+      "getFranchiseProgress": "Franchise progress",
+      "getSystemHelp": "Aperture help",
+      "discoverTitles": "Discovered beyond your collection",
+      "getFilmography": "Full filmography",
+      "getReleaseSchedule": "Checked release schedules",
+      "getTasteProfile": "Your taste profile",
+      "getExternalTitleDetails": "Verified title details and availability"
+    },
+    "chatTab": "Conversation",
+    "connectionsTab": "Connections",
+    "connectionsTitle": "Bring Aperture to your favorite assistant",
+    "connectionsIntro": "Connect Claude, Codex, or another MCP client to the same collection, taste profile and release schedules Encore uses.",
+    "tokenCreated": "Connection created",
+    "tokenOnce": "Copy this token now. Aperture stores only its hash and cannot show it again.",
+    "tokenLabel": "New connection token",
+    "copyToken": "Copy token",
+    "copied": "Copied",
+    "createConnection": "Create connection",
+    "connectionName": "Connection name",
+    "expiresDays": "Expires in days",
+    "expiresOn": "Expires {{date}}",
+    "revoke": "Revoke",
+    "connectInstructions": "Connect your client",
+    "connectLocal": "Use this Streamable HTTP endpoint with your token as a Bearer credential. Local clients can reach your private Aperture address.",
+    "mcpEndpoint": "MCP endpoint",
+    "bridgeInstructions": "For Claude Desktop or another stdio client, download aperture-mcp.mjs from this release and use Node 22+. Replace the file path and token in this configuration. Cloud connectors need an address reachable from their provider.",
+    "externalMemoryBoundary": "Aperture receives tool calls and information explicitly saved through its tools. Your full Claude or Codex conversation is not automatically copied.",
+    "scopes": {
+      "library_read": "Read accessible collection",
+      "profile_read": "Read taste and history",
+      "schedules_read": "Read release schedules",
+      "memory_write": "Save preferences",
+      "plans_write": "Manage watch plans",
+      "playlists_write": "Manage playlists",
+      "home_write": "Manage home rows",
+      "curation_write": "Manage recurring curation"
+    },
+    "releaseSchedule": "Your release calendar",
+    "dayPrecision": "Dates are forecasts by region. Exact local availability may differ.",
+    "noReleases": "No confirmed releases were found in this window.",
+    "checkedAt": "Checked {{date}}",
+    "tasteTitle": "Your taste, in focus",
+    "movieTaste": "Movies",
+    "seriesTaste": "TV series",
+    "prefer": "Prefer",
+    "avoid": "Avoid",
+    "neutral": "Neutral",
+    "noTaste": "Your profile is taking shape. Ratings and watching history help Aperture understand your taste.",
+    "franchiseProgress": "{{watched}} of {{total}} watched",
+    "availability": {
+      "library": "Library result",
+      "external": "Discover beyond Emby",
+      "upcoming": "Upcoming",
+      "unknown": "Availability unverified"
+    },
+    "streamingTitle": "Where to watch · {{region}}",
+    "noStreaming": "No verified provider listing is available for this region.",
+    "justWatchAttribution": "Availability data: JustWatch via TMDb",
+    "streamingPrecision": "Provider listings do not confirm your subscription access or availability of every episode.",
+    "toolFailed": "This lookup could not finish. Try again or check the connected service.",
+    "providerTypes": {
+      "subscription": "Subscription",
+      "rent": "Rent",
+      "buy": "Buy"
+    },
+    "clipboardUnavailable": "Automatic copy is unavailable at this address. Select and copy the token field manually.",
+    "memoryTab": "Memory",
+    "plansTab": "Watch plans",
+    "collectionsTab": "Collections",
+    "memoryTitle": "A consultant that remembers you",
+    "memoryIntro": "Inspect, correct or forget what Encore learns. Memories belong to your account and can inform future conversations.",
+    "addMemory": "Add a memory",
+    "memoryEmpty": "No saved memories yet. Tell Encore what you would like it to remember.",
+    "untilForgotten": "Saved until you forget it",
+    "forgetMemory": "Forget",
+    "editMemory": "Save a personal memory",
+    "memoryKey": "Topic",
+    "memoryKeyHelp": "Use one topic per fact, such as spoiler preference. Corrections replace that topic.",
+    "memoryFact": "What should Encore remember?",
+    "memoryKind": "Type",
+    "memoryDays": "Expires after days (optional)",
+    "memoryDaysHelp": "Leave blank for a lasting memory. Temporary context does not change recommendation interests.",
+    "memoryCanonical": "Lasting preferences use your existing Taste Profile interests. Forgetting removes the linked interest only if it has not been edited elsewhere. Other taste settings remain under Taste Profile.",
+    "memoryManageHint": "Inspect or change this in Encore → Memory.",
+    "memoryKinds": {
+      "preference": "Preference",
+      "constraint": "Constraint",
+      "context": "Context",
+      "spoiler": "Spoiler preference"
+    },
+    "memorySources": {
+      "encore": "Saved in Encore",
+      "mcp": "Saved through a connected assistant",
+      "curation": "Saved through curation"
+    },
+    "plansTitle": "Make room for a great watch",
+    "plansIntro": "Ask Encore to plan around your available time. Edit windows, recheck current progress, and export a saved plan to your calendar.",
+    "plansEmpty": "Try “Plan two unwatched episodes for Friday from 8pm, with 90 minutes available.”",
+    "calendarCopy": "Calendar exports are independent copies. Refreshing or deleting a plan does not change events already imported into your calendar.",
+    "planStatus": {
+      "draft": "Draft",
+      "saved": "Saved"
+    },
+    "minutes_one": "{{count}} minute",
+    "minutes_other": "{{count}} minutes",
+    "unplaced": {
+      "unknownRuntime": "Runtime is unknown",
+      "doesNotFit": "Does not fit the available windows",
+      "unavailable": "No longer available",
+      "alreadyWatched": "Already watched"
+    },
+    "savePlan": "Save plan",
+    "recheck": "Recheck availability",
+    "editWindows": "Edit viewing windows",
+    "exportCalendar": "Export calendar",
+    "planName": "Plan name",
+    "timezone": "Timezone",
+    "windowStart": "Local start",
+    "windowMinutes": "Minutes available",
+    "addWindow": "Add viewing window",
+    "breakMinutes": "Break between titles (minutes)",
+    "collectionsTitle": "Your curated corner of Emby",
+    "collectionsIntro": "Ask Encore to build a playlist from your conversation. Review each exact proposal here or in the chat before applying it. Home rows depend on support in your Emby server and client.",
+    "collectionsEmpty": "No managed collections yet. Try “Make a playlist of quiet science fiction films from my library.”",
+    "managedCollection": "Managed collection",
+    "pinned": "Pinned to Home",
+    "playlist": "Playlist",
+    "managedCount_one": "{{count}} managed item",
+    "managedCount_other": "{{count}} managed items",
+    "pin": "Propose Home row",
+    "unpin": "Propose removing Home row",
+    "actionHistory": "Proposals and receipts",
+    "actionStatus": {
+      "proposed": "Awaiting approval",
+      "running": "In progress",
+      "succeeded": "Completed",
+      "failed": "Needs attention",
+      "unknown": "Outcome uncertain",
+      "cancelled": "Cancelled"
+    },
+    "actionOperations": {
+      "create": "Create a private Emby playlist",
+      "update": "Update managed playlist, preserving your manual edits",
+      "pin": "Pin this playlist as a Home row",
+      "unpin": "Remove only the managed Home row"
+    },
+    "actionApprovalHelp": "Approve this exact change to apply it to your Emby account. Media files are never removed.",
+    "approveAction": "Approve and apply",
+    "retryAction": "Retry with reconciliation",
+    "unknownCreate": "Emby may have created this playlist before the connection was interrupted. Check Emby and reconcile the playlist before trying again; Encore will not create another copy.",
+    "actionCompleted": "Confirmed {{date}}",
+    "changeSaved": "Change saved",
+    "noSavedItems": "No saved items to show.",
+    "reconcileUrl": "Emby playlist details link",
+    "reconcile": "Reconcile existing playlist",
+    "curationTab": "Curation",
+    "curationTitle": "Keep a great collection fresh",
+    "curationIntro": "Start with a suggestion, then opt into a recurring rule for a managed playlist. You control the recipe, schedule and every future run.",
+    "curationEnabled": "Enabled",
+    "curationPaused": "Paused",
+    "curationMovies": "Movie discoveries",
+    "curationEpisodes": "Next episodes",
+    "curationLimit_one": "Up to {{count}} title",
+    "curationLimit_other": "Up to {{count}} titles",
+    "curationRuntime_one": "At most {{count}} minute",
+    "curationRuntime_other": "At most {{count}} minutes",
+    "curationUnwatched": "Unwatched only",
+    "curationRewatches": "Rewatches allowed",
+    "curationDailyAt": "Every day at {{time}} · {{timezone}}",
+    "curationWeeklyAt": "Every {{day}} at {{time}} · {{timezone}}",
+    "curationNext": "Next run: {{date}}",
+    "curationNoNext": "No automatic run scheduled",
+    "curationRunStatus": {
+      "running": "Run in progress",
+      "succeeded": "Playlist checked and refreshed",
+      "failed": "Run paused for attention"
+    },
+    "pauseCuration": "Pause",
+    "enableCuration": "Enable recurring updates",
+    "runCuration": "Run now",
+    "curationOptIn": "Enabling authorizes recurring updates to this managed playlist and any embedding usage your recipe needs. Pause or remove the rule whenever you like.",
+    "editCuration": "Edit recurring rule",
+    "createCuration": "Create recurring rule",
+    "curationName": "Rule name",
+    "curationCollection": "Managed playlist",
+    "curationConcept": "Mood or theme (optional)",
+    "curationConceptHelp": "Leave blank to use the filters below. A mood or theme uses your configured embedding provider each run.",
+    "curationGenre": "Genre (optional)",
+    "curationMaxRuntime": "Maximum minutes",
+    "curationMinRating": "Minimum community score",
+    "curationItemLimit": "Title limit",
+    "curationCadence": "Frequency",
+    "curationDay": "Day",
+    "curationTime": "Local time",
+    "cadences": {
+      "daily": "Daily",
+      "weekly": "Weekly"
+    },
+    "curationDraftHelp": "Saving creates a paused rule. Review its exact settings and enable it when you want automatic updates. Editing an enabled rule pauses it again.",
+    "savePausedRule": "Save paused rule",
+    "curationEmpty": "No recurring rules yet. Create one here or ask Encore to keep an existing collection fresh.",
+    "curationNeedsCollection": "Create a managed playlist with Encore before adding a recurring rule.",
+    "curationSafety": "Runs preserve manual playlist additions and removals. Permission changes, expired connections, unavailable providers or empty eligible results pause the rule and leave a visible result. Home support follows your existing pinned playlist.",
+    "curationMinScore": "Score at least {{score}}",
+    "curationRunChanges": "Added {{added}}, removed {{removed}}; preserved {{manual}} manual additions.",
+    "toolCancelled": "This tool was stopped. No completed result was returned.",
+    "toolIncomplete": "This tool did not finish. Retry or check its current state before assuming an action completed.",
+    "scrollTabs": "Scroll workspace tabs",
+    "nextEpisodes": "Your next episodes",
+    "episodeAvailability": "Synchronized episode metadata. Planning rechecks live availability and progress.",
+    "noNextEpisodes": "No synchronized unwatched episodes found for this show.",
+    "franchiseTruncated": "This view is limited to the first 200 accessible titles.",
+    "webSearch": "Web search",
+    "webSearchChecking": "Checking web search support",
+    "webSearchOff": "Turn on web search for this conversation",
+    "webSearchOn": "Web search is on. Public lookups use your configured OpenAI provider.",
+    "webSearchUnavailable": "Web search requires a compatible OpenAI chat model.",
+    "webSearchWorking": "Searching the web…",
+    "nextReplies": "Suggested replies"
+  },
+  "mobile": {
+    "primaryNavigation": "Primary navigation",
+    "encore": "Encore",
+    "discover": "Discover",
+    "library": "Library",
+    "watching": "Watching",
+    "picks": "Picks",
+    "you": "You",
+    "account": "Your account",
+    "accountIntro": "Your corner of Aperture.",
+    "yourAperture": "Your Aperture",
+    "back": "Go back",
+    "backToChat": "Back to conversation",
+    "workspace": "Your workspace",
+    "encoreSubtitle": "Your movie & TV consultant",
+    "encoreWorking": "Encore is working",
+    "preferenceError": "Could not save your navigation preference. Try again.",
+    "welcomeEyebrow": "GOOD WATCHES START HERE",
+    "welcomeTitle": "What are we watching?",
+    "welcomeIntro": "A mood, a free evening, a show you love. Let’s find something worth your time.",
+    "suggestionFirst": "Start with a suggestion. You decide what gets saved, played or curated.",
+    "workspaceDescriptions": {
+      "chat": "Find your next watch in conversation",
+      "memory": "What Encore remembers about you",
+      "plans": "Make room for movies and shows",
+      "collections": "Your playlists and Emby Home rows",
+      "curation": "Keep a collection fresh, on your terms",
+      "connections": "Bring Aperture to Claude or Codex"
+    },
+    "prompts": {
+      "tonight": {
+        "title": "Pick something tonight",
+        "description": "Your mood. Your time. Your library.",
+        "message": "Help me choose something from my library to watch tonight. Ask about my mood and available time."
+      },
+      "plan": {
+        "title": "Plan my watching",
+        "description": "Turn free time into a great watch.",
+        "message": "Help me plan watching opportunities this week. Ask about my available dates, viewing windows and timezone."
+      },
+      "releases": {
+        "title": "What’s coming next?",
+        "description": "Upcoming episodes and movie releases.",
+        "message": "Show me upcoming episodes and movie releases over the next two weeks."
+      },
+      "curate": {
+        "title": "Build a collection",
+        "description": "A playlist with a point of view.",
+        "message": "Help me create an Emby playlist from my library. Ask about the mood and preferences before preparing a proposal."
+      }
+    },
+    "search": "Search your library"
   }
 }

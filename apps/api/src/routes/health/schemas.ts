@@ -5,6 +5,8 @@
  * All endpoints are public (no authentication required).
  */
 
+import { APP_VERSION } from '../../lib/appVersion.js'
+
 export const healthSchemas = {
   // Health response
   HealthResponse: {
@@ -16,7 +18,7 @@ export const healthSchemas = {
         description: 'Overall health status (true if all components healthy)',
       },
       name: { type: 'string', description: 'Application name', example: 'aperture-api' },
-      version: { type: 'string', description: 'API version', example: '0.7.10' },
+      version: { type: 'string', description: 'API version', example: APP_VERSION },
       time: { type: 'string', format: 'date-time', description: 'Current server time (ISO 8601)' },
       database: {
         type: 'object',
@@ -28,7 +30,7 @@ export const healthSchemas = {
     example: {
       ok: true,
       name: 'aperture-api',
-      version: '0.7.10',
+      version: APP_VERSION,
       time: '2024-01-15T10:30:00Z',
       database: { connected: true },
     },

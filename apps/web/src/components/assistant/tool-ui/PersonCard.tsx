@@ -1,27 +1,15 @@
-/**
- * Person card for Tool UI
- * Shows actor/director with filmography
- */
-import { Box, Typography, Avatar, Chip } from '@mui/material'
+import { Avatar, Box, Button, Stack, Typography } from '@mui/material'
+import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
 import PersonIcon from '@mui/icons-material/Person'
-import MovieIcon from '@mui/icons-material/Movie'
-import TvIcon from '@mui/icons-material/Tv'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { getProxiedImageUrl } from '@aperture/ui'
+import { ToolCard, ToolPreview } from '../ToolCard'
 import { ToolResultError } from '../ToolResultError'
 import type { Person, PersonResultData } from './types'
 
-interface PersonCardProps {
-  person: Person
-}
-
-function PersonCardSingle({ person }: PersonCardProps) {
+function PersonCardSingle({ person }: { person: Person }) {
   const { t } = useTranslation()
-  const navigate = useNavigate()
-
-  const movies = person.filmography.filter(f => f.type === 'movie')
-  const series = person.filmography.filter(f => f.type === 'series')
 
   const roleLabel = {
     actor: t('assistantToolUi.roleActor'),
@@ -30,133 +18,83 @@ function PersonCardSingle({ person }: PersonCardProps) {
   }[person.role]
 
   return (
-    <Box
-      sx={{
-        p: 2,
-        bgcolor: '#1a1a1a',
-        borderRadius: 2,
-        mb: 1.5,
-      }}
-    >
-      {/* Header with photo */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+    <ToolCard variant="outlined">
+      <Stack direction="row" gap={1.25} alignItems="center">
         <Avatar
           src={getProxiedImageUrl(person.thumb)}
-          sx={{
-            width: 64,
-            height: 64,
-            bgcolor: '#2a2a2a',
-          }}
+          sx={{ width: { xs: 44, sm: 56 }, height: { xs: 44, sm: 56 } }}
         >
           <PersonIcon />
         </Avatar>
-        <Box>
-          <Typography variant="subtitle1" fontWeight={600} sx={{ color: '#fff' }}>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="subtitle1" fontWeight={650} sx={{ lineHeight: 1.3 }}>
             {person.name}
           </Typography>
-          <Chip
-            label={roleLabel}
-            size="small"
-            sx={{
-              height: 22,
-              mt: 0.5,
-              bgcolor: 'rgba(99, 102, 241, 0.15)',
-              color: '#818cf8',
-            }}
-          />
+          <Typography variant="caption" color="text.secondary">
+            {roleLabel}
+          </Typography>
         </Box>
-      </Box>
-
-      {/* Filmography */}
-      {movies.length > 0 && (
-        <Box sx={{ mb: 1.5 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-            <MovieIcon sx={{ fontSize: 16, color: '#818cf8' }} />
-            <Typography variant="caption" fontWeight={600} color="text.secondary">
-              {t('assistantToolUi.moviesHeading', { count: movies.length })}
+      </Stack>
+      {(['movie', 'series'] as const).map((type) => {
+        const films = person.filmography.filter((film) => film.type === type)
+        if (!films.length) return null
+        return (
+          <Box key={type} sx={{ mt: 1 }}>
+            <Typography variant="caption" fontWeight={650} color="text.secondary">
+              {t(
+                type === 'movie'
+                  ? 'assistantToolUi.moviesHeading'
+                  : 'assistantToolUi.tvSeriesHeading',
+                { count: films.length }
+              )}
             </Typography>
+            <ToolPreview limit={3}>
+              {films.map((film) => {
+                const props = film.sourceUrl
+                  ? { href: film.sourceUrl, target: '_blank', rel: 'noopener noreferrer' }
+                  : { component: Link, to: `/${type === 'movie' ? 'movies' : 'series'}/${film.id}` }
+                return (
+                  <Button
+                    key={film.id}
+                    {...props}
+                    size="small"
+                    endIcon={
+                      <ChevronRightRoundedIcon
+                        sx={{
+                          transform: (theme) =>
+                            theme.direction === 'rtl' ? 'scaleX(-1)' : undefined,
+                        }}
+                      />
+                    }
+                    sx={{
+                      justifyContent: 'space-between',
+                      minHeight: 44,
+                      textAlign: 'start',
+                      bgcolor: 'action.hover',
+                      color: 'text.primary',
+                      maxWidth: '100%',
+                    }}
+                  >
+                    {film.year ? `${film.title} (${film.year})` : film.title}
+                  </Button>
+                )
+              })}
+            </ToolPreview>
           </Box>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-            {movies.slice(0, 8).map((film) => (
-              <Chip
-                key={film.id}
-                label={film.year ? `${film.title} (${film.year})` : film.title}
-                size="small"
-                onClick={() => navigate(`/movies/${film.id}`)}
-                sx={{
-                  height: 24,
-                  bgcolor: '#2a2a2a',
-                  color: '#e4e4e7',
-                  cursor: 'pointer',
-                  '&:hover': {
-                    bgcolor: '#3a3a3a',
-                  },
-                }}
-              />
-            ))}
-            {movies.length > 8 && (
-              <Typography variant="caption" color="text.secondary" sx={{ alignSelf: 'center', ml: 0.5 }}>
-                {t('assistantToolUi.more', { count: movies.length - 8 })}
-              </Typography>
-            )}
-          </Box>
-        </Box>
-      )}
-
-      {series.length > 0 && (
-        <Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-            <TvIcon sx={{ fontSize: 16, color: '#10b981' }} />
-            <Typography variant="caption" fontWeight={600} color="text.secondary">
-              {t('assistantToolUi.tvSeriesHeading', { count: series.length })}
-            </Typography>
-          </Box>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-            {series.slice(0, 8).map((film) => (
-              <Chip
-                key={film.id}
-                label={film.year ? `${film.title} (${film.year})` : film.title}
-                size="small"
-                onClick={() => navigate(`/series/${film.id}`)}
-                sx={{
-                  height: 24,
-                  bgcolor: '#2a2a2a',
-                  color: '#e4e4e7',
-                  cursor: 'pointer',
-                  '&:hover': {
-                    bgcolor: '#3a3a3a',
-                  },
-                }}
-              />
-            ))}
-            {series.length > 8 && (
-              <Typography variant="caption" color="text.secondary" sx={{ alignSelf: 'center', ml: 0.5 }}>
-                {t('assistantToolUi.more', { count: series.length - 8 })}
-              </Typography>
-            )}
-          </Box>
-        </Box>
-      )}
-    </Box>
+        )
+      })}
+    </ToolCard>
   )
 }
 
-interface PersonResultProps {
-  data: PersonResultData
-}
-
-export function PersonResult({ data }: PersonResultProps) {
-  if (data.error) {
-    return <ToolResultError message={data.error} />
-  }
+export function PersonResult({ data }: { data: PersonResultData }) {
+  if (data.error) return <ToolResultError message={data.error} />
 
   return (
-    <Box sx={{ my: 2 }}>
+    <ToolPreview limit={2}>
       {data.people.map((person, index) => (
         <PersonCardSingle key={`${person.name}-${index}`} person={person} />
       ))}
-    </Box>
+    </ToolPreview>
   )
 }
-
-

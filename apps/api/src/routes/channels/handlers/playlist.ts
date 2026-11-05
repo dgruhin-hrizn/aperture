@@ -10,6 +10,20 @@ import {
 import type { ChannelRow } from '../types.js'
 
 export function registerPlaylistHandlers(fastify: FastifyInstance) {
+  fastify.get<{ Params: { id: string } }>('/api/channels/:id/preview', { preHandler: requireAuth }, async (request, reply) => {
+    const channel = await queryOne<ChannelRow>('SELECT * FROM channels WHERE id = $1', [request.params.id])
+    if (!channel) return reply.code(404).send({ error: 'Playlist not found' })
+    if (channel.owner_id !== request.user!.id && !request.user!.isAdmin) {
+      const share = await queryOne('SELECT 1 FROM channel_shares WHERE channel_id = $1 AND shared_with_user_id = $2', [channel.id, request.user!.id])
+      if (!share) return reply.code(403).send({ error: 'Forbidden' })
+    }
+    if (!channel.playlist_id) return { items: [], total: 0 }
+    const apiKey = await getMediaServerApiKey()
+    if (!apiKey) return reply.code(503).send({ error: 'Media server not configured' })
+    const provider = await getMediaServerProvider()
+    return provider.getPlaylistPreview(apiKey, channel.playlist_id)
+  })
+
   /**
    * POST /api/channels/:id/generate
    * Generate/refresh playlist for channel

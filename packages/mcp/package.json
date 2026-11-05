@@ -1,0 +1,13 @@
+{
+  "name": "@aperture/mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "bin": { "aperture-mcp": "./dist/aperture-mcp.mjs" },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && esbuild src/index.ts --bundle --platform=node --target=node22 --format=esm --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\" --outfile=dist/aperture-mcp.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": { "@modelcontextprotocol/client": "^2.4.0", "@modelcontextprotocol/server": "^2.4.0" },
+  "devDependencies": { "esbuild": "^0.25.12" }
+}

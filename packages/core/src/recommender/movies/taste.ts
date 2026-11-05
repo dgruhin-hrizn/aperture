@@ -1,8 +1,9 @@
 import { createChildLogger } from '../../lib/logger.js'
 import { query } from '../../lib/db.js'
-import { getMovieEmbedding } from './embeddings.js'
+import { getCandidateEmbeddings } from '../shared/embeddings.js'
 import { averageEmbeddings } from '../shared/index.js'
 import { WATCH_HISTORY_TASTE_SQL } from '../watchedExclusion.js'
+import { getUserExcludedLibraries } from '../../lib/libraryExclusions.js'
 import type { WatchedMovie } from '../types.js'
 
 const logger = createChildLogger('recommender-taste')
@@ -30,6 +31,7 @@ export async function getDislikedMovieIds(userId: string): Promise<Set<string>> 
 }
 
 export async function getWatchHistory(userId: string, limit: number): Promise<WatchedMovie[]> {
+  const excludedLibraries = await getUserExcludedLibraries(userId)
   // Get ALL watch history up to limit, using a smarter ordering:
   // - Favorites first (always include these)
   // - Then by a combination of play count and recency
@@ -40,16 +42,18 @@ export async function getWatchHistory(userId: string, limit: number): Promise<Wa
     play_count: number
     is_favorite: boolean
   }>(
-    `SELECT movie_id, last_played_at, play_count, is_favorite
+    `SELECT wh.movie_id, wh.last_played_at, wh.play_count, wh.is_favorite
      FROM watch_history wh
-     WHERE wh.user_id = $1
+     JOIN movies m ON m.id = wh.movie_id
+     WHERE wh.user_id = $1 AND wh.media_type = 'movie'
        AND (${WATCH_HISTORY_TASTE_SQL})
+       AND (m.provider_library_id IS NULL OR m.provider_library_id != ALL($3::text[]))
      ORDER BY 
        is_favorite DESC,
        play_count DESC,
        last_played_at DESC NULLS LAST
      LIMIT $2`,
-    [userId, limit]
+    [userId, limit, excludedLibraries]
   )
 
   return result.rows.map((row) => ({
@@ -75,6 +79,7 @@ export async function buildTasteProfile(
     genres: string[]
   }>(`SELECT id, community_rating, genres FROM movies WHERE id = ANY($1)`, [movieIds])
   const movieData = new Map(movieDataResult.rows.map((r) => [r.id, r]))
+  const movieEmbeddings = await getCandidateEmbeddings(movieIds, 'movie')
 
   // Calculate stats for normalization
   const maxPlayCount = Math.max(...watched.map((w) => w.playCount), 1)
@@ -94,7 +99,7 @@ export async function buildTasteProfile(
 
   for (let i = 0; i < watched.length; i++) {
     const movie = watched[i]
-    const emb = await getMovieEmbedding(movie.movieId)
+    const emb = movieEmbeddings.get(movie.movieId)
     if (emb) {
       embeddings.push(emb)
 

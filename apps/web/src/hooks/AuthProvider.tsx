@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(data.user)
 
     try {
-      await syncUiLanguageFromServer()
+      await syncUiLanguageFromServer(data.user.id)
     } catch {
       // ignore locale sync failures
     }
@@ -78,7 +78,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, sessionError, login, logout, checkAuth, clearSessionError }}>
+    <AuthContext.Provider
+      value={{ user, loading, sessionError, login, logout, checkAuth, clearSessionError }}
+    >
       {children}
     </AuthContext.Provider>
   )

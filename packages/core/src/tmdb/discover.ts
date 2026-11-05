@@ -7,6 +7,8 @@
  * - General discovery with filters
  */
 
+import { AsyncCache } from '../lib/asyncCache.js'
+import { getTMDbApiKey } from '../settings/systemSettings.js'
 import { tmdbRequest, type ApiLogCallback } from './client.js'
 import type {
   TMDbMovieRecommendationsResponse,
@@ -20,6 +22,13 @@ import type {
   DiscoverMovieFilters,
   DiscoverTVFilters,
 } from './types.js'
+
+const chartPages = new AsyncCache<unknown>(5 * 60_000, 500)
+async function chartRequest<T>(endpoint: string, options: { onLog?: ApiLogCallback }): Promise<T | null> {
+  const apiKey = await getTMDbApiKey()
+  if (!apiKey) return null
+  return chartPages.get(JSON.stringify([apiKey, endpoint]), () => tmdbRequest<T>(endpoint, { ...options, apiKey })) as Promise<T | null>
+}
 
 // ============================================================================
 // Top Picks Source Functions (Popular, Trending, Top Rated)
@@ -42,7 +51,7 @@ export async function getPopularMovies(
   page: number = 1,
   options: { onLog?: ApiLogCallback } = {}
 ): Promise<TMDbMovieResult[]> {
-  const result = await tmdbRequest<TMDbPaginatedResponse<TMDbMovieResult>>(
+  const result = await chartRequest<TMDbPaginatedResponse<TMDbMovieResult>>(
     `/movie/popular?page=${page}&language=en-US`,
     options
   )
@@ -80,7 +89,7 @@ export async function getTrendingMovies(
   page: number = 1,
   options: { onLog?: ApiLogCallback } = {}
 ): Promise<TMDbMovieResult[]> {
-  const result = await tmdbRequest<TMDbPaginatedResponse<TMDbMovieResult>>(
+  const result = await chartRequest<TMDbPaginatedResponse<TMDbMovieResult>>(
     `/trending/movie/${timeWindow}?page=${page}&language=en-US`,
     options
   )
@@ -118,7 +127,7 @@ export async function getTopRatedMovies(
   page: number = 1,
   options: { onLog?: ApiLogCallback } = {}
 ): Promise<TMDbMovieResult[]> {
-  const result = await tmdbRequest<TMDbPaginatedResponse<TMDbMovieResult>>(
+  const result = await chartRequest<TMDbPaginatedResponse<TMDbMovieResult>>(
     `/movie/top_rated?page=${page}&language=en-US`,
     options
   )
@@ -154,7 +163,7 @@ export async function getPopularTV(
   page: number = 1,
   options: { onLog?: ApiLogCallback } = {}
 ): Promise<TMDbTVResult[]> {
-  const result = await tmdbRequest<TMDbPaginatedResponse<TMDbTVResult>>(
+  const result = await chartRequest<TMDbPaginatedResponse<TMDbTVResult>>(
     `/tv/popular?page=${page}&language=en-US`,
     options
   )
@@ -192,7 +201,7 @@ export async function getTrendingTV(
   page: number = 1,
   options: { onLog?: ApiLogCallback } = {}
 ): Promise<TMDbTVResult[]> {
-  const result = await tmdbRequest<TMDbPaginatedResponse<TMDbTVResult>>(
+  const result = await chartRequest<TMDbPaginatedResponse<TMDbTVResult>>(
     `/trending/tv/${timeWindow}?page=${page}&language=en-US`,
     options
   )
@@ -229,7 +238,7 @@ export async function getTopRatedTV(
   page: number = 1,
   options: { onLog?: ApiLogCallback } = {}
 ): Promise<TMDbTVResult[]> {
-  const result = await tmdbRequest<TMDbPaginatedResponse<TMDbTVResult>>(
+  const result = await chartRequest<TMDbPaginatedResponse<TMDbTVResult>>(
     `/tv/top_rated?page=${page}&language=en-US`,
     options
   )
@@ -300,7 +309,7 @@ export async function getSimilarMovies(
  */
 export async function discoverMovies(
   filters: DiscoverMovieFilters = {},
-  options: { onLog?: ApiLogCallback } = {}
+  options: { onLog?: ApiLogCallback; apiKey?: string; timeoutMs?: number; maxRetries?: number } = {}
 ): Promise<TMDbMovieDiscoverResponse | null> {
   const params = new URLSearchParams({
     language: 'en-US',
@@ -416,7 +425,7 @@ export async function getSimilarTV(
  */
 export async function discoverTV(
   filters: DiscoverTVFilters = {},
-  options: { onLog?: ApiLogCallback } = {}
+  options: { onLog?: ApiLogCallback; apiKey?: string; timeoutMs?: number; maxRetries?: number } = {}
 ): Promise<TMDbTVDiscoverResponse | null> {
   const params = new URLSearchParams({
     language: 'en-US',

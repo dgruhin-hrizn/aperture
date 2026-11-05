@@ -23,7 +23,7 @@ This guide covers local development setup, available scripts, and contribution g
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 24 LTS (22+ supported by the AI SDK)
 - pnpm 8+
 - Docker and Docker Compose
 - An Emby or Jellyfin server (for testing)
@@ -206,6 +206,8 @@ Set `APP_BASE_URL` in your `docker-compose.yml` or as an environment variable:
 ```bash
 APP_BASE_URL=https://your-domain.com
 ```
+
+This trusts the public origin. Requests from the exact address serving Aperture are also accepted, so a production installation can load over a separate LAN IP/hostname without changing the public base URL. Other browser origins receive 403 before route handlers run. Development also retains its localhost/127.0.0.1 origins on ports 3456 and 3457. See [LAN and reverse-proxy access](lan-reverse-proxy-access.md) for per-host sessions and HTTPS cookie behavior.
 
 ### 3. Set Up Reverse Proxy
 

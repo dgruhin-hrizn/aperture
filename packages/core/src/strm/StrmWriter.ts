@@ -55,13 +55,17 @@ export * from './filenames.js'
 // Import functions needed for processStrmForAllUsers
 import { writeStrmFilesForUser } from './movies/writer.js'
 import { ensureUserLibrary, refreshUserLibrary, updateUserLibraryPermissions } from './movies/library.js'
-import { writeSeriesStrmFilesForUser } from './series/writer.js'
+import { getLatestSeriesOutputRunId, writeSeriesStrmFilesForUser } from './series/writer.js'
 import {
   ensureUserSeriesLibrary,
   refreshUserSeriesLibrary,
   updateUserSeriesLibraryPermissions,
 } from './series/library.js'
-import { reconcileStaleStrmLibraries } from './cleanup.js'
+import { publishEmbyRecommendationPlaylists } from './embyPlaylists.js'
+import { getAiRecsOutputConfig } from '../settings/systemSettings.js'
+import { getSeriesRecommendationGroups } from '../recommender/series/groups.js'
+import { getMediaServerProvider } from '../media/index.js'
+import { cleanupRetiredSeriesOutputs, reconcileStaleStrmLibraries } from './cleanup.js'
 
 const logger = createChildLogger('strm-writer')
 
@@ -82,13 +86,16 @@ export async function processStrmForAllUsers(
     setJobStep(actualJobId, 0, 'Finding enabled users')
     addLog(actualJobId, 'info', '🔍 Finding enabled users...')
 
+    const mode = (await getAiRecsOutputConfig()).moviesOutputMode
+    if (mode === 'playlist') await reconcileStaleStrmLibraries(actualJobId)
     const users = await query<{
       id: string
       provider_user_id: string
       display_name: string | null
       username: string
     }>(
-      'SELECT id, provider_user_id, display_name, username FROM users WHERE is_enabled = true AND movies_enabled = true AND provider_disabled = false'
+      'SELECT id, provider_user_id, display_name, username FROM users WHERE $1 AND is_enabled = true AND movies_enabled = true AND provider_disabled = false',
+      [mode !== 'off']
     )
 
     const totalUsers = users.rows.length
@@ -121,24 +128,31 @@ export async function processStrmForAllUsers(
       try {
         addLog(actualJobId, 'info', `📁 Processing STRM for ${displayName}...`)
 
-        // Step 1: Create empty directory first (Emby requires folder to exist for library creation)
-        const { ensureUserDirectory } = await import('./movies/writer.js')
-        await ensureUserDirectory(user.id, user.provider_user_id, displayName)
-        
-        // Step 2: Create library BEFORE adding files (so Emby uses our CollectionType, not auto-detect)
-        const libraryResult = await ensureUserLibrary(user.id, user.provider_user_id, displayName)
-        if (libraryResult.created) {
-          addLog(actualJobId, 'info', `  📚 Created new library in media server: ${libraryResult.name}`)
-        } else {
-          addLog(actualJobId, 'debug', `  📚 Library already exists in media server: ${libraryResult.name}`)
+        if (mode === 'playlist') {
+          const published = await publishEmbyRecommendationPlaylists(user.id, user.provider_user_id, displayName, 'movies')
+          userResults.push({
+            userId: user.id,
+            providerUserId: user.provider_user_id,
+            username: user.username,
+            displayName,
+            status: published.count ? 'success' : 'skipped',
+            recommendationCount: published.count,
+            libraryName: published.names.join(', '),
+          })
+          if (published.count) success++
+          else skipped++
+          totalRecommendations += published.count
+          updateJobProgress(actualJobId, i + 1, totalUsers, `${success + skipped}/${totalUsers} users`)
+          continue
         }
 
-        // Step 3: Now write STRM files (library already exists with correct type)
         const strmResult = await writeStrmFilesForUser(user.id, user.provider_user_id, displayName)
         addLog(actualJobId, 'debug', `  📝 STRM files written: ${strmResult.written} files at ${strmResult.localPath}`)
 
         // Skip further processing if no recommendations
         if (strmResult.written === 0) {
+          if (strmResult.withheldReason) addLog(actualJobId, 'warn', strmResult.withheldReason)
+          await refreshUserLibrary(user.id)
           addLog(actualJobId, 'info', `⏭️ No recommendations for ${displayName}`)
           userResults.push({
             userId: user.id,
@@ -154,7 +168,8 @@ export async function processStrmForAllUsers(
           continue
         }
 
-        // Step 4: Refresh library to pick up new STRM files
+        const libraryResult = await ensureUserLibrary(user.id, user.provider_user_id, displayName)
+        // Refresh library to pick up new STRM files
         await refreshUserLibrary(user.id)
         addLog(actualJobId, 'debug', `  🔄 Library refreshed`)
 
@@ -239,13 +254,16 @@ export async function processSeriesStrmForAllUsers(
     setJobStep(actualJobId, 0, 'Finding enabled users')
     addLog(actualJobId, 'info', '🔍 Finding enabled users...')
 
+    const mode = (await getAiRecsOutputConfig()).seriesOutputMode
+    if (mode === 'playlist') await reconcileStaleStrmLibraries(actualJobId)
     const users = await query<{
       id: string
       provider_user_id: string
       display_name: string | null
       username: string
     }>(
-      'SELECT id, provider_user_id, display_name, username FROM users WHERE is_enabled = true AND series_enabled = true AND provider_disabled = false'
+      'SELECT id, provider_user_id, display_name, username FROM users WHERE $1 AND is_enabled = true AND series_enabled = true AND provider_disabled = false',
+      [mode !== 'off']
     )
 
     const totalUsers = users.rows.length
@@ -278,57 +296,73 @@ export async function processSeriesStrmForAllUsers(
       try {
         addLog(actualJobId, 'info', `📺 Processing Series STRM for ${displayName}...`)
 
-        // Step 1: Write STRM files
-        const strmResult = await writeSeriesStrmFilesForUser(user.id, user.provider_user_id, displayName)
-        addLog(actualJobId, 'debug', `  📝 Series STRM files written: ${strmResult.seriesCount} series (${strmResult.written} episode files) at ${strmResult.localPath}`)
-
-        // Skip library creation/permissions if no recommendations (prevents 400 errors)
-        if (strmResult.seriesCount === 0) {
-          addLog(actualJobId, 'info', `⏭️ Skipping TV library sync for ${displayName} (no recommendations yet)`)
+        if (mode === 'playlist') {
+          const published = await publishEmbyRecommendationPlaylists(user.id, user.provider_user_id, displayName, 'series')
           userResults.push({
             userId: user.id,
             providerUserId: user.provider_user_id,
             username: user.username,
             displayName,
-            status: 'skipped',
-            recommendationCount: 0,
-            error: 'No recommendations generated (insufficient watch history)',
+            status: published.count ? 'success' : 'skipped',
+            recommendationCount: published.count,
+            libraryName: published.names.join(', '),
           })
-          skipped++
-          updateJobProgress(actualJobId, i + 1, totalUsers, `${success + skipped}/${totalUsers} users (${totalRecommendations} series)`)
+          if (published.count) success++
+          else skipped++
+          totalRecommendations += published.count
+          updateJobProgress(actualJobId, i + 1, totalUsers, `${success + skipped}/${totalUsers} users`)
           continue
         }
 
-        // Step 2: Ensure the TV library exists in the media server
-        const libraryResult = await ensureUserSeriesLibrary(user.id, user.provider_user_id, displayName)
-        if (libraryResult.created) {
-          addLog(actualJobId, 'info', `  📺 Created new TV library in media server: ${libraryResult.name}`)
-        } else {
-          addLog(actualJobId, 'debug', `  📺 TV library already exists in media server: ${libraryResult.name}`)
+        const provider = await getMediaServerProvider()
+        const groups = provider.type === 'emby' ? await getSeriesRecommendationGroups() : []
+        const outputs = groups.length ? groups : [null]
+        const runId = await getLatestSeriesOutputRunId(user.id)
+        await cleanupRetiredSeriesOutputs(user, outputs.map((group) => group?.id ?? null))
+
+        let recommendationCount = 0
+        let libraryCreated = false
+        const libraryNames: string[] = []
+        const outputErrors: string[] = []
+        for (const group of outputs) {
+          const groupId = group?.id ?? null
+          try {
+            const strmResult = await writeSeriesStrmFilesForUser(user.id, user.provider_user_id, displayName, group, runId)
+            if (strmResult.seriesCount === 0) {
+              if (strmResult.withheldReason) {
+                addLog(actualJobId, 'warn', `${displayName}: ${strmResult.withheldReason}`)
+              }
+              await refreshUserSeriesLibrary(user.id, groupId)
+              continue
+            }
+
+            const library = await ensureUserSeriesLibrary(user.id, user.provider_user_id, displayName, group)
+            await updateUserSeriesLibraryPermissions(user.id, user.provider_user_id, groupId)
+            await refreshUserSeriesLibrary(user.id, groupId)
+            recommendationCount += strmResult.seriesCount
+            libraryCreated ||= library.created
+            libraryNames.push(library.name)
+          } catch (err) {
+            outputErrors.push(`${group?.name ?? 'TV'}: ${err instanceof Error ? err.message : String(err)}`)
+          }
         }
 
-        // Step 3: Refresh library
-        await refreshUserSeriesLibrary(user.id)
-        addLog(actualJobId, 'debug', `  🔄 TV library refreshed`)
-
-        // Step 4: Update user permissions
-        await updateUserSeriesLibraryPermissions(user.id, user.provider_user_id)
-        addLog(actualJobId, 'debug', `  🔐 User permissions updated`)
+        if (outputErrors.length > 0) throw new Error(outputErrors.join(' | '))
 
         userResults.push({
           userId: user.id,
           providerUserId: user.provider_user_id,
           username: user.username,
           displayName,
-          status: 'success',
-          recommendationCount: strmResult.seriesCount,
-          libraryName: libraryResult.name,
-          libraryCreated: libraryResult.created,
+          status: recommendationCount > 0 ? 'success' : 'skipped',
+          recommendationCount,
+          libraryName: libraryNames.join(', '),
+          libraryCreated,
         })
 
-        success++
-        totalRecommendations += strmResult.seriesCount
-        addLog(actualJobId, 'info', `✅ Completed Series STRM processing for ${displayName} (${strmResult.seriesCount} series, ${strmResult.written} episodes)`)
+        if (recommendationCount > 0) success++
+        else skipped++
+        totalRecommendations += recommendationCount
         updateJobProgress(actualJobId, i + 1, totalUsers, `${success + skipped}/${totalUsers} users (${totalRecommendations} series)`)
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error'

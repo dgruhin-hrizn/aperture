@@ -89,10 +89,9 @@ In poppers and detail pages, all 10 hearts show:
 
 Items you rate highly influence recommendations positively:
 
-- Similar content is boosted
-- Shared genres get more weight
-- Directors/actors are favored
-- Franchises are considered
+- Watched titles with higher ratings have more influence when your taste profile is rebuilt
+- Similar candidates can benefit from that profile
+- Automatic genre and franchise detection considers ratings when run
 
 ### Low Ratings (1-3 hearts)
 
@@ -100,17 +99,20 @@ Items you rate poorly affect recommendations based on your settings:
 
 #### Exclude Mode (Default)
 
-- Content similar to disliked items is **excluded**
-- Helps avoid genres/styles you don't enjoy
-- More aggressive filtering
+- Explicitly disliked title IDs are **excluded**
+- This also applies when watched recommendations are enabled
 
 #### Penalize Mode
 
-- Content similar to disliked items is **deprioritized**
-- May still appear, just ranked lower
-- Less aggressive, more diverse results
+- Explicitly disliked titles receive a score penalty
+- A positive score retains 20% of its value before variety is applied
+- They may still appear if other eligible candidates score lower
 
-Configure this in [Preferences Settings](user-settings/preferences.md).
+Configure this in [AI Algorithm Settings](user-settings/ai-algorithm.md).
+
+Ratings also change the influence of history titles when the stored profile is rebuilt. Profile
+refresh and lock settings govern those updates. Genre and franchise preferences contribute their
+own adjustments during ranking.
 
 ### Neutral Ratings (4-6 hearts)
 

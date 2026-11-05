@@ -1,216 +1,186 @@
-/**
- * Single content item card for Tool UI
- * Compact design with poster, title, and action buttons
- */
-import { Box, Typography, Button, Chip, Paper } from '@mui/material'
-import PlayArrowIcon from '@mui/icons-material/PlayArrow'
-import InfoIcon from '@mui/icons-material/Info'
-import StarIcon from '@mui/icons-material/Star'
-import FavoriteIcon from '@mui/icons-material/Favorite'
-import { useNavigate } from 'react-router-dom'
+import { Box, Chip, Paper, Typography } from '@mui/material'
+import LocalMoviesOutlinedIcon from '@mui/icons-material/LocalMoviesOutlined'
+import StarRoundedIcon from '@mui/icons-material/StarRounded'
 import { useTranslation } from 'react-i18next'
-import { RankBadge, getProxiedImageUrl } from '@aperture/ui'
+import { useEffect, useState } from 'react'
+import { getProxiedImageUrl, FALLBACK_POSTER_URL } from '@aperture/ui'
+import { ContentCardActions } from './ContentCardActions'
 import type { ContentItem } from './types'
 
-interface ContentCardProps {
+export function ContentCard({
+  item,
+  onPlay,
+  featured = false,
+}: {
   item: ContentItem
   onPlay?: (id: string, href: string) => void
-}
-
-export function ContentCard({ item, onPlay }: ContentCardProps) {
+  featured?: boolean
+}) {
   const { t } = useTranslation()
-  const navigate = useNavigate()
-  
-  const detailsAction = item.actions?.find(a => a.id === 'details')
-  const playAction = item.actions?.find(a => a.id === 'play')
-
-  const handleDetails = () => {
-    if (detailsAction?.href) {
-      navigate(detailsAction.href)
-    }
-  }
-
-  const handlePlay = () => {
-    if (playAction?.href) {
-      if (onPlay) {
-        onPlay(item.id, playAction.href)
-      } else {
-        window.open(playAction.href, '_blank')
-      }
-    }
-  }
-
+  const [imageFailed, setImageFailed] = useState(false)
+  useEffect(() => setImageFailed(false), [item.image])
+  const details = item.actions?.find((a) => a.id === 'details'),
+    play = item.actions?.find((a) => a.id === 'play')
   return (
     <Paper
+      variant="outlined"
       sx={{
+        width: '100%',
+        minWidth: 0,
         display: 'flex',
-        gap: 1.5,
-        p: 1.5,
-        bgcolor: '#1a1a1a',
-        borderRadius: 2,
-        minWidth: 280,
-        maxWidth: 320,
-        cursor: 'pointer',
-        transition: 'all 0.2s',
-        '&:hover': {
-          bgcolor: '#252525',
-          transform: 'translateY(-2px)',
-        },
+        flexDirection: featured ? 'row' : 'column',
+        borderRadius: 3,
+        overflow: 'hidden',
+        bgcolor: 'background.paper',
       }}
-      onClick={handleDetails}
     >
-      {/* Poster */}
       <Box
+        component="a"
+        href={details?.href}
+        aria-label={item.name}
         sx={{
-          width: 60,
-          height: 90,
-          flexShrink: 0,
-          borderRadius: 1,
-          overflow: 'hidden',
-          bgcolor: '#2a2a2a',
+          display: 'block',
           position: 'relative',
+          aspectRatio: featured ? '2 / 3' : { xs: '4 / 5', sm: '2 / 3' },
+          flexShrink: 0,
+          bgcolor: 'action.hover',
+          textDecoration: 'none',
+          ...(featured && { width: { xs: 'clamp(80px, 25%, 105px)', sm: 116 } }),
         }}
       >
         {item.image ? (
           <Box
             component="img"
-            src={getProxiedImageUrl(item.image)}
+            src={imageFailed ? FALLBACK_POSTER_URL : getProxiedImageUrl(item.image)}
             alt={item.name}
+            loading="lazy"
+            decoding="async"
+            onError={() => setImageFailed(true)}
             sx={{
               width: '100%',
               height: '100%',
+              display: 'block',
               objectFit: 'cover',
+              position: 'absolute',
+              inset: 0,
             }}
           />
         ) : (
           <Box
             sx={{
-              width: '100%',
               height: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#666',
-              fontSize: 10,
+              display: 'grid',
+              placeItems: 'center',
+              color: 'text.secondary',
+              p: 2,
             }}
           >
-            {t('assistantToolUi.noImage')}
+            <LocalMoviesOutlinedIcon aria-hidden />
           </Box>
         )}
-        {/* Rank badge */}
-        {item.rank && <RankBadge rank={item.rank} size="small" />}
+        {item.rank && (
+          <Chip
+            size="small"
+            label={`#${item.rank}`}
+            sx={{
+              position: 'absolute',
+              top: 8,
+              insetInlineStart: 8,
+              bgcolor: 'background.paper',
+              fontWeight: 700,
+            }}
+          />
+        )}
       </Box>
-
-      {/* Content */}
-      <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+      <Box
+        sx={{
+          p: featured ? { xs: 1.25, sm: 1.5 } : 1.25,
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 0.5,
+          minWidth: 0,
+        }}
+      >
+        <Chip
+          size="small"
+          variant="outlined"
+          label={t(`encore.availability.${item.availability ?? 'library'}`)}
+          sx={{ alignSelf: 'flex-start', maxWidth: '100%', height: 20, fontSize: 10 }}
+        />
         <Typography
+          component="a"
+          href={details?.href}
           variant="body2"
-          fontWeight={600}
-          noWrap
-          sx={{ color: '#fff' }}
+          fontWeight={650}
+          sx={{
+            color: 'text.primary',
+            textDecoration: 'none',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            lineHeight: '20px',
+            minHeight: featured ? 0 : { xs: 20, sm: 40 },
+            fontSize: featured ? '1rem' : undefined,
+            overflowWrap: 'anywhere',
+          }}
         >
           {item.name}
         </Typography>
-        
-        {item.subtitle && (
-          <Typography variant="caption" color="text.secondary" noWrap>
-            {item.subtitle}
-          </Typography>
-        )}
-
-        {/* Ratings row */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-          {item.rating != null && (
-            <Chip
-              icon={<StarIcon sx={{ fontSize: 12 }} />}
-              label={Number(item.rating).toFixed(1)}
-              size="small"
-              sx={{
-                height: 20,
-                bgcolor: 'rgba(255, 193, 7, 0.15)',
-                color: '#ffc107',
-                '& .MuiChip-icon': { color: '#ffc107' },
-                '& .MuiChip-label': { px: 0.5, fontSize: 11 },
-              }}
-            />
-          )}
-          {item.userRating && (
-            <Chip
-              icon={<FavoriteIcon sx={{ fontSize: 12 }} />}
-              label={item.userRating}
-              size="small"
-              sx={{
-                height: 20,
-                bgcolor: 'rgba(236, 72, 153, 0.15)',
-                color: '#ec4899',
-                '& .MuiChip-icon': { color: '#ec4899' },
-                '& .MuiChip-label': { px: 0.5, fontSize: 11 },
-              }}
-            />
-          )}
-          <Chip
-            label={item.type === 'movie' ? t('assistantToolUi.movie') : t('assistantToolUi.series')}
-            size="small"
+        {(item.subtitle || item.rating != null) && (
+          <Box
             sx={{
-              height: 20,
-              bgcolor: item.type === 'movie' ? 'rgba(99, 102, 241, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-              color: item.type === 'movie' ? '#818cf8' : '#10b981',
-              '& .MuiChip-label': { px: 0.5, fontSize: 11 },
-            }}
-          />
-        </Box>
-
-        {/* Action buttons */}
-        <Box sx={{ display: 'flex', gap: 1, mt: 'auto', pt: 1 }}>
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<InfoIcon sx={{ fontSize: 14 }} />}
-            onClick={(e) => {
-              e.stopPropagation()
-              handleDetails()
-            }}
-            sx={{
-              minWidth: 0,
-              px: 1,
-              py: 0.25,
-              fontSize: 11,
-              borderColor: '#3a3a3a',
-              color: '#a1a1aa',
-              '&:hover': {
-                borderColor: '#6366f1',
-                bgcolor: 'rgba(99, 102, 241, 0.1)',
-              },
+              display: 'flex',
+              flexDirection: featured ? 'row' : 'column',
+              gap: featured ? 1 : 0.5,
+              alignItems: featured ? 'center' : 'stretch',
             }}
           >
-            {t('assistantToolUi.details')}
-          </Button>
-          {playAction && (
-            <Button
-              size="small"
-              variant="contained"
-              startIcon={<PlayArrowIcon sx={{ fontSize: 14 }} />}
-              onClick={(e) => {
-                e.stopPropagation()
-                handlePlay()
-              }}
-              sx={{
-                minWidth: 0,
-                px: 1,
-                py: 0.25,
-                fontSize: 11,
-                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
-                },
-              }}
-            >
-              {t('assistantToolUi.play')}
-            </Button>
-          )}
-        </Box>
+            {item.subtitle && (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                noWrap
+                component="div"
+                sx={{ minWidth: 0 }}
+              >
+                {item.subtitle}
+              </Typography>
+            )}
+            {item.rating != null && (
+              <Box sx={{ display: 'flex', gap: 0.4, alignItems: 'center', flexShrink: 0 }}>
+                <StarRoundedIcon sx={{ color: 'warning.main', fontSize: 16 }} />
+                <Typography variant="caption">{Number(item.rating).toFixed(1)}</Typography>
+              </Box>
+            )}
+          </Box>
+        )}
+        {item.overview && (
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{
+              fontSize: featured ? '0.8125rem' : '0.75rem',
+              lineHeight: 1.35,
+              display: '-webkit-box',
+              WebkitBoxOrient: 'vertical',
+              WebkitLineClamp: 2,
+              overflow: 'hidden',
+              overflowWrap: 'anywhere',
+            }}
+          >
+            {item.overview}
+          </Typography>
+        )}
+        <ContentCardActions
+          item={item}
+          detailsHref={details?.href}
+          playHref={play?.href}
+          onPlay={onPlay}
+          featured={featured}
+        />
       </Box>
     </Paper>
   )
 }
-

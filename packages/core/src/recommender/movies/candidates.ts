@@ -1,6 +1,7 @@
 import { createChildLogger } from '../../lib/logger.js'
 import { query, queryOne } from '../../lib/db.js'
 import { getActiveEmbeddingModelId, getActiveEmbeddingTableName } from '../../lib/ai-provider.js'
+import { suggestionTitleKeySql } from '../shared/suggestionHistory.js'
 import type { Candidate } from '../types.js'
 
 const logger = createChildLogger('recommender-candidates')
@@ -10,7 +11,8 @@ export async function getCandidates(
   watchedIds: Set<string>,
   limit: number,
   includeWatched: boolean = false,
-  maxParentalRating: number | null = null
+  maxParentalRating: number | null = null,
+  history?: { userId: string; cooldownDays: number; allowedSourceIds?: string[]; explorationGenres?: string[] }
 ): Promise<Candidate[]> {
   const vectorStr = `[${tasteProfile.join(',')}]`
 
@@ -40,35 +42,56 @@ export async function getCandidates(
         ), 0) <= ${maxParentalRating})`
       : ''
 
+  const historyJoin = history
+    ? `LEFT JOIN recommendation_suggestion_history h
+         ON h.user_id = $4 AND h.media_type = 'movie'
+         AND h.title_key = (${suggestionTitleKeySql('m.title', 'm.year')})`
+    : ''
+  const historyFilter = history
+    ? "AND (h.last_suggested_at IS NULL OR h.last_suggested_at <= NOW() - $5::int * INTERVAL '24 hours')"
+    : ''
+  const libraryFilter = history?.allowedSourceIds ? "AND m.provider_library_id = ANY($6::text[])"
+    : hasLibraryConfigs
+    ? `AND EXISTS (
+         SELECT 1 FROM library_config lc
+         WHERE lc.provider_library_id = m.provider_library_id AND lc.is_enabled = true
+       )`
+    : ''
+
+  const params: unknown[] = [vectorStr, queryLimit, modelId]
+  if (history) params.push(history.userId, history.cooldownDays)
+  if (history?.allowedSourceIds) params.push(history.allowedSourceIds)
+  let explorationFilter = ''
+  if (history?.explorationGenres?.length) {
+    params.push(history.explorationGenres)
+    explorationFilter = `AND m.community_rating >= 7 AND cardinality(m.genres) > 0
+      AND NOT (m.genres && $${params.length}::text[])`
+  }
+  const sort = explorationFilter ? 'm.community_rating DESC, e.embedding <=> $1::halfvec' : 'e.embedding <=> $1::halfvec'
+
   // Use pgvector to find similar movies, filtered by enabled libraries, parental rating, and model
   const result = await query<{
     id: string
     title: string
     year: number | null
     genres: string[]
+    collection_name: string | null
+    keywords: string[]
     community_rating: number | null
     similarity: number
+    previously_suggested: boolean
   }>(
-    hasLibraryConfigs
-      ? `SELECT m.id, m.title, m.year, m.genres, m.community_rating,
-                1 - (e.embedding <=> $1::halfvec) as similarity
-         FROM ${tableName} e
-         JOIN movies m ON m.id = e.movie_id
-         WHERE e.model = $3 AND EXISTS (
-           SELECT 1 FROM library_config lc 
-           WHERE lc.provider_library_id = m.provider_library_id 
-           AND lc.is_enabled = true
-         )${parentalFilter}
-         ORDER BY e.embedding <=> $1::halfvec
-         LIMIT $2`
-      : `SELECT m.id, m.title, m.year, m.genres, m.community_rating,
-                1 - (e.embedding <=> $1::halfvec) as similarity
-         FROM ${tableName} e
-         JOIN movies m ON m.id = e.movie_id
-         WHERE e.model = $3${parentalFilter}
-         ORDER BY e.embedding <=> $1::halfvec
-         LIMIT $2`,
-    [vectorStr, queryLimit, modelId]
+    `SELECT m.id, m.title, m.year, m.genres, m.collection_name, m.community_rating,
+            COALESCE(m.keywords, '{}') || COALESCE(m.mdblist_keywords, '{}') AS keywords,
+            1 - (e.embedding <=> $1::halfvec) as similarity,
+            ${history ? 'h.last_suggested_at IS NOT NULL' : 'FALSE'} AS previously_suggested
+     FROM ${tableName} e
+     JOIN movies m ON m.id = e.movie_id
+     ${historyJoin}
+     WHERE e.model = $3 ${libraryFilter} ${parentalFilter} ${historyFilter} ${explorationFilter}
+     ORDER BY ${sort}
+     LIMIT $2`,
+    params
   )
 
   // Filter out watched movies if not including them
@@ -82,8 +105,11 @@ export async function getCandidates(
     title: row.title,
     year: row.year,
     genres: row.genres || [],
+    collectionName: row.collection_name,
+    keywords: row.keywords,
     communityRating: row.community_rating,
     similarity: row.similarity,
+    previouslySuggested: row.previously_suggested,
     novelty: 0,
     ratingScore: 0,
     diversityScore: 0,

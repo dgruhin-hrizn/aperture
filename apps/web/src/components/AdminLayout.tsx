@@ -1,4 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import { useActiveJobs } from '../hooks/useActiveJobs'
+import { Suspense } from 'react'
+import { PageLoading } from './PageLoading'
+import React from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Box,
@@ -34,29 +37,7 @@ export function AdminLayout() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
-  const [runningJobsCount, setRunningJobsCount] = useState(0)
-
-  // Fetch running jobs count
-  const fetchRunningJobsCount = useCallback(async () => {
-    try {
-      const response = await fetch('/api/jobs/active', { credentials: 'include' })
-      if (response.ok) {
-        const data = await response.json()
-        const running = (data.jobs || []).filter(
-          (j: { status: string }) => j.status === 'running'
-        ).length
-        setRunningJobsCount(running)
-      }
-    } catch {
-      // Silently fail - count will stay at 0
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchRunningJobsCount()
-    const interval = setInterval(fetchRunningJobsCount, 3000)
-    return () => clearInterval(interval)
-  }, [fetchRunningJobsCount])
+  const runningJobsCount = useActiveJobs().filter(job => job.status === 'running').length
 
   // Determine active tab based on current path (no tab selected on /admin/gaps)
   const getActiveTab = (): number | false => {
@@ -152,7 +133,7 @@ export function AdminLayout() {
                         height: 20,
                         minWidth: 20,
                         bgcolor: 'primary.main',
-                        color: 'white',
+                        color: theme => theme.aperture.name === 'studio' ? theme.palette.primary.contrastText : 'white',
                         fontSize: '0.75rem',
                         '& .MuiChip-label': { px: 0.75 },
                       }}
@@ -175,7 +156,7 @@ export function AdminLayout() {
 
       {/* Tab Content */}
       <Box>
-        <Outlet />
+        <Suspense fallback={<PageLoading />}><Outlet /></Suspense>
       </Box>
     </Box>
   )

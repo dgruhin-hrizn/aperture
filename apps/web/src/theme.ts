@@ -1,4 +1,11 @@
 import { createTheme, type Theme, type ThemeOptions } from '@mui/material/styles'
+import { studioThemeOptions } from './appearance/studioTheme'
+import type { UiTheme } from './appearance/preferences'
+
+declare module '@mui/material/styles' {
+  interface Theme { aperture: { name: UiTheme } }
+  interface ThemeOptions { aperture?: { name: UiTheme } }
+}
 
 const themeOptions: ThemeOptions = {
   palette: {
@@ -174,8 +181,12 @@ const themeOptions: ThemeOptions = {
   },
 }
 
-export function createAppTheme(direction: 'ltr' | 'rtl'): Theme {
-  return createTheme({ ...themeOptions, direction })
+export function createAppTheme(direction: 'ltr' | 'rtl', name: UiTheme = 'classic', mode: 'light' | 'dark' = 'dark'): Theme {
+  return createTheme({
+    ...(name === 'studio' ? studioThemeOptions(mode) : themeOptions),
+    direction,
+    aperture: { name },
+  })
 }
 
 /** @deprecated Prefer `createAppTheme('ltr')` from RtlProviders; kept for Storybook or tests. */

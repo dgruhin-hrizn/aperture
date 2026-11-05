@@ -13,10 +13,20 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createGroq } from '@ai-sdk/groq'
 import { createDeepSeek } from '@ai-sdk/deepseek'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
+import { huggingFaceEmbeddings } from './huggingFaceEmbeddings.js'
 import { createHuggingFace } from '@ai-sdk/huggingface'
+import { createHash } from 'node:crypto'
+import { z } from 'zod'
 import type { LanguageModel, EmbeddingModel } from 'ai'
+import type { ProviderType } from './ai-capabilities/contracts.js'
+export type { ProviderType } from './ai-capabilities/contracts.js'
 import { getSystemSetting, setSystemSetting } from '../settings/systemSettings.js'
 import { createChildLogger } from './logger.js'
+import { AsyncCache } from './asyncCache.js'
+import {
+  COMPATIBLE_BASE_URL, OPENAI_BASE_URL, discoverEndpointModels, normalizeCompatibleBaseUrl,
+  openAIModelMetadata,
+} from './ai-model-discovery.js'
 import {
   getModel,
   validateCapabilityForFeature,
@@ -33,22 +43,12 @@ const logger = createChildLogger('ai-provider')
 // Types
 // ============================================================================
 
-export type ProviderType =
-  | 'openai'
-  | 'anthropic'
-  | 'ollama'
-  | 'openai-compatible'
-  | 'groq'
-  | 'google'
-  | 'deepseek'
-  | 'openrouter'
-  | 'huggingface'
-
 export interface ProviderConfig {
   provider: ProviderType
   model: string
   apiKey?: string
   baseUrl?: string
+  toolCallingVerified?: true
 }
 
 export interface AIConfig {
@@ -142,8 +142,61 @@ export async function getFunctionConfig(fn: AIFunction): Promise<ProviderConfig 
  */
 export async function setFunctionConfig(fn: AIFunction, providerConfig: ProviderConfig): Promise<void> {
   const config = await getAIConfig()
-  config[fn] = providerConfig
-  await setAIConfig(config)
+  const { provider, model, apiKey, baseUrl } = providerConfig
+  const connection = await resolveProviderConnection(provider, fn, { apiKey, baseUrl }, config)
+  const next: ProviderConfig = { provider, model, ...connection }
+  if (provider === 'openai-compatible' && fn === 'chat') {
+    const current = config.chat
+    const sameModel = current?.provider === provider && current.model === model &&
+      current.apiKey === next.apiKey && current.baseUrl === next.baseUrl
+    if (sameModel && current.toolCallingVerified) next.toolCallingVerified = true
+    else {
+      await verifyCompatibleChat(next)
+      next.toolCallingVerified = true
+    }
+  }
+  if (apiKey || baseUrl) {
+    const stored = await readProviderCredentials()
+    stored[provider] = connection
+    await setSystemSetting('ai_provider_credentials', JSON.stringify(stored), 'Stored credentials for AI providers')
+  }
+  const latest = await getAIConfig()
+  await setAIConfig({ ...latest, [fn]: next })
+}
+
+type ProviderConnection = Pick<ProviderConfig, 'apiKey' | 'baseUrl'>
+
+async function readProviderCredentials(): Promise<Partial<Record<ProviderType, ProviderConnection>>> {
+  const stored = await getSystemSetting('ai_provider_credentials')
+  return stored ? JSON.parse(stored) : {}
+}
+
+export async function resolveProviderConnection(
+  provider: ProviderType,
+  fn: AIFunction,
+  overrides: ProviderConnection,
+  config?: AIConfig
+): Promise<ProviderConnection> {
+  const aiConfig = config ?? await getAIConfig()
+  const current = aiConfig[fn]
+  const stored = (await readProviderCredentials())[provider]
+  const connections = [
+    current?.provider === provider ? current : undefined,
+    stored,
+    ...Object.values(aiConfig).filter((value): value is ProviderConfig =>
+      typeof value === 'object' && value !== null && value.provider === provider),
+  ].filter((value): value is ProviderConnection => Boolean(value))
+  const baseUrl = overrides.baseUrl ?? connections[0]?.baseUrl
+  const canonicalUrl = (value: string | undefined) => provider === 'openai-compatible'
+    ? normalizeCompatibleBaseUrl(value || COMPATIBLE_BASE_URL)
+    : (value || (provider === 'openai' ? OPENAI_BASE_URL : '')).replace(/\/+$/, '')
+  const endpoint = canonicalUrl(baseUrl)
+  const apiKey = overrides.apiKey ?? connections.find((entry) => {
+    if (!entry.apiKey) return false
+    try { return canonicalUrl(entry.baseUrl) === endpoint }
+    catch { return false }
+  })?.apiKey
+  return { apiKey, baseUrl: provider === 'openai-compatible' && baseUrl ? endpoint : baseUrl }
 }
 
 /**
@@ -235,7 +288,9 @@ function createProviderInstance(providerConfig: ProviderConfig): unknown {
       const ollamaFetch: typeof fetch = (url, options) => {
         return fetch(url, {
           ...options,
-          signal: AbortSignal.timeout(300000), // 5 minute timeout
+          signal: options?.signal
+            ? AbortSignal.any([options.signal, AbortSignal.timeout(300000)])
+            : AbortSignal.timeout(300000),
         })
       }
 
@@ -249,7 +304,7 @@ function createProviderInstance(providerConfig: ProviderConfig): unknown {
     case 'openai-compatible':
       instance = createOpenAICompatible({
         name: 'openai-compatible',
-        baseURL: providerConfig.baseUrl ?? 'http://localhost:1234/v1',
+        baseURL: normalizeCompatibleBaseUrl(providerConfig.baseUrl || COMPATIBLE_BASE_URL),
         apiKey: providerConfig.apiKey,
       })
       break
@@ -299,7 +354,7 @@ function createProviderInstance(providerConfig: ProviderConfig): unknown {
 /**
  * Get an embedding model instance for the configured provider
  */
-export async function getEmbeddingModelInstance(): Promise<EmbeddingModel<string>> {
+export async function getEmbeddingModelInstance(): Promise<EmbeddingModel> {
   const config = await getFunctionConfig('embeddings')
 
   if (!config) {
@@ -334,8 +389,7 @@ export async function getEmbeddingModelInstance(): Promise<EmbeddingModel<string
       return (provider as any).embedding(modelId)
 
     case 'huggingface':
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (provider as any).textEmbeddingModel(modelId)
+      return huggingFaceEmbeddings(config)
 
     default:
       throw new Error(`Provider ${config.provider} does not support embeddings`)
@@ -431,12 +485,17 @@ export async function getAICapabilitiesStatus(): Promise<AICapabilitiesStatus> {
       }
     }
 
-    const model = getModel(fnConfig.provider, fnConfig.model, fn)
+    const model = fnConfig.provider === 'openai'
+      ? openAIModelMetadata(fnConfig.model, fn)
+      : getModel(fnConfig.provider, fnConfig.model, fn)
     return {
       configured: true,
       provider: fnConfig.provider,
       model: fnConfig.model,
-      capabilities: model?.capabilities ?? null,
+      capabilities: model?.capabilities ?? (fn === 'chat' && fnConfig.toolCallingVerified ? {
+        supportsToolCalling: true, supportsToolStreaming: true,
+        supportsObjectGeneration: false, supportsEmbeddings: false,
+      } : null),
     }
   }
 
@@ -653,11 +712,38 @@ export async function dropLegacyEmbeddingTables(): Promise<void> {
 /**
  * Test connection to a provider
  */
+const verifiedChat = new AsyncCache<true>(5 * 60_000, 40)
+
+async function verifyCompatibleChat(config: ProviderConfig): Promise<true> {
+  const key = createHash('sha256').update(JSON.stringify(config)).digest('hex')
+  return verifiedChat.get(key, async () => {
+    const provider = createProviderInstance(config) as ReturnType<typeof createOpenAICompatible>
+    const { streamText, tool } = await import('ai')
+    const result = streamText({
+      model: provider(config.model),
+      prompt: 'Call aperture_test with status set to ok.',
+      tools: { aperture_test: tool({ inputSchema: z.object({ status: z.literal('ok') }) }) },
+      toolChoice: 'auto',
+      maxOutputTokens: 1024,
+      maxRetries: 0,
+      timeout: 90_000,
+    })
+    await result.consumeStream({ onError: (error) => { throw error } })
+    if (!(await result.toolCalls).some(call => call.toolName === 'aperture_test' && !call.invalid))
+      throw new Error('The model did not return a valid tool call. Encore requires streaming tool calls.')
+    return true
+  })
+}
+
 export async function testProviderConnection(
   providerConfig: ProviderConfig,
   fn: AIFunction
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; embeddingDimensions?: number }> {
   try {
+    if (fn === 'chat' && providerConfig.provider === 'openai-compatible') {
+      await verifyCompatibleChat(providerConfig)
+      return { success: true }
+    }
     const provider = createProviderInstance(providerConfig)
 
     if (fn === 'embeddings') {
@@ -673,10 +759,11 @@ export async function testProviderConnection(
 
       // Import embed from ai package
       const { embed } = await import('ai')
-      await embed({
+      const { embedding } = await embed({
         model,
         value: 'test',
       })
+      return { success: true, embeddingDimensions: embedding.length }
     } else {
       // Test chat/text generation
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -875,6 +962,43 @@ export async function getModelsForFunctionWithCustom(
 
   // Return built-in models first, then custom models
   return [...builtInModels, ...customModelMetadata]
+}
+
+export async function getAIModelOptions(
+  provider: ProviderType,
+  fn: AIFunction,
+  overrides: ProviderConnection = {},
+  refresh = false
+): Promise<{ models: ModelMetadata[]; source: 'live' | 'bundled'; error?: string }> {
+  const fallback = await getModelsForFunctionWithCustom(provider, fn)
+  if (provider !== 'openai' && provider !== 'openai-compatible')
+    return { models: fallback, source: 'bundled' }
+  try {
+    const connection = await resolveProviderConnection(provider, fn, overrides)
+    const apiKey = connection.apiKey ?? (provider === 'openai' ? process.env.OPENAI_API_KEY : undefined)
+    if (provider === 'openai' && (!apiKey ||
+        (connection.baseUrl && connection.baseUrl.replace(/\/+$/, '') !== OPENAI_BASE_URL))) {
+      return { models: fallback, source: 'bundled' }
+    }
+    if (provider === 'openai-compatible' && !connection.baseUrl) return { models: fallback, source: 'bundled' }
+    const models = await discoverEndpointModels(
+      provider, fn, connection.baseUrl?.replace(/\/+$/, '') || OPENAI_BASE_URL, apiKey, refresh
+    )
+    const registered = new Map(fallback.map(model => [model.id, model]))
+    return {
+      models: [
+        ...models.map(model => registered.get(model.id) ?? model),
+        ...fallback.filter(model => model.isCustom && !models.some(option => option.id === model.id)),
+      ],
+      source: 'live',
+    }
+  } catch (error) {
+    logger.warn({ provider, function: fn }, 'AI model discovery failed')
+    const detail = error instanceof Error && /^Model endpoint returned HTTP \d+\.$/.test(error.message)
+      ? error.message
+      : 'Check the API base URL and key, then try again.'
+    return { models: fallback, source: 'bundled', error: detail }
+  }
 }
 
 // ============================================================================

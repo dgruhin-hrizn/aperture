@@ -265,7 +265,7 @@ export const SimilarityGraph = memo(function SimilarityGraph({
       .attr('y', (d) => -getNodeHeight(d) / 2)
       .attr('rx', 6)
       .attr('ry', 6)
-      .attr('fill', '#1a1a2e')
+      .attr('fill', 'var(--ap-graph-node, #1a1a2e)')
       .attr('stroke', (d) => getNodeStroke(d))
       .attr('stroke-width', (d) => getNodeStrokeWidth(d))
 
@@ -298,7 +298,7 @@ export const SimilarityGraph = memo(function SimilarityGraph({
       .text((d) => truncateTitle(d.title, d.isCenter || d.isPrimary ? 14 : 12))
       .attr('text-anchor', 'middle')
       .attr('y', (d) => getNodeHeight(d) / 2 + 14)
-      .attr('fill', '#fff')
+      .attr('fill', 'var(--ap-graph-text, #fff)')
       .attr('font-size', (d) => (d.isCenter || d.isPrimary ? '11px' : '9px'))
       .attr('font-weight', (d) => (d.isCenter || d.isPrimary ? 600 : 400))
 
@@ -308,7 +308,7 @@ export const SimilarityGraph = memo(function SimilarityGraph({
       .text((d) => (d.year ? `(${d.year})` : ''))
       .attr('text-anchor', 'middle')
       .attr('y', (d) => getNodeHeight(d) / 2 + 26)
-      .attr('fill', '#888')
+      .attr('fill', 'var(--ap-muted, #888)')
       .attr('font-size', '8px')
 
     // Primary label (for browse sources)
@@ -491,7 +491,7 @@ export const SimilarityGraph = memo(function SimilarityGraph({
           alignItems: 'center',
           justifyContent: 'center',
           gap: 2,
-          bgcolor: '#0f0f1a',
+          bgcolor: 'var(--ap-graph-bg, #0f0f1a)',
           borderRadius: 2,
         }}
       >
@@ -605,7 +605,7 @@ export const SimilarityGraph = memo(function SimilarityGraph({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          bgcolor: '#0f0f1a',
+          bgcolor: 'var(--ap-graph-bg, #0f0f1a)',
           borderRadius: 2,
         }}
       >
@@ -622,7 +622,7 @@ export const SimilarityGraph = memo(function SimilarityGraph({
         height: compact ? 550 : '100%',
         minHeight: compact ? 550 : 600,
         position: 'relative',
-        bgcolor: '#0f0f1a',
+        bgcolor: 'var(--ap-graph-bg, #0f0f1a)',
         borderRadius: 2,
         overflow: 'hidden',
       }}
@@ -641,7 +641,7 @@ export const SimilarityGraph = memo(function SimilarityGraph({
             position: 'absolute',
             bottom: 16,
             left: 16,
-            bgcolor: 'rgba(10,10,20,0.95)',
+            bgcolor: 'var(--ap-graph-tooltip, rgba(10,10,20,0.95))',
             borderRadius: 2,
             p: 2,
             maxWidth: 380,
@@ -729,7 +729,7 @@ export const SimilarityGraph = memo(function SimilarityGraph({
             position: 'absolute',
             bottom: 16,
             right: 16,
-            bgcolor: 'rgba(0,0,0,0.9)',
+            bgcolor: 'var(--ap-graph-tooltip, rgba(0,0,0,0.9))',
             borderRadius: 1,
             p: 1.5,
             maxWidth: 300,

@@ -151,7 +151,7 @@ export function DiscoveryListItem({
               alignSelf: 'stretch',
               flexShrink: 0,
               overflow: 'hidden',
-              bgcolor: 'grey.900',
+              bgcolor: 'var(--ap-placeholder, #212121)',
             }}
           >
             <Box

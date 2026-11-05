@@ -1,6 +1,16 @@
+import { useAuth } from '../../../hooks/useAuth'
+import { discoveryResource, mediaKey, requestSignal } from '../hooks/discoveryRequests'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Skeleton, Typography } from '@mui/material'
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Alert,
+  Box,
+  Skeleton,
+  Typography,
+} from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import CategoryIcon from '@mui/icons-material/Category'
 import { DiscoveryCard } from './DiscoveryCard'
@@ -8,11 +18,12 @@ import { useSeerrRequest } from '../hooks/useSeerrRequest'
 import type { DiscoveryCandidate, MediaType, SeerrMediaStatus } from '../types'
 import type { SeerrRequestOptions } from '../../../types/seerrRequest'
 import type { ResolveDiscoveryGenreName } from '../hooks/useDiscoveryGenres'
+import { useStripStatuses } from '../hooks/useStripStatuses'
 import { useStripLoadQueue } from '../hooks/useStripLoadQueue'
 
 interface StripState {
   candidates: DiscoveryCandidate[]
-  seerrStatuses: Record<number, SeerrMediaStatus>
+  seerrStatuses: Record<string, SeerrMediaStatus>
   error: string | null
 }
 
@@ -48,8 +59,7 @@ function rowQueueKey(
   const cc = c && /^[A-Z]{2}$/.test(c) ? c : ''
   const ex = (excludeGenreIds ?? []).join('|')
   const ys = yearStart !== undefined ? String(yearStart) : ''
-  const ye =
-    yearEndCurrent === true ? 'c' : yearEnd !== undefined ? String(yearEnd) : ''
+  const ye = yearEndCurrent === true ? 'c' : yearEnd !== undefined ? String(yearEnd) : ''
   return `${genreIds.join('|')}::${limit}::${cc}::${ex}::${ys}::${ye}`
 }
 
@@ -135,7 +145,14 @@ function StripSkeletonRow({ count }: { count: number }) {
   return (
     <Box sx={{ display: 'flex', gap: 2, overflow: 'hidden', pb: 1 }}>
       {Array.from({ length: n }).map((_, i) => (
-        <Skeleton key={i} variant="rounded" width={160} height={240} sx={{ flexShrink: 0, borderRadius: 2 }} animation="wave" />
+        <Skeleton
+          key={i}
+          variant="rounded"
+          width={160}
+          height={240}
+          sx={{ flexShrink: 0, borderRadius: 2 }}
+          animation="wave"
+        />
       ))}
     </Box>
   )
@@ -200,10 +217,12 @@ export function TmdbGenreRowsSection({
   requestEnabled: boolean
   resolveGenreName: ResolveDiscoveryGenreName
 }) {
+  const { user } = useAuth()
+  const userId = user?.id ?? ''
   const { t } = useTranslation()
   const [stripEntries, setStripEntries] = useState<StripEntry[]>([])
   const [loadingConfig, setLoadingConfig] = useState(true)
-  const [seerrLocal, setSeerrLocal] = useState<Record<number, Partial<SeerrMediaStatus>>>({})
+  const [seerrLocal, setSeerrLocal] = useState<Record<string, Partial<SeerrMediaStatus>>>({})
 
   const stripEntriesRef = useRef(stripEntries)
   stripEntriesRef.current = stripEntries
@@ -211,18 +230,29 @@ export function TmdbGenreRowsSection({
   const { submitRequest, isRequesting, fetchTVDetails } = useSeerrRequest()
 
   const fetchOneStrip = useCallback(
-    async (params: {
-      genreIds: number[]
-      limit: number
-      originCountry?: string
-      excludeGenreIds?: number[]
-      yearStart?: number
-      yearEnd?: number
-      yearEndCurrent?: boolean
-    }): Promise<StripState> => {
-      const { genreIds, limit, originCountry, excludeGenreIds, yearStart, yearEnd, yearEndCurrent } =
-        params
+    async (
+      params: {
+        genreIds: number[]
+        limit: number
+        originCountry?: string
+        excludeGenreIds?: number[]
+        yearStart?: number
+        yearEnd?: number
+        yearEndCurrent?: boolean
+      },
+      signal: AbortSignal
+    ): Promise<StripState> => {
+      const {
+        genreIds,
+        limit,
+        originCountry,
+        excludeGenreIds,
+        yearStart,
+        yearEnd,
+        yearEndCurrent,
+      } = params
       const qs = buildQuery({
+        includeStatuses: 'false',
         mediaType,
         genreIds: genreIds.join(','),
         limit: String(limit),
@@ -230,13 +260,12 @@ export function TmdbGenreRowsSection({
         excludeGenreIds: excludeGenreIds?.length ? excludeGenreIds.join(',') : undefined,
         yearStart: yearStart !== undefined ? String(yearStart) : undefined,
         yearEnd:
-          yearEndCurrent === true
-            ? 'today'
-            : yearEnd !== undefined
-              ? String(yearEnd)
-              : undefined,
+          yearEndCurrent === true ? 'today' : yearEnd !== undefined ? String(yearEnd) : undefined,
       })
-      const res = await fetch(`/api/discovery/tmdb-genre-row${qs}`, { credentials: 'include' })
+      const res = await fetch(`/api/discovery/tmdb-genre-row${qs}`, {
+        credentials: 'include',
+        signal: requestSignal(signal, 60_000),
+      })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
         return {
@@ -247,11 +276,23 @@ export function TmdbGenreRowsSection({
       }
       const data = (await res.json()) as {
         candidates: DiscoveryCandidate[]
-        seerrStatuses?: Record<number, SeerrMediaStatus>
+        seerrStatuses?: Record<string, SeerrMediaStatus>
+        seerrStatusesByMedia?: Record<string, SeerrMediaStatus>
       }
       return {
         candidates: data.candidates || [],
-        seerrStatuses: (data.seerrStatuses || {}) as Record<number, SeerrMediaStatus>,
+        seerrStatuses:
+          data.seerrStatusesByMedia ??
+          Object.fromEntries(
+            (data.candidates || []).map((c) => [
+              mediaKey(c.mediaType, c.tmdbId),
+              data.seerrStatuses?.[c.tmdbId] ?? {
+                exists: false,
+                status: 'unknown',
+                requested: false,
+              },
+            ])
+          ),
         error: null,
       }
     },
@@ -259,30 +300,42 @@ export function TmdbGenreRowsSection({
   )
 
   const processStripItem = useCallback(
-    async (key: string) => {
+    async (key: string, signal: AbortSignal) => {
       const parsed = parseQueueKey(key)
       if (!parsed) return
-      const { genreIds, limit, originCountry, excludeGenreIds, yearStart, yearEnd, yearEndCurrent } =
-        parsed
+      const {
+        genreIds,
+        limit,
+        originCountry,
+        excludeGenreIds,
+        yearStart,
+        yearEnd,
+        yearEndCurrent,
+      } = parsed
 
       setStripEntries((prev) =>
         prev.map((e) => (stripRowKey(e) === key ? { ...e, state: 'loading' } : e))
       )
 
       try {
-        const strip = await fetchOneStrip({
-          genreIds,
-          limit,
-          originCountry,
-          excludeGenreIds,
-          yearStart,
-          yearEnd,
-          yearEndCurrent,
-        })
+        const strip = await fetchOneStrip(
+          {
+            genreIds,
+            limit,
+            originCountry,
+            excludeGenreIds,
+            yearStart,
+            yearEnd,
+            yearEndCurrent,
+          },
+          signal
+        )
+        if (signal.aborted) return
         setStripEntries((prev) =>
           prev.map((e) => (stripRowKey(e) === key ? { ...e, state: 'loaded', strip } : e))
         )
       } catch {
+        if (signal.aborted) return
         setStripEntries((prev) =>
           prev.map((e) =>
             stripRowKey(e) === key
@@ -316,6 +369,7 @@ export function TmdbGenreRowsSection({
   )
 
   useEffect(() => {
+    const controller = new AbortController()
     let cancelled = false
     resetStripQueue()
     setStripEntries([])
@@ -323,13 +377,7 @@ export function TmdbGenreRowsSection({
 
     void (async () => {
       try {
-        const res = await fetch('/api/discovery/tmdb-genre-rows/config', { credentials: 'include' })
-        if (!res.ok) {
-          setStripEntries([])
-          setLoadingConfig(false)
-          return
-        }
-        const data = (await res.json()) as {
+        const data = await discoveryResource<{
           movieGenreRows?: Array<
             | {
                 genreIds: number[]
@@ -356,7 +404,7 @@ export function TmdbGenreRowsSection({
               }
             | number[]
           >
-        }
+        }>(userId, '/api/discovery/tmdb-genre-rows/config', controller.signal)
         const rawRows =
           mediaType === 'movie'
             ? Array.isArray(data.movieGenreRows) && data.movieGenreRows.length > 0
@@ -368,25 +416,34 @@ export function TmdbGenreRowsSection({
         if (cancelled) return
         const next: StripEntry[] = rawRows.map((row) => {
           if (Array.isArray(row)) {
-          return {
-            genreIds: row,
-            limit: 24,
-            state: 'idle' as const,
-            strip: null,
+            return {
+              genreIds: row,
+              limit: 24,
+              state: 'idle' as const,
+              strip: null,
+            }
           }
-        }
-          const lim = typeof row.limit === 'number' && row.limit >= 1 ? Math.min(48, Math.floor(row.limit)) : 24
+          const lim =
+            typeof row.limit === 'number' && row.limit >= 1
+              ? Math.min(48, Math.floor(row.limit))
+              : 24
           const label =
-            typeof row.label === 'string' && row.label.trim() !== '' ? row.label.trim().slice(0, 80) : undefined
-          const ocRaw = typeof row.originCountry === 'string' ? row.originCountry.trim().toUpperCase() : ''
+            typeof row.label === 'string' && row.label.trim() !== ''
+              ? row.label.trim().slice(0, 80)
+              : undefined
+          const ocRaw =
+            typeof row.originCountry === 'string' ? row.originCountry.trim().toUpperCase() : ''
           const originCountry = ocRaw && /^[A-Z]{2}$/.test(ocRaw) ? ocRaw : undefined
           const excludeGenreIds = Array.isArray(row.excludeGenreIds)
             ? row.excludeGenreIds.filter((id) => typeof id === 'number' && id >= 1)
             : undefined
           const yearEndCurrent = row.yearEndCurrent === true
           const yearStart = typeof row.yearStart === 'number' ? row.yearStart : undefined
-          const yearEnd =
-            yearEndCurrent ? undefined : typeof row.yearEnd === 'number' ? row.yearEnd : undefined
+          const yearEnd = yearEndCurrent
+            ? undefined
+            : typeof row.yearEnd === 'number'
+              ? row.yearEnd
+              : undefined
           return {
             genreIds: Array.isArray(row.genreIds) ? row.genreIds : [],
             limit: lim,
@@ -401,6 +458,8 @@ export function TmdbGenreRowsSection({
           }
         })
         setStripEntries(next)
+      } catch {
+        if (!cancelled) setStripEntries([])
       } finally {
         if (!cancelled) setLoadingConfig(false)
       }
@@ -408,8 +467,10 @@ export function TmdbGenreRowsSection({
 
     return () => {
       cancelled = true
+      controller.abort()
+      resetStripQueue()
     }
-  }, [mediaType, resetStripQueue])
+  }, [mediaType, resetStripQueue, userId])
 
   const handleRequest = useCallback(
     async (
@@ -428,7 +489,7 @@ export function TmdbGenreRowsSection({
       if (result.success && candidate.tmdbId) {
         setSeerrLocal((prev) => ({
           ...prev,
-          [candidate.tmdbId]: {
+          [mediaKey(candidate.mediaType, candidate.tmdbId)]: {
             exists: false,
             status: 'pending',
             requested: true,
@@ -440,9 +501,16 @@ export function TmdbGenreRowsSection({
     [submitRequest]
   )
 
+  const statusItems = stripEntries
+    .flatMap((e) => e.strip?.candidates ?? [])
+    .map((c) => ({ tmdbId: c.tmdbId, mediaType: c.mediaType }))
+  const deferredStatuses = useStripStatuses(statusItems, requestEnabled, mediaType)
+
   const mergeSeerr = (tmdbId: number, strip: StripState): SeerrMediaStatus | undefined => {
-    const base = strip.seerrStatuses[tmdbId]
-    const loc = seerrLocal[tmdbId]
+    const base =
+      deferredStatuses[mediaKey(mediaType, tmdbId)] ??
+      strip.seerrStatuses[mediaKey(mediaType, tmdbId)]
+    const loc = seerrLocal[mediaKey(mediaType, tmdbId)]
     if (!base && !loc) return undefined
     return {
       exists: loc?.exists ?? base?.exists ?? false,

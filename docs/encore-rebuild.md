@@ -1,0 +1,36 @@
+# Encore 0.8 implementation and release plan
+
+Encore is a media consultant backed by user-scoped Aperture capabilities. The same services power the native interface and the MCP server. The default is to suggest plans; recurring curation requires an explicit standing instruction.
+
+## Stage 1 — modern runtime and redesigned conversation workspace
+
+Upgrade the AI SDK, provider adapters, assistant-ui integration and Node runtime together. Replace browser-owned history and streaming workarounds with server-owned, idempotent message storage. Ship an accessible, responsive Encore workspace with conversation navigation, rich result surfaces, cancellation, retry and visible failures. Repair numeric-title validation and semantic ranking.
+
+## Stage 2 — shared capabilities and MCP
+
+Move media consultation into a shared core service. Enforce current user/library visibility before returning catalog data. Supply library and external discovery, personal history/profile and sourced release schedules through the same contracts used by Encore and an authenticated MCP endpoint. Provide a local stdio client bridge and self-hosted connection instructions. Add an Encore connections interface for individually scoped, revocable credentials.
+
+## Stage 3 — lasting memory, watch plans and Emby actions
+
+Store scoped, inspectable preferences with provenance and support correction/deletion. Connect appropriate preferences to existing taste controls. Create structured watch plans with timezone, viewing windows, runtime and availability checks. Add owned playlist/home-row operations with persisted action state, idempotency and partial-failure recovery. Ship dedicated memory, plan, schedule and action interfaces inside Encore.
+
+## Stage 4 — opt-in recurring curation
+
+Persist explicitly enabled standing instructions and execute them through the same services in the scheduler. Refresh owned collections, reconcile availability, and preserve manual edits and user permissions. Provide pause/resume/delete, last/next run, results and failure reporting in Encore. Cover the complete journey with deterministic integration tests and scenario evaluations.
+
+## Release discipline
+
+Each stage is a separate PR into dev, followed by a prerelease (0.8.0-dev.1, dev.3, dev.4 and dev.5) and its versioned container build. Rebase against current dev before each merge. Keep all app version locations synchronized. Run lint/type checks, the production build, Encore tests and existing regression suites. Wait for CI and container publication before reporting a release as complete. No production Emby collection or account is modified during development validation.
+
+## Delivered stages
+
+| Stage | Pull requests | Release |
+| --- | --- | --- |
+| Modern runtime and conversation UI | [#120](https://github.com/dgruhin-hrizn/aperture/pull/120) | [dev.1](https://github.com/dgruhin-hrizn/aperture/releases/tag/v0.8.0-dev.1) |
+| Shared consultant capabilities and MCP | [#122](https://github.com/dgruhin-hrizn/aperture/pull/122), [packaging fix #123](https://github.com/dgruhin-hrizn/aperture/pull/123) | [dev.3.1](https://github.com/dgruhin-hrizn/aperture/releases/tag/v0.8.0-dev.3.1) |
+| Memory, plans and approved Emby actions | [#124](https://github.com/dgruhin-hrizn/aperture/pull/124) | [dev.4](https://github.com/dgruhin-hrizn/aperture/releases/tag/v0.8.0-dev.4) |
+| Opt-in recurring curation and complete workbench | [#125](https://github.com/dgruhin-hrizn/aperture/pull/125) plus editor feedback patch | [dev.5.1](https://github.com/dgruhin-hrizn/aperture/releases/tag/v0.8.0-dev.5.1) |
+
+Discovery and People improvements occupied dev.2 during the rebuild. Stage two's clean-install packaging correction is dev.3.1; use it instead of dev.3. All stages target dev and keep stable latest unchanged. The final workspace has Conversation, Memory, Watch Plans, Collections, Curation and Connections, with 42 native capabilities and 44 MCP capabilities (external clients also receive explicit action/curation execution tools).
+
+Validation includes 14 Encore scenarios, 83 existing application regressions, all migrations on a fresh isolated database, production builds, mobile/light/dark browser checks, and amd64/arm64 release builds. Actual media-server writes were tested with a deterministic Emby protocol fixture; no production account, playlist or Home layout was changed during implementation. Deployment-specific Emby/client compatibility remains visible through operation errors and receipts.

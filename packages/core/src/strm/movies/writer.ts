@@ -3,20 +3,22 @@ import path from 'path'
 import { createChildLogger } from '../../lib/logger.js'
 import { query, queryOne } from '../../lib/db.js'
 import { getConfig } from '../config.js'
-import { getAiRecsOutputConfig } from '../../settings/systemSettings.js'
+import { getAiRecsOutputConfig, getMediaServerApiKey } from '../../settings/systemSettings.js'
 import { downloadImage } from '../images.js'
 import { generateNfoContent } from './nfo.js'
 import {
   getStrmContent,
 } from '../filenames.js'
-import { getEffectiveAiExplanationSetting } from '../../lib/userSettings.js'
+import { getEffectiveAiExplanationSetting, resolveEffectiveAiLanguage } from '../../lib/userSettings.js'
 import {
   symlinkArtwork,
   symlinkBasenameMatchedSidecars,
   MOVIE_SKIP_FILES,
   getMovieFolderFromFilePath,
 } from '../artwork.js'
-import { getMediaServerProvider } from '../../media/index.js'
+import { EmbyProvider, getMediaServerProvider } from '../../media/index.js'
+import { assertPrivateRecommendationLibrary, getAllowedRecommendationSourceIds, getVisibleRecommendationItems } from '../../media/emby/recommendationAccess.js'
+import { getUserLibraryName } from './library.js'
 import type { Movie, ImageDownloadTask } from '../types.js'
 
 const logger = createChildLogger('strm-writer')
@@ -54,10 +56,11 @@ export async function writeStrmFilesForUser(
   userId: string,
   providerUserId: string,
   displayName: string
-): Promise<{ written: number; deleted: number; localPath: string; embyPath: string }> {
+): Promise<{ written: number; deleted: number; localPath: string; embyPath: string; withheldReason?: string }> {
   const config = await getConfig()
   const outputConfig = await getAiRecsOutputConfig()
   const useSymlinks = outputConfig.moviesUseSymlinks
+  const provider = await getMediaServerProvider()
   const startTime = Date.now()
 
   // Build user folder name (DisplayName_ID format for readability)
@@ -73,7 +76,7 @@ export async function writeStrmFilesForUser(
 
   // Check for old-format folder and migrate if needed
   const oldFormatPath = path.join(config.strmRoot, 'aperture', providerUserId)
-  if (userFolder !== providerUserId) {
+  if (!(provider instanceof EmbyProvider) && userFolder !== providerUserId) {
     try {
       const oldFolderStats = await fs.stat(oldFormatPath)
       if (oldFolderStats.isDirectory()) {
@@ -99,6 +102,21 @@ export async function writeStrmFilesForUser(
     }
   }
 
+  let previousLibraryId: string | null | undefined
+  if (provider instanceof EmbyProvider) {
+    const previous = await queryOne<{ path: string; provider_library_id: string | null }>(
+      "SELECT path, provider_library_id FROM strm_libraries WHERE user_id = $1 AND channel_id IS NULL AND media_type = 'movies'",
+      [userId]
+    )
+    previousLibraryId = previous?.provider_library_id
+    const relative = previous && path.relative(path.join(config.libraryPathPrefix, 'aperture'), previous.path)
+    if (relative && relative !== '..' && !relative.includes(path.sep)) {
+      await fs.rm(path.join(config.strmRoot, 'aperture', relative), { recursive: true, force: true })
+    }
+    await fs.rm(localPath, { recursive: true, force: true })
+    if (oldFormatPath !== localPath) await fs.rm(oldFormatPath, { recursive: true, force: true })
+  }
+
   logger.info(
     { userId, localPath, embyPath, useSymlinks },
     `📁 Starting ${useSymlinks ? 'symlink' : 'STRM'} file generation`
@@ -106,6 +124,7 @@ export async function writeStrmFilesForUser(
 
   // Check if AI explanation should be included for this user
   const includeAiExplanation = await getEffectiveAiExplanationSetting(userId)
+  const aiLocale = includeAiExplanation ? await resolveEffectiveAiLanguage(userId) : undefined
   logger.info({ userId, includeAiExplanation }, '🎯 AI explanation setting resolved')
 
   // Ensure directory exists on local mount
@@ -129,6 +148,7 @@ export async function writeStrmFilesForUser(
   const recommendations = await query<{
     movie_id: string
     provider_item_id: string
+    provider_library_id: string | null
     title: string
     original_title: string | null
     sort_title: string | null
@@ -162,7 +182,7 @@ export async function writeStrmFilesForUser(
     rank: number
     final_score: string | null
   }>(
-    `SELECT rc.movie_id, m.provider_item_id, m.title, m.original_title, m.sort_title,
+    `SELECT rc.movie_id, m.provider_item_id, m.provider_library_id, m.title, m.original_title, m.sort_title,
             m.year, m.premiere_date, m.path, m.media_sources::text,
             m.overview, m.tagline, m.community_rating, m.critic_rating, m.content_rating,
             m.runtime_minutes, m.genres, m.poster_url, m.backdrop_url,
@@ -191,6 +211,30 @@ export async function writeStrmFilesForUser(
     }
   }
 
+  if (provider instanceof EmbyProvider) {
+    try {
+      const apiKey = await getMediaServerApiKey()
+      if (!apiKey) throw new Error('Emby API key unavailable')
+      const libraryName = await getUserLibraryName(userId, displayName, config)
+      await assertPrivateRecommendationLibrary(provider, apiKey, providerUserId, libraryName, embyPath, previousLibraryId)
+      const allowed = new Set(await getAllowedRecommendationSourceIds(provider, apiKey, providerUserId, 'movies'))
+      recommendationRows = recommendationRows.filter((movie) =>
+        movie.provider_library_id && allowed.has(movie.provider_library_id) && movie.path
+        && path.extname(movie.path).toLowerCase() !== '.strm'
+      )
+      const visible = await getVisibleRecommendationItems(
+        provider, apiKey, providerUserId, recommendationRows.map((movie) => movie.provider_item_id), 'Movie'
+      )
+      recommendationRows = recommendationRows.filter((movie) => visible.get(movie.provider_item_id)?.Path === movie.path)
+    } catch (err) {
+      logger.warn({ err, userId }, 'Withholding movie output because Emby access could not be verified')
+      return {
+        written: 0, deleted: 0, localPath, embyPath,
+        withheldReason: err instanceof Error ? err.message : 'Could not verify Emby source or output access',
+      }
+    }
+  }
+
   const totalMovies = recommendationRows.length
   logger.info({ count: totalMovies }, '🎬 Found recommendations, preparing files...')
 
@@ -215,7 +259,7 @@ export async function writeStrmFilesForUser(
       year: rec.year,
       premiereDate: rec.premiere_date,
       path: rec.path,
-      mediaSources: rec.media_sources ? JSON.parse(rec.media_sources) : null,
+      mediaSources: rec.media_sources && !(provider instanceof EmbyProvider) ? JSON.parse(rec.media_sources) : null,
       overview: rec.overview,
       tagline: rec.tagline,
       communityRating: rec.community_rating ? parseFloat(rec.community_rating) : null,
@@ -303,6 +347,7 @@ export async function writeStrmFilesForUser(
         includeImageUrls: !config.downloadImages,
         dateAdded,
         includeAiExplanation,
+        aiLocale,
         rank: movie.rank,
       })
       await fs.writeFile(path.join(movieFolderPath, 'movie.nfo'), nfoContent, 'utf-8')
@@ -409,13 +454,13 @@ export async function writeStrmFilesForUser(
         includeImageUrls: !config.downloadImages,
         dateAdded,
         includeAiExplanation,
+        aiLocale,
         rank: movie.rank,
       })
       await fs.writeFile(path.join(movieFolderPath, 'movie.nfo'), nfoContent, 'utf-8')
 
       // Download all available images via API
       if (config.downloadImages) {
-        const provider = await getMediaServerProvider()
 
         // Primary poster (with rank overlay)
         if (movie.posterUrl) {

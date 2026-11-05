@@ -5,6 +5,7 @@ import { useSetupWizard } from './hooks/useSetupWizard'
 import { useSetupStatus } from '../../hooks/useSetupStatus'
 import { useTranslation } from 'react-i18next'
 import { STEP_ORDER_IDS } from './constants'
+import { APP_VERSION } from '@/version'
 import {
   RestoreStep,
   MediaServerStep,
@@ -18,8 +19,6 @@ import {
   InitialJobsStep,
   CompleteStep,
 } from './components'
-
-const APP_VERSION = '0.7.10'
 
 export function SetupPage() {
   const { t } = useTranslation()
@@ -72,7 +71,7 @@ export function SetupPage() {
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: 'background.default',
-        backgroundImage: 'radial-gradient(circle at 50% 50%, #1a1a2e 0%, #0f0f0f 100%)',
+        backgroundImage: 'var(--ap-backdrop-fallback, radial-gradient(circle at 50% 50%, #1a1a2e 0%, #0f0f0f 100%))',
         p: 2,
         position: 'relative',
       }}

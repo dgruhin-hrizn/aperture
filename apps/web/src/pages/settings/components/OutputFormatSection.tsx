@@ -13,6 +13,8 @@ import {
   CircularProgress,
   Stack,
   Grid,
+  TextField,
+  MenuItem,
 } from '@mui/material'
 import SaveIcon from '@mui/icons-material/Save'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
@@ -21,7 +23,12 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 
+type OutputMode = 'library' | 'off' | 'playlist'
+
 interface OutputFormatConfig {
+  embyPlaylistsSupported: boolean
+  moviesOutputMode: OutputMode
+  seriesOutputMode: OutputMode
   moviesUseSymlinks: boolean
   seriesUseSymlinks: boolean
 }
@@ -142,9 +149,25 @@ export function OutputFormatSection() {
                   {t('settingsOutputFormat.moviesLibrary')}
                 </Typography>
               </Box>
+              <TextField
+                select
+                fullWidth
+                size="small"
+                label={t('settingsOutputFormat.publishMode')}
+                value={config.moviesOutputMode}
+                onChange={(event) => updateConfig({ moviesOutputMode: event.target.value as OutputMode })}
+                sx={{ mb: 1 }}
+              >
+                <MenuItem value="library">{t('settingsOutputFormat.publishLibrary')}</MenuItem>
+                {config.embyPlaylistsSupported && (
+                  <MenuItem value="playlist">{t('settingsOutputFormat.publishPlaylist')}</MenuItem>
+                )}
+                <MenuItem value="off">{t('settingsOutputFormat.publishOff')}</MenuItem>
+              </TextField>
               <FormControlLabel
                 control={
                   <Switch
+                    disabled={config.moviesOutputMode !== 'library'}
                     checked={config.moviesUseSymlinks}
                     onChange={(e) => updateConfig({ moviesUseSymlinks: e.target.checked })}
                     color="primary"
@@ -178,9 +201,25 @@ export function OutputFormatSection() {
                   {t('settingsOutputFormat.seriesLibrary')}
                 </Typography>
               </Box>
+              <TextField
+                select
+                fullWidth
+                size="small"
+                label={t('settingsOutputFormat.publishMode')}
+                value={config.seriesOutputMode}
+                onChange={(event) => updateConfig({ seriesOutputMode: event.target.value as OutputMode })}
+                sx={{ mb: 1 }}
+              >
+                <MenuItem value="library">{t('settingsOutputFormat.publishLibrary')}</MenuItem>
+                {config.embyPlaylistsSupported && (
+                  <MenuItem value="playlist">{t('settingsOutputFormat.publishPlaylist')}</MenuItem>
+                )}
+                <MenuItem value="off">{t('settingsOutputFormat.publishOff')}</MenuItem>
+              </TextField>
               <FormControlLabel
                 control={
                   <Switch
+                    disabled={config.seriesOutputMode !== 'library'}
                     checked={config.seriesUseSymlinks}
                     onChange={(e) => updateConfig({ seriesUseSymlinks: e.target.checked })}
                     color="primary"
@@ -212,6 +251,10 @@ export function OutputFormatSection() {
             </Card>
           </Grid>
         </Grid>
+
+        {(config.moviesOutputMode === 'playlist' || config.seriesOutputMode === 'playlist') && (
+          <Alert severity="info" sx={{ mt: 2 }}>{t('settingsOutputFormat.publishPlaylistHelp')}</Alert>
+        )}
 
         {/* Explanation Cards */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 3 }}>

@@ -50,23 +50,20 @@ export async function ensureUserLibrary(
     name: string 
   }>(
     `SELECT provider_library_id, provider_library_guid, name FROM strm_libraries
-     WHERE user_id = $1 AND channel_id IS NULL`,
+     WHERE user_id = $1 AND channel_id IS NULL AND media_type = 'movies'`,
     [userId]
   )
 
-  // If library name changed, delete the old record so we create a new one
-  if (dbRecord && dbRecord.name !== libraryName) {
-    logger.info({ userId, oldName: dbRecord.name, newName: libraryName }, 'Library name changed, clearing old record')
-    await query(
-      `DELETE FROM strm_libraries WHERE user_id = $1 AND channel_id IS NULL`,
-      [userId]
-    )
-  }
-
-  // ALWAYS check if the library actually exists in the media server
-  // (User may have deleted it manually from Emby)
   const libraries = await provider.getLibraries(apiKey)
-  const existingLib = libraries.find((lib) => lib.name === libraryName)
+  const existingLib = libraries.find((lib) => lib.name.toLowerCase() === libraryName.toLowerCase())
+  if (existingLib && provider.type === 'emby' && existingLib.id !== dbRecord?.provider_library_id
+    && !existingLib.locations?.includes(libraryPath)) {
+    throw new Error(`Emby already has an unrelated library named ${libraryName}`)
+  }
+  if (dbRecord && dbRecord.name !== libraryName && !existingLib) {
+    const previous = libraries.find((lib) => lib.id === dbRecord.provider_library_id)
+    if (previous) await provider.deleteVirtualLibrary(apiKey, previous)
+  }
 
   if (existingLib) {
     logger.info({ libraryName, libraryId: existingLib.id }, '📚 Library exists in media server')
@@ -74,13 +71,13 @@ export async function ensureUserLibrary(
     // Ensure we have an up-to-date database record
     // Delete any existing record first, then insert fresh
     await query(
-      `DELETE FROM strm_libraries WHERE user_id = $1 AND channel_id IS NULL`,
+      `DELETE FROM strm_libraries WHERE user_id = $1 AND channel_id IS NULL AND media_type = 'movies'`,
       [userId]
     )
     await query(
       `INSERT INTO strm_libraries (user_id, name, path, provider_library_id, provider_library_guid)
        VALUES ($1, $2, $3, $4, $5)`,
-      [userId, libraryName, libraryPath, existingLib.id, existingLib.guid]
+      [userId, existingLib.name, libraryPath, existingLib.id, existingLib.guid]
     )
 
     // Push global library image to this library
@@ -96,7 +93,7 @@ export async function ensureUserLibrary(
   if (dbRecord) {
     logger.info({ userId }, 'Clearing stale database record (library was deleted from media server)')
     await query(
-      `DELETE FROM strm_libraries WHERE user_id = $1 AND channel_id IS NULL`,
+      `DELETE FROM strm_libraries WHERE user_id = $1 AND channel_id IS NULL AND media_type = 'movies'`,
       [userId]
     )
   }
@@ -137,7 +134,7 @@ export async function refreshUserLibrary(userId: string): Promise<void> {
 
   const library = await queryOne<{ provider_library_id: string }>(
     `SELECT provider_library_id FROM strm_libraries
-     WHERE user_id = $1 AND channel_id IS NULL`,
+     WHERE user_id = $1 AND channel_id IS NULL AND media_type = 'movies'`,
     [userId]
   )
 
@@ -168,7 +165,7 @@ export async function updateUserLibraryPermissions(
   // Get user's AI library from our database
   const library = await queryOne<{ provider_library_id: string; provider_library_guid: string }>(
     `SELECT provider_library_id, provider_library_guid FROM strm_libraries
-     WHERE user_id = $1 AND channel_id IS NULL`,
+     WHERE user_id = $1 AND channel_id IS NULL AND media_type = 'movies'`,
     [userId]
   )
 

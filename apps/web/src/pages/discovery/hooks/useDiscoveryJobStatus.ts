@@ -1,7 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { cachedResource } from '../../../hooks/cachedResource'
+import { requestSignal } from './discoveryRequests'
 
 const DISCOVERY_JOB_NAME = 'generate-discovery-suggestions'
-const POLL_INTERVAL_MS = 5000 // Check for running job every 5 seconds
+export const IDLE_POLL_MS = 60_000
+export const RUNNING_POLL_MS = 5000
 
 export interface JobProgress {
   jobId: string
@@ -22,129 +25,136 @@ export interface JobProgress {
 
 interface UseDiscoveryJobStatusOptions {
   onComplete?: () => void
+  enabled?: boolean
+  userId?: string
 }
 
-export function useDiscoveryJobStatus(options: UseDiscoveryJobStatusOptions = {}) {
-  const { onComplete } = options
+export function useDiscoveryJobStatus({
+  onComplete,
+  enabled = true,
+  userId = 'session',
+}: UseDiscoveryJobStatusOptions = {}) {
   const [isRunning, setIsRunning] = useState(false)
   const [progress, setProgress] = useState<JobProgress | null>(null)
-  const eventSourceRef = useRef<EventSource | null>(null)
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const onCompleteRef = useRef(onComplete)
-  
-  // Keep onComplete ref up to date
-  onCompleteRef.current = onComplete
-
-  const closeEventSource = useCallback(() => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close()
-      eventSourceRef.current = null
-    }
-  }, [])
-
-  const subscribeToJobProgress = useCallback((jobId: string) => {
-    // Close existing connection if any
-    closeEventSource()
-
-    const eventSource = new EventSource(`/api/jobs/progress/stream/${jobId}`, {
-      withCredentials: true,
-    })
-
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data) as JobProgress
-        setProgress(data)
-
-        // Check if job finished
-        if (
-          data.status === 'completed' ||
-          data.status === 'failed' ||
-          data.status === 'cancelled'
-        ) {
-          // Small delay before calling onComplete to let UI show final state
-          setTimeout(() => {
-            setIsRunning(false)
-            setProgress(null)
-            closeEventSource()
-            
-            // Only call onComplete for successful completion
-            if (data.status === 'completed' && onCompleteRef.current) {
-              onCompleteRef.current()
-            }
-          }, 1000)
-        }
-      } catch (err) {
-        console.error('Failed to parse job progress:', err)
-      }
-    }
-
-    eventSource.onerror = () => {
-      // Connection error - close and let polling pick up again
-      closeEventSource()
-      setIsRunning(false)
-      setProgress(null)
-    }
-
-    eventSourceRef.current = eventSource
-  }, [closeEventSource])
-
-  const checkForRunningJob = useCallback(async () => {
-    try {
-      const response = await fetch('/api/jobs/active', {
-        credentials: 'include',
-      })
-
-      if (!response.ok) return
-
-      const data = await response.json()
-      const jobs = data.jobs || []
-      
-      // Find the discovery job if it's running
-      const discoveryJob = jobs.find(
-        (job: JobProgress) => job.jobName === DISCOVERY_JOB_NAME && job.status === 'running'
-      )
-
-      if (discoveryJob) {
-        setIsRunning(true)
-        setProgress(discoveryJob)
-        
-        // Subscribe to SSE for real-time updates if not already subscribed
-        if (!eventSourceRef.current) {
-          subscribeToJobProgress(discoveryJob.jobId)
-        }
-      } else {
-        // Job not running
-        if (isRunning) {
-          // Was running, now stopped - this shouldn't normally happen
-          // as SSE should catch completion, but handle it anyway
-          setIsRunning(false)
-          setProgress(null)
-          closeEventSource()
-        }
-      }
-    } catch (err) {
-      console.error('Failed to check for running jobs:', err)
-    }
-  }, [isRunning, subscribeToJobProgress, closeEventSource])
+  const completeRef = useRef(onComplete)
+  completeRef.current = onComplete
 
   useEffect(() => {
-    // Check immediately on mount
-    checkForRunningJob()
-
-    // Set up polling interval
-    pollIntervalRef.current = setInterval(checkForRunningJob, POLL_INTERVAL_MS)
-
-    return () => {
-      // Cleanup
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current)
-      }
-      closeEventSource()
+    if (!enabled) {
+      setIsRunning(false)
+      setProgress(null)
+      return
     }
-  }, [checkForRunningJob, closeEventSource])
+    let disposed = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let controller: AbortController | undefined
+    let stream: EventSource | undefined
+    let jobId: string | undefined
+    let running = false
+    let requestVersion = 0
+    const visible = () => document.visibilityState !== 'hidden'
+    const completed = new Set<string>()
+    const closeStream = () => {
+      stream?.close()
+      stream = undefined
+    }
+    const apply = (job: JobProgress) => {
+      if (disposed || document.visibilityState === 'hidden') return
+      if (['completed', 'failed', 'cancelled'].includes(job.status)) {
+        running = false
+        setIsRunning(false)
+        setProgress(null)
+        closeStream()
+        if (job.status === 'completed' && !completed.has(job.jobId)) {
+          completed.add(job.jobId)
+          completeRef.current?.()
+        }
+        jobId = undefined
+      } else {
+        running = true
+        setIsRunning(true)
+        setProgress(job)
+      }
+    }
+    const subscribe = (id: string) => {
+      closeStream()
+      jobId = id
+      const source = new EventSource(`/api/jobs/progress/stream/${id}`, { withCredentials: true })
+      stream = source
+      stream.onmessage = (event) => {
+        if (stream !== source) return
+        try {
+          apply(JSON.parse(event.data) as JobProgress)
+        } catch {
+          /* Ignore malformed events. */
+        }
+      }
+      stream.onerror = () => {
+        if (stream === source) closeStream()
+      } // The faster running-job poll reconnects a failed stream.
+    }
+    const check = async () => {
+      if (disposed || document.visibilityState === 'hidden') return
+      const version = ++requestVersion
+      const current = new AbortController()
+      controller = current
+      try {
+        const data = await cachedResource<{ jobs?: JobProgress[] }>(
+          userId,
+          '/api/jobs/active',
+          current.signal,
+          1000
+        )
+        if (current.signal.aborted || disposed || version !== requestVersion) return
+        const job = data.jobs?.find(
+          (j) => j.jobName === DISCOVERY_JOB_NAME && j.status === 'running'
+        )
+        if (job) {
+          apply(job)
+          if (!stream || jobId !== job.jobId) subscribe(job.jobId)
+        } else if (jobId) {
+          // A job may finish while the tab is hidden or SSE is disconnected.
+          const finalResponse = await fetch(`/api/jobs/progress/${jobId}`, {
+            credentials: 'include',
+            signal: requestSignal(current.signal),
+          })
+          if (!current.signal.aborted && finalResponse.ok)
+            apply((await finalResponse.json()) as JobProgress)
+          else if (!current.signal.aborted) {
+            running = false
+            setIsRunning(false)
+            setProgress(null)
+            closeStream()
+            jobId = undefined
+          }
+        }
+      } catch {
+        /* Retry later; a transient failure must not blank the page. */
+      } finally {
+        if (!disposed && visible() && version === requestVersion)
+          timer = setTimeout(() => void check(), running ? RUNNING_POLL_MS : IDLE_POLL_MS)
+      }
+    }
+    const visibility = () => {
+      requestVersion++
+      clearTimeout(timer)
+      controller?.abort()
+      if (document.visibilityState === 'hidden') closeStream()
+      else void check()
+    }
+    void check()
+    document.addEventListener('visibilitychange', visibility)
+    window.addEventListener('aperture:jobs-changed', visibility)
+    return () => {
+      disposed = true
+      requestVersion++
+      clearTimeout(timer)
+      controller?.abort()
+      closeStream()
+      document.removeEventListener('visibilitychange', visibility)
+      window.removeEventListener('aperture:jobs-changed', visibility)
+    }
+  }, [enabled, userId])
 
-  return {
-    isRunning,
-    progress,
-  }
+  return { isRunning, progress }
 }

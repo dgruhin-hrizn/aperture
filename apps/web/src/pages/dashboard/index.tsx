@@ -1,4 +1,4 @@
-import { Box, Typography, Grid, Alert, Button } from '@mui/material'
+import { Box, Typography, Grid, Alert, Button, LinearProgress } from '@mui/material'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
@@ -17,7 +17,13 @@ export function DashboardPage() {
   const { t } = useTranslation()
   const { user } = useAuth()
   const { data, loading, error, refetch } = useDashboardData()
-  const { series: watchingSeries, loading: watchingLoading } = useWatchingData()
+  const {
+    series: watchingSeries,
+    loading: watchingLoading,
+    upcomingLoading,
+    upcomingError,
+    refreshUpcoming,
+  } = useWatchingData()
 
   // Filter watching series to only those with upcoming episodes, sorted by air date
   const upcomingShows = watchingSeries
@@ -33,14 +39,16 @@ export function DashboardPage() {
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ 
-        display: 'flex', 
-        flexDirection: { xs: 'column', sm: 'row' },
-        alignItems: { xs: 'stretch', sm: 'center' }, 
-        justifyContent: 'space-between', 
-        gap: { xs: 2, sm: 0 },
-        mb: 3 
-      }}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          alignItems: { xs: 'stretch', sm: 'center' },
+          justifyContent: 'space-between',
+          gap: { xs: 2, sm: 0 },
+          mb: 3,
+        }}
+      >
         <Box>
           <Typography variant="h4" fontWeight={700}>
             {greeting}, {user?.displayName || user?.username}
@@ -53,7 +61,10 @@ export function DashboardPage() {
           variant="outlined"
           size="small"
           startIcon={<RefreshIcon />}
-          onClick={refetch}
+          onClick={() => {
+            refetch()
+            refreshUpcoming()
+          }}
           disabled={loading}
           sx={{ alignSelf: { xs: 'flex-start', sm: 'center' } }}
         >
@@ -84,7 +95,7 @@ export function DashboardPage() {
           title={t('dashboard.aiMovieRecommendations')}
           subtitle={t('dashboard.subtitlePersonalized')}
           items={(data?.recommendations || [])
-            .filter(item => item.type === 'movie')
+            .filter((item) => item.type === 'movie')
             .map((item, index) => ({ ...item, rank: index + 1 }))}
           loading={loading}
           showScore
@@ -99,7 +110,7 @@ export function DashboardPage() {
           title={t('dashboard.aiSeriesRecommendations')}
           subtitle={t('dashboard.subtitlePersonalized')}
           items={(data?.recommendations || [])
-            .filter(item => item.type === 'series')
+            .filter((item) => item.type === 'series')
             .map((item, index) => ({ ...item, rank: index + 1 }))}
           loading={loading}
           showScore
@@ -109,14 +120,30 @@ export function DashboardPage() {
       </Box>
 
       {/* Shows You Watch - Upcoming Episodes */}
-      {(watchingLoading || upcomingShows.length > 0) && (
+      {(watchingLoading || upcomingLoading || upcomingError || upcomingShows.length > 0) && (
         <Box sx={{ mb: 4 }}>
           <WatchingCarousel
             title={t('dashboard.upcomingEpisodes')}
             subtitle={t('dashboard.subtitleFromWatching')}
             items={upcomingShows}
-            loading={watchingLoading}
+            loading={(watchingLoading || upcomingLoading) && upcomingShows.length === 0}
           />
+          {upcomingLoading && upcomingShows.length > 0 && (
+            <LinearProgress aria-label={t('common.loading')} sx={{ mt: 1 }} />
+          )}
+          {upcomingError && (
+            <Alert
+              severity="warning"
+              sx={{ mt: 1 }}
+              action={
+                <Button color="inherit" size="small" onClick={refreshUpcoming}>
+                  {t('dashboard.refresh')}
+                </Button>
+              }
+            >
+              {t('dashboard.upcomingEpisodes')}: {t('watching.noEpisodeData')}
+            </Alert>
+          )}
         </Box>
       )}
 
@@ -125,7 +152,7 @@ export function DashboardPage() {
         <MediaCarousel
           title={t('dashboard.topPickMovies')}
           subtitle={t('dashboard.subtitlePopularMovies')}
-          items={(data?.topPicks || []).filter(item => item.type === 'movie')}
+          items={(data?.topPicks || []).filter((item) => item.type === 'movie')}
           loading={loading}
           showRank
           emptyMessage={t('dashboard.emptyTrendingMovies')}
@@ -137,7 +164,7 @@ export function DashboardPage() {
         <MediaCarousel
           title={t('dashboard.topPickSeries')}
           subtitle={t('dashboard.subtitlePopularSeries')}
-          items={(data?.topPicks || []).filter(item => item.type === 'series')}
+          items={(data?.topPicks || []).filter((item) => item.type === 'series')}
           loading={loading}
           showRank
           emptyMessage={t('dashboard.emptyTrendingSeries')}
@@ -147,16 +174,10 @@ export function DashboardPage() {
       {/* Bottom section: Recent Watches + Recent Ratings */}
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
-          <RecentWatchesList
-            watches={data?.recentWatches || []}
-            loading={loading}
-          />
+          <RecentWatchesList watches={data?.recentWatches || []} loading={loading} />
         </Grid>
         <Grid item xs={12} md={6}>
-          <RecentRatingsList
-            ratings={data?.recentRatings || []}
-            loading={loading}
-          />
+          <RecentRatingsList ratings={data?.recentRatings || []} loading={loading} />
         </Grid>
       </Grid>
     </Box>
@@ -169,4 +190,3 @@ function getGreeting(t: TFunction): string {
   if (hour < 17) return t('dashboard.greetingAfternoon')
   return t('dashboard.greetingEvening')
 }
-

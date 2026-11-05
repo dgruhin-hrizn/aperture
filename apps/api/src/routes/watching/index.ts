@@ -10,6 +10,7 @@ import { query, queryOne } from '../../lib/db.js'
 import { requireAuth } from '../../plugins/auth.js'
 import {
   getUpcomingEpisodes,
+  getUpcomingEpisodeBatch,
   reconcileWatchingFavoritesForUser,
   favoriteWatchingSeriesOnMediaServer,
   unfavoriteWatchingSeriesOnMediaServer,
@@ -69,8 +70,9 @@ const watchingRoutes: FastifyPluginAsync = async (fastify) => {
    * List user's watching series with upcoming episode info
    */
   fastify.get<{
+    Querystring: { includeUpcoming?: string }
     Reply: { series: WatchingSeriesResponse[]; total: number }
-  }>('/api/watching', { preHandler: requireAuth, schema: { tags: ["watching"] } }, async (request, reply) => {
+  }>('/api/watching', { preHandler: requireAuth, schema: { tags: ["watching"], querystring: { type: 'object', properties: { includeUpcoming: { type: 'string', enum: ['true', 'false'] } } } } }, async (request, reply) => {
     const userId = request.user!.id
 
     // Get user's watching series
@@ -88,7 +90,7 @@ const watchingRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Get upcoming episodes for all series
     const seriesIds = result.rows.map((r) => r.series_id)
-    const upcomingEpisodes = await getUpcomingEpisodes(seriesIds)
+    const upcomingEpisodes = await getUpcomingEpisodes(seriesIds, { localOnly: request.query.includeUpcoming === 'false' })
 
     const series: WatchingSeriesResponse[] = result.rows.map((row) => {
       const upcoming = upcomingEpisodes.get(row.series_id)
@@ -118,6 +120,23 @@ const watchingRoutes: FastifyPluginAsync = async (fastify) => {
     })
 
     return reply.send({ series, total: series.length })
+  })
+
+  /** Bounded, read-only enrichment; every requested ID is checked against current membership. */
+  fastify.get<{ Querystring: { seriesIds: string } }>('/api/watching/upcoming', {
+    preHandler: requireAuth,
+    schema: { tags: ['watching'], querystring: { type: 'object', required: ['seriesIds'], properties: {
+      seriesIds: { type: 'string', minLength: 36, maxLength: 739 },
+    } } },
+  }, async (request, reply) => {
+    const ids = [...new Set(request.query.seriesIds.split(','))]
+    if (ids.length > 20 || ids.some(id => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))) return reply.code(400).send({ error: 'Expected up to 20 series UUIDs' })
+    const owned = await query<{ series_id: string }>(
+      'SELECT series_id FROM user_watching_series WHERE user_id = $1 AND series_id = ANY($2::uuid[])', [request.user!.id, ids]
+    )
+    const seriesIds = owned.rows.map(row => row.series_id)
+    const batch = await getUpcomingEpisodeBatch(seriesIds)
+    return { episodes: Object.fromEntries(batch.episodes), resolvedSeriesIds: batch.resolvedSeriesIds, seriesIds }
   })
 
   /**

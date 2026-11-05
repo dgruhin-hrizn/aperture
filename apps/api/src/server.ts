@@ -1,22 +1,26 @@
-import Fastify from 'fastify'
-import cors from '@fastify/cors'
-import cookie from '@fastify/cookie'
+import Fastify, { type FastifyInstance, type RawServerDefault } from 'fastify'
+import type { IncomingMessage, ServerResponse } from 'node:http'
+import browserAccessPlugin from './plugins/browserAccess.js'
 import swagger from '@fastify/swagger'
 import swaggerUI from '@fastify/swagger-ui'
-import { createLogger } from './lib/logger.js'
+import { createLogger, type Logger } from './lib/logger.js'
 import requestIdPlugin from './plugins/requestId.js'
 import authPlugin from './plugins/auth.js'
 import staticPlugin from './plugins/static.js'
 import routes from './routes/index.js'
 import { getSwaggerConfig, swaggerUIConfig } from './config/openapi.js'
+import { requestContractsPlugin } from './contracts/register.js'
 
 export interface ServerOptions {
   logger?: boolean
+  /** Register and compile contracts without initializing storage. For offline schema audits. */
+  schemaAudit?: boolean
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function buildServer(options: ServerOptions = {}): Promise<any> {
-  const logger = createLogger('api')
+export async function buildServer(
+  options: ServerOptions = {}
+): Promise<FastifyInstance<RawServerDefault, IncomingMessage, ServerResponse, Logger>> {
+  const logger = options.logger === false ? undefined : createLogger('api')
 
   const fastify = Fastify({
     loggerInstance: options.logger !== false ? logger : undefined,
@@ -30,69 +34,17 @@ export async function buildServer(options: ServerOptions = {}): Promise<any> {
     },
   })
 
-  // Register CORS
-  await fastify.register(cors, {
-    origin: (origin, cb) => {
-      // Allow requests with no origin (like mobile apps, curl, etc.)
-      if (!origin) {
-        cb(null, true)
-        return
-      }
-
-      // Helper to normalize URLs for comparison (remove trailing slash)
-      const normalizeUrl = (url: string) => url.replace(/\/$/, '')
-      const normalizedOrigin = normalizeUrl(origin)
-
-      // In development, allow localhost origins and configured external domains
-      if (process.env.NODE_ENV !== 'production') {
-        const allowedOrigins = [
-          'http://localhost:3456',
-          'http://localhost:3457',
-          'http://127.0.0.1:3456',
-          'http://127.0.0.1:3457',
-        ]
-        // Also allow APP_BASE_URL in development for external access
-        const appBaseUrl = process.env.APP_BASE_URL
-        if (appBaseUrl) {
-          allowedOrigins.push(normalizeUrl(appBaseUrl))
-        }
-        if (allowedOrigins.some(allowed => normalizedOrigin === normalizeUrl(allowed))) {
-          cb(null, true)
-          return
-        }
-      }
-
-      // In production, check against APP_BASE_URL
-      const appBaseUrl = process.env.APP_BASE_URL
-      if (appBaseUrl && normalizedOrigin === normalizeUrl(appBaseUrl)) {
-        cb(null, true)
-        return
-      }
-
-      // Log the rejected origin for debugging
-      logger.warn({ origin, appBaseUrl }, 'CORS request rejected - origin not allowed')
-      cb(new Error('Not allowed by CORS'), false)
-    },
-    credentials: true,
-  })
-
-  // Register cookie support
-  // Only use secure cookies if APP_BASE_URL is HTTPS
   const appBaseUrl = process.env.APP_BASE_URL || ''
-  const useSecureCookies = appBaseUrl.startsWith('https://')
-  
-  await fastify.register(cookie, {
-    secret: process.env.SESSION_SECRET || 'development-secret-change-me',
-    parseOptions: {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: useSecureCookies,
-      path: '/',
-    },
+  await fastify.register(browserAccessPlugin, {
+    appBaseUrl,
+    production: process.env.NODE_ENV === 'production',
+    sessionSecret: process.env.SESSION_SECRET,
   })
 
   // Register request ID plugin
   await fastify.register(requestIdPlugin)
+
+  await fastify.register(requestContractsPlugin)
 
   // Register Swagger/OpenAPI documentation
   await fastify.register(swagger, getSwaggerConfig(appBaseUrl))
@@ -102,7 +54,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<any> {
   await fastify.register(authPlugin)
 
   // Register routes
-  await fastify.register(routes)
+  await fastify.register(routes, { schemaAudit: options.schemaAudit })
 
   // Register static file serving (production only)
   await fastify.register(staticPlugin)

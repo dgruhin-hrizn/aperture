@@ -1,3 +1,5 @@
+import { useAuth } from '../../../hooks/useAuth'
+import { apiFetch } from '../../../lib/api'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Dispatch, RefObject, SetStateAction } from 'react'
@@ -27,11 +29,17 @@ interface BrowsePeopleResult {
   setPeopleSortBy: Dispatch<SetStateAction<PeopleSortBy>>
   peopleHasMore: boolean
   peopleTotal: number
+  reloadPeople: () => void
   peopleLoadMoreRef: RefObject<HTMLDivElement | null>
 }
 
-export function useBrowsePeople({ tabIndex, initialTabIsPeople }: UseBrowsePeopleOptions): BrowsePeopleResult {
+export function useBrowsePeople({
+  tabIndex,
+  initialTabIsPeople,
+}: UseBrowsePeopleOptions): BrowsePeopleResult {
   const { t } = useTranslation()
+  const { user } = useAuth()
+  const appendRequest = useRef<symbol | null>(null)
   const [people, setPeople] = useState<BrowsePerson[]>([])
   const [peopleLoading, setPeopleLoading] = useState(() => initialTabIsPeople)
   const [peopleLoadingMore, setPeopleLoadingMore] = useState(false)
@@ -42,6 +50,7 @@ export function useBrowsePeople({ tabIndex, initialTabIsPeople }: UseBrowsePeopl
   const [peopleHasMore, setPeopleHasMore] = useState(true)
   const [peopleTotal, setPeopleTotal] = useState(0)
   const peopleObserverRef = useRef<IntersectionObserver | null>(null)
+  const requestRef = useRef<AbortController | null>(null)
   const peopleLoadMoreRef = useRef<HTMLDivElement | null>(null)
 
   const resetPeople = useCallback(() => {
@@ -51,11 +60,16 @@ export function useBrowsePeople({ tabIndex, initialTabIsPeople }: UseBrowsePeopl
   }, [])
 
   const fetchPeople = useCallback(
-    async (page: number, append = false) => {
+    async (page: number, append = false, signal?: AbortSignal) => {
+      if (signal?.aborted) return
+      if (append && appendRequest.current) return
+      const token = Symbol()
       if (append) {
+        appendRequest.current = token
         setPeopleLoadingMore(true)
       } else {
         setPeopleLoading(true)
+        setPeopleError(null)
       }
 
       try {
@@ -66,42 +80,64 @@ export function useBrowsePeople({ tabIndex, initialTabIsPeople }: UseBrowsePeopl
         })
         if (peopleSearch) params.set('search', peopleSearch)
 
-        const response = await fetch(`/api/discover/people?${params}`, { credentials: 'include' })
+        const response = await apiFetch(`/api/discover/people?${params}`, {
+          credentials: 'include',
+          signal,
+        })
+        if (signal?.aborted) return
         if (!response.ok) {
           setPeopleError(t('browse.errors.loadPeople'))
           return
         }
 
         const data = (await response.json()) as PeopleResponse
+        if (signal?.aborted) return
+        setPeoplePage(page)
         if (append) {
           setPeople((prev) => [...prev, ...data.people])
         } else {
           setPeople(data.people)
         }
         setPeopleTotal(data.total)
-        setPeopleHasMore(
-          data.people.length === PAGE_SIZE &&
-            (append ? people.length + data.people.length : data.people.length) < data.total
-        )
+        setPeopleHasMore(data.people.length === PAGE_SIZE && page * PAGE_SIZE < data.total)
         setPeopleError(null)
       } catch {
+        if (signal?.aborted) return
         setPeopleError(t('browse.errors.connect'))
       } finally {
-        setPeopleLoading(false)
-        setPeopleLoadingMore(false)
+        if (appendRequest.current === token) appendRequest.current = null
+        if (!signal?.aborted) {
+          setPeopleLoading(false)
+          setPeopleLoadingMore(false)
+        }
       }
     },
-    [people.length, peopleSearch, peopleSortBy, t]
+    [peopleSearch, peopleSortBy, t]
   )
 
   useEffect(() => {
     if (tabIndex !== 2) return
+    const controller = new AbortController()
+    requestRef.current = controller
+    appendRequest.current = null
     resetPeople()
-    const debounce = setTimeout(() => {
-      void fetchPeople(1, false)
-    }, peopleSearch ? 300 : 0)
-    return () => clearTimeout(debounce)
-  }, [fetchPeople, peopleSearch, peopleSortBy, resetPeople, tabIndex])
+    setPeopleLoading(true)
+    setPeopleLoadingMore(false)
+    const debounce = setTimeout(
+      () => {
+        void fetchPeople(1, false, controller.signal)
+      },
+      peopleSearch ? 300 : 0
+    )
+    return () => {
+      clearTimeout(debounce)
+      controller.abort()
+    }
+  }, [fetchPeople, peopleSearch, peopleSortBy, resetPeople, tabIndex, user?.id])
+
+  const reloadPeople = useCallback(() => {
+    if (tabIndex === 2) void fetchPeople(1, false, requestRef.current?.signal)
+  }, [fetchPeople, tabIndex])
 
   useEffect(() => {
     if (peopleObserverRef.current) {
@@ -114,8 +150,7 @@ export function useBrowsePeople({ tabIndex, initialTabIsPeople }: UseBrowsePeopl
       (entries) => {
         if (entries[0]?.isIntersecting && peopleHasMore && !peopleLoadingMore) {
           const nextPage = peoplePage + 1
-          setPeoplePage(nextPage)
-          void fetchPeople(nextPage, true)
+          void fetchPeople(nextPage, true, requestRef.current?.signal)
         }
       },
       { threshold: 0.1 }
@@ -143,6 +178,7 @@ export function useBrowsePeople({ tabIndex, initialTabIsPeople }: UseBrowsePeopl
     setPeopleSortBy,
     peopleHasMore,
     peopleTotal,
+    reloadPeople,
     peopleLoadMoreRef,
   }
 }

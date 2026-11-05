@@ -5,6 +5,7 @@
  * showing which watched movies are most similar to each recommendation.
  */
 
+import { parseExplanationResponse } from '../shared/explanationResponse.js'
 import { query } from '../../lib/db.js'
 import { createChildLogger } from '../../lib/logger.js'
 import { getTextGenerationModelInstance, getFunctionConfig } from '../../lib/ai-provider.js'
@@ -306,26 +307,9 @@ Generate personalized explanations referencing the specific similar movies shown
       }))
     }
 
-    // Parse the JSON response - handle models that wrap in markdown or include preamble
-    let jsonContent = content.trim()
-
-    // Extract JSON from markdown code blocks if present
-    const jsonBlockMatch = jsonContent.match(/```(?:json)?\s*([\s\S]*?)```/)
-    if (jsonBlockMatch) {
-      jsonContent = jsonBlockMatch[1].trim()
-    }
-
-    // Try to find JSON object/array if there's other text around it
-    if (!jsonContent.startsWith('{') && !jsonContent.startsWith('[')) {
-      const jsonStart = jsonContent.search(/[[{]/)
-      if (jsonStart !== -1) {
-        jsonContent = jsonContent.slice(jsonStart)
-      }
-    }
-
-    let parsed: unknown
+    let explanations: ReturnType<typeof parseExplanationResponse>
     try {
-      parsed = JSON.parse(jsonContent)
+      explanations = parseExplanationResponse(content)
     } catch (parseError) {
       logger.warn(
         {
@@ -339,10 +323,6 @@ Generate personalized explanations referencing the specific similar movies shown
         explanation: generateFallbackExplanation(m),
       }))
     }
-    const explanations = Array.isArray(parsed)
-      ? parsed
-      : (parsed as { explanations?: unknown[] }).explanations || []
-
     // Map back to movie IDs
     return movies.map((m, i) => {
       const found = explanations.find(

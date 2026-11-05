@@ -1,3 +1,5 @@
+import type { AppLocaleCode } from '../../lib/locales.js'
+
 /**
  * Series STRM/NFO Types
  *
@@ -76,6 +78,7 @@ export interface NfoGenerateOptions {
   dateAdded?: Date
   /** Include AI explanation of why this was recommended (default: true) */
   includeAiExplanation?: boolean
+  aiLocale?: AppLocaleCode
   /** Rank for sort title prefix (e.g., "01 - Series Title") */
   rank?: number
 }

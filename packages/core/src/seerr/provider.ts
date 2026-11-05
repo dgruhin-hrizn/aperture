@@ -6,7 +6,9 @@
  */
 
 import { createChildLogger } from '../lib/logger.js'
-import { getSystemSetting, setSystemSetting } from '../settings/systemSettings.js'
+import { query } from '../lib/db.js'
+import { AsyncCache, concurrencyLimit } from '../lib/asyncCache.js'
+import { setSystemSetting } from '../settings/systemSettings.js'
 import type {
   SeerrConfig,
   SeerrSearchResult,
@@ -37,9 +39,12 @@ const logger = createChildLogger('seerr')
  * Get Seerr configuration from system settings
  */
 export async function getSeerrConfig(): Promise<SeerrConfig | null> {
-  const url = await getSystemSetting('seerr_url')
-  const apiKey = await getSystemSetting('seerr_api_key')
-  const enabled = await getSystemSetting('seerr_enabled')
+  const { rows } = await query<{ key: string; value: string }>(
+    'SELECT key, value FROM system_settings WHERE key = ANY($1::text[])',
+    [['seerr_url', 'seerr_api_key', 'seerr_enabled']]
+  )
+  const settings = Object.fromEntries(rows.map(row => [row.key, row.value]))
+  const { seerr_url: url, seerr_api_key: apiKey, seerr_enabled: enabled } = settings
 
   if (!url || !apiKey) {
     return null
@@ -56,6 +61,7 @@ export async function getSeerrConfig(): Promise<SeerrConfig | null> {
  * Set Seerr configuration in system settings
  */
 export async function setSeerrConfig(config: Partial<SeerrConfig>): Promise<void> {
+  clearStatuses()
   if (config.url !== undefined) {
     await setSystemSetting('seerr_url', config.url.replace(/\/$/, ''))
   }
@@ -88,6 +94,7 @@ async function seerrRequest<T>(
     method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
     body?: Record<string, unknown>
     config?: SeerrConfig
+    timeoutMs?: number
   } = {}
 ): Promise<T | null> {
   const config = options.config || await getSeerrConfig()
@@ -107,6 +114,7 @@ async function seerrRequest<T>(
         'X-Api-Key': config.apiKey,
       },
       body: options.body ? JSON.stringify(options.body) : undefined,
+      ...(options.timeoutMs ? { signal: AbortSignal.timeout(options.timeoutMs) } : {}),
     })
 
     if (!response.ok) {
@@ -204,9 +212,10 @@ function mediaStatusCode(s: unknown): number | undefined {
 /**
  * Get media status (availability and request info)
  */
-export async function getMediaStatus(
+async function loadMediaStatus(
   tmdbId: number,
-  mediaType: 'movie' | 'tv'
+  mediaType: 'movie' | 'tv',
+  config: SeerrConfig
 ): Promise<{
   exists: boolean
   status: 'unknown' | 'pending' | 'processing' | 'partially_available' | 'available'
@@ -214,9 +223,7 @@ export async function getMediaStatus(
   requestStatus?: 'pending' | 'approved' | 'declined'
   requestId?: number
 } | null> {
-  const details = mediaType === 'movie' 
-    ? await getMovieDetails(tmdbId)
-    : await getTVDetails(tmdbId)
+  const details = await seerrRequest<SeerrMovieDetails | SeerrTVDetails>(`/${mediaType}/${tmdbId}`, { config, timeoutMs: 5000 })
 
   if (!details) {
     return null
@@ -264,6 +271,18 @@ export async function getMediaStatus(
     requestStatus: latestRequest ? requestStatusMap[latestRequest.status] : undefined,
     requestId: latestRequest?.id,
   }
+}
+
+type MediaStatus = NonNullable<Awaited<ReturnType<typeof loadMediaStatus>>>
+const statusCache = new AsyncCache<MediaStatus | null>(30_000, 2000)
+const limitStatusRequest = concurrencyLimit(5)
+
+export async function getMediaStatus(tmdbId: number, mediaType: 'movie' | 'tv', config?: SeerrConfig, deadline = Infinity): Promise<MediaStatus | null> {
+  const currentConfig = config ?? await getSeerrConfig()
+  if (!currentConfig?.enabled || !Number.isSafeInteger(tmdbId) || tmdbId <= 0) return null
+  // Include connection identity so switching servers/credentials never reuses another server's status.
+  const key = JSON.stringify([currentConfig.url, currentConfig.apiKey, mediaType, tmdbId])
+  return statusCache.get(key, () => limitStatusRequest(() => Date.now() >= deadline ? Promise.resolve(null) : loadMediaStatus(tmdbId, mediaType, currentConfig)))
 }
 
 // ============================================================================
@@ -395,6 +414,7 @@ export async function createRequest(
     body: body as unknown as Record<string, unknown>,
   })
 
+  clearStatuses()
   if (!result) {
     return { success: false, message: 'Failed to create request' }
   }
@@ -416,11 +436,11 @@ export async function getRequest(requestId: number): Promise<SeerrRequestRespons
 /**
  * Get request status
  */
-export async function getRequestStatus(requestId: number): Promise<{
+async function loadRequestStatus(requestId: number, config: SeerrConfig): Promise<{
   status: 'pending' | 'approved' | 'declined'
   mediaStatus: 'unknown' | 'pending' | 'processing' | 'partially_available' | 'available'
 } | null> {
-  const request = await getRequest(requestId)
+  const request = await seerrRequest<SeerrRequestResponse>(`/request/${requestId}`, { config, timeoutMs: 5000 })
   
   if (!request) {
     return null
@@ -446,6 +466,37 @@ export async function getRequestStatus(requestId: number): Promise<{
   }
 }
 
+type RequestStatus = NonNullable<Awaited<ReturnType<typeof loadRequestStatus>>>
+const requestStatusCache = new AsyncCache<RequestStatus | null>(30_000, 2000)
+function clearStatuses() { statusCache.clear(); requestStatusCache.clear() }
+
+async function cachedRequestStatus(id: number, config: SeerrConfig, deadline = Infinity) {
+  return requestStatusCache.get(JSON.stringify([config.url, config.apiKey, id]), () =>
+    limitStatusRequest(() => Date.now() >= deadline ? Promise.resolve(null) : loadRequestStatus(id, config)))
+}
+export async function getRequestStatus(requestId: number): Promise<RequestStatus | null> {
+  const config = await getSeerrConfig()
+  if (!config?.enabled) return null
+  return cachedRequestStatus(requestId, config)
+}
+export async function batchGetRequestStatus(ids: number[]): Promise<Map<number, RequestStatus>> {
+  const result = new Map<number, RequestStatus>()
+  if (!ids.length) return result
+  const config = await getSeerrConfig()
+  if (!config?.enabled) return result
+  const unique = [...new Set(ids)]
+  const deadline = Date.now() + 8000
+  let next = 0
+  await Promise.all(Array.from({ length: Math.min(5, unique.length) }, async () => {
+    while (next < unique.length && Date.now() < deadline) {
+      const id = unique[next++]
+      const status = await cachedRequestStatus(id, config, deadline)
+      if (status) result.set(id, status)
+    }
+  }))
+  return result
+}
+
 /**
  * Delete/cancel a request
  */
@@ -454,6 +505,7 @@ export async function deleteRequest(requestId: number): Promise<boolean> {
     method: 'DELETE',
   })
 
+  clearStatuses()
   return result !== null
 }
 
@@ -464,47 +516,31 @@ export async function deleteRequest(requestId: number): Promise<boolean> {
 /**
  * Check media status for multiple TMDb IDs
  */
-export async function batchGetMediaStatus(
+export async function batchGetMediaStatusByMedia(
   items: { tmdbId: number; mediaType: 'movie' | 'tv' }[]
-): Promise<Map<number, {
-  exists: boolean
-  status: string
-  requested: boolean
-}>> {
-  const results = new Map<number, { exists: boolean; status: string; requested: boolean }>()
-
-  // Process in parallel with rate limiting
-  const batchSize = 5
-  for (let i = 0; i < items.length; i += batchSize) {
-    const batch = items.slice(i, i + batchSize)
-    
-    const batchResults = await Promise.all(
-      batch.map(async (item) => {
-        const id = Number(item.tmdbId)
-        if (!Number.isFinite(id)) {
-          return { tmdbId: id, status: null }
-        }
-        const status = await getMediaStatus(id, item.mediaType)
-        return { tmdbId: id, status }
-      })
-    )
-
-    for (const { tmdbId, status } of batchResults) {
-      if (status && Number.isFinite(tmdbId)) {
-        results.set(tmdbId, {
-          exists: status.exists,
-          status: status.status,
-          requested: status.requested,
-        })
-      }
+): Promise<Map<string, MediaStatus>> {
+  if (!items.length) return new Map()
+  const config = await getSeerrConfig()
+  if (!config?.enabled) return new Map()
+  const unique = new Map(items.map(item => [`${item.mediaType}:${Number(item.tmdbId)}`, item]))
+  const pending = [...unique]
+  const results = new Map<string, MediaStatus>()
+  const deadline = Date.now() + 8000
+  let next = 0
+  await Promise.all(Array.from({ length: Math.min(5, pending.length) }, async () => {
+    while (next < pending.length && Date.now() < deadline) {
+      const [key, item] = pending[next++]
+      const status = await getMediaStatus(Number(item.tmdbId), item.mediaType, config, deadline)
+      if (status) results.set(key, status)
     }
-
-    // Small delay between batches
-    if (i + batchSize < items.length) {
-      await new Promise(resolve => setTimeout(resolve, 100))
-    }
-  }
-
+  }))
   return results
 }
 
+/** Legacy numeric-key response retained for existing API clients. Use typed keys for mixed media. */
+export async function batchGetMediaStatus(
+  items: { tmdbId: number; mediaType: 'movie' | 'tv' }[]
+): Promise<Map<number, MediaStatus>> {
+  const typed = await batchGetMediaStatusByMedia(items)
+  return new Map([...typed].map(([key, value]) => [Number(key.split(':')[1]), value]))
+}

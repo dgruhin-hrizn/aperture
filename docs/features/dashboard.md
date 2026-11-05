@@ -76,3 +76,9 @@ From the Dashboard, you can:
 ---
 
 **Next:** [Global Search](global-search.md)
+
+## Upcoming Episodes loading
+
+The Upcoming Episodes carousel uses your followed-series list. Locally known episodes appear first; TMDb forecasts fill in progressively without hiding available cards. Background work starts only when an episode view needs it. Forecast failures keep known cards visible and offer a read-only Refresh action.
+
+See [Upcoming Episodes loading](../upcoming-episodes-performance.md) for caching, limits and validation. Favorites synchronization and recommendation preferences are unchanged.

@@ -8,9 +8,15 @@ import { HeartRating } from './HeartRating.js'
 import { getProxiedImageUrl, FALLBACK_POSTER_URL } from './imageUtils.js'
 
 const StarIcon = Star as unknown as React.ComponentType<{ fontSize?: string }>
-const AddToQueueIcon = AddToQueue as unknown as React.ComponentType<{ fontSize?: 'small' | 'medium' | 'large' }>
-const PlaylistAddCheckIcon = PlaylistAddCheck as unknown as React.ComponentType<{ fontSize?: 'small' | 'medium' | 'large' }>
-const HubOutlinedIcon = HubOutlined as unknown as React.ComponentType<{ fontSize?: 'small' | 'medium' | 'large' }>
+const AddToQueueIcon = AddToQueue as unknown as React.ComponentType<{
+  fontSize?: 'small' | 'medium' | 'large'
+}>
+const PlaylistAddCheckIcon = PlaylistAddCheck as unknown as React.ComponentType<{
+  fontSize?: 'small' | 'medium' | 'large'
+}>
+const HubOutlinedIcon = HubOutlined as unknown as React.ComponentType<{
+  fontSize?: 'small' | 'medium' | 'large'
+}>
 
 export interface MoviePosterProps {
   title: string
@@ -97,7 +103,7 @@ export function MoviePoster({
       <Box sx={{ width: responsive ? '100%' : dimensions.width }}>
         <Skeleton
           variant="rectangular"
-          sx={{ 
+          sx={{
             width: '100%',
             aspectRatio: '2/3',
             height: responsive ? 'auto' : dimensions.height,
@@ -132,7 +138,7 @@ export function MoviePoster({
           height: responsive ? 'auto' : dimensions.height,
           borderRadius: 2,
           overflow: 'hidden',
-          backgroundColor: 'grey.900',
+          backgroundColor: 'var(--ap-placeholder, #212121)',
           transition: 'transform 0.3s ease, box-shadow 0.3s ease',
           transform: isHovered ? 'scale(1.05)' : 'scale(1)',
         }}
@@ -142,11 +148,14 @@ export function MoviePoster({
             component="img"
             src={proxiedPosterUrl}
             alt={title}
+            loading="lazy"
+            decoding="async"
             onError={() => setImageError(true)}
             sx={{
               width: '100%',
               height: '100%',
               objectFit: 'cover',
+              display: 'block',
             }}
           />
         ) : (
@@ -154,10 +163,13 @@ export function MoviePoster({
             component="img"
             src={FALLBACK_POSTER_URL}
             alt={title}
+            loading="lazy"
+            decoding="async"
             sx={{
               width: '100%',
               height: '100%',
               objectFit: 'cover',
+              display: 'block',
             }}
           />
         )}
@@ -173,12 +185,12 @@ export function MoviePoster({
               top: 8,
               right: 8,
               backgroundColor: 'rgba(0, 0, 0, 0.75)',
-              color: 'warning.main',
+              color: 'var(--ap-image-warning, #f59e0b)',
               fontWeight: 600,
               fontSize: '0.7rem',
               height: 24,
               '& .MuiChip-icon': {
-                color: 'warning.main',
+                color: 'var(--ap-image-warning, #f59e0b)',
               },
               zIndex: 2,
             }}
@@ -209,7 +221,11 @@ export function MoviePoster({
                 },
               }}
             >
-              {isWatching ? <PlaylistAddCheckIcon fontSize="small" /> : <AddToQueueIcon fontSize="small" />}
+              {isWatching ? (
+                <PlaylistAddCheckIcon fontSize="small" />
+              ) : (
+                <AddToQueueIcon fontSize="small" />
+              )}
             </IconButton>
           </Tooltip>
         )}
@@ -250,7 +266,7 @@ export function MoviePoster({
               </IconButton>
             </Tooltip>
           )}
-          
+
           {/* Heart rating button */}
           {!hideHeartRating && (
             <Box
@@ -293,7 +309,8 @@ export function MoviePoster({
             left: 0,
             right: 0,
             bottom: 0,
-            background: 'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.8) 50%, rgba(0,0,0,0.4) 100%)',
+            background:
+              'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.8) 50%, rgba(0,0,0,0.4) 100%)',
             opacity: isHovered ? 1 : 0,
             transition: 'opacity 0.3s ease',
             display: 'flex',
@@ -380,7 +397,8 @@ export function MoviePoster({
                 fontWeight: 700,
                 fontSize: '0.7rem',
                 height: 24,
-                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.9) 0%, rgba(139, 92, 246, 0.9) 100%)',
+                background:
+                  'linear-gradient(135deg, rgba(99, 102, 241, 0.9) 0%, rgba(139, 92, 246, 0.9) 100%)',
                 color: 'white',
                 zIndex: 3,
                 '& .MuiChip-label': {
@@ -394,20 +412,12 @@ export function MoviePoster({
 
       {/* Title and metadata below poster */}
       <Box mt={1}>
-        <Typography
-          variant="body2"
-          fontWeight={500}
-          noWrap
-          title={title}
-          sx={{ lineHeight: 1.3 }}
-        >
+        <Typography variant="body2" fontWeight={500} noWrap title={title} sx={{ lineHeight: 1.3 }}>
           {title}
         </Typography>
         {!hideYear && (
           <Typography variant="caption" color="text.secondary" display="block">
-            {metaLine != null && metaLine !== ''
-              ? metaLine
-              : year || 'Unknown year'}
+            {metaLine != null && metaLine !== '' ? metaLine : year || 'Unknown year'}
           </Typography>
         )}
         {genres && genres.length > 0 && (
@@ -419,4 +429,3 @@ export function MoviePoster({
     </Box>
   )
 }
-

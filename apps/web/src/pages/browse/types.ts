@@ -49,6 +49,7 @@ export interface FilterRanges {
 }
 
 export interface BrowsePerson {
+  tmdbProfilePath?: string | null
   name: string
   credits: number
   movieCredits: number

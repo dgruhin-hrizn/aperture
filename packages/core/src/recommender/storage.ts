@@ -1,5 +1,6 @@
 import { query, queryOne, transaction } from '../lib/db.js'
 import { getActiveEmbeddingModelId, getActiveEmbeddingTableName } from '../lib/ai-provider.js'
+import { suggestionTitleKeySql } from './shared/suggestionHistory.js'
 import type { Candidate, WatchedMovie } from './types.js'
 
 /**
@@ -49,6 +50,7 @@ export async function storeCandidates(
         novelty: c.novelty,
         rating: c.ratingScore,
         diversity: c.diversityScore,
+        themeBoost: c.themeBoost,
       }),
     }
   })
@@ -187,12 +189,53 @@ export async function finalizeRun(
   status: 'completed' | 'failed',
   errorMessage?: string
 ): Promise<void> {
-  await query(
-    `UPDATE recommendation_runs
-     SET candidate_count = $2, selected_count = $3, duration_ms = $4, status = $5, error_message = $6
-     WHERE id = $1`,
-    [runId, candidateCount, selectedCount, durationMs, status, errorMessage || null]
-  )
+  const update = `UPDATE recommendation_runs
+     SET candidate_count = $2, selected_count = $3, duration_ms = $4,
+         status = $5, error_message = $6, completed_at = clock_timestamp()
+     WHERE id = $1 AND status = 'running'
+     RETURNING user_id, media_type`
+  const params = [runId, candidateCount, selectedCount, durationMs, status, errorMessage || null]
+
+  if (status === 'failed' || selectedCount === 0) {
+    await query(update, params)
+    return
+  }
+
+  await transaction(async (client) => {
+    const result = await client.query<{ user_id: string; media_type: 'movie' | 'series' }>(update, params)
+    const run = result.rows[0]
+    if (!run) throw new Error('Recommendation run is no longer active')
+
+    // Serialize publication for this user and media type. Reject stale selections
+    // if an overlapping run already published one of the same titles.
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [
+      `recommendations:${run.user_id}:${run.media_type}`,
+    ])
+    const mediaTable = run.media_type === 'movie' ? 'movies' : 'series'
+    const mediaId = run.media_type === 'movie' ? 'movie_id' : 'series_id'
+    const { rows } = await client.query<{ all_recorded: boolean }>(
+      `WITH selected_titles AS (
+         SELECT DISTINCT ${suggestionTitleKeySql('m.title', 'm.year')} AS title_key
+         FROM recommendation_candidates rc
+         JOIN ${mediaTable} m ON m.id = rc.${mediaId}
+         WHERE rc.run_id = $1 AND rc.is_selected
+       ), recorded AS (
+         INSERT INTO recommendation_suggestion_history (user_id, media_type, title_key, last_suggested_at)
+         SELECT $2, $3, title_key, clock_timestamp() FROM selected_titles
+         ORDER BY title_key
+         ON CONFLICT (user_id, media_type, title_key) DO UPDATE
+           SET last_suggested_at = EXCLUDED.last_suggested_at
+           WHERE recommendation_suggestion_history.last_suggested_at <=
+             (SELECT created_at FROM recommendation_runs WHERE id = $1)
+         RETURNING 1
+       )
+       SELECT (SELECT COUNT(*) FROM recorded) = (SELECT COUNT(*) FROM selected_titles) AS all_recorded`,
+      [runId, run.user_id, run.media_type]
+    )
+    if (!rows[0]?.all_recorded) {
+      throw new Error('An overlapping recommendation run already suggested one or more of these titles')
+    }
+  })
 }
 
 export async function createRecommendationRun(userId: string): Promise<string> {

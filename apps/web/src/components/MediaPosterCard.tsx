@@ -163,6 +163,8 @@ export function MediaPosterCard({
       <Box sx={{ position: 'relative', aspectRatio: '2/3' }}>
         <CardMedia
           component="img"
+          loading="lazy"
+          decoding="async"
           image={finalPosterUrl}
           alt={title}
           onError={() => setImageError(true)}
@@ -314,7 +316,7 @@ export function MediaPosterCard({
                 <IconButton
                   sx={{
                     backgroundColor: 'primary.main',
-                    color: 'white',
+                    color: theme => theme.aperture.name === 'studio' ? theme.palette.primary.contrastText : 'white',
                     '&:hover': { backgroundColor: 'primary.dark' },
                     width: 56,
                     height: 56,

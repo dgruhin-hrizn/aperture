@@ -69,7 +69,7 @@ export function ScoreBreakdown({
                 sx={{
                   height: 8,
                   borderRadius: 4,
-                  backgroundColor: 'grey.800',
+                  backgroundColor: 'var(--ap-progress-track, #424242)',
                 }}
               />
             </Box>

@@ -23,11 +23,18 @@ import { browseTabFromSearchParam } from './browse/constants'
 import { BrowseMoviesTab } from './browse/BrowseMoviesTab'
 import { BrowsePeopleTab } from './browse/BrowsePeopleTab'
 import { BrowseSeriesTab } from './browse/BrowseSeriesTab'
-import { useBrowseFilterPresets, useBrowseMovies, useBrowsePeople, useBrowseSeries } from './browse/hooks'
+import {
+  useBrowseFilterPresets,
+  useBrowseMovies,
+  useBrowsePeople,
+  useBrowseSeries,
+} from './browse/hooks'
+import { useUserPreferences } from '../hooks/userPreferences'
 import { useViewMode } from '../hooks/useViewMode'
 
 export function BrowsePage() {
   const { t } = useTranslation()
+  const preferences = useUserPreferences()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [searchParams, setSearchParams] = useSearchParams()
@@ -50,8 +57,24 @@ export function BrowsePage() {
     void presetsRef.current?.persistSortPreferences('series', sortBy, sortOrder)
   }, [])
 
-  const movies = useBrowseMovies({ tabIndex, persistSortPreferences: persistMovieSort })
-  const series = useBrowseSeries({ tabIndex, persistSortPreferences: persistSeriesSort })
+  const savedSort = preferences.data?.browseSort as
+    | {
+        movies?: { sortBy?: SortField; sortOrder?: SortOrder }
+        series?: { sortBy?: SortField; sortOrder?: SortOrder }
+      }
+    | undefined
+  const movies = useBrowseMovies({
+    tabIndex,
+    ready: !preferences.loading,
+    initialSort: savedSort?.movies,
+    persistSortPreferences: persistMovieSort,
+  })
+  const series = useBrowseSeries({
+    tabIndex,
+    ready: !preferences.loading,
+    initialSort: savedSort?.series,
+    persistSortPreferences: persistSeriesSort,
+  })
   const people = useBrowsePeople({ tabIndex, initialTabIsPeople: initialTabIndex === 2 })
   const presets = useBrowseFilterPresets({
     setMovieSortBy: movies.setMovieSortBy,
@@ -84,11 +107,16 @@ export function BrowsePage() {
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="flex-start"
+        mb={{ xs: 1.5, md: 3 }}
+      >
         <Box>
-          <Box display="flex" alignItems="center" gap={2} mb={{ xs: 0, sm: 1 }}>
-            <VideoLibraryIcon sx={{ color: 'primary.main', fontSize: 32 }} />
-            <Typography variant="h4" fontWeight={700}>
+          <Box display="flex" alignItems="center" gap={{ xs: 1, md: 2 }} mb={{ xs: 0, sm: 1 }}>
+            <VideoLibraryIcon sx={{ color: 'primary.main', fontSize: { xs: 26, md: 32 } }} />
+            <Typography variant="h4" fontWeight={700} sx={{ fontSize: { xs: 24, md: '1.8rem' } }}>
               {t('browse.title')}
             </Typography>
           </Box>
@@ -112,17 +140,22 @@ export function BrowsePage() {
           )}
         </Box>
 
-        <ToggleButtonGroup value={currentViewMode} exclusive onChange={handleViewModeChange} size="small">
-          <ToggleButton value="grid">
+        <ToggleButtonGroup
+          value={currentViewMode}
+          exclusive
+          onChange={handleViewModeChange}
+          size="small"
+        >
+          <ToggleButton value="grid" aria-label={t('browse.gridView')}>
             <GridViewIcon fontSize="small" />
           </ToggleButton>
-          <ToggleButton value="list">
+          <ToggleButton value="list" aria-label={t('browse.listView')}>
             <ViewListIcon fontSize="small" />
           </ToggleButton>
         </ToggleButtonGroup>
       </Box>
 
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: { xs: 1, md: 3 } }}>
         <Tabs
           value={tabIndex}
           onChange={handleTabChange}

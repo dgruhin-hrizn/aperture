@@ -1,172 +1,129 @@
-/**
- * Content carousel for Tool UI
- * Horizontal scrollable list of content cards
- */
-import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Box, Typography, IconButton, useTheme } from '@mui/material'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import { ContentCard } from './ContentCard'
+import { useCarouselScroll } from './useCarouselScroll'
 import type { ContentCarouselData } from './types'
 
-interface ContentCarouselProps {
+export function ContentCarousel({
+  data,
+  onPlay,
+}: {
   data: ContentCarouselData
   onPlay?: (id: string, href: string) => void
-}
-
-function useCarouselHeaderText(data: ContentCarouselData) {
-  const { t } = useTranslation()
+}) {
+  const { t } = useTranslation(),
+    rtl = useTheme().direction === 'rtl'
+  const { ref, edges, scroll } = useCarouselScroll(data.items.length, rtl)
   const title = data.titleKey
-    ? t(`assistantToolUi.${data.titleKey}`, {
-        ...(data.titleParams ?? {}),
-        defaultValue: data.title,
-      })
+    ? t(`assistantToolUi.${data.titleKey}`, { ...data.titleParams, defaultValue: data.title })
     : data.title
   const description = data.descriptionKey
     ? t(`assistantToolUi.${data.descriptionKey}`, {
-        ...(data.descriptionParams ?? {}),
+        ...data.descriptionParams,
         defaultValue: data.description,
       })
     : data.description
-  const resolvedTitle = typeof title === 'string' && title.length > 0 ? title : undefined
-  const resolvedDescription = typeof description === 'string' && description.length > 0 ? description : undefined
-  return { resolvedTitle, resolvedDescription }
-}
-
-export function ContentCarousel({ data, onPlay }: ContentCarouselProps) {
-  const { t } = useTranslation()
-  const theme = useTheme()
-  const rtl = theme.direction === 'rtl'
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const { resolvedTitle, resolvedDescription } = useCarouselHeaderText(data)
-
-  const scroll = (direction: 'left' | 'right') => {
-    if (scrollRef.current) {
-      const scrollAmount = 300
-      let delta = direction === 'left' ? -scrollAmount : scrollAmount
-      if (rtl) delta = -delta
-      scrollRef.current.scrollBy({
-        left: delta,
-        behavior: 'smooth',
-      })
-    }
-  }
-
-  const hasHeader = Boolean(resolvedTitle || resolvedDescription)
-  const isEmpty = data.items.length === 0
-
-  if (isEmpty) {
-    if (!hasHeader) return null
-    return (
-      <Box sx={{ my: 2, width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
-        <Box sx={{ mb: 1.5 }}>
-          {resolvedTitle && (
-            <Typography variant="subtitle1" fontWeight={600} sx={{ color: '#e4e4e7' }}>
-              {resolvedTitle}
-            </Typography>
-          )}
-          {resolvedDescription && (
-            <Typography variant="caption" color="text.secondary">
-              {resolvedDescription}
-            </Typography>
-          )}
-        </Box>
-      </Box>
-    )
-  }
-
+  const single = data.items.length === 1
+  const controls = !single && (edges.previous || edges.next)
+  if (!data.items.length && !title && !description) return null
   return (
-    <Box sx={{ my: 2, width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
-      {/* Header */}
-      {hasHeader && (
-        <Box sx={{ mb: 1.5 }}>
-          {resolvedTitle && (
-            <Typography variant="subtitle1" fontWeight={600} sx={{ color: '#e4e4e7' }}>
-              {resolvedTitle}
-            </Typography>
-          )}
-          {resolvedDescription && (
-            <Typography variant="caption" color="text.secondary">
-              {resolvedDescription}
-            </Typography>
+    <Box sx={{ width: '100%', minWidth: 0, maxWidth: '100%' }}>
+      {(title || description || controls) && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            {title && (
+              <Typography variant="subtitle1" fontWeight={600}>
+                {title}
+              </Typography>
+            )}
+            {description && (
+              <Typography component="div" variant="caption" color="text.secondary">
+                {description}
+              </Typography>
+            )}
+          </Box>
+          {controls && (
+            <Box sx={{ display: 'flex', flexShrink: 0 }}>
+              <IconButton
+                aria-label={t(
+                  rtl ? 'assistantToolUi.scrollCarouselRight' : 'assistantToolUi.scrollCarouselLeft'
+                )}
+                disabled={!edges.previous}
+                onClick={() => scroll(false)}
+                sx={{ width: 44, height: 44 }}
+              >
+                {rtl ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+              </IconButton>
+              <IconButton
+                aria-label={t(
+                  rtl ? 'assistantToolUi.scrollCarouselLeft' : 'assistantToolUi.scrollCarouselRight'
+                )}
+                disabled={!edges.next}
+                onClick={() => scroll(true)}
+                sx={{ width: 44, height: 44 }}
+              >
+                {rtl ? <ChevronLeftIcon /> : <ChevronRightIcon />}
+              </IconButton>
+            </Box>
           )}
         </Box>
       )}
-
-      {/* Carousel container */}
-      <Box sx={{ position: 'relative', overflow: 'hidden' }}>
-        {/* Scroll buttons */}
-        {data.items.length > 2 && (
-          <>
-            <IconButton
-              onClick={() => scroll('left')}
-              aria-label={t('assistantToolUi.scrollCarouselLeft')}
-              sx={{
-                position: 'absolute',
-                insetInlineStart: 4,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                zIndex: 2,
-                bgcolor: 'rgba(0, 0, 0, 0.8)',
-                backdropFilter: 'blur(4px)',
-                '&:hover': {
-                  bgcolor: 'rgba(99, 102, 241, 0.8)',
-                },
-              }}
-              size="small"
-            >
-              <ChevronLeftIcon />
-            </IconButton>
-            <IconButton
-              onClick={() => scroll('right')}
-              aria-label={t('assistantToolUi.scrollCarouselRight')}
-              sx={{
-                position: 'absolute',
-                insetInlineEnd: 4,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                zIndex: 2,
-                bgcolor: 'rgba(0, 0, 0, 0.8)',
-                backdropFilter: 'blur(4px)',
-                '&:hover': {
-                  bgcolor: 'rgba(99, 102, 241, 0.8)',
-                },
-              }}
-              size="small"
-            >
-              <ChevronRightIcon />
-            </IconButton>
-          </>
-        )}
-
-        {/* Scrollable content */}
+      {!!data.items.length && (
         <Box
-          ref={scrollRef}
+          ref={ref}
           sx={{
             display: 'flex',
-            gap: 1.5,
+            gap: '12px',
+            justifyContent: single ? 'center' : 'flex-start',
             overflowX: 'auto',
             overflowY: 'hidden',
-            px: 1,
-            py: 0.5,
+            pb: 0.25,
             scrollSnapType: 'x mandatory',
-            scrollBehavior: 'smooth',
-            // Hide scrollbar but keep functionality
-            scrollbarWidth: 'none', // Firefox
-            msOverflowStyle: 'none', // IE/Edge
-            '&::-webkit-scrollbar': {
-              display: 'none', // Chrome/Safari
-            },
+            overscrollBehaviorX: 'contain',
+            scrollbarWidth: 'none',
+            '&::-webkit-scrollbar': { display: 'none' },
           }}
         >
           {data.items.map((item) => (
-            <Box key={item.id} sx={{ scrollSnapAlign: 'start', flexShrink: 0 }}>
-              <ContentCard item={item} onPlay={onPlay} />
+            <Box
+              key={item.id}
+              sx={{
+                display: 'flex',
+                minWidth: 0,
+                flex: single ? '0 0 100%' : { xs: '0 0 calc((100% - 12px) / 2)', sm: '0 0 170px' },
+                maxWidth: single ? 600 : { xs: 220, sm: 170 },
+                scrollSnapAlign: 'start',
+              }}
+            >
+              <ContentCard
+                item={{
+                  ...item,
+                  name: item.name ?? item.title ?? '',
+                  subtitle: item.subtitle ?? [item.year, item.value].filter(Boolean).join(' · '),
+                  actions: item.actions ?? [
+                    ...(item.detailsUrl
+                      ? [
+                          {
+                            id: 'details',
+                            label: t('assistantToolUi.details'),
+                            href: item.detailsUrl,
+                          },
+                        ]
+                      : []),
+                    ...(item.playUrl
+                      ? [{ id: 'play', label: t('assistantToolUi.play'), href: item.playUrl }]
+                      : []),
+                  ],
+                }}
+                onPlay={onPlay}
+                featured={single}
+              />
             </Box>
           ))}
         </Box>
-      </Box>
+      )}
     </Box>
   )
 }
