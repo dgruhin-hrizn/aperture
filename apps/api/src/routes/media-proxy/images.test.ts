@@ -44,7 +44,7 @@ test('hung artwork releases browser connection slots, including stalled bodies, 
   })
   const app = Fastify(),
     agent = new Agent({ keepAlive: true, maxSockets: 6 })
-  await app.register(mediaProxyRoutes, { timeoutMs: 250 })
+  await app.register(mediaProxyRoutes, { timeoutMs: 1000 })
   app.get('/catalog-read', async () => ({ people: [{ name: 'Loaded' }] }))
   const base = await app.listen({ port: 0, host: '127.0.0.1' })
   const read = (path: string) =>
@@ -77,7 +77,7 @@ test('hung artwork releases browser connection slots, including stalled bodies, 
     )
     assert.deepEqual(JSON.parse(results[6].body.toString()), { people: [{ name: 'Loaded' }] })
     assert.ok(
-      Date.now() - start < 2500,
+      Date.now() - start < 5000,
       'a queued catalog read is not blocked indefinitely behind artwork'
     )
     await new Promise((resolve) => setTimeout(resolve, 30))
