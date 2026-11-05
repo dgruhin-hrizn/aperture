@@ -30,7 +30,7 @@ export function Layout() {
     drawerWidth = state.collapsed ? 72 : theme.aperture.name === 'studio' ? 228 : 260
   const [running, setRunning] = useState(false),
     main = useRef<HTMLElement>(null)
-  const { open: welcomeOpen, showWelcome, hideWelcome } = useWelcomeModal()
+  const welcome = useWelcomeModal(user?.id, state.preferences, state.canShowOtherPrompts)
   const items = useMemo(
     () => availableNavigation(user?.provider, state.watchingEnabled),
     [user?.provider, state.watchingEnabled]
@@ -142,7 +142,7 @@ export function Layout() {
           mobile={mobile}
           drawerWidth={drawerWidth}
           items={items}
-          onWelcome={showWelcome}
+          onWelcome={welcome.showWelcome}
         />
       )}
       <Box
@@ -184,7 +184,7 @@ export function Layout() {
           <Suspense fallback={<PageLoading />}>
             <Outlet
               key={`${user?.id}:${i18n.language}`}
-              context={{ items, onWelcome: showWelcome }}
+              context={{ items, onWelcome: welcome.showWelcome }}
             />
           </Suspense>
         )}
@@ -192,9 +192,18 @@ export function Layout() {
       {mobile && !viewport?.keyboard && (
         <MobileNavigation watchingEnabled={state.watchingEnabled} running={running} />
       )}
-      {state.canShowOtherPrompts && <WelcomeModal />}
-      <WelcomeModal open={welcomeOpen} onClose={hideWelcome} />
-      {state.canShowOtherPrompts && <ExplorationConfigModal />}
+      {welcome.open && (
+        <WelcomeModal
+          key={user?.id}
+          dismissed={welcome.dismissed}
+          onDismiss={welcome.rememberDismissal}
+          onClose={(path) => {
+            welcome.hideWelcome()
+            if (path) void navigate(path)
+          }}
+        />
+      )}
+      {state.canShowOtherPrompts && <ExplorationConfigModal suspended={welcome.open} />}
       {state.releaseOpen && (
         <ReleaseHighlightsModal
           key={state.releaseKey}

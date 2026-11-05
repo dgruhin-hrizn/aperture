@@ -43,6 +43,20 @@ test('appearance validation accepts complete supported pairs and rejects invalid
       (await app.inject({ method: 'PATCH', url: '/preferences', payload: existing })).json(),
       existing
     )
+    const dismissed = { dismissedWelcomeTourVersion: 2 }
+    assert.deepEqual(
+      (await app.inject({ method: 'PATCH', url: '/preferences', payload: dismissed })).json(),
+      dismissed
+    )
+    assert.equal(
+      (await app.inject({
+        method: 'PATCH',
+        url: '/preferences',
+        payload: { dismissedWelcomeTourVersion: 0 },
+      })).statusCode,
+      400
+    )
+    assert.equal(saves, 8)
   } finally {
     await app.close()
   }
