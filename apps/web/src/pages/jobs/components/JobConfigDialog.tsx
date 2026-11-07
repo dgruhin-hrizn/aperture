@@ -19,11 +19,13 @@ import {
   Stack,
   Alert,
   CircularProgress,
+  TextField,
 } from '@mui/material'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import type { ScheduleType, JobSchedule } from '../types'
 import { formatJobName } from '../constants'
 import type { UpdateJobConfigParams } from '../hooks/useJobsData'
+import { jobSchedulePayload } from '../scheduleForm'
 
 type JobConfigSaveParams = UpdateJobConfigParams & {
   scheduleType: ScheduleType
@@ -72,6 +74,7 @@ export function JobConfigDialog({
   const { t } = useTranslation()
   const [scheduleType, setScheduleType] = useState<ScheduleType>('daily')
   const [hour, setHour] = useState<number>(3)
+  const [minute, setMinute] = useState<number>(0)
   const [dayOfWeek, setDayOfWeek] = useState<number>(0)
   const [intervalMinutesTotal, setIntervalMinutesTotal] = useState<number>(360)
   const [isEnabled, setIsEnabled] = useState<boolean>(true)
@@ -117,6 +120,7 @@ export function JobConfigDialog({
     if (open && !initialized && currentSchedule) {
       setScheduleType(currentSchedule.type)
       setHour(currentSchedule.hour ?? 3)
+      setMinute(currentSchedule.minute ?? 0)
       setDayOfWeek(currentSchedule.dayOfWeek ?? 0)
       setIntervalMinutesTotal(
         currentSchedule.intervalMinutes ??
@@ -136,32 +140,8 @@ export function JobConfigDialog({
     setError(null)
 
     try {
-      const subHour = scheduleType === 'interval' && intervalMinutesTotal < 60
-      const payload: JobConfigSaveParams = { scheduleType, isEnabled }
-
-      if (scheduleType === 'interval' || scheduleType === 'manual') {
-        payload.scheduleHour = null
-        payload.scheduleMinute = null
-      } else {
-        payload.scheduleHour = hour
-        payload.scheduleMinute = 0
-      }
-
-      if (scheduleType === 'weekly') {
-        payload.scheduleDayOfWeek = dayOfWeek
-      } else {
-        payload.scheduleDayOfWeek = null
-      }
-
-      if (scheduleType === 'interval') {
-        if (subHour) {
-          payload.scheduleIntervalMinutes = intervalMinutesTotal
-        } else {
-          payload.scheduleIntervalHours = intervalMinutesTotal / 60
-        }
-      }
-
-      await onSave(payload)
+      if (!Number.isInteger(minute) || minute < 0 || minute > 59) throw new Error(t('admin.jobsPage.ui.configMinuteError'))
+      await onSave(jobSchedulePayload({ type: scheduleType, enabled: isEnabled, hour, minute, dayOfWeek, intervalMinutes: intervalMinutesTotal }))
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : t('admin.jobsPage.ui.configFailedSave'))
@@ -174,7 +154,7 @@ export function JobConfigDialog({
     if (manualOnly) return t('admin.jobsPage.ui.configPreviewManualOnly')
     if (!isEnabled) return t('admin.jobsPage.ui.configPreviewDisabled')
 
-    const timeLabel = hours.find((h) => h.value === hour)?.label ?? ''
+    const timeLabel = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
     switch (scheduleType) {
       case 'daily':
         return t('admin.jobsPage.ui.configPreviewDaily', { time: timeLabel })
@@ -186,7 +166,7 @@ export function JobConfigDialog({
         return (
           intervalOptions.find((i) => i.value === intervalMinutesTotal)?.label ||
           t('admin.jobsPage.ui.intervalFallback')
-        )
+        ) + (intervalMinutesTotal >= 60 ? t('admin.jobsPage.ui.configAtMinute', { minute: String(minute).padStart(2, '0') }) : '')
       case 'manual':
         return t('admin.jobsPage.ui.configPreviewManualRuns')
       default:
@@ -302,6 +282,19 @@ export function JobConfigDialog({
               </Select>
             </FormControl>
           )}
+
+          {isEnabled && scheduleType !== 'manual' && (scheduleType !== 'interval' || intervalMinutesTotal >= 60) && (
+            <TextField
+              label={t('admin.jobsPage.ui.configMinute')}
+              type="number"
+              size="small"
+              value={minute}
+              onChange={(event) => setMinute(Number(event.target.value))}
+              inputProps={{ min: 0, max: 59, step: 1 }}
+              helperText={t('admin.jobsPage.ui.configMinuteHelp')}
+            />
+          )}
+          {currentSchedule?.timeZone && <Typography variant="caption" color="text.secondary">{currentSchedule.timeZone}</Typography>}
 
           <Box
             sx={{

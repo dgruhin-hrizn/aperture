@@ -14,6 +14,7 @@ import { requireAdmin } from '../../../plugins/auth.js'
 import { jobSchemas } from '../schemas.js'
 import { jobDefinitions } from '../definitions.js'
 import { activeJobs } from '../state.js'
+import { getScheduledJobTiming } from '../../../lib/scheduler.js'
 
 export async function registerListHandlers(fastify: FastifyInstance) {
   /**
@@ -37,9 +38,11 @@ export async function registerListHandlers(fastify: FastifyInstance) {
           const progress = activeJobId ? getJobProgress(activeJobId) : null
           const config = configMap.get(def.name) || (await getJobConfig(def.name))
           const lastRun = lastRunsMap.get(def.name)
+          const timing = getScheduledJobTiming(def.name)
 
           return {
             ...def,
+            cron: timing.cronExpression,
             status: progress?.status === 'running' ? 'running' : 'idle',
             currentJobId: activeJobId,
             progress: progress
@@ -48,6 +51,7 @@ export async function registerListHandlers(fastify: FastifyInstance) {
                   currentStep: progress.currentStep,
                   itemsProcessed: progress.itemsProcessed,
                   itemsTotal: progress.itemsTotal,
+                  queued: progress.currentStep === 'Waiting for other Emby work to finish',
                 }
               : null,
             schedule: config
@@ -60,6 +64,8 @@ export async function registerListHandlers(fastify: FastifyInstance) {
                   intervalMinutes: config.scheduleIntervalMinutes,
                   isEnabled: config.isEnabled,
                   formatted: formatSchedule(config),
+                  nextRunAt: timing.nextRunAt,
+                  timeZone: timing.timeZone,
                 }
               : null,
             lastRun: lastRun

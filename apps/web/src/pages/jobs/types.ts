@@ -16,6 +16,8 @@ export interface JobSchedule {
   intervalMinutes: number | null
   isEnabled: boolean
   formatted: string
+  nextRunAt?: string | null
+  timeZone?: string
 }
 
 export interface JobProgress {
@@ -73,6 +75,7 @@ export interface Job {
     currentStep: string
     itemsProcessed: number
     itemsTotal: number
+    queued?: boolean
   }
   schedule?: JobSchedule | null
   lastRun?: JobLastRun | null

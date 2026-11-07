@@ -33,6 +33,8 @@ export const jobComponentSchemas = {
           intervalMinutes: { type: 'integer' as const, nullable: true, description: 'Sub-hour interval: 15 or 30 minutes' },
           isEnabled: { type: 'boolean' as const, description: 'Whether schedule is enabled' },
           formatted: { type: 'string' as const, description: 'Human-readable schedule description' },
+          nextRunAt: { type: 'string' as const, format: 'date-time', nullable: true, description: 'Next registered scheduler trigger in UTC' },
+          timeZone: { type: 'string' as const, description: 'Time zone used by the scheduler' },
         },
       },
       progress: {
@@ -44,6 +46,7 @@ export const jobComponentSchemas = {
           currentStep: { type: 'string' as const, nullable: true, description: 'Current step description' },
           itemsProcessed: { type: 'integer' as const, description: 'Items processed so far' },
           itemsTotal: { type: 'integer' as const, description: 'Total items to process' },
+          queued: { type: 'boolean' as const, description: 'Waiting for the Emby work slot' },
         },
       },
       lastRun: {

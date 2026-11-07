@@ -174,30 +174,46 @@ export async function setJobConfig(
     isEnabled?: boolean
   }
 ): Promise<JobConfig> {
+  const defaults = ENV_DEFAULTS[jobName]
+  const type = config.scheduleType ?? defaults?.scheduleType ?? 'daily'
+  const hours = config.scheduleIntervalMinutes != null ? null
+    : config.scheduleIntervalHours !== undefined ? config.scheduleIntervalHours : defaults?.intervalHours ?? null
+  const minutes = config.scheduleIntervalHours != null ? null
+    : config.scheduleIntervalMinutes !== undefined ? config.scheduleIntervalMinutes : defaults?.intervalMinutes ?? null
   const result = await queryOne<JobConfigRow>(
     `INSERT INTO job_config (job_name, schedule_type, schedule_hour, schedule_minute,
                              schedule_day_of_week, schedule_interval_hours, schedule_interval_minutes, is_enabled)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     VALUES ($1, $2, CASE WHEN $2 IN ('interval','manual') THEN NULL ELSE $3::integer END, $4,
+             CASE WHEN $2 = 'weekly' THEN $5::integer ELSE NULL END,
+             CASE WHEN $2 = 'interval' THEN $6::integer ELSE NULL END,
+             CASE WHEN $2 = 'interval' THEN $7::integer ELSE NULL END, $8)
      ON CONFLICT (job_name) DO UPDATE SET
-       schedule_type = COALESCE($2, job_config.schedule_type),
-       schedule_hour = CASE WHEN $2 IS NOT NULL THEN $3 ELSE job_config.schedule_hour END,
-       schedule_minute = CASE WHEN $2 IS NOT NULL THEN $4 ELSE job_config.schedule_minute END,
-       schedule_day_of_week = CASE WHEN $2 IS NOT NULL THEN $5 ELSE job_config.schedule_day_of_week END,
-       schedule_interval_hours = CASE WHEN $2 IS NOT NULL THEN $6 ELSE job_config.schedule_interval_hours END,
-       schedule_interval_minutes = CASE WHEN $2 IS NOT NULL THEN $7 ELSE job_config.schedule_interval_minutes END,
-       is_enabled = COALESCE($8, job_config.is_enabled),
+       schedule_type = CASE WHEN $9 THEN EXCLUDED.schedule_type ELSE job_config.schedule_type END,
+       schedule_hour = CASE WHEN $10 THEN $3 WHEN $9 AND EXCLUDED.schedule_type IN ('interval','manual')
+         THEN NULL ELSE job_config.schedule_hour END,
+       schedule_minute = CASE WHEN $11 THEN EXCLUDED.schedule_minute ELSE job_config.schedule_minute END,
+       schedule_day_of_week = CASE WHEN $12 THEN $5 WHEN $9 AND EXCLUDED.schedule_type <> 'weekly'
+         THEN NULL ELSE job_config.schedule_day_of_week END,
+       schedule_interval_hours = CASE WHEN $9 AND EXCLUDED.schedule_type <> 'interval' THEN NULL
+         WHEN $13 OR ($14 AND $7 IS NOT NULL) THEN $6 ELSE job_config.schedule_interval_hours END,
+       schedule_interval_minutes = CASE WHEN $9 AND EXCLUDED.schedule_type <> 'interval' THEN NULL
+         WHEN $14 OR ($13 AND $6 IS NOT NULL) THEN $7 ELSE job_config.schedule_interval_minutes END,
+       is_enabled = CASE WHEN $15 THEN EXCLUDED.is_enabled ELSE job_config.is_enabled END,
        updated_at = NOW()
      RETURNING job_name, schedule_type, schedule_hour, schedule_minute,
                schedule_day_of_week, schedule_interval_hours, schedule_interval_minutes, is_enabled, updated_at`,
     [
-      jobName,
-      config.scheduleType ?? 'daily',
-      config.scheduleHour ?? null,
-      config.scheduleMinute ?? null,
-      config.scheduleDayOfWeek ?? null,
-      config.scheduleIntervalHours ?? null,
-      config.scheduleIntervalMinutes ?? null,
+      jobName, type,
+      config.scheduleHour !== undefined ? config.scheduleHour : defaults?.hour ?? 0,
+      config.scheduleMinute !== undefined ? config.scheduleMinute : defaults?.minute ?? 0,
+      config.scheduleDayOfWeek !== undefined ? config.scheduleDayOfWeek : defaults?.dayOfWeek ?? 0,
+      hours,
+      minutes,
       config.isEnabled ?? true,
+      config.scheduleType !== undefined, config.scheduleHour !== undefined,
+      config.scheduleMinute !== undefined, config.scheduleDayOfWeek !== undefined,
+      config.scheduleIntervalHours !== undefined, config.scheduleIntervalMinutes !== undefined,
+      config.isEnabled !== undefined,
     ]
   )
 
