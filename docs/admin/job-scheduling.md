@@ -37,14 +37,16 @@ Best for: Heavy jobs, recommendations
 
 ### Interval
 
-Run every N hours.
+Run every 15 or 30 minutes, or every N hours. Hourly intervals can use a minute
+offset to stagger work. For example, every 3 hours at :20 runs at 00:20, 03:20,
+06:20, and so on in the server's scheduling timezone.
 
 | Setting | Example |
 |---------|---------|
 | **Hours** | 2 |
 | **Runs** | Every 2 hours |
 
-Options: 1, 2, 3, 4, 6, 8, 12 hours
+Options: 15 or 30 minutes; 1, 2, 3, 4, 6, 8, 12 hours
 
 Best for: Watch history, frequent updates
 
@@ -76,7 +78,9 @@ Best for: One-time jobs, troubleshooting
 | **Discovery** | Daily at 6:00 AM |
 
 Emby-heavy jobs wait for earlier Emby work to finish, including manual runs. A
-queued job can be cancelled before it starts.
+queued job shows **Queued** and can be cancelled before it starts. Its scheduled
+time is when it becomes eligible to run; work can start later while another
+Emby job finishes.
 
 Recommendation library publishing preserves unchanged files and skips unchanged
 library refreshes. Aperture manages refreshes for these generated libraries;
@@ -104,6 +108,9 @@ are disabled. Normal source libraries keep their settings.
 | **Time** | Hour and minute (for Daily/Weekly) |
 | **Day** | Day of week (for Weekly) |
 | **Interval** | Hours between runs (for Interval) |
+| **Minute** | Minute of the hour for daily, weekly, and hourly interval schedules |
+
+Saving a schedule and turning a job on or off preserve its minute offset.
 
 ---
 
@@ -145,10 +152,10 @@ AI and external API jobs may hit rate limits:
 
 ### Time Zones
 
-Schedules use server time zone:
-- Check container timezone
-- Set via environment variable
-- Times shown in local server time
+Schedules use the container's `TZ` setting, defaulting to `America/New_York`.
+The schedule dialog displays this timezone. Next-run timestamps come from the
+server's active schedule, so a browser in another timezone uses the same run
+instant.
 
 ### Off-Peak Hours
 
@@ -170,16 +177,15 @@ Some jobs are fast and can run frequently:
 
 ### Next Run
 
-Jobs page shows:
-- "Next run in X hours"
-- "Scheduled for [time]"
+The Jobs page shows a countdown calculated from the server's next scheduled run,
+including its minute offset. The next run describes the next scheduled trigger;
+an active job can be running or queued independently of that countdown.
 
 ### Missed Runs
 
-If Aperture was down during scheduled time:
-- Job runs as soon as possible
-- Only one catch-up run
-- Doesn't run multiple times
+Jobs resume at their next scheduled time after Aperture starts. Missed scheduled
+runs are not automatically replayed. Use the run button if a job needs to run
+immediately.
 
 ---
 
