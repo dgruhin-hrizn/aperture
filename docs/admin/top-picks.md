@@ -251,4 +251,4 @@ This data comes from your server regardless of popularity source.
 
 **Previous:** [Algorithm Tuning](algorithm-tuning.md) | **Next:** [Shows You Watch Configuration](shows-you-watch.md)
 
-Generated library formats share the [output compatibility requirements](output-format.md). Collections and playlists reference original items; they do not use these file-format controls. In the dev build, use Check output compatibility to verify saved paths and selected generated-library formats.
+Generated library formats share the [output compatibility requirements](output-format.md). Collections and playlists reference original items; they do not use these file-format controls. In 1.0.2, use Check output compatibility to verify saved paths and selected generated-library formats.

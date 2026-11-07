@@ -1,6 +1,6 @@
 # Text-generation models
 
-Configure Text Generation separately from Chat and Embeddings in **Admin → Settings → AI / LLM**. This guide reflects Aperture 1.0.1 and current dev behavior.
+Configure Text Generation separately from Chat and Embeddings in **Admin → Settings → AI / LLM**. This guide reflects Aperture 1.0.2.
 
 Text generation produces recommendation explanations, taste-profile descriptions and other generated text. Encore conversations use the Chat configuration; vector retrieval uses Embeddings. Changing one function does not automatically select a compatible model for every other function.
 

@@ -1,6 +1,6 @@
 # Encore chat models
 
-Configure chat in **Admin → Settings → AI / LLM**. This guide reflects Aperture 1.0.1 and the current dev build; model availability, prices and provider capabilities change independently of Aperture releases.
+Configure chat in **Admin → Settings → AI / LLM**. This guide reflects Aperture 1.0.2; model availability, prices and provider capabilities change independently of Aperture releases.
 
 ## Choose and test a model
 

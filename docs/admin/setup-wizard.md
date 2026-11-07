@@ -210,7 +210,7 @@ Choose the generated-library format in the preceding AI Recommendations step. ST
 
 For Linux Aperture with native Windows Emby, use STRM. A host running two Linux containers needs storage/mount verification instead of an OS-only rule. See [Output formats](output-format.md) and [File locations](file-locations.md) before selecting a format.
 
-In 1.0.2-dev.1, validation distinguishes required output writing/local symlink checks, optional source access, Emby output visibility and sampled target resolution. Warnings do not claim playback was tested. Test one published movie and TV episode in the media server, including external subtitles. Top Picks has separate format choices and reruns compatibility checks when saved.
+In 1.0.2, validation distinguishes required output writing/local symlink checks, optional source access, Emby output visibility and sampled target resolution. Warnings do not claim playback was tested. Test one published movie and TV episode in the media server, including external subtitles. Top Picks has separate format choices and reruns compatibility checks when saved.
 
 
 ## Step 7: Users

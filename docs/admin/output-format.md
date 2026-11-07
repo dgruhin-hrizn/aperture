@@ -1,6 +1,6 @@
 # Recommendation output formats
 
-Current stable baseline: **1.0.1**. The output compatibility guidance and check button described here are introduced in **1.0.2-dev.1**.
+This guide describes **Aperture 1.0.2**, including the output compatibility guidance and checks refined during the 1.0.2 development builds.
 
 Configure generated movie and TV libraries in **Admin → Settings → AI Recommendations → Output**, or during setup. Top Picks has its own output settings and can also use collections and playlists.
 
@@ -68,7 +68,7 @@ The output-path setting takes **Emby's view**, not the host path or Aperture's i
 
 ## Check compatibility
 
-In dev.1, use **Check output compatibility** beside the format controls. Save path changes first; the check uses saved paths and the selected format.
+In 1.0.2, use **Check output compatibility** beside the format controls. Save path changes first; the check uses saved paths and the selected format.
 
 - Output write access: creates and removes an isolated temporary directory.
 - Local symlink support: creates and follows a link on the output filesystem when selected.

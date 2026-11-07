@@ -25,3 +25,5 @@ The compatibility tests use real isolated temporary files and simulated media-se
 New shared UI guidance uses English pending translations. Existing dated research/performance reports are evidence from their original runs, not current performance guarantees. Screenshots remain illustrative; text and the runtime application take precedence where layouts differ.
 
 Live dev.1 verification found that a private temporary-directory mode blocked a separate Emby account. Dev.2 matches normal publication permissions and adds a regression assertion for traversal/read access.
+
+The completed changes ship in stable **1.0.2**. Live verification on Emby 4.11.0.13 passed output visibility and sampled original-directory resolution, with no temporary probe directories remaining. Playback was deliberately left as a separate manual check.

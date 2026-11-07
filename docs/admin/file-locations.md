@@ -23,6 +23,6 @@ If both applications use Linux containers, use their container paths and verify 
 
 ## Verification
 
-In 1.0.2-dev.1, save paths and run **Check output compatibility**. Local output writing, local symlink creation and Emby-side path visibility are separate checks. Missing optional source access is a warning. A successful directory check does not verify playback: publish one movie and episode, then test them in the media server.
+In 1.0.2, save paths and run **Check output compatibility**. Local output writing, local symlink creation and Emby-side path visibility are separate checks. Missing optional source access is a warning. A successful directory check does not verify playback: publish one movie and episode, then test them in the media server.
 
 Read the [output-format guide](output-format.md) for the filesystem matrix, network-share limitations, sidecars, permissions and switching formats. Test after changing paths or mounts. Existing generated files change on the next publishing run, not immediately when a setting is saved.
