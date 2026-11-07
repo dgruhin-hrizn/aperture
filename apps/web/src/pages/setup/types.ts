@@ -164,7 +164,7 @@ export interface ValidationCheck {
   id: string
   name: string
   description: string
-  status: 'pending' | 'running' | 'passed' | 'failed'
+  status: 'pending' | 'running' | 'passed' | 'failed' | 'warning'
   error?: string
   suggestion?: string
 }
@@ -256,7 +256,7 @@ export interface SetupWizardActions {
   deleteLibraryImage: (libraryType: string) => Promise<void>
 
   // Validation
-  runValidation: () => Promise<void>
+  runValidation: () => Promise<boolean>
 
   // Users
   fetchSetupUsers: () => Promise<void>

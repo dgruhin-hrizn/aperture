@@ -204,28 +204,14 @@ Leave blank to use defaults.
 
 Review and verify your output configuration.
 
-### Output Format Selection
+### Output checks
 
-| Format | Description | Best For |
-|--------|-------------|----------|
-| **STRM** | Text files with streaming URLs | Universal compatibility |
-| **Symlinks** | Filesystem links to originals | Same filesystem setups |
+Choose the generated-library format in the preceding AI Recommendations step. STRM contains a server-accessible file path or supported direct media URL. Symlinks require compatible output storage and server-resolvable targets; they do not require the original file to be on the same filesystem.
 
-### Validation Checks
+For Linux Aperture with native Windows Emby, use STRM. A host running two Linux containers needs storage/mount verification instead of an OS-only rule. See [Output formats](output-format.md) and [File locations](file-locations.md) before selecting a format.
 
-The wizard verifies:
-- Path mappings are valid
-- Output directory is writable
-- Media server can access the output path
+In 1.0.2, validation distinguishes required output writing/local symlink checks, optional source access, Emby output visibility and sampled target resolution. Warnings do not claim playback was tested. Test one published movie and TV episode in the media server, including external subtitles. Top Picks has separate format choices and reruns compatibility checks when saved.
 
-### Fix Issues
-
-If validation fails:
-- Go back and adjust paths
-- Check Docker volume mounts
-- Verify permissions
-
----
 
 ## Step 7: Users
 

@@ -1,3 +1,4 @@
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import { useEffect } from 'react'
 import {
   Box,
@@ -26,6 +27,8 @@ function CheckIcon({ status }: { status: ValidationCheck['status'] }) {
   switch (status) {
     case 'passed':
       return <CheckCircleIcon color="success" />
+    case 'warning':
+      return <WarningAmberIcon color="warning" />
     case 'failed':
       return <ErrorIcon color="error" />
     case 'running':
@@ -100,7 +103,7 @@ export function ValidateStep({ wizard }: ValidateStepProps) {
                         {t('setup.validate.errorPrefix')} {check.error}
                       </Typography>
                     )}
-                    {check.status === 'failed' && check.suggestion && (
+                    {check.suggestion && (
                       <Alert severity="warning" sx={{ mt: 1, py: 0.5 }}>
                         <Typography variant="body2">{check.suggestion}</Typography>
                       </Alert>

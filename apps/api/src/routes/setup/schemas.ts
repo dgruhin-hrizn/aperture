@@ -184,13 +184,16 @@ const getOutputConfig = {
 const setOutputConfig = {
   tags: ['setup'],
   summary: 'Set output path config',
-  description: 'Configure output paths for recommendations. Symlinks are more efficient but require the media server to access the same filesystem.',
+  description: 'Configure media-server output paths and optional source-prefix mapping. Symlinks require compatible output storage and resolvable target paths.',
   body: {
     type: 'object' as const,
     additionalProperties: true,
     properties: {
-      outputPath: { type: 'string' as const, description: 'Base output path for recommendation files' },
-      useSymlinks: { type: 'boolean' as const, description: 'Use symlinks instead of file copies' },
+      mediaServerLibrariesPath: { type: 'string' as const, description: 'Where the media server sees Aperture output storage' },
+      mediaServerPathPrefix: { type: 'string' as const, description: 'Original media-server prefix mapped to Aperture /media' },
+      moviesUseSymlinks: { type: 'boolean' as const },
+      seriesUseSymlinks: { type: 'boolean' as const },
+      downloadImages: { type: 'boolean' as const },
     },
   },
 }
@@ -204,7 +207,7 @@ const detectPaths = {
 const validate = {
   tags: ['setup'],
   summary: 'Validate setup',
-  description: 'Run validation checks to ensure setup is correct. Tests file access, path mappings, and connectivity.',
+  description: 'Check output access, optional source access and media-server visibility. Returns passed/failed/warning checks. allPassed means no required failures; playback remains unverified.',
   body: {
     type: 'object' as const,
     additionalProperties: true,

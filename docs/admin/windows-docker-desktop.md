@@ -30,7 +30,7 @@ This guide covers installing and configuring Aperture using Docker Desktop on Wi
 
 ### Key Points
 
-- **STRM mode required** — Symlinks don't work between a Linux container and Windows host
+- **STRM for this deployment** — Aperture runs in Linux Docker and the media server runs natively on Windows
 - **No media access needed** — Aperture reads everything from Emby's API
 - **Only one output folder** — Aperture writes STRM files to a single location
 - **Works with network shares** — Your media can be on NAS devices; Emby handles the paths
@@ -293,7 +293,7 @@ Examples:
 | Movies Use Symlinks | **OFF** (use STRM) |
 | Series Use Symlinks | **OFF** (use STRM) |
 
-> ⚠️ **STRM mode is required!** Symlinks cannot work between a Linux container and Windows filesystem.
+> Use STRM for the native Windows media-server deployment covered here. If both applications run in Linux containers, verify the exposed filesystem and mount paths instead; Windows as the host alone does not rule out symlinks. See [output compatibility](output-format.md).
 
 ---
 
@@ -367,15 +367,9 @@ docker-compose pull
 docker-compose up -d
 ```
 
-### Complete Reset (Delete All Data)
+### Recovery
 
-```powershell
-cd C:\Aperture
-docker-compose down -v
-docker-compose up -d
-```
-
-> **Warning:** This deletes the database. Back up first if needed.
+Keep the existing database volume when updating. Use the supported backup/restore workflow if recovering or migrating an installation; removing volumes deletes retained data. See [Backup and restore](backup-restore.md).
 
 ---
 
@@ -404,22 +398,11 @@ docker-compose up -d
 
 ### "SESSION_SECRET must contain at least 32 characters" error
 
-This is usually caused by special characters in your session secret, not the length!
+Use a generated secret with at least 32 characters and quote the YAML scalar. YAML comments require the applicable separator context; a `#` embedded in an unquoted token is not automatically a comment. Check the resolved configuration locally without publishing its secrets. Keep the same secret across routine updates.
 
-**The Problem:** YAML interprets `#` as the start of a comment. If your generated key contains `#`, everything after it is ignored.
-
-For example, this key:
 ```yaml
-SESSION_SECRET: abc123xyz#789qwerty456asdf123zzzz
+SESSION_SECRET: 'replace-with-a-generated-secret-of-at-least-32-characters'
 ```
-YAML sees only `abc123xyz` (9 characters) because `#789qwerty...` is treated as a comment.
-
-**The Fix:** Always wrap your SESSION_SECRET in quotes:
-```yaml
-SESSION_SECRET: 'your-secret-key-here-with-any#special$chars!'
-```
-
-Single quotes (`'`) or double quotes (`"`) both work.
 
 ### STRM files not working
 

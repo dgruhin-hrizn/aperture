@@ -91,6 +91,9 @@ jobs:
           APERTURE_TEST_DATABASE_URL: postgres://encore:encore-test-only@127.0.0.1:5432/aperture_test_audit
         run: pnpm test:job-schedules
 
+      - name: Test output compatibility and documentation links
+        run: pnpm test:output-compatibility
+
       - name: Test LAN and reverse proxy access and sessions
         run: pnpm test:browser-access
 

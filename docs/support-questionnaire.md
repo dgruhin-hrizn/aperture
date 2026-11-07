@@ -6,7 +6,7 @@ Please fill out this questionnaire before posting a support request. This helps 
 
 ## 📋 Basic Information
 
-**Aperture Version:** (e.g., v1.0.1-dev.1, shown in Admin → Dashboard or the container logs)
+**Aperture Version:** (e.g., v1.0.2, shown in Admin → Dashboard or the container logs)
 
 **Platform:**
 
@@ -251,7 +251,7 @@ Before posting, check if your issue matches one of these:
 
 ### "Symlinks not working / Path does not exist"
 
-1. Both containers must see the same underlying filesystem
+1. Output storage must support symlinks and the media server must resolve their target paths
 2. Run Auto-Detect Paths to fix path mappings
 3. Check that Media Server Path Prefix matches how Emby/Jellyfin sees your files
 

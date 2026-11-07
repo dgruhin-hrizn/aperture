@@ -1,6 +1,8 @@
 # API Reference
 
-Complete reference for all Aperture API endpoints.
+This page is a curated endpoint overview. The running application publishes the authoritative OpenAPI schema; consult `/openapi` and the API documentation links exposed by your instance for current request/response contracts. This prose table is not an exhaustive tool or endpoint catalog.
+
+See [Encore and MCP](encore-mcp.md) for scoped connections and [runtime schema policy](schema-compliance.md). The dev output check at `POST /api/setup/validate` returns `passed`, `failed` or `warning` checks. `allPassed` means no required check failed; it does not establish media playback.
 
 ## Table of Contents
 

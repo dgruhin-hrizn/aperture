@@ -224,3 +224,17 @@ If using Nginx Proxy Manager or similar:
 - ESLint for linting
 - Prettier for formatting
 - Conventional commits recommended
+
+## Release channels and checks
+
+PRs targeting main/dev run validation, API contracts, regression suites and PostgreSQL fixtures. Branch pushes and manual workflow dispatches do not themselves publish release images.
+
+A version tag triggers the release pipeline. After validation, AMD64 and ARM64 are built and each exact image digest is smoke-tested against a fresh database. Only then does publication combine those digests into the versioned image. Published version images cannot be overwritten by this workflow.
+
+- `vX.Y.Z-dev.N`, reachable from dev: publishes the exact version and updates `:dev`.
+- `vX.Y.Z`, reachable from main: publishes the exact version and updates `:latest` and `:X.Y`.
+- A stable main merge advances dev automatically only when main already contains dev, preserving independent dev work.
+
+Keep workspace versions and the standalone MCP bridge version aligned with the tag. Include release notes and the MCP bundle/checksum on GitHub. Verify channel digests after CI; publishing a GitHub release alone does not update Docker tags.
+
+Run `pnpm validate`, relevant feature tests, and `node scripts/check-doc-links.mjs`. The output-compatibility suite uses isolated temporary folders and mocked server directory reads; it does not claim live playback coverage. Historical release notes and dated performance reports remain snapshots of their original versions.

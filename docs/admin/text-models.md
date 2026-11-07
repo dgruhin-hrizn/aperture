@@ -1,213 +1,30 @@
-# Text Generation Models
+# Text-generation models
 
-Configure which AI model generates taste profiles and recommendation explanations.
+Configure Text Generation separately from Chat and Embeddings in **Admin → Settings → AI / LLM**. This guide reflects Aperture 1.0.2.
 
-![Admin Settings - AI/LLM](../images/admin/admin-settings-ai-llm.png)
-
-## Accessing Settings
-
-Navigate to **Admin → Settings → AI / LLM → Text Generation Model**
-
----
-
-## What Text Generation Does
-
-| Feature | Description |
-|---------|-------------|
-| **Taste Profiles** | Generates user identity descriptions |
-| **Explanations** | Creates "Why this pick?" text |
-| **Playlist Names** | AI-generated playlist titles |
-| **Playlist Descriptions** | AI-generated playlist summaries |
-
----
-
-## Available Models
-
-### OpenAI Models
-
-| Model | Quality | Cost | Context |
-|-------|---------|------|---------|
-| **gpt-4o-mini** | Good | Low | 128K |
-| gpt-4o | Best | High | 128K |
-| gpt-4-turbo | Great | Medium | 128K |
-
-**Recommended:** `gpt-4o-mini` for most users.
-
-### Ollama Models
-
-| Model | Quality | Speed |
-|-------|---------|-------|
-| **llama3.2** | Good | Medium |
-| mistral | Good | Fast |
-| mixtral | Better | Slower |
-
-### Groq Models
-
-| Model | Quality | Speed |
-|-------|---------|-------|
-| **llama3-8b-8192** | Good | Very Fast |
-| llama3-70b-8192 | Better | Fast |
-
-### Anthropic Models
-
-| Model | Quality | Cost |
-|-------|---------|------|
-| **claude-3-haiku** | Good | Low |
-| claude-3-sonnet | Better | Medium |
-| claude-3-opus | Best | High |
-
----
-
-## Selecting a Model
-
-### For Most Users
-
-Use `gpt-4o-mini`:
-- Best balance of quality and cost
-- Large context window
-- Reliable output format
-
-### For Quality Focus
-
-Use `gpt-4o` or `claude-3-sonnet`:
-- Better writing quality
-- More nuanced explanations
-- Higher cost
-
-### For Local/Privacy
-
-Use `llama3.2` or `mistral` with Ollama:
-- No API costs
-- Data stays local
-- Slightly lower quality
-
-### For Speed
-
-Use Groq models:
-- Extremely fast inference
-- Good quality
-- Free tier available
-
----
-
-## Context Window
-
-Context window determines how much content the model can process at once.
-
-### Why It Matters
-
-Recommendation explanations include:
-- Movie/series metadata
-- User watch history excerpt
-- Evidence trail
-
-Larger context = better explanations.
-
-### Automatic Adaptation
-
-Aperture adapts batch sizes based on context:
-
-| Provider | Batch Size | Max Output |
-|----------|------------|------------|
-| Large context (OpenAI, Anthropic) | 10 items | 3,000 tokens |
-| Medium context (Groq) | 5 items | 1,500 tokens |
-| Small context (Ollama) | 3 items | 1,000 tokens |
-
----
-
-## Text Generation Tasks
-
-### Taste Profiles
-
-User identity descriptions:
-
-> "You gravitate toward complex narratives with unreliable narrators, particularly psychological thrillers and mind-bending science fiction..."
-
-Generated when users click "Analyze Watch History."
-
-### Recommendation Explanations
-
-Why-this-pick text:
-
-> "This psychological thriller shares the mind-bending narrative style you enjoyed in Inception and Memento..."
-
-Generated during recommendation jobs if enabled.
-
-### Playlist Content
-
-When creating graph playlists:
-- AI generates thematic names
-- Creates descriptive summaries
-
----
+Text generation produces recommendation explanations, taste-profile descriptions and other generated text. Encore conversations use the Chat configuration; vector retrieval uses Embeddings. Changing one function does not automatically select a compatible model for every other function.
 
 ## Configuration
 
-### Selecting Model
+1. Choose a provider and supply its required credentials or base URL.
+2. Refresh the available models where supported, or configure the exact custom model identifier.
+3. Select the model for Text Generation and run its connection test.
+4. Save, then generate a small sample before running recommendations for all users.
 
-1. Choose your provider (OpenAI, Ollama, etc.)
-2. Select specific model from dropdown
-3. Test generation
-4. Save
+Use the live model list, capability information and cost estimator. Static lists of recommended models, context sizes and token prices become outdated quickly. Current provider defaults are implementation defaults, not a guarantee of the best model for your hardware or workload.
 
-### Testing
+Where the selected model supports effort controls, the settings expose them. Compatibility behavior and output budgeting vary by provider. Explanations are descriptions generated from available evidence, not a guarantee of enjoyment or a calibrated probability.
 
-Click **Test** to verify:
-- Model is accessible
-- Generates valid output
-- Response time is acceptable
+## Local models and failures
 
----
+Local inference needs sufficient RAM/VRAM and a reachable inference service. `localhost` inside Aperture's container identifies that container, not the host machine. Use a base URL reachable from Aperture and test it there.
 
-## Cost Estimation
+Models used for structured tasks must follow the requested output shape. Aperture handles supported fenced JSON and common escaping issues, but malformed or incomplete responses can still fall back or fail. Check logs and the selected model's output budget. Reduce the task or choose a model that handles the required schema reliably rather than assuming every local model is interchangeable.
 
-### OpenAI Text Costs
+## Costs and refreshes
 
-| Model | Input Cost | Output Cost |
-|-------|------------|-------------|
-| gpt-4o-mini | $0.15/1M | $0.60/1M |
-| gpt-4o | $2.50/1M | $10.00/1M |
+Use **Cost Estimator** and measured usage from your installation where available. Rates and context limits depend on the exact model; estimates exclude unrelated infrastructure costs and are not promised monthly spending.
 
-### Usage Per Feature
+A setting change does not rewrite every saved explanation immediately. Regenerate the relevant recommendations or profile as needed, then run publishing to update generated media-server descriptions. Keep the database and uploaded-artwork backup before broad regeneration or provider changes.
 
-| Feature | Tokens Per Use |
-|---------|----------------|
-| Taste profile | ~2,000 |
-| Per explanation | ~500 |
-| Playlist name | ~200 |
-
-### Typical Monthly Cost
-
-| Users | Explanations | gpt-4o-mini | gpt-4o |
-|-------|--------------|-------------|--------|
-| 5 | Weekly | ~$0.50 | ~$5.00 |
-| 20 | Weekly | ~$2.00 | ~$20.00 |
-
----
-
-## Troubleshooting
-
-### Poor Quality Output
-
-- Try a more capable model
-- Check input metadata quality
-- Verify prompt isn't truncated
-
-### Slow Generation
-
-- Consider faster model
-- Check rate limits
-- For Ollama, ensure adequate hardware
-
-### JSON Parse Errors
-
-Aperture handles common issues:
-- Strips markdown code blocks
-- Handles preamble text
-- Retries on failures
-
-If persistent, try different model.
-
----
-
-**Previous:** [Embedding Models](embedding-models.md) | **Next:** [Chat Models](chat-models.md)
+See [AI providers](ai-providers.md), [Encore models](chat-models.md), and [embedding models](embedding-models.md).
