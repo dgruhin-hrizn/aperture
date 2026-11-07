@@ -443,6 +443,11 @@
         "configWeekly": "Wöchentlich",
         "configInterval": "Intervall",
         "configManualOnlyOption": "Nur manuell",
+        "statusQueued": "In Warteschlange",
+        "configMinute": "Minute",
+        "configMinuteHelp": "Minute der Stunde (0–59)",
+        "configMinuteError": "Geben Sie eine ganze Minute zwischen 0 und 59 ein.",
+        "configAtMinute": " um :{{minute}}",
         "configTime": "Zeit",
         "configDayOfWeek": "Wochentag",
         "configPreviewManualOnly": "Nur manuell - dieser Job kann nicht geplant werden",
@@ -2009,6 +2014,17 @@
     "saveChanges": "Änderungen speichern"
   },
   "settingsCostEstimator": {
+    "priceUnknown": "Price unavailable",
+    "partialEstimate": "Totals include only models with known prices.",
+    "chatStyles": {
+      "title": "Encore cost by response style",
+      "default": "Default",
+      "perReply": "{{cost}} per reply",
+      "measured_one": "1 measured reply · {{tokens}} reasoning tokens per reply",
+      "measured_other": "{{count}} measured replies · {{tokens}} reasoning tokens per reply",
+      "estimated": "Estimated token usage until replies are measured",
+      "official": "OpenAI standard API rates"
+    },
     "loading": "Lade Kostendaten…",
     "configureFirst": "Konfiguriere oben deine KI-Anbieter, um Kostenschätzungen zu sehen.",
     "title": "Kostenrechner",
@@ -4176,5 +4192,25 @@
       }
     },
     "search": "Search your library"
+  },
+  "reasoningPresets": {
+    "defaultLabel": "Default response style",
+    "replyLabel": "Response style",
+    "forNextReply": "Next reply style: {{preset}}",
+    "useDefault": "Use default ({{preset}})",
+    "styleOnly": "This model uses the response instructions without a separate effort control.",
+    "outputLimit": "Encore ran out of room for this reply. Choose Quick if available, or try a narrower question.",
+    "quick": {
+      "label": "Quick",
+      "description": "Faster replies for simple questions and lookups."
+    },
+    "standard": {
+      "label": "Standard",
+      "description": "A balance of speed and detail for everyday use."
+    },
+    "expanded": {
+      "label": "Expanded",
+      "description": "More time to work through complex requests and comparisons."
+    }
   }
 }

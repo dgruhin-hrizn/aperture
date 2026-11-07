@@ -319,7 +319,7 @@ async function handleGitPush(rl) {
     return 0
   }
 
-  console.log(c('dim', '\n  CI publishes :dev on push to dev, :latest on push to main.\n'))
+  console.log(c('dim', '\n  Version tags publish images after validation and smoke tests: vX.Y.Z-dev.N updates :dev; vX.Y.Z on main updates :latest.\n'))
   return runCommand(`git push -u origin ${branch}`)
 }
 

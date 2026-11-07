@@ -1,6 +1,6 @@
 import React from 'react'
-import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Table,
@@ -35,7 +35,8 @@ import {
   formatRelativePastTime,
   formatJobDurationMsOrDash,
 } from '../constants'
-import type { Job, JobSchedule } from '../types'
+import type { Job } from '../types'
+import { formatNextRun, nextRunTimestamp, nextRunDescription } from '../scheduleTiming'
 
 interface ScheduleTableProps {
   jobs: Job[]
@@ -45,96 +46,9 @@ interface ScheduleTableProps {
   onToggleEnabled: (jobName: string, enabled: boolean) => void
 }
 
-function getNextRunTime(schedule: JobSchedule | null, t: TFunction): string {
-  if (!schedule || !schedule.isEnabled || schedule.type === 'manual') {
-    return t('admin.jobsPage.ui.dash')
-  }
-  
-  const now = new Date()
-  const targetHour = schedule.hour ?? 0
-  const targetMinute = schedule.minute ?? 0
-  
-  const nextRun = new Date()
-  
-  if (schedule.type === 'daily') {
-    nextRun.setHours(targetHour, targetMinute, 0, 0)
-    if (nextRun <= now) {
-      nextRun.setDate(nextRun.getDate() + 1)
-    }
-  } else if (schedule.type === 'weekly') {
-    const targetDay = schedule.dayOfWeek ?? 0
-    nextRun.setHours(targetHour, targetMinute, 0, 0)
-    const daysUntil = (targetDay - now.getDay() + 7) % 7
-    if (daysUntil === 0 && nextRun <= now) {
-      nextRun.setDate(nextRun.getDate() + 7)
-    } else {
-      nextRun.setDate(nextRun.getDate() + daysUntil)
-    }
-  } else if (schedule.type === 'interval') {
-    const intervalMins =
-      schedule.intervalMinutes ?? (schedule.intervalHours ?? 1) * 60
-    const ms = intervalMins * 60 * 1000
-    const next = new Date(Math.ceil(now.getTime() / ms) * ms)
-    nextRun.setTime(next.getTime())
-  }
-  
-  // Format relative time
-  const diff = nextRun.getTime() - now.getTime()
-  const hours = Math.floor(diff / (1000 * 60 * 60))
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-  
-  if (hours > 24) {
-    const days = Math.floor(hours / 24)
-    return t('admin.jobsPage.ui.nextInDaysHours', { days, hours: hours % 24 })
-  }
-  if (hours > 0) {
-    return t('admin.jobsPage.ui.nextInHoursMinutes', { hours, minutes })
-  }
-  return t('admin.jobsPage.ui.nextInMinutes', { minutes })
-}
-
 function formatLastRun(lastRun: Job['lastRun'], t: TFunction): string {
   if (!lastRun) return t('admin.jobsPage.ui.dateNever')
   return formatRelativePastTime(lastRun.startedAt, t)
-}
-
-/**
- * Calculate minutes until next run for sorting
- */
-function getMinutesUntilNextRun(schedule: JobSchedule | null | undefined): number {
-  if (!schedule || !schedule.isEnabled || schedule.type === 'manual') {
-    return Infinity // Manual/disabled jobs sort to the end
-  }
-  
-  const now = new Date()
-  const targetHour = schedule.hour ?? 0
-  const targetMinute = schedule.minute ?? 0
-  
-  const nextRun = new Date()
-  
-  if (schedule.type === 'daily') {
-    nextRun.setHours(targetHour, targetMinute, 0, 0)
-    if (nextRun <= now) {
-      nextRun.setDate(nextRun.getDate() + 1)
-    }
-  } else if (schedule.type === 'weekly') {
-    const targetDay = schedule.dayOfWeek ?? 0
-    nextRun.setHours(targetHour, targetMinute, 0, 0)
-    const daysUntil = (targetDay - now.getDay() + 7) % 7
-    if (daysUntil === 0 && nextRun <= now) {
-      nextRun.setDate(nextRun.getDate() + 7)
-    } else {
-      nextRun.setDate(nextRun.getDate() + daysUntil)
-    }
-  } else if (schedule.type === 'interval') {
-    const intervalMins =
-      schedule.intervalMinutes ?? (schedule.intervalHours ?? 1) * 60
-    const ms = intervalMins * 60 * 1000
-    const next = new Date(Math.ceil(now.getTime() / ms) * ms)
-    nextRun.setTime(next.getTime())
-  }
-  
-  return Math.floor((nextRun.getTime() - now.getTime()) / (1000 * 60))
 }
 
 export function ScheduleTable({
@@ -171,8 +85,8 @@ export function ScheduleTable({
     
     // 4. Both are scheduled - sort by next run time (soonest first)
     if (!aManual && !bManual && aEnabled && bEnabled) {
-      const aMinutes = getMinutesUntilNextRun(a.schedule)
-      const bMinutes = getMinutesUntilNextRun(b.schedule)
+      const aMinutes = nextRunTimestamp(a.schedule)
+      const bMinutes = nextRunTimestamp(b.schedule)
       if (aMinutes !== bMinutes) return aMinutes - bMinutes
     }
     
@@ -232,7 +146,7 @@ export function ScheduleTable({
                     {isRunning ? (
                       <Chip
                         size="small"
-                        label={t('admin.jobsPage.ui.statusRunning')}
+                        label={t(job.progress?.queued ? 'admin.jobsPage.ui.statusQueued' : 'admin.jobsPage.ui.statusRunning')}
                         sx={{
                           bgcolor: 'primary.main',
                           color: theme => theme.aperture.name === 'studio' ? theme.palette.primary.contrastText : 'white',
@@ -276,8 +190,8 @@ export function ScheduleTable({
                       </Typography>
                       <Stack direction="row" spacing={0.5} alignItems="center">
                         <AccessTimeIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
-                        <Typography variant="caption" color="text.secondary">
-                          {getNextRunTime(job.schedule ?? null, t)}
+                        <Typography variant="caption" color="text.secondary" title={nextRunDescription(job.schedule)}>
+                          {formatNextRun(job.schedule, t)}
                         </Typography>
                       </Stack>
                     </Stack>
@@ -428,8 +342,8 @@ export function ScheduleTable({
                     {!isManual && isEnabled && (
                       <AccessTimeIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
                     )}
-                    <Typography variant="body2" color="text.secondary">
-                      {getNextRunTime(job.schedule ?? null, t)}
+                    <Typography variant="body2" color="text.secondary" title={nextRunDescription(job.schedule)}>
+                      {formatNextRun(job.schedule, t)}
                     </Typography>
                   </Stack>
                 </TableCell>
@@ -453,7 +367,7 @@ export function ScheduleTable({
                   {isRunning ? (
                     <Chip
                       size="small"
-                      label={t('admin.jobsPage.ui.statusRunning')}
+                      label={t(job.progress?.queued ? 'admin.jobsPage.ui.statusQueued' : 'admin.jobsPage.ui.statusRunning')}
                       sx={{
                         bgcolor: 'primary.main',
                         color: theme => theme.aperture.name === 'studio' ? theme.palette.primary.contrastText : 'white',

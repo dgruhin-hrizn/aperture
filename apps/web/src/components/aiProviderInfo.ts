@@ -1,3 +1,5 @@
+import type { ReasoningPreset } from '@aperture/core'
+
 export type ProviderType =
   | 'openai'
   | 'anthropic'
@@ -26,6 +28,7 @@ export interface FunctionConfig {
   apiKey?: string
   baseUrl?: string
   toolCallingVerified?: boolean
+  reasoningPreset?: ReasoningPreset
 }
 
 export const PROVIDER_INFO: Record<ProviderType, ProviderInfo> = {

@@ -17,7 +17,8 @@ import { huggingFaceEmbeddings } from './huggingFaceEmbeddings.js'
 import { createHuggingFace } from '@ai-sdk/huggingface'
 import { createHash } from 'node:crypto'
 import { z } from 'zod'
-import type { LanguageModel, EmbeddingModel } from 'ai'
+import { extractReasoningMiddleware, wrapLanguageModel, type LanguageModel, type EmbeddingModel } from 'ai'
+import { reasoningCall, reasoningModelKey, validateReasoningPreset, type ReasonedModel, type ReasoningPreset } from './ai-reasoning.js'
 import type { ProviderType } from './ai-capabilities/contracts.js'
 export type { ProviderType } from './ai-capabilities/contracts.js'
 import { getSystemSetting, setSystemSetting } from '../settings/systemSettings.js'
@@ -49,6 +50,7 @@ export interface ProviderConfig {
   apiKey?: string
   baseUrl?: string
   toolCallingVerified?: true
+  reasoningPreset?: ReasoningPreset
 }
 
 export interface AIConfig {
@@ -144,14 +146,16 @@ export async function setFunctionConfig(fn: AIFunction, providerConfig: Provider
   const config = await getAIConfig()
   const { provider, model, apiKey, baseUrl } = providerConfig
   const connection = await resolveProviderConnection(provider, fn, { apiKey, baseUrl }, config)
-  const next: ProviderConfig = { provider, model, ...connection }
+  const current = config[fn]
+  const sameModel = current?.provider === provider && current.model === model &&
+    current.apiKey === connection.apiKey && current.baseUrl === connection.baseUrl
+  const reasoningPreset = providerConfig.reasoningPreset ?? (sameModel ? current.reasoningPreset : undefined)
+  const next: ProviderConfig = { provider, model, ...connection, ...(reasoningPreset && { reasoningPreset }) }
+  if (providerConfig.reasoningPreset && fn !== 'chat') await validateReasoningPreset(next, fn === 'embeddings')
   if (provider === 'openai-compatible' && fn === 'chat') {
-    const current = config.chat
-    const sameModel = current?.provider === provider && current.model === model &&
-      current.apiKey === next.apiKey && current.baseUrl === next.baseUrl
-    if (sameModel && current.toolCallingVerified) next.toolCallingVerified = true
+    if (sameModel && current.toolCallingVerified && current.reasoningPreset === next.reasoningPreset) next.toolCallingVerified = true
     else {
-      await verifyCompatibleChat(next)
+      await verifyChatTools(next)
       next.toolCallingVerified = true
     }
   }
@@ -415,53 +419,51 @@ export async function getChatModelInstance(): Promise<LanguageModel> {
       'Chat model may not support tool calling')
   }
 
-  const provider = createProviderInstance(config)
-  const modelId = config.model
-
-  // All providers use similar API for language models
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (provider as any)(modelId) as LanguageModel
+  return languageModel(config)
 }
 
-/**
- * Get a text generation model instance for the configured provider
- */
+function languageModel(config: ProviderConfig, ollamaThinking?: boolean): LanguageModel {
+  const provider = createProviderInstance(config)
+  if (config.provider === 'openai-compatible') {
+    const model = (provider as ReturnType<typeof createOpenAICompatible>)(config.model)
+    return wrapLanguageModel({ model, middleware: extractReasoningMiddleware({ tagName: 'think' }) })
+  }
+  if (config.provider === 'ollama' && ollamaThinking !== undefined) {
+    return (provider as ReturnType<typeof createOllama>)(config.model, { think: ollamaThinking })
+  }
+  return (provider as (id: string) => LanguageModel)(config.model)
+}
+
+async function requireLanguageConfig(fn: 'chat' | 'textGeneration' | 'exploration'): Promise<ProviderConfig> {
+  const config = await getFunctionConfig(fn)
+  if (!config) throw new Error(`AI provider for ${fn} is not configured. Please configure it in Settings > AI.`)
+  return config
+}
+
 export async function getTextGenerationModelInstance(): Promise<LanguageModel> {
-  const config = await getFunctionConfig('textGeneration')
-
-  if (!config) {
-    throw new Error(
-      'Text generation provider is not configured. Please configure it in Settings > AI.'
-    )
-  }
-
-  const provider = createProviderInstance(config)
-  const modelId = config.model
-
-  // All providers use similar API for language models
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (provider as any)(modelId) as LanguageModel
+  return languageModel(await requireLanguageConfig('textGeneration'))
 }
 
-/**
- * Get an exploration model instance for the configured provider
- * Used for semantic graph generation from conceptual inputs
- */
 export async function getExplorationModelInstance(): Promise<LanguageModel> {
-  const config = await getFunctionConfig('exploration')
+  return languageModel(await requireLanguageConfig('exploration'))
+}
 
-  if (!config) {
-    throw new Error(
-      'Exploration provider is not configured. Please configure it in Settings > AI.'
-    )
-  }
+export async function getGenerationCall(
+  fn: 'textGeneration' | 'exploration',
+  visibleTokens: number,
+  temperature: number
+) {
+  const config = await requireLanguageConfig(fn)
+  const { options, ollamaThinking } = await reasoningCall(config, visibleTokens, { temperature, quickDefault: true })
+  return { model: languageModel(config, ollamaThinking), ...options }
+}
 
-  const provider = createProviderInstance(config)
-  const modelId = config.model
-
-  // All providers use similar API for language models
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (provider as any)(modelId) as LanguageModel
+export async function getEncoreModel(override?: ReasoningPreset): Promise<ReasonedModel> {
+  const config = await requireLanguageConfig('chat')
+  const { options, preset, ollamaThinking, tokenOverhead } = await reasoningCall(config, 4000, { override, styleFallback: true })
+  if (preset === 'quick') options.maxOutputTokens -= 1500
+  if (preset === 'expanded') options.maxOutputTokens += 1500
+  return { model: languageModel(config, ollamaThinking), options, preset, tokenOverhead, modelKey: reasoningModelKey(config) }
 }
 
 // ============================================================================
@@ -714,17 +716,17 @@ export async function dropLegacyEmbeddingTables(): Promise<void> {
  */
 const verifiedChat = new AsyncCache<true>(5 * 60_000, 40)
 
-async function verifyCompatibleChat(config: ProviderConfig): Promise<true> {
+async function verifyChatTools(config: ProviderConfig): Promise<true> {
   const key = createHash('sha256').update(JSON.stringify(config)).digest('hex')
   return verifiedChat.get(key, async () => {
-    const provider = createProviderInstance(config) as ReturnType<typeof createOpenAICompatible>
+    const { options, ollamaThinking } = await reasoningCall(config, 1024)
     const { streamText, tool } = await import('ai')
     const result = streamText({
-      model: provider(config.model),
+      model: languageModel(config, ollamaThinking),
+      ...options,
       prompt: 'Call aperture_test with status set to ok.',
       tools: { aperture_test: tool({ inputSchema: z.object({ status: z.literal('ok') }) }) },
       toolChoice: 'auto',
-      maxOutputTokens: 1024,
       maxRetries: 0,
       timeout: 90_000,
     })
@@ -740,13 +742,13 @@ export async function testProviderConnection(
   fn: AIFunction
 ): Promise<{ success: boolean; error?: string; embeddingDimensions?: number }> {
   try {
-    if (fn === 'chat' && providerConfig.provider === 'openai-compatible') {
-      await verifyCompatibleChat(providerConfig)
+    if (fn === 'chat') {
+      await verifyChatTools(providerConfig)
       return { success: true }
     }
-    const provider = createProviderInstance(providerConfig)
-
+    await validateReasoningPreset(providerConfig, fn === 'embeddings')
     if (fn === 'embeddings') {
+      const provider = createProviderInstance(providerConfig)
       // Test embedding
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const model = (provider as any).embedding?.(providerConfig.model) ??
@@ -766,16 +768,16 @@ export async function testProviderConnection(
       return { success: true, embeddingDimensions: embedding.length }
     } else {
       // Test chat/text generation
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const model = (provider as any)(providerConfig.model) as LanguageModel
-
-      // Import generateText from ai package
+      const { options, ollamaThinking } = await reasoningCall(providerConfig, 256, { quickDefault: true })
       const { generateText } = await import('ai')
-      await generateText({
-        model,
+      const result = await generateText({
+        model: languageModel(providerConfig, ollamaThinking),
+        ...options,
         prompt: 'Say "ok" and nothing else.',
-        maxOutputTokens: 20,
+        maxRetries: 0,
+        timeout: 90_000,
       })
+      if (!result.text.trim()) throw new Error('The model did not return visible text. Try a quicker preset or a different model.')
     }
 
     return { success: true }

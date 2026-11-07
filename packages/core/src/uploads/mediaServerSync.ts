@@ -55,6 +55,7 @@ export async function pushImageToMediaServer(
     const base64Data = imageBuffer.toString('base64')
 
     const response = await fetch(url, {
+      signal: AbortSignal.timeout(30_000),
       method: 'POST',
       headers: {
         'X-Emby-Authorization': getAuthHeader(apiKey),
@@ -110,6 +111,7 @@ export async function deleteImageFromMediaServer(
     const url = `${provider.baseUrl}/Items/${itemId}/Images/${imageType}`
 
     const response = await fetch(url, {
+      signal: AbortSignal.timeout(30_000),
       method: 'DELETE',
       headers: {
         'X-Emby-Authorization': getAuthHeader(apiKey),

@@ -2,6 +2,8 @@
 export { getEnv, validateEnv, isProduction, isDevelopment, getDatabaseUrl, type Env } from './config/index.js'
 
 // Lib
+export { getNextJobRunAt, DEFAULT_JOB_TIMEZONE } from './jobs/nextRun.js'
+export { WorkQueue } from './lib/workQueue.js'
 export {
   createLogger,
   getLogger,
@@ -23,6 +25,7 @@ export {
   setFunctionConfig,
   getEmbeddingModelInstance,
   getChatModelInstance,
+  getEncoreModel,
   getTextGenerationModelInstance,
   getAICapabilitiesStatus,
   isAIFunctionConfigured,
@@ -1083,3 +1086,9 @@ export {
 export { addEmbyHomePin, EmbyHomeConflict, getEmbyHomeSections, removeEmbyHomePin } from './media/emby/homeSections.js'
 
 export { getEmbyTonight } from './media/emby/tonight.js'
+
+export { reasoningModelKey, reasoningPresets, reasoningPresetSchema, validateReasoningPreset, UnsupportedReasoningPreset, type ReasoningPreset, type ReasonedModel } from './lib/ai-reasoning.js'
+
+export { literalTitlePattern, MIN_TITLE_RELEVANCE, titleRelevance } from './lib/titleSearch.js'
+
+export { findTelevisionGapSeries, inspectTelevisionGaps } from './gap-analysis/television.js'

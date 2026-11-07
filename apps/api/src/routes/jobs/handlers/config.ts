@@ -153,6 +153,7 @@ export async function registerConfigHandlers(fastify: FastifyInstance) {
           await refreshJobSchedule(name)
         } catch (schedErr) {
           logger.error({ err: schedErr, job: name }, 'Failed to refresh job schedule')
+          return reply.status(503).send({ error: 'Schedule saved, but the scheduler could not apply it. Please retry.' })
         }
 
         return reply.send({

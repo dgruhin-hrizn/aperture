@@ -96,6 +96,7 @@ test('real authenticated REST writes validate complete inputs and retain valid p
       assert.equal(url.pathname, '/v1/chat/completions')
       const body = JSON.parse(String(init?.body))
       assert.equal(body.stream, true)
+      assert.equal(body.reasoning_effort, undefined, 'Old compatible endpoints receive no unsupported effort parameter')
       assert.equal(body.tools[0].function.name, 'aperture_test')
       toolProbes++
       const withTools = body.model === 'qwen-tools'
@@ -120,6 +121,24 @@ test('real authenticated REST writes validate complete inputs and retain valid p
     const cloudSave = await app.inject({ method: 'PATCH', url: '/api/settings/ai/chat', headers, payload: { provider: 'openai', model: 'gpt-6.1-sol' } })
     assert.equal(cloudSave.statusCode, 200, cloudSave.body)
     assert.equal(cloudSave.json().config.apiKey, 'fixture-cloud-key')
+    const { recordEncoreUsage } = await import('../lib/encoreUsage.js')
+    const { reasoningModelKey } = await import('@aperture/core')
+    const usage = {
+      inputTokens: 6000, outputTokens: 900, totalTokens: 6900,
+      inputTokenDetails: { cacheReadTokens: 1000, cacheWriteTokens: 1000, noCacheTokens: 4000 },
+      outputTokenDetails: { textTokens: 500, reasoningTokens: 400 },
+    }
+    const chatKey = reasoningModelKey(cloudSave.json().config)
+    await Promise.all([recordEncoreUsage(chatKey, 'expanded', usage), recordEncoreUsage(chatKey, 'expanded', usage)])
+    const pricing = await app.inject({ url: '/api/settings/ai/pricing', headers })
+    assert.equal(pricing.statusCode, 200, pricing.body)
+    assert.equal(pricing.json().chat.inputCostPerMillion, 2)
+    assert.equal(pricing.json().chat.cachedInputCostPerMillion, 0.1)
+    assert.equal(pricing.json().chat.outputCostPerMillion, 10)
+    assert.deepEqual(pricing.json().chatUsage.presets, [
+      { preset: 'expanded', samples: 2, input: 6000, cached: 1000, cacheWrite: 1000, output: 900, reasoning: 400 },
+    ])
+    await pool.query('DELETE FROM encore_usage_daily WHERE model_key = $1', [chatKey])
     const providers = await app.inject({ url: '/api/settings/ai/providers?function=chat', headers })
     assert.ok(providers.json().providers.some((provider: { id: string }) => provider.id === local.provider))
 
@@ -127,14 +146,19 @@ test('real authenticated REST writes validate complete inputs and retain valid p
     assert.deepEqual((await discover('chat')).json().models.map((model: { id: string }) => model.id), ['qwen-tools'])
     assert.deepEqual((await discover('embeddings')).json().models.map((model: { id: string }) => model.id), ['bge'])
     assert.equal((await app.inject({ method: 'POST', url: '/api/settings/ai/models', payload: { ...local, function: 'chat' } })).statusCode, 401)
-    const probe = (model: string) => app.inject({ method: 'POST', url: '/api/settings/ai/test', headers, payload: { ...local, model, function: 'chat' } })
+    const probe = (model: string) => app.inject({ method: 'POST', url: '/api/settings/ai/test', headers, payload: { ...local, model, function: 'chat', reasoningPreset: 'expanded' } })
     assert.equal((await probe('plain-text')).json().success, false)
     const verified = await probe('qwen-tools')
     assert.equal(verified.json().success, true, verified.body)
-    const localSave = await app.inject({ method: 'PATCH', url: '/api/settings/ai/chat', headers, payload: { ...local, model: 'qwen-tools' } })
+    const localSave = await app.inject({ method: 'PATCH', url: '/api/settings/ai/chat', headers, payload: { ...local, model: 'qwen-tools', reasoningPreset: 'expanded' } })
     assert.equal(localSave.statusCode, 200, localSave.body)
     assert.equal(localSave.json().config.baseUrl, 'http://omlx.test:8000/v1')
     assert.equal(localSave.json().config.toolCallingVerified, true)
+    assert.equal(localSave.json().config.reasoningPreset, 'expanded')
+    const features = await app.inject({ url: '/api/settings/ai/features', headers })
+    assert.equal(features.statusCode, 200, features.body)
+    assert.deepEqual(features.json().chat.reasoningPresets, ['quick', 'standard', 'expanded'])
+    assert.equal(features.json().chat.reasoningDefault, 'expanded')
     assert.equal(toolProbes, 2)
     const alternate = await app.inject({ method: 'POST', url: '/api/settings/ai/models', headers, payload: {
       provider: local.provider, function: 'chat', baseUrl: 'http://other-endpoint.test',

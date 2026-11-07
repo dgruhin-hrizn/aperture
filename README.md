@@ -1,6 +1,6 @@
 # Aperture
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/dgruhin-hrizn/aperture/releases)
+[![Version](https://img.shields.io/badge/version-1.0.1-blue.svg)](https://github.com/dgruhin-hrizn/aperture/releases)
 [![Docker Image](https://img.shields.io/badge/docker-ghcr.io%2Fdgruhin--hrizn%2Faperture-blue?logo=docker)](https://github.com/dgruhin-hrizn/aperture/pkgs/container/aperture)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 
@@ -139,12 +139,16 @@ All schedules are configurable in **Admin → Jobs**.
 
 | Job                 | Default Schedule         |
 | ------------------- | ------------------------ |
-| Database Backup     | Daily at 1 AM            |
-| Library Scan        | Daily at 2 AM            |
-| Embeddings          | Daily at 3 AM            |
+| Database Backup     | Daily at 2 AM            |
+| User Sync           | Every 30 minutes         |
+| Movie / TV Catalog  | Every 3 hours at :00 / :10 |
+| Movie / TV Publishing | Every 3 hours at :20 / :30 |
+| Movie / TV Embeddings | Every 6 hours at :10 / :20 |
 | AI Recommendations  | Weekly on Sunday at 4 AM |
 | Top Picks           | Daily at 5 AM            |
-| Watch History       | Every 2 hours            |
+| Movie Watch History | Every 2 hours at :15     |
+| TV Watch History    | Every hour at :05        |
+| Watching / Favorites | Every hour at :45       |
 | Metadata Enrichment | Every 6 hours            |
 
 ---
@@ -153,6 +157,7 @@ All schedules are configurable in **Admin → Jobs**.
 
 | Guide                                  | Description                                                  |
 | -------------------------------------- | ------------------------------------------------------------ |
+| [1.0.1 release notes](docs/release-notes/v1.0.1.md) | Emby stability, accurate job schedules, search, recommendations, and Encore styles |
 | [1.0.0 release notes](docs/release-notes/v1.0.0.md) | Encore, mobile and Home Screen updates, and upgrade notes |
 | [0.7.11 release notes](docs/release-notes/v0.7.11.md) | Emby publishing, recommendation freshness, and upgrade notes |
 | [Admin Guide](docs/admin-guide.md)     | Setup walkthrough, job management, algorithm tuning          |

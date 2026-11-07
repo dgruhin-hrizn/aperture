@@ -192,6 +192,18 @@
       "goToJobs": "Go to Jobs"
     },
     "gaps": {
+      "tv": {
+        "heading": "TV episode gaps",
+        "description": "Check released episodes from TMDb against the files Emby currently has for an imported series. Specials and future episodes are excluded.",
+        "selectSeries": "Search imported TV series",
+        "checking": "Checking the Emby inventory",
+        "checkFailed": "Aperture could not verify the episode inventory. Try again.",
+        "checked": "Verified {{when}}",
+        "none": "No released episode gaps found.",
+        "wholeSeason": "All released episodes missing",
+        "episodeCount_one": "{{count}} missing episode",
+        "episodeCount_other": "{{count}} missing episodes"
+      },
       "pageTitle": "Gap Analysis",
       "pageSubtitle": "Compare TMDB movie collections against your synced library to find missing titles. Requests via Seerr are never automatic — you choose what to request.",
       "errorLoadGapAnalysis": "Failed to load gap analysis",
@@ -550,6 +562,11 @@
         "configWeekly": "Weekly",
         "configInterval": "Interval",
         "configManualOnlyOption": "Manual only",
+        "statusQueued": "Queued",
+        "configMinute": "Minute",
+        "configMinuteHelp": "Minute of the hour (0–59)",
+        "configMinuteError": "Enter a whole minute from 0 to 59.",
+        "configAtMinute": " at :{{minute}}",
         "configTime": "Time",
         "configDayOfWeek": "Day of week",
         "configPreviewManualOnly": "Manual only - this job cannot be scheduled",
@@ -1920,6 +1937,17 @@
     "saveChanges": "Save Changes"
   },
   "settingsCostEstimator": {
+    "priceUnknown": "Price unavailable",
+    "partialEstimate": "Totals include only models with known prices.",
+    "chatStyles": {
+      "title": "Encore cost by response style",
+      "default": "Default",
+      "perReply": "{{cost}} per reply",
+      "measured_one": "1 measured reply · {{tokens}} reasoning tokens per reply",
+      "measured_other": "{{count}} measured replies · {{tokens}} reasoning tokens per reply",
+      "estimated": "Estimated token usage until replies are measured",
+      "official": "OpenAI standard API rates"
+    },
     "loading": "Loading cost data…",
     "configureFirst": "Configure your AI providers above to see cost estimates.",
     "title": "Cost Estimator",
@@ -2746,6 +2774,7 @@
     "tabSeries": "TV Series",
     "lastUpdated": "Last updated: {{when}}",
     "picksFromCandidates": " • {{selected}} picks from {{total}} candidates",
+    "starterHint": "New here? Rate a few favorites highly or add interests in Watcher Identity to seed your next picks.",
     "emptyMovies": "No movie recommendations generated yet. Your personalized picks will appear here once an admin runs the recommendation job.",
     "emptySeries": "No series recommendations generated yet. Your personalized picks will appear here once an admin runs the recommendation job.",
     "watchTrailer": "Watch trailer",
@@ -3862,6 +3891,26 @@
     "forYou": "For you",
     "yourLibrary": "Your library",
     "activity": "Activity"
+  },
+  "reasoningPresets": {
+    "defaultLabel": "Default response style",
+    "replyLabel": "Response style",
+    "forNextReply": "Next reply style: {{preset}}",
+    "useDefault": "Use default ({{preset}})",
+    "styleOnly": "This model uses the response instructions without a separate effort control.",
+    "outputLimit": "Encore ran out of room for this reply. Choose Quick if available, or try a narrower question.",
+    "quick": {
+      "label": "Quick",
+      "description": "Faster replies for simple questions and lookups."
+    },
+    "standard": {
+      "label": "Standard",
+      "description": "A balance of speed and detail for everyday use."
+    },
+    "expanded": {
+      "label": "Expanded",
+      "description": "More time to work through complex requests and comparisons."
+    }
   },
   "encore": {
     "webSearch": "Web search",

@@ -28,10 +28,15 @@
  */
 import type { FastifyInstance } from 'fastify'
 import type { z } from 'zod'
-import type { aiModelDiscoveryBody } from '../../../contracts/bodies/settings.js'
+import type { aiModelConfigBody, aiModelDiscoveryBody } from '../../../contracts/bodies/settings.js'
+import { getEncoreUsage } from '../../../lib/encoreUsage.js'
 import { supportsEncoreWebSearch } from '../../../lib/encoreWebSearch.js'
 import {
   getAIConfig,
+  reasoningPresetSchema,
+  validateReasoningPreset,
+  UnsupportedReasoningPreset,
+  type ReasoningPreset,
   setAIConfig,
   getFunctionConfig,
   setFunctionConfig,
@@ -77,6 +82,8 @@ import {
   refreshAiPricingSchema,
 } from '../schemas.js'
 
+const aiFunctions = ['embeddings', 'chat', 'textGeneration', 'exploration'] as const
+
 export function registerAiConfigHandlers(fastify: FastifyInstance) {
   /**
    * GET /api/settings/ai
@@ -96,34 +103,29 @@ export function registerAiConfigHandlers(fastify: FastifyInstance) {
    * PUT /api/settings/ai
    */
   fastify.put<{
-    Body: {
-      embeddings?: { provider: ProviderType; model: string; apiKey?: string; baseUrl?: string }
-      chat?: { provider: ProviderType; model: string; apiKey?: string; baseUrl?: string }
-      textGeneration?: { provider: ProviderType; model: string; apiKey?: string; baseUrl?: string }
-      exploration?: { provider: ProviderType; model: string; apiKey?: string; baseUrl?: string }
-    }
+    Body: Partial<Record<AIFunction, z.infer<typeof aiModelConfigBody> | null>>
   }>('/api/settings/ai', { preHandler: requireAdmin, schema: { tags: ['settings'] } }, async (request, reply) => {
     try {
-      const currentConfig = await getAIConfig()
-      const updates = request.body
-
-      const newConfig = {
-        embeddings: updates.embeddings
-          ? { ...currentConfig.embeddings, ...updates.embeddings }
-          : currentConfig.embeddings,
-        chat: updates.chat ? { ...currentConfig.chat, ...updates.chat } : currentConfig.chat,
-        textGeneration: updates.textGeneration
-          ? { ...currentConfig.textGeneration, ...updates.textGeneration }
-          : currentConfig.textGeneration,
-        exploration: updates.exploration
-          ? { ...currentConfig.exploration, ...updates.exploration }
-          : currentConfig.exploration,
+      const newConfig = await getAIConfig()
+      for (const fn of aiFunctions) {
+        const patch = request.body[fn]
+        if (!patch) continue
+        const current = newConfig[fn]
+        const merged = { ...current, ...patch }
+        if (current?.provider !== merged.provider || current?.model !== merged.model ||
+          current.baseUrl !== merged.baseUrl || current.apiKey !== merged.apiKey) {
+          merged.reasoningPreset = patch.reasoningPreset
+          delete merged.toolCallingVerified
+        }
+        if (patch.reasoningPreset && fn !== 'chat') await validateReasoningPreset(merged, fn === 'embeddings')
+        newConfig[fn] = merged
       }
 
       await setAIConfig(newConfig)
       const capabilities = await getAICapabilitiesStatus()
       return reply.send({ config: newConfig, capabilities })
     } catch (err) {
+      if (err instanceof UnsupportedReasoningPreset) return reply.code(400).send({ error: err.message })
       fastify.log.error({ err }, 'Failed to update AI config')
       return reply.status(500).send({ error: 'Failed to update AI configuration' })
     }
@@ -147,7 +149,9 @@ export function registerAiConfigHandlers(fastify: FastifyInstance) {
    */
   fastify.get('/api/settings/ai/features', { preHandler: requireAuth, schema: aiFeaturesSchema }, async (_request, reply) => {
     try {
-      const capabilities = await getAICapabilitiesStatus()
+      const [capabilities, chat] = await Promise.all([getAICapabilitiesStatus(), getFunctionConfig('chat')])
+      const presets = chat ? reasoningPresetSchema.options : []
+      const defaultPreset = reasoningPresetSchema.safeParse(chat?.reasoningPreset)
       
       return reply.send({
         embeddings: {
@@ -159,6 +163,8 @@ export function registerAiConfigHandlers(fastify: FastifyInstance) {
           supportsToolCalling: capabilities.chat.capabilities?.supportsToolCalling ?? false,
           supportsStreaming: capabilities.chat.capabilities?.supportsToolStreaming ?? false,
           supportsWebSearch: supportsEncoreWebSearch(capabilities.chat.provider, capabilities.chat.model),
+          reasoningPresets: presets,
+          reasoningDefault: defaultPreset.success ? defaultPreset.data : 'standard',
         },
         textGeneration: {
           configured: capabilities.textGeneration.configured,
@@ -395,7 +401,7 @@ export function registerAiConfigHandlers(fastify: FastifyInstance) {
     try {
       const aiConfig = await getAIConfig()
 
-      const [embeddingsPricing, chatPricing, textGenerationPricing, explorationPricing] = await Promise.all([
+      const [embeddingsPricing, chatPricing, textGenerationPricing, explorationPricing, chatUsage] = await Promise.all([
         aiConfig.embeddings
           ? getPricingForModelAsync(aiConfig.embeddings.provider, aiConfig.embeddings.model, 'embeddings')
           : null,
@@ -408,6 +414,7 @@ export function registerAiConfigHandlers(fastify: FastifyInstance) {
         aiConfig.exploration
           ? getPricingForModelAsync(aiConfig.exploration.provider, aiConfig.exploration.model, 'exploration')
           : null,
+        aiConfig.chat ? getEncoreUsage(aiConfig.chat) : null,
       ])
 
       return reply.send({
@@ -415,6 +422,7 @@ export function registerAiConfigHandlers(fastify: FastifyInstance) {
         chat: chatPricing,
         textGeneration: textGenerationPricing,
         exploration: explorationPricing,
+        chatUsage,
       })
     } catch (err) {
       fastify.log.error({ err }, 'Failed to get AI pricing')
@@ -630,10 +638,11 @@ export function registerAiConfigHandlers(fastify: FastifyInstance) {
       model: string
       apiKey?: string
       baseUrl?: string
+      reasoningPreset?: ReasoningPreset
     }
   }>('/api/settings/ai/test', { preHandler: requireAdmin, schema: testAiProviderSchema }, async (request, reply) => {
     try {
-      const { function: fn, provider, model, apiKey, baseUrl } = request.body
+      const { function: fn, provider, model, apiKey, baseUrl, reasoningPreset } = request.body
 
       if (!fn || !provider || !model) {
         return reply.status(400).send({ error: 'function, provider, and model are required' })
@@ -646,6 +655,7 @@ export function registerAiConfigHandlers(fastify: FastifyInstance) {
           provider: provider as ProviderType,
           model,
           ...connection,
+          reasoningPreset,
         },
         fn as AIFunction
       )
@@ -662,26 +672,20 @@ export function registerAiConfigHandlers(fastify: FastifyInstance) {
    */
   fastify.patch<{
     Params: { function: string }
-    Body: { provider: string; model: string; apiKey?: string; baseUrl?: string }
+    Body: z.infer<typeof aiModelConfigBody>
   }>('/api/settings/ai/:function', { preHandler: requireAdmin, schema: { tags: ['settings'] } }, async (request, reply) => {
     try {
       const fn = request.params.function as AIFunction
-      const { provider, model, apiKey, baseUrl } = request.body
-
       if (!['embeddings', 'chat', 'textGeneration', 'exploration'].includes(fn)) {
         return reply.status(400).send({ error: 'Invalid function. Must be embeddings, chat, textGeneration, or exploration' })
       }
 
-      await setFunctionConfig(fn, {
-        provider: provider as ProviderType,
-        model,
-        apiKey,
-        baseUrl,
-      })
+      await setFunctionConfig(fn, request.body)
 
       const config = await getFunctionConfig(fn)
       return reply.send({ config })
     } catch (err) {
+      if (err instanceof UnsupportedReasoningPreset) return reply.code(400).send({ error: err.message })
       fastify.log.error({ err }, 'Failed to update AI function config')
       return reply.status(500).send({ error: 'Failed to update AI function configuration' })
     }

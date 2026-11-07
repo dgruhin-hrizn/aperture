@@ -11,6 +11,7 @@ import {
   getValidationCacheStats,
   type GraphSource,
 } from '@aperture/core'
+import { withViewerCatalog } from '@aperture/core/encore'
 import { similaritySchemas } from './schemas.js'
 
 const similarityRoutes: FastifyPluginAsync = async (fastify) => {
@@ -43,11 +44,11 @@ const similarityRoutes: FastifyPluginAsync = async (fastify) => {
     try {
       // If depth > 1, return graph data for multi-level view
       if (depth > 1) {
-        const graphData = await getSimilarWithDepth(id, 'movie', { limit, depth, userId: currentUser.id })
+        const graphData = await withViewerCatalog(currentUser.id, () => getSimilarWithDepth(id, 'movie', { limit, depth, userId: currentUser.id }))
         return reply.send(graphData)
       }
       
-      const result = await getSimilarMovies(id, { limit })
+      const result = await withViewerCatalog(currentUser.id, () => getSimilarMovies(id, { limit, userId: currentUser.id }))
       return reply.send(result)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
@@ -82,11 +83,11 @@ const similarityRoutes: FastifyPluginAsync = async (fastify) => {
     try {
       // If depth > 1, return graph data for multi-level view
       if (depth > 1) {
-        const graphData = await getSimilarWithDepth(id, 'series', { limit, depth, userId: currentUser.id })
+        const graphData = await withViewerCatalog(currentUser.id, () => getSimilarWithDepth(id, 'series', { limit, depth, userId: currentUser.id }))
         return reply.send(graphData)
       }
       
-      const result = await getSimilarSeries(id, { limit })
+      const result = await withViewerCatalog(currentUser.id, () => getSimilarSeries(id, { limit, userId: currentUser.id }))
       return reply.send(result)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
@@ -133,14 +134,15 @@ const similarityRoutes: FastifyPluginAsync = async (fastify) => {
     const includeCrossMedia = request.query.crossMedia === 'true'
 
     try {
-      const result = await getGraphForSource(source as GraphSource, currentUser.id, {
+      const result = await withViewerCatalog(currentUser.id, () => getGraphForSource(source as GraphSource, currentUser.id, {
         limit,
         includeCrossMedia,
-      })
+      }))
       return reply.send(result)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
       fastify.log.error({ error, source, userId: currentUser.id }, 'Failed to get graph data')
+      if ((error as { statusCode?: number })?.statusCode === 503) throw error
       return reply.status(500).send({ error: message })
     }
   })
@@ -176,16 +178,17 @@ const similarityRoutes: FastifyPluginAsync = async (fastify) => {
     const hideWatched = hideWatchedStr === 'true'
 
     try {
-      const searchResult = await semanticSearch(searchQuery, {
-        type: searchType,
-        limit,
-        hideWatched,
-        userId: currentUser.id,
+      const { searchResult, graphData } = await withViewerCatalog(currentUser.id, async () => {
+        const searchResult = await semanticSearch(searchQuery, {
+          type: searchType,
+          limit,
+          hideWatched,
+          userId: currentUser.id,
+        })
+        return { searchResult, graphData: returnGraph ? await buildGraphFromSemanticSearch(searchResult) : null }
       })
 
-      if (returnGraph) {
-        // Build graph with connections between results
-        const graphData = await buildGraphFromSemanticSearch(searchResult)
+      if (graphData) {
         return reply.send({
           query: searchResult.query,
           resultCount: searchResult.results.length,
@@ -197,6 +200,7 @@ const similarityRoutes: FastifyPluginAsync = async (fastify) => {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
       fastify.log.error({ error, searchQuery, type }, 'Semantic search failed')
+      if ((error as { statusCode?: number })?.statusCode === 503) throw error
       return reply.status(500).send({ error: message })
     }
   })

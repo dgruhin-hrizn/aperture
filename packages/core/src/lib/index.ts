@@ -22,6 +22,7 @@ export {
   // Model Factory (returns AI SDK model instances)
   getEmbeddingModelInstance,
   getChatModelInstance,
+  getEncoreModel,
   getTextGenerationModelInstance,
   // Capability Checking
   getAICapabilitiesStatus,

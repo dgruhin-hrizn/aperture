@@ -1,7 +1,7 @@
 import { createCurationTools } from './curationTools.js'
 import { asSchema, type ToolSet } from 'ai'
-import { queryOne } from '../lib/db.js'
-import { getCatalogScope } from './access.js'
+import { query, queryOne } from '../lib/db.js'
+import { getCatalogScope, getCatalogScopeForItems } from './access.js'
 import { encoreCatalogScope, type CatalogScope } from './scopedDb.js'
 import { ENCORE_SCOPES, requireEncoreScope, type EncoreScope } from './permissions.js'
 import { createTools } from './tools/index.js'
@@ -129,6 +129,20 @@ export function createEncoreTools(
                     (workScopes[name] && !needsCatalog.has(name))
                   )
                     return execute(args, options)
+                  if (name === 'getContentDetails' && typeof args === 'object' && args &&
+                    'id' in args && typeof args.id === 'string') {
+                    const { rows } = await query<{ provider_item_id: string; type: 'movie' | 'series' }>(
+                      `SELECT provider_item_id, 'movie' AS type FROM movies WHERE id = $1 AND provider_item_id IS NOT NULL
+                       UNION ALL
+                       SELECT provider_item_id, 'series' AS type FROM series WHERE id = $1 AND provider_item_id IS NOT NULL`,
+                      [args.id]
+                    )
+                    const scope = await getCatalogScopeForItems(ctx.userId, {
+                      movieIds: rows.filter((row) => row.type === 'movie').map((row) => row.provider_item_id),
+                      seriesIds: rows.filter((row) => row.type === 'series').map((row) => row.provider_item_id),
+                    }, options.abortSignal)
+                    return encoreCatalogScope.run(scope, () => execute(args, options))
+                  }
                   catalog ??= getCatalogScope(ctx.userId, options.abortSignal).catch((error) => {
                     catalog = undefined
                     throw error

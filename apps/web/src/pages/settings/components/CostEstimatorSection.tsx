@@ -1,5 +1,8 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { FunctionPricing } from '@aperture/core'
+import { ChatCostBreakdown } from './ChatCostBreakdown'
+import { estimateChatStyles, type ChatUsage } from './chatCost'
 import {
   Box,
   Typography,
@@ -31,21 +34,11 @@ import CloudIcon from '@mui/icons-material/Cloud'
 // Types
 // ============================================================================
 
-interface FunctionPricing {
-  provider: string
-  providerName: string
-  model: string
-  modelName: string
-  isLocalProvider: boolean
-  inputCostPerMillion: number
-  outputCostPerMillion: number
-  embeddingDimensions?: number
-}
-
 interface AIPricing {
   embeddings: FunctionPricing | null
   chat: FunctionPricing | null
   textGeneration: FunctionPricing | null
+  chatUsage?: ChatUsage | null
 }
 
 interface UserEstimates {
@@ -105,7 +98,6 @@ const TEXT_GEN = {
   explanation: { input: 500, output: 80 },
   seriesExplanation: { input: 600, output: 80 },
   suggestion: { input: 300, output: 50 },
-  chatMessage: { input: 2000, output: 500 },
 }
 
 // ============================================================================
@@ -193,7 +185,7 @@ export function CostEstimatorSection() {
   // Calculate embedding cost for a given number of items and tokens
   const calculateEmbeddingCost = useCallback(
     (items: number, tokensPerItem: number): number => {
-      if (!pricing?.embeddings || pricing.embeddings.isLocalProvider) return 0
+      if (!pricing?.embeddings || pricing.embeddings.isLocalProvider || pricing.embeddings.priceAvailable === false) return 0
       const tokens = items * tokensPerItem
       return (tokens / 1_000_000) * pricing.embeddings.inputCostPerMillion
     },
@@ -203,24 +195,12 @@ export function CostEstimatorSection() {
   // Calculate text generation cost
   const calculateTextGenCost = useCallback(
     (calls: number, inputTokensPerCall: number, outputTokensPerCall: number): number => {
-      if (!pricing?.textGeneration || pricing.textGeneration.isLocalProvider) return 0
+      if (!pricing?.textGeneration || pricing.textGeneration.isLocalProvider || pricing.textGeneration.priceAvailable === false) return 0
       const inputTokens = calls * inputTokensPerCall
       const outputTokens = calls * outputTokensPerCall
       return (
         (inputTokens / 1_000_000) * pricing.textGeneration.inputCostPerMillion +
         (outputTokens / 1_000_000) * pricing.textGeneration.outputCostPerMillion
-      )
-    },
-    [pricing]
-  )
-
-  // Calculate chat cost
-  const calculateChatCost = useCallback(
-    (messages: number): number => {
-      if (!pricing?.chat || pricing.chat.isLocalProvider) return 0
-      return (
-        (messages * TEXT_GEN.chatMessage.input / 1_000_000) * pricing.chat.inputCostPerMillion +
-        (messages * TEXT_GEN.chatMessage.output / 1_000_000) * pricing.chat.outputCostPerMillion
       )
     },
     [pricing]
@@ -347,13 +327,11 @@ export function CostEstimatorSection() {
     return items
   }, [costInputs, pricing, calculateTextGenCost])
 
-  // Weekly chat costs
-  const weeklyChatCost = useMemo(() => {
-    if (!costInputs || !pricing?.chat) return 0
-    const totalUsers = Math.max(costInputs.movie.enabledUsers, costInputs.series.enabledUsers, 1)
-    const totalMessages = userEstimates.weeklyChatMessagesPerUser * totalUsers
-    return calculateChatCost(totalMessages)
-  }, [costInputs, pricing, userEstimates, calculateChatCost])
+  const chatStyles = estimateChatStyles(pricing?.chat ?? null, pricing?.chatUsage)
+  const totalEnabledUsers = costInputs ? Math.max(costInputs.movie.enabledUsers, costInputs.series.enabledUsers, 1) : 1
+  const weeklyChatCost = userEstimates.weeklyChatMessagesPerUser * totalEnabledUsers *
+    (chatStyles.find((style) => style.isDefault)?.cost ?? 0)
+  const priceUnavailable = [pricing?.embeddings, pricing?.chat, pricing?.textGeneration].some((price) => price?.priceAvailable === false)
 
   // Totals
   const totalOneTimeCost = oneTimeCosts.reduce((sum, item) => sum + item.cost, 0)
@@ -361,10 +339,6 @@ export function CostEstimatorSection() {
   const totalWeeklyTextGenCost = weeklyTextGenCosts.reduce((sum, item) => sum + item.cost, 0)
   const totalWeeklyCost = totalWeeklyEmbeddingCost + totalWeeklyTextGenCost + weeklyChatCost
   const totalMonthlyCost = totalWeeklyCost * 4.33
-
-  const totalEnabledUsers = costInputs
-    ? Math.max(costInputs.movie.enabledUsers, costInputs.series.enabledUsers, 1)
-    : 1
 
   const isAnyLocalProvider =
     pricing?.embeddings?.isLocalProvider ||
@@ -433,6 +407,7 @@ export function CostEstimatorSection() {
                   <Typography variant="caption" color={pricing.embeddings.isLocalProvider ? 'success.main' : 'text.secondary'}>
                     {pricing.embeddings.isLocalProvider
                       ? t('settingsCostEstimator.localFree')
+                      : pricing.embeddings.priceAvailable === false ? t('settingsCostEstimator.priceUnknown')
                       : t('settingsCostEstimator.embedPricePerM', {
                           price: `$${pricing.embeddings.inputCostPerMillion}`,
                         })}
@@ -457,6 +432,7 @@ export function CostEstimatorSection() {
                   <Typography variant="caption" color={pricing.textGeneration.isLocalProvider ? 'success.main' : 'text.secondary'}>
                     {pricing.textGeneration.isLocalProvider
                       ? t('settingsCostEstimator.localFree')
+                      : pricing.textGeneration.priceAvailable === false ? t('settingsCostEstimator.priceUnknown')
                       : t('settingsCostEstimator.textGenPricePerM', {
                           input: `$${pricing.textGeneration.inputCostPerMillion}`,
                           output: `$${pricing.textGeneration.outputCostPerMillion}`,
@@ -482,6 +458,7 @@ export function CostEstimatorSection() {
                   <Typography variant="caption" color={pricing.chat.isLocalProvider ? 'success.main' : 'text.secondary'}>
                     {pricing.chat.isLocalProvider
                       ? t('settingsCostEstimator.localFree')
+                      : pricing.chat.priceAvailable === false ? t('settingsCostEstimator.priceUnknown')
                       : t('settingsCostEstimator.textGenPricePerM', {
                           input: `$${pricing.chat.inputCostPerMillion}`,
                           output: `$${pricing.chat.outputCostPerMillion}`,
@@ -493,6 +470,9 @@ export function CostEstimatorSection() {
           </Box>
         </CardContent>
       </Card>
+
+      {priceUnavailable && <Alert severity="info" sx={{ mb: 2 }}>{t('settingsCostEstimator.partialEstimate')}</Alert>}
+      {pricing.chat && <ChatCostBreakdown estimates={chatStyles} official={pricing.chat.pricingSource === 'openai'} />}
 
       {/* User Estimates Input */}
       <Card variant="outlined" sx={{ mb: 3 }}>
@@ -592,7 +572,7 @@ export function CostEstimatorSection() {
                           {pricing?.embeddings?.isLocalProvider ? (
                             <Chip label={t('settingsCostEstimator.chipLocal')} size="small" color="success" variant="outlined" />
                           ) : (
-                            `$${item.cost.toFixed(2)}`
+                            pricing?.embeddings?.priceAvailable === false ? t('settingsCostEstimator.priceUnknown') : `$${item.cost.toFixed(2)}`
                           )}
                         </TableCell>
                       </TableRow>
@@ -651,7 +631,7 @@ export function CostEstimatorSection() {
                         {pricing?.embeddings?.isLocalProvider ? (
                           <Chip label={t('settingsCostEstimator.chipLocal')} size="small" color="success" variant="outlined" />
                         ) : (
-                          `$${item.cost.toFixed(4)}`
+                          pricing?.embeddings?.priceAvailable === false ? t('settingsCostEstimator.priceUnknown') : `$${item.cost.toFixed(4)}`
                         )}
                       </TableCell>
                     </TableRow>
@@ -666,7 +646,7 @@ export function CostEstimatorSection() {
                         {pricing?.textGeneration?.isLocalProvider ? (
                           <Chip label={t('settingsCostEstimator.chipLocal')} size="small" color="success" variant="outlined" />
                         ) : (
-                          `$${item.cost.toFixed(4)}`
+                          pricing?.textGeneration?.priceAvailable === false ? t('settingsCostEstimator.priceUnknown') : `$${item.cost.toFixed(4)}`
                         )}
                       </TableCell>
                     </TableRow>
@@ -690,7 +670,9 @@ export function CostEstimatorSection() {
                         {pricing.chat.isLocalProvider ? (
                           <Chip label={t('settingsCostEstimator.chipLocal')} size="small" color="success" variant="outlined" />
                         ) : (
-                          `$${weeklyChatCost.toFixed(4)}`
+                          pricing.chat.priceAvailable === false
+                            ? t('settingsCostEstimator.priceUnknown')
+                            : `$${weeklyChatCost.toFixed(4)}`
                         )}
                       </TableCell>
                     </TableRow>

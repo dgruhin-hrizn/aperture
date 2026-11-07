@@ -1,3 +1,5 @@
+import { useModelReasoning } from './useModelReasoning'
+import { ReasoningPresetField } from './ReasoningPresetField'
 /**
  * Shared AI Function Configuration Card
  * Used in both Admin Settings and Setup Wizard
@@ -144,6 +146,9 @@ export function AIFunctionCard({
   const isConfigured = Boolean(config)
   const providerInfo = PROVIDER_INFO[provider]
   const selectedModel = models.find(m => m.id === model)
+  const reasoning = useModelReasoning(!isSetup && functionType !== 'embeddings', functionType, {
+    provider, model, baseUrl, apiKey,
+  }, config)
   const canDiscover = provider === 'openai' || provider === 'openai-compatible'
   const verifiedTools = provider === 'openai-compatible' && functionType === 'chat' &&
     (testResult?.success || (config?.toolCallingVerified && config.provider === provider &&
@@ -254,6 +259,7 @@ export function AIFunctionCard({
           model,
           apiKey: apiKey || undefined,
           baseUrl: baseUrl || undefined,
+          reasoningPreset: reasoning.savedPreset,
         }),
       })
       const data = await res.json()
@@ -271,6 +277,7 @@ export function AIFunctionCard({
       model,
       apiKey: apiKey || undefined,
       baseUrl: baseUrl || undefined,
+      reasoningPreset: reasoning.savedPreset,
     }
     
     setSaving(true)
@@ -686,6 +693,9 @@ export function AIFunctionCard({
             )}
           </Box>
         )}
+
+        <ReasoningPresetField presets={reasoning.presets} preset={reasoning.preset} styleOnly={reasoning.styleOnly}
+          onChange={(preset) => { reasoning.setPreset(preset); setTestResult(null) }} disabled={saving || testing} />
 
         {/* Capability Warnings */}
         {hasCapabilityWarning && provider === 'openai-compatible' ? (

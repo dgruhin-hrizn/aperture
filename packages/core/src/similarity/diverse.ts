@@ -1,6 +1,6 @@
 import { createChildLogger } from '../lib/logger.js'
-import { query, queryOne } from '../lib/db.js'
-import { getExplorationModelInstance } from '../lib/ai-provider.js'
+import { queryWithinCatalog as query, queryOneWithinCatalog as queryOne } from '../encore/scopedDb.js'
+import { getGenerationCall } from '../lib/ai-provider.js'
 import { generateText } from 'ai'
 import type { SimilarityItem } from './index.js'
 import type { ConnectionReason } from './reasons.js'
@@ -94,7 +94,8 @@ export async function validateConnection(
       // If AI validation is enabled and collections seem unrelated, verify with AI
       if (useAI) {
         const aiValidation = await validateWithAI(source, target)
-        // Cache the result
+        // Provider outages and malformed replies are not durable negative judgments.
+        if (!aiValidation) return { isValid: false, reason: 'AI validation unavailable', fromCache: false }
         await cacheValidation(source.id, target.id, source.type, target.type, aiValidation.isValid, aiValidation.reason)
         return { ...aiValidation, fromCache: false }
       }
@@ -191,17 +192,17 @@ function areCollectionsRelated(collection1: string, collection2: string): boolea
 async function validateWithAI(
   source: SimilarityItem,
   target: SimilarityItem
-): Promise<{ isValid: boolean; reason: string }> {
+): Promise<{ isValid: boolean; reason: string } | null> {
   try {
-    const model = await getExplorationModelInstance()
+    const generation = await getGenerationCall('exploration', 50, 0)
 
-    const prompt = `Are these two movies thematically related enough to recommend together?
+    const prompt = `Are these two titles thematically related enough to recommend together?
 
-Movie 1: "${source.title}" (${source.year || 'unknown'})
+${source.type} 1: "${source.title}" (${source.year || 'unknown'})
 - Genres: ${source.genres.join(', ') || 'unknown'}
 - Collection: ${source.collection_name || 'none'}
 
-Movie 2: "${target.title}" (${target.year || 'unknown'})
+${target.type} 2: "${target.title}" (${target.year || 'unknown'})
 - Genres: ${target.genres.join(', ') || 'unknown'}
 - Collection: ${target.collection_name || 'none'}
 
@@ -209,15 +210,13 @@ Answer with ONLY "YES" or "NO" followed by a brief reason (max 10 words).
 Example: "YES - both epic space adventures" or "NO - completely different genres and themes"`
 
     const { text } = await generateText({
-      model,
+      ...generation,
       prompt,
-      maxOutputTokens: 50,
-      temperature: 0,
     })
 
-    const content = text || ''
-    const isValid = content.toUpperCase().startsWith('YES')
-    const reason = content.replace(/^(YES|NO)\s*[-–—:.]?\s*/i, '').trim() || (isValid ? 'AI approved' : 'AI rejected')
+    const parsed = parseValidationReply(text || '')
+    if (!parsed) return null
+    const { isValid, reason } = parsed
 
     logger.info(
       { source: source.title, target: target.title, isValid, reason },
@@ -227,8 +226,17 @@ Example: "YES - both epic space adventures" or "NO - completely different genres
     return { isValid, reason }
   } catch (error) {
     logger.error({ error }, 'AI validation failed, defaulting to reject')
-    return { isValid: false, reason: 'AI validation error' }
+    return null
   }
+}
+
+/** Only explicit model judgments are cacheable. */
+export function parseValidationReply(text: string): { isValid: boolean; reason: string } | null {
+  const content = text.trim().replace(/^```(?:\w+)?\s*\n?/, '').replace(/\s*```$/, '').trim()
+  const match = /^(YES|NO)\b\s*[-–—:.]?\s*(.*)$/is.exec(content)
+  if (!match) return null
+  const isValid = match[1].toUpperCase() === 'YES'
+  return { isValid, reason: match[2].trim() || (isValid ? 'AI approved' : 'AI rejected') }
 }
 
 /**
@@ -241,7 +249,8 @@ async function getCachedValidation(
   // Check both directions (source->target and target->source)
   const result = await queryOne<{ is_valid: boolean; reason: string | null }>(
     `SELECT is_valid, reason FROM similarity_validation_cache
-     WHERE (source_id = $1 AND target_id = $2) OR (source_id = $2 AND target_id = $1)`,
+     WHERE ((source_id = $1 AND target_id = $2) OR (source_id = $2 AND target_id = $1))
+       AND reason IS DISTINCT FROM 'AI validation error'`,
     [sourceId, targetId]
   )
   return result || null
@@ -381,7 +390,7 @@ export async function findDiverseContent(
   )
 
   try {
-    const model = await getExplorationModelInstance()
+    const generation = await getGenerationCall('exploration', 300, 0.7)
 
     const prompt = `Given the ${type} "${centerItem.title}" (${centerItem.year || 'unknown year'}), which has these characteristics:
 - Genres: ${centerItem.genres.join(', ') || 'unknown'}
@@ -399,10 +408,8 @@ Return ONLY the movie titles, one per line, without numbers or explanations.
 Focus on well-known, popular films that are likely to be in a home media library.`
 
     const { text } = await generateText({
-      model,
+      ...generation,
       prompt,
-      maxOutputTokens: 300,
-      temperature: 0.7,
     })
 
     const content = text || ''

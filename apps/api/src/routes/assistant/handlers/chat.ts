@@ -4,13 +4,15 @@ import { Readable } from 'node:stream'
 import type { FastifyInstance } from 'fastify'
 import { ToolLoopAgent, convertToModelMessages, createUIMessageStreamResponse, toUIMessageStream, stepCountIs, type UIMessage } from 'ai'
 import { chatBody as bodySchema } from '../../../contracts/bodies/encore.js'
-import { getChatModelInstance, getEmbeddingModelInstance, getActiveEmbeddingModelId } from '@aperture/core'
+import { getChatModelInstance, getEncoreModel, getEmbeddingModelInstance, getActiveEmbeddingModelId, UnsupportedReasoningPreset, type ReasonedModel } from '@aperture/core'
 import { requireAuth } from '../../../plugins/auth.js'
 import { queryOne } from '../../../lib/db.js'
+import { recordEncoreUsage } from '../../../lib/encoreUsage.js'
 import { getMediaServerInfo, buildSystemPrompt } from '../helpers/index.js'
 import { createEncoreTools, getEncoreToolSchemas, releaseLocalDate } from '@aperture/core/encore'
 import { claimRun, loadMessages, releaseRun, saveMessage } from '../messages.js'
 import { encoreWebSearchTool, supportsEncoreWebSearch, webSearchInstructions } from '../../../lib/encoreWebSearch.js'
+import { ENCORE_MAX_STEPS, encoreBudget, replyStyle, visibleStream } from '../reasoning.js'
 import { encoreModelHistory, finishWithNextReplies, nextRepliesInstruction, suggestNextReplies } from '../nextReplies.js'
 
 export function registerChatHandler(fastify: FastifyInstance, dependencies: { getModel?: typeof getChatModelInstance } = {}) {
@@ -19,7 +21,7 @@ export function registerChatHandler(fastify: FastifyInstance, dependencies: { ge
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid conversation or messages', code: 'INVALID_CHAT' })
     const user = request.user!
     if (!user.isEnabled) return reply.code(403).send({ error: 'This account is disabled' })
-    const { conversationId, messages: incoming, trigger, timezone, webSearch } = parsed.data
+    const { conversationId, messages: incoming, trigger, timezone, webSearch, reasoningPreset } = parsed.data
     if (!await queryOne('SELECT id FROM assistant_conversations WHERE id = $1 AND user_id = $2', [conversationId, user.id]))
       return reply.code(404).send({ error: 'Conversation not found' })
     const runId = randomUUID()
@@ -28,14 +30,22 @@ export function registerChatHandler(fastify: FastifyInstance, dependencies: { ge
     const abort = new AbortController()
     reply.raw.on('close', () => { if (!reply.raw.writableFinished) abort.abort() })
     try {
-      const getModel = dependencies.getModel ?? getChatModelInstance
-      const searchModel = webSearch ? await getModel() : undefined
-      if (webSearch && (typeof searchModel !== 'object' || searchModel.provider !== 'openai.responses'
-        || !supportsEncoreWebSearch('openai', searchModel.modelId))) {
+      const injectedModel = await dependencies.getModel?.()
+      const selection: ReasonedModel = injectedModel
+        ? {
+            model: injectedModel,
+            options: { maxOutputTokens: 4000 },
+            preset: 'standard',
+            modelKey: typeof injectedModel === 'object' ? `${injectedModel.provider}:${injectedModel.modelId}` : injectedModel,
+          }
+        : await getEncoreModel(reasoningPreset)
+      const { model, options, preset, modelKey, tokenOverhead } = selection
+      if (webSearch && (typeof model !== 'object' || model.provider !== 'openai.responses'
+        || !supportsEncoreWebSearch('openai', model.modelId))) {
         await releaseRun(conversationId, runId)
         return reply.code(422).send({ error: 'The configured chat model does not support Encore web search.', code: 'WEB_SEARCH_UNAVAILABLE' })
       }
-      const history = await loadMessages(conversationId)
+      const history = await loadMessages(conversationId, modelKey)
       let originalMessages = history
       let responseId: string = randomUUID()
       if (trigger === 'regenerate-message') {
@@ -59,8 +69,8 @@ export function registerChatHandler(fastify: FastifyInstance, dependencies: { ge
         await saveMessage(conversationId, message)
         originalMessages = existing ? history : [...history, message]
       }
-      const [model, embeddingModel, embeddingModelId, mediaServer, instructions] = await Promise.all([
-        searchModel ?? getModel(), getEmbeddingModelInstance().catch(() => null),
+      const [embeddingModel, embeddingModelId, mediaServer, instructions] = await Promise.all([
+        getEmbeddingModelInstance().catch(() => null),
         getActiveEmbeddingModelId(), getMediaServerInfo(), buildSystemPrompt(user.id, user.isAdmin),
       ])
       const localTools = createEncoreTools({ userId: user.id, timezone, isAdmin: user.isAdmin, embeddingModel,
@@ -68,25 +78,47 @@ export function registerChatHandler(fastify: FastifyInstance, dependencies: { ge
       const chatTools = { ...localTools, suggestNextReplies }
       await getEncoreToolSchemas(chatTools)
       const tools = webSearch ? { ...chatTools, web_search: encoreWebSearchTool } : chatTools
-      const agent = new ToolLoopAgent({ model, tools, instructions: `${instructions}\nToday's date in the user's timezone (${timezone}): ${releaseLocalDate(timezone)}. Interpret relative dates using that timezone.\n${webSearchInstructions[webSearch ? 'enabled' : 'disabled']}\n${nextRepliesInstruction}`,
-        maxOutputTokens: 4000, stopWhen: [stepCountIs(12), finishWithNextReplies],
-        onEnd: ({ totalUsage, steps }) => request.log.info({ runId, usage: totalUsage, steps: steps.length }, 'Encore run completed'),
+      const maxSteps = preset === 'quick' ? 6 : ENCORE_MAX_STEPS
+      const budget = encoreBudget(options.maxOutputTokens, tokenOverhead, maxSteps)
+      const startedAt = Date.now()
+      let firstTextMs: number | undefined
+      const agent = new ToolLoopAgent({ model, tools, instructions: `${instructions}\nToday's date in the user's timezone (${timezone}): ${releaseLocalDate(timezone)}. Interpret relative dates using that timezone.\n${webSearchInstructions[webSearch ? 'enabled' : 'disabled']}\n${nextRepliesInstruction}${replyStyle[preset] ? `\n${replyStyle[preset]}` : ''}`,
+        ...options, maxRetries: 0,
+        prepareStep: budget.prepareStep,
+        onStepEnd: budget.onStepEnd,
+        stopWhen: [stepCountIs(maxSteps), budget.stopWhen, finishWithNextReplies],
+        onEnd: async ({ totalUsage, steps, finishReason }) => {
+          request.log.info({
+            runId, preset, model: typeof model === 'object' ? model.modelId : model,
+            usage: totalUsage, steps: steps.length, finishReason, firstTextMs, elapsedMs: Date.now() - startedAt,
+          }, 'Encore run completed')
+          await recordEncoreUsage(modelKey, preset, totalUsage).catch(error =>
+            request.log.warn({ err: error, runId }, 'Could not record Encore token usage'))
+        },
       })
       const result = await agent.stream({ messages: await convertToModelMessages(limitEncoreContext(encoreModelHistory(originalMessages)), { tools, ignoreIncompleteToolCalls: true }),
         abortSignal: abort.signal, timeout: 180_000 })
-      const stream = toUIMessageStream({ stream: result.stream, tools, originalMessages, sendSources: webSearch,
+      const stream = toUIMessageStream({ stream: result.stream.pipeThrough(new TransformStream({
+        transform(part, controller) {
+          if (part.type === 'text-delta' && firstTextMs === undefined) firstTextMs = Date.now() - startedAt
+          controller.enqueue(part)
+        },
+      })), tools, originalMessages, sendSources: webSearch,
         generateMessageId: () => responseId,
         onError: (error) => { request.log.error({ err: error, runId }, 'Encore stream failed'); return webSearch ? 'Encore could not complete the web-enabled response. Retry, or turn off Web search to continue with library and metadata tools.' : 'Encore could not complete this response. Please retry.' },
         onEnd: async ({ responseMessage }) => {
-          try { await saveMessage(conversationId, responseMessage) }
+          try { await saveMessage(conversationId, responseMessage, modelKey) }
           finally { await releaseRun(conversationId, runId) }
         },
       })
-      const response = createUIMessageStreamResponse({ stream })
+      const response = createUIMessageStreamResponse({ stream: stream.pipeThrough(visibleStream()) })
       response.headers.forEach((value, key) => reply.header(key, value))
       return reply.send(Readable.fromWeb(response.body! as Parameters<typeof Readable.fromWeb>[0]))
     } catch (error) {
       await releaseRun(conversationId, runId)
+      if (error instanceof UnsupportedReasoningPreset) {
+        return reply.code(422).send({ error: error.message, code: 'REASONING_PRESET_UNAVAILABLE' })
+      }
       request.log.error({ err: error, runId }, 'Encore run failed')
       return reply.code(502).send({ error: 'Encore is unavailable. Check the configured chat provider and retry.', code: 'CHAT_UNAVAILABLE' })
     }

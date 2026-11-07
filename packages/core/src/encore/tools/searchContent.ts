@@ -10,21 +10,7 @@ import type { ContentItem } from '../schemas/index.js';
 import type { ToolContext, MovieResult, SeriesResult } from '../types.js';
 import { searchContentTitleKey, formatContentItem } from './shared/search.js';
 
-// Reserve higher scores for exact, article-insensitive and substring title matches.
-// Compare complete words for the fuzzy tier so a fragment inside a word is less likely to match.
-const MIN_TITLE_RELEVANCE = 0.5
-const titleRelevance = `CASE
-  WHEN lower($1) IN (lower(title), lower(original_title)) THEN 4
-  WHEN regexp_replace(lower($1), '^(the|an|a) +', '') IN (
-    regexp_replace(lower(title), '^(the|an|a) +', ''),
-    regexp_replace(lower(original_title), '^(the|an|a) +', '')
-  ) THEN 3
-  WHEN title ILIKE $2 OR original_title ILIKE $2 THEN 2
-  WHEN $1 ~ '[[:alnum:]]{4}' THEN GREATEST(
-    strict_word_similarity($1, title), strict_word_similarity($1, original_title)
-  )
-  ELSE 0
-END`
+import { literalTitlePattern, MIN_TITLE_RELEVANCE, titleRelevance } from '../../lib/titleSearch.js'
 
 export function createSearchContentTool(ctx: ToolContext): ToolSet { return {
 searchContent: tool({
@@ -123,7 +109,7 @@ searchContent: tool({
 
           if (searchQuery) {
             conditions.push(`(title_match.relevance >= ${MIN_TITLE_RELEVANCE} OR overview ILIKE $2)`)
-            values.push(searchQuery, `%${searchQuery.replace(/[\\%_]/g, '\\$&')}%`)
+            values.push(searchQuery, literalTitlePattern(searchQuery))
             idx += 2
           }
           if (genre) {

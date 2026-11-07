@@ -16,6 +16,12 @@ Aperture remembers titles selected for your account, including ones you did not 
 
 Movie picks may also include well-rated films outside your most-watched genres. Shared themes from enriched metadata help rank candidates alongside your viewing history and ratings.
 
+## Similar titles versus AI Picks
+
+Similar Movies and Similar Series start with the title you are viewing. They show semantic neighbors, while AI Picks uses your broader viewing history and preferences. Your Similar “hide watched” option applies to the direct list and title graph, including watched duplicate copies. A show is considered started when at least one episode meets the playback rule. The selected title stays visible in its graph.
+
+Similarity scores measure resemblance between titles; they are not a predicted percentage chance you will enjoy a recommendation. [Curation implementation and limits](../curation-review.md).
+
 ## Page Layout
 
 ### Tabs

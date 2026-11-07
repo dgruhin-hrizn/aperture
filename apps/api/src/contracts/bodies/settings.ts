@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { VALID_EMBEDDING_DIMENSIONS, providerTypeSchema, aiFunctionSchema } from '@aperture/core'
+import { VALID_EMBEDDING_DIMENSIONS, providerTypeSchema, aiFunctionSchema, reasoningPresetSchema } from '@aperture/core'
 
 export const provider = providerTypeSchema
 export const aiFunction = aiFunctionSchema
@@ -9,11 +9,13 @@ export const aiModelDiscoveryBody = z.object({
   apiKey: z.string().trim().min(1).max(10000).optional(),
   baseUrl: z.string().trim().url().max(2000).optional(),
 })
-const model = z.object({
+export const aiModelConfigBody = z.object({
   provider, model: z.string().trim().min(1).max(500),
   apiKey: z.string().max(10000).optional(),
   baseUrl: z.union([z.string().url().max(2000), z.literal('')]).optional(),
+  reasoningPreset: reasoningPresetSchema.optional(),
 })
+export const aiReasoningBody = aiModelConfigBody.omit({ reasoningPreset: true }).extend({ function: aiFunction })
 const count = z.number().int().min(0).max(1000000)
 export const outputModes = z.object({
   moviesOutputMode: z.enum(['library', 'off', 'playlist']).optional(),
@@ -24,12 +26,13 @@ const integration = z.object({ apiKey: z.string().max(10000).optional(), enabled
 
 export const settingsBodies = {
   'PUT /api/settings/ai': z.object({
-    embeddings: model.nullable().optional(), chat: model.nullable().optional(),
-    textGeneration: model.nullable().optional(), exploration: model.nullable().optional(),
+    embeddings: aiModelConfigBody.nullable().optional(), chat: aiModelConfigBody.nullable().optional(),
+    textGeneration: aiModelConfigBody.nullable().optional(), exploration: aiModelConfigBody.nullable().optional(),
   }),
-  'PATCH /api/settings/ai/:function': model,
-  'POST /api/settings/ai/test': model.extend({ function: aiFunction }),
+  'PATCH /api/settings/ai/:function': aiModelConfigBody,
+  'POST /api/settings/ai/test': aiModelConfigBody.extend({ function: aiFunction }),
   'POST /api/settings/ai/models': aiModelDiscoveryBody,
+  'POST /api/settings/ai/reasoning': aiReasoningBody,
   'POST /api/settings/ai/custom-models': z.object({
     provider: z.enum(['ollama', 'openai-compatible', 'openrouter', 'huggingface']),
     function: aiFunction, modelId: z.string().min(1).max(500),

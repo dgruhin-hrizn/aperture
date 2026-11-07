@@ -180,6 +180,9 @@ export function JobCard({
                   }}
                 />
               )}
+              {isRunning && job.progress?.queued && (
+                <Chip size="small" label={t('admin.jobsPage.ui.statusQueued')} />
+              )}
             </Stack>
             <Typography variant="body2" color="text.secondary" mb={1}>
               {job.description}

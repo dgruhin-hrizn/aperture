@@ -1,3 +1,4 @@
+import { getOfficialOpenAIPricing } from './openaiPricing.js'
 import { loadProviders } from './loadProviders.js'
 import type { AIFunction, FunctionPricing, ModelMetadata, ProviderMetadata } from './types.js'
 
@@ -153,19 +154,11 @@ export async function getPricingForModelAsync(
   const model = getModel(providerId, modelId, functionType)
   const isLocalProvider = provider.type === 'self-hosted' || provider.type === 'openai-compatible'
 
-  let inputCostPerMillion = 0
-  let outputCostPerMillion = 0
-
-  if (!isLocalProvider) {
-    const dynamicPricing = await findModelPricing(providerId, modelId)
-    if (dynamicPricing) {
-      inputCostPerMillion = dynamicPricing.inputCostPerMillion
-      outputCostPerMillion = dynamicPricing.outputCostPerMillion
-    } else {
-      inputCostPerMillion = model?.inputCostPerMillion ?? 0
-      outputCostPerMillion = model?.outputCostPerMillion ?? 0
-    }
-  }
+  const official = providerId === 'openai' ? getOfficialOpenAIPricing(modelId) : undefined
+  const dynamicPricing = !isLocalProvider && !official ? await findModelPricing(providerId, modelId) : null
+  const known = official ?? dynamicPricing
+  const hasBundledPrice = model?.inputCostPerMillion !== undefined && model.outputCostPerMillion !== undefined
+  const priceAvailable = isLocalProvider || Boolean(known || hasBundledPrice)
 
   return {
     provider: providerId,
@@ -173,8 +166,10 @@ export async function getPricingForModelAsync(
     model: modelId,
     modelName: model?.name || modelId,
     isLocalProvider,
-    inputCostPerMillion,
-    outputCostPerMillion,
+    priceAvailable,
+    inputCostPerMillion: isLocalProvider ? 0 : known?.inputCostPerMillion ?? model?.inputCostPerMillion ?? 0,
+    outputCostPerMillion: isLocalProvider ? 0 : known?.outputCostPerMillion ?? model?.outputCostPerMillion ?? 0,
+    ...(official ?? (dynamicPricing && { ...dynamicPricing, pricingSource: 'catalog' as const })),
     embeddingDimensions: model?.embeddingDimensions,
   }
 }

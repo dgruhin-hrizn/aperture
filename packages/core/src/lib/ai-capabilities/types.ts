@@ -3,6 +3,7 @@ export interface ModelCapabilities {
   supportsToolStreaming: boolean
   supportsObjectGeneration: boolean
   supportsEmbeddings: boolean
+  reasoning?: { levels: Array<string | boolean>; defaultLevel?: string | boolean }
 }
 
 export interface ModelMetadata {
@@ -56,5 +57,9 @@ export interface FunctionPricing {
   isLocalProvider: boolean
   inputCostPerMillion: number
   outputCostPerMillion: number
+  cachedInputCostPerMillion?: number
+  cacheWriteCostPerMillion?: number
+  priceAvailable?: boolean
+  pricingSource?: 'openai' | 'catalog'
   embeddingDimensions?: number
 }

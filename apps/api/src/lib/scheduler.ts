@@ -13,6 +13,8 @@ import {
   scheduleToCron,
   formatSchedule,
   type JobConfig,
+  getNextJobRunAt,
+  DEFAULT_JOB_TIMEZONE,
 } from '@aperture/core'
 
 const logger = createChildLogger('scheduler')
@@ -22,6 +24,8 @@ interface ScheduledJob {
   task: ScheduledTask
   cronExpression: string
   schedule: string // Human-readable
+  config: JobConfig
+  timeZone: string
 }
 let encoreTask: ScheduledTask | null = null
 let encoreBusy=false
@@ -43,6 +47,7 @@ export function setJobExecutor(executor: (jobName: string) => Promise<void>): vo
 function scheduleJob(config: JobConfig): void {
   const cronExpression = scheduleToCron(config)
   const humanSchedule = formatSchedule(config)
+  const timeZone = process.env.TZ || DEFAULT_JOB_TIMEZONE
   
   // Stop existing task if any
   const existingJob = scheduledTasks.get(config.jobName)
@@ -79,7 +84,7 @@ function scheduleJob(config: JobConfig): void {
       logger.error({ err, job: config.jobName }, `❌ Scheduled job failed: ${config.jobName}`)
     }
   }, {
-    timezone: process.env.TZ || 'America/New_York',
+    timezone: timeZone,
     scheduled: true,
   })
 
@@ -87,6 +92,8 @@ function scheduleJob(config: JobConfig): void {
     task,
     cronExpression,
     schedule: humanSchedule,
+    config: { ...config },
+    timeZone,
   })
   logger.info({ job: config.jobName, cron: cronExpression, schedule: humanSchedule }, `📅 Job scheduled: ${config.jobName} (${humanSchedule})`)
 }
@@ -192,17 +199,30 @@ export function stopScheduler(): void {
  */
 export function getSchedulerStatus(): {
   isRunning: boolean
-  scheduledJobs: Array<{ jobName: string; cronExpression: string; schedule: string }>
+  timeZone: string
+  scheduledJobs: Array<{ jobName: string; cronExpression: string; schedule: string; nextRunAt: string | null; timeZone: string }>
 } {
   const scheduledJobs = Array.from(scheduledTasks.entries()).map(([jobName, job]) => ({
     jobName,
     cronExpression: job.cronExpression,
     schedule: job.schedule,
+    nextRunAt: getNextJobRunAt(job.config, new Date(), job.timeZone),
+    timeZone: job.timeZone,
   }))
 
   return {
     isRunning: scheduledTasks.size > 0,
+    timeZone: process.env.TZ || DEFAULT_JOB_TIMEZONE,
     scheduledJobs,
+  }
+}
+
+export function getScheduledJobTiming(jobName: string, now = new Date()) {
+  const job = scheduledTasks.get(jobName)
+  return {
+    nextRunAt: job ? getNextJobRunAt(job.config, now, job.timeZone) : null,
+    timeZone: job?.timeZone ?? (process.env.TZ || DEFAULT_JOB_TIMEZONE),
+    cronExpression: job?.cronExpression ?? null,
   }
 }
 

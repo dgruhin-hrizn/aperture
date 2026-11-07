@@ -5,8 +5,10 @@ import Fastify from 'fastify'
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio'
 import { MockEmbeddingModelV3 } from 'ai/test'
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
-import { closePool, getPool, runMigrations, getActiveEmbeddingTableName, getCurrentEmbeddingDimensions } from '@aperture/core'
+import { closePool, getPool, runMigrations, getActiveEmbeddingTableName, getActiveEmbeddingModelId, getCurrentEmbeddingDimensions } from '@aperture/core'
 import { createEncoreConnection, hashEncoreToken, createEncoreContext, createEncoreTools, ENCORE_SCOPES } from '@aperture/core/encore'
+import searchRoutes from '../search/index.js'
+import similarityRoutes from '../similarity/index.js'
 import { registerMcpHandler } from './mcp/http.js'
 import { registerConnectionHandlers } from './handlers/connections.js'
 
@@ -21,6 +23,11 @@ test('real PostgreSQL and MCP HTTP enforce per-user catalogs, scopes, expiry and
   const movieA = `${prefix}-a`, movieB = `${prefix}-b`
   const movieC = `${prefix}-c`
   const housemaid = `${prefix}-housemaid`, overviewMatch = `${prefix}-overview`, series = `${prefix}-series`
+  let exactReads = 0
+  let fullCatalogReads = 0
+  let allowA = true
+  let includeShortlistFallback = false
+  let fixtureEmbedding: number[] | undefined
   let visibleExtra = false
   let visibleSearchFixtures = false
   const accountA = `${prefix}-alice`, accountB = `${prefix}-bob`
@@ -29,24 +36,36 @@ test('real PostgreSQL and MCP HTTP enforce per-user catalogs, scopes, expiry and
   for (const [key, value] of [['media_server_type', 'emby'], ['media_server_base_url', 'http://encore-emby.test'], ['media_server_api_key', 'fixture-admin']]) await pool.query('INSERT INTO system_settings(key,value) VALUES ($1,$2) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value', [key, value])
   globalThis.fetch = async (input, init) => {
     const url = new URL(String(input instanceof Request ? input.url : input))
+    if (url.origin === 'http://127.0.0.1:1' && url.pathname.endsWith('/embeddings') && fixtureEmbedding) {
+      return Response.json({ object: 'list', model: 'text-embedding-3-large',
+        data: [{ object: 'embedding', index: 0, embedding: fixtureEmbedding }],
+        usage: { prompt_tokens: 1, total_tokens: 1 } })
+    }
     if (url.origin !== 'http://encore-emby.test') return originalFetch(input, init)
     const isA = url.pathname.includes(accountA)
     assert.ok(isA || url.pathname.includes(accountB), url.pathname)
     assert.equal(new Headers(init?.headers).get('X-Emby-Token'), isA ? 'token-a' : 'token-b')
+    const ids = url.searchParams.get('Ids')?.split(',')
+    if (ids) exactReads++
+    else fullCatalogReads++
     const items = [
-      { Id: isA ? movieA : movieB, Type: 'Movie' },
+      ...(!isA || allowA ? [{ Id: isA ? movieA : movieB, Type: 'Movie' }] : []),
+      ...(isA && includeShortlistFallback ? [{ Id: `${prefix}-shortlist-visible`, Type: 'Movie' }] : []),
       ...(isA && visibleExtra ? [{ Id: movieC, Type: 'Movie' }] : []),
       ...(isA && visibleSearchFixtures
         ? [{ Id: housemaid, Type: 'Movie' }, { Id: overviewMatch, Type: 'Movie' }, { Id: series, Type: 'Series' }]
         : []),
     ]
-    return Response.json({ Items: items, TotalRecordCount: items.length })
+    const filtered = ids ? items.filter((item) => ids.includes(item.Id)) : items
+    return Response.json({ Items: filtered, TotalRecordCount: filtered.length })
   }
-  const server = Fastify()
+  const server = Fastify({ ajv: { customOptions: { strict: false } } })
   server.addHook('onRequest', async (request) => {
-    if (request.url.startsWith('/api/assistant/connections')) request.user = { id: request.headers['x-fixture-other'] ? b : a, username: 'fixture', displayName: null, provider: 'emby', providerUserId: '', isAdmin: false, isEnabled: true, canManageWatchHistory: false, avatarUrl: null }
+    if (request.url.startsWith('/api/')) request.user = { id: request.headers['x-fixture-other'] ? b : a, username: 'fixture', displayName: null, provider: 'emby', providerUserId: '', isAdmin: false, isEnabled: true, canManageWatchHistory: false, avatarUrl: null }
   })
   registerMcpHandler(server); registerConnectionHandlers(server)
+  await server.register(searchRoutes)
+  await server.register(similarityRoutes)
   const url = await server.listen({ port: 0, host: '127.0.0.1' })
   const { token, connection } = await createEncoreConnection(a, 'Fixture client', ['library:read', 'profile:read'], 1)
   const client = new Client({ name: 'encore-integration-test', version: '1' })
@@ -98,6 +117,51 @@ test('real PostgreSQL and MCP HTTP enforce per-user catalogs, scopes, expiry and
     const lessRelevant = [0.8, 0.6, ...Array(dimensions - 2).fill(0)]
     const rows = await pool.query('SELECT id, provider_item_id FROM movies WHERE provider_item_id = ANY($1)', [[movieA, movieB, movieC]])
     for (const row of rows.rows) await pool.query(`INSERT INTO ${table}(movie_id, model, embedding) VALUES ($1, 'fixture:similarity', $2::halfvec)`, [row.id, JSON.stringify(row.provider_item_id === movieA ? lessRelevant : q)])
+    const movieAId = rows.rows.find((row) => row.provider_item_id === movieA)!.id as string
+    const movieBId = rows.rows.find((row) => row.provider_item_id === movieB)!.id as string
+    const model = await getActiveEmbeddingModelId()
+    for (const row of rows.rows) await pool.query(
+      `INSERT INTO ${table}(movie_id, model, embedding) VALUES ($1, $2, $3::halfvec)`,
+      [row.id, model, JSON.stringify(row.provider_item_id === movieA ? lessRelevant : q)]
+    )
+    const queryRoute = async (path: string, other = false) => {
+      const response = await server.inject({ method: 'GET', url: path, headers: other ? { 'x-fixture-other': 'true' } : {} })
+      assert.equal(response.statusCode, 200, response.body)
+      return response.json()
+    }
+    await pool.query("UPDATE movies SET title = 'Mission: Impossible' WHERE id = $1", [movieAId])
+    const scansBeforeTitle = fullCatalogReads
+    const idsBeforeTitle = exactReads
+    assert.equal((await queryRoute('/api/search?q=Mission%3A%20Impossible')).results[0].id, movieAId)
+    assert.deepEqual((await queryRoute('/api/search/suggestions?q=Private%20fixture')).suggestions, [])
+    assert.equal((await queryRoute('/api/search/suggestions?q=Private%20fixture', true)).suggestions[0].title, 'Private fixture film')
+    assert.equal(fullCatalogReads, scansBeforeTitle)
+    assert.ok(exactReads > idsBeforeTitle)
+    includeShortlistFallback = true
+    await pool.query("INSERT INTO movies(provider_item_id,title) SELECT $1 || n, 'Shortlist Fixture ' || n FROM generate_series(1,21) n", [`${prefix}-shortlist-private-`])
+    await pool.query("INSERT INTO movies(provider_item_id,title) VALUES ($1,'Shortlist Fixture Z')", [`${prefix}-shortlist-visible`])
+    assert.equal((await queryRoute('/api/search/suggestions?q=Shortlist%20Fixture&limit=1')).suggestions[0].title, 'Shortlist Fixture Z')
+    assert.equal(fullCatalogReads, scansBeforeTitle + 1)
+    includeShortlistFallback = false
+    assert.deepEqual((await queryRoute('/api/search/filters')).genres, [{ name: 'Drama', count: 2 }])
+    assert.equal((await server.inject({ url: `/api/similarity/movie/${movieBId}` })).statusCode, 404)
+    assert.doesNotMatch(JSON.stringify(await queryRoute(`/api/similarity/movie/${movieAId}?depth=2`)), /Private fixture film/)
+    fixtureEmbedding = q
+    const hybrid = await queryRoute('/api/search?q=unrelated%20concept&semantic=true&genre=Drama')
+    assert.ok(hybrid.results.some((row: { title: string }) => row.title === 'Quiet Signal'))
+    assert.doesNotMatch(JSON.stringify(hybrid), /Private fixture film/)
+
+    const beforeExact = exactReads
+    const beforeFull = fullCatalogReads
+    const details = await client.callTool({ name: 'getContentDetails', arguments: { id: movieAId } })
+    assert.match(JSON.stringify(details), /Mission: Impossible/)
+    assert.equal(exactReads, beforeExact + 1)
+    assert.equal(fullCatalogReads, beforeFull)
+    allowA = false
+    assert.deepEqual((await queryRoute('/api/search?q=Mission%3A%20Impossible')).results, [])
+    allowA = true
+    await pool.query("UPDATE movies SET title = '1917' WHERE id = $1", [movieAId])
+
     const context = await createEncoreContext(a)
     context.embeddingModel = new MockEmbeddingModelV3({ doEmbed: async () => ({ embeddings: [q], warnings: [] }) })
     context.embeddingModelId = 'fixture:similarity'
@@ -149,7 +213,7 @@ test('real PostgreSQL and MCP HTTP enforce per-user catalogs, scopes, expiry and
   } finally {
     await client.close(); await server.close(); globalThis.fetch = originalFetch
     await pool.query("DELETE FROM system_settings WHERE key = 'ai_config'")
-    await pool.query('DELETE FROM movies WHERE provider_item_id = ANY($1)', [[movieA, movieB, movieC, housemaid, overviewMatch]])
+    await pool.query('DELETE FROM movies WHERE provider_item_id = ANY($1) OR provider_item_id LIKE $2', [[movieA, movieB, movieC, housemaid, overviewMatch], `${prefix}-shortlist-%`])
     await pool.query('DELETE FROM series WHERE provider_item_id = $1', [series])
     await pool.query('DELETE FROM users WHERE id = ANY($1::uuid[])', [[a, b]])
     await closePool()

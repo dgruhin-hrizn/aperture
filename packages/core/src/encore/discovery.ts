@@ -2,7 +2,8 @@ import { tmdbRequest, getImageUrl } from '../tmdb/client.js'
 import { searchPersonByName, getPersonCombinedCredits } from '../tmdb/person.js'
 import { query } from '../lib/db.js'
 import { getTMDbApiKey } from '../settings/systemSettings.js'
-import { getCatalogScope } from './access.js'
+import { getCatalogScopeForItems } from './access.js'
+import { encoreCatalogScope, query as scopedQuery } from './scopedDb.js'
 import type { ContentItem } from './schemas/contentItem.js'
 import { contentOverviewExcerpt } from './tools/shared/search.js'
 
@@ -48,22 +49,23 @@ export async function discoverEncoreTitles(
     { timeoutMs: 8000, maxRetries: 1 }
   )
   if (!result) throw new Error('TMDb discovery is temporarily unavailable')
-  let scope: Awaited<ReturnType<typeof getCatalogScope>> | null = null
-  try {
-    scope = await getCatalogScope(userId)
-  } catch {
-    /* Public discovery remains available; never claim unverified local availability. */
-  }
-  const ids = result.results
-    .filter((r) => !r.adult)
-    .slice(0, input.limit)
-    .map((r) => String(r.id))
-  const local = scope
-    ? await query<{ id: string; tmdb_id: string; provider_item_id: string }>(
-        `SELECT id, tmdb_id, provider_item_id FROM ${input.type === 'movie' ? 'movies' : 'series'} WHERE tmdb_id = ANY($1::text[]) AND provider_item_id = ANY($2::text[])`,
-        [ids, input.type === 'movie' ? scope.movieIds : scope.seriesIds]
-      )
-    : { rows: [] }
+  const ids = result.results.filter((r) => !r.adult).slice(0, input.limit).map((r) => String(r.id))
+  const isMovie = input.type === 'movie'
+  const table = isMovie ? 'movies' : 'series'
+  const candidates = await query<{ provider_item_id: string }>(
+    `SELECT provider_item_id FROM ${table} WHERE tmdb_id = ANY($1::text[]) AND provider_item_id IS NOT NULL`,
+    [ids]
+  )
+  const providerIds = candidates.rows.map((row) => row.provider_item_id)
+  const scope = await getCatalogScopeForItems(userId, {
+    movieIds: isMovie ? providerIds : [], seriesIds: isMovie ? [] : providerIds,
+  }).catch(() => null)
+  // Public discovery can continue during a media server outage.
+  const local = scope ? await encoreCatalogScope.run(scope, () =>
+    scopedQuery<{ id: string; tmdb_id: string }>(
+      `SELECT id, tmdb_id FROM ${table} WHERE tmdb_id = ANY($1::text[]) ORDER BY id`, [ids]
+    )
+  ) : { rows: [] }
   const today = new Date().toISOString().slice(0, 10)
   const items: ContentItem[] = result.results
     .filter((r) => !r.adult)

@@ -205,7 +205,12 @@ export async function getPricingData(): Promise<HeliconeModelPricing[]> {
 export async function findModelPricing(
   provider: string,
   modelId: string
-): Promise<{ inputCostPerMillion: number; outputCostPerMillion: number } | null> {
+): Promise<{
+  inputCostPerMillion: number
+  outputCostPerMillion: number
+  cachedInputCostPerMillion?: number
+  cacheWriteCostPerMillion?: number
+} | null> {
   // Self-hosted providers have no API costs
   if (provider === 'ollama' || provider === 'openai-compatible') {
     return { inputCostPerMillion: 0, outputCostPerMillion: 0 }
@@ -230,21 +235,21 @@ export async function findModelPricing(
     for (const pattern of modelPatterns) {
       // Find matching entries
       const matches = pricingData.filter((entry) => {
-        if (entry.provider !== heliconeProvider) return false
+        if (entry.provider !== heliconeProvider || !Number.isFinite(entry.input_cost_per_1m) ||
+          !Number.isFinite(entry.output_cost_per_1m)) return false
 
         switch (entry.operator) {
           case 'equals':
             return entry.model === pattern || entry.model.toLowerCase() === pattern.toLowerCase()
           case 'startsWith':
-            return (
-              pattern.startsWith(entry.model) ||
-              pattern.toLowerCase().startsWith(entry.model.toLowerCase())
-            )
+            if (provider === 'openai') {
+              const suffix = pattern.toLowerCase().slice(entry.model.length)
+              return pattern.toLowerCase().startsWith(entry.model.toLowerCase()) &&
+                (suffix === '' || /^-\d{4}-\d{2}-\d{2}$/.test(suffix))
+            }
+            return pattern.toLowerCase().startsWith(entry.model.toLowerCase())
           case 'includes':
-            return (
-              pattern.includes(entry.model) ||
-              pattern.toLowerCase().includes(entry.model.toLowerCase())
-            )
+            return provider !== 'openai' && pattern.toLowerCase().includes(entry.model.toLowerCase())
           default:
             return entry.model === pattern
         }
@@ -258,12 +263,16 @@ export async function findModelPricing(
         return {
           inputCostPerMillion: match.input_cost_per_1m,
           outputCostPerMillion: match.output_cost_per_1m,
+          cachedInputCostPerMillion: match.prompt_cache_read_per_1m,
+          cacheWriteCostPerMillion: match.prompt_cache_write_per_1m,
         }
       }
     }
   }
 
-  // Try fuzzy matching as fallback
+  if (provider === 'openai') return null
+
+  // Try fuzzy matching as fallback for other providers
   for (const heliconeProvider of heliconeProviders) {
     const providerEntries = pricingData.filter((e) => e.provider === heliconeProvider)
 

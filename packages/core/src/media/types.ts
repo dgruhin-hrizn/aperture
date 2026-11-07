@@ -201,6 +201,7 @@ export interface Episode {
   seriesName: string
   seasonNumber: number
   episodeNumber: number
+  episodeNumberEnd?: number
   name: string
   overview?: string
   premiereDate?: string

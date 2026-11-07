@@ -57,14 +57,12 @@ export async function fetchParallel<T>(
  * 
  * @param fetchFn Function to fetch a page of episodes
  * @param totalCount Total number of episodes to process
- * @param pageSize Number of episodes per API request
  * @param processBatch Function to process a batch of episodes
  * @param onProgress Optional progress callback
  */
 export async function streamingBatchProcess<T>(
-  fetchFn: (startIndex: number, limit: number) => Promise<{ items: T[]; totalRecordCount: number }>,
+  fetchFn: (startIndex: number) => Promise<{ items: T[] }>,
   totalCount: number,
-  pageSize: number,
   processBatch: (items: T[]) => Promise<{ added: number; updated: number }>,
   onProgress?: (processed: number, added: number, updated: number) => void
 ): Promise<{ totalProcessed: number; totalAdded: number; totalUpdated: number }> {
@@ -77,7 +75,7 @@ export async function streamingBatchProcess<T>(
   // For very large libraries, this trades some speed for reliability
   while (startIndex < totalCount) {
     // Fetch a single page
-    const { items } = await fetchFn(startIndex, pageSize)
+    const { items } = await fetchFn(startIndex)
     
     if (items.length === 0) {
       break

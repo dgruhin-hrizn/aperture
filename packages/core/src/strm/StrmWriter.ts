@@ -66,6 +66,7 @@ import { getAiRecsOutputConfig } from '../settings/systemSettings.js'
 import { getSeriesRecommendationGroups } from '../recommender/series/groups.js'
 import { getMediaServerProvider } from '../media/index.js'
 import { cleanupRetiredSeriesOutputs, reconcileStaleStrmLibraries } from './cleanup.js'
+import { acknowledgeOutputRefresh } from './incrementalOutput.js'
 
 const logger = createChildLogger('strm-writer')
 
@@ -152,7 +153,10 @@ export async function processStrmForAllUsers(
         // Skip further processing if no recommendations
         if (strmResult.written === 0) {
           if (strmResult.withheldReason) addLog(actualJobId, 'warn', strmResult.withheldReason)
-          await refreshUserLibrary(user.id)
+          if (strmResult.needsRefresh) {
+            await refreshUserLibrary(user.id)
+            await acknowledgeOutputRefresh(strmResult.localPath, strmResult.revision)
+          }
           addLog(actualJobId, 'info', `⏭️ No recommendations for ${displayName}`)
           userResults.push({
             userId: user.id,
@@ -169,9 +173,12 @@ export async function processStrmForAllUsers(
         }
 
         const libraryResult = await ensureUserLibrary(user.id, user.provider_user_id, displayName)
-        // Refresh library to pick up new STRM files
-        await refreshUserLibrary(user.id)
-        addLog(actualJobId, 'debug', `  🔄 Library refreshed`)
+        // Unchanged output does not need another Emby scan. Pending refreshes
+        // remain recorded until the server accepts one successfully.
+        if (strmResult.needsRefresh || libraryResult.created) {
+          await refreshUserLibrary(user.id)
+          await acknowledgeOutputRefresh(strmResult.localPath, strmResult.revision)
+        }
 
         // Step 4: Update user permissions to grant access to the library
         await updateUserLibraryPermissions(user.id, user.provider_user_id)
@@ -332,13 +339,19 @@ export async function processSeriesStrmForAllUsers(
               if (strmResult.withheldReason) {
                 addLog(actualJobId, 'warn', `${displayName}: ${strmResult.withheldReason}`)
               }
-              await refreshUserSeriesLibrary(user.id, groupId)
+              if (strmResult.needsRefresh) {
+                await refreshUserSeriesLibrary(user.id, groupId)
+                await acknowledgeOutputRefresh(strmResult.localPath, strmResult.revision)
+              }
               continue
             }
 
             const library = await ensureUserSeriesLibrary(user.id, user.provider_user_id, displayName, group)
             await updateUserSeriesLibraryPermissions(user.id, user.provider_user_id, groupId)
-            await refreshUserSeriesLibrary(user.id, groupId)
+            if (strmResult.needsRefresh || library.created) {
+              await refreshUserSeriesLibrary(user.id, groupId)
+              await acknowledgeOutputRefresh(strmResult.localPath, strmResult.revision)
+            }
             recommendationCount += strmResult.seriesCount
             libraryCreated ||= library.created
             libraryNames.push(library.name)

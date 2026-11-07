@@ -37,14 +37,42 @@ import {
   syncUsersFromMediaServer,
   createChildLogger,
   runLibraryGapAnalysis,
+  getMediaServerProvider,
 } from '@aperture/core'
 import { syncAllTraktRatings } from '../trakt/index.js'
 import { refreshAssistantSuggestions } from '../assistant/jobs/refreshSuggestions.js'
 import { activeJobs } from './state.js'
+import { EMBY_HEAVY_JOBS, runEmbyJob } from '../../lib/mediaServerJobs.js'
 
 const logger = createChildLogger('jobs-executor')
 
 export async function runJob(name: string, jobId: string): Promise<void> {
+  try {
+    await runQueuedJob(name, jobId)
+  } catch (err) {
+    if (!getJobProgress(jobId)) createJobProgress(jobId, name, 1)
+    if (getJobProgress(jobId)?.status === 'running') failJob(jobId, err instanceof Error ? err.message : 'Unknown error')
+    throw err
+  } finally {
+    if (activeJobs.get(name) === jobId) activeJobs.delete(name)
+  }
+}
+
+async function runQueuedJob(name: string, jobId: string): Promise<void> {
+  if (EMBY_HEAVY_JOBS.has(name) && (await getMediaServerProvider()).type === 'emby') {
+    const registered = activeJobs.get(name) === jobId
+    createJobProgress(jobId, name, 1)
+    setJobStep(jobId, 0, 'Waiting for other Emby work to finish')
+    await runEmbyJob(
+      () => executeJob(name, jobId),
+      () => isJobCancelled(jobId) || (registered && activeJobs.get(name) !== jobId)
+    )
+    return
+  }
+  await executeJob(name, jobId)
+}
+
+async function executeJob(name: string, jobId: string): Promise<void> {
   const startTime = Date.now()
 
   try {
@@ -487,7 +515,5 @@ export async function runJob(name: string, jobId: string): Promise<void> {
     logger.error({ job: name, jobId, err }, `❌ Job failed: ${name}`)
     failJob(jobId, error)
     throw err
-  } finally {
-    activeJobs.delete(name)
   }
 }
