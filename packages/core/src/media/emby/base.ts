@@ -2,6 +2,7 @@
  * Emby Provider Base
  */
 
+import { WorkQueue } from '../../lib/workQueue.js'
 import { createChildLogger } from '../../lib/logger.js'
 import {
   EMBY_FETCH_TIMEOUT_MS,
@@ -13,6 +14,7 @@ import {
 } from './fetchHelpers.js'
 
 export const logger = createChildLogger('emby-provider')
+const requests = new Map<string, WorkQueue>()
 
 export class EmbyProviderBase {
   readonly type = 'emby' as const
@@ -21,6 +23,7 @@ export class EmbyProviderBase {
   protected readonly deviceId = 'aperture-server'
   protected readonly deviceName = 'Aperture Server'
   protected readonly clientVersion = '1.0.0'
+  protected readonly requestTimeoutMs: number = EMBY_FETCH_TIMEOUT_MS
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl.replace(/\/$/, '')
@@ -31,68 +34,55 @@ export class EmbyProviderBase {
   }
 
   async fetch<T>(endpoint: string, apiKey: string, options: RequestInit = {}): Promise<T> {
+    let queue = requests.get(this.baseUrl)
+    if (!queue) {
+      queue = new WorkQueue(4)
+      requests.set(this.baseUrl, queue)
+    }
+    return queue.run(() => this.fetchResponse<T>(endpoint, apiKey, options))
+  }
+
+  private async fetchResponse<T>(endpoint: string, apiKey: string, options: RequestInit): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`
     const headers: Record<string, string> = {
       'X-Emby-Authorization': this.getAuthHeader(apiKey),
       'Content-Type': 'application/json',
       ...((options.headers as Record<string, string>) || {}),
     }
-
-    logger.debug({ method: options.method || 'GET', url }, '📡 Emby API Request')
-
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), EMBY_FETCH_TIMEOUT_MS)
-
+    const timeoutId = setTimeout(() => controller.abort(), this.requestTimeoutMs)
+    const signal = options.signal
+      ? AbortSignal.any([controller.signal, options.signal])
+      : controller.signal
     const startTime = Date.now()
-    let response: Response
+    logger.debug({ method: options.method || 'GET', url }, '📡 Emby API Request')
     try {
-      response = await fetch(url, {
-        ...options,
-        headers,
-        signal: controller.signal,
-      })
-    } catch (err) {
-      clearTimeout(timeoutId)
+      const response = await fetch(url, { ...options, headers, signal })
+      // Keep the deadline and concurrency slot until the entire body is read.
+      const text = await response.text()
       const duration = Date.now() - startTime
-      if (err instanceof Error && err.name === 'AbortError') {
-        logger.error(
-          { url, duration },
-          `⏱️ Emby API request timed out after ${EMBY_FETCH_TIMEOUT_MS / 1000} seconds`
-        )
+      if (!response.ok) {
+        logger.error({ status: response.status, url, duration }, '❌ Emby API error')
+        throw new EmbyHttpError(response.status, response.statusText, text)
+      }
+      if (!text) return {} as T
+      const data = parseEmbyResponseBody<T>(text)
+      logger.debug({ url, duration, responseSize: text.length, ...summarizeEmbyItemsResponse(data) }, '✅ Emby API Response')
+      return data
+    } catch (err) {
+      if (options.signal?.aborted) throw err
+      if (controller.signal.aborted) {
+        logger.error({ url, duration: Date.now() - startTime }, 'Emby request deadline exceeded')
         throw embyTimeoutError(this.baseUrl)
       }
-      logger.error({ url, duration, err }, '❌ Emby API network error')
+      if (err instanceof EmbyHttpError) throw err
+      // Preserve invalid-response errors rather than misreporting a connection failure.
+      if (err instanceof Error && err.name === 'SyntaxError') throw err
+      logger.error({ url, duration: Date.now() - startTime, err }, '❌ Emby API network error')
       throw embyConnectionError(this.baseUrl)
     } finally {
       clearTimeout(timeoutId)
     }
-    const duration = Date.now() - startTime
-
-    if (!response.ok) {
-      const text = await response.text()
-      logger.error({ status: response.status, url, body: text, duration }, '❌ Emby API error')
-      throw new EmbyHttpError(response.status, response.statusText, text)
-    }
-
-    const text = await response.text()
-    if (!text) {
-      logger.debug({ url, duration, empty: true }, '✅ Emby API Response (empty)')
-      return {} as T
-    }
-
-    const data = parseEmbyResponseBody<T>(text)
-
-    logger.debug(
-      {
-        url,
-        duration,
-        responseSize: text.length,
-        ...summarizeEmbyItemsResponse(data),
-      },
-      '✅ Emby API Response'
-    )
-
-    return data
   }
 
   getPosterUrl(itemId: string, imageTag?: string): string {

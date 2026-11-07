@@ -81,6 +81,11 @@ jobs:
           docker exec "${{ job.services['encore-db'].id }}" createdb -U encore aperture_test_audit
           pnpm test:audit
 
+      - name: Test incremental publishing and Emby load limits
+        env:
+          APERTURE_TEST_DATABASE_URL: postgres://encore:encore-test-only@127.0.0.1:5432/aperture_test_audit
+        run: pnpm test:emby-stability
+
       - name: Test LAN and reverse proxy access and sessions
         run: pnpm test:browser-access
 

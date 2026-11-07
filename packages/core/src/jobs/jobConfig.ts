@@ -46,12 +46,12 @@ const ENV_DEFAULTS: Record<
   // === EVERY 30 MINUTES ===
   'sync-users': { scheduleType: 'interval', hour: 0, minute: 0, intervalMinutes: 30 },
 
-  // === EVERY HOUR (staggered by 15 mins) ===
-  'sync-series-watch-history': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 1 },
-  'sync-watching-favorites': { scheduleType: 'interval', hour: 0, minute: 30, intervalHours: 1 },
+  // === EVERY HOUR (offset from catalog scans and user sync) ===
+  'sync-series-watch-history': { scheduleType: 'interval', hour: 0, minute: 5, intervalHours: 1 },
+  'sync-watching-favorites': { scheduleType: 'interval', hour: 0, minute: 45, intervalHours: 1 },
 
   // === EVERY 2 HOURS ===
-  'sync-movie-watch-history': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 2 },
+  'sync-movie-watch-history': { scheduleType: 'interval', hour: 0, minute: 15, intervalHours: 2 },
 
   // === EVERY 3 HOURS (staggered by 10 mins) ===
   'sync-movies': { scheduleType: 'interval', hour: 0, minute: 0, intervalHours: 3 },
@@ -90,7 +90,7 @@ function rowToConfig(row: JobConfigRow): JobConfig {
     jobName: row.job_name,
     scheduleType: row.schedule_type as ScheduleType,
     scheduleHour: row.schedule_hour,
-    scheduleMinute: row.schedule_minute,
+    scheduleMinute: row.schedule_minute ?? (row.schedule_type === 'interval' ? ENV_DEFAULTS[row.job_name]?.minute ?? 0 : 0),
     scheduleDayOfWeek: row.schedule_day_of_week,
     scheduleIntervalHours: row.schedule_interval_hours,
     scheduleIntervalMinutes: row.schedule_interval_minutes,
