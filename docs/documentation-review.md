@@ -1,4 +1,4 @@
-# Documentation review: 1.0.1 baseline and 1.0.2-dev.1
+# Documentation review: 1.0.1 baseline and 1.0.2 development
 
 Reviewed 2026-11-07. Stable baseline: `v1.0.1`; development additions are identified as dev features. Historical release notes and dated benchmark reports retain their original context rather than being rewritten as current instructions.
 
@@ -23,3 +23,5 @@ Reviewed 2026-11-07. Stable baseline: `v1.0.1`; development additions are identi
 The compatibility tests use real isolated temporary files and simulated media-server directory responses. They establish cleanup, local pointer behavior, warning/failure distinctions behavior; they do not establish every operating-system/filesystem combination or client playback. Actual server-side behavior must be verified on an installation. No live Jellyfin installation was used.
 
 New shared UI guidance uses English pending translations. Existing dated research/performance reports are evidence from their original runs, not current performance guarantees. Screenshots remain illustrative; text and the runtime application take precedence where layouts differ.
+
+Live dev.1 verification found that a private temporary-directory mode blocked a separate Emby account. Dev.2 matches normal publication permissions and adds a regression assertion for traversal/read access.

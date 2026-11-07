@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises'
 import path from 'node:path'
+import { randomUUID } from 'node:crypto'
 
 export interface OutputCheck {
   id: string
@@ -29,7 +30,10 @@ export async function validateOutputAccess(options: {
   }
   let temporary: string | undefined
   try {
-    temporary = await fs.mkdtemp(path.join(options.root, '.aperture-check-'))
+    // Match published output permissions; mkdtemp's 0700 blocks other UIDs.
+    const candidate = path.join(options.root, '.aperture-check-' + randomUUID())
+    await fs.mkdir(candidate, { mode: 0o755 })
+    temporary = candidate
     await fs.writeFile(path.join(temporary, 'visible.txt'), 'Aperture output access check')
     add(
       'write-access',

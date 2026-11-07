@@ -70,7 +70,7 @@ Use your Emby/Jellyfin admin credentials to access Aperture.
 
 ## Updating
 
-Stable `:latest` currently publishes **1.0.1**. This development branch prepares **1.0.2-dev.1**, which updates output compatibility guidance and documentation. Choose `ghcr.io/dgruhin-hrizn/aperture:dev` to test a published development build, or pin a published version. Changing branches or restarting an existing container does not pull a new image.
+Stable `:latest` currently publishes **1.0.1**. This development branch prepares **1.0.2-dev.2**, which updates output compatibility guidance and documentation. Choose `ghcr.io/dgruhin-hrizn/aperture:dev` to test a published development build, or pin a published version. Changing branches or restarting an existing container does not pull a new image.
 
 Back up PostgreSQL and uploaded artwork, keep the existing database/mounts, pull the selected app image and recreate the app container. Refresh the page and check `/health` for the version and database connection. Supplied production configurations apply pending migrations at startup.
 
