@@ -13,15 +13,16 @@ import { query, queryOne } from '../../lib/db.js'
 import { getUserSeriesLibraryName } from './library.js'
 import { getConfig } from '../config.js'
 import { getAiRecsOutputConfig, getMediaServerApiKey } from '../../settings/systemSettings.js'
+import { configureGeneratedLibrary } from '../../media/emby/libraries.js'
 import { EmbyProvider, getMediaServerProvider } from '../../media/index.js'
 import { assertPrivateRecommendationLibrary, getAllowedRecommendationSourceIds, getVisibleRecommendationItems } from '../../media/emby/recommendationAccess.js'
-import { downloadImage } from '../images.js'
+import { publishGeneratedOutput, type GeneratedOutput } from '../incrementalOutput.js'
 import { generateSeriesNfoContent } from './nfo.js'
 import { getEffectiveAiExplanationSetting, resolveEffectiveAiLanguage } from '../../lib/userSettings.js'
 import { symlinkArtwork, symlinkBasenameMatchedSidecars, SERIES_SKIP_FILES, getSeriesFolderFromSeasonPath } from '../artwork.js'
 import type { SeriesRecommendationGroup } from '../../recommender/series/groups.js'
 import type { Series, Actor } from './types.js'
-import type { ImageDownloadTask } from '../types.js'
+import type { ImageDownloadTask, StrmConfig } from '../types.js'
 
 const logger = createChildLogger('strm-series-writer')
 
@@ -104,10 +105,10 @@ function generateEpisodeNfoContent(episode: EpisodeInfo, seriesTitle: string): s
  * as the "newest" episodes, preventing real episode air dates from interfering.
  * Rank 1 = furthest in future, higher ranks = slightly earlier.
  */
-function generateSortingPlaceholderNfo(seriesTitle: string, rank: number): string {
-  // Use current date but 100 years in the future
+function generateSortingPlaceholderNfo(seriesTitle: string, rank: number, baseTime: number): string {
+  // Use the recommendation date, 100 years in the future
   // Rank 1 = newest (furthest future), with 1-minute intervals per rank
-  const now = new Date()
+  const now = new Date(baseTime)
   const futureDate = new Date(now)
   futureDate.setFullYear(futureDate.getFullYear() + 100)
   // Subtract minutes based on rank so Rank 1 is newest
@@ -176,7 +177,7 @@ export async function writeSeriesStrmFilesForUser(
   displayName: string,
   group: SeriesRecommendationGroup | null = null,
   recommendationRunId?: string | null
-): Promise<{ written: number; seriesCount: number; deleted: number; localPath: string; embyPath: string; withheldReason?: string }> {
+): Promise<{ written: number; seriesCount: number; deleted: number; localPath: string; embyPath: string; withheldReason?: string; changed: boolean; needsRefresh: boolean; revision?: string }> {
   const config = await getConfig()
   const outputConfig = await getAiRecsOutputConfig()
   const useSymlinks = outputConfig.seriesUseSymlinks
@@ -192,9 +193,34 @@ export async function writeSeriesStrmFilesForUser(
   // - embyPath: where media server sees them (inside Emby/Jellyfin container)
   // Both use 'aperture-tv' subfolder for AI series recommendations
   const outputFolder = group ? `${userId}-group-${group.id}` : userFolder
-  const localPath = path.join(config.strmRoot, 'aperture-tv', outputFolder)
+  const publishedPath = path.join(config.strmRoot, 'aperture-tv', outputFolder)
   const embyPath = path.join(config.libraryPathPrefix, 'aperture-tv', outputFolder)
 
+  return publishGeneratedOutput({
+    root: config.strmRoot, destination: publishedPath, incremental: provider instanceof EmbyProvider,
+  }, output => writeSeriesOutput(output, {
+    userId, providerUserId, displayName, config, provider, useSymlinks, startTime, userFolder, publishedPath, embyPath, group, recommendationRunId,
+  }))
+}
+
+interface SeriesOutputContext {
+  userId: string
+  providerUserId: string
+  displayName: string
+  config: StrmConfig
+  provider: Awaited<ReturnType<typeof getMediaServerProvider>>
+  useSymlinks: boolean
+  startTime: number
+  userFolder: string
+  publishedPath: string
+  embyPath: string
+  group: SeriesRecommendationGroup | null
+  recommendationRunId: string | null | undefined
+}
+
+async function writeSeriesOutput(output: GeneratedOutput, context: SeriesOutputContext) {
+  const { userId, providerUserId, displayName, config, provider, useSymlinks, startTime, userFolder, publishedPath, embyPath, group, recommendationRunId } = context
+  const localPath = output.path
   // Check for old-format folder and migrate if needed
   const oldFormatPath = path.join(config.strmRoot, 'aperture-tv', providerUserId)
   if (!(provider instanceof EmbyProvider) && !group && userFolder !== providerUserId) {
@@ -216,8 +242,8 @@ export async function writeSeriesStrmFilesForUser(
 
   logger.info({ userId, localPath, embyPath, useSymlinks }, `📺 Starting series ${useSymlinks ? 'symlink' : 'STRM'} file generation`)
 
-  // Remove old Emby output before authorization, including legacy directory symlinks.
-  // A denied, failed, or empty authorization must never leave a previously published path.
+  // Revalidate source and output access on every run. Only retired output paths
+  // are removed here; the current output is reconciled after authorization.
   let previousLibraryId: string | null | undefined
   if (provider instanceof EmbyProvider) {
     const previous = await queryOne<{ path: string; provider_library_id: string | null }>(
@@ -228,10 +254,10 @@ export async function writeSeriesStrmFilesForUser(
     previousLibraryId = previous?.provider_library_id
     const relative = previous && path.relative(path.join(config.libraryPathPrefix, 'aperture-tv'), previous.path)
     if (relative && relative !== '..' && !relative.includes(path.sep)) {
-      await fs.rm(path.join(config.strmRoot, 'aperture-tv', relative), { recursive: true, force: true })
+      const previousPath = path.join(config.strmRoot, 'aperture-tv', relative)
+      if (previousPath !== publishedPath) await fs.rm(previousPath, { recursive: true, force: true })
     }
-    await fs.rm(localPath, { recursive: true, force: true })
-    if (!group && oldFormatPath !== localPath) {
+    if (!group && oldFormatPath !== publishedPath) {
       await fs.rm(oldFormatPath, { recursive: true, force: true })
     }
   }
@@ -331,6 +357,7 @@ export async function writeSeriesStrmFilesForUser(
       if (!embyApiKey) throw new Error('Emby API key unavailable')
       const libraryName = await getUserSeriesLibraryName(userId, displayName, config, group?.name)
       await assertPrivateRecommendationLibrary(provider, embyApiKey, providerUserId, libraryName, embyPath, previousLibraryId)
+      await configureGeneratedLibrary(provider, embyApiKey, previousLibraryId, embyPath)
       const allowed = new Set(await getAllowedRecommendationSourceIds(provider, embyApiKey, providerUserId, 'tvshows'))
       recommendationRows = recommendationRows.filter(
         (row) => row.provider_library_id && allowed.has(row.provider_library_id)
@@ -351,7 +378,11 @@ export async function writeSeriesStrmFilesForUser(
   let filesWritten = 0
 
   // Calculate dateAdded timestamps based on rank (Rank 1 = newest)
-  const now = Date.now()
+  const run = await queryOne<{ created_at: Date }>(
+    'SELECT created_at FROM recommendation_runs WHERE id = $1', [runId]
+  )
+  if (!run) throw new Error('Recommendation run no longer exists')
+  const now = new Date(run.created_at).getTime()
   const INTERVAL_MS = 60 * 1000 // 1 minute between each rank
 
   // Process each series
@@ -371,9 +402,13 @@ export async function writeSeriesStrmFilesForUser(
           (episode) => episode.path && path.extname(episode.path).toLowerCase() !== '.strm'
             && visible.get(episode.provider_item_id)?.Path === episode.path
         )
-        if (verifiedEpisodes.length === 0) continue
+        if (verifiedEpisodes.length === 0) {
+          await output.withdrawFolder(rec.year ? `${sanitizeForFilename(rec.title)} (${rec.year})` : sanitizeForFilename(rec.title))
+          continue
+        }
       } catch (err) {
         logger.warn({ err, userId, seriesId: rec.series_id }, 'Withholding series because Emby episode access could not be verified')
+        await output.withdrawFolder(rec.year ? `${sanitizeForFilename(rec.title)} (${rec.year})` : sanitizeForFilename(rec.title))
         continue
       }
     }
@@ -494,7 +529,7 @@ export async function writeSeriesStrmFilesForUser(
     
     // Create NFO with dateadded set 100 years in future (by rank for sort order)
     const placeholderNfoPath = path.join(specialsFolderPath, `${placeholderBasename}.nfo`)
-    const placeholderNfoContent = generateSortingPlaceholderNfo(series.title, series.rank)
+    const placeholderNfoContent = generateSortingPlaceholderNfo(series.title, series.rank, now)
     await fs.writeFile(placeholderNfoPath, placeholderNfoContent, 'utf-8')
     filesWritten++
     
@@ -671,9 +706,11 @@ export async function writeSeriesStrmFilesForUser(
     }
   }
 
+  await output.pruneStaleFiles(imageDownloads)
+
   // Download images in parallel batches
   if (imageDownloads.length > 0) {
-    const IMAGE_BATCH_SIZE = 10
+    const IMAGE_BATCH_SIZE = 3
     const totalImageBatches = Math.ceil(imageDownloads.length / IMAGE_BATCH_SIZE)
 
     logger.info(
@@ -699,7 +736,7 @@ export async function writeSeriesStrmFilesForUser(
         `📥 Downloading image batch ${batchNum}/${totalImageBatches}...`
       )
 
-      await Promise.all(batch.map((task) => downloadImage(task)))
+      await Promise.all(batch.map((task) => output.downloadImage(task)))
       logger.info({ batch: batchNum }, `✅ Image batch ${batchNum} complete`)
     }
 

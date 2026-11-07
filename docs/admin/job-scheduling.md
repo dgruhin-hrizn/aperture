@@ -61,15 +61,27 @@ Best for: One-time jobs, troubleshooting
 | Job | Default Schedule |
 |-----|------------------|
 | **User Sync** | Every 30 minutes |
-| **Database Backup** | Daily at 1:00 AM |
-| **Library Scan** | Daily at 2:00 AM |
-| **Watch History** | Every 2 hours |
-| **Embeddings** | Daily at 3:00 AM |
+| **Database Backup** | Daily at 2:00 AM |
+| **Movie Catalog Sync** | Every 3 hours at :00 |
+| **TV Catalog Sync** | Every 3 hours at :10 |
+| **TV Watch History** | Every hour at :05 |
+| **Movie Watch History** | Every 2 hours at :15 |
+| **Movie Library Publishing** | Every 3 hours at :20 |
+| **TV Library Publishing** | Every 3 hours at :30 |
+| **Watching / Favorites** | Every hour at :45 |
+| **Movie / TV Embeddings** | Every 6 hours at :10 / :20 |
 | **Recommendations** | Weekly (Sunday 4:00 AM) |
-| **Library Build** | Weekly (Sunday 5:00 AM) |
 | **Top Picks** | Daily at 5:00 AM |
-| **Enrichment** | Every 6 hours |
+| **Metadata Enrichment** | Every 6 hours |
 | **Discovery** | Daily at 6:00 AM |
+
+Emby-heavy jobs wait for earlier Emby work to finish, including manual runs. A
+queued job can be cancelled before it starts.
+
+Recommendation library publishing preserves unchanged files and skips unchanged
+library refreshes. Aperture manages refreshes for these generated libraries;
+their automatic filesystem monitoring and duplicate thumbnail/marker extraction
+are disabled. Normal source libraries keep their settings.
 
 ---
 

@@ -4,12 +4,19 @@ import { getOutputPathConfig } from '../settings/systemSettings.js'
 // Fixed container paths (set by Docker volume mounts, not configurable)
 const APERTURE_LIBRARIES_PATH = '/aperture-libraries'
 const APERTURE_MEDIA_PATH = '/media/'
+let testConfig: StrmConfig | null = null
+
+/** @internal Isolated filesystem fixtures; never read from application settings. */
+export function setStrmConfigForTests(config: StrmConfig | null): void {
+  testConfig = config
+}
 
 /**
  * Get STRM configuration from database settings.
  * All configuration is done via the setup wizard - no ENV var fallbacks.
  */
 export async function getConfig(): Promise<StrmConfig> {
+  if (testConfig) return testConfig
   const pathConfig = await getOutputPathConfig()
 
   return {

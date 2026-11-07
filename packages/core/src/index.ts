@@ -2,6 +2,7 @@
 export { getEnv, validateEnv, isProduction, isDevelopment, getDatabaseUrl, type Env } from './config/index.js'
 
 // Lib
+export { WorkQueue } from './lib/workQueue.js'
 export {
   createLogger,
   getLogger,

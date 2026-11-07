@@ -8,8 +8,9 @@
 import path from 'path'
 import { createChildLogger } from '../../lib/logger.js'
 import { query, queryOne } from '../../lib/db.js'
-import { getMediaServerProvider } from '../../media/index.js'
+import { EmbyProvider, getMediaServerProvider } from '../../media/index.js'
 import { getMediaServerApiKey } from '../../settings/systemSettings.js'
+import { configureGeneratedLibrary } from '../../media/emby/libraries.js'
 import { getConfig } from '../config.js'
 import { getEffectiveLibraryTitle } from '../../lib/userSettings.js'
 import { syncLibraryTypeImage } from '../../uploads/mediaServerSync.js'
@@ -107,6 +108,9 @@ export async function ensureUserSeriesLibrary(
 
     // Push global library image to this library
     await syncLibraryTypeImage('ai-recs-series', existingLib.id)
+    if (provider instanceof EmbyProvider && existingLib.id !== dbRecord?.provider_library_id) {
+      await configureGeneratedLibrary(provider, apiKey, existingLib.id, libraryPath)
+    }
 
     return {
       libraryId: existingLib.id,
@@ -130,6 +134,10 @@ export async function ensureUserSeriesLibrary(
 
   // Create as TV shows library type
   const result = await provider.createVirtualLibrary(apiKey, libraryName, libraryPath, 'tvshows')
+
+  if (provider instanceof EmbyProvider) {
+    await configureGeneratedLibrary(provider, apiKey, result.libraryId, libraryPath)
+  }
 
   // Fetch the library again to get the GUID
   const newLibraries = await provider.getLibraries(apiKey)

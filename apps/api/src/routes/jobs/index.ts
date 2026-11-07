@@ -59,7 +59,7 @@ const jobsRoutes: FastifyPluginAsync = async (fastify) => {
     try {
       await runJob(jobName, jobId)
     } finally {
-      activeJobs.delete(jobName)
+      if (activeJobs.get(jobName) === jobId) activeJobs.delete(jobName)
     }
   })
 

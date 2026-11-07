@@ -32,7 +32,7 @@ async function downloadImageOnce(task: ImageDownloadTask): Promise<boolean> {
   try {
     logger.info({ url: task.url.substring(0, 80), filename, isPoster: task.isPoster }, '📥 Downloading image...')
     const startTime = Date.now()
-    const response = await fetch(task.url)
+    const response = await fetch(task.url, { signal: AbortSignal.timeout(30_000) })
     if (!response.ok) {
       if (response.status === 404) {
         // 404 is normal - not all items have all artwork types (banner, logo, clearart, thumb)

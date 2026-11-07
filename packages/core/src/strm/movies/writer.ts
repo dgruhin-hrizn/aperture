@@ -4,7 +4,7 @@ import { createChildLogger } from '../../lib/logger.js'
 import { query, queryOne } from '../../lib/db.js'
 import { getConfig } from '../config.js'
 import { getAiRecsOutputConfig, getMediaServerApiKey } from '../../settings/systemSettings.js'
-import { downloadImage } from '../images.js'
+import { publishGeneratedOutput, type GeneratedOutput } from '../incrementalOutput.js'
 import { generateNfoContent } from './nfo.js'
 import {
   getStrmContent,
@@ -16,10 +16,11 @@ import {
   MOVIE_SKIP_FILES,
   getMovieFolderFromFilePath,
 } from '../artwork.js'
+import { configureGeneratedLibrary } from '../../media/emby/libraries.js'
 import { EmbyProvider, getMediaServerProvider } from '../../media/index.js'
 import { assertPrivateRecommendationLibrary, getAllowedRecommendationSourceIds, getVisibleRecommendationItems } from '../../media/emby/recommendationAccess.js'
 import { getUserLibraryName } from './library.js'
-import type { Movie, ImageDownloadTask } from '../types.js'
+import type { Movie, ImageDownloadTask, StrmConfig } from '../types.js'
 
 const logger = createChildLogger('strm-writer')
 
@@ -56,7 +57,7 @@ export async function writeStrmFilesForUser(
   userId: string,
   providerUserId: string,
   displayName: string
-): Promise<{ written: number; deleted: number; localPath: string; embyPath: string; withheldReason?: string }> {
+): Promise<{ written: number; deleted: number; localPath: string; embyPath: string; withheldReason?: string; changed: boolean; needsRefresh: boolean; revision?: string }> {
   const config = await getConfig()
   const outputConfig = await getAiRecsOutputConfig()
   const useSymlinks = outputConfig.moviesUseSymlinks
@@ -71,9 +72,32 @@ export async function writeStrmFilesForUser(
   // - localPath: where Aperture writes files (inside Aperture container)
   // - embyPath: where media server sees them (inside Emby/Jellyfin container)
   // Both use 'aperture' subfolder for AI movie recommendations
-  const localPath = path.join(config.strmRoot, 'aperture', userFolder)
+  const publishedPath = path.join(config.strmRoot, 'aperture', userFolder)
   const embyPath = path.join(config.libraryPathPrefix, 'aperture', userFolder)
 
+  return publishGeneratedOutput({
+    root: config.strmRoot, destination: publishedPath, incremental: provider instanceof EmbyProvider,
+  }, output => writeMovieOutput(output, {
+    userId, providerUserId, displayName, config, provider, useSymlinks, startTime, userFolder, publishedPath, embyPath,
+  }))
+}
+
+interface MovieOutputContext {
+  userId: string
+  providerUserId: string
+  displayName: string
+  config: StrmConfig
+  provider: Awaited<ReturnType<typeof getMediaServerProvider>>
+  useSymlinks: boolean
+  startTime: number
+  userFolder: string
+  publishedPath: string
+  embyPath: string
+}
+
+async function writeMovieOutput(output: GeneratedOutput, context: MovieOutputContext) {
+  const { userId, providerUserId, displayName, config, provider, useSymlinks, startTime, userFolder, publishedPath, embyPath } = context
+  const localPath = output.path
   // Check for old-format folder and migrate if needed
   const oldFormatPath = path.join(config.strmRoot, 'aperture', providerUserId)
   if (!(provider instanceof EmbyProvider) && userFolder !== providerUserId) {
@@ -111,10 +135,10 @@ export async function writeStrmFilesForUser(
     previousLibraryId = previous?.provider_library_id
     const relative = previous && path.relative(path.join(config.libraryPathPrefix, 'aperture'), previous.path)
     if (relative && relative !== '..' && !relative.includes(path.sep)) {
-      await fs.rm(path.join(config.strmRoot, 'aperture', relative), { recursive: true, force: true })
+      const previousPath = path.join(config.strmRoot, 'aperture', relative)
+      if (previousPath !== publishedPath) await fs.rm(previousPath, { recursive: true, force: true })
     }
-    await fs.rm(localPath, { recursive: true, force: true })
-    if (oldFormatPath !== localPath) await fs.rm(oldFormatPath, { recursive: true, force: true })
+    if (oldFormatPath !== publishedPath) await fs.rm(oldFormatPath, { recursive: true, force: true })
   }
 
   logger.info(
@@ -132,8 +156,8 @@ export async function writeStrmFilesForUser(
   logger.info({ localPath }, '📂 Directory ready')
 
   // Get user's latest movie recommendations
-  const latestRun = await queryOne<{ id: string }>(
-    `SELECT id FROM recommendation_runs
+  const latestRun = await queryOne<{ id: string; created_at: Date }>(
+    `SELECT id, created_at FROM recommendation_runs
      WHERE user_id = $1 AND status = 'completed' AND media_type = 'movie'
      ORDER BY created_at DESC LIMIT 1`,
     [userId]
@@ -217,6 +241,7 @@ export async function writeStrmFilesForUser(
       if (!apiKey) throw new Error('Emby API key unavailable')
       const libraryName = await getUserLibraryName(userId, displayName, config)
       await assertPrivateRecommendationLibrary(provider, apiKey, providerUserId, libraryName, embyPath, previousLibraryId)
+      await configureGeneratedLibrary(provider, apiKey, previousLibraryId, embyPath)
       const allowed = new Set(await getAllowedRecommendationSourceIds(provider, apiKey, providerUserId, 'movies'))
       recommendationRows = recommendationRows.filter((movie) =>
         movie.provider_library_id && allowed.has(movie.provider_library_id) && movie.path
@@ -244,7 +269,7 @@ export async function writeStrmFilesForUser(
 
   // Calculate dateAdded timestamps based on rank (Rank 1 = newest)
   // Use 1-minute intervals between ranks for clear separation in Emby
-  const now = Date.now()
+  const now = new Date(latestRun.created_at).getTime()
   const INTERVAL_MS = 60 * 1000 // 1 minute between each rank
 
   // Prepare all file tasks (fast - just builds strings in memory)
@@ -510,9 +535,11 @@ export async function writeStrmFilesForUser(
     `📁 All movie ${useSymlinks ? 'symlinks' : 'STRM files'} created`
   )
 
+  await output.pruneStaleFiles(imageDownloads)
+
   // Download images in parallel batches
   if (imageDownloads.length > 0) {
-    const IMAGE_BATCH_SIZE = 10
+    const IMAGE_BATCH_SIZE = 3
     const totalImageBatches = Math.ceil(imageDownloads.length / IMAGE_BATCH_SIZE)
 
     logger.info(
@@ -538,7 +565,7 @@ export async function writeStrmFilesForUser(
         `📥 Downloading image batch ${batchNum}/${totalImageBatches}...`
       )
 
-      await Promise.all(batch.map((task) => downloadImage(task)))
+      await Promise.all(batch.map((task) => output.downloadImage(task)))
       logger.info({ batch: batchNum }, `✅ Image batch ${batchNum} complete`)
     }
 

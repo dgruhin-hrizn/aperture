@@ -5,6 +5,7 @@
 import type { Library, LibraryCreateResult } from '../types.js'
 import type { EmbyLibrary, EmbyLibraryResponse, EmbyUser } from './types.js'
 import type { EmbyProviderBase } from './base.js'
+import { queueLibraryRefresh } from './refreshQueue.js'
 
 export async function getLibraries(provider: EmbyProviderBase, apiKey: string): Promise<Library[]> {
   // Emby returns an array directly, not { Items: [...] }
@@ -248,7 +249,34 @@ export async function refreshLibrary(
   apiKey: string,
   libraryId: string
 ): Promise<void> {
-  await provider.fetch(`/Items/${libraryId}/Refresh`, apiKey, { method: 'POST' })
+  await queueLibraryRefresh(provider, apiKey, libraryId)
+}
+
+/** Aperture owns refreshes for these generated files, avoiding duplicate scans. */
+export async function configureGeneratedLibrary(
+  provider: EmbyProviderBase,
+  apiKey: string,
+  libraryId: string | null | undefined,
+  expectedPath: string
+): Promise<void> {
+  if (!libraryId) return
+  const response = await provider.fetch<EmbyLibrary[] | EmbyLibraryResponse>('/Library/VirtualFolders', apiKey)
+  const libraries = Array.isArray(response) ? response : response.Items ?? []
+  const library = libraries.find(item => String(item.ItemId ?? item.Id) === libraryId)
+  if (library?.Locations?.length !== 1 || library.Locations[0] !== expectedPath || !library.LibraryOptions) return
+  const managedOptions = {
+    EnableRealtimeMonitor: false,
+    EnableMarkerDetection: false,
+    EnableMarkerDetectionDuringLibraryScan: false,
+    EnableChapterImageExtraction: false,
+    ExtractChapterImagesDuringLibraryScan: false,
+    ThumbnailImagesIntervalSeconds: -1,
+  }
+  if (Object.entries(managedOptions).every(([key, value]) => library.LibraryOptions?.[key] === value)) return
+  await provider.fetch('/Library/VirtualFolders/LibraryOptions', apiKey, {
+    method: 'POST',
+    body: JSON.stringify({ Id: library.Id ?? library.ItemId, LibraryOptions: { ...library.LibraryOptions, ...managedOptions } }),
+  })
 }
 
 /**
