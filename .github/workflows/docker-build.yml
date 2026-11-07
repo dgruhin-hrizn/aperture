@@ -86,6 +86,11 @@ jobs:
           APERTURE_TEST_DATABASE_URL: postgres://encore:encore-test-only@127.0.0.1:5432/aperture_test_audit
         run: pnpm test:emby-stability
 
+      - name: Test scheduler times, offsets and partial updates
+        env:
+          APERTURE_TEST_DATABASE_URL: postgres://encore:encore-test-only@127.0.0.1:5432/aperture_test_audit
+        run: pnpm test:job-schedules
+
       - name: Test LAN and reverse proxy access and sessions
         run: pnpm test:browser-access
 
