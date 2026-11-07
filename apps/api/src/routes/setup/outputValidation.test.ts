@@ -91,3 +91,21 @@ test('a missing sample explicitly leaves original-target resolution unverified',
   assert.equal(checks.find((c) => c.id === 'symlink-support')?.status, 'passed')
   assert.equal(checks.find((c) => c.id === 'server-target')?.status, 'warning')
 })
+
+test('the output probe permits a separate media-server account to traverse and read it', async (t) => {
+  const options = await fixture(t)
+  let inspected = false
+  await validateOutputAccess({
+    ...options,
+    listDirectory: async (directory) => {
+      const local = directory.replace('/server/output', options.root)
+      const folder = await fs.stat(local)
+      const marker = await fs.stat(path.join(local, 'visible.txt'))
+      assert.equal(folder.mode & 0o005, 0o005, 'other accounts need read and traversal permission')
+      assert.equal(marker.mode & 0o004, 0o004, 'other accounts need to read the marker')
+      inspected = true
+      return [{ Name: 'visible.txt' }]
+    },
+  })
+  assert.equal(inspected, true)
+})
