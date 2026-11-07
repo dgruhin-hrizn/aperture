@@ -225,7 +225,7 @@ Job will only run when manually triggered.
 
 | Job | Schedule |
 |-----|----------|
-| Sync | Daily at 1 AM |
+| Sync | Daily at 2 AM |
 | Embeddings | Weekly Saturday |
 | Recommendations | Weekly Sunday |
 | Library Build | After recommendations |

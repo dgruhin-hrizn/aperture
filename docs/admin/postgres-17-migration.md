@@ -1,5 +1,7 @@
 # PostgreSQL 16 and 17
 
+This is an optional database-major-version migration guide. The supplied production stack uses PostgreSQL 16 with pgvector; Aperture 1.0.1 does not require upgrading to PostgreSQL 17. Bundled PostgreSQL client tools and the database server can have different supported versions. Follow [backup and restore](backup-restore.md) and verify a backup before a major upgrade.
+
 Aperture ships **PostgreSQL 16** (`pgvector/pgvector:pg16`) and bundles the **PostgreSQL 17**
 client tools. That pairing is deliberate and needs no action from you.
 

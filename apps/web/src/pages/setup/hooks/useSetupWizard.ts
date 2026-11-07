@@ -485,21 +485,23 @@ export function useSetupWizard(): SetupWizardContext {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ useSymlinks: aiRecsOutput.moviesUseSymlinks || aiRecsOutput.seriesUseSymlinks }),
+        body: JSON.stringify({ useSymlinks: aiRecsOutput.moviesUseSymlinks || aiRecsOutput.seriesUseSymlinks || (topPicks.isEnabled && ((topPicks.moviesLibraryEnabled && topPicks.moviesUseSymlinks) || (topPicks.seriesLibraryEnabled && topPicks.seriesUseSymlinks))) }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data?.error || 'Validation failed')
       setValidationResult(data)
+      return Boolean(data.allPassed)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Validation failed')
       setValidationResult({
         checks: [],
         allPassed: false,
       })
+      return false
     } finally {
       setValidating(false)
     }
-  }, [aiRecsOutput.moviesUseSymlinks, aiRecsOutput.seriesUseSymlinks])
+  }, [aiRecsOutput.moviesUseSymlinks, aiRecsOutput.seriesUseSymlinks, topPicks])
 
   const uploadLibraryImage = useCallback(async (libraryType: string, file: File) => {
     setUploadingImage(libraryType)
@@ -903,6 +905,7 @@ export function useSetupWizard(): SetupWizardContext {
       const data = await res.json()
       if (!res.ok) throw new Error(data?.error || 'Failed to save Top Picks config')
       setTopPicks((tp) => ({ ...tp, ...data }))
+      if (!await runValidation()) { setError(t('setup.validate.someFailed')); return }
       await updateProgress({ completedStep: 'topPicks' })
       goToStep('aiSetup')
     } catch (err) {
@@ -910,7 +913,7 @@ export function useSetupWizard(): SetupWizardContext {
     } finally {
       setSaving(false)
     }
-  }, [topPicks, updateProgress, goToStep])
+  }, [topPicks, updateProgress, goToStep, runValidation, t])
 
   // Jobs handlers - track which logs we've already shown (use ref to persist across renders)
   const lastLogIndexRef = useRef(0)

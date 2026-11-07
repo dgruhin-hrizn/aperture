@@ -1,3 +1,4 @@
+import { OutputFormatGuide } from '../../../components/OutputFormatGuide'
 import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Card, CardContent, Checkbox, Chip, Divider, FormControlLabel, FormGroup, Grid, Stack, Switch, TextField, Typography } from '@mui/material'
 import CollectionsIcon from '@mui/icons-material/Collections'; import ExpandMoreIcon from '@mui/icons-material/ExpandMore'; import FolderIcon from '@mui/icons-material/Folder'; import ImageIcon from '@mui/icons-material/Image'; import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'; import MovieIcon from '@mui/icons-material/Movie'; import OutputIcon from '@mui/icons-material/Output'; import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay'; import TvIcon from '@mui/icons-material/Tv'; import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import { Trans, useTranslation } from 'react-i18next'
@@ -15,6 +16,7 @@ export function TopPicksOutputConfigCard({ config, images, uploadingFor, updateC
             {t('topPicksAdmin.output.subtitle')}
           </Typography>
 
+          <OutputFormatGuide useSymlinks={(config.moviesLibraryEnabled && config.moviesUseSymlinks) || (config.seriesLibraryEnabled && config.seriesUseSymlinks)} />
           {/* Output Type Explanations */}
           <Accordion defaultExpanded={false} sx={{ mb: 3, bgcolor: 'action.hover' }}>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>

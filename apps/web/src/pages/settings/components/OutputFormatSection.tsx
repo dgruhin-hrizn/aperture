@@ -1,3 +1,4 @@
+import { OutputFormatGuide } from '../../../components/OutputFormatGuide'
 import React, { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -19,7 +20,6 @@ import {
 import SaveIcon from '@mui/icons-material/Save'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
 import LinkIcon from '@mui/icons-material/Link'
-import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import MovieIcon from '@mui/icons-material/Movie'
 import TvIcon from '@mui/icons-material/Tv'
 
@@ -110,7 +110,6 @@ export function OutputFormatSection() {
     )
   }
 
-  const anyUseSymlinks = config.moviesUseSymlinks || config.seriesUseSymlinks
 
   return (
     <Card sx={{ backgroundColor: 'background.paper', borderRadius: 2 }}>
@@ -241,13 +240,7 @@ export function OutputFormatSection() {
                   ? t('settingsOutputFormat.seriesSymlinkHelp')
                   : t('settingsOutputFormat.seriesStrmHelp')}
               </Typography>
-              {!config.seriesUseSymlinks && (
-                <Alert severity="info" sx={{ mt: 2, py: 0.5 }} icon={false}>
-                  <Typography variant="caption">
-                    {t('settingsOutputFormat.seriesStrmRecommendation')}
-                  </Typography>
-                </Alert>
-              )}
+
             </Card>
           </Grid>
         </Grid>
@@ -256,43 +249,7 @@ export function OutputFormatSection() {
           <Alert severity="info" sx={{ mt: 2 }}>{t('settingsOutputFormat.publishPlaylistHelp')}</Alert>
         )}
 
-        {/* Explanation Cards */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 3 }}>
-          <Card variant="outlined" sx={{ p: 2, bgcolor: anyUseSymlinks ? 'action.selected' : 'transparent' }}>
-            <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <LinkIcon fontSize="small" color={anyUseSymlinks ? 'primary' : 'inherit'} />
-              {t('settingsOutputFormat.explainSymlinksTitle')}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              {t('settingsOutputFormat.explainSymlinksIntro')}
-              <br />
-              <strong>{t('settingsOutputFormat.requiresLabel')}</strong>{' '}
-              {t('settingsOutputFormat.explainSymlinksRequires')}
-            </Typography>
-          </Card>
-          
-          <Card variant="outlined" sx={{ p: 2, bgcolor: !anyUseSymlinks ? 'action.selected' : 'transparent' }}>
-            <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <FolderOpenIcon fontSize="small" color={!anyUseSymlinks ? 'primary' : 'inherit'} />
-              {t('settingsOutputFormat.explainStrmTitle')}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              {t('settingsOutputFormat.explainStrmIntro')}
-              <br />
-              <strong>{t('settingsOutputFormat.bestForLabel')}</strong>{' '}
-              {t('settingsOutputFormat.explainStrmBestFor')}
-            </Typography>
-          </Card>
-        </Box>
-
-        {anyUseSymlinks && (
-          <Alert severity="warning" icon={<WarningAmberIcon />} sx={{ mt: 2 }}>
-            <Typography variant="body2">
-              <strong>{t('settingsOutputFormat.symlinkWarningTitle')}</strong>{' '}
-              {t('settingsOutputFormat.symlinkWarningBody')}
-            </Typography>
-          </Alert>
-        )}
+        {(config.moviesOutputMode === 'library' || config.seriesOutputMode === 'library') && <OutputFormatGuide useSymlinks={(config.moviesOutputMode === 'library' && config.moviesUseSymlinks) || (config.seriesOutputMode === 'library' && config.seriesUseSymlinks)} />}
 
         <Divider sx={{ my: 2 }} />
 

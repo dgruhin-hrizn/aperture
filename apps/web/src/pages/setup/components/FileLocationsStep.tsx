@@ -1,3 +1,4 @@
+import { OutputFormatGuide } from '../../../components/OutputFormatGuide'
 import { useState, useEffect, useCallback } from 'react'
 import {
   Box,
@@ -273,6 +274,7 @@ export function FileLocationsStep({ wizard }: FileLocationsStepProps) {
         </Collapse>
       </Box>
 
+      <OutputFormatGuide useSymlinks={wizard.aiRecsOutput.moviesUseSymlinks || wizard.aiRecsOutput.seriesUseSymlinks} />
       {/* Current Configuration Summary */}
       {(detectionResult || showManualEntry) && (
         <Card sx={{ mb: 3, bgcolor: 'background.paper' }}>

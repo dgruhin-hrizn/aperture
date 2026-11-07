@@ -1,3 +1,4 @@
+import { OutputFormatGuide } from './OutputFormatGuide'
 import {
   Box,
   Typography,
@@ -65,6 +66,7 @@ export function TopPicksOutputConfig({
   const { t } = useTranslation()
   return (
     <Box>
+      <OutputFormatGuide useSymlinks={(config.moviesLibraryEnabled && config.moviesUseSymlinks) || (config.seriesLibraryEnabled && config.seriesUseSymlinks)} />
       {/* Output Type Explanations */}
       {showExplanation && (
         <Accordion defaultExpanded={false} sx={{ mb: 3, bgcolor: 'action.hover' }}>

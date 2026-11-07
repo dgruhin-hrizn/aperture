@@ -1,3 +1,4 @@
+import { OutputFormatGuide } from '../../../components/OutputFormatGuide'
 import {
   Box,
   Button,
@@ -55,9 +56,7 @@ export function AiRecsStep({ wizard }: AiRecsStepProps) {
         {t('setup.aiRecs.body')}
       </Typography>
 
-      <Alert severity="info" sx={{ mb: 2, py: 0.5 }} icon={false}>
-        <Typography variant="caption">{t('setup.aiRecs.strmVsSymlink')}</Typography>
-      </Alert>
+      <OutputFormatGuide useSymlinks={aiRecsOutput.moviesUseSymlinks || aiRecsOutput.seriesUseSymlinks} />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>

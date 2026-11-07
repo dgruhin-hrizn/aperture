@@ -278,65 +278,19 @@ Weights are configurable, and a time window limits how far back to look for tren
 
 ## AI Assistant (Encore)
 
-Encore is a conversational AI assistant that helps users discover content through natural language interaction.
+Encore uses the configured Chat provider through the AI SDK. The current implementation shares account-scoped media tools between chat, workbench and MCP.
 
-### Architecture
+- `apps/api/src/routes/assistant/handlers`: streaming chat, conversations and suggestions.
+- `apps/api/src/routes/assistant/messages.ts`: persisted message parts, model-specific continuation data and active-run ownership.
+- `packages/core/src/encore/`: library access, shared tools, memory, plans, proposed actions, collections, connections and recurring curation.
+- `apps/web/src/components/assistant/`: the conversation UI, tool cards, history and workspace controls.
+- `packages/mcp/`: bundled standalone stdio bridge to the scoped Streamable HTTP MCP endpoint.
 
-The assistant is built using the AI SDK (Vercel) with OpenAI models:
+`assistant_conversations` and `assistant_messages` retain conversation state. Encore memory, plans, actions and connections have their own ownership and permission checks. Private model continuation data is separate from the visible transcript. Quick/Standard/Expanded map to supported native reasoning controls or compatibility budgets.
 
-```
-apps/api/src/routes/assistant/
-├── handlers/
-│   ├── chat.ts           # Streaming chat endpoint
-│   ├── conversations.ts  # CRUD for conversation history
-│   └── suggestions.ts    # Personalized prompt suggestions
-├── prompts/
-│   ├── identity.ts       # Assistant persona definition
-│   ├── context/          # User and admin context builders
-│   └── rules/            # Behavior, formatting, antipattern rules
-├── tools/
-│   ├── search.ts         # searchContent, semanticSearch, findSimilarContent
-│   ├── content.ts        # getContentDetails
-│   ├── recommendations.ts # getMyRecommendations, getTopRated, getUnwatched
-│   ├── history.ts        # getWatchHistory, getUserRatings
-│   ├── library.ts        # getLibraryStats, getContentRankings, getAvailableGenres
-│   ├── people.ts         # searchPeople, getTopStudios
-│   └── help.ts           # getSystemHelp
-├── schemas/              # Tool UI output schemas (content cards, etc.)
-├── helpers/              # Media server URL building, OpenAI client
-└── jobs/
-    └── refreshSuggestions.ts  # Background job for personalized suggestions
-```
+Search uses current catalog access, title matching and configured semantic retrieval. Similar-title scores describe resemblance rather than a calibrated probability of user enjoyment. Proposed Emby playlist/Home writes require approval, and recurring curation is opt-in.
 
-**Frontend**: The assistant UI uses `@assistant-ui/react` with `@assistant-ui/react-ai-sdk` for streaming chat with tool result rendering.
-
-### Tools
-
-Tools are function calls the AI can make to retrieve data. Each tool returns structured data that the frontend renders as interactive cards:
-
-| Category | Tools |
-| -------- | ----- |
-| **Search** | `searchContent` (filter-based), `semanticSearch` (AI embeddings), `findSimilarContent` |
-| **Content** | `getContentDetails` with play links |
-| **Recommendations** | `getMyRecommendations`, `getTopRated`, `getUnwatched` |
-| **History** | `getWatchHistory`, `getUserRatings` |
-| **Library** | `getLibraryStats`, `getContentRankings`, `getAvailableGenres` |
-| **People** | `searchPeople` (actors/directors with filmography), `getTopStudios` |
-| **Help** | `getSystemHelp` |
-
-**Semantic Search**: Uses the same embedding model as recommendations. The AI generates a descriptive search query, embeds it, and finds similar content via pgvector.
-
-**Similar Content**: Uses an AI-powered approach where GPT generates a specific description of what makes a title unique, then embeds that description to find truly similar content.
-
-### Conversation Persistence
-
-Conversations are stored in PostgreSQL:
-
-- `assistant_conversations` — Conversation metadata (title, timestamps)
-- `assistant_messages` — Individual messages with role, content, and tool invocations
-- `assistant_suggestions` — Pre-generated personalized prompts per user
-
-Messages include serialized tool invocations so historical conversations display with their original results.
+See [Encore design and behavior](encore-rebuild.md), [MCP permissions](encore-mcp.md), [mobile behavior](mobile-app.md), and [runtime schema policy](schema-compliance.md).
 
 ---
 
@@ -407,3 +361,7 @@ Key tables:
 - `assistant_messages` — Messages within conversations (with tool invocations)
 - `assistant_suggestions` — Personalized conversation starter prompts
 
+
+## Generated output and Emby workload
+
+Publishing stages authorized output and reconciles it into generated libraries, preserving unchanged file identities/timestamps. Emby TV symlinks target verified individual episodes. Managed output uses paced targeted refreshes; Emby-heavy jobs share a serialized queue and provider requests have concurrency limits and deadlines. Source-library settings remain separate. See [output compatibility](admin/output-format.md) and [job scheduling](admin/job-scheduling.md).

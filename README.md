@@ -70,6 +70,11 @@ Use your Emby/Jellyfin admin credentials to access Aperture.
 
 ## Updating
 
+Stable `:latest` currently publishes **1.0.1**. This development branch prepares **1.0.2-dev.1**, which updates output compatibility guidance and documentation. Choose `ghcr.io/dgruhin-hrizn/aperture:dev` to test a published development build, or pin a published version. Changing branches or restarting an existing container does not pull a new image.
+
+Back up PostgreSQL and uploaded artwork, keep the existing database/mounts, pull the selected app image and recreate the app container. Refresh the page and check `/health` for the version and database connection. Supplied production configurations apply pending migrations at startup.
+
+
 ```bash
 docker-compose -f docker-compose.[your-platform].yml pull
 docker-compose -f docker-compose.[your-platform].yml up -d
@@ -82,8 +87,8 @@ docker-compose -f docker-compose.[your-platform].yml up -d
 ### AI Recommendations
 
 - **Personalized Libraries** — Creates dedicated "AI Picks" libraries for each user
-- **OpenAI Embeddings** — Semantic vectors for all your media
-- **pgvector Similarity** — Lightning-fast vector similarity search
+- **Configurable Embeddings** — Semantic vectors for all your media
+- **pgvector Similarity** — Vector similarity retrieval
 - **Configurable Algorithm** — Tune weights for similarity, novelty, rating, and diversity
 
 ### Media Support
@@ -101,7 +106,7 @@ docker-compose -f docker-compose.[your-platform].yml up -d
 ### Personalization
 
 - **AI Taste Profiles** — Natural language descriptions of user preferences
-- **Match Scores** — Personalized percentage scores showing recommendation fit
+- **Match Scores** — Ranking signals for recommendation fit, not a calibrated probability of enjoyment
 - **Recommendation Insights** — Detailed breakdown of why each title was recommended
 
 ### Top Picks (Global)
@@ -110,15 +115,21 @@ docker-compose -f docker-compose.[your-platform].yml up -d
 - **Multiple Output Modes** — Libraries, Collections, and/or Playlists
 - **Rank Badges** — Gold, silver, bronze badges for top 3 on posters
 
+### Output compatibility
+
+Generated libraries can use STRM pointers or symlinks. Choose according to the media-server deployment and output storage; symlinks are not universally recommended. Native Windows Emby with Aperture in Linux Docker should use STRM. FAT32/exFAT output cannot store native symlinks. Original media can be on another filesystem if its target remains readable. Neither format guarantees Direct Play.
+
+Read [output formats and compatibility](docs/admin/output-format.md) and [file locations](docs/admin/file-locations.md). The dev build adds shared guidance and compatibility checks at setup and output settings. A successful filesystem check still needs an actual movie/episode playback test.
+
 ### Symlinks & Artwork
 
-- **Full Artwork Preservation** — Symlinks banner.jpg, clearlogo.png, landscape.jpg, and more
-- **Smart Subtitle Handling** — Subtitles are symlinked and renamed to match video files
+- **Source Artwork Links** — Symlinks banner.jpg, clearlogo.png, landscape.jpg, and more
+- **Optional Subtitle Sidecars** — Accessible supported sidecars can be linked and renamed; source mounts and symlink support are required
 - **Custom NFOs** — Aperture generates NFOs with AI explanations while preserving original artwork
 
 ### Backup & Restore
 
-- **Automatic Daily Backups** — Database backed up at 1 AM (configurable)
+- **Automatic Daily Backups** — Database backed up at 2 AM (configurable)
 - **Restore During Setup** — Restore from backup when setting up a new instance
 - **Admin Panel Restore** — Restore from the Admin → Settings → System tab
 - **Configurable Retention** — Set how many backups to keep
@@ -127,6 +138,7 @@ docker-compose -f docker-compose.[your-platform].yml up -d
 
 - **Setup Wizard** — Guided first-time configuration
 - **Job Management** — Real-time progress, scheduling, and history
+- **Encore Workspace** — Conversations, memory, watch plans, approved Emby playlist actions, MCP connections and opt-in recurring curation
 - **Configurable Schedules** — All job schedules adjustable via Admin → Jobs
 - **User Management** — Per-user recommendation settings
 - **Cost Estimator** — Built-in OpenAI API cost estimation
@@ -173,7 +185,7 @@ All schedules are configurable in **Admin → Jobs**.
 
 - **Backend**: Fastify, TypeScript, PostgreSQL, pgvector
 - **Frontend**: React, Vite, MUI, React Router
-- **AI**: OpenAI Embeddings & GPT models
+- **AI**: Configurable embedding and language providers, with shared Encore tools
 - **Infrastructure**: Docker, pnpm workspaces
 
 ---

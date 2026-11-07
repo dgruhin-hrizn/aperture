@@ -149,8 +149,8 @@ When using Libraries:
 
 | Option | Best For |
 |--------|----------|
-| **STRM** | Universal compatibility |
-| **Symlinks** | Same filesystem setups |
+| **STRM** | Server-readable paths/URLs; useful for native Windows media servers |
+| **Symlinks** | Compatible output storage and server-resolvable target paths |
 
 ### Naming
 
@@ -250,3 +250,5 @@ This data comes from your server regardless of popularity source.
 ---
 
 **Previous:** [Algorithm Tuning](algorithm-tuning.md) | **Next:** [Shows You Watch Configuration](shows-you-watch.md)
+
+Generated library formats share the [output compatibility requirements](output-format.md). Collections and playlists reference original items; they do not use these file-format controls. In the dev build, use Check output compatibility to verify saved paths and selected generated-library formats.

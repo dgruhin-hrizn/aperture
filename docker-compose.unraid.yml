@@ -93,7 +93,7 @@ services:
       # ─────────────────────────────────────────────────────────────────────────
       # VOLUME 2: Database Backups
       # ─────────────────────────────────────────────────────────────────────────
-      # Automatic database backups are stored here. Daily backups run at 1 AM.
+      # Automatic database backups are stored here. Daily backups run at 2 AM.
       # Keep this on a reliable storage location, ideally separate from the
       # database volume for disaster recovery.
       #

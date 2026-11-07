@@ -226,7 +226,7 @@ Create database backup.
 
 ### When to Run
 
-- **Scheduled:** Daily at 1 AM
+- **Scheduled:** Daily at 2 AM
 - **Manual:** Before major changes
 - **Prerequisites:** Backup volume mounted
 
