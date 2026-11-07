@@ -2,6 +2,7 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { WorkQueue } from '../../lib/workQueue.js'
 import type { EmbyProviderBase } from './base.js'
 import type { EmbyLibrary, EmbyLibraryResponse } from './types.js'
+import { EmbyHttpError } from './fetchHelpers.js'
 
 interface ServerRefreshState {
   queue: WorkQueue
@@ -59,7 +60,9 @@ export async function queueLibraryRefresh(
     } catch (err) {
       // A stalled server should receive fewer requests, not one full timeout
       // for every remaining user's library in the same publishing run.
-      server.blockedUntil = Date.now() + 60_000
+      if (!(err instanceof EmbyHttpError && err.status === 404)) {
+        server.blockedUntil = Date.now() + 60_000
+      }
       throw err
     }
   })

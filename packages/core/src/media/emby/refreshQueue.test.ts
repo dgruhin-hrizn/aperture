@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { EmbyProviderBase } from './base.js'
 import { queueLibraryRefresh } from './refreshQueue.js'
+import { EmbyHttpError } from './fetchHelpers.js'
 
 test('paces refreshes across instances and waits for reported active scans', async (t) => {
   const providers = [
@@ -37,4 +38,15 @@ test('stops repeated refresh submissions after a server failure', async (t) => {
   await assert.rejects(queueLibraryRefresh(provider, 'fixture', 'one'), /Emby unavailable/)
   await assert.rejects(queueLibraryRefresh(provider, 'fixture', 'two'), /temporarily deferred/)
   assert.equal(posts, 1)
+})
+
+test('a deleted library does not defer other users library refreshes', async (t) => {
+  const provider = new EmbyProviderBase('http://missing-library-refresh.test')
+  t.mock.method(provider, 'fetch', async (endpoint: string) => {
+    if (endpoint === '/Library/VirtualFolders') return []
+    if (endpoint === '/Items/deleted/Refresh') throw new EmbyHttpError(404, 'Not Found', '')
+    return {}
+  })
+  await assert.rejects(queueLibraryRefresh(provider, 'fixture', 'deleted'), { status: 404 })
+  await queueLibraryRefresh(provider, 'fixture', 'existing')
 })
