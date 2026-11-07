@@ -51,7 +51,14 @@ export async function queueLibraryRefresh(
     try {
       await sleep(Math.max(0, server.nextRequestAt - Date.now()))
       await waitForIdle()
-      await provider.fetch(`/Items/${encodeURIComponent(libraryId)}/Refresh`, apiKey, {
+      const options = new URLSearchParams({
+        Recursive: 'true',
+        MetadataRefreshMode: 'Default',
+        ImageRefreshMode: 'Default',
+        ReplaceAllMetadata: 'false',
+        ReplaceAllImages: 'false',
+      })
+      await provider.fetch(`/Items/${encodeURIComponent(libraryId)}/Refresh?${options}`, apiKey, {
         method: 'POST',
       })
       server.nextRequestAt = Date.now() + REFRESH_GAP_MS

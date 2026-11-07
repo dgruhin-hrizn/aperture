@@ -16,6 +16,11 @@ test('paces refreshes across instances and waits for reported active scans', asy
       if (endpoint === '/Library/VirtualFolders') {
         return [{ ItemId: 'one', RefreshStatus: busyReads-- > 0 ? 'Running' : undefined }]
       }
+      const options = new URL(endpoint, provider.baseUrl).searchParams
+      assert.equal(options.get('Recursive'), 'true')
+      assert.equal(options.get('MetadataRefreshMode'), 'Default')
+      assert.equal(options.get('ReplaceAllMetadata'), 'false')
+      assert.equal(options.get('ReplaceAllImages'), 'false')
       posts.push(Date.now())
       return {}
     })
@@ -44,7 +49,7 @@ test('a deleted library does not defer other users library refreshes', async (t)
   const provider = new EmbyProviderBase('http://missing-library-refresh.test')
   t.mock.method(provider, 'fetch', async (endpoint: string) => {
     if (endpoint === '/Library/VirtualFolders') return []
-    if (endpoint === '/Items/deleted/Refresh') throw new EmbyHttpError(404, 'Not Found', '')
+    if (endpoint.startsWith('/Items/deleted/Refresh?')) throw new EmbyHttpError(404, 'Not Found', '')
     return {}
   })
   await assert.rejects(queueLibraryRefresh(provider, 'fixture', 'deleted'), { status: 404 })
