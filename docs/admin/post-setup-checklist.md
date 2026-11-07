@@ -200,7 +200,7 @@ Navigate to **Admin → Jobs**
 
 | Job | Recommended Schedule |
 |-----|---------------------|
-| Database Backup | Daily at 1 AM |
+| Database Backup | Daily at 2 AM |
 | Sync Movies/Series | Daily at 2 AM |
 | Watch History Sync | Every 2 hours |
 | Embeddings | Daily at 3 AM |

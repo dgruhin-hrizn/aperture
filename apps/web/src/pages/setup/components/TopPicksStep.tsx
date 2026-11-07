@@ -107,6 +107,10 @@ export function TopPicksStep({ wizard }: TopPicksStepProps) {
           {error}
         </Alert>
       )}
+      {error && wizard.validationResult?.checks.filter(check => check.status === 'failed').map(check => (
+        <Alert key={check.id} severity="error" sx={{ mb: 1 }}>{check.name}: {check.description} {check.suggestion}</Alert>
+      ))}
+
 
       {/* Enable Toggle Card */}
       <Card variant="outlined" sx={{ mb: 3 }}>

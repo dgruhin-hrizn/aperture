@@ -44,11 +44,11 @@ Aperture requires **2-3 volume mounts** depending on your setup:
 
 The recommended setup is to create the ApertureLibraries folder **inside** your existing media share.
 
-> **Note**: In STRM mode (required for Windows Docker Desktop), Aperture reads media paths from your media server's API and doesn't need direct filesystem access to your media files.
+> **Note**: In STRM mode (recommended for Linux Docker with a native Windows media server), Aperture reads media paths from your media server's API and doesn't need direct filesystem access to your media files.
 
 ### Why Inside Your Media Share?
 
-When you create `ApertureLibraries` inside your existing media share (e.g., `/mnt/user/Media/ApertureLibraries`), your media server (Emby/Jellyfin) can already see it through its existing mount. **No extra configuration needed in your media server!**
+When you create `ApertureLibraries` inside your existing media share (e.g., `/mnt/user/Media/ApertureLibraries`), your media server (Emby/Jellyfin) can already see it through its existing mount. **Verify the folder is exposed at the configured media-server path.**
 
 ### Folder Structure
 
@@ -243,7 +243,7 @@ Aperture automatically backs up the database daily. Backups are stored in the `/
 
 ### Automatic Backups
 
-- **Default Schedule**: Daily at 1 AM (configurable in Admin → Jobs)
+- **Default Schedule**: Daily at 2 AM (configurable in Admin → Jobs)
 - **Retention**: Keeps the last 7 backups by default (configurable)
 - **Format**: Compressed PostgreSQL dump (`.sql.gz`)
 
@@ -280,42 +280,15 @@ volumes:
 
 Aperture can create recommendation libraries using either **symlinks** or **STRM files**:
 
-### Symlinks (Recommended)
+Choose STRM or symlinks according to the media-server environment and the filesystem holding generated output. Both reference existing videos; neither guarantees Direct Play or changes picture quality.
 
-- Creates direct filesystem links to your original media files
-- Preserves all metadata and quality
-- Best playback experience - no transcoding overhead
-- **Requires**: Shared filesystem access between Aperture and media server
+- STRM stores the original media-server path or a supported direct media URL. The media server must read the output and resolve the destination using its service credentials.
+- Symlinks require compatible generated-output storage and media-server target paths. They can cross disks/filesystems. Optional Aperture source mappings need not use the same path as Emby.
+- Use STRM for Linux Aperture containers with native Windows media servers. Windows/macOS hosts running two Linux containers require checking the actual exposed storage and mounts.
+- FAT32/exFAT output cannot store native symlinks. Original videos on such a disk are a different case: links on compatible output can point to readable originals.
+- NAS/SMB/NFS and NTFS/APFS through Docker or filesystem drivers require checking creation and server-side resolution.
 
-### STRM Files
-
-- Small text files containing streaming URLs
-- Works when symlinks aren't possible (different filesystems, network shares)
-- May require transcoding depending on setup
-
-### Folder Structure with Symlinks
-
-```
-ApertureLibraries/
-├── aperture/                         ← AI Movie recommendations
-│   └── JohnDoe_abc123/               ← Per-user folders
-│       ├── Inception (2010)/
-│       │   ├── Inception (2010).mkv  → symlink to original
-│       │   ├── Inception (2010).nfo  ← custom (with AI explanation)
-│       │   ├── poster.jpg            ← custom (with rank badge)
-│       │   └── fanart.jpg            → symlink
-│       └── ...
-├── aperture-tv/                      ← AI Series recommendations
-│   └── JohnDoe_abc123/
-│       └── Breaking Bad (2008)/
-│           ├── tvshow.nfo            ← custom
-│           ├── poster.jpg            ← custom (with rank badge)
-│           ├── Season 01/            → symlink to original season
-│           └── ...
-├── aperture-watching/                ← "Shows You Watch" libraries
-├── top-picks-movies/                 ← Trending movies
-└── top-picks-series/                 ← Trending series
-```
+See [Output formats and compatibility](admin/output-format.md) for deployment examples, external subtitles/sidecars, the dev compatibility checks and testing playback. See [File locations](admin/file-locations.md) for path configuration.
 
 ---
 

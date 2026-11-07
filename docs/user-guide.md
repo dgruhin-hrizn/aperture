@@ -1,6 +1,6 @@
 # Aperture User Guide
 
-Welcome to Aperture! This guide covers all features available to users.
+This is the user documentation index. Start with Encore, Library or Discover. On phones, the dock links Discover, Library, Encore, Watching and You; account and administrative tools appear under You according to your permissions. See the [mobile guide](mobile-app.md) and [Encore guide](encore-rebuild.md).
 
 ---
 
@@ -17,7 +17,7 @@ Before users can access Aperture, an administrator must complete the initial set
 Start here if you're new to Aperture.
 
 1. [Logging In](features/logging-in.md) - Authentication with your media server credentials
-2. [Dashboard Overview](features/dashboard.md) - Your personalized home screen
+2. [Dashboard Overview](features/dashboard.md) - Statistics and saved activity overview
 3. [Global Search](features/global-search.md) - Find content across your library
 
 ---
@@ -78,7 +78,7 @@ Manage your viewing and create collections.
 
 Get help finding content through conversation.
 
-21. [Encore Chatbot](features/ai-assistant.md) - Natural language content discovery
+21. [Encore workspace](features/ai-assistant.md) - Natural language content discovery
 
 ---
 
@@ -123,4 +123,4 @@ Interface customization options.
 | Create a collection | [Playlists](features/playlists.md) |
 | Explore similar content | [Explore](features/explore.md) or [Similarity Graphs](features/similarity-graphs.md) |
 | Customize my recommendations | [AI Algorithm](features/user-settings/ai-algorithm.md) |
-| Ask for help finding content | [Encore Chatbot](features/ai-assistant.md) |
+| Ask for help finding content | [Encore workspace](features/ai-assistant.md) |

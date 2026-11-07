@@ -1,251 +1,28 @@
-# File Locations Configuration
+# File locations and path mapping
 
-Configure path mappings between Aperture and your media server for symlinks and STRM files to work correctly.
+Configure paths during setup or in the media-server settings. These are paths seen by applications, not necessarily paths on the Docker host.
 
-![Admin Settings - Media Server](../images/admin/admin-settings-setup-media.png)
+## Two mappings
 
-## Accessing Settings
+1. **Aperture Libraries Path**: where the media server sees the folder that Aperture mounts at `/aperture-libraries`. Both must refer to the same physical output storage. Aperture writes here; the media server reads here.
+2. **Media Server Path Prefix**: the original-media prefix seen by the server, mapped into Aperture's optional `/media/` mount. This is used when reading original artwork and sidecars. Generated pointers retain the original server paths.
 
-Navigate to **Admin → Settings → Setup → Media Server** (File Locations section)
+Example: Emby sees `/mnt/Movies/Example/Example.mkv`, while Aperture sees `/media/Movies/Example/Example.mkv`. The prefix is `/mnt/`. If the host output folder is `/mnt/user/Media/ApertureLibraries` and Emby mounts `/mnt/user/Media` at `/mnt`, set the output path to `/mnt/ApertureLibraries`.
 
----
+Do not copy `/mnt/user/...` or `/volume1/...` from a host example unless that is also the path inside your media-server process/container. A media server on another machine needs its own working share mount or accessible path to the same output.
 
-## Why Path Mapping Matters
+## Auto-detection
 
-Aperture and your media server may see files at different paths:
+Auto-detection compares catalog paths with Aperture's readable source mount. It can fail before catalog import, without a source mount, or with unrelated roots/multiple mappings. Different underlying filesystems are not inherently a problem. Configure paths manually when detection is unavailable.
 
-```
-Media Server sees:     /mnt/Movies/Inception.mkv
-Aperture sees:         /media/Movies/Inception.mkv
-```
+## Windows
 
-When Aperture creates symlinks, it needs to write paths that the **media server** understands, not paths that Aperture uses internally.
+For Aperture in Linux Docker with native Windows Emby, select STRM for movies and TV. Set the output path to the Windows location, such as `C:\ApertureLibraries`, and use original paths that the Emby service can read. Desktop drive mappings and service accounts may differ. See the [Windows guide](windows-docker-desktop.md).
 
----
+If both applications use Linux containers, use their container paths and verify the exposed filesystem rather than inferring compatibility from the Windows/macOS host.
 
-## Configuration Options
+## Verification
 
-### Aperture Libraries Path
+In 1.0.2-dev.1, save paths and run **Check output compatibility**. Local output writing, local symlink creation and Emby-side path visibility are separate checks. Missing optional source access is a warning. A successful directory check does not verify playback: publish one movie and episode, then test them in the media server.
 
-Where your **media server** sees Aperture's output folder.
-
-| Your Setup | Value |
-|------------|-------|
-| Standard Docker | `/mnt/ApertureLibraries/` |
-| Synology | `/volume1/docker/aperture/libraries/` |
-| Unraid | `/mnt/user/ApertureLibraries/` |
-
-This is the path the media server uses to access the folder where Aperture creates STRM files and symlinks.
-
-### Media Server Path Prefix
-
-The base path prefix for media files as seen by your media server.
-
-| Your Setup | Value |
-|------------|-------|
-| Standard Docker | `/mnt/` |
-| Synology | `/volume1/` |
-| Unraid | `/mnt/user/` |
-
-Aperture uses this to translate its internal paths to media server paths.
-
----
-
-## Auto-Detection
-
-The easiest way to configure paths:
-
-1. Click **Auto-Detect Paths**
-2. Aperture fetches a sample file path from your media server
-3. Compares it to how Aperture sees the same file
-4. Calculates the correct prefix mapping
-
-### When Auto-Detection Works
-
-- You have movies synced in Aperture
-- Both Aperture and media server can access the same files
-- Paths differ only by a prefix
-
-### When Auto-Detection Fails
-
-- No content synced yet
-- Files are on different filesystems
-- Complex path mappings needed
-
-In these cases, configure manually.
-
----
-
-## Manual Configuration
-
-### Step 1: Identify Media Server Path
-
-Find how your media server sees a movie file:
-1. Open media server web UI
-2. Go to any movie's info/details
-3. Look for "Path" in the metadata
-
-Example: `/mnt/Movies/Inception (2010)/Inception.mkv`
-
-### Step 2: Identify Aperture Path
-
-Find how Aperture sees the same file:
-1. Check your Docker volume mounts
-2. The path inside the container
-
-Example: `/media/Movies/Inception (2010)/Inception.mkv`
-
-### Step 3: Calculate Mapping
-
-Compare the two paths:
-- Media server: `/mnt/Movies/...`
-- Aperture: `/media/Movies/...`
-
-The prefix mapping:
-- Aperture `/media/` → Media server `/mnt/`
-
----
-
-## Common Configurations
-
-### Unraid
-
-Most Unraid users:
-
-```
-Aperture Libraries Path: /mnt/ApertureLibraries/
-Media Server Path Prefix: /mnt/
-```
-
-Docker volumes:
-```yaml
-volumes:
-  - /mnt/user/appdata/aperture:/data
-  - /mnt/user/ApertureLibraries:/aperture-libraries
-  - /mnt/user/Media:/media
-```
-
-### Synology NAS
-
-Typical Synology setup:
-
-```
-Aperture Libraries Path: /volume1/docker/aperture/libraries/
-Media Server Path Prefix: /volume1/
-```
-
-### Standard Docker
-
-If using standard paths:
-
-```
-Aperture Libraries Path: /data/ApertureLibraries/
-Media Server Path Prefix: /data/
-```
-
-### QNAP
-
-Typical QNAP setup:
-
-```
-Aperture Libraries Path: /share/Container/aperture/libraries/
-Media Server Path Prefix: /share/
-```
-
----
-
-## STRM vs Symlinks
-
-### STRM Files
-
-STRM files contain the path to the actual media:
-
-```
-/mnt/Movies/Inception (2010)/Inception.mkv
-```
-
-**Requirements:**
-- Path must be accessible to media server
-- Path mapping must be correct
-
-### Symlinks
-
-Symbolic links point directly to the original file:
-
-```
-ln -s /mnt/Movies/Inception.mkv /mnt/ApertureLibraries/ai-movies/Inception.strm
-```
-
-**Requirements:**
-- Same filesystem (or network mount)
-- Correct path mapping
-- Proper permissions
-
----
-
-## Troubleshooting
-
-### "Path does not exist" Errors
-
-**Cause:** Media server can't find the symlink target.
-
-**Fix:**
-1. Run auto-detection
-2. Check Docker volume mounts
-3. Verify paths match between containers
-
-### Symlinks Not Working
-
-**Check:**
-- Both containers share the same underlying filesystem
-- Path prefix matches exactly (including trailing slashes)
-- Permissions allow symlink creation
-
-**Alternative:** Use STRM files instead of symlinks.
-
-### Media Won't Play
-
-**Check:**
-1. Open the STRM file and check the path inside
-2. Verify that path exists from media server's perspective
-3. Test by manually navigating to that path
-
-### Auto-Detection Returns Wrong Path
-
-**Try:**
-1. Sync more content first
-2. Configure manually using the steps above
-3. Check Docker volume mount consistency
-
----
-
-## Validation
-
-### Test Your Configuration
-
-1. Run `sync-movie-libraries` job
-2. Check the output directory for created files
-3. Try playing a recommendation in your media server
-
-### Check STRM Contents
-
-```bash
-cat /path/to/aperture-libraries/ai-movies/SomeMovie.strm
-```
-
-The path inside should be valid from your media server's perspective.
-
----
-
-## Changing Configuration
-
-If you need to change path mappings:
-
-1. Update the settings
-2. Re-run library build jobs
-3. Files are regenerated with new paths
-4. Trigger media server library scan
-
----
-
-**Previous:** [Library Configuration](libraries.md) | **Next:** [Integrations Overview](integrations-overview.md)
+Read the [output-format guide](output-format.md) for the filesystem matrix, network-share limitations, sidecars, permissions and switching formats. Test after changing paths or mounts. Existing generated files change on the next publishing run, not immediately when a setting is saved.

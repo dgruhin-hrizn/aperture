@@ -1,6 +1,6 @@
 {
   "name": "@aperture/mcp",
-  "version": "1.0.1",
+  "version": "1.0.2-dev.1",
   "private": true,
   "type": "module",
   "bin": { "aperture-mcp": "./dist/aperture-mcp.mjs" },
