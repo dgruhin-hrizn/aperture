@@ -24,7 +24,7 @@ function Welcome() {
   const mobile = useMediaQuery(useTheme().breakpoints.down('md'))
   if (mobile) return <MobileWelcome />
   return (
-    <Box sx={{ maxWidth: 720, mx: 'auto', px: 2, py: { xs: 4, md: 8 } }}>
+    <Box sx={{ maxWidth: 760, mx: 'auto', px: { xs: 2, md: 3 }, py: { xs: 3, md: 4 } }}>
       <Typography variant="overline" color="primary.main" sx={{ letterSpacing: '.18em' }}>
         {t('encore.eyebrow')}
       </Typography>
@@ -36,12 +36,16 @@ function Welcome() {
           letterSpacing: '-.04em',
           my: 2,
           maxWidth: 580,
-          fontSize: { xs: 32, md: 44 },
+          fontSize: 'clamp(28px, 3vw, 40px)',
+          lineHeight: 1.15,
         }}
       >
         {t('encore.welcome')}
       </Typography>
-      <Typography color="text.secondary" sx={{ maxWidth: 540, lineHeight: 1.8, mb: 4 }}>
+      <Typography
+        color="text.secondary"
+        sx={{ maxWidth: 580, fontSize: 17, lineHeight: 1.6, mb: 3 }}
+      >
         {t('encore.intro')}
       </Typography>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
@@ -56,7 +60,10 @@ function Welcome() {
             sx={{
               justifyContent: 'flex-start',
               textAlign: 'start',
-              p: 2.5,
+              p: 2,
+              fontSize: 16,
+              fontWeight: 500,
+              minHeight: 80,
               borderColor: 'divider',
               borderRadius: 3,
               color: 'text.primary',
@@ -81,14 +88,14 @@ function UserMessage() {
           sx={{
             px: { xs: 1.75, md: 2.5 },
             py: { xs: 1.125, md: 1.5 },
-            fontSize: { xs: 16, md: 'inherit' },
-            lineHeight: { xs: 1.5, md: 'inherit' },
+            fontSize: { xs: 16, md: 17 },
+            lineHeight: 1.55,
             maxWidth: '85%',
             borderRadius: '22px 22px 5px 22px',
             bgcolor: 'primary.main',
             color: 'primary.contrastText',
             overflowWrap: 'anywhere',
-            '& p': { my: { xs: 0, md: undefined }, lineHeight: { xs: 'inherit', md: undefined } },
+            '& p': { m: 0, lineHeight: 'inherit' },
           }}
         >
           <MessagePrimitive.Content />
@@ -104,7 +111,7 @@ function AssistantMessage() {
       <Box sx={{ display: 'flex', gap: { xs: 0, md: 2 }, py: { xs: 1.25, md: 2 }, minWidth: 0 }}>
         <Box
           sx={{
-            display: { xs: 'none', md: 'block' },
+            display: 'none',
             width: 28,
             height: 28,
             flexShrink: 0,
@@ -123,8 +130,8 @@ function AssistantMessage() {
             gap: 1.5,
             overflowWrap: 'anywhere',
             '&& > *': { my: 0 },
-            fontSize: { xs: 16, md: 'inherit' },
-            lineHeight: { xs: 1.625, md: 'inherit' },
+            fontSize: { xs: 16, md: 17 },
+            lineHeight: 1.65,
           }}
         >
           <MessagePrimitive.Content
@@ -132,7 +139,8 @@ function AssistantMessage() {
               Text: ({ text }) => (
                 <Box
                   sx={{
-                    '& p': { lineHeight: { xs: 1.625, md: 1.85 }, m: 0 },
+                    '& p': { lineHeight: 1.65, m: 0 },
+                    '& p + p, & p + ul, & p + ol': { mt: 1.5 },
                     '& ol, & ul': { paddingInlineStart: { xs: '1.35em', md: undefined } },
                     '& li + li': { mt: { xs: 0.5, md: 0 } },
                     '& a': { color: 'primary.main' },
@@ -170,7 +178,7 @@ function Composer({ webSearch, reasoning }: ComposerControls) {
   return (
     <Box
       sx={{
-        px: { xs: 1.5, md: 4 },
+        px: { xs: 1.5, md: 2 },
         pt: 1,
         pb: { xs: 1, md: 2 },
         flexShrink: 0,
@@ -185,10 +193,11 @@ function Composer({ webSearch, reasoning }: ComposerControls) {
           variant="outlined"
           sx={{
             display: 'flex',
-            alignItems: 'flex-end',
-            gap: 1,
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 0.25,
             p: { xs: 1, md: 1.25 },
-            borderRadius: { xs: '32px', md: 4 },
+            borderRadius: '28px',
             bgcolor: { xs: 'background.paper', md: 'background.default' },
             '& textarea': { maxHeight: 144, overflowY: 'auto' },
             '&:focus-within': {
@@ -197,8 +206,6 @@ function Composer({ webSearch, reasoning }: ComposerControls) {
             },
           }}
         >
-          <WebSearchToggle {...webSearch} />
-          <ReasoningPresetMenu {...reasoning} />
           <ComposerPrimitive.Input
             placeholder={t(mobile ? 'encore.open' : 'encore.placeholder')}
             aria-label={t('encore.placeholder')}
@@ -206,6 +213,7 @@ function Composer({ webSearch, reasoning }: ComposerControls) {
             enterKeyHint="send"
             style={{
               width: '100%',
+              flexBasis: '100%',
               minWidth: 0,
               boxSizing: 'border-box',
               resize: 'none',
@@ -214,11 +222,15 @@ function Composer({ webSearch, reasoning }: ComposerControls) {
               outline: 'none',
               color: 'inherit',
               font: 'inherit',
-              padding: '10px 4px',
-              fontSize: 16,
+              padding: '10px 12px',
+              fontSize: mobile ? 16 : 17,
               lineHeight: '24px',
             }}
           />
+          <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, gap: 0.5 }}>
+            <WebSearchToggle {...webSearch} />
+            <ReasoningPresetMenu {...reasoning} />
+          </Box>
           <ThreadPrimitive.If running={false}>
             <ComposerPrimitive.Send asChild>
               <IconButton
@@ -272,7 +284,7 @@ export function Thread({ webSearch, reasoning }: ComposerControls) {
         <ThreadPrimitive.Empty>
           <Welcome />
         </ThreadPrimitive.Empty>
-        <Box sx={{ maxWidth: 850, mx: 'auto', px: { xs: 1.5, md: 4 }, py: { xs: 1, md: 2 } }}>
+        <Box sx={{ maxWidth: 800, mx: 'auto', px: { xs: 1.5, md: 3 }, py: { xs: 1, md: 2 } }}>
           <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
           <ThreadPrimitive.If running>
             <Typography variant="caption" color="text.secondary" role="status">

@@ -14,11 +14,11 @@ export function pathActive(pathname: string, path: string) {
   if (path === '/admin' && pathname.startsWith('/admin/gaps')) return false
   return pathname === path || pathname.startsWith(path + '/')
 }
-export function isEncoreLocation(pathname: string, mobile: boolean) {
-  return pathname === '/encore' || (mobile && pathname === '/')
+export function isEncoreLocation(pathname: string) {
+  return pathname === '/encore'
 }
 export function mobileDestination(pathname: string, watchingEnabled: boolean) {
-  if (isEncoreLocation(pathname, true)) return 'encore'
+  if (isEncoreLocation(pathname)) return 'encore'
   if (['/discovery', '/explore', '/top-picks'].some((path) => pathActive(pathname, path)))
     return 'discover'
   if (

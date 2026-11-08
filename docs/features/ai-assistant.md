@@ -1,6 +1,6 @@
 # Encore
 
-Encore is Aperture's media assistant and workspace. Open **Encore** from navigation. On phones, the center dock button opens Encore; Home Screen launches also open its standalone workspace where supported.
+Encore is Aperture's chat agent. Open it from the floating button or navigation while browsing any page. On phones, use the center dock button. Encore opens over the current page and can expand into a larger modal on desktop. Closing and reopening it retains the current conversation and draft. History and the workspace menu provide saved chats, memory, watch plans, collections, curation and connections.
 
 ## Start with a question
 

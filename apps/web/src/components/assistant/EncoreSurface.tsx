@@ -1,39 +1,65 @@
-import { lazy, Suspense, useState, useEffect } from 'react'
-import { Box, CircularProgress, Fab, Tooltip } from '@mui/material'
+import { lazy, Suspense, useEffect, useState } from 'react'
+import { Box, CircularProgress, Dialog, Fab, Tooltip, useMediaQuery, useTheme } from '@mui/material'
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
-import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useEncore } from './encoreContext'
 const EncoreWorkspace = lazy(() => import('./EncoreWorkspace'))
-/** One account-scoped runtime survives navigation; hidden transcripts never enter the accessibility tree. */
+
+/** Keep one account-scoped agent mounted while its panel opens, expands and closes. */
 export function EncoreSurface({
-  visible,
   mobile,
   onRunningChange,
 }: {
-  visible: boolean
   mobile: boolean
   onRunningChange: (running: boolean) => void
 }) {
-  const { t } = useTranslation(),
-    [visited, setVisited] = useState(visible)
+  const { t } = useTranslation()
+  const { open, openEncore, closeEncore } = useEncore()
+  const [visited, setVisited] = useState(open)
   useEffect(() => {
-    if (visible) setVisited(true)
-  }, [visible])
+    if (open) setVisited(true)
+  }, [open])
+  const [expanded, setExpanded] = useState(false)
+  const shortViewport = useMediaQuery('(max-height: 600px)')
+  const rtl = useTheme().direction === 'rtl'
   return (
     <>
-      {(visited || visible) && (
-        <Box
-          hidden={!visible}
-          aria-label="Encore"
+      {(visited || open) && (
+        <Dialog
+          open={open}
+          onClose={closeEncore}
+          keepMounted
+          maxWidth={false}
+          aria-labelledby="encore-agent-title"
           sx={{
-            display: visible ? 'flex' : 'none',
-            flexDirection: 'column',
-            minHeight: 0,
-            height: '100%',
-            borderRadius: { xs: 0, md: 4 },
-            overflow: 'hidden',
-            border: { md: '1px solid' },
-            borderColor: 'divider',
+            '& .MuiDialog-container': {
+              alignItems: mobile ? 'flex-end' : expanded ? 'center' : 'flex-end',
+              justifyContent: mobile || expanded ? 'center' : rtl ? 'flex-start' : 'flex-end',
+            },
+          }}
+          slotProps={{
+            backdrop: { sx: { bgcolor: 'rgba(0, 0, 0, .28)' } },
+            paper: {
+              sx: {
+                m: { xs: 1, md: expanded ? 3 : 2 },
+                width: { xs: 'calc(100% - 16px)', md: expanded ? 1120 : 480 },
+                maxWidth: { xs: 'calc(100% - 16px)', md: 'calc(100% - 48px)' },
+                height: mobile
+                  ? shortViewport
+                    ? 'calc(var(--ap-viewport-height, 100dvh) - 16px)'
+                    : 'min(88dvh, calc(var(--ap-viewport-height, 100dvh) - 24px))'
+                  : expanded
+                    ? 'min(860px, calc(100dvh - 48px))'
+                    : 'min(780px, calc(100dvh - 96px))',
+                border: 0,
+                borderRadius: { xs: '24px', md: '28px' },
+                overflow: 'hidden',
+                backgroundImage: 'none',
+                containerType: 'inline-size',
+                containerName: 'encore-agent',
+                boxShadow: '0 24px 80px rgba(0, 0, 0, .3)',
+              },
+            },
           }}
         >
           <Suspense
@@ -43,15 +69,18 @@ export function EncoreSurface({
               </Box>
             }
           >
-            <EncoreWorkspace onRunningChange={onRunningChange} />
+            <EncoreWorkspace
+              expanded={!mobile && expanded}
+              onExpand={!mobile ? () => setExpanded(!expanded) : undefined}
+              onRunningChange={onRunningChange}
+            />
           </Suspense>
-        </Box>
+        </Dialog>
       )}
-      {!mobile && !visible && (
+      {!mobile && !open && (
         <Tooltip title={t('encore.open')}>
           <Fab
-            component={Link}
-            to="/encore"
+            onClick={() => openEncore('chat')}
             aria-label={t('encore.open')}
             color="primary"
             sx={{
@@ -59,7 +88,7 @@ export function EncoreSurface({
               bottom: 24,
               insetInlineEnd: 24,
               zIndex: 1200,
-              borderRadius: 3,
+              borderRadius: '50%',
             }}
           >
             <AutoAwesomeOutlinedIcon />

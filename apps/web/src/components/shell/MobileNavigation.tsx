@@ -2,6 +2,7 @@ import { Badge, Box, ButtonBase, alpha, useTheme } from '@mui/material'
 import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { mobileDestination } from './navigation'
+import { useEncore } from '../assistant/encoreContext'
 import { MobileNavIcon } from './MobileNavIcon'
 
 export function MobileNavigation({
@@ -11,6 +12,7 @@ export function MobileNavigation({
   watchingEnabled: boolean
   running: boolean
 }) {
+  const agent = useEncore()
   const { t } = useTranslation(),
     theme = useTheme(),
     { pathname } = useLocation(),
@@ -65,15 +67,21 @@ export function MobileNavigation({
         }}
       >
         {destinations.map((item) => {
-          const active = selected === item.id,
+          const active = item.id === 'encore' ? agent.open : selected === item.id,
             encore = item.id === 'encore'
           return (
             <ButtonBase
               key={item.id}
-              component={Link}
-              to={item.path}
+              {...(encore
+                ? {
+                    component: 'button',
+                    onClick: () => agent.openEncore('chat'),
+                    'aria-pressed': agent.open,
+                    'aria-haspopup': 'dialog' as const,
+                  }
+                : { component: Link, to: item.path })}
               disableRipple
-              aria-current={active ? 'page' : undefined}
+              aria-current={!encore && active ? 'page' : undefined}
               aria-label={encore && running ? t('mobile.encoreWorking') : item.label}
               sx={
                 encore
@@ -86,7 +94,12 @@ export function MobileNavigation({
                       transform: { xs: 'translateY(-9px)', sm: 'translateY(-14px)' },
                       boxShadow: `0 6px 24px ${alpha(theme.palette.primary.main, active ? 0.22 : 0.12)}`,
                       transition: 'transform 160ms ease, box-shadow 160ms ease',
-                      '&:active': { transform: { xs: 'translateY(-7px) scale(.94)', sm: 'translateY(-12px) scale(.94)' } },
+                      '&:active': {
+                        transform: {
+                          xs: 'translateY(-7px) scale(.94)',
+                          sm: 'translateY(-12px) scale(.94)',
+                        },
+                      },
                       '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
                     }
                   : {
@@ -141,7 +154,10 @@ export function MobileNavigation({
                 <>
                   <MobileNavIcon
                     name={item.id}
-                    sx={{ fontSize: { xs: 21, sm: 24 }, color: active ? 'primary.main' : 'inherit' }}
+                    sx={{
+                      fontSize: { xs: 21, sm: 24 },
+                      color: active ? 'primary.main' : 'inherit',
+                    }}
                   />
                   <Box
                     component="span"

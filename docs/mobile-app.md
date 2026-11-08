@@ -1,23 +1,23 @@
 # Aperture mobile app shell
 
-Mobile opens into Encore, with five primary destinations at the bottom: Discover, Library, Encore, Watching and You. Encore is also directly addressable at `/encore`. Installable home-screen metadata launches that route in standalone mode where the browser supports it.
+The mobile dock offers Discover, Library, Encore, Watching and You. Its center Encore button opens the chat agent over your current page. The normal app landing is Dashboard. Existing `/encore` links and Home Screen launches open the agent over Dashboard.
 
 ## Everyday use
 
 - Start with Encore's four conversation starters: tonight's pick, viewing plans, upcoming releases or a collection.
 - Open history without leaving the conversation. Drafts and responses survive opening history, opening the workbench or switching primary destinations.
-- Use the workspace button for Memory, Watch Plans, Collections, Curation and Connections. Each section has a URL, such as `/encore?view=plans`, and a Back to conversation action.
+- Use the workspace button for Memory, Watch Plans, Collections, Curation and Connections. Sections open inside the agent. Existing links such as `/encore?view=plans` also open the selected section.
 - Browse while Encore works. Its bottom button shows an activity dot and an accessible working label until the response finishes. Navigation within the app preserves the runtime; reloading, signing out or switching accounts ends it normally.
 - You links to settings, appearance, Dashboard, Tonight, recommendations, playlists, history, requests and administrative screens when permitted. Existing settings remain in their canonical location.
 - If Shows You Watch is disabled, the fourth destination opens Picks. Tonight is available only for Emby users, as before.
 
 ## Interaction and layout
 
-The mobile shell owns the visible viewport, a compact header and a floating capsule dock. Four quiet, labelled destinations surround a raised circular Encore action. A shared set of line icons, a translucent surface and a fine rim give the dock its own shape without a full-width background strip or rectangular selection tiles. The Encore action retains its accessible name, current-page state and working indicator.
+The mobile shell owns the visible viewport, a compact header and a floating capsule dock. Four quiet, labelled destinations surround a raised circular Encore action. A shared set of line icons, a translucent surface and a fine rim give the dock its own shape without a full-width background strip or rectangular selection tiles. The Encore action retains its accessible name, open state and working indicator.
 
 The dock respects safe areas, has at least 44px touch targets and reserves room for the composer and page content. Its width is capped in landscape; reduced-motion preferences disable press transitions. The page pane scrolls independently; browser Back restores its prior scroll position. The Media Graph sizes itself to the available pane rather than extending beneath navigation.
 
-Mobile Encore tool results use the full transcript width, with the same side gutters as the composer. Recommendation carousels fit two complete cards across a phone and centre a single result. Paging controls sit above the artwork and disable at the ends. Card actions align even when titles or metadata differ. Desktop retains its assistant avatar column.
+Mobile Encore tool results use the full transcript width, with the same side gutters as the composer. Recommendation carousels fit two complete cards across a phone and centre a single result. Paging controls sit above the artwork and disable at the ends. Card actions align even when titles or metadata differ. Desktop chat uses the same readable transcript in the compact panel and expanded modal.
 
 Library filters scroll with mobile content rather than sticking over posters inside the page pane. People loading placeholders retain poster proportions; failed People reads offer an in-page retry. Posters load lazily and the media image proxy bounds upstream headers and bodies to eight seconds, cancelling abandoned requests. A slow or missing image can fall back without occupying browser connection slots indefinitely and holding up other reads.
 

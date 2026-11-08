@@ -6,7 +6,7 @@ Please fill out this questionnaire before posting a support request. This helps 
 
 ## 📋 Basic Information
 
-**Aperture Version:** (e.g., v1.0.2, shown in Admin → Dashboard or the container logs)
+**Aperture Version:** (e.g., v1.0.3, shown in Admin → Dashboard or the container logs)
 
 **Platform:**
 

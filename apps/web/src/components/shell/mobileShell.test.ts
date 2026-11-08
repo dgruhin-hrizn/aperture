@@ -8,12 +8,11 @@ import { useMobileViewport } from './useMobileViewport'
 import { usePaneScroll } from './usePaneScroll'
 import { browserFixture, wrap, tick } from '../../test/uiHarness'
 
-test('mobile destinations keep deep links, the Encore landing and disabled-feature fallback consistent', () => {
-  assert.ok(isEncoreLocation('/', true))
-  assert.ok(!isEncoreLocation('/', false))
-  assert.ok(isEncoreLocation('/encore', false))
+test('mobile destinations keep deep links, the agent launcher and disabled-feature fallback consistent', () => {
+  assert.ok(!isEncoreLocation('/'))
+  assert.ok(isEncoreLocation('/encore'))
   for (const [path, value] of [
-    ['/', 'encore'],
+    ['/', 'you'],
     ['/encore', 'encore'],
     ['/discovery', 'discover'],
     ['/top-picks/movies', 'discover'],

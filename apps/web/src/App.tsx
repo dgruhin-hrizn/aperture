@@ -47,11 +47,10 @@ const UserDetailPage = lazy(() => import('./pages/UserDetail').then(module => ({
 const JobsPage = lazy(() => import('./pages/jobs').then(module => ({ default: module.JobsPage })))
 const SettingsPage = lazy(() => import('./pages/settings').then(module => ({ default: module.SettingsPage })))
 const GapAnalysisPage = lazy(() => import('./pages/admin/GapAnalysisPage').then(module => ({ default: module.GapAnalysisPage })))
-import { Box, CircularProgress, useMediaQuery, useTheme } from '@mui/material'
+import { Box, CircularProgress } from '@mui/material'
 
 function IndexRoute(){
-  const mobile=useMediaQuery(useTheme().breakpoints.down('md'))
-  return mobile?<Navigate to="/encore" replace/>:<DashboardPage/>
+  return <DashboardPage/>
 }
 
 function SetupGuard({ children }: { children: React.ReactNode }) {
