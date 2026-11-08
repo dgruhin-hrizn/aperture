@@ -1,6 +1,6 @@
 # Aperture
 
-[![Version](https://img.shields.io/badge/version-1.0.2-blue.svg)](https://github.com/dgruhin-hrizn/aperture/releases)
+[![Version](https://img.shields.io/badge/version-1.0.3-blue.svg)](https://github.com/dgruhin-hrizn/aperture/releases)
 [![Docker Image](https://img.shields.io/badge/docker-ghcr.io%2Fdgruhin--hrizn%2Faperture-blue?logo=docker)](https://github.com/dgruhin-hrizn/aperture/pkgs/container/aperture)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 
@@ -70,7 +70,7 @@ Use your Emby/Jellyfin admin credentials to access Aperture.
 
 ## Updating
 
-Use `ghcr.io/dgruhin-hrizn/aperture:latest` for published stable releases, or pin this release with `ghcr.io/dgruhin-hrizn/aperture:1.0.2`. Use `:dev` only to follow published development builds. To switch channels, change the image tag before pulling and recreating the app. Changing branches or restarting an existing container does not pull a new image.
+Use `ghcr.io/dgruhin-hrizn/aperture:latest` for published stable releases, or pin this release with `ghcr.io/dgruhin-hrizn/aperture:1.0.3`. Use `:dev` only to follow published development builds. To switch channels, change the image tag before pulling and recreating the app. Changing branches or restarting an existing container does not pull a new image.
 
 Back up PostgreSQL and uploaded artwork, keep the existing database/mounts, pull the selected app image and recreate the app container. Refresh the page and check `/health` for the version and database connection. Supplied production configurations apply pending migrations at startup.
 
@@ -169,6 +169,7 @@ All schedules are configurable in **Admin → Jobs**.
 
 | Guide                                  | Description                                                  |
 | -------------------------------------- | ------------------------------------------------------------ |
+| [1.0.3 release notes](docs/release-notes/v1.0.3.md) | Encore chat agent overlay, readable conversations, and chat deletion fix |
 | [1.0.2 release notes](docs/release-notes/v1.0.2.md) | STRM/symlink guidance, output compatibility checks, and current documentation |
 | [1.0.1 release notes](docs/release-notes/v1.0.1.md) | Emby stability, accurate job schedules, search, recommendations, and Encore styles |
 | [1.0.0 release notes](docs/release-notes/v1.0.0.md) | Encore, mobile and Home Screen updates, and upgrade notes |

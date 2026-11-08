@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Alert,
   Box,
@@ -9,8 +8,6 @@ import {
   Typography,
   useMediaQuery,
   useTheme,
-  Tabs,
-  Tab,
 } from '@mui/material'
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined'
@@ -18,6 +15,9 @@ import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined'
 import AddCommentOutlinedIcon from '@mui/icons-material/AddCommentOutlined'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CloseIcon from '@mui/icons-material/Close'
+import OpenInFullOutlinedIcon from '@mui/icons-material/OpenInFullOutlined'
+import CloseFullscreenOutlinedIcon from '@mui/icons-material/CloseFullscreenOutlined'
+import { useEncore, type EncoreView } from './encoreContext'
 import { useTranslation } from 'react-i18next'
 import { MemoryPanel } from './MemoryPanel'
 import { PlansPanel } from './PlansPanel'
@@ -28,22 +28,23 @@ import { EncoreWorkspaceMenu } from './EncoreWorkspaceMenu'
 import { useConversations } from './hooks/useConversations'
 import { ConversationSidebar } from './ConversationSidebar'
 import { ChatSession } from './ChatSession'
-const views = ['chat', 'memory', 'plans', 'collections', 'curation', 'connections']
 export default function EncoreWorkspace({
   onRunningChange,
+  expanded = false,
+  onExpand,
 }: {
+  expanded?: boolean
+  onExpand?: () => void
   onRunningChange?: (running: boolean) => void
 }) {
   const { t } = useTranslation(),
     mobile = useMediaQuery(useTheme().breakpoints.down('md')),
-    navigate = useNavigate(),
-    [params] = useSearchParams()
-  const view = views.includes(params.get('view') ?? '') ? params.get('view')! : 'chat'
+    { view, selectView: setView, closeEncore } = useEncore()
   const [historyOpen, setHistoryOpen] = useState(false),
     [menuOpen, setMenuOpen] = useState(false),
     state = useConversations()
   function selectView(next: string) {
-    void navigate({ pathname: '/encore', search: next === 'chat' ? '' : `?view=${next}` })
+    setView(next as EncoreView)
   }
   const activeTitle =
     state.conversations.find((item) => item.id === state.active?.conversation.id)?.title ??
@@ -54,10 +55,12 @@ export default function EncoreWorkspace({
       activeId={state.active?.conversation.id}
       disabled={state.busy}
       onSelect={(id) => {
+        setView('chat')
         void state.select(id)
         setHistoryOpen(false)
       }}
       onCreate={() => {
+        setView('chat')
         void state.create()
         setHistoryOpen(false)
       }}
@@ -72,7 +75,12 @@ export default function EncoreWorkspace({
         flexDirection: 'column',
         height: '100%',
         minHeight: 0,
-        bgcolor: mobile ? 'background.default' : 'background.paper',
+        bgcolor: 'background.default',
+        '& .MuiTypography-body1': { fontSize: 16, lineHeight: 1.6 },
+        '& .MuiTypography-body2': { fontSize: { xs: 14, md: 15 }, lineHeight: 1.55 },
+        '& .MuiTypography-caption': { fontSize: 13, lineHeight: 1.5 },
+        '& .MuiButton-root': { fontSize: 14, minHeight: 44 },
+        '& .MuiIconButton-root': { width: 44, height: 44 },
       }}
     >
       <Box
@@ -80,11 +88,10 @@ export default function EncoreWorkspace({
           display: 'flex',
           alignItems: 'center',
           flexShrink: 0,
-          gap: 1,
+          gap: 0.5,
           px: { xs: 1.5, sm: 2, md: 3 },
-          pt: mobile ? { xs: 'calc(env(safe-area-inset-top, 0px) + 4px)', sm: 'calc(env(safe-area-inset-top, 0px) + 12px)' } : 2,
-          pb: mobile ? { xs: 0.5, sm: 1 } : 1.5,
-          borderBottom: mobile ? 0 : 1,
+          py: 1.5,
+          borderBottom: '1px solid',
           borderColor: 'divider',
         }}
       >
@@ -110,9 +117,11 @@ export default function EncoreWorkspace({
         )}
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography
-            component="h1"
+            component="h2"
+            id="encore-agent-title"
+            variant="h6"
             fontWeight={750}
-            fontSize={{ xs: 18, sm: mobile ? 22 : 24 }}
+            fontSize={22}
             letterSpacing="-.035em"
             lineHeight={1.2}
             noWrap
@@ -123,7 +132,7 @@ export default function EncoreWorkspace({
             variant="caption"
             color="text.secondary"
             noWrap
-            sx={{ display: 'block', fontSize: mobile ? 11 : 12, lineHeight: 1.4, mt: 0.25 }}
+            sx={{ display: 'block', fontSize: 13, lineHeight: 1.4, mt: 0.25 }}
           >
             {mobile
               ? view === 'chat' && activeTitle && activeTitle !== 'New Chat'
@@ -132,48 +141,38 @@ export default function EncoreWorkspace({
               : t('encore.subtitle')}
           </Typography>
         </Box>
-        {mobile && (
+        {(!expanded || view !== 'chat') && (
           <IconButton aria-label={t('encore.conversations')} onClick={() => setHistoryOpen(true)}>
             <HistoryOutlinedIcon />
           </IconButton>
         )}
-        {(view === 'chat' || !mobile) && (
+        {!mobile && (
           <IconButton
             aria-label={t('encore.newConversation')}
             disabled={state.busy}
-            onClick={() => void state.create()}
+            onClick={() => {
+              setView('chat')
+              void state.create()
+            }}
           >
             <AddCommentOutlinedIcon />
           </IconButton>
         )}
-        {mobile && (
-          <IconButton aria-label={t('mobile.workspace')} onClick={() => setMenuOpen(true)}>
-            <GridViewOutlinedIcon />
+        <IconButton aria-label={t('mobile.workspace')} onClick={() => setMenuOpen(true)}>
+          <GridViewOutlinedIcon />
+        </IconButton>
+        {onExpand && (
+          <IconButton
+            aria-label={t(expanded ? 'encore.collapseAgent' : 'encore.expandAgent')}
+            onClick={onExpand}
+          >
+            {expanded ? <CloseFullscreenOutlinedIcon /> : <OpenInFullOutlinedIcon />}
           </IconButton>
         )}
+        <IconButton aria-label={t('encore.closeAgent')} onClick={closeEncore}>
+          <CloseIcon />
+        </IconButton>
       </Box>
-      {!mobile && (
-        <Tabs
-          value={view}
-          onChange={(_e, value: string) => selectView(value)}
-          variant="scrollable"
-          scrollButtons="auto"
-          sx={{
-            px: 2,
-            borderBottom: 1,
-            borderColor: 'divider',
-            '& .MuiTab-root': { textTransform: 'none', fontWeight: 600 },
-          }}
-        >
-          {views.map((value) => (
-            <Tab
-              key={value}
-              value={value}
-              label={t(`encore.${value === 'chat' ? 'chat' : value}Tab`)}
-            />
-          ))}
-        </Tabs>
-      )}
       {state.error && <Alert severity="error">{state.error}</Alert>}
       {view === 'memory' && <MemoryPanel />}
       {view === 'plans' && <PlansPanel />}
@@ -189,7 +188,7 @@ export default function EncoreWorkspace({
           overflow: 'hidden',
         }}
       >
-        {!mobile && sidebar}
+        {expanded && sidebar}
         <Box sx={{ flex: 1, minWidth: 0, minHeight: 0 }}>
           {state.busy ? (
             <Box sx={{ height: '100%', display: 'grid', placeItems: 'center' }}>
@@ -211,22 +210,23 @@ export default function EncoreWorkspace({
         </Box>
       </Box>
       <EncoreWorkspaceMenu
-        open={mobile && menuOpen}
+        open={menuOpen}
         onClose={() => setMenuOpen(false)}
         view={view}
         onSelect={selectView}
       />
       <Drawer
-        anchor="bottom"
-        open={mobile && historyOpen}
+        sx={{ zIndex: (theme) => theme.zIndex.modal }}
+        anchor={mobile ? 'bottom' : 'right'}
+        open={historyOpen}
         onClose={() => setHistoryOpen(false)}
         PaperProps={{
           sx: {
-            borderRadius: '24px 24px 0 0',
-            width: '100%',
-            maxWidth: 600,
+            borderRadius: mobile ? '24px 24px 0 0' : 0,
+            width: mobile ? '100%' : 340,
+            maxWidth: '100%',
             mx: 'auto',
-            maxHeight: '85dvh',
+            maxHeight: mobile ? '85dvh' : '100%',
             pb: 'env(safe-area-inset-bottom, 0px)',
           },
         }}

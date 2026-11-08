@@ -1,7 +1,8 @@
 import { AppBar, Box, IconButton, Toolbar, Typography } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
-import { useLocation, useNavigate, Link } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useEncore } from '../assistant/encoreContext'
 import { GlobalSearch } from '../GlobalSearch'
 import { RunningJobsWidget } from '../RunningJobsWidget'
 import { ColorModeToggle } from '@/appearance/ColorModeToggle'
@@ -27,6 +28,7 @@ export function AppHeader({
   items: NavItem[]
   onWelcome: () => void
 }) {
+  const encore = useEncore()
   const { t } = useTranslation(),
     { pathname } = useLocation(),
     navigate = useNavigate()
@@ -78,14 +80,18 @@ export function AppHeader({
                 <ArrowBackIcon />
               </IconButton>
             ) : (
-              <Box
-                component={Link}
-                to="/encore"
+              <IconButton
+                onClick={() => encore.openEncore('chat')}
                 aria-label={t('encore.open')}
                 sx={{ display: 'grid', placeItems: 'center', width: 44, height: 44, ml: -1 }}
               >
-                <Box component="img" src="/aperture.svg" alt="" sx={{ width: { xs: 26, sm: 30 }, height: { xs: 26, sm: 30 } }} />
-              </Box>
+                <Box
+                  component="img"
+                  src="/aperture.svg"
+                  alt=""
+                  sx={{ width: { xs: 26, sm: 30 }, height: { xs: 26, sm: 30 } }}
+                />
+              </IconButton>
             )}
             <Typography
               component="h1"
